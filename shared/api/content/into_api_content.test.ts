@@ -4206,8 +4206,10 @@ describe("file block elements", () => {
         },
         getSearchTaskEntityDisplayStatusIfExists: () => undefined,
         getFileIfExists: () => ({
-            contentType: "image/png",
-            contentLength: 1024,
+            type: "Image",
+            isProcessing: true,
+            size: "Processing",
+            placeholder: "Processing",
         }),
     };
 

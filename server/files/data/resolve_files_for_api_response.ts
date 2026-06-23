@@ -6,7 +6,7 @@ import {
     ApiContentPreviewBlockElementResponse,
     ApiMessageContentPayloadFileResponse,
 } from "~/shared/api/specification/types/api_specification_convenience_types.js";
-import {fileRowMaxFileCount} from "~/shared/content/compute_file_row_widths.js";
+import {fileRowMaxFileCount} from "~/shared/content/compute_file_row_layout.js";
 import {FileContentType} from "~/shared/files/file_content_type.js";
 import {FileEntityId, isFileEntityId, parseFileEntityId} from "~/shared/files/file_entity_id.js";
 import {exhaustive} from "~/shared/helpers/control/exhaustive.js";

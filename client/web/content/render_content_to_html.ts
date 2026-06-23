@@ -259,8 +259,8 @@ export function renderContentFragmentToHtmlGeneratorStore(
         html.setAttribute(
             "style",
             [
-                `height: ${Math.max(...layouts.map(({height}) => height))}px`,
-                `grid-template-columns: ${layouts.map(({widthFr}) => `${widthFr}fr`).join(" ")}`,
+                `height: ${Math.max(...layouts.map(({height}) => height)).toFixed(3)}px`,
+                `grid-template-columns: ${layouts.map(({widthFr}) => `${widthFr.toFixed(6)}fr`).join(" ")}`,
             ].join("; "),
         );
 
@@ -457,7 +457,10 @@ export function renderContentFragmentToHtmlGeneratorStore(
 
                 html.setAttribute(
                     "style",
-                    [`width: ${layouts[0]!.width}px`, `height: ${layouts[0]!.height}px`].join("; "),
+                    [
+                        `width: ${layouts[0]!.width.toFixed(3)}px`,
+                        `height: ${layouts[0]!.height.toFixed(3)}px`,
+                    ].join("; "),
                 );
 
                 return {

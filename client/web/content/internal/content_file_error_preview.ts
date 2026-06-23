@@ -52,7 +52,7 @@ export function renderContentFileErrorPreview({
         `min-width: ${thirdOfBlockMaxWidth}px; transform: scale(${Math.min(
             1,
             layout.width / thirdOfBlockMaxWidth,
-        )})`,
+        ).toFixed(6)})`,
     );
 
     errorHtml.setAttribute(

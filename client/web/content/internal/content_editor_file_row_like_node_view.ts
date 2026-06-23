@@ -18,7 +18,7 @@ import {
     subscribeToSpacingScaleChange,
 } from "~/client/web/remix/spacing_scale_context.js";
 import {contentStyles} from "~/client/web/styles/styles.js";
-import {ContentFileLayout} from "~/shared/content/compute_file_row_widths.js";
+import {ContentFileLayout} from "~/shared/content/compute_file_row_layout.js";
 import {ContentTableMap} from "~/shared/content/table/content_table_map.js";
 import {convertRemLengthToPx} from "~/shared/design/core/spacing.js";
 import {SpacingScale} from "~/shared/design/core/spacing_scale.js";
@@ -164,9 +164,9 @@ export function createContentEditorFileRowLikeNodeViewConstructor({
                 if (lastLayouts !== layouts) {
                     lastLayouts = layouts;
 
-                    dom.style.height = `${Math.max(...layouts.map(({height}) => height))}px`;
+                    dom.style.height = `${Math.max(...layouts.map(({height}) => height)).toFixed(3)}px`;
                     dom.style.gridTemplateColumns = layouts
-                        .map(({widthFr}) => `${widthFr}fr`)
+                        .map(({widthFr}) => `${widthFr.toFixed(6)}fr`)
                         .join(" ");
                 }
             };

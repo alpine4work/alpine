@@ -12,6 +12,7 @@ import {math, mathHtml} from "micromark-extension-math";
 import * as prettier from "prettier";
 import * as htmlPrettierPlugin from "prettier/plugins/html";
 import * as markdownPrettierPlugin from "prettier/plugins/markdown";
+import {file} from "zod";
 import {getAccountRegistry} from "~/client/web/accounts/account_registry_context.js";
 import {getFileRegistry} from "~/client/web/content/file_registry_context.js";
 import {DocumentContentExportFormat} from "~/client/web/documents/internal/document_content_export_modal.js";
@@ -89,26 +90,10 @@ export async function exportDocumentContent({
             return entityData.task.displayStatus.value;
         },
         getFileIfExists: fileId => {
-            const fileRef = content.references.fileById?.get(fileId);
-            if (!fileRef) return undefined;
-
-            const file = getFileRegistry(spaceId).getFileStore(fileRef).getSnapshot();
-            const preview = file.preview;
-
-            const size =
-                preview !== null &&
-                preview.type === "Image" &&
-                preview.size !== "Error" &&
-                preview.size !== "Processing" &&
-                preview.size !== undefined
-                    ? preview.size
-                    : undefined;
-
-            return {
-                contentType: file.contentType,
-                contentLength: file.contentLength,
-                size,
-            };
+            const fileReference = content.references.fileById?.get(fileId);
+            if (!fileReference) return undefined;
+            const file = getFileRegistry(spaceId).getFileStore(fileReference).getSnapshot();
+            return file.preview ?? undefined;
         },
     });
 

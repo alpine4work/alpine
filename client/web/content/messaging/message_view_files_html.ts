@@ -11,7 +11,7 @@ import {AppContext} from "~/client/web/context/app_context.js";
 import {SearchEntityRegistry} from "~/client/web/search/core/search_entity_registry.js";
 import {SiteRegistry} from "~/client/web/sites/context/site_registry.js";
 import {contentStyles, sprinkles} from "~/client/web/styles/styles.js";
-import {fileRowMaxFileCount} from "~/shared/content/compute_file_row_widths.js";
+import {fileRowMaxFileCount} from "~/shared/content/compute_file_row_layout.js";
 import {Platform} from "~/shared/design/core/platform.js";
 import {RouteLayout} from "~/shared/design/core/route_layout.js";
 import {RemLength} from "~/shared/design/core/spacing.js";
@@ -117,10 +117,10 @@ export function renderMessageViewFiles(
         fileRowHtml.setAttribute(
             "style",
             [
-                `height: ${Math.max(...fileLayouts.map(({height}) => height))}px`,
+                `height: ${Math.max(...fileLayouts.map(({height}) => height)).toFixed(3)}px`,
                 "display: grid",
                 "grid-template-rows: 1fr",
-                `grid-template-columns: ${fileLayouts.map(({widthFr}) => `${widthFr}fr`).join(" ")}`,
+                `grid-template-columns: ${fileLayouts.map(({widthFr}) => `${widthFr.toFixed(6)}fr`).join(" ")}`,
                 // Left align message files instead of center aligning message files. This matches
                 // the more conversational format of messages as opposed to the carefully edited
                 // prose format of documents.

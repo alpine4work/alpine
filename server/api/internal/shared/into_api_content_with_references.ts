@@ -291,22 +291,7 @@ export async function intoApiContentWithReferencesAndReturnReferences<
         getFileIfExists: fileId => {
             const fileRef = fileById.get(fileId);
             if (!fileRef) return undefined;
-
-            const preview = fileRef.file.initialData.preview;
-            const size =
-                preview !== null &&
-                preview.type === "Image" &&
-                preview.size !== "Error" &&
-                preview.size !== "Processing" &&
-                preview.size !== undefined
-                    ? preview.size
-                    : undefined;
-
-            return {
-                contentType: fileRef.file.initialData.contentType,
-                contentLength: fileRef.file.initialData.contentLength,
-                size,
-            };
+            return fileRef.file.initialData.preview ?? undefined;
         },
     };
 

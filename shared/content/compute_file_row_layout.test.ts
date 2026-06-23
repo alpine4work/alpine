@@ -1,15 +1,15 @@
 import {
     computeFileRowLayout,
     computeFileRowWidths,
-    fileRowBlockWidthPxForServerAndClipboard,
-} from "~/shared/content/compute_file_row_widths.js";
+    fileRowBlockWidthPxForClipboardAndApi,
+} from "~/shared/content/compute_file_row_layout.js";
 import {
     contentFileMinSizeRem,
     contentFileRowGapWidthRem,
 } from "~/shared/design/core/content_shared_styles.js";
 import {remPxBySpacingScale} from "~/shared/design/core/spacing_scale.js";
 
-const containerWidth = fileRowBlockWidthPxForServerAndClipboard;
+const containerWidth = fileRowBlockWidthPxForClipboardAndApi;
 const gapWidth = contentFileRowGapWidthRem * remPxBySpacingScale.small;
 const minElementWidth = contentFileMinSizeRem * remPxBySpacingScale.small;
 

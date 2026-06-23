@@ -22,7 +22,7 @@ import {NavigateFunction} from "~/client/web/remix/use_navigate.js";
 import {SearchEntityRegistry} from "~/client/web/search/core/search_entity_registry.js";
 import {SiteRegistry} from "~/client/web/sites/context/site_registry.js";
 import {contentStyles} from "~/client/web/styles/styles.js";
-import {ContentFileLayout} from "~/shared/content/compute_file_row_widths.js";
+import {ContentFileLayout} from "~/shared/content/compute_file_row_layout.js";
 import {emptyContentReferences} from "~/shared/content/content_references.js";
 import {Platform} from "~/shared/design/core/platform.js";
 import {RouteLayout} from "~/shared/design/core/route_layout.js";

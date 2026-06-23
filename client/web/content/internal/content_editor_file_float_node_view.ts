@@ -13,7 +13,7 @@ import {
     subscribeToSpacingScaleChange,
 } from "~/client/web/remix/spacing_scale_context.js";
 import {contentStyles} from "~/client/web/styles/styles.js";
-import {ContentFileLayout} from "~/shared/content/compute_file_row_widths.js";
+import {ContentFileLayout} from "~/shared/content/compute_file_row_layout.js";
 import {
     fileFloatLeftClassName,
     fileFloatRightClassName,
@@ -127,16 +127,17 @@ export function createContentEditorFileFloatNodeViewConstructor({
 
                     const remPx = remPxBySpacingScale[spacingScale];
 
-                    dom.style.width = `${
+                    dom.style.width = `${(
                         layouts[0]!.width +
                         (direction === "left"
                             ? contentStyles.fileFloatLeftMarginXRem
                             : contentStyles.fileFloatRightMarginXRem) *
                             remPx
-                    }px`;
-                    dom.style.height = `${
-                        layouts[0]!.height + contentStyles.fileFloatMarginYRem * remPx * 2
-                    }px`;
+                    ).toFixed(3)}px`;
+                    dom.style.height = `${(
+                        layouts[0]!.height +
+                        contentStyles.fileFloatMarginYRem * remPx * 2
+                    ).toFixed(3)}px`;
                 }
             };
 

@@ -56,7 +56,7 @@ const maxAspectRatioIfNotSingleFileRow = minAspectRatioIfNotSingleFileRow ** -1;
  * width or screen padding, consider also adjusting file preview image resize
  * widths. See `content.css.ts` for the canonical definition.
  */
-export const fileRowBlockWidthPxForServerAndClipboard =
+export const fileRowBlockWidthPxForClipboardAndApi =
     contentBlockMaxWidthRem.desktop * remPxBySpacingScale.small;
 
 /**
@@ -71,16 +71,6 @@ export const fileRowDefaultPreviewHeightPx =
  * Maximum number of items we lay out in a single file row.
  */
 export const fileRowMaxFileCount = 3;
-
-// Round numbers to 3 decimal places so we send less data over the network in our
-// generated HTML.
-function round3(n: number) {
-    return Math.round(n * 10 ** 3) / 10 ** 3;
-}
-
-function round6(n: number) {
-    return Math.round(n * 10 ** 6) / 10 ** 6;
-}
 
 export type ContentFileLayout = {
     readonly width: number;
@@ -377,44 +367,10 @@ export function computeFileRowLayout(
         const widthFr = width / availableWidth;
 
         return {
-            width: round3(width),
+            width,
             // More decimal places for `widthFr` since it's always between 0 and 1.
-            widthFr: round6(widthFr),
-            height: round3(height),
+            widthFr,
+            height,
         };
     });
-}
-
-/**
- * Compute fractional widths (0 to 1) for elements in a file row.
- *
- * Convenience wrapper around `computeFileRowLayout` that returns just the
- * fractional widths (summing to exactly 1 in 64-bit floats) for use in the API
- * content layer. The last width is computed as `1 - sumOfPreviousWidths` to
- * guarantee the values sum to exactly 1.
- */
-export function computeFileRowWidths(
-    files: ReadonlyArray<{width: number | null; height: number}>,
-    options: {
-        containerWidth: number;
-        spacingScale?: SpacingScale;
-    },
-): Array<number> {
-    const layouts = computeFileRowLayout(files, {
-        containerWidth: options.containerWidth,
-        spacingScale: options.spacingScale ?? "small",
-    });
-    const widths = layouts.map(l => round6(l.widthFr));
-
-    // Ensure widths sum to exactly 1 by deriving the last value from the rest. This
-    // avoids floating point drift from rounding each value independently.
-    if (widths.length > 0) {
-        let sum = 0;
-        for (let i = 0; i < widths.length - 1; i++) {
-            sum += widths[i]!;
-        }
-        widths[widths.length - 1] = round6(1 - sum);
-    }
-
-    return widths;
 }

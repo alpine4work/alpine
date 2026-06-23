@@ -3,14 +3,14 @@ import {
     ApiContentPreviewBlockElementResponseWithOptionalKeys,
 } from "~/shared/api/specification/types/api_content_response_without_keys.js";
 import {
-    computeFileRowWidths,
-    fileRowBlockWidthPxForServerAndClipboard,
+    computeFileRowLayout,
+    fileRowBlockWidthPxForClipboardAndApi,
     fileRowDefaultPreviewHeightPx,
     fileRowMaxFileCount,
-} from "~/shared/content/compute_file_row_widths.js";
+} from "~/shared/content/compute_file_row_layout.js";
 import {getFileEntityPreviewHeight} from "~/shared/content/get_file_entity_preview_height.js";
-import {getFilePreviewSizeForLayout} from "~/shared/content/get_file_preview_size.js";
-import {FileContentType} from "~/shared/files/file_content_type.js";
+import {getFilePreviewSize} from "~/shared/content/get_file_preview_size.js";
+import {FilePreview} from "~/shared/files/file_preview.js";
 import {FileId} from "~/shared/id/types/id_types.js";
 
 export function computeApiContentFileRowWidths(
@@ -19,24 +19,14 @@ export function computeApiContentFileRowWidths(
         | ApiContentPreviewBlockElementResponseWithOptionalKeys
     >,
     options: {
-        readonly getFileIfExists: (fileId: FileId) =>
-            | {
-                  contentType: FileContentType;
-                  size?: {width: number | null; height: number; scale?: number} | null;
-              }
-            | undefined;
+        readonly getFileIfExists: (fileId: FileId) => FilePreview | undefined;
     },
 ): Array<number> {
-    return computeFileRowWidths(
+    const layouts = computeFileRowLayout(
         elements.map(element => {
-            if (element.type === "File" && element.id !== null) {
+            if (element.type === "File") {
                 const file = options.getFileIfExists(element.id);
-                if (file) {
-                    return getFilePreviewSizeForLayout({
-                        contentType: file.contentType,
-                        size: file.size,
-                    });
-                }
+                return getFilePreviewSize(file);
             }
 
             return {
@@ -44,11 +34,29 @@ export function computeApiContentFileRowWidths(
                 height: getFileEntityPreviewHeight({
                     fileCount: elements.length,
                     maxFileCount: fileRowMaxFileCount,
-                    blockWidth: fileRowBlockWidthPxForServerAndClipboard,
+                    blockWidth: fileRowBlockWidthPxForClipboardAndApi,
                     defaultPreviewHeight: fileRowDefaultPreviewHeightPx,
                 }),
             };
         }),
-        {containerWidth: fileRowBlockWidthPxForServerAndClipboard},
+        {
+            containerWidth: fileRowBlockWidthPxForClipboardAndApi,
+            spacingScale: "small",
+        },
     );
+
+    // Round each width to 2 decimal places.
+    const widths = layouts.map(layout => Math.round(layout.widthFr * 100) / 100);
+
+    // Ensure widths sum to exactly 1 by deriving the last value from the rest. This
+    // avoids floating point drift from rounding each value independently.
+    if (widths.length > 0) {
+        let sum = 0;
+        for (let i = 0; i < widths.length - 1; i++) {
+            sum += widths[i]!;
+        }
+        widths[widths.length - 1] = 1 - sum;
+    }
+
+    return widths;
 }

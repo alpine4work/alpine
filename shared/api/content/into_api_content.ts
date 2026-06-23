@@ -42,8 +42,9 @@ import {
 import {clampHeadingLevel} from "~/shared/content/content_schema.js";
 import {HighlightColor} from "~/shared/design/core/highlight_color.js";
 import {InternalError} from "~/shared/error/error.js";
-import {FileContentType} from "~/shared/files/file_content_type.js";
 import {isFileEntityId, parseFileEntityId} from "~/shared/files/file_entity_id.js";
+import {FileModelData} from "~/shared/files/file_model.js";
+import {FilePreview} from "~/shared/files/file_preview.js";
 import {createArrayWithLength} from "~/shared/helpers/array/create_array_with_length.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
@@ -69,13 +70,7 @@ export type ApiContentMarkdownIntoOptions = {
     readonly getSearchTaskEntityDisplayStatusIfExists: (
         taskId: TaskId,
     ) => TaskDisplayStatus | undefined;
-    readonly getFileIfExists: (fileId: FileId) =>
-        | {
-              contentType: FileContentType;
-              contentLength: number;
-              size?: {width: number | null; height: number};
-          }
-        | undefined;
+    readonly getFileIfExists: (fileId: FileId) => FilePreview | undefined;
     readonly encoder: ApiContentKeyEncoder;
     readonly posOffset?: number;
 };
