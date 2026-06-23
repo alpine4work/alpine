@@ -3496,6 +3496,8 @@ components:
                     $ref: "#/components/schemas/TimeZone"
                 channel:
                     $ref: "#/components/schemas/ChannelPreview"
+                contentSnippet:
+                    $ref: "#/components/schemas/Content"
                 # TODO(#public-api): Document how this is the same as the chat's `title` when
                 # displayed as a mention.
                 reference:

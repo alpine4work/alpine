@@ -36,6 +36,7 @@ import {
     assertMessageContent,
 } from "~/shared/content/message_content_schema.js";
 import {createPostSearchEntityTitle} from "~/shared/forum/create_post_search_entity_title.js";
+import {getPostContentSnippet} from "~/shared/forum/get_post_content_snippet.js";
 import {
     PostContentProsemirrorSchema,
     assertPostContent,
@@ -105,25 +106,58 @@ export const apiForumPaths: Pick<
                 name: postsResult.channelName,
             };
 
+            const posts = await runAllPromises(
+                postsResult.posts.map(async post => {
+                    const [author, {content: contentSnippet, references}] = await runAllPromises([
+                        getApiAccount(context, postsResult.spaceId, post.authorId, {
+                            consistency: "StrongWithinCache",
+                        }),
+                        intoApiContentWithReferencesAndReturnReferences(
+                            context,
+                            postsResult.spaceId,
+                            FilePostAuthorizer.bind({
+                                type: "Post",
+                                postId: post.postId,
+                            }),
+                            // NOCOMMIT: Test that we snip correctly
+                            getPostContentSnippet(post.content, {
+                                platform: "desktop",
+                                routeLayout: "wide",
+                            }),
+                            {
+                                encoder: new ApiContentKeyEncoder({
+                                    entityId: `Post:${post.postId}`,
+                                    version: post.contentVersion,
+                                }),
+                            },
+                        ),
+                    ]);
+
+                    return {
+                        id: post.postId,
+                        author,
+                        createdTime: serializeDateString(post.createdTime),
+                        createdTimeZone: post.createdTimeZone,
+                        channel,
+                        contentSnippet,
+                        reference: {
+                            // NOCOMMIT: Title should include account name?
+                            title: createPostSearchEntityTitle(
+                                postsResult.channelName,
+                                post.content,
+                                getContentReferencesForServerPrintSingleLineTextSnippet(references),
+                            ),
+                        },
+                    };
+                }),
+            );
+
             return {
                 content: {
                     spaceId: postsResult.spaceId,
                     channel,
                     nextCursor,
-                    posts: await runAllPromises(
-                        postsResult.posts.map(async post => ({
-                            id: post.postId,
-                            author: await getApiAccount(
-                                context,
-                                postsResult.spaceId,
-                                post.authorId,
-                                {consistency: "StrongWithinCache"},
-                            ),
-                            createdTime: serializeDateString(post.createdTime),
-                            createdTimeZone: post.createdTimeZone,
-                            channel,
-                        })),
-                    ),
+                    posts,
                 },
             };
         },
@@ -223,6 +257,7 @@ export const apiForumPaths: Pick<
                         },
                         content: contentWithReferences,
                         reference: {
+                            // NOCOMMIT: Title should include account name?
                             title: createPostSearchEntityTitle(
                                 post.channelName,
                                 content,
@@ -283,6 +318,75 @@ export const apiForumPaths: Pick<
                         },
                         content: post.content.content,
                         reference: {
+                            // NOCOMMIT: Title should include account name?
+                            title: createPostSearchEntityTitle(
+                                post.channel.name,
+                                post.content.originalContent,
+                                getContentReferencesForServerPrintSingleLineTextSnippet(
+                                    post.content.references,
+                                ),
+                            ),
+                        },
+                    },
+                },
+            };
+        },
+    },
+
+    // NOCOMMIT: Test!
+    "/posts/{id}/preview": {
+        get: async (context, {pathParameters}) => {
+            const post = await getPostContentWithCustomReferencesAndChannelPreview(
+                context,
+                pathParameters.id,
+                async (context, spaceId, post) => {
+                    const [author, {content: contentSnippet, references}] = await runAllPromises([
+                        getApiAccount(context, spaceId, post.authorId, {
+                            consistency: "StrongWithinCache",
+                        }),
+                        intoApiContentWithReferencesAndReturnReferences(
+                            context,
+                            spaceId,
+                            FilePostAuthorizer.bind({type: "Post", postId: pathParameters.id}),
+                            // NOCOMMIT: Test that we snip correctly
+                            getPostContentSnippet(post.content, {
+                                platform: "desktop",
+                                routeLayout: "wide",
+                            }),
+                            {
+                                encoder: new ApiContentKeyEncoder({
+                                    entityId: `Post:${pathParameters.id}`,
+                                    version: post.contentVersion,
+                                }),
+                            },
+                        ),
+                    ]);
+
+                    return {
+                        author,
+                        originalContent: post.content,
+                        contentSnippet,
+                        references,
+                    };
+                },
+                {consistency: "StrongWithinCache"},
+            );
+
+            return {
+                content: {
+                    spaceId: post.spaceId,
+                    post: {
+                        id: pathParameters.id,
+                        author: post.content.author,
+                        createdTime: serializeDateString(post.createdTime),
+                        createdTimeZone: post.createdTimeZone,
+                        channel: {
+                            id: post.channel.id,
+                            name: post.channel.name,
+                        },
+                        contentSnippet: post.content.contentSnippet,
+                        reference: {
+                            // NOCOMMIT: Title should include account name?
                             title: createPostSearchEntityTitle(
                                 post.channel.name,
                                 post.content.originalContent,

@@ -868,7 +868,7 @@ paths:
                                     posts:
                                         type: array
                                         items:
-                                            $ref: "#/components/schemas/PostPreview"
+                                            $ref: "#/components/schemas/PostPreview_Response"
                 default:
                     $ref: "#/components/responses/Error"
     /channels/{id}/reference:
@@ -968,7 +968,7 @@ paths:
                                     spaceId:
                                         $ref: "#/components/schemas/SpaceId"
                                     post:
-                                        $ref: "#/components/schemas/PostPreview"
+                                        $ref: "#/components/schemas/PostPreview_Response"
                 default:
                     $ref: "#/components/responses/Error"
     /posts/{id}/reference:
@@ -4082,6 +4082,8 @@ components:
                     $ref: "#/components/schemas/TimeZone"
                 channel:
                     $ref: "#/components/schemas/ChannelPreview"
+                contentSnippet:
+                    $ref: "#/components/schemas/Content"
                 reference:
                     type: object
                     required:
@@ -5852,6 +5854,36 @@ components:
                 channel:
                     $ref: "#/components/schemas/ChannelPreview"
                 content:
+                    $ref: "#/components/schemas/Content_Response"
+                reference:
+                    type: object
+                    required:
+                        - title
+                    additionalProperties: false
+                    properties:
+                        title:
+                            type: string
+        PostPreview_Response:
+            type: object
+            required:
+                - id
+                - author
+                - createdTime
+                - createdTimeZone
+                - reference
+            additionalProperties: false
+            properties:
+                id:
+                    $ref: "#/components/schemas/PostId"
+                author:
+                    $ref: "#/components/schemas/Account"
+                createdTime:
+                    $ref: "#/components/schemas/DateTime"
+                createdTimeZone:
+                    $ref: "#/components/schemas/TimeZone"
+                channel:
+                    $ref: "#/components/schemas/ChannelPreview"
+                contentSnippet:
                     $ref: "#/components/schemas/Content_Response"
                 reference:
                     type: object

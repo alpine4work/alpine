@@ -1226,7 +1226,7 @@ export namespace ApiSpecification {
                                 readonly spaceId: components["schemas"]["SpaceId"];
                                 readonly channel: components["schemas"]["ChannelPreview"];
                                 readonly nextCursor: components["schemas"]["DateTime"] | null;
-                                readonly posts: readonly components["schemas"]["PostPreview"][];
+                                readonly posts: readonly components["schemas"]["PostPreview_Response"][];
                             };
                         };
                     };
@@ -1383,7 +1383,7 @@ export namespace ApiSpecification {
                         content: {
                             readonly "application/json": {
                                 readonly spaceId: components["schemas"]["SpaceId"];
-                                readonly post: components["schemas"]["PostPreview"];
+                                readonly post: components["schemas"]["PostPreview_Response"];
                             };
                         };
                     };
@@ -3521,6 +3521,7 @@ export namespace ApiSpecification {
                 readonly createdTime: components["schemas"]["DateTime"];
                 readonly createdTimeZone: components["schemas"]["TimeZone"];
                 readonly channel?: components["schemas"]["ChannelPreview"];
+                readonly contentSnippet?: components["schemas"]["Content"];
                 readonly reference: {
                     readonly title: string;
                 };
@@ -4394,6 +4395,17 @@ export namespace ApiSpecification {
                 readonly createdTimeZone: components["schemas"]["TimeZone"];
                 readonly channel?: components["schemas"]["ChannelPreview"];
                 readonly content: components["schemas"]["Content_Response"];
+                readonly reference: {
+                    readonly title: string;
+                };
+            };
+            readonly PostPreview_Response: {
+                readonly id: components["schemas"]["PostId"];
+                readonly author: components["schemas"]["Account"];
+                readonly createdTime: components["schemas"]["DateTime"];
+                readonly createdTimeZone: components["schemas"]["TimeZone"];
+                readonly channel?: components["schemas"]["ChannelPreview"];
+                readonly contentSnippet?: components["schemas"]["Content_Response"];
                 readonly reference: {
                     readonly title: string;
                 };
