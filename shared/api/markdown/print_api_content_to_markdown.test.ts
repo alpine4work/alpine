@@ -11325,7 +11325,7 @@ Use \`\` \`backticks\` \`\` for inline code
 `,
                 },
                 {
-                    description: "table with empty cell",
+                    description: "table with empty cell with empty unordered list item",
                     content: {
                         elements: [
                             {
@@ -11364,6 +11364,56 @@ Use \`\` \`backticks\` \`\` for inline code
 <td>
 
 -
+
+</td>
+<td>
+
+</td>
+</tr>
+</tbody>
+</table>
+`,
+                },
+                {
+                    description: "table with empty cell with empty ordered list item",
+                    content: {
+                        elements: [
+                            {
+                                type: "Table",
+                                width: 1,
+                                hasHeaderRow: false,
+                                hasHeaderColumn: false,
+                                columns: [
+                                    {width: 0.009999999776482582},
+                                    {width: 0.009999999776482582},
+                                ],
+                                rows: [
+                                    {
+                                        cells: [
+                                            {
+                                                elements: [
+                                                    {
+                                                        type: "OrderedList",
+                                                        items: [
+                                                            {elements: [], nestedListElements: []},
+                                                        ],
+                                                    },
+                                                ],
+                                            },
+                                            {elements: []},
+                                        ],
+                                    },
+                                ],
+                            },
+                        ],
+                    },
+                    expectedMarkdown: `\
+<table data-column-widths="0.009999999776482582,0.009999999776482582">
+<tbody>
+<tr>
+<td>
+
+1.
 
 </td>
 <td>
@@ -11447,6 +11497,96 @@ Use \`\` \`backticks\` \`\` for inline code
 >     1. <p></p>
 >
 >        -
+`,
+                },
+                {
+                    description: "possibly phantom list item after actual list item",
+                    content: {
+                        elements: [
+                            {
+                                type: "UnorderedList",
+                                items: [
+                                    {
+                                        elements: [{type: "Paragraph", elements: []}],
+                                        nestedListElements: [],
+                                    },
+                                    {
+                                        elements: [],
+                                        nestedListElements: [
+                                            {
+                                                type: "UnorderedList",
+                                                items: [
+                                                    {
+                                                        elements: [
+                                                            {type: "Paragraph", elements: []},
+                                                        ],
+                                                    },
+                                                ],
+                                            },
+                                        ],
+                                    },
+                                ],
+                            },
+                        ],
+                    },
+                    expectedMarkdown: `\
+- <p></p>
+
+- <p></p>
+
+  - <p></p>
+`,
+                },
+                {
+                    description:
+                        "phantom list item in possible phantom list item after actual list item",
+                    content: {
+                        elements: [
+                            {
+                                type: "UnorderedList",
+                                items: [
+                                    {
+                                        elements: [{type: "Paragraph", elements: []}],
+                                        nestedListElements: [],
+                                    },
+                                    {
+                                        elements: [],
+                                        nestedListElements: [
+                                            {
+                                                type: "UnorderedList",
+                                                items: [
+                                                    {
+                                                        elements: [],
+                                                        nestedListElements: [
+                                                            {
+                                                                type: "UnorderedList",
+                                                                items: [
+                                                                    {
+                                                                        elements: [
+                                                                            {
+                                                                                type: "Paragraph",
+                                                                                elements: [],
+                                                                            },
+                                                                        ],
+                                                                    },
+                                                                ],
+                                                            },
+                                                        ],
+                                                    },
+                                                ],
+                                            },
+                                        ],
+                                    },
+                                ],
+                            },
+                        ],
+                    },
+                    expectedMarkdown: `\
+- <p></p>
+
+- <p></p>
+
+  - - <p></p>
 `,
                 },
             ],

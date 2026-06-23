@@ -24,7 +24,6 @@ import {isDeepEqual} from "~/shared/helpers/control/is_deep_equal.js";
 import {DefaultMap} from "~/shared/helpers/map/default_map.js";
 import {getObjectKeysWithKeyofType} from "~/shared/helpers/object/get_object_keys_with_keyof_type.js";
 import {hasOwnProperty} from "~/shared/helpers/object/has_own_property.js";
-import {defaultCompareStrings} from "~/shared/helpers/string/default_compare_strings.js";
 import {FileId} from "~/shared/id/types/id_types.js";
 
 /**
@@ -340,8 +339,9 @@ export class ApiContentNormalizer {
                     const item = element.items[index]!;
 
                     if (
-                        element.type !== "UnorderedList" ||
                         item.elements.length > 0 ||
+                        element.type !== "UnorderedList" ||
+                        index > 0 ||
                         item.nestedListElements === undefined ||
                         item.nestedListElements.every(
                             nestedElement => nestedElement.items.length === 0,
@@ -361,41 +361,6 @@ export class ApiContentNormalizer {
                             this.normalizePossiblyEmptyBlockElements(item.nestedListElements);
                             if (item.nestedListElements.length === 0)
                                 delete item.nestedListElements;
-                        }
-                    }
-
-                    // If this is a phantom list item and there's a previous list item then merge our
-                    // nested list with the previous nested list.
-                    if (
-                        index > 0 &&
-                        element.type === "UnorderedList" &&
-                        item.elements.length === 0
-                    ) {
-                        element.items.splice(index, 1);
-                        nextIndex = index;
-
-                        const previousItem = element.items[index - 1]!;
-                        if (item.nestedListElements !== undefined) {
-                            for (const nestedListElement of item.nestedListElements) {
-                                previousItem.nestedListElements ??= [];
-
-                                if (previousItem.nestedListElements.length === 0) {
-                                    previousItem.nestedListElements.push(nestedListElement);
-                                } else {
-                                    const lastNestedListElement =
-                                        previousItem.nestedListElements[
-                                            previousItem.nestedListElements.length - 1
-                                        ]!;
-
-                                    if (lastNestedListElement.type !== nestedListElement.type) {
-                                        previousItem.nestedListElements.push(nestedListElement);
-                                    } else {
-                                        for (const nestedItem of nestedListElement.items) {
-                                            lastNestedListElement.items.push(nestedItem as any);
-                                        }
-                                    }
-                                }
-                            }
                         }
                     }
                 }

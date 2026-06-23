@@ -262,36 +262,21 @@ function* printApiContentBlockElementToMarkdown(
             yield {
                 type: "list",
                 ...orderedAttributes,
-                children: element.items.map(item => {
+                children: element.items.map((item, index) => {
                     const children = Array.from(
                         concatIterables(
                             printApiContentBlockElementsToMarkdown(
-                                // NOTE(ifitzsimmons, 2025-12-29): We only allow UnorderedList to create phantom
-                                // lists. `CheckList` and `OrderedList` can't support phantom lists in the same
-                                // way.
-                                //
-                                // So while unordered phantom lists look like:
-                                //
-                                // ```markdown
-                                // -   -   - item at 3rd level in a phantom unordered list
-                                // ```
-                                //
-                                // Checklists and ordered phantom lists get an empty paragraph and look like:
-                                //
-                                // ```markdown
-                                // 1. <p></p>
-                                //
-                                // - Mixed types with phantoms
-                                //
-                                // OR
-                                //
-                                // [ ] <p></p>
-                                //
-                                // - Mixed types with phantoms
-                                // ```
-                                item.elements.length > 0 || element.type === "UnorderedList"
+                                item.elements.length > 0
                                     ? item.elements
-                                    : [{type: "Paragraph", elements: []}],
+                                    : element.type !== "CheckList" &&
+                                        (item.nestedListElements === undefined ||
+                                            item.nestedListElements.every(
+                                                nestedElement => nestedElement.items.length === 0,
+                                            ))
+                                      ? emptyArray
+                                      : element.type !== "UnorderedList" || index > 0
+                                        ? [{type: "Paragraph", elements: []}]
+                                        : emptyArray,
                                 options,
                             ),
                             item.nestedListElements
