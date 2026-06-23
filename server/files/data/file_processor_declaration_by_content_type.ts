@@ -4,7 +4,16 @@ import {FileHasPreview} from "~/shared/files/file_preview.js";
 /**
  * What the file processor for each content type will generate.
  */
-export const fileProcessorDeclarationByContentType = {
+type FileProcessorDeclaration = {
+    readonly hasAlternative: boolean;
+    readonly hasAnalysis?: boolean;
+    readonly hasPreview: FileHasPreview | null;
+    readonly hasTranscript?: boolean;
+};
+
+export const fileProcessorDeclarationByContentType: Readonly<
+    Record<FileContentType, FileProcessorDeclaration>
+> = {
     "application/octet-stream": {
         hasAlternative: false,
         hasPreview: null,
@@ -143,10 +152,4 @@ export const fileProcessorDeclarationByContentType = {
     "text/x-clojure": {hasAlternative: false, hasPreview: {type: "Code"}},
     "text/x-erlang": {hasAlternative: false, hasPreview: {type: "Code"}},
     "text/x-ocaml": {hasAlternative: false, hasPreview: {type: "Code"}},
-} as const satisfies Record<
-    FileContentType,
-    {
-        readonly hasAlternative: boolean;
-        readonly hasPreview: FileHasPreview | null;
-    }
->;
+};

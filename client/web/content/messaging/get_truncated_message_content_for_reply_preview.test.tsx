@@ -63,6 +63,8 @@ function createTestFile(contentType: string): {
             contentLength: 100,
             isUploading: false,
             alternative: null,
+            analysis: null,
+            transcript: null,
             preview: null,
         }),
     };

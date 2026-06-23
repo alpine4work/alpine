@@ -363,6 +363,8 @@ test("can perform a multipart upload", async () => {
             contentLength: 2.5e8,
             isUploading: false,
             alternative: null,
+            analysis: null,
+            transcript: null,
             preview: null,
         }),
     });
@@ -542,6 +544,8 @@ test("can perform a multipart upload where parts are uploaded in parallel", asyn
             contentLength: 2.5e8,
             isUploading: false,
             alternative: null,
+            analysis: null,
+            transcript: null,
             preview: null,
         }),
     });
@@ -702,6 +706,8 @@ test("can perform a multipart upload where parts are out of order", async () => 
             contentLength: 2.5e8,
             isUploading: false,
             alternative: null,
+            analysis: null,
+            transcript: null,
             preview: null,
         }),
     });

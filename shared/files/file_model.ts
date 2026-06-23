@@ -1,6 +1,8 @@
 import {FileAlternativeSchema} from "~/shared/files/file_alternative.js";
+import {FileAnalysisSchema} from "~/shared/files/file_analysis.js";
 import {FileContentType, FileContentTypeSchema} from "~/shared/files/file_content_type.js";
 import {FileHasPreview, FilePreviewSchema} from "~/shared/files/file_preview.js";
+import {FileTranscriptSchema} from "~/shared/files/file_transcript.js";
 import {assertEqualTypes} from "~/shared/helpers/control/assert_equal_types.js";
 import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
 import {FileId, SpaceId} from "~/shared/id/types/id_types.js";
@@ -16,6 +18,8 @@ export const FileModelDataSchema = Schema.object({
     isUploading: Schema.boolean,
     alternative: FileAlternativeSchema.nullable().default(null),
     preview: FilePreviewSchema.nullable(),
+    analysis: FileAnalysisSchema.nullable().default(null),
+    transcript: FileTranscriptSchema.nullable().default(null),
     // When `preview` is `"Image"` this is the base64 encoded image preview content if
     // it's under 100kb. So we can render the image content for small images directly
     // without needing to make a network request.
@@ -26,8 +30,9 @@ export const FileModelDataSchema = Schema.object({
  * The representation of a file in our system. Files are immutable after they've
  * been uploaded. Making a change to a file actually creates a new file object.
  * Files can be observed while they're uploading. A file where any of
- * `file.isProcessing`, `file.alternative.isProcessing`, or
- * `file.preview.isProcessing` are true means we're still actively uploading and
+ * `file.isProcessing`, `file.alternative.isProcessing`,
+ * `file.preview.isProcessing`, `file.analysis.isProcessing`, or
+ * `file.transcript.isProcessing` are true means we're still actively uploading and
  * processing the file. The file will only be partially available if any of these
  * properties are true.
  *
@@ -108,6 +113,38 @@ export class FileModel {
         /* eslint-enable cyberworlds/no-model-initial-data */
     }
 
+    /**
+     * Does this file have analysis?
+     *
+     * This is an immutable fact declared when the file is created. If this returns
+     * true then `initialData.analysis` may still be processing, so clients that need
+     * the analysis result itself should read the latest `FileModelData` from
+     * `FileRegistry`.
+     */
+    public get hasAnalysis(): boolean {
+        // We're ok ignoring the `initialData` lint rule for this function because whether
+        // an analysis slot exists is immutable.
+        /* eslint-disable cyberworlds/no-model-initial-data */
+        return this.initialData.analysis !== null;
+        /* eslint-enable cyberworlds/no-model-initial-data */
+    }
+
+    /**
+     * Does this file have a stored transcript?
+     *
+     * This is an immutable fact declared when the file is created. If this returns
+     * true then `initialData.transcript` may still be processing, so clients that need
+     * the transcript state itself should read the latest `FileModelData` from
+     * `FileRegistry`.
+     */
+    public get hasTranscript(): boolean {
+        // We're ok ignoring the `initialData` lint rule for this function because whether
+        // a transcript slot exists is immutable.
+        /* eslint-disable cyberworlds/no-model-initial-data */
+        return this.initialData.transcript !== null;
+        /* eslint-enable cyberworlds/no-model-initial-data */
+    }
+
     public static minLoadingCount(file1: FileModel, file2: FileModel): FileModel {
         // Used when merging `FileModel`s to reconcile to files and get the latest data. So
         // accessing `initialData` is required to do that. (This is the mechanism that
@@ -147,29 +184,29 @@ export function minFileModelDataLoadingCount(
     const loadingCount2 = getFileModelDataLoadingCount(data2);
 
     if (loadingCount1 < loadingCount2) {
-        // We're returning `data1` but if `data2` has `imagePreviewContentIfSmall` let's
-        // preserve that.
-        if (!data1.imagePreviewContentIfSmall && data2.imagePreviewContentIfSmall)
-            return {...data1, imagePreviewContentIfSmall: data2.imagePreviewContentIfSmall};
-
-        return data1;
+        return preserveNonLoadingFileModelData(data1, data2);
     }
 
     if (loadingCount1 > loadingCount2) {
-        // We're returning `data2` but if `data1` has `imagePreviewContentIfSmall` let's
-        // preserve that.
-        if (!data2.imagePreviewContentIfSmall && data1.imagePreviewContentIfSmall)
-            return {...data2, imagePreviewContentIfSmall: data1.imagePreviewContentIfSmall};
-
-        return data2;
+        return preserveNonLoadingFileModelData(data2, data1);
     }
 
-    // We're returning `data1` but if `data2` has `imagePreviewContentIfSmall` let's
-    // preserve that.
-    if (!data1.imagePreviewContentIfSmall && data2.imagePreviewContentIfSmall)
-        return {...data1, imagePreviewContentIfSmall: data2.imagePreviewContentIfSmall};
+    return preserveNonLoadingFileModelData(data1, data2);
+}
 
-    return data1;
+function preserveNonLoadingFileModelData(
+    preferredData: FileModelData,
+    fallbackData: FileModelData,
+): FileModelData {
+    let data = preferredData;
+
+    // We're returning `preferredData` but if `fallbackData` has
+    // `imagePreviewContentIfSmall` let's preserve that.
+    if (!data.imagePreviewContentIfSmall && fallbackData.imagePreviewContentIfSmall) {
+        data = {...data, imagePreviewContentIfSmall: fallbackData.imagePreviewContentIfSmall};
+    }
+
+    return data;
 }
 
 /**
@@ -193,6 +230,14 @@ function getFileModelDataLoadingCount(data: FileModelData): number {
     }
 
     if (data.alternative?.isProcessing) {
+        loadingCount++;
+    }
+
+    if (data.analysis?.isProcessing) {
+        loadingCount++;
+    }
+
+    if (data.transcript?.isProcessing) {
         loadingCount++;
     }
 

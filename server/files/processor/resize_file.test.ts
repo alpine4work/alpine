@@ -202,6 +202,8 @@ test("can\u2019t resize an image with a session actor", async () => {
             contentLength: 33102,
             isUploading: false,
             alternative: null,
+            analysis: null,
+            transcript: null,
             preview: {
                 type: "Image",
                 isProcessing: false,
@@ -244,6 +246,8 @@ test("can\u2019t resize an image with a token that\u2019s not from edge service 
             contentLength: 33102,
             isUploading: false,
             alternative: null,
+            analysis: null,
+            transcript: null,
             preview: {
                 type: "Image",
                 isProcessing: false,
@@ -310,6 +314,8 @@ const testsByFileWebSafeImageContentType: {[Key in FileWebSafeImageContentType]:
                     contentLength: 33102,
                     isUploading: false,
                     alternative: null,
+                    analysis: null,
+                    transcript: null,
                     preview: {
                         type: "Image",
                         isProcessing: false,
@@ -434,6 +440,8 @@ const testsByFileWebSafeImageContentType: {[Key in FileWebSafeImageContentType]:
                     contentLength: 76547,
                     isUploading: false,
                     alternative: null,
+                    analysis: null,
+                    transcript: null,
                     preview: {
                         type: "Image",
                         isProcessing: false,
@@ -527,6 +535,8 @@ const testsByFileWebSafeImageContentType: {[Key in FileWebSafeImageContentType]:
                     contentLength: 103683,
                     isUploading: false,
                     alternative: null,
+                    analysis: null,
+                    transcript: null,
                     preview: {
                         type: "Image",
                         isProcessing: false,
@@ -624,6 +634,8 @@ const testsByFileWebSafeImageContentType: {[Key in FileWebSafeImageContentType]:
                         contentLength: 118405,
                         isUploading: false,
                         alternative: null,
+                        analysis: null,
+                        transcript: null,
                         preview: {
                             type: "Image",
                             isProcessing: false,
@@ -686,6 +698,8 @@ const testsByFileWebSafeImageContentType: {[Key in FileWebSafeImageContentType]:
                     contentLength: 61968,
                     isUploading: false,
                     alternative: null,
+                    analysis: null,
+                    transcript: null,
                     preview: {
                         type: "Image",
                         isProcessing: false,
@@ -945,6 +959,8 @@ const testsByFileWebSafeImageContentType: {[Key in FileWebSafeImageContentType]:
                     contentLength: 74432,
                     isUploading: false,
                     alternative: null,
+                    analysis: null,
+                    transcript: null,
                     preview: {
                         type: "Image",
                         isProcessing: false,
@@ -1068,6 +1084,8 @@ const testsByFileWebSafeImageContentType: {[Key in FileWebSafeImageContentType]:
                     contentLength: 24923,
                     isUploading: false,
                     alternative: null,
+                    analysis: null,
+                    transcript: null,
                     preview: {
                         type: "Image",
                         isProcessing: false,
@@ -1164,6 +1182,8 @@ const testsByFileWebSafeImageContentType: {[Key in FileWebSafeImageContentType]:
                     contentLength: 10448,
                     isUploading: false,
                     alternative: null,
+                    analysis: null,
+                    transcript: null,
                     preview: {
                         type: "Image",
                         isProcessing: false,
@@ -1199,6 +1219,8 @@ const testsByFileWebSafeImageContentType: {[Key in FileWebSafeImageContentType]:
                     contentLength: 60260,
                     isUploading: false,
                     alternative: null,
+                    analysis: null,
+                    transcript: null,
                     preview: {
                         type: "Image",
                         isProcessing: false,
@@ -1322,6 +1344,8 @@ const testsByFileWebSafeImageContentType: {[Key in FileWebSafeImageContentType]:
                     contentLength: 22500,
                     isUploading: false,
                     alternative: null,
+                    analysis: null,
+                    transcript: null,
                     preview: {
                         type: "Image",
                         isProcessing: false,
@@ -1416,6 +1440,8 @@ const testsByFileWebSafeImageContentType: {[Key in FileWebSafeImageContentType]:
                     contentLength: 4701,
                     isUploading: false,
                     alternative: null,
+                    analysis: null,
+                    transcript: null,
                     preview: {
                         type: "Image",
                         isProcessing: false,
@@ -1477,6 +1503,8 @@ test("can resize a HEIC image\u2019s preview", async () => {
                 contentLength: expect.any(Number),
                 isImagePreviewContent: true,
             },
+            analysis: null,
+            transcript: null,
             preview: {
                 type: "Image",
                 isProcessing: false,
@@ -1620,6 +1648,8 @@ test("will crop when resizing an image beyond our vertical aspect ratio limit", 
             contentLength: 108552,
             isUploading: false,
             alternative: null,
+            analysis: null,
+            transcript: null,
             preview: {
                 type: "Image",
                 isProcessing: false,
@@ -1765,6 +1795,8 @@ test("will crop when resizing an image beyond our horizontal aspect ratio limit"
             contentLength: 140556,
             isUploading: false,
             alternative: null,
+            analysis: null,
+            transcript: null,
             preview: {
                 type: "Image",
                 isProcessing: false,

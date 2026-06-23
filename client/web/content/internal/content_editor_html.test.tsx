@@ -1884,6 +1884,8 @@ test("file row (one file)", async () => {
                         contentLength: 1200 ** 2,
                         isUploading: false,
                         alternative: null,
+                        analysis: null,
+                        transcript: null,
                         preview: {
                             type: "Image",
                             isProcessing: false,
@@ -1963,6 +1965,8 @@ test("file row (one file, image type)", async () => {
                         contentLength: 1200 ** 2,
                         isUploading: false,
                         alternative: null,
+                        analysis: null,
+                        transcript: null,
                         preview: {
                             type: "Image",
                             isProcessing: false,
@@ -2015,6 +2019,8 @@ test("file row (one file, video type)", async () => {
                         contentLength: 1200 ** 2,
                         isUploading: false,
                         alternative: null,
+                        analysis: null,
+                        transcript: null,
                         preview: {
                             type: "Image",
                             isProcessing: false,
@@ -2068,6 +2074,8 @@ test("file row (one file, audio type)", async () => {
                         contentLength: 1200 ** 2,
                         isUploading: false,
                         alternative: null,
+                        analysis: null,
+                        transcript: null,
                         preview: {
                             type: "Audio",
                             isProcessing: false,
@@ -2185,6 +2193,8 @@ test("file row (two files)", async () => {
                         contentLength: 1200 ** 2,
                         isUploading: false,
                         alternative: null,
+                        analysis: null,
+                        transcript: null,
                         preview: {
                             type: "Image",
                             isProcessing: false,
@@ -2212,6 +2222,8 @@ test("file row (two files)", async () => {
                             contentLength: 1200 ** 2,
                             isImagePreviewContent: true,
                         },
+                        analysis: null,
+                        transcript: null,
                         preview: {
                             type: "Image",
                             isProcessing: false,
@@ -2272,6 +2284,8 @@ test("file row (three files)", async () => {
                         contentLength: 1200 ** 2,
                         isUploading: false,
                         alternative: null,
+                        analysis: null,
+                        transcript: null,
                         preview: {
                             type: "Image",
                             isProcessing: false,
@@ -2299,6 +2313,8 @@ test("file row (three files)", async () => {
                             contentLength: 1200 ** 2,
                             isImagePreviewContent: true,
                         },
+                        analysis: null,
+                        transcript: null,
                         preview: {
                             type: "Image",
                             isProcessing: false,
@@ -2324,6 +2340,8 @@ test("file row (three files)", async () => {
                         contentLength: 1200 ** 2,
                         isUploading: false,
                         alternative: null,
+                        analysis: null,
+                        transcript: null,
                         preview: {
                             type: "Image",
                             isProcessing: false,
@@ -2378,6 +2396,8 @@ test("file float (left direction)", async () => {
                         contentLength: 1200 ** 2,
                         isUploading: false,
                         alternative: null,
+                        analysis: null,
+                        transcript: null,
                         preview: {
                             type: "Image",
                             isProcessing: false,
@@ -2432,6 +2452,8 @@ test("file float (right direction)", async () => {
                         contentLength: 1200 ** 2,
                         isUploading: false,
                         alternative: null,
+                        analysis: null,
+                        transcript: null,
                         preview: {
                             type: "Image",
                             isProcessing: false,
@@ -2498,6 +2520,8 @@ test("table with fileRowTable (one file)", async () => {
                         contentLength: 1200 ** 2,
                         isUploading: false,
                         alternative: null,
+                        analysis: null,
+                        transcript: null,
                         preview: {
                             type: "Image",
                             isProcessing: false,
@@ -2573,6 +2597,8 @@ test("table with fileRowTable (mixed content)", async () => {
                         contentLength: 1200 ** 2,
                         isUploading: false,
                         alternative: null,
+                        analysis: null,
+                        transcript: null,
                         preview: {
                             type: "Image",
                             isProcessing: false,
@@ -2594,6 +2620,8 @@ test("table with fileRowTable (mixed content)", async () => {
                         contentLength: 1200 ** 2,
                         isUploading: false,
                         alternative: null,
+                        analysis: null,
+                        transcript: null,
                         preview: {
                             type: "Image",
                             isProcessing: false,
@@ -2621,6 +2649,8 @@ test("table with fileRowTable (mixed content)", async () => {
                             contentLength: 1200 ** 2,
                             isImagePreviewContent: true,
                         },
+                        analysis: null,
+                        transcript: null,
                         preview: {
                             type: "Image",
                             isProcessing: false,

@@ -425,7 +425,7 @@ Connection: close\r\n\
 Transfer-Encoding: chunked\r\n\
 \r\n\
 chunk\r\n\
-{"ok":true,"signedUrlSearch":"?sig=test","file":{"id":"...","spaceId":"...","contentType":"image/jpeg","contentLength":33102,"isUploading":false,"alternative":null,"preview":{"type":"Image","isProcessing":true,"size":null,"placeholder":null}}}\r\n\
+{"ok":true,"signedUrlSearch":"?sig=test","file":{"id":"...","spaceId":"...","contentType":"image/jpeg","contentLength":33102,"isUploading":false,"alternative":null,"preview":{"type":"Image","isProcessing":true,"size":null,"placeholder":null},"analysis":null,"transcript":null}}\r\n\
 chunk\r\n\
 \r\n\
 `);
@@ -445,6 +445,8 @@ chunk\r\n\
             contentLength: 33102,
             isUploading: false,
             alternative: null,
+            analysis: null,
+            transcript: null,
             preview: {
                 type: "Image",
                 isProcessing: false,
@@ -670,6 +672,8 @@ Content-Length: 33102\r\n\
             contentLength: 33102,
             isUploading: true,
             alternative: null,
+            analysis: null,
+            transcript: null,
             preview: {
                 type: "Image",
                 isProcessing: true,
@@ -766,6 +770,8 @@ Content-Length: 33102\r\n\
             contentLength: 33102,
             isUploading: true,
             alternative: null,
+            analysis: null,
+            transcript: null,
             preview: {
                 type: "Image",
                 isProcessing: true,
@@ -801,7 +807,7 @@ Connection: close\r\n\
 Transfer-Encoding: chunked\r\n\
 \r\n\
 chunk\r\n\
-{"ok":true,"signedUrlSearch":"?sig=test","file":{"id":"...","spaceId":"...","contentType":"image/jpeg","contentLength":33102,"isUploading":false,"alternative":null,"preview":{"type":"Image","isProcessing":true,"size":null,"placeholder":null}}}\r\n\
+{"ok":true,"signedUrlSearch":"?sig=test","file":{"id":"...","spaceId":"...","contentType":"image/jpeg","contentLength":33102,"isUploading":false,"alternative":null,"preview":{"type":"Image","isProcessing":true,"size":null,"placeholder":null},"analysis":null,"transcript":null}}\r\n\
 chunk\r\n\
 \r\n\
 `);
@@ -818,6 +824,8 @@ chunk\r\n\
             contentLength: 33102,
             isUploading: false,
             alternative: null,
+            analysis: null,
+            transcript: null,
             preview: {
                 type: "Image",
                 isProcessing: false,
@@ -858,6 +866,8 @@ test("can\u2019t process invalid image data", async () => {
             contentLength: 100000,
             isUploading: false,
             alternative: null,
+            analysis: null,
+            transcript: null,
             preview: {
                 type: "Image",
                 isProcessing: true,
@@ -878,6 +888,8 @@ test("can\u2019t process invalid image data", async () => {
             contentLength: 100000,
             isUploading: false,
             alternative: null,
+            analysis: null,
+            transcript: null,
             preview: {
                 type: "Image",
                 isProcessing: false,
@@ -922,6 +934,8 @@ test("can\u2019t process image with the wrong content type", async () => {
             contentLength: 33102,
             isUploading: false,
             alternative: null,
+            analysis: null,
+            transcript: null,
             preview: {
                 type: "Image",
                 isProcessing: true,
@@ -942,6 +956,8 @@ test("can\u2019t process image with the wrong content type", async () => {
             contentLength: 33102,
             isUploading: false,
             alternative: null,
+            analysis: null,
+            transcript: null,
             preview: {
                 type: "Image",
                 isProcessing: false,
@@ -986,6 +1002,8 @@ test("can upload and process image", async () => {
             contentLength: 33102,
             isUploading: false,
             alternative: null,
+            analysis: null,
+            transcript: null,
             preview: {
                 type: "Image",
                 isProcessing: true,
@@ -1006,6 +1024,8 @@ test("can upload and process image", async () => {
             contentLength: 33102,
             isUploading: false,
             alternative: null,
+            analysis: null,
+            transcript: null,
             preview: {
                 type: "Image",
                 isProcessing: false,
@@ -1054,6 +1074,8 @@ test("can upload and process large image", async () => {
             contentLength: 2274056,
             isUploading: false,
             alternative: null,
+            analysis: null,
+            transcript: null,
             preview: {
                 type: "Image",
                 isProcessing: true,
@@ -1074,6 +1096,8 @@ test("can upload and process large image", async () => {
             contentLength: 2274056,
             isUploading: false,
             alternative: null,
+            analysis: null,
+            transcript: null,
             preview: {
                 type: "Image",
                 isProcessing: false,
@@ -1122,6 +1146,8 @@ test("can upload image with a provided id", async () => {
             contentLength: 33102,
             isUploading: false,
             alternative: null,
+            analysis: null,
+            transcript: null,
             preview: {
                 type: "Image",
                 isProcessing: true,
@@ -1142,6 +1168,8 @@ test("can upload image with a provided id", async () => {
             contentLength: 33102,
             isUploading: false,
             alternative: null,
+            analysis: null,
+            transcript: null,
             preview: {
                 type: "Image",
                 isProcessing: false,
@@ -1191,6 +1219,8 @@ test("can\u2019t upload image with the same provided id twice", async () => {
                 contentLength: 33102,
                 isUploading: false,
                 alternative: null,
+                analysis: null,
+                transcript: null,
                 preview: {
                     type: "Image",
                     isProcessing: true,
@@ -1212,6 +1242,8 @@ test("can\u2019t upload image with the same provided id twice", async () => {
             contentLength: 33102,
             isUploading: false,
             alternative: null,
+            analysis: null,
+            transcript: null,
             preview: {
                 type: "Image",
                 isProcessing: false,

@@ -16,6 +16,7 @@ import {
     getPostDraftFileAttachments,
     startUploadingFile,
 } from "~/server/files/data/files_actions.js";
+import {FilesTable} from "~/server/files/data/internal/files_table.js";
 import {createOrReplacePostDraft} from "~/server/forum/data/create_or_replace_post_draft.js";
 import {FilePostAuthorizer} from "~/server/forum/data/file_post_authorizer.js";
 import {TestChannel} from "~/server/forum/test_helpers/test_channel.js";
@@ -34,6 +35,7 @@ import {FileContentType} from "~/shared/files/file_content_type.js";
 import {FileImagePreviewPlaceholder} from "~/shared/files/file_image_preview_placeholder.js";
 import {FileModel} from "~/shared/files/file_model.js";
 import {createSimplePostContent} from "~/shared/forum/post_content_schema.js";
+import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 import {generateChronologicalId, getChronologicalIdTime} from "~/shared/id/chronological_id.js";
 import {PostDraftId, SpaceId} from "~/shared/id/types/id_types.js";
 
@@ -163,6 +165,46 @@ async function uploadAndStartProcessingFile(
     return getFileUploaderAsUploader(context, fileId);
 }
 
+async function markFileAnalysisAsProcessingForTest(
+    context: ServerSessionActionContext,
+    fileUploader: FileUploader,
+) {
+    await FilesTable.updateItem(
+        context,
+        {
+            partitionType: "File2",
+            sortRangeType: "Attributes",
+            fileId: fileUploader.fileId,
+        },
+        item => ({
+            ...assertExists(item),
+            analysis: {isProcessing: true},
+        }),
+    );
+
+    return await getFileUploaderAsUploader(context, fileUploader.fileId);
+}
+
+async function markFileTranscriptAsProcessingForTest(
+    context: ServerSessionActionContext,
+    fileUploader: FileUploader,
+) {
+    await FilesTable.updateItem(
+        context,
+        {
+            partitionType: "File2",
+            sortRangeType: "Attributes",
+            fileId: fileUploader.fileId,
+        },
+        item => ({
+            ...assertExists(item),
+            transcript: {isProcessing: true},
+        }),
+    );
+
+    return await getFileUploaderAsUploader(context, fileUploader.fileId);
+}
+
 test("can start uploading and processing files", async () => {
     const space = await TestSpace.create(context);
     const session = await space.createSession();
@@ -191,6 +233,8 @@ test("can start uploading and processing files", async () => {
                 contentLength: 100,
                 isUploading: false,
                 alternative: null,
+                analysis: null,
+                transcript: null,
                 preview: {
                     type: "Image",
                     isProcessing: true,
@@ -225,6 +269,8 @@ test("can start uploading and processing files", async () => {
                 contentLength: 100,
                 isUploading: false,
                 alternative: null,
+                analysis: null,
+                transcript: null,
                 preview: {
                     type: "Image",
                     isProcessing: true,
@@ -259,6 +305,8 @@ test("can start uploading and processing files", async () => {
                 contentLength: 100,
                 isUploading: false,
                 alternative: null,
+                analysis: null,
+                transcript: null,
                 preview: {
                     type: "Image",
                     isProcessing: true,
@@ -268,6 +316,217 @@ test("can start uploading and processing files", async () => {
             }),
         );
     }
+});
+
+test("can finish processing file analysis", async () => {
+    const space = await TestSpace.create(context);
+    const session = await space.createSession();
+
+    let fileUploader = await uploadAndStartProcessingFile(session.action(), {
+        spaceId: space.id,
+        contentType: "image/png",
+        contentLength: 100,
+    });
+
+    fileUploader = await markFileAnalysisAsProcessingForTest(session.action(), fileUploader);
+
+    await fileUploader.finishProcessingAnalysis(session.action(), {
+        caption: "Cat on a windowsill.",
+        description:
+            "A cat sits on a windowsill and looks toward the light coming in from outside.",
+        tags: ["cat", "pet", "animal"],
+    });
+
+    expect(
+        await getFileAsUploader(space.systemAction(), fileUploader.fileId, {
+            consistency: "Strong",
+        }),
+    ).toEqual(
+        new FileModel({
+            spaceId: space.id,
+            id: fileUploader.fileId,
+            contentType: "image/png",
+            contentLength: 100,
+            isUploading: false,
+            alternative: null,
+            preview: {
+                type: "Image",
+                isProcessing: true,
+                size: "Processing",
+                placeholder: "Processing",
+            },
+            analysis: {
+                isProcessing: false,
+                ok: true,
+                result: {
+                    caption: "Cat on a windowsill.",
+                    description:
+                        "A cat sits on a windowsill and looks toward the light coming in from outside.",
+                    tags: ["cat", "pet", "animal"],
+                },
+            },
+            transcript: null,
+        }),
+    );
+});
+
+test("can finish processing file analysis with error", async () => {
+    const space = await TestSpace.create(context);
+    const session = await space.createSession();
+
+    let fileUploader = await uploadAndStartProcessingFile(session.action(), {
+        spaceId: space.id,
+        contentType: "image/png",
+        contentLength: 100,
+    });
+
+    fileUploader = await markFileAnalysisAsProcessingForTest(session.action(), fileUploader);
+
+    await fileUploader.finishProcessingAnalysisWithError(session.action(), {
+        type: "Unknown",
+    });
+
+    expect(
+        await getFileAsUploader(space.systemAction(), fileUploader.fileId, {
+            consistency: "Strong",
+        }),
+    ).toEqual(
+        new FileModel({
+            spaceId: space.id,
+            id: fileUploader.fileId,
+            contentType: "image/png",
+            contentLength: 100,
+            isUploading: false,
+            alternative: null,
+            preview: {
+                type: "Image",
+                isProcessing: true,
+                size: "Processing",
+                placeholder: "Processing",
+            },
+            analysis: {
+                isProcessing: false,
+                ok: false,
+                error: {type: "Unknown"},
+            },
+            transcript: null,
+        }),
+    );
+});
+
+test("throws when finishing file analysis that was not declared", async () => {
+    const space = await TestSpace.create(context);
+    const session = await space.createSession();
+
+    const fileUploader = await uploadAndStartProcessingFile(session.action(), {
+        spaceId: space.id,
+        contentType: "image/png",
+        contentLength: 100,
+    });
+
+    await expect(
+        fileUploader.finishProcessingAnalysis(session.action(), {tags: []}),
+    ).rejects.toThrow("File does not have analysis");
+});
+
+test("can mark that a file transcript has been stored", async () => {
+    const space = await TestSpace.create(context);
+    const session = await space.createSession();
+
+    let fileUploader = await uploadAndStartProcessingFile(session.action(), {
+        spaceId: space.id,
+        contentType: "audio/mpeg",
+        contentLength: 100,
+    });
+
+    fileUploader = await markFileTranscriptAsProcessingForTest(session.action(), fileUploader);
+
+    await fileUploader.finishProcessingTranscript(session.action());
+
+    expect(
+        await getFileAsUploader(space.systemAction(), fileUploader.fileId, {
+            consistency: "Strong",
+        }),
+    ).toEqual(
+        new FileModel({
+            spaceId: space.id,
+            id: fileUploader.fileId,
+            contentType: "audio/mpeg",
+            contentLength: 100,
+            isUploading: false,
+            alternative: null,
+            analysis: null,
+            preview: {
+                type: "Audio",
+                isProcessing: true,
+                duration: "Processing",
+                metadata: "Processing",
+            },
+            transcript: {
+                isProcessing: false,
+                ok: true,
+            },
+        }),
+    );
+});
+
+test("can finish processing file transcript with error", async () => {
+    const space = await TestSpace.create(context);
+    const session = await space.createSession();
+
+    let fileUploader = await uploadAndStartProcessingFile(session.action(), {
+        spaceId: space.id,
+        contentType: "audio/mpeg",
+        contentLength: 100,
+    });
+
+    fileUploader = await markFileTranscriptAsProcessingForTest(session.action(), fileUploader);
+
+    await fileUploader.finishProcessingTranscriptWithError(session.action(), {
+        type: "Unknown",
+    });
+
+    expect(
+        await getFileAsUploader(space.systemAction(), fileUploader.fileId, {
+            consistency: "Strong",
+        }),
+    ).toEqual(
+        new FileModel({
+            spaceId: space.id,
+            id: fileUploader.fileId,
+            contentType: "audio/mpeg",
+            contentLength: 100,
+            isUploading: false,
+            alternative: null,
+            analysis: null,
+            preview: {
+                type: "Audio",
+                isProcessing: true,
+                duration: "Processing",
+                metadata: "Processing",
+            },
+            transcript: {
+                isProcessing: false,
+                ok: false,
+                error: {type: "Unknown"},
+            },
+        }),
+    );
+});
+
+test("throws when finishing a transcript that was not declared", async () => {
+    const space = await TestSpace.create(context);
+    const session = await space.createSession();
+
+    const fileUploader = await uploadAndStartProcessingFile(session.action(), {
+        spaceId: space.id,
+        contentType: "audio/mpeg",
+        contentLength: 100,
+    });
+
+    await expect(fileUploader.finishProcessingTranscript(session.action())).rejects.toThrow(
+        "File does not have a transcript",
+    );
 });
 
 test("can only start uploading and processing a file if you have access to the space", async () => {
@@ -351,6 +610,8 @@ test("can finish file processing preview size and preview placeholder", async ()
             contentLength: 100,
             isUploading: false,
             alternative: null,
+            analysis: null,
+            transcript: null,
             preview: {
                 type: "Image",
                 isProcessing: true,
@@ -375,6 +636,8 @@ test("can finish file processing preview size and preview placeholder", async ()
             contentLength: 100,
             isUploading: false,
             alternative: null,
+            analysis: null,
+            transcript: null,
             preview: {
                 type: "Image",
                 isProcessing: true,
@@ -397,6 +660,8 @@ test("can finish file processing preview size and preview placeholder", async ()
             contentLength: 100,
             isUploading: false,
             alternative: null,
+            analysis: null,
+            transcript: null,
             preview: {
                 type: "Image",
                 isProcessing: false,
@@ -426,6 +691,8 @@ test("can finish file processing preview size and preview placeholder in any ord
             contentLength: 100,
             isUploading: false,
             alternative: null,
+            analysis: null,
+            transcript: null,
             preview: {
                 type: "Image",
                 isProcessing: true,
@@ -448,6 +715,8 @@ test("can finish file processing preview size and preview placeholder in any ord
             contentLength: 100,
             isUploading: false,
             alternative: null,
+            analysis: null,
+            transcript: null,
             preview: {
                 type: "Image",
                 isProcessing: true,
@@ -472,6 +741,8 @@ test("can finish file processing preview size and preview placeholder in any ord
             contentLength: 100,
             isUploading: false,
             alternative: null,
+            analysis: null,
+            transcript: null,
             preview: {
                 type: "Image",
                 isProcessing: false,
@@ -507,6 +778,8 @@ test("can\u2019t finish file preview processing with a different account", async
             contentLength: 100,
             isUploading: false,
             alternative: null,
+            analysis: null,
+            transcript: null,
             preview: {
                 type: "Image",
                 isProcessing: true,
@@ -570,6 +843,8 @@ test("can\u2019t finish file preview processing with a different account", async
             contentLength: 100,
             isUploading: false,
             alternative: null,
+            analysis: null,
+            transcript: null,
             preview: {
                 type: "Image",
                 isProcessing: true,
@@ -598,6 +873,8 @@ test("can\u2019t finish file preview processing for files without a preview", as
             contentLength: 100,
             isUploading: false,
             alternative: null,
+            analysis: null,
+            transcript: null,
             preview: null,
         }),
     );
@@ -626,6 +903,8 @@ test("can\u2019t finish file preview processing for files without a preview", as
             contentLength: 100,
             isUploading: false,
             alternative: null,
+            analysis: null,
+            transcript: null,
             preview: null,
         }),
     );
@@ -662,6 +941,8 @@ test("can finish file preview processing if file processing has already complete
                 contentLength: 100,
                 isUploading: false,
                 alternative: null,
+                analysis: null,
+                transcript: null,
                 preview: {
                     type: "Image",
                     isProcessing: false,
@@ -687,6 +968,8 @@ test("can finish file preview processing if file processing has already complete
                 contentLength: 100,
                 isUploading: false,
                 alternative: null,
+                analysis: null,
+                transcript: null,
                 preview: {
                     type: "Image",
                     isProcessing: false,
@@ -725,6 +1008,8 @@ test("can finish file preview processing if file processing has already complete
                 contentLength: 100,
                 isUploading: false,
                 alternative: null,
+                analysis: null,
+                transcript: null,
                 preview: {
                     type: "Image",
                     isProcessing: false,
@@ -748,6 +1033,8 @@ test("can finish file preview processing if file processing has already complete
                 contentLength: 100,
                 isUploading: false,
                 alternative: null,
+                analysis: null,
+                transcript: null,
                 preview: {
                     type: "Image",
                     isProcessing: false,
@@ -779,6 +1066,8 @@ test("can finish file preview processing for the same data twice", async () => {
                 contentLength: 100,
                 isUploading: false,
                 alternative: null,
+                analysis: null,
+                transcript: null,
                 preview: {
                     type: "Image",
                     isProcessing: true,
@@ -803,6 +1092,8 @@ test("can finish file preview processing for the same data twice", async () => {
                 contentLength: 100,
                 isUploading: false,
                 alternative: null,
+                analysis: null,
+                transcript: null,
                 preview: {
                     type: "Image",
                     isProcessing: true,
@@ -827,6 +1118,8 @@ test("can finish file preview processing for the same data twice", async () => {
                 contentLength: 100,
                 isUploading: false,
                 alternative: null,
+                analysis: null,
+                transcript: null,
                 preview: {
                     type: "Image",
                     isProcessing: true,
@@ -852,6 +1145,8 @@ test("can finish file preview processing for the same data twice", async () => {
                 contentLength: 100,
                 isUploading: false,
                 alternative: null,
+                analysis: null,
+                transcript: null,
                 preview: {
                     type: "Image",
                     isProcessing: true,
@@ -874,6 +1169,8 @@ test("can finish file preview processing for the same data twice", async () => {
                 contentLength: 100,
                 isUploading: false,
                 alternative: null,
+                analysis: null,
+                transcript: null,
                 preview: {
                     type: "Image",
                     isProcessing: true,
@@ -896,6 +1193,8 @@ test("can finish file preview processing for the same data twice", async () => {
                 contentLength: 100,
                 isUploading: false,
                 alternative: null,
+                analysis: null,
+                transcript: null,
                 preview: {
                     type: "Image",
                     isProcessing: true,
@@ -925,6 +1224,8 @@ test("can finish file processing preview size, preview placeholder, and preview 
             contentLength: 100,
             isUploading: false,
             alternative: null,
+            analysis: null,
+            transcript: null,
             preview: {
                 type: "Image",
                 isProcessing: true,
@@ -950,6 +1251,8 @@ test("can finish file processing preview size, preview placeholder, and preview 
             contentLength: 100,
             isUploading: false,
             alternative: null,
+            analysis: null,
+            transcript: null,
             preview: {
                 type: "Image",
                 isProcessing: true,
@@ -973,6 +1276,8 @@ test("can finish file processing preview size, preview placeholder, and preview 
             contentLength: 100,
             isUploading: false,
             alternative: null,
+            analysis: null,
+            transcript: null,
             preview: {
                 type: "Image",
                 isProcessing: true,
@@ -997,6 +1302,8 @@ test("can finish file processing preview size, preview placeholder, and preview 
             contentLength: 100,
             isUploading: false,
             alternative: null,
+            analysis: null,
+            transcript: null,
             preview: {
                 type: "Image",
                 isProcessing: false,
@@ -1031,6 +1338,8 @@ test("can finish file processing preview size, preview placeholder, and preview 
                 contentLength: 100,
                 isUploading: false,
                 alternative: null,
+                analysis: null,
+                transcript: null,
                 preview: {
                     type: "Image",
                     isProcessing: true,
@@ -1055,6 +1364,8 @@ test("can finish file processing preview size, preview placeholder, and preview 
                 contentLength: 100,
                 isUploading: false,
                 alternative: null,
+                analysis: null,
+                transcript: null,
                 preview: {
                     type: "Image",
                     isProcessing: true,
@@ -1081,6 +1392,8 @@ test("can finish file processing preview size, preview placeholder, and preview 
                 contentLength: 100,
                 isUploading: false,
                 alternative: null,
+                analysis: null,
+                transcript: null,
                 preview: {
                     type: "Image",
                     isProcessing: true,
@@ -1109,6 +1422,8 @@ test("can finish file processing preview size, preview placeholder, and preview 
                 contentLength: 100,
                 isUploading: false,
                 alternative: null,
+                analysis: null,
+                transcript: null,
                 preview: {
                     type: "Image",
                     isProcessing: false,
@@ -1139,6 +1454,8 @@ test("can finish file processing preview size, preview placeholder, and preview 
                 contentLength: 100,
                 isUploading: false,
                 alternative: null,
+                analysis: null,
+                transcript: null,
                 preview: {
                     type: "Image",
                     isProcessing: true,
@@ -1163,6 +1480,8 @@ test("can finish file processing preview size, preview placeholder, and preview 
                 contentLength: 100,
                 isUploading: false,
                 alternative: null,
+                analysis: null,
+                transcript: null,
                 preview: {
                     type: "Image",
                     isProcessing: true,
@@ -1191,6 +1510,8 @@ test("can finish file processing preview size, preview placeholder, and preview 
                 contentLength: 100,
                 isUploading: false,
                 alternative: null,
+                analysis: null,
+                transcript: null,
                 preview: {
                     type: "Image",
                     isProcessing: true,
@@ -1217,6 +1538,8 @@ test("can finish file processing preview size, preview placeholder, and preview 
                 contentLength: 100,
                 isUploading: false,
                 alternative: null,
+                analysis: null,
+                transcript: null,
                 preview: {
                     type: "Image",
                     isProcessing: false,
@@ -1252,6 +1575,8 @@ test("can\u2019t finish file preview image processing with a different account",
             contentLength: 100,
             isUploading: false,
             alternative: null,
+            analysis: null,
+            transcript: null,
             preview: {
                 type: "Image",
                 isProcessing: true,
@@ -1278,6 +1603,8 @@ test("can\u2019t finish file preview image processing with a different account",
             contentLength: 100,
             isUploading: false,
             alternative: null,
+            analysis: null,
+            transcript: null,
             preview: {
                 type: "Image",
                 isProcessing: true,
@@ -1307,6 +1634,8 @@ test("can\u2019t finish file preview image processing for files without a previe
             contentLength: 100,
             isUploading: false,
             alternative: null,
+            analysis: null,
+            transcript: null,
             preview: null,
         }),
     );
@@ -1327,6 +1656,8 @@ test("can\u2019t finish file preview image processing for files without a previe
             contentLength: 100,
             isUploading: false,
             alternative: null,
+            analysis: null,
+            transcript: null,
             preview: null,
         }),
     );
@@ -1350,6 +1681,8 @@ test("can\u2019t finish file preview image processing for files without a previe
             contentLength: 100,
             isUploading: false,
             alternative: null,
+            analysis: null,
+            transcript: null,
             preview: {
                 type: "Image",
                 isProcessing: true,
@@ -1375,6 +1708,8 @@ test("can\u2019t finish file preview image processing for files without a previe
             contentLength: 100,
             isUploading: false,
             alternative: null,
+            analysis: null,
+            transcript: null,
             preview: {
                 type: "Image",
                 isProcessing: true,
@@ -1421,6 +1756,8 @@ test("can finish file preview image processing if file processing has already co
             contentLength: 100,
             isUploading: false,
             alternative: null,
+            analysis: null,
+            transcript: null,
             preview: {
                 type: "Image",
                 isProcessing: false,
@@ -1446,6 +1783,8 @@ test("can finish file preview image processing if file processing has already co
             contentLength: 100,
             isUploading: false,
             alternative: null,
+            analysis: null,
+            transcript: null,
             preview: {
                 type: "Image",
                 isProcessing: false,
@@ -1476,6 +1815,8 @@ test("can finish file preview image processing for the same data twice", async (
             contentLength: 100,
             isUploading: false,
             alternative: null,
+            analysis: null,
+            transcript: null,
             preview: {
                 type: "Image",
                 isProcessing: true,
@@ -1500,6 +1841,8 @@ test("can finish file preview image processing for the same data twice", async (
             contentLength: 100,
             isUploading: false,
             alternative: null,
+            analysis: null,
+            transcript: null,
             preview: {
                 type: "Image",
                 isProcessing: true,
@@ -1527,6 +1870,8 @@ test("can finish file preview image processing for the same data twice", async (
             contentLength: 100,
             isUploading: false,
             alternative: null,
+            analysis: null,
+            transcript: null,
             preview: {
                 type: "Image",
                 isProcessing: true,
@@ -1559,6 +1904,8 @@ test("can finish file processing preview size, preview placeholder, preview imag
             contentLength: 100,
             isUploading: false,
             alternative: null,
+            analysis: null,
+            transcript: null,
             preview: {
                 type: "Image",
                 isProcessing: true,
@@ -1585,6 +1932,8 @@ test("can finish file processing preview size, preview placeholder, preview imag
             contentLength: 100,
             isUploading: false,
             alternative: null,
+            analysis: null,
+            transcript: null,
             preview: {
                 type: "Image",
                 isProcessing: true,
@@ -1609,6 +1958,8 @@ test("can finish file processing preview size, preview placeholder, preview imag
             contentLength: 100,
             isUploading: false,
             alternative: null,
+            analysis: null,
+            transcript: null,
             preview: {
                 type: "Image",
                 isProcessing: true,
@@ -1634,6 +1985,8 @@ test("can finish file processing preview size, preview placeholder, preview imag
             contentLength: 100,
             isUploading: false,
             alternative: null,
+            analysis: null,
+            transcript: null,
             preview: {
                 type: "Image",
                 isProcessing: true,
@@ -1658,6 +2011,8 @@ test("can finish file processing preview size, preview placeholder, preview imag
             contentLength: 100,
             isUploading: false,
             alternative: null,
+            analysis: null,
+            transcript: null,
             preview: {
                 type: "Image",
                 isProcessing: false,
@@ -1743,6 +2098,8 @@ test("can finish file processing preview size, preview placeholder, preview imag
                 contentLength: 100,
                 isUploading: false,
                 alternative: null,
+                analysis: null,
+                transcript: null,
                 preview: {
                     type: "Image",
                     isProcessing: true,
@@ -1766,6 +2123,8 @@ test("can finish file processing preview size, preview placeholder, preview imag
                 contentLength: 100,
                 isUploading: false,
                 alternative: null,
+                analysis: null,
+                transcript: null,
                 preview: {
                     type: "Image",
                     isProcessing: false,
@@ -1801,6 +2160,8 @@ test("can finish file processing preview size (and video duration), preview plac
             contentLength: 100,
             isUploading: false,
             alternative: null,
+            analysis: null,
+            transcript: null,
             preview: {
                 type: "Image",
                 isProcessing: true,
@@ -1831,6 +2192,8 @@ test("can finish file processing preview size (and video duration), preview plac
             contentLength: 100,
             isUploading: false,
             alternative: null,
+            analysis: null,
+            transcript: null,
             preview: {
                 type: "Image",
                 isProcessing: true,
@@ -1855,6 +2218,8 @@ test("can finish file processing preview size (and video duration), preview plac
             contentLength: 100,
             isUploading: false,
             alternative: null,
+            analysis: null,
+            transcript: null,
             preview: {
                 type: "Image",
                 isProcessing: true,
@@ -1880,6 +2245,8 @@ test("can finish file processing preview size (and video duration), preview plac
             contentLength: 100,
             isUploading: false,
             alternative: null,
+            analysis: null,
+            transcript: null,
             preview: {
                 type: "Image",
                 isProcessing: false,
@@ -1905,6 +2272,8 @@ test("can finish file processing preview size (and video duration), preview plac
             contentLength: 100,
             isUploading: false,
             alternative: null,
+            analysis: null,
+            transcript: null,
             preview: {
                 type: "Image",
                 isProcessing: false,
@@ -1992,6 +2361,8 @@ test("can finish file processing preview size (including video duration), previe
                 contentLength: 100,
                 isUploading: false,
                 alternative: null,
+                analysis: null,
+                transcript: null,
                 preview: {
                     type: "Image",
                     isProcessing: true,
@@ -2015,6 +2386,8 @@ test("can finish file processing preview size (including video duration), previe
                 contentLength: 100,
                 isUploading: false,
                 alternative: null,
+                analysis: null,
+                transcript: null,
                 preview: {
                     type: "Image",
                     isProcessing: false,
@@ -2051,6 +2424,8 @@ test("can\u2019t finish file preview video duration processing with a different 
             contentLength: 100,
             isUploading: false,
             alternative: null,
+            analysis: null,
+            transcript: null,
             preview: {
                 type: "Image",
                 isProcessing: true,
@@ -2073,6 +2448,8 @@ test("can\u2019t finish file preview video duration processing with a different 
             contentLength: 100,
             isUploading: false,
             alternative: null,
+            analysis: null,
+            transcript: null,
             preview: {
                 type: "Image",
                 isProcessing: true,
@@ -2102,6 +2479,8 @@ test("can\u2019t finish file preview video duration processing for files without
             contentLength: 100,
             isUploading: false,
             alternative: null,
+            analysis: null,
+            transcript: null,
             preview: null,
         }),
     );
@@ -2118,6 +2497,8 @@ test("can\u2019t finish file preview video duration processing for files without
             contentLength: 100,
             isUploading: false,
             alternative: null,
+            analysis: null,
+            transcript: null,
             preview: null,
         }),
     );
@@ -2141,6 +2522,8 @@ test("can\u2019t finish file preview video duration processing for files without
             contentLength: 100,
             isUploading: false,
             alternative: null,
+            analysis: null,
+            transcript: null,
             preview: {
                 type: "Image",
                 isProcessing: true,
@@ -2163,6 +2546,8 @@ test("can\u2019t finish file preview video duration processing for files without
             contentLength: 100,
             isUploading: false,
             alternative: null,
+            analysis: null,
+            transcript: null,
             preview: {
                 type: "Image",
                 isProcessing: true,
@@ -2192,6 +2577,8 @@ test("can\u2019t finish file preview video duration processing for files without
             contentLength: 100,
             isUploading: false,
             alternative: null,
+            analysis: null,
+            transcript: null,
             preview: {
                 type: "Image",
                 isProcessing: true,
@@ -2223,6 +2610,8 @@ test("can\u2019t finish file preview video duration processing for files without
             contentLength: 100,
             isUploading: false,
             alternative: null,
+            analysis: null,
+            transcript: null,
             preview: {
                 type: "Image",
                 isProcessing: true,
@@ -2272,6 +2661,8 @@ test("can\u2019t finish file preview video duration processing if file processin
             contentLength: 100,
             isUploading: false,
             alternative: null,
+            analysis: null,
+            transcript: null,
             preview: {
                 type: "Image",
                 isProcessing: false,
@@ -2294,6 +2685,8 @@ test("can\u2019t finish file preview video duration processing if file processin
             contentLength: 100,
             isUploading: false,
             alternative: null,
+            analysis: null,
+            transcript: null,
             preview: {
                 type: "Image",
                 isProcessing: false,
@@ -2316,6 +2709,8 @@ test("can\u2019t finish file preview video duration processing if file processin
             contentLength: 100,
             isUploading: false,
             alternative: null,
+            analysis: null,
+            transcript: null,
             preview: {
                 type: "Image",
                 isProcessing: false,
@@ -2367,6 +2762,8 @@ test("can\u2019t finish file preview video duration processing if file processin
             contentLength: 100,
             isUploading: false,
             alternative: null,
+            analysis: null,
+            transcript: null,
             preview: {
                 type: "Image",
                 isProcessing: false,
@@ -2389,6 +2786,8 @@ test("can\u2019t finish file preview video duration processing if file processin
             contentLength: 100,
             isUploading: false,
             alternative: null,
+            analysis: null,
+            transcript: null,
             preview: {
                 type: "Image",
                 isProcessing: false,
@@ -2420,6 +2819,8 @@ test("can finish file preview video duration processing for the same data twice"
             contentLength: 100,
             isUploading: false,
             alternative: null,
+            analysis: null,
+            transcript: null,
             preview: {
                 type: "Image",
                 isProcessing: true,
@@ -2441,6 +2842,8 @@ test("can finish file preview video duration processing for the same data twice"
             contentLength: 100,
             isUploading: false,
             alternative: null,
+            analysis: null,
+            transcript: null,
             preview: {
                 type: "Image",
                 isProcessing: true,
@@ -2462,6 +2865,8 @@ test("can finish file preview video duration processing for the same data twice"
             contentLength: 100,
             isUploading: false,
             alternative: null,
+            analysis: null,
+            transcript: null,
             preview: {
                 type: "Image",
                 isProcessing: true,
@@ -2483,6 +2888,8 @@ test("can finish file preview video duration processing for the same data twice"
             contentLength: 100,
             isUploading: false,
             alternative: null,
+            analysis: null,
+            transcript: null,
             preview: {
                 type: "Image",
                 isProcessing: true,
@@ -2513,6 +2920,8 @@ test("can\u2019t finish file preview video duration processing for the same data
             contentLength: 100,
             isUploading: false,
             alternative: null,
+            analysis: null,
+            transcript: null,
             preview: {
                 type: "Image",
                 isProcessing: true,
@@ -2534,6 +2943,8 @@ test("can\u2019t finish file preview video duration processing for the same data
             contentLength: 100,
             isUploading: false,
             alternative: null,
+            analysis: null,
+            transcript: null,
             preview: {
                 type: "Image",
                 isProcessing: true,
@@ -2564,6 +2975,8 @@ test("can\u2019t finish file preview video duration processing for the same data
             contentLength: 100,
             isUploading: false,
             alternative: null,
+            analysis: null,
+            transcript: null,
             preview: {
                 type: "Image",
                 isProcessing: true,
@@ -2594,6 +3007,8 @@ test("can finish file preview video duration processing for the same data twice 
             contentLength: 100,
             isUploading: false,
             alternative: null,
+            analysis: null,
+            transcript: null,
             preview: {
                 type: "Image",
                 isProcessing: true,
@@ -2615,6 +3030,8 @@ test("can finish file preview video duration processing for the same data twice 
             contentLength: 100,
             isUploading: false,
             alternative: null,
+            analysis: null,
+            transcript: null,
             preview: {
                 type: "Image",
                 isProcessing: true,
@@ -2636,6 +3053,8 @@ test("can finish file preview video duration processing for the same data twice 
             contentLength: 100,
             isUploading: false,
             alternative: null,
+            analysis: null,
+            transcript: null,
             preview: {
                 type: "Image",
                 isProcessing: true,
@@ -2666,6 +3085,8 @@ test("can finish file processing image preview with error", async () => {
             contentLength: 100,
             isUploading: false,
             alternative: null,
+            analysis: null,
+            transcript: null,
             preview: {
                 type: "Image",
                 isProcessing: true,
@@ -2688,6 +3109,49 @@ test("can finish file processing image preview with error", async () => {
             contentLength: 100,
             isUploading: false,
             alternative: null,
+            analysis: null,
+            transcript: null,
+            preview: {
+                type: "Image",
+                isProcessing: false,
+                ok: false,
+                error: {type: "PasswordProtected"},
+                size: "Error",
+                placeholder: "Error",
+                content: "Error",
+            },
+        }),
+    );
+});
+
+test("can upgrade file processing image preview error", async () => {
+    const space = await TestSpace.create(context);
+    const session = await space.createSession();
+
+    const fileUploader = await uploadAndStartProcessingFile(session.action(), {
+        spaceId: space.id,
+        contentType: "application/pdf",
+        contentLength: 100,
+    });
+
+    await fileUploader.finishProcessingPreviewWithError(session.action(), {
+        type: "Unknown",
+    });
+
+    await fileUploader.finishProcessingPreviewWithError(session.action(), {
+        type: "PasswordProtected",
+    });
+
+    expect(await getFileAsUploader(space.systemAction(), fileUploader.fileId)).toEqual(
+        new FileModel({
+            spaceId: space.id,
+            id: fileUploader.fileId,
+            contentType: "application/pdf",
+            contentLength: 100,
+            isUploading: false,
+            alternative: null,
+            analysis: null,
+            transcript: null,
             preview: {
                 type: "Image",
                 isProcessing: false,
@@ -2719,6 +3183,8 @@ test("can finish file processing preview with error after processing preview siz
             contentLength: 100,
             isUploading: false,
             alternative: null,
+            analysis: null,
+            transcript: null,
             preview: {
                 type: "Image",
                 isProcessing: true,
@@ -2744,6 +3210,8 @@ test("can finish file processing preview with error after processing preview siz
             contentLength: 100,
             isUploading: false,
             alternative: null,
+            analysis: null,
+            transcript: null,
             preview: {
                 type: "Image",
                 isProcessing: true,
@@ -2766,6 +3234,8 @@ test("can finish file processing preview with error after processing preview siz
             contentLength: 100,
             isUploading: false,
             alternative: null,
+            analysis: null,
+            transcript: null,
             preview: {
                 type: "Image",
                 isProcessing: false,
@@ -2797,6 +3267,8 @@ test("can finish file with processed preview size after processing preview error
             contentLength: 100,
             isUploading: false,
             alternative: null,
+            analysis: null,
+            transcript: null,
             preview: {
                 type: "Image",
                 isProcessing: true,
@@ -2819,6 +3291,8 @@ test("can finish file with processed preview size after processing preview error
             contentLength: 100,
             isUploading: false,
             alternative: null,
+            analysis: null,
+            transcript: null,
             preview: {
                 type: "Image",
                 isProcessing: false,
@@ -2846,6 +3320,8 @@ test("can finish file with processed preview size after processing preview error
             contentLength: 100,
             isUploading: false,
             alternative: null,
+            analysis: null,
+            transcript: null,
             preview: {
                 type: "Image",
                 isProcessing: false,
@@ -2877,6 +3353,8 @@ test("can finish file with processed preview placeholder after processing previe
             contentLength: 100,
             isUploading: false,
             alternative: null,
+            analysis: null,
+            transcript: null,
             preview: {
                 type: "Image",
                 isProcessing: true,
@@ -2899,6 +3377,8 @@ test("can finish file with processed preview placeholder after processing previe
             contentLength: 100,
             isUploading: false,
             alternative: null,
+            analysis: null,
+            transcript: null,
             preview: {
                 type: "Image",
                 isProcessing: false,
@@ -2924,6 +3404,8 @@ test("can finish file with processed preview placeholder after processing previe
             contentLength: 100,
             isUploading: false,
             alternative: null,
+            analysis: null,
+            transcript: null,
             preview: {
                 type: "Image",
                 isProcessing: false,
@@ -2955,6 +3437,8 @@ test("can finish file with processed preview image after processing preview erro
             contentLength: 100,
             isUploading: false,
             alternative: null,
+            analysis: null,
+            transcript: null,
             preview: {
                 type: "Image",
                 isProcessing: true,
@@ -2977,6 +3461,8 @@ test("can finish file with processed preview image after processing preview erro
             contentLength: 100,
             isUploading: false,
             alternative: null,
+            analysis: null,
+            transcript: null,
             preview: {
                 type: "Image",
                 isProcessing: false,
@@ -3003,6 +3489,8 @@ test("can finish file with processed preview image after processing preview erro
             contentLength: 100,
             isUploading: false,
             alternative: null,
+            analysis: null,
+            transcript: null,
             preview: {
                 type: "Image",
                 isProcessing: false,
@@ -3034,6 +3522,8 @@ test("can finish file processing preview with error twice", async () => {
             contentLength: 100,
             isUploading: false,
             alternative: null,
+            analysis: null,
+            transcript: null,
             preview: {
                 type: "Image",
                 isProcessing: true,
@@ -3056,6 +3546,8 @@ test("can finish file processing preview with error twice", async () => {
             contentLength: 100,
             isUploading: false,
             alternative: null,
+            analysis: null,
+            transcript: null,
             preview: {
                 type: "Image",
                 isProcessing: false,
@@ -3080,6 +3572,8 @@ test("can finish file processing preview with error twice", async () => {
             contentLength: 100,
             isUploading: false,
             alternative: null,
+            analysis: null,
+            transcript: null,
             preview: {
                 type: "Image",
                 isProcessing: false,
@@ -3112,6 +3606,8 @@ test("can\u2019t finish file preview processing with error with a different acco
             contentLength: 100,
             isUploading: false,
             alternative: null,
+            analysis: null,
+            transcript: null,
             preview: {
                 type: "Image",
                 isProcessing: true,
@@ -3136,6 +3632,8 @@ test("can\u2019t finish file preview processing with error with a different acco
             contentLength: 100,
             isUploading: false,
             alternative: null,
+            analysis: null,
+            transcript: null,
             preview: {
                 type: "Image",
                 isProcessing: true,
@@ -3165,6 +3663,8 @@ test("can\u2019t finish file preview processing with error for files without a p
             contentLength: 100,
             isUploading: false,
             alternative: null,
+            analysis: null,
+            transcript: null,
             preview: null,
         }),
     );
@@ -3183,6 +3683,8 @@ test("can\u2019t finish file preview processing with error for files without a p
             contentLength: 100,
             isUploading: false,
             alternative: null,
+            analysis: null,
+            transcript: null,
             preview: null,
         }),
     );
@@ -3206,6 +3708,8 @@ test("can finish file processing audio preview with error", async () => {
             contentLength: 100,
             isUploading: false,
             alternative: null,
+            analysis: null,
+            transcript: null,
             preview: {
                 type: "Audio",
                 isProcessing: true,
@@ -3227,6 +3731,8 @@ test("can finish file processing audio preview with error", async () => {
             contentLength: 100,
             isUploading: false,
             alternative: null,
+            analysis: null,
+            transcript: null,
             preview: {
                 type: "Audio",
                 isProcessing: false,
@@ -3257,6 +3763,8 @@ test("can finish file processing code preview with error", async () => {
             contentLength: 100,
             isUploading: false,
             alternative: null,
+            analysis: null,
+            transcript: null,
             preview: {
                 type: "Code",
                 isProcessing: true,
@@ -3277,6 +3785,8 @@ test("can finish file processing code preview with error", async () => {
             contentLength: 100,
             isUploading: false,
             alternative: null,
+            analysis: null,
+            transcript: null,
             preview: {
                 type: "Code",
                 isProcessing: false,
@@ -3324,6 +3834,8 @@ test("can finish file preview processing with error if file processing has alrea
             contentLength: 100,
             isUploading: false,
             alternative: null,
+            analysis: null,
+            transcript: null,
             preview: {
                 type: "Image",
                 isProcessing: false,
@@ -3347,6 +3859,8 @@ test("can finish file preview processing with error if file processing has alrea
             contentLength: 100,
             isUploading: false,
             alternative: null,
+            analysis: null,
+            transcript: null,
             preview: {
                 type: "Image",
                 isProcessing: false,
@@ -3377,6 +3891,8 @@ test("can finish file uploading", async () => {
             contentLength: 100,
             isUploading: true,
             alternative: null,
+            analysis: null,
+            transcript: null,
             preview: {
                 type: "Image",
                 isProcessing: true,
@@ -3399,6 +3915,8 @@ test("can finish file uploading", async () => {
             contentLength: 100,
             isUploading: false,
             alternative: null,
+            analysis: null,
+            transcript: null,
             preview: {
                 type: "Image",
                 isProcessing: true,
@@ -3427,6 +3945,8 @@ test("can\u2019t finish file uploading twice", async () => {
             contentLength: 100,
             isUploading: true,
             alternative: null,
+            analysis: null,
+            transcript: null,
             preview: {
                 type: "Image",
                 isProcessing: true,
@@ -3449,6 +3969,8 @@ test("can\u2019t finish file uploading twice", async () => {
             contentLength: 100,
             isUploading: false,
             alternative: null,
+            analysis: null,
+            transcript: null,
             preview: {
                 type: "Image",
                 isProcessing: true,
@@ -3485,6 +4007,8 @@ test("can\u2019t finish file uploading as a different account", async () => {
             contentLength: 100,
             isUploading: true,
             alternative: null,
+            analysis: null,
+            transcript: null,
             preview: {
                 type: "Image",
                 isProcessing: true,
@@ -3509,6 +4033,8 @@ test("can\u2019t finish file uploading as a different account", async () => {
             contentLength: 100,
             isUploading: true,
             alternative: null,
+            analysis: null,
+            transcript: null,
             preview: {
                 type: "Image",
                 isProcessing: true,
@@ -3539,6 +4065,8 @@ test("can finish file processing then finish file uploading", async () => {
             contentLength: 100,
             isUploading: true,
             alternative: null,
+            analysis: null,
+            transcript: null,
             preview: {
                 type: "Image",
                 isProcessing: true,
@@ -3563,6 +4091,8 @@ test("can finish file processing then finish file uploading", async () => {
             contentLength: 100,
             isUploading: true,
             alternative: null,
+            analysis: null,
+            transcript: null,
             preview: {
                 type: "Image",
                 isProcessing: true,
@@ -3585,6 +4115,8 @@ test("can finish file processing then finish file uploading", async () => {
             contentLength: 100,
             isUploading: true,
             alternative: null,
+            analysis: null,
+            transcript: null,
             preview: {
                 type: "Image",
                 isProcessing: false,
@@ -3608,6 +4140,8 @@ test("can finish file processing then finish file uploading", async () => {
             contentLength: 100,
             isUploading: false,
             alternative: null,
+            analysis: null,
+            transcript: null,
             preview: {
                 type: "Image",
                 isProcessing: false,
@@ -3639,6 +4173,8 @@ test("can finish file uploading then finish file processing", async () => {
             contentLength: 100,
             isUploading: true,
             alternative: null,
+            analysis: null,
+            transcript: null,
             preview: {
                 type: "Image",
                 isProcessing: true,
@@ -3661,6 +4197,8 @@ test("can finish file uploading then finish file processing", async () => {
             contentLength: 100,
             isUploading: false,
             alternative: null,
+            analysis: null,
+            transcript: null,
             preview: {
                 type: "Image",
                 isProcessing: true,
@@ -3685,6 +4223,8 @@ test("can finish file uploading then finish file processing", async () => {
             contentLength: 100,
             isUploading: false,
             alternative: null,
+            analysis: null,
+            transcript: null,
             preview: {
                 type: "Image",
                 isProcessing: true,
@@ -3707,6 +4247,8 @@ test("can finish file uploading then finish file processing", async () => {
             contentLength: 100,
             isUploading: false,
             alternative: null,
+            analysis: null,
+            transcript: null,
             preview: {
                 type: "Image",
                 isProcessing: false,
@@ -3738,6 +4280,8 @@ test("can finish uploading interleaved with finishing file processing", async ()
             contentLength: 100,
             isUploading: true,
             alternative: null,
+            analysis: null,
+            transcript: null,
             preview: {
                 type: "Image",
                 isProcessing: true,
@@ -3762,6 +4306,8 @@ test("can finish uploading interleaved with finishing file processing", async ()
             contentLength: 100,
             isUploading: true,
             alternative: null,
+            analysis: null,
+            transcript: null,
             preview: {
                 type: "Image",
                 isProcessing: true,
@@ -3784,6 +4330,8 @@ test("can finish uploading interleaved with finishing file processing", async ()
             contentLength: 100,
             isUploading: false,
             alternative: null,
+            analysis: null,
+            transcript: null,
             preview: {
                 type: "Image",
                 isProcessing: true,
@@ -3806,6 +4354,8 @@ test("can finish uploading interleaved with finishing file processing", async ()
             contentLength: 100,
             isUploading: false,
             alternative: null,
+            analysis: null,
+            transcript: null,
             preview: {
                 type: "Image",
                 isProcessing: false,
@@ -3835,6 +4385,8 @@ test("can finish processing file alternative", async () => {
             contentLength: 100,
             isUploading: false,
             alternative: {isProcessing: true},
+            analysis: null,
+            transcript: null,
             preview: {
                 type: "Image",
                 isProcessing: true,
@@ -3864,6 +4416,8 @@ test("can finish processing file alternative", async () => {
                 contentLength: 120,
                 isImagePreviewContent: false,
             },
+            analysis: null,
+            transcript: null,
             preview: {
                 type: "Image",
                 isProcessing: true,
@@ -3895,6 +4449,8 @@ test("can finish processing file alternative", async () => {
                 contentLength: 120,
                 isImagePreviewContent: false,
             },
+            analysis: null,
+            transcript: null,
             preview: {
                 type: "Image",
                 isProcessing: true,
@@ -3924,6 +4480,8 @@ test("can finish processing file alternative", async () => {
                 contentLength: 120,
                 isImagePreviewContent: false,
             },
+            analysis: null,
+            transcript: null,
             preview: {
                 type: "Image",
                 isProcessing: true,
@@ -3954,6 +4512,8 @@ test("can finish processing file alternative", async () => {
                 contentLength: 120,
                 isImagePreviewContent: false,
             },
+            analysis: null,
+            transcript: null,
             preview: {
                 type: "Image",
                 isProcessing: false,
@@ -3985,6 +4545,8 @@ test("can finish processing file alternative in any order", async () => {
                 contentLength: 100,
                 isUploading: false,
                 alternative: {isProcessing: true},
+                analysis: null,
+                transcript: null,
                 preview: {
                     type: "Image",
                     isProcessing: true,
@@ -4010,6 +4572,8 @@ test("can finish processing file alternative in any order", async () => {
                 contentLength: 100,
                 isUploading: false,
                 alternative: {isProcessing: true},
+                analysis: null,
+                transcript: null,
                 preview: {
                     type: "Image",
                     isProcessing: true,
@@ -4039,6 +4603,8 @@ test("can finish processing file alternative in any order", async () => {
                     contentLength: 120,
                     isImagePreviewContent: false,
                 },
+                analysis: null,
+                transcript: null,
                 preview: {
                     type: "Image",
                     isProcessing: true,
@@ -4068,6 +4634,8 @@ test("can finish processing file alternative in any order", async () => {
                     contentLength: 120,
                     isImagePreviewContent: false,
                 },
+                analysis: null,
+                transcript: null,
                 preview: {
                     type: "Image",
                     isProcessing: true,
@@ -4098,6 +4666,8 @@ test("can finish processing file alternative in any order", async () => {
                     contentLength: 120,
                     isImagePreviewContent: false,
                 },
+                analysis: null,
+                transcript: null,
                 preview: {
                     type: "Image",
                     isProcessing: false,
@@ -4128,6 +4698,8 @@ test("can finish processing file alternative in any order", async () => {
                 contentLength: 100,
                 isUploading: false,
                 alternative: {isProcessing: true},
+                analysis: null,
+                transcript: null,
                 preview: {
                     type: "Image",
                     isProcessing: true,
@@ -4153,6 +4725,8 @@ test("can finish processing file alternative in any order", async () => {
                 contentLength: 100,
                 isUploading: false,
                 alternative: {isProcessing: true},
+                analysis: null,
+                transcript: null,
                 preview: {
                     type: "Image",
                     isProcessing: true,
@@ -4176,6 +4750,8 @@ test("can finish processing file alternative in any order", async () => {
                 contentLength: 100,
                 isUploading: false,
                 alternative: {isProcessing: true},
+                analysis: null,
+                transcript: null,
                 preview: {
                     type: "Image",
                     isProcessing: true,
@@ -4205,6 +4781,8 @@ test("can finish processing file alternative in any order", async () => {
                     contentLength: 120,
                     isImagePreviewContent: false,
                 },
+                analysis: null,
+                transcript: null,
                 preview: {
                     type: "Image",
                     isProcessing: true,
@@ -4235,6 +4813,8 @@ test("can finish processing file alternative in any order", async () => {
                     contentLength: 120,
                     isImagePreviewContent: false,
                 },
+                analysis: null,
+                transcript: null,
                 preview: {
                     type: "Image",
                     isProcessing: false,
@@ -4265,6 +4845,8 @@ test("can finish processing file alternative in any order", async () => {
                 contentLength: 100,
                 isUploading: false,
                 alternative: {isProcessing: true},
+                analysis: null,
+                transcript: null,
                 preview: {
                     type: "Image",
                     isProcessing: true,
@@ -4290,6 +4872,8 @@ test("can finish processing file alternative in any order", async () => {
                 contentLength: 100,
                 isUploading: false,
                 alternative: {isProcessing: true},
+                analysis: null,
+                transcript: null,
                 preview: {
                     type: "Image",
                     isProcessing: true,
@@ -4313,6 +4897,8 @@ test("can finish processing file alternative in any order", async () => {
                 contentLength: 100,
                 isUploading: false,
                 alternative: {isProcessing: true},
+                analysis: null,
+                transcript: null,
                 preview: {
                     type: "Image",
                     isProcessing: true,
@@ -4337,6 +4923,8 @@ test("can finish processing file alternative in any order", async () => {
                 contentLength: 100,
                 isUploading: false,
                 alternative: {isProcessing: true},
+                analysis: null,
+                transcript: null,
                 preview: {
                     type: "Image",
                     isProcessing: false,
@@ -4367,6 +4955,8 @@ test("can finish processing file alternative in any order", async () => {
                     contentLength: 120,
                     isImagePreviewContent: false,
                 },
+                analysis: null,
+                transcript: null,
                 preview: {
                     type: "Image",
                     isProcessing: false,
@@ -4398,6 +4988,8 @@ test("can finish processing preview image file alternative", async () => {
             contentLength: 100,
             isUploading: false,
             alternative: {isProcessing: true},
+            analysis: null,
+            transcript: null,
             preview: {
                 type: "Image",
                 isProcessing: true,
@@ -4423,6 +5015,8 @@ test("can finish processing preview image file alternative", async () => {
             contentLength: 100,
             isUploading: false,
             alternative: {isProcessing: true},
+            analysis: null,
+            transcript: null,
             preview: {
                 type: "Image",
                 isProcessing: true,
@@ -4446,6 +5040,8 @@ test("can finish processing preview image file alternative", async () => {
             contentLength: 100,
             isUploading: false,
             alternative: {isProcessing: true},
+            analysis: null,
+            transcript: null,
             preview: {
                 type: "Image",
                 isProcessing: true,
@@ -4476,6 +5072,8 @@ test("can finish processing preview image file alternative", async () => {
                 contentLength: 110,
                 isImagePreviewContent: true,
             },
+            analysis: null,
+            transcript: null,
             preview: {
                 type: "Image",
                 isProcessing: false,
@@ -4507,6 +5105,8 @@ test("can finish processing preview image file alternative in any order", async 
                 contentLength: 100,
                 isUploading: false,
                 alternative: {isProcessing: true},
+                analysis: null,
+                transcript: null,
                 preview: {
                     type: "Image",
                     isProcessing: true,
@@ -4532,6 +5132,8 @@ test("can finish processing preview image file alternative in any order", async 
                 contentLength: 100,
                 isUploading: false,
                 alternative: {isProcessing: true},
+                analysis: null,
+                transcript: null,
                 preview: {
                     type: "Image",
                     isProcessing: true,
@@ -4562,6 +5164,8 @@ test("can finish processing preview image file alternative in any order", async 
                     contentLength: 110,
                     isImagePreviewContent: true,
                 },
+                analysis: null,
+                transcript: null,
                 preview: {
                     type: "Image",
                     isProcessing: true,
@@ -4591,6 +5195,8 @@ test("can finish processing preview image file alternative in any order", async 
                     contentLength: 110,
                     isImagePreviewContent: true,
                 },
+                analysis: null,
+                transcript: null,
                 preview: {
                     type: "Image",
                     isProcessing: false,
@@ -4621,6 +5227,8 @@ test("can finish processing preview image file alternative in any order", async 
                 contentLength: 100,
                 isUploading: false,
                 alternative: {isProcessing: true},
+                analysis: null,
+                transcript: null,
                 preview: {
                     type: "Image",
                     isProcessing: true,
@@ -4651,6 +5259,8 @@ test("can finish processing preview image file alternative in any order", async 
                     contentLength: 110,
                     isImagePreviewContent: true,
                 },
+                analysis: null,
+                transcript: null,
                 preview: {
                     type: "Image",
                     isProcessing: true,
@@ -4682,6 +5292,8 @@ test("can finish processing preview image file alternative in any order", async 
                     contentLength: 110,
                     isImagePreviewContent: true,
                 },
+                analysis: null,
+                transcript: null,
                 preview: {
                     type: "Image",
                     isProcessing: true,
@@ -4711,6 +5323,8 @@ test("can finish processing preview image file alternative in any order", async 
                     contentLength: 110,
                     isImagePreviewContent: true,
                 },
+                analysis: null,
+                transcript: null,
                 preview: {
                     type: "Image",
                     isProcessing: false,
@@ -4743,6 +5357,8 @@ test("can\u2019t finish processing file alternative as another account", async (
             contentLength: 100,
             isUploading: false,
             alternative: {isProcessing: true},
+            analysis: null,
+            transcript: null,
             preview: {
                 type: "Image",
                 isProcessing: true,
@@ -4768,6 +5384,8 @@ test("can\u2019t finish processing file alternative as another account", async (
             contentLength: 100,
             isUploading: false,
             alternative: {isProcessing: true},
+            analysis: null,
+            transcript: null,
             preview: {
                 type: "Image",
                 isProcessing: true,
@@ -4797,6 +5415,8 @@ test("can finish processing file alternative twice", async () => {
             contentLength: 100,
             isUploading: false,
             alternative: {isProcessing: true},
+            analysis: null,
+            transcript: null,
             preview: {
                 type: "Image",
                 isProcessing: true,
@@ -4826,6 +5446,8 @@ test("can finish processing file alternative twice", async () => {
                 contentLength: 120,
                 isImagePreviewContent: false,
             },
+            analysis: null,
+            transcript: null,
             preview: {
                 type: "Image",
                 isProcessing: true,
@@ -4855,6 +5477,8 @@ test("can finish processing file alternative twice", async () => {
                 contentLength: 120,
                 isImagePreviewContent: false,
             },
+            analysis: null,
+            transcript: null,
             preview: {
                 type: "Image",
                 isProcessing: true,
@@ -4884,6 +5508,8 @@ test("can\u2019t finish processing file alternative for a file with no alternati
             contentLength: 100,
             isUploading: false,
             alternative: null,
+            analysis: null,
+            transcript: null,
             preview: {
                 type: "Image",
                 isProcessing: true,
@@ -4909,6 +5535,8 @@ test("can\u2019t finish processing file alternative for a file with no alternati
             contentLength: 100,
             isUploading: false,
             alternative: null,
+            analysis: null,
+            transcript: null,
             preview: {
                 type: "Image",
                 isProcessing: true,
@@ -4938,6 +5566,8 @@ test("can\u2019t finish processing an alternative preview image for a file with 
             contentLength: 100,
             isUploading: false,
             alternative: null,
+            analysis: null,
+            transcript: null,
             preview: {
                 type: "Image",
                 isProcessing: true,
@@ -4964,6 +5594,8 @@ test("can\u2019t finish processing an alternative preview image for a file with 
             contentLength: 100,
             isUploading: false,
             alternative: null,
+            analysis: null,
+            transcript: null,
             preview: {
                 type: "Image",
                 isProcessing: true,
@@ -4993,6 +5625,8 @@ test("can finish processing file alternative if preview image is alternative", a
             contentLength: 100,
             isUploading: false,
             alternative: {isProcessing: true},
+            analysis: null,
+            transcript: null,
             preview: {
                 type: "Image",
                 isProcessing: true,
@@ -5023,6 +5657,8 @@ test("can finish processing file alternative if preview image is alternative", a
                 contentLength: 110,
                 isImagePreviewContent: true,
             },
+            analysis: null,
+            transcript: null,
             preview: {
                 type: "Image",
                 isProcessing: true,
@@ -5052,6 +5688,8 @@ test("can finish processing file alternative if preview image is alternative", a
                 contentLength: 110,
                 isImagePreviewContent: true,
             },
+            analysis: null,
+            transcript: null,
             preview: {
                 type: "Image",
                 isProcessing: true,
@@ -5081,6 +5719,8 @@ test("can finish processing file alternative preview image if alternative is alr
             contentLength: 100,
             isUploading: false,
             alternative: {isProcessing: true},
+            analysis: null,
+            transcript: null,
             preview: {
                 type: "Image",
                 isProcessing: true,
@@ -5110,6 +5750,8 @@ test("can finish processing file alternative preview image if alternative is alr
                 contentLength: 120,
                 isImagePreviewContent: false,
             },
+            analysis: null,
+            transcript: null,
             preview: {
                 type: "Image",
                 isProcessing: true,
@@ -5140,6 +5782,8 @@ test("can finish processing file alternative preview image if alternative is alr
                 contentLength: 120,
                 isImagePreviewContent: false,
             },
+            analysis: null,
+            transcript: null,
             preview: {
                 type: "Image",
                 isProcessing: true,
@@ -5172,6 +5816,8 @@ test("can finish processing file alternative with error", async () => {
             contentLength: 100,
             isUploading: false,
             alternative: {isProcessing: true},
+            analysis: null,
+            transcript: null,
             preview: {
                 type: "Image",
                 isProcessing: true,
@@ -5198,6 +5844,8 @@ test("can finish processing file alternative with error", async () => {
                 ok: false,
                 error: {type: "PasswordProtected"},
             },
+            analysis: null,
+            transcript: null,
             preview: {
                 type: "Image",
                 isProcessing: true,
@@ -5227,6 +5875,8 @@ test("can finish processing file alternative with error twice", async () => {
             contentLength: 100,
             isUploading: false,
             alternative: {isProcessing: true},
+            analysis: null,
+            transcript: null,
             preview: {
                 type: "Image",
                 isProcessing: true,
@@ -5253,6 +5903,8 @@ test("can finish processing file alternative with error twice", async () => {
                 ok: false,
                 error: {type: "PasswordProtected"},
             },
+            analysis: null,
+            transcript: null,
             preview: {
                 type: "Image",
                 isProcessing: true,
@@ -5279,6 +5931,8 @@ test("can finish processing file alternative with error twice", async () => {
                 ok: false,
                 error: {type: "PasswordProtected"},
             },
+            analysis: null,
+            transcript: null,
             preview: {
                 type: "Image",
                 isProcessing: true,
@@ -5308,6 +5962,8 @@ test("can finish processing file alternative with error after finished processin
             contentLength: 100,
             isUploading: false,
             alternative: {isProcessing: true},
+            analysis: null,
+            transcript: null,
             preview: {
                 type: "Image",
                 isProcessing: true,
@@ -5337,6 +5993,8 @@ test("can finish processing file alternative with error after finished processin
                 contentLength: 120,
                 isImagePreviewContent: false,
             },
+            analysis: null,
+            transcript: null,
             preview: {
                 type: "Image",
                 isProcessing: true,
@@ -5365,6 +6023,8 @@ test("can finish processing file alternative with error after finished processin
                 contentLength: 120,
                 isImagePreviewContent: false,
             },
+            analysis: null,
+            transcript: null,
             preview: {
                 type: "Image",
                 isProcessing: true,
@@ -5394,6 +6054,8 @@ test("can finish processing file alternative after finished processing alternati
             contentLength: 100,
             isUploading: false,
             alternative: {isProcessing: true},
+            analysis: null,
+            transcript: null,
             preview: {
                 type: "Image",
                 isProcessing: true,
@@ -5420,6 +6082,8 @@ test("can finish processing file alternative after finished processing alternati
                 ok: false,
                 error: {type: "Unknown"},
             },
+            analysis: null,
+            transcript: null,
             preview: {
                 type: "Image",
                 isProcessing: true,
@@ -5447,6 +6111,8 @@ test("can finish processing file alternative after finished processing alternati
                 ok: false,
                 error: {type: "Unknown"},
             },
+            analysis: null,
+            transcript: null,
             preview: {
                 type: "Image",
                 isProcessing: true,
@@ -5477,6 +6143,8 @@ test("can\u2019t finish processing file alternative with error as the wrong sess
             contentLength: 100,
             isUploading: false,
             alternative: {isProcessing: true},
+            analysis: null,
+            transcript: null,
             preview: {
                 type: "Image",
                 isProcessing: true,
@@ -5501,6 +6169,8 @@ test("can\u2019t finish processing file alternative with error as the wrong sess
             contentLength: 100,
             isUploading: false,
             alternative: {isProcessing: true},
+            analysis: null,
+            transcript: null,
             preview: {
                 type: "Image",
                 isProcessing: true,
@@ -5530,6 +6200,8 @@ test("can finish processing file alternative with error as the right system acto
             contentLength: 100,
             isUploading: false,
             alternative: {isProcessing: true},
+            analysis: null,
+            transcript: null,
             preview: {
                 type: "Image",
                 isProcessing: true,
@@ -5556,6 +6228,8 @@ test("can finish processing file alternative with error as the right system acto
                 ok: false,
                 error: {type: "PasswordProtected"},
             },
+            analysis: null,
+            transcript: null,
             preview: {
                 type: "Image",
                 isProcessing: true,
@@ -5586,6 +6260,8 @@ test("can\u2019t finish processing file alternative with error as the wrong syst
             contentLength: 100,
             isUploading: false,
             alternative: {isProcessing: true},
+            analysis: null,
+            transcript: null,
             preview: {
                 type: "Image",
                 isProcessing: true,
@@ -5610,6 +6286,8 @@ test("can\u2019t finish processing file alternative with error as the wrong syst
             contentLength: 100,
             isUploading: false,
             alternative: {isProcessing: true},
+            analysis: null,
+            transcript: null,
             preview: {
                 type: "Image",
                 isProcessing: true,
@@ -5639,6 +6317,8 @@ test("can\u2019t finish processing file alternative with error as an anonymous a
             contentLength: 100,
             isUploading: false,
             alternative: {isProcessing: true},
+            analysis: null,
+            transcript: null,
             preview: {
                 type: "Image",
                 isProcessing: true,
@@ -5663,6 +6343,8 @@ test("can\u2019t finish processing file alternative with error as an anonymous a
             contentLength: 100,
             isUploading: false,
             alternative: {isProcessing: true},
+            analysis: null,
+            transcript: null,
             preview: {
                 type: "Image",
                 isProcessing: true,
@@ -5693,6 +6375,8 @@ test("can finish processing file audio preview", async () => {
                 contentLength: 100,
                 isUploading: false,
                 alternative: null,
+                analysis: null,
+                transcript: null,
                 preview: {
                     type: "Audio",
                     isProcessing: true,
@@ -5712,6 +6396,8 @@ test("can finish processing file audio preview", async () => {
                 contentLength: 100,
                 isUploading: false,
                 alternative: null,
+                analysis: null,
+                transcript: null,
                 preview: {
                     type: "Audio",
                     isProcessing: true,
@@ -5735,6 +6421,8 @@ test("can finish processing file audio preview", async () => {
                 contentLength: 100,
                 isUploading: false,
                 alternative: null,
+                analysis: null,
+                transcript: null,
                 preview: {
                     type: "Audio",
                     isProcessing: false,
@@ -5768,6 +6456,8 @@ test("can finish processing file audio preview", async () => {
                 contentLength: 100,
                 isUploading: false,
                 alternative: null,
+                analysis: null,
+                transcript: null,
                 preview: {
                     type: "Audio",
                     isProcessing: true,
@@ -5791,6 +6481,8 @@ test("can finish processing file audio preview", async () => {
                 contentLength: 100,
                 isUploading: false,
                 alternative: null,
+                analysis: null,
+                transcript: null,
                 preview: {
                     type: "Audio",
                     isProcessing: true,
@@ -5814,6 +6506,8 @@ test("can finish processing file audio preview", async () => {
                 contentLength: 100,
                 isUploading: false,
                 alternative: null,
+                analysis: null,
+                transcript: null,
                 preview: {
                     type: "Audio",
                     isProcessing: false,
@@ -5849,6 +6543,8 @@ test("can\u2019t finish processing file audio preview duration with the wrong se
             contentLength: 100,
             isUploading: false,
             alternative: null,
+            analysis: null,
+            transcript: null,
             preview: {
                 type: "Audio",
                 isProcessing: true,
@@ -5870,6 +6566,8 @@ test("can\u2019t finish processing file audio preview duration with the wrong se
             contentLength: 100,
             isUploading: false,
             alternative: null,
+            analysis: null,
+            transcript: null,
             preview: {
                 type: "Audio",
                 isProcessing: true,
@@ -5898,6 +6596,8 @@ test("can finish processing file audio preview duration twice", async () => {
             contentLength: 100,
             isUploading: false,
             alternative: null,
+            analysis: null,
+            transcript: null,
             preview: {
                 type: "Audio",
                 isProcessing: true,
@@ -5917,6 +6617,8 @@ test("can finish processing file audio preview duration twice", async () => {
             contentLength: 100,
             isUploading: false,
             alternative: null,
+            analysis: null,
+            transcript: null,
             preview: {
                 type: "Audio",
                 isProcessing: true,
@@ -5936,6 +6638,8 @@ test("can finish processing file audio preview duration twice", async () => {
             contentLength: 100,
             isUploading: false,
             alternative: null,
+            analysis: null,
+            transcript: null,
             preview: {
                 type: "Audio",
                 isProcessing: true,
@@ -5964,6 +6668,8 @@ test("can finish processing file audio preview duration when preview is finished
             contentLength: 100,
             isUploading: false,
             alternative: null,
+            analysis: null,
+            transcript: null,
             preview: {
                 type: "Audio",
                 isProcessing: true,
@@ -5983,6 +6689,8 @@ test("can finish processing file audio preview duration when preview is finished
             contentLength: 100,
             isUploading: false,
             alternative: null,
+            analysis: null,
+            transcript: null,
             preview: {
                 type: "Audio",
                 isProcessing: true,
@@ -6006,6 +6714,8 @@ test("can finish processing file audio preview duration when preview is finished
             contentLength: 100,
             isUploading: false,
             alternative: null,
+            analysis: null,
+            transcript: null,
             preview: {
                 type: "Audio",
                 isProcessing: false,
@@ -6030,6 +6740,8 @@ test("can finish processing file audio preview duration when preview is finished
             contentLength: 100,
             isUploading: false,
             alternative: null,
+            analysis: null,
+            transcript: null,
             preview: {
                 type: "Audio",
                 isProcessing: false,
@@ -6063,6 +6775,8 @@ test("can\u2019t finish processing file audio preview duration for file without 
             contentLength: 100,
             isUploading: false,
             alternative: null,
+            analysis: null,
+            transcript: null,
             preview: null,
         }),
     );
@@ -6079,6 +6793,8 @@ test("can\u2019t finish processing file audio preview duration for file without 
             contentLength: 100,
             isUploading: false,
             alternative: null,
+            analysis: null,
+            transcript: null,
             preview: null,
         }),
     );
@@ -6102,6 +6818,8 @@ test("can\u2019t finish processing file audio preview duration for file with an 
             contentLength: 100,
             isUploading: false,
             alternative: null,
+            analysis: null,
+            transcript: null,
             preview: {
                 type: "Image",
                 isProcessing: true,
@@ -6123,6 +6841,8 @@ test("can\u2019t finish processing file audio preview duration for file with an 
             contentLength: 100,
             isUploading: false,
             alternative: null,
+            analysis: null,
+            transcript: null,
             preview: {
                 type: "Image",
                 isProcessing: true,
@@ -6152,6 +6872,8 @@ test("can\u2019t finish processing file audio preview metadata with the wrong se
             contentLength: 100,
             isUploading: false,
             alternative: null,
+            analysis: null,
+            transcript: null,
             preview: {
                 type: "Audio",
                 isProcessing: true,
@@ -6177,6 +6899,8 @@ test("can\u2019t finish processing file audio preview metadata with the wrong se
             contentLength: 100,
             isUploading: false,
             alternative: null,
+            analysis: null,
+            transcript: null,
             preview: {
                 type: "Audio",
                 isProcessing: true,
@@ -6205,6 +6929,8 @@ test("can finish processing file audio preview metadata twice", async () => {
             contentLength: 100,
             isUploading: false,
             alternative: null,
+            analysis: null,
+            transcript: null,
             preview: {
                 type: "Audio",
                 isProcessing: true,
@@ -6228,6 +6954,8 @@ test("can finish processing file audio preview metadata twice", async () => {
             contentLength: 100,
             isUploading: false,
             alternative: null,
+            analysis: null,
+            transcript: null,
             preview: {
                 type: "Audio",
                 isProcessing: true,
@@ -6255,6 +6983,8 @@ test("can finish processing file audio preview metadata twice", async () => {
             contentLength: 100,
             isUploading: false,
             alternative: null,
+            analysis: null,
+            transcript: null,
             preview: {
                 type: "Audio",
                 isProcessing: true,
@@ -6287,6 +7017,8 @@ test("can finish processing file audio preview metadata when preview is finished
             contentLength: 100,
             isUploading: false,
             alternative: null,
+            analysis: null,
+            transcript: null,
             preview: {
                 type: "Audio",
                 isProcessing: true,
@@ -6306,6 +7038,8 @@ test("can finish processing file audio preview metadata when preview is finished
             contentLength: 100,
             isUploading: false,
             alternative: null,
+            analysis: null,
+            transcript: null,
             preview: {
                 type: "Audio",
                 isProcessing: true,
@@ -6329,6 +7063,8 @@ test("can finish processing file audio preview metadata when preview is finished
             contentLength: 100,
             isUploading: false,
             alternative: null,
+            analysis: null,
+            transcript: null,
             preview: {
                 type: "Audio",
                 isProcessing: false,
@@ -6357,6 +7093,8 @@ test("can finish processing file audio preview metadata when preview is finished
             contentLength: 100,
             isUploading: false,
             alternative: null,
+            analysis: null,
+            transcript: null,
             preview: {
                 type: "Audio",
                 isProcessing: false,
@@ -6390,6 +7128,8 @@ test("can\u2019t finish processing file audio preview metadata for file without 
             contentLength: 100,
             isUploading: false,
             alternative: null,
+            analysis: null,
+            transcript: null,
             preview: null,
         }),
     );
@@ -6410,6 +7150,8 @@ test("can\u2019t finish processing file audio preview metadata for file without 
             contentLength: 100,
             isUploading: false,
             alternative: null,
+            analysis: null,
+            transcript: null,
             preview: null,
         }),
     );
@@ -6433,6 +7175,8 @@ test("can\u2019t finish processing file audio preview metadata for file with an 
             contentLength: 100,
             isUploading: false,
             alternative: null,
+            analysis: null,
+            transcript: null,
             preview: {
                 type: "Image",
                 isProcessing: true,
@@ -6458,6 +7202,8 @@ test("can\u2019t finish processing file audio preview metadata for file with an 
             contentLength: 100,
             isUploading: false,
             alternative: null,
+            analysis: null,
+            transcript: null,
             preview: {
                 type: "Image",
                 isProcessing: true,
@@ -6486,6 +7232,8 @@ test("can\u2019t finish processing file image preview size for file with an audi
             contentLength: 100,
             isUploading: false,
             alternative: null,
+            analysis: null,
+            transcript: null,
             preview: {
                 type: "Audio",
                 isProcessing: true,
@@ -6512,6 +7260,8 @@ test("can\u2019t finish processing file image preview size for file with an audi
             contentLength: 100,
             isUploading: false,
             alternative: null,
+            analysis: null,
+            transcript: null,
             preview: {
                 type: "Audio",
                 isProcessing: true,
@@ -6540,6 +7290,8 @@ test("can\u2019t finish processing file image preview placeholder for file with 
             contentLength: 100,
             isUploading: false,
             alternative: null,
+            analysis: null,
+            transcript: null,
             preview: {
                 type: "Audio",
                 isProcessing: true,
@@ -6564,6 +7316,8 @@ test("can\u2019t finish processing file image preview placeholder for file with 
             contentLength: 100,
             isUploading: false,
             alternative: null,
+            analysis: null,
+            transcript: null,
             preview: {
                 type: "Audio",
                 isProcessing: true,
@@ -6592,6 +7346,8 @@ test("can\u2019t finish processing file image preview content for file with an a
             contentLength: 100,
             isUploading: false,
             alternative: null,
+            analysis: null,
+            transcript: null,
             preview: {
                 type: "Audio",
                 isProcessing: true,
@@ -6617,6 +7373,8 @@ test("can\u2019t finish processing file image preview content for file with an a
             contentLength: 100,
             isUploading: false,
             alternative: null,
+            analysis: null,
+            transcript: null,
             preview: {
                 type: "Audio",
                 isProcessing: true,
@@ -6645,6 +7403,8 @@ test("can\u2019t finish processing file image preview video duration for file wi
             contentLength: 100,
             isUploading: false,
             alternative: null,
+            analysis: null,
+            transcript: null,
             preview: {
                 type: "Audio",
                 isProcessing: true,
@@ -6666,6 +7426,8 @@ test("can\u2019t finish processing file image preview video duration for file wi
             contentLength: 100,
             isUploading: false,
             alternative: null,
+            analysis: null,
+            transcript: null,
             preview: {
                 type: "Audio",
                 isProcessing: true,
@@ -6694,6 +7456,8 @@ test("can finish processing file code preview content", async () => {
             contentLength: 100,
             isUploading: false,
             alternative: null,
+            analysis: null,
+            transcript: null,
             preview: {
                 type: "Code",
                 isProcessing: true,
@@ -6715,6 +7479,8 @@ test("can finish processing file code preview content", async () => {
             contentLength: 100,
             isUploading: false,
             alternative: null,
+            analysis: null,
+            transcript: null,
             preview: {
                 type: "Code",
                 isProcessing: false,
@@ -6744,6 +7510,8 @@ test("can\u2019t finish processing file code preview content with the wrong sess
             contentLength: 100,
             isUploading: false,
             alternative: null,
+            analysis: null,
+            transcript: null,
             preview: {
                 type: "Code",
                 isProcessing: true,
@@ -6767,6 +7535,8 @@ test("can\u2019t finish processing file code preview content with the wrong sess
             contentLength: 100,
             isUploading: false,
             alternative: null,
+            analysis: null,
+            transcript: null,
             preview: {
                 type: "Code",
                 isProcessing: true,
@@ -6794,6 +7564,8 @@ test("can finish processing code preview content duration twice", async () => {
             contentLength: 100,
             isUploading: false,
             alternative: null,
+            analysis: null,
+            transcript: null,
             preview: {
                 type: "Code",
                 isProcessing: true,
@@ -6815,6 +7587,8 @@ test("can finish processing code preview content duration twice", async () => {
             contentLength: 100,
             isUploading: false,
             alternative: null,
+            analysis: null,
+            transcript: null,
             preview: {
                 type: "Code",
                 isProcessing: false,
@@ -6837,6 +7611,8 @@ test("can finish processing code preview content duration twice", async () => {
             contentLength: 100,
             isUploading: false,
             alternative: null,
+            analysis: null,
+            transcript: null,
             preview: {
                 type: "Code",
                 isProcessing: false,
@@ -6865,6 +7641,8 @@ test("can\u2019t finish processing file code preview content for file without pr
             contentLength: 100,
             isUploading: false,
             alternative: null,
+            analysis: null,
+            transcript: null,
             preview: null,
         }),
     );
@@ -6881,6 +7659,8 @@ test("can\u2019t finish processing file code preview content for file without pr
             contentLength: 100,
             isUploading: false,
             alternative: null,
+            analysis: null,
+            transcript: null,
             preview: null,
         }),
     );
@@ -6904,6 +7684,8 @@ test("can\u2019t finish processing file code preview content for file with an im
             contentLength: 100,
             isUploading: false,
             alternative: null,
+            analysis: null,
+            transcript: null,
             preview: {
                 type: "Image",
                 isProcessing: true,
@@ -6925,6 +7707,8 @@ test("can\u2019t finish processing file code preview content for file with an im
             contentLength: 100,
             isUploading: false,
             alternative: null,
+            analysis: null,
+            transcript: null,
             preview: {
                 type: "Image",
                 isProcessing: true,
@@ -6954,6 +7738,8 @@ test("system action from the wrong space can\u2019t access file", async () => {
             contentLength: 100,
             isUploading: false,
             alternative: null,
+            analysis: null,
+            transcript: null,
             preview: {
                 type: "Image",
                 isProcessing: true,
@@ -6992,6 +7778,8 @@ test("only the uploader account can access their file", async () => {
             contentLength: 100,
             isUploading: false,
             alternative: null,
+            analysis: null,
+            transcript: null,
             preview: {
                 type: "Image",
                 isProcessing: true,
@@ -7073,6 +7861,8 @@ test("can get file from attachment after it\u2019s been attached", async () => {
             contentLength: 100,
             isUploading: false,
             alternative: null,
+            analysis: null,
+            transcript: null,
             preview: {
                 type: "Image",
                 isProcessing: true,
@@ -7170,6 +7960,8 @@ test("can\u2019t get file from attachment if you don\u2019t have access to the a
             contentLength: 100,
             isUploading: false,
             alternative: null,
+            analysis: null,
+            transcript: null,
             preview: {
                 type: "Image",
                 isProcessing: true,
@@ -7376,6 +8168,8 @@ test("can\u2019t attach file if you don\u2019t have edit access to the target", 
             contentLength: 100,
             isUploading: false,
             alternative: null,
+            analysis: null,
+            transcript: null,
             preview: {
                 type: "Image",
                 isProcessing: true,
@@ -7452,6 +8246,8 @@ test("can attach file to new target", async () => {
             contentLength: 100,
             isUploading: false,
             alternative: null,
+            analysis: null,
+            transcript: null,
             preview: {
                 type: "Image",
                 isProcessing: true,
@@ -7528,6 +8324,8 @@ test("can attach file to new target as the uploader", async () => {
             contentLength: 100,
             isUploading: false,
             alternative: null,
+            analysis: null,
+            transcript: null,
             preview: {
                 type: "Image",
                 isProcessing: true,
@@ -7700,6 +8498,8 @@ test("can get file from attachment after it\u2019s been attached when starting u
             contentLength: 100,
             isUploading: false,
             alternative: null,
+            analysis: null,
+            transcript: null,
             preview: {
                 type: "Image",
                 isProcessing: true,
@@ -7742,6 +8542,8 @@ test("can\u2019t get file from attachment if you don\u2019t have access to the a
             contentLength: 100,
             isUploading: false,
             alternative: null,
+            analysis: null,
+            transcript: null,
             preview: {
                 type: "Image",
                 isProcessing: true,
@@ -7855,6 +8657,8 @@ test("can detach file as uploader", async () => {
             contentLength: 100,
             isUploading: false,
             alternative: null,
+            analysis: null,
+            transcript: null,
             preview: {
                 type: "Image",
                 isProcessing: true,
@@ -7922,6 +8726,8 @@ test("can detach file as non-uploader", async () => {
             contentLength: 100,
             isUploading: false,
             alternative: null,
+            analysis: null,
+            transcript: null,
             preview: {
                 type: "Image",
                 isProcessing: true,
@@ -7989,6 +8795,8 @@ test("can\u2019t detach file without view access", async () => {
             contentLength: 100,
             isUploading: false,
             alternative: null,
+            analysis: null,
+            transcript: null,
             preview: {
                 type: "Image",
                 isProcessing: true,
@@ -8020,6 +8828,8 @@ test("can\u2019t detach file without view access", async () => {
             contentLength: 100,
             isUploading: false,
             alternative: null,
+            analysis: null,
+            transcript: null,
             preview: {
                 type: "Image",
                 isProcessing: true,
@@ -8071,6 +8881,8 @@ test("can\u2019t detach file without edit access", async () => {
             contentLength: 100,
             isUploading: false,
             alternative: null,
+            analysis: null,
+            transcript: null,
             preview: {
                 type: "Image",
                 isProcessing: true,
@@ -8102,6 +8914,8 @@ test("can\u2019t detach file without edit access", async () => {
             contentLength: 100,
             isUploading: false,
             alternative: null,
+            analysis: null,
+            transcript: null,
             preview: {
                 type: "Image",
                 isProcessing: true,

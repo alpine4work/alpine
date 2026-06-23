@@ -333,6 +333,8 @@ export function testFileProcessorContentTypes(
                                                 isImagePreviewContent: true,
                                             }
                                           : null,
+                                    analysis: null,
+                                    transcript: null,
                                     preview: expectedPreviewError
                                         ? {
                                               type: "Image",
@@ -342,9 +344,9 @@ export function testFileProcessorContentTypes(
                                               size: "Error",
                                               placeholder: "Error",
                                               content: "Error",
-                                              videoDuration: expectedImagePreviewVideoDuration
-                                                  ? "Error"
-                                                  : undefined,
+                                              ...(expectedImagePreviewVideoDuration
+                                                  ? {videoDuration: "Error" as const}
+                                                  : {}),
                                           }
                                         : expectedImagePreviewSize
                                           ? {

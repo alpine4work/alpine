@@ -297,7 +297,8 @@ export async function startUploadingFile(
         );
     }
 
-    const {hasAlternative, hasPreview} = fileProcessorDeclarationByContentType[contentType];
+    const fileProcessorDeclaration = fileProcessorDeclarationByContentType[contentType];
+    const {hasAlternative, hasAnalysis, hasPreview, hasTranscript} = fileProcessorDeclaration;
 
     let fileId: FileId;
     if (providedFileId === null) {
@@ -412,7 +413,9 @@ export async function startUploadingFile(
             uploaderId: context.actor.getPossiblyBotAccountId(),
             isUploading: true,
             alternative: hasAlternative ? {isProcessing: true} : null,
+            analysis: hasAnalysis ? {isProcessing: true} : null,
             preview,
+            transcript: hasTranscript ? {isProcessing: true} : null,
         };
 
         await DynamoTableSchema.executeTransaction(context, [
@@ -1202,6 +1205,174 @@ export class FileUploader {
         });
     }
 
+    /**
+     * Save model-produced analysis for the file.
+     */
+    public async finishProcessingAnalysis(
+        context: FileProcessorActionContext,
+        {
+            caption,
+            description,
+            tags,
+        }: {
+            caption?: string;
+            description?: string;
+            tags: ReadonlyArray<string>;
+        },
+    ): Promise<void> {
+        this._authorize(context);
+
+        await this._item.withLock(async itemRef => {
+            itemRef.current = await FilesTable.updateItem(
+                context,
+                {
+                    partitionType: "File2",
+                    sortRangeType: "Attributes",
+                    fileId: this.fileId,
+                },
+                item => {
+                    if (!item.analysis) {
+                        throw new InternalError("File does not have analysis");
+                    }
+
+                    // No-op if we've already finished processing analysis. This makes the function
+                    // idempotent.
+                    if (!item.analysis.isProcessing) return item;
+
+                    return {
+                        ...item,
+                        analysis: {
+                            isProcessing: false,
+                            ok: true,
+                            result: {
+                                ...(caption !== undefined ? {caption} : {}),
+                                ...(description !== undefined ? {description} : {}),
+                                tags: [...tags],
+                            },
+                        },
+                    };
+                },
+                {initialItem: itemRef.current},
+            );
+        });
+    }
+
+    /**
+     * Save an analysis generation failure for the file.
+     */
+    public async finishProcessingAnalysisWithError(
+        context: FileProcessorActionContext,
+        error: FileProcessorError,
+    ): Promise<void> {
+        this._authorize(context);
+
+        await this._item.withLock(async itemRef => {
+            itemRef.current = await FilesTable.updateItem(
+                context,
+                {
+                    partitionType: "File2",
+                    sortRangeType: "Attributes",
+                    fileId: this.fileId,
+                },
+                item => {
+                    if (!item.analysis) {
+                        throw new InternalError("File does not have analysis");
+                    }
+
+                    // No-op if we've already finished processing analysis. This makes the function
+                    // idempotent.
+                    if (!item.analysis.isProcessing) return item;
+
+                    return {
+                        ...item,
+                        analysis: {
+                            isProcessing: false,
+                            ok: false,
+                            error,
+                        },
+                    };
+                },
+                {initialItem: itemRef.current},
+            );
+        });
+    }
+
+    /**
+     * Mark that a timestamped transcript has been stored for this file.
+     */
+    public async finishProcessingTranscript(context: FileProcessorActionContext): Promise<void> {
+        this._authorize(context);
+
+        await this._item.withLock(async itemRef => {
+            itemRef.current = await FilesTable.updateItem(
+                context,
+                {
+                    partitionType: "File2",
+                    sortRangeType: "Attributes",
+                    fileId: this.fileId,
+                },
+                item => {
+                    if (!item.transcript) {
+                        throw new InternalError("File does not have a transcript");
+                    }
+
+                    // No-op if we've already finished processing the transcript. This makes the
+                    // function idempotent.
+                    if (!item.transcript.isProcessing) return item;
+
+                    return {
+                        ...item,
+                        transcript: {
+                            isProcessing: false,
+                            ok: true,
+                        },
+                    };
+                },
+                {initialItem: itemRef.current},
+            );
+        });
+    }
+
+    /**
+     * Save a transcript generation failure for the file.
+     */
+    public async finishProcessingTranscriptWithError(
+        context: FileProcessorActionContext,
+        error: FileProcessorError,
+    ): Promise<void> {
+        this._authorize(context);
+
+        await this._item.withLock(async itemRef => {
+            itemRef.current = await FilesTable.updateItem(
+                context,
+                {
+                    partitionType: "File2",
+                    sortRangeType: "Attributes",
+                    fileId: this.fileId,
+                },
+                item => {
+                    if (!item.transcript) {
+                        throw new InternalError("File does not have a transcript");
+                    }
+
+                    // No-op if we've already finished processing the transcript. This makes the
+                    // function idempotent.
+                    if (!item.transcript.isProcessing) return item;
+
+                    return {
+                        ...item,
+                        transcript: {
+                            isProcessing: false,
+                            ok: false,
+                            error,
+                        },
+                    };
+                },
+                {initialItem: itemRef.current},
+            );
+        });
+    }
+
     public async finishProcessingAlternativeWithError(
         context: FileProcessorActionContext,
         error: FileProcessorError,
@@ -1260,6 +1431,24 @@ export class FileUploader {
                 item => {
                     if (!item.preview) {
                         throw new InternalError("File doesn\u2019t have a preview");
+                    }
+
+                    if (!item.preview.isProcessing && !item.preview.ok) {
+                        // Concurrent file processors can race to save a preview error. For
+                        // password-protected PDFs, sharp may sometimes report an unclassified error before
+                        // another processor reports the real password-protected error. Keep a specific
+                        // error once we have one, but allow a later specific error to replace `Unknown`.
+                        if (item.preview.error.type !== "Unknown" || error.type === "Unknown") {
+                            return item;
+                        }
+
+                        return {
+                            ...item,
+                            preview: {
+                                ...item.preview,
+                                error,
+                            },
+                        };
                     }
 
                     switch (item.preview.type) {
@@ -1535,7 +1724,9 @@ function createFileModelFromItem(item: FileItem) {
         contentLength: item.contentLength,
         isUploading: item.isUploading,
         alternative: item.alternative,
+        analysis: item.analysis,
         preview: item.preview,
+        transcript: item.transcript,
     });
 }
 

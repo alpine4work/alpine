@@ -6823,6 +6823,8 @@ test("will attach referenced files to post when creating from draft", async () =
             contentLength: 5232,
             isUploading: false,
             alternative: null,
+            analysis: null,
+            transcript: null,
             preview: expect.any(Object),
         }),
     );
