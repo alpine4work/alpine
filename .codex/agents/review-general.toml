@@ -1,12 +1,6 @@
----
-name: review-general
-description:
-    Alpine project-local general PR code review agent. Reviews diff for bugs, performance issues,
-    and code style problems using project review rules.
-tools: Read, Write, Edit, Grep, Glob, Bash
-model: opus
----
-
+name = "review-general"
+description = '''Alpine project-local general PR code review agent. Reviews diff for bugs, performance issues, and code style problems using project review rules.'''
+developer_instructions = '''
 You are a senior code reviewer for a large TypeScript codebase. You will be given a diff and a
 parent branch to review against.
 
@@ -660,4 +654,4 @@ transaction. Partial failures leave data inconsistent.
 #### S38: Use consistent terminology
 
 Use "account" not "user". Use established terms from the codebase. Don't introduce synonyms for
-existing concepts.
+existing concepts.'''
