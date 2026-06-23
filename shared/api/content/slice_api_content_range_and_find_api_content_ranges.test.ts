@@ -25,6 +25,27 @@ const testCases: Array<{
         range: {from: 0, to: 0},
     },
     {
+        name: "multiple characters",
+        content: {
+            type: "doc",
+            content: [{type: "paragraph", content: [{type: "text", text: "abc"}]}],
+        },
+        range: {from: 0, to: 1},
+    },
+    {
+        name: "range selects single file row",
+        content: {
+            type: "doc",
+            content: [
+                {
+                    type: "fileRow",
+                    content: [{type: "file", attrs: {fileId: "06ffbh5yh19cp84gjjhmazeypm"}}],
+                },
+            ],
+        },
+        range: {from: 0, to: 0},
+    },
+    {
         name: "range ends at empty paragraph boundary",
         content: {
             type: "doc",
@@ -52,6 +73,21 @@ const testCases: Array<{
             ],
         },
         range: {from: 0, to: 0.45000001788139343},
+    },
+    {
+        name: "range ends at floating ordered list paragraph boundary",
+        content: {
+            type: "doc",
+            content: [
+                {type: "paragraph", content: [{type: "text", text: "j"}]},
+                {
+                    type: "orderedListItem",
+                    attrs: {indent: 1, orderStart: null},
+                    content: [{type: "paragraph"}],
+                },
+            ],
+        },
+        range: {from: 0, to: 0.6428571939468384},
     },
     {
         name: "range starts at file boundary and ends in table",
@@ -206,6 +242,81 @@ const testCases: Array<{
             ],
         },
         range: {from: 0, to: 0.45000001788139343},
+    },
+    {
+        name: "range includes second code line after empty first code line",
+        content: {
+            type: "doc",
+            content: [
+                {type: "paragraph", content: [{type: "text", text: "b"}]},
+                {
+                    type: "codeBlock",
+                    attrs: {language: "text"},
+                    content: [
+                        {type: "codeBlockLine"},
+                        {type: "codeBlockLine", content: [{type: "text", text: "e"}]},
+                    ],
+                },
+            ],
+        },
+        range: {from: 0, to: 0.75},
+    },
+    {
+        name: "range starts at empty paragraph before code block and checklist",
+        content: {
+            type: "doc",
+            content: [
+                {type: "paragraph"},
+                {
+                    type: "codeBlock",
+                    attrs: {language: "javascript"},
+                    content: [
+                        {type: "codeBlockLine"},
+                        {type: "codeBlockLine", content: [{type: "text", text: "z"}]},
+                    ],
+                },
+                {
+                    type: "checkListItem",
+                    attrs: {indent: 1, checked: false},
+                    content: [
+                        {type: "paragraph", content: [{type: "text", text: "c"}]},
+                        {type: "paragraph", content: [{type: "text", text: "2"}]},
+                    ],
+                },
+            ],
+        },
+        range: {from: 0, to: 0},
+    },
+    {
+        name: "range ends at empty paragraph after marked file gallery",
+        content: {
+            type: "doc",
+            content: [
+                {
+                    type: "fileRow",
+                    content: [
+                        {type: "file", attrs: {fileId: "06ffbj84h5dg6t4c2z1dz4g59w"}},
+                        {
+                            type: "file",
+                            attrs: {fileId: "06ffbj84h5dg6t4c2z1dz4g59w"},
+                            marks: [
+                                {
+                                    type: "comment",
+                                    attrs: {commentThreadId: "19v1d7bw30wcs4thyg6w0vwk6c"},
+                                },
+                                {
+                                    type: "comment",
+                                    attrs: {commentThreadId: "wv97856w4aa630cqxh53vwzw74"},
+                                },
+                            ],
+                        },
+                    ],
+                },
+                {type: "paragraph", content: [{type: "text", text: "j 3 k t l 0 7 f"}]},
+                {type: "paragraph"},
+            ],
+        },
+        range: {from: 0.10869565606117249, to: 0.10869565606117249},
     },
     {
         name: "large range through quote and table",
@@ -781,13 +892,13 @@ for (const {only, name, content: contentJson, range} of testCases) {
         const start: ApiContentPosition =
             $from.nodeAfter?.type.name === "file"
                 ? {
-                      type: "After",
+                      type: "Before",
                       key: encoder.encode({pos: from, nodeSize: $from.nodeAfter.nodeSize}),
                   }
                 : {
                       type: "Inline",
                       key: encoder.encode({
-                          pos: $from.start(),
+                          pos: $from.before(),
                           nodeSize: $from.parent.nodeSize,
                       }),
                       index: $from.parentOffset,
@@ -796,13 +907,13 @@ for (const {only, name, content: contentJson, range} of testCases) {
         const end: ApiContentPosition =
             $to.nodeBefore?.type.name === "file"
                 ? {
-                      type: "Before",
-                      key: encoder.encode({pos: from, nodeSize: $to.nodeBefore.nodeSize}),
+                      type: "After",
+                      key: encoder.encode({pos: to, nodeSize: $to.nodeBefore.nodeSize}),
                   }
                 : {
                       type: "Inline",
                       key: encoder.encode({
-                          pos: $to.start(),
+                          pos: $to.before(),
                           nodeSize: $to.parent.nodeSize,
                       }),
                       index: $to.parentOffset,

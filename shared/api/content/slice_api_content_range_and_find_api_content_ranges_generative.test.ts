@@ -134,13 +134,13 @@ test("can find sliced content", async () => {
                 const start: ApiContentPosition =
                     $from.nodeAfter?.type.name === "file"
                         ? {
-                              type: "After",
+                              type: "Before",
                               key: encoder.encode({pos: from, nodeSize: $from.nodeAfter.nodeSize}),
                           }
                         : {
                               type: "Inline",
                               key: encoder.encode({
-                                  pos: $from.start(),
+                                  pos: $from.before(),
                                   nodeSize: $from.parent.nodeSize,
                               }),
                               index: $from.parentOffset,
@@ -149,13 +149,13 @@ test("can find sliced content", async () => {
                 const end: ApiContentPosition =
                     $to.nodeBefore?.type.name === "file"
                         ? {
-                              type: "Before",
-                              key: encoder.encode({pos: from, nodeSize: $to.nodeBefore.nodeSize}),
+                              type: "After",
+                              key: encoder.encode({pos: to, nodeSize: $to.nodeBefore.nodeSize}),
                           }
                         : {
                               type: "Inline",
                               key: encoder.encode({
-                                  pos: $to.start(),
+                                  pos: $to.before(),
                                   nodeSize: $to.parent.nodeSize,
                               }),
                               index: $to.parentOffset,
