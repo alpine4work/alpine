@@ -4089,6 +4089,95 @@ Next, something outrageous happened. <mark data-comment="${threadId}">The Eagles
                 },
                 {
                     description:
+                        "comment mark mixed with nested comment marks (nested comment mark is greater than parent, other order)",
+                    content: {
+                        elements: [
+                            {
+                                type: "Paragraph",
+                                elements: [
+                                    {type: "Text", text: "Next, something outrageous happened. "},
+                                    {
+                                        type: "Text",
+                                        text: "The Eagles sought to defend ",
+                                        marks: [{type: "Comment", thread: {id: threadId}}],
+                                    },
+                                    {
+                                        type: "Text",
+                                        text: "their title",
+                                        marks: [
+                                            {type: "Comment", thread: {id: threadId}},
+                                            {type: "Link", url: "https://example.com"},
+                                        ],
+                                    },
+                                    {
+                                        type: "Text",
+                                        text: " (and honor) in the 2025-2026 season. They promoted a ",
+                                        marks: [{type: "Comment", thread: {id: threadId}}],
+                                    },
+                                    {
+                                        type: "Text",
+                                        text: "mere",
+                                        marks: [
+                                            {type: "Comment", thread: {id: threadId}},
+                                            {type: "Italic"},
+                                        ],
+                                    },
+                                    {
+                                        type: "Text",
+                                        text: " ",
+                                        marks: [{type: "Comment", thread: {id: threadId}}],
+                                    },
+                                    {
+                                        type: "Text",
+                                        text: "squire",
+                                        marks: [
+                                            {type: "Comment", thread: {id: threadId}},
+                                            {type: "Bold"},
+                                        ],
+                                    },
+                                    {
+                                        type: "Text",
+                                        text: " to the ",
+                                        marks: [{type: "Comment", thread: {id: threadId}}],
+                                    },
+                                    {
+                                        type: "Text",
+                                        text: "captain",
+                                        marks: [
+                                            {type: "Comment", thread: {id: threadId}},
+                                            {type: "Strike"},
+                                        ],
+                                    },
+                                    {
+                                        type: "Text",
+                                        text: " of their ",
+                                        marks: [{type: "Comment", thread: {id: threadId}}],
+                                    },
+                                    {
+                                        type: "Text",
+                                        text: "army",
+                                        marks: [
+                                            {type: "Comment", thread: {id: threadId2}},
+                                            {type: "Comment", thread: {id: threadId}},
+                                        ],
+                                    },
+                                    {
+                                        type: "Text",
+                                        text: ".",
+                                        marks: [{type: "Comment", thread: {id: threadId}}],
+                                    },
+                                ],
+                            },
+                        ],
+                    },
+                    expectedMarkdown: `\
+Next, something outrageous happened. <mark data-comment="${threadId}">The Eagles sought to defend \
+[their title](https://example.com) (and honor) in the 2025-2026 season. They promoted a *mere* \
+**squire** to the ~~captain~~ of their </mark><mark data-comment="${threadId2}"><mark data-comment="${threadId}">army</mark></mark><mark data-comment="${threadId}">.</mark>
+`,
+                },
+                {
+                    description:
                         "comment mark mixed with nested comment marks (nested comment mark is less than parent)",
                     content: {
                         elements: [
@@ -4159,6 +4248,95 @@ Next, something outrageous happened. <mark data-comment="${threadId}">The Eagles
                                         marks: [
                                             {type: "Comment", thread: {id: threadId2}},
                                             {type: "Comment", thread: {id: threadId}},
+                                        ],
+                                    },
+                                    {
+                                        type: "Text",
+                                        text: ".",
+                                        marks: [{type: "Comment", thread: {id: threadId2}}],
+                                    },
+                                ],
+                            },
+                        ],
+                    },
+                    expectedMarkdown: `\
+Next, something outrageous happened. <mark data-comment="${threadId2}">The Eagles sought to defend \
+[their title](https://example.com) (and honor) in the 2025-2026 season. They promoted a *mere* \
+**squire** to the ~~captain~~ of their <mark data-comment="${threadId}">army</mark>.</mark>
+`,
+                },
+                {
+                    description:
+                        "comment mark mixed with nested comment marks (nested comment mark is less than parent, other order)",
+                    content: {
+                        elements: [
+                            {
+                                type: "Paragraph",
+                                elements: [
+                                    {type: "Text", text: "Next, something outrageous happened. "},
+                                    {
+                                        type: "Text",
+                                        text: "The Eagles sought to defend ",
+                                        marks: [{type: "Comment", thread: {id: threadId2}}],
+                                    },
+                                    {
+                                        type: "Text",
+                                        text: "their title",
+                                        marks: [
+                                            {type: "Comment", thread: {id: threadId2}},
+                                            {type: "Link", url: "https://example.com"},
+                                        ],
+                                    },
+                                    {
+                                        type: "Text",
+                                        text: " (and honor) in the 2025-2026 season. They promoted a ",
+                                        marks: [{type: "Comment", thread: {id: threadId2}}],
+                                    },
+                                    {
+                                        type: "Text",
+                                        text: "mere",
+                                        marks: [
+                                            {type: "Comment", thread: {id: threadId2}},
+                                            {type: "Italic"},
+                                        ],
+                                    },
+                                    {
+                                        type: "Text",
+                                        text: " ",
+                                        marks: [{type: "Comment", thread: {id: threadId2}}],
+                                    },
+                                    {
+                                        type: "Text",
+                                        text: "squire",
+                                        marks: [
+                                            {type: "Comment", thread: {id: threadId2}},
+                                            {type: "Bold"},
+                                        ],
+                                    },
+                                    {
+                                        type: "Text",
+                                        text: " to the ",
+                                        marks: [{type: "Comment", thread: {id: threadId2}}],
+                                    },
+                                    {
+                                        type: "Text",
+                                        text: "captain",
+                                        marks: [
+                                            {type: "Comment", thread: {id: threadId2}},
+                                            {type: "Strike"},
+                                        ],
+                                    },
+                                    {
+                                        type: "Text",
+                                        text: " of their ",
+                                        marks: [{type: "Comment", thread: {id: threadId2}}],
+                                    },
+                                    {
+                                        type: "Text",
+                                        text: "army",
+                                        marks: [
+                                            {type: "Comment", thread: {id: threadId}},
+                                            {type: "Comment", thread: {id: threadId2}},
                                         ],
                                     },
                                     {
@@ -11003,6 +11181,119 @@ caption
 <mark data-comment="${threadId}"><mark data-comment="${threadId2}"><img src="https://alpine.inc/file/${fileId}/content" style="flex: 0 0 33%" /></mark></mark>
 <mark data-comment="${threadId}"><mark data-comment="${threadId2}"><img alt="My Document" src="https://alpine.inc/doc/${documentId}/preview" style="flex: 0 0 33%" /></mark></mark>
 <mark data-comment="${threadId}"><mark data-comment="${threadId2}"><video type="video/mp4" src="https://alpine.inc/file/${fileId2}/content" controls style="flex: 0 0 34%"></video></mark></mark>
+</div>
+`,
+                },
+                {
+                    description: "file float with comment",
+                    content: {
+                        elements: [
+                            {
+                                type: "FileFloat",
+                                side: "Right",
+                                element: {
+                                    type: "File",
+                                    id: fileId,
+                                    marks: [
+                                        {
+                                            type: "Comment",
+                                            thread: {id: threadId},
+                                        },
+                                    ],
+                                },
+                            },
+                        ],
+                    },
+                    expectedMarkdown: `\
+<div style="float: right; clear: both">
+<mark data-comment="${threadId}"><img src="https://alpine.inc/file/${fileId}/content" /></mark>
+</div>
+`,
+                },
+                {
+                    description: "preview float with comment",
+                    content: {
+                        elements: [
+                            {
+                                type: "FileFloat",
+                                side: "Right",
+                                element: {
+                                    type: "Preview",
+                                    reference: {
+                                        type: "Document",
+                                        id: documentId,
+                                        title: "My Document",
+                                    },
+                                    marks: [
+                                        {
+                                            type: "Comment",
+                                            thread: {id: threadId},
+                                        },
+                                    ],
+                                },
+                            },
+                        ],
+                    },
+                    expectedMarkdown: `\
+<div style="float: right; clear: both">
+<mark data-comment="${threadId}"><img alt="My Document" src="https://alpine.inc/doc/${documentId}/preview" /></mark>
+</div>
+`,
+                },
+                {
+                    description: "video file float with comment",
+                    content: {
+                        elements: [
+                            {
+                                type: "FileFloat",
+                                side: "Right",
+                                element: {
+                                    type: "File",
+                                    id: fileId,
+                                    contentType: "video/mp4",
+                                    marks: [
+                                        {
+                                            type: "Comment",
+                                            thread: {id: threadId},
+                                        },
+                                    ],
+                                },
+                            },
+                        ],
+                    },
+                    expectedMarkdown: `\
+<div style="float: right; clear: both">
+<mark data-comment="${threadId}"><video type="video/mp4" src="https://alpine.inc/file/${fileId}/content" controls></video></mark>
+</div>
+`,
+                },
+                {
+                    description: "file float with comments",
+                    content: {
+                        elements: [
+                            {
+                                type: "FileFloat",
+                                side: "Right",
+                                element: {
+                                    type: "File",
+                                    id: fileId,
+                                    marks: [
+                                        {
+                                            type: "Comment",
+                                            thread: {id: threadId},
+                                        },
+                                        {
+                                            type: "Comment",
+                                            thread: {id: threadId2},
+                                        },
+                                    ],
+                                },
+                            },
+                        ],
+                    },
+                    expectedMarkdown: `\
+<div style="float: right; clear: both">
+<mark data-comment="${threadId}"><mark data-comment="${threadId2}"><img src="https://alpine.inc/file/${fileId}/content" /></mark></mark>
 </div>
 `,
                 },

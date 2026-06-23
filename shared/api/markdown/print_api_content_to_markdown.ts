@@ -527,9 +527,20 @@ function* printApiContentBlockElementToMarkdown(
         case "FileFloat": {
             const side = element.side === "Right" ? "right" : "left";
             const style = `float: ${side}; clear: both`;
+
+            let html = printApiContentFileOrPreviewBlockElementToMarkdown(element.element);
+
+            if (element.element.marks) {
+                for (const mark of reverseIterable(element.element.marks)) {
+                    html = options.withCommentTagHtml
+                        ? `<comment id="${mark.thread.id}">${html}</comment>`
+                        : `<mark data-comment="${mark.thread.id}">${html}</mark>`;
+                }
+            }
+
             yield {
                 type: "html",
-                value: `<div style="${style}">\n${printApiContentFileOrPreviewBlockElementToMarkdown(element.element)}\n</div>`,
+                value: `<div style="${style}">\n${html}\n</div>`,
                 data:
                     element.element.type === "Preview"
                         ? {previewElement: element.element}

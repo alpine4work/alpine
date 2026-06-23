@@ -436,8 +436,8 @@ export class ApiContentNormalizer {
             case "Table": {
                 this.#withinTableElement = true;
                 try {
-                    if (element.hasHeaderRow !== true) element.hasHeaderRow = false;
-                    if (element.hasHeaderColumn !== true) element.hasHeaderColumn = false;
+                    if (element.hasHeaderRow !== true) delete element.hasHeaderRow;
+                    if (element.hasHeaderColumn !== true) delete element.hasHeaderColumn;
 
                     if (element.rows.length === 0) {
                         element.rows.push({cells: []});
@@ -730,7 +730,7 @@ export function normalizeApiContentInlineElementMarks<Mark extends ApiContentInl
                 throw exhaustive(mark);
         }
 
-        if (!markByKey.has(markKey)) markByKey.set(markKey, {mark, index});
+        markByKey.set(markKey, {mark, index});
     }
 
     const sortedMarkEntries = Array.from(markByKey.entries()).sort(

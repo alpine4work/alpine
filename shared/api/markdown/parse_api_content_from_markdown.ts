@@ -480,7 +480,7 @@ function* parseApiContentBlockElementFromMarkdown(
             let textElements: Array<{
                 type: "Text";
                 text: string;
-                marks: Array<ApiContentInlineElementMark> | undefined;
+                marks?: Array<ApiContentInlineElementMark>;
             }> = [];
 
             let openParagraphTagCount = 0;
@@ -509,7 +509,7 @@ function* parseApiContentBlockElementFromMarkdown(
                 textElements: Array<{
                     type: "Text";
                     text: string;
-                    marks: Array<ApiContentInlineElementMark> | undefined;
+                    marks?: Array<ApiContentInlineElementMark>;
                 }>;
             } | null = null;
 
@@ -586,7 +586,11 @@ function* parseApiContentBlockElementFromMarkdown(
                     }
                 }
 
-                actualTextElements.push({type: "Text", text, marks});
+                actualTextElements.push({
+                    type: "Text",
+                    text,
+                    ...(marks !== undefined ? {marks} : {}),
+                });
             };
 
             const handleElement = (element: ApiContentBlockElement) => {
@@ -727,7 +731,7 @@ function* parseApiContentBlockElementFromMarkdown(
 
                                 handleElement({
                                     type: "Paragraph",
-                                    elements: [{type: "Break", marks: undefined}],
+                                    elements: [{type: "Break"}],
                                 });
                                 break;
                             }
@@ -1118,14 +1122,22 @@ function* parseApiContentBlockElementFromMarkdown(
                                                 lines[lines.length - 1]!.elements.push({
                                                     type: "Text",
                                                     text,
-                                                    marks,
+                                                    ...(marks !== undefined ? {marks} : {}),
                                                 });
                                             }
                                         } else {
                                             lines.push({
                                                 elements:
                                                     text.length > 0
-                                                        ? [{type: "Text", text, marks}]
+                                                        ? [
+                                                              {
+                                                                  type: "Text",
+                                                                  text,
+                                                                  ...(marks !== undefined
+                                                                      ? {marks}
+                                                                      : {}),
+                                                              },
+                                                          ]
                                                         : [],
                                             });
                                         }
@@ -1503,7 +1515,7 @@ function* parseApiContentBlockElementFromMarkdown(
                 type: "Code",
                 language: language ?? "text",
                 lines: content.value.split("\n").map(line => ({
-                    elements: line.length > 0 ? [{type: "Text", text: line, marks: undefined}] : [],
+                    elements: line.length > 0 ? [{type: "Text", text: line}] : [],
                 })),
             };
             break;
@@ -1541,7 +1553,6 @@ function* parseApiContentBlockElementFromMarkdown(
                 width: 1,
                 columns: createArrayWithLength(columnCount, () => ({width: 1})),
                 hasHeaderRow: true,
-                hasHeaderColumn: undefined,
                 rows,
             };
             break;
@@ -1551,11 +1562,11 @@ function* parseApiContentBlockElementFromMarkdown(
             yield {
                 type: "Paragraph",
                 elements: [
-                    {type: "Text", text: "$$", marks: undefined},
-                    {type: "Break", marks: undefined},
-                    {type: "Text", text: content.value, marks: undefined},
-                    {type: "Break", marks: undefined},
-                    {type: "Text", text: "$$", marks: undefined},
+                    {type: "Text", text: "$$"},
+                    {type: "Break"},
+                    {type: "Text", text: content.value},
+                    {type: "Break"},
+                    {type: "Text", text: "$$"},
                 ],
             };
             break;
@@ -1755,29 +1766,36 @@ class ApiContentBlockElementsMarkdownTableState {
                 let hasHeaderColumn: boolean | undefined;
 
                 const rows = state.rows.map((row, rowIndex) => {
-                    const cells = row.cells.map((cell, columnIndex) => {
-                        hasHeaderRow ??= true;
-                        hasHeaderColumn ??= true;
+                    const cells = row.cells.map(
+                        (cell, columnIndex): ApiContentTableBlockElementCell => {
+                            hasHeaderRow ??= true;
+                            hasHeaderColumn ??= true;
 
-                        hasHeaderRow &&=
-                            cell.tagName === "th"
-                                ? rowIndex === 0 || cell.scope === "row"
-                                : rowIndex !== 0;
+                            hasHeaderRow &&=
+                                cell.tagName === "th"
+                                    ? rowIndex === 0 || cell.scope === "row"
+                                    : rowIndex !== 0;
 
-                        hasHeaderColumn &&=
-                            cell.tagName === "th"
-                                ? columnIndex === 0 || cell.scope === "col"
-                                : columnIndex !== 0;
+                            hasHeaderColumn &&=
+                                cell.tagName === "th"
+                                    ? columnIndex === 0 || cell.scope === "col"
+                                    : columnIndex !== 0;
 
-                        const elements = Array.from(
-                            flatMapIterable(
-                                cell.elements,
-                                intoApiContentTableBlockElementCellElement,
-                            ),
-                        );
+                            const elements = Array.from(
+                                flatMapIterable(
+                                    cell.elements,
+                                    intoApiContentTableBlockElementCellElement,
+                                ),
+                            );
 
-                        return {elements};
-                    });
+                            return {
+                                elements:
+                                    elements.length === 0
+                                        ? [{type: "Paragraph", elements: []}]
+                                        : elements,
+                            };
+                        },
+                    );
 
                     while (cells.length < 2) {
                         cells.push({elements: [{type: "Paragraph", elements: []}]});
@@ -1794,8 +1812,8 @@ class ApiContentBlockElementsMarkdownTableState {
                     columns: createArrayWithLength(columnCount, columnIndex => ({
                         width: state.columnWidths?.[columnIndex] ?? 1,
                     })),
-                    hasHeaderRow: hasHeaderRow ? true : undefined,
-                    hasHeaderColumn: hasHeaderColumn ? true : undefined,
+                    ...(hasHeaderRow === true ? {hasHeaderRow} : {}),
+                    ...(hasHeaderColumn === true ? {hasHeaderColumn} : {}),
                     rows,
                 };
             }
@@ -1989,7 +2007,7 @@ function* parseAndMergeApiContentInlineElementsFromMarkdown(
             lastElement = {
                 type: "Text",
                 text: lastElement.text + element.text,
-                marks: lastElement.marks,
+                ...(element.marks !== undefined ? {marks: element.marks} : {}),
             };
             continue;
         }
@@ -2307,11 +2325,13 @@ function* parseApiContentInlineElementFromMarkdown(
                 const isAccountShortName =
                     mentionReference.type === "Account" && url?.searchParams.has("short");
 
+                const marks = markStack.getMarks();
+
                 yield {
                     type: "Mention",
                     reference: mentionReference,
-                    isAccountShortName: isAccountShortName || undefined,
-                    marks: markStack.getMarks(),
+                    ...(isAccountShortName ? {isAccountShortName} : {}),
+                    ...(marks !== undefined ? {marks} : {}),
                 };
                 break;
             }
@@ -2391,11 +2411,14 @@ function* parseApiContentInlineElementFromMarkdown(
         }
         case "inlineCode": {
             markStack.push({type: "Code"});
-            yield {type: "Text", text: content.value, marks: markStack.getMarks()};
+            const marks = markStack.getMarks();
+            yield {type: "Text", text: content.value, ...(marks !== undefined ? {marks} : {})};
             markStack.pop();
             break;
         }
         case "text": {
+            const marks = markStack.getMarks();
+
             yield {
                 type: "Text",
                 // `mdast` preserves single newlines in text. Presumably so we keep the newlines
@@ -2403,12 +2426,13 @@ function* parseApiContentInlineElementFromMarkdown(
                 // elements (they're ultimately not supported by ProseMirror) so convert
                 // consecutive newlines into a single space.
                 text: content.value.replaceAll(/\n+/g, " "),
-                marks: markStack.getMarks(),
+                ...(marks !== undefined ? {marks} : {}),
             };
             break;
         }
         case "break": {
-            yield {type: "Break", marks: markStack.getMarks()};
+            const marks = markStack.getMarks();
+            yield {type: "Break", ...(marks !== undefined ? {marks} : {})};
             break;
         }
         case "html": {
@@ -2520,7 +2544,13 @@ function* parseApiContentInlineElementFromMarkdown(
                             // parser struggles with marks around the standard Markdown break syntax.
                             case "br": {
                                 elements ??= [];
-                                elements.push({type: "Break", marks: markStack.getMarks()});
+
+                                const marks = markStack.getMarks();
+
+                                elements.push({
+                                    type: "Break",
+                                    ...(marks !== undefined ? {marks} : {}),
+                                });
                                 break;
                             }
                             case "a": {
@@ -2871,8 +2901,14 @@ function* parseApiContentInlineElementFromMarkdown(
             break;
         }
         case "inlineMath": {
+            const marks = markStack.getMarks();
+
             // If we support math someday in `ApiContent` then we'll update this.
-            yield {type: "Text", text: `$${content.value}$`, marks: markStack.getMarks()};
+            yield {
+                type: "Text",
+                text: `$${content.value}$`,
+                ...(marks !== undefined ? {marks} : {}),
+            };
             break;
         }
         case "image": {
@@ -2939,7 +2975,7 @@ function intoApiContentCheckListBlockElementItem(
     return {
         checked: item.checked,
         elements: Array.from(flatMapIterable(elements, intoApiContentParagraphBlockElement)),
-        nestedListElements: nestedListElements?.length > 0 ? nestedListElements : undefined,
+        ...(nestedListElements && nestedListElements.length > 0 ? {nestedListElements} : {}),
     };
 }
 
@@ -2950,7 +2986,7 @@ function intoApiContentListBlockElementItem(
 ): ApiContentListBlockElementItem {
     return {
         elements: Array.from(flatMapIterable(elements, intoApiContentParagraphBlockElement)),
-        nestedListElements: nestedListElements?.length > 0 ? nestedListElements : undefined,
+        ...(nestedListElements && nestedListElements.length > 0 ? {nestedListElements} : {}),
     };
 }
 

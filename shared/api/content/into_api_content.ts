@@ -567,8 +567,8 @@ function intoApiContentBlockElement(
             return {
                 type: "Table",
                 width: node.attrs.tableWidth,
-                hasHeaderRow: node.attrs.hasHeaderRow === true,
-                hasHeaderColumn: node.attrs.hasHeaderColumn === true,
+                ...(node.attrs.hasHeaderRow === true ? {hasHeaderRow: true} : {}),
+                ...(node.attrs.hasHeaderColumn === true ? {hasHeaderColumn: true} : {}),
                 columns: createArrayWithLength(columnWidth, index => ({
                     width: node.attrs.columnWidths[index] ?? 1,
                 })),

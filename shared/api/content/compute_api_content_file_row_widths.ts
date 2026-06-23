@@ -55,7 +55,7 @@ export function computeApiContentFileRowWidths(
         for (let i = 0; i < widths.length - 1; i++) {
             sum += widths[i]!;
         }
-        widths[widths.length - 1] = 1 - sum;
+        widths[widths.length - 1] = Math.round((1 - sum) * 100) / 100;
     }
 
     return widths;
