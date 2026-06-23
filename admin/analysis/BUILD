@@ -8,6 +8,7 @@ ts_lint_and_format_test(
 js_binary(
     name = "collect_ci_jest_coverage",
     data = [
+        "coverage_source_file.cjs",
         "merge_jest_coverage.cjs",
         "//:node_modules",
     ],
@@ -17,7 +18,9 @@ js_binary(
 js_binary(
     name = "dev_coverage",
     data = [
+        "coverage_source_file.cjs",
         "merge_jest_coverage.cjs",
+        "report_uncovered_lines.cjs",
         "//:node_modules",
     ],
     entry_point = "dev_coverage_main.cjs",
@@ -25,7 +28,10 @@ js_binary(
 
 js_binary(
     name = "merge_jest_coverage",
-    data = ["//:node_modules"],
+    data = [
+        "coverage_source_file.cjs",
+        "//:node_modules",
+    ],
     entry_point = "merge_jest_coverage.cjs",
 )
 

@@ -71,6 +71,9 @@ dev coverage server/billing
 Reports are written under `admin/coverage`, with full-repo reports in `admin/coverage/all` and
 package reports in a matching package path.
 
+`dev test` also writes a coverage report for the tests it just ran. Those reports live in
+`admin/coverage/test`, and changed-line coverage warnings are printed from that same test run.
+
 Use the publish script to generate and publish the static analysis site:
 
 ```bash

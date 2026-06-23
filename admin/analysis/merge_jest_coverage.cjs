@@ -9,10 +9,9 @@ const libInstrument = require("istanbul-lib-instrument");
 const libReport = require("istanbul-lib-report");
 const reports = require("istanbul-reports");
 const yargs = require("yargs/yargs");
+const {coverageSourceRoots, isCoverageSourceFile} = require("./coverage_source_file.cjs");
 
 const coverageMetricNames = ["statements", "branches", "functions", "lines"];
-const coverageSourceRoots = ["admin", "app", "client", "server", "shared"];
-const coverageSourceExtensions = new Set([".cjs", ".js", ".jsx", ".mjs", ".ts", ".tsx"]);
 const coverageSourceParserPlugins = [
     "typescript",
     "jsx",
@@ -64,11 +63,31 @@ async function main() {
     fs.rmSync(outputPath, {force: true, recursive: true});
     fs.mkdirSync(outputPath, {recursive: true});
 
-    const coverageMap = libCoverage.createCoverageMap({});
+    let coverageMap = libCoverage.createCoverageMap({});
     for (const coverageInput of coverageInputs) {
         mergeCoverageInput({coverageInput, coverageMap, workspacePath});
     }
-    const uncoveredSourceFileCount = addUncoveredSourceFiles({coverageMap, workspacePath});
+
+    let uncoveredSourceFileCount;
+    if (args.sourceFilePath) {
+        const sourceFilePath = normalizeCoveragePath({
+            filePath: args.sourceFilePath,
+            workspacePath,
+        });
+
+        const sourceFileCoverage = getSourceFileCoverageMap({
+            coverageMap,
+            sourceFilePath,
+            workspacePath,
+        });
+
+        coverageMap = sourceFileCoverage.coverageMap;
+        uncoveredSourceFileCount = sourceFileCoverage.uncoveredSourceFileCount;
+    } else if (args.skipUncoveredSourceFiles) {
+        uncoveredSourceFileCount = 0;
+    } else {
+        uncoveredSourceFileCount = addUncoveredSourceFiles({coverageMap, workspacePath});
+    }
 
     const files = coverageMap.files();
     if (files.length === 0) {
@@ -79,6 +98,7 @@ async function main() {
 
     const packageSummaries = getPackageSummaries({coverageMap, workspacePath});
     const overallSummary = coverageMap.getCoverageSummary().toJSON();
+
     writeIstanbulReports({coverageMap, outputPath});
     writeJson(outputPath, "coverage-final.json", coverageMap.toJSON());
     writeJson(outputPath, "package-summary.json", {
@@ -100,22 +120,48 @@ async function main() {
         uncoveredSourceFileCount,
         workspacePath,
     });
+
     fs.writeFileSync(path.join(outputPath, "coverage-summary.txt"), `${summaryText}\n`);
-    writeStdout(summaryText);
-    await sendHoneycombCoverageEvents({overallSummary, packageSummaries, workspacePath});
+
+    if (!args.quiet) {
+        writeStdout(summaryText);
+    }
+
+    if (args.honeycomb) {
+        await sendHoneycombCoverageEvents({overallSummary, packageSummaries, workspacePath});
+    }
 }
 
 /**
  * Reads and validates the CLI options for coverage report generation.
  */
 function readArgs(argv) {
-    return yargs(argv)
+    const args = yargs(argv)
         .scriptName("merge_jest_coverage")
         .usage("$0 --targets-file <path> [options]")
         .option("output", {
             coerce: value => path.resolve(value),
             describe: "Coverage output directory. Defaults to ./coverage.",
             type: "string",
+        })
+        .option("quiet", {
+            default: false,
+            describe: "Write report files without printing the summary.",
+            type: "boolean",
+        })
+        .option("source-file", {
+            describe: "Only report coverage for one workspace source file.",
+            type: "string",
+        })
+        .option("skip-uncovered-source-files", {
+            default: false,
+            describe: "Do not seed tracked source files that selected tests did not cover.",
+            type: "boolean",
+        })
+        .option("honeycomb", {
+            default: true,
+            describe: "Send coverage events to Honeycomb.",
+            type: "boolean",
         })
         .option("targets-file", {
             coerce: value => path.resolve(value),
@@ -136,6 +182,12 @@ function readArgs(argv) {
         .help()
         .strict()
         .parseSync();
+
+    return {
+        ...args,
+        skipUncoveredSourceFiles: args.skipUncoveredSourceFiles,
+        sourceFilePath: args.sourceFile,
+    };
 }
 
 /**
@@ -198,10 +250,12 @@ function mergeCoverageInput({coverageInput, coverageMap, workspacePath}) {
     for (const filePath of targetCoverageMap.files()) {
         const fileCoverage = targetCoverageMap.fileCoverageFor(filePath);
         const fileCoverageJson = fileCoverage.toJSON();
+
         fileCoverageJson.path = normalizeCoveragePath({
             filePath: fileCoverageJson.path,
             workspacePath,
         });
+
         coverageMap.merge({[fileCoverageJson.path]: fileCoverageJson});
     }
 }
@@ -233,6 +287,25 @@ function addUncoveredSourceFiles({coverageMap, workspacePath}) {
 }
 
 /**
+ * Narrows aggregate coverage down to a single source file.
+ */
+function getSourceFileCoverageMap({coverageMap, sourceFilePath, workspacePath}) {
+    const sourceCoverageMap = libCoverage.createCoverageMap({});
+    if (coverageMap.files().includes(sourceFilePath)) {
+        sourceCoverageMap.addFileCoverage(coverageMap.fileCoverageFor(sourceFilePath));
+        return {coverageMap: sourceCoverageMap, uncoveredSourceFileCount: 0};
+    }
+
+    sourceCoverageMap.addFileCoverage(
+        createUncoveredSourceFileCoverage({
+            filePath: sourceFilePath,
+            workspacePath,
+        }),
+    );
+    return {coverageMap: sourceCoverageMap, uncoveredSourceFileCount: 1};
+}
+
+/**
  * Lists source files that should appear in aggregate coverage reports.
  */
 function getCoverageSourceFilePaths(workspacePath) {
@@ -241,18 +314,6 @@ function getCoverageSourceFilePaths(workspacePath) {
         .map(filePath => filePath.trim())
         .filter(filePath => filePath.length > 0)
         .filter(filePath => isCoverageSourceFile(filePath));
-}
-
-/**
- * Decides whether a tracked file is source code worth reporting on.
- */
-function isCoverageSourceFile(filePath) {
-    const extension = path.extname(filePath);
-    return (
-        coverageSourceExtensions.has(extension) &&
-        !filePath.endsWith(".d.ts") &&
-        !/\.(test|spec)\.[^.]+$/.test(filePath)
-    );
 }
 
 /**
