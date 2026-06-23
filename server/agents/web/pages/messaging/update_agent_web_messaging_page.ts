@@ -16,6 +16,8 @@ import {
     normalizeApiReference,
 } from "~/shared/api/markdown/normalize_api_content.js";
 import {printMarkdownTree} from "~/shared/api/markdown/print_api_content_to_markdown.js";
+import {unzipKeysFromApiContentResponse} from "~/shared/api/markdown/zip_or_unzip_keys_from_api_content_response.js";
+import {ApiContentKey} from "~/shared/api/specification/types/api_content_key.js";
 import {ApiMessageRoomReference} from "~/shared/api/specification/types/api_specification_convenience_types.js";
 import {
     FailedPreconditionError,
@@ -68,7 +70,8 @@ export async function updateAgentWebMessagingPage<
     },
 ): Promise<AgentWebMessagingPageMetadata> {
     const updateThunks: Array<() => Promise<void>> = [];
-    const createThunks: Array<() => Promise<{index: number}>> = [];
+    const createThunks: Array<() => Promise<{index: number; keys: ReadonlyArray<ApiContentKey>}>> =
+        [];
 
     // Strip response properties from the preamble before comparing for equality. We
     // don't care if `pageLink.title`s aren't equal. The `title` might have changed
@@ -362,7 +365,12 @@ export async function updateAgentWebMessagingPage<
                 content: newBlock.content,
             });
 
-            return {index: message.index};
+            const keys =
+                message.payload.type === "Content"
+                    ? unzipKeysFromApiContentResponse(message.payload.content).keys
+                    : [];
+
+            return {index: message.index, keys};
         });
     }
 
@@ -403,7 +411,7 @@ export async function updateAgentWebMessagingPage<
         // Update all create thunks in sequence to make sure they're added in the right
         // order.
         (async () => {
-            const newMessages: Array<{index: number}> = [];
+            const newMessages: Array<{index: number; keys: ReadonlyArray<ApiContentKey>}> = [];
 
             for (const createThunk of createThunks) {
                 newMessages.push(await createThunk());

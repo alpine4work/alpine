@@ -1,4 +1,5 @@
 import {AgentWebPageLink} from "~/server/agents/web/agent_web_page_link.js";
+import {ApiContentKey} from "~/shared/api/specification/types/api_content_key.js";
 import {ApiContentResponseWithoutKeys} from "~/shared/api/specification/types/api_content_response_without_keys.js";
 import {ApiAccountReferenceResponse} from "~/shared/api/specification/types/api_specification_convenience_types.js";
 
@@ -101,6 +102,7 @@ export type AgentWebMessagingPageMetadata = {
     readonly isEndOfMessages: boolean;
     readonly messages: ReadonlyArray<{
         readonly index: number;
+        readonly keys: ReadonlyArray<ApiContentKey>;
 
         // TODO(#agents-web): I'm like 99% sure that when we implement message updating
         // that we're going to want `contentVersion` in here. So the agent gets an error if

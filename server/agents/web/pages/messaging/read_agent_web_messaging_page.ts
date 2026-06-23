@@ -18,7 +18,9 @@ import {
     truncateAgentWebMessagingPage,
     truncateAgentWebMessagingPageAroundMessage,
 } from "~/server/agents/web/pages/messaging/truncate_agent_web_messaging_page.js";
+import {unzipKeysFromApiContentResponse} from "~/shared/api/markdown/zip_or_unzip_keys_from_api_content_response.js";
 import {intoApiAccountReference} from "~/shared/api/specification/into_api_account_reference.js";
+import {ApiContentKey} from "~/shared/api/specification/types/api_content_key.js";
 import {
     ApiContentBlockElementResponseWithoutKeys,
     ApiContentResponseWithoutKeys,
@@ -34,6 +36,7 @@ import {InvalidArgumentError, UnimplementedError} from "~/shared/error/error.js"
 import {errorDisplayMessage} from "~/shared/error/error_display_message.js";
 import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
 import {assert} from "~/shared/helpers/control/assert.js";
+import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
 import {deserializeDateString} from "~/shared/helpers/date/date_string.js";
 import {defaultLocale} from "~/shared/helpers/intl/locale.js";
@@ -563,6 +566,7 @@ function buildAgentWebMessagingPageFromApiMessages<
     const contextFormattedTimeZone = formatTimeZoneAbbreviation(context.timeZone, contextTime);
 
     const blocks: Array<AgentWebMessagingPageBlock<CustomBlock>> = [];
+    const unzippedMessageKeys: Array<ReadonlyArray<ApiContentKey>> = [];
 
     let currentBlock: {
         authorId: AccountId;
@@ -763,7 +767,10 @@ function buildAgentWebMessagingPageFromApiMessages<
             blocks,
             metadata: {
                 isEndOfMessages,
-                messages: messages.map(message => ({index: message.index})),
+                messages: messages.map((message, index) => {
+                    const keys = assertExists(unzippedMessageKeys[index]);
+                    return {index: message.index, keys};
+                }),
             },
         },
     };
@@ -845,6 +852,8 @@ function buildAgentWebMessagingPageFromApiMessages<
         for (const message of currentBlock.messages) {
             switch (message.payload.type) {
                 case "Deleted": {
+                    unzippedMessageKeys.push([]);
+
                     elements.push({
                         type: "Paragraph",
                         elements: [{type: "Text", text: `Deleted ${messageNouns.noun}`}],
@@ -852,7 +861,13 @@ function buildAgentWebMessagingPageFromApiMessages<
                     break;
                 }
                 case "Content": {
-                    for (const element of message.payload.content.elements) {
+                    const {content, keys} = unzipKeysFromApiContentResponse(
+                        message.payload.content,
+                    );
+
+                    unzippedMessageKeys.push(keys);
+
+                    for (const element of content.elements) {
                         elements.push(element);
                     }
                     break;
