@@ -932,6 +932,29 @@ const testCases: Array<{
         },
         range: {from: 0.5, to: 0.530927836894989},
     },
+    {
+        name: "generative bug: empty range with commentable content elsewhere",
+        content: {
+            type: "doc",
+            content: [
+                {
+                    type: "unorderedListItem",
+                    attrs: {indent: 1},
+                    content: [
+                        {
+                            type: "paragraph",
+                            content: [{type: "break"}, {type: "break"}, {type: "text", text: "s"}],
+                        },
+                    ],
+                },
+                {
+                    type: "fileRow",
+                    content: [{type: "file", attrs: {fileId: "06ffcqwg2sxtx5ggmd0zp2vca8"}}],
+                },
+            ],
+        },
+        range: {from: 0, to: 0},
+    },
 ];
 
 const encoder = new ApiContentKeyEncoder({
@@ -1036,10 +1059,9 @@ for (const {only, name, content: contentJson, range} of testCases) {
         const hasCommentableContent = () => {
             let hasCommentableContent = false;
 
-            content.slice(from, to).content.descendants(node => {
+            content.nodesBetween(from, to, (node, pos, parentNode) => {
                 if (!node.isLeaf) return;
-                hasCommentableContent ||=
-                    node.isText || node.type.allowsMarkType(schema.marks.comment);
+                hasCommentableContent ||= parentNode?.isTextblock || node.type.name === "file";
             });
 
             return hasCommentableContent;

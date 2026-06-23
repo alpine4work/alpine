@@ -141,10 +141,10 @@ test("can find sliced content", async () => {
                 const hasCommentableContent = () => {
                     let hasCommentableContent = false;
 
-                    content.slice(from, to).content.descendants(node => {
+                    content.nodesBetween(from, to, (node, pos, parentNode) => {
                         if (!node.isLeaf) return;
                         hasCommentableContent ||=
-                            node.isText || node.type.allowsMarkType(schema.marks.comment);
+                            parentNode?.isTextblock || node.type.name === "file";
                     });
 
                     return hasCommentableContent;
