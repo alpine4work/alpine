@@ -100,8 +100,19 @@ export function createIdArbitrary<Value extends Id>(): Arbitrary<Value> {
 }
 
 export const ApiContentTextArbitrary = fc.oneof(
-    {arbitrary: fc.string({unit: "grapheme-ascii"}), weight: 10},
-    {arbitrary: fc.string({unit: "grapheme"}), weight: 1},
+    {arbitrary: fc.string({unit: "grapheme-ascii"}), weight: 1000},
+    {arbitrary: fc.string({unit: "grapheme"}), weight: 100},
+    {
+        // Some constant strings we look for when parsing agent web pages that may break
+        // parsing should they appear so we want our generative test to exercise them.
+        arbitrary: fc.oneof(
+            fc.constant("Next page »"),
+            fc.constant("Previous page »"),
+            fc.constant("« Previous page"),
+            fc.constant("See more »"),
+        ),
+        weight: 1,
+    },
 );
 
 export const ApiChannelReferenceArbitrary: fc.Arbitrary<ApiChannelReferenceResponse> = fc.record({
