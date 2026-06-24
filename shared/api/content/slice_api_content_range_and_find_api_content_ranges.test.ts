@@ -15,7 +15,9 @@ const testCases: Array<{
     only?: CommitBlocker;
     name: string;
     content: JsonValue;
-    range: {from: number; to: number};
+    relativeRange: {from: number; to: number};
+    absoluteRange: {from: number; to: number};
+    contentSlice: string;
 }> = [
     {
         name: "single character",
@@ -23,7 +25,7 @@ const testCases: Array<{
             type: "doc",
             content: [{type: "paragraph", content: [{type: "text", text: "a"}]}],
         },
-        range: {from: 0, to: 0},
+        relativeRange: {from: 0, to: 0},
     },
     {
         name: "single character followed by empty paragraph",
@@ -34,7 +36,7 @@ const testCases: Array<{
                 {type: "paragraph"},
             ],
         },
-        range: {from: 0, to: 1},
+        relativeRange: {from: 0, to: 1},
     },
     {
         name: "single character preceded by empty paragraph",
@@ -45,7 +47,7 @@ const testCases: Array<{
                 {type: "paragraph", content: [{type: "text", text: "a"}]},
             ],
         },
-        range: {from: 0, to: 1},
+        relativeRange: {from: 0, to: 1},
     },
     {
         name: "multiple characters",
@@ -53,7 +55,7 @@ const testCases: Array<{
             type: "doc",
             content: [{type: "paragraph", content: [{type: "text", text: "abc"}]}],
         },
-        range: {from: 0, to: 1},
+        relativeRange: {from: 0, to: 1},
     },
     {
         name: "range selects single file row",
@@ -66,7 +68,7 @@ const testCases: Array<{
                 },
             ],
         },
-        range: {from: 0, to: 0},
+        relativeRange: {from: 0, to: 0},
     },
     {
         name: "range ends at empty paragraph boundary",
@@ -77,7 +79,7 @@ const testCases: Array<{
                 {type: "paragraph"},
             ],
         },
-        range: {from: 0, to: 0.7000000476837158},
+        relativeRange: {from: 0, to: 0.7000000476837158},
     },
     {
         name: "range ends at nested list paragraph boundary",
@@ -95,7 +97,7 @@ const testCases: Array<{
                 {type: "paragraph"},
             ],
         },
-        range: {from: 0, to: 0.45000001788139343},
+        relativeRange: {from: 0, to: 0.45000001788139343},
     },
     {
         name: "range ends at floating ordered list paragraph boundary",
@@ -110,7 +112,7 @@ const testCases: Array<{
                 },
             ],
         },
-        range: {from: 0, to: 0.6428571939468384},
+        relativeRange: {from: 0, to: 0.6428571939468384},
     },
     {
         name: "range starts at file boundary and ends in table",
@@ -203,7 +205,7 @@ const testCases: Array<{
                 },
             ],
         },
-        range: {from: 0, to: 0.18292683362960815},
+        relativeRange: {from: 0, to: 0.18292683362960815},
     },
     {
         name: "empty range before nested list text",
@@ -221,7 +223,7 @@ const testCases: Array<{
                 {type: "paragraph", content: [{type: "text", text: "f"}]},
             ],
         },
-        range: {from: 0, to: 0},
+        relativeRange: {from: 0, to: 0},
     },
     {
         name: "single repeated character slice",
@@ -229,7 +231,7 @@ const testCases: Array<{
             type: "doc",
             content: [{type: "paragraph", content: [{type: "text", text: "7 7"}]}],
         },
-        range: {from: 0.30000001192092896, to: 0.30000001192092896},
+        relativeRange: {from: 0.30000001192092896, to: 0.30000001192092896},
     },
     {
         name: "range ends before file row item",
@@ -246,7 +248,7 @@ const testCases: Array<{
                 },
             ],
         },
-        range: {from: 0, to: 0.6428571939468384},
+        relativeRange: {from: 0, to: 0.6428571939468384},
     },
     {
         name: "range ends at second code line boundary",
@@ -264,7 +266,7 @@ const testCases: Array<{
                 {type: "paragraph"},
             ],
         },
-        range: {from: 0, to: 0.45000001788139343},
+        relativeRange: {from: 0, to: 0.45000001788139343},
     },
     {
         name: "range includes second code line after empty first code line",
@@ -282,7 +284,7 @@ const testCases: Array<{
                 },
             ],
         },
-        range: {from: 0, to: 0.75},
+        relativeRange: {from: 0, to: 0.75},
     },
     {
         name: "range starts at empty paragraph before code block and checklist",
@@ -308,7 +310,7 @@ const testCases: Array<{
                 },
             ],
         },
-        range: {from: 0, to: 0},
+        relativeRange: {from: 0, to: 0},
     },
     {
         name: "range ends at empty paragraph after marked file gallery",
@@ -339,7 +341,7 @@ const testCases: Array<{
                 {type: "paragraph"},
             ],
         },
-        range: {from: 0.10869565606117249, to: 0.10869565606117249},
+        relativeRange: {from: 0.10869565606117249, to: 0.10869565606117249},
     },
     {
         name: "large range through quote and table",
@@ -627,7 +629,7 @@ const testCases: Array<{
                 {type: "paragraph", content: [{type: "text", text: "0 h"}]},
             ],
         },
-        range: {from: 0, to: 0.9833333492279053},
+        relativeRange: {from: 0, to: 0.9833333492279053},
     },
     {
         name: "range ends before file float",
@@ -650,7 +652,7 @@ const testCases: Array<{
                 },
             ],
         },
-        range: {from: 0, to: 0.875},
+        relativeRange: {from: 0, to: 0.875},
     },
     {
         name: "empty range between code block and paragraph",
@@ -665,7 +667,7 @@ const testCases: Array<{
                 {type: "paragraph"},
             ],
         },
-        range: {from: 0.3571428656578064, to: 0.3571428656578064},
+        relativeRange: {from: 0.3571428656578064, to: 0.3571428656578064},
     },
     {
         name: "range ends before second code line content",
@@ -690,7 +692,7 @@ const testCases: Array<{
                 },
             ],
         },
-        range: {from: 0, to: 0.30000001192092896},
+        relativeRange: {from: 0, to: 0.30000001192092896},
     },
     {
         name: "range selects break paragraph in nested list",
@@ -715,7 +717,7 @@ const testCases: Array<{
                 },
             ],
         },
-        range: {from: 0.1666666716337204, to: 0.23333333432674408},
+        relativeRange: {from: 0.1666666716337204, to: 0.23333333432674408},
     },
     {
         name: "range includes second code line text",
@@ -740,7 +742,7 @@ const testCases: Array<{
                 },
             ],
         },
-        range: {from: 0, to: 0.34375},
+        relativeRange: {from: 0, to: 0.34375},
     },
     {
         name: "repeated text inside checklist paragraph",
@@ -790,7 +792,7 @@ const testCases: Array<{
                 },
             ],
         },
-        range: {from: 0.06321839243173599, to: 0.09770115464925766},
+        relativeRange: {from: 0.06321839243173599, to: 0.09770115464925766},
     },
     {
         name: "range starts after file float and ends before next paragraph",
@@ -806,7 +808,7 @@ const testCases: Array<{
                 {type: "paragraph", content: [{type: "text", text: "w"}]},
             ],
         },
-        range: {from: 0.2777777910232544, to: 0.7222222685813904},
+        relativeRange: {from: 0.2777777910232544, to: 0.7222222685813904},
     },
     {
         name: "empty range between file float and paragraph",
@@ -821,7 +823,7 @@ const testCases: Array<{
                 {type: "paragraph", content: [{type: "text", text: "x"}]},
             ],
         },
-        range: {from: 0.25, to: 0.25},
+        relativeRange: {from: 0.25, to: 0.25},
     },
     {
         name: "range starts at empty unordered list paragraph before repeated list text",
@@ -848,7 +850,7 @@ const testCases: Array<{
                 {type: "paragraph", content: [{type: "text", text: "q"}]},
             ],
         },
-        range: {from: 0, to: 0},
+        relativeRange: {from: 0, to: 0},
     },
     {
         name: "range starts after checklist paragraph text in quote",
@@ -888,7 +890,7 @@ const testCases: Array<{
                 },
             ],
         },
-        range: {from: 0.04545454680919647, to: 0.04545454680919647},
+        relativeRange: {from: 0.04545454680919647, to: 0.04545454680919647},
     },
     {
         name: "overlapping repeated text in quoted ordered list",
@@ -931,7 +933,7 @@ const testCases: Array<{
                 },
             ],
         },
-        range: {from: 0.5, to: 0.530927836894989},
+        relativeRange: {from: 0.5, to: 0.530927836894989},
     },
     {
         name: "empty range with commentable content elsewhere",
@@ -954,7 +956,7 @@ const testCases: Array<{
                 },
             ],
         },
-        range: {from: 0, to: 0},
+        relativeRange: {from: 0, to: 0},
     },
 ];
 
@@ -963,7 +965,14 @@ const encoder = new ApiContentKeyEncoder({
     version: 0,
 });
 
-for (const {only, name, content: contentJson, range} of testCases) {
+for (const {
+    only,
+    name,
+    content: contentJson,
+    relativeRange,
+    absoluteRange,
+    contentSlice,
+} of testCases) {
     const test = only ? globalThis.test.only : globalThis.test;
 
     const content = schema.nodeFromJSON(contentJson);
@@ -989,8 +998,8 @@ for (const {only, name, content: contentJson, range} of testCases) {
         // scanning forwards/backwards for both the range start and end until it finds
         // valid positions that produce a non-empty range.
 
-        let from = Math.round(range.from * content.content.size);
-        let to = Math.round(range.to * content.content.size);
+        let from = Math.round(relativeRange.from * content.content.size);
+        let to = Math.round(relativeRange.to * content.content.size);
 
         const isFromValid = (): boolean => {
             const $from = content.resolve(from);
@@ -1153,9 +1162,22 @@ for (const {only, name, content: contentJson, range} of testCases) {
         });
 
         const apiContentSlice = sliceApiContentRange(apiContent, {start, end});
+        expect(apiContentSlice).toEqual({ok: true, value: expect.anything()});
+        assert(apiContentSlice.ok);
 
-        const ranges = Array.from(findApiContentRanges(apiContent, apiContentSlice));
+        const ranges = Array.from(findApiContentRanges(apiContent, apiContentSlice.value));
 
         expect(ranges).toEqual(expect.arrayContaining([{start, end}]));
+
+        // Put the actual range we're testing and the resulting content slice we're slicing
+        // then finding in the `testCases` object to make it easier to visually verify the
+        // test case.
+        expect({
+            absoluteRange: {from, to},
+            contentSlice: content.slice(from, to).content.toString(),
+        }).toEqual({
+            absoluteRange,
+            contentSlice,
+        });
     });
 }

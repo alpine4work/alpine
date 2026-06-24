@@ -36,6 +36,7 @@ import {
 import {InternalError} from "~/shared/error/error.js";
 import {cast} from "~/shared/helpers/control/cast.js";
 import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
+import {Result} from "~/shared/helpers/control/result.js";
 import {quote} from "~/shared/helpers/string/quote.js";
 
 type SliceContext = {
@@ -46,12 +47,15 @@ type SliceContext = {
 export function sliceApiContentRange(
     content: ApiContentResponse,
     range: ApiContentRange,
-): ApiContentResponse | null {
+): Result<ApiContentResponse, "StartNotFound" | "EndNotFound"> {
     const context: SliceContext = {range, state: "Before"};
 
     const elements = sliceBlockElements(context, content.elements);
-    if (elements === undefined) return null;
-    return {elements};
+
+    if (elements === undefined) return {ok: false, error: "StartNotFound"};
+    if (context.state !== "After") return {ok: false, error: "EndNotFound"};
+
+    return {ok: true, value: {elements}};
 }
 
 function sliceBlockElements(

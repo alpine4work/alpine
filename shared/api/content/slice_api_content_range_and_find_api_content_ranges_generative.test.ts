@@ -10,13 +10,8 @@ import {assertId} from "~/shared/id/id.js";
 import {DocumentId} from "~/shared/id/types/id_types.js";
 import {getProsemirrorNodeArbitrary} from "~/shared/prosemirror/test_helpers/get_prosemirror_node_arbitrary.js";
 
-/* NOCOMMIT
 import.meta.jest.setTimeout(30 * 1000);
 fc.configureGlobal({interruptAfterTimeLimit: 20 * 1000});
- */
-
-import.meta.jest.setTimeout(140 * 1000);
-fc.configureGlobal({interruptAfterTimeLimit: 120 * 1000});
 
 const encoder = new ApiContentKeyEncoder({
     entityId: `Document:${assertId<DocumentId>("021canz18dawsz0xbg032r4f48")}`,
@@ -40,14 +35,14 @@ test("can find sliced content", async () => {
                         toString: () => JSON.stringify(content.toJSON()),
                     }),
                 ),
-                range: fc
+                relativeRange: fc
                     .tuple(
                         fc.float({min: 0, max: 1, noNaN: true}),
                         fc.float({min: 0, max: 1, noNaN: true}),
                     )
                     .map(([from, to]) => (from < to ? {from, to} : {from: to, to: from})),
             }),
-            async ({content, range}) => {
+            async ({content, relativeRange}) => {
                 /* ========================================================================== *\
                  *                                 Test setup                                 *
                 \* ========================================================================== */
@@ -68,8 +63,8 @@ test("can find sliced content", async () => {
                 // scanning forwards/backwards for both the range start and end until it finds
                 // valid positions that produce a non-empty range.
 
-                let from = Math.round(range.from * content.content.size);
-                let to = Math.round(range.to * content.content.size);
+                let from = Math.round(relativeRange.from * content.content.size);
+                let to = Math.round(relativeRange.to * content.content.size);
 
                 const isFromValid = (): boolean => {
                     const $from = content.resolve(from);
@@ -243,8 +238,10 @@ test("can find sliced content", async () => {
                 });
 
                 const apiContentSlice = sliceApiContentRange(apiContent, {start, end});
+                expect(apiContentSlice).toEqual({ok: true, value: expect.anything()});
+                assert(apiContentSlice.ok);
 
-                const ranges = Array.from(findApiContentRanges(apiContent, apiContentSlice));
+                const ranges = Array.from(findApiContentRanges(apiContent, apiContentSlice.value));
 
                 expect(ranges).toEqual(expect.arrayContaining([{start, end}]));
             },
