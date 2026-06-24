@@ -917,51 +917,6 @@ export namespace ApiSpecification {
             readonly patch?: never;
             readonly trace?: never;
         };
-        readonly "/documents/{id}/threads/{threadId}-with-document": {
-            readonly parameters: {
-                readonly query?: never;
-                readonly header?: never;
-                readonly path: {
-                    readonly id: components["schemas"]["DocumentId"];
-                    readonly threadId: components["schemas"]["DocumentThreadId"];
-                };
-                readonly cookie?: never;
-            };
-            readonly get: {
-                readonly parameters: {
-                    readonly query?: never;
-                    readonly header?: never;
-                    readonly path: {
-                        readonly id: components["schemas"]["DocumentId"];
-                        readonly threadId: components["schemas"]["DocumentThreadId"];
-                    };
-                    readonly cookie?: never;
-                };
-                readonly requestBody?: never;
-                readonly responses: {
-                    readonly 200: {
-                        headers: {
-                            readonly [name: string]: unknown;
-                        };
-                        content: {
-                            readonly "application/json": {
-                                readonly spaceId: components["schemas"]["SpaceId"];
-                                readonly document: components["schemas"]["Document_Response"];
-                                readonly thread: components["schemas"]["DocumentThread_Response"];
-                            };
-                        };
-                    };
-                    readonly default: components["responses"]["Error"];
-                };
-            };
-            readonly put?: never;
-            readonly post?: never;
-            readonly delete?: never;
-            readonly options?: never;
-            readonly head?: never;
-            readonly patch?: never;
-            readonly trace?: never;
-        };
         readonly "/documents/{id}/threads/{threadId}/messages/{index}": {
             readonly parameters: {
                 readonly query?: never;
