@@ -21,6 +21,7 @@ import {AccountId, BotId, ChannelId, PostId} from "~/shared/id/types/id_types.js
 
 const channelId = generateId<ChannelId>();
 const launchPostId = generateId<PostId>();
+const seeMorePostId = generateId<PostId>();
 const roadmapPostId = generateId<PostId>();
 
 function accountReference({
@@ -52,6 +53,12 @@ const roadmapPostReference: ApiPostReferenceResponse = {
     type: "Post",
     id: roadmapPostId,
     title: "Roadmap",
+};
+
+const seeMorePostReference: ApiPostReferenceResponse = {
+    type: "Post",
+    id: seeMorePostId,
+    title: "See more »",
 };
 
 function content(
@@ -99,7 +106,6 @@ runAgentWebPageTests<ChannelId, AgentWebChannelPage>({
         {
             name: "head channel page with posts and pagination",
             pageLink: channelId,
-            // NOCOMMIT: Better search param syntax
             markdown: `\
 # Announcements
 
@@ -179,6 +185,21 @@ End of posts.
                 posts: [],
                 isEndOfPosts: true,
             },
+        },
+        {
+            name: "head channel page with wrong divider in description",
+            pageLink: channelId,
+            markdown: `\
+# Announcements
+
+Before divider
+
+---
+
+After divider
+`,
+            parseError:
+                "Expected `<post>` blocks in the channel posts section after the divider (`---`). Try again with valid channel posts markdown on line 7 (or if you want to add a divider to your channel description you can do so with the HTML divider syntax `<hr />`).",
         },
         {
             name: "head channel page without posts section",
@@ -428,6 +449,39 @@ Posts in Announcements.
             },
         },
         {
+            name: "tail channel page with standalone see more post mention title in post content snippet",
+            pageLink: channelId,
+            markdown: `\
+Posts in Announcements.
+
+<post from="[Alice](/human/alice)" time="May 14th at 11:00am EDT">
+
+[See more »](https://alpine.inc/post/see-more)
+
+</post>
+`,
+            page: {
+                type: "Channel",
+                subType: "Tail",
+                name: "Announcements",
+                pagination: null,
+                posts: [
+                    {
+                        type: "Post",
+                        author: aliceReference,
+                        timeAttribute: "May 14th at 11:00am EDT",
+                        contentSnippet: content([
+                            paragraph([
+                                text("See more »", [{type: "Link", url: "/post/see-more"}]),
+                            ]),
+                        ]),
+                        reference: null,
+                    },
+                ],
+                isEndOfPosts: false,
+            },
+        },
+        {
             name: "tail channel page with standalone see more post mention in post content snippet",
             pageLink: channelId,
             markdown: `\
@@ -562,8 +616,7 @@ Updates from the team.
 Not a post.
 `,
             parseError:
-                "Expected `<post>` blocks in the channel posts section. Try again with valid " +
-                "channel posts markdown on line 7.",
+                "Expected `<post>` blocks in the channel posts section after the divider (`---`). Try again with valid channel posts markdown on line 7 (or if you want to add a divider to your channel description you can do so with the HTML divider syntax `<hr />`).",
         },
         {
             name: "unclosed channel post block",
@@ -596,21 +649,36 @@ Updates from the team.
                 "Try again with a valid channel pagination link.",
         },
         {
-            name: "missing channel post link",
+            name: "tail channel page with post without see more link",
             pageLink: channelId,
             markdown: `\
 Posts in Announcements.
 
 <post>
 
+Launch notes
+
 </post>
 `,
-            parseError:
-                "Every channel `<post>` must end with a `[See more »](/post/...)` link. " +
-                "Try again with the post link at the end of the `<post>` on line 3.",
+            page: {
+                type: "Channel",
+                subType: "Tail",
+                name: "Announcements",
+                pagination: null,
+                posts: [
+                    {
+                        type: "Post",
+                        author: null,
+                        timeAttribute: null,
+                        contentSnippet: content([paragraph([text("Launch notes")])]),
+                        reference: null,
+                    },
+                ],
+                isEndOfPosts: false,
+            },
         },
         {
-            name: "invalid channel post link text",
+            name: "tail channel page with non-see-more link at end of post content snippet",
             pageLink: channelId,
             markdown: `\
 Posts in Announcements.
@@ -623,34 +691,36 @@ Launch notes
 
 </post>
 `,
-            parseError:
-                "Every channel `<post>` must end with a `[See more »](/post/...)` link. " +
-                "Try again with the post link at the end of the `<post>` on line 3.",
-        },
-        {
-            name: "channel post link to non-post page",
-            pageLink: channelId,
-            markdown: `\
+            printMarkdown: `\
 Posts in Announcements.
 
 <post>
 
 Launch notes
 
-[See more »](/channel/announcements)
+[Launch notes](/post/launch-notes)
 
 </post>
 `,
-            setupStorage: async storage => {
-                await createAgentWebPageStoredLinkPathname(storage, {
-                    type: "Channel",
-                    id: channelId,
-                    title: "Announcements",
-                });
+            page: {
+                type: "Channel",
+                subType: "Tail",
+                name: "Announcements",
+                pagination: null,
+                posts: [
+                    {
+                        type: "Post",
+                        author: null,
+                        timeAttribute: null,
+                        contentSnippet: content([
+                            paragraph([text("Launch notes")]),
+                            paragraph([mention(launchPostReference)]),
+                        ]),
+                        reference: null,
+                    },
+                ],
+                isEndOfPosts: false,
             },
-            parseError:
-                "Expected `See more »` to link to a post. Try again with a valid post link at " +
-                "the end of the `<post>` on line 3.",
         },
         {
             name: "invalid channel post author link",
@@ -686,6 +756,81 @@ Launch notes
                 description: {elements: []},
                 pagination: null,
                 posts: [],
+                isEndOfPosts: false,
+            },
+        },
+        {
+            name: "tail channel page with standalone see more mention in post content snippet",
+            pageLink: channelId,
+            markdown: `\
+Posts in Announcements.
+
+<post from="[Alice](/human/alice)" time="May 14th at 11:00am EDT">
+
+[See more »](/post/see-more)
+
+[See more »](/post/see-more)
+
+</post>
+`,
+            printMarkdown: `\
+Posts in Announcements.
+
+<post from="[Alice](/human/alice)" time="May 14th at 11:00am EDT">
+
+[See more](/post/see-more)
+
+[See more »](/post/see-more)
+
+</post>
+`,
+            page: {
+                type: "Channel",
+                subType: "Tail",
+                name: "Announcements",
+                pagination: null,
+                posts: [
+                    {
+                        type: "Post",
+                        author: aliceReference,
+                        timeAttribute: "May 14th at 11:00am EDT",
+                        contentSnippet: content([
+                            paragraph([{type: "Mention", reference: seeMorePostReference}]),
+                        ]),
+                        reference: seeMorePostReference,
+                    },
+                ],
+                isEndOfPosts: false,
+            },
+        },
+        {
+            name: "tail channel page with standalone see more mention in post content snippet when post doesn\u2019t have see more link",
+            pageLink: channelId,
+            markdown: `\
+Posts in Announcements.
+
+<post from="[Alice](/human/alice)" time="May 14th at 11:00am EDT">
+
+[See more](/post/see-more)
+
+</post>
+`,
+            page: {
+                type: "Channel",
+                subType: "Tail",
+                name: "Announcements",
+                pagination: null,
+                posts: [
+                    {
+                        type: "Post",
+                        author: aliceReference,
+                        timeAttribute: "May 14th at 11:00am EDT",
+                        contentSnippet: content([
+                            paragraph([{type: "Mention", reference: seeMorePostReference}]),
+                        ]),
+                        reference: null,
+                    },
+                ],
                 isEndOfPosts: false,
             },
         },
