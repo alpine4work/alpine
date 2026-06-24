@@ -10,6 +10,11 @@ import {createAgentWebPageStoredLinkPathname} from "~/server/agents/web/create_a
 import {createAgentWebSessionStorageForTest} from "~/server/agents/web/test_helpers/create_agent_web_session_storage_for_test.js";
 import {ApiContentKeyEncoder} from "~/shared/api/content/api_content_key_encoder.js";
 import {
+    ApiContentBlockElementResponse,
+    ApiContentFileBlockElementResponse,
+    ApiContentInlineElementMark,
+    ApiContentInlineElementResponse,
+    ApiContentParagraphBlockElementResponse,
     ApiContentResponse,
     ApiDocumentReferenceResponse,
     ApiMessageResponse,
@@ -22,6 +27,7 @@ import {
     BotId,
     DocumentCommentThreadId,
     DocumentId,
+    FileId,
     SpaceId,
 } from "~/shared/id/types/id_types.js";
 import {testTracer} from "~/shared/tracer/dev/test_tracer.js";
@@ -46,10 +52,12 @@ const documentThreadReference: AgentWebPageDocumentThreadRoutedLink = {
     threadId,
 };
 const documentThreadPath = "/document/launch-spec/comments/1";
+const contentKeyEncoder = new ApiContentKeyEncoder({entityId: "Test", version: 0});
 
 const {span} = testTracer.startSpan("call_agent_web_read_tool_for_document_thread.test.ts");
 const api = new ApiClientMock();
 const storage = createAgentWebSessionStorageForTest(spaceId);
+let nextContentKeyPosition = 0;
 
 const context: AgentWebContext = {
     spaceId,
@@ -69,54 +77,86 @@ const context: AgentWebContext = {
 
 beforeEach(async () => {
     await storage.deleteAll();
+    nextContentKeyPosition = 0;
 
     await createAgentWebPageLinkPathname(storage, context.botAccount);
     await createAgentWebPageLinkPathname(storage, documentReference);
     await createAgentWebPageLinkPathname(storage, documentThreadReference);
 });
 
-function contentFromText(text: string): ApiContentResponse {
+function createContentKey(nodeSize: number) {
+    const key = contentKeyEncoder.encode({pos: nextContentKeyPosition, nodeSize});
+    nextContentKeyPosition += Math.max(nodeSize, 1);
+    return key;
+}
+
+function inlineElementLength(element: ApiContentInlineElementResponse) {
+    if (element.type === "Text") return element.text.length;
+    return 1;
+}
+
+function contentFromBlockElements(
+    elements: ReadonlyArray<ApiContentBlockElementResponse>,
+): ApiContentResponse {
+    return {elements};
+}
+
+function paragraph(
+    elements: ReadonlyArray<ApiContentInlineElementResponse>,
+): ApiContentParagraphBlockElementResponse {
+    const nodeSize = elements.reduce((sum, element) => sum + inlineElementLength(element), 2);
+    return {type: "Paragraph", key: createContentKey(nodeSize), elements};
+}
+
+function text(
+    text: string,
+    marks?: ReadonlyArray<ApiContentInlineElementMark>,
+): ApiContentInlineElementResponse {
+    return marks ? {type: "Text", text, marks} : {type: "Text", text};
+}
+
+function commentMark(id: DocumentCommentThreadId = threadId) {
+    return {type: "Comment" as const, thread: {id}};
+}
+
+function commentedText(
+    text: string,
+    {
+        id = threadId,
+        marks = [],
+    }: {
+        id?: DocumentCommentThreadId;
+        marks?: ReadonlyArray<ApiContentInlineElementMark>;
+    } = {},
+): ApiContentInlineElementResponse {
+    return {type: "Text", text, marks: [commentMark(id), ...marks]};
+}
+
+function contentFromCommentedText(text: string): ApiContentResponse {
+    return contentFromBlockElements([paragraph([commentedText(text)])]);
+}
+
+function commentedFile(contentType: ApiContentFileBlockElementResponse["contentType"]) {
     return {
-        elements: [
-            {
-                type: "Paragraph",
-                key: new ApiContentKeyEncoder({entityId: "Test", version: 0}).encode({
-                    pos: 0,
-                    nodeSize: text.length + 2,
-                }),
-                elements: [{type: "Text", text}],
-            },
-        ],
+        type: "File" as const,
+        key: createContentKey(1),
+        id: generateId<FileId>(),
+        contentType,
+        contentLength: 100,
+        marks: [commentMark()],
     };
 }
 
 function documentContentSnippet(): ApiContentResponse {
-    return {
-        elements: [
-            {
-                type: "Paragraph",
-                key: new ApiContentKeyEncoder({entityId: "Test", version: 0}).encode({
-                    pos: 0,
-                    nodeSize: 35,
-                }),
-                elements: [
-                    {type: "Text", text: "Keep "},
-                    {
-                        type: "Text",
-                        text: "current",
-                        marks: [{type: "Comment", thread: {id: threadId}}],
-                    },
-                    {type: "Text", text: " and strip "},
-                    {
-                        type: "Text",
-                        text: "other",
-                        marks: [{type: "Comment", thread: {id: otherThreadId}}],
-                    },
-                    {type: "Text", text: "."},
-                ],
-            },
-        ],
-    };
+    return contentFromBlockElements([
+        paragraph([
+            text("Keep "),
+            commentedText("current"),
+            text(" and strip "),
+            commentedText("other", {id: otherThreadId}),
+            text("."),
+        ]),
+    ]);
 }
 
 function mockGetDocumentReference() {
@@ -141,14 +181,16 @@ function mockGetDocumentThread({
         {
             data: {
                 spaceId,
-                document: {
-                    reference: {
-                        title: documentReference.title,
-                    },
-                },
                 thread: {
                     id: threadId,
+                    document: {
+                        id: documentId,
+                        reference: {
+                            title: documentReference.title,
+                        },
+                    },
                     createdTime: serializeDateString(createdTime),
+                    createdTimeZone: defaultTimeZone,
                     isResolved: false,
                     commentCount,
                     firstCommentAuthor: aliceAccount,
@@ -190,7 +232,7 @@ function mockMessages({
     });
 }
 
-test("reads a document thread with preview above comments", async () => {
+test("reads a document thread with quoted commented content above comments", async () => {
     mockGetDocumentThread();
     mockMessages({
         totalMessageCount: 1,
@@ -206,20 +248,10 @@ test("reads a document thread with preview above comments", async () => {
     expect(response).toEqual(`\
 Document comment thread on [Launch Spec](/document/launch-spec).
 
-<document-preview>\n\nKeep <comment>current</comment> and strip other.\n\n</document-preview>\n
+<blockquote>\n\ncurrent\n\n</blockquote>\n
 <comment id="0" from="[Bob](/human/bob)">\n\nFirst comment.\n\n</comment>
 
 End of comments.`);
-
-    const documentPreview = response.slice(
-        response.indexOf("<document-preview>"),
-        response.indexOf("</document-preview>") + "</document-preview>".length,
-    );
-
-    expect(documentPreview.match(/<comment/g)).toHaveLength(1);
-    expect(documentPreview).toContain("<comment>current</comment>");
-    expect(documentPreview).not.toContain('id="');
-    expect(documentPreview).not.toContain("other</comment>");
 });
 
 test("reads later document thread comment pages without the preview", async () => {
@@ -252,7 +284,7 @@ End of comments.`);
 });
 
 test("reads a document thread with no comments", async () => {
-    mockGetDocumentThread({commentCount: 0, content: contentFromText("Preview only.")});
+    mockGetDocumentThread({commentCount: 0, content: contentFromCommentedText("Preview only.")});
     mockMessages({totalMessageCount: 0});
 
     await expect(
@@ -263,7 +295,162 @@ test("reads a document thread with no comments", async () => {
     ).resolves.toEqual(`\
 Document comment thread on [Launch Spec](/document/launch-spec).
 
-<document-preview>\n\nPreview only.\n\n</document-preview>
+<blockquote>\n\nPreview only.\n\n</blockquote>
+
+End of comments.`);
+});
+
+test("reads formatted quoted commented text", async () => {
+    mockGetDocumentThread({
+        commentCount: 0,
+        content: contentFromBlockElements([
+            paragraph([
+                text("Before "),
+                commentedText("bold", {marks: [{type: "Bold"}]}),
+                commentedText(" and "),
+                commentedText("italic", {marks: [{type: "Italic"}]}),
+                text(" after."),
+            ]),
+        ]),
+    });
+    mockMessages({totalMessageCount: 0});
+
+    await expect(
+        callAgentWebReadTool(context, {
+            path: documentThreadPath,
+            limit: "10kb",
+        }),
+    ).resolves.toEqual(`\
+Document comment thread on [Launch Spec](/document/launch-spec).
+
+<blockquote>\n\n**bold** and _italic_\n\n</blockquote>
+
+End of comments.`);
+});
+
+test("reads quoted commented content with multiple paragraphs", async () => {
+    mockGetDocumentThread({
+        commentCount: 0,
+        content: contentFromBlockElements([
+            paragraph([text("Before paragraph.")]),
+            paragraph([commentedText("First paragraph.")]),
+            paragraph([commentedText("Second paragraph.")]),
+            paragraph([text("After paragraph.")]),
+        ]),
+    });
+    mockMessages({totalMessageCount: 0});
+
+    await expect(
+        callAgentWebReadTool(context, {
+            path: documentThreadPath,
+            limit: "10kb",
+        }),
+    ).resolves.toEqual(`\
+Document comment thread on [Launch Spec](/document/launch-spec).
+
+<blockquote>\n\nFirst paragraph.\n\nSecond paragraph.\n\n</blockquote>
+
+End of comments.`);
+});
+
+test("reads quoted commented list items with partial start and end items", async () => {
+    mockGetDocumentThread({
+        commentCount: 0,
+        content: contentFromBlockElements([
+            {
+                type: "UnorderedList",
+                items: [
+                    {elements: [paragraph([text("Before item.")])]},
+                    {elements: [paragraph([text("Start skip "), commentedText("first tail")])]},
+                    {elements: [paragraph([commentedText("middle item")])]},
+                    {elements: [paragraph([commentedText("last head"), text(" end skip")])]},
+                    {elements: [paragraph([text("After item.")])]},
+                ],
+            },
+        ]),
+    });
+    mockMessages({totalMessageCount: 0});
+
+    await expect(
+        callAgentWebReadTool(context, {
+            path: documentThreadPath,
+            limit: "10kb",
+        }),
+    ).resolves.toEqual(`\
+Document comment thread on [Launch Spec](/document/launch-spec).
+
+<blockquote>\n\n- first tail\n\n- middle item\n\n- last head\n\n</blockquote>
+
+End of comments.`);
+});
+
+test("reads only the first disjoint quoted commented range", async () => {
+    mockGetDocumentThread({
+        commentCount: 0,
+        content: contentFromBlockElements([
+            paragraph([
+                text("Before "),
+                commentedText("first"),
+                text(" gap "),
+                commentedText("second"),
+                text(" after."),
+            ]),
+        ]),
+    });
+    mockMessages({totalMessageCount: 0});
+
+    await expect(
+        callAgentWebReadTool(context, {
+            path: documentThreadPath,
+            limit: "10kb",
+        }),
+    ).resolves.toEqual(`\
+Document comment thread on [Launch Spec](/document/launch-spec).
+
+<blockquote>\n\nfirst\n\n</blockquote>
+
+End of comments.`);
+});
+
+test("reads quoted commented text through a fully commented file gallery", async () => {
+    mockGetDocumentThread({
+        commentCount: 0,
+        content: contentFromBlockElements([
+            paragraph([text("Before "), commentedText("Selected text.")]),
+            {
+                type: "FileGallery",
+                rows: [
+                    {
+                        items: [
+                            {width: 0.5, element: commentedFile("image/png")},
+                            {width: 0.5, element: commentedFile("video/mp4")},
+                        ],
+                    },
+                ],
+            },
+            paragraph([text("After gallery.")]),
+        ]),
+    });
+    mockMessages({totalMessageCount: 0});
+
+    await expect(
+        callAgentWebReadTool(context, {
+            path: documentThreadPath,
+            limit: "10kb",
+        }),
+    ).resolves.toEqual(`\
+Document comment thread on [Launch Spec](/document/launch-spec).
+
+<blockquote>
+
+Selected text.
+
+<div style="display: flex">
+<img src="/file/image.png" />
+<video src="/file/video.mp4"></video>
+</div>
+
+</blockquote>
 
 End of comments.`);
 });
@@ -298,7 +485,7 @@ test("reads a document thread comment link around the comment", async () => {
     ).resolves.toEqual(`\
 Document comment thread on [Launch Spec](/document/launch-spec).
 
-<document-preview>\n\nKeep <comment>current</comment> and strip other.\n\n</document-preview>\n
+<blockquote>\n\ncurrent\n\n</blockquote>\n
 <comment id="0" from="[Bob](/human/bob)">\n\nNearby comment.\n\n</comment>\n
 <comment id="1" from="[Alice](/human/alice)" time="5 minutes later">\n\nSecond comment.\n\n</comment>\n
 <comment id="2" from="[Bob](/human/bob)" time="5 minutes later">\n\nNearby comment.\n\n</comment>

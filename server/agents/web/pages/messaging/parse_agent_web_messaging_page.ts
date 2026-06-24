@@ -174,7 +174,10 @@ async function actuallyParseAgentWebMessagingPage<
 
                     const tagName = node.value.slice(start, end).toLowerCase();
 
-                    if (customBlockTagNames.has(tagName)) {
+                    const isMessageParentBlockquote =
+                        tagName === "blockquote" && state?.type === "Message";
+
+                    if (customBlockTagNames.has(tagName) && !isMessageParentBlockquote) {
                         if (state) {
                             const alreadyOpenTagName =
                                 state.type === "Message" ? messageNouns.noun : state.tagName;
@@ -299,8 +302,10 @@ async function actuallyParseAgentWebMessagingPage<
                 },
                 onclosetag: (start, end) => {
                     const tagName = node.value.slice(start, end).toLowerCase();
+                    const isMessageParentBlockquote =
+                        tagName === "blockquote" && state?.type === "Message";
 
-                    if (customBlockTagNames.has(tagName)) {
+                    if (customBlockTagNames.has(tagName) && !isMessageParentBlockquote) {
                         if (!state || state.type !== "Custom" || state.tagName !== tagName) {
                             throw new InvalidArgumentError("Invalid custom element close tag", {
                                 displayMessage: errorDisplayMessage`Can\u2019t close \`</${tagName}>\` on line ${node.position?.start.line ?? "unknown"}. There isn\u2019t a matching \`<${tagName}>\` open tag.`,

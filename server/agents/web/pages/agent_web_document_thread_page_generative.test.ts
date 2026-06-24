@@ -33,7 +33,7 @@ const AgentWebDocumentThreadPagePreambleArbitrary: Arbitrary<AgentWebDocumentThr
 const AgentWebDocumentThreadPageCustomBlockArbitrary: Arbitrary<AgentWebDocumentThreadPageCustomBlock> =
     fc.record({
         type: fc.constant("Custom"),
-        tagName: fc.constant("document-preview"),
+        tagName: fc.constant("blockquote"),
         timeAttribute: fc.constant(null),
         content: ApiContentWithoutCommentMarkArbitrary,
     });

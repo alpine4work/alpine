@@ -635,7 +635,7 @@ export async function updateAgentWebChannelPage(
             )
         ) {
             throw new InvalidArgumentError("Can\u2019t update channel post content snippet", {
-                displayMessage: errorDisplayMessage`You can only update the channel name and description on a channel page. You can\u2019t change a \`<post>\`s content. To update a post, call the \`read\` tool with the post\u2019s \u201CSee more\u201D link and then call the \`update\` tool on the post page.`,
+                displayMessage: errorDisplayMessage`You can only update the channel name and description on a channel page. You can\u2019t change a \`<post>\`\u2019s content. To update a post, call the \`read\` tool with the post\u2019s \u201CSee more\u201D link and then call the \`update\` tool on the post page.`,
             });
         }
     }

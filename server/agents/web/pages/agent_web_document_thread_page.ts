@@ -1,10 +1,11 @@
-import {Parent, Root} from "mdast";
+import {Root} from "mdast";
 import {
     AgentWebContext,
     AgentWebContextWithoutStorage,
 } from "~/server/agents/web/agent_web_context.js";
 import {AgentWebPageDocumentThreadRoutedLink} from "~/server/agents/web/agent_web_page_routed_link.js";
 import {AgentWebSessionStorage} from "~/server/agents/web/agent_web_session_storage.js";
+import {extractCommentFromApiDocumentThreadContentSnippet} from "~/server/agents/web/internal/extract_comment_from_api_document_thread_content_snippet.js";
 import {
     AgentWebMessagingPageBlock,
     AgentWebMessagingPageMetadata,
@@ -25,7 +26,6 @@ import {
 import {updateAgentWebMessagingPage} from "~/server/agents/web/pages/messaging/update_agent_web_messaging_page.js";
 import {parseApiContentFromAgentWebMarkdownTree} from "~/server/agents/web/parse_api_content_from_agent_web_markdown.js";
 import {printApiContentToAgentWebMarkdownTree} from "~/server/agents/web/print_api_content_to_agent_web_markdown.js";
-import {visitAndProduceApiContent} from "~/shared/api/content/visit_and_produce_api_content.js";
 import {normalizeApiContent} from "~/shared/api/markdown/normalize_api_content.js";
 import {ApiContentResponseWithoutKeys} from "~/shared/api/specification/types/api_content_response_without_keys.js";
 import {ApiDocumentReferenceResponse} from "~/shared/api/specification/types/api_specification_convenience_types.js";
@@ -34,7 +34,6 @@ import {errorDisplayMessage} from "~/shared/error/error_display_message.js";
 import {mapMaybePromise} from "~/shared/helpers/async/map_maybe_promise.js";
 import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
 import {assert} from "~/shared/helpers/control/assert.js";
-import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 import {asyncNoop} from "~/shared/helpers/control/async_noop.js";
 import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
 import {isDeepEqual} from "~/shared/helpers/control/is_deep_equal.js";
@@ -83,7 +82,7 @@ export type AgentWebDocumentThreadPageMetadata = AgentWebMessagingPageMetadata &
 
 export type AgentWebDocumentThreadPageCustomBlock = {
     readonly type: "Custom";
-    readonly tagName: "document-preview";
+    readonly tagName: "blockquote";
     readonly timeAttribute: null;
     readonly content: ApiContentResponseWithoutKeys;
 };
@@ -148,13 +147,13 @@ export async function readAgentWebDocumentThreadPage(
 
     const searchParams = new URLSearchParams(originalSearchParams);
 
-    if (searchParams.get("after") === "document-preview") {
+    if (searchParams.get("after") === "blockquote") {
         excludesDocumentPreview = true;
         searchParams.delete("after");
         searchParams.set("start", "");
     }
 
-    if (searchParams.get("before") === "document-preview") {
+    if (searchParams.get("before") === "blockquote") {
         excludesDocumentPreview = true;
         searchParams.set("before", "0");
     }
@@ -175,12 +174,12 @@ export async function readAgentWebDocumentThreadPage(
     };
 
     const roomMetadataWithStartCustomBlock = new Lazy<Promise<RoomMetadata>>(async () => {
-        // If `excludesDocumentPreview` is set then never return a `<document-preview>`
-        // start block.
+        // If `excludesDocumentPreview` is set then never return a `<blockquote>` start
+        // block.
         if (excludesDocumentPreview) return await roomMetadataWithoutStartCustomBlock.get();
 
         const {
-            data: {document, thread},
+            data: {thread},
         } = await context.api.get(context.span, "/documents/{id}/threads/{threadId}", {
             params: {path: {id, threadId}},
         });
@@ -188,7 +187,7 @@ export async function readAgentWebDocumentThreadPage(
         const documentReference: ApiDocumentReferenceResponse = {
             type: "Document",
             id,
-            title: document.reference.title,
+            title: thread.document.reference.title,
         };
 
         return {
@@ -205,23 +204,16 @@ export async function readAgentWebDocumentThreadPage(
                 time: null,
                 block: {
                     type: "Custom",
-                    tagName: "document-preview",
+                    tagName: "blockquote",
                     timeAttribute: null,
-                    // Make sure we only include comment marks in the preview for the current thread.
-                    content: visitAndProduceApiContent(thread.documentContentSnippet, {
-                        // NOCOMMIT: How do comments on `file` nodes work? Do they work at all??
-                        visitInlineElement: element => {
-                            if (
-                                element.marks?.some(
-                                    mark => mark.type === "Comment" && mark.thread.id !== threadId,
-                                )
-                            ) {
-                                element.marks = element.marks.filter(
-                                    mark => mark.type !== "Comment" || mark.thread.id === threadId,
-                                );
-                            }
-                        },
-                    }),
+                    // Just show the commented content to the agent without any of the surrounding
+                    // context returned by the API. We use this format so that it's easy for the agent
+                    // to create new document comment threads since all it needs to do is write the
+                    // content it's quoting and nothing else.
+                    content: extractCommentFromApiDocumentThreadContentSnippet(
+                        threadId,
+                        thread.documentContentSnippet,
+                    ),
                 },
             },
         };
@@ -444,7 +436,7 @@ export async function updateAgentWebDocumentThreadPage(
             if (isDeepEqual(normalizedOldContent, normalizedNewContent)) return {update: asyncNoop};
 
             throw new InvalidArgumentError("Can\u2019t update document preview", {
-                displayMessage: errorDisplayMessage`You can\u2019t update the \`<document-preview>\` in document comment thread markdown. \`<document-preview>\` is a read-only preview of the document\u2019s content around the comment. If you want to update the document\u2019s content then call the \`update\` tool on the document itself.`,
+                displayMessage: errorDisplayMessage`You can\u2019t update the \`<blockquote>\` in document comment thread markdown. \`<blockquote>\` is a read-only preview of the document\u2019s content around the comment. If you want to update the document\u2019s content then call the \`update\` tool on the document itself.`,
             });
         },
     });
@@ -459,32 +451,6 @@ export async function printAgentWebDocumentThreadPage(
     pageLink: {document: {id: DocumentId}; threadId: DocumentCommentThreadId},
     page: AgentWebDocumentThreadPage,
 ): Promise<Root> {
-    // Get the number for the comment thread. If there's not currently a number for
-    // this thread then we'll generate the next number in the sequence.
-    const threadNumber = await storage.mutex.withLock(async () => {
-        const id: `${DocumentId}-${DocumentCommentThreadId}` = `${pageLink.document.id}-${pageLink.threadId}`;
-
-        let number = await storage.documentCommentThreadNumberById.get(id);
-
-        // Make a `list()` call to figure out the total number of comment threads we've
-        // seen and use a comment thread number that's one more than that.
-        if (number === undefined) {
-            const threads = await storage.documentCommentThreadNumberById.list({
-                prefix: `${pageLink.document.id}-`,
-            });
-
-            number = threads.size + 1;
-
-            await storage.documentCommentThreadNumberById.put(id, number);
-            await storage.documentCommentThreadIdByNumber.put(
-                `${pageLink.document.id}-${number}`,
-                pageLink.threadId,
-            );
-        }
-
-        return number;
-    });
-
     return await printAgentWebMessagingPage<
         {document: {id: DocumentId}; threadId: DocumentCommentThreadId},
         AgentWebDocumentThreadPagePreamble,
@@ -512,33 +478,12 @@ export async function printAgentWebDocumentThreadPage(
                 {documentId: pageLink.document.id},
             );
 
-            const traverse = (node: Parent) => {
-                for (let index = 0; index < node.children.length; index++) {
-                    const childNode = node.children[index]!;
-
-                    // Remove `id` from `<comment>` tag. The `id` should be implicit as this is the
-                    // only `<comment>` tag.
-                    if (childNode.type === "html") {
-                        childNode.value = childNode.value.replaceAll(
-                            `<comment id="${threadNumber}">`,
-                            "<comment>",
-                        );
-                    }
-
-                    if ("children" in childNode) {
-                        traverse(childNode);
-                    }
-                }
-            };
-
-            traverse(contentTree);
-
             return {
                 type: "root",
                 children: [
-                    {type: "html", value: "<document-preview>"},
+                    {type: "html", value: "<blockquote>"},
                     ...contentTree.children,
-                    {type: "html", value: "</document-preview>"},
+                    {type: "html", value: "</blockquote>"},
                 ],
             };
         },
@@ -552,17 +497,6 @@ export async function parseAgentWebDocumentThreadPage(
 ): Promise<AgentWebDocumentThreadPage> {
     if (pageLink === null)
         throw new InvalidArgumentError("NOCOMMIT", {displayMessage: errorDisplayMessage`NOCOMMIT`});
-
-    // We expect `printAgentWebDocumentThreadPage()`,
-    // `createAgentWebPageRoutedLinkPathname()`, or
-    // `printApiContentToAgentWebMarkdown()` to generate a thread number for this
-    // thread by this point. We don't want the parser to mutate storage.
-    const threadNumber = assertExists(
-        await storage.documentCommentThreadNumberById.get(
-            `${pageLink.document.id}-${pageLink.threadId}`,
-        ),
-        "Document comment thread number hasn\u2019t been generated for this thread yet",
-    );
 
     const page = await parseAgentWebMessagingPage(storage, pageLink, root, {
         messageNouns: agentWebMessagingPageCommentNouns,
@@ -610,38 +544,14 @@ export async function parseAgentWebDocumentThreadPage(
             return {document: secondElement.reference};
         },
         parseCustomBlockByTagName: {
-            "document-preview": async (
-                storage,
-                root,
-            ): Promise<AgentWebDocumentThreadPageCustomBlock> => {
-                const traverse = (node: Parent) => {
-                    for (let index = 0; index < node.children.length; index++) {
-                        const childNode = node.children[index]!;
-
-                        // Remove `id` from `<comment>` tag. The `id` should be implicit as this is the
-                        // only `<comment>` tag.
-                        if (childNode.type === "html") {
-                            childNode.value = childNode.value.replace(
-                                "<comment>",
-                                `<comment id="${threadNumber}">`,
-                            );
-                        }
-
-                        if ("children" in childNode) {
-                            traverse(childNode);
-                        }
-                    }
-                };
-
-                traverse(root);
-
+            blockquote: async (storage, root): Promise<AgentWebDocumentThreadPageCustomBlock> => {
                 const content = await parseApiContentFromAgentWebMarkdownTree(storage, root, {
                     documentId: pageLink.document.id,
                 });
 
                 return {
                     type: "Custom",
-                    tagName: "document-preview",
+                    tagName: "blockquote",
                     timeAttribute: null,
                     content,
                 };
@@ -652,7 +562,7 @@ export async function parseAgentWebDocumentThreadPage(
     const documentPreviewBlockIndexes: Array<number> = [];
 
     for (const [index, block] of page.blocks.entries()) {
-        if (block.type === "Custom" && block.tagName === "document-preview") {
+        if (block.type === "Custom" && block.tagName === "blockquote") {
             documentPreviewBlockIndexes.push(index);
         }
     }
@@ -671,7 +581,7 @@ export async function parseAgentWebDocumentThreadPage(
         throw new InvalidArgumentError(
             "Must only have one document preview block at start of head page",
             {
-                displayMessage: errorDisplayMessage`There must be only one \`<document-preview>\` immediately after the first line which states what document the thread is on (e.g. \`Document thread on [My Document](/document/my-document).\`). Try again with one \`<document-preview>\` at the start of the markdown.`,
+                displayMessage: errorDisplayMessage`There must be only one \`<blockquote>\` immediately after the first line which states what document the thread is on (e.g. \`Document thread on [My Document](/document/my-document).\`). Try again with one \`<blockquote>\` at the start of the markdown.`,
             },
         );
     }

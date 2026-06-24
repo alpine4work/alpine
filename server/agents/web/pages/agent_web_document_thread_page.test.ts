@@ -67,13 +67,16 @@ function paragraph(
     return {type: "Paragraph", elements};
 }
 
-function text(text: string): ApiContentTextInlineElement {
-    return {type: "Text", text};
+function text(
+    text: string,
+    marks?: ApiContentTextInlineElement["marks"],
+): ApiContentTextInlineElement {
+    return marks ? {type: "Text", text, marks} : {type: "Text", text};
 }
 
 const previewBlock: AgentWebDocumentThreadPageCustomBlock = {
     type: "Custom",
-    tagName: "document-preview",
+    tagName: "blockquote",
     timeAttribute: null,
     content: content([paragraph([text("Preview body.")])]),
 };
@@ -102,11 +105,11 @@ runAgentWebPageTests<
             markdown: `\
 Document comment thread on [Launch Spec](/document/launch-spec).
 
-<document-preview>
+<blockquote>
 
 Please review this section today.
 
-</document-preview>
+</blockquote>
 
 <time>May 14th at 10:55am EDT</time>
 
@@ -146,20 +149,20 @@ End of comments.
             markdown: `\
 Document thread on [Launch Spec](/document/launch-spec).
 
-<document-preview>
+<blockquote>
 
 Preview body.
 
-</document-preview>
+</blockquote>
 `,
             printMarkdown: `\
 Document comment thread on [Launch Spec](/document/launch-spec).
 
-<document-preview>
+<blockquote>
 
 Preview body.
 
-</document-preview>
+</blockquote>
 `,
             page: {
                 type: "DocumentThread",
@@ -244,13 +247,13 @@ First comment.
             name: "document thread page with custom pagination links",
             pageLink,
             markdown: `\
-Document comment thread on [Launch Spec](/document/launch-spec). [« Previous page](/document/launch-spec/comments/1?before=document-preview) | [Next page »](/document/launch-spec/comments/1?after=document-preview)
+Document comment thread on [Launch Spec](/document/launch-spec). [« Previous page](/document/launch-spec/comments/1?before=blockquote) | [Next page »](/document/launch-spec/comments/1?after=blockquote)
 
-<document-preview>
+<blockquote>
 
 Preview body.
 
-</document-preview>
+</blockquote>
 
 <time>May 14th at 10:55am EDT</time>
 
@@ -268,8 +271,8 @@ First comment.
                 },
                 pagination: {
                     pageLink,
-                    previousLink: {type: "Custom", beforeTagName: "document-preview"},
-                    nextLink: {type: "Custom", afterTagName: "document-preview"},
+                    previousLink: {type: "Custom", beforeTagName: "blockquote"},
+                    nextLink: {type: "Custom", afterTagName: "blockquote"},
                 },
                 isEndOfMessages: false,
                 blocks: [
@@ -284,16 +287,16 @@ First comment.
             createParseError: "NOCOMMIT",
         },
         {
-            name: "document preview comment mark",
+            name: "document thread quote formatting",
             pageLink,
             markdown: `\
 Document comment thread on [Launch Spec](/document/launch-spec).
 
-<document-preview>
+<blockquote>
 
-Please <comment>review this section</comment> today.
+Please **review this section** *today*.
 
-</document-preview>
+</blockquote>
 `,
             page: {
                 type: "DocumentThread",
@@ -306,17 +309,15 @@ Please <comment>review this section</comment> today.
                 blocks: [
                     {
                         type: "Custom",
-                        tagName: "document-preview",
+                        tagName: "blockquote",
                         timeAttribute: null,
                         content: content([
                             paragraph([
                                 text("Please "),
-                                {
-                                    type: "Text",
-                                    text: "review this section",
-                                    marks: [{type: "Comment", thread: {id: threadId}}],
-                                },
-                                text(" today."),
+                                text("review this section", [{type: "Bold"}]),
+                                text(" "),
+                                text("today", [{type: "Italic"}]),
+                                text("."),
                             ]),
                         ]),
                     },
@@ -336,11 +337,11 @@ First comment.
 
 </comment>
 
-<document-preview>
+<blockquote>
 
 Preview body.
 
-</document-preview>
+</blockquote>
 `,
             setupStorage: async storage => {
                 await createAgentWebPageStoredLinkPathname(storage, pageLink.document);
@@ -355,7 +356,10 @@ Preview body.
                 await createAgentWebPageStoredLinkPathname(storage, bobReference);
             },
             parseError:
-                "There must be only one `<document-preview>` immediately after the first line which states what document the thread is on (e.g. `Document thread on [My Document](/document/my-document).`). Try again with one `<document-preview>` at the start of the markdown.",
+                "There must be only one `<blockquote>` immediately after the first line " +
+                "which states what document the thread is on (e.g. `Document thread on " +
+                "[My Document](/document/my-document).`). Try again with one `<blockquote>` " +
+                "at the start of the markdown.",
             createParseError: "NOCOMMIT",
         },
     ],
