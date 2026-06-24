@@ -65,7 +65,7 @@ export const FileAnalysisSchema = Schema.booleanUnion(
 
 export type FileAnalysis = SchemaType<typeof FileAnalysisSchema>;
 
-function getFileAnalysisTagsLength(tags: ReadonlyArray<string>): number {
+export function getFileAnalysisTagsLength(tags: ReadonlyArray<string>): number {
     let length = 0;
     for (const tag of tags) {
         length += tag.length;

@@ -16,9 +16,13 @@ ts_project(
         ["**/*.ts"],
         exclude = LOCAL_SRCS + ["**/*.test.ts"],
     ),
-    data = ["@ffmpeg"],
+    data = [
+        "@ffmpeg",
+        "//server/files/processor/whisper_base_en:whisper_base_en_data",
+    ],
     test_data = glob(["test_fixtures/*"]),
     test_deps = [
+        "//:node_modules/@jest/globals",
         "//:node_modules/@miniflare/core",
         "//:node_modules/@miniflare/r2",
         "//:node_modules/@miniflare/storage-file",
@@ -51,8 +55,12 @@ ts_project(
         "//server/importer:__subpackages__",
     ],
     deps = [
+        "//:node_modules/@aws-sdk/client-bedrock-runtime",
+        "//:node_modules/@aws-sdk/credential-provider-node",
+        "//:node_modules/@aws-sdk/credential-providers",
         "//:node_modules/@lezer/common",
         "//:node_modules/@lezer/highlight",
+        "//:node_modules/@xenova/transformers",
         "//:node_modules/date-fns",
         "//:node_modules/decode-ico",
         "//:node_modules/sharp",
