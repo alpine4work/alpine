@@ -28,6 +28,9 @@ import {
 import {ApiSpecification} from "~/shared/api/specification/types/api_specification_types.js";
 
 type ApiContentElement = ApiContent["elements"][number];
+type ApiCreatePostMessageRequestBody =
+    ApiSpecification.components["requestBodies"]["CreateMessage"]["content"]["application/json"];
+type ApiPostId = ApiPostResponse["id"];
 
 // You can find the GitHub `workflow_id` with the CLI command `gh workflow list`.
 const deployGithubWorkflowId = 111000643;
@@ -108,7 +111,7 @@ export class GitHubAlertSource extends AlertSource {
             return {ok: true};
         }
 
-        let buildsChannelPostId: string | undefined;
+        let buildsChannelPostId: ApiPostId | undefined;
 
         if (data.workflow_run.conclusion === "failure") {
             const elements: Array<ApiContentElement> = [
@@ -241,7 +244,7 @@ export class GitHubAlertSource extends AlertSource {
         status: WorkflowRunCommitCommentStatus,
         workflowName: string,
         workflowUrl: string,
-        buildsChannelPostId?: string,
+        buildsChannelPostId?: ApiPostId,
     ): Promise<void> {
         try {
             const shortHash = commitHash.substring(0, 7);
@@ -280,7 +283,7 @@ export class GitHubAlertSource extends AlertSource {
             console.log(`Found ${posts.length} post(s) with commit hash ${shortHash}`);
 
             for (const post of posts) {
-                let commentBody;
+                let commentBody: ApiCreatePostMessageRequestBody;
 
                 if (status === "success") {
                     commentBody = {
@@ -320,17 +323,18 @@ export class GitHubAlertSource extends AlertSource {
                     }
 
                     commentBody = {
-                        content: {
-                            elements: [
-                                {
+                        content: {elements: []},
+                        files: [
+                            {
+                                element: {
                                     type: "Preview",
                                     target: {
                                         type: "Post",
                                         id: buildsChannelPostId,
                                     },
                                 },
-                            ],
-                        },
+                            },
+                        ],
                     };
                 }
 

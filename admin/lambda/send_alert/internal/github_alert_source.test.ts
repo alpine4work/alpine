@@ -1420,10 +1420,20 @@ describe("GitHubAlertSource", () => {
                 "https://api.test.cyberworlds.com/posts/builds-post-id/messages",
             );
 
-            const commentBody = mockFetchCalls[commentCallIndex]!.body as {
-                content: {elements: Array<unknown>};
-            };
-            expect(commentBody.content.elements[0]).toMatchSnapshot();
+            expect(mockFetchCalls[commentCallIndex]!.body).toEqual({
+                content: {elements: []},
+                files: [
+                    {
+                        element: {
+                            type: "Preview",
+                            target: {
+                                type: "Post",
+                                id: "builds-post-id",
+                            },
+                        },
+                    },
+                ],
+            });
         });
 
         test("handles case when no posts are found with commit hash", async () => {
@@ -1597,15 +1607,19 @@ describe("GitHubAlertSource", () => {
                 "https://api.test.cyberworlds.com/posts/builds-post-id/messages",
             );
 
-            const commentBody = mockFetchCalls[commentCallIndex]!.body as {
-                content: {elements: Array<unknown>};
-            };
-            expect(commentBody.content.elements[0]).toEqual({
-                type: "Preview",
-                target: {
-                    type: "Post",
-                    id: "builds-post-id",
-                },
+            expect(mockFetchCalls[commentCallIndex]!.body).toEqual({
+                content: {elements: []},
+                files: [
+                    {
+                        element: {
+                            type: "Preview",
+                            target: {
+                                type: "Post",
+                                id: "builds-post-id",
+                            },
+                        },
+                    },
+                ],
             });
         });
 
