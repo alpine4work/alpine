@@ -60,54 +60,176 @@ import {Replace} from "~/shared/helpers/types/replace.js";
  * The structure of `needle` must exactly match `haystack`, so any elements or
  * marks must be the same in addition to the text matching.
  *
- * Matches for unkeyed markdown needles will never overlap.
+ * Matches will never overlap.
  *
- * The returned value is array-like and iterable.
+ * This is an iterator so if you break early then we'll stop iterating through the
+ * content tree at that point. Which is a useful optimization if you only care
+ * about the first match, for instance.
  */
-export function findApiContentRanges(
-    haystack: ApiContentResponse,
-    needle: ApiContent,
-): Array<ApiContentRange> & IterableIterator<ApiContentRange, undefined> {
-    const ranges = Array.from(iterateApiContentRanges(haystack, needle));
-    let nextIndex = 0;
-
-    Object.defineProperty(ranges, "next", {
-        value: () => {
-            if (nextIndex >= ranges.length) {
-                return {done: true, value: undefined};
-            }
-
-            return {done: false, value: ranges[nextIndex++]!};
-        },
-    });
-
-    return ranges as Array<ApiContentRange> & IterableIterator<ApiContentRange, undefined>;
-}
-
-function* iterateApiContentRanges(
+export function* findApiContentRanges(
     haystack: ApiContentResponse,
     needle: ApiContent,
 ): IterableIterator<ApiContentRange, undefined> {
-    const haystackTokens = Array.from(iterateApiContent(null, haystack), cloneToken);
-    const needleTokens = Array.from(iterateApiContent(null, needle), cloneToken);
+    let needleIterator = iterateApiContent(null, needle);
+    let needleStep = needleIterator.next();
+
+    let rangeState: {
+        start: ApiContentPosition;
+        previousHaystackParents: LinkedList<TokenParent>;
+        previousNeedleParents: LinkedList<TokenParent>;
+    } | null = null;
 
     // We report no matches for an empty needle.
-    if (needleTokens.length === 0) return;
+    if (needleStep.value === undefined) return;
 
-    const allowOverlappingMatches = false;
+    for (const haystackToken of iterateApiContent(null, haystack)) {
+        const needleToken = needleStep.value;
 
-    for (let startIndex = 0; startIndex <= haystackTokens.length - needleTokens.length; ) {
-        if (areTokenRangesMatch(haystackTokens, needleTokens, startIndex)) {
-            const endToken = haystackTokens[startIndex + needleTokens.length - 1]!;
+        let match: boolean;
 
-            yield {
-                start: getTokenStartApiContentPosition(haystackTokens[startIndex]!),
-                end: getTokenEndApiContentPosition(endToken),
+        // Tokens must be in elements with matching structure.
+        // `<paragraph("a"), paragraph("b")>` shouldn't match `<paragraph("ab")>`. We
+        // detect if tokens are in elements with matching structure by comparing
+        // referential identity of `parents`.
+        if (!areTokensMatch(haystackToken, needleToken)) {
+            match = false;
+        } else if (rangeState === null) {
+            match = true;
+        } else {
+            const hasParents = (
+                depth: number,
+                previousParents: LinkedList<TokenParent>,
+                parents: LinkedList<TokenParent>,
+            ): [boolean, number] => {
+                if (previousParents === null) {
+                    if (parents === null) return [true, depth];
+                    return [false, depth];
+                }
+
+                if (parents === null) return [false, depth];
+
+                const result = hasParents(depth + 1, previousParents.next, parents.next);
+                if (result[0] === false) return result;
+
+                if (previousParents.value !== parents.value) {
+                    result[0] = false;
+                    return result;
+                } else {
+                    result[1] -= 1;
+                    return result;
+                }
             };
 
-            startIndex += allowOverlappingMatches ? 1 : needleTokens.length;
+            const hasPreviousHaystackParents = hasParents(
+                0,
+                rangeState.previousHaystackParents,
+                haystackToken.parents,
+            );
+
+            const hasPreviousNeedleParents = hasParents(
+                0,
+                rangeState.previousNeedleParents,
+                needleToken.parents,
+            );
+
+            if (hasPreviousHaystackParents[0] && hasPreviousNeedleParents[0]) {
+                match = true;
+            } else if (hasPreviousHaystackParents[1] !== hasPreviousNeedleParents[1]) {
+                match = false;
+            } else {
+                match = true;
+                rangeState.previousHaystackParents = haystackToken.parents;
+                rangeState.previousNeedleParents = needleToken.parents;
+            }
+        }
+
+        if (!match) {
+            // This match failed! Reset our state.
+            if (rangeState !== null) {
+                needleIterator = iterateApiContent(null, needle);
+                needleStep = needleIterator.next();
+                rangeState = null;
+
+                // We report no matches for an empty needle.
+                if (needleStep.value === undefined) return;
+            }
         } else {
-            startIndex++;
+            // Ooh! The token is a match, let's see start a new range.
+            if (rangeState === null) {
+                let start: ApiContentPosition;
+                switch (haystackToken.position.type) {
+                    case "Inline": {
+                        start = {
+                            type: "Inline",
+                            // We use the non-null assertion operator (`!`) because `haystack` is
+                            // `ApiContentResponse` and so it must always include keys.
+                            key: haystackToken.position.key!,
+                            index: haystackToken.position.index,
+                        };
+                        break;
+                    }
+                    case "Before": {
+                        start = {
+                            type: "Before",
+                            // We use the non-null assertion operator (`!`) because `haystack` is
+                            // `ApiContentResponse` and so it must always include keys.
+                            key: haystackToken.position.key!,
+                        };
+                        break;
+                    }
+                    default:
+                        throw exhaustive(haystackToken.position);
+                }
+
+                rangeState = {
+                    start,
+                    previousHaystackParents: haystackToken.parents,
+                    previousNeedleParents: needleToken.parents,
+                };
+            }
+
+            needleStep = needleIterator.next();
+
+            // Hooray! We've reached the last token in our needle. Yield the matched range and
+            // reset our state.
+            if (needleStep.value === undefined) {
+                let end: ApiContentPosition;
+                switch (haystackToken.position.type) {
+                    case "Inline": {
+                        end = {
+                            type: "Inline",
+                            // We use the non-null assertion operator (`!`) because `haystack` is
+                            // `ApiContentResponse` and so it must always include keys.
+                            key: haystackToken.position.key!,
+                            index: haystackToken.position.index + 1,
+                        };
+                        break;
+                    }
+                    case "Before": {
+                        end = {
+                            type: "After",
+                            // We use the non-null assertion operator (`!`) because `haystack` is
+                            // `ApiContentResponse` and so it must always include keys.
+                            key: haystackToken.position.key!,
+                        };
+                        break;
+                    }
+                    default:
+                        throw exhaustive(haystackToken.position);
+                }
+
+                yield {
+                    start: rangeState.start,
+                    end,
+                };
+
+                needleIterator = iterateApiContent(null, needle);
+                needleStep = needleIterator.next();
+                rangeState = null;
+
+                // We report no matches for an empty needle.
+                if (needleStep.value === undefined) return;
+            }
         }
     }
 }
@@ -152,9 +274,6 @@ type Token = {
     position:
         | {type: "Inline"; key: ApiContentKey | undefined; index: number}
         | {type: "Before"; key: ApiContentKey | undefined};
-    endPosition?:
-        | {type: "Inline"; key: ApiContentKey | undefined; index: number}
-        | {type: "After"; key: ApiContentKey | undefined};
     value: TokenValue;
     marks: ReadonlyArray<ApiContentInlineElementMark> | undefined;
 };
@@ -166,93 +285,6 @@ type TokenValue =
     | ApiContentDividerBlockElement
     | ApiContentFileBlockElement
     | ApiContentPreviewBlockElement;
-
-function cloneToken(token: Token): Token {
-    return {
-        ...token,
-        position: {...token.position},
-        ...(token.endPosition !== undefined ? {endPosition: {...token.endPosition}} : {}),
-    };
-}
-
-function areTokenRangesMatch(
-    haystackTokens: ReadonlyArray<Token>,
-    needleTokens: ReadonlyArray<Token>,
-    startIndex: number,
-): boolean {
-    for (let i = 0; i < needleTokens.length; i++) {
-        const haystackToken = haystackTokens[startIndex + i]!;
-        const needleToken = needleTokens[i]!;
-
-        if (!areTokensMatch(haystackToken, needleToken)) return false;
-
-        // Tokens must be in elements with matching structure.
-        // `<paragraph("a"), paragraph("b")>` shouldn't match `<paragraph("ab")>`. We
-        // detect if tokens are in elements with matching structure by comparing
-        // referential identity of `parents`.
-        if (
-            i > 0 &&
-            !areTokenParentTransitionsMatch(
-                haystackTokens[startIndex + i - 1]!,
-                haystackToken,
-                needleTokens[i - 1]!,
-                needleToken,
-            )
-        ) {
-            return false;
-        }
-    }
-
-    return true;
-}
-
-function areTokenParentTransitionsMatch(
-    previousHaystackToken: Token,
-    haystackToken: Token,
-    previousNeedleToken: Token,
-    needleToken: Token,
-): boolean {
-    const hasPreviousHaystackParents = hasParents(
-        0,
-        previousHaystackToken.parents,
-        haystackToken.parents,
-    );
-
-    const hasPreviousNeedleParents = hasParents(
-        0,
-        previousNeedleToken.parents,
-        needleToken.parents,
-    );
-
-    return (
-        (hasPreviousHaystackParents[0] && hasPreviousNeedleParents[0]) ||
-        hasPreviousHaystackParents[1] === hasPreviousNeedleParents[1]
-    );
-}
-
-function hasParents(
-    depth: number,
-    previousParents: LinkedList<TokenParent>,
-    parents: LinkedList<TokenParent>,
-): [boolean, number] {
-    if (previousParents === null) {
-        if (parents === null) return [true, depth];
-        return [false, depth];
-    }
-
-    if (parents === null) return [false, depth];
-
-    const result = hasParents(depth + 1, previousParents.next, parents.next);
-    if (result[0] === false) return result;
-
-    if (previousParents.value !== parents.value) {
-        result[0] = false;
-        return result;
-    } else {
-        result[1] -= 1;
-        return result;
-    }
-}
 
 function areTokensMatch(haystackToken: Token, needleTokens: Token): boolean {
     // This is most likely to be different, put it first to short circuit early.
@@ -427,69 +459,6 @@ function areTokenValuesEqual(value1: TokenValue, value2: TokenValue): boolean {
     }
 }
 
-function getTokenEndPosition(position: Token["position"]): NonNullable<Token["endPosition"]> {
-    switch (position.type) {
-        case "Inline": {
-            return {...position, index: position.index + 1};
-        }
-        case "Before": {
-            return {type: "After", key: position.key};
-        }
-        default:
-            throw exhaustive(position);
-    }
-}
-
-function getTokenStartApiContentPosition(token: Token): ApiContentPosition {
-    switch (token.position.type) {
-        case "Inline": {
-            return {
-                type: "Inline",
-                // We use the non-null assertion operator (`!`) because `haystack` is
-                // `ApiContentResponse` and so it must always include keys.
-                key: token.position.key!,
-                index: token.position.index,
-            };
-        }
-        case "Before": {
-            return {
-                type: "Before",
-                // We use the non-null assertion operator (`!`) because `haystack` is
-                // `ApiContentResponse` and so it must always include keys.
-                key: token.position.key!,
-            };
-        }
-        default:
-            throw exhaustive(token.position);
-    }
-}
-
-function getTokenEndApiContentPosition(token: Token): ApiContentPosition {
-    const endPosition = token.endPosition ?? getTokenEndPosition(token.position);
-
-    switch (endPosition.type) {
-        case "Inline": {
-            return {
-                type: "Inline",
-                // We use the non-null assertion operator (`!`) because `haystack` is
-                // `ApiContentResponse` and so it must always include keys.
-                key: endPosition.key!,
-                index: endPosition.index,
-            };
-        }
-        case "After": {
-            return {
-                type: "After",
-                // We use the non-null assertion operator (`!`) because `haystack` is
-                // `ApiContentResponse` and so it must always include keys.
-                key: endPosition.key!,
-            };
-        }
-        default:
-            throw exhaustive(endPosition);
-    }
-}
-
 function* iterateApiContent(
     parents: LinkedList<TokenParent>,
     content: ApiContentWithOptionalKeys,
@@ -569,35 +538,26 @@ function* iterateApiContentBlockElement(
             break;
         }
         case "Code": {
+            let isFirstLine = true;
+
             const childParents = {value: element, next: parents};
-            let previousLine: {
-                key: ApiContentKey | undefined;
-                length: number;
-            } | null = null;
 
             for (const line of element.lines) {
                 // Add a break element as a token between lines. That way we can observe multiple
                 // empty lines within a code block. Otherwise we'd only observe text and skip over
                 // empty lines.
-                if (previousLine !== null) {
+                if (isFirstLine) {
+                    isFirstLine = false;
+                } else {
                     yield {
                         parents: childParents,
-                        position: {
-                            type: "Inline",
-                            key: previousLine.key,
-                            index: previousLine.length,
-                        },
-                        endPosition: {type: "Inline", key: line.key, index: 0},
+                        position: {type: "Inline", key: line.key, index: 0},
                         value: {type: "Break"},
                         marks: undefined,
                     };
                 }
 
                 yield* iterateApiContentInlineElements(childParents, line.key, line.elements);
-                previousLine = {
-                    key: line.key,
-                    length: getInlineElementsLength(line.elements),
-                };
             }
             break;
         }
@@ -733,26 +693,4 @@ function* iterateApiContentInlineElements(
                 throw exhaustive(element);
         }
     }
-}
-
-function getInlineElementsLength(elements: ReadonlyArray<ApiContentInlineElement>): number {
-    let length = 0;
-
-    for (const element of elements) {
-        switch (element.type) {
-            case "Text": {
-                length += element.text.length;
-                break;
-            }
-            case "Break":
-            case "Mention": {
-                length++;
-                break;
-            }
-            default:
-                throw exhaustive(element);
-        }
-    }
-
-    return length;
 }
