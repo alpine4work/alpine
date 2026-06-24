@@ -37,6 +37,7 @@ import {
     ApiContentTableBlockElementRow,
     ApiContentUnorderedListBlockElement,
 } from "~/shared/api/specification/types/api_specification_convenience_types.js";
+import {assert} from "~/shared/helpers/control/assert.js";
 import {assertEqualTypes} from "~/shared/helpers/control/assert_equal_types.js";
 import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
 import {isDeepEqual} from "~/shared/helpers/control/is_deep_equal.js";
@@ -60,8 +61,6 @@ import {Replace} from "~/shared/helpers/types/replace.js";
  * The structure of `needle` must exactly match `haystack`, so any elements or
  * marks must be the same in addition to the text matching.
  *
- * Matches will never overlap.
- *
  * This is an iterator so if you break early then we'll stop iterating through the
  * content tree at that point. Which is a useful optimization if you only care
  * about the first match, for instance.
@@ -70,92 +69,140 @@ export function* findApiContentRanges(
     haystack: ApiContentResponse,
     needle: ApiContent,
 ): IterableIterator<ApiContentRange, undefined> {
-    let needleIterator = iterateApiContent(null, needle);
-    let needleStep = needleIterator.next();
-
-    let rangeState: {
+    const needleStates: Array<{
+        needleIterator: IterableIterator<Token, undefined>;
+        needleToken: Token;
         start: ApiContentPosition;
         previousHaystackParents: LinkedList<TokenParent>;
         previousNeedleParents: LinkedList<TokenParent>;
-    } | null = null;
+    }> = [];
 
-    // We report no matches for an empty needle.
-    if (needleStep.value === undefined) return;
+    let startNeedleState: {
+        needleIterator: IterableIterator<Token, undefined>;
+        needleToken: Token;
+    };
+
+    // Push initial needle state.
+    {
+        const newNeedleIterator = iterateApiContent(null, needle);
+        const newNeedleStep = newNeedleIterator.next();
+
+        // We report no matches for an empty needle.
+        if (newNeedleStep.value === undefined) return;
+
+        startNeedleState = {
+            needleIterator: newNeedleIterator,
+            needleToken: newNeedleStep.value,
+        };
+    }
 
     for (const haystackToken of iterateApiContent(null, haystack)) {
-        const needleToken = needleStep.value;
+        let nextIndex = 0;
+        while (nextIndex < needleStates.length) {
+            const index = nextIndex;
+            nextIndex++;
+            const needleState = needleStates[index]!;
+            const {needleIterator, needleToken, previousHaystackParents, previousNeedleParents} =
+                needleState;
 
-        let match: boolean;
+            let match: boolean;
 
-        // Tokens must be in elements with matching structure.
-        // `<paragraph("a"), paragraph("b")>` shouldn't match `<paragraph("ab")>`. We
-        // detect if tokens are in elements with matching structure by comparing
-        // referential identity of `parents`.
-        if (!areTokensMatch(haystackToken, needleToken)) {
-            match = false;
-        } else if (rangeState === null) {
-            match = true;
-        } else {
-            const hasParents = (
-                depth: number,
-                previousParents: LinkedList<TokenParent>,
-                parents: LinkedList<TokenParent>,
-            ): [boolean, number] => {
-                if (previousParents === null) {
-                    if (parents === null) return [true, depth];
-                    return [false, depth];
-                }
-
-                if (parents === null) return [false, depth];
-
-                const result = hasParents(depth + 1, previousParents.next, parents.next);
-                if (result[0] === false) return result;
-
-                if (previousParents.value !== parents.value) {
-                    result[0] = false;
-                    return result;
-                } else {
-                    result[1] -= 1;
-                    return result;
-                }
-            };
-
-            const hasPreviousHaystackParents = hasParents(
-                0,
-                rangeState.previousHaystackParents,
-                haystackToken.parents,
-            );
-
-            const hasPreviousNeedleParents = hasParents(
-                0,
-                rangeState.previousNeedleParents,
-                needleToken.parents,
-            );
-
-            if (hasPreviousHaystackParents[0] && hasPreviousNeedleParents[0]) {
-                match = true;
-            } else if (hasPreviousHaystackParents[1] !== hasPreviousNeedleParents[1]) {
+            // Tokens must be in elements with matching structure.
+            // `<paragraph("a"), paragraph("b")>` shouldn't match `<paragraph("ab")>`. We
+            // detect if tokens are in elements with matching structure by comparing
+            // referential identity of `parents`.
+            if (!areTokensMatch(haystackToken, needleToken)) {
                 match = false;
             } else {
-                match = true;
-                rangeState.previousHaystackParents = haystackToken.parents;
-                rangeState.previousNeedleParents = needleToken.parents;
+                const hasPreviousHaystackParents = hasTokenParents(
+                    0,
+                    previousHaystackParents,
+                    haystackToken.parents,
+                );
+
+                const hasPreviousNeedleParents = hasTokenParents(
+                    0,
+                    previousNeedleParents,
+                    needleToken.parents,
+                );
+
+                if (hasPreviousHaystackParents[0] && hasPreviousNeedleParents[0]) {
+                    match = true;
+                } else if (hasPreviousHaystackParents[1] !== hasPreviousNeedleParents[1]) {
+                    match = false;
+                } else {
+                    match = true;
+                    needleState.previousHaystackParents = haystackToken.parents;
+                    needleState.previousNeedleParents = needleToken.parents;
+                }
+            }
+
+            if (!match) {
+                // This in-progress needle state failed! Remove this needle state.
+                needleStates.splice(index, 1);
+                nextIndex = index;
+            } else {
+                const needleStep = needleIterator.next();
+
+                // Hooray! We've reached the last token in our needle. Yield the matched range and
+                // reset our state.
+                if (needleStep.value !== undefined) {
+                    needleState.needleToken = needleStep.value;
+                } else {
+                    // We've reached the end of this needle state. Let's remove it and yield a value.
+                    needleStates.splice(index, 1);
+                    nextIndex = index;
+
+                    let end: ApiContentPosition;
+                    switch (haystackToken.position.type) {
+                        case "Inline": {
+                            end = {
+                                type: "Inline",
+                                // We use the non-null assertion operator (`!`) because `haystack` is
+                                // `ApiContentResponse` and so it must always include keys.
+                                key: haystackToken.position.key!,
+                                index: haystackToken.position.index + 1,
+                            };
+                            break;
+                        }
+                        case "Before": {
+                            end = {
+                                type: "After",
+                                // We use the non-null assertion operator (`!`) because `haystack` is
+                                // `ApiContentResponse` and so it must always include keys.
+                                key: haystackToken.position.key!,
+                            };
+                            break;
+                        }
+                        default:
+                            throw exhaustive(haystackToken.position);
+                    }
+
+                    yield {start: needleState.start, end};
+                }
             }
         }
 
-        if (!match) {
-            // This match failed! Reset our state.
-            if (rangeState !== null) {
-                needleIterator = iterateApiContent(null, needle);
-                needleStep = needleIterator.next();
-                rangeState = null;
+        // Check if the start needle matches the current haystack token. If it matches then
+        // add to `needleStates` and create a new `startNeedleState`.
+        {
+            const {needleIterator, needleToken} = startNeedleState;
 
-                // We report no matches for an empty needle.
-                if (needleStep.value === undefined) return;
-            }
-        } else {
-            // Ooh! The token is a match, let's see start a new range.
-            if (rangeState === null) {
+            if (areTokensMatch(haystackToken, needleToken)) {
+                // Create a new `startNeedleState` now that we've consumed this one.
+                {
+                    const newNeedleIterator = iterateApiContent(null, needle);
+                    const newNeedleStep = newNeedleIterator.next();
+
+                    // We returned earlier if the needle is empty.
+                    assert(newNeedleStep.value !== undefined);
+
+                    startNeedleState = {
+                        needleIterator: newNeedleIterator,
+                        needleToken: newNeedleStep.value,
+                    };
+                }
+
                 let start: ApiContentPosition;
                 switch (haystackToken.position.type) {
                     case "Inline": {
@@ -181,56 +228,72 @@ export function* findApiContentRanges(
                         throw exhaustive(haystackToken.position);
                 }
 
-                rangeState = {
-                    start,
-                    previousHaystackParents: haystackToken.parents,
-                    previousNeedleParents: needleToken.parents,
-                };
-            }
+                const needleStep = needleIterator.next();
 
-            needleStep = needleIterator.next();
+                // Hooray! We've reached the last token in our needle. Yield the matched range and
+                // reset our state.
+                if (needleStep.value !== undefined) {
+                    needleStates.push({
+                        needleIterator,
+                        needleToken: needleStep.value,
+                        start,
+                        previousHaystackParents: haystackToken.parents,
+                        previousNeedleParents: needleToken.parents,
+                    });
+                } else {
+                    let end: ApiContentPosition;
+                    switch (haystackToken.position.type) {
+                        case "Inline": {
+                            end = {
+                                type: "Inline",
+                                // We use the non-null assertion operator (`!`) because `haystack` is
+                                // `ApiContentResponse` and so it must always include keys.
+                                key: haystackToken.position.key!,
+                                index: haystackToken.position.index + 1,
+                            };
+                            break;
+                        }
+                        case "Before": {
+                            end = {
+                                type: "After",
+                                // We use the non-null assertion operator (`!`) because `haystack` is
+                                // `ApiContentResponse` and so it must always include keys.
+                                key: haystackToken.position.key!,
+                            };
+                            break;
+                        }
+                        default:
+                            throw exhaustive(haystackToken.position);
+                    }
 
-            // Hooray! We've reached the last token in our needle. Yield the matched range and
-            // reset our state.
-            if (needleStep.value === undefined) {
-                let end: ApiContentPosition;
-                switch (haystackToken.position.type) {
-                    case "Inline": {
-                        end = {
-                            type: "Inline",
-                            // We use the non-null assertion operator (`!`) because `haystack` is
-                            // `ApiContentResponse` and so it must always include keys.
-                            key: haystackToken.position.key!,
-                            index: haystackToken.position.index + 1,
-                        };
-                        break;
-                    }
-                    case "Before": {
-                        end = {
-                            type: "After",
-                            // We use the non-null assertion operator (`!`) because `haystack` is
-                            // `ApiContentResponse` and so it must always include keys.
-                            key: haystackToken.position.key!,
-                        };
-                        break;
-                    }
-                    default:
-                        throw exhaustive(haystackToken.position);
+                    yield {start, end};
                 }
-
-                yield {
-                    start: rangeState.start,
-                    end,
-                };
-
-                needleIterator = iterateApiContent(null, needle);
-                needleStep = needleIterator.next();
-                rangeState = null;
-
-                // We report no matches for an empty needle.
-                if (needleStep.value === undefined) return;
             }
         }
+    }
+}
+
+function hasTokenParents(
+    depth: number,
+    previousParents: LinkedList<TokenParent>,
+    parents: LinkedList<TokenParent>,
+): [boolean, number] {
+    if (previousParents === null) {
+        if (parents === null) return [true, depth];
+        return [false, depth];
+    }
+
+    if (parents === null) return [false, depth];
+
+    const result = hasTokenParents(depth + 1, previousParents.next, parents.next);
+    if (result[0] === false) return result;
+
+    if (previousParents.value !== parents.value) {
+        result[0] = false;
+        return result;
+    } else {
+        result[1] -= 1;
+        return result;
     }
 }
 
