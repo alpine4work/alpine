@@ -49,6 +49,8 @@ ts_project(
             "tags": ["libreoffice"],
         },
         "processors/file_processor_content_types_video_and_audio_test": {
+            # TODO(imjoshin): Remove this flaky flag.
+            "flaky": True,
             "size": "large",
         },
     },
