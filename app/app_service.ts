@@ -161,8 +161,26 @@ async function createAppService({
         throw new InternalError("`cookieNameSuffix` must be alphanumeric characters only");
     }
 
+    const awsSigner = new AwsRequestSigner(defaultProvider());
+    if (!startupSpan) {
+        assert(process.env.NODE_ENV !== "production", "`startupSpan` is required in production");
+    } else {
+        void awsSigner.prefetchState(startupSpan);
+    }
+
+    const basicProcessContext = Context.new(
+        createServerBasicProcessContextModules({
+            tracer,
+            shutdownManager,
+            awsSigner,
+            options,
+        }),
+    );
+
     const [
         tokenAgent,
+        embeddingModel,
+        taskRealtimeServiceRouter,
         apnsCertificate,
         apnsCertificatePrivateKey,
         webPushVapidPublicKey,
@@ -173,6 +191,29 @@ async function createAppService({
             serviceName: "AppService",
             privateSide: TokenAgentAppServicePrivateSide,
             options,
+        }),
+        process.env.NODE_ENV === "production"
+            ? new CohereEmbedEnglishV3LanguageModel({
+                  apiKey: assertExists(
+                      options.cohereApiKey,
+                      "`cohereApiKey` option is required in production",
+                  ),
+              })
+            : AllMiniLmL6V2LanguageModel.new(
+                  assertExists(
+                      options.allMiniLmL6V2LanguageModel,
+                      "`allMiniLmL6V2LanguageModel` option is required in development",
+                  ),
+              ),
+        createServiceTaskRealtimeServiceRouter({
+            options,
+            context: basicProcessContext,
+            registerShutdown: (cleanup: () => void) => {
+                shutdownManager.registerListener(
+                    "Stopping task realtime service route refresh",
+                    async () => cleanup(),
+                );
+            },
         }),
         getServiceTokenAgentKeyFromOption(
             assertExists(options.apnsCertificate, "Missing `apnsCertificate` option"),
@@ -240,13 +281,6 @@ async function createAppService({
         runAllPromises(contentCodeBlockLanguages.map(language => language.getParser())),
     ]);
 
-    const awsSigner = new AwsRequestSigner(defaultProvider());
-    if (!startupSpan) {
-        assert(process.env.NODE_ENV !== "production", "`startupSpan` is required in production");
-    } else {
-        void awsSigner.prefetchState(startupSpan);
-    }
-
     const edgeServiceUrl = assertExists(
         options.edgeServiceUrl,
         "`edgeServiceUrl` option is required",
@@ -261,21 +295,6 @@ async function createAppService({
             process.env.NODE_ENV !== "production",
         "`awsBedrockTokenForDevelopment` must not be set in production",
     );
-
-    const embeddingModel =
-        process.env.NODE_ENV === "production"
-            ? new CohereEmbedEnglishV3LanguageModel({
-                  apiKey: assertExists(
-                      options.cohereApiKey,
-                      "`cohereApiKey` option is required in production",
-                  ),
-              })
-            : await AllMiniLmL6V2LanguageModel.new(
-                  assertExists(
-                      options.allMiniLmL6V2LanguageModel,
-                      "`allMiniLmL6V2LanguageModel` option is required in development",
-                  ),
-              );
 
     const agentServiceUrl = options.agentServiceUrl ?? null;
 
@@ -343,15 +362,6 @@ async function createAppService({
             slackContextModule = new NoopSlackContextModule();
         }
     }
-
-    const basicProcessContext = Context.new(
-        createServerBasicProcessContextModules({
-            tracer,
-            shutdownManager,
-            awsSigner,
-            options,
-        }),
-    );
 
     // In tests, don't send push notifications. Otherwise in development and production
     // set up a connection pool to APNs so we can send notifications.
@@ -498,7 +508,7 @@ async function createAppService({
         files: new FilesContextModule({tokenAgent, resourceServiceUrl}),
         edge: new EdgeServiceContextModule({tokenAgent, edgeServiceUrl}),
         tasks: new TaskContextModule({
-            router: createServiceTaskRealtimeServiceRouter(options),
+            router: taskRealtimeServiceRouter,
             tokenAgent,
             dangerouslyEscalateToSystemContext,
         }),

@@ -150,8 +150,22 @@ export async function run({
         }
     }
 
+    const awsSigner = new AwsRequestSigner(defaultProvider());
+    void awsSigner.prefetchState(startupSpan);
+
+    const basicProcessContext = Context.new(
+        createServerBasicProcessContextModules({
+            tracer,
+            shutdownManager,
+            awsSigner,
+            options,
+        }),
+    );
+
     const [
         tokenAgent,
+        embeddingModel,
+        taskRealtimeServiceRouter,
         apnsCertificate,
         apnsCertificatePrivateKey,
         webPushVapidPublicKey,
@@ -162,6 +176,29 @@ export async function run({
             serviceName: "JobQueueService",
             privateSide: TokenAgentJobQueueServicePrivateSide,
             options,
+        }),
+        process.env.NODE_ENV === "production"
+            ? new CohereEmbedEnglishV3LanguageModel({
+                  apiKey: assertExists(
+                      options.cohereApiKey,
+                      "`cohereApiKey` option is required in production",
+                  ),
+              })
+            : AllMiniLmL6V2LanguageModel.new(
+                  assertExists(
+                      options.allMiniLmL6V2LanguageModel,
+                      "`allMiniLmL6V2LanguageModel` option is required in development",
+                  ),
+              ),
+        createServiceTaskRealtimeServiceRouter({
+            options,
+            context: basicProcessContext,
+            registerShutdown: (cleanup: () => void) => {
+                shutdownManager.registerListener(
+                    "Stopping task realtime service route refresh",
+                    async () => cleanup(),
+                );
+            },
         }),
         getServiceTokenAgentKeyFromOption(
             assertExists(options.apnsCertificate, "Missing `apnsCertificate` option"),
@@ -183,9 +220,6 @@ export async function run({
             : null,
     ]);
 
-    const awsSigner = new AwsRequestSigner(defaultProvider());
-    void awsSigner.prefetchState(startupSpan);
-
     const edgeServiceUrl = assertExists(
         options.edgeServiceUrl,
         "`edgeServiceUrl` option is required",
@@ -195,30 +229,6 @@ export async function run({
         options.resourceServiceUrl,
         "`resourceServiceUrl` option is required",
     );
-
-    const basicProcessContext = Context.new(
-        createServerBasicProcessContextModules({
-            tracer,
-            shutdownManager,
-            awsSigner,
-            options,
-        }),
-    );
-
-    const embeddingModel =
-        process.env.NODE_ENV === "production"
-            ? new CohereEmbedEnglishV3LanguageModel({
-                  apiKey: assertExists(
-                      options.cohereApiKey,
-                      "`cohereApiKey` option is required in production",
-                  ),
-              })
-            : await AllMiniLmL6V2LanguageModel.new(
-                  assertExists(
-                      options.allMiniLmL6V2LanguageModel,
-                      "`allMiniLmL6V2LanguageModel` option is required in development",
-                  ),
-              );
 
     // In tests, don't send push notifications. Otherwise in development and production
     // set up a connection pool to APNs so we can send notifications.
@@ -376,7 +386,7 @@ export async function run({
         edge: new EdgeServiceContextModule({tokenAgent, edgeServiceUrl}),
         tasks: new TaskContextModule({
             tokenAgent,
-            router: createServiceTaskRealtimeServiceRouter(options),
+            router: taskRealtimeServiceRouter,
             dangerouslyEscalateToSystemContext,
         }),
 
