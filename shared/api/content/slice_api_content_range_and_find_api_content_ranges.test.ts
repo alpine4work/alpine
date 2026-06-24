@@ -1,3 +1,5 @@
+/* eslint-disable cyberworlds/string-quotes */
+
 import {ApiContentKeyEncoder} from "~/shared/api/content/api_content_key_encoder.js";
 import {intoApiContent} from "~/shared/api/content/into_api_content.js";
 import {findApiContentRanges} from "~/shared/api/markdown/find_api_content_ranges.js";
@@ -26,6 +28,8 @@ const testCases: Array<{
             content: [{type: "paragraph", content: [{type: "text", text: "a"}]}],
         },
         relativeRange: {from: 0, to: 0},
+        absoluteRange: {from: 1, to: 2},
+        contentSlice: '<"a">',
     },
     {
         name: "single character followed by empty paragraph",
@@ -37,6 +41,8 @@ const testCases: Array<{
             ],
         },
         relativeRange: {from: 0, to: 1},
+        absoluteRange: {from: 1, to: 2},
+        contentSlice: '<"a">',
     },
     {
         name: "single character preceded by empty paragraph",
@@ -48,6 +54,8 @@ const testCases: Array<{
             ],
         },
         relativeRange: {from: 0, to: 1},
+        absoluteRange: {from: 3, to: 4},
+        contentSlice: '<"a">',
     },
     {
         name: "multiple characters",
@@ -56,6 +64,8 @@ const testCases: Array<{
             content: [{type: "paragraph", content: [{type: "text", text: "abc"}]}],
         },
         relativeRange: {from: 0, to: 1},
+        absoluteRange: {from: 1, to: 4},
+        contentSlice: '<"abc">',
     },
     {
         name: "range selects single file row",
@@ -69,6 +79,8 @@ const testCases: Array<{
             ],
         },
         relativeRange: {from: 0, to: 0},
+        absoluteRange: {from: 1, to: 2},
+        contentSlice: "<file>",
     },
     {
         name: "range ends at empty paragraph boundary",
@@ -80,6 +92,8 @@ const testCases: Array<{
             ],
         },
         relativeRange: {from: 0, to: 0.7000000476837158},
+        absoluteRange: {from: 1, to: 2},
+        contentSlice: '<"l">',
     },
     {
         name: "range ends at nested list paragraph boundary",
@@ -98,6 +112,8 @@ const testCases: Array<{
             ],
         },
         relativeRange: {from: 0, to: 0.45000001788139343},
+        absoluteRange: {from: 2, to: 3},
+        contentSlice: '<"k">',
     },
     {
         name: "range ends at floating ordered list paragraph boundary",
@@ -113,6 +129,8 @@ const testCases: Array<{
             ],
         },
         relativeRange: {from: 0, to: 0.6428571939468384},
+        absoluteRange: {from: 1, to: 2},
+        contentSlice: '<"j">',
     },
     {
         name: "range starts at file boundary and ends in table",
@@ -206,6 +224,8 @@ const testCases: Array<{
             ],
         },
         relativeRange: {from: 0, to: 0.18292683362960815},
+        absoluteRange: {from: 1, to: 3},
+        contentSlice: "<file, file>",
     },
     {
         name: "empty range before nested list text",
@@ -224,6 +244,8 @@ const testCases: Array<{
             ],
         },
         relativeRange: {from: 0, to: 0},
+        absoluteRange: {from: 4, to: 5},
+        contentSlice: '<"p">',
     },
     {
         name: "single repeated character slice",
@@ -232,6 +254,8 @@ const testCases: Array<{
             content: [{type: "paragraph", content: [{type: "text", text: "7 7"}]}],
         },
         relativeRange: {from: 0.30000001192092896, to: 0.30000001192092896},
+        absoluteRange: {from: 1, to: 2},
+        contentSlice: '<"7">',
     },
     {
         name: "range ends before file row item",
@@ -249,6 +273,8 @@ const testCases: Array<{
             ],
         },
         relativeRange: {from: 0, to: 0.6428571939468384},
+        absoluteRange: {from: 1, to: 5},
+        contentSlice: '<paragraph("4"), fileRow(file)>',
     },
     {
         name: "range ends at second code line boundary",
@@ -267,6 +293,8 @@ const testCases: Array<{
             ],
         },
         relativeRange: {from: 0, to: 0.45000001788139343},
+        absoluteRange: {from: 2, to: 3},
+        contentSlice: '<"l">',
     },
     {
         name: "range includes second code line after empty first code line",
@@ -285,6 +313,8 @@ const testCases: Array<{
             ],
         },
         relativeRange: {from: 0, to: 0.75},
+        absoluteRange: {from: 1, to: 8},
+        contentSlice: '<paragraph("b"), codeBlock(codeBlockLine, codeBlockLine("e"))>',
     },
     {
         name: "range starts at empty paragraph before code block and checklist",
@@ -311,6 +341,8 @@ const testCases: Array<{
             ],
         },
         relativeRange: {from: 0, to: 0},
+        absoluteRange: {from: 6, to: 7},
+        contentSlice: '<"z">',
     },
     {
         name: "range ends at empty paragraph after marked file gallery",
@@ -342,6 +374,8 @@ const testCases: Array<{
             ],
         },
         relativeRange: {from: 0.10869565606117249, to: 0.10869565606117249},
+        absoluteRange: {from: 2, to: 3},
+        contentSlice: "<comment(comment(file))>",
     },
     {
         name: "large range through quote and table",
@@ -630,6 +664,9 @@ const testCases: Array<{
             ],
         },
         relativeRange: {from: 0, to: 0.9833333492279053},
+        absoluteRange: {from: 2, to: 148},
+        contentSlice:
+            '<quoteBlock(paragraph(mention), unorderedListItem(indent: 1, paragraph(mention), paragraph("u"))), table(tableRow(tableCell(orderedListItem(indent: 1, paragraph("f"), paragraph("g")), orderedListItem(indent: 1, paragraph("u"), paragraph("o"))), tableCell(orderedListItem(indent: 1, paragraph("e"), paragraph("s")), paragraph("j")), tableCell(paragraph("v"), paragraph("b"))), tableRow(tableCell(paragraph("w")), tableCell(checkListItem(indent: 1, paragraph(break), paragraph("a"))), tableCell(orderedListItem(indent: 1, paragraph(break), paragraph("p")), codeBlock(codeBlockLine("h"), codeBlockLine), checkListItem(indent: 1, paragraph("k"), paragraph(break))), tableCell(checkListItem(indent: 1, paragraph("u"), paragraph("5")), unorderedListItem(indent: 1, paragraph("0"), paragraph("w")))), tableRow(tableCell(fileRowTable(file), paragraph(break)), tableCell(paragraph("4"), paragraph("7")), tableCell(paragraph, orderedListItem(indent: 1, paragraph, paragraph("y"))))), paragraph("0 ")>',
     },
     {
         name: "range ends before file float",
@@ -653,6 +690,9 @@ const testCases: Array<{
             ],
         },
         relativeRange: {from: 0, to: 0.875},
+        absoluteRange: {from: 3, to: 11},
+        contentSlice:
+            '<unorderedListItem(indent: 1, paragraph("8"), paragraph("x")), fileFloat(file)>',
     },
     {
         name: "empty range between code block and paragraph",
@@ -668,6 +708,8 @@ const testCases: Array<{
             ],
         },
         relativeRange: {from: 0.3571428656578064, to: 0.3571428656578064},
+        absoluteRange: {from: 2, to: 3},
+        contentSlice: '<"b">',
     },
     {
         name: "range ends before second code line content",
@@ -693,6 +735,8 @@ const testCases: Array<{
             ],
         },
         relativeRange: {from: 0, to: 0.30000001192092896},
+        absoluteRange: {from: 2, to: 3},
+        contentSlice: '<"m">',
     },
     {
         name: "range selects break paragraph in nested list",
@@ -718,6 +762,8 @@ const testCases: Array<{
             ],
         },
         relativeRange: {from: 0.1666666716337204, to: 0.23333333432674408},
+        absoluteRange: {from: 4, to: 5},
+        contentSlice: '<"a">',
     },
     {
         name: "range includes second code line text",
@@ -743,6 +789,8 @@ const testCases: Array<{
             ],
         },
         relativeRange: {from: 0, to: 0.34375},
+        absoluteRange: {from: 2, to: 6},
+        contentSlice: '<codeBlockLine("1"), codeBlockLine("n")>',
     },
     {
         name: "repeated text inside checklist paragraph",
@@ -793,6 +841,8 @@ const testCases: Array<{
             ],
         },
         relativeRange: {from: 0.06321839243173599, to: 0.09770115464925766},
+        absoluteRange: {from: 6, to: 9},
+        contentSlice: '<"1 3">',
     },
     {
         name: "range starts after file float and ends before next paragraph",
@@ -809,6 +859,8 @@ const testCases: Array<{
             ],
         },
         relativeRange: {from: 0.2777777910232544, to: 0.7222222685813904},
+        absoluteRange: {from: 4, to: 5},
+        contentSlice: "<file>",
     },
     {
         name: "empty range between file float and paragraph",
@@ -824,6 +876,8 @@ const testCases: Array<{
             ],
         },
         relativeRange: {from: 0.25, to: 0.25},
+        absoluteRange: {from: 1, to: 2},
+        contentSlice: "<file>",
     },
     {
         name: "range starts at empty unordered list paragraph before repeated list text",
@@ -851,6 +905,8 @@ const testCases: Array<{
             ],
         },
         relativeRange: {from: 0, to: 0},
+        absoluteRange: {from: 4, to: 5},
+        contentSlice: '<"f">',
     },
     {
         name: "range starts after checklist paragraph text in quote",
@@ -891,6 +947,8 @@ const testCases: Array<{
             ],
         },
         relativeRange: {from: 0.04545454680919647, to: 0.04545454680919647},
+        absoluteRange: {from: 3, to: 4},
+        contentSlice: '<"y">',
     },
     {
         name: "overlapping repeated text in quoted ordered list",
@@ -934,6 +992,8 @@ const testCases: Array<{
             ],
         },
         relativeRange: {from: 0.5, to: 0.530927836894989},
+        absoluteRange: {from: 49, to: 52},
+        contentSlice: '<" g ">',
     },
     {
         name: "empty range with commentable content elsewhere",
@@ -957,6 +1017,8 @@ const testCases: Array<{
             ],
         },
         relativeRange: {from: 0, to: 0},
+        absoluteRange: {from: 2, to: 3},
+        contentSlice: "<break>",
     },
 ];
 
