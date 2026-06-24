@@ -142,14 +142,14 @@ function sliceInlineElements(
 
         switch (element.type) {
             case "Text": {
-                let range: {startIndex: number; endIndex: number} | undefined;
+                let range: {startTextIndex: number; endTextIndex: number} | undefined;
 
-                for (let i = 0; i < element.text.length; i++) {
+                for (let textIndex = 0; textIndex < element.text.length; textIndex++) {
                     if (consumeInlineToken(context, key, index, index + 1)) {
                         if (range === undefined) {
-                            range = {startIndex: index, endIndex: index + 1};
+                            range = {startTextIndex: textIndex, endTextIndex: textIndex + 1};
                         } else {
-                            range.endIndex = index + 1;
+                            range.endTextIndex = textIndex + 1;
                         }
                     }
 
@@ -163,7 +163,7 @@ function sliceInlineElements(
                     slicedElements ??= [];
                     slicedElements.push({
                         ...element,
-                        text: element.text.slice(range.startIndex, range.endIndex),
+                        text: element.text.slice(range.startTextIndex, range.endTextIndex),
                     });
                 }
                 break;
