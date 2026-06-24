@@ -3,7 +3,11 @@ import escapeHtml from "escape-html";
 import {Tokenizer as HtmlTokenizer} from "htmlparser2";
 import {produce} from "immer";
 import {Html, Link, Parent, PhrasingContent, Root, RootContent} from "mdast";
-import {AgentWebContext} from "~/server/agents/web/agent_web_context.js";
+import {
+    AgentWebContext,
+    AgentWebContextWithoutStorage,
+} from "~/server/agents/web/agent_web_context.js";
+import {AgentWebPageStoredLink} from "~/server/agents/web/agent_web_page_stored_link.js";
 import {AgentWebSessionStorage} from "~/server/agents/web/agent_web_session_storage.js";
 import {createAgentWebPageStoredLinkPathname} from "~/server/agents/web/create_agent_web_page_stored_link_pathname.js";
 import {normalizeAgentWebPath} from "~/server/agents/web/internal/normalize_agent_web_path.js";
@@ -13,6 +17,7 @@ import {parseApiContentFromAgentWebMarkdownTree} from "~/server/agents/web/parse
 import {printApiContentToAgentWebMarkdownTree} from "~/server/agents/web/print_api_content_to_agent_web_markdown.js";
 import {printMarkdownPhrasingContentText} from "~/server/agents/web/print_markdown_phrasing_content_text.js";
 import {routeAgentWebPageLinkPathname} from "~/server/agents/web/route_agent_web_page_link_pathname.js";
+import {normalizeApiContent} from "~/shared/api/markdown/normalize_api_content.js";
 import {parseMarkdownTree} from "~/shared/api/markdown/parse_api_content_from_markdown.js";
 import {printMarkdownTree} from "~/shared/api/markdown/print_api_content_to_markdown.js";
 import {intoApiAccountReference} from "~/shared/api/specification/into_api_account_reference.js";
@@ -23,11 +28,13 @@ import {
     ApiPostReferenceResponse,
 } from "~/shared/api/specification/types/api_specification_convenience_types.js";
 import {formatPrettyAbsoluteDateWithoutFullTimeTooltip} from "~/shared/design/format_pretty_absolute_date_without_full_time_tooltip.js";
-import {InvalidArgumentError} from "~/shared/error/error.js";
+import {InvalidArgumentError, UnimplementedError} from "~/shared/error/error.js";
 import {errorDisplayMessage} from "~/shared/error/error_display_message.js";
 import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
+import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
+import {isDeepEqual} from "~/shared/helpers/control/is_deep_equal.js";
 import {
     DateString,
     deserializeDateString,
@@ -38,6 +45,7 @@ import {hasHtmlOpenTag} from "~/shared/helpers/html/has_html_open_tag.js";
 import {defaultLocale} from "~/shared/helpers/intl/locale.js";
 import {formatTimeZoneAbbreviation} from "~/shared/helpers/intl/time_zone.js";
 import {reverseIterable} from "~/shared/helpers/iterable/reverse_iterable.js";
+import {Replace} from "~/shared/helpers/types/replace.js";
 import {ChannelId, PostId} from "~/shared/id/types/id_types.js";
 
 export const agentWebChannelPageApiPostsBatchCount = 15;
@@ -68,7 +76,7 @@ export type AgentWebChannelPagePostBlock = {
     readonly author: ApiAccountReferenceResponse | null;
     readonly timeAttribute: string | null;
     readonly contentSnippet: ApiContentResponseWithoutKeys;
-    readonly reference: ApiPostReferenceResponse;
+    readonly reference: ApiPostReferenceResponse | null;
 };
 
 export type AgentWebChannelPageWithMetadata = AgentWebChannelPage & {
@@ -99,7 +107,9 @@ export async function readAgentWebChannelPage(
 ): Promise<{response: string; metadata: AgentWebChannelPageMetadata}> {
     const afterCursor = parseAgentWebChannelPageSearchParams(searchParams);
 
-    const posts: Array<AgentWebChannelPagePostBlock> = [];
+    const posts: Array<
+        Replace<AgentWebChannelPagePostBlock, {reference: ApiPostReferenceResponse}>
+    > = [];
     const postCursors: Array<DateString> = [];
 
     const [channelDescriptionResult, initialPostsResult] = await runAllPromises([
@@ -176,6 +186,8 @@ export async function readAgentWebChannelPage(
             isEndOfPosts: nextCursor === null,
             posts: pagePosts.map(post => ({
                 id: post.reference.id,
+                // NOCOMMIT: We should include `keys` from unzip in metadata so messages can quote
+                // the post.
             })),
         };
 
@@ -677,7 +689,7 @@ export function normalizeAgentWebChannelPage<Page extends AgentWebChannelPage>(p
             for (const post of page.posts) {
                 if (post.author) normalizer.normalizeReference(post.author);
                 normalizer.normalize(post.contentSnippet);
-                normalizer.normalizeReference(post.reference);
+                if (post.reference) normalizer.normalizeReference(post.reference);
             }
         });
     });
@@ -831,9 +843,33 @@ async function printAgentWebChannelPagePostBlock(
 ): Promise<Array<RootContent>> {
     const [authorPathname, postPathname, contentSnippetTree] = await runAllPromises([
         post.author ? createAgentWebPageStoredLinkPathname(storage, post.author) : null,
-        createAgentWebPageStoredLinkPathname(storage, post.reference),
+        post.reference ? createAgentWebPageStoredLinkPathname(storage, post.reference) : null,
         printApiContentToAgentWebMarkdownTree(storage, post.contentSnippet),
     ]);
+
+    const traverse = (node: Parent): void => {
+        for (let index = 0; index < node.children.length; index++) {
+            const child = node.children[index]!;
+
+            // If someone has crafted a agent web link (URL starts with "/") labeled as "See
+            // more »" then that may confuse the parser so drop the "»". Agent web links from
+            // content are mentions and the title doesn't matter for parsing.
+            if (
+                child.type === "link" &&
+                child.url.startsWith("/") &&
+                printMarkdownPhrasingContentText(child.children) === "See more »"
+            ) {
+                child.children = [{type: "text", value: "See more"}];
+                continue;
+            }
+
+            if ("children" in child) {
+                traverse(child);
+            }
+        }
+    };
+
+    traverse(contentSnippetTree);
 
     let openTag = "<post";
 
@@ -853,21 +889,28 @@ async function printAgentWebChannelPagePostBlock(
 
     openTag += ">";
 
-    return [
-        {type: "html", value: openTag},
-        ...contentSnippetTree.children,
-        {
+    const children: Array<RootContent> = [{type: "html", value: openTag}];
+
+    for (const child of contentSnippetTree.children) {
+        children.push(child);
+    }
+
+    if (post.reference !== null) {
+        children.push({
             type: "paragraph",
             children: [
                 {
                     type: "link",
-                    url: postPathname,
+                    url: assertExists(postPathname),
                     children: [{type: "text", value: "See more »"}],
                 },
             ],
-        },
-        {type: "html", value: "</post>"},
-    ];
+        });
+    }
+
+    children.push({type: "html", value: "</post>"});
+
+    return children;
 }
 
 export async function parseAgentWebChannelPage(
@@ -1067,7 +1110,7 @@ async function parseAgentWebChannelPagePostSection(
 
         if (child.type !== "html" || !hasHtmlOpenTag(child.value, tagName => tagName === "post")) {
             throw new InvalidArgumentError("Expected channel post block", {
-                displayMessage: errorDisplayMessage`Expected \`<post>\` blocks in the channel posts section. Try again with valid channel posts markdown on line ${child.position?.start.line ?? "unknown"}.`,
+                displayMessage: errorDisplayMessage`Expected \`<post>\` blocks in the channel posts section after the divider (\`---\`). Try again with valid channel posts markdown on line ${child.position?.start.line ?? "unknown"} (or if you want to add a divider to your channel description you can do so with the HTML divider syntax \`<hr />\`).`,
             });
         }
 
@@ -1189,36 +1232,38 @@ async function parseAgentWebChannelPagePostBlock(
             : await parseAgentWebChannelPageAccountLink(storage, openTagPosition, fromAttribute);
 
     const seeMore = root.children[root.children.length - 1];
+    const seeMoreLink =
+        seeMore?.type === "paragraph" &&
+        seeMore.children.length === 1 &&
+        seeMore.children[0]?.type === "link" &&
+        seeMore.children[0].url.startsWith("/") &&
+        printMarkdownPhrasingContentText(seeMore.children[0].children) === "See more »"
+            ? seeMore.children[0]
+            : null;
 
-    if (seeMore?.type !== "paragraph" || seeMore.children.length !== 1) {
-        throw new InvalidArgumentError("Missing channel post link", {
-            displayMessage: errorDisplayMessage`Every channel \`<post>\` must end with a \`[See more »](/post/...)\` link. Try again with the post link at the end of the \`<post>\` on line ${openTagPosition?.start.line ?? "unknown"}.`,
-        });
-    }
+    let contentSnippet: ApiContentResponseWithoutKeys;
+    let reference: ApiPostReferenceResponse | null = null;
 
-    const seeMoreLink = seeMore.children[0]!;
+    if (seeMoreLink === null) {
+        contentSnippet = await parseApiContentFromAgentWebMarkdownTree(storage, root);
+    } else {
+        const [pageLinkResult, parsedContentSnippet] = await runAllPromises([
+            routeAgentWebPageLinkPathname(storage, seeMoreLink.url),
+            parseApiContentFromAgentWebMarkdownTree(storage, {
+                type: "root",
+                children: root.children.slice(0, -1),
+            }),
+        ]);
 
-    if (
-        seeMoreLink.type !== "link" ||
-        printMarkdownPhrasingContentText(seeMoreLink.children) !== "See more »"
-    ) {
-        throw new InvalidArgumentError("Invalid channel post link", {
-            displayMessage: errorDisplayMessage`Every channel \`<post>\` must end with a \`[See more »](/post/...)\` link. Try again with the post link at the end of the \`<post>\` on line ${openTagPosition?.start.line ?? "unknown"}.`,
-        });
-    }
+        contentSnippet = parsedContentSnippet;
 
-    const [pageLinkResult, contentSnippet] = await runAllPromises([
-        routeAgentWebPageLinkPathname(storage, seeMoreLink.url),
-        parseApiContentFromAgentWebMarkdownTree(storage, {
-            type: "root",
-            children: root.children.slice(0, -1),
-        }),
-    ]);
+        if (!pageLinkResult || pageLinkResult.pageLink.type !== "Post") {
+            throw new InvalidArgumentError("Invalid channel post link", {
+                displayMessage: errorDisplayMessage`Expected \`See more »\` to link to a post. Try again with a valid post link at the end of the \`<post>\` on line ${openTagPosition?.start.line ?? "unknown"}.`,
+            });
+        }
 
-    if (!pageLinkResult || pageLinkResult.pageLink.type !== "Post") {
-        throw new InvalidArgumentError("Invalid channel post link", {
-            displayMessage: errorDisplayMessage`Expected \`See more »\` to link to a post. Try again with a valid post link at the end of the \`<post>\` on line ${openTagPosition?.start.line ?? "unknown"}.`,
-        });
+        reference = pageLinkResult.pageLink;
     }
 
     return {
@@ -1226,7 +1271,7 @@ async function parseAgentWebChannelPagePostBlock(
         author,
         timeAttribute,
         contentSnippet,
-        reference: pageLinkResult.pageLink,
+        reference,
     };
 }
 
