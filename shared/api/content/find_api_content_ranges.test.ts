@@ -1164,7 +1164,9 @@ More alpha
         needle: "aa",
         ranges: [
             {from: 1, to: 3, slice: '<"aa">'},
+            {from: 2, to: 4, slice: '<"aa">'},
             {from: 3, to: 5, slice: '<"aa">'},
+            {from: 4, to: 6, slice: '<"aa">'},
         ],
     },
 ];
