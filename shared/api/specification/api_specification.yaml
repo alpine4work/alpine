@@ -568,11 +568,39 @@ paths:
                         application/json:
                             schema:
                                 type: object
+                                required: [spaceId, thread]
+                                additionalProperties: false
+                                properties:
+                                    spaceId:
+                                        $ref: "#/components/schemas/SpaceId"
+                                    thread:
+                                        $ref: "#/components/schemas/DocumentThread"
+
+    /documents/{id}/threads/{threadId}-with-document:
+        parameters:
+            - name: id
+              in: path
+              required: true
+              schema: {$ref: "#/components/schemas/DocumentId"}
+            - name: threadId
+              in: path
+              required: true
+              schema: {$ref: "#/components/schemas/DocumentThreadId"}
+        get:
+            responses:
+                default: {$ref: "#/components/responses/Error"}
+                "200":
+                    content:
+                        application/json:
+                            schema:
+                                type: object
                                 required: [spaceId, document, thread]
                                 additionalProperties: false
                                 properties:
                                     spaceId:
                                         $ref: "#/components/schemas/SpaceId"
+                                    document:
+                                        $ref: "#/components/schemas/Document"
                                     thread:
                                         $ref: "#/components/schemas/DocumentThread"
 

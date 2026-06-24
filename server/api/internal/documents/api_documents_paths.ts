@@ -5,12 +5,12 @@ import {ApiPaths} from "~/server/api/internal/shared/api_paths_type.js";
 import {fromApiMessageContentPayloadParent} from "~/server/api/internal/shared/from_api_message_content_payload_parent.js";
 import {fromApiMessageStreamPartPayload} from "~/server/api/internal/shared/from_api_message_stream_part_payload.js";
 import {getApiAccount} from "~/server/api/internal/shared/get_api_account.js";
+import {getFileIdOrFileEntityIdFromApiMessageContentPayloadFile} from "~/server/api/internal/shared/get_file_id_or_file_entity_id_from_api_message_content_payload_file.js";
 import {
     getApiMentionTitleWithStrongConsistency,
     intoApiContentWithReferences,
 } from "~/server/api/internal/shared/into_api_content_with_references.js";
 import {intoApiMessage} from "~/server/api/internal/shared/into_api_message.js";
-import {parseFileIdFromApiFileElement} from "~/server/api/internal/shared/parse_file_id_or_file_entity_id.js";
 import {
     FileDocumentAuthorizer,
     completeDocumentCommentStream,
@@ -487,7 +487,9 @@ export const apiDocumentsPaths: Pick<
 
             const createdTimeZone = requestBody.createdTimeZone ?? defaultTimeZone;
 
-            const fileIds = (requestBody.files ?? []).map(parseFileIdFromApiFileElement);
+            const fileIds = (requestBody.files ?? []).map(
+                getFileIdOrFileEntityIdFromApiMessageContentPayloadFile,
+            );
             const attachmentFileIds = fileIds.filter((id): id is FileId => isId(id));
 
             // Attach files before creating the message, matching the app client flow. The

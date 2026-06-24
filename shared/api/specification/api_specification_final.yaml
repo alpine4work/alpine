@@ -613,12 +613,44 @@ paths:
                                 type: object
                                 required:
                                     - spaceId
+                                    - thread
+                                additionalProperties: false
+                                properties:
+                                    spaceId:
+                                        $ref: "#/components/schemas/SpaceId"
+                                    thread:
+                                        $ref: "#/components/schemas/DocumentThread_Response"
+                default:
+                    $ref: "#/components/responses/Error"
+    /documents/{id}/threads/{threadId}-with-document:
+        parameters:
+            - name: id
+              in: path
+              required: true
+              schema:
+                  $ref: "#/components/schemas/DocumentId"
+            - name: threadId
+              in: path
+              required: true
+              schema:
+                  $ref: "#/components/schemas/DocumentThreadId"
+        get:
+            responses:
+                "200":
+                    content:
+                        application/json:
+                            schema:
+                                type: object
+                                required:
+                                    - spaceId
                                     - document
                                     - thread
                                 additionalProperties: false
                                 properties:
                                     spaceId:
                                         $ref: "#/components/schemas/SpaceId"
+                                    document:
+                                        $ref: "#/components/schemas/Document_Response"
                                     thread:
                                         $ref: "#/components/schemas/DocumentThread_Response"
                 default:
