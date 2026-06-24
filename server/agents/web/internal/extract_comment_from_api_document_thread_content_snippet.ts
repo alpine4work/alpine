@@ -1,0 +1,200 @@
+import {visitAndProduceApiContent} from "~/shared/api/content/visit_and_produce_api_content.js";
+import {sliceApiContentRange} from "~/shared/api/markdown/slice_api_content_range.js";
+import {ApiContentKey} from "~/shared/api/specification/types/api_content_key.js";
+import {
+    ApiContentBeforePosition,
+    ApiContentInlinePosition,
+    ApiContentPosition,
+} from "~/shared/api/specification/types/api_content_position.js";
+import {
+    ApiContentBlockElementResponse,
+    ApiContentInlineElement,
+    ApiContentInlineElementMark,
+    ApiContentResponse,
+} from "~/shared/api/specification/types/api_specification_convenience_types.js";
+import {InternalError} from "~/shared/error/error.js";
+import {assert} from "~/shared/helpers/control/assert.js";
+import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
+import {DocumentCommentThreadId} from "~/shared/id/types/id_types.js";
+
+/**
+ * Takes `documentContentSnippet` from an `ApiDocumentThread` and it slices out
+ * just the commented content.
+ */
+export function extractCommentFromApiDocumentThreadContentSnippet(
+    threadId: DocumentCommentThreadId,
+    contentSnippet: ApiContentResponse,
+) {
+    let range: {start: ApiContentPosition; end: ApiContentPosition} | null = null;
+
+    for (const token of iterateApiContent(contentSnippet)) {
+        if (token.marks?.some(mark => mark.type === "Comment" && mark.thread.id === threadId)) {
+            range ??= {start: token.position, end: token.position};
+            range.end = token.position;
+        } else if (range !== null) {
+            // After we've started `range`, once we've found the last token that has the
+            // comment mark then stop iterating since we've found the full commented content.
+            break;
+        }
+    }
+
+    if (range === null) {
+        throw new InternalError(
+            "Document comment thread snippet doesn\u2019t contain comment mark",
+        );
+    }
+
+    const slicedContentSnippet = sliceApiContentRange(contentSnippet, range);
+    assert(slicedContentSnippet.ok);
+
+    return visitAndProduceApiContent(slicedContentSnippet.value, {
+        visitMark: (mark, {marks}) => {
+            if (mark.type === "Comment" && mark.thread.id === threadId) {
+                const index = marks.indexOf(mark);
+                assert(index !== -1);
+                marks.splice(index, 1);
+            }
+        },
+    });
+}
+
+type Token = {
+    position: ApiContentInlinePosition | ApiContentBeforePosition;
+    marks: ReadonlyArray<ApiContentInlineElementMark> | undefined;
+};
+
+function* iterateApiContent(content: ApiContentResponse): IterableIterator<Token, undefined> {
+    for (const element of content.elements) {
+        yield* iterateApiContentBlockElement(element);
+    }
+}
+
+function* iterateApiContentBlockElement(
+    element: ApiContentBlockElementResponse,
+): IterableIterator<Token, undefined> {
+    switch (element.type) {
+        case "Paragraph": {
+            yield* iterateApiContentInlineElements(element.key, element.elements);
+            break;
+        }
+        case "Heading": {
+            yield* iterateApiContentInlineElements(element.key, element.elements);
+            break;
+        }
+        case "Quote": {
+            for (const childElement of element.elements) {
+                yield* iterateApiContentBlockElement(childElement);
+            }
+            break;
+        }
+        case "UnorderedList":
+        case "OrderedList": {
+            for (let itemIndex = 0; itemIndex < element.items.length; itemIndex++) {
+                const item = element.items[itemIndex]!;
+
+                for (const childElement of item.elements) {
+                    yield* iterateApiContentBlockElement(childElement);
+                }
+
+                if (item.nestedListElements) {
+                    for (const nestedElement of item.nestedListElements) {
+                        yield* iterateApiContentBlockElement(nestedElement);
+                    }
+                }
+            }
+            break;
+        }
+        case "CheckList": {
+            for (let itemIndex = 0; itemIndex < element.items.length; itemIndex++) {
+                const item = element.items[itemIndex]!;
+
+                for (const childElement of item.elements) {
+                    yield* iterateApiContentBlockElement(childElement);
+                }
+
+                if (item.nestedListElements) {
+                    for (const nestedElement of item.nestedListElements) {
+                        yield* iterateApiContentBlockElement(nestedElement);
+                    }
+                }
+            }
+            break;
+        }
+        case "Code": {
+            for (const line of element.lines) {
+                yield* iterateApiContentInlineElements(line.key, line.elements);
+            }
+            break;
+        }
+        case "Divider": {
+            yield {
+                position: {type: "Before", key: element.key},
+                marks: undefined,
+            };
+            break;
+        }
+        case "File":
+        case "Preview": {
+            yield {
+                position: {type: "Before", key: element.key},
+                marks: element.marks,
+            };
+            break;
+        }
+        case "FileGallery": {
+            for (const row of element.rows) {
+                for (const {element: childElement} of row.items) {
+                    yield {
+                        position: {type: "Before", key: childElement.key},
+                        marks: childElement.marks,
+                    };
+                }
+            }
+            break;
+        }
+        case "FileFloat": {
+            yield {
+                position: {type: "Before", key: element.element.key},
+                marks: element.element.marks,
+            };
+            break;
+        }
+        case "Table": {
+            for (const row of element.rows) {
+                for (const cell of row.cells) {
+                    for (const childElement of cell.elements) {
+                        yield* iterateApiContentBlockElement(childElement);
+                    }
+                }
+            }
+            break;
+        }
+        default:
+            throw exhaustive(element);
+    }
+}
+
+function* iterateApiContentInlineElements(
+    key: ApiContentKey,
+    elements: ReadonlyArray<ApiContentInlineElement>,
+): IterableIterator<Token, undefined> {
+    let index = 0;
+
+    for (const element of elements) {
+        switch (element.type) {
+            case "Text": {
+                yield {position: {type: "Inline", key, index}, marks: element.marks};
+                index += element.text.length;
+                break;
+            }
+            case "Break":
+            case "Mention": {
+                yield {position: {type: "Inline", key, index}, marks: element.marks};
+                index++;
+                break;
+            }
+            default:
+                throw exhaustive(element);
+        }
+    }
+}
