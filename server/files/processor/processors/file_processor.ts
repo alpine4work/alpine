@@ -1,5 +1,7 @@
 import {Readable as ReadableStream} from "stream";
 import {FileProcessorActionContext} from "~/server/files/data/file_processor_context.js";
+import {ProcessFileAnalysisTranscriptResult} from "~/server/files/processor/process_file_analysis.js";
+import {FileAnalysisResult} from "~/shared/files/file_analysis.js";
 import {FileCodePreviewContent} from "~/shared/files/file_code_preview_content.js";
 import {FileContentType} from "~/shared/files/file_content_type.js";
 import {FileImagePreviewPlaceholder} from "~/shared/files/file_image_preview_placeholder.js";
@@ -44,41 +46,57 @@ export type FileProcessor =
     | NoopFileProcessor
     | FileProcessorTemplate<
           false,
-          {readonly type: "Image"; readonly hasContent: false; readonly hasVideoDuration: false}
+          {readonly type: "Image"; readonly hasContent: false; readonly hasVideoDuration: false},
+          true,
+          false
       >
     | FileProcessorTemplate<
           false,
-          {readonly type: "Image"; readonly hasContent: true; readonly hasVideoDuration: false}
+          {readonly type: "Image"; readonly hasContent: true; readonly hasVideoDuration: false},
+          false,
+          false
       >
     | FileProcessorTemplate<
           true,
-          {readonly type: "Image"; readonly hasContent: true; readonly hasVideoDuration: false}
+          {readonly type: "Image"; readonly hasContent: true; readonly hasVideoDuration: false},
+          false,
+          false
       >
     | FileProcessorTemplate<
           false,
-          {readonly type: "Image"; readonly hasContent: true; readonly hasVideoDuration: true}
+          {readonly type: "Image"; readonly hasContent: true; readonly hasVideoDuration: true},
+          true,
+          true
       >
     | FileProcessorTemplate<
           true,
-          {readonly type: "Image"; readonly hasContent: true; readonly hasVideoDuration: true}
+          {readonly type: "Image"; readonly hasContent: true; readonly hasVideoDuration: true},
+          true,
+          true
       >
     | FileProcessorTemplate<
           "ImagePreviewContent",
-          {readonly type: "Image"; readonly hasContent: true; readonly hasVideoDuration: false}
+          {readonly type: "Image"; readonly hasContent: true; readonly hasVideoDuration: false},
+          true,
+          false
       >
-    | FileProcessorTemplate<false, {readonly type: "Audio"}>
-    | FileProcessorTemplate<true, {readonly type: "Audio"}>
-    | FileProcessorTemplate<false, {readonly type: "Code"}>;
+    | FileProcessorTemplate<false, {readonly type: "Audio"}, true, true>
+    | FileProcessorTemplate<true, {readonly type: "Audio"}, true, true>
+    | FileProcessorTemplate<false, {readonly type: "Code"}, false, false>;
 
 export interface NoopFileProcessor {
     readonly type: "Noop";
     readonly hasAlternative: false;
+    readonly hasAnalysis: false;
     readonly hasPreview: null;
+    readonly hasTranscript: false;
 }
 
 export type FileProcessorTemplate<
     HasAlternative extends boolean | "ImagePreviewContent",
     HasPreview extends FileHasPreview | null,
+    HasAnalysis extends boolean,
+    HasTranscript extends boolean,
 > = {
     readonly type:
         | "WebSafeImage"
@@ -94,7 +112,9 @@ export type FileProcessorTemplate<
         | "Mp4Audio"
         | "Code";
     readonly hasAlternative: HasAlternative;
+    readonly hasAnalysis: HasAnalysis;
     readonly hasPreview: HasPreview;
+    readonly hasTranscript: HasTranscript;
 
     process(
         context: FileProcessorActionContext,
@@ -107,7 +127,9 @@ export type FileProcessorTemplate<
             withTemporaryDirectory: () => Promise<string>;
         },
     ): MaybePromise<
-        FileProcessorTemplateResultPromises<FileProcessorTemplateResult<HasAlternative, HasPreview>>
+        FileProcessorTemplateResultPromises<
+            FileProcessorTemplateResult<HasAlternative, HasPreview, HasAnalysis, HasTranscript>
+        >
     >;
 };
 
@@ -120,6 +142,8 @@ type FileProcessorTemplateResultPromises<Result extends {[key: string]: unknown}
 type FileProcessorTemplateResult<
     HasAlternative extends boolean | "ImagePreviewContent",
     HasPreview extends FileHasPreview | null,
+    HasAnalysis extends boolean,
+    HasTranscript extends boolean,
 > = MergeObjectIntersection<
     (HasAlternative extends "ImagePreviewContent"
         ? {
@@ -141,7 +165,13 @@ type FileProcessorTemplateResult<
               },
               {alternative?: undefined}
           >) &
-        FileProcessorTemplateResultFromHasPreview<HasPreview>
+        FileProcessorTemplateResultFromHasPreview<HasPreview> &
+        If<HasAnalysis, {analysis: FileAnalysisResult | null}, {analysis?: undefined}> &
+        If<
+            HasTranscript,
+            {transcript: ProcessFileAnalysisTranscriptResult | null},
+            {transcript?: undefined}
+        >
 >;
 
 type FileProcessorTemplateResultFromHasPreview<HasPreview extends FileHasPreview | null> =
@@ -205,5 +235,7 @@ type FileProcessorTemplateResultFromHasCodePreview = {
 export const fileNoopProcessor: FileProcessor = {
     type: "Noop",
     hasAlternative: false,
+    hasAnalysis: false,
     hasPreview: null,
+    hasTranscript: false,
 };

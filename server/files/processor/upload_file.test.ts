@@ -18,6 +18,11 @@ import {
     filesBucketName,
 } from "~/server/helpers/files_cloudflare_r2_bucket_name.js";
 import {runfilesPath} from "~/server/helpers/node/runfiles_path.js";
+import {LanguageModelsNoopDevelopmentContextModule} from "~/server/language_models/language_models_noop_development_context_module.js";
+import {
+    LanguageModelsGenerateObjectOptions,
+    LanguageModelsGenerateObjectResult,
+} from "~/server/language_models/language_models_types.js";
 import {createStandardizedServer} from "~/server/node/create_standardized_server.js";
 import {ShutdownManager} from "~/server/node/shutdown_manager.js";
 import {TestSession} from "~/server/spaces/test_helpers/test_session.js";
@@ -53,6 +58,8 @@ const jpegTestFixturePath = joinPath(
     "cyberworlds/server/files/processor/test_fixtures/unsplash_annie_spratt_0ArJET2aSIQ.jpeg",
 );
 
+const testUploadFileAnalysisResult = {tags: ["upload test"]};
+
 const {shutdownManager, shutdown} = ShutdownManager.new({
     tracer: testTracer,
     isClusterPrimary: true,
@@ -74,7 +81,10 @@ const context = createTestContext({
             job.type === "ProcessFileHeavy"
         ) {
             await processFile(
-                actionContext.clone({r2: new CloudflareR2ContextModule(r2Client)}),
+                actionContext.clone({
+                    r2: new CloudflareR2ContextModule(r2Client),
+                    languageModels: new TestUploadFileLanguageModelsContextModule(),
+                }),
                 span,
                 {
                     spaceId: job.spaceId,
@@ -173,6 +183,21 @@ async function sessionCookie(
     );
 
     return `session=${token}`;
+}
+
+class TestUploadFileLanguageModelsContextModule extends LanguageModelsNoopDevelopmentContextModule {
+    override async generateObject<ObjectType>(
+        options: LanguageModelsGenerateObjectOptions<ObjectType>,
+    ): Promise<LanguageModelsGenerateObjectResult<ObjectType>> {
+        return {
+            object: options.schema.deserialize(testUploadFileAnalysisResult as never),
+            text: JSON.stringify(testUploadFileAnalysisResult),
+        };
+    }
+
+    override fork(): TestUploadFileLanguageModelsContextModule {
+        return new TestUploadFileLanguageModelsContextModule();
+    }
 }
 
 function massageHeaders(headers: Headers) {
@@ -425,7 +450,7 @@ Connection: close\r\n\
 Transfer-Encoding: chunked\r\n\
 \r\n\
 chunk\r\n\
-{"ok":true,"signedUrlSearch":"?sig=test","file":{"id":"...","spaceId":"...","contentType":"image/jpeg","contentLength":33102,"isUploading":false,"alternative":null,"preview":{"type":"Image","isProcessing":true,"size":null,"placeholder":null},"analysis":null,"transcript":null}}\r\n\
+{"ok":true,"signedUrlSearch":"?sig=test","file":{"id":"...","spaceId":"...","contentType":"image/jpeg","contentLength":33102,"isUploading":false,"alternative":null,"preview":{"type":"Image","isProcessing":true,"size":null,"placeholder":null},"analysis":{"isProcessing":true},"transcript":null}}\r\n\
 chunk\r\n\
 \r\n\
 `);
@@ -445,7 +470,6 @@ chunk\r\n\
             contentLength: 33102,
             isUploading: false,
             alternative: null,
-            analysis: null,
             transcript: null,
             preview: {
                 type: "Image",
@@ -453,6 +477,11 @@ chunk\r\n\
                 ok: true,
                 size: {width: 500, height: 375, scale: 1, hasAlpha: false},
                 placeholder: expect.any(FileImagePreviewPlaceholder),
+            },
+            analysis: {
+                isProcessing: false,
+                ok: true,
+                result: testUploadFileAnalysisResult,
             },
         }),
     );
@@ -672,7 +701,6 @@ Content-Length: 33102\r\n\
             contentLength: 33102,
             isUploading: true,
             alternative: null,
-            analysis: null,
             transcript: null,
             preview: {
                 type: "Image",
@@ -680,6 +708,7 @@ Content-Length: 33102\r\n\
                 size: "Processing",
                 placeholder: "Processing",
             },
+            analysis: {isProcessing: true},
         }),
     );
 
@@ -770,7 +799,6 @@ Content-Length: 33102\r\n\
             contentLength: 33102,
             isUploading: true,
             alternative: null,
-            analysis: null,
             transcript: null,
             preview: {
                 type: "Image",
@@ -778,6 +806,7 @@ Content-Length: 33102\r\n\
                 size: "Processing",
                 placeholder: "Processing",
             },
+            analysis: {isProcessing: true},
         }),
     );
 
@@ -807,7 +836,7 @@ Connection: close\r\n\
 Transfer-Encoding: chunked\r\n\
 \r\n\
 chunk\r\n\
-{"ok":true,"signedUrlSearch":"?sig=test","file":{"id":"...","spaceId":"...","contentType":"image/jpeg","contentLength":33102,"isUploading":false,"alternative":null,"preview":{"type":"Image","isProcessing":true,"size":null,"placeholder":null},"analysis":null,"transcript":null}}\r\n\
+{"ok":true,"signedUrlSearch":"?sig=test","file":{"id":"...","spaceId":"...","contentType":"image/jpeg","contentLength":33102,"isUploading":false,"alternative":null,"preview":{"type":"Image","isProcessing":true,"size":null,"placeholder":null},"analysis":{"isProcessing":true},"transcript":null}}\r\n\
 chunk\r\n\
 \r\n\
 `);
@@ -824,7 +853,6 @@ chunk\r\n\
             contentLength: 33102,
             isUploading: false,
             alternative: null,
-            analysis: null,
             transcript: null,
             preview: {
                 type: "Image",
@@ -832,6 +860,11 @@ chunk\r\n\
                 ok: true,
                 size: {width: 500, height: 375, scale: 1, hasAlpha: false},
                 placeholder: expect.any(FileImagePreviewPlaceholder),
+            },
+            analysis: {
+                isProcessing: false,
+                ok: true,
+                result: testUploadFileAnalysisResult,
             },
         }),
     );
@@ -866,7 +899,6 @@ test("can\u2019t process invalid image data", async () => {
             contentLength: 100000,
             isUploading: false,
             alternative: null,
-            analysis: null,
             transcript: null,
             preview: {
                 type: "Image",
@@ -874,6 +906,7 @@ test("can\u2019t process invalid image data", async () => {
                 size: "Processing",
                 placeholder: "Processing",
             },
+            analysis: {isProcessing: true},
         }),
     });
     assert(responseBody.ok);
@@ -888,7 +921,6 @@ test("can\u2019t process invalid image data", async () => {
             contentLength: 100000,
             isUploading: false,
             alternative: null,
-            analysis: null,
             transcript: null,
             preview: {
                 type: "Image",
@@ -897,6 +929,11 @@ test("can\u2019t process invalid image data", async () => {
                 error: {type: "Unknown"},
                 size: "Error",
                 placeholder: "Error",
+            },
+            analysis: {
+                isProcessing: false,
+                ok: false,
+                error: {type: "Unknown"},
             },
         }),
     );
@@ -934,7 +971,6 @@ test("can\u2019t process image with the wrong content type", async () => {
             contentLength: 33102,
             isUploading: false,
             alternative: null,
-            analysis: null,
             transcript: null,
             preview: {
                 type: "Image",
@@ -942,6 +978,7 @@ test("can\u2019t process image with the wrong content type", async () => {
                 size: "Processing",
                 placeholder: "Processing",
             },
+            analysis: {isProcessing: true},
         }),
     });
     assert(responseBody.ok);
@@ -956,7 +993,6 @@ test("can\u2019t process image with the wrong content type", async () => {
             contentLength: 33102,
             isUploading: false,
             alternative: null,
-            analysis: null,
             transcript: null,
             preview: {
                 type: "Image",
@@ -965,6 +1001,11 @@ test("can\u2019t process image with the wrong content type", async () => {
                 error: {type: "Unknown"},
                 size: "Error",
                 placeholder: expect.any(FileImagePreviewPlaceholder),
+            },
+            analysis: {
+                isProcessing: false,
+                ok: true,
+                result: testUploadFileAnalysisResult,
             },
         }),
     );
@@ -1002,7 +1043,6 @@ test("can upload and process image", async () => {
             contentLength: 33102,
             isUploading: false,
             alternative: null,
-            analysis: null,
             transcript: null,
             preview: {
                 type: "Image",
@@ -1010,6 +1050,7 @@ test("can upload and process image", async () => {
                 size: "Processing",
                 placeholder: "Processing",
             },
+            analysis: {isProcessing: true},
         }),
     });
     assert(responseBody.ok);
@@ -1024,7 +1065,6 @@ test("can upload and process image", async () => {
             contentLength: 33102,
             isUploading: false,
             alternative: null,
-            analysis: null,
             transcript: null,
             preview: {
                 type: "Image",
@@ -1032,6 +1072,11 @@ test("can upload and process image", async () => {
                 ok: true,
                 size: {width: 500, height: 375, scale: 1, hasAlpha: false},
                 placeholder: expect.any(FileImagePreviewPlaceholder),
+            },
+            analysis: {
+                isProcessing: false,
+                ok: true,
+                result: testUploadFileAnalysisResult,
             },
         }),
     );
@@ -1074,7 +1119,6 @@ test("can upload and process large image", async () => {
             contentLength: 2274056,
             isUploading: false,
             alternative: null,
-            analysis: null,
             transcript: null,
             preview: {
                 type: "Image",
@@ -1082,6 +1126,7 @@ test("can upload and process large image", async () => {
                 size: "Processing",
                 placeholder: "Processing",
             },
+            analysis: {isProcessing: true},
         }),
     });
     assert(responseBody.ok);
@@ -1096,7 +1141,6 @@ test("can upload and process large image", async () => {
             contentLength: 2274056,
             isUploading: false,
             alternative: null,
-            analysis: null,
             transcript: null,
             preview: {
                 type: "Image",
@@ -1104,6 +1148,11 @@ test("can upload and process large image", async () => {
                 ok: true,
                 size: {width: 3992, height: 2992, scale: 1, hasAlpha: false},
                 placeholder: expect.any(FileImagePreviewPlaceholder),
+            },
+            analysis: {
+                isProcessing: false,
+                ok: true,
+                result: testUploadFileAnalysisResult,
             },
         }),
     );
@@ -1146,7 +1195,6 @@ test("can upload image with a provided id", async () => {
             contentLength: 33102,
             isUploading: false,
             alternative: null,
-            analysis: null,
             transcript: null,
             preview: {
                 type: "Image",
@@ -1154,6 +1202,7 @@ test("can upload image with a provided id", async () => {
                 size: "Processing",
                 placeholder: "Processing",
             },
+            analysis: {isProcessing: true},
         }),
     });
     assert(responseBody.ok);
@@ -1168,7 +1217,6 @@ test("can upload image with a provided id", async () => {
             contentLength: 33102,
             isUploading: false,
             alternative: null,
-            analysis: null,
             transcript: null,
             preview: {
                 type: "Image",
@@ -1176,6 +1224,11 @@ test("can upload image with a provided id", async () => {
                 ok: true,
                 size: {width: 500, height: 375, scale: 1, hasAlpha: false},
                 placeholder: expect.any(FileImagePreviewPlaceholder),
+            },
+            analysis: {
+                isProcessing: false,
+                ok: true,
+                result: testUploadFileAnalysisResult,
             },
         }),
     );
@@ -1219,7 +1272,6 @@ test("can\u2019t upload image with the same provided id twice", async () => {
                 contentLength: 33102,
                 isUploading: false,
                 alternative: null,
-                analysis: null,
                 transcript: null,
                 preview: {
                     type: "Image",
@@ -1227,6 +1279,7 @@ test("can\u2019t upload image with the same provided id twice", async () => {
                     size: "Processing",
                     placeholder: "Processing",
                 },
+                analysis: {isProcessing: true},
             }),
         });
         assert(responseBody.ok);
@@ -1242,7 +1295,6 @@ test("can\u2019t upload image with the same provided id twice", async () => {
             contentLength: 33102,
             isUploading: false,
             alternative: null,
-            analysis: null,
             transcript: null,
             preview: {
                 type: "Image",
@@ -1250,6 +1302,11 @@ test("can\u2019t upload image with the same provided id twice", async () => {
                 ok: true,
                 size: {width: 500, height: 375, scale: 1, hasAlpha: false},
                 placeholder: expect.any(FileImagePreviewPlaceholder),
+            },
+            analysis: {
+                isProcessing: false,
+                ok: true,
+                result: testUploadFileAnalysisResult,
             },
         }),
     );

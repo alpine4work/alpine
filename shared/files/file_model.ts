@@ -130,11 +130,11 @@ export class FileModel {
     }
 
     /**
-     * Does this file have a stored transcript?
+     * Does this file have a transcript processing slot?
      *
-     * This is an immutable fact declared when the file is created. If this returns
-     * true then `initialData.transcript` may still be processing, so clients that need
-     * the transcript state itself should read the latest `FileModelData` from
+     * If this returns true then `initialData.transcript` may still be processing or
+     * may have completed without a transcript to store, so clients that need the
+     * transcript state itself should read the latest `FileModelData` from
      * `FileRegistry`.
      */
     public get hasTranscript(): boolean {

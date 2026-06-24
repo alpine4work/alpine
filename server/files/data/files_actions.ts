@@ -54,6 +54,7 @@ import {arrayFromAsyncIterable} from "~/shared/helpers/iterable/array_from_async
 import {mapAsyncIterableIterator} from "~/shared/helpers/iterable/map_async_iterable_iterator.js";
 import {generateChronologicalId, getChronologicalIdTime} from "~/shared/id/chronological_id.js";
 import {AccountId, DocumentId, FileId, PostDraftId, SpaceId} from "~/shared/id/types/id_types.js";
+import {hasFileAnalysisFeature} from "~/shared/spaces/has_file_analysis_feature.js";
 import {alpineCompanyKnownSpaceId} from "~/shared/spaces/known_space_ids.js";
 
 /**
@@ -298,7 +299,15 @@ export async function startUploadingFile(
     }
 
     const fileProcessorDeclaration = fileProcessorDeclarationByContentType[contentType];
-    const {hasAlternative, hasAnalysis, hasPreview, hasTranscript} = fileProcessorDeclaration;
+    const {
+        hasAlternative,
+        hasAnalysis: declaresAnalysis = false,
+        hasPreview,
+        hasTranscript: declaresTranscript = false,
+    } = fileProcessorDeclaration;
+    const hasFileAnalysisFeatureEnabled = hasFileAnalysisFeature(spaceId);
+    const hasAnalysis = hasFileAnalysisFeatureEnabled && declaresAnalysis;
+    const hasTranscript = hasFileAnalysisFeatureEnabled && declaresTranscript;
 
     let fileId: FileId;
     if (providedFileId === null) {
@@ -1300,7 +1309,14 @@ export class FileUploader {
     /**
      * Mark that a timestamped transcript has been stored for this file.
      */
-    public async finishProcessingTranscript(context: FileDataActionContext): Promise<void> {
+    public async finishProcessingTranscript(
+        context: FileDataActionContext,
+        {
+            isUnavailable,
+        }: {
+            readonly isUnavailable?: true;
+        } = {},
+    ): Promise<void> {
         this._authorize(context);
 
         await this._item.withLock(async itemRef => {
@@ -1312,9 +1328,7 @@ export class FileUploader {
                     fileId: this.fileId,
                 },
                 item => {
-                    if (!item.transcript) {
-                        throw new InternalError("File does not have a transcript");
-                    }
+                    if (!item.transcript) return item;
 
                     // No-op if we've already finished processing the transcript. This makes the
                     // function idempotent.
@@ -1325,6 +1339,7 @@ export class FileUploader {
                         transcript: {
                             isProcessing: false,
                             ok: true,
+                            ...(isUnavailable ? {isUnavailable} : {}),
                         },
                     };
                 },
@@ -1351,9 +1366,7 @@ export class FileUploader {
                     fileId: this.fileId,
                 },
                 item => {
-                    if (!item.transcript) {
-                        throw new InternalError("File does not have a transcript");
-                    }
+                    if (!item.transcript) return item;
 
                     // No-op if we've already finished processing the transcript. This makes the
                     // function idempotent.

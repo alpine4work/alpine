@@ -31,15 +31,26 @@ import {
     UnauthenticatedError,
 } from "~/shared/error/error.js";
 import {FileCodePreviewContent} from "~/shared/files/file_code_preview_content.js";
-import {FileContentType} from "~/shared/files/file_content_type.js";
+import {
+    FileContentType,
+    isFileAudioContentType,
+    isFileImageContentType,
+    isFileVideoContentType,
+} from "~/shared/files/file_content_type.js";
 import {FileImagePreviewPlaceholder} from "~/shared/files/file_image_preview_placeholder.js";
-import {FileModel} from "~/shared/files/file_model.js";
+import {FileModel as SharedFileModel} from "~/shared/files/file_model.js";
 import {createSimplePostContent} from "~/shared/forum/post_content_schema.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 import {generateChronologicalId, getChronologicalIdTime} from "~/shared/id/chronological_id.js";
 import {PostDraftId, SpaceId} from "~/shared/id/types/id_types.js";
+import {hasFileAnalysisFeature} from "~/shared/spaces/has_file_analysis_feature.js";
 
 const context = createTestContext();
+const originalNodeEnv = process.env.NODE_ENV;
+
+afterEach(() => {
+    process.env.NODE_ENV = originalNodeEnv;
+});
 
 const fileImagePreviewPlaceholder1 = new FileImagePreviewPlaceholder([
     [
@@ -138,6 +149,42 @@ const fileCodePreviewContent2 = new FileCodePreviewContent([
     {type: "String", classes: "tok-punctuation", string: ")"},
     {type: "String", classes: "tok-punctuation", string: ";"},
 ]);
+
+class FileModel extends SharedFileModel {
+    constructor(initialData: ConstructorParameters<typeof SharedFileModel>[0]) {
+        super({
+            ...initialData,
+            ...fileAnalysisAndTranscriptDefaultsForTest(initialData),
+        });
+    }
+}
+
+function fileAnalysisAndTranscriptDefaultsForTest({
+    analysis,
+    contentType,
+    spaceId,
+    transcript,
+}: ConstructorParameters<typeof SharedFileModel>[0]) {
+    if (!hasFileAnalysisFeature(spaceId)) return {};
+
+    const analysisDefault = {isProcessing: true} as const;
+    const transcriptDefault = {isProcessing: true} as const;
+    const hasAnalysis =
+        isFileImageContentType(contentType) ||
+        isFileAudioContentType(contentType) ||
+        isFileVideoContentType(contentType);
+    const hasTranscript =
+        isFileAudioContentType(contentType) || isFileVideoContentType(contentType);
+
+    return {
+        ...(hasAnalysis && (analysis === undefined || analysis === null)
+            ? {analysis: analysisDefault}
+            : {}),
+        ...(hasTranscript && (transcript === undefined || transcript === null)
+            ? {transcript: transcriptDefault}
+            : {}),
+    };
+}
 
 async function uploadAndStartProcessingFile(
     context: ServerSessionActionContext,
@@ -318,6 +365,37 @@ test("can start uploading and processing files", async () => {
     }
 });
 
+test("does not create analysis or transcript slots outside the feature flag", async () => {
+    const space = await TestSpace.create(context);
+    const session = await space.createSession();
+    process.env.NODE_ENV = "production";
+
+    const {fileId} = await startUploadingFile(session.action(), {
+        spaceId: space.id,
+        contentType: "audio/mpeg",
+        contentLength: 100,
+    });
+
+    expect(await getFileAsUploader(space.systemAction(), fileId)).toEqual(
+        new FileModel({
+            spaceId: space.id,
+            id: fileId,
+            contentType: "audio/mpeg",
+            contentLength: 100,
+            isUploading: true,
+            alternative: null,
+            preview: {
+                type: "Audio",
+                isProcessing: true,
+                duration: "Processing",
+                metadata: "Processing",
+            },
+            analysis: null,
+            transcript: null,
+        }),
+    );
+});
+
 test("can finish processing file analysis", async () => {
     const space = await TestSpace.create(context);
     const session = await space.createSession();
@@ -414,13 +492,57 @@ test("can finish processing file analysis with error", async () => {
     );
 });
 
+test("can finish processing file analysis with an error", async () => {
+    const space = await TestSpace.create(context);
+    const session = await space.createSession();
+
+    let fileUploader = await uploadAndStartProcessingFile(session.action(), {
+        spaceId: space.id,
+        contentType: "image/png",
+        contentLength: 100,
+    });
+
+    fileUploader = await markFileAnalysisAsProcessingForTest(session.action(), fileUploader);
+
+    await fileUploader.finishProcessingAnalysisWithError(session.action(), {
+        type: "Unknown",
+    });
+
+    expect(
+        await getFileAsUploader(space.systemAction(), fileUploader.fileId, {
+            consistency: "Strong",
+        }),
+    ).toEqual(
+        new FileModel({
+            spaceId: space.id,
+            id: fileUploader.fileId,
+            contentType: "image/png",
+            contentLength: 100,
+            isUploading: false,
+            alternative: null,
+            preview: {
+                type: "Image",
+                isProcessing: true,
+                size: "Processing",
+                placeholder: "Processing",
+            },
+            analysis: {
+                isProcessing: false,
+                ok: false,
+                error: {type: "Unknown"},
+            },
+            transcript: null,
+        }),
+    );
+});
+
 test("throws when finishing file analysis that was not declared", async () => {
     const space = await TestSpace.create(context);
     const session = await space.createSession();
 
     const fileUploader = await uploadAndStartProcessingFile(session.action(), {
         spaceId: space.id,
-        contentType: "image/png",
+        contentType: "text/plain",
         contentLength: 100,
     });
 
@@ -514,19 +636,72 @@ test("can finish processing file transcript with error", async () => {
     );
 });
 
-test("throws when finishing a transcript that was not declared", async () => {
+test("can finish processing transcript as unavailable", async () => {
     const space = await TestSpace.create(context);
     const session = await space.createSession();
 
-    const fileUploader = await uploadAndStartProcessingFile(session.action(), {
+    let fileUploader = await uploadAndStartProcessingFile(session.action(), {
         spaceId: space.id,
         contentType: "audio/mpeg",
         contentLength: 100,
     });
 
-    await expect(fileUploader.finishProcessingTranscript(session.action())).rejects.toThrow(
-        "File does not have a transcript",
+    fileUploader = await markFileTranscriptAsProcessingForTest(session.action(), fileUploader);
+
+    await fileUploader.finishProcessingTranscript(session.action(), {isUnavailable: true});
+
+    expect(
+        await getFileAsUploader(space.systemAction(), fileUploader.fileId, {
+            consistency: "Strong",
+        }),
+    ).toEqual(
+        new FileModel({
+            spaceId: space.id,
+            id: fileUploader.fileId,
+            contentType: "audio/mpeg",
+            contentLength: 100,
+            isUploading: false,
+            alternative: null,
+            analysis: null,
+            preview: {
+                type: "Audio",
+                isProcessing: true,
+                duration: "Processing",
+                metadata: "Processing",
+            },
+            transcript: {
+                isProcessing: false,
+                ok: true,
+                isUnavailable: true,
+            },
+        }),
     );
+});
+
+test("ignores transcript completion after transcript was made unavailable", async () => {
+    const space = await TestSpace.create(context);
+    const session = await space.createSession();
+
+    let fileUploader = await uploadAndStartProcessingFile(session.action(), {
+        spaceId: space.id,
+        contentType: "audio/mpeg",
+        contentLength: 100,
+    });
+
+    fileUploader = await markFileTranscriptAsProcessingForTest(session.action(), fileUploader);
+    await fileUploader.finishProcessingTranscript(session.action(), {isUnavailable: true});
+    await fileUploader.finishProcessingTranscript(session.action());
+    await fileUploader.finishProcessingTranscriptWithError(session.action(), {
+        type: "Unknown",
+    });
+
+    const file = await getFileAsUploader(session.action(), fileUploader.fileId);
+    expect(file.hasTranscript).toBe(true);
+    expect(file.initialData.transcript).toEqual({
+        isProcessing: false,
+        ok: true,
+        isUnavailable: true,
+    });
 });
 
 test("can only start uploading and processing a file if you have access to the space", async () => {

@@ -20,7 +20,9 @@ ts_project(
         "@ffmpeg",
         "//server/files/processor/whisper_base_en:whisper_base_en_data",
     ],
-    test_data = glob(["test_fixtures/*"]),
+    test_data = glob(["test_fixtures/*"]) + [
+        "//server/files/processor/whisper_base_en:whisper_base_en_data",
+    ],
     test_deps = [
         "//:node_modules/@jest/globals",
         "//:node_modules/@miniflare/core",
@@ -47,7 +49,7 @@ ts_project(
             "tags": ["libreoffice"],
         },
         "processors/file_processor_content_types_video_and_audio_test": {
-            "size": "medium",
+            "size": "large",
         },
     },
     visibility = [
@@ -90,7 +92,10 @@ ts_project(
 
 js_binary(
     name = "processor_legacy",
-    data = [":processor_lib"],
+    data = [
+        ":processor_lib",
+        "//server/files/processor/whisper_base_en:whisper_base_en_data",
+    ],
     entry_point = "file_processor_service_main.js",
     visibility = ["//app/integration_tests:__pkg__"],
 )

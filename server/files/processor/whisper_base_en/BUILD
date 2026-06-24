@@ -32,5 +32,8 @@ js_library(
         "@file_process_whisper_base_en_encoder_model_quantized//file",
         "@file_process_whisper_base_en_decoder_model_merged_quantized//file",
     ],
-    visibility = ["//server/files/processor:__subpackages__"],
+    visibility = [
+        "//server/files/processor:__subpackages__",
+        "//server/importer:__subpackages__",
+    ],
 )

@@ -26,7 +26,9 @@ export function createFileCodeProcessor(contentType: FileCodeContentType): FileP
     return {
         type: "Code",
         hasAlternative: false,
+        hasAnalysis: false,
         hasPreview: {type: "Code"},
+        hasTranscript: false,
         process: (context, {spaceId, fileId, signal}) => ({
             codePreviewContentPromise: (async () => {
                 const object = await context.r2.GetObject(

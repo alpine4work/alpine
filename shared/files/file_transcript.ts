@@ -5,8 +5,10 @@ import {Schema, SchemaType} from "~/shared/schema/schema.js";
  * Transcript processing state for media files.
  *
  * The transcript JSON itself is stored in R2 at
- * `${spaceId}/${fileId}.transcript.json`. This slot only communicates whether a
- * transcript will exist and whether the client should keep polling for it.
+ * `${spaceId}/${fileId}.transcript.json`. This slot communicates whether a
+ * transcript exists, whether transcript generation is still processing, whether
+ * transcript generation completed without a transcript to store, or whether
+ * transcript generation failed.
  */
 export const FileTranscriptSchema = Schema.booleanUnion(
     "isProcessing",
@@ -17,6 +19,7 @@ export const FileTranscriptSchema = Schema.booleanUnion(
         Schema.object({
             isProcessing: Schema.value(false),
             ok: Schema.value(true),
+            isUnavailable: Schema.value(true).optional(),
         }),
         Schema.object({
             isProcessing: Schema.value(false),

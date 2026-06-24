@@ -28,6 +28,7 @@ export async function processFileJob(
     jobStartTime: Date,
     span: TracerSpan,
 ): Promise<void> {
+    void jobStartTime;
     span.addData({file: {jobReason: job.reason, jobType: job.type}});
     await processFile(context, span, {
         spaceId: job.spaceId,

@@ -20,7 +20,7 @@ const fileProcessWhisperModelBundleVersion = "xenova-onnx-2026-05-29";
  * Keep this list in sync with:
  *
  * - the `@xenova/transformers` version in `package.json`
- * - the model-loading path in `process_file_generate_metadata.ts`
+ * - the model-loading path in `process_file_analysis.ts`
  * - `server/files/processor/whisper_base_en/README.md`
  */
 const fileProcessWhisperModelFiles: ReadonlyArray<FileProcessWhisperModelFile> = [

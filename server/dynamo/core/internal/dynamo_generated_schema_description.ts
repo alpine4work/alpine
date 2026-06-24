@@ -8906,6 +8906,13 @@ export const dynamoGeneratedSchemaDescription: {
                                                                     "value": true
                                                                 },
                                                                 "optional": false
+                                                            },
+                                                            "isUnavailable": {
+                                                                "valueSchema": {
+                                                                    "type": "Value",
+                                                                    "value": true
+                                                                },
+                                                                "optional": true
                                                             }
                                                         }
                                                     },

@@ -1575,6 +1575,8 @@ export type TracerEventData = {
             readonly audioPreviewDurationDurationMs?: number;
             readonly audioPreviewMetadataDurationMs?: number;
             readonly codePreviewContentDurationMs?: number;
+            readonly analysisDurationMs?: number;
+            readonly transcriptDurationMs?: number;
 
             /**
              * The ratio of the original file's duration to the file's processing duration.

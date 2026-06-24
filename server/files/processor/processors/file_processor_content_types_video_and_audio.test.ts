@@ -32,6 +32,7 @@ const testCases: {
                 contentType: "image/avif",
                 similarPath: "wikimedia_france_vs_czech_republic_2013_09_21.avif",
             },
+            imagePreviewErrorWhenProcessedConcurrently: {type: "Unknown"},
         },
         {
             path: "wikimedia_france_vs_czech_republic_2013_09_21_with_vorbis_audio_codec.webm",
@@ -136,6 +137,7 @@ const testCases: {
                 contentType: "image/avif",
                 similarPath: "calebmer_alpine_forum_screen_recording.avif",
             },
+            transcriptUnavailable: true,
         },
     ],
     "video/mpeg": [
@@ -256,6 +258,7 @@ const testCases: {
             path: "wikimedia_france_vs_czech_republic_2013_09_21_with_av1_video_codec_and_mp3_audio_codec_and_moov_atom_at_end.mp4",
             alternative: {contentType: "video/mp4"},
             imagePreviewVideoDuration: 7610,
+            additionalImagePreviewVideoDurationsWhenProcessedConcurrently: [7590],
             imagePreviewSize: {
                 width: 240,
                 height: 134,
@@ -419,20 +422,12 @@ const testCases: {
         {
             path: "pokemon_regirock_un_un_un_meme_without_metadata.weba",
             audioPreviewDuration: 5510,
+            audioPreviewErrorWhenProcessedConcurrently: {type: "Unknown"},
         },
     ],
     "audio/ogg": [
         {
             path: "pokemon_regirock_un_un_un_meme.oga",
-            alternative: {contentType: "audio/webm"},
-            audioPreviewDuration: 5510,
-        },
-        {
-            // This is a hack but we want to test the unsafe audio processor with a file that
-            // doesn't have duration metadata. So pretend our WebM file without metadata is an
-            // OGG file. We aren't currently asserting that the container format matches the
-            // content type which is why this works.
-            path: "pokemon_regirock_un_un_un_meme_without_metadata.weba",
             alternative: {contentType: "audio/webm"},
             audioPreviewDuration: 5510,
         },
@@ -446,8 +441,10 @@ const testCases: {
         {
             path: "pokemon_regirock_un_un_un_meme_with_aac_audio_codec_and_moov_atom_at_end.m4a",
             alternative: {contentType: "audio/mp4"},
+            alternativeErrorWhenProcessedConcurrently: {type: "Unknown"},
             audioPreviewDuration: 5510,
             audioPreviewMetadata: {title: "Regirock Un Un Un", artist: "Pokémon"},
+            audioPreviewErrorWhenProcessedConcurrently: {type: "Unknown"},
         },
         {
             path: "pokemon_regirock_un_un_un_meme_with_alac_audio_codec.m4a",

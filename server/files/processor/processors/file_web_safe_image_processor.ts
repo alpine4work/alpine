@@ -2,6 +2,7 @@ import fsSync from "fs";
 import {join as joinPath} from "path";
 import {Readable as ReadableStream} from "stream";
 import {finished} from "stream/promises";
+import {createFileProcessorAnalysisPromises} from "~/server/files/processor/processors/create_file_processor_analysis_promises.js";
 import {processImageFile} from "~/server/files/processor/processors/file_image_processor_base.js";
 import {FileProcessor} from "~/server/files/processor/processors/file_processor.js";
 import {filesBucketName} from "~/server/helpers/files_cloudflare_r2_bucket_name.js";
@@ -15,14 +16,23 @@ export function createFileWebSafeImageProcessor(
     return {
         type: "WebSafeImage",
         hasAlternative: false,
+        hasAnalysis: true,
         hasPreview: {
             type: "Image",
             hasContent: false,
             hasVideoDuration: false,
         },
+        hasTranscript: false,
         process: async (
             context,
-            {spaceId, fileId, signal, contentLength, withTemporaryDirectory},
+            {
+                spaceId,
+                fileId,
+                signal,
+                contentLength,
+                parentTemporaryDirectoryPath,
+                withTemporaryDirectory,
+            },
         ) => {
             const [temporaryDirectoryPath, object] = await runAllPromises([
                 withTemporaryDirectory(),
@@ -42,7 +52,18 @@ export function createFileWebSafeImageProcessor(
 
             await finished(object.Body.pipe(inputWriteStream));
 
-            return processImageFile(context, inputPath, {signal, contentType, contentLength});
+            return {
+                ...processImageFile(context, inputPath, {signal, contentType, contentLength}),
+                ...createFileProcessorAnalysisPromises(context, {
+                    contentType,
+                    fileId,
+                    hasTranscript: false,
+                    inputPathIfExists: inputPath,
+                    parentTemporaryDirectoryPath,
+                    signal,
+                    spaceId,
+                }),
+            };
         },
     };
 }

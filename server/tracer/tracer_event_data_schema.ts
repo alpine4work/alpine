@@ -512,6 +512,8 @@ const TracerEventDataSchema = {
             audioPreviewDurationDurationMs: Schema.float,
             audioPreviewMetadataDurationMs: Schema.float,
             codePreviewContentDurationMs: Schema.float,
+            analysisDurationMs: Schema.float,
+            transcriptDurationMs: Schema.float,
             imagePreviewVideoDurationToAlternativeProcessingDurationRatio: Schema.float,
         },
         avatar: {

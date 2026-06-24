@@ -5,12 +5,11 @@ import {join as joinPath} from "path";
 import {Readable} from "stream";
 import {CloudflareR2ContextModule} from "~/server/cloudflare/r2/cloudflare_r2_context_module.js";
 import {FileProcessorActionContext} from "~/server/files/data/file_processor_context.js";
-import {FileUploader} from "~/server/files/data/files_actions.js";
 import {FileProcessorAnalysisResponse} from "~/server/files/processor/file_processor_tag_instructions.js";
 import {
-    isFileContentTypeSupportedForMetadataGeneration,
-    processFileGenerateMetadata,
-} from "~/server/files/processor/process_file_generate_metadata.js";
+    isFileContentTypeSupportedForAnalysis,
+    processFileAnalysis,
+} from "~/server/files/processor/process_file_analysis.js";
 import {
     LanguageModelsGenerateObjectOptions,
     LanguageModelsGenerateObjectResult,
@@ -42,15 +41,6 @@ type MetadataContextForTest = {
             action: (context: FileProcessorActionContext, span: TracerSpan) => Promise<unknown>,
         ) => Promise<unknown>;
     };
-};
-
-type FileUploaderForTest = {
-    readonly finishProcessingAnalysis: jest.MockedFunction<
-        FileUploader["finishProcessingAnalysis"]
-    >;
-    readonly finishProcessingTranscript: jest.MockedFunction<
-        FileUploader["finishProcessingTranscript"]
-    >;
 };
 
 function createMetadataContextForTest({
@@ -89,17 +79,6 @@ function createMetadataContextForTest({
     };
 }
 
-function createFileUploaderForTest(): FileUploaderForTest {
-    return {
-        finishProcessingAnalysis: jest
-            .fn<FileUploader["finishProcessingAnalysis"]>()
-            .mockResolvedValue(),
-        finishProcessingTranscript: jest
-            .fn<FileUploader["finishProcessingTranscript"]>()
-            .mockResolvedValue(),
-    };
-}
-
 function createGenerateObjectMock(
     result: LanguageModelsGenerateObjectResult<FileProcessorAnalysisResponse>,
 ): jest.MockedFunction<GenerateObjectForTest> {
@@ -118,14 +97,14 @@ afterEach(() => {
     jest.restoreAllMocks();
 });
 
-test("reports which content types are supported for metadata generation", () => {
-    expect(isFileContentTypeSupportedForMetadataGeneration("image/png")).toBe(true);
-    expect(isFileContentTypeSupportedForMetadataGeneration("audio/mpeg")).toBe(true);
-    expect(isFileContentTypeSupportedForMetadataGeneration("video/mp4")).toBe(true);
-    expect(isFileContentTypeSupportedForMetadataGeneration("application/json")).toBe(false);
+test("reports which content types are supported for analysis", () => {
+    expect(isFileContentTypeSupportedForAnalysis("image/png")).toBe(true);
+    expect(isFileContentTypeSupportedForAnalysis("audio/mpeg")).toBe(true);
+    expect(isFileContentTypeSupportedForAnalysis("video/mp4")).toBe(true);
+    expect(isFileContentTypeSupportedForAnalysis("application/json")).toBe(false);
 });
 
-test("persists analysis for supported image files", async () => {
+test("returns analysis for supported image files", async () => {
     const generateObject = createGenerateObjectMock({
         object: {
             caption: "  Cat in a window.  ",
@@ -148,12 +127,10 @@ test("persists analysis for supported image files", async () => {
     });
     const getObject = createGetObjectMock(Readable.from(onePixelPng));
     const context = createMetadataContextForTest({generateObject, getObject});
-    const fileUploader = createFileUploaderForTest();
 
-    await processFileGenerateMetadata(context as unknown as FileProcessorActionContext, {
+    const result = await processFileAnalysis(context as unknown as FileProcessorActionContext, {
         contentType: "image/png",
         fileId: "file1" as never,
-        fileUploader: fileUploader as unknown as FileUploader,
         parentTemporaryDirectoryPath: "/tmp",
         spaceId: "space1" as never,
     });
@@ -177,11 +154,13 @@ test("persists analysis for supported image files", async () => {
             ],
         }),
     );
-    expect(fileUploader.finishProcessingAnalysis).toHaveBeenCalledTimes(1);
-    expect(fileUploader.finishProcessingAnalysis.mock.calls[0]?.[1]).toMatchObject({
-        caption: "Cat in a window.",
-        description: "Cat in a window.",
-        tags: ["cat", "pet", "window", "light", "curtain", "house", "sun", "animal", "extra"],
+    expect(result).toMatchObject({
+        ok: true,
+        analysis: {
+            caption: "Cat in a window.",
+            description: "Cat in a window.",
+            tags: ["cat", "pet", "window", "light", "curtain", "house", "sun", "animal", "extra"],
+        },
     });
 });
 
@@ -202,18 +181,17 @@ test("drops tags from the end until the combined tag text fits", async () => {
         generateObject,
         getObject: createGetObjectMock(Readable.from(onePixelPng)),
     });
-    const fileUploader = createFileUploaderForTest();
 
-    await processFileGenerateMetadata(context as unknown as FileProcessorActionContext, {
+    const result = await processFileAnalysis(context as unknown as FileProcessorActionContext, {
         contentType: "image/png",
         fileId: "file1" as never,
-        fileUploader: fileUploader as unknown as FileUploader,
         parentTemporaryDirectoryPath: "/tmp",
         spaceId: "space1" as never,
     });
 
-    expect(fileUploader.finishProcessingAnalysis.mock.calls[0]?.[1]).toMatchObject({
-        tags: [firstTag, secondTag, thirdTag],
+    expect(result).toMatchObject({
+        ok: true,
+        analysis: {tags: [firstTag, secondTag, thirdTag]},
     });
 });
 
@@ -236,23 +214,22 @@ test("keeps dropping tags until multiple tags have been removed", async () => {
         generateObject,
         getObject: createGetObjectMock(Readable.from(onePixelPng)),
     });
-    const fileUploader = createFileUploaderForTest();
 
-    await processFileGenerateMetadata(context as unknown as FileProcessorActionContext, {
+    const result = await processFileAnalysis(context as unknown as FileProcessorActionContext, {
         contentType: "image/png",
         fileId: "file1" as never,
-        fileUploader: fileUploader as unknown as FileUploader,
         parentTemporaryDirectoryPath: "/tmp",
         spaceId: "space1" as never,
     });
 
-    expect(fileUploader.finishProcessingAnalysis.mock.calls[0]?.[1]).toMatchObject({
-        tags: [firstTag, secondTag, thirdTag],
+    expect(result).toMatchObject({
+        ok: true,
+        analysis: {tags: [firstTag, secondTag, thirdTag]},
     });
 });
 
 test("uses the provided local input path instead of re-downloading the file", async () => {
-    const inputPath = joinPath("/tmp", `process_file_generate_metadata_${Date.now()}.png`);
+    const inputPath = joinPath("/tmp", `process_file_analysis_${Date.now()}.png`);
     await fs.writeFile(inputPath, Uint8Array.from(onePixelPng));
 
     try {
@@ -261,18 +238,16 @@ test("uses the provided local input path instead of re-downloading the file", as
             object: {
                 caption: "Local test image.",
                 description:
-                    "A local test image used to verify metadata generation without re-downloading from storage.",
+                    "A local test image used to verify analysis without re-downloading from storage.",
                 tags: ["local", "test", "image"],
             },
             text: "{}",
         });
         const context = createMetadataContextForTest({generateObject, getObject});
-        const fileUploader = createFileUploaderForTest();
 
-        await processFileGenerateMetadata(context as unknown as FileProcessorActionContext, {
+        await processFileAnalysis(context as unknown as FileProcessorActionContext, {
             contentType: "image/png",
             fileId: "file1" as never,
-            fileUploader: fileUploader as unknown as FileUploader,
             inputPathIfExists: inputPath,
             parentTemporaryDirectoryPath: "/tmp",
             spaceId: "space1" as never,
@@ -285,13 +260,13 @@ test("uses the provided local input path instead of re-downloading the file", as
     }
 });
 
-test("aborts in-flight LLM metadata generation when the caller signal aborts", async () => {
-    const inputPath = joinPath("/tmp", `process_file_generate_metadata_${Date.now()}.png`);
+test("aborts in-flight LLM analysis when the caller signal aborts", async () => {
+    const inputPath = joinPath("/tmp", `process_file_analysis_${Date.now()}.png`);
     await fs.writeFile(inputPath, Uint8Array.from(onePixelPng));
 
     try {
         const abortController = new AbortController();
-        const abortError = new InternalError("metadata aborted");
+        const abortError = new InternalError("analysis aborted");
         const generateObject = jest
             .fn<GenerateObjectForTest>()
             .mockImplementation(async options => {
@@ -317,24 +292,18 @@ test("aborts in-flight LLM metadata generation when the caller signal aborts", a
                 });
             });
         const context = createMetadataContextForTest({generateObject});
-        const fileUploader = createFileUploaderForTest();
 
-        const result = await processFileGenerateMetadata(
-            context as unknown as FileProcessorActionContext,
-            {
-                contentType: "image/png",
-                fileId: "file1" as never,
-                fileUploader: fileUploader as unknown as FileUploader,
-                inputPathIfExists: inputPath,
-                parentTemporaryDirectoryPath: "/tmp",
-                signal: abortController.signal,
-                spaceId: "space1" as never,
-            },
-        );
+        const result = await processFileAnalysis(context as unknown as FileProcessorActionContext, {
+            contentType: "image/png",
+            fileId: "file1" as never,
+            inputPathIfExists: inputPath,
+            parentTemporaryDirectoryPath: "/tmp",
+            signal: abortController.signal,
+            spaceId: "space1" as never,
+        });
 
         expect(generateObject).toHaveBeenCalledTimes(1);
         expect(result).toEqual({ok: false, error: abortError});
-        expect(fileUploader.finishProcessingAnalysis).not.toHaveBeenCalled();
     } finally {
         await fs.unlink(inputPath).catch(() => {});
     }
@@ -353,21 +322,15 @@ test("returns not ok when analysis has no tags", async () => {
         }),
         getObject: createGetObjectMock(Readable.from(onePixelPng)),
     });
-    const fileUploader = createFileUploaderForTest();
 
-    const result = await processFileGenerateMetadata(
-        context as unknown as FileProcessorActionContext,
-        {
-            contentType: "image/png",
-            fileId: "file1" as never,
-            fileUploader: fileUploader as unknown as FileUploader,
-            parentTemporaryDirectoryPath: "/tmp",
-            spaceId: "space1" as never,
-        },
-    );
+    const result = await processFileAnalysis(context as unknown as FileProcessorActionContext, {
+        contentType: "image/png",
+        fileId: "file1" as never,
+        parentTemporaryDirectoryPath: "/tmp",
+        spaceId: "space1" as never,
+    });
 
     expect(result).toMatchObject({ok: false, error: {message: errorMessage}});
-    expect(fileUploader.finishProcessingAnalysis).not.toHaveBeenCalled();
 });
 
 test("returns not ok when downloading the file fails", async () => {
@@ -385,16 +348,12 @@ test("returns not ok when downloading the file fails", async () => {
         getObject,
     });
 
-    const result = await processFileGenerateMetadata(
-        context as unknown as FileProcessorActionContext,
-        {
-            contentType: "image/png",
-            fileId: "file1" as never,
-            fileUploader: createFileUploaderForTest() as unknown as FileUploader,
-            parentTemporaryDirectoryPath: "/tmp",
-            spaceId: "space1" as never,
-        },
-    );
+    const result = await processFileAnalysis(context as unknown as FileProcessorActionContext, {
+        contentType: "image/png",
+        fileId: "file1" as never,
+        parentTemporaryDirectoryPath: "/tmp",
+        spaceId: "space1" as never,
+    });
 
     expect(result).toEqual({ok: false, error});
 });
@@ -415,16 +374,12 @@ test("returns not ok when the downloaded body is not a readable stream", async (
         getObject,
     });
 
-    const result = await processFileGenerateMetadata(
-        context as unknown as FileProcessorActionContext,
-        {
-            contentType: "image/png",
-            fileId: "file1" as never,
-            fileUploader: createFileUploaderForTest() as unknown as FileUploader,
-            parentTemporaryDirectoryPath: "/tmp",
-            spaceId: "space1" as never,
-        },
-    );
+    const result = await processFileAnalysis(context as unknown as FileProcessorActionContext, {
+        contentType: "image/png",
+        fileId: "file1" as never,
+        parentTemporaryDirectoryPath: "/tmp",
+        spaceId: "space1" as never,
+    });
 
     expect(result.ok).toBe(false);
 });
@@ -436,16 +391,12 @@ test("returns not ok when the LLM generation step fails", async () => {
         getObject: createGetObjectMock(Readable.from(onePixelPng)),
     });
 
-    const result = await processFileGenerateMetadata(
-        context as unknown as FileProcessorActionContext,
-        {
-            contentType: "image/png",
-            fileId: "file1" as never,
-            fileUploader: createFileUploaderForTest() as unknown as FileUploader,
-            parentTemporaryDirectoryPath: "/tmp",
-            spaceId: "space1" as never,
-        },
-    );
+    const result = await processFileAnalysis(context as unknown as FileProcessorActionContext, {
+        contentType: "image/png",
+        fileId: "file1" as never,
+        parentTemporaryDirectoryPath: "/tmp",
+        spaceId: "space1" as never,
+    });
 
     expect(result).toEqual({ok: false, error: llmError});
 });

@@ -1590,6 +1590,10 @@ Resources:
                           Type: double
                         - Name: file__processing__code_preview_content_duration_ms
                           Type: double
+                        - Name: file__processing__analysis_duration_ms
+                          Type: double
+                        - Name: file__processing__transcript_duration_ms
+                          Type: double
                         - Name: file__processing__image_preview_video_duration_to_alternative_processing_duration_ratio
                           Type: double
                         - Name: file__avatar__resize__quality

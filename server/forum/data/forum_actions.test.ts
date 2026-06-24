@@ -17,7 +17,7 @@ import {ServerActionContext} from "~/server/context/server_action_context.js";
 import {dynamoClientExecuteActionTestCounter} from "~/server/dynamo/core/dynamo_client_execute_action_test_counter.js";
 import {createTestContext} from "~/server/dynamo/test_helpers/create_test_context.js";
 import {attachFileAsUploader, getFileFromAttachment} from "~/server/files/data/files_actions.js";
-import {TestFile} from "~/server/files/test_helpers/test_file.js";
+import {TestFile, testFileAnalysis} from "~/server/files/test_helpers/test_file.js";
 import {addAccountGrantsToChannelAccessPolicy} from "~/server/forum/data/add_account_grants_to_channel_access_policy.js";
 import {
     authorizeChannelAccess,
@@ -6823,7 +6823,7 @@ test("will attach referenced files to post when creating from draft", async () =
             contentLength: 5232,
             isUploading: false,
             alternative: null,
-            analysis: null,
+            analysis: testFileAnalysis,
             transcript: null,
             preview: expect.any(Object),
         }),

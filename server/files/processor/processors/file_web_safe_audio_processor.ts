@@ -1,6 +1,7 @@
 import {spawn} from "child_process";
 import {addMinutes} from "date-fns";
 import {FileProcessorActionContext} from "~/server/files/data/file_processor_context.js";
+import {createFileProcessorAnalysisPromises} from "~/server/files/processor/processors/create_file_processor_analysis_promises.js";
 import {FileProcessor} from "~/server/files/processor/processors/file_processor.js";
 import {
     ffmpegExecutablePath,
@@ -35,14 +36,33 @@ export function createFileWebSafeAudioProcessor(
     return {
         type: "WebSafeAudio",
         hasAlternative: false,
+        hasAnalysis: true,
         hasPreview: {type: "Audio"},
-        process: async (context, {spaceId, fileId, signal, contentLength}) => {
+        hasTranscript: true,
+        process: async (
+            context,
+            {spaceId, fileId, signal, contentLength, parentTemporaryDirectoryPath},
+        ) => {
             const inputUrl = await context.r2.getGetObjectSignedUrl(addMinutes(new Date(), 60), {
                 Bucket: filesBucketName,
                 Key: `${spaceId}/${fileId}`,
             });
 
-            return processFileWebSafeAudio(context, inputUrl, {signal, contentType, contentLength});
+            return {
+                ...processFileWebSafeAudio(context, inputUrl, {
+                    signal,
+                    contentType,
+                    contentLength,
+                }),
+                ...createFileProcessorAnalysisPromises(context, {
+                    contentType,
+                    fileId,
+                    hasTranscript: true,
+                    parentTemporaryDirectoryPath,
+                    signal,
+                    spaceId,
+                }),
+            };
         },
     };
 }

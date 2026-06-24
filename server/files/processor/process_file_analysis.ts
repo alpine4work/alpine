@@ -6,7 +6,6 @@ import sharp from "sharp";
 import {Readable as ReadableStream} from "stream";
 import {finished} from "stream/promises";
 import {FileProcessorActionContext} from "~/server/files/data/file_processor_context.js";
-import {FileUploader} from "~/server/files/data/files_actions.js";
 import {
     FileProcessorAnalysisResponse,
     FileProcessorAnalysisResponseSchema,
@@ -56,11 +55,16 @@ import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
 import {isObject} from "~/shared/helpers/object/is_object.js";
 import {FileId, SpaceId} from "~/shared/id/types/id_types.js";
 
-export type ProcessFileGenerateMetadataResult =
-    | {readonly ok: true}
+export type ProcessFileAnalysisResult =
+    | {readonly ok: true; readonly analysis: FileAnalysisResult}
     | {readonly ok: false; readonly error: unknown};
 
-type FileProcessTranscriptJson = {
+export type ProcessFileAnalysisTranscriptResult =
+    | {readonly ok: true; readonly transcriptJson: FileProcessTranscriptJson}
+    | {readonly ok: true; readonly isUnavailable: true}
+    | {readonly ok: false; readonly error: unknown};
+
+export type FileProcessTranscriptJson = {
     readonly text: string;
     readonly chunks?: ReadonlyArray<{
         readonly text: string;
@@ -68,7 +72,7 @@ type FileProcessTranscriptJson = {
     }>;
 };
 
-export type FileContentTypeSupportedForMetadataGeneration =
+export type FileContentTypeSupportedForAnalysis =
     | FileAudioContentType
     | FileImageContentType
     | FileVideoContentType;
@@ -99,7 +103,7 @@ let fileProcessTagsAsrPromise: Promise<{
 }> | null = null;
 
 /**
- * Generate search-oriented analysis for audio, video, and image files.
+ * Analyze audio, video, and image files for search-oriented descriptions.
  *
  * This function never throws analysis failures to its caller. Instead it converts
  * them into `{ok: false}` so the caller can decide whether analysis failure should
@@ -111,38 +115,44 @@ let fileProcessTagsAsrPromise: Promise<{
  *
  * TODO: Support more file types.
  */
-export async function processFileGenerateMetadata(
+export async function processFileAnalysis(
     context: FileProcessorActionContext,
     {
         contentType,
         fileId,
-        fileUploader,
         inputPathIfExists,
+        onTranscriptProcessed,
         parentTemporaryDirectoryPath,
         signal,
         spaceId,
     }: {
-        contentType: FileContentTypeSupportedForMetadataGeneration;
+        contentType: FileContentTypeSupportedForAnalysis;
         fileId: FileId;
-        fileUploader: FileUploader;
         inputPathIfExists?: string;
+        onTranscriptProcessed?: (result: ProcessFileAnalysisTranscriptResult) => void;
         parentTemporaryDirectoryPath: string;
         signal?: AbortSignal;
         spaceId: SpaceId;
     },
-): Promise<ProcessFileGenerateMetadataResult> {
-    return await context.tracer.withSpan("Generate file metadata", async (actionContext, span) => {
+): Promise<ProcessFileAnalysisResult> {
+    return await context.tracer.withSpan("Analyze file", async (actionContext, span) => {
+        let hasReportedTranscriptResult = false;
+        const reportTranscriptResult = (result: ProcessFileAnalysisTranscriptResult) => {
+            if (onTranscriptProcessed === undefined || hasReportedTranscriptResult) return;
+
+            hasReportedTranscriptResult = true;
+            onTranscriptProcessed(result);
+        };
+
         try {
-            const analysis = await withFileProcessMetadataDeadline(signal, async signal => {
+            const analysis = await withFileAnalysisDeadline(signal, async signal => {
                 if (inputPathIfExists !== undefined) {
                     return await runTagGeneration({
                         context: actionContext,
                         contentType,
-                        fileId,
                         filePath: inputPathIfExists,
-                        fileUploader,
+                        onTranscriptProcessed: reportTranscriptResult,
                         signal,
-                        spaceId,
                     });
                 }
 
@@ -165,29 +175,26 @@ export async function processFileGenerateMetadata(
                         return await runTagGeneration({
                             context: actionContext,
                             contentType,
-                            fileId,
                             filePath: inputPath,
-                            fileUploader,
+                            onTranscriptProcessed: reportTranscriptResult,
                             signal,
-                            spaceId,
                         });
                     },
                 );
             });
 
-            await fileUploader.finishProcessingAnalysis(actionContext, analysis);
-
-            return {ok: true};
+            return {ok: true, analysis};
         } catch (error) {
+            reportTranscriptResult({ok: false, error});
             span.addException(error);
             return {ok: false, error};
         }
     });
 }
 
-export function isFileContentTypeSupportedForMetadataGeneration(
+export function isFileContentTypeSupportedForAnalysis(
     contentType: FileContentType,
-): contentType is FileContentTypeSupportedForMetadataGeneration {
+): contentType is FileContentTypeSupportedForAnalysis {
     return (
         isFileImageContentType(contentType) ||
         isFileAudioContentType(contentType) ||
@@ -195,7 +202,7 @@ export function isFileContentTypeSupportedForMetadataGeneration(
     );
 }
 
-async function withFileProcessMetadataDeadline<Value>(
+async function withFileAnalysisDeadline<Value>(
     parentSignal: AbortSignal | undefined,
     callback: (signal: AbortSignal) => Promise<Value>,
 ): Promise<Value> {
@@ -205,9 +212,7 @@ async function withFileProcessMetadataDeadline<Value>(
     // racing detached background work.
     const timeoutAbortController = new AbortController();
     const timeout = createTimeout(() => {
-        timeoutAbortController.abort(
-            new DeadlineExceededError("File metadata generation timed out"),
-        );
+        timeoutAbortController.abort(new DeadlineExceededError("File analysis timed out"));
     }, fileProcessTagsTimeoutMs);
     timeout.unref?.();
 
@@ -258,48 +263,40 @@ async function downloadFileToPath(
 async function runTagGeneration({
     context,
     contentType,
-    fileId,
     filePath,
-    fileUploader,
+    onTranscriptProcessed,
     signal,
-    spaceId,
 }: {
     context: FileProcessorActionContext;
-    contentType: FileContentTypeSupportedForMetadataGeneration;
-    fileId: FileId;
+    contentType: FileContentTypeSupportedForAnalysis;
     filePath: string;
-    fileUploader: FileUploader;
+    onTranscriptProcessed?: (result: ProcessFileAnalysisTranscriptResult) => void;
     signal: AbortSignal;
-    spaceId: SpaceId;
 }): Promise<FileAnalysisResult> {
     if (isFileImageContentType(contentType)) {
-        return normalizeFileAnalysis(
+        return normalizeFileAnalysisResult(
             await generateImageTagsWithBedrock({context, filePath, signal}),
         );
     }
 
     if (isFileAudioContentType(contentType)) {
-        return normalizeFileAnalysis(
+        return normalizeFileAnalysisResult(
             await generateAudioTagsWithBedrock({
                 context,
-                fileId,
                 filePath,
-                fileUploader,
+                onTranscriptProcessed,
                 signal,
-                spaceId,
             }),
         );
     }
 
     if (isFileVideoContentType(contentType)) {
-        return normalizeFileAnalysis(
+        return normalizeFileAnalysisResult(
             await generateVideoTagsWithBedrock({
                 context,
-                fileId,
                 filePath,
-                fileUploader,
+                onTranscriptProcessed,
                 signal,
-                spaceId,
             }),
         );
     }
@@ -334,36 +331,26 @@ async function generateImageTagsWithBedrock({
 
 async function generateAudioTagsWithBedrock({
     context,
-    fileId,
     filePath,
-    fileUploader,
+    onTranscriptProcessed,
     signal,
-    spaceId,
 }: {
     context: FileProcessorActionContext;
-    fileId: FileId;
     filePath: string;
-    fileUploader: FileUploader;
+    onTranscriptProcessed?: (result: ProcessFileAnalysisTranscriptResult) => void;
     signal: AbortSignal;
-    spaceId: SpaceId;
 }): Promise<FileProcessorAnalysisResponse> {
     const asr = await getFileProcessTagsAsr();
     const audio = await decodeAudioToFloat32IfWithinLimit({filePath, signal});
 
     if (audio === null) {
+        onTranscriptProcessed?.({ok: true, isUnavailable: true});
         return {tags: []};
     }
 
     const transcriptJson = await transcribeAudio(asr, audio);
 
-    await storeTranscriptJson({
-        context,
-        fileId,
-        signal,
-        spaceId,
-        transcriptJson,
-    });
-    await fileUploader.finishProcessingTranscript(context);
+    onTranscriptProcessed?.({ok: true, transcriptJson});
 
     const transcript = truncateTranscript(transcriptJson.text);
 
@@ -380,18 +367,14 @@ async function generateAudioTagsWithBedrock({
 
 async function generateVideoTagsWithBedrock({
     context,
-    fileId,
     filePath,
-    fileUploader,
+    onTranscriptProcessed,
     signal,
-    spaceId,
 }: {
     context: FileProcessorActionContext;
-    fileId: FileId;
     filePath: string;
-    fileUploader: FileUploader;
+    onTranscriptProcessed?: (result: ProcessFileAnalysisTranscriptResult) => void;
     signal: AbortSignal;
-    spaceId: SpaceId;
 }): Promise<FileProcessorAnalysisResponse> {
     const durationSeconds = await probeMediaDurationSeconds({filePath, signal});
     const hasAudioStream = await probeMediaHasAudioStream({filePath, signal});
@@ -429,19 +412,16 @@ async function generateVideoTagsWithBedrock({
                 const asr = await getFileProcessTagsAsr();
                 const audio = await decodeAudioToFloat32IfWithinLimit({filePath, signal});
 
-                if (audio !== null) {
+                if (audio === null) {
+                    onTranscriptProcessed?.({ok: true, isUnavailable: true});
+                } else {
                     const transcriptJson = await transcribeAudio(asr, audio);
-                    await storeTranscriptJson({
-                        context,
-                        fileId,
-                        signal,
-                        spaceId,
-                        transcriptJson,
-                    });
 
-                    await fileUploader.finishProcessingTranscript(context);
+                    onTranscriptProcessed?.({ok: true, transcriptJson});
                     transcript = truncateTranscript(transcriptJson.text);
                 }
+            } else {
+                onTranscriptProcessed?.({ok: true, isUnavailable: true});
             }
 
             const instructions = createFileProcessorVideoTagInstructions({transcript});
@@ -483,12 +463,10 @@ async function invokeBedrockTags({
     return result.object;
 }
 
-function normalizeFileAnalysis(
-    analysisResponse: FileProcessorAnalysisResponse,
-): FileAnalysisResult {
+function normalizeFileAnalysisResult(analysis: FileProcessorAnalysisResponse): FileAnalysisResult {
     const dedupedTags: Array<string> = [];
 
-    for (const tag of analysisResponse.tags) {
+    for (const tag of analysis.tags) {
         const normalizedTag = tag.trim().toLowerCase();
         if (!normalizedTag) continue;
         if (dedupedTags.includes(normalizedTag)) continue;
@@ -503,16 +481,16 @@ function normalizeFileAnalysis(
     }
 
     let caption: string | undefined;
-    if (analysisResponse.caption !== undefined) {
-        const normalizedCaption = analysisResponse.caption.trim();
+    if (analysis.caption !== undefined) {
+        const normalizedCaption = analysis.caption.trim();
         if (normalizedCaption) {
             caption = normalizedCaption;
         }
     }
 
     let description: string | undefined;
-    if (analysisResponse.description !== undefined) {
-        const normalizedDescription = analysisResponse.description.trim();
+    if (analysis.description !== undefined) {
+        const normalizedDescription = analysis.description.trim();
         if (normalizedDescription) {
             description = normalizedDescription;
         }
@@ -623,33 +601,6 @@ async function transcribeAudio(
     });
 
     return normalizeTranscriptJson(output);
-}
-
-async function storeTranscriptJson({
-    context,
-    fileId,
-    signal,
-    spaceId,
-    transcriptJson,
-}: {
-    context: FileProcessorActionContext;
-    fileId: FileId;
-    signal: AbortSignal;
-    spaceId: SpaceId;
-    transcriptJson: FileProcessTranscriptJson;
-}) {
-    const body = JSON.stringify(transcriptJson);
-
-    await context.r2.PutObject(
-        {
-            Bucket: filesBucketName,
-            Key: `${spaceId}/${fileId}.transcript.json`,
-            Body: body,
-            ContentLength: Buffer.byteLength(body),
-            ContentType: "application/json",
-        },
-        {signal},
-    );
 }
 
 function normalizeTranscriptJson(output: unknown): FileProcessTranscriptJson {
@@ -773,7 +724,7 @@ async function probeMediaDurationSeconds({
 }: {
     filePath: string;
     signal: AbortSignal;
-}): Promise<number> {
+}): Promise<number | null> {
     const stdout = await runProcess(
         ffprobeExecutablePath,
         [
@@ -791,7 +742,12 @@ async function probeMediaDurationSeconds({
         },
     );
 
-    const durationSeconds = parseFloat(stdout.trim());
+    const trimmedStdout = stdout.trim();
+    if (trimmedStdout === "" || trimmedStdout === "N/A") {
+        return null;
+    }
+
+    const durationSeconds = parseFloat(trimmedStdout);
     if (isNaN(durationSeconds) || !Number.isFinite(durationSeconds)) {
         throw new InternalError(`Could not parse duration from ffprobe output: ${stdout}`);
     }
@@ -859,7 +815,9 @@ async function extractVideoFrame({
     );
 }
 
-function getVideoFrameTimestampsSeconds(durationSeconds: number): Array<number> {
+function getVideoFrameTimestampsSeconds(durationSeconds: number | null): Array<number> {
+    if (durationSeconds === null) return [0];
+
     if (durationSeconds <= 5) return [durationSeconds / 2];
 
     let frameCount: number;
