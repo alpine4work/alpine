@@ -32,7 +32,7 @@ const mockFetch = import.meta.jest.fn().mockImplementation((_url: string, option
         ok: true,
         status: 200,
         statusText: "OK",
-        text: () => Promise.resolve(JSON.stringify({id: "generated-post-id"})),
+        text: () => Promise.resolve(JSON.stringify({post: {id: "generated-post-id"}})),
     });
 });
 
@@ -1325,7 +1325,13 @@ describe("GitHubAlertSource", () => {
                         ok: true,
                         status: 200,
                         statusText: "OK",
-                        text: () => Promise.resolve(JSON.stringify({id: "builds-post-id"})),
+                        text: () =>
+                            Promise.resolve(
+                                JSON.stringify({
+                                    post: {id: "builds-post-id"},
+                                    spaceId,
+                                }),
+                            ),
                     });
                 })
                 .mockImplementationOnce((_url: string, options?: any) => {
@@ -1496,7 +1502,13 @@ describe("GitHubAlertSource", () => {
                         ok: true,
                         status: 200,
                         statusText: "OK",
-                        text: () => Promise.resolve(JSON.stringify({id: "builds-post-id"})),
+                        text: () =>
+                            Promise.resolve(
+                                JSON.stringify({
+                                    post: {id: "builds-post-id"},
+                                    spaceId,
+                                }),
+                            ),
                     });
                 })
                 .mockImplementationOnce((_url: string, options?: any) => {

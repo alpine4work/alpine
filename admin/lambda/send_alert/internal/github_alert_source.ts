@@ -22,6 +22,7 @@ import {
 import {
     ApiContent,
     ApiContentParagraphBlockElement,
+    ApiPostResponse,
     ApiSearchResult,
 } from "~/shared/api/specification/types/api_specification_convenience_types.js";
 import {ApiSpecification} from "~/shared/api/specification/types/api_specification_types.js";
@@ -187,7 +188,10 @@ export class GitHubAlertSource extends AlertSource {
                 },
             ];
 
-            const postResult = await this.fetchAlpineApi<{id: string}>("/posts", {
+            const postResult = await this.fetchAlpineApi<{
+                post: ApiPostResponse;
+                spaceId: string;
+            }>("/posts", {
                 method: "POST",
                 body: {
                     channelId: sendAlertAvailableChannels[channel],
@@ -199,7 +203,7 @@ export class GitHubAlertSource extends AlertSource {
                 return postResult;
             }
 
-            buildsChannelPostId = postResult.value.id;
+            buildsChannelPostId = postResult.value.post.id;
             console.log(`Created builds channel post with ID: ${buildsChannelPostId}`);
         }
 
