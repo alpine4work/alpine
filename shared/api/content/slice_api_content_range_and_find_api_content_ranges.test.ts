@@ -5,6 +5,7 @@ import {sliceApiContentRange} from "~/shared/api/markdown/slice_api_content_rang
 import {ApiContentPosition} from "~/shared/api/specification/types/api_content_position.js";
 import {DocumentWithoutTitleContentProsemirrorSchema as schema} from "~/shared/documents/document_content_schema.js";
 import {InternalError} from "~/shared/error/error.js";
+import {assert} from "~/shared/helpers/control/assert.js";
 import {CommitBlocker} from "~/shared/helpers/types/commit_blocker.js";
 import {JsonValue} from "~/shared/helpers/types/json_value.js";
 import {assertId} from "~/shared/id/id.js";
@@ -968,6 +969,26 @@ for (const {only, name, content: contentJson, range} of testCases) {
     const content = schema.nodeFromJSON(contentJson);
 
     test(`${name}`, async () => {
+        /* ========================================================================== *\
+         *                                 Test setup                                 *
+        \* ========================================================================== */
+
+        // Test cases come from a generative test which generates ProseMirror content and a
+        // range of floats between 0 and 1. But we actually want a range of "commentable
+        // content" that is:
+        //
+        // - A non-empty range that includes at least one character of content that can be
+        //   commented on (text, mentions, files, etc.).
+        //
+        // - A range that starts right before a character of content that can be commented
+        //   on and ends right after a character of content that can be commented on. So
+        //   the range doesn't include any "boundaries" like the end of a paragraph.
+        //
+        // So this setup code takes the float range and tries to produce a range in
+        // ProseMirror positions that meets our above requirements. It does this by
+        // scanning forwards/backwards for both the range start and end until it finds
+        // valid positions that produce a non-empty range.
+
         let from = Math.round(range.from * content.content.size);
         let to = Math.round(range.to * content.content.size);
 
@@ -999,15 +1020,17 @@ for (const {only, name, content: contentJson, range} of testCases) {
             return false;
         };
 
-        // Try searching backwards/forwards for a valid `from` and `to` position.
-        {
-            const originalFrom = from;
-            const originalTo = to;
+        const originalFrom = from;
+        const originalTo = to;
+
+        const loopFrom = () => {
+            assert(from <= to);
 
             while (true) {
-                if (from < content.content.size) {
+                if (isFromValid() && from !== to) break;
+
+                if (from < to && from < content.content.size) {
                     // 1. Try searching forwards for a valid `from` position.
-                    if (isFromValid()) break;
                     from++;
                     continue;
                 } else {
@@ -1015,8 +1038,9 @@ for (const {only, name, content: contentJson, range} of testCases) {
                     from = originalFrom;
 
                     while (true) {
+                        if (isFromValid() && from !== to) break;
+
                         if (from > 0) {
-                            if (isFromValid()) break;
                             from--;
                             continue;
                         }
@@ -1027,11 +1051,16 @@ for (const {only, name, content: contentJson, range} of testCases) {
                     break;
                 }
             }
+        };
+
+        const loopTo = () => {
+            assert(from <= to);
 
             while (true) {
-                if (to > 0) {
+                if (isToValid() && from !== to) break;
+
+                if (from < to && to > 0) {
                     // 1. Try searching backwards for a valid `to` position.
-                    if (isToValid()) break;
                     to--;
                     continue;
                 } else {
@@ -1039,8 +1068,9 @@ for (const {only, name, content: contentJson, range} of testCases) {
                     to = originalTo;
 
                     while (true) {
+                        if (isToValid() && from !== to) break;
+
                         if (to < content.content.size) {
-                            if (isToValid()) break;
                             to++;
                             continue;
                         }
@@ -1051,58 +1081,32 @@ for (const {only, name, content: contentJson, range} of testCases) {
                     break;
                 }
             }
-        }
-
-        if ((from > to && to >= 0) || from > content.content.size) from = to;
-        if ((to < from && from <= content.content.size) || to < 0) to = from;
-
-        const hasCommentableContent = () => {
-            let hasCommentableContent = false;
-
-            content.nodesBetween(from, to, (node, pos, parentNode) => {
-                if (!node.isLeaf) return;
-                hasCommentableContent ||= parentNode?.isTextblock || node.type.name === "file";
-            });
-
-            return hasCommentableContent;
         };
 
-        // Expand the range from a single character to include at least one character of
-        // commentable content.
-        {
-            const originalFrom = from;
-            const originalTo = to;
+        loopFrom();
+        loopTo();
+        loopFrom();
 
-            if (!hasCommentableContent()) {
-                while (true) {
-                    if (to >= content.content.size - 1) {
-                        to = originalTo;
-                        break;
-                    }
+        let hasCommentableContent = false;
 
-                    to++;
-                    if (isToValid()) break;
-                }
-            }
-
-            if (!hasCommentableContent()) {
-                while (true) {
-                    if (from <= 0) {
-                        from = originalFrom;
-                        break;
-                    }
-
-                    from--;
-                    if (isFromValid()) break;
-                }
-            }
-        }
+        content.nodesBetween(from, to, (node, pos, parentNode) => {
+            if (!node.isLeaf) return;
+            hasCommentableContent ||= parentNode?.isTextblock || node.type.name === "file";
+        });
 
         // There are no valid ranges in this content for comments. This will only really
         // happen if the content is all dividers.
-        if (!hasCommentableContent()) {
+        if (from === to || !hasCommentableContent) {
             throw new InternalError("Range must contain some commentable content");
         }
+
+        /* ========================================================================== *\
+         *                              The actual test                               *
+        \* ========================================================================== */
+
+        // Run the actual logic under test. Specifically, when we use
+        // `sliceApiContentRange()` with a position range then `findApiContentRanges()`
+        // must be able to find the range we originally sliced.
 
         const $from = content.resolve(from);
         const $to = content.resolve(to);

@@ -5,6 +5,7 @@ import {findApiContentRanges} from "~/shared/api/markdown/find_api_content_range
 import {sliceApiContentRange} from "~/shared/api/markdown/slice_api_content_range.js";
 import {ApiContentPosition} from "~/shared/api/specification/types/api_content_position.js";
 import {DocumentWithoutTitleContentProsemirrorSchema as schema} from "~/shared/documents/document_content_schema.js";
+import {assert} from "~/shared/helpers/control/assert.js";
 import {assertId} from "~/shared/id/id.js";
 import {DocumentId} from "~/shared/id/types/id_types.js";
 import {getProsemirrorNodeArbitrary} from "~/shared/prosemirror/test_helpers/get_prosemirror_node_arbitrary.js";
@@ -47,6 +48,26 @@ test("can find sliced content", async () => {
                     .map(([from, to]) => (from < to ? {from, to} : {from: to, to: from})),
             }),
             async ({content, range}) => {
+                /* ========================================================================== *\
+                 *                                 Test setup                                 *
+                \* ========================================================================== */
+
+                // Test cases come from a generative test which generates ProseMirror content and a
+                // range of floats between 0 and 1. But we actually want a range of "commentable
+                // content" that is:
+                //
+                // - A non-empty range that includes at least one character of content that can be
+                //   commented on (text, mentions, files, etc.).
+                //
+                // - A range that starts right before a character of content that can be commented
+                //   on and ends right after a character of content that can be commented on. So
+                //   the range doesn't include any "boundaries" like the end of a paragraph.
+                //
+                // So this setup code takes the float range and tries to produce a range in
+                // ProseMirror positions that meets our above requirements. It does this by
+                // scanning forwards/backwards for both the range start and end until it finds
+                // valid positions that produce a non-empty range.
+
                 let from = Math.round(range.from * content.content.size);
                 let to = Math.round(range.to * content.content.size);
 
@@ -81,15 +102,17 @@ test("can find sliced content", async () => {
                     return false;
                 };
 
-                // Try searching backwards/forwards for a valid `from` and `to` position.
-                {
-                    const originalFrom = from;
-                    const originalTo = to;
+                const originalFrom = from;
+                const originalTo = to;
+
+                const loopFrom = () => {
+                    assert(from <= to);
 
                     while (true) {
-                        if (from < content.content.size) {
+                        if (isFromValid() && from !== to) break;
+
+                        if (from < to && from < content.content.size) {
                             // 1. Try searching forwards for a valid `from` position.
-                            if (isFromValid()) break;
                             from++;
                             continue;
                         } else {
@@ -97,8 +120,9 @@ test("can find sliced content", async () => {
                             from = originalFrom;
 
                             while (true) {
+                                if (isFromValid() && from !== to) break;
+
                                 if (from > 0) {
-                                    if (isFromValid()) break;
                                     from--;
                                     continue;
                                 }
@@ -109,11 +133,16 @@ test("can find sliced content", async () => {
                             break;
                         }
                     }
+                };
+
+                const loopTo = () => {
+                    assert(from <= to);
 
                     while (true) {
-                        if (to > 0) {
+                        if (isToValid() && from !== to) break;
+
+                        if (from < to && to > 0) {
                             // 1. Try searching backwards for a valid `to` position.
-                            if (isToValid()) break;
                             to--;
                             continue;
                         } else {
@@ -121,8 +150,9 @@ test("can find sliced content", async () => {
                             to = originalTo;
 
                             while (true) {
+                                if (isToValid() && from !== to) break;
+
                                 if (to < content.content.size) {
-                                    if (isToValid()) break;
                                     to++;
                                     continue;
                                 }
@@ -133,57 +163,22 @@ test("can find sliced content", async () => {
                             break;
                         }
                     }
-                }
-
-                if ((from > to && to >= 0) || from > content.content.size) from = to;
-                if ((to < from && from <= content.content.size) || to < 0) to = from;
-
-                const hasCommentableContent = () => {
-                    let hasCommentableContent = false;
-
-                    content.nodesBetween(from, to, (node, pos, parentNode) => {
-                        if (!node.isLeaf) return;
-                        hasCommentableContent ||=
-                            parentNode?.isTextblock || node.type.name === "file";
-                    });
-
-                    return hasCommentableContent;
                 };
 
-                // Expand the range from a single character to include at least one character of
-                // commentable content.
-                {
-                    const originalFrom = from;
-                    const originalTo = to;
+                loopFrom();
+                loopTo();
+                loopFrom();
 
-                    if (!hasCommentableContent()) {
-                        while (true) {
-                            if (to >= content.content.size - 1) {
-                                to = originalTo;
-                                break;
-                            }
+                let hasCommentableContent = false;
 
-                            to++;
-                            if (isToValid()) break;
-                        }
-                    }
-
-                    if (!hasCommentableContent()) {
-                        while (true) {
-                            if (from <= 0) {
-                                from = originalFrom;
-                                break;
-                            }
-
-                            from--;
-                            if (isFromValid()) break;
-                        }
-                    }
-                }
+                content.nodesBetween(from, to, (node, pos, parentNode) => {
+                    if (!node.isLeaf) return;
+                    hasCommentableContent ||= parentNode?.isTextblock || node.type.name === "file";
+                });
 
                 // There are no valid ranges in this content for comments. This will only really
                 // happen if the content is all dividers.
-                if (!hasCommentableContent()) {
+                if (from === to || !hasCommentableContent) {
                     const typeNames = new Set<string>();
                     content.descendants(node => {
                         typeNames.add(node.type.name);
@@ -194,6 +189,14 @@ test("can find sliced content", async () => {
                     expect(typeNames).not.toContain("mention");
                     return;
                 }
+
+                /* ========================================================================== *\
+                 *                              The actual test                               *
+                \* ========================================================================== */
+
+                // Run the actual logic under test. Specifically, when we use
+                // `sliceApiContentRange()` with a position range then `findApiContentRanges()`
+                // must be able to find the range we originally sliced.
 
                 const $from = content.resolve(from);
                 const $to = content.resolve(to);
