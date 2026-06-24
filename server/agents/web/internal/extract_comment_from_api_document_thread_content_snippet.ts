@@ -2,6 +2,7 @@ import {visitAndProduceApiContent} from "~/shared/api/content/visit_and_produce_
 import {sliceApiContentRange} from "~/shared/api/markdown/slice_api_content_range.js";
 import {ApiContentKey} from "~/shared/api/specification/types/api_content_key.js";
 import {
+    ApiContentAfterPosition,
     ApiContentBeforePosition,
     ApiContentInlinePosition,
     ApiContentPosition,
@@ -29,8 +30,8 @@ export function extractCommentFromApiDocumentThreadContentSnippet(
 
     for (const token of iterateApiContent(contentSnippet)) {
         if (token.marks?.some(mark => mark.type === "Comment" && mark.thread.id === threadId)) {
-            range ??= {start: token.position, end: token.position};
-            range.end = token.position;
+            range ??= {start: token.position, end: token.endPosition};
+            range.end = token.endPosition;
         } else if (range !== null) {
             // After we've started `range`, once we've found the last token that has the
             // comment mark then stop iterating since we've found the full commented content.
@@ -60,6 +61,7 @@ export function extractCommentFromApiDocumentThreadContentSnippet(
 
 type Token = {
     position: ApiContentInlinePosition | ApiContentBeforePosition;
+    endPosition: ApiContentInlinePosition | ApiContentAfterPosition;
     marks: ReadonlyArray<ApiContentInlineElementMark> | undefined;
 };
 
@@ -129,6 +131,7 @@ function* iterateApiContentBlockElement(
         case "Divider": {
             yield {
                 position: {type: "Before", key: element.key},
+                endPosition: {type: "After", key: element.key},
                 marks: undefined,
             };
             break;
@@ -137,6 +140,7 @@ function* iterateApiContentBlockElement(
         case "Preview": {
             yield {
                 position: {type: "Before", key: element.key},
+                endPosition: {type: "After", key: element.key},
                 marks: element.marks,
             };
             break;
@@ -146,6 +150,7 @@ function* iterateApiContentBlockElement(
                 for (const {element: childElement} of row.items) {
                     yield {
                         position: {type: "Before", key: childElement.key},
+                        endPosition: {type: "After", key: childElement.key},
                         marks: childElement.marks,
                     };
                 }
@@ -155,6 +160,7 @@ function* iterateApiContentBlockElement(
         case "FileFloat": {
             yield {
                 position: {type: "Before", key: element.element.key},
+                endPosition: {type: "After", key: element.element.key},
                 marks: element.element.marks,
             };
             break;
@@ -183,13 +189,21 @@ function* iterateApiContentInlineElements(
     for (const element of elements) {
         switch (element.type) {
             case "Text": {
-                yield {position: {type: "Inline", key, index}, marks: element.marks};
+                yield {
+                    position: {type: "Inline", key, index},
+                    endPosition: {type: "Inline", key, index: index + element.text.length},
+                    marks: element.marks,
+                };
                 index += element.text.length;
                 break;
             }
             case "Break":
             case "Mention": {
-                yield {position: {type: "Inline", key, index}, marks: element.marks};
+                yield {
+                    position: {type: "Inline", key, index},
+                    endPosition: {type: "Inline", key, index: index + 1},
+                    marks: element.marks,
+                };
                 index++;
                 break;
             }
