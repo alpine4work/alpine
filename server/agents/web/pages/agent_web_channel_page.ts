@@ -511,6 +511,158 @@ async function truncateAgentWebChannelPage(
     };
 }
 
+export async function createAgentWebChannelPage(
+    context: AgentWebContext,
+    newPage: AgentWebChannelPage,
+): Promise<{
+    pageMetadata: AgentWebChannelPageMetadata;
+    pageLink: Extract<AgentWebPageStoredLink, {type: "Channel"}>;
+}> {
+    if (newPage.subType !== "Head") {
+        throw new InvalidArgumentError("Can only create channel head pages", {
+            displayMessage: errorDisplayMessage`Channel markdown must start with a channel title (e.g. \`# General\`) when creating a channel. Try again with a channel title.`,
+        });
+    }
+
+    if (newPage.pagination !== null) {
+        throw new InvalidArgumentError("Can\u2019t create channel with pagination", {
+            displayMessage: errorDisplayMessage`You can\u2019t include a \u201C${agentWebChannelPageNextPageLinkText}\u201D link when creating a channel. Try again without a \u201C${agentWebChannelPageNextPageLinkText}\u201D link.`,
+        });
+    }
+
+    if (newPage.posts.length > 0) {
+        throw new InvalidArgumentError("Can\u2019t create posts while creating channel", {
+            displayMessage: errorDisplayMessage`You can\u2019t create \`<post>\`s while creating a channel. Try creating the channel again without posts and then call the \`create\` tool with \`type\` of \`post\` for each post you want to create.`,
+        });
+    }
+
+    // NOCOMMIT: Test parsing a page with regular `---` divider in description
+
+    // TODO(#agents-web): Implement channel create endpoint. When we add the ability to
+    // create make sure to also test that you can update the channel name +
+    // description. Maybe even that you can add a divider with the `<hr />` syntax (and
+    // any end dividers are ignored).
+    throw new UnimplementedError("Channel create API endpoint hasn\u2019t been implemented yet");
+}
+
+export async function updateAgentWebChannelPage(
+    context: AgentWebContextWithoutStorage,
+    oldPageMetadata: AgentWebChannelPageMetadata,
+    oldPage: AgentWebChannelPage,
+    newPage: AgentWebChannelPage,
+): Promise<AgentWebChannelPageMetadata> {
+    switch (oldPage.subType) {
+        case "Head": {
+            if (newPage.subType !== "Head") {
+                throw new InvalidArgumentError("Can\u2019t update channel preamble", {
+                    displayMessage: errorDisplayMessage`You can only update the channel name and description. Try again with a channel name as a markdown h1 (e.g. \`# My Channel\`) on line 1 of the channel markdown.`,
+                });
+            }
+            break;
+        }
+        case "Tail": {
+            if (newPage.subType !== "Tail" || oldPage.name !== newPage.name) {
+                throw new InvalidArgumentError("Can\u2019t update channel preamble", {
+                    displayMessage: errorDisplayMessage`You can only update the channel name on the first page of the channel. You must leave the \`Posts in My Channel.\` line at the start of the channel markdown in place. Try calling the \`read\` tool to navigate to the first page in the channel and you can call the \`update\` tool on that page to update the channel name.`,
+                });
+            }
+            break;
+        }
+        default:
+            throw exhaustive(oldPage);
+    }
+
+    if (
+        !isDeepEqual(
+            oldPage.pagination ? {nextCursor: oldPage.pagination.nextCursor} : null,
+            newPage.pagination ? {nextCursor: newPage.pagination.nextCursor} : null,
+        )
+    ) {
+        throw new InvalidArgumentError("Can\u2019t update channel pagination", {
+            displayMessage: errorDisplayMessage`You can only update the channel name and description on a channel page. You can\u2019t update the next page link in channel markdown. Try again with a more specific update that only changes the channel name or description.`,
+        });
+    }
+
+    if (oldPage.posts.length < newPage.posts.length) {
+        throw new InvalidArgumentError("Can\u2019t add posts to channel page", {
+            displayMessage: errorDisplayMessage`You can\u2019t add \`<post>\`s with the \`update\` tool on a channel page. Call the \`create\` tool with \`type\` of \`post\` with each post you want to create.`,
+        });
+    }
+
+    if (oldPage.posts.length > newPage.posts.length) {
+        throw new InvalidArgumentError("Can\u2019t remove posts from channel page", {
+            displayMessage: errorDisplayMessage`You can only update the channel name and description on a channel page. You can\u2019t remove \`<post>\`s. Try again with a more specific update that only changes the channel name or description.`,
+        });
+    }
+
+    for (let index = 0; index < oldPage.posts.length; index++) {
+        const oldPost = oldPage.posts[index]!;
+        const newPost = newPage.posts[index]!;
+
+        const oldPostMetadata = {
+            author: oldPost.author ? {id: oldPost.author.id} : null,
+            timeAttribute: oldPost.timeAttribute,
+            reference: oldPost.reference ? {id: oldPost.reference.id} : null,
+        };
+        const newPostMetadata = {
+            author: newPost.author ? {id: newPost.author.id} : null,
+            timeAttribute: newPost.timeAttribute,
+            reference: newPost.reference ? {id: newPost.reference.id} : null,
+        };
+
+        if (!isDeepEqual(oldPostMetadata, newPostMetadata)) {
+            throw new InvalidArgumentError("Can\u2019t update message created by someone else", {
+                displayMessage: errorDisplayMessage`You can only update the channel name and description on a channel page. Any metadata on \`<post>\`s (the \`from\`/\`time\` attributes or \u201CSee more\u201D link) must be left unchanged. Try again with a more specific update that only changes the channel name or description.`,
+            });
+        }
+
+        if (
+            !isDeepEqual(
+                normalizeApiContent(oldPost.contentSnippet),
+                normalizeApiContent(newPost.contentSnippet),
+            )
+        ) {
+            throw new InvalidArgumentError("Can\u2019t update channel post content snippet", {
+                displayMessage: errorDisplayMessage`You can only update the channel name and description on a channel page. You can\u2019t change a \`<post>\`s content. To update a post, call the \`read\` tool with the post\u2019s \u201CSee more\u201D link and then call the \`update\` tool on the post page.`,
+            });
+        }
+    }
+
+    // The end of posts marker is optional for a page that's actually at the end of
+    // posts (according to metadata). However, for a page that's not at the end of
+    // posts you can't add the end of posts marker!
+    if (!oldPageMetadata.isEndOfPosts && newPage.isEndOfPosts) {
+        throw new InvalidArgumentError("Can\u2019t change whether this page is the end of posts", {
+            displayMessage: errorDisplayMessage`Can\u2019t add the \u201cEnd of posts\u201d marker in an update. Only a \`read\` tool call can tell you whether you\u2019ve seen all of a channel\u2019s posts. Try again without adding the \u201cEnd of posts\u201d marker.`,
+        });
+    }
+
+    if (oldPage.subType === "Head") {
+        assert(newPage.subType === "Head");
+
+        if (oldPage.name !== newPage.name) {
+            // TODO(#agents-web): Implement channel rename endpoint.
+            throw new UnimplementedError(
+                "Channel rename API endpoint hasn\u2019t been implemented yet",
+            );
+        }
+
+        if (
+            !isDeepEqual(
+                normalizeApiContent(oldPage.description),
+                normalizeApiContent(newPage.description),
+            )
+        ) {
+            // TODO(#agents-web): Implement channel description update endpoint.
+            throw new UnimplementedError(
+                "Channel description update API endpoint hasn\u2019t been implemented yet",
+            );
+        }
+    }
+
+    return oldPageMetadata;
+}
+
 export function normalizeAgentWebChannelPage<Page extends AgentWebChannelPage>(page: Page): Page {
     return produce(page, page => {
         withApiContentNormalizerForAgentWebMarkdown(normalizer => {

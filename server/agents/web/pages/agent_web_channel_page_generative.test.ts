@@ -32,7 +32,10 @@ const AgentWebChannelPagePostBlockArbitrary: Arbitrary<AgentWebChannelPagePostBl
         {weight: 1, arbitrary: fc.constant(null)},
     ),
     contentSnippet: ApiContentWithoutCommentMarkArbitrary,
-    reference: ApiPostReferenceArbitrary,
+    reference: fc.oneof(
+        {weight: 10, arbitrary: ApiPostReferenceArbitrary},
+        {weight: 1, arbitrary: fc.constant(null)},
+    ),
 });
 
 const AgentWebChannelPagePaginationArbitrary = fc.record({

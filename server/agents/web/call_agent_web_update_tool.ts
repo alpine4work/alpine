@@ -4,6 +4,10 @@ import {AgentWebPageMetadata} from "~/server/agents/web/agent_web_page.js";
 import {normalizeAgentWebPath} from "~/server/agents/web/internal/normalize_agent_web_path.js";
 import {quoteMarkdown} from "~/server/agents/web/internal/quote_markdown.js";
 import {
+    parseAgentWebChannelPage,
+    updateAgentWebChannelPage,
+} from "~/server/agents/web/pages/agent_web_channel_page.js";
+import {
     parseAgentWebChatPage,
     updateAgentWebChatPage,
 } from "~/server/agents/web/pages/agent_web_chat_page.js";
@@ -29,7 +33,6 @@ import {
     FailedPreconditionError,
     InvalidArgumentError,
     NotFoundError,
-    UnimplementedError,
     getErrorCode,
 } from "~/shared/error/error.js";
 import {
@@ -298,8 +301,14 @@ async function updateAgentWebPageLink(
             );
         }
         case "Channel": {
-            // NOCOMMIT
-            throw new UnimplementedError("Channel updates are not implemented yet");
+            const oldResponse = oldResponseLazy.get();
+
+            const [oldPage, newPage] = await runAllPromises([
+                parseAgentWebChannelPage(context.storage, oldPageMetadata.id, oldResponse),
+                parseAgentWebChannelPage(context.storage, oldPageMetadata.id, newResponse),
+            ]);
+
+            return await updateAgentWebChannelPage(context, oldPageMetadata, oldPage, newPage);
         }
         case "Chat": {
             const oldResponse = oldResponseLazy.get();

@@ -8,6 +8,10 @@ import {agentWebReadResponseExpirationHours} from "~/server/agents/web/call_agen
 import {createAgentWebPageStoredLinkPathname} from "~/server/agents/web/create_agent_web_page_stored_link_pathname.js";
 import {quoteMarkdown} from "~/server/agents/web/internal/quote_markdown.js";
 import {
+    createAgentWebChannelPage,
+    parseAgentWebChannelPage,
+} from "~/server/agents/web/pages/agent_web_channel_page.js";
+import {
     createAgentWebChatPage,
     parseAgentWebChatPage,
 } from "~/server/agents/web/pages/agent_web_chat_page.js";
@@ -212,6 +216,18 @@ async function createAgentWebPageLink(
 
             return {
                 noun: "chat",
+                pageMetadata,
+                pageLink,
+                pageLinkLabel: pageLink.title,
+            };
+        }
+        case "channel": {
+            const newPage = await parseAgentWebChannelPage(context.storage, null, content);
+
+            const {pageMetadata, pageLink} = await createAgentWebChannelPage(context, newPage);
+
+            return {
+                noun: "channel",
                 pageMetadata,
                 pageLink,
                 pageLinkLabel: pageLink.title,
