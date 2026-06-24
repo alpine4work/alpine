@@ -12,6 +12,8 @@ const yargs = require("yargs/yargs");
 const {coverageSourceRoots, isCoverageSourceFile} = require("./coverage_source_file.cjs");
 
 const coverageMetricNames = ["statements", "branches", "functions", "lines"];
+const honeycombCoverageRetryCount = 2;
+const honeycombCoverageRetryDelayMs = 1000;
 const coverageSourceParserPlugins = [
     "typescript",
     "jsx",
@@ -893,8 +895,8 @@ ${packageSummaries
  * Sends coverage percentages to the lifecycle Honeycomb dataset.
  *
  * One event records global line coverage and one event records each package's line
- * coverage. If `HONEYCOMB_API_KEY` is not present, report generation stays local
- * and skips telemetry.
+ * coverage. Telemetry is best-effort: report generation stays local if
+ * `HONEYCOMB_API_KEY` is not present or Honeycomb keeps rejecting events.
  */
 async function sendHoneycombCoverageEvents({overallSummary, packageSummaries, workspacePath}) {
     const honeycombApiKey = process.env.HONEYCOMB_API_KEY;
@@ -919,6 +921,30 @@ async function sendHoneycombCoverageEvents({overallSummary, packageSummaries, wo
         ),
     ];
 
+    let lastError;
+    for (let attempt = 0; attempt <= honeycombCoverageRetryCount; attempt += 1) {
+        try {
+            await sendHoneycombCoverageEventBatch({events, honeycombApiKey});
+            return;
+        } catch (error) {
+            lastError = error;
+            if (attempt < honeycombCoverageRetryCount) {
+                await sleep(honeycombCoverageRetryDelayMs);
+            }
+        }
+    }
+
+    writeStderr(
+        `Skipping Honeycomb coverage reporting after ${
+            honeycombCoverageRetryCount + 1
+        } failed attempts: ${formatErrorMessage(lastError)}`,
+    );
+}
+
+/**
+ * Sends one Honeycomb batch request and verifies all event responses.
+ */
+async function sendHoneycombCoverageEventBatch({events, honeycombApiKey}) {
     // eslint-disable-next-line cyberworlds/no-global-fetch
     const response = await fetch("https://api.honeycomb.io/1/batch/lifecycle", {
         method: "POST",
@@ -945,6 +971,15 @@ async function sendHoneycombCoverageEvents({overallSummary, packageSummaries, wo
             );
         }
     }
+}
+
+/**
+ * Resolves once the requested number of milliseconds has elapsed.
+ */
+function sleep(milliseconds) {
+    return new Promise(resolve => {
+        setTimeout(resolve, milliseconds);
+    });
 }
 
 /**
@@ -999,6 +1034,10 @@ function runGit(args, {cwd}) {
         );
     }
     return result.stdout.trim();
+}
+
+function formatErrorMessage(error) {
+    return error instanceof Error ? error.message : String(error);
 }
 
 function writeStdout(value) {
