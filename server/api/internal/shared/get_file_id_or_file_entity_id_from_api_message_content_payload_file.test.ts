@@ -1,17 +1,21 @@
-import {parseFileIdFromApiFileElement} from "~/server/api/internal/shared/parse_file_id_or_file_entity_id.js";
+import {getFileIdOrFileEntityIdFromApiMessageContentPayloadFile} from "~/server/api/internal/shared/get_file_id_or_file_entity_id_from_api_message_content_payload_file.js";
 import {generateChronologicalId} from "~/shared/id/chronological_id.js";
 import {generateId} from "~/shared/id/id.js";
 import {ChannelId, DocumentId, FileId, PostId, TaskId} from "~/shared/id/types/id_types.js";
 
 test("extracts FileId from a File element", () => {
     const fileId = generateChronologicalId<FileId>();
-    expect(parseFileIdFromApiFileElement({element: {type: "File", id: fileId}})).toBe(fileId);
+    expect(
+        getFileIdOrFileEntityIdFromApiMessageContentPayloadFile({
+            element: {type: "File", id: fileId},
+        }),
+    ).toBe(fileId);
 });
 
 test("extracts Document FileEntityId from a Preview element", () => {
     const documentId = generateId<DocumentId>();
     expect(
-        parseFileIdFromApiFileElement({
+        getFileIdOrFileEntityIdFromApiMessageContentPayloadFile({
             element: {
                 type: "Preview",
                 reference: {type: "Document", id: documentId},
@@ -23,7 +27,7 @@ test("extracts Document FileEntityId from a Preview element", () => {
 test("extracts Channel FileEntityId from a Preview element", () => {
     const channelId = generateId<ChannelId>();
     expect(
-        parseFileIdFromApiFileElement({
+        getFileIdOrFileEntityIdFromApiMessageContentPayloadFile({
             element: {type: "Preview", reference: {type: "Channel", id: channelId}},
         }),
     ).toBe(`Channel:${channelId}`);
@@ -32,7 +36,7 @@ test("extracts Channel FileEntityId from a Preview element", () => {
 test("extracts Post FileEntityId from a Preview element", () => {
     const postId = generateId<PostId>();
     expect(
-        parseFileIdFromApiFileElement({
+        getFileIdOrFileEntityIdFromApiMessageContentPayloadFile({
             rowIndex: 4,
             width: 0.5,
             element: {type: "Preview", reference: {type: "Post", id: postId}},
@@ -43,7 +47,7 @@ test("extracts Post FileEntityId from a Preview element", () => {
 test("extracts Task FileEntityId from a Preview element", () => {
     const taskId = generateId<TaskId>();
     expect(
-        parseFileIdFromApiFileElement({
+        getFileIdOrFileEntityIdFromApiMessageContentPayloadFile({
             element: {
                 type: "Preview",
                 reference: {type: "Task", id: taskId},

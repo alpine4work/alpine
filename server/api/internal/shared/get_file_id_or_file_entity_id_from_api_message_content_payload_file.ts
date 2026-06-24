@@ -6,20 +6,20 @@ import {FileId} from "~/shared/id/types/id_types.js";
 /**
  * Extract a `FileId` or `FileEntityId` from an API message file wrapper.
  */
-export function parseFileIdFromApiFileElement(
+export function getFileIdOrFileEntityIdFromApiMessageContentPayloadFile(
     file: ApiMessageContentPayloadFile,
 ): FileId | FileEntityId {
     switch (file.element.type) {
         case "File":
             return file.element.id;
         case "Preview":
-            return previewReferenceToFileEntityId(file.element.reference);
+            return getFileEntityIdFromApiMessageContentPayloadFile(file.element.reference);
         default:
             throw exhaustive(file.element);
     }
 }
 
-function previewReferenceToFileEntityId(
+function getFileEntityIdFromApiMessageContentPayloadFile(
     reference: Extract<ApiMessageContentPayloadFile["element"], {type: "Preview"}>["reference"],
 ): FileEntityId {
     switch (reference.type) {

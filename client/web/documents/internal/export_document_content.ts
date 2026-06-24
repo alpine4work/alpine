@@ -12,7 +12,6 @@ import {math, mathHtml} from "micromark-extension-math";
 import * as prettier from "prettier";
 import * as htmlPrettierPlugin from "prettier/plugins/html";
 import * as markdownPrettierPlugin from "prettier/plugins/markdown";
-import {file} from "zod";
 import {getAccountRegistry} from "~/client/web/accounts/account_registry_context.js";
 import {getFileRegistry} from "~/client/web/content/file_registry_context.js";
 import {DocumentContentExportFormat} from "~/client/web/documents/internal/document_content_export_modal.js";

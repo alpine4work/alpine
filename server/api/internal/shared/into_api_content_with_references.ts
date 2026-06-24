@@ -274,6 +274,7 @@ export async function intoApiContentWithReferencesAndReturnReferences<
                 return `${privateSearchEntityTitle} ${getSearchEntityNoun(type)}`;
             }
 
+            // NOCOMMIT: Add author name to post title?
             return prepareApiMentionTitle(
                 entityId,
                 entityResult.entity.initialData,

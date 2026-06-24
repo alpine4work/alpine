@@ -914,7 +914,7 @@ paths:
                                 post:
                                     type: object
                                     required:
-                                        - channelId
+                                        - channel
                                         - content
                                     properties:
                                         createdTimeZone:
@@ -4069,6 +4069,7 @@ components:
                 - author
                 - createdTime
                 - createdTimeZone
+                - contentSnippet
                 - reference
             additionalProperties: false
             properties:
@@ -5870,6 +5871,7 @@ components:
                 - author
                 - createdTime
                 - createdTimeZone
+                - contentSnippet
                 - reference
             additionalProperties: false
             properties:

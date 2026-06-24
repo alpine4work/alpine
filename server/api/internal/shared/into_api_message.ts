@@ -41,6 +41,8 @@ export async function intoApiMessage(
         ) => Promise<ApiMessageContentPayloadParentResponse | null>;
     },
 ): Promise<ApiMessageResponse> {
+    const referencesContext = context.dynamo.unexpectStrongReadConsistency();
+
     const stream = message.stream;
     let streamPartsPromise: Promise<
         Array<Awaited<ReturnType<typeof intoApiMessageStreamPartPayload>>>
@@ -60,7 +62,7 @@ export async function intoApiMessage(
 
         streamPartsPromise = runAllPromises(
             stream.parts.map((part, partIndex) =>
-                intoApiMessageStreamPartPayload(context, {
+                intoApiMessageStreamPartPayload(referencesContext, {
                     spaceId,
                     payload: part.payload,
                     contentKeyEncoder,
@@ -71,8 +73,8 @@ export async function intoApiMessage(
     }
 
     const [author, payload, streamParts] = await runAllPromises([
-        getApiAccount(context, spaceId, message.authorId, {consistency: "StrongWithinCache"}),
-        intoApiMessagePayload(context, {
+        getApiAccount(referencesContext, spaceId, message.authorId),
+        intoApiMessagePayload(referencesContext, {
             spaceId,
             payload: message.payload,
             intoContentPayloadParent,
@@ -169,19 +171,26 @@ async function intoApiMessagePayload(
         case "Deleted": {
             return {type: "Deleted"};
         }
-        case "Content":
+        case "Content": {
+            const referencesContext = context.dynamo.unexpectStrongReadConsistency();
+
             const contentKeyEncoder = new ApiContentKeyEncoder({
                 entityId,
                 version: getMessageContentVersion(payload),
             });
             const [contentWithReferences, parent, files] = await runAllPromises([
-                intoApiMessageContentWithReferences(context, {
+                intoApiMessageContentWithReferences(referencesContext, {
                     spaceId,
                     node: payload.content,
                     encoder: contentKeyEncoder,
                 }),
                 payload.parent ? intoContentPayloadParent(payload.parent) : undefined,
-                resolveFilesForApiResponse(context, spaceId, payload.fileIds),
+                resolveFilesForApiResponse(
+                    referencesContext,
+                    spaceId,
+                    payload.fileIds,
+                    contentKeyEncoder,
+                ),
             ]);
 
             return {
@@ -190,6 +199,7 @@ async function intoApiMessagePayload(
                 content: contentWithReferences,
                 files,
             };
+        }
         default:
             throw exhaustive(payload);
     }

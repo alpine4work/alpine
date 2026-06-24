@@ -836,7 +836,7 @@ paths:
                                     # creation outside of channels right now, users are required to provide
                                     # a channelId in the request. Going from required to optional will be
                                     # a backwards compatible change when the time comes.
-                                    required: [channelId, content]
+                                    required: [channel, content]
                                     properties:
                                         createdTimeZone:
                                             $ref: "#/components/schemas/TimeZone"
@@ -3481,7 +3481,7 @@ components:
             type: object
             # `channel` is intentionally optional since we may allow users to create posts
             # that aren't in a channel in the future.
-            required: [id, author, createdTime, createdTimeZone, reference]
+            required: [id, author, createdTime, createdTimeZone, contentSnippet, reference]
             additionalProperties: false
             properties:
                 id:

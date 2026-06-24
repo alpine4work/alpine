@@ -244,7 +244,7 @@ test("can find sliced content", async () => {
 
                 const apiContentSlice = sliceApiContentRange(apiContent, {start, end});
 
-                const ranges = findApiContentRanges(apiContent, apiContentSlice);
+                const ranges = Array.from(findApiContentRanges(apiContent, apiContentSlice));
 
                 expect(ranges).toEqual(expect.arrayContaining([{start, end}]));
             },

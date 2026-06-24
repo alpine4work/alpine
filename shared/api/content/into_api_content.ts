@@ -489,8 +489,8 @@ function intoApiContentBlockElement(
 
             return {
                 type: "Heading",
-                level: clampHeadingLevel(node.attrs.level),
                 ...(key !== undefined ? {key} : {}),
+                level: clampHeadingLevel(node.attrs.level),
                 elements,
             };
         }

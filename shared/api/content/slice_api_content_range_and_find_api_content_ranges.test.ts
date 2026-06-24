@@ -934,7 +934,7 @@ const testCases: Array<{
         range: {from: 0.5, to: 0.530927836894989},
     },
     {
-        name: "generative bug: empty range with commentable content elsewhere",
+        name: "empty range with commentable content elsewhere",
         content: {
             type: "doc",
             content: [
@@ -1154,7 +1154,7 @@ for (const {only, name, content: contentJson, range} of testCases) {
 
         const apiContentSlice = sliceApiContentRange(apiContent, {start, end});
 
-        const ranges = findApiContentRanges(apiContent, apiContentSlice);
+        const ranges = Array.from(findApiContentRanges(apiContent, apiContentSlice));
 
         expect(ranges).toEqual(expect.arrayContaining([{start, end}]));
     });

@@ -143,6 +143,12 @@ export type ApiContentCodeBlockElement =
 export type ApiContentCodeBlockElementResponse =
     ApiSpecification.components["schemas"]["ContentCodeBlockElement_Response"];
 
+export type ApiContentCodeBlockElementLine =
+    ApiSpecification.components["schemas"]["ContentCodeBlockElementLine"];
+
+export type ApiContentCodeBlockElementLineResponse =
+    ApiSpecification.components["schemas"]["ContentCodeBlockElementLine_Response"];
+
 export type ApiContentCodeBlockElementTextInlineElement =
     ApiSpecification.components["schemas"]["ContentCodeBlockElementTextInlineElement"];
 
@@ -249,6 +255,8 @@ export type ApiChannelPreview = ApiSpecification.components["schemas"]["ChannelP
 export type ApiPostResponse = ApiSpecification.components["schemas"]["Post_Response"];
 
 export type ApiPostPreview = ApiSpecification.components["schemas"]["PostPreview"];
+
+export type ApiPostPreviewResponse = ApiSpecification.components["schemas"]["PostPreview_Response"];
 
 export type ApiMessagePayloadResponse =
     ApiSpecification.components["schemas"]["MessagePayload_Response"];

@@ -119,6 +119,7 @@ export function intoApiSearchResult({
             return {
                 type: "Post",
                 id: entity.post.id,
+                // NOCOMMIT: Add author name to title?
                 title: model.initialData.title ?? getMissingSearchEntityTitle(entity),
                 bodyMatch,
                 parsedFilter,
