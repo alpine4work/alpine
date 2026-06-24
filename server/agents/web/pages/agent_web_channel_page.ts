@@ -1055,7 +1055,13 @@ async function parseAgentWebChannelPagePostBlock(
         });
     }
 
-    const pageLinkResult = await routeAgentWebPageLinkPathname(storage, seeMoreLink.url);
+    const [pageLinkResult, contentSnippet] = await runAllPromises([
+        routeAgentWebPageLinkPathname(storage, seeMoreLink.url),
+        parseApiContentFromAgentWebMarkdownTree(storage, {
+            type: "root",
+            children: root.children.slice(0, -1),
+        }),
+    ]);
 
     if (!pageLinkResult || pageLinkResult.pageLink.type !== "Post") {
         throw new InvalidArgumentError("Invalid channel post link", {
@@ -1063,18 +1069,12 @@ async function parseAgentWebChannelPagePostBlock(
         });
     }
 
-    const titleNodes = root.children.slice(0, -1);
-    let title = pageLinkResult.pageLink.title;
-
-    if (titleNodes.length === 1 && titleNodes[0]?.type === "paragraph") {
-        title = printMarkdownPhrasingContentText(titleNodes[0].children);
-    }
-
     return {
         type: "Post",
         author,
         timeAttribute,
-        reference: {...pageLinkResult.pageLink, title},
+        contentSnippet,
+        reference: pageLinkResult.pageLink,
     };
 }
 

@@ -66,8 +66,29 @@ function paragraph(
     return {type: "Paragraph", elements};
 }
 
-function text(text: string): ApiContentTextInlineElement {
-    return {type: "Text", text};
+function unorderedList(
+    items: ReadonlyArray<{
+        readonly elements: ReadonlyArray<ApiContentParagraphBlockElementResponseWithoutKeys>;
+    }>,
+): ApiContentResponseWithoutKeys["elements"][number] {
+    return {type: "UnorderedList", items};
+}
+
+function listItem(elements: ReadonlyArray<ApiContentParagraphBlockElementResponseWithoutKeys>): {
+    readonly elements: ReadonlyArray<ApiContentParagraphBlockElementResponseWithoutKeys>;
+} {
+    return {elements};
+}
+
+function text(
+    text: string,
+    marks?: ApiContentTextInlineElement["marks"],
+): ApiContentTextInlineElement {
+    return {type: "Text", text, ...(marks ? {marks} : {})};
+}
+
+function mention(reference: ApiPostReferenceResponse): ApiContentInlineElementResponse {
+    return {type: "Mention", reference};
 }
 
 runAgentWebPageTests<ChannelId, AgentWebChannelPage>({
@@ -90,7 +111,7 @@ Updates from the team.
 
 <post from="[Alice](/human/alice)" time="May 14th at 11:00am EDT">
 
-Launch notes
+Launch summary.
 
 [See more »](/post/launch-notes)
 
@@ -98,7 +119,7 @@ Launch notes
 
 <post from="[Bob](/human/bob)" time="May 14th at 11:05am EDT">
 
-Roadmap
+Roadmap summary.
 
 [See more »](/post/roadmap)
 
@@ -115,12 +136,14 @@ Roadmap
                         type: "Post",
                         author: aliceReference,
                         timeAttribute: "May 14th at 11:00am EDT",
+                        contentSnippet: content([paragraph([text("Launch summary.")])]),
                         reference: launchPostReference,
                     },
                     {
                         type: "Post",
                         author: bobReference,
                         timeAttribute: "May 14th at 11:05am EDT",
+                        contentSnippet: content([paragraph([text("Roadmap summary.")])]),
                         reference: roadmapPostReference,
                     },
                 ],
@@ -206,7 +229,7 @@ Posts in Announcements. [Next page »](/channel/announcements?after=2026-05-14T1
 
 <post from="[Alice](/human/alice)" time="May 14th at 11:00am EDT">
 
-Launch notes
+Launch summary.
 
 [See more »](/post/launch-notes)
 
@@ -222,6 +245,7 @@ Launch notes
                         type: "Post",
                         author: aliceReference,
                         timeAttribute: "May 14th at 11:00am EDT",
+                        contentSnippet: content([paragraph([text("Launch summary.")])]),
                         reference: launchPostReference,
                     },
                 ],
@@ -253,7 +277,7 @@ Posts in Announcements.
 
 <post from="[Alice](/human/alice)">
 
-Launch notes
+Launch summary.
 
 [See more »](/post/launch-notes)
 
@@ -269,6 +293,176 @@ Launch notes
                         type: "Post",
                         author: aliceReference,
                         timeAttribute: null,
+                        contentSnippet: content([paragraph([text("Launch summary.")])]),
+                        reference: launchPostReference,
+                    },
+                ],
+                isEndOfPosts: false,
+            },
+        },
+        {
+            name: "tail channel page with see more link in post content snippet",
+            pageLink: channelId,
+            markdown: `\
+Posts in Announcements.
+
+<post from="[Alice](/human/alice)" time="May 14th at 11:00am EDT">
+
+Read the full context: [See more »](https://example.com/context)
+
+[See more »](/post/launch-notes)
+
+</post>
+`,
+            page: {
+                type: "Channel",
+                subType: "Tail",
+                name: "Announcements",
+                pagination: null,
+                posts: [
+                    {
+                        type: "Post",
+                        author: aliceReference,
+                        timeAttribute: "May 14th at 11:00am EDT",
+                        contentSnippet: content([
+                            paragraph([
+                                text("Read the full context: "),
+                                text("See more »", [
+                                    {type: "Link", url: "https://example.com/context"},
+                                ]),
+                            ]),
+                        ]),
+                        reference: launchPostReference,
+                    },
+                ],
+                isEndOfPosts: false,
+            },
+        },
+        {
+            name: "tail channel page with rich post content snippet",
+            pageLink: channelId,
+            markdown: `\
+Posts in Announcements.
+
+<post from="[Alice](/human/alice)" time="May 14th at 11:00am EDT">
+
+Review **launch scope** and *risks*.
+
+- Confirm launch checklist
+
+- Share **owner updates**
+
+[See more »](/post/launch-notes)
+
+</post>
+`,
+            page: {
+                type: "Channel",
+                subType: "Tail",
+                name: "Announcements",
+                pagination: null,
+                posts: [
+                    {
+                        type: "Post",
+                        author: aliceReference,
+                        timeAttribute: "May 14th at 11:00am EDT",
+                        contentSnippet: content([
+                            paragraph([
+                                text("Review "),
+                                text("launch scope", [{type: "Bold"}]),
+                                text(" and "),
+                                text("risks", [{type: "Italic"}]),
+                                text("."),
+                            ]),
+                            unorderedList([
+                                listItem([paragraph([text("Confirm launch checklist")])]),
+                                listItem([
+                                    paragraph([
+                                        text("Share "),
+                                        text("owner updates", [{type: "Bold"}]),
+                                    ]),
+                                ]),
+                            ]),
+                        ]),
+                        reference: launchPostReference,
+                    },
+                ],
+                isEndOfPosts: false,
+            },
+        },
+        {
+            name: "tail channel page with standalone see more link in post content snippet",
+            pageLink: channelId,
+            markdown: `\
+Posts in Announcements.
+
+<post from="[Alice](/human/alice)" time="May 14th at 11:00am EDT">
+
+[See more »](https://example.com/context)
+
+[See more »](/post/launch-notes)
+
+</post>
+`,
+            page: {
+                type: "Channel",
+                subType: "Tail",
+                name: "Announcements",
+                pagination: null,
+                posts: [
+                    {
+                        type: "Post",
+                        author: aliceReference,
+                        timeAttribute: "May 14th at 11:00am EDT",
+                        contentSnippet: content([
+                            paragraph([
+                                text("See more »", [
+                                    {type: "Link", url: "https://example.com/context"},
+                                ]),
+                            ]),
+                        ]),
+                        reference: launchPostReference,
+                    },
+                ],
+                isEndOfPosts: false,
+            },
+        },
+        {
+            name: "tail channel page with standalone see more post mention in post content snippet",
+            pageLink: channelId,
+            markdown: `\
+Posts in Announcements.
+
+<post from="[Alice](/human/alice)" time="May 14th at 11:00am EDT">
+
+[See more »](/post/roadmap)
+
+[See more »](/post/launch-notes)
+
+</post>
+`,
+            printMarkdown: `\
+Posts in Announcements.
+
+<post from="[Alice](/human/alice)" time="May 14th at 11:00am EDT">
+
+[Roadmap](/post/roadmap)
+
+[See more »](/post/launch-notes)
+
+</post>
+`,
+            page: {
+                type: "Channel",
+                subType: "Tail",
+                name: "Announcements",
+                pagination: null,
+                posts: [
+                    {
+                        type: "Post",
+                        author: aliceReference,
+                        timeAttribute: "May 14th at 11:00am EDT",
+                        contentSnippet: content([paragraph([mention(roadmapPostReference)])]),
                         reference: launchPostReference,
                     },
                 ],
