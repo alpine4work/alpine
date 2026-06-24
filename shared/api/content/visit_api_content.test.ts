@@ -214,7 +214,7 @@ describe("visitApiContent", () => {
 
         const markTypes: Array<string> = [];
         visitApiContent(content, {
-            visitInlineElementMark: mark => {
+            visitMark: mark => {
                 markTypes.push(mark.type);
             },
         });

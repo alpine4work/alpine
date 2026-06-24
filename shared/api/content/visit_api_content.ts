@@ -26,7 +26,7 @@ export type ApiContentVisitor = {
         element: ApiContentInlineElement,
         context: {elements: ReadonlyArray<ApiContentInlineElement>; index: number},
     ) => void;
-    readonly visitInlineElementMark?: (
+    readonly visitMark?: (
         mark: ApiContentInlineElementMark,
         context: {marks: ReadonlyArray<ApiContentInlineElementMark>; index: number},
     ) => void;
@@ -45,7 +45,7 @@ export type ApiContentResponseVisitor = {
         element: ApiContentInlineElementResponse,
         context: {elements: ReadonlyArray<ApiContentInlineElementResponse>; index: number},
     ) => void;
-    readonly visitInlineElementMark?: (
+    readonly visitMark?: (
         mark: ApiContentInlineElementMark,
         context: {marks: ReadonlyArray<ApiContentInlineElementMark>; index: number},
     ) => void;
@@ -129,10 +129,24 @@ export function visitApiContentBlockElement(
         }
         case "File": {
             // File doesn't contain children that need visiting.
+
+            if (element.marks !== undefined) {
+                for (let index = 0; index < element.marks.length; index++) {
+                    const mark = element.marks[index]!;
+                    visitor.visitMark?.(mark, {marks: element.marks, index});
+                }
+            }
             break;
         }
         case "Preview": {
             visitor.visitReference?.(element.reference, {element});
+
+            if (element.marks !== undefined) {
+                for (let index = 0; index < element.marks.length; index++) {
+                    const mark = element.marks[index]!;
+                    visitor.visitMark?.(mark, {marks: element.marks, index});
+                }
+            }
             break;
         }
         case "FileGallery": {
@@ -204,7 +218,7 @@ function visitApiContentInlineElement(
     if (element.marks !== undefined) {
         for (let index = 0; index < element.marks.length; index++) {
             const mark = element.marks[index]!;
-            visitor.visitInlineElementMark?.(mark, {marks: element.marks, index});
+            visitor.visitMark?.(mark, {marks: element.marks, index});
         }
     }
 

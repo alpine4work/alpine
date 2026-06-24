@@ -681,7 +681,7 @@ function* iterateApiContentBlockElement(
                 parents: childParents,
                 position: {type: "Before", key: element.element.key},
                 value: element.element,
-                marks: undefined,
+                marks: element.element.marks,
             };
             break;
         }

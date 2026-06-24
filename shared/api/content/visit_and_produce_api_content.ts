@@ -25,7 +25,7 @@ export type ApiContentDraftVisitor = {
         element: Draft<ApiContentInlineElement>,
         context: {elements: Draft<ReadonlyArray<ApiContentInlineElement>>; index: number},
     ) => void;
-    readonly visitInlineElementMark?: (
+    readonly visitMark?: (
         mark: Draft<ApiContentInlineElementMark>,
         context: {marks: Draft<ReadonlyArray<ApiContentInlineElementMark>>; index: number},
     ) => void;

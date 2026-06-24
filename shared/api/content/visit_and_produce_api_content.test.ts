@@ -120,7 +120,7 @@ describe("visitAndProduceApiContent", () => {
         };
 
         const result = visitAndProduceApiContent(content, {
-            visitInlineElementMark: mark => {
+            visitMark: mark => {
                 if (mark.type === "Bold") {
                     // Change Bold to Italic
                     (mark as any).type = "Italic";

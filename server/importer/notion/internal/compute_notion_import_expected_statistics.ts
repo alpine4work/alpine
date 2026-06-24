@@ -101,7 +101,7 @@ export async function computeNotionImportExpectedStatistics({
         const apiContent = parseApiContentFromMarkdown(markdown.replaceAll("![", "["));
 
         visitApiContent(apiContent, {
-            visitInlineElementMark: mark => {
+            visitMark: mark => {
                 if (mark.type !== "Link") return;
 
                 const resolved = resolveNotionImportFileLinkPath(
