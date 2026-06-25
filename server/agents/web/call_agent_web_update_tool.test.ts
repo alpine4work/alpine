@@ -52,7 +52,30 @@ afterEach(() => {
 });
 
 function createDocumentContentFromMarkdown(markdown: string): ApiContentResponse {
-    return parseApiContentFromMarkdown(markdown) as ApiContentResponse;
+    const content = parseApiContentFromMarkdown(markdown) as ApiContentResponse;
+    // NOCOMMIT: Come up with a `ApiContentKeyEncoder` solution for `server/agents/web`
+    // tests.
+    const keyEncoder = new ApiContentKeyEncoder({entityId: "Test", version: 0});
+
+    return {
+        elements: content.elements.map((element, index) => {
+            if ("key" in element && element.key) return element;
+
+            switch (element.type) {
+                case "Paragraph":
+                case "Heading":
+                case "Divider":
+                case "File":
+                case "Preview":
+                    return {
+                        ...element,
+                        key: keyEncoder.encode({pos: index, nodeSize: markdown.length + 2}),
+                    };
+                default:
+                    return element;
+            }
+        }),
+    } as ApiContentResponse;
 }
 
 async function seedDocumentPathViaPrint(documentId: DocumentId, title: string): Promise<string> {

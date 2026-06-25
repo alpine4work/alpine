@@ -179,7 +179,7 @@ test("paginates through a long GFM table across multiple scroll calls", async ()
 
     await context.storage.readResponseByPath.put(path, {
         expirationTime: new Date(Date.now() + 60_000),
-        pageMetadata: {type: "Document", id: generateId<DocumentId>(), version: 42},
+        pageMetadata: {type: "Document", id: generateId<DocumentId>(), version: 42, keys: []},
         ...createReadResponse(tableResponseString),
     });
 
@@ -370,7 +370,7 @@ test("throws when read response does not exist", async () => {
 test("throws when read response is expired", async () => {
     await context.storage.readResponseByPath.put("/document/expired", {
         expirationTime: new Date(Date.now() - 60_000),
-        pageMetadata: {type: "Document", id: generateId<DocumentId>(), version: 42},
+        pageMetadata: {type: "Document", id: generateId<DocumentId>(), version: 42, keys: []},
         ...createReadResponse("Expired content."),
     });
 
@@ -386,7 +386,7 @@ test("throws when read response is expired", async () => {
 test.each([-1, 1.5, 3])("throws for invalid offset %s", async offset => {
     await context.storage.readResponseByPath.put("/document/offset", {
         expirationTime: new Date(Date.now() + 60_000),
-        pageMetadata: {type: "Document", id: generateId<DocumentId>(), version: 42},
+        pageMetadata: {type: "Document", id: generateId<DocumentId>(), version: 42, keys: []},
         ...createReadResponse("Single line"),
     });
 

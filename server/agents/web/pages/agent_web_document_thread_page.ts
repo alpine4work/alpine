@@ -536,6 +536,7 @@ export async function createAgentWebDocumentThreadPage(
                 type: "DocumentThread",
                 id: thread.document.id,
                 threadId: thread.id,
+                isStartOfMessages: true,
                 isEndOfMessages: true,
                 messages: [{index: firstMessage.index, keys}],
             };

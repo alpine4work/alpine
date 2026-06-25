@@ -68,6 +68,12 @@ export type ApiContentBlockElementResponseWithoutKeys =
 export type ApiContentParagraphBlockElementResponseWithoutKeys =
     MakeApiContentWithoutKeys<ApiContentParagraphBlockElementResponse>;
 
+export type ApiContentFileBlockElementResponseWithoutKeys =
+    MakeApiContentWithoutKeys<ApiContentFileBlockElementResponse>;
+
+export type ApiContentPreviewBlockElementResponseWithoutKeys =
+    MakeApiContentWithoutKeys<ApiContentPreviewBlockElementResponse>;
+
 type MakeApiContentWithOptionalKeys<Value> = Value extends JsonScalarValue | undefined
     ? Value
     : Value extends ReadonlyArray<infer Item>

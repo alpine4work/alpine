@@ -71,7 +71,7 @@ async function seedReadResponse({
 }) {
     await context.storage.readResponseByPath.put(path, {
         expirationTime,
-        pageMetadata: {type: "Document", id: generateId<DocumentId>(), version: 1},
+        pageMetadata: {type: "Document", id: generateId<DocumentId>(), version: 1, keys: []},
         ...createReadResponse(response),
     });
 }

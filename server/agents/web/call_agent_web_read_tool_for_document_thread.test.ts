@@ -21,6 +21,7 @@ import {
 } from "~/shared/api/specification/types/api_specification_convenience_types.js";
 import {serializeDateString} from "~/shared/helpers/date/date_string.js";
 import {defaultTimeZone} from "~/shared/helpers/intl/time_zone.js";
+import {generateChronologicalId} from "~/shared/id/chronological_id.js";
 import {generateId} from "~/shared/id/id.js";
 import {
     AccountId,
@@ -140,7 +141,7 @@ function commentedFile(contentType: ApiContentFileBlockElementResponse["contentT
     return {
         type: "File" as const,
         key: createContentKey(1),
-        id: generateId<FileId>(),
+        id: generateChronologicalId<FileId>(),
         contentType,
         contentLength: 100,
         marks: [commentMark()],
@@ -191,11 +192,13 @@ function mockGetDocumentThread({
                             title: documentReference.title,
                         },
                     },
-                    createdTime: serializeDateString(createdTime),
-                    createdTimeZone: defaultTimeZone,
                     isResolved,
-                    commentCount,
-                    firstCommentAuthor: aliceAccount,
+                    totalMessageCount: commentCount,
+                    firstMessage: {
+                        author: aliceAccount,
+                        createdTime: serializeDateString(createdTime),
+                        createdTimeZone: defaultTimeZone,
+                    },
                     documentContentSnippet: content,
                 },
             },

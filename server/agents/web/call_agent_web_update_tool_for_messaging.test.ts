@@ -972,7 +972,7 @@ test("rejects creating non-message custom blocks", async () => {
                 messageNouns: agentWebMessagingPageMessageNouns,
                 pathname: chatPath,
                 room: {type: "Chat", id: chatId},
-                oldPageMetadata: {isEndOfMessages: true, messages: []},
+                oldPageMetadata: {isStartOfMessages: true, isEndOfMessages: true, messages: []},
                 oldPage,
                 newPage,
                 prepareCustomBlockUpdate: () => ({update: async () => {}}),

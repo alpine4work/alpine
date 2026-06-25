@@ -446,6 +446,7 @@ export async function updateAgentWebMessagingPage<
     }
 
     return {
+        isStartOfMessages: actualOldPageMetadata.isStartOfMessages,
         isEndOfMessages: actualOldPageMetadata.isEndOfMessages || newPage.isEndOfMessages,
         messages: [...actualOldPageMetadata.messages, ...newMessages],
     };

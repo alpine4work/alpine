@@ -287,11 +287,6 @@ function mockGetDocumentThread({
         {
             data: {
                 spaceId,
-                document: {
-                    reference: {
-                        title: documentReference.title,
-                    },
-                },
                 thread: {
                     id: threadId,
                     document: {
@@ -300,10 +295,13 @@ function mockGetDocumentThread({
                             title: documentReference.title,
                         },
                     },
-                    createdTime: serializeDateString(createdTime),
                     isResolved,
-                    commentCount: 0,
-                    firstCommentAuthor: aliceAccount,
+                    totalMessageCount: 0,
+                    firstMessage: {
+                        author: aliceAccount,
+                        createdTime: serializeDateString(createdTime),
+                        createdTimeZone: defaultTimeZone,
+                    },
                     documentContentSnippet: content,
                 },
             },
@@ -411,6 +409,7 @@ End of comments.`;
             type: "DocumentThread",
             id: documentId,
             threadId,
+            isStartOfMessages: true,
             isEndOfMessages: true,
             messages: [],
         },

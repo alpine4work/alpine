@@ -461,7 +461,7 @@ export async function readAgentWebPostPage(
 
     let actualMetadata: AgentWebPostPageMetadata;
 
-    if (!metadata.isStartOfMessages) {
+    if (excludesPost || !metadata.isStartOfMessages) {
         // Double check that in this case we're on a tail page without a `<post>`.
         assert(!hasPostOpenTag);
 

@@ -19,11 +19,13 @@ import {
     printApiMentionReferenceToMentionUrl,
     printApiPreviewReferenceToPreviewUrl,
 } from "~/shared/api/markdown/print_api_content_to_markdown.js";
-import {ApiContentResponseWithoutKeys} from "~/shared/api/specification/types/api_content_response_without_keys.js";
+import {
+    ApiContentFileBlockElementResponseWithoutKeys,
+    ApiContentPreviewBlockElementResponseWithoutKeys,
+    ApiContentResponseWithoutKeys,
+} from "~/shared/api/specification/types/api_content_response_without_keys.js";
 import {
     ApiContentBlockElement,
-    ApiContentFileBlockElementResponse,
-    ApiContentPreviewBlockElementResponse,
     ApiMessageStreamContentPartPayloadResponse,
     ApiMessageStreamPartPayload,
 } from "~/shared/api/specification/types/api_specification_convenience_types.js";
@@ -684,7 +686,8 @@ async function traverseMarkdownHtmlNode(
 
     let fileOrPreviewElementByUrl: Map<
         string,
-        ApiContentFileBlockElementResponse | ApiContentPreviewBlockElementResponse
+        | ApiContentFileBlockElementResponseWithoutKeys
+        | ApiContentPreviewBlockElementResponseWithoutKeys
     > | null = null;
 
     const handleOpenTagEndOrSelfCloseTag = () => {
@@ -795,7 +798,7 @@ async function traverseMarkdownHtmlNode(
                         if (!pageLink) return url;
 
                         if (pageLink.type === "File") {
-                            const fileElement: ApiContentFileBlockElementResponse = {
+                            const fileElement: ApiContentFileBlockElementResponseWithoutKeys = {
                                 type: "File",
                                 id: pageLink.id,
                                 contentType: pageLink.contentType,
@@ -813,7 +816,7 @@ async function traverseMarkdownHtmlNode(
                             createAgentWebPageLinkApiPreviewReferenceIfPossible(pageLink);
                         if (!previewReference) return url;
 
-                        const previewElement: ApiContentPreviewBlockElementResponse = {
+                        const previewElement: ApiContentPreviewBlockElementResponseWithoutKeys = {
                             type: "Preview",
                             reference: previewReference,
                         };
