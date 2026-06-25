@@ -421,7 +421,7 @@ export async function createAgentWebDocumentThreadPage(
     const documentReadResponse = await context.storage.readResponseByPath.get(documentPath);
 
     if (!documentReadResponse || documentReadResponse.expirationTime.getTime() < Date.now()) {
-        throw new NotFoundError("Read response not found or expired", {
+        throw new InvalidArgumentError("Read response not found or expired", {
             displayMessage: errorDisplayMessage`Can\u2019t create a document comment thread for a document that hasn\u2019t been read recently. Call the \`read\` tool with the path \`${documentPath}\` then call the \`create\` tool again.`,
         });
     }
