@@ -7,9 +7,8 @@ import {AgentPostCommentsLink} from "~/server/agents/bots/internal/link_referenc
 import {createAgentLink} from "~/server/agents/bots/internal/link_references/agent_link_collection.js";
 import {loadAgentPostCommentsLinkContent as actuallyLoadAgentPostCommentsLinkContent} from "~/server/agents/bots/internal/link_references/load_agent_post_comments_link_content.js";
 import {printAgentContentMarkdownTree} from "~/server/agents/bots/internal/print_api_content_to_agent_markdown.js";
-import {ApiContentKeyEncoder} from "~/shared/api/content/api_content_key_encoder.js";
 import {parseApiContentFromMarkdown} from "~/shared/api/markdown/parse_api_content_from_markdown.js";
-import type {ApiContentKey} from "~/shared/api/specification/types/api_content_key.js";
+import {addKeysToApiContentForTest} from "~/shared/api/markdown/test_helpers/add_keys_to_api_content.js";
 import {ApiContentResponse} from "~/shared/api/specification/types/api_specification_convenience_types.js";
 import {TracerContextModule} from "~/shared/context/tracer_context_module.js";
 import {assertDateString} from "~/shared/helpers/date/date_string.js";
@@ -37,22 +36,15 @@ const conversationState = {
 
 const losAngelesTimeZone = assertTimeZone("America/Los_Angeles");
 const chicagoTimeZone = assertTimeZone("America/Chicago");
-const mockEntityId = "Post:mock";
-const mockApiContentKeyEncoder = new ApiContentKeyEncoder({entityId: mockEntityId, version: 0});
 
 // Helper to create sample content
 function createSampleContent(...texts: Array<string>): ApiContentResponse {
-    return {
-        elements: texts.map((text, pos) => ({
+    return addKeysToApiContentForTest({
+        elements: texts.map(text => ({
             type: "Paragraph",
-            key: createMockApiContentKey(pos),
             elements: [{type: "Text", text}],
         })),
-    };
-}
-
-function createMockApiContentKey(pos: number): ApiContentKey {
-    return mockApiContentKeyEncoder.encode({pos, nodeSize: 0});
+    });
 }
 
 async function loadAgentPostCommentsLinkContent(

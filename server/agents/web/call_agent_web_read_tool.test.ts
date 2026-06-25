@@ -7,8 +7,8 @@ import {AgentWebContext} from "~/server/agents/web/agent_web_context.js";
 import {printAgentWebPageStoredLinkKey} from "~/server/agents/web/agent_web_page_stored_link_key.js";
 import {callAgentWebReadTool} from "~/server/agents/web/call_agent_web_read_tool.js";
 import {createAgentWebSessionStorageForTest} from "~/server/agents/web/test_helpers/create_agent_web_session_storage_for_test.js";
-import {ApiContentKeyEncoder} from "~/shared/api/content/api_content_key_encoder.js";
 import {parseApiContentFromMarkdown} from "~/shared/api/markdown/parse_api_content_from_markdown.js";
+import {addKeysToApiContentForTest} from "~/shared/api/markdown/test_helpers/add_keys_to_api_content.js";
 import {ApiContentResponse} from "~/shared/api/specification/types/api_specification_convenience_types.js";
 import {NotFoundError} from "~/shared/error/error.js";
 import {defaultTimeZone} from "~/shared/helpers/intl/time_zone.js";
@@ -48,14 +48,10 @@ function createDocumentContentWithDocumentMention(
     documentId: DocumentId,
     title: string,
 ): ApiContentResponse {
-    return {
+    return addKeysToApiContentForTest({
         elements: [
             {
                 type: "Paragraph",
-                key: new ApiContentKeyEncoder({entityId: "Test", version: 0}).encode({
-                    pos: 0,
-                    nodeSize: 0,
-                }),
                 elements: [
                     {type: "Text", text: "See "},
                     {type: "Mention", reference: {type: "Document", id: documentId, title}},
@@ -63,7 +59,7 @@ function createDocumentContentWithDocumentMention(
                 ],
             },
         ],
-    };
+    });
 }
 
 test("throws when the link path has not been seen", async () => {

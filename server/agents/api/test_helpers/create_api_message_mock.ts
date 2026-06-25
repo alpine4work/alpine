@@ -1,4 +1,4 @@
-import {ApiContentKeyEncoder} from "~/shared/api/content/api_content_key_encoder.js";
+import {addKeysToApiContentForTest} from "~/shared/api/markdown/test_helpers/add_keys_to_api_content.js";
 import {
     ApiAccount,
     ApiContentResponse,
@@ -41,21 +41,14 @@ export function createApiMessageMock({
             content:
                 typeof content !== "string"
                     ? content
-                    : {
+                    : addKeysToApiContentForTest({
                           elements: [
                               {
                                   type: "Paragraph",
-                                  key: new ApiContentKeyEncoder({
-                                      entityId: `Message:${index}`,
-                                      version: 0,
-                                  }).encode({
-                                      pos: 0,
-                                      nodeSize: content.length + 2,
-                                  }),
                                   elements: [{type: "Text", text: content}],
                               },
                           ],
-                      },
+                      }),
             parent: parent
                 ? {
                       type: "Message" as const,

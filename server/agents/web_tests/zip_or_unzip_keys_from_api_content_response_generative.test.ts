@@ -2,9 +2,9 @@ import fc from "fast-check";
 import {parseApiContentFromAgentWebMarkdown} from "~/server/agents/web/parse_api_content_from_agent_web_markdown.js";
 import {printApiContentToAgentWebMarkdown} from "~/server/agents/web/print_api_content_to_agent_web_markdown.js";
 import {createAgentWebSessionStorageForTest} from "~/server/agents/web/test_helpers/create_agent_web_session_storage_for_test.js";
-import {ApiContentKeyEncoder} from "~/shared/api/content/api_content_key_encoder.js";
 import {intoApiContent} from "~/shared/api/content/into_api_content.js";
 import {apiContentArbitrarySpaceId} from "~/shared/api/markdown/test_helpers/api_content_arbitrary.js";
+import {addKeysToApiContentForTest} from "~/shared/api/markdown/test_helpers/add_keys_to_api_content.js";
 import {
     unzipKeysFromApiContentResponse,
     zipKeysIntoApiContentResponse,
@@ -31,16 +31,17 @@ test("can zip/unzip keys from parsed/printed API content", async () => {
 
             const documentId = generateId<DocumentId>();
 
-            const expectedContent = intoApiContent(expectedInternalContent, {
-                encoder: new ApiContentKeyEncoder({
-                    entityId: `Document:${documentId}`,
-                    version: 0,
+            const expectedContent = addKeysToApiContentForTest(
+                intoApiContent(expectedInternalContent, {
+                    getAccountMentionTitleIfExists: () => undefined,
+                    getSearchEntityMentionTitleIfExists: () => undefined,
+                    getSearchTaskEntityDisplayStatusIfExists: () => undefined,
+                    getFileIfExists: () => undefined,
                 }),
-                getAccountMentionTitleIfExists: () => undefined,
-                getSearchEntityMentionTitleIfExists: () => undefined,
-                getSearchTaskEntityDisplayStatusIfExists: () => undefined,
-                getFileIfExists: () => undefined,
-            });
+                {
+                    entityId: `Document:${documentId}`,
+                },
+            );
 
             const {content: expectedContentWithoutKeys, keys} =
                 unzipKeysFromApiContentResponse(expectedContent);

@@ -1,4 +1,5 @@
 /* eslint-disable cyberworlds/string-quotes */
+
 import {DurableObjectStorage} from "@miniflare/durable-objects";
 import {MemoryStorage} from "@miniflare/storage-memory";
 import {ApiClientMock} from "~/server/agents/api/test_helpers/api_client_mock.js";
@@ -7,8 +8,7 @@ import {AgentPaginatedMessagesListLink} from "~/server/agents/bots/internal/link
 import {createAgentLink} from "~/server/agents/bots/internal/link_references/agent_link_collection.js";
 import {loadAgentMessagesListLinkContent as actuallyLoadAgentMessagesListLinkContent} from "~/server/agents/bots/internal/link_references/load_agent_messages_list_link_content.js";
 import {printAgentContentMarkdownTree} from "~/server/agents/bots/internal/print_api_content_to_agent_markdown.js";
-import {ApiContentKeyEncoder} from "~/shared/api/content/api_content_key_encoder.js";
-import type {ApiContentKey} from "~/shared/api/specification/types/api_content_key.js";
+import {addKeysToApiContentForTest} from "~/shared/api/markdown/test_helpers/add_keys_to_api_content.js";
 import {ApiContentResponse} from "~/shared/api/specification/types/api_specification_convenience_types.js";
 import {TracerContextModule} from "~/shared/context/tracer_context_module.js";
 import {assertDateString} from "~/shared/helpers/date/date_string.js";
@@ -37,22 +37,15 @@ const conversationState = {
     startTime: conversationStartDate,
     timeZone: defaultTimeZone,
 } as const;
-const mockEntityId = "Message:mock";
-const mockApiContentKeyEncoder = new ApiContentKeyEncoder({entityId: mockEntityId, version: 0});
 
 // Helper to create sample content
 function createSampleContent(...texts: Array<string>): ApiContentResponse {
-    return {
-        elements: texts.map((text, pos) => ({
+    return addKeysToApiContentForTest({
+        elements: texts.map(text => ({
             type: "Paragraph",
-            key: createMockApiContentKey(pos),
             elements: [{type: "Text", text}],
         })),
-    };
-}
-
-function createMockApiContentKey(pos: number): ApiContentKey {
-    return mockApiContentKeyEncoder.encode({pos, nodeSize: 0});
+    });
 }
 
 async function loadAgentMessagesListLinkContent(

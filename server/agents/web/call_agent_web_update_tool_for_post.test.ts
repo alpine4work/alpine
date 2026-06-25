@@ -10,7 +10,7 @@ import {callAgentWebReadTool} from "~/server/agents/web/call_agent_web_read_tool
 import {callAgentWebUpdateTool} from "~/server/agents/web/call_agent_web_update_tool.js";
 import {createAgentWebPageStoredLinkPathname} from "~/server/agents/web/create_agent_web_page_stored_link_pathname.js";
 import {createAgentWebSessionStorageForTest} from "~/server/agents/web/test_helpers/create_agent_web_session_storage_for_test.js";
-import {ApiContentKeyEncoder} from "~/shared/api/content/api_content_key_encoder.js";
+import {addKeysToApiContentForTest} from "~/shared/api/markdown/test_helpers/add_keys_to_api_content.js";
 import {ApiContentResponseWithoutKeys} from "~/shared/api/specification/types/api_content_response_without_keys.js";
 import {
     ApiAccount,
@@ -199,18 +199,14 @@ function createTextContent(text: string): ApiContentResponseWithoutKeys {
 }
 
 function createTextContentWithKeys(text: string): ApiContentResponse {
-    return {
+    return addKeysToApiContentForTest({
         elements: [
             {
                 type: "Paragraph",
-                key: new ApiContentKeyEncoder({entityId: "Test", version: 0}).encode({
-                    pos: 0,
-                    nodeSize: text.length + 2,
-                }),
                 elements: [{type: "Text", text}],
             },
         ],
-    };
+    });
 }
 
 function createComment({

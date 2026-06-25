@@ -2,10 +2,9 @@ import jsonStableStringify from "json-stable-stringify";
 import {PathsWithMethod} from "openapi-typescript-helpers";
 import {ApiClient} from "~/server/agents/api/api_client.js";
 import {createApiAccountMock} from "~/server/agents/api/test_helpers/create_api_account_mock.js";
-import {ApiContentKeyEncoder} from "~/shared/api/content/api_content_key_encoder.js";
-import type {ApiContentKey} from "~/shared/api/specification/types/api_content_key.js";
+import {addKeysToApiContentForTest} from "~/shared/api/markdown/test_helpers/add_keys_to_api_content.js";
+import {ApiContentResponseWithOptionalKeys} from "~/shared/api/specification/types/api_content_response_without_keys.js";
 import {
-    ApiContentResponse,
     ApiDocumentThreadResponse,
     ApiMessageResponse,
     ApiPostResponse,
@@ -18,6 +17,7 @@ import {InvalidArgumentError} from "~/shared/error/error.js";
 import {isDeepEqual} from "~/shared/helpers/control/is_deep_equal.js";
 import {serializeDateString} from "~/shared/helpers/date/date_string.js";
 import {defaultTimeZone} from "~/shared/helpers/intl/time_zone.js";
+import {Replace} from "~/shared/helpers/types/replace.js";
 import {generateId} from "~/shared/id/id.js";
 import {
     AccountId,
@@ -445,16 +445,12 @@ export class ApiClientMock implements ApiClient {
         responseData: Partial<{
             creatorId: AccountId;
             title: string;
-            content: ApiContentResponse;
+            content: ApiContentResponseWithOptionalKeys;
             version: number;
         }>,
     ): void {
         documentId ??= generateId<DocumentId>();
         spaceId ??= generateId<SpaceId>();
-        const defaultContent = createApiContentResponseWithSingleParagraph(
-            "mock-document",
-            "Test Document Content",
-        );
 
         this.mockGet(
             "/documents/{id}",
@@ -463,7 +459,12 @@ export class ApiClientMock implements ApiClient {
                     document: {
                         id: documentId,
                         title: responseData.title ?? "Test Document",
-                        content: responseData.content ?? defaultContent,
+                        content: addKeysToApiContentForTest(
+                            responseData.content ??
+                                createApiContentResponseWithSingleParagraph(
+                                    "Test Document Content",
+                                ),
+                        ),
                         version: responseData.version ?? 1,
                     },
                     spaceId,
@@ -479,27 +480,36 @@ export class ApiClientMock implements ApiClient {
         spaceId: SpaceId,
         documentId: DocumentId,
         commentThreadId: DocumentCommentThreadId,
-        responseData: Partial<Omit<ApiDocumentThreadResponse, "id">>,
+        responseData: Partial<
+            Replace<
+                Omit<ApiDocumentThreadResponse, "id">,
+                {documentContentSnippet: ApiContentResponseWithOptionalKeys}
+            >
+        >,
     ): void {
         this.mockGet(
             "/documents/{id}/threads/{threadId}",
             {
                 data: {
                     spaceId,
-                    document: {
-                        reference: {
-                            title: "Test Document",
-                        },
-                    },
                     thread: {
                         id: commentThreadId,
-                        createdTime: responseData.createdTime ?? serializeDateString(new Date()),
-                        isResolved: responseData.isResolved ?? false,
-                        commentCount: responseData.commentCount ?? 0,
-                        documentContentSnippet: responseData.documentContentSnippet ?? {
-                            elements: [],
+                        document: responseData.document ?? {
+                            id: documentId,
+                            reference: {
+                                title: "Test Document",
+                            },
                         },
-                        firstCommentAuthor: responseData.firstCommentAuthor ?? null,
+                        isResolved: responseData.isResolved ?? false,
+                        totalMessageCount: responseData.totalMessageCount ?? 0,
+                        firstMessage: responseData.firstMessage ?? {
+                            author: createApiAccountMock({}),
+                            createdTime: serializeDateString(new Date()),
+                            createdTimeZone: defaultTimeZone,
+                        },
+                        documentContentSnippet: addKeysToApiContentForTest(
+                            responseData.documentContentSnippet ?? {elements: []},
+                        ),
                     },
                 },
             },
@@ -556,14 +566,12 @@ export class ApiClientMock implements ApiClient {
     mockGetPost(
         spaceId: SpaceId,
         postId: PostId,
-        responseData: Partial<Omit<ApiPostResponse, "id">>,
+        responseData: Partial<
+            Replace<Omit<ApiPostResponse, "id">, {content: ApiContentResponseWithOptionalKeys}>
+        >,
     ): void {
         postId ??= generateId<PostId>();
         spaceId ??= generateId<SpaceId>();
-        const defaultContent = createApiContentResponseWithSingleParagraph(
-            "mock-post",
-            "Test Post Content",
-        );
 
         this.mockGet(
             "/posts/{id}",
@@ -573,10 +581,12 @@ export class ApiClientMock implements ApiClient {
                         id: postId,
                         author: responseData.author ?? createApiAccountMock({}),
                         createdTimeZone: responseData.createdTimeZone ?? defaultTimeZone,
-                        content: responseData.content ?? defaultContent,
+                        content: addKeysToApiContentForTest(
+                            responseData.content ??
+                                createApiContentResponseWithSingleParagraph("Test Post Content"),
+                        ),
                         createdTime: responseData.createdTime ?? serializeDateString(new Date()),
                         reference: responseData.reference ?? {title: "Test Post Content Preview"},
-                        ...responseData,
                     },
                     spaceId,
                 },
@@ -650,9 +660,8 @@ export class ApiClientMock implements ApiClient {
                         title: responseData.title ?? "Test Task",
                         notes: responseData.notes ?? {
                             version: 0,
-                            content: createApiContentResponseWithSingleParagraph(
-                                "mock-task",
-                                "Test Task Content",
+                            content: addKeysToApiContentForTest(
+                                createApiContentResponseWithSingleParagraph("Test Task Content"),
                             ),
                         },
                         ...responseData,
@@ -771,20 +780,14 @@ export class ApiClientMock implements ApiClient {
  * that need to satisfy the public response shape.
  */
 function createApiContentResponseWithSingleParagraph(
-    keyPrefix: string,
     text: string,
-): ApiContentResponse {
+): ApiContentResponseWithOptionalKeys {
     return {
         elements: [
             {
                 type: "Paragraph",
-                key: createMockApiContentKey(keyPrefix),
                 elements: [{type: "Text", text}],
             },
         ],
     };
-}
-
-function createMockApiContentKey(entityId: string): ApiContentKey {
-    return new ApiContentKeyEncoder({entityId, version: 0}).encode({pos: 0, nodeSize: 0});
 }

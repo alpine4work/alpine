@@ -5,12 +5,10 @@ import {TestSpace} from "~/server/spaces/test_helpers/test_space.js";
 import {tasksInjection} from "~/server/tasks/data/tasks_injection.js";
 import {TestTask} from "~/server/tasks/data/test_helpers/test_task.js";
 import {TestTaskRealtimeServer} from "~/server/tasks/realtime/test_helpers/test_task_realtime_server.js";
-import {ApiContentKeyEncoder} from "~/shared/api/content/api_content_key_encoder.js";
+import {addKeysToApiContentForTest} from "~/shared/api/markdown/test_helpers/add_keys_to_api_content.js";
 import {ApiSpecification} from "~/shared/api/specification/types/api_specification_types.js";
 import {ApiContentResponse} from "~/shared/api/specification/types/api_specification_convenience_types.js";
 import {ProcessContextModule} from "~/shared/context/process_context_module.js";
-import {generateId} from "~/shared/id/id.js";
-import {TaskId} from "~/shared/id/types/id_types.js";
 
 const baseContext = createTestContext({
     shouldStartOpensearch: true,
@@ -18,22 +16,17 @@ const baseContext = createTestContext({
 });
 
 const context = TestTaskRealtimeServer.with(baseContext);
-const taskNoteKey = new ApiContentKeyEncoder({
-    entityId: `Task:${generateId<TaskId>()}`,
-    version: 0,
-}).encode({pos: 0, nodeSize: 1});
 
 const notes: ApiSpecification.components["schemas"]["TaskNotes_Response"] = {
     version: 0,
-    content: {
+    content: addKeysToApiContentForTest({
         elements: [
             {
                 type: "Paragraph",
-                key: taskNoteKey,
                 elements: [{type: "Text", text: "Hello from task notes"}],
             },
         ],
-    },
+    }),
 };
 
 test("intoApiTask serializes a fully populated task", async () => {

@@ -8,13 +8,15 @@ import {callAgentWebReadTool} from "~/server/agents/web/call_agent_web_read_tool
 import {createAgentWebPageLinkPathname} from "~/server/agents/web/create_agent_web_page_link_pathname.js";
 import {createAgentWebPageStoredLinkPathname} from "~/server/agents/web/create_agent_web_page_stored_link_pathname.js";
 import {createAgentWebSessionStorageForTest} from "~/server/agents/web/test_helpers/create_agent_web_session_storage_for_test.js";
-import {ApiContentKeyEncoder} from "~/shared/api/content/api_content_key_encoder.js";
+import {addKeysToApiContentForTest} from "~/shared/api/markdown/test_helpers/add_keys_to_api_content.js";
 import {
-    ApiContentBlockElementResponse,
-    ApiContentFileBlockElementResponse,
+    ApiContentBlockElementResponseWithoutKeys,
+    ApiContentFileBlockElementResponseWithoutKeys,
+    ApiContentParagraphBlockElementResponseWithoutKeys,
+} from "~/shared/api/specification/types/api_content_response_without_keys.js";
+import {
     ApiContentInlineElementMark,
     ApiContentInlineElementResponse,
-    ApiContentParagraphBlockElementResponse,
     ApiContentResponse,
     ApiDocumentReferenceResponse,
     ApiMessageResponse,
@@ -53,12 +55,10 @@ const documentThreadReference: AgentWebPageDocumentThreadRoutedLink = {
     threadId,
 };
 const documentThreadPath = "/document/launch-spec/comments/1";
-const contentKeyEncoder = new ApiContentKeyEncoder({entityId: "Test", version: 0});
 
 const {span} = testTracer.startSpan("call_agent_web_read_tool_for_document_thread.test.ts");
 const api = new ApiClientMock();
 const storage = createAgentWebSessionStorageForTest(spaceId);
-let nextContentKeyPosition = 0;
 
 const context: AgentWebContext = {
     spaceId,
@@ -78,35 +78,22 @@ const context: AgentWebContext = {
 
 beforeEach(async () => {
     await storage.deleteAll();
-    nextContentKeyPosition = 0;
 
     await createAgentWebPageLinkPathname(storage, context.botAccount);
     await createAgentWebPageLinkPathname(storage, documentReference);
     await createAgentWebPageLinkPathname(storage, documentThreadReference);
 });
 
-function createContentKey(nodeSize: number) {
-    const key = contentKeyEncoder.encode({pos: nextContentKeyPosition, nodeSize});
-    nextContentKeyPosition += Math.max(nodeSize, 1);
-    return key;
-}
-
-function inlineElementLength(element: ApiContentInlineElementResponse) {
-    if (element.type === "Text") return element.text.length;
-    return 1;
-}
-
 function contentFromBlockElements(
-    elements: ReadonlyArray<ApiContentBlockElementResponse>,
+    elements: ReadonlyArray<ApiContentBlockElementResponseWithoutKeys>,
 ): ApiContentResponse {
-    return {elements};
+    return addKeysToApiContentForTest({elements});
 }
 
 function paragraph(
     elements: ReadonlyArray<ApiContentInlineElementResponse>,
-): ApiContentParagraphBlockElementResponse {
-    const nodeSize = elements.reduce((sum, element) => sum + inlineElementLength(element), 2);
-    return {type: "Paragraph", key: createContentKey(nodeSize), elements};
+): ApiContentParagraphBlockElementResponseWithoutKeys {
+    return {type: "Paragraph", elements};
 }
 
 function text(
@@ -137,10 +124,9 @@ function contentFromCommentedText(text: string): ApiContentResponse {
     return contentFromBlockElements([paragraph([commentedText(text)])]);
 }
 
-function commentedFile(contentType: ApiContentFileBlockElementResponse["contentType"]) {
+function commentedFile(contentType: ApiContentFileBlockElementResponseWithoutKeys["contentType"]) {
     return {
         type: "File" as const,
-        key: createContentKey(1),
         id: generateChronologicalId<FileId>(),
         contentType,
         contentLength: 100,

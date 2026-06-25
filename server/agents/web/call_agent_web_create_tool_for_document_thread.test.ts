@@ -5,7 +5,7 @@ import {callAgentWebCreateTool} from "~/server/agents/web/call_agent_web_create_
 import {callAgentWebReadTool} from "~/server/agents/web/call_agent_web_read_tool.js";
 import {createAgentWebPageStoredLinkPathname} from "~/server/agents/web/create_agent_web_page_stored_link_pathname.js";
 import {createAgentWebSessionStorageForTest} from "~/server/agents/web/test_helpers/create_agent_web_session_storage_for_test.js";
-import {ApiContentKeyEncoder} from "~/shared/api/content/api_content_key_encoder.js";
+import {addKeysToApiContentForTest} from "~/shared/api/markdown/test_helpers/add_keys_to_api_content.js";
 import {intoApiAccountReference} from "~/shared/api/specification/into_api_account_reference.js";
 import type {ApiContentResponse} from "~/shared/api/specification/types/api_specification_convenience_types.js";
 import {
@@ -69,21 +69,16 @@ afterEach(() => {
 });
 
 function createDocumentContentFromMarkdown(markdown: string): ApiContentResponse {
-    const encoder = new ApiContentKeyEncoder({entityId: "Test", version: 0});
-    let position = 0;
-
-    return {
+    return addKeysToApiContentForTest({
         elements: markdown.split("\n\n").map(paragraphText => {
-            const key = encoder.encode({pos: position, nodeSize: paragraphText.length + 2});
             position += paragraphText.length + 2;
 
             return {
                 type: "Paragraph",
-                key,
                 elements: [{type: "Text", text: paragraphText}],
             };
         }),
-    };
+    });
 }
 
 function printDisplayMessage(displayMessage: ErrorDisplayMessage): string {

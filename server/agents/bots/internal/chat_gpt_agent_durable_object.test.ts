@@ -23,8 +23,7 @@ import {
 } from "~/server/agents/bots/internal/conversation/chat_gpt_agent_conversation_store.js";
 import {AgentUsageDatabaseInterface} from "~/server/agents/bots/internal/d1/agent_usage_database.js";
 import {OpenAiClientInterface} from "~/server/agents/bots/internal/open_ai_client.js";
-import {ApiContentKeyEncoder} from "~/shared/api/content/api_content_key_encoder.js";
-import type {ApiContentKey} from "~/shared/api/specification/types/api_content_key.js";
+import {addKeysToApiContentForTest} from "~/shared/api/markdown/test_helpers/add_keys_to_api_content.js";
 import {InternalError, NotFoundError} from "~/shared/error/error.js";
 import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
 import {Lazy} from "~/shared/helpers/control/lazy.js";
@@ -54,18 +53,12 @@ function createChatGptAgentDurableObject() {
     } as any);
 }
 
-const apiResponseParagraphKey: ApiContentKey = new ApiContentKeyEncoder({
-    entityId: "Message:mock",
-    version: 0,
-}).encode({pos: 0, nodeSize: 0});
-
 /**
  * Creates a keyed API paragraph fixture for agent response content.
  */
 function createApiResponseParagraph(text: string) {
     return {
         type: "Paragraph" as const,
-        key: apiResponseParagraphKey,
         elements: [{type: "Text" as const, text}],
     };
 }
@@ -323,9 +316,11 @@ describe("ChatGptAgentDurableObject.webhook", () => {
                         createdTimeZone: defaultTimeZone,
                         payload: {
                             type: "Content",
-                            content: {
-                                elements: [createApiResponseParagraph("Hello")],
-                            },
+                            content: addKeysToApiContentForTest(
+                                addKeysToApiContentForTest({
+                                    elements: [createApiResponseParagraph("Hello")],
+                                }),
+                            ),
                             files: [],
                         },
                     },
@@ -506,9 +501,9 @@ describe("ChatGptAgentDurableObject.webhook", () => {
                         createdTimeZone: defaultTimeZone,
                         payload: {
                             type: "Content",
-                            content: {
+                            content: addKeysToApiContentForTest({
                                 elements: [createApiResponseParagraph("Hello")],
-                            },
+                            }),
                             files: [],
                         },
                     },
@@ -681,9 +676,9 @@ describe("ChatGptAgentDurableObject.webhook", () => {
                         createdTimeZone: defaultTimeZone,
                         payload: {
                             type: "Content",
-                            content: {
+                            content: addKeysToApiContentForTest({
                                 elements: [createApiResponseParagraph("Hello")],
-                            },
+                            }),
                             files: [],
                         },
                     },
@@ -879,9 +874,9 @@ describe("ChatGptAgentDurableObject.webhook", () => {
                         createdTimeZone: defaultTimeZone,
                         payload: {
                             type: "Content",
-                            content: {
+                            content: addKeysToApiContentForTest({
                                 elements: [createApiResponseParagraph("Hello")],
-                            },
+                            }),
                             files: [],
                         },
                     },
@@ -1531,9 +1526,9 @@ describe("ChatGptAgentDurableObject.webhook", () => {
                         createdTimeZone: defaultTimeZone,
                         payload: {
                             type: "Content",
-                            content: {
+                            content: addKeysToApiContentForTest({
                                 elements: [createApiResponseParagraph("Hello")],
-                            },
+                            }),
                             files: [],
                         },
                     },
@@ -3006,9 +3001,9 @@ describe("ChatGptAgentDurableObject.webhook", () => {
                         createdTimeZone: defaultTimeZone,
                         payload: {
                             type: "Content",
-                            content: {
+                            content: addKeysToApiContentForTest({
                                 elements: [createApiResponseParagraph("Hello")],
-                            },
+                            }),
                             files: [],
                         },
                     },

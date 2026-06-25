@@ -7,7 +7,7 @@ import {callAgentWebReadTool} from "~/server/agents/web/call_agent_web_read_tool
 import {callAgentWebScrollTool} from "~/server/agents/web/call_agent_web_scroll_tool.js";
 import {createAgentWebPageStoredLinkPathname} from "~/server/agents/web/create_agent_web_page_stored_link_pathname.js";
 import {createAgentWebSessionStorageForTest} from "~/server/agents/web/test_helpers/create_agent_web_session_storage_for_test.js";
-import {ApiContentKeyEncoder} from "~/shared/api/content/api_content_key_encoder.js";
+import {addKeysToApiContentForTest} from "~/shared/api/markdown/test_helpers/add_keys_to_api_content.js";
 import {
     ApiContentResponse,
     ApiPostReferenceResponse,
@@ -60,18 +60,14 @@ beforeEach(async () => {
 });
 
 function contentFromText(text: string): ApiContentResponse {
-    return {
+    return addKeysToApiContentForTest({
         elements: [
             {
                 type: "Paragraph",
-                key: new ApiContentKeyEncoder({entityId: "Test", version: 0}).encode({
-                    pos: 0,
-                    nodeSize: text.length,
-                }),
                 elements: [{type: "Text", text}],
             },
         ],
-    };
+    });
 }
 
 function mockGetPost({
@@ -791,13 +787,9 @@ Post in [Announcements](/channel/announcements).
 
 test("uses scroll truncation for a post larger than the limit and hides comments", async () => {
     mockGetPost({
-        content: {
+        content: addKeysToApiContentForTest({
             elements: Array.from({length: 8}, (_, index) => ({
                 type: "Paragraph" as const,
-                key: new ApiContentKeyEncoder({entityId: "Test", version: 0}).encode({
-                    pos: 0,
-                    nodeSize: 0,
-                }),
                 elements: [
                     {
                         type: "Text" as const,
@@ -807,7 +799,7 @@ test("uses scroll truncation for a post larger than the limit and hides comments
                     },
                 ],
             })),
-        },
+        }),
     });
 
     mockApiGetPostMessages(api, {
