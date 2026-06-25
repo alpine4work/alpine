@@ -3,9 +3,9 @@ import {Root} from "mdast";
 import {stemmer} from "stemmer";
 import {AgentWebContext} from "~/server/agents/web/agent_web_context.js";
 import {AgentWebPageMetadata} from "~/server/agents/web/agent_web_page.js";
-import {AgentWebPageStoredLink} from "~/server/agents/web/agent_web_page_stored_link.js";
+import {AgentWebPageLink} from "~/server/agents/web/agent_web_page_link.js";
 import {agentWebReadResponseExpirationHours} from "~/server/agents/web/call_agent_web_read_tool.js";
-import {createAgentWebPageStoredLinkPathname} from "~/server/agents/web/create_agent_web_page_stored_link_pathname.js";
+import {createAgentWebPageLinkPathname} from "~/server/agents/web/create_agent_web_page_link_pathname.js";
 import {quoteMarkdown} from "~/server/agents/web/internal/quote_markdown.js";
 import {
     createAgentWebChannelPage,
@@ -19,6 +19,10 @@ import {
     createAgentWebDocumentPage,
     parseAgentWebDocumentPage,
 } from "~/server/agents/web/pages/agent_web_document_page.js";
+import {
+    createAgentWebDocumentThreadPage,
+    parseAgentWebDocumentThreadPageAndReturnDocumentPath,
+} from "~/server/agents/web/pages/agent_web_document_thread_page.js";
 import {
     createAgentWebPostPage,
     parseAgentWebPostPage,
@@ -34,6 +38,7 @@ import {
 import {getErrorConstructorForCode} from "~/shared/error/get_error_constructor_for_code.js";
 import {Mutex} from "~/shared/helpers/async/mutex.js";
 import {getOrSetDefaultMapValue} from "~/shared/helpers/map/get_or_set_default_map_value.js";
+import {convertCamelCaseToKebabCase} from "~/shared/helpers/string/convert_camel_case_to_kebab_case.js";
 
 export async function callAgentWebCreateTool(
     context: AgentWebContext,
@@ -90,7 +95,7 @@ export async function callAgentWebCreateTool(
 
     let noun: string;
     let pageMetadata: AgentWebPageMetadata;
-    let pageLink: AgentWebPageStoredLink;
+    let pageLink: AgentWebPageLink;
     let pageLinkLabel: string;
     try {
         ({noun, pageMetadata, pageLink, pageLinkLabel} = await createAgentWebPageLink(
@@ -121,7 +126,7 @@ export async function callAgentWebCreateTool(
         );
     }
 
-    const pageLinkPathname = await createAgentWebPageStoredLinkPathname(context.storage, pageLink);
+    const pageLinkPathname = await createAgentWebPageLinkPathname(context.storage, pageLink);
 
     // Find all the newline indexes in our content. So the `scroll` tool can easily
     // return a slice of the content.
@@ -180,13 +185,24 @@ async function createAgentWebPageLink(
 ): Promise<{
     noun: string;
     pageMetadata: AgentWebPageMetadata;
-    pageLink: AgentWebPageStoredLink;
+    pageLink: AgentWebPageLink;
     pageLinkLabel: string;
 }> {
     // Stem and lowercase whatever random stuff the agent decides to throw at us.
     // Though we tell the agent to use whatever is in the path prefix (e.g. `document`
     // in `/document/cool-thing`, but we want to support `documents`).
-    const type = stemmer(originalType.toLowerCase());
+    //
+    // Also normalize pascal case `DocumentThread` or `DocumentsThread`, whatever, to
+    // kebab-case.
+
+    originalType = convertCamelCaseToKebabCase(originalType);
+    originalType = originalType.replaceAll(/[_ ]/g, "-");
+    originalType = originalType.toLowerCase();
+
+    const type = originalType
+        .split("-")
+        .map(word => stemmer(word))
+        .join("-");
 
     switch (type) {
         case "doc":
@@ -243,6 +259,32 @@ async function createAgentWebPageLink(
                 pageMetadata,
                 pageLink,
                 pageLinkLabel: pageLink.title,
+            };
+        }
+        case "doc-thread":
+        case "document-thread":
+        case "doc-comment-thread":
+        case "document-comment-thread":
+        case "doc-comment":
+        case "document-comment": {
+            const {page: newPage, documentPath} =
+                await parseAgentWebDocumentThreadPageAndReturnDocumentPath(
+                    context.storage,
+                    null,
+                    content,
+                );
+
+            const {pageMetadata, pageLink} = await createAgentWebDocumentThreadPage(
+                context,
+                documentPath,
+                newPage,
+            );
+
+            return {
+                noun: "document comment thread",
+                pageMetadata,
+                pageLink,
+                pageLinkLabel: "thread",
             };
         }
         default: {
