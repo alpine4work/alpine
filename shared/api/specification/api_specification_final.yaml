@@ -1243,6 +1243,14 @@ paths:
                                                 - Medium
                                                 - High
                                                 - Urgent
+                                        layout:
+                                            $ref: "#/components/schemas/TaskLayout"
+                                        parent:
+                                            $ref: "#/components/schemas/TaskParent"
+                                        collections:
+                                            type: array
+                                            items:
+                                                $ref: "#/components/schemas/TaskCollectionItem"
                                         content:
                                             $ref: "#/components/schemas/Content"
             responses:
@@ -3905,6 +3913,14 @@ components:
                         - Medium
                         - High
                         - Urgent
+                layout:
+                    $ref: "#/components/schemas/TaskLayout"
+                parent:
+                    $ref: "#/components/schemas/TaskParent"
+                collections:
+                    type: array
+                    items:
+                        $ref: "#/components/schemas/TaskCollectionItem"
                 notes:
                     $ref: "#/components/schemas/TaskNotes"
         TaskWithoutNotes:
@@ -3941,6 +3957,14 @@ components:
                         - Medium
                         - High
                         - Urgent
+                layout:
+                    $ref: "#/components/schemas/TaskLayout"
+                parent:
+                    $ref: "#/components/schemas/TaskParent"
+                collections:
+                    type: array
+                    items:
+                        $ref: "#/components/schemas/TaskCollectionItem"
         TaskPreview:
             type: object
             required:
@@ -3976,6 +4000,42 @@ components:
                     minimum: 0
                 content:
                     $ref: "#/components/schemas/Content"
+        TaskLayout:
+            type: object
+            required:
+                - type
+            additionalProperties: false
+            properties:
+                type:
+                    const: Project
+        TaskParent:
+            type: object
+            required:
+                - task
+            additionalProperties: false
+            properties:
+                task:
+                    type: object
+                    required:
+                        - id
+                    additionalProperties: false
+                    properties:
+                        id:
+                            $ref: "#/components/schemas/TaskId"
+        TaskCollectionItem:
+            type: object
+            required:
+                - collection
+            additionalProperties: false
+            properties:
+                collection:
+                    type: object
+                    required:
+                        - id
+                    additionalProperties: false
+                    properties:
+                        id:
+                            $ref: "#/components/schemas/TaskCollectionId"
         TaskPatch:
             oneOf:
                 - $ref: "#/components/schemas/TaskSetTitlePatch"
@@ -3983,6 +4043,8 @@ components:
                 - $ref: "#/components/schemas/TaskSetStatusPatch"
                 - $ref: "#/components/schemas/TaskSetDueDatePatch"
                 - $ref: "#/components/schemas/TaskSetPriorityPatch"
+                - $ref: "#/components/schemas/TaskSetLayoutPatch"
+                - $ref: "#/components/schemas/TaskSetParentPatch"
                 - $ref: "#/components/schemas/TaskAddCollectionPatch"
                 - $ref: "#/components/schemas/TaskRemoveCollectionPatch"
             discriminator:
@@ -3993,6 +4055,8 @@ components:
                     SetStatus: "#/components/schemas/TaskSetStatusPatch"
                     SetDueDate: "#/components/schemas/TaskSetDueDatePatch"
                     SetPriority: "#/components/schemas/TaskSetPriorityPatch"
+                    SetLayout: "#/components/schemas/TaskSetLayoutPatch"
+                    SetParent: "#/components/schemas/TaskSetParentPatch"
                     AddCollection: "#/components/schemas/TaskAddCollectionPatch"
                     RemoveCollection: "#/components/schemas/TaskRemoveCollectionPatch"
         TaskSetTitlePatch:
@@ -4061,17 +4125,43 @@ components:
                               - High
                               - Urgent
                         - type: "null"
+        TaskSetLayoutPatch:
+            type: object
+            required:
+                - type
+                - layout
+            additionalProperties: false
+            properties:
+                type:
+                    const: SetLayout
+                layout:
+                    oneOf:
+                        - $ref: "#/components/schemas/TaskLayout"
+                        - type: "null"
+        TaskSetParentPatch:
+            type: object
+            required:
+                - type
+                - parent
+            additionalProperties: false
+            properties:
+                type:
+                    const: SetParent
+                parent:
+                    oneOf:
+                        - $ref: "#/components/schemas/TaskParent"
+                        - type: "null"
         TaskAddCollectionPatch:
             type: object
             required:
                 - type
-                - collectionId
+                - item
             additionalProperties: false
             properties:
                 type:
                     const: AddCollection
-                collectionId:
-                    $ref: "#/components/schemas/TaskCollectionId"
+                item:
+                    $ref: "#/components/schemas/TaskCollectionItem"
         TaskRemoveCollectionPatch:
             type: object
             required:
@@ -5614,6 +5704,14 @@ components:
                         - Medium
                         - High
                         - Urgent
+                layout:
+                    $ref: "#/components/schemas/TaskLayout"
+                parent:
+                    $ref: "#/components/schemas/TaskParent"
+                collections:
+                    type: array
+                    items:
+                        $ref: "#/components/schemas/TaskCollectionItem"
                 notes:
                     $ref: "#/components/schemas/TaskNotes_Response"
         MessageStreamPartPayload_Response:

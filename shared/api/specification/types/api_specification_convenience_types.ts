@@ -288,6 +288,8 @@ export type ApiBotWebhookNewMessageEventPostParent =
 
 export type ApiTaskWithoutNotes = ApiSpecification.components["schemas"]["TaskWithoutNotes"];
 
+export type ApiTaskLayout = ApiSpecification.components["schemas"]["TaskLayout"];
+
 export type ApiTaskStatus = ApiSpecification.components["schemas"]["TaskStatus"];
 
 export type ApiTaskCollection = ApiSpecification.components["schemas"]["TaskCollection"];

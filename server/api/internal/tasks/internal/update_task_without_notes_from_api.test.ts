@@ -209,7 +209,7 @@ describe("updateTaskMetadataFromApi()", () => {
             {
                 spaceId: space.id,
                 taskId: task.id,
-                patches: [{type: "AddCollection", collectionId: collection.id}],
+                patches: [{type: "AddCollection", item: {collection: {id: collection.id}}}],
             },
         );
 

@@ -1721,6 +1721,9 @@ export namespace ApiSpecification {
                                 readonly due?: components["schemas"]["TaskDueDate"];
                                 /** @enum {string} */
                                 readonly priority?: "Low" | "Medium" | "High" | "Urgent";
+                                readonly layout?: components["schemas"]["TaskLayout"];
+                                readonly parent?: components["schemas"]["TaskParent"];
+                                readonly collections?: readonly components["schemas"]["TaskCollectionItem"][];
                                 readonly content?: components["schemas"]["Content"];
                             };
                         };
@@ -3416,6 +3419,9 @@ export namespace ApiSpecification {
                 readonly due?: components["schemas"]["TaskDueDate"];
                 /** @enum {string} */
                 readonly priority?: "Low" | "Medium" | "High" | "Urgent";
+                readonly layout?: components["schemas"]["TaskLayout"];
+                readonly parent?: components["schemas"]["TaskParent"];
+                readonly collections?: readonly components["schemas"]["TaskCollectionItem"][];
                 readonly notes: components["schemas"]["TaskNotes"];
             };
             readonly TaskWithoutNotes: {
@@ -3429,6 +3435,9 @@ export namespace ApiSpecification {
                 readonly due?: components["schemas"]["TaskDueDate"];
                 /** @enum {string} */
                 readonly priority?: "Low" | "Medium" | "High" | "Urgent";
+                readonly layout?: components["schemas"]["TaskLayout"];
+                readonly parent?: components["schemas"]["TaskParent"];
+                readonly collections?: readonly components["schemas"]["TaskCollectionItem"][];
             };
             readonly TaskPreview: {
                 readonly id: components["schemas"]["TaskId"];
@@ -3443,12 +3452,28 @@ export namespace ApiSpecification {
                 readonly version: number;
                 readonly content: components["schemas"]["Content"];
             };
+            readonly TaskLayout: {
+                /** @constant */
+                readonly type: "Project";
+            };
+            readonly TaskParent: {
+                readonly task: {
+                    readonly id: components["schemas"]["TaskId"];
+                };
+            };
+            readonly TaskCollectionItem: {
+                readonly collection: {
+                    readonly id: components["schemas"]["TaskCollectionId"];
+                };
+            };
             readonly TaskPatch:
                 | components["schemas"]["TaskSetTitlePatch"]
                 | components["schemas"]["TaskSetAssigneePatch"]
                 | components["schemas"]["TaskSetStatusPatch"]
                 | components["schemas"]["TaskSetDueDatePatch"]
                 | components["schemas"]["TaskSetPriorityPatch"]
+                | components["schemas"]["TaskSetLayoutPatch"]
+                | components["schemas"]["TaskSetParentPatch"]
                 | components["schemas"]["TaskAddCollectionPatch"]
                 | components["schemas"]["TaskRemoveCollectionPatch"];
             readonly TaskSetTitlePatch: {
@@ -3491,13 +3516,29 @@ export namespace ApiSpecification {
                 readonly type: "SetPriority";
                 readonly priority: ("Low" | "Medium" | "High" | "Urgent") | null;
             };
+            readonly TaskSetLayoutPatch: {
+                /**
+                 * @description discriminator enum property added by openapi-typescript @enum
+                 * {string}
+                 */
+                readonly type: "SetLayout";
+                readonly layout: components["schemas"]["TaskLayout"] | null;
+            };
+            readonly TaskSetParentPatch: {
+                /**
+                 * @description discriminator enum property added by openapi-typescript @enum
+                 * {string}
+                 */
+                readonly type: "SetParent";
+                readonly parent: components["schemas"]["TaskParent"] | null;
+            };
             readonly TaskAddCollectionPatch: {
                 /**
                  * @description discriminator enum property added by openapi-typescript @enum
                  * {string}
                  */
                 readonly type: "AddCollection";
-                readonly collectionId: components["schemas"]["TaskCollectionId"];
+                readonly item: components["schemas"]["TaskCollectionItem"];
             };
             readonly TaskRemoveCollectionPatch: {
                 /**
@@ -4242,6 +4283,9 @@ export namespace ApiSpecification {
                 readonly due?: components["schemas"]["TaskDueDate"];
                 /** @enum {string} */
                 readonly priority?: "Low" | "Medium" | "High" | "Urgent";
+                readonly layout?: components["schemas"]["TaskLayout"];
+                readonly parent?: components["schemas"]["TaskParent"];
+                readonly collections?: readonly components["schemas"]["TaskCollectionItem"][];
                 readonly notes: components["schemas"]["TaskNotes_Response"];
             };
             readonly MessageStreamPartPayload_Response:

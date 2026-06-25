@@ -137,6 +137,10 @@ export async function prepareTaskForClient(
         // NOTE(calebmer, 2025-01-29): To fix this we could follow a similar path to
         // collections. By emitting an `UpdateParentTask` action if a collection policy
         // attached to an unauthorized parent task makes the task authorized.
+        //
+        // Keep this behavior in sync with API parent serialization in
+        // `server/api/internal/tasks/internal/into_api_task.ts` and
+        // `server/api/internal/tasks/internal/get_api_tasks_without_content.ts`.
         parent: {
             taskId: task.parent.taskId,
             position: task.parent.rawPosition,
