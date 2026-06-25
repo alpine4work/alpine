@@ -171,10 +171,12 @@ function mockGetDocumentThread({
     commentCount = 1,
     createdTime = new Date("2026-05-14T15:00:00.000Z"),
     content = documentContentSnippet(),
+    isResolved = false,
 }: {
     commentCount?: number;
     createdTime?: Date;
     content?: ApiContentResponse;
+    isResolved?: boolean;
 } = {}) {
     api.mockGet(
         "/documents/{id}/threads/{threadId}",
@@ -191,7 +193,7 @@ function mockGetDocumentThread({
                     },
                     createdTime: serializeDateString(createdTime),
                     createdTimeZone: defaultTimeZone,
-                    isResolved: false,
+                    isResolved,
                     commentCount,
                     firstCommentAuthor: aliceAccount,
                     documentContentSnippet: content,
@@ -248,8 +250,126 @@ test("reads a document thread with quoted commented content above comments", asy
     expect(response).toEqual(`\
 Document comment thread on [Launch Spec](/document/launch-spec).
 
+- [ ] Unresolved
+
 <blockquote>\n\ncurrent\n\n</blockquote>\n
 <comment id="0" from="[Bob](/human/bob)">\n\nFirst comment.\n\n</comment>
+
+End of comments.`);
+});
+
+test("reads a document thread pagination link for the next page", async () => {
+    const totalMessageCount = 12;
+    const createMessage = (index: number) =>
+        createApiMessageMock({
+            index,
+            author: index % 2 === 0 ? bobAccount : aliceAccount,
+            content:
+                `Paginated comment ${index}. ` +
+                "This comment has enough detail to make the response require pagination.",
+        });
+
+    mockGetDocumentThread();
+    mockMessages({totalMessageCount, createMessage});
+
+    const firstResponse = await callAgentWebReadTool(context, {
+        path: documentThreadPath,
+        limit: "1kb",
+    });
+    expect(firstResponse).toEqual(`\
+Document comment thread on [Launch Spec](/document/launch-spec). [Next page »](/document/launch-spec/comments/1?after=3)
+
+- [ ] Unresolved
+
+<blockquote>
+
+current
+
+</blockquote>
+
+<comment id="0" from="[Bob](/human/bob)">
+
+Paginated comment 0. This comment has enough detail to make the response require pagination.
+
+</comment>
+
+<comment id="1" from="[Alice](/human/alice)" time="5 minutes later">
+
+Paginated comment 1. This comment has enough detail to make the response require pagination.
+
+</comment>
+
+<comment id="2" from="[Bob](/human/bob)" time="5 minutes later">
+
+Paginated comment 2. This comment has enough detail to make the response require pagination.
+
+</comment>
+
+<comment id="3" from="[Alice](/human/alice)" time="5 minutes later">
+
+Paginated comment 3. This comment has enough detail to make the response require pagination.
+
+</comment>`);
+
+    mockGetDocumentReference();
+    mockMessages({totalMessageCount, cursor: 3, createMessage});
+
+    const nextResponse = await callAgentWebReadTool(context, {
+        path: `${documentThreadPath}?after=3`,
+        limit: "10kb",
+    });
+    expect(nextResponse).toEqual(`\
+Document comment thread on [Launch Spec](/document/launch-spec).
+
+<time>May 14th at 11:20am EDT</time>
+
+<comment id="4" from="[Bob](/human/bob)">
+
+Paginated comment 4. This comment has enough detail to make the response require pagination.
+
+</comment>
+
+<comment id="5" from="[Alice](/human/alice)" time="5 minutes later">
+
+Paginated comment 5. This comment has enough detail to make the response require pagination.
+
+</comment>
+
+<comment id="6" from="[Bob](/human/bob)" time="5 minutes later">
+
+Paginated comment 6. This comment has enough detail to make the response require pagination.
+
+</comment>
+
+<comment id="7" from="[Alice](/human/alice)" time="5 minutes later">
+
+Paginated comment 7. This comment has enough detail to make the response require pagination.
+
+</comment>
+
+<comment id="8" from="[Bob](/human/bob)" time="5 minutes later">
+
+Paginated comment 8. This comment has enough detail to make the response require pagination.
+
+</comment>
+
+<comment id="9" from="[Alice](/human/alice)" time="5 minutes later">
+
+Paginated comment 9. This comment has enough detail to make the response require pagination.
+
+</comment>
+
+<comment id="10" from="[Bob](/human/bob)" time="5 minutes later">
+
+Paginated comment 10. This comment has enough detail to make the response require pagination.
+
+</comment>
+
+<comment id="11" from="[Alice](/human/alice)" time="5 minutes later">
+
+Paginated comment 11. This comment has enough detail to make the response require pagination.
+
+</comment>
 
 End of comments.`);
 });
@@ -295,6 +415,31 @@ test("reads a document thread with no comments", async () => {
     ).resolves.toEqual(`\
 Document comment thread on [Launch Spec](/document/launch-spec).
 
+- [ ] Unresolved
+
+<blockquote>\n\nPreview only.\n\n</blockquote>
+
+End of comments.`);
+});
+
+test("reads a resolved document thread", async () => {
+    mockGetDocumentThread({
+        commentCount: 0,
+        content: contentFromCommentedText("Preview only."),
+        isResolved: true,
+    });
+    mockMessages({totalMessageCount: 0});
+
+    await expect(
+        callAgentWebReadTool(context, {
+            path: documentThreadPath,
+            limit: "10kb",
+        }),
+    ).resolves.toEqual(`\
+Document comment thread on [Launch Spec](/document/launch-spec).
+
+- [x] Resolved
+
 <blockquote>\n\nPreview only.\n\n</blockquote>
 
 End of comments.`);
@@ -323,6 +468,8 @@ test("reads formatted quoted commented text", async () => {
     ).resolves.toEqual(`\
 Document comment thread on [Launch Spec](/document/launch-spec).
 
+- [ ] Unresolved
+
 <blockquote>\n\n**bold** and _italic_\n\n</blockquote>
 
 End of comments.`);
@@ -347,6 +494,8 @@ test("reads quoted commented content with multiple paragraphs", async () => {
         }),
     ).resolves.toEqual(`\
 Document comment thread on [Launch Spec](/document/launch-spec).
+
+- [ ] Unresolved
 
 <blockquote>\n\nFirst paragraph.\n\nSecond paragraph.\n\n</blockquote>
 
@@ -379,6 +528,8 @@ test("reads quoted commented list items with partial start and end items", async
     ).resolves.toEqual(`\
 Document comment thread on [Launch Spec](/document/launch-spec).
 
+- [ ] Unresolved
+
 <blockquote>\n\n- first tail\n\n- middle item\n\n- last head\n\n</blockquote>
 
 End of comments.`);
@@ -406,6 +557,8 @@ test("reads only the first disjoint quoted commented range", async () => {
         }),
     ).resolves.toEqual(`\
 Document comment thread on [Launch Spec](/document/launch-spec).
+
+- [ ] Unresolved
 
 <blockquote>\n\nfirst\n\n</blockquote>
 
@@ -440,6 +593,8 @@ test("reads quoted commented text through a fully commented file gallery", async
         }),
     ).resolves.toEqual(`\
 Document comment thread on [Launch Spec](/document/launch-spec).
+
+- [ ] Unresolved
 
 <blockquote>
 
@@ -484,6 +639,8 @@ test("reads a document thread comment link around the comment", async () => {
         }),
     ).resolves.toEqual(`\
 Document comment thread on [Launch Spec](/document/launch-spec).
+
+- [ ] Unresolved
 
 <blockquote>\n\ncurrent\n\n</blockquote>\n
 <comment id="0" from="[Bob](/human/bob)">\n\nNearby comment.\n\n</comment>\n
