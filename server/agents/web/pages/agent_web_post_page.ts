@@ -926,7 +926,7 @@ export async function parseAgentWebPostPage(
 
             if (!hasPostBlockImmediatelyAfterOpeningTime) {
                 throw new InvalidArgumentError("Must have one post block at start of head page", {
-                    displayMessage: errorDisplayMessage`A \`<post>\` must be the first thing in post markdown after the first line which states what channel the post is in (e.g. \`Post in [My Channel](/channel/my-channel).\`) and there must only be one \`<post>\`. Try again with one \`<post>\` at the start of the markdown.`,
+                    displayMessage: errorDisplayMessage`A \`<post>\` must be the first thing in post markdown and it must be placed after the first line which states what channel the post is in (e.g. \`Post in [My Channel](/channel/my-channel).\`) and there must only be one \`<post>\`. Try again with one \`<post>\` at the start of the markdown.`,
                 });
             }
 

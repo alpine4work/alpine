@@ -141,7 +141,8 @@ End of comments.
                     firstCommentBlock,
                 ],
             },
-            createParseError: "NOCOMMIT",
+            createParseError:
+                "Document comment thread markdown must start with `Document comment thread on [My Document](/document/my-document).`. Try again with a proper start to document comment thread markdown on line 1.",
         },
         {
             name: "legacy document thread preamble",
@@ -174,7 +175,8 @@ Preview body.
                 isEndOfMessages: false,
                 blocks: [previewBlock],
             },
-            createParseError: "NOCOMMIT",
+            createParseError:
+                "Document comment thread markdown must start with `Document comment thread on [My Document](/document/my-document).`. Try again with a proper start to document comment thread markdown on line 1.",
         },
         {
             name: "comments-only document thread page with pagination",
@@ -217,7 +219,8 @@ Second comment.
                     },
                 ],
             },
-            createParseError: "NOCOMMIT",
+            createParseError:
+                "Can\u2019t add \u201cNext page \u00bb\u201d link when creating comments markdown. Try again without the \u201cNext page \u00bb\u201d link.",
         },
         {
             name: "comments-only document thread page without pagination",
@@ -241,7 +244,8 @@ First comment.
                 isEndOfMessages: false,
                 blocks: [firstCommentBlock],
             },
-            createParseError: "NOCOMMIT",
+            createParseError:
+                "Document comment thread markdown must start with `Document comment thread on [My Document](/document/my-document).`. Try again with a proper start to document comment thread markdown on line 1.",
         },
         {
             name: "document thread page with custom pagination links",
@@ -284,7 +288,8 @@ First comment.
                     firstCommentBlock,
                 ],
             },
-            createParseError: "NOCOMMIT",
+            createParseError:
+                "Can\u2019t add \u201cNext page \u00bb\u201d link when creating comments markdown. Try again without the \u201cNext page \u00bb\u201d link.",
         },
         {
             name: "document thread quote formatting",
@@ -323,7 +328,8 @@ Please **review this section** *today*.
                     },
                 ],
             },
-            createParseError: "NOCOMMIT",
+            createParseError:
+                "Document comment thread markdown must start with `Document comment thread on [My Document](/document/my-document).`. Try again with a proper start to document comment thread markdown on line 1.",
         },
         {
             name: "document preview after comments",
@@ -356,11 +362,15 @@ Preview body.
                 await createAgentWebPageStoredLinkPathname(storage, bobReference);
             },
             parseError:
-                "There must be only one `<blockquote>` immediately after the first line " +
+                "There must be only one `<blockquote>` and it must be placed immediately after the first line " +
                 "which states what document the thread is on (e.g. `Document thread on " +
                 "[My Document](/document/my-document).`). Try again with one `<blockquote>` " +
                 "at the start of the markdown.",
-            createParseError: "NOCOMMIT",
+            createParseError:
+                "There must be only one `<blockquote>` and it must be placed immediately after the first line " +
+                "which states what document the thread is on (e.g. `Document thread on " +
+                "[My Document](/document/my-document).`). Try again with one `<blockquote>` " +
+                "at the start of the markdown.",
         },
     ],
 });

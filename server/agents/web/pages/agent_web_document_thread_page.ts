@@ -438,7 +438,7 @@ export async function createAgentWebDocumentThreadPage(
 
     if (newPage.subType === "Tail") {
         throw new InvalidArgumentError("Document quote is created when creating a comment thread", {
-            displayMessage: errorDisplayMessage`A \`<blockquote>\` is required when creating a document comment thread. You must add a \`<blockquote>\` containing the exact document content you\u2019re commenting after the \`Document comment thread on [My Document](/document/my-document).\` line at the start of the document comment thread markdown. Try again and add a \`<blockquote>\`.`,
+            displayMessage: errorDisplayMessage`A \`<blockquote>\` is required when creating a document comment thread. You must add a \`<blockquote>\` containing the exact document content you\u2019re commenting after the \`Document comment thread on [My Document](/document/my-document).\` line at the start of the markdown. Try again and add a \`<blockquote>\`.`,
         });
     }
 
@@ -481,7 +481,7 @@ export async function createAgentWebDocumentThreadPage(
     // matching.
     if (ranges.length === 0) {
         throw new InvalidArgumentError("Quoted document content not found", {
-            displayMessage: errorDisplayMessage`Couldn\u2019t find the quoted content in \`<blockquote>\` in \`${documentPath}\`. To create a document comment thread you must recreate the content you\u2019re commenting on exactly in \`<blockquote>\` so we can find the right range to leave your comment on in the document. Your content in \`<blockquote>\` must be valid markdown. Formatting is flexible when matching content so \`**needle**\` will match \`**foo needle bar**\` and \`- needle\` will match \`- foo needle bar\` because \`**needle**\` and \`- needle\` correctly match the word \u201Cneedle\u201D and have the right formatting. Simply \`needle\` without formatting will also match \`**foo needle bar**\` and \`- foo needle bar\` however \`_needle_\` will match neither because it has incorrect formatting. Try again but make sure to exactly copy the content you want to comment in \`${documentPath}\` into a \`<blockquote>\`.`,
+            displayMessage: errorDisplayMessage`Couldn\u2019t find the quoted content in \`<blockquote>\` in \`${documentPath}\`. To create a document comment thread you must exactly recreate the content you\u2019re commenting on in \`<blockquote>\` so we can find the corresponding range in the document. Formatting is flexible when matching content so \`**needle**\` will match \`**foo needle bar**\` and \`- needle\` will match \`- foo needle bar\` because \`**needle**\` and \`- needle\` correctly match the word \u201Cneedle\u201D and have the right formatting. Simply \`needle\` without formatting will also match \`**foo needle bar**\` and \`- foo needle bar\` however \`_needle_\` will match neither because it has incorrect formatting. Your content in \`<blockquote>\` must be valid markdown so \`**foo needle\` won\u2019t match \`**foo needle bar**\` because the formatting (\`**\`) is unterminated, either \`**foo needle**\` or \`foo needle\` (without formatting) will match. Try again but make sure to exactly copy the content you want to comment in \`${documentPath}\` into a \`<blockquote>\`.`,
         });
     }
 
@@ -693,7 +693,10 @@ export async function parseAgentWebDocumentThreadPageAndReturnDocumentPath(
             if (
                 firstElement.text !== "Document comment thread on " &&
                 firstElement.text !== "Document comments thread on " &&
-                firstElement.text !== "Document thread on "
+                firstElement.text !== "Document thread on " &&
+                firstElement.text !== "Comment thread on " &&
+                firstElement.text !== "Comments thread on " &&
+                firstElement.text !== "Thread on "
             ) {
                 throw createError();
             }
@@ -752,7 +755,7 @@ export async function parseAgentWebDocumentThreadPageAndReturnDocumentPath(
         throw new InvalidArgumentError(
             "Must only have one document preview block at start of head page",
             {
-                displayMessage: errorDisplayMessage`There must be only one \`<blockquote>\` immediately after the first line which states what document the thread is on (e.g. \`Document thread on [My Document](/document/my-document).\`). Try again with one \`<blockquote>\` at the start of the markdown.`,
+                displayMessage: errorDisplayMessage`There must be only one \`<blockquote>\` and it must be placed immediately after the first line which states what document the thread is on (e.g. \`Document thread on [My Document](/document/my-document).\`). Try again with one \`<blockquote>\` at the start of the markdown.`,
             },
         );
     }
