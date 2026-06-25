@@ -58,8 +58,9 @@ import {Replace} from "~/shared/helpers/types/replace.js";
  * though the former's markdown is parsed as a `Paragraph` and the latter's
  * markdown is parsed as `Code`).
  *
- * The structure of `needle` must exactly match `haystack`, so any elements or
- * marks must be the same in addition to the text matching.
+ * The structure of `needle` must match `haystack`, so any elements must be the
+ * same in addition to the text matching. Marks on `needle` must be a subset of
+ * marks on `haystack`.
  *
  * This is an iterator so if you break early then we'll stop iterating through the
  * content tree at that point. Which is a useful optimization if you only care
@@ -358,12 +359,7 @@ function areTokensMatch(haystackToken: Token, needleTokens: Token): boolean {
 
     // This is least likely to be different and also the most expensive to compute, put
     // it last.
-    if (
-        isDeepEqual(
-            normalizeApiContentInlineElementMarks(haystackToken.marks),
-            normalizeApiContentInlineElementMarks(needleTokens.marks),
-        )
-    ) {
+    if (areTokenMarksMatch(haystackToken.marks, needleTokens.marks)) {
         return true;
     }
 
@@ -373,6 +369,21 @@ function areTokensMatch(haystackToken: Token, needleTokens: Token): boolean {
         return true;
 
     return false;
+}
+
+function areTokenMarksMatch(
+    haystackMarks: ReadonlyArray<ApiContentInlineElementMark> | undefined,
+    needleMarks: ReadonlyArray<ApiContentInlineElementMark> | undefined,
+): boolean {
+    const normalizedNeedleMarks = normalizeApiContentInlineElementMarks(needleMarks);
+    if (normalizedNeedleMarks === undefined) return true;
+
+    const normalizedHaystackMarks = normalizeApiContentInlineElementMarks(haystackMarks);
+    if (normalizedHaystackMarks === undefined) return false;
+
+    return normalizedNeedleMarks.every(needleMark =>
+        normalizedHaystackMarks.some(haystackMark => isDeepEqual(haystackMark, needleMark)),
+    );
 }
 
 function areTokenParentListsMatch(

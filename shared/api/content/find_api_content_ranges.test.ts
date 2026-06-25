@@ -264,10 +264,16 @@ const testCases: Array<{
         ],
     },
     {
-        name: "reject plain text against bold mark",
+        name: "find plain text inside bold text",
+        haystack: "**foo bar qux**",
+        needle: "bar",
+        ranges: [{from: 5, to: 8, slice: '<bold("bar")>'}],
+    },
+    {
+        name: "find plain text against bold mark",
         haystack: "**bold** plain",
         needle: "bold",
-        ranges: [],
+        ranges: [{from: 1, to: 5, slice: '<bold("bold")>'}],
     },
     {
         name: "reject bold text against plain mark",
@@ -285,6 +291,12 @@ const testCases: Array<{
         name: "find nested bold italic text",
         haystack: "***both***",
         needle: "**_both_**",
+        ranges: [{from: 1, to: 5, slice: '<bold(italic("both"))>'}],
+    },
+    {
+        name: "find italic text against bold italic marks",
+        haystack: "***both***",
+        needle: "_both_",
         ranges: [{from: 1, to: 5, slice: '<bold(italic("both"))>'}],
     },
     {
@@ -463,10 +475,10 @@ const testCases: Array<{
         ranges: [{from: 1, to: 2, slice: "<bold(mention)>"}],
     },
     {
-        name: "reject plain account mention against bold mention",
+        name: "find plain account mention against bold mention",
         haystack: "**[@alice](https://alpine.inc/mention/n93hre935d0yd7akahtrwcvv30?short)**",
         needle: "[@alice](https://alpine.inc/mention/n93hre935d0yd7akahtrwcvv30?short)",
-        ranges: [],
+        ranges: [{from: 1, to: 2, slice: "<bold(mention)>"}],
     },
     {
         name: "find code block fragment",
@@ -606,10 +618,10 @@ const testCases: Array<{
         ranges: [{from: 2, to: 5, slice: '<bold("bar")>'}],
     },
     {
-        name: "reject plain code text against bold mark",
+        name: "find plain code text against bold mark",
         haystack: "<pre><code><strong>bar</strong></code></pre>",
         needle: "<pre><code>bar</code></pre>",
-        ranges: [],
+        ranges: [{from: 2, to: 5, slice: '<bold("bar")>'}],
     },
     {
         name: "reject bold code text against plain mark",
