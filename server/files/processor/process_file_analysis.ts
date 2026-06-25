@@ -78,10 +78,7 @@ export type FileContentTypeSupportedForAnalysis =
     | FileVideoContentType;
 
 const fileProcessTagsLanguageModel: SupportedBedrockModel = "google.gemma-3-12b-it";
-const fileProcessTagsModelCacheDirectoryPath = joinPath(
-    process.env.HOME ?? "",
-    ".cache/cyberworlds/models",
-);
+const fileProcessTagsModelCacheDirectoryName = ".cache/cyberworlds/models";
 
 const fileProcessTagsTimeoutMs = 1000 * 60 * 5;
 const fileProcessTagsMaxImageDimensionPixels = 1024;
@@ -91,7 +88,7 @@ const fileProcessTagsMaxVideoFrameCount = 20;
 // 256mb max audio limit seems more than enough for a transcript
 const fileProcessTagsMaxDecodedAudioByteLength = 256 * 1024 * 1024;
 
-let fileProcessTagsAsrPromise: Promise<{
+type FileProcessTagsAsr = {
     readonly pipe: (
         audio: Float32Array,
         options?: {
@@ -100,7 +97,16 @@ let fileProcessTagsAsrPromise: Promise<{
             return_timestamps?: boolean;
         },
     ) => Promise<unknown>;
-}> | null = null;
+};
+
+// Holds in-flight or initialized Whisper ASR pipelines keyed by their writable
+// model cache directory. This lets concurrent file analysis jobs share model
+// loading work while still isolating runtimes or tests that use different temp
+// roots.
+const fileProcessTagsAsrPromiseByModelCacheDirectoryPath = new Map<
+    string,
+    Promise<FileProcessTagsAsr>
+>();
 
 /**
  * Analyze audio, video, and image files for search-oriented descriptions.
@@ -152,6 +158,7 @@ export async function processFileAnalysis(
                         contentType,
                         filePath: inputPathIfExists,
                         onTranscriptProcessed: reportTranscriptResult,
+                        parentTemporaryDirectoryPath,
                         signal,
                     });
                 }
@@ -177,6 +184,7 @@ export async function processFileAnalysis(
                             contentType,
                             filePath: inputPath,
                             onTranscriptProcessed: reportTranscriptResult,
+                            parentTemporaryDirectoryPath,
                             signal,
                         });
                     },
@@ -192,6 +200,9 @@ export async function processFileAnalysis(
     });
 }
 
+/**
+ * Check whether a file content type has a metadata generation path.
+ */
 export function isFileContentTypeSupportedForAnalysis(
     contentType: FileContentType,
 ): contentType is FileContentTypeSupportedForAnalysis {
@@ -202,6 +213,10 @@ export function isFileContentTypeSupportedForAnalysis(
     );
 }
 
+/**
+ * Run file analysis work with the analysis-specific timeout and caller abort
+ * signal combined into one downstream signal.
+ */
 async function withFileAnalysisDeadline<Value>(
     parentSignal: AbortSignal | undefined,
     callback: (signal: AbortSignal) => Promise<Value>,
@@ -232,6 +247,9 @@ async function withFileAnalysisDeadline<Value>(
     }
 }
 
+/**
+ * Download the original file object from R2 into a local path for analysis.
+ */
 async function downloadFileToPath(
     context: FileProcessorActionContext,
     {
@@ -260,17 +278,23 @@ async function downloadFileToPath(
     await finished(object.Body.pipe(writeStream));
 }
 
+/**
+ * Route a supported content type to its image, audio, or video tag generation
+ * pipeline.
+ */
 async function runTagGeneration({
     context,
     contentType,
     filePath,
     onTranscriptProcessed,
+    parentTemporaryDirectoryPath,
     signal,
 }: {
     context: FileProcessorActionContext;
     contentType: FileContentTypeSupportedForAnalysis;
     filePath: string;
     onTranscriptProcessed?: (result: ProcessFileAnalysisTranscriptResult) => void;
+    parentTemporaryDirectoryPath: string;
     signal: AbortSignal;
 }): Promise<FileAnalysisResult> {
     if (isFileImageContentType(contentType)) {
@@ -285,6 +309,7 @@ async function runTagGeneration({
                 context,
                 filePath,
                 onTranscriptProcessed,
+                parentTemporaryDirectoryPath,
                 signal,
             }),
         );
@@ -296,6 +321,7 @@ async function runTagGeneration({
                 context,
                 filePath,
                 onTranscriptProcessed,
+                parentTemporaryDirectoryPath,
                 signal,
             }),
         );
@@ -304,6 +330,10 @@ async function runTagGeneration({
     throw exhaustive(contentType);
 }
 
+/**
+ * Generate tags and an optional caption for an image using the Bedrock vision
+ * model.
+ */
 async function generateImageTagsWithBedrock({
     context,
     filePath,
@@ -329,18 +359,24 @@ async function generateImageTagsWithBedrock({
     });
 }
 
+/**
+ * Transcribe audio when possible, report the transcript state, and generate tags
+ * from the transcript.
+ */
 async function generateAudioTagsWithBedrock({
     context,
     filePath,
     onTranscriptProcessed,
+    parentTemporaryDirectoryPath,
     signal,
 }: {
     context: FileProcessorActionContext;
     filePath: string;
     onTranscriptProcessed?: (result: ProcessFileAnalysisTranscriptResult) => void;
+    parentTemporaryDirectoryPath: string;
     signal: AbortSignal;
 }): Promise<FileProcessorAnalysisResponse> {
-    const asr = await getFileProcessTagsAsr();
+    const asr = await getFileProcessTagsAsr(parentTemporaryDirectoryPath);
     const audio = await decodeAudioToFloat32IfWithinLimit({filePath, signal});
 
     if (audio === null) {
@@ -365,15 +401,21 @@ async function generateAudioTagsWithBedrock({
     });
 }
 
+/**
+ * Sample video frames, transcribe audio when present, and generate tags from the
+ * combined visual and transcript context.
+ */
 async function generateVideoTagsWithBedrock({
     context,
     filePath,
     onTranscriptProcessed,
+    parentTemporaryDirectoryPath,
     signal,
 }: {
     context: FileProcessorActionContext;
     filePath: string;
     onTranscriptProcessed?: (result: ProcessFileAnalysisTranscriptResult) => void;
+    parentTemporaryDirectoryPath: string;
     signal: AbortSignal;
 }): Promise<FileProcessorAnalysisResponse> {
     const durationSeconds = await probeMediaDurationSeconds({filePath, signal});
@@ -409,7 +451,7 @@ async function generateVideoTagsWithBedrock({
 
             let transcript: string | null = null;
             if (hasAudioStream) {
-                const asr = await getFileProcessTagsAsr();
+                const asr = await getFileProcessTagsAsr(parentTemporaryDirectoryPath);
                 const audio = await decodeAudioToFloat32IfWithinLimit({filePath, signal});
 
                 if (audio === null) {
@@ -434,6 +476,10 @@ async function generateVideoTagsWithBedrock({
     );
 }
 
+/**
+ * Call Bedrock with normalized content blocks and parse the structured tag
+ * response.
+ */
 async function invokeBedrockTags({
     contentBlocks,
     context,
@@ -463,6 +509,10 @@ async function invokeBedrockTags({
     return result.object;
 }
 
+/**
+ * Normalize model output into a persisted file analysis result with bounded,
+ * deduplicated tags.
+ */
 function normalizeFileAnalysisResult(analysis: FileProcessorAnalysisResponse): FileAnalysisResult {
     const dedupedTags: Array<string> = [];
 
@@ -510,23 +560,55 @@ function normalizeFileAnalysisResult(analysis: FileProcessorAnalysisResponse): F
     });
 }
 
-async function getFileProcessTagsAsr(): Promise<
-    NonNullable<Awaited<typeof fileProcessTagsAsrPromise>>
-> {
-    if (fileProcessTagsAsrPromise === null) {
-        const asrPromise = createFileProcessTagsAsr().catch(error => {
-            if (fileProcessTagsAsrPromise === asrPromise) {
-                fileProcessTagsAsrPromise = null;
+/**
+ * Get the shared ASR pipeline for a writable model cache directory.
+ *
+ * A single file processing invocation only needs ASR once, but warm Lambda
+ * environments and local/ECS processes can reuse module-level state across
+ * invocations. Keeping the initialized pipeline here avoids reloading Whisper for
+ * every audio or video file processed by the same process.
+ *
+ * The promise is keyed by cache directory because tests and runtimes can use
+ * different writable roots, and `@xenova/transformers` stores cache settings on
+ * the imported module.
+ */
+async function getFileProcessTagsAsr(
+    parentTemporaryDirectoryPath: string,
+): Promise<FileProcessTagsAsr> {
+    // File processor runtimes already guarantee this temp root is writable. Avoid the
+    // default transformers `$HOME/.cache`, which is not reliable in Lambda.
+    const modelCacheDirectoryPath = joinPath(
+        parentTemporaryDirectoryPath,
+        fileProcessTagsModelCacheDirectoryName,
+    );
+
+    // Cache the ASR initialization per model cache directory. Tests and different
+    // runtimes may use different writable roots, and transformers keeps cache settings
+    // globally on the imported module.
+    let asrPromise =
+        fileProcessTagsAsrPromiseByModelCacheDirectoryPath.get(modelCacheDirectoryPath);
+    if (asrPromise === undefined) {
+        asrPromise = createFileProcessTagsAsr(modelCacheDirectoryPath).catch(error => {
+            // Do not permanently memoize failed initialization. A later file processing job
+            // may run after the cache directory or model files have been repaired.
+            if (
+                fileProcessTagsAsrPromiseByModelCacheDirectoryPath.get(modelCacheDirectoryPath) ===
+                asrPromise
+            ) {
+                fileProcessTagsAsrPromiseByModelCacheDirectoryPath.delete(modelCacheDirectoryPath);
             }
             throw error;
         });
-        fileProcessTagsAsrPromise = asrPromise;
+        fileProcessTagsAsrPromiseByModelCacheDirectoryPath.set(modelCacheDirectoryPath, asrPromise);
     }
 
-    return await fileProcessTagsAsrPromise;
+    return await asrPromise;
 }
 
-async function createFileProcessTagsAsr() {
+/**
+ * Create a Whisper ASR pipeline backed by the packaged local model when available.
+ */
+async function createFileProcessTagsAsr(modelCacheDirectoryPath: string) {
     const transformers: typeof import("@xenova/transformers") =
         await import("@xenova/transformers");
 
@@ -536,14 +618,14 @@ async function createFileProcessTagsAsr() {
     // `server/files/processor/whisper_base_en/README.md`.
     const localModelPathIfExists = await materializePackagedFileProcessWhisperModelPathIfExists({
         outputDirectoryPath: joinPath(
-            fileProcessTagsModelCacheDirectoryPath,
+            modelCacheDirectoryPath,
             fileProcessWhisperLocalModelDirectoryName,
         ),
         runfilesDirectoryPath: runfilesPath,
     });
     const whisperModelLoading = getFileProcessWhisperModelLoading(localModelPathIfExists);
 
-    transformers.env.cacheDir = fileProcessTagsModelCacheDirectoryPath;
+    transformers.env.cacheDir = modelCacheDirectoryPath;
     transformers.env.allowLocalModels = true;
     if (whisperModelLoading.localModelPath !== undefined) {
         transformers.env.localModelPath = whisperModelLoading.localModelPath;
@@ -571,6 +653,10 @@ async function createFileProcessTagsAsr() {
     };
 }
 
+/**
+ * Load an image from disk, auto-orient it, resize it for model input, and encode
+ * it as JPEG bytes.
+ */
 async function loadResizedImagePayload(
     filePath: string,
 ): Promise<{bytes: Uint8Array; format: "jpeg"}> {
@@ -590,6 +676,9 @@ async function loadResizedImagePayload(
     return {bytes: Uint8Array.from(buffer), format: "jpeg"};
 }
 
+/**
+ * Run ASR over decoded mono audio and normalize the pipeline output.
+ */
 async function transcribeAudio(
     asr: Awaited<ReturnType<typeof createFileProcessTagsAsr>>,
     audio: Float32Array,
@@ -603,6 +692,9 @@ async function transcribeAudio(
     return normalizeTranscriptJson(output);
 }
 
+/**
+ * Normalize raw ASR output into transcript text and timestamped chunks.
+ */
 function normalizeTranscriptJson(output: unknown): FileProcessTranscriptJson {
     const outputObject = isObject(output) ? output : {};
     const text = typeof outputObject.text === "string" ? outputObject.text.trim() : "";
@@ -638,10 +730,17 @@ function normalizeTranscriptJson(output: unknown): FileProcessTranscriptJson {
     };
 }
 
+/**
+ * Convert finite numeric transcript timestamps and discard unsupported values.
+ */
 function normalizeTranscriptTimestampValue(value: unknown): number | null {
     return typeof value === "number" && Number.isFinite(value) ? value : null;
 }
 
+/**
+ * Decode audio through ffmpeg into mono 16 kHz Float32 PCM when it fits within the
+ * analysis memory budget.
+ */
 async function decodeAudioToFloat32IfWithinLimit({
     filePath,
     signal,
@@ -718,6 +817,10 @@ async function decodeAudioToFloat32IfWithinLimit({
     return new Float32Array(arrayBuffer);
 }
 
+/**
+ * Probe media duration with ffprobe, returning null when duration metadata is
+ * absent.
+ */
 async function probeMediaDurationSeconds({
     filePath,
     signal,
@@ -754,6 +857,9 @@ async function probeMediaDurationSeconds({
     return durationSeconds;
 }
 
+/**
+ * Check whether ffprobe can find at least one audio stream in the media file.
+ */
 async function probeMediaHasAudioStream({
     filePath,
     signal,
@@ -783,6 +889,9 @@ async function probeMediaHasAudioStream({
     return stdout.trim().length > 0;
 }
 
+/**
+ * Extract one JPEG frame from a video at a requested timestamp.
+ */
 async function extractVideoFrame({
     filePath,
     outputPath,
@@ -815,6 +924,9 @@ async function extractVideoFrame({
     );
 }
 
+/**
+ * Choose representative video frame timestamps while bounding model input size.
+ */
 function getVideoFrameTimestampsSeconds(durationSeconds: number | null): Array<number> {
     if (durationSeconds === null) return [0];
 
@@ -833,6 +945,9 @@ function getVideoFrameTimestampsSeconds(durationSeconds: number | null): Array<n
     );
 }
 
+/**
+ * Normalize whitespace and limit transcript length before sending it to Bedrock.
+ */
 function truncateTranscript(transcript: string): string {
     const normalizedTranscript = transcript.trim().replace(/\s+/gu, " ");
     if (normalizedTranscript.length <= fileProcessTagsMaxTranscriptCharacters) {
