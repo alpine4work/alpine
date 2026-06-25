@@ -536,7 +536,7 @@ export async function createAgentWebChannelPage(
         });
     }
 
-    if (newPage.pagination !== null) {
+    if (newPage.pagination) {
         throw new InvalidArgumentError("Can\u2019t create channel with pagination", {
             displayMessage: errorDisplayMessage`You can\u2019t include a \u201C${agentWebChannelPageNextPageLinkText}\u201D link when creating a channel. Try again without a \u201C${agentWebChannelPageNextPageLinkText}\u201D link.`,
         });
