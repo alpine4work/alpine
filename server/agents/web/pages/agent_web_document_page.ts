@@ -35,7 +35,7 @@ export type AgentWebDocumentPageWithMetadata = AgentWebDocumentPage & {
 export async function readAgentWebDocumentPage(
     context: AgentWebContextWithoutStorage,
     id: DocumentId,
-    {printPage}: {printPage: (page: AgentWebDocumentPageWithMetadata) => Promise<string>},
+    {printPage}: {printPage: (page: AgentWebDocumentPage) => Promise<string>},
 ): Promise<{response: string; metadata: AgentWebDocumentPageMetadata}> {
     const {
         data: {document},

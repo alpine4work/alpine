@@ -96,10 +96,15 @@ export type AgentWebMessagingPageWithMetadata<
 };
 
 export type AgentWebMessagingPageMetadata = {
+    // Sometimes there's no visible markdown to tell us whether we're at the start of a
+    // message list. This flag will let us know.
+    readonly isStartOfMessages: boolean;
+
     // Sometimes "End of messages." is not present in the page markdown but we still
     // want to allow inserting messages. So we have invisible metadata tracking if
     // we're at the end of messages as well.
     readonly isEndOfMessages: boolean;
+
     readonly messages: ReadonlyArray<{
         readonly index: number;
         readonly keys: ReadonlyArray<ApiContentKey>;

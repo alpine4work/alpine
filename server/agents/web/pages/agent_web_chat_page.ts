@@ -12,7 +12,6 @@ import {createAgentWebPageStoredLinkPathname} from "~/server/agents/web/create_a
 import {
     AgentWebMessagingPage,
     AgentWebMessagingPageMetadata,
-    AgentWebMessagingPageWithMetadata,
     agentWebMessagingPageMessageNouns,
 } from "~/server/agents/web/pages/messaging/agent_web_messaging_page.js";
 import {normalizeAgentWebMessagingPage} from "~/server/agents/web/pages/messaging/normalize_agent_web_messaging_page.js";
@@ -89,24 +88,6 @@ export type AgentWebChatPageMetadata = AgentWebMessagingPageMetadata & {
     readonly id: ChatId;
 };
 
-function buildAgentWebChatPage(
-    page: AgentWebMessagingPageWithMetadata<AgentWebChatPagePreamble, never>,
-    id: ChatId,
-): AgentWebChatPageWithMetadata {
-    return {
-        ...page,
-        type: "Chat",
-        metadata: buildAgentWebChatPageMetadata(page.metadata, id),
-    };
-}
-
-function buildAgentWebChatPageMetadata(
-    metadata: AgentWebMessagingPageMetadata,
-    id: ChatId,
-): AgentWebChatPageMetadata {
-    return {...metadata, type: "Chat", id};
-}
-
 export async function readAgentWebChatPage(
     context: AgentWebContext,
     id: ChatId,
@@ -117,7 +98,7 @@ export async function readAgentWebChatPage(
     }: {
         searchParams: URLSearchParams;
         limitLength: number;
-        printPage: (page: AgentWebChatPageWithMetadata) => Promise<string>;
+        printPage: (page: AgentWebChatPage) => Promise<string>;
     },
 ): Promise<{response: string; metadata: AgentWebChatPageMetadata}> {
     const roomMetadataPromise = getChatRoomMetadata(context, id);
@@ -131,13 +112,13 @@ export async function readAgentWebChatPage(
             defaultDirection: "End",
             searchParams,
             limitLength,
-            printPage: page => printPage(buildAgentWebChatPage(page, id)),
+            printPage: page => printPage({...page, type: "Chat"}),
         }),
     ]);
 
     return {
         response: result.response,
-        metadata: buildAgentWebChatPageMetadata(result.metadata, id),
+        metadata: {...result.metadata, type: "Chat", id},
     };
 }
 
@@ -150,7 +131,7 @@ export async function readAgentWebChatMessagePage(
         printPage,
     }: {
         limitLength: number;
-        printPage: (page: AgentWebChatPageWithMetadata) => Promise<string>;
+        printPage: (page: AgentWebChatPage) => Promise<string>;
     },
 ): Promise<{response: string; metadata: AgentWebChatPageMetadata}> {
     const roomMetadataPromise = getChatRoomMetadata(context, id);
@@ -163,13 +144,13 @@ export async function readAgentWebChatMessagePage(
             getRoomMetadata: () => roomMetadataPromise,
             around: {startMessageIndex: index, endMessageIndex: index + 1},
             limitLength,
-            printPage: page => printPage(buildAgentWebChatPage(page, id)),
+            printPage: page => printPage({...page, type: "Chat"}),
         }),
     ]);
 
     return {
         response: result.response,
-        metadata: buildAgentWebChatPageMetadata(result.metadata, id),
+        metadata: {...result.metadata, type: "Chat", id},
     };
 }
 
@@ -409,7 +390,7 @@ export async function updateAgentWebChatPage(
 
     const {id} = await unwrapMaybeThunk(oldPageMetadata);
 
-    return buildAgentWebChatPageMetadata(newPageMetadata, id);
+    return {...newPageMetadata, type: "Chat", id};
 }
 
 export function normalizeAgentWebChatPage<Page extends AgentWebChatPage>(page: Page): Page {

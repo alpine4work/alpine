@@ -3,6 +3,7 @@ import {differenceInMinutes} from "date-fns";
 import {getApiMessagesFromEnd, getApiMessagesFromStart} from "~/server/agents/api/api_client.js";
 import {AgentWebContext} from "~/server/agents/web/agent_web_context.js";
 import {
+    AgentWebMessagingPage,
     AgentWebMessagingPageBlock,
     AgentWebMessagingPageCustomBlockBase,
     AgentWebMessagingPageMessageRange,
@@ -78,9 +79,7 @@ export async function readAgentWebMessagingPage<
         defaultDirection: "Start" | "End";
         searchParams: URLSearchParams;
         limitLength: number;
-        printPage: (
-            page: AgentWebMessagingPageWithMetadata<Preamble, CustomBlock>,
-        ) => Promise<string>;
+        printPage: (page: AgentWebMessagingPage<Preamble, CustomBlock>) => Promise<string>;
     },
 ): Promise<{
     response: string;
@@ -259,9 +258,7 @@ export async function readAgentWebMessagingPageInDirection<
         direction: "Start" | "End";
         startCursor: number | null;
         limitLength: number;
-        printPage: (
-            page: AgentWebMessagingPageWithMetadata<Preamble, CustomBlock>,
-        ) => Promise<string>;
+        printPage: (page: AgentWebMessagingPage<Preamble, CustomBlock>) => Promise<string>;
     },
 ): Promise<{
     response: string;
@@ -340,6 +337,7 @@ export async function readAgentWebMessagingPageInDirection<
             limitLength,
             roomMetadataPageLink: roomMetadata.pageLink,
             direction,
+            isStartOfMessages,
             isEndOfMessages,
             messages,
             contextTimeZone: context.timeZone,
@@ -420,11 +418,12 @@ export async function readAgentWebMessagingPageAroundMessage<
 
     if (initialMessages.length === 0) {
         const {pageLink, preamble} = await getRoomMetadata({
-            isStartOfMessages: false,
+            isStartOfMessages: true,
             isEndOfMessages: true,
         });
 
         const metadata: AgentWebMessagingPageMetadata = {
+            isStartOfMessages: true,
             isEndOfMessages: true,
             messages: [],
         };
@@ -483,6 +482,7 @@ export async function readAgentWebMessagingPageAroundMessage<
                 limitLength,
                 roomMetadataPageLink: roomMetadata.pageLink,
                 around,
+                isStartOfMessages,
                 isEndOfMessages,
                 messages,
                 contextTimeZone: context.timeZone,
@@ -766,6 +766,7 @@ function buildAgentWebMessagingPageFromApiMessages<
             isEndOfMessages,
             blocks,
             metadata: {
+                isStartOfMessages,
                 isEndOfMessages,
                 messages: messages.map((message, index) => {
                     const keys = assertExists(unzippedMessageKeys[index]);

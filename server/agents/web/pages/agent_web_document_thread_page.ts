@@ -9,10 +9,10 @@ import {createAgentWebPageRoutedLinkPathname} from "~/server/agents/web/create_a
 import {extractCommentFromApiDocumentThreadContentSnippet} from "~/server/agents/web/internal/extract_comment_from_api_document_thread_content_snippet.js";
 import {parseAgentWebDocumentPage} from "~/server/agents/web/pages/agent_web_document_page.js";
 import {
+    AgentWebMessagingPage,
     AgentWebMessagingPageBlock,
     AgentWebMessagingPageMetadata,
     AgentWebMessagingPagePagination,
-    AgentWebMessagingPageWithMetadata,
     agentWebMessagingPageCommentNouns,
 } from "~/server/agents/web/pages/messaging/agent_web_messaging_page.js";
 import {normalizeAgentWebMessagingPage} from "~/server/agents/web/pages/messaging/normalize_agent_web_messaging_page.js";
@@ -42,7 +42,7 @@ import {
     ApiDocumentThreadResponse,
     ApiMessageResponse,
 } from "~/shared/api/specification/types/api_specification_convenience_types.js";
-import {InvalidArgumentError, NotFoundError, UnimplementedError} from "~/shared/error/error.js";
+import {InvalidArgumentError, UnimplementedError} from "~/shared/error/error.js";
 import {errorDisplayMessage} from "~/shared/error/error_display_message.js";
 import {mapMaybePromise} from "~/shared/helpers/async/map_maybe_promise.js";
 import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
@@ -114,13 +114,11 @@ export type AgentWebDocumentThreadPageCustomBlock = {
 };
 
 function buildAgentWebDocumentThreadPage(
-    page: AgentWebMessagingPageWithMetadata<
+    page: AgentWebMessagingPage<
         AgentWebDocumentThreadPagePreamble,
         AgentWebDocumentThreadPageCustomBlock
     >,
-    id: DocumentId,
-    threadId: DocumentCommentThreadId,
-): AgentWebDocumentThreadPageWithMetadata {
+): AgentWebDocumentThreadPage {
     if (page.blocks.length > 0 && page.blocks[0]!.type === "Custom") {
         assert(page.blocks.slice(1).every(block => block.type !== "Custom"));
         assert(page.preamble.type === "Head");
@@ -132,7 +130,6 @@ function buildAgentWebDocumentThreadPage(
             preamble: page.preamble,
             isEndOfMessages: page.isEndOfMessages,
             blocks: page.blocks as AgentWebDocumentThreadHeadPageBlocks,
-            metadata: buildAgentWebDocumentThreadPageMetadata(page.metadata, id, threadId),
         };
     }
 
@@ -145,16 +142,7 @@ function buildAgentWebDocumentThreadPage(
         subType: "Tail",
         preamble: page.preamble,
         blocks: page.blocks as ReadonlyArray<AgentWebMessagingPageBlock<never>>,
-        metadata: buildAgentWebDocumentThreadPageMetadata(page.metadata, id, threadId),
     };
-}
-
-function buildAgentWebDocumentThreadPageMetadata(
-    metadata: AgentWebMessagingPageMetadata,
-    id: DocumentId,
-    threadId: DocumentCommentThreadId,
-): AgentWebDocumentThreadPageMetadata {
-    return {...metadata, type: "DocumentThread", id, threadId};
 }
 
 export async function readAgentWebDocumentThreadPage(
@@ -168,7 +156,7 @@ export async function readAgentWebDocumentThreadPage(
     }: {
         searchParams: URLSearchParams;
         limitLength: number;
-        printPage: (page: AgentWebDocumentThreadPageWithMetadata) => Promise<string>;
+        printPage: (page: AgentWebDocumentThreadPage) => Promise<string>;
     },
 ): Promise<{response: string; metadata: AgentWebDocumentThreadPageMetadata}> {
     let excludesDocumentPreview = false;
@@ -341,8 +329,7 @@ export async function readAgentWebDocumentThreadPage(
                     direction: parsedSearchParams.direction,
                     startCursor: parsedSearchParams.startCursor,
                     limitLength,
-                    printPage: page =>
-                        printPage(buildAgentWebDocumentThreadPage(page, id, threadId)),
+                    printPage: page => printPage(buildAgentWebDocumentThreadPage(page)),
                 }),
             ]);
             break;
@@ -381,8 +368,7 @@ export async function readAgentWebDocumentThreadPage(
                     },
                     around: parsedSearchParams.around,
                     limitLength,
-                    printPage: page =>
-                        printPage(buildAgentWebDocumentThreadPage(page, id, threadId)),
+                    printPage: page => printPage(buildAgentWebDocumentThreadPage(page)),
                 }),
             ]);
             break;
@@ -391,7 +377,7 @@ export async function readAgentWebDocumentThreadPage(
             throw exhaustive(parsedSearchParams);
     }
 
-    return {response, metadata: buildAgentWebDocumentThreadPageMetadata(metadata, id, threadId)};
+    return {response, metadata: {...metadata, type: "DocumentThread", id, threadId}};
 }
 
 export async function readAgentWebDocumentThreadMessagePage(
@@ -404,7 +390,7 @@ export async function readAgentWebDocumentThreadMessagePage(
         printPage,
     }: {
         limitLength: number;
-        printPage: (page: AgentWebDocumentThreadPageWithMetadata) => Promise<string>;
+        printPage: (page: AgentWebDocumentThreadPage) => Promise<string>;
     },
 ): Promise<{response: string; metadata: AgentWebDocumentThreadPageMetadata}> {
     return await readAgentWebDocumentThreadPage(context, id, threadId, {
@@ -617,7 +603,7 @@ export async function updateAgentWebDocumentThreadPage(
         }
     }
 
-    return buildAgentWebDocumentThreadPageMetadata(newPageMetadata, id, threadId);
+    return {...newPageMetadata, type: "DocumentThread", id, threadId};
 }
 
 export async function printAgentWebDocumentThreadPage(

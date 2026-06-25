@@ -8,7 +8,6 @@ import {AgentWebSessionStorage} from "~/server/agents/web/agent_web_session_stor
 import {
     AgentWebMessagingPage,
     AgentWebMessagingPageMetadata,
-    AgentWebMessagingPageWithMetadata,
     agentWebMessagingPageCommentNouns,
 } from "~/server/agents/web/pages/messaging/agent_web_messaging_page.js";
 import {normalizeAgentWebMessagingPage} from "~/server/agents/web/pages/messaging/normalize_agent_web_messaging_page.js";
@@ -50,24 +49,6 @@ export type AgentWebTaskMessageListPageMetadata = AgentWebMessagingPageMetadata 
     readonly id: TaskId;
 };
 
-function buildAgentWebTaskMessageListPage(
-    page: AgentWebMessagingPageWithMetadata<AgentWebTaskMessageListPagePreamble, never>,
-    id: TaskId,
-): AgentWebTaskMessageListPageWithMetadata {
-    return {
-        ...page,
-        type: "TaskMessageList",
-        metadata: buildAgentWebTaskMessageListPageMetadata(page.metadata, id),
-    };
-}
-
-function buildAgentWebTaskMessageListPageMetadata(
-    metadata: AgentWebMessagingPageMetadata,
-    id: TaskId,
-): AgentWebTaskMessageListPageMetadata {
-    return {...metadata, type: "TaskMessageList", id};
-}
-
 export async function readAgentWebTaskMessageListPage(
     context: AgentWebContext,
     id: TaskId,
@@ -78,7 +59,7 @@ export async function readAgentWebTaskMessageListPage(
     }: {
         searchParams: URLSearchParams;
         limitLength: number;
-        printPage: (page: AgentWebTaskMessageListPageWithMetadata) => Promise<string>;
+        printPage: (page: AgentWebTaskMessageListPage) => Promise<string>;
     },
 ): Promise<{response: string; metadata: AgentWebTaskMessageListPageMetadata}> {
     const roomMetadataPromise = getTaskRoomMetadata(context, id);
@@ -92,13 +73,13 @@ export async function readAgentWebTaskMessageListPage(
             defaultDirection: "Start",
             searchParams,
             limitLength,
-            printPage: page => printPage(buildAgentWebTaskMessageListPage(page, id)),
+            printPage: page => printPage({...page, type: "TaskMessageList"}),
         }),
     ]);
 
     return {
         response: result.response,
-        metadata: buildAgentWebTaskMessageListPageMetadata(result.metadata, id),
+        metadata: {...result.metadata, type: "TaskMessageList", id},
     };
 }
 
@@ -111,7 +92,7 @@ export async function readAgentWebTaskMessageListMessagePage(
         printPage,
     }: {
         limitLength: number;
-        printPage: (page: AgentWebTaskMessageListPageWithMetadata) => Promise<string>;
+        printPage: (page: AgentWebTaskMessageListPage) => Promise<string>;
     },
 ): Promise<{response: string; metadata: AgentWebTaskMessageListPageMetadata}> {
     const roomMetadataPromise = getTaskRoomMetadata(context, id);
@@ -124,13 +105,13 @@ export async function readAgentWebTaskMessageListMessagePage(
             getRoomMetadata: () => roomMetadataPromise,
             around: {startMessageIndex: index, endMessageIndex: index + 1},
             limitLength,
-            printPage: page => printPage(buildAgentWebTaskMessageListPage(page, id)),
+            printPage: page => printPage({...page, type: "TaskMessageList"}),
         }),
     ]);
 
     return {
         response: result.response,
-        metadata: buildAgentWebTaskMessageListPageMetadata(result.metadata, id),
+        metadata: {...result.metadata, type: "TaskMessageList", id},
     };
 }
 

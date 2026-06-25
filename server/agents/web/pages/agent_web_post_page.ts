@@ -15,7 +15,6 @@ import {
     AgentWebMessagingPageMetadata,
     AgentWebMessagingPagePagination,
     AgentWebMessagingPageTimeBlock,
-    AgentWebMessagingPageWithMetadata,
     agentWebMessagingPageCommentNouns,
 } from "~/server/agents/web/pages/messaging/agent_web_messaging_page.js";
 import {normalizeAgentWebMessagingPage} from "~/server/agents/web/pages/messaging/normalize_agent_web_messaging_page.js";
@@ -35,7 +34,9 @@ import {routeAgentWebPageLinkPathname} from "~/server/agents/web/route_agent_web
 import {normalizeApiContent} from "~/shared/api/markdown/normalize_api_content.js";
 import {parseMarkdownTree} from "~/shared/api/markdown/parse_api_content_from_markdown.js";
 import {printMarkdownTree} from "~/shared/api/markdown/print_api_content_to_markdown.js";
+import {unzipKeysFromApiContentResponse} from "~/shared/api/markdown/zip_or_unzip_keys_from_api_content_response.js";
 import {intoApiAccountReference} from "~/shared/api/specification/into_api_account_reference.js";
+import {ApiContentKey} from "~/shared/api/specification/types/api_content_key.js";
 import {ApiContentResponseWithoutKeys} from "~/shared/api/specification/types/api_content_response_without_keys.js";
 import {
     ApiAccountReferenceResponse,
@@ -121,22 +122,30 @@ export type AgentWebPostPageCustomBlock = {
     readonly content: ApiContentResponseWithoutKeys;
 };
 
-export type AgentWebPostPageWithMetadata = AgentWebPostPage & {
-    readonly metadata: AgentWebPostPageMetadata;
-};
+export type AgentWebPostPageWithMetadata =
+    | (Extract<AgentWebPostPage, {subType: "Head"}> & {
+          readonly metadata: Extract<AgentWebPostPageMetadata, {isStartOfMessages: true}>;
+      })
+    | (Extract<AgentWebPostPage, {subType: "Tail"}> & {
+          readonly metadata: Extract<AgentWebPostPageMetadata, {isStartOfMessages: false}>;
+      });
 
-export type AgentWebPostPageMetadata = AgentWebMessagingPageMetadata & {
+export type AgentWebPostPageMetadata = Omit<AgentWebMessagingPageMetadata, "isStartOfMessages"> & {
     readonly type: "Post";
     readonly id: PostId;
-};
+} & (
+        | {
+              readonly isStartOfMessages: true;
+              readonly postKeys: ReadonlyArray<ApiContentKey> | null;
+          }
+        | {
+              readonly isStartOfMessages: false;
+          }
+    );
 
 function buildAgentWebPostPage(
-    page: AgentWebMessagingPageWithMetadata<
-        AgentWebPostPagePreambleBase,
-        AgentWebPostPageCustomBlock
-    >,
-    id: PostId,
-): AgentWebPostPageWithMetadata {
+    page: AgentWebMessagingPage<AgentWebPostPagePreambleBase, AgentWebPostPageCustomBlock>,
+): AgentWebPostPage {
     switch (page.preamble.type) {
         case "Head": {
             assert(
@@ -168,7 +177,6 @@ function buildAgentWebPostPage(
                         ? false
                         : page.isEndOfMessages,
                 blocks: page.blocks as AgentWebPostHeadPageBlocks,
-                metadata: buildAgentWebPostPageMetadata(page.metadata, id),
             };
         }
         case "Tail": {
@@ -180,19 +188,11 @@ function buildAgentWebPostPage(
                 subType: "Tail",
                 preamble: page.preamble,
                 blocks: page.blocks as ReadonlyArray<AgentWebMessagingPageBlock<never>>,
-                metadata: buildAgentWebPostPageMetadata(page.metadata, id),
             };
         }
         default:
             throw exhaustive(page.preamble);
     }
-}
-
-function buildAgentWebPostPageMetadata(
-    metadata: AgentWebMessagingPageMetadata,
-    id: PostId,
-): AgentWebPostPageMetadata {
-    return {...metadata, type: "Post", id};
 }
 
 export async function readAgentWebPostPage(
@@ -205,7 +205,7 @@ export async function readAgentWebPostPage(
     }: {
         searchParams: URLSearchParams;
         limitLength: number;
-        printPage: (page: AgentWebPostPageWithMetadata) => Promise<string>;
+        printPage: (page: AgentWebPostPage) => Promise<string>;
     },
 ): Promise<{response: string; metadata: AgentWebPostPageMetadata}> {
     let excludesPost = false;
@@ -238,15 +238,23 @@ export async function readAgentWebPostPage(
         } | null;
     };
 
-    const roomMetadataWithStartCustomBlock = new Lazy<Promise<RoomMetadata>>(async () => {
+    let hasLoadedStartCustomBlock = false;
+
+    const roomMetadataWithStartCustomBlock = new Lazy<
+        Promise<RoomMetadata & {keys: ReadonlyArray<ApiContentKey> | null}>
+    >(async () => {
         // If `excludesPost` is set then never return a post start block.
         if (excludesPost) return await roomMetadataWithoutStartCustomBlock.get();
+
+        hasLoadedStartCustomBlock = true;
 
         const {
             data: {post},
         } = await context.api.get(context.span, "/posts/{id}", {params: {path: {id}}});
 
         const postCreatedTime = deserializeDateString(post.createdTime);
+
+        const {content, keys} = unzipKeysFromApiContentResponse(post.content);
 
         return {
             pageLink: {
@@ -275,28 +283,32 @@ export async function readAgentWebPostPage(
                         post.createdTimeZone !== context.timeZone
                             ? formatTimeZoneAbbreviation(post.createdTimeZone, postCreatedTime)
                             : null,
-                    content: post.content,
+                    content,
                 },
             },
+            keys,
         };
     });
 
-    const roomMetadataWithoutStartCustomBlock = new Lazy<Promise<RoomMetadata>>(async () => {
-        const {
-            data: {reference: postReference},
-        } = await context.api.get(context.span, "/posts/{id}/reference", {
-            params: {path: {id}},
-        });
+    const roomMetadataWithoutStartCustomBlock = new Lazy<Promise<RoomMetadata & {keys: null}>>(
+        async () => {
+            const {
+                data: {reference: postReference},
+            } = await context.api.get(context.span, "/posts/{id}/reference", {
+                params: {path: {id}},
+            });
 
-        return {
-            pageLink: postReference,
-            preamble: {
-                type: "Tail",
-                post: postReference,
-            },
-            startCustomBlock: null,
-        };
-    });
+            return {
+                pageLink: postReference,
+                preamble: {
+                    type: "Tail",
+                    post: postReference,
+                },
+                startCustomBlock: null,
+                keys: null,
+            };
+        },
+    );
 
     let roomMetadataPromise: Promise<RoomMetadata>;
     let response: string;
@@ -370,7 +382,7 @@ export async function readAgentWebPostPage(
                     direction: parsedSearchParams.direction,
                     startCursor: parsedSearchParams.startCursor,
                     limitLength,
-                    printPage: page => printPage(buildAgentWebPostPage(page, id)),
+                    printPage: page => printPage(buildAgentWebPostPage(page)),
                 }),
             ]);
             break;
@@ -409,7 +421,7 @@ export async function readAgentWebPostPage(
                     },
                     around: parsedSearchParams.around,
                     limitLength,
-                    printPage: page => printPage(buildAgentWebPostPage(page, id)),
+                    printPage: page => printPage(buildAgentWebPostPage(page)),
                 }),
             ]);
             break;
@@ -418,10 +430,15 @@ export async function readAgentWebPostPage(
             throw exhaustive(parsedSearchParams);
     }
 
+    const hasPostOpenTag = /^.*\n+(?:.*\n+)?<post(?: |>)/.test(response);
+
     // Kinda hacky but truncate is implemented via string manipulation. So if we see a
     // response that thought it was a head page but the `<post>` was truncated then
     // switch the preamble to a tail page preamble.
-    if (response.startsWith("Post in ") && !/^.*\n+(?:.*\n+)?<post(?: |>)/.test(response)) {
+    //
+    // NOCOMMIT: Under what conditions might this trigger a `scroll` should we decrease
+    // the limit length difference or something like that?
+    if (!hasPostOpenTag && response.startsWith("Post in ")) {
         const match = assertExists(response.match(/^.*\)\. ([^.]+)\n/));
 
         const roomMetadata = await roomMetadataPromise;
@@ -442,7 +459,28 @@ export async function readAgentWebPostPage(
             response.slice(match[0].length - 1 - match[1]!.length);
     }
 
-    return {response, metadata: buildAgentWebPostPageMetadata(metadata, id)};
+    let actualMetadata: AgentWebPostPageMetadata;
+
+    if (!metadata.isStartOfMessages) {
+        // Double check that in this case we're on a tail page without a `<post>`.
+        assert(!hasPostOpenTag);
+
+        actualMetadata = {...metadata, type: "Post", id, isStartOfMessages: false};
+    } else {
+        // Double check that in this case we're on the head page with a `<post>`.
+        assert(hasPostOpenTag);
+        assert(hasLoadedStartCustomBlock);
+
+        actualMetadata = {
+            ...metadata,
+            type: "Post",
+            id,
+            isStartOfMessages: true,
+            postKeys: assertExists((await roomMetadataWithStartCustomBlock.get()).keys),
+        };
+    }
+
+    return {response, metadata: actualMetadata};
 }
 
 export async function readAgentWebPostMessagePage(
@@ -454,7 +492,7 @@ export async function readAgentWebPostMessagePage(
         printPage,
     }: {
         limitLength: number;
-        printPage: (page: AgentWebPostPageWithMetadata) => Promise<string>;
+        printPage: (page: AgentWebPostPage) => Promise<string>;
     },
 ): Promise<{response: string; metadata: AgentWebPostPageMetadata}> {
     return await readAgentWebPostPage(context, id, {
@@ -569,7 +607,17 @@ export async function createAgentWebPostPage(
         },
         async () => {
             const {post} = await createPromise.get();
-            return {type: "Post", id: post.id, isEndOfMessages: true, messages: []};
+
+            const {keys} = unzipKeysFromApiContentResponse(post.content);
+
+            return {
+                type: "Post",
+                id: post.id,
+                isStartOfMessages: true,
+                isEndOfMessages: true,
+                postKeys: keys,
+                messages: [],
+            };
         },
         {...newPage, blocks: [postBlock]},
         newPage,
@@ -694,6 +742,9 @@ export async function updateAgentWebPostPage(
             return {
                 update: async () => {
                     // TODO(#agents-web): Implement post update content endpoint.
+                    //
+                    // When implementing this content endpoint make sure to update `postKeys` in
+                    // metadata!
                     throw new UnimplementedError(
                         "Post update content API endpoint hasn\u2019t been implemented yet",
                     );
@@ -702,9 +753,15 @@ export async function updateAgentWebPostPage(
         },
     });
 
-    const {id} = await unwrapMaybeThunk(oldPageMetadata);
+    const actualOldPageMetadata = await unwrapMaybeThunk(oldPageMetadata);
 
-    return buildAgentWebPostPageMetadata(newPageMetadata, id);
+    if (!actualOldPageMetadata.isStartOfMessages) {
+        assert(!newPageMetadata.isStartOfMessages);
+        return {...actualOldPageMetadata, ...newPageMetadata, isStartOfMessages: false};
+    } else {
+        assert(newPageMetadata.isStartOfMessages);
+        return {...actualOldPageMetadata, ...newPageMetadata, isStartOfMessages: true};
+    }
 }
 
 export async function printAgentWebPostPage(

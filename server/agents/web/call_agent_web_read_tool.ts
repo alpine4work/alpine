@@ -4,11 +4,8 @@ import * as prettier from "prettier";
 import * as markdownPrettierPlugin from "prettier/plugins/markdown";
 import {parseAgentWebBytes} from "~/server/agents/web/agent_web_bytes.js";
 import {AgentWebContext} from "~/server/agents/web/agent_web_context.js";
-import {
-    AgentWebPage,
-    AgentWebPageMetadata,
-    AgentWebPageWithMetadata,
-} from "~/server/agents/web/agent_web_page.js";
+import {AgentWebPage, AgentWebPageMetadata} from "~/server/agents/web/agent_web_page.js";
+import {AgentWebPageLink} from "~/server/agents/web/agent_web_page_link.js";
 import {AgentWebPageRoutedLink} from "~/server/agents/web/agent_web_page_routed_link.js";
 import {AgentWebPageStoredLinkKeyObject} from "~/server/agents/web/agent_web_page_stored_link_key.js";
 import {AgentWebSessionStorage} from "~/server/agents/web/agent_web_session_storage.js";
@@ -115,6 +112,7 @@ export async function callAgentWebReadTool(
             printPage: async page => {
                 const response = await printAgentWebPageToMarkdownForReadTool(
                     context.storage,
+                    pageLink,
                     page,
                 );
                 return response;
@@ -171,7 +169,8 @@ export async function callAgentWebReadTool(
 
 async function printAgentWebPageToMarkdownForReadTool(
     storage: AgentWebSessionStorage,
-    page: AgentWebPageWithMetadata,
+    pageLink: AgentWebPageLink,
+    page: AgentWebPage,
 ): Promise<string> {
     // We should always normalize agent web markdown before printing. The following
     // property is not true in all cases:
@@ -189,7 +188,7 @@ async function printAgentWebPageToMarkdownForReadTool(
     // one `title` back as well.
     page = normalizeAgentWebPage(page);
 
-    const tree = await printAgentWebPage(storage, page);
+    const tree = await printAgentWebPage(storage, pageLink, page);
 
     let string = printMarkdownTree(tree);
 
@@ -233,7 +232,7 @@ function readAgentWebPageLink(
     options: {
         searchParams: URLSearchParams;
         limitLength: number;
-        printPage: (page: AgentWebPageWithMetadata) => Promise<string>;
+        printPage: (page: AgentWebPage) => Promise<string>;
     },
 ): Promise<{response: string; metadata: AgentWebPageMetadata}> {
     switch (pageLink.type) {
@@ -303,7 +302,7 @@ function readAgentWebPageLink(
     }
 }
 
-function normalizeAgentWebPage(page: AgentWebPageWithMetadata): AgentWebPageWithMetadata {
+function normalizeAgentWebPage(page: AgentWebPage): AgentWebPage {
     switch (page.type) {
         case "Document": {
             return normalizeAgentWebDocumentPage(page);
@@ -330,33 +329,71 @@ function normalizeAgentWebPage(page: AgentWebPageWithMetadata): AgentWebPageWith
 
 function printAgentWebPage(
     storage: AgentWebSessionStorage,
-    page: AgentWebPageWithMetadata,
+    pageLink: AgentWebPageLink,
+    page: AgentWebPage,
 ): Promise<Root> {
-    switch (page.type) {
+    switch (pageLink.type) {
+        case "Account": {
+            throw new UnimplementedError("NOCOMMIT");
+        }
         case "Document": {
-            return printAgentWebDocumentPage(storage, page.metadata.id, page);
+            assert(page.type === "Document");
+            return printAgentWebDocumentPage(storage, pageLink.id, page);
         }
         case "DocumentThread": {
+            assert(page.type === "DocumentThread");
+            return printAgentWebDocumentThreadPage(storage, pageLink, page);
+        }
+        case "DocumentMessage": {
+            assert(page.type === "DocumentThread");
             return printAgentWebDocumentThreadPage(
                 storage,
-                {document: page.preamble.document, threadId: page.metadata.threadId},
+                {threadId: pageLink.threadId, document: {id: pageLink.id}},
                 page,
             );
         }
+        case "File": {
+            throw new UnimplementedError("NOCOMMIT");
+        }
         case "Channel": {
-            return printAgentWebChannelPage(storage, page.metadata.id, page);
+            assert(page.type === "Channel");
+            return printAgentWebChannelPage(storage, pageLink.id, page);
         }
         case "Chat": {
-            return printAgentWebChatPage(storage, page.metadata.id, page);
+            assert(page.type === "Chat");
+            return printAgentWebChatPage(storage, pageLink.id, page);
         }
-        case "TaskMessageList": {
-            return printAgentWebTaskMessageListPage(storage, page.metadata.id, page);
+        case "ChatMessage": {
+            assert(page.type === "Chat");
+            return printAgentWebChatPage(storage, pageLink.id, page);
         }
         case "Post": {
-            return printAgentWebPostPage(storage, page.metadata.id, page);
+            assert(page.type === "Post");
+            return printAgentWebPostPage(storage, pageLink.id, page);
+        }
+        case "PostMessage": {
+            assert(page.type === "Post");
+            return printAgentWebPostPage(storage, pageLink.id, page);
+        }
+        case "Task": {
+            throw new UnimplementedError("NOCOMMIT");
+        }
+        case "TaskCollection": {
+            throw new UnimplementedError("NOCOMMIT");
+        }
+        case "TaskMessage": {
+            assert(page.type === "TaskMessageList");
+            return printAgentWebTaskMessageListPage(storage, pageLink.id, page);
+        }
+        case "TaskMessageList": {
+            assert(page.type === "TaskMessageList");
+            return printAgentWebTaskMessageListPage(storage, pageLink.task.id, page);
+        }
+        case "Site": {
+            throw new UnimplementedError("NOCOMMIT");
         }
         default:
-            throw exhaustive(page);
+            throw exhaustive(pageLink);
     }
 }
 

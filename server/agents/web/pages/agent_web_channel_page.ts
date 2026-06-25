@@ -102,7 +102,7 @@ export async function readAgentWebChannelPage(
     }: {
         searchParams: URLSearchParams;
         limitLength: number;
-        printPage: (page: AgentWebChannelPageWithMetadata) => Promise<string>;
+        printPage: (page: AgentWebChannelPage) => Promise<string>;
     },
 ): Promise<{response: string; metadata: AgentWebChannelPageMetadata}> {
     const afterCursor = parseAgentWebChannelPageSearchParams(searchParams);
@@ -186,8 +186,6 @@ export async function readAgentWebChannelPage(
             isEndOfPosts: nextCursor === null,
             posts: pagePosts.map(post => ({
                 id: post.reference.id,
-                // NOCOMMIT: We should include `keys` from unzip in metadata so messages can quote
-                // the post.
             })),
         };
 

@@ -4,13 +4,13 @@ import {Paragraph, Parent, PhrasingContent, RootContent} from "mdast";
 import {AgentWebSessionStorage} from "~/server/agents/web/agent_web_session_storage.js";
 import {createAgentWebPageLinkPathname} from "~/server/agents/web/create_agent_web_page_link_pathname.js";
 import {
-    AgentWebMessagingPage,
     AgentWebMessagingPageBlock,
     AgentWebMessagingPageCustomBlockBase,
     AgentWebMessagingPageMessageRange,
     AgentWebMessagingPageMetadata,
     AgentWebMessagingPageNouns,
     AgentWebMessagingPagePaginationPageLink,
+    AgentWebMessagingPageWithMetadata,
 } from "~/server/agents/web/pages/messaging/agent_web_messaging_page.js";
 import {
     agentWebMessagingNextPageLinkText,
@@ -48,6 +48,7 @@ export async function truncateAgentWebMessagingPage<
         limitLength,
         roomMetadataPageLink,
         direction,
+        isStartOfMessages,
         isEndOfMessages,
         messages,
         contextTimeZone,
@@ -60,12 +61,13 @@ export async function truncateAgentWebMessagingPage<
         limitLength: number;
         roomMetadataPageLink: AgentWebMessagingPagePaginationPageLink;
         direction: "Start" | "End";
+        isStartOfMessages: boolean;
         isEndOfMessages: boolean;
         messages: ReadonlyArray<ApiMessageResponse>;
         contextTimeZone: TimeZone;
         contextDate: CalendarDate;
         contextFormattedTimeZone: string;
-        page: AgentWebMessagingPage<Preamble, CustomBlock>;
+        page: AgentWebMessagingPageWithMetadata<Preamble, CustomBlock>;
         response: string;
     },
 ): Promise<{
@@ -205,7 +207,11 @@ export async function truncateAgentWebMessagingPage<
                 truncatedBlocks.pop();
             }
 
-            const truncatedMessages = messages.slice(0, messages.length - truncateMessageCount);
+            assert(page.metadata.messages.length === messages.length);
+            const truncatedMessages = page.metadata.messages.slice(
+                0,
+                messages.length - truncateMessageCount,
+            );
 
             // There should always be at least one block left after we truncate.
             assert(truncatedBlocks.length > 0);
@@ -269,10 +275,11 @@ export async function truncateAgentWebMessagingPage<
             return {
                 truncatedResponse,
                 truncatedMetadata: {
+                    isStartOfMessages,
                     // If we truncated some messages from the end even if we were at the end we're
                     // definitely not at the end now.
                     isEndOfMessages: false,
-                    messages: truncatedMessages.map(message => ({index: message.index})),
+                    messages: truncatedMessages,
                 },
             };
         }
@@ -424,7 +431,8 @@ export async function truncateAgentWebMessagingPage<
                 truncatedBlocks.push(block);
             }
 
-            const truncatedMessages = messages.slice(truncateMessageCount);
+            assert(page.metadata.messages.length === messages.length);
+            const truncatedMessages = page.metadata.messages.slice(truncateMessageCount);
 
             // There should always be at least one message block left after we truncate.
             //
@@ -455,7 +463,7 @@ export async function truncateAgentWebMessagingPage<
                     defaultLocale,
                     contextTimeZone,
                     contextDate,
-                    deserializeDateString(truncatedMessages[0]!.createdTime),
+                    deserializeDateString(messages[truncateMessageCount]!.createdTime),
                     {withLongMonth: true},
                 );
 
@@ -544,8 +552,11 @@ export async function truncateAgentWebMessagingPage<
             return {
                 truncatedResponse,
                 truncatedMetadata: {
+                    // If we truncated some messages from the start even if we were at the start we're
+                    // definitely not at the start now.
+                    isStartOfMessages: false,
                     isEndOfMessages,
-                    messages: truncatedMessages.map(message => ({index: message.index})),
+                    messages: truncatedMessages,
                 },
             };
         }
@@ -564,6 +575,7 @@ export async function truncateAgentWebMessagingPageAroundMessage<
         limitLength,
         roomMetadataPageLink,
         around,
+        isStartOfMessages,
         isEndOfMessages,
         messages,
         contextTimeZone,
@@ -576,12 +588,13 @@ export async function truncateAgentWebMessagingPageAroundMessage<
         limitLength: number;
         roomMetadataPageLink: AgentWebMessagingPagePaginationPageLink;
         around: AgentWebMessagingPageMessageRange;
+        isStartOfMessages: boolean;
         isEndOfMessages: boolean;
         messages: ReadonlyArray<ApiMessageResponse>;
         contextTimeZone: TimeZone;
         contextDate: CalendarDate;
         contextFormattedTimeZone: string;
-        page: AgentWebMessagingPage<Preamble, CustomBlock>;
+        page: AgentWebMessagingPageWithMetadata<Preamble, CustomBlock>;
         response: string;
     },
 ): Promise<{
@@ -1005,7 +1018,8 @@ export async function truncateAgentWebMessagingPageAroundMessage<
         truncatedBlocks.pop();
     }
 
-    const truncatedMessages = messages.slice(
+    assert(page.metadata.messages.length === messages.length);
+    const truncatedMessages = page.metadata.messages.slice(
         truncateMessageCountFromStart,
         messages.length - truncateMessageCountFromEnd,
     );
@@ -1043,7 +1057,7 @@ export async function truncateAgentWebMessagingPageAroundMessage<
             defaultLocale,
             contextTimeZone,
             contextDate,
-            deserializeDateString(truncatedMessages[0]!.createdTime),
+            deserializeDateString(messages[truncateMessageCountFromStart]!.createdTime),
             {withLongMonth: true},
         );
 
@@ -1225,10 +1239,13 @@ export async function truncateAgentWebMessagingPageAroundMessage<
     return {
         truncatedResponse,
         truncatedMetadata: {
+            // If we truncated some messages from the start even if we were at the start we're
+            // definitely not at the start now.
+            isStartOfMessages: !didTruncateFromStart && isStartOfMessages,
             // If we truncated some messages from the end even if we were at the end we're
             // definitely not at the end now.
             isEndOfMessages: !didTruncateFromEnd && isEndOfMessages,
-            messages: truncatedMessages.map(message => ({index: message.index})),
+            messages: truncatedMessages,
         },
     };
 }
