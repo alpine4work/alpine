@@ -645,6 +645,23 @@ End of comments.`,
     expect(getCreateCommentRequests()).toEqual([]);
 });
 
+test("rejects creating a post with a next page link", async () => {
+    await expectInvalidCreateDisplayMessage({
+        content: `\
+Post in [Announcements](/channel/announcements). [Next page »](/post/existing-post?after=post)
+
+<post from="[ChatGPT](/bot/chatgpt)">
+
+The server should create this as a new post, not a paginated page.
+
+</post>`,
+        expected:
+            "Can\u2019t add \u201cNext page »\u201d link when creating comments markdown. Try again without the \u201cNext page »\u201d link.",
+    });
+    expect(getCreatePostRequests()).toEqual([]);
+    expect(getCreateCommentRequests()).toEqual([]);
+});
+
 test("rejects creating a post with a time marker before the post", async () => {
     await expectInvalidCreateDisplayMessage({
         content: `\
