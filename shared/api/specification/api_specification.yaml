@@ -3513,6 +3513,7 @@ components:
 
         Task:
             type: object
+            # NOCOMMIT: Make notes optional. If notes is empty the object shouldn't be present
             required: [id, status, title, notes]
             additionalProperties: false
             properties:
