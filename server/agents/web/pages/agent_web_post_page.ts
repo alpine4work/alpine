@@ -500,6 +500,9 @@ export async function createAgentWebPostPage(
         });
     }
 
+    // `parseAgentWebPostPage()` should handle this error for us.
+    assert(!newPage.pagination);
+
     if (newPage.blocks[0].type === "Time") {
         throw new InvalidArgumentError("Can only create posts", {
             displayMessage: errorDisplayMessage`Unexpected \`<time>\`, you can only add a \`<post>\`. The creation time of the post will be decided by the server. Try again and remove the new \`<time>\`.`,
