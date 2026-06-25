@@ -9,7 +9,7 @@ import {callAgentWebCreateTool} from "~/server/agents/web/call_agent_web_create_
 import {callAgentWebFindTool} from "~/server/agents/web/call_agent_web_find_tool.js";
 import {callAgentWebScrollTool} from "~/server/agents/web/call_agent_web_scroll_tool.js";
 import {createAgentWebSessionStorageForTest} from "~/server/agents/web/test_helpers/create_agent_web_session_storage_for_test.js";
-import {addKeysToApiContentForTest} from "~/shared/api/markdown/test_helpers/add_keys_to_api_content.js";
+import {addKeysToApiContentForTest} from "~/shared/api/markdown/test_helpers/add_keys_to_api_content_for_test.js";
 import {ApiContentResponse} from "~/shared/api/specification/types/api_specification_convenience_types.js";
 import {InvalidArgumentError} from "~/shared/error/error.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";

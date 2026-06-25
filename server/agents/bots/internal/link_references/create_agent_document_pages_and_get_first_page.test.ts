@@ -3,7 +3,7 @@ import {MemoryStorage} from "@miniflare/storage-memory";
 import {getAgentLink} from "~/server/agents/bots/internal/link_references/agent_link_collection.js";
 import {putAgentLocalDocumentContent} from "~/server/agents/bots/internal/link_references/agent_local_document_content_collection.js";
 import {createAgentDocumentPagesAndReturnFirstPage} from "~/server/agents/bots/internal/link_references/create_agent_document_pages_and_get_first_page.js";
-import {addKeysToApiContentForTest} from "~/shared/api/markdown/test_helpers/add_keys_to_api_content.js";
+import {addKeysToApiContentForTest} from "~/shared/api/markdown/test_helpers/add_keys_to_api_content_for_test.js";
 import {ApiContentResponse} from "~/shared/api/specification/types/api_specification_convenience_types.js";
 import {generateId} from "~/shared/id/id.js";
 import {DocumentId} from "~/shared/id/types/id_types.js";

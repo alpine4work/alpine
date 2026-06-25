@@ -24,6 +24,7 @@ import {
     ApiContentResponse,
     ApiContentTableBlockElementCellBlockElementResponse,
 } from "~/shared/api/specification/types/api_specification_convenience_types.js";
+import {assert} from "~/shared/helpers/control/assert.js";
 import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
 
 type ApiContentFileOrPreviewBlockElementResponseWithoutKeys =
@@ -39,10 +40,23 @@ type ApiContentPositionState = {
  * if you need to create an `ApiContentResponse` object in a test and you don't
  * have the underlying ProseMirror content.
  */
-export function addKeysToApiContent(
-    encoder: ApiContentKeyEncoder,
+export function addKeysToApiContentForTest(
     content: ApiContentResponseWithoutKeys,
+    {
+        // We recommend these dummy options for tests since it doesn't matter for the keys
+        // to be exactly accurate in most tests and having deterministic keys across test
+        // runs is useful for debugging,
+        entityId = "Test",
+        version = 0,
+    }: {
+        entityId?: string;
+        version?: number;
+    } = {},
 ): ApiContentResponse {
+    assert(process.env.NODE_ENV === "test");
+
+    const encoder = new ApiContentKeyEncoder({entityId, version});
+
     const state: ApiContentPositionState = {pos: 0};
 
     return {

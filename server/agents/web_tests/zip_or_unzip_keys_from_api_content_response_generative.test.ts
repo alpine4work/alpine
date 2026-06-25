@@ -4,7 +4,7 @@ import {printApiContentToAgentWebMarkdown} from "~/server/agents/web/print_api_c
 import {createAgentWebSessionStorageForTest} from "~/server/agents/web/test_helpers/create_agent_web_session_storage_for_test.js";
 import {intoApiContent} from "~/shared/api/content/into_api_content.js";
 import {apiContentArbitrarySpaceId} from "~/shared/api/markdown/test_helpers/api_content_arbitrary.js";
-import {addKeysToApiContentForTest} from "~/shared/api/markdown/test_helpers/add_keys_to_api_content.js";
+import {addKeysToApiContentForTest} from "~/shared/api/markdown/test_helpers/add_keys_to_api_content_for_test.js";
 import {
     unzipKeysFromApiContentResponse,
     zipKeysIntoApiContentResponse,

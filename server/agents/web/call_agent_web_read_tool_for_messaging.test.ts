@@ -13,7 +13,7 @@ import {callAgentWebReadTool} from "~/server/agents/web/call_agent_web_read_tool
 import {callAgentWebScrollTool} from "~/server/agents/web/call_agent_web_scroll_tool.js";
 import {createAgentWebPageStoredLinkPathname} from "~/server/agents/web/create_agent_web_page_stored_link_pathname.js";
 import {createAgentWebSessionStorageForTest} from "~/server/agents/web/test_helpers/create_agent_web_session_storage_for_test.js";
-import {addKeysToApiContentForTest} from "~/shared/api/markdown/test_helpers/add_keys_to_api_content.js";
+import {addKeysToApiContentForTest} from "~/shared/api/markdown/test_helpers/add_keys_to_api_content_for_test.js";
 import {ApiContentResponse} from "~/shared/api/specification/types/api_specification_convenience_types.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {assertTimeZone, defaultTimeZone} from "~/shared/helpers/intl/time_zone.js";

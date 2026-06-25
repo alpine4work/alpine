@@ -10,6 +10,7 @@ ts_project(
         "//server/agents/web/test_helpers",
         "//shared/api/content",
         "//shared/api/markdown",
+        "//shared/api/markdown/test_helpers",
         "//shared/api/specification",
         "//shared/documents",
         "//shared/error",
