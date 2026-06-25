@@ -97,8 +97,12 @@ export async function printAgentWebMessagingPage<
                     // Safety check: if the printed preamble ends with a "Next page" link then that
                     // will confuse `parseAgentWebMessagingPage()` which will interpret that "Next
                     // page" link as a part of the pagination link and not a part of the preamble.
-                    const lastNode = children[children.length - 1];
-                    if (lastNode?.type === "paragraph") {
+                    const lastParagraphIndex =
+                        findAgentWebMessagingPagePaginationParagraphIndex(children);
+                    if (lastParagraphIndex !== null) {
+                        const lastNode = children[lastParagraphIndex]!;
+                        assert(lastNode.type === "paragraph");
+
                         const lastChildIndex = lastNode.children.length - 1;
                         const lastChild = lastNode.children[lastChildIndex];
                         if (lastChild?.type === "link") {
@@ -164,10 +168,13 @@ export async function printAgentWebMessagingPage<
             ]);
 
             if (paginationLinks.length > 0) {
-                const lastChild = children[children.length - 1];
+                const lastParagraphIndex =
+                    findAgentWebMessagingPagePaginationParagraphIndex(children);
 
-                if (lastChild?.type === "paragraph") {
-                    lastChild.children.push({type: "text", value: " "}, ...paginationLinks);
+                if (lastParagraphIndex !== null) {
+                    const lastNode = children[lastParagraphIndex]!;
+                    assert(lastNode.type === "paragraph");
+                    lastNode.children.push({type: "text", value: " "}, ...paginationLinks);
                 } else {
                     children.push({type: "paragraph", children: paginationLinks});
                 }
@@ -343,6 +350,21 @@ export async function printAgentWebMessagingPage<
     }
 
     return {type: "root", children};
+}
+
+function findAgentWebMessagingPagePaginationParagraphIndex(
+    children: ReadonlyArray<RootContent>,
+): number | null {
+    for (let index = children.length - 1; index >= 0; index--) {
+        const child = children[index]!;
+
+        if (child.type === "list") continue;
+        if (child.type === "paragraph") return index;
+
+        return null;
+    }
+
+    return null;
 }
 
 export function printAgentWebMessagingPageMessageIndexRange({

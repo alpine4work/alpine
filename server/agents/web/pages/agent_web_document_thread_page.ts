@@ -1,4 +1,4 @@
-import {Root} from "mdast";
+import {Root, RootContent} from "mdast";
 import {
     AgentWebContext,
     AgentWebContextWithoutStorage,
@@ -28,6 +28,7 @@ import {
 import {updateAgentWebMessagingPage} from "~/server/agents/web/pages/messaging/update_agent_web_messaging_page.js";
 import {parseApiContentFromAgentWebMarkdownTree} from "~/server/agents/web/parse_api_content_from_agent_web_markdown.js";
 import {printApiContentToAgentWebMarkdownTree} from "~/server/agents/web/print_api_content_to_agent_web_markdown.js";
+import {printMarkdownPhrasingContentText} from "~/server/agents/web/print_markdown_phrasing_content_text.js";
 import {findApiContentRanges} from "~/shared/api/markdown/find_api_content_ranges.js";
 import {normalizeApiContent} from "~/shared/api/markdown/normalize_api_content.js";
 import {parseMarkdownTree} from "~/shared/api/markdown/parse_api_content_from_markdown.js";
@@ -58,20 +59,19 @@ import {MaybePromise} from "~/shared/helpers/types/maybe_promise.js";
 import {MaybeThunk} from "~/shared/helpers/types/maybe_thunk.js";
 import {DocumentCommentThreadId, DocumentId} from "~/shared/id/types/id_types.js";
 
-// NOCOMMIT: We need resolved and unresolved states for document comment threads!
-
 export type AgentWebDocumentThreadPage = {
     readonly type: "DocumentThread";
-    readonly preamble: AgentWebDocumentThreadPagePreamble;
     readonly pagination: AgentWebMessagingPagePagination<AgentWebDocumentThreadPageCustomBlock> | null;
     readonly isEndOfMessages: boolean;
 } & (
     | {
           readonly subType: "Head";
+          readonly preamble: AgentWebDocumentThreadHeadPagePreamble;
           readonly blocks: AgentWebDocumentThreadHeadPageBlocks;
       }
     | {
           readonly subType: "Tail";
+          readonly preamble: AgentWebDocumentThreadTailPagePreamble;
           readonly blocks: ReadonlyArray<AgentWebMessagingPageBlock<never>>;
       }
 );
@@ -81,7 +81,18 @@ export type AgentWebDocumentThreadHeadPageBlocks = readonly [
     ...ReadonlyArray<AgentWebMessagingPageBlock<never>>,
 ];
 
-export type AgentWebDocumentThreadPagePreamble = {
+export type AgentWebDocumentThreadPagePreamble =
+    | AgentWebDocumentThreadHeadPagePreamble
+    | AgentWebDocumentThreadTailPagePreamble;
+
+export type AgentWebDocumentThreadHeadPagePreamble = {
+    readonly type: "Head";
+    readonly document: ApiDocumentReferenceResponse;
+    readonly isResolved: boolean;
+};
+
+export type AgentWebDocumentThreadTailPagePreamble = {
+    readonly type: "Tail";
     readonly document: ApiDocumentReferenceResponse;
 };
 
@@ -112,6 +123,7 @@ function buildAgentWebDocumentThreadPage(
 ): AgentWebDocumentThreadPageWithMetadata {
     if (page.blocks.length > 0 && page.blocks[0]!.type === "Custom") {
         assert(page.blocks.slice(1).every(block => block.type !== "Custom"));
+        assert(page.preamble.type === "Head");
 
         return {
             ...page,
@@ -125,6 +137,7 @@ function buildAgentWebDocumentThreadPage(
     }
 
     assert(page.blocks.every(block => block.type !== "Custom"));
+    assert(page.preamble.type === "Tail");
 
     return {
         ...page,
@@ -214,6 +227,7 @@ export async function readAgentWebDocumentThreadPage(
             preamble: {
                 type: "Head",
                 document: documentReference,
+                isResolved: thread.isResolved,
             },
             startCustomBlock: {
                 time: null,
@@ -442,6 +456,12 @@ export async function createAgentWebDocumentThreadPage(
         });
     }
 
+    if (newPage.preamble.isResolved) {
+        throw new InvalidArgumentError("Can\u2019t create resolved document comment thread", {
+            displayMessage: errorDisplayMessage`You can\u2019t create a document comment thread as resolved. New document comment threads must start unresolved. Try again with \`- [ ] Unresolved\` or remove \`- [x] Resolved\` entirely.`,
+        });
+    }
+
     if (newPage.pagination) {
         throw new InvalidArgumentError(
             "Can\u2019t create document comment thread with pagination",
@@ -588,6 +608,15 @@ export async function updateAgentWebDocumentThreadPage(
 
     const {id, threadId} = await unwrapMaybeThunk(oldPageMetadata);
 
+    if (oldPage.preamble.type === "Head" && newPage.preamble.type === "Head") {
+        if (oldPage.preamble.isResolved !== newPage.preamble.isResolved) {
+            // TODO(#agents-web): Implement document comment thread resolve/unresolve endpoint.
+            throw new UnimplementedError(
+                "Document comment thread resolve/unresolve API endpoint hasn\u2019t been implemented yet",
+            );
+        }
+    }
+
     return buildAgentWebDocumentThreadPageMetadata(newPageMetadata, id, threadId);
 }
 
@@ -603,7 +632,7 @@ export async function printAgentWebDocumentThreadPage(
     >(storage, pageLink, page, {
         messageNouns: agentWebMessagingPageCommentNouns,
         printPreamble: async (storage, preamble) => {
-            return await printApiContentToAgentWebMarkdownTree(storage, {
+            const preambleTree = await printApiContentToAgentWebMarkdownTree(storage, {
                 elements: [
                     {
                         type: "Paragraph",
@@ -615,6 +644,40 @@ export async function printAgentWebDocumentThreadPage(
                     },
                 ],
             });
+
+            if (preamble.type === "Tail") return preambleTree;
+
+            return {
+                type: "root",
+                children: [
+                    ...preambleTree.children,
+                    {
+                        type: "list",
+                        ordered: false,
+                        spread: false,
+                        children: [
+                            {
+                                type: "listItem",
+                                checked: preamble.isResolved,
+                                spread: false,
+                                children: [
+                                    {
+                                        type: "paragraph",
+                                        children: [
+                                            {
+                                                type: "text",
+                                                value: preamble.isResolved
+                                                    ? "Resolved"
+                                                    : "Unresolved",
+                                            },
+                                        ],
+                                    },
+                                ],
+                            },
+                        ],
+                    },
+                ],
+            };
         },
         printCustomBlock: async (storage, block) => {
             const contentTree = await printApiContentToAgentWebMarkdownTree(
@@ -660,14 +723,21 @@ export async function parseAgentWebDocumentThreadPageAndReturnDocumentPath(
         parsePreamble: async (storage, preamble): Promise<AgentWebDocumentThreadPagePreamble> => {
             const createError = () => {
                 return new InvalidArgumentError("Invalid document thread preamble", {
-                    displayMessage: errorDisplayMessage`Document comment thread markdown must start with \`Document comment thread on [My Document](/document/my-document).\`. Try again with a proper start to document comment thread markdown on line 1.`,
+                    displayMessage: errorDisplayMessage`Document comment thread markdown must start with \`Document comment thread on [My Document](/document/my-document).\`. Optionally followed by \`- [ ] Unresolved\` or \`- [x] Resolved\`. Try again with a proper start to document comment thread markdown on line 1.`,
                 });
             };
 
-            const preambleContent = await parseApiContentFromAgentWebMarkdownTree(
-                storage,
-                preamble,
-            );
+            const [documentPreambleNode, ...statePreambleNodes] = preamble.children;
+
+            if (!documentPreambleNode) throw createError();
+
+            const resolvedState = parseAgentWebDocumentThreadPageResolvedState(statePreambleNodes);
+            if (resolvedState === null) throw createError();
+
+            const preambleContent = await parseApiContentFromAgentWebMarkdownTree(storage, {
+                type: "root",
+                children: [documentPreambleNode],
+            });
 
             if (
                 preambleContent.elements.length !== 1 ||
@@ -710,7 +780,15 @@ export async function parseAgentWebDocumentThreadPageAndReturnDocumentPath(
 
             documentPath = preambleLinkChild.url;
 
-            return {document: secondElement.reference};
+            if (resolvedState.type === "Present") {
+                return {
+                    type: "Head",
+                    document: secondElement.reference,
+                    isResolved: resolvedState.isResolved,
+                };
+            }
+
+            return {type: "Tail", document: secondElement.reference};
         },
         parseCustomBlockByTagName: {
             blockquote: async (storage, root): Promise<AgentWebDocumentThreadPageCustomBlock> => {
@@ -739,6 +817,19 @@ export async function parseAgentWebDocumentThreadPageAndReturnDocumentPath(
     }
 
     if (documentPreviewBlockIndexes.length === 0) {
+        if (page.preamble.type === "Head") {
+            const resolvedState = page.preamble.isResolved
+                ? `\`- [x] Resolved\``
+                : `\`- [ ] Unresolved\``;
+
+            throw new InvalidArgumentError(
+                "Can\u2019t include resolved state on document thread tail page",
+                {
+                    displayMessage: errorDisplayMessage`${resolvedState} can only be included on the first page of a document comment thread, right before a \`<blockquote>\`. Try again and remove ${resolvedState}.`,
+                },
+            );
+        }
+
         return {
             page: {
                 ...page,
@@ -765,9 +856,40 @@ export async function parseAgentWebDocumentThreadPageAndReturnDocumentPath(
             ...page,
             type: "DocumentThread",
             subType: "Head",
-            preamble: page.preamble,
+            preamble:
+                page.preamble.type === "Head"
+                    ? page.preamble
+                    : {
+                          type: "Head",
+                          document: page.preamble.document,
+                          isResolved: false,
+                      },
             blocks: page.blocks as AgentWebDocumentThreadHeadPageBlocks,
         },
         documentPath,
     };
+}
+
+function parseAgentWebDocumentThreadPageResolvedState(
+    nodes: ReadonlyArray<RootContent>,
+): {type: "Absent"} | {type: "Present"; isResolved: boolean} | null {
+    if (nodes.length === 0) return {type: "Absent"};
+    if (nodes.length !== 1) return null;
+
+    const node = nodes[0]!;
+    if (node.type !== "list") return null;
+    if (node.ordered) return null;
+    if (node.children.length !== 1) return null;
+
+    const item = node.children[0]!;
+    if (item.checked !== true && item.checked !== false) return null;
+    if (item.children.length !== 1) return null;
+
+    const paragraph = item.children[0]!;
+    if (paragraph.type !== "paragraph") return null;
+
+    const text = printMarkdownPhrasingContentText(paragraph.children);
+    if (text !== "Resolved" && text !== "Unresolved") return null;
+
+    return {type: "Present", isResolved: item.checked};
 }

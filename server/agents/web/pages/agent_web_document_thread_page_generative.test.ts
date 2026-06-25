@@ -1,8 +1,9 @@
 import fc, {Arbitrary} from "fast-check";
 import {
+    AgentWebDocumentThreadHeadPagePreamble,
     AgentWebDocumentThreadPage,
     AgentWebDocumentThreadPageCustomBlock,
-    AgentWebDocumentThreadPagePreamble,
+    AgentWebDocumentThreadTailPagePreamble,
     normalizeAgentWebDocumentThreadPage,
     parseAgentWebDocumentThreadPage,
     printAgentWebDocumentThreadPage,
@@ -25,8 +26,16 @@ const ApiDocumentReferenceArbitrary = fc.record({
     title: ApiContentTextArbitrary,
 });
 
-const AgentWebDocumentThreadPagePreambleArbitrary: Arbitrary<AgentWebDocumentThreadPagePreamble> =
+const AgentWebDocumentThreadHeadPagePreambleArbitrary: Arbitrary<AgentWebDocumentThreadHeadPagePreamble> =
     fc.record({
+        type: fc.constant("Head"),
+        document: ApiDocumentReferenceArbitrary,
+        isResolved: fc.boolean(),
+    });
+
+const AgentWebDocumentThreadTailPagePreambleArbitrary: Arbitrary<AgentWebDocumentThreadTailPagePreamble> =
+    fc.record({
+        type: fc.constant("Tail"),
         document: ApiDocumentReferenceArbitrary,
     });
 
@@ -41,7 +50,7 @@ const AgentWebDocumentThreadPageCustomBlockArbitrary: Arbitrary<AgentWebDocument
 const AgentWebDocumentThreadHeadPageArbitrary: Arbitrary<AgentWebDocumentThreadPage> = fc.record({
     type: fc.constant("DocumentThread"),
     subType: fc.constant("Head"),
-    preamble: AgentWebDocumentThreadPagePreambleArbitrary,
+    preamble: AgentWebDocumentThreadHeadPagePreambleArbitrary,
     pagination: fc.oneof(
         {weight: 10, arbitrary: fc.constant(null)},
         {weight: 1, arbitrary: AgentWebMessagingPagePaginationArbitrary},
@@ -58,7 +67,7 @@ const AgentWebDocumentThreadHeadPageArbitrary: Arbitrary<AgentWebDocumentThreadP
 const AgentWebDocumentThreadTailPageArbitrary: Arbitrary<AgentWebDocumentThreadPage> = fc.record({
     type: fc.constant("DocumentThread"),
     subType: fc.constant("Tail"),
-    preamble: AgentWebDocumentThreadPagePreambleArbitrary,
+    preamble: AgentWebDocumentThreadTailPagePreambleArbitrary,
     pagination: fc.oneof(
         {weight: 10, arbitrary: fc.constant(null)},
         {weight: 1, arbitrary: AgentWebMessagingPagePaginationArbitrary},

@@ -1061,8 +1061,11 @@ async function takeAgentWebMessagingPagePaginationFromPreamble<
         customBlockTagNames: ReadonlySet<string>;
     },
 ): Promise<AgentWebMessagingPagePagination<CustomBlock> | null> {
-    const lastNode = preamble[preamble.length - 1];
-    if (lastNode?.type !== "paragraph") return null;
+    const lastNodeIndex = findAgentWebMessagingPagePaginationParagraphIndex(preamble);
+    if (lastNodeIndex === null) return null;
+
+    const lastNode = preamble[lastNodeIndex]!;
+    assert(lastNode.type === "paragraph");
 
     const lastChildIndex = lastNode.children.length - 1;
     const lastChild = lastNode.children[lastChildIndex];
@@ -1156,7 +1159,7 @@ async function takeAgentWebMessagingPagePaginationFromPreamble<
         }
     }
 
-    if (lastNode.children.length === 0) preamble.pop();
+    if (lastNode.children.length === 0) preamble.splice(lastNodeIndex, 1);
 
     if (previousPaginationLink) {
         return {
@@ -1183,6 +1186,21 @@ async function takeAgentWebMessagingPagePaginationFromPreamble<
                 ? {type: "Message", afterMessageIndex: nextPaginationLink.messageIndex}
                 : {type: "Custom", afterTagName: nextPaginationLink.tagName as any},
     };
+}
+
+function findAgentWebMessagingPagePaginationParagraphIndex(
+    children: ReadonlyArray<RootContent>,
+): number | null {
+    for (let index = children.length - 1; index >= 0; index--) {
+        const child = children[index]!;
+
+        if (child.type === "list") continue;
+        if (child.type === "paragraph") return index;
+
+        return null;
+    }
+
+    return null;
 }
 
 type AgentWebMessagingPageParsedPaginationLink =
