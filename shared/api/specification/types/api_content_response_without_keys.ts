@@ -3,7 +3,9 @@ import {
     ApiContentBlockElement,
     ApiContentBlockElementResponse,
     ApiContentCheckListBlockElementItemResponse,
+    ApiContentCodeBlockElementLineResponse,
     ApiContentFileBlockElementResponse,
+    ApiContentHeadingBlockElementResponse,
     ApiContentListBlockElementItemResponse,
     ApiContentListBlockElementResponse,
     ApiContentParagraphBlockElementResponse,
@@ -67,6 +69,21 @@ export type ApiContentBlockElementResponseWithoutKeys =
 
 export type ApiContentParagraphBlockElementResponseWithoutKeys =
     MakeApiContentWithoutKeys<ApiContentParagraphBlockElementResponse>;
+
+export type ApiContentHeadingBlockElementResponseWithoutKeys =
+    MakeApiContentWithoutKeys<ApiContentHeadingBlockElementResponse>;
+
+export type ApiContentListBlockElementResponseWithoutKeys =
+    MakeApiContentWithoutKeys<ApiContentListBlockElementResponse>;
+
+export type ApiContentListBlockElementItemResponseWithoutKeys =
+    MakeApiContentWithoutKeys<ApiContentListBlockElementItemResponse>;
+
+export type ApiContentCheckListBlockElementItemResponseWithoutKeys =
+    MakeApiContentWithoutKeys<ApiContentCheckListBlockElementItemResponse>;
+
+export type ApiContentCodeBlockElementLineResponseWithoutKeys =
+    MakeApiContentWithoutKeys<ApiContentCodeBlockElementLineResponse>;
 
 export type ApiContentFileBlockElementResponseWithoutKeys =
     MakeApiContentWithoutKeys<ApiContentFileBlockElementResponse>;

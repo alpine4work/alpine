@@ -1,5 +1,5 @@
 import fc from "fast-check";
-import {addKeysToApiContent} from "~/shared/api/content/add_keys_to_api_content.js";
+import {addKeysToApiContent} from "~/shared/api/markdown/test_helpers/add_keys_to_api_content.js";
 import {ApiContentKeyEncoder} from "~/shared/api/content/api_content_key_encoder.js";
 import {intoApiContent} from "~/shared/api/content/into_api_content.js";
 import {DocumentWithoutTitleContentProsemirrorSchema} from "~/shared/documents/document_content_schema.js";

@@ -2,6 +2,10 @@ load("//admin/typescript:typescript.bzl", "ts_project")
 
 ts_project(
     name = "test_helpers",
+    test_deps = [
+        "//shared/documents",
+        "//shared/prosemirror/test_helpers",
+    ],
     visibility = ["//visibility:public"],
     # IMPORTANT: We try to keep the first-party dependency list for this markdown
     # parser/printer pretty small. We'd like to open source this code someday! So
