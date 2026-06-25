@@ -121,6 +121,7 @@ export function renderContentFilePreview({
     spacingScale,
     isInitialAppRender,
     withoutInteractivity = false,
+    isMediaDebugModeEnabled = false,
 }: {
     spaceId: SpaceId;
     node: Node;
@@ -132,6 +133,7 @@ export function renderContentFilePreview({
     spacingScale: SpacingScale;
     isInitialAppRender: boolean;
     withoutInteractivity?: boolean;
+    isMediaDebugModeEnabled?: boolean;
 }): HtmlElementGenerator {
     assert(node.type.name === "file");
 
@@ -282,7 +284,32 @@ export function renderContentFilePreview({
         }
     }
 
+    if (file && isMediaDebugModeEnabled) {
+        appendContentFileDebugWidgetHtml(html, file);
+    }
+
     return html;
+}
+
+function appendContentFileDebugWidgetHtml(html: HtmlElementGenerator, file: FileModelRegistryData) {
+    const debugWidgetHtml = new HtmlElementGenerator("div");
+    html.appendChild(debugWidgetHtml);
+    debugWidgetHtml.setAttribute("class", contentStyles.fileDebugWidgetClassName);
+    debugWidgetHtml.setAttribute("aria-label", "File model debug");
+
+    debugWidgetHtml.appendChild(
+        createSvgHtmlGenerator(
+            fileDottedIconSvg({
+                weight: "regular",
+                className: contentStyles.fileDebugWidgetIconClassName,
+            }),
+        ),
+    );
+
+    const debugOverlayHtml = new HtmlElementGenerator("pre");
+    debugWidgetHtml.appendChild(debugOverlayHtml);
+    debugOverlayHtml.setAttribute("class", contentStyles.fileDebugWidgetOverlayClassName);
+    debugOverlayHtml.appendChild(new HtmlTextGenerator(JSON.stringify(file, null, 2)));
 }
 
 /**

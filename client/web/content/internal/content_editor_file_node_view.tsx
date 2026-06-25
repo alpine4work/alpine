@@ -20,6 +20,10 @@ import {
     renderContentFilePreview,
 } from "~/client/web/content/internal/content_file_preview.js";
 import {
+    getMediaDebugModeEnabled,
+    subscribeToMediaDebugModeChange,
+} from "~/client/web/content/media_debug_mode.js";
+import {
     getContentEditorReferences,
     rememberContentEditorPosWhileLoading,
     updateContentEditorReferences,
@@ -128,6 +132,7 @@ export function createContentEditorFileNodeViewConstructor({
         let lastNodeParent: Node | null = null;
         let lastFileReference: {signedUrlSearch: string; file: FileModel} | undefined | null = null;
         let lastFileEntityResult: Result<FileEntityModel> | undefined | null = null;
+        let lastMediaDebugModeEnabled: boolean | null = null;
         let lastHtml: HtmlElementGenerator | null = null;
         let optimisticTableLayout: ContentEditorTableLayout | null = null;
         let cleanup: (() => void) | null = null;
@@ -225,6 +230,7 @@ export function createContentEditorFileNodeViewConstructor({
 
             const platform = getPlatformWithoutListening();
             const spacingScale = getSpacingScaleWithoutListening();
+            const isMediaDebugModeEnabled = getMediaDebugModeEnabled();
 
             let blockWidthPx = getBlockWidth();
 
@@ -274,13 +280,15 @@ export function createContentEditorFileNodeViewConstructor({
                 lastBlockWidth !== blockWidthPx ||
                 lastNodeParent !== nodeParent ||
                 lastFileReference !== fileReference ||
-                lastFileEntityResult !== fileEntityResult
+                lastFileEntityResult !== fileEntityResult ||
+                lastMediaDebugModeEnabled !== isMediaDebugModeEnabled
             ) {
                 lastSpacingScale = spacingScale;
                 lastBlockWidth = blockWidthPx;
                 lastNodeParent = nodeParent;
                 lastFileReference = fileReference;
                 lastFileEntityResult = fileEntityResult;
+                lastMediaDebugModeEnabled = isMediaDebugModeEnabled;
 
                 cleanup?.();
                 cleanup = null;
@@ -365,6 +373,7 @@ export function createContentEditorFileNodeViewConstructor({
                             platform,
                             spacingScale,
                             isInitialAppRender: false,
+                            isMediaDebugModeEnabled,
                         });
                     }
 
@@ -524,6 +533,8 @@ export function createContentEditorFileNodeViewConstructor({
         const unsubscribeFromPlatformChange = subscribeToPlatformChange(updateFromState);
         const unsubscribeFromSpacingScaleChange = subscribeToSpacingScaleChange(updateFromState);
         const unsubscribeFromReferencesUpdate = subscribeToReferencesUpdate(updateFromState);
+        const unsubscribeFromMediaDebugModeChange =
+            subscribeToMediaDebugModeChange(updateFromState);
 
         const unsubscribeFromParentUpdated = contentEditorFileParentUpdateEventEmitter.subscribe(
             dom,
@@ -557,6 +568,7 @@ export function createContentEditorFileNodeViewConstructor({
                 unsubscribeFromPlatformChange();
                 unsubscribeFromSpacingScaleChange();
                 unsubscribeFromReferencesUpdate();
+                unsubscribeFromMediaDebugModeChange();
                 unsubscribeFromParentUpdated();
             },
             ignoreMutation: () => {

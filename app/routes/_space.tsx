@@ -10,6 +10,8 @@ import {useAccountRegistryForSpaceId} from "~/client/web/accounts/account_regist
 import {ContentBlockWidthContextProvider} from "~/client/web/content/content_block_width.js";
 import {ContentFileViewerModal} from "~/client/web/content/content_file_viewer_modal.js";
 import {ContentFileEntityRenderersContextProvider} from "~/client/web/content/file_entity/content_file_entity_renderers_context_provider.js";
+import {useMediaDebugModeLocalStorage} from "~/client/web/content/media_debug_mode.js";
+import {MediaDebugModeContextProvider} from "~/client/web/content/media_debug_mode_context_provider.js";
 import {waitForContentFileImagePreviewContentsToLoad} from "~/client/web/content/wait_for_content_file_image_preview_contents_to_load.js";
 import {useAppContext} from "~/client/web/context/app_context.js";
 import {Box} from "~/client/web/design/box.js";
@@ -657,6 +659,7 @@ export default function SpaceLayoutRoute() {
         SearchDebugOptionsSchema,
         defaultSearchDebugOptionsSchema,
     );
+    const [isMediaDebugModeEnabled, setIsMediaDebugModeEnabled] = useMediaDebugModeLocalStorage();
 
     useDevConsoleTool("search", () => ({
         toggleDebugMode: () =>
@@ -673,6 +676,12 @@ export default function SpaceLayoutRoute() {
                 isDebugModeEnabled: debugOptions.isDebugModeEnabled,
                 options: standardSearchOptions,
             }),
+    }));
+
+    useDevConsoleTool("media", () => ({
+        toggleDebugMode: () => setIsMediaDebugModeEnabled(!isMediaDebugModeEnabled),
+        getDebugMode: () => isMediaDebugModeEnabled,
+        setDebugMode: (isEnabled: boolean) => setIsMediaDebugModeEnabled(isEnabled),
     }));
 
     useDevConsoleTool("files", () => ({
@@ -945,63 +954,67 @@ export default function SpaceLayoutRoute() {
             }}
         >
             <ContentFileEntityRenderersContextProvider>
-                <GlobalLoadingIndicatorContextProvider>
-                    {globalLoadingIndicator => (
-                        <SpaceContextProvider
-                            // Reset state when the space or account changes.
-                            key={`${loaderData.space.id}-${
-                                loaderData.type === "WithAccess"
-                                    ? loaderData.currentAccount.id
-                                    : loaderData.currentAccountWithoutSpace?.id
-                            }`}
-                            initialSpace={loaderData.space}
-                            currentAccount={
-                                loaderData.type === "WithAccess" ? loaderData.currentAccount : null
-                            }
-                            currentAccountWithoutSpace={
-                                loaderData.type === "WithAccess"
-                                    ? loaderData.currentAccount
-                                    : loaderData.currentAccountWithoutSpace
-                            }
-                            initialSettings={loaderData.settings}
-                            withMyAccountWebSocket={true}
-                        >
-                            <SpaceThemeColorManager />
-                            <TaskRealtimeClientContextProvider
-                                spaceId={spaceId}
-                                currentAccountId={
+                <MediaDebugModeContextProvider isEnabled={isMediaDebugModeEnabled}>
+                    <GlobalLoadingIndicatorContextProvider>
+                        {globalLoadingIndicator => (
+                            <SpaceContextProvider
+                                // Reset state when the space or account changes.
+                                key={`${loaderData.space.id}-${
                                     loaderData.type === "WithAccess"
                                         ? loaderData.currentAccount.id
-                                        : (loaderData.currentAccountWithoutSpace?.id ?? null)
+                                        : loaderData.currentAccountWithoutSpace?.id
+                                }`}
+                                initialSpace={loaderData.space}
+                                currentAccount={
+                                    loaderData.type === "WithAccess"
+                                        ? loaderData.currentAccount
+                                        : null
                                 }
+                                currentAccountWithoutSpace={
+                                    loaderData.type === "WithAccess"
+                                        ? loaderData.currentAccount
+                                        : loaderData.currentAccountWithoutSpace
+                                }
+                                initialSettings={loaderData.settings}
+                                withMyAccountWebSocket={true}
                             >
-                                <SiteProvider>
-                                    <ContextMenuContextProvider>
-                                        <PeekStackContextProvider
-                                            ref={peekStackRef}
-                                            // The peek stack component is responsible for rendering our global loading
-                                            // indicator so it can make sure the loading indicator avoids the peek stack.
-                                            globalLoadingIndicator={globalLoadingIndicator}
-                                        >
-                                            <SpaceLayoutRouteOutlet
-                                                loaderData={loaderData}
-                                                isSearchModalOpen={hasAddedSearchModal}
-                                                setSearchQueryText={setSearchQueryText}
+                                <SpaceThemeColorManager />
+                                <TaskRealtimeClientContextProvider
+                                    spaceId={spaceId}
+                                    currentAccountId={
+                                        loaderData.type === "WithAccess"
+                                            ? loaderData.currentAccount.id
+                                            : (loaderData.currentAccountWithoutSpace?.id ?? null)
+                                    }
+                                >
+                                    <SiteProvider>
+                                        <ContextMenuContextProvider>
+                                            <PeekStackContextProvider
+                                                ref={peekStackRef}
+                                                // The peek stack component is responsible for rendering our global loading
+                                                // indicator so it can make sure the loading indicator avoids the peek stack.
                                                 globalLoadingIndicator={globalLoadingIndicator}
-                                            />
-                                        </PeekStackContextProvider>
-                                        {modals}
-                                        {hasSpaceLayoutWebMobileTabBar && (
-                                            <SpaceLayoutWebMobileTabBar
-                                                initialInbox={loaderData.inbox}
-                                            />
-                                        )}
-                                    </ContextMenuContextProvider>
-                                </SiteProvider>
-                            </TaskRealtimeClientContextProvider>
-                        </SpaceContextProvider>
-                    )}
-                </GlobalLoadingIndicatorContextProvider>
+                                            >
+                                                <SpaceLayoutRouteOutlet
+                                                    loaderData={loaderData}
+                                                    isSearchModalOpen={hasAddedSearchModal}
+                                                    setSearchQueryText={setSearchQueryText}
+                                                    globalLoadingIndicator={globalLoadingIndicator}
+                                                />
+                                            </PeekStackContextProvider>
+                                            {modals}
+                                            {hasSpaceLayoutWebMobileTabBar && (
+                                                <SpaceLayoutWebMobileTabBar
+                                                    initialInbox={loaderData.inbox}
+                                                />
+                                            )}
+                                        </ContextMenuContextProvider>
+                                    </SiteProvider>
+                                </TaskRealtimeClientContextProvider>
+                            </SpaceContextProvider>
+                        )}
+                    </GlobalLoadingIndicatorContextProvider>
+                </MediaDebugModeContextProvider>
             </ContentFileEntityRenderersContextProvider>
         </GlobalKeyDownEvent>
     );

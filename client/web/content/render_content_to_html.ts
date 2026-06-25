@@ -175,6 +175,7 @@ export function renderContentFragmentToHtmlGeneratorStore(
         placeholder,
         decorations,
         shouldHighlightComment,
+        isMediaDebugModeEnabled = false,
         suppressHydrationWarning = noop,
     }: {
         getContext: () => AppContext;
@@ -200,6 +201,7 @@ export function renderContentFragmentToHtmlGeneratorStore(
         placeholder?: string;
         decorations?: RecursiveReadonlyArray<ProsemirrorHtmlSerializationDecoration>;
         shouldHighlightComment?: (commentThreadId: DocumentCommentThreadId) => boolean;
+        isMediaDebugModeEnabled?: boolean;
         suppressHydrationWarning?: () => void;
     },
 ): HtmlFragmentGenerator {
@@ -564,6 +566,7 @@ export function renderContentFragmentToHtmlGeneratorStore(
                         platform,
                         spacingScale,
                         isInitialAppRender,
+                        isMediaDebugModeEnabled,
                     });
 
                     if (withFileIdAttribute) {

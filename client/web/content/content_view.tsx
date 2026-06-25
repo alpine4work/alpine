@@ -22,6 +22,7 @@ import {ContentEditorDomParser} from "~/client/web/content/internal/content_edit
 import {contentEditorTextClipboardSerializer} from "~/client/web/content/internal/content_editor_text_clipboard_serializer.js";
 import {addContentFileEntityPreviewBehavior} from "~/client/web/content/internal/content_file_entity_preview.js";
 import {addContentFilePreviewBehavior} from "~/client/web/content/internal/content_file_preview.js";
+import {useMediaDebugModeEnabled} from "~/client/web/content/media_debug_mode.js";
 import {disableMessagingViewPointerToolbarAnimationOutUntilAfterNextAnimationFrame} from "~/client/web/content/messaging/disable_messaging_view_pointer_toolbar_animation_out_until_after_next_animation_frame.js";
 import {renderContentFragmentToHtmlGeneratorStore} from "~/client/web/content/render_content_to_html.js";
 import {runContentViewJumpAnimation} from "~/client/web/content/run_content_view_jump_animation.js";
@@ -309,6 +310,7 @@ export function ContentView<Content extends ContentWithReferences>({
     const reporter = useReporter();
     const fileEntityRenderers = useContentFileEntityRenderers();
     const currentDate = useCurrentDate();
+    const isMediaDebugModeEnabled = useMediaDebugModeEnabled();
 
     // Don't get the current account when running in a unit test so we don't need to
     // render a space context when testing this component.
@@ -543,6 +545,7 @@ export function ContentView<Content extends ContentWithReferences>({
                 placeholder,
                 decorations: [decorations, codeBlockDecorations],
                 shouldHighlightComment,
+                isMediaDebugModeEnabled,
                 suppressHydrationWarning: () => {
                     suppressHydrationWarning = true;
                 },
@@ -588,6 +591,7 @@ export function ContentView<Content extends ContentWithReferences>({
         posAttributeOffset,
         placeholder,
         shouldHighlightComment,
+        isMediaDebugModeEnabled,
         context,
     ]);
 
