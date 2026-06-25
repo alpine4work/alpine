@@ -105,6 +105,8 @@ runAgentWebPageTests<
             markdown: `\
 Document comment thread on [Launch Spec](/document/launch-spec).
 
+- [ ] Unresolved
+
 <blockquote>
 
 Please review this section today.
@@ -125,7 +127,9 @@ End of comments.
                 type: "DocumentThread",
                 subType: "Head",
                 preamble: {
+                    type: "Head",
                     document: documentReference,
+                    isResolved: false,
                 },
                 pagination: null,
                 isEndOfMessages: true,
@@ -142,7 +146,7 @@ End of comments.
                 ],
             },
             createParseError:
-                "Document comment thread markdown must start with `Document comment thread on [My Document](/document/my-document).`. Try again with a proper start to document comment thread markdown on line 1.",
+                "Document comment thread markdown must start with `Document comment thread on [My Document](/document/my-document).`. Optionally followed by `- [ ] Unresolved` or `- [x] Resolved`. Try again with a proper start to document comment thread markdown on line 1.",
         },
         {
             name: "legacy document thread preamble",
@@ -159,6 +163,8 @@ Preview body.
             printMarkdown: `\
 Document comment thread on [Launch Spec](/document/launch-spec).
 
+- [ ] Unresolved
+
 <blockquote>
 
 Preview body.
@@ -169,14 +175,96 @@ Preview body.
                 type: "DocumentThread",
                 subType: "Head",
                 preamble: {
+                    type: "Head",
                     document: documentReference,
+                    isResolved: false,
                 },
                 pagination: null,
                 isEndOfMessages: false,
                 blocks: [previewBlock],
             },
             createParseError:
-                "Document comment thread markdown must start with `Document comment thread on [My Document](/document/my-document).`. Try again with a proper start to document comment thread markdown on line 1.",
+                "Document comment thread markdown must start with `Document comment thread on [My Document](/document/my-document).`. Optionally followed by `- [ ] Unresolved` or `- [x] Resolved`. Try again with a proper start to document comment thread markdown on line 1.",
+        },
+        {
+            name: "resolved document thread state uses checkbox",
+            pageLink,
+            markdown: `\
+Document comment thread on [Launch Spec](/document/launch-spec).
+
+- [x] Unresolved
+
+<blockquote>
+
+Preview body.
+
+</blockquote>
+`,
+            printMarkdown: `\
+Document comment thread on [Launch Spec](/document/launch-spec).
+
+- [x] Resolved
+
+<blockquote>
+
+Preview body.
+
+</blockquote>
+`,
+            page: {
+                type: "DocumentThread",
+                subType: "Head",
+                preamble: {
+                    type: "Head",
+                    document: documentReference,
+                    isResolved: true,
+                },
+                pagination: null,
+                isEndOfMessages: false,
+                blocks: [previewBlock],
+            },
+            createParseError:
+                "Document comment thread markdown must start with `Document comment thread on [My Document](/document/my-document).`. Optionally followed by `- [ ] Unresolved` or `- [x] Resolved`. Try again with a proper start to document comment thread markdown on line 1.",
+        },
+        {
+            name: "unresolved document thread state uses checkbox",
+            pageLink,
+            markdown: `\
+Document comment thread on [Launch Spec](/document/launch-spec).
+
+- [ ] Resolved
+
+<blockquote>
+
+Preview body.
+
+</blockquote>
+`,
+            printMarkdown: `\
+Document comment thread on [Launch Spec](/document/launch-spec).
+
+- [ ] Unresolved
+
+<blockquote>
+
+Preview body.
+
+</blockquote>
+`,
+            page: {
+                type: "DocumentThread",
+                subType: "Head",
+                preamble: {
+                    type: "Head",
+                    document: documentReference,
+                    isResolved: false,
+                },
+                pagination: null,
+                isEndOfMessages: false,
+                blocks: [previewBlock],
+            },
+            createParseError:
+                "Document comment thread markdown must start with `Document comment thread on [My Document](/document/my-document).`. Optionally followed by `- [ ] Unresolved` or `- [x] Resolved`. Try again with a proper start to document comment thread markdown on line 1.",
         },
         {
             name: "comments-only document thread page with pagination",
@@ -196,6 +284,7 @@ Second comment.
                 type: "DocumentThread",
                 subType: "Tail",
                 preamble: {
+                    type: "Tail",
                     document: documentReference,
                 },
                 pagination: {
@@ -238,6 +327,7 @@ First comment.
                 type: "DocumentThread",
                 subType: "Tail",
                 preamble: {
+                    type: "Tail",
                     document: documentReference,
                 },
                 pagination: null,
@@ -245,7 +335,69 @@ First comment.
                 blocks: [firstCommentBlock],
             },
             createParseError:
-                "Document comment thread markdown must start with `Document comment thread on [My Document](/document/my-document).`. Try again with a proper start to document comment thread markdown on line 1.",
+                "Document comment thread markdown must start with `Document comment thread on [My Document](/document/my-document).`. Optionally followed by `- [ ] Unresolved` or `- [x] Resolved`. Try again with a proper start to document comment thread markdown on line 1.",
+        },
+        {
+            name: "unresolved state on comments-only document thread page",
+            pageLink,
+            markdown: `\
+Document comment thread on [Launch Spec](/document/launch-spec).
+
+- [ ] Unresolved
+
+<comment id="0" from="[Bob](/human/bob)">
+
+First comment.
+
+</comment>
+`,
+            setupStorage: async storage => {
+                await createAgentWebPageStoredLinkPathname(storage, pageLink.document);
+                await storage.documentCommentThreadNumberById.put(
+                    `${pageLink.document.id}-${pageLink.threadId}`,
+                    1,
+                );
+                await storage.documentCommentThreadIdByNumber.put(
+                    `${pageLink.document.id}-1`,
+                    pageLink.threadId,
+                );
+                await createAgentWebPageStoredLinkPathname(storage, bobReference);
+            },
+            parseError:
+                "`- [ ] Unresolved` can only be included on the first page of a document comment thread, right before a `<blockquote>`. Try again and remove `- [ ] Unresolved`.",
+            createParseError:
+                "`- [ ] Unresolved` can only be included on the first page of a document comment thread, right before a `<blockquote>`. Try again and remove `- [ ] Unresolved`.",
+        },
+        {
+            name: "resolved state on comments-only document thread page",
+            pageLink,
+            markdown: `\
+Document comment thread on [Launch Spec](/document/launch-spec).
+
+- [x] Resolved
+
+<comment id="0" from="[Bob](/human/bob)">
+
+First comment.
+
+</comment>
+`,
+            setupStorage: async storage => {
+                await createAgentWebPageStoredLinkPathname(storage, pageLink.document);
+                await storage.documentCommentThreadNumberById.put(
+                    `${pageLink.document.id}-${pageLink.threadId}`,
+                    1,
+                );
+                await storage.documentCommentThreadIdByNumber.put(
+                    `${pageLink.document.id}-1`,
+                    pageLink.threadId,
+                );
+                await createAgentWebPageStoredLinkPathname(storage, bobReference);
+            },
+            parseError:
+                "`- [x] Resolved` can only be included on the first page of a document comment thread, right before a `<blockquote>`. Try again and remove `- [x] Resolved`.",
+            createParseError:
+                "`- [x] Resolved` can only be included on the first page of a document comment thread, right before a `<blockquote>`. Try again and remove `- [x] Resolved`.",
         },
         {
             name: "document thread page with custom pagination links",
@@ -267,11 +419,32 @@ First comment.
 
 </comment>
 `,
+            printMarkdown: `\
+Document comment thread on [Launch Spec](/document/launch-spec). [« Previous page](/document/launch-spec/comments/1?before=blockquote) | [Next page »](/document/launch-spec/comments/1?after=blockquote)
+
+- [ ] Unresolved
+
+<blockquote>
+
+Preview body.
+
+</blockquote>
+
+<time>May 14th at 10:55am EDT</time>
+
+<comment id="0" from="[Bob](/human/bob)">
+
+First comment.
+
+</comment>
+`,
             page: {
                 type: "DocumentThread",
                 subType: "Head",
                 preamble: {
+                    type: "Head",
                     document: documentReference,
+                    isResolved: false,
                 },
                 pagination: {
                     pageLink,
@@ -297,6 +470,8 @@ First comment.
             markdown: `\
 Document comment thread on [Launch Spec](/document/launch-spec).
 
+- [ ] Unresolved
+
 <blockquote>
 
 Please **review this section** *today*.
@@ -307,7 +482,9 @@ Please **review this section** *today*.
                 type: "DocumentThread",
                 subType: "Head",
                 preamble: {
+                    type: "Head",
                     document: documentReference,
+                    isResolved: false,
                 },
                 pagination: null,
                 isEndOfMessages: false,
@@ -329,7 +506,7 @@ Please **review this section** *today*.
                 ],
             },
             createParseError:
-                "Document comment thread markdown must start with `Document comment thread on [My Document](/document/my-document).`. Try again with a proper start to document comment thread markdown on line 1.",
+                "Document comment thread markdown must start with `Document comment thread on [My Document](/document/my-document).`. Optionally followed by `- [ ] Unresolved` or `- [x] Resolved`. Try again with a proper start to document comment thread markdown on line 1.",
         },
         {
             name: "document preview after comments",
