@@ -5197,6 +5197,202 @@ Additional info
 `,
                 },
                 {
+                    description: "HTML table with underscores around a break",
+                    content: {
+                        elements: [
+                            {
+                                type: "Table",
+                                width: 1,
+                                columns: [{width: 1}, {width: 1}],
+                                hasHeaderRow: true,
+                                hasHeaderColumn: false,
+                                rows: [
+                                    {
+                                        cells: [
+                                            {
+                                                elements: [
+                                                    {
+                                                        type: "Paragraph",
+                                                        elements: [
+                                                            {type: "Text", text: "_"},
+                                                            {type: "Break"},
+                                                            {type: "Text", text: "_"},
+                                                        ],
+                                                    },
+                                                ],
+                                            },
+                                            {
+                                                elements: [
+                                                    {
+                                                        type: "Paragraph",
+                                                        elements: [{type: "Text", text: "Header"}],
+                                                    },
+                                                ],
+                                            },
+                                        ],
+                                    },
+                                    {
+                                        cells: [
+                                            {
+                                                elements: [
+                                                    {
+                                                        type: "Paragraph",
+                                                        elements: [{type: "Text", text: "Line 1"}],
+                                                    },
+                                                    {
+                                                        type: "Paragraph",
+                                                        elements: [{type: "Text", text: "Line 2"}],
+                                                    },
+                                                ],
+                                            },
+                                            {
+                                                elements: [
+                                                    {
+                                                        type: "Paragraph",
+                                                        elements: [{type: "Text", text: "Value"}],
+                                                    },
+                                                ],
+                                            },
+                                        ],
+                                    },
+                                ],
+                            },
+                        ],
+                    },
+                    expectedMarkdown: `\
+<table>
+<thead>
+<tr>
+<th>
+
+\\_<span></span><br/><span></span>\\_
+
+</th>
+<th>
+
+Header
+
+</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>
+
+Line 1
+
+Line 2
+
+</td>
+<td>
+
+Value
+
+</td>
+</tr>
+</tbody>
+</table>
+`,
+                },
+                {
+                    description: "HTML table with mixed asterisks around a break",
+                    content: {
+                        elements: [
+                            {
+                                type: "Table",
+                                width: 1,
+                                columns: [{width: 1}, {width: 1}],
+                                hasHeaderRow: true,
+                                hasHeaderColumn: false,
+                                rows: [
+                                    {
+                                        cells: [
+                                            {
+                                                elements: [
+                                                    {
+                                                        type: "Paragraph",
+                                                        elements: [
+                                                            {type: "Text", text: "**"},
+                                                            {type: "Break"},
+                                                            {type: "Text", text: "*"},
+                                                        ],
+                                                    },
+                                                ],
+                                            },
+                                            {
+                                                elements: [
+                                                    {
+                                                        type: "Paragraph",
+                                                        elements: [{type: "Text", text: "Header"}],
+                                                    },
+                                                ],
+                                            },
+                                        ],
+                                    },
+                                    {
+                                        cells: [
+                                            {
+                                                elements: [
+                                                    {
+                                                        type: "Paragraph",
+                                                        elements: [{type: "Text", text: "Line 1"}],
+                                                    },
+                                                    {
+                                                        type: "Paragraph",
+                                                        elements: [{type: "Text", text: "Line 2"}],
+                                                    },
+                                                ],
+                                            },
+                                            {
+                                                elements: [
+                                                    {
+                                                        type: "Paragraph",
+                                                        elements: [{type: "Text", text: "Value"}],
+                                                    },
+                                                ],
+                                            },
+                                        ],
+                                    },
+                                ],
+                            },
+                        ],
+                    },
+                    expectedMarkdown: `\
+<table>
+<thead>
+<tr>
+<th>
+
+\\*\\*<span></span><br/><span></span>\\*
+
+</th>
+<th>
+
+Header
+
+</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>
+
+Line 1
+
+Line 2
+
+</td>
+<td>
+
+Value
+
+</td>
+</tr>
+</tbody>
+</table>
+`,
+                },
+                {
                     description: "HTML table without any headers",
                     content: {
                         elements: [
