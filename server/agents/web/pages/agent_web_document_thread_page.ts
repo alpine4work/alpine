@@ -5,7 +5,9 @@ import {
 } from "~/server/agents/web/agent_web_context.js";
 import {AgentWebPageDocumentThreadRoutedLink} from "~/server/agents/web/agent_web_page_routed_link.js";
 import {AgentWebSessionStorage} from "~/server/agents/web/agent_web_session_storage.js";
+import {createAgentWebPageRoutedLinkPathname} from "~/server/agents/web/create_agent_web_page_routed_link_pathname.js";
 import {extractCommentFromApiDocumentThreadContentSnippet} from "~/server/agents/web/internal/extract_comment_from_api_document_thread_content_snippet.js";
+import {parseAgentWebDocumentPage} from "~/server/agents/web/pages/agent_web_document_page.js";
 import {
     AgentWebMessagingPageBlock,
     AgentWebMessagingPageMetadata,
@@ -26,14 +28,25 @@ import {
 import {updateAgentWebMessagingPage} from "~/server/agents/web/pages/messaging/update_agent_web_messaging_page.js";
 import {parseApiContentFromAgentWebMarkdownTree} from "~/server/agents/web/parse_api_content_from_agent_web_markdown.js";
 import {printApiContentToAgentWebMarkdownTree} from "~/server/agents/web/print_api_content_to_agent_web_markdown.js";
+import {findApiContentRanges} from "~/shared/api/markdown/find_api_content_ranges.js";
 import {normalizeApiContent} from "~/shared/api/markdown/normalize_api_content.js";
+import {parseMarkdownTree} from "~/shared/api/markdown/parse_api_content_from_markdown.js";
+import {
+    unzipKeysFromApiContentResponse,
+    zipKeysIntoApiContentResponse,
+} from "~/shared/api/markdown/zip_or_unzip_keys_from_api_content_response.js";
 import {ApiContentResponseWithoutKeys} from "~/shared/api/specification/types/api_content_response_without_keys.js";
-import {ApiDocumentReferenceResponse} from "~/shared/api/specification/types/api_specification_convenience_types.js";
-import {InvalidArgumentError} from "~/shared/error/error.js";
+import {
+    ApiDocumentReferenceResponse,
+    ApiDocumentThreadResponse,
+    ApiMessageResponse,
+} from "~/shared/api/specification/types/api_specification_convenience_types.js";
+import {InvalidArgumentError, NotFoundError, UnimplementedError} from "~/shared/error/error.js";
 import {errorDisplayMessage} from "~/shared/error/error_display_message.js";
 import {mapMaybePromise} from "~/shared/helpers/async/map_maybe_promise.js";
 import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
 import {assert} from "~/shared/helpers/control/assert.js";
+import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 import {asyncNoop} from "~/shared/helpers/control/async_noop.js";
 import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
 import {isDeepEqual} from "~/shared/helpers/control/is_deep_equal.js";
@@ -44,6 +57,8 @@ import {unwrapMaybeThunk} from "~/shared/helpers/control/unwrap_maybe_thunk.js";
 import {MaybePromise} from "~/shared/helpers/types/maybe_promise.js";
 import {MaybeThunk} from "~/shared/helpers/types/maybe_thunk.js";
 import {DocumentCommentThreadId, DocumentId} from "~/shared/id/types/id_types.js";
+
+// NOCOMMIT: We need resolved and unresolved states for document comment threads!
 
 export type AgentWebDocumentThreadPage = {
     readonly type: "DocumentThread";
@@ -398,6 +413,136 @@ export function normalizeAgentWebDocumentThreadPage<Page extends AgentWebDocumen
     });
 }
 
+export async function createAgentWebDocumentThreadPage(
+    context: AgentWebContext,
+    documentPath: string,
+    newPage: AgentWebDocumentThreadPage,
+) {
+    const documentReadResponse = await context.storage.readResponseByPath.get(documentPath);
+
+    if (!documentReadResponse || documentReadResponse.expirationTime.getTime() < Date.now()) {
+        throw new NotFoundError("Read response not found or expired", {
+            displayMessage: errorDisplayMessage`Can\u2019t create a document comment thread for a document that hasn\u2019t been read recently. Call the \`read\` tool with the path \`${documentPath}\` then call the \`create\` tool again.`,
+        });
+    }
+
+    assert(documentReadResponse.pageMetadata.type === "Document");
+
+    const responseTree = parseMarkdownTree(documentReadResponse.response);
+
+    const documentPage = await parseAgentWebDocumentPage(
+        context.storage,
+        documentReadResponse.pageMetadata.id,
+        responseTree,
+    );
+
+    if (newPage.subType === "Tail") {
+        throw new InvalidArgumentError("Document quote is created when creating a comment thread", {
+            displayMessage: errorDisplayMessage`A \`<blockquote>\` is required when creating a document comment thread. You must add a \`<blockquote>\` containing the exact document content you\u2019re commenting after the \`Document comment thread on [My Document](/document/my-document).\` line at the start of the document comment thread markdown. Try again and add a \`<blockquote>\`.`,
+        });
+    }
+
+    if (newPage.pagination) {
+        throw new InvalidArgumentError(
+            "Can\u2019t create document comment thread with pagination",
+            {
+                displayMessage: errorDisplayMessage`You can\u2019t include a next page link when creating a document comment thread. Try again without a next page link.`,
+            },
+        );
+    }
+
+    const quoteBlock = newPage.blocks[0];
+
+    if (newPage.blocks.length === 1) {
+        throw new InvalidArgumentError(
+            "Must include at least one comment when creating a document comment thread",
+            {
+                displayMessage: errorDisplayMessage`When creating a document comment thread you must include at least one \`<comment>\` to start the thread. Try again and add a \`<comment>\` after your \`<blockquote>\`.`,
+            },
+        );
+    }
+
+    const firstCommentBlock = newPage.blocks[1]!;
+
+    if (firstCommentBlock.type === "Time") {
+        throw new InvalidArgumentError("Can only create comments (not `<time>`)", {
+            displayMessage: errorDisplayMessage`Unexpected \`<time>\`, you can only add \`<comment>\`s. The creation time of comments will be decided by the server. Try again and remove the new \`<time>\`.`,
+        });
+    }
+
+    const documentContent = zipKeysIntoApiContentResponse({
+        content: documentPage.content,
+        keys: documentReadResponse.pageMetadata.keys,
+    });
+
+    const ranges = Array.from(findApiContentRanges(documentContent, quoteBlock.content));
+
+    // NOCOMMIT: Include a link to a skill with more information about content
+    // matching.
+    if (ranges.length === 0) {
+        throw new InvalidArgumentError("Quoted document content not found", {
+            displayMessage: errorDisplayMessage`Couldn\u2019t find the quoted content in \`<blockquote>\` in \`${documentPath}\`. To create a document comment thread you must recreate the content you\u2019re commenting on exactly in \`<blockquote>\` so we can find the right range to leave your comment on in the document. Your content in \`<blockquote>\` must be valid markdown. Formatting is flexible when matching content so \`**needle**\` will match \`**foo needle bar**\` and \`- needle\` will match \`- foo needle bar\` because \`**needle**\` and \`- needle\` correctly match the word \u201Cneedle\u201D and have the right formatting. Simply \`needle\` without formatting will also match \`**foo needle bar**\` and \`- foo needle bar\` however \`_needle_\` will match neither because it has incorrect formatting. Try again but make sure to exactly copy the content you want to comment in \`${documentPath}\` into a \`<blockquote>\`.`,
+        });
+    }
+
+    // NOCOMMIT: If there's more than one match we need a way for the agent to specify
+    // which instance of the content it wants.
+    if (ranges.length > 1) {
+        throw new InvalidArgumentError("Quoted document content found more than once", {
+            displayMessage: errorDisplayMessage`${ranges.length} matches were found for the quoted content in \`<blockquote>\` in \`${documentPath}\`. Try again but provide more surrounding context to make your match unique.`,
+        });
+    }
+
+    // Creation is placed in a `Lazy` since we want to create the document comment
+    // thread at the last possible moment before it's needed. We want
+    // `updateAgentWebDocumentThreadPage()` to run any validations first before we
+    // create the document comment thread and then only right before
+    // `updateAgentWebDocumentThreadPage()` tries to create new document comment thread
+    // comments do we want to create the document comment thread.
+    const createPromise = new Lazy<
+        Promise<{
+            thread: ApiDocumentThreadResponse;
+            firstMessage: ApiMessageResponse;
+            pageLink: AgentWebPageDocumentThreadRoutedLink;
+        }>
+    >(async () => {
+        // TODO(#agents-web): Implement document comment thread creation endpoint.
+        throw new UnimplementedError(
+            "Document comment thread creation API endpoint hasn\u2019t been implemented yet",
+        );
+    });
+
+    const pageMetadata = await updateAgentWebDocumentThreadPage(
+        context,
+        async () => {
+            const {pageLink} = await createPromise.get();
+            return await createAgentWebPageRoutedLinkPathname(context.storage, pageLink);
+        },
+        async () => {
+            const {thread, firstMessage} = await createPromise.get();
+
+            const keys =
+                firstMessage.payload.type === "Content"
+                    ? unzipKeysFromApiContentResponse(firstMessage.payload.content).keys
+                    : [];
+
+            return {
+                type: "DocumentThread",
+                id: thread.document.id,
+                threadId: thread.id,
+                isEndOfMessages: true,
+                messages: [{index: firstMessage.index, keys}],
+            };
+        },
+        {...newPage, blocks: [quoteBlock, firstCommentBlock]},
+        newPage,
+    );
+
+    const {pageLink} = await createPromise.get();
+
+    return {pageMetadata, pageLink};
+}
+
 export async function updateAgentWebDocumentThreadPage(
     context: AgentWebContextWithoutStorage,
     pathname: MaybeThunk<MaybePromise<string>>,
@@ -495,8 +640,20 @@ export async function parseAgentWebDocumentThreadPage(
     pageLink: {document: {id: DocumentId}; threadId: DocumentCommentThreadId} | null,
     root: Root,
 ): Promise<AgentWebDocumentThreadPage> {
-    if (pageLink === null)
-        throw new InvalidArgumentError("NOCOMMIT", {displayMessage: errorDisplayMessage`NOCOMMIT`});
+    const {page} = await parseAgentWebDocumentThreadPageAndReturnDocumentPath(
+        storage,
+        pageLink,
+        root,
+    );
+    return page;
+}
+
+export async function parseAgentWebDocumentThreadPageAndReturnDocumentPath(
+    storage: AgentWebSessionStorage,
+    pageLink: {document: {id: DocumentId}; threadId: DocumentCommentThreadId} | null,
+    root: Root,
+): Promise<{page: AgentWebDocumentThreadPage; documentPath: string}> {
+    let documentPath: string | null = null;
 
     const page = await parseAgentWebMessagingPage(storage, pageLink, root, {
         messageNouns: agentWebMessagingPageCommentNouns,
@@ -541,12 +698,21 @@ export async function parseAgentWebDocumentThreadPage(
                 throw createError();
             }
 
+            const firstPreambleChild = assertExists(preamble.children[0]);
+            assert(firstPreambleChild.type === "paragraph");
+            const preambleLinkChild = assertExists(
+                firstPreambleChild.children.find(child => child.type === "link"),
+            );
+            assert(preambleLinkChild.type === "link");
+
+            documentPath = preambleLinkChild.url;
+
             return {document: secondElement.reference};
         },
         parseCustomBlockByTagName: {
             blockquote: async (storage, root): Promise<AgentWebDocumentThreadPageCustomBlock> => {
                 const content = await parseApiContentFromAgentWebMarkdownTree(storage, root, {
-                    documentId: pageLink.document.id,
+                    documentId: pageLink?.document.id ?? null,
                 });
 
                 return {
@@ -559,6 +725,8 @@ export async function parseAgentWebDocumentThreadPage(
         },
     });
 
+    assert(documentPath !== null);
+
     const documentPreviewBlockIndexes: Array<number> = [];
 
     for (const [index, block] of page.blocks.entries()) {
@@ -569,11 +737,14 @@ export async function parseAgentWebDocumentThreadPage(
 
     if (documentPreviewBlockIndexes.length === 0) {
         return {
-            ...page,
-            type: "DocumentThread",
-            subType: "Tail",
-            preamble: page.preamble,
-            blocks: page.blocks as ReadonlyArray<AgentWebMessagingPageBlock<never>>,
+            page: {
+                ...page,
+                type: "DocumentThread",
+                subType: "Tail",
+                preamble: page.preamble,
+                blocks: page.blocks as ReadonlyArray<AgentWebMessagingPageBlock<never>>,
+            },
+            documentPath,
         };
     }
 
@@ -587,10 +758,13 @@ export async function parseAgentWebDocumentThreadPage(
     }
 
     return {
-        ...page,
-        type: "DocumentThread",
-        subType: "Head",
-        preamble: page.preamble,
-        blocks: page.blocks as AgentWebDocumentThreadHeadPageBlocks,
+        page: {
+            ...page,
+            type: "DocumentThread",
+            subType: "Head",
+            preamble: page.preamble,
+            blocks: page.blocks as AgentWebDocumentThreadHeadPageBlocks,
+        },
+        documentPath,
     };
 }
