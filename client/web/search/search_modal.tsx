@@ -924,6 +924,26 @@ function SearchModalResultList({
                                     handleDoubleClick(entityData);
                                 }}
                                 getCopyPath={entityData => {
+                                    if (entityData.type === "Site") {
+                                        // NOTE(ifitzsimmons, 2026-06-17): `getSearchEntityPath` will resolve to the path
+                                        // of the site's first entity if it has one. However, when copying a link to a site
+                                        // mention, it doesn't really make sense to copy the path to the first entity.
+                                        //
+                                        // Think about the following use case:
+                                        //
+                                        // 1. User is looking at a site mention. The site has a Test Channel as its first
+                                        //    entity.
+                                        // 2. User copies the link to the site mention.
+                                        // 3. User pastes the link into a chat message.
+                                        // 4. The chat message is rendered as a link to the Test Channel.
+                                        //
+                                        // So by simply copying and pasting the link, we've created a site effect. This
+                                        // does mean that if a user copies the link and pastes it into the URL bar, they
+                                        // will be navigated to the site root and redirected to the Test Channel. Those
+                                        // interactions will be relatively rare, so it's not a big deal.
+                                        return `/site/${entityData.site.id}`;
+                                    }
+
                                     return getSearchEntityPath({
                                         spaceId: space.id,
                                         entityData,
@@ -1035,6 +1055,26 @@ function SearchModalResultList({
                             handleDoubleClick(entityData);
                         }}
                         getCopyPath={entityData => {
+                            if (entityData.type === "Site") {
+                                // NOTE(ifitzsimmons, 2026-06-17): `getSearchEntityPath` will resolve to the path
+                                // of the site's first entity if it has one. However, when copying a link to a site
+                                // mention, it doesn't really make sense to copy the path to the first entity.
+                                //
+                                // Think about the following use case:
+                                //
+                                // 1. User is looking at a site mention. The site has a Test Channel as its first
+                                //    entity.
+                                // 2. User copies the link to the site mention.
+                                // 3. User pastes the link into a chat message.
+                                // 4. The chat message is rendered as a link to the Test Channel.
+                                //
+                                // So by simply copying and pasting the link, we've created a site effect. This
+                                // does mean that if a user copies the link and pastes it into the URL bar, they
+                                // will be navigated to the site root and redirected to the Test Channel. Those
+                                // interactions will be relatively rare, so it's not a big deal.
+                                return `/site/${entityData.site.id}`;
+                            }
+
                             return getSearchEntityPath({
                                 spaceId: space.id,
                                 entityData,

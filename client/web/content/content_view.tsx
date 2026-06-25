@@ -92,6 +92,7 @@ import {areProsemirrorNodesEqualExceptText} from "~/shared/prosemirror/are_prose
 import {ProsemirrorHtmlSerializationDecoration} from "~/shared/prosemirror/serialize_prosemirror_node_to_html.js";
 import {Schema, SchemaSerializedValue} from "~/shared/schema/schema.js";
 import {getDynamicSearchEntityPathForFileEntity} from "~/shared/search/path/get_search_entity_path.js";
+import {parseSearchDynamicEntityId} from "~/shared/search/search_entity_id.js";
 import {AccountModel} from "~/shared/spaces/account_model.js";
 import {computeStore} from "~/shared/store/compute_store.js";
 import {ConstStore, undefinedStore} from "~/shared/store/const_store.js";
@@ -1446,16 +1447,42 @@ export function ContentView<Content extends ContentWithReferences>({
                         onPress: async () => {
                             if (!spaceId) return;
 
-                            const url = new URL(
-                                getDynamicSearchEntityPathForFileEntity({
-                                    spaceId,
-                                    fileEntityId: mention.entityId,
-                                    fileEntityResult:
-                                        content.references.fileEntityById?.get(mention.entityId) ??
-                                        null,
-                                }),
-                                window.location.href,
-                            );
+                            let url: URL;
+                            if (!mention.entityId.startsWith("Site:")) {
+                                url = new URL(
+                                    getDynamicSearchEntityPathForFileEntity({
+                                        spaceId,
+                                        fileEntityId: mention.entityId,
+                                        fileEntityResult:
+                                            content.references.fileEntityById?.get(
+                                                mention.entityId,
+                                            ) ?? null,
+                                    }),
+                                    window.location.href,
+                                );
+                            } else {
+                                // NOTE(ifitzsimmons, 2026-06-17): `getDynamicSearchEntityPathForFileEntity` will
+                                // resolve to the path of the site's first entity if it has one. However, when
+                                // copying a link to a site mention, it doesn't really make sense to copy the path
+                                // to the first entity.
+                                //
+                                // Think about the following use case:
+                                //
+                                // 1. User is looking at a site mention. The site has a Test Channel as its first
+                                //    entity.
+                                // 2. User copies the link to the site mention.
+                                // 3. User pastes the link into a chat message.
+                                // 4. The chat message is rendered as a link to the Test Channel.
+                                //
+                                // So by simply copying and pasting the link, we've created a site effect. This
+                                // does mean that if a user copies the link and pastes it into the URL bar, they
+                                // will be navigated to the site root and redirected to the Test Channel. Those
+                                // interactions will be relatively rare, so it's not a big deal.
+                                const siteIdObject = parseSearchDynamicEntityId(mention.entityId);
+                                if (siteIdObject.type !== "Site") return;
+
+                                url = new URL(`/site/${siteIdObject.siteId}`, window.location.href);
+                            }
                             await writeTextToClipboard(url.toString());
                         },
                     },
