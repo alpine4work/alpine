@@ -201,21 +201,6 @@ function createTextContent(text: string): ApiContentResponseWithoutKeys {
     return {elements: [{type: "Paragraph", elements: [{type: "Text", text}]}]};
 }
 
-function createTextContentWithKeys(text: string): ApiContentResponse {
-    return {
-        elements: [
-            {
-                type: "Paragraph",
-                key: new ApiContentKeyEncoder({entityId: "Test", version: 0}).encode({
-                    pos: 0,
-                    nodeSize: text.length + 2,
-                }),
-                elements: [{type: "Text", text}],
-            },
-        ],
-    };
-}
-
 function createPreviewContent(): ApiContentResponse {
     return {
         elements: [
@@ -276,32 +261,26 @@ function getReadPageInfo(path: string): {
 
     const after = url.searchParams.get("after");
     if (after !== null) {
-        if (after === "document-preview") return {};
+        if (after === "blockquote") return {};
         return {cursor: parseInt(after, 10)};
     }
 
     const before = url.searchParams.get("before");
     if (before !== null) {
-        return {from: "End", cursor: before === "document-preview" ? 0 : parseInt(before, 10)};
+        return {from: "End", cursor: before === "blockquote" ? 0 : parseInt(before, 10)};
     }
 
     return {};
 }
 
-function mockGetDocumentReference(reference = documentReference) {
-    api.mockGet(
-        "/documents/{id}/reference",
-        {data: {spaceId, reference}},
-        {path: {id: documentId}},
-    );
-}
-
 function mockGetDocumentThread({
     content = createPreviewContent(),
     createdTime = new Date("2026-05-14T15:00:00.000Z"),
+    isResolved = false,
 }: {
     content?: ApiContentResponse;
     createdTime?: Date;
+    isResolved?: boolean;
 } = {}) {
     api.mockGet(
         "/documents/{id}/threads/{threadId}",
@@ -315,8 +294,14 @@ function mockGetDocumentThread({
                 },
                 thread: {
                     id: threadId,
+                    document: {
+                        id: documentId,
+                        reference: {
+                            title: documentReference.title,
+                        },
+                    },
                     createdTime: serializeDateString(createdTime),
-                    isResolved: false,
+                    isResolved,
                     commentCount: 0,
                     firstCommentAuthor: aliceAccount,
                     documentContentSnippet: content,
@@ -333,18 +318,16 @@ async function readDocumentThread({
     totalCommentCount,
     createComment: actuallyCreateComment,
     previewContent,
+    isResolved,
 }: {
     path?: string;
     limit?: string;
     totalCommentCount: number;
     createComment?: (index: number) => ApiMessageResponse;
     previewContent?: ApiContentResponse;
+    isResolved?: boolean;
 }): Promise<string> {
-    if (path.includes("after=") || path.includes("before=")) {
-        mockGetDocumentReference();
-    } else {
-        mockGetDocumentThread({content: previewContent});
-    }
+    mockGetDocumentThread({content: previewContent, isResolved});
 
     mockApiGetDocumentThreadMessages(api, {
         spaceId,
@@ -396,11 +379,48 @@ function getLastCommentBlock(response: string): string {
     return response.slice(startIndex + 2);
 }
 
-test("creates the first comment on a document thread", async () => {
-    await readDocumentThread({
-        totalCommentCount: 0,
-        previewContent: createTextContentWithKeys("Preview."),
+function getNewlineIndexes(response: string): ReadonlyArray<number> {
+    const newlineIndexes: Array<number> = [];
+
+    for (let index = 0; index < response.length; index++) {
+        if (response[index] === "\n") {
+            newlineIndexes.push(index);
+        }
+    }
+
+    newlineIndexes.push(response.length);
+
+    return newlineIndexes;
+}
+
+async function writeDocumentThreadReadResponseWithoutResolvedState() {
+    const response = `\
+Document comment thread on [Launch Spec](/document/launch-spec).
+
+<blockquote>
+
+Preview.
+
+</blockquote>
+
+End of comments.`;
+
+    await storage.readResponseByPath.put(documentThreadPath, {
+        expirationTime: new Date(Date.now() + 60 * 60 * 1000),
+        pageMetadata: {
+            type: "DocumentThread",
+            id: documentId,
+            threadId,
+            isEndOfMessages: true,
+            messages: [],
+        },
+        response,
+        newlineIndexes: getNewlineIndexes(response),
     });
+}
+
+test("creates the first comment on a document thread", async () => {
+    await readDocumentThread({totalCommentCount: 0});
     mockCreateComments({count: 1});
 
     await expect(
@@ -408,8 +428,8 @@ test("creates the first comment on a document thread", async () => {
             path: documentThreadPath,
             updates: [
                 {
-                    old: "</document-preview>",
-                    new: '</document-preview>\n\n<comment from="[ChatGPT](/bot/chatgpt)">\n\nFirst bot comment.\n\n</comment>',
+                    old: "</blockquote>",
+                    new: '</blockquote>\n\n<comment from="[ChatGPT](/bot/chatgpt)">\n\nFirst bot comment.\n\n</comment>',
                     replaceAll: false,
                 },
             ],
@@ -424,10 +444,7 @@ test("creates the first comment on a document thread", async () => {
 });
 
 test("creates comment without author on a document thread", async () => {
-    await readDocumentThread({
-        totalCommentCount: 0,
-        previewContent: createTextContentWithKeys("Preview."),
-    });
+    await readDocumentThread({totalCommentCount: 0});
     mockCreateComments({count: 1});
 
     await expect(
@@ -435,8 +452,8 @@ test("creates comment without author on a document thread", async () => {
             path: documentThreadPath,
             updates: [
                 {
-                    old: "</document-preview>",
-                    new: "</document-preview>\n\n<comment>\n\nFirst bot comment.\n\n</comment>",
+                    old: "</blockquote>",
+                    new: "</blockquote>\n\n<comment>\n\nFirst bot comment.\n\n</comment>",
                     replaceAll: false,
                 },
             ],
@@ -454,25 +471,25 @@ test("rejects edits to the document preview content", async () => {
     await readDocumentThread({totalCommentCount: 0});
 
     await expectInvalidUpdateDisplayMessage({
-        updates: [{old: "Keep ", new: "Change ", replaceAll: false}],
+        updates: [{old: "current", new: "changed", replaceAll: false}],
         expected:
-            "You can\u2019t update the `<document-preview>` in document comment thread markdown. `<document-preview>` is a read-only preview of the document\u2019s content around the comment. If you want to update the document\u2019s content then call the `update` tool on the document itself.",
+            "You can\u2019t update the `<blockquote>` in document comment thread markdown. `<blockquote>` is a read-only preview of the document\u2019s content around the comment. If you want to update the document\u2019s content then call the `update` tool on the document itself.",
     });
 });
 
-test("rejects edits to the document preview comment mark", async () => {
+test("rejects edits to the document preview formatting", async () => {
     await readDocumentThread({totalCommentCount: 0});
 
     await expectInvalidUpdateDisplayMessage({
         updates: [
             {
-                old: "<comment>current</comment>",
-                new: "current",
+                old: "current",
+                new: "**current**",
                 replaceAll: false,
             },
         ],
         expected:
-            "You can\u2019t update the `<document-preview>` in document comment thread markdown. `<document-preview>` is a read-only preview of the document\u2019s content around the comment. If you want to update the document\u2019s content then call the `update` tool on the document itself.",
+            "You can\u2019t update the `<blockquote>` in document comment thread markdown. `<blockquote>` is a read-only preview of the document\u2019s content around the comment. If you want to update the document\u2019s content then call the `update` tool on the document itself.",
     });
 });
 
@@ -490,6 +507,63 @@ test("rejects changing which document the document thread belongs to", async () 
         expected:
             "You can only update your `<comment>`s. You can\u2019t change which document the document comment thread belongs to on line 1. Try again with a more specific update that only changes the content of comments from you or adds new comments.",
     });
+});
+
+test.each(["- [x] Resolved", "- [x] Unresolved"])(
+    "throws UnimplementedError when resolving a document thread with %s",
+    async newState => {
+        await readDocumentThread({totalCommentCount: 0});
+
+        await expect(
+            callAgentWebUpdateTool(context, {
+                path: documentThreadPath,
+                updates: [
+                    {
+                        old: "- [ ] Unresolved",
+                        new: newState,
+                        replaceAll: false,
+                    },
+                ],
+            }),
+        ).rejects.toThrow(UnimplementedError);
+    },
+);
+
+test.each(["- [ ] Resolved", "- [ ] Unresolved"])(
+    "throws UnimplementedError when unresolving a document thread with %s",
+    async newState => {
+        await readDocumentThread({totalCommentCount: 0, isResolved: true});
+
+        await expect(
+            callAgentWebUpdateTool(context, {
+                path: documentThreadPath,
+                updates: [
+                    {
+                        old: "- [x] Resolved",
+                        new: newState,
+                        replaceAll: false,
+                    },
+                ],
+            }),
+        ).rejects.toThrow(UnimplementedError);
+    },
+);
+
+test("throws UnimplementedError when resolving a legacy document thread without state", async () => {
+    await writeDocumentThreadReadResponseWithoutResolvedState();
+
+    await expect(
+        callAgentWebUpdateTool(context, {
+            path: documentThreadPath,
+            updates: [
+                {
+                    old: "<blockquote>",
+                    new: "- [x] Resolved\n\n<blockquote>",
+                    replaceAll: false,
+                },
+            ],
+        }),
+    ).rejects.toThrow(UnimplementedError);
 });
 
 test("rejects creating comments before the end of document thread comments", async () => {
@@ -517,8 +591,8 @@ test("rejects creating comments from another account", async () => {
     await expectInvalidUpdateDisplayMessage({
         updates: [
             {
-                old: "</document-preview>",
-                new: '</document-preview>\n\n<comment from="[Alice](/human/alice)">\n\nNot from the bot.\n\n</comment>',
+                old: "</blockquote>",
+                new: '</blockquote>\n\n<comment from="[Alice](/human/alice)">\n\nNot from the bot.\n\n</comment>',
                 replaceAll: false,
             },
         ],
