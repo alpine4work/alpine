@@ -9,7 +9,7 @@ import {printApiContentToAgentWebMarkdown} from "~/server/agents/web/print_api_c
 import {createAgentWebSessionStorageForTest} from "~/server/agents/web/test_helpers/create_agent_web_session_storage_for_test.js";
 import {generateChronologicalId} from "~/shared/id/chronological_id.js";
 import {generateId} from "~/shared/id/id.js";
-import {DocumentId, FileId, SpaceId, TaskId} from "~/shared/id/types/id_types.js";
+import {AccountId, DocumentId, FileId, SpaceId, TaskId} from "~/shared/id/types/id_types.js";
 
 const spaceId = generateId<SpaceId>();
 const storage = createAgentWebSessionStorageForTest(spaceId);
@@ -1994,7 +1994,7 @@ test("streams file gallery rows as their HTML completes", async () => {
             index: 0,
             payload: {
                 type: "Content",
-                content: {elements: []},
+                content: {elements: [{type: "Paragraph", elements: []}]},
             },
         },
     ]);
@@ -2042,7 +2042,7 @@ test("streams file gallery rows as their HTML completes", async () => {
             index: 1,
             payload: {
                 type: "Content",
-                content: {elements: []},
+                content: {elements: [{type: "Paragraph", elements: []}]},
             },
         },
     ]);
@@ -3512,6 +3512,103 @@ test("streams link formatting correctly for link that looks like mention", async
     ]);
 });
 
+test("drops mention search param from links that look like mentions", async () => {
+    const documentId = generateId<DocumentId>();
+
+    const message = new AgentWebMarkdownStreamParser({
+        storage,
+        documentId: null,
+    });
+
+    message.pushText(
+        null,
+        `Read [the document](https://alpine.inc/doc/${documentId}?mention&view=full).`,
+    );
+
+    expect(await message.update(null).then(items => items.map(item => item.part))).toEqual([
+        {
+            index: 0,
+            payload: {
+                type: "Content",
+                content: {
+                    elements: [
+                        {
+                            type: "Paragraph",
+                            elements: [
+                                {
+                                    type: "Text",
+                                    text: "Read ",
+                                },
+                                {
+                                    type: "Text",
+                                    text: "the document",
+                                    marks: [
+                                        {
+                                            type: "Link",
+                                            url: `https://alpine.inc/doc/${documentId}?view=full`,
+                                        },
+                                    ],
+                                },
+                                {
+                                    type: "Text",
+                                    text: ".",
+                                },
+                            ],
+                        },
+                    ],
+                },
+            },
+        },
+    ]);
+});
+
+test("streams account mention URL as a non-mention link", async () => {
+    const accountId = generateId<AccountId>();
+
+    const message = new AgentWebMarkdownStreamParser({
+        storage,
+        documentId: null,
+    });
+
+    message.pushText(null, `Talk to [@alice](https://alpine.inc/mention/${accountId}) about it.`);
+
+    expect(await message.update(null).then(items => items.map(item => item.part))).toEqual([
+        {
+            index: 0,
+            payload: {
+                type: "Content",
+                content: {
+                    elements: [
+                        {
+                            type: "Paragraph",
+                            elements: [
+                                {
+                                    type: "Text",
+                                    text: "Talk to ",
+                                },
+                                {
+                                    type: "Text",
+                                    text: "@alice",
+                                    marks: [
+                                        {
+                                            type: "Link",
+                                            url: `https://alpine.inc/account/${accountId}/${spaceId}`,
+                                        },
+                                    ],
+                                },
+                                {
+                                    type: "Text",
+                                    text: " about it.",
+                                },
+                            ],
+                        },
+                    ],
+                },
+            },
+        },
+    ]);
+});
+
 test("streams link formatting correctly for truncated link that looks like mention", async () => {
     const documentId = generateId<DocumentId>();
 
@@ -4787,7 +4884,7 @@ describe("ordered list continuation", () => {
                         elements: [
                             {
                                 type: "OrderedList",
-                                items: [{elements: []}],
+                                items: [{elements: [{type: "Paragraph", elements: []}]}],
                             },
                         ],
                     },
@@ -4879,7 +4976,7 @@ describe("ordered list continuation", () => {
                         elements: [
                             {
                                 type: "OrderedList",
-                                items: [{elements: []}],
+                                items: [{elements: [{type: "Paragraph", elements: []}]}],
                             },
                         ],
                     },
@@ -5120,7 +5217,7 @@ describe("ordered list continuation", () => {
                             {
                                 type: "OrderedList",
                                 orderStart: 5,
-                                items: [{elements: []}],
+                                items: [{elements: [{type: "Paragraph", elements: []}]}],
                             },
                         ],
                     },
@@ -6183,7 +6280,13 @@ describe("ordered list continuation", () => {
                                         nestedListElements: [
                                             {
                                                 type: "OrderedList",
-                                                items: [{elements: []}],
+                                                items: [
+                                                    {
+                                                        elements: [
+                                                            {type: "Paragraph", elements: []},
+                                                        ],
+                                                    },
+                                                ],
                                             },
                                         ],
                                     },

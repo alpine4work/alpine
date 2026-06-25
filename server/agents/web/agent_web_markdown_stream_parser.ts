@@ -506,7 +506,6 @@ export async function convertMarkdownTreeToAgentWebMarkdownTree(
                     // won't be able to create a response mention object with `title`.
                     if (url && parseApiMentionReferenceFromMarkdownUrlIfPossible(url)) {
                         if (url.pathname.startsWith("/mention/")) {
-                            // NOCOMMIT: Test this!
                             url.pathname = `/account/${url.pathname.slice("/mention/".length)}${url.pathname.endsWith("/") ? "" : "/"}${storage.spaceId}`;
                             urlString = url.toString();
                         } else {
