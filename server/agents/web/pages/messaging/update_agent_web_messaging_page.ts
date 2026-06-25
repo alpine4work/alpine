@@ -342,6 +342,7 @@ export async function updateAgentWebMessagingPage<
         }
 
         createThunks.push(async () => {
+            // NOCOMMIT: Implement replying to text in a message
             if (newBlock.parent) {
                 // TODO(#agents-web): Implement creating message with parent. There's a range of
                 // options for how we can do this. From only allowing full message replies to
