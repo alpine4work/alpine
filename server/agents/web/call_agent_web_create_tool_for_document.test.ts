@@ -38,6 +38,10 @@ function createDocumentContentFromText(text: string): ApiContentResponseWithoutK
     return {elements: [{type: "Paragraph", elements: [{type: "Text", text}]}]};
 }
 
+function createEmptyDocumentContent(): ApiContentResponseWithoutKeys {
+    return {elements: [{type: "Paragraph", elements: []}]};
+}
+
 function createDocumentContentFromTextWithKeys(text: string): ApiContentResponse {
     return {
         elements: [
@@ -48,6 +52,21 @@ function createDocumentContentFromTextWithKeys(text: string): ApiContentResponse
                     nodeSize: text.length + 2,
                 }),
                 elements: [{type: "Text", text}],
+            },
+        ],
+    };
+}
+
+function createEmptyDocumentContentWithKeys(): ApiContentResponse {
+    return {
+        elements: [
+            {
+                type: "Paragraph",
+                key: new ApiContentKeyEncoder({entityId: "Test", version: 0}).encode({
+                    pos: 0,
+                    nodeSize: 2,
+                }),
+                elements: [],
             },
         ],
     };
@@ -109,6 +128,37 @@ Initial body paragraph.`,
             document: {
                 title: "API Created Document",
                 content: createDocumentContentFromText("Initial body paragraph."),
+            },
+        },
+    });
+});
+
+test("creates a document with an empty title", async () => {
+    const documentId = generateId<DocumentId>();
+
+    mockCreateDocument({
+        id: documentId,
+        title: "",
+        content: createEmptyDocumentContentWithKeys(),
+    });
+
+    const responseString = await callAgentWebCreateTool(context, {
+        type: "document",
+        content: "#",
+    });
+
+    expect(responseString).toEqual(
+        "Create was successful. New document: [Untitled](/document/untitled).\n",
+    );
+    expect(api.getCallCount("POST", "/documents")).toBe(1);
+    expect(api.getRequestHistory()[0]).toMatchObject({
+        method: "POST",
+        path: "/documents",
+        body: {
+            spaceId,
+            document: {
+                title: "",
+                content: createEmptyDocumentContent(),
             },
         },
     });
