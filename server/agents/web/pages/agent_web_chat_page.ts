@@ -249,7 +249,13 @@ export async function createAgentWebChatPage(
             },
             async () => {
                 const {chat} = await createPromise.get();
-                return {type: "Chat", id: chat.id, isEndOfMessages: true, messages: []};
+                return {
+                    type: "Chat",
+                    id: chat.id,
+                    isStartOfMessages: true,
+                    isEndOfMessages: true,
+                    messages: [],
+                };
             },
             {...newPage, blocks: []},
             newPage,

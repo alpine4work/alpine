@@ -11,6 +11,7 @@ ts_project(
         "//server/agents/api",
         "//shared/accounts",
         "//shared/api/content",
+        "//shared/api/markdown/test_helpers",
         "//shared/api/specification",
         "//shared/context",
         "//shared/error",

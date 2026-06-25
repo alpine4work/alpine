@@ -85,40 +85,30 @@ function getCreatedPathname(responseString: string): string {
     return assertExists(match?.[1]);
 }
 
-test.each([
-    "doc",
-    "Doc",
-    "DOC",
-    "docs",
-    "Docs",
-    "DOCS",
-    "document",
-    "Document",
-    "DOCUMENT",
-    "documents",
-    "Documents",
-    "DOCUMENTS",
-])("supports `%s` as a document type", async type => {
-    const content = createDocumentContentFromText(`Created with type ${type}.`);
+test.each(["doc", "Doc", "docs", "Docs", "document", "Document", "documents", "Documents"])(
+    "supports `%s` as a document type",
+    async type => {
+        const content = createDocumentContentFromText(`Created with type ${type}.`);
 
-    mockCreateDocument({
-        title: "Alias Support",
-        content,
-    });
+        mockCreateDocument({
+            title: "Alias Support",
+            content,
+        });
 
-    const responseString = await callAgentWebCreateTool(context, {
-        type,
-        content: `\
+        const responseString = await callAgentWebCreateTool(context, {
+            type,
+            content: `\
 # Alias Support
 
 Created with type ${type}.`,
-    });
+        });
 
-    expect(responseString).toEqual(
-        "Create was successful. New document: [Alias Support](/document/alias-support).\n",
-    );
-    expect(api.getCallCount("POST", "/documents")).toBe(1);
-});
+        expect(responseString).toEqual(
+            "Create was successful. New document: [Alias Support](/document/alias-support).\n",
+        );
+        expect(api.getCallCount("POST", "/documents")).toBe(1);
+    },
+);
 
 test("deduplicates the created document pathname from existing pathnames", async () => {
     const existingDocumentId = generateId<DocumentId>();

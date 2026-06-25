@@ -6,9 +6,9 @@ import {
     truncateAgentWebReadResponse,
 } from "~/server/agents/web/call_agent_web_scroll_tool.js";
 import {createAgentWebSessionStorageForTest} from "~/server/agents/web/test_helpers/create_agent_web_session_storage_for_test.js";
-import {ApiContentKeyEncoder} from "~/shared/api/content/api_content_key_encoder.js";
 import {intoApiContent} from "~/shared/api/content/into_api_content.js";
 import {parseApiContentFromMarkdown} from "~/shared/api/markdown/parse_api_content_from_markdown.js";
+import {addKeysToApiContentForTest} from "~/shared/api/markdown/test_helpers/add_keys_to_api_content_for_test.js";
 import {ApiContentResponse} from "~/shared/api/specification/types/api_specification_convenience_types.js";
 import {wikipediaYoutubeDocumentContent} from "~/shared/documents/fixtures/wikipedia_youtube_document_content.js";
 import {defaultTimeZone} from "~/shared/helpers/intl/time_zone.js";
@@ -257,13 +257,14 @@ test("iterates through realistic wikipedia content one page at a time", async ()
 
     api.mockGetDocument(spaceId, documentId, {
         title: "YouTube",
-        content: intoApiContent(wikipediaYoutubeDocumentContent.get(), {
-            encoder: new ApiContentKeyEncoder({entityId: `Document:${documentId}`, version: 0}),
-            getAccountMentionTitleIfExists: () => undefined,
-            getSearchEntityMentionTitleIfExists: () => undefined,
-            getSearchTaskEntityDisplayStatusIfExists: () => undefined,
-            getFileIfExists: () => undefined,
-        }),
+        content: addKeysToApiContentForTest(
+            intoApiContent(wikipediaYoutubeDocumentContent.get(), {
+                getAccountMentionTitleIfExists: () => undefined,
+                getSearchEntityMentionTitleIfExists: () => undefined,
+                getSearchTaskEntityDisplayStatusIfExists: () => undefined,
+                getFileIfExists: () => undefined,
+            }),
+        ),
     });
 
     const firstResponseString = await callAgentWebReadTool(context, {

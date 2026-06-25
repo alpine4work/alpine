@@ -6,7 +6,7 @@ import {callAgentWebUpdateTool} from "~/server/agents/web/call_agent_web_update_
 import {createAgentWebPageStoredLinkPathname} from "~/server/agents/web/create_agent_web_page_stored_link_pathname.js";
 import {agentWebChannelPageApiPostsBatchCount} from "~/server/agents/web/pages/agent_web_channel_page.js";
 import {createAgentWebSessionStorageForTest} from "~/server/agents/web/test_helpers/create_agent_web_session_storage_for_test.js";
-import {ApiContentKeyEncoder} from "~/shared/api/content/api_content_key_encoder.js";
+import {addKeysToApiContentForTest} from "~/shared/api/markdown/test_helpers/add_keys_to_api_content_for_test.js";
 import {ApiContentResponse} from "~/shared/api/specification/types/api_specification_convenience_types.js";
 import {
     ErrorBase,
@@ -65,18 +65,14 @@ beforeEach(async () => {
 });
 
 function contentFromText(text: string): ApiContentResponse {
-    return {
+    return addKeysToApiContentForTest({
         elements: [
             {
                 type: "Paragraph",
-                key: new ApiContentKeyEncoder({entityId: "Channel", version: 0}).encode({
-                    pos: 0,
-                    nodeSize: text.length,
-                }),
                 elements: [{type: "Text", text}],
             },
         ],
-    };
+    });
 }
 
 function printDisplayMessage(displayMessage: ErrorDisplayMessage): string {

@@ -10,8 +10,9 @@ import {callAgentWebScrollTool} from "~/server/agents/web/call_agent_web_scroll_
 import {callAgentWebUpdateTool} from "~/server/agents/web/call_agent_web_update_tool.js";
 import {printApiContentToAgentWebMarkdown} from "~/server/agents/web/print_api_content_to_agent_web_markdown.js";
 import {createAgentWebSessionStorageForTest} from "~/server/agents/web/test_helpers/create_agent_web_session_storage_for_test.js";
-import {ApiContentKeyEncoder} from "~/shared/api/content/api_content_key_encoder.js";
 import {parseApiContentFromMarkdown} from "~/shared/api/markdown/parse_api_content_from_markdown.js";
+import {addKeysToApiContentForTest} from "~/shared/api/markdown/test_helpers/add_keys_to_api_content_for_test.js";
+import {ApiContentResponseWithoutKeys} from "~/shared/api/specification/types/api_content_response_without_keys.js";
 import {ApiContentResponse} from "~/shared/api/specification/types/api_specification_convenience_types.js";
 import {
     FailedPreconditionError,
@@ -52,44 +53,16 @@ afterEach(() => {
 });
 
 function createDocumentContentFromMarkdown(markdown: string): ApiContentResponse {
-    const content = parseApiContentFromMarkdown(markdown) as ApiContentResponse;
-    // NOCOMMIT: Come up with a `ApiContentKeyEncoder` solution for `server/agents/web`
-    // tests.
-    const keyEncoder = new ApiContentKeyEncoder({entityId: "Test", version: 0});
-
-    return {
-        elements: content.elements.map((element, index) => {
-            if ("key" in element && element.key) return element;
-
-            switch (element.type) {
-                case "Paragraph":
-                case "Heading":
-                case "Divider":
-                case "File":
-                case "Preview":
-                    return {
-                        ...element,
-                        key: keyEncoder.encode({pos: index, nodeSize: markdown.length + 2}),
-                    };
-                default:
-                    return element;
-            }
-        }),
-    } as ApiContentResponse;
+    return addKeysToApiContentForTest(
+        parseApiContentFromMarkdown(markdown) as ApiContentResponseWithoutKeys,
+    );
 }
 
 async function seedDocumentPathViaPrint(documentId: DocumentId, title: string): Promise<string> {
-    const content: ApiContentResponse = {
+    const content: ApiContentResponse = addKeysToApiContentForTest({
         elements: [
             {
                 type: "Paragraph",
-                key: new ApiContentKeyEncoder({
-                    entityId: `Document:${documentId}`,
-                    version: 0,
-                }).encode({
-                    pos: 0,
-                    nodeSize: title.length + 2,
-                }),
                 elements: [
                     {type: "Text", text: "See "},
                     {
@@ -104,7 +77,7 @@ async function seedDocumentPathViaPrint(documentId: DocumentId, title: string): 
                 ],
             },
         ],
-    };
+    });
 
     await printApiContentToAgentWebMarkdown(context.storage, content);
 

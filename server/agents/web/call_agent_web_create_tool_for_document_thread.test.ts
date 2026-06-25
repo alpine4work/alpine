@@ -71,8 +71,6 @@ afterEach(() => {
 function createDocumentContentFromMarkdown(markdown: string): ApiContentResponse {
     return addKeysToApiContentForTest({
         elements: markdown.split("\n\n").map(paragraphText => {
-            position += paragraphText.length + 2;
-
             return {
                 type: "Paragraph",
                 elements: [{type: "Text", text: paragraphText}],

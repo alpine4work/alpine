@@ -38,9 +38,6 @@ test("can zip/unzip keys from parsed/printed API content", async () => {
                     getSearchTaskEntityDisplayStatusIfExists: () => undefined,
                     getFileIfExists: () => undefined,
                 }),
-                {
-                    entityId: `Document:${documentId}`,
-                },
             );
 
             const {content: expectedContentWithoutKeys, keys} =
