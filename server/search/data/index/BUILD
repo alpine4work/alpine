@@ -101,7 +101,7 @@ ts_project(
         "//server/tokens",
         "//shared/access",
         "//shared/accounts",
-        "//shared/api/content",
+        "//shared/api/content/closed_source",
         "//shared/content",
         "//shared/context",
         "//shared/design:design_core",

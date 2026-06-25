@@ -22,7 +22,7 @@ ts_project(
     visibility = ["//visibility:public"],
     # IMPORTANT: We try to keep the first-party dependency list for this
     # package pretty small. We'd like to open source this code someday!
-    # This package is a dependency of `//shared/api/markdown` which we know
+    # This package is a dependency of `//shared/api/content` which we know
     # we want to open source.
     deps = [
         "//shared/error",

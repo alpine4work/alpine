@@ -16,13 +16,13 @@ import {getAccountRegistry} from "~/client/web/accounts/account_registry_context
 import {getFileRegistry} from "~/client/web/content/file_registry_context.js";
 import {DocumentContentExportFormat} from "~/client/web/documents/internal/document_content_export_modal.js";
 import {getSearchEntityRegistry} from "~/client/web/search/core/search_entity_registry_context.js";
-import {intoApiContent} from "~/shared/api/content/into_api_content.js";
-import {prepareApiMentionTitle} from "~/shared/api/content/prepare_api_mention_title.js";
+import {intoApiContent} from "~/shared/api/content/closed_source/into_api_content.js";
+import {prepareApiMentionTitle} from "~/shared/api/content/closed_source/prepare_api_mention_title.js";
 import {visitAndProduceApiContent} from "~/shared/api/content/visit_and_produce_api_content.js";
 import {
     printApiContentToMarkdownTree,
     printMarkdownTree,
-} from "~/shared/api/markdown/print_api_content_to_markdown.js";
+} from "~/shared/api/content/print_api_content_to_markdown.js";
 import {lezerClassHighlighter} from "~/shared/content/code/lezer_class_highlighter.js";
 import {DocumentContentWithReferences} from "~/shared/documents/document_content_references.js";
 import {getDocumentContentTitle} from "~/shared/documents/document_model.js";

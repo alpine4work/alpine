@@ -11,14 +11,14 @@ import {routeAgentWebPageLinkPathname} from "~/server/agents/web/route_agent_web
 import {
     parseApiContentFromMarkdownTree,
     parseMarkdownTree,
-} from "~/shared/api/markdown/parse_api_content_from_markdown.js";
-import {parseApiMentionReferenceFromMarkdownUrlIfPossible} from "~/shared/api/markdown/parse_api_content_from_markdown_url_if_possible.js";
+} from "~/shared/api/content/parse_api_content_from_markdown.js";
+import {parseApiMentionReferenceFromMarkdownUrlIfPossible} from "~/shared/api/content/parse_api_content_from_markdown_url_if_possible.js";
 import {
     printApiFileContentUrl,
     printApiMentionReferenceToMentionLinkLabel,
     printApiMentionReferenceToMentionUrl,
     printApiPreviewReferenceToPreviewUrl,
-} from "~/shared/api/markdown/print_api_content_to_markdown.js";
+} from "~/shared/api/content/print_api_content_to_markdown.js";
 import {
     ApiContentFileBlockElementResponseWithoutKeys,
     ApiContentPreviewBlockElementResponseWithoutKeys,

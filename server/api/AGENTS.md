@@ -57,7 +57,7 @@ API content model or an endpoint payload shape, make sure the change still prove
 Relevant tests live primarily in:
 
 - `shared/api/content`
-- `shared/api/markdown`
+- `shared/api/content/closed_source`
 - `server/api/internal/*/*.test.ts`
 
 When adding a new content feature, prefer adding a focused round-trip test close to the

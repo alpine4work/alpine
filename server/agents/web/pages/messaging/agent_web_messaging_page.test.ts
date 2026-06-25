@@ -10,7 +10,7 @@ import {printAgentWebMessagingPage} from "~/server/agents/web/pages/messaging/pr
 import {parseApiContentFromAgentWebMarkdownTree} from "~/server/agents/web/parse_api_content_from_agent_web_markdown.js";
 import {printApiContentToAgentWebMarkdownTree} from "~/server/agents/web/print_api_content_to_agent_web_markdown.js";
 import {runAgentWebPageTests} from "~/server/agents/web/test_helpers/run_agent_web_page_tests.js";
-import {parseMarkdownTree} from "~/shared/api/markdown/parse_api_content_from_markdown.js";
+import {parseMarkdownTree} from "~/shared/api/content/parse_api_content_from_markdown.js";
 import {
     ApiContentParagraphBlockElementResponseWithoutKeys,
     ApiContentResponseWithoutKeys,

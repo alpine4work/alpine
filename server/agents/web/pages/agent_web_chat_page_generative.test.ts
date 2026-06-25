@@ -13,7 +13,7 @@ import {
     ApiContentTextArbitrary,
     createIdArbitrary,
     createUnionArbitrary,
-} from "~/shared/api/markdown/test_helpers/api_content_arbitrary.js";
+} from "~/shared/api/content/test_helpers/api_content_arbitrary.js";
 import {assertNonEmptyReadonlyArray} from "~/shared/helpers/array/non_empty_readonly_array.js";
 import {ChatId} from "~/shared/id/types/id_types.js";
 

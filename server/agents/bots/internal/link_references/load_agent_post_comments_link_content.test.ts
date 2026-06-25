@@ -7,8 +7,8 @@ import {AgentPostCommentsLink} from "~/server/agents/bots/internal/link_referenc
 import {createAgentLink} from "~/server/agents/bots/internal/link_references/agent_link_collection.js";
 import {loadAgentPostCommentsLinkContent as actuallyLoadAgentPostCommentsLinkContent} from "~/server/agents/bots/internal/link_references/load_agent_post_comments_link_content.js";
 import {printAgentContentMarkdownTree} from "~/server/agents/bots/internal/print_api_content_to_agent_markdown.js";
-import {parseApiContentFromMarkdown} from "~/shared/api/markdown/parse_api_content_from_markdown.js";
-import {addKeysToApiContentForTest} from "~/shared/api/markdown/test_helpers/add_keys_to_api_content_for_test.js";
+import {parseApiContentFromMarkdown} from "~/shared/api/content/parse_api_content_from_markdown.js";
+import {addKeysToApiContentForTest} from "~/shared/api/content/test_helpers/add_keys_to_api_content_for_test.js";
 import {ApiContentResponse} from "~/shared/api/specification/types/api_specification_convenience_types.js";
 import {TracerContextModule} from "~/shared/context/tracer_context_module.js";
 import {assertDateString} from "~/shared/helpers/date/date_string.js";

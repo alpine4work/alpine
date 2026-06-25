@@ -4,7 +4,7 @@ import {AgentWebSessionStorage} from "~/server/agents/web/agent_web_session_stor
 import {
     parseApiContentFromMarkdownTree,
     parseMarkdownTree,
-} from "~/shared/api/markdown/parse_api_content_from_markdown.js";
+} from "~/shared/api/content/parse_api_content_from_markdown.js";
 import {ApiContentResponseWithoutKeys} from "~/shared/api/specification/types/api_content_response_without_keys.js";
 import {emptyObject} from "~/shared/helpers/object/empty_object.js";
 import {DocumentId} from "~/shared/id/types/id_types.js";

@@ -2,7 +2,7 @@ import {Node} from "prosemirror-model";
 import {getApiAccount} from "~/server/api/internal/shared/get_api_account.js";
 import {getContentReferences} from "~/server/content/get_content_references.js";
 import {ServerBotActionContext} from "~/server/context/server_action_context.js";
-import {intoApiContentSnippetInlineElementMarks} from "~/shared/api/content/into_api_content.js";
+import {intoApiContentSnippetInlineElementMarks} from "~/shared/api/content/closed_source/into_api_content.js";
 import {
     ApiMessageContentPayloadParentContentSnippet,
     ApiMessageContentPayloadParentResponse,

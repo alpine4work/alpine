@@ -27,7 +27,7 @@ import {
     parseAgentWebTaskMessageListPage,
     updateAgentWebTaskMessageListPage,
 } from "~/server/agents/web/pages/agent_web_task_message_list_page.js";
-import {parseMarkdownTree} from "~/shared/api/markdown/parse_api_content_from_markdown.js";
+import {parseMarkdownTree} from "~/shared/api/content/parse_api_content_from_markdown.js";
 import {getErrorDisplayMessage} from "~/shared/error/default_error_display_message.js";
 import {
     FailedPreconditionError,

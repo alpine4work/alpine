@@ -12,7 +12,7 @@ import {
     printApiFileContentUrl,
     printApiPreviewReferenceToPreviewUrl,
     printMarkdownTree,
-} from "~/shared/api/markdown/print_api_content_to_markdown.js";
+} from "~/shared/api/content/print_api_content_to_markdown.js";
 import {ApiContentResponseWithoutKeys} from "~/shared/api/specification/types/api_content_response_without_keys.js";
 import {
     ApiContentFileBlockElementResponse,

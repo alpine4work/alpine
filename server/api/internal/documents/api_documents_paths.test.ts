@@ -19,7 +19,7 @@ import {TestSpace} from "~/server/spaces/test_helpers/test_space.js";
 import {tasksInjection} from "~/server/tasks/data/tasks_injection.js";
 import {TestTask} from "~/server/tasks/data/test_helpers/test_task.js";
 import {TestTaskCollection} from "~/server/tasks/data/test_helpers/test_task_collection.js";
-import {ApiContentKeyDecoder} from "~/shared/api/content/api_content_key_encoder.js";
+import {ApiContentKeyDecoder} from "~/shared/api/content/closed_source/api_content_key_encoder.js";
 import {
     DocumentCollaborationUpdateContentWithDiffRequestBodySchema,
     DocumentCollaborationUpdateContentWithDiffResponseBodySchema,
@@ -113,7 +113,7 @@ const context = createTestContext({
 // schema may accept more shapes over time. The mocks default to the real
 // implementations so every other test is unaffected.
 const actualFromApiContentModule =
-    await import("../../../../shared/api/content/from_api_content.js");
+    await import("../../../../shared/api/content/closed_source/from_api_content.js");
 const fromApiContentMock = jest.fn(actualFromApiContentModule.fromApiContent);
 const fromApiContentToDocumentChildNodesMock = jest.fn(
     actualFromApiContentModule.fromApiContentToDocumentChildNodes,

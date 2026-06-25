@@ -2,7 +2,7 @@ import {ApiServiceBotActionContext} from "~/server/api/internal/shared/api_servi
 import {getApiTaskCollectionItems} from "~/server/api/internal/tasks/internal/get_api_task_collection_items.js";
 import {intoApiTaskLayout} from "~/server/api/internal/tasks/internal/into_api_task_layout.js";
 import {serializeTaskQuerySortCursorForApi} from "~/server/api/internal/tasks/internal/serialize_task_query_sort_cursor_for_api.js";
-import {intoApiTaskStatus} from "~/shared/api/content/into_api_task_status.js";
+import {intoApiTaskStatus} from "~/shared/api/content/closed_source/into_api_task_status.js";
 import {
     ApiAccount,
     ApiTaskWithoutNotes,

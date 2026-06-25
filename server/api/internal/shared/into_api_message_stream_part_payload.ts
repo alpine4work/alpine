@@ -1,6 +1,6 @@
 import {intoApiMessageContentWithReferences} from "~/server/api/internal/shared/into_api_content_with_references.js";
 import {ServerAccountActionContext} from "~/server/context/server_action_context.js";
-import {ApiContentKeyEncoder} from "~/shared/api/content/api_content_key_encoder.js";
+import {ApiContentKeyEncoder} from "~/shared/api/content/closed_source/api_content_key_encoder.js";
 import {parseApiMentionReference} from "~/shared/api/specification/parse_api_path.js";
 import {
     ApiMentionReferenceResponse,

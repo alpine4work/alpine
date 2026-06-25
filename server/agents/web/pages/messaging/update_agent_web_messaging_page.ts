@@ -14,9 +14,9 @@ import {printAgentWebMessagingPageMessageIndexRange} from "~/server/agents/web/p
 import {
     normalizeApiContent,
     normalizeApiReference,
-} from "~/shared/api/markdown/normalize_api_content.js";
-import {printMarkdownTree} from "~/shared/api/markdown/print_api_content_to_markdown.js";
-import {unzipKeysFromApiContentResponse} from "~/shared/api/markdown/zip_or_unzip_keys_from_api_content_response.js";
+} from "~/shared/api/content/normalize_api_content.js";
+import {printMarkdownTree} from "~/shared/api/content/print_api_content_to_markdown.js";
+import {unzipKeysFromApiContentResponse} from "~/shared/api/content/zip_or_unzip_keys_from_api_content_response.js";
 import {ApiContentKey} from "~/shared/api/specification/types/api_content_key.js";
 import {ApiMessageRoomReference} from "~/shared/api/specification/types/api_specification_convenience_types.js";
 import {

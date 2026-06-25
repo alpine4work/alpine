@@ -23,7 +23,7 @@ import {getChatDefinition} from "~/server/chat/data/get_chat_definition.js";
 import {getOrCreateChatForAccounts} from "~/server/chat/data/get_or_create_chat_for_accounts.js";
 import {attachFileToTargetAsBot} from "~/server/files/data/attach_file_to_target_as_bot.js";
 import {getSearchDirectChatEntityTitleAndMedia} from "~/server/search/data/index/search_entity_index.js";
-import {fromApiContent} from "~/shared/api/content/from_api_content.js";
+import {fromApiContent} from "~/shared/api/content/closed_source/from_api_content.js";
 import {ApiDirectChat} from "~/shared/api/specification/types/api_specification_convenience_types.js";
 import {
     MessageContentProsemirrorSchema,

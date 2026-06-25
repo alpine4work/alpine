@@ -34,12 +34,12 @@ import {
     putTaskCommentStreamPart,
 } from "~/server/tasks/data/task_messaging.js";
 import {LocalAccessPolicy} from "~/shared/access/access_policy.js";
-import {ApiContentKeyEncoder} from "~/shared/api/content/api_content_key_encoder.js";
-import {extractFileIdsFromApiContent} from "~/shared/api/content/extract_file_ids_from_api_content.js";
-import {fromApiContent} from "~/shared/api/content/from_api_content.js";
-import {fromApiThemeColor} from "~/shared/api/content/from_api_theme_color.js";
-import {intoApiTaskStatus} from "~/shared/api/content/into_api_task_status.js";
-import {intoApiThemeColor} from "~/shared/api/content/into_api_theme_color.js";
+import {ApiContentKeyEncoder} from "~/shared/api/content/closed_source/api_content_key_encoder.js";
+import {extractFileIdsFromApiContent} from "~/shared/api/content/closed_source/extract_file_ids_from_api_content.js";
+import {fromApiContent} from "~/shared/api/content/closed_source/from_api_content.js";
+import {fromApiThemeColor} from "~/shared/api/content/closed_source/from_api_theme_color.js";
+import {intoApiTaskStatus} from "~/shared/api/content/closed_source/into_api_task_status.js";
+import {intoApiThemeColor} from "~/shared/api/content/closed_source/into_api_theme_color.js";
 import {
     MessageContentProsemirrorSchema,
     assertMessageContent,

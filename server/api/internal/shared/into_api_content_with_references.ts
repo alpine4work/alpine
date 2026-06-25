@@ -10,12 +10,12 @@ import {getAccountWithoutAvatar} from "~/server/spaces/get_account.js";
 import {AccountModelWithoutSpaceData} from "~/shared/accounts/account_model_without_space.js";
 import {getAccountShortNameWithoutFullNameTooltip} from "~/shared/accounts/get_account_short_name_without_full_name_tooltip.js";
 import {missingAccountName} from "~/shared/accounts/missing_account_name.js";
-import {ApiContentKeyEncoder} from "~/shared/api/content/api_content_key_encoder.js";
+import {ApiContentKeyEncoder} from "~/shared/api/content/closed_source/api_content_key_encoder.js";
 import {
     ApiContentMarkdownIntoOptionsWithoutKeys,
     intoApiContent,
-} from "~/shared/api/content/into_api_content.js";
-import {prepareApiMentionTitle} from "~/shared/api/content/prepare_api_mention_title.js";
+} from "~/shared/api/content/closed_source/into_api_content.js";
+import {prepareApiMentionTitle} from "~/shared/api/content/closed_source/prepare_api_mention_title.js";
 import {ApiContentResponseWithoutKeys} from "~/shared/api/specification/types/api_content_response_without_keys.js";
 import {ApiContentResponse} from "~/shared/api/specification/types/api_specification_convenience_types.js";
 import {getContentReferencedIdsForNode} from "~/shared/content/content_referenced_ids.js";

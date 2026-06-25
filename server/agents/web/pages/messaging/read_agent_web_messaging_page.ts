@@ -19,7 +19,7 @@ import {
     truncateAgentWebMessagingPage,
     truncateAgentWebMessagingPageAroundMessage,
 } from "~/server/agents/web/pages/messaging/truncate_agent_web_messaging_page.js";
-import {unzipKeysFromApiContentResponse} from "~/shared/api/markdown/zip_or_unzip_keys_from_api_content_response.js";
+import {unzipKeysFromApiContentResponse} from "~/shared/api/content/zip_or_unzip_keys_from_api_content_response.js";
 import {intoApiAccountReference} from "~/shared/api/specification/into_api_account_reference.js";
 import {ApiContentKey} from "~/shared/api/specification/types/api_content_key.js";
 import {

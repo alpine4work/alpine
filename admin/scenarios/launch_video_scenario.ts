@@ -24,7 +24,7 @@ import {TestContext} from "~/server/spaces/test_helpers/test_context.js";
 import {TestTask} from "~/server/tasks/data/test_helpers/test_task.js";
 import {TokenAgent} from "~/server/tokens/token_agent.js";
 import {MockAgentRecordingAction} from "~/shared/agents/mock_agent_recording.js";
-import {parseApiContentFromMarkdown} from "~/shared/api/markdown/parse_api_content_from_markdown.js";
+import {parseApiContentFromMarkdown} from "~/shared/api/content/parse_api_content_from_markdown.js";
 import {ContentMention} from "~/shared/content/content_mention.js";
 import {ProcessContextModule} from "~/shared/context/process_context_module.js";
 import {FeedEntry, FeedEntrySchema} from "~/shared/feed/feed_entry_schema.js";

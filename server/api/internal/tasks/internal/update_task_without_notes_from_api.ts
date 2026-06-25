@@ -4,7 +4,7 @@ import {fromApiTaskLayout} from "~/server/api/internal/tasks/internal/from_api_t
 import {validateApiActor} from "~/server/api/internal/tasks/internal/validate_api_actor.js";
 import {getAccount} from "~/server/spaces/get_account.js";
 import {commitTaskActionTransaction} from "~/server/tasks/data/commit_task_action_transaction.js";
-import {intoApiTaskStatus} from "~/shared/api/content/into_api_task_status.js";
+import {intoApiTaskStatus} from "~/shared/api/content/closed_source/into_api_task_status.js";
 import {ApiSpecification} from "~/shared/api/specification/types/api_specification_types.js";
 import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
 import {HybridLogicalClock} from "~/shared/helpers/clock/hybrid_logical_clock.js";

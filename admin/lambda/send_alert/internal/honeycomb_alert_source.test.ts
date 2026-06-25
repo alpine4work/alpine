@@ -7,7 +7,7 @@ import {
     HoneycombTriggerPayload,
 } from "~/admin/lambda/send_alert/internal/honeycomb_alert_source_types.js";
 import {sendAlertAvailableTaskCollections} from "~/admin/lambda/send_alert/internal/send_alert_available_task_collections.js";
-import {printApiContentToMarkdown} from "~/shared/api/markdown/print_api_content_to_markdown.js";
+import {printApiContentToMarkdown} from "~/shared/api/content/print_api_content_to_markdown.js";
 import {
     ApiContent,
     ApiCreateTaskRequestBody,

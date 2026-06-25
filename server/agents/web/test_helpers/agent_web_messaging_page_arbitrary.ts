@@ -17,7 +17,7 @@ import {
     ApiTaskReferenceArbitrary,
     createIdArbitrary,
     createUnionArbitrary,
-} from "~/shared/api/markdown/test_helpers/api_content_arbitrary.js";
+} from "~/shared/api/content/test_helpers/api_content_arbitrary.js";
 import {DocumentCommentThreadId, PostId} from "~/shared/id/types/id_types.js";
 
 export const AgentWebMessagingPageTimeBlockArbitrary: Arbitrary<AgentWebMessagingPageTimeBlock> =

@@ -8,7 +8,7 @@ import {
     printAgentPlainTextLabel,
 } from "~/server/agents/bots/internal/link_references/print_agent_link_path.js";
 import {getSearchResultContentSnippetAndReturnBodyMatch} from "~/server/agents/bots/internal/tools/get_search_result_content_snippet_and_return_body_match.js";
-import {printMarkdownTree} from "~/shared/api/markdown/print_api_content_to_markdown.js";
+import {printMarkdownTree} from "~/shared/api/content/print_api_content_to_markdown.js";
 import {
     ApiMessageRoomReference,
     ApiSearchChatMessageResult,

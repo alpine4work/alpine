@@ -6,8 +6,8 @@ import {TestMessagingRoomBase} from "~/server/messaging/test_helpers/test_messag
 import {TestContext} from "~/server/spaces/test_helpers/test_context.js";
 import {TestSpace} from "~/server/spaces/test_helpers/test_space.js";
 import {TestSpaceSession} from "~/server/spaces/test_helpers/test_space_session.js";
-import {ApiContentKeyDecoder} from "~/shared/api/content/api_content_key_encoder.js";
-import {printApiContentToMarkdown} from "~/shared/api/markdown/print_api_content_to_markdown.js";
+import {ApiContentKeyDecoder} from "~/shared/api/content/closed_source/api_content_key_encoder.js";
+import {printApiContentToMarkdown} from "~/shared/api/content/print_api_content_to_markdown.js";
 import {
     ApiMessageRoomPath,
     parseApiMessageRoomPath,

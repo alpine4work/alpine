@@ -17,7 +17,7 @@ import {
     agentWebMessagingPreviousPageLinkTextWithEndArrow,
     agentWebMessagingPreviousPageLinkTextWithStartArrow,
 } from "~/server/agents/web/pages/messaging/print_agent_web_messaging_page.js";
-import {parseMarkdownTree} from "~/shared/api/markdown/parse_api_content_from_markdown.js";
+import {parseMarkdownTree} from "~/shared/api/content/parse_api_content_from_markdown.js";
 import {ApiMessageResponse} from "~/shared/api/specification/types/api_specification_convenience_types.js";
 import {formatPrettyAbsoluteDateWithoutFullTimeTooltip} from "~/shared/design/format_pretty_absolute_date_without_full_time_tooltip.js";
 import {InternalError} from "~/shared/error/error.js";

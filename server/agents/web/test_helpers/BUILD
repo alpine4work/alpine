@@ -5,13 +5,13 @@ ts_project(
     name = "test_helpers",
     visibility = [
         "//server/agents:__subpackages__",
-        "//shared/api/markdown:__subpackages__",
+        "//shared/api/content:__subpackages__",
     ],
     deps = [
         "//:node_modules/fast-check",
         "//server/agents/web",
         "//server/cloudflare",
-        "//shared/api/markdown/test_helpers",
+        "//shared/api/content/test_helpers",
         "//shared/error",
         "//shared/helpers",
         "//shared/tracer",

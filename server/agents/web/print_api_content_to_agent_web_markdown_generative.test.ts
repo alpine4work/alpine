@@ -6,7 +6,7 @@ import {createAgentWebSessionStorageForTest} from "~/server/agents/web/test_help
 import {
     ApiContentArbitrary,
     apiContentArbitrarySpaceId,
-} from "~/shared/api/markdown/test_helpers/api_content_arbitrary.js";
+} from "~/shared/api/content/test_helpers/api_content_arbitrary.js";
 import {generateId} from "~/shared/id/id.js";
 import {DocumentId} from "~/shared/id/types/id_types.js";
 

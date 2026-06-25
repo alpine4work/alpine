@@ -7,7 +7,7 @@ import {parseApiContentFromAgentWebMarkdownTree} from "~/server/agents/web/parse
 import {printApiContentToAgentWebMarkdownTree} from "~/server/agents/web/print_api_content_to_agent_web_markdown.js";
 import {createAgentWebMessagingPageArbitrary} from "~/server/agents/web/test_helpers/agent_web_messaging_page_arbitrary.js";
 import {runAgentWebPageGenerativeTests} from "~/server/agents/web/test_helpers/run_agent_web_page_generative_tests.js";
-import {ApiContentInlineElementWithoutCommentMarkArbitrary} from "~/shared/api/markdown/test_helpers/api_content_arbitrary.js";
+import {ApiContentInlineElementWithoutCommentMarkArbitrary} from "~/shared/api/content/test_helpers/api_content_arbitrary.js";
 import {ApiContentInlineElementResponse} from "~/shared/api/specification/types/api_specification_convenience_types.js";
 import {InvalidArgumentError} from "~/shared/error/error.js";
 import {errorDisplayMessage} from "~/shared/error/error_display_message.js";

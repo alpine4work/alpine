@@ -18,7 +18,7 @@ ts_project(
         "//server/agents/api",
         "//server/agents/web",
         "//shared/api/content",
-        "//shared/api/markdown",
+        "//shared/api/content/closed_source",
         "//shared/api/specification",
         "//shared/error",
         "//shared/helpers",

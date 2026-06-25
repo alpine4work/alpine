@@ -1,6 +1,6 @@
 import {ServerActionContext} from "~/server/context/server_action_context.js";
 import {FilesTable} from "~/server/files/data/internal/files_table.js";
-import {computeApiContentFileRowWidths} from "~/shared/api/content/compute_api_content_file_row_widths.js";
+import {computeApiContentFileRowWidths} from "~/shared/api/content/closed_source/compute_api_content_file_row_widths.js";
 import {
     ApiContentFileBlockElementResponse,
     ApiContentPreviewBlockElementResponse,

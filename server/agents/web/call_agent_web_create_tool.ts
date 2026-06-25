@@ -27,8 +27,8 @@ import {
     createAgentWebPostPage,
     parseAgentWebPostPage,
 } from "~/server/agents/web/pages/agent_web_post_page.js";
-import {parseMarkdownTree} from "~/shared/api/markdown/parse_api_content_from_markdown.js";
-import {printMarkdownTree} from "~/shared/api/markdown/print_api_content_to_markdown.js";
+import {parseMarkdownTree} from "~/shared/api/content/parse_api_content_from_markdown.js";
+import {printMarkdownTree} from "~/shared/api/content/print_api_content_to_markdown.js";
 import {getErrorDisplayMessage} from "~/shared/error/default_error_display_message.js";
 import {InvalidArgumentError, getErrorCode} from "~/shared/error/error.js";
 import {

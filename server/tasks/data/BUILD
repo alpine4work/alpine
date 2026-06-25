@@ -79,7 +79,7 @@ ts_project(
         "//shared/access",
         "//shared/access/model",
         "//shared/api/content",
-        "//shared/api/markdown",
+        "//shared/api/content/closed_source",
         "//shared/context",
         "//shared/crdt",
         "//shared/design",

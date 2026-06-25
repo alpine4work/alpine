@@ -52,8 +52,8 @@ import {
     readAgentWebTaskMessageListPage,
 } from "~/server/agents/web/pages/agent_web_task_message_list_page.js";
 import {routeAgentWebPageLinkPathname} from "~/server/agents/web/route_agent_web_page_link_pathname.js";
-import {parseMarkdownTree} from "~/shared/api/markdown/parse_api_content_from_markdown.js";
-import {printMarkdownTree} from "~/shared/api/markdown/print_api_content_to_markdown.js";
+import {parseMarkdownTree} from "~/shared/api/content/parse_api_content_from_markdown.js";
+import {printMarkdownTree} from "~/shared/api/content/print_api_content_to_markdown.js";
 import {
     FailedPreconditionError,
     InternalError,

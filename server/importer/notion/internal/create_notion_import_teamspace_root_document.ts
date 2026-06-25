@@ -5,7 +5,7 @@ import {ImporterServiceSystemActionContext} from "~/server/importer/importer_ser
 import {parseNotionImportFileName} from "~/server/importer/notion/internal/parse_notion_import_file_name.js";
 import {impersonateAccountAsSystemContext} from "~/server/spaces/impersonate_account_as_system_context.js";
 import {AccessPolicy} from "~/shared/access/access_policy.js";
-import {fromApiContent} from "~/shared/api/content/from_api_content.js";
+import {fromApiContent} from "~/shared/api/content/closed_source/from_api_content.js";
 import {
     ApiContent,
     ApiContentBlockElement,

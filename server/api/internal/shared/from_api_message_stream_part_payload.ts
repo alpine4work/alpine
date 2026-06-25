@@ -1,4 +1,4 @@
-import {fromApiContent} from "~/shared/api/content/from_api_content.js";
+import {fromApiContent} from "~/shared/api/content/closed_source/from_api_content.js";
 import {printApiMentionReference} from "~/shared/api/specification/parse_api_path.js";
 import {ApiMessageStreamPartPayload} from "~/shared/api/specification/types/api_specification_convenience_types.js";
 import {

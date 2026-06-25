@@ -17,9 +17,9 @@ import {parseApiContentFromAgentWebMarkdownTree} from "~/server/agents/web/parse
 import {printApiContentToAgentWebMarkdownTree} from "~/server/agents/web/print_api_content_to_agent_web_markdown.js";
 import {printMarkdownPhrasingContentText} from "~/server/agents/web/print_markdown_phrasing_content_text.js";
 import {routeAgentWebPageLinkPathname} from "~/server/agents/web/route_agent_web_page_link_pathname.js";
-import {normalizeApiContent} from "~/shared/api/markdown/normalize_api_content.js";
-import {parseMarkdownTree} from "~/shared/api/markdown/parse_api_content_from_markdown.js";
-import {printMarkdownTree} from "~/shared/api/markdown/print_api_content_to_markdown.js";
+import {normalizeApiContent} from "~/shared/api/content/normalize_api_content.js";
+import {parseMarkdownTree} from "~/shared/api/content/parse_api_content_from_markdown.js";
+import {printMarkdownTree} from "~/shared/api/content/print_api_content_to_markdown.js";
 import {intoApiAccountReference} from "~/shared/api/specification/into_api_account_reference.js";
 import {ApiContentResponseWithoutKeys} from "~/shared/api/specification/types/api_content_response_without_keys.js";
 import {

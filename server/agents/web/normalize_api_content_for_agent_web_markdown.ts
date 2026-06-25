@@ -1,5 +1,5 @@
 import {produce} from "immer";
-import {ApiContentNormalizer} from "~/shared/api/markdown/normalize_api_content.js";
+import {ApiContentNormalizer} from "~/shared/api/content/normalize_api_content.js";
 import {ApiContentResponseWithoutKeys} from "~/shared/api/specification/types/api_content_response_without_keys.js";
 
 export function normalizeApiContentForAgentWebMarkdown(

@@ -4,7 +4,7 @@ import {
     AgentWebMessagingPage,
     AgentWebMessagingPageCustomBlockBase,
 } from "~/server/agents/web/pages/messaging/agent_web_messaging_page.js";
-import {ApiContentNormalizer} from "~/shared/api/markdown/normalize_api_content.js";
+import {ApiContentNormalizer} from "~/shared/api/content/normalize_api_content.js";
 import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
 
 export function normalizeAgentWebMessagingPage<

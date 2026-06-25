@@ -5,7 +5,7 @@ import {parseNotionImportFileName} from "~/server/importer/notion/internal/parse
 import {parseNotionImportHierarchyFromIndexHtml} from "~/server/importer/notion/internal/parse_notion_import_hierarchy_from_index_html.js";
 import {resolveNotionImportFileLinkPath} from "~/server/importer/notion/internal/resolve_notion_import_file_link_path.js";
 import {visitApiContent} from "~/shared/api/content/visit_api_content.js";
-import {parseApiContentFromMarkdown} from "~/shared/api/markdown/parse_api_content_from_markdown.js";
+import {parseApiContentFromMarkdown} from "~/shared/api/content/parse_api_content_from_markdown.js";
 import {getPathFileContentTypeIfExists} from "~/shared/files/file_content_type.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {NotionImportProcessingOrDoneResult} from "~/shared/importer/notion/notion_import_item.js";

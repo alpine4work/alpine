@@ -47,7 +47,7 @@ ts_project(
         "//server/tracer",
         "//shared/accounts",
         "//shared/api/content",
-        "//shared/api/markdown",
+        "//shared/api/content/closed_source",
         "//shared/api/specification",
         "//shared/content",
         "//shared/content/code",

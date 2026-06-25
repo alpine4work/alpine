@@ -11,7 +11,7 @@ import {
     ApiContentArbitrary as ActualApiContentArbitrary,
     ApiContentTextArbitrary,
     createIdArbitrary,
-} from "~/shared/api/markdown/test_helpers/api_content_arbitrary.js";
+} from "~/shared/api/content/test_helpers/api_content_arbitrary.js";
 import {DocumentId} from "~/shared/id/types/id_types.js";
 
 const ApiContentArbitrary = ActualApiContentArbitrary.map(normalizeApiContentForAgentWebMarkdown);

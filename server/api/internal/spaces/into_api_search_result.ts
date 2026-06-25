@@ -1,5 +1,5 @@
 import {getAccountShortNameWithoutFullNameTooltip} from "~/shared/accounts/get_account_short_name_without_full_name_tooltip.js";
-import {intoApiTaskStatus} from "~/shared/api/content/into_api_task_status.js";
+import {intoApiTaskStatus} from "~/shared/api/content/closed_source/into_api_task_status.js";
 import {
     ApiSearchResult,
     ApiSearchResultBodyMatchItem,

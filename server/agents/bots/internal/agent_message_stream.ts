@@ -2,11 +2,11 @@ import {BlockContent, DefinitionContent, Parent, Root} from "mdast";
 import {
     parseApiContentFromMarkdownTree,
     parseMarkdownTree,
-} from "~/shared/api/markdown/parse_api_content_from_markdown.js";
+} from "~/shared/api/content/parse_api_content_from_markdown.js";
 import {
     printApiMentionPathToMentionLinkUrl,
     printAppUrlFromApiNotMentionPath,
-} from "~/shared/api/markdown/print_api_content_to_markdown.js";
+} from "~/shared/api/content/print_api_content_to_markdown.js";
 import {
     ApiPath,
     isApiMentionTargetPath,

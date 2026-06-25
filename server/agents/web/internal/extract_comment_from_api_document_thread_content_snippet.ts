@@ -1,5 +1,5 @@
+import {sliceApiContentRange} from "~/shared/api/content/slice_api_content_range.js";
 import {visitAndProduceApiContent} from "~/shared/api/content/visit_and_produce_api_content.js";
-import {sliceApiContentRange} from "~/shared/api/markdown/slice_api_content_range.js";
 import {ApiContentKey} from "~/shared/api/specification/types/api_content_key.js";
 import {
     ApiContentAfterPosition,

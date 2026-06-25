@@ -20,7 +20,7 @@ import {
     ApiContentTextArbitrary,
     ApiContentWithoutCommentMarkArbitrary,
     createIdArbitrary,
-} from "~/shared/api/markdown/test_helpers/api_content_arbitrary.js";
+} from "~/shared/api/content/test_helpers/api_content_arbitrary.js";
 import {PostId} from "~/shared/id/types/id_types.js";
 
 const ApiPostReferenceArbitrary = fc.record({

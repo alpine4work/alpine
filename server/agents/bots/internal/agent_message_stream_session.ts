@@ -9,7 +9,7 @@ import {AgentWebhookRequest} from "~/server/agents/bots/internal/agent_durable_o
 import {AgentMessageStream} from "~/server/agents/bots/internal/agent_message_stream.js";
 import {convertApiContentToProperQuotes} from "~/server/agents/bots/internal/convert_api_content_to_proper_quotes.js";
 import {agentMessageStreamPingIntervalMs} from "~/shared/agents/default_agent_message_ping_interval_ms.js";
-import {parseApiContentFromMarkdown} from "~/shared/api/markdown/parse_api_content_from_markdown.js";
+import {parseApiContentFromMarkdown} from "~/shared/api/content/parse_api_content_from_markdown.js";
 import {
     ApiMessageResponse,
     ApiMessageStreamPartPayload,

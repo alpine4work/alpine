@@ -29,13 +29,13 @@ import {updateAgentWebMessagingPage} from "~/server/agents/web/pages/messaging/u
 import {parseApiContentFromAgentWebMarkdownTree} from "~/server/agents/web/parse_api_content_from_agent_web_markdown.js";
 import {printApiContentToAgentWebMarkdownTree} from "~/server/agents/web/print_api_content_to_agent_web_markdown.js";
 import {printMarkdownPhrasingContentText} from "~/server/agents/web/print_markdown_phrasing_content_text.js";
-import {findApiContentRanges} from "~/shared/api/markdown/find_api_content_ranges.js";
-import {normalizeApiContent} from "~/shared/api/markdown/normalize_api_content.js";
-import {parseMarkdownTree} from "~/shared/api/markdown/parse_api_content_from_markdown.js";
+import {findApiContentRanges} from "~/shared/api/content/find_api_content_ranges.js";
+import {normalizeApiContent} from "~/shared/api/content/normalize_api_content.js";
+import {parseMarkdownTree} from "~/shared/api/content/parse_api_content_from_markdown.js";
 import {
     unzipKeysFromApiContentResponse,
     zipKeysIntoApiContentResponse,
-} from "~/shared/api/markdown/zip_or_unzip_keys_from_api_content_response.js";
+} from "~/shared/api/content/zip_or_unzip_keys_from_api_content_response.js";
 import {ApiContentResponseWithoutKeys} from "~/shared/api/specification/types/api_content_response_without_keys.js";
 import {
     ApiDocumentReferenceResponse,

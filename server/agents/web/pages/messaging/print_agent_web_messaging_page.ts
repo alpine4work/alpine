@@ -13,7 +13,7 @@ import {
 import {isAgentWebMessagingPageEndOfMessagesParagraph} from "~/server/agents/web/pages/messaging/parse_agent_web_messaging_page.js";
 import {printApiContentToAgentWebMarkdownTree} from "~/server/agents/web/print_api_content_to_agent_web_markdown.js";
 import {printMarkdownPhrasingContentText} from "~/server/agents/web/print_markdown_phrasing_content_text.js";
-import {printMarkdownTree} from "~/shared/api/markdown/print_api_content_to_markdown.js";
+import {printMarkdownTree} from "~/shared/api/content/print_api_content_to_markdown.js";
 import {ApiAccountReferenceResponse} from "~/shared/api/specification/types/api_specification_convenience_types.js";
 import {InternalError} from "~/shared/error/error.js";
 import {runAllObjectPromises, runAllPromises} from "~/shared/helpers/async/run_all_promises.js";

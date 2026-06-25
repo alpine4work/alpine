@@ -39,7 +39,7 @@ ts_project(
         "//client/web/virtualized",
         "//client/web/web_socket",
         "//shared/api/content",
-        "//shared/api/markdown",
+        "//shared/api/content/closed_source",
         "//shared/design",
         "//shared/documents",
         "//shared/helpers",
