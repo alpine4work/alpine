@@ -268,6 +268,72 @@ Please clarify this requirement.
     });
 });
 
+test("rejects creating a comments-only document thread with unresolved state", async () => {
+    await createAndReadDocument({bodyMarkdown: "Quoted launch requirement."});
+
+    await expectInvalidCreateDisplayMessage({
+        content: `\
+Document comment thread on [Launch Spec](/document/launch-spec).
+
+- [ ] Unresolved
+
+<comment>
+
+Please clarify this requirement.
+
+</comment>`,
+        expected:
+            "`- [ ] Unresolved` can only be included on the first page of a document comment thread, right before a `<blockquote>`. Try again and remove `- [ ] Unresolved`.",
+    });
+});
+
+test("rejects creating a comments-only document thread with resolved state", async () => {
+    await createAndReadDocument({bodyMarkdown: "Quoted launch requirement."});
+
+    await expectInvalidCreateDisplayMessage({
+        content: `\
+Document comment thread on [Launch Spec](/document/launch-spec).
+
+- [x] Resolved
+
+<comment>
+
+Please clarify this requirement.
+
+</comment>`,
+        expected:
+            "`- [x] Resolved` can only be included on the first page of a document comment thread, right before a `<blockquote>`. Try again and remove `- [x] Resolved`.",
+    });
+});
+
+test.each(["- [x] Resolved", "- [x] Unresolved"])(
+    "rejects creating a resolved document thread with %s",
+    async resolvedState => {
+        await createAndReadDocument({bodyMarkdown: "Quoted launch requirement."});
+
+        await expectInvalidCreateDisplayMessage({
+            content: `\
+Document comment thread on [Launch Spec](/document/launch-spec).
+
+${resolvedState}
+
+<blockquote>
+
+Quoted launch requirement.
+
+</blockquote>
+
+<comment>
+
+Please clarify this requirement.
+
+</comment>`,
+            expected:
+                "You can\u2019t create a document comment thread as resolved. New document comment threads must start unresolved. Try again with `- [ ] Unresolved` or remove `- [x] Resolved` entirely.",
+        });
+    },
+);
+
 test("rejects creating a document thread with a next page link", async () => {
     await createAndReadDocument({bodyMarkdown: "Quoted launch requirement."});
 
@@ -347,9 +413,10 @@ Please clarify this requirement.
 </comment>`,
         expected:
             "Couldn\u2019t find the quoted content in `<blockquote>` in `/document/launch-spec`. " +
-            "To create a document comment thread you must  exactly recreate the content you\u2019re commenting on in `<blockquote>` so we can find the corresponding range in the document. " +
-            "Your content in `<blockquote>` must be valid markdown. Formatting is flexible when matching content so `**needle**` will match `**foo needle bar**` and `- needle` will match `- foo needle bar` because `**needle**` and `- needle` correctly match the word \u201cneedle\u201d and have the right formatting. " +
+            "To create a document comment thread you must exactly recreate the content you\u2019re commenting on in `<blockquote>` so we can find the corresponding range in the document. " +
+            "Formatting is flexible when matching content so `**needle**` will match `**foo needle bar**` and `- needle` will match `- foo needle bar` because `**needle**` and `- needle` correctly match the word \u201cneedle\u201d and have the right formatting. " +
             "Simply `needle` without formatting will also match `**foo needle bar**` and `- foo needle bar` however `_needle_` will match neither because it has incorrect formatting. " +
+            "Your content in `<blockquote>` must be valid markdown so `**foo needle` won\u2019t match `**foo needle bar**` because the formatting (`**`) is unterminated, either `**foo needle**` or `foo needle` (without formatting) will match. " +
             "Try again but make sure to exactly copy the content you want to comment in `/document/launch-spec` into a `<blockquote>`.",
     });
 });
@@ -531,6 +598,32 @@ test("throws UnimplementedError after a valid document thread create reaches cre
             type: "document-thread",
             content: `\
 Document comment thread on [Launch Spec](/document/launch-spec).
+
+<blockquote>
+
+Quoted launch requirement.
+
+</blockquote>
+
+<comment>
+
+Please clarify this requirement.
+
+</comment>`,
+        }),
+    ).rejects.toThrow(UnimplementedError);
+});
+
+test("throws UnimplementedError after a valid document thread create with explicit unresolved state reaches creation", async () => {
+    await createAndReadDocument({bodyMarkdown: "Quoted launch requirement."});
+
+    await expect(
+        callAgentWebCreateTool(context, {
+            type: "document-thread",
+            content: `\
+Document comment thread on [Launch Spec](/document/launch-spec).
+
+- [ ] Unresolved
 
 <blockquote>
 
