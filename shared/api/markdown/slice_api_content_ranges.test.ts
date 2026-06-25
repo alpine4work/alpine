@@ -1,15 +1,10 @@
-/* eslint-disable cyberworlds/string-quotes */
-
 import {ApiContentKeyEncoder} from "~/shared/api/content/api_content_key_encoder.js";
 import {fromApiContent} from "~/shared/api/content/from_api_content.js";
 import {intoApiContent} from "~/shared/api/content/into_api_content.js";
 import {parseApiContentFromMarkdown} from "~/shared/api/markdown/parse_api_content_from_markdown.js";
 import {printApiContentToMarkdown} from "~/shared/api/markdown/print_api_content_to_markdown.js";
 import {sliceApiContentRange} from "~/shared/api/markdown/slice_api_content_range.js";
-import {
-    ApiContentPosition,
-    ApiContentRange,
-} from "~/shared/api/specification/types/api_content_position.js";
+import {ApiContentPosition} from "~/shared/api/specification/types/api_content_position.js";
 import {DocumentContentProsemirrorSchema} from "~/shared/documents/document_content_schema.js";
 import {mapResult} from "~/shared/helpers/control/map_result.js";
 import {CommitBlocker} from "~/shared/helpers/types/commit_blocker.js";

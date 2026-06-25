@@ -1,8 +1,3 @@
-// IMPORTANT: Tests for this file live in
-// `shared/api/content/find_api_content_ranges.test.ts`. So they can depend on our
-// internal content format to API content format conversion code (and importantly
-// `ApiContentKeyEncoder`).
-
 import {normalizeApiContentInlineElementMarks} from "~/shared/api/markdown/normalize_api_content.js";
 import {printApiReferenceKey} from "~/shared/api/specification/api_reference_key.js";
 import {ApiContentKey} from "~/shared/api/specification/types/api_content_key.js";
