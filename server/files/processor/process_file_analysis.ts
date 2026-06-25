@@ -77,7 +77,7 @@ export type FileContentTypeSupportedForAnalysis =
     | FileImageContentType
     | FileVideoContentType;
 
-const fileProcessTagsLanguageModel: SupportedBedrockModel = "google.gemma-3-12b-it";
+const fileProcessTagsLanguageModel: SupportedBedrockModel = "google.gemma-3-4b-it";
 const fileProcessTagsModelCacheDirectoryName = ".cache/cyberworlds/models";
 
 const fileProcessTagsTimeoutMs = 1000 * 60 * 5;

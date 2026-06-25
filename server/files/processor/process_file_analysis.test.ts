@@ -146,7 +146,7 @@ test("returns analysis for supported image files", async () => {
     );
     expect(generateObject).toHaveBeenCalledWith(
         expect.objectContaining({
-            model: "google.gemma-3-12b-it",
+            model: "google.gemma-3-4b-it",
             messages: [
                 expect.objectContaining({
                     role: "user",
