@@ -3380,16 +3380,7 @@ components:
         DocumentThread:
             type: object
             required:
-                [
-                    id,
-                    document,
-                    createdTime,
-                    createdTimeZone,
-                    isResolved,
-                    commentCount,
-                    firstCommentAuthor,
-                    documentContentSnippet,
-                ]
+                [id, document, isResolved, totalMessageCount, firstMessage, documentContentSnippet]
             additionalProperties: false
             properties:
                 id:
@@ -3406,17 +3397,21 @@ components:
                             properties:
                                 title:
                                     type: string
-                createdTime:
-                    $ref: "#/components/schemas/DateTime"
-                createdTimeZone:
-                    $ref: "#/components/schemas/TimeZone"
                 isResolved:
                     type: boolean
-                commentCount:
+                totalMessageCount:
                     type: integer
                     minimum: 0
-                firstCommentAuthor:
-                    $ref: "#/components/schemas/Account"
+                firstMessage:
+                    type: object
+                    required: [author, createdTime, createdTimeZone]
+                    properties:
+                        author:
+                            $ref: "#/components/schemas/Account"
+                        createdTime:
+                            $ref: "#/components/schemas/DateTime"
+                        createdTimeZone:
+                            $ref: "#/components/schemas/TimeZone"
                 documentContentSnippet:
                     $ref: "#/components/schemas/Content"
 

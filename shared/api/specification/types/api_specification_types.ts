@@ -3488,11 +3488,13 @@ export namespace ApiSpecification {
                         readonly title: string;
                     };
                 };
-                readonly createdTime: components["schemas"]["DateTime"];
-                readonly createdTimeZone: components["schemas"]["TimeZone"];
                 readonly isResolved: boolean;
-                readonly commentCount: number;
-                readonly firstCommentAuthor: components["schemas"]["Account"];
+                readonly totalMessageCount: number;
+                readonly firstMessage: {
+                    readonly author: components["schemas"]["Account"];
+                    readonly createdTime: components["schemas"]["DateTime"];
+                    readonly createdTimeZone: components["schemas"]["TimeZone"];
+                };
                 readonly documentContentSnippet: components["schemas"]["Content"];
             };
             readonly ChannelPreview: {
@@ -4376,11 +4378,13 @@ export namespace ApiSpecification {
                         readonly title: string;
                     };
                 };
-                readonly createdTime: components["schemas"]["DateTime"];
-                readonly createdTimeZone: components["schemas"]["TimeZone"];
                 readonly isResolved: boolean;
-                readonly commentCount: number;
-                readonly firstCommentAuthor: components["schemas"]["Account"];
+                readonly totalMessageCount: number;
+                readonly firstMessage: {
+                    readonly author: components["schemas"]["Account"];
+                    readonly createdTime: components["schemas"]["DateTime"];
+                    readonly createdTimeZone: components["schemas"]["TimeZone"];
+                };
                 readonly documentContentSnippet: components["schemas"]["Content_Response"];
             };
             readonly Channel_Response: {
