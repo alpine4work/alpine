@@ -27,6 +27,8 @@ import {
     ApiMessageStreamContentPartPayloadResponse,
     ApiMessageStreamPartPayload,
 } from "~/shared/api/specification/types/api_specification_convenience_types.js";
+import {InvalidArgumentError} from "~/shared/error/error.js";
+import {errorDisplayMessage} from "~/shared/error/error_display_message.js";
 import {emptyArray} from "~/shared/helpers/array/empty_array.js";
 import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
 import {assert} from "~/shared/helpers/control/assert.js";
@@ -719,7 +721,14 @@ async function traverseMarkdownHtmlNode(
                                     `${documentId}-${number}`,
                                 );
 
-                            if (commentThreadId === undefined) return null;
+                            if (commentThreadId === undefined) {
+                                throw new InvalidArgumentError(
+                                    "Document comment thread number not found",
+                                    {
+                                        displayMessage: errorDisplayMessage`Can only create a new comment thread by using the \`create\` tool with type \`document-thread\`. Can\u2019t create a new comment by adding \`<comment id="${number}">\` to the document. Try again by calling the \`create\` tool with a \`type\` of \`document-thread\` and a \`<blockquote>\` containing the exact content you want to leave a comment on (an \`id\` for the comment thread will be assigned automatically).`,
+                                    },
+                                );
+                            }
 
                             return escapeHtml(commentThreadId);
                         })(),

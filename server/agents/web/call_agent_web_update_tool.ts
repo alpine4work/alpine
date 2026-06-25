@@ -267,9 +267,6 @@ async function updateAgentWebPageLink(
     newResponse: Root,
 ): Promise<AgentWebPageMetadata> {
     switch (oldPageMetadata.type) {
-        // NOCOMMIT: If you try updating or creating a document with a new `<comment>` we
-        // should error and tell you to use the `create` tool for a document comment thread
-        // instead.
         case "Document": {
             const newPage = await parseAgentWebDocumentPage(
                 context.storage,
