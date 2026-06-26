@@ -1289,6 +1289,19 @@ export function addContentFilePreviewBehaviorBase(
     const handlePointerDown = (event: PointerEvent) => {
         assert(!isInert);
 
+        if (
+            event.target instanceof Element &&
+            event.target.closest(`.${contentStyles.fileDebugWidgetClassName}`)
+        ) {
+            isPointerDownAndOver = false;
+            element.classList.remove(contentStyles.pressedFileClassName);
+            element.classList.remove(contentStyles.longPressedFileClassName);
+            longPressTimeout?.clear();
+            longPressTimeout = null;
+            isLongPress = false;
+            return;
+        }
+
         const wasEventPreviouslyDefaultPrevented = event.defaultPrevented;
 
         const isOpenLinkInSeparateTabEvent = isOpenLinkInSeparateTabPointerEvent(
@@ -1414,6 +1427,14 @@ export function addContentFilePreviewBehaviorBase(
 
     const handleDragStart = (event: DragEvent) => {
         assert(!isInert);
+
+        if (
+            event.target instanceof Element &&
+            event.target.closest(`.${contentStyles.fileDebugWidgetClassName}`)
+        ) {
+            resetPointerState();
+            return;
+        }
 
         // Don't allow dragging with the web drag API on mobile.
         if (getPlatformWithoutListening() === "mobile") {

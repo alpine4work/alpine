@@ -1418,6 +1418,8 @@ export const fileDebugWidgetOverlayClassName = style({
     color: colorSchemeVars["grey-80"],
     boxShadow: elevationVars["elevation-20"],
     pointerEvents: "auto",
+    userSelect: "text",
+    cursor: "text",
     opacity: 0,
     visibility: "hidden",
     transition: "opacity 100ms ease-in-out, visibility 100ms ease-in-out",
@@ -1436,6 +1438,18 @@ globalStyle(`${fileClassName}:has(${fileDebugWidgetClassName}:hover)`, {
     overflow: "visible",
     zIndex: "1000",
 });
+
+// Hacky, but this only affects the media debug widget. The widget is never shown
+// to users, and elevating the row/float keeps nearby comments, posts, and
+// reactions from rendering over the debug overlay.
+globalStyle(
+    `:is(${fileRowLikeClassName}, ${fileFloatClassName}):has(${fileDebugWidgetClassName}:hover)`,
+    {
+        overflow: "visible",
+        position: "relative",
+        zIndex: "1000",
+    },
+);
 
 export const fileImageViewerClassName = style({
     selectors: {
