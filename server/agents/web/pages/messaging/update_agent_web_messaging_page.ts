@@ -6,18 +6,26 @@ import {
     AgentWebMessagingPage,
     AgentWebMessagingPageBlock,
     AgentWebMessagingPageCustomBlockBase,
+    AgentWebMessagingPageMessageRange,
     AgentWebMessagingPageMetadata,
+    AgentWebMessagingPageMetadataMessage,
     AgentWebMessagingPageNouns,
     AgentWebMessagingPagePagination,
 } from "~/server/agents/web/pages/messaging/agent_web_messaging_page.js";
 import {printAgentWebMessagingPageMessageIndexRange} from "~/server/agents/web/pages/messaging/print_agent_web_messaging_page.js";
+import {findApiContentRanges} from "~/shared/api/content/find_api_content_ranges.js";
 import {
     normalizeApiContent,
     normalizeApiReference,
 } from "~/shared/api/content/normalize_api_content.js";
 import {printMarkdownTree} from "~/shared/api/content/print_api_content_to_markdown.js";
-import {unzipKeysFromApiContentResponse} from "~/shared/api/content/zip_or_unzip_keys_from_api_content_response.js";
+import {
+    parseTemporaryApiContentKey,
+    unsafelyZipTemporaryKeysIntoApiContentResponse,
+    unzipKeysFromApiContentResponse,
+} from "~/shared/api/content/zip_or_unzip_keys_from_api_content_response.js";
 import {ApiContentKey} from "~/shared/api/specification/types/api_content_key.js";
+import {ApiContentRange} from "~/shared/api/specification/types/api_content_position.js";
 import {ApiMessageRoomReference} from "~/shared/api/specification/types/api_specification_convenience_types.js";
 import {
     FailedPreconditionError,
@@ -28,6 +36,7 @@ import {
 import {errorDisplayMessage} from "~/shared/error/error_display_message.js";
 import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
 import {assert} from "~/shared/helpers/control/assert.js";
+import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 import {isDeepEqual} from "~/shared/helpers/control/is_deep_equal.js";
 import {unwrapMaybeThunk} from "~/shared/helpers/control/unwrap_maybe_thunk.js";
 import {reverseIterable} from "~/shared/helpers/iterable/reverse_iterable.js";
@@ -350,15 +359,120 @@ export async function updateAgentWebMessagingPage<
             });
         }
 
-        createThunks.push(async () => {
-            // NOCOMMIT: Implement replying to text in a message
-            if (newBlock.parent) {
-                // TODO(#agents-web): Implement creating message with parent. There's a range of
-                // options for how we can do this. From only allowing full message replies to
-                // figuring out the exact range of text the agent is replying to. Going to leave
-                // this unimplemented for now.
+        let newBlockParentRange: {
+            messageRange: AgentWebMessagingPageMessageRange;
+            contentRange: ApiContentRange;
+        } | null = null;
+
+        // If this new message has a `<blockquote>` parent, then find the corresponding
+        // text in our message page. We use temporary `ApiContentKey`s which we can convert
+        // into proper `ApiContentKey`s in `createThunk`.
+        if (newBlock.parent) {
+            const ranges: Array<{
+                messageRange: AgentWebMessagingPageMessageRange;
+                contentRange: ApiContentRange;
+            }> = [];
+
+            for (let otherIndex = 0; otherIndex < index; otherIndex++) {
+                const otherNewBlock = newPage.blocks[otherIndex]!;
+                if (otherNewBlock.type !== "Message") continue;
+
+                // Ignore messages not authored by the account declared in the `<blockquote cite>`
+                // attribute.
+                //
+                // NOCOMMIT: Make sure we can quote previous created messages without `from`.
+                if (
+                    (otherNewBlock.author?.id ?? context.botAccount.id) !==
+                    newBlock.parent.author.id
+                ) {
+                    continue;
+                }
+
+                // NOCOMMIT: What about deleted messages??
+                const {content: otherContent} = unsafelyZipTemporaryKeysIntoApiContentResponse(
+                    otherNewBlock.content,
+                );
+
+                for (const range of findApiContentRanges(
+                    otherContent,
+                    newBlock.parent.previewContent,
+                )) {
+                    ranges.push({
+                        // NOCOMMIT: Test replying to content within message block
+                        messageRange: otherNewBlock.idAttribute ?? {
+                            // NOCOMMIT: Add test for this default fallback
+                            startMessageIndex: lastMessageIndex + (otherIndex - commonBlocksLength),
+                            endMessageIndex:
+                                lastMessageIndex + (otherIndex - commonBlocksLength) + 1,
+                        },
+                        contentRange: range,
+                    });
+                }
+            }
+
+            // NOCOMMIT: Include a link to a skill with more information about content
+            // matching.
+            if (ranges.length === 0) {
+                throw new InvalidArgumentError("Quoted message content not found", {
+                    displayMessage: errorDisplayMessage`Couldn\u2019t find the quoted content in \`<blockquote>\` in the current ${messageNouns.noun} page. To create a ${messageNouns.noun} that replies to another ${messageNouns.noun} you must exactly recreate the content you\u2019re repluing to in \`<blockquote>\` so we can find the corresponding range in the ${messageNouns.pluralNoun} on this page. If you\u2019re trying to quote a message that\u2019s not on this page then call the \`read\` tool with a larger \`limit\` so that the ${messageNouns.noun} you\u2019re replying to is on the same page you need to call the \`update\` tool on to create your ${messageNouns.noun}. Formatting is flexible when matching content so \`**needle**\` will match \`**foo needle bar**\` and \`- needle\` will match \`- foo needle bar\` because \`**needle**\` and \`- needle\` correctly match the word \u201Cneedle\u201D and have the right formatting. Simply \`needle\` without formatting will also match \`**foo needle bar**\` and \`- foo needle bar\` however \`_needle_\` will match neither because it has incorrect formatting. Your content in \`<blockquote>\` must be valid markdown so \`**foo needle\` won\u2019t match \`**foo needle bar**\` because the formatting (\`**\`) is unterminated, either \`**foo needle**\` or \`foo needle\` (without formatting) will match. Try again but make sure to exactly copy the content you want to reply to in the current ${messageNouns.noun} page into a \`<blockquote>\`.`,
+                });
+            }
+
+            // NOCOMMIT: If there's more than one match we need a way for the agent to specify
+            // which instance of the content it wants.
+            if (ranges.length > 1) {
+                throw new InvalidArgumentError("Quoted message content found more than once", {
+                    displayMessage: errorDisplayMessage`${ranges.length} matches were found for the quoted content in \`<blockquote>\` in the current ${messageNouns.noun} page. Try again but provide more surrounding context to make your match unique.`,
+                });
+            }
+
+            newBlockParentRange = ranges[0]!;
+        }
+
+        createThunks.push(async newPageMetadata => {
+            // If we've found a parent range then we found it with temporary keys. So now that
+            // we've actually need to create the message and so have the page metadata with
+            // actual keys, convert our temporary keys to actual keys.
+            if (newBlockParentRange) {
+                const keys: Array<ApiContentKey> = [];
+
+                for (const newMessageMetadata of newPageMetadata.messages) {
+                    if (
+                        newBlockParentRange.messageRange.startMessageIndex <=
+                            newMessageMetadata.index &&
+                        newMessageMetadata.index < newBlockParentRange.messageRange.endMessageIndex
+                    ) {
+                        for (const key of newMessageMetadata.keys) {
+                            keys.push(key);
+                        }
+                    }
+                }
+
+                const startKeyIndex = parseTemporaryApiContentKey(
+                    newBlockParentRange.contentRange.start.key,
+                );
+                const endKeyIndex = parseTemporaryApiContentKey(
+                    newBlockParentRange.contentRange.end.key,
+                );
+
+                const startKey = assertExists(keys[startKeyIndex]);
+                const endKey = assertExists(keys[endKeyIndex]);
+
+                const range: ApiContentRange = {
+                    start: {...newBlockParentRange.contentRange.start, key: startKey},
+                    end: {...newBlockParentRange.contentRange.end, key: endKey},
+                };
+
+                // TODO(#agents-web): Implement creating message with parent range.
                 throw new UnimplementedError(
                     "Creating message with parent as agent isn\u2019t implemented yet",
+                    {
+                        cause: {
+                            startMessageIndex: newBlockParentRange.messageRange.startMessageIndex,
+                            endMessageIndex: newBlockParentRange.messageRange.endMessageIndex,
+                            range,
+                        },
+                    },
                 );
             }
 
@@ -422,13 +536,19 @@ export async function updateAgentWebMessagingPage<
 
     const updatedMessages = await runAllPromises(updateThunks.map(updateThunk => updateThunk()));
 
-            for (const createThunk of createThunks) {
-                newMessages.push(await createThunk());
-            }
+    for (const updatedMessage of updatedMessages) {
+        if (updatedMessage === null) continue;
 
-            return newMessages;
-        })(),
-    ]);
+        const updatedMessageMetadataIndex = newPageMetadata.messages.findIndex(
+            messageMetadata => messageMetadata.index === updatedMessage.index,
+        );
+        assert(updatedMessageMetadataIndex !== -1);
+
+        const messages = [...newPageMetadata.messages];
+        messages[updatedMessageMetadataIndex] = updatedMessage;
+
+        newPageMetadata = {...newPageMetadata, messages};
+    }
 
     const newMessageIndexes: Array<number> = [];
 
@@ -461,9 +581,5 @@ export async function updateAgentWebMessagingPage<
         );
     }
 
-    return {
-        isStartOfMessages: actualOldPageMetadata.isStartOfMessages,
-        isEndOfMessages: actualOldPageMetadata.isEndOfMessages || newPage.isEndOfMessages,
-        messages: [...actualOldPageMetadata.messages, ...newMessages],
-    };
+    return newPageMetadata;
 }
