@@ -256,7 +256,8 @@ export async function parseAgentWebTaskPage(
         }
     }
 
-    // NOCOMMIT: Reject additional h1s in `<notes>` like `agent_web_document_page.ts`
+    // NOCOMMIT: Reject additional h1s or h2s in `## Notes` like
+    // `agent_web_document_page.ts`
 
     let page: AgentWebTaskPage = {
         type: "Task",
@@ -275,9 +276,86 @@ export async function parseAgentWebTaskPage(
             displayMessage: errorDisplayMessage`Unexpected markdown on line ${root.children[0]!.position?.start.line ?? "unknown"}. Try again with either fields (an unordered list with items like \`- Priority: Medium\`) or notes (markdown after the h2 \`## Notes\`) after the task title.`,
         });
     }
-            throw new InvalidArgumentError("Unknown task field", {
-                displayMessage: errorDisplayMessage`Unknown task field \u201C${field.label}\u201D on line ${item.position?.start.line ?? "unknown"}. Try again with one of \u201CStatus\u201D, \u201CAssignee\u201D, \u201CCollections\u201D, \u201CPriority\u201D, or \u201CDue date\u201D.`,
-            });
+
+    if (root.children.length > 1) {
+        throw new InvalidArgumentError("Expected task fields", {
+            displayMessage: errorDisplayMessage`Unexpected markdown on line ${root.children[1]!.position?.start.line ?? "unknown"}. Try again with only allowed sections like fields (an unordered list with items like \`- Priority: Medium\`) or notes (markdown after the h2 \`## Notes\`).`,
+        });
+    }
+
+    const seenFields = new Set<string>();
+
+    for (const item of root.children[0].children) {
+        const {label, value} = parseAgentWebTaskPageField(item);
+
+        let labelKey = normalizeAgentWebStaticText(label);
+        if (labelKey === "due-date") labelKey = "due";
+
+        if (seenFields.has(labelKey)) {
             throw new InvalidArgumentError("Duplicate task field", {
-                displayMessage: errorDisplayMessage`Duplicate task field \u201C${field.label}\u201D on line ${item.position?.start.line ?? "unknown"}. Try again with each task field only present once in the field list.`,
+                displayMessage: errorDisplayMessage`Duplicate task field \u201C${label}\u201D on line ${item.position?.start.line ?? "unknown"}. Try again with each task field only present once in the unordered field list.`,
+            });
+        }
+
+        seenFields.add(labelKey);
+
+        switch (labelKey) {
+            case "statu": {
+                page = {...page, status: parseAgentWebTaskStatus(field)};
+                break;
+            }
+            case "assigne": {
+                page = {...page, assignee: await parseTaskAssigneeField(storage, field)};
+                break;
+            }
+            case "collect": {
+                page = {...page, collections: await parseTaskCollectionsField(storage, field)};
+                break;
+            }
+            case "prioriti": {
+                page = {...page, priority: parseTaskPriority(field)};
+                break;
+            }
+            case "due": {
+                page = {...page, due: parseTaskDue(field)};
+                break;
+            }
+            default: {
+                throw new InvalidArgumentError("Unknown task field", {
+                    displayMessage: errorDisplayMessage`Unknown task field \u201C${label}\u201D on line ${item.position?.start.line ?? "unknown"}. Try again with one of \u201CStatus\u201D, \u201CAssignee\u201D, \u201CCollections\u201D, \u201CPriority\u201D, or \u201CDue date\u201D.`,
+                });
+            }
+        }
+    }
+
+    return page;
+}
+
+function parseAgentWebTaskPageField(item: ListItem) {
+    const firstChild = item.children[0];
+
+    const createError = () => {
+        return new InvalidArgumentError("Invalid task fields", {
+            displayMessage: errorDisplayMessage`Unexpected markdown on line ${firstChild?.position?.start.line ?? item.position?.start.line ?? "unknown"}. Task fields must be unordered list items with the field name followed by the field value with a colon in between (e.g. \`- Priority: Medium\`).`,
+        });
+    };
+
+    if (firstChild?.type !== "paragraph") throw createError();
+
+    const firstParagraphChild = firstChild.children[0];
+    if (firstParagraphChild?.type !== "text") throw createError();
+
+    const match = firstParagraphChild.value.match(/^([A-Za-z ]*):[ \t]*/);
+    if (!match) throw createError();
+
+    const label = match[1]!;
+
+    const rest = firstParagraphChild.value.slice(match[0].length);
+    const value: Array<PhrasingContent> = [];
+
+    if (rest.length > 0) value.push({type: "text", value: rest});
+    for (const child of firstChild.children.slice(1)) value.push(child);
+
+    return {label, value};
+}
             });

@@ -17,6 +17,7 @@ import {gfmTableToMarkdown} from "mdast-util-gfm-table";
 import {gfmTaskListItemToMarkdown} from "mdast-util-gfm-task-list-item";
 import {mathToMarkdown} from "mdast-util-math";
 import {toMarkdown} from "mdast-util-to-markdown";
+import {stemmer} from "stemmer";
 import {assertApiChecklistBlockElementItem} from "~/shared/api/content/assert_api_checklist_block_element_item.js";
 import {getApiMentionReferenceNoun} from "~/shared/api/content/get_api_mention_reference_noun.js";
 import {normalizeApiContentInlineElementMarks} from "~/shared/api/content/normalize_api_content.js";
@@ -1491,14 +1492,18 @@ export function printApiMentionReferenceToMentionLinkLabel(
     {isAccountShortName = false}: {isAccountShortName?: boolean} = {},
 ): string {
     if (reference.type === "Account" && isAccountShortName && reference.shortName !== undefined) {
-        return reference.shortName;
+        const trimmedShortName = reference.shortName.trim();
+        if (trimmedShortName.length > 0) return trimmedShortName;
     }
 
+    const trimmedTitle = reference.title?.trim();
+
     const title =
-        reference.title ??
-        (reference.type === "Account"
-            ? "Unknown"
-            : `Unknown ${getApiMentionReferenceNoun(reference.type)}`);
+        trimmedTitle !== undefined && trimmedTitle.length > 0
+            ? trimmedTitle
+            : reference.type === "Account"
+              ? "Unknown"
+              : `Unknown ${getApiMentionReferenceNoun(reference.type)}`;
 
     return title;
 }
