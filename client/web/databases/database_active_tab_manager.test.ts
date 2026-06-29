@@ -10,7 +10,7 @@ import {
     type ActiveTabWorkerHandle,
     DatabaseActiveTabManager,
     type DatabaseActiveTabRealtimeConnection,
-    type DatabaseActiveTabRealtimeConnectionFactoryOptions,
+    type DatabaseActiveTabRealtimeConnectionOptions,
     DatabaseActiveTabServiceWorker,
     DatabaseActiveTabWorker,
     type DatabaseWorkerConnection,
@@ -289,7 +289,7 @@ class MockServiceWorkerBridge {
 function createMockWorker(
     dir: OpfsDirectoryHandle,
     createRealtimeConnection: (
-        options: DatabaseActiveTabRealtimeConnectionFactoryOptions,
+        options: DatabaseActiveTabRealtimeConnectionOptions,
     ) => DatabaseActiveTabRealtimeConnection,
 ): {
     handle: ActiveTabWorkerHandle;
@@ -776,11 +776,14 @@ describe("DatabaseActiveTabManager mutations", () => {
             "CREATE TABLE t (id INTEGER PRIMARY KEY, done INTEGER DEFAULT 0)",
         );
         await tabA.worker.commitOptimisticPagesForTests(testDatabaseGroupId);
-        await tabA.worker.executeLocallyForTests(testDatabaseGroupId, "INSERT INTO t (id) VALUES (1)");
+        await tabA.worker.executeLocallyForTests(
+            testDatabaseGroupId,
+            "INSERT INTO t (id) VALUES (1)",
+        );
         await tabA.worker.commitOptimisticPagesForTests(testDatabaseGroupId);
 
-        // Tab B — follower. Its calls are proxied to the leader worker, so it does not
-        // get a separate server route.
+        // Tab B — follower. Its calls are proxied to the leader worker, so it does not get
+        // a separate server route.
         const {manager: managerB} = createTestTab({locks, sw, bc, clientId: "tab-b", dir});
         const connB = await managerB.connect();
 

@@ -31,10 +31,7 @@ import {unsynchronizedSystemClock} from "~/shared/helpers/clock/unsynchronized_s
 import {assert} from "~/shared/helpers/control/assert.js";
 import type {Result} from "~/shared/helpers/control/result.js";
 import {generateId} from "~/shared/id/id.js";
-import type {
-    DatabaseGroupId,
-    DatabaseReactiveActionId,
-} from "~/shared/id/types/id_types.js";
+import type {DatabaseGroupId, DatabaseReactiveActionId} from "~/shared/id/types/id_types.js";
 import type {SchemaType} from "~/shared/schema/schema.js";
 import type {Store} from "~/shared/store/store.js";
 import {ValueStore} from "~/shared/store/value_store.js";
@@ -100,7 +97,7 @@ export interface DatabaseActiveTabRealtimeConnection extends DatabaseClientConne
     close(): void;
 }
 
-export interface DatabaseActiveTabRealtimeConnectionFactoryOptions {
+export interface DatabaseActiveTabRealtimeConnectionOptions {
     databaseGroupId: DatabaseGroupId;
     webSocketUrl: string;
     handleEvent(event: DatabaseRealtimeEvent): void;
@@ -238,7 +235,7 @@ export class DatabaseActiveTabWorker {
         private readonly dir: OpfsDirectoryHandle,
         private readonly deps: {
             createRealtimeConnection(
-                options: DatabaseActiveTabRealtimeConnectionFactoryOptions,
+                options: DatabaseActiveTabRealtimeConnectionOptions,
             ): DatabaseActiveTabRealtimeConnection;
         } = {createRealtimeConnection: createDatabaseActiveTabRealtimeConnection},
     ) {}
@@ -514,7 +511,7 @@ export class DatabaseActiveTabWorker {
 }
 
 function createDatabaseActiveTabRealtimeConnection(
-    options: DatabaseActiveTabRealtimeConnectionFactoryOptions,
+    options: DatabaseActiveTabRealtimeConnectionOptions,
 ): DatabaseActiveTabRealtimeConnection {
     const tracer = TracerRoot.new({
         serviceName: "AppClient",
