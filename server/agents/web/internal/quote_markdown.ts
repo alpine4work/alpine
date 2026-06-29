@@ -5,7 +5,7 @@ import {printMarkdownPhrasingContentText} from "~/server/agents/web/print_markdo
  * Quote some Markdown. We typically use this in `errorDisplayMessage` to quote
  * some Markdown written by an agent.
  */
-export function quoteMarkdown(markdown: Array<PhrasingContent>) {
+export function quoteMarkdown(markdown: ReadonlyArray<PhrasingContent>) {
     let markdownString = printMarkdownPhrasingContentText(markdown);
 
     if (markdownString.length > 50) {
