@@ -1,3 +1,5 @@
+import {useMemo} from "react";
+
 import type {DatabaseGridViewFieldEditing} from "~/client/web/databases/use_grid_view_fields.js";
 import {useReactiveDatabaseAction} from "~/client/web/databases/use_reactive_database_action.js";
 import {Box} from "~/client/web/design/box.js";
@@ -8,9 +10,10 @@ export function DatabaseRelationFieldCreationOptions({
     editing: DatabaseGridViewFieldEditing;
 }) {
     const relationOptions = editing.relationOptions;
+    const tablesInput = useMemo(() => ({}), []);
     const tablesResult = useReactiveDatabaseAction({
         name: "listTables",
-        input: {},
+        input: tablesInput,
     });
 
     if (relationOptions == null) return null;

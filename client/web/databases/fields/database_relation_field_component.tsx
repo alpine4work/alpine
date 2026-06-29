@@ -1,7 +1,7 @@
 /* eslint-disable react-refresh/only-export-components -- provider pattern */
 
 import {LinkSimple, Plus, X} from "phosphor-react";
-import {startTransition, useEffect} from "react";
+import {startTransition, useEffect, useMemo} from "react";
 
 import {useDatabaseConnection} from "~/client/web/databases/database_connection_context.js";
 import {
@@ -56,9 +56,10 @@ function DatabaseRelationGridViewCellEditorOverlay({
 }: DatabaseGridViewCellEditorOverlayProps<"relation">) {
     const conn = useDatabaseConnection();
     const reporter = useReporter();
+    const linkableRowsInput = useMemo(() => ({tableId, fieldId, rowId}), [tableId, fieldId, rowId]);
     const linkableRowsResult = useReactiveDatabaseAction({
         name: "listLinkableRows",
-        input: {tableId, fieldId, rowId},
+        input: linkableRowsInput,
     });
     const links = Array.isArray(initialValue) ? initialValue : [];
 
