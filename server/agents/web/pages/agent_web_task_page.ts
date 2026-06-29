@@ -112,7 +112,12 @@ export async function printAgentWebTaskPage(
             children: [
                 {
                     type: "paragraph",
-                    children: [{type: "text", value: `Status: ${printTaskStatus(page.status)}`}],
+                    children: [
+                        {
+                            type: "text",
+                            value: `Status: ${page.status.type === "Open" ? (page.status.isActive ? "Open (Active)" : "Open") : "Closed"}`,
+                        },
+                    ],
                 },
             ],
         },
@@ -293,7 +298,7 @@ export async function parseAgentWebTaskPage(
 
         if (seenFields.has(labelKey)) {
             throw new InvalidArgumentError("Duplicate task field", {
-                displayMessage: errorDisplayMessage`Duplicate task field \u201C${label}\u201D on line ${item.position?.start.line ?? "unknown"}. Try again with each task field only present once in the unordered field list.`,
+                displayMessage: errorDisplayMessage`Duplicate task field \u201C${label}\u201D on line ${item.position?.start.line ?? "unknown"}. Try again with each task field only present once in the field list.`,
             });
         }
 
@@ -301,28 +306,31 @@ export async function parseAgentWebTaskPage(
 
         switch (labelKey) {
             case "statu": {
-                page = {...page, status: parseAgentWebTaskStatus(field)};
+                page = {...page, status: parseAgentWebTaskPageStatus(item.position, value)};
                 break;
             }
             case "assigne": {
-                page = {...page, assignee: await parseTaskAssigneeField(storage, field)};
+                page = {...page, assignee: await parseAgentWebTaskPageAssignee(storage, field)};
                 break;
             }
             case "collect": {
-                page = {...page, collections: await parseTaskCollectionsField(storage, field)};
+                page = {
+                    ...page,
+                    collections: await parseAgentWebTaskPageCollections(storage, field),
+                };
                 break;
             }
             case "prioriti": {
-                page = {...page, priority: parseTaskPriority(field)};
+                page = {...page, priority: parseAgentWebTaskPagePriority(field)};
                 break;
             }
             case "due": {
-                page = {...page, due: parseTaskDue(field)};
+                page = {...page, due: parseAgentWebTaskPageDue(field)};
                 break;
             }
             default: {
                 throw new InvalidArgumentError("Unknown task field", {
-                    displayMessage: errorDisplayMessage`Unknown task field \u201C${label}\u201D on line ${item.position?.start.line ?? "unknown"}. Try again with one of \u201CStatus\u201D, \u201CAssignee\u201D, \u201CCollections\u201D, \u201CPriority\u201D, or \u201CDue date\u201D.`,
+                    displayMessage: errorDisplayMessage`Unknown task field \u201C${field.label}\u201D on line ${item.position?.start.line ?? "unknown"}. Try again with one of \u201CStatus\u201D, \u201CAssignee\u201D, \u201CCollections\u201D, \u201CPriority\u201D, or \u201CDue date\u201D.`,
                 });
             }
         }
@@ -358,4 +366,25 @@ function parseAgentWebTaskPageField(item: ListItem) {
 
     return {label, value};
 }
+
+function parseAgentWebTaskPageStatus(
+    itemPosition: Node["position"],
+    value: ReadonlyArray<PhrasingContent>,
+): ApiTaskStatus {
+    switch (printMarkdownPhrasingContentText(value).trim().toLowerCase()) {
+        case "open":
+        case "open (inactive)":
+            return {type: "Open", isActive: false};
+        case "open (active)":
+            return {type: "Open", isActive: true};
+        case "closed":
+            return {type: "Closed"};
+        default: {
+            const quotedValue = quoteMarkdown(value);
+
+            throw new InvalidArgumentError("Invalid task status", {
+                displayMessage: errorDisplayMessage`Unexpected task status ${quotedValue} on line ${value[0]?.position?.start.line ?? itemPosition?.start.line ?? "unknown"}. Expected \u201COpen\u201D or \u201COpen (Active)\u201D or \u201CClosed\u201D.`,
             });
+        }
+    }
+}

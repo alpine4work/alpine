@@ -70,8 +70,11 @@ export async function updateAgentWebMessagingPage<
     },
 ): Promise<AgentWebMessagingPageMetadata> {
     const updateThunks: Array<() => Promise<void>> = [];
-    const createThunks: Array<() => Promise<{index: number; keys: ReadonlyArray<ApiContentKey>}>> =
-        [];
+    const createThunks: Array<
+        (
+            actualOldPageMetadata: AgentWebMessagingPageMetadata,
+        ) => Promise<{index: number; keys: ReadonlyArray<ApiContentKey>}>
+    > = [];
 
     // Strip response properties from the preamble before comparing for equality. We
     // don't care if `pageLink.title`s aren't equal. The `title` might have changed
