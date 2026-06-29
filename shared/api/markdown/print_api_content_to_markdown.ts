@@ -82,14 +82,6 @@ export type ApiContentMarkdownPrinterOptions = {
     readonly withSimpleCommentMarkHtml?: boolean;
 };
 
-type ApiContentInternalMarkdownPrinterOptions = ApiContentMarkdownPrinterOptions & {
-    /**
-     * Force line breaks to be printed as HTML. This is useful inside containers where
-     * markdown hard-break syntax can interact with neighboring text.
-     */
-    readonly forceBreakHtml?: boolean;
-};
-
 export {actuallyPrintApiContentToMarkdown as printApiContentToMarkdown};
 export {printApiContentToMarkdown as printApiContentToMarkdownTree};
 
@@ -184,7 +176,7 @@ function getFirstPrintableBlockElementIndex(
 
 function* printApiContentBlockElementsToMarkdown(
     elements: ReadonlyArray<ApiContentBlockElement>,
-    options: ApiContentInternalMarkdownPrinterOptions,
+    options: ApiContentMarkdownPrinterOptions,
 ): IterableIterator<BlockContent> {
     let pendingContent: BlockContent | null = null;
 
@@ -218,7 +210,7 @@ function* printApiContentBlockElementsToMarkdown(
 
 function* printApiContentBlockElementToMarkdown(
     element: ApiContentBlockElement,
-    options: ApiContentInternalMarkdownPrinterOptions,
+    options: ApiContentMarkdownPrinterOptions,
 ): IterableIterator<BlockContent> {
     switch (element.type) {
         case "Paragraph": {
@@ -893,12 +885,7 @@ function* printApiContentTableBlockElementToMarkdown(
                     // Noop. We'll be able to parse an empty table cell as containing a single empty
                     // paragraph. We don't need to add `<p></p>` too.
                 } else {
-                    yield* printApiContentBlockElementsToMarkdown(cell.elements, {
-                        ...options,
-                        // Hard-break markdown can be ambiguous when nested in raw HTML table cells. For
-                        // example, `_\\\n_` parses as italic.
-                        forceBreakHtml: true,
-                    });
+                    yield* printApiContentBlockElementsToMarkdown(cell.elements, options);
                 }
             }
 
@@ -925,7 +912,7 @@ function* printApiContentTableBlockElementToMarkdown(
 
 function printApiContentInlineElementsToMarkdown(
     elements: ReadonlyArray<ApiContentInlineElement>,
-    options: ApiContentInternalMarkdownPrinterOptions,
+    options: ApiContentMarkdownPrinterOptions & {forceBreakHtml?: boolean},
 ): Array<PhrasingContent> {
     const contents: Array<PhrasingContent> = [];
 
@@ -947,20 +934,6 @@ function printApiContentInlineElementsToMarkdown(
 
         // Ignore empty text elements.
         if (element.type === "Text" && element.text.length === 0) {
-            continue;
-        }
-
-        if (isPlainBreakBetweenMatchingAttentionMarkers(elements, index, options)) {
-            // The parser has compatibility handling for patterns like
-            // `text "_" + html + text "_"`, treating them as italic content around the HTML.
-            // Empty spans split that sequence while preserving the parsed text and break. See
-            // the "HTML table with underscores around a break" test for the regression this
-            // catches.
-            contents.push(
-                {type: "html", value: "<span></span>"},
-                {type: "html", value: "<br/>"},
-                {type: "html", value: "<span></span>"},
-            );
             continue;
         }
 
@@ -1064,68 +1037,6 @@ function printApiContentInlineElementsToMarkdown(
     }
 
     return contents;
-}
-
-/**
- * Detects a plain break that would be printed between matching Markdown attention
- * markers in a context where breaks must use HTML.
- *
- * For example, a raw HTML table cell containing `_`, a hard break, then `_` would
- * otherwise print escaped underscores around `<br/>`. By parse time, mdast
- * presents that as `text "_" + html + text "_"`. Our parser preserves support for
- * that shape as italic text around HTML, so the printer needs to disambiguate it.
- */
-function isPlainBreakBetweenMatchingAttentionMarkers(
-    elements: ReadonlyArray<ApiContentInlineElement>,
-    index: number,
-    options: ApiContentInternalMarkdownPrinterOptions,
-): boolean {
-    if (!options.forceBreakHtml) return false;
-
-    const element = elements[index];
-    if (element?.type !== "Break") return false;
-    if (normalizeApiContentInlineElementMarks(element.marks) !== undefined) return false;
-
-    const previousText = findAdjacentNonEmptyText(elements, index, -1);
-    const nextText = findAdjacentNonEmptyText(elements, index, 1);
-    if (previousText === null || nextText === null) return false;
-
-    const attentionMarkers = ["*", "**", "_", "~~"];
-    let previousMarker: string | null = null;
-    let nextMarker: string | null = null;
-
-    for (const attentionMarker of attentionMarkers) {
-        previousMarker ??= previousText.endsWith(attentionMarker) ? attentionMarker : null;
-        nextMarker ??= nextText.startsWith(attentionMarker) ? attentionMarker : null;
-    }
-
-    return previousMarker !== null && previousMarker === nextMarker;
-}
-
-/**
- * Finds the nearest non-empty text element on one side of an inline element,
- * stopping when any non-text element appears first.
- *
- * Empty text nodes are ignored because the inline printer drops them too, so they
- * cannot prevent neighboring visible text from forming a Markdown marker sequence
- * around a break.
- */
-function findAdjacentNonEmptyText(
-    elements: ReadonlyArray<ApiContentInlineElement>,
-    startIndex: number,
-    direction: -1 | 1,
-): string | null {
-    for (
-        let index = startIndex + direction;
-        index >= 0 && index < elements.length;
-        index += direction
-    ) {
-        const element = elements[index]!;
-        if (element.type !== "Text") return null;
-        if (element.text.length > 0) return element.text;
-    }
-
-    return null;
 }
 
 function mergePhrasingContent(lastContent: PhrasingContent, nextContent: PhrasingContent): boolean {
@@ -1237,7 +1148,7 @@ function mergePhrasingContent(lastContent: PhrasingContent, nextContent: Phrasin
 
 function* printApiContentInlineElementToMarkdown(
     element: ApiContentInlineElement,
-    options: ApiContentInternalMarkdownPrinterOptions,
+    options: ApiContentMarkdownPrinterOptions & {forceBreakHtml?: boolean},
 ): IterableIterator<PhrasingContent> {
     switch (element.type) {
         case "Text": {

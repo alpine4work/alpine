@@ -5265,7 +5265,8 @@ Additional info
 <tr>
 <th>
 
-\\_<span></span><br/><span></span>\\_
+\\_\\
+\\_
 
 </th>
 <th>
@@ -5363,7 +5364,8 @@ Value
 <tr>
 <th>
 
-\\*\\*<span></span><br/><span></span>\\*
+\\*\\*\\
+\\*
 
 </th>
 <th>
