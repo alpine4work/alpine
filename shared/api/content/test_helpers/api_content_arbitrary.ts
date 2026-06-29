@@ -46,7 +46,9 @@ import {
     ApiDocumentReferenceResponse,
     ApiMentionReferenceResponse,
     ApiPreviewReferenceResponse,
+    ApiTaskCollectionReferenceResponse,
     ApiTaskReferenceResponse,
+    ApiTaskStatus,
 } from "~/shared/api/specification/types/api_specification_convenience_types.js";
 import {createArrayWithLength} from "~/shared/helpers/array/create_array_with_length.js";
 import {assert} from "~/shared/helpers/control/assert.js";
@@ -133,16 +135,25 @@ export const ApiDocumentReferenceArbitrary: fc.Arbitrary<ApiDocumentReferenceRes
     title: ApiContentTextArbitrary,
 });
 
+export const ApiTaskStatusArbitrary: fc.Arbitrary<ApiTaskStatus> = fc.oneof(
+    fc.constant({type: "Open", isActive: false}),
+    fc.constant({type: "Open", isActive: true}),
+    fc.constant({type: "Closed", isActive: false}),
+);
+
 export const ApiTaskReferenceArbitrary: fc.Arbitrary<ApiTaskReferenceResponse> = fc.record({
     type: fc.constant("Task"),
     id: createIdArbitrary<TaskId>(),
     title: ApiContentTextArbitrary,
-    status: fc.oneof(
-        fc.constant({type: "Open", isActive: false}),
-        fc.constant({type: "Open", isActive: true}),
-        fc.constant({type: "Closed", isActive: false}),
-    ),
+    status: ApiTaskStatusArbitrary,
 });
+
+export const ApiTaskCollectionReferenceArbitrary: fc.Arbitrary<ApiTaskCollectionReferenceResponse> =
+    fc.record({
+        type: fc.constant("TaskCollection"),
+        id: createIdArbitrary<TaskCollectionId>(),
+        title: ApiContentTextArbitrary,
+    });
 
 const ApiPreviewReferenceArbitraries = {
     Channel: ApiChannelReferenceArbitrary,
@@ -154,11 +165,7 @@ const ApiPreviewReferenceArbitraries = {
         title: ApiContentTextArbitrary,
     }),
     Task: ApiTaskReferenceArbitrary,
-    TaskCollection: fc.record({
-        type: fc.constant("TaskCollection"),
-        id: createIdArbitrary<TaskCollectionId>(),
-        title: ApiContentTextArbitrary,
-    }),
+    TaskCollection: ApiTaskCollectionReferenceArbitrary,
     Site: fc.record({
         type: fc.constant("Site"),
         id: createIdArbitrary<SiteId>(),
