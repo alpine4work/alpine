@@ -69,11 +69,11 @@ export async function updateAgentWebMessagingPage<
         ) => {update: () => Promise<void>};
     },
 ): Promise<AgentWebMessagingPageMetadata> {
-    const updateThunks: Array<() => Promise<void>> = [];
+    const updateThunks: Array<() => Promise<AgentWebMessagingPageMetadataMessage | null>> = [];
     const createThunks: Array<
         (
-            actualOldPageMetadata: AgentWebMessagingPageMetadata,
-        ) => Promise<{index: number; keys: ReadonlyArray<ApiContentKey>}>
+            newPageMetadata: AgentWebMessagingPageMetadata,
+        ) => Promise<AgentWebMessagingPageMetadataMessage>
     > = [];
 
     // Strip response properties from the preamble before comparing for equality. We
@@ -142,7 +142,12 @@ export async function updateAgentWebMessagingPage<
 
         if (oldBlock.type === "Custom" || newBlock.type === "Custom") {
             if (oldBlock.type === "Custom" && newBlock.type === "Custom") {
-                updateThunks.push(prepareCustomBlockUpdate(oldBlock, newBlock).update);
+                const {update} = prepareCustomBlockUpdate(oldBlock, newBlock);
+
+                updateThunks.push(async () => {
+                    await update();
+                    return null;
+                });
                 continue;
             }
 
@@ -258,7 +263,8 @@ export async function updateAgentWebMessagingPage<
                     "Message delete API endpoint hasn\u2019t been implemented yet",
                 );
             } else {
-                // TODO(#agents-web): Implement message update endpoint.
+                // TODO(#agents-web): Implement message update endpoint and return the updated
+                // message's unzipped content keys.
                 throw new UnimplementedError(
                     "Message update API endpoint hasn\u2019t been implemented yet",
                 );
@@ -408,14 +414,13 @@ export async function updateAgentWebMessagingPage<
     }
 
     // Finally now that we're done validating the update, actually make all changes!
-    const [, newMessages] = await runAllPromises([
-        // Run all update thunks in parallel.
-        runAllPromises(updateThunks.map(updateThunk => updateThunk())),
+    let newPageMetadata: AgentWebMessagingPageMetadata = {
+        isStartOfMessages: actualOldPageMetadata.isStartOfMessages,
+        isEndOfMessages: actualOldPageMetadata.isEndOfMessages || newPage.isEndOfMessages,
+        messages: actualOldPageMetadata.messages,
+    };
 
-        // Update all create thunks in sequence to make sure they're added in the right
-        // order.
-        (async () => {
-            const newMessages: Array<{index: number; keys: ReadonlyArray<ApiContentKey>}> = [];
+    const updatedMessages = await runAllPromises(updateThunks.map(updateThunk => updateThunk()));
 
             for (const createThunk of createThunks) {
                 newMessages.push(await createThunk());
@@ -425,26 +430,34 @@ export async function updateAgentWebMessagingPage<
         })(),
     ]);
 
-    if (
-        !isDeepEqual(
-            newMessages.map(({index}) => index),
-            expectedNewMessageIndexes,
-        )
-    ) {
+    const newMessageIndexes: Array<number> = [];
+
+    for (const createThunk of createThunks) {
+        const newMessage = await createThunk(newPageMetadata);
+
+        newMessageIndexes.push(newMessage.index);
+
+        newPageMetadata = {
+            ...newPageMetadata,
+            messages: [...newPageMetadata.messages, newMessage],
+        };
+    }
+
+    if (!isDeepEqual(newMessageIndexes, expectedNewMessageIndexes)) {
         const actualPathname = typeof pathname === "function" ? await pathname() : await pathname;
 
         throw Object.assign(
             new FailedPreconditionError(
                 updateAgentWebMessagingPageUnexpectedNewMessageIndexesErrorMessage,
                 {
-                    displayMessage: errorDisplayMessage`Update was successful, ${newMessages.length === 1 ? `the ${messageNouns.noun} you added was` : `the ${messageNouns.pluralNoun} you added were`} created. But between the last ${messageNouns.noun} you read${lastMessageIndex > 0 ? ` (\`<${messageNouns.noun} id="${lastMessageIndex - 1}">\`)` : ""} and the ${newMessages.length === 1 ? messageNouns.noun : messageNouns.pluralNoun} you created there are some new ${messageNouns.pluralNoun} from others you haven\u2019t seen. These new ${messageNouns.pluralNoun} may not be relevant to you, but if you want to see them anyway you can call the \`read\` tool with \`${actualPathname}${lastMessageIndex > 0 ? `?after=${lastMessageIndex}` : "?start"}\`.`,
+                    displayMessage: errorDisplayMessage`Update was successful, ${newMessageIndexes.length === 1 ? `the ${messageNouns.noun} you added was` : `the ${messageNouns.pluralNoun} you added were`} created. But between the last ${messageNouns.noun} you read${lastMessageIndex > 0 ? ` (\`<${messageNouns.noun} id="${lastMessageIndex - 1}">\`)` : ""} and the ${newMessageIndexes.length === 1 ? messageNouns.noun : messageNouns.pluralNoun} you created there are some new ${messageNouns.pluralNoun} from others you haven\u2019t seen. These new ${messageNouns.pluralNoun} may not be relevant to you, but if you want to see them anyway you can call the \`read\` tool with \`${actualPathname}${lastMessageIndex > 0 ? `?after=${lastMessageIndex}` : "?start"}\`.`,
                 },
             ),
             // This error is caught by `createAgentWebChatPage()` which wants to change the
             // display message to something more semantically relevant. Include `newMessages`
             // so `createAgentWebChatPage()` has the same information we do when constructing
             // this error.
-            {newMessages},
+            {newMessageIndexes},
         );
     }
 
