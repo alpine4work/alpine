@@ -30,7 +30,6 @@ import {emptyArray} from "~/shared/helpers/array/empty_array.js";
 import {interleaveArray} from "~/shared/helpers/array/interleave_array.js";
 import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
 import {cast} from "~/shared/helpers/control/cast.js";
-import {isDeepEqual} from "~/shared/helpers/control/is_deep_equal.js";
 import {parseCalendarDates} from "~/shared/helpers/date/parse_calendar_dates.js";
 import {defaultLocale} from "~/shared/helpers/intl/locale.js";
 import {MaybePromise} from "~/shared/helpers/types/maybe_promise.js";
@@ -158,6 +157,76 @@ export async function createAgentWebTaskPage(
             status: task.status,
         },
     };
+}
+
+export async function updateAgentWebTaskPage(
+    context: AgentWebContextWithoutStorage,
+    oldPageMetadata: AgentWebTaskPageMetadata,
+    oldPage: AgentWebTaskPage,
+    newPage: AgentWebTaskPage,
+): Promise<AgentWebTaskPageMetadata> {
+    const contextTime = new Date();
+    const contextDate = toCalendarDate(fromDate(contextTime, context.timeZone));
+
+    const patches: Array<ApiTaskPatch> = [];
+
+    if (oldPage.title !== newPage.title) {
+        patches.push({type: "SetTitle", title: newPage.title});
+    }
+
+    if (
+        oldPage.status.type !== newPage.status.type ||
+        (oldPage.status.type === "Open" &&
+            newPage.status.type === "Open" &&
+            oldPage.status.isActive !== newPage.status.isActive)
+    ) {
+        patches.push({type: "SetStatus", status: newPage.status});
+    }
+
+    if (oldPage.assignee?.id !== newPage.assignee?.id) {
+        patches.push({type: "SetAssignee", assignee: newPage.assignee ?? null});
+    }
+
+    if (oldPage.dueDateString !== newPage.dueDateString) {
+        if (newPage.dueDateString === null) {
+            patches.push({type: "SetDue", due: null});
+        } else {
+            const date = parseAgentWebTaskPageDueDateStringForUpdate(
+                contextDate,
+                newPage.dueDateString,
+            ).toString();
+
+            patches.push({type: "SetDue", due: {date}});
+        }
+    }
+
+    if (oldPage.priority?.type !== newPage.priority?.type) {
+        patches.push({type: "SetPriority", priority: newPage.priority});
+    }
+
+    const oldCollectionIds = new Set(oldPage.collections.map(collection => collection.id));
+    const newCollectionIds = new Set(newPage.collections.map(collection => collection.id));
+
+    for (const collection of oldPage.collections) {
+        if (!newCollectionIds.has(collection.id)) {
+            patches.push({type: "RemoveCollection", collectionId: collection.id});
+        }
+    }
+
+    for (const collection of newPage.collections) {
+        if (!oldCollectionIds.has(collection.id)) {
+            patches.push({type: "AddCollection", item: {collection}});
+        }
+    }
+
+    if (patches.length > 0) {
+        await context.api.patch(context.span, "/tasks/{id}", {
+            params: {path: {id: oldPageMetadata.id}},
+            body: {patches},
+        });
+    }
+
+    return oldPageMetadata;
 }
 
 function parseAgentWebTaskPageDueDateStringForUpdate(
