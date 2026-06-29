@@ -33,7 +33,7 @@ export type WebWorkerRpcHandlers<Def extends WebWorkerRpcMethodDefinitions> = {
  */
 export class WebWorkerRpc<
     CallDef extends WebWorkerRpcMethodDefinitions,
-    HandleDef extends WebWorkerRpcMethodDefinitions = CallDef,
+    HandleDef extends WebWorkerRpcMethodDefinitions,
 > {
     private readonly handlers: Map<string, (input: any) => Promise<any>>;
     private readonly callMethodSchemas: Map<
