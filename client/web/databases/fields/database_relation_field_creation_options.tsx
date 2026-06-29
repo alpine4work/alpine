@@ -10,10 +10,9 @@ export function DatabaseRelationFieldCreationOptions({
     editing: DatabaseGridViewFieldEditing;
 }) {
     const relationOptions = editing.relationOptions;
-    const tablesInput = useMemo(() => ({}), []);
     const tablesResult = useReactiveDatabaseAction({
         name: "listTables",
-        input: tablesInput,
+        input: useMemo(() => ({}), []),
     });
 
     if (relationOptions == null) return null;

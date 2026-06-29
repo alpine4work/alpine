@@ -56,10 +56,9 @@ function DatabaseRelationGridViewCellEditorOverlay({
 }: DatabaseGridViewCellEditorOverlayProps<"relation">) {
     const conn = useDatabaseConnection();
     const reporter = useReporter();
-    const linkableRowsInput = useMemo(() => ({tableId, fieldId, rowId}), [tableId, fieldId, rowId]);
     const linkableRowsResult = useReactiveDatabaseAction({
         name: "listLinkableRows",
-        input: linkableRowsInput,
+        input: useMemo(() => ({tableId, fieldId, rowId}), [tableId, fieldId, rowId]),
     });
     const links = Array.isArray(initialValue) ? initialValue : [];
 
