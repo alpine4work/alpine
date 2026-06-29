@@ -179,7 +179,6 @@ interface DatabaseActiveTabWorkerDatabaseGroupState {
     realtimeConnectionOptions?: {readonly webSocketUrl: string};
     realtimeConnection?: DatabaseActiveTabRealtimeConnection;
     initialPages?: DatabasePages;
-    readonly reportErrorHandlers: Set<(error: unknown) => void>;
 }
 
 // ---------------------------------------------------------------------------
@@ -230,6 +229,7 @@ export class DatabaseActiveTabWorker {
         DatabaseGroupId,
         DatabaseActiveTabWorkerDatabaseGroupState
     >();
+    private readonly reportErrorHandlers = new Set<(error: unknown) => void>();
     private readonly actionToDatabase = new Map<DatabaseReactiveActionId, DatabaseGroupId>();
 
     constructor(
@@ -246,7 +246,7 @@ export class DatabaseActiveTabWorker {
     ): DatabaseActiveTabWorkerDatabaseGroupState {
         let state = this.databaseGroups.get(databaseGroupId);
         if (state === undefined) {
-            state = {reportErrorHandlers: new Set()};
+            state = {};
             this.databaseGroups.set(databaseGroupId, state);
         }
         return state;
@@ -313,7 +313,7 @@ export class DatabaseActiveTabWorker {
                 databaseGroupId,
                 webSocketUrl: options.webSocketUrl,
                 handleEvent: event => this.handleRealtimeEvent(databaseGroupId, event),
-                reportError: error => this.reportError(databaseGroupId, error),
+                reportError: error => this.reportError(error),
             });
             state.realtimeConnection = connection;
         }
@@ -329,17 +329,15 @@ export class DatabaseActiveTabWorker {
                     client => {
                         client.writePageDiffsFromRealtime(event.pageDiffs, event.mutationId);
                     },
-                    error => this.reportError(databaseGroupId, error),
+                    error => this.reportError(error),
                 );
                 break;
             }
         }
     }
 
-    private reportError(databaseGroupId: DatabaseGroupId, error: unknown): void {
-        const state = this.databaseGroups.get(databaseGroupId);
-        if (state === undefined) return;
-        for (const handler of state.reportErrorHandlers) {
+    private reportError(error: unknown): void {
+        for (const handler of this.reportErrorHandlers) {
             handler(error);
         }
     }
@@ -368,29 +366,17 @@ export class DatabaseActiveTabWorker {
 
     /**
      * Creates an RPC + connection pair for a single connected tab. The connection's
-     * report-error handler routes worker-owned realtime errors for that database group
-     * back to this tab.
+     * report-error handler routes worker-owned realtime errors back to this tab.
      *
      * The RPC speaks per-table (matching the network protocol); this method wraps the
      * calls so the single-table {@link DatabaseClient} sees only the main table's
      * pages.
      */
     private createConnection(send: (message: unknown) => void) {
-        const reportErrorHandlersByDatabaseGroupId = new Map<
-            DatabaseGroupId,
-            (error: unknown) => void
-        >();
-        const registerReportErrorHandler = (databaseGroupId: DatabaseGroupId) => {
-            if (reportErrorHandlersByDatabaseGroupId.has(databaseGroupId)) return;
-            const reportErrorHandler = (error: unknown) => {
-                void rpc.call("reportError", {
-                    message: error instanceof Error ? error.message : String(error),
-                });
-            };
-            this.getOrCreateDatabaseGroupState(databaseGroupId).reportErrorHandlers.add(
-                reportErrorHandler,
-            );
-            reportErrorHandlersByDatabaseGroupId.set(databaseGroupId, reportErrorHandler);
+        const reportErrorHandler = (error: unknown) => {
+            void rpc.call("reportError", {
+                message: error instanceof Error ? error.message : String(error),
+            });
         };
 
         const rpc: WorkerToTabRpc = new WebWorkerRpc({
@@ -399,7 +385,6 @@ export class DatabaseActiveTabWorker {
             handlers: {
                 connectDatabaseGroup: async input => {
                     const state = this.getOrCreateDatabaseGroupState(input.databaseGroupId);
-                    registerReportErrorHandler(input.databaseGroupId);
                     state.realtimeConnectionOptions = {
                         webSocketUrl: input.webSocketUrl,
                     };
@@ -418,7 +403,6 @@ export class DatabaseActiveTabWorker {
                 },
                 writeInitialPages: async input => {
                     const state = this.getOrCreateDatabaseGroupState(input.databaseGroupId);
-                    registerReportErrorHandler(input.databaseGroupId);
                     if (state.clientPromise !== undefined) {
                         // eslint-disable-next-line no-console
                         console.warn(
@@ -429,7 +413,6 @@ export class DatabaseActiveTabWorker {
                     return {};
                 },
                 executeAction: async input => {
-                    registerReportErrorHandler(input.databaseGroupId);
                     const client = await this.getOrCreateClient(input.databaseGroupId);
                     const result = await client.executeAction(
                         this.getOrCreateRealtimeConnection(input.databaseGroupId),
@@ -440,13 +423,11 @@ export class DatabaseActiveTabWorker {
                     };
                 },
                 writePageDiffsFromRealtime: async input => {
-                    registerReportErrorHandler(input.databaseGroupId);
                     const client = await this.getOrCreateClient(input.databaseGroupId);
                     client.writePageDiffsFromRealtime(input.pageDiffs, input.mutationId);
                     return {};
                 },
                 registerReactiveAction: async input => {
-                    registerReportErrorHandler(input.databaseGroupId);
                     const client = await this.getOrCreateClient(input.databaseGroupId);
                     this.actionToDatabase.set(input.id, input.databaseGroupId);
                     const result = await client.registerReactiveAction(
@@ -490,7 +471,6 @@ export class DatabaseActiveTabWorker {
                 },
                 unregisterReactiveAction: async input => {
                     const dbId = this.actionToDatabase.get(input.id) ?? input.databaseGroupId;
-                    registerReportErrorHandler(dbId);
                     const client = await this.getOrCreateClient(dbId);
                     client.unregisterReactiveAction(input.id);
                     this.actionToDatabase.delete(input.id);
@@ -499,18 +479,11 @@ export class DatabaseActiveTabWorker {
             },
             send,
         });
+        this.reportErrorHandlers.add(reportErrorHandler);
         return {
             rpc,
             close: () => {
-                for (const [
-                    databaseGroupId,
-                    reportErrorHandler,
-                ] of reportErrorHandlersByDatabaseGroupId) {
-                    this.databaseGroups
-                        .get(databaseGroupId)
-                        ?.reportErrorHandlers.delete(reportErrorHandler);
-                }
-                reportErrorHandlersByDatabaseGroupId.clear();
+                this.reportErrorHandlers.delete(reportErrorHandler);
             },
         };
     }
