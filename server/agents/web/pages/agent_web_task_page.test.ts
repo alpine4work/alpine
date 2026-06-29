@@ -68,18 +68,53 @@ runAgentWebPageTests<TaskId, AgentWebTaskPage>({
             },
         },
         {
+            name: "lowercase field names and values are supported",
+            pageLink: taskId,
+            markdown: `\
+# Lowercase fields
+
+- status: open (active)
+- assignee: [Alice](/human/alice)
+- collections: [Engineering](/task-collection/engineering)
+- priority: urgent
+- due date: 2027-07-12
+`,
+            setupStorage: async storage => {
+                await createAgentWebPageStoredLinkPathname(storage, aliceReference);
+                await createAgentWebPageStoredLinkPathname(storage, engineeringReference);
+            },
+            printMarkdown: `\
+# Lowercase fields
+
+- Status: Open (Active)
+- Assignee: [Alice](/human/alice)
+- Collections: [Engineering](/task-collection/engineering)
+- Priority: Urgent
+- Due date: 2027-07-12
+`,
+            page: {
+                type: "Task",
+                title: "Lowercase fields",
+                status: {type: "Open", isActive: true},
+                assignee: aliceReference,
+                collections: [engineeringReference],
+                priority: {type: "Urgent"},
+                dueDateString: "2027-07-12",
+            },
+        },
+        {
             name: "nested collections print as inline collection list",
             pageLink: taskId,
             markdown: `\
 # Ship task page
 
-- status: Open (Active)
-- assignee: [Alice](/human/alice)
-- collections:
+- Status: Open (Active)
+- Assignee: [Alice](/human/alice)
+- Collections:
   - [Engineering](/task-collection/engineering)
   - [Roadmap](/task-collection/roadmap)
-- priority: urgent
-- due date: 2027-07-12
+- Priority: Urgent
+- Due date: 2027-07-12
 `,
             printMarkdown: `\
 # Ship task page
@@ -181,11 +216,11 @@ runAgentWebPageTests<TaskId, AgentWebTaskPage>({
             markdown: `\
 # Blank optional fields
 
-- status: open
-- assignee:
-- collections:
-- priority:
-- due date:
+- Status: Open
+- Assignee:
+- Collections:
+- Priority:
+- Due date:
 `,
             printMarkdown: `\
 # Blank optional fields
@@ -227,7 +262,7 @@ runAgentWebPageTests<TaskId, AgentWebTaskPage>({
             name: "task page without title",
             pageLink: taskId,
             markdown: `\
-- status: open
+- Status: Open
 `,
             parseError:
                 "A title is required for tasks. Try again but make sure the task starts with a markdown h1 (e.g. `# My Task`).",
@@ -238,7 +273,7 @@ runAgentWebPageTests<TaskId, AgentWebTaskPage>({
             markdown: `\
 # Main task
 
-- status: open
+- Status: Open
 
 # Extra task
 `,
@@ -251,7 +286,7 @@ runAgentWebPageTests<TaskId, AgentWebTaskPage>({
             markdown: `\
 # Ordered fields
 
-1. status: open
+1. Status: Open
 `,
             parseError:
                 "Unexpected markdown on line 3. Try again with either fields (an unordered list with items like `- Priority: Medium`) or notes (markdown after the h2 `## Notes`) after the task title.",
@@ -262,7 +297,7 @@ runAgentWebPageTests<TaskId, AgentWebTaskPage>({
             markdown: `\
 # Missing colon
 
-- status open
+- Status Open
 `,
             parseError:
                 "Unexpected markdown on line 3. Try again with an unordered list item for each task field where the field name is followed by the field value with a colon in between (e.g. `- Priority: Medium`).",
@@ -273,7 +308,7 @@ runAgentWebPageTests<TaskId, AgentWebTaskPage>({
             markdown: `\
 # Linked field name
 
-- [status](/status): open
+- [Status](/status): Open
 `,
             parseError:
                 "Unexpected markdown on line 3. Try again with an unordered list item for each task field where the field name is followed by the field value with a colon in between (e.g. `- Priority: Medium`).",
@@ -284,10 +319,10 @@ runAgentWebPageTests<TaskId, AgentWebTaskPage>({
             markdown: `\
 # Unknown field
 
-- owner: [Alice](/human/alice)
+- Owner: [Alice](/human/alice)
 `,
             parseError:
-                "Unknown task field \u201Cowner\u201D on line 3. Try again with one of \u201CStatus\u201D, \u201CAssignee\u201D, \u201CCollections\u201D, \u201CPriority\u201D, or \u201CDue date\u201D.",
+                "Unknown task field \u201COwner\u201D on line 3. Try again with one of \u201CStatus\u201D, \u201CAssignee\u201D, \u201CCollections\u201D, \u201CPriority\u201D, or \u201CDue date\u201D.",
         },
         {
             name: "task page with duplicate field",
@@ -295,11 +330,11 @@ runAgentWebPageTests<TaskId, AgentWebTaskPage>({
             markdown: `\
 # Duplicate field
 
-- status: open
-- status: Open (Active)
+- Status: Open
+- Status: Open (Active)
 `,
             parseError:
-                "Duplicate task field \u201Cstatus\u201D on line 4. Try again with each task field only present once in the field list.",
+                "Duplicate task field \u201CStatus\u201D on line 4. Try again with each task field only present once in the field list.",
         },
         {
             name: "task page with fields out of printed order",
@@ -307,8 +342,8 @@ runAgentWebPageTests<TaskId, AgentWebTaskPage>({
             markdown: `\
 # Out of order
 
-- assignee: [Alice](/human/alice)
-- priority: high
+- Assignee: [Alice](/human/alice)
+- Priority: High
 `,
             setupStorage: async storage => {
                 await createAgentWebPageStoredLinkPathname(storage, aliceReference);
@@ -336,10 +371,10 @@ runAgentWebPageTests<TaskId, AgentWebTaskPage>({
             markdown: `\
 # Invalid status
 
-- status: pending
+- Status: Pending
 `,
             parseError:
-                "Unexpected task status \u201Cpending\u201D on line 3. Try again with \u201COpen\u201D, \u201COpen (Active)\u201D, or \u201CClosed\u201D.",
+                "Unexpected task status \u201CPending\u201D on line 3. Try again with \u201COpen\u201D, \u201COpen (Active)\u201D, or \u201CClosed\u201D.",
         },
         {
             name: "task page with invalid priority",
@@ -347,22 +382,16 @@ runAgentWebPageTests<TaskId, AgentWebTaskPage>({
             markdown: `\
 # Invalid priority
 
-- status: open
-- priority: immediate
+- Status: Open
+- Priority: Immediate
 `,
             parseError:
-                "Unexpected task priority \u201Cimmediate\u201D on line 4. Try again with \u201CLow\u201D, \u201CMedium\u201D, \u201CHigh\u201D, or \u201CUrgent\u201D.",
+                "Unexpected task priority \u201CImmediate\u201D on line 4. Try again with \u201CLow\u201D, \u201CMedium\u201D, \u201CHigh\u201D, or \u201CUrgent\u201D.",
         },
         {
             name: "task page with unvalidated due date string",
             pageLink: taskId,
             markdown: `\
-# Unvalidated due date
-
-- status: open
-- due date: 2027-02-29
-`,
-            printMarkdown: `\
 # Unvalidated due date
 
 - Status: Open
@@ -384,8 +413,8 @@ runAgentWebPageTests<TaskId, AgentWebTaskPage>({
             markdown: `\
 # Wrong assignee link
 
-- status: open
-- assignee: [Engineering](/task-collection/engineering)
+- Status: Open
+- Assignee: [Engineering](/task-collection/engineering)
 `,
             setupStorage: async storage => {
                 await createAgentWebPageStoredLinkPathname(storage, engineeringReference);
@@ -399,19 +428,13 @@ runAgentWebPageTests<TaskId, AgentWebTaskPage>({
             markdown: `\
 # Inline collections
 
-- status: open
-- collections: [Engineering](/task-collection/engineering), [Roadmap](/task-collection/roadmap)
+- Status: Open
+- Collections: [Engineering](/task-collection/engineering), [Roadmap](/task-collection/roadmap)
 `,
             setupStorage: async storage => {
                 await createAgentWebPageStoredLinkPathname(storage, engineeringReference);
                 await createAgentWebPageStoredLinkPathname(storage, roadmapReference);
             },
-            printMarkdown: `\
-# Inline collections
-
-- Status: Open
-- Collections: [Engineering](/task-collection/engineering), [Roadmap](/task-collection/roadmap)
-`,
             page: {
                 type: "Task",
                 title: "Inline collections",
@@ -453,13 +476,92 @@ runAgentWebPageTests<TaskId, AgentWebTaskPage>({
             },
         },
         {
+            name: "task page with collection text and nested collection list",
+            pageLink: taskId,
+            markdown: `\
+# Mixed collection text
+
+- Status: Open
+- Collections: abc
+  - [Engineering](/task-collection/engineering)
+  - [Roadmap](/task-collection/roadmap)
+`,
+            parseError:
+                "Unexpected markdown for task collections field on line 4. Try again with a comma separated list of collection links (e.g. `- Collections: [My Collection 1](/task-collection/my-collection-1), [My Collection 2](/task-collection/my-collection-2)`).",
+        },
+        {
+            name: "task page with inline collection link and nested collection list",
+            pageLink: taskId,
+            markdown: `\
+# Mixed collection link
+
+- Status: Open
+- Collections: [Engineering](/task-collection/engineering)
+  - [Roadmap](/task-collection/roadmap)
+`,
+            setupStorage: async storage => {
+                await createAgentWebPageStoredLinkPathname(storage, engineeringReference);
+            },
+            parseError:
+                "Unexpected markdown after task collection list on line 5. Try again with a comma separated list of collection links and nothing else after that (e.g. `- Collections: [My Collection 1](/task-collection/my-collection-1), [My Collection 2](/task-collection/my-collection-2)`).",
+        },
+        {
+            name: "task page with inline collection links and nested collection list",
+            pageLink: taskId,
+            markdown: `\
+# Mixed collection links
+
+- Status: Open
+- Collections: [Engineering](/task-collection/engineering), [Roadmap](/task-collection/roadmap)
+  - [Engineering](/task-collection/engineering)
+`,
+            setupStorage: async storage => {
+                await createAgentWebPageStoredLinkPathname(storage, engineeringReference);
+                await createAgentWebPageStoredLinkPathname(storage, roadmapReference);
+            },
+            parseError:
+                "Unexpected markdown after task collection list on line 5. Try again with a comma separated list of collection links and nothing else after that (e.g. `- Collections: [My Collection 1](/task-collection/my-collection-1), [My Collection 2](/task-collection/my-collection-2)`).",
+        },
+        {
+            name: "task page with collection separator and nested collection list",
+            pageLink: taskId,
+            markdown: `\
+# Mixed collection separator
+
+- Status: Open
+- Collections: ,
+  - [Engineering](/task-collection/engineering)
+`,
+            setupStorage: async storage => {
+                await createAgentWebPageStoredLinkPathname(storage, engineeringReference);
+            },
+            parseError:
+                "Unexpected markdown after task collection list on line 5. Try again with a comma separated list of collection links and nothing else after that (e.g. `- Collections: [My Collection 1](/task-collection/my-collection-1), [My Collection 2](/task-collection/my-collection-2)`).",
+        },
+        {
+            name: "task page with collection conjunction and nested collection list",
+            pageLink: taskId,
+            markdown: `\
+# Mixed collection conjunction
+
+- Status: Open
+- Collections: and
+  - [Engineering](/task-collection/engineering)
+`,
+            setupStorage: async storage => {
+                await createAgentWebPageStoredLinkPathname(storage, engineeringReference);
+            },
+            parseError:
+                "Unexpected markdown after task collection list on line 5. Try again with a comma separated list of collection links and nothing else after that (e.g. `- Collections: [My Collection 1](/task-collection/my-collection-1), [My Collection 2](/task-collection/my-collection-2)`).",
+        },
+        {
             name: "task page with inline collections and no comma",
             pageLink: taskId,
             markdown: `\
 # Inline collections no comma
 
-- status: open
-- collections: [Engineering](/task-collection/engineering) [Roadmap](/task-collection/roadmap)
+- Status: Open
+- Collections: [Engineering](/task-collection/engineering) [Roadmap](/task-collection/roadmap)
 `,
             setupStorage: async storage => {
                 await createAgentWebPageStoredLinkPathname(storage, engineeringReference);
@@ -487,8 +589,8 @@ runAgentWebPageTests<TaskId, AgentWebTaskPage>({
             markdown: `\
 # Inline collections and
 
-- status: open
-- collections: [Engineering](/task-collection/engineering) and [Roadmap](/task-collection/roadmap)
+- Status: Open
+- Collections: [Engineering](/task-collection/engineering) and [Roadmap](/task-collection/roadmap)
 `,
             setupStorage: async storage => {
                 await createAgentWebPageStoredLinkPathname(storage, engineeringReference);
@@ -516,8 +618,8 @@ runAgentWebPageTests<TaskId, AgentWebTaskPage>({
             markdown: `\
 # Adjacent inline collections
 
-- status: open
-- collections: [Engineering](/task-collection/engineering)[Roadmap](/task-collection/roadmap)
+- Status: Open
+- Collections: [Engineering](/task-collection/engineering)[Roadmap](/task-collection/roadmap)
 `,
             setupStorage: async storage => {
                 await createAgentWebPageStoredLinkPathname(storage, engineeringReference);
@@ -545,9 +647,9 @@ runAgentWebPageTests<TaskId, AgentWebTaskPage>({
             markdown: `\
 # Wrong collection link
 
-- status: open
-- assignee: [Bob](/human/bob)
-- collections:
+- Status: Open
+- Assignee: [Bob](/human/bob)
+- Collections:
   - [Alice](/human/alice)
 `,
             setupStorage: async storage => {
