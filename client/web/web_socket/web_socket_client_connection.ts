@@ -1,4 +1,5 @@
-import {AppContext} from "~/client/web/context/app_context.js";
+import type {Context} from "~/shared/context/context.js";
+import type {TracerContextModule} from "~/shared/context/tracer_context_module.js";
 import {FailedPreconditionError, InternalError, UnavailableError} from "~/shared/error/error.js";
 import {errorDisplayMessage} from "~/shared/error/error_display_message.js";
 import {createInterval} from "~/shared/helpers/async/interval.js";
@@ -42,10 +43,16 @@ type WebsocketClientConnectionState =
           readonly type: "Closed";
       };
 
+type WebSocketClientConnectionContext = Context<{tracer: TracerContextModule}>;
+
 function resolveWebSocketUrl(url: string) {
     // If this is an absolute URL, add our current domain's origin. This will only work
-    // in the browser.
-    if (url.startsWith("/")) url = `${new URL(window.location.href).origin}${url}`;
+    // in browser-like environments.
+    if (url.startsWith("/")) {
+        const globalWithLocation = globalThis as {location?: {href: string}};
+        assert(globalWithLocation.location, "Expected global location for relative WebSocket URL");
+        url = `${new URL(globalWithLocation.location.href).origin}${url}`;
+    }
 
     // Switch HTTP protocol to WS protocol.
     if (url.startsWith("http://")) url = `ws://${url.slice("http://".length)}`;
@@ -76,7 +83,7 @@ function resolveWebSocketUrl(url: string) {
  * browser tab is hidden.
  */
 export class WebSocketClientConnection<Protocol extends WebSocketProtocolBase> {
-    private readonly _getContext: () => AppContext;
+    private readonly _getContext: () => WebSocketClientConnectionContext;
     private readonly _serviceName: TracerServiceName;
     private readonly _messageFromClientSchema: Schema<WebSocketMessageFromClient<Protocol>>;
     private readonly _messageFromServerSchema: Schema<WebSocketMessageFromServer<Protocol>>;
@@ -94,7 +101,7 @@ export class WebSocketClientConnection<Protocol extends WebSocketProtocolBase> {
     >();
 
     constructor(
-        getContext: () => AppContext,
+        getContext: () => WebSocketClientConnectionContext,
         serviceName: TracerServiceName,
         protocol: Protocol,
         url: string,

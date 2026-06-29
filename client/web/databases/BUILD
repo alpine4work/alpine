@@ -28,6 +28,7 @@ ts_project(
         "//client/web/styles",
         "//client/web/virtualized",
         "//client/web/web_socket",
+        "//shared/context",
         "//shared/databases",
         "//shared/design",
         "//shared/error",
@@ -36,5 +37,6 @@ ts_project(
         "//shared/rpc",
         "//shared/schema",
         "//shared/store",
+        "//shared/tracer",
     ],
 )

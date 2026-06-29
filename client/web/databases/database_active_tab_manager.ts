@@ -8,6 +8,12 @@ import {
 } from "~/client/web/databases/database_worker_rpc_methods.js";
 import type {OpfsDirectoryHandle} from "~/client/web/databases/opfs.js";
 import {WebWorkerRpc} from "~/client/web/helpers/workers/web_worker_rpc.js";
+import {
+    WebSocketClient,
+    type WebSocketClientState,
+} from "~/client/web/web_socket/web_socket_client.js";
+import {Context} from "~/shared/context/context.js";
+import {TracerContextModule} from "~/shared/context/tracer_context_module.js";
 import type {
     DatabaseActionInput,
     DatabaseActionName,
@@ -15,25 +21,24 @@ import type {
     DatabaseActionOutput,
     DatabaseActionResult,
 } from "~/shared/databases/database_actions.js";
-import type {
-    DatabaseEnsureCacheIsUpToDateResult,
-    DatabaseExecuteActionResponse,
-    DatabasePageIndexes,
-    DatabasePageVersionsByIndex,
-    DatabasePages,
-} from "~/shared/databases/database_protocol_schemas.js";
+import type {DatabasePages} from "~/shared/databases/database_protocol_schemas.js";
+import {
+    type DatabaseRealtimeEvent,
+    DatabaseRealtimeProtocol,
+} from "~/shared/databases/database_realtime_protocol.js";
 import {CancelledError} from "~/shared/error/error.js";
+import {unsynchronizedSystemClock} from "~/shared/helpers/clock/unsynchronized_system_clock.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import type {Result} from "~/shared/helpers/control/result.js";
 import {generateId} from "~/shared/id/id.js";
 import type {
     DatabaseGroupId,
-    DatabaseMutationId,
     DatabaseReactiveActionId,
 } from "~/shared/id/types/id_types.js";
-import type {SchemaSerializedValue, SchemaType} from "~/shared/schema/schema.js";
+import type {SchemaType} from "~/shared/schema/schema.js";
 import type {Store} from "~/shared/store/store.js";
 import {ValueStore} from "~/shared/store/value_store.js";
+import {TracerRoot} from "~/shared/tracer/tracer_root.js";
 
 // ---------------------------------------------------------------------------
 // Dependency interfaces — mirror browser APIs at the lowest level
@@ -89,6 +94,17 @@ export interface ActiveTabBroadcastChannel {
     postMessage(data: unknown): void;
     onmessage: ((event: {data: unknown}) => void) | null;
     close(): void;
+}
+
+export interface DatabaseActiveTabRealtimeConnection extends DatabaseClientConnection {
+    close(): void;
+}
+
+export interface DatabaseActiveTabRealtimeConnectionFactoryOptions {
+    databaseGroupId: DatabaseGroupId;
+    webSocketUrl: string;
+    handleEvent(event: DatabaseRealtimeEvent): void;
+    reportError(error: unknown): void;
 }
 
 // ---------------------------------------------------------------------------
@@ -206,15 +222,28 @@ export class DatabaseActiveTabServiceWorker {
  */
 export class DatabaseActiveTabWorker {
     private readonly clientPromises = new Map<string, Promise<DatabaseClient>>();
+    private readonly realtimeConnectionOptions = new Map<
+        DatabaseGroupId,
+        {readonly webSocketUrl: string}
+    >();
+    private readonly realtimeConnections = new Map<
+        DatabaseGroupId,
+        DatabaseActiveTabRealtimeConnection
+    >();
+    private readonly reportErrorHandlers = new Set<(error: unknown) => void>();
     private readonly actionToDatabase = new Map<DatabaseReactiveActionId, DatabaseGroupId>();
     private readonly initialPagesByDatabase = new Map<DatabaseGroupId, DatabasePages>();
 
-    constructor(private readonly dir: OpfsDirectoryHandle) {}
+    constructor(
+        private readonly dir: OpfsDirectoryHandle,
+        private readonly deps: {
+            createRealtimeConnection(
+                options: DatabaseActiveTabRealtimeConnectionFactoryOptions,
+            ): DatabaseActiveTabRealtimeConnection;
+        } = {createRealtimeConnection: createDatabaseActiveTabRealtimeConnection},
+    ) {}
 
-    private getOrCreateClient(
-        databaseGroupId: DatabaseGroupId,
-        conn: DatabaseClientConnection,
-    ): Promise<DatabaseClient> {
+    private getOrCreateClient(databaseGroupId: DatabaseGroupId): Promise<DatabaseClient> {
         let promise = this.clientPromises.get(databaseGroupId);
         if (!promise) {
             const created = (async () => {
@@ -230,7 +259,9 @@ export class DatabaseActiveTabWorker {
                     // We're an always-online app: OPFS is just a cache, so any cold-open failure
                     // (server unreachable, cache validation) is meant to bubble up as "couldn't
                     // connect to the database".
-                    await client.ensureCacheIsUpToDate(conn);
+                    await client.ensureCacheIsUpToDate(
+                        this.getOrCreateRealtimeConnection(databaseGroupId),
+                    );
 
                     return client;
                 } catch (error) {
@@ -252,6 +283,52 @@ export class DatabaseActiveTabWorker {
             promise = created;
         }
         return promise;
+    }
+
+    private getOrCreateRealtimeConnection(
+        databaseGroupId: DatabaseGroupId,
+    ): DatabaseActiveTabRealtimeConnection {
+        let connection = this.realtimeConnections.get(databaseGroupId);
+        if (connection === undefined) {
+            const options =
+                this.realtimeConnectionOptions.get(databaseGroupId) ??
+                (import.meta.jest ? {webSocketUrl: "ws://test.invalid"} : undefined);
+            assert(
+                options !== undefined,
+                `Database group ${databaseGroupId} was used before connectDatabaseGroup`,
+            );
+
+            connection = this.deps.createRealtimeConnection({
+                databaseGroupId,
+                webSocketUrl: options.webSocketUrl,
+                handleEvent: event => this.handleRealtimeEvent(databaseGroupId, event),
+                reportError: error => this.reportError(error),
+            });
+            this.realtimeConnections.set(databaseGroupId, connection);
+        }
+        return connection;
+    }
+
+    private handleRealtimeEvent(databaseGroupId: DatabaseGroupId, event: DatabaseRealtimeEvent) {
+        switch (event.type) {
+            case "PagesChanged": {
+                const clientPromise = this.clientPromises.get(databaseGroupId);
+                if (clientPromise === undefined) return;
+                clientPromise.then(
+                    client => {
+                        client.writePageDiffsFromRealtime(event.pageDiffs, event.mutationId);
+                    },
+                    error => this.reportError(error),
+                );
+                break;
+            }
+        }
+    }
+
+    private reportError(error: unknown): void {
+        for (const handler of this.reportErrorHandlers) {
+            handler(error);
+        }
     }
 
     /**
@@ -291,6 +368,23 @@ export class DatabaseActiveTabWorker {
             callMethods: workerToTabDatabaseRpcMethods,
             handleMethods: tabToWorkerDatabaseRpcMethods,
             handlers: {
+                connectDatabaseGroup: async input => {
+                    this.realtimeConnectionOptions.set(input.databaseGroupId, {
+                        webSocketUrl: input.webSocketUrl,
+                    });
+                    if (input.pages.size > 0) {
+                        if (this.clientPromises.has(input.databaseGroupId)) {
+                            // eslint-disable-next-line no-console
+                            console.warn(
+                                "connectDatabaseGroup called with pages after database client was already created",
+                            );
+                        } else {
+                            this.initialPagesByDatabase.set(input.databaseGroupId, input.pages);
+                        }
+                    }
+                    this.getOrCreateRealtimeConnection(input.databaseGroupId);
+                    return {};
+                },
                 writeInitialPages: async input => {
                     if (this.clientPromises.has(input.databaseGroupId)) {
                         // eslint-disable-next-line no-console
@@ -302,24 +396,27 @@ export class DatabaseActiveTabWorker {
                     return {};
                 },
                 executeAction: async input => {
-                    const client = await this.getOrCreateClient(input.databaseGroupId, conn);
-                    const result = await client.executeAction(conn, input.action);
+                    const client = await this.getOrCreateClient(input.databaseGroupId);
+                    const result = await client.executeAction(
+                        this.getOrCreateRealtimeConnection(input.databaseGroupId),
+                        input.action,
+                    );
                     return {
                         result: {name: input.action.name, output: result} as any,
                     };
                 },
                 writePageDiffsFromRealtime: async input => {
-                    const client = await this.getOrCreateClient(input.databaseGroupId, conn);
+                    const client = await this.getOrCreateClient(input.databaseGroupId);
                     client.writePageDiffsFromRealtime(input.pageDiffs, input.mutationId);
                     return {};
                 },
                 registerReactiveAction: async input => {
-                    const client = await this.getOrCreateClient(input.databaseGroupId, conn);
+                    const client = await this.getOrCreateClient(input.databaseGroupId);
                     this.actionToDatabase.set(input.id, input.databaseGroupId);
                     const result = await client.registerReactiveAction(
                         input.id,
                         input.action,
-                        conn,
+                        this.getOrCreateRealtimeConnection(input.databaseGroupId),
                         output => {
                             void rpc.call("reactiveActionUpdated", {
                                 id: input.id,
@@ -357,7 +454,7 @@ export class DatabaseActiveTabWorker {
                 },
                 unregisterReactiveAction: async input => {
                     const dbId = this.actionToDatabase.get(input.id) ?? input.databaseGroupId;
-                    const client = await this.getOrCreateClient(dbId, conn);
+                    const client = await this.getOrCreateClient(dbId);
                     client.unregisterReactiveAction(input.id);
                     this.actionToDatabase.delete(input.id);
                     return {};
@@ -365,26 +462,18 @@ export class DatabaseActiveTabWorker {
             },
             send,
         });
-        const conn: DatabaseClientConnection = {
-            executeActionServer: (action, options) =>
-                rpc.call("executeActionServer", {
-                    action,
-                    mutationId: options.mutationId,
-                    returnResult: options.returnResult ?? true,
-                    returnPages: options.returnPages ?? true,
-                }),
-            ensureCacheIsUpToDate: pageVersionsByIndex =>
-                rpc.call("ensureCacheIsUpToDate", {pageVersionsByIndex}),
-            acknowledgePages: pageIndexes => {
-                void rpc.call("acknowledgePages", {pageIndexes});
-            },
-            reportError: error => {
-                void rpc.call("reportError", {
-                    message: error instanceof Error ? error.message : String(error),
-                });
+        const reportErrorHandler = (error: unknown) => {
+            void rpc.call("reportError", {
+                message: error instanceof Error ? error.message : String(error),
+            });
+        };
+        this.reportErrorHandlers.add(reportErrorHandler);
+        return {
+            rpc,
+            close: () => {
+                this.reportErrorHandlers.delete(reportErrorHandler);
             },
         };
-        return {rpc, conn};
     }
 
     /**
@@ -422,6 +511,80 @@ export class DatabaseActiveTabWorker {
         }
         return promise;
     }
+}
+
+function createDatabaseActiveTabRealtimeConnection(
+    options: DatabaseActiveTabRealtimeConnectionFactoryOptions,
+): DatabaseActiveTabRealtimeConnection {
+    const tracer = TracerRoot.new({
+        serviceName: "AppClient",
+        jsHost: "Web",
+        untrusted: true,
+        clock: unsynchronizedSystemClock,
+        sendEvent: () => {},
+    });
+    const context = Context.new({
+        tracer: new TracerContextModule(tracer),
+    });
+    const client = new WebSocketClient(
+        () => context,
+        "DatabaseGroupService",
+        DatabaseRealtimeProtocol,
+        options.webSocketUrl,
+    );
+
+    const unsubscribeFromEvents = client.subscribeToEvents(options.handleEvent);
+    let reconnectTimeout: ReturnType<typeof setTimeout> | null = null;
+    let lastReportedState: WebSocketClientState | null = null;
+    let closed = false;
+
+    function scheduleReconnect() {
+        if (closed || reconnectTimeout !== null) return;
+        reconnectTimeout = setTimeout(() => {
+            reconnectTimeout = null;
+            if (!closed) client.reconnect();
+        }, 2500);
+    }
+
+    const unsubscribeFromState = client.state.subscribe(() => {
+        const state = client.state.getSnapshot();
+        if (!state.hasError) return;
+        if (state !== lastReportedState) {
+            options.reportError(state.error);
+            lastReportedState = state;
+        }
+        scheduleReconnect();
+    });
+
+    client.connect();
+
+    return {
+        executeActionServer: (action, executeOptions) =>
+            client.procedures.executeAction({
+                action,
+                mutationId: executeOptions.mutationId,
+                returnResult: executeOptions.returnResult ?? true,
+                returnPages: executeOptions.returnPages ?? true,
+            }),
+        ensureCacheIsUpToDate: pageVersionsByIndex =>
+            client.procedures.ensureCacheIsUpToDate({pageVersionsByIndex}),
+        acknowledgePages: pageIndexes => {
+            void client.procedures.acknowledgePages({pageIndexes});
+        },
+        reportError: options.reportError,
+        close() {
+            closed = true;
+            if (reconnectTimeout !== null) {
+                clearTimeout(reconnectTimeout);
+                reconnectTimeout = null;
+            }
+            unsubscribeFromEvents();
+            unsubscribeFromState();
+            if (!client.state.getSnapshot().isDisconnected) {
+                void client.disconnect();
+            }
+        },
+    };
 }
 
 // ---------------------------------------------------------------------------
@@ -466,18 +629,6 @@ export class DatabaseActiveTabManager {
             createMessageChannel(): {port1: ActiveTabPort; port2: ActiveTabPort};
             createBroadcastChannel(name: string): ActiveTabBroadcastChannel;
             addUnloadListener(callback: () => void): void;
-            executeActionServer(
-                action: DatabaseActionObject,
-                options: {
-                    mutationId: DatabaseMutationId;
-                    returnResult?: boolean;
-                    returnPages?: boolean;
-                },
-            ): Promise<DatabaseExecuteActionResponse>;
-            ensureCacheIsUpToDate(
-                pageVersionsByIndex: DatabasePageVersionsByIndex,
-            ): Promise<DatabaseEnsureCacheIsUpToDateResult>;
-            acknowledgePages(pageIndexes: DatabasePageIndexes): void;
             reportError?(message: string): void;
         },
     ) {}
@@ -758,23 +909,6 @@ export class DatabaseActiveTabManager {
             callMethods: tabToWorkerDatabaseRpcMethods,
             handleMethods: workerToTabDatabaseRpcMethods,
             handlers: {
-                executeActionServer: async input => {
-                    const result = await this.deps.executeActionServer(input.action, {
-                        mutationId: input.mutationId,
-                        returnResult: input.returnResult,
-                        returnPages: input.returnPages,
-                    });
-                    return {
-                        result: result.result as SchemaSerializedValue as any,
-                        readPages: result.readPages,
-                    };
-                },
-                ensureCacheIsUpToDate: async input =>
-                    this.deps.ensureCacheIsUpToDate(input.pageVersionsByIndex),
-                acknowledgePages: async input => {
-                    this.deps.acknowledgePages(input.pageIndexes);
-                    return {};
-                },
                 reportError: async input => {
                     this.deps.reportError?.(input.message);
                     return {};
@@ -829,23 +963,6 @@ export class DatabaseActiveTabManager {
             callMethods: tabToWorkerDatabaseRpcMethods,
             handleMethods: workerToTabDatabaseRpcMethods,
             handlers: {
-                executeActionServer: async input => {
-                    const result = await this.deps.executeActionServer(input.action, {
-                        mutationId: input.mutationId,
-                        returnResult: input.returnResult,
-                        returnPages: input.returnPages,
-                    });
-                    return {
-                        result: result.result as SchemaSerializedValue as any,
-                        readPages: result.readPages,
-                    };
-                },
-                ensureCacheIsUpToDate: async input =>
-                    this.deps.ensureCacheIsUpToDate(input.pageVersionsByIndex),
-                acknowledgePages: async input => {
-                    this.deps.acknowledgePages(input.pageIndexes);
-                    return {};
-                },
                 reportError: async input => {
                     this.deps.reportError?.(input.message);
                     return {};

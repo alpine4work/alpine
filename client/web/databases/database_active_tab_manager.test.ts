@@ -9,6 +9,8 @@ import {
     type ActiveTabServiceWorkerRegistration,
     type ActiveTabWorkerHandle,
     DatabaseActiveTabManager,
+    type DatabaseActiveTabRealtimeConnection,
+    type DatabaseActiveTabRealtimeConnectionFactoryOptions,
     DatabaseActiveTabServiceWorker,
     DatabaseActiveTabWorker,
     type DatabaseWorkerConnection,
@@ -284,7 +286,12 @@ class MockServiceWorkerBridge {
 //
 // ---
 
-function createMockWorker(dir: OpfsDirectoryHandle): {
+function createMockWorker(
+    dir: OpfsDirectoryHandle,
+    createRealtimeConnection: (
+        options: DatabaseActiveTabRealtimeConnectionFactoryOptions,
+    ) => DatabaseActiveTabRealtimeConnection,
+): {
     handle: ActiveTabWorkerHandle;
     worker: DatabaseActiveTabWorker;
 } {
@@ -293,7 +300,7 @@ function createMockWorker(dir: OpfsDirectoryHandle): {
     const [mainEnd, workerEnd] = createMockPortPair();
 
     const ready = dir.getDirectoryHandle("databases", {create: true}).then(dbsDir => {
-        resolvedWorker = new DatabaseActiveTabWorker(dbsDir);
+        resolvedWorker = new DatabaseActiveTabWorker(dbsDir, {createRealtimeConnection});
         handler = resolvedWorker.createMessageHandler(message => workerEnd.postMessage(message));
         workerEnd.onmessage = event => handler!(event.data, event.ports);
     });
@@ -351,17 +358,7 @@ function createTestTab(config: {
     const unloadListeners: Array<() => void> = [];
     let mockWorker: ReturnType<typeof createMockWorker> | undefined;
 
-    const manager = new DatabaseActiveTabManager({
-        databaseGroupId: config.databaseGroupId ?? testDatabaseGroupId,
-        locks: config.locks,
-        serviceWorker: config.sw.containerFor(config.clientId),
-        createWorker: () => {
-            mockWorker = createMockWorker(config.dir);
-            return mockWorker.handle;
-        },
-        createMessageChannel: createMockMessageChannel,
-        createBroadcastChannel: name => config.bc.create(name),
-        addUnloadListener: callback => unloadListeners.push(callback),
+    const createRealtimeConnection = (): DatabaseActiveTabRealtimeConnection => ({
         executeActionServer:
             config.executeActionServer ??
             (() => {
@@ -447,6 +444,21 @@ function createTestTab(config: {
             return empty;
         },
         acknowledgePages: () => {},
+        reportError: () => {},
+        close: () => {},
+    });
+
+    const manager = new DatabaseActiveTabManager({
+        databaseGroupId: config.databaseGroupId ?? testDatabaseGroupId,
+        locks: config.locks,
+        serviceWorker: config.sw.containerFor(config.clientId),
+        createWorker: () => {
+            mockWorker = createMockWorker(config.dir, createRealtimeConnection);
+            return mockWorker.handle;
+        },
+        createMessageChannel: createMockMessageChannel,
+        createBroadcastChannel: name => config.bc.create(name),
+        addUnloadListener: callback => unloadListeners.push(callback),
     });
 
     return {
@@ -734,37 +746,19 @@ describe("DatabaseActiveTabManager mutations", () => {
         expect(capturedMutationId).not.toBeNull();
     });
 
-    test("follower mutations route through follower's executeActionServer", async () => {
+    test("follower mutations route through leader worker's realtime connection", async () => {
         const locks = new MockLockManager();
         const sw = new MockServiceWorkerBridge();
         const bc = new MockBroadcastChannelBus();
         const dir = await createSeededTestDir();
 
         // Tab A — leader
+        let capturedAction: {name: string; input: unknown} | null = null;
         const tabA = createTestTab({
             locks,
             sw,
             bc,
             clientId: "tab-a",
-            dir,
-        });
-        const connA = await tabA.manager.connect();
-
-        // Create table via leader
-        await tabA.worker.executeLocallyForTests(
-            testDatabaseGroupId,
-            "CREATE TABLE t (id INTEGER PRIMARY KEY, done INTEGER DEFAULT 0)",
-        );
-        await tabA.worker.commitOptimisticPagesForTests(testDatabaseGroupId);
-        await executeSql(connA, "INSERT INTO t (id) VALUES (1)");
-
-        // Tab B — follower with working executeActionServer
-        let capturedAction: {name: string; input: unknown} | null = null;
-        const {manager: managerB} = createTestTab({
-            locks,
-            sw,
-            bc,
-            clientId: "tab-b",
             dir,
             executeActionServer: async action => {
                 capturedAction = action;
@@ -774,11 +768,25 @@ describe("DatabaseActiveTabManager mutations", () => {
                 } as DatabaseExecuteActionResponse;
             },
         });
+        await tabA.manager.connect();
+
+        // Create table via leader
+        await tabA.worker.executeLocallyForTests(
+            testDatabaseGroupId,
+            "CREATE TABLE t (id INTEGER PRIMARY KEY, done INTEGER DEFAULT 0)",
+        );
+        await tabA.worker.commitOptimisticPagesForTests(testDatabaseGroupId);
+        await tabA.worker.executeLocallyForTests(testDatabaseGroupId, "INSERT INTO t (id) VALUES (1)");
+        await tabA.worker.commitOptimisticPagesForTests(testDatabaseGroupId);
+
+        // Tab B — follower. Its calls are proxied to the leader worker, so it does not
+        // get a separate server route.
+        const {manager: managerB} = createTestTab({locks, sw, bc, clientId: "tab-b", dir});
         const connB = await managerB.connect();
 
         await executeSql(connB, "UPDATE t SET done = 1");
 
-        // Background server call routes through follower's executeActionServer
+        // Background server call routes through the leader worker's realtime connection.
         await new Promise(resolve => setTimeout(resolve, 0));
         expect(capturedAction).toMatchObject({
             name: "rawSql",

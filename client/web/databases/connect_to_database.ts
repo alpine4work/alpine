@@ -5,16 +5,11 @@ import {
     DatabaseActiveTabManager,
     type DatabaseWorkerConnection,
 } from "~/client/web/databases/database_active_tab_manager.js";
-import type {DatabaseActionObject} from "~/shared/databases/database_actions.js";
 import type {
-    DatabaseEnsureCacheIsUpToDateResult,
-    DatabaseExecuteActionResponse,
-    DatabasePageIndexes,
-    DatabasePageVersionsByIndex,
     DatabasePages,
 } from "~/shared/databases/database_protocol_schemas.js";
 import {CancelledError} from "~/shared/error/error.js";
-import type {DatabaseGroupId, DatabaseMutationId} from "~/shared/id/types/id_types.js";
+import type {DatabaseGroupId} from "~/shared/id/types/id_types.js";
 
 export type {
     DatabaseWorkerConnection,
@@ -24,19 +19,8 @@ export type {
 
 type ConnectOptions = {
     databaseGroupId: DatabaseGroupId;
+    webSocketUrl: string;
     initialPages?: DatabasePages;
-    executeActionServer(
-        action: DatabaseActionObject,
-        options: {
-            mutationId: DatabaseMutationId;
-            returnResult?: boolean;
-            returnPages?: boolean;
-        },
-    ): Promise<DatabaseExecuteActionResponse>;
-    ensureCacheIsUpToDate(
-        pageVersionsByIndex: DatabasePageVersionsByIndex,
-    ): Promise<DatabaseEnsureCacheIsUpToDateResult>;
-    acknowledgePages(pageIndexes: DatabasePageIndexes): void;
     reportError?(message: string): void;
 };
 
@@ -197,15 +181,13 @@ async function connectToDatabaseGroup(options: ConnectOptions): Promise<Database
         addUnloadListener(callback: () => void) {
             window.addEventListener("beforeunload", callback);
         },
-        executeActionServer: options.executeActionServer,
-        ensureCacheIsUpToDate: options.ensureCacheIsUpToDate,
-        acknowledgePages: options.acknowledgePages,
         reportError: options.reportError,
     });
 
     const connection = await manager.connect();
-    if (options.initialPages !== undefined && options.initialPages.size > 0) {
-        void connection.call("writeInitialPages", {pages: options.initialPages});
-    }
+    await connection.call("connectDatabaseGroup", {
+        pages: options.initialPages ?? new Map(),
+        webSocketUrl: options.webSocketUrl,
+    });
     return connection;
 }

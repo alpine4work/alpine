@@ -1,5 +1,6 @@
-import {AppContext} from "~/client/web/context/app_context.js";
 import {WebSocketClientConnection} from "~/client/web/web_socket/web_socket_client_connection.js";
+import type {Context} from "~/shared/context/context.js";
+import type {TracerContextModule} from "~/shared/context/tracer_context_module.js";
 import {InternalError} from "~/shared/error/error.js";
 import {isTransientError} from "~/shared/error/is_transient_error.js";
 import {PromiseResolver, createPromiseResolver} from "~/shared/helpers/async/promise_resolver.js";
@@ -22,6 +23,8 @@ const reconnectAttemptsBeforeError = 20;
 const openHealthyDurationMs = 10000;
 
 type WebSocketClientDisconnectTransition = "Disconnected" | "DocumentNotVisible";
+
+type WebSocketClientContext = Context<{tracer: TracerContextModule}>;
 
 type WebSocketClientInternalState<Protocol extends WebSocketProtocolBase> =
     | {
@@ -128,7 +131,7 @@ export type WebSocketClientProcedures<
  * underlying connections over the course of its life.
  */
 export class WebSocketClient<Protocol extends WebSocketProtocolBase> {
-    private readonly _getContext: () => AppContext;
+    private readonly _getContext: () => WebSocketClientContext;
     private readonly _serviceName: TracerServiceName;
     private readonly _protocol: Protocol;
     private readonly _url: string;
@@ -143,7 +146,7 @@ export class WebSocketClient<Protocol extends WebSocketProtocolBase> {
     >;
 
     constructor(
-        getContext: () => AppContext,
+        getContext: () => WebSocketClientContext,
         serviceName: TracerServiceName,
         protocol: Protocol,
         url: string,
@@ -373,11 +376,14 @@ export class WebSocketClient<Protocol extends WebSocketProtocolBase> {
 
         let delayedDocumentNotVisibleTimeout: Timeout | null = null;
 
+        const browserDocument = typeof document === "undefined" ? null : document;
+
         const handleDocumentVisibilityChange = () => {
+            if (browserDocument === null) return;
             delayedDocumentNotVisibleTimeout?.clear();
             delayedDocumentNotVisibleTimeout = null;
 
-            if (document.visibilityState === "visible") {
+            if (browserDocument.visibilityState === "visible") {
                 const state = this._state.getSnapshot();
                 if (state.type === "DocumentNotVisible") connect();
             } else {
@@ -388,12 +394,12 @@ export class WebSocketClient<Protocol extends WebSocketProtocolBase> {
             }
         };
 
-        document.addEventListener("visibilitychange", handleDocumentVisibilityChange);
+        browserDocument?.addEventListener("visibilitychange", handleDocumentVisibilityChange);
 
         const actuallyDisconnect = (transition: WebSocketClientDisconnectTransition) => {
             switch (transition) {
                 case "Disconnected": {
-                    document.removeEventListener(
+                    browserDocument?.removeEventListener(
                         "visibilitychange",
                         handleDocumentVisibilityChange,
                     );
@@ -427,7 +433,7 @@ export class WebSocketClient<Protocol extends WebSocketProtocolBase> {
             assert(previousState.type === "Disconnected", "WebSocket is already connected");
             pendingProcedures = previousState.pendingProcedures;
 
-            if (document.visibilityState === "visible") {
+            if (browserDocument === null || browserDocument.visibilityState === "visible") {
                 connect();
             } else {
                 this._state.set({

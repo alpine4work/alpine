@@ -4,12 +4,7 @@ import {
     DatabaseActionResultSchema,
 } from "~/shared/databases/database_actions.js";
 import {
-    DatabaseEnsureCacheIsUpToDateResultConfig,
-    DatabaseExecuteActionInputConfig,
-    DatabaseExecuteActionOutputConfig,
     DatabasePageDiffsSchema,
-    DatabasePageIndexesSchema,
-    DatabasePageVersionsByIndexSchema,
     DatabasePagesSchema,
 } from "~/shared/databases/database_protocol_schemas.js";
 import type {
@@ -21,6 +16,14 @@ import {Schema} from "~/shared/schema/schema.js";
 
 /** Methods the tab can call on the worker. */
 export const tabToWorkerDatabaseRpcMethods = defineWebWorkerRpcMethods({
+    connectDatabaseGroup: {
+        input: {
+            databaseGroupId: Schema.id<DatabaseGroupId>(),
+            pages: DatabasePagesSchema,
+            webSocketUrl: Schema.string,
+        },
+        output: {},
+    },
     writeInitialPages: {
         input: {
             databaseGroupId: Schema.id<DatabaseGroupId>(),
@@ -62,18 +65,6 @@ export const tabToWorkerDatabaseRpcMethods = defineWebWorkerRpcMethods({
 
 /** Methods the worker can call on the tab. */
 export const workerToTabDatabaseRpcMethods = defineWebWorkerRpcMethods({
-    executeActionServer: {
-        input: DatabaseExecuteActionInputConfig,
-        output: DatabaseExecuteActionOutputConfig,
-    },
-    ensureCacheIsUpToDate: {
-        input: {pageVersionsByIndex: DatabasePageVersionsByIndexSchema},
-        output: DatabaseEnsureCacheIsUpToDateResultConfig,
-    },
-    acknowledgePages: {
-        input: {pageIndexes: DatabasePageIndexesSchema},
-        output: {},
-    },
     reportError: {
         input: {message: Schema.string},
         output: {},

@@ -6,27 +6,18 @@ import {DatabaseConnectionContext} from "~/client/web/databases/database_connect
 import {Box} from "~/client/web/design/box.js";
 import {Button} from "~/client/web/design/button.js";
 import {useReporter} from "~/client/web/design/reporter.js";
-import {useEvent, useEvents} from "~/client/web/helpers/lifecycle/use_event.js";
+import {useEvent} from "~/client/web/helpers/lifecycle/use_event.js";
 import {useBrowserId} from "~/client/web/remix/client_info_context.js";
 import {createMetaFunction} from "~/client/web/remix/create_meta_function.js";
 import {useLoaderDataWithSchema} from "~/client/web/remix/use_loader_data_with_schema.js";
 import {useNavigate} from "~/client/web/remix/use_navigate.js";
-import {useWebSocket} from "~/client/web/web_socket/use_web_socket.js";
 import {fetchDatabaseGroupAction} from "~/server/databases/data/fetch_database_action.js";
 import {jsonWithSchema} from "~/server/remix/json_with_schema.js";
 import {LoaderArgs} from "~/server/remix/loader_context.js";
 import {getDatabaseGroupIdForSpace} from "~/server/spaces/get_database_group_id_for_space.js";
 import {DatabasePagesSchema} from "~/shared/databases/database_protocol_schemas.js";
-import {
-    type DatabaseRealtimeEvent,
-    DatabaseRealtimeProtocol,
-} from "~/shared/databases/database_realtime_protocol.js";
 import {InternalError} from "~/shared/error/error.js";
-import type {
-    DatabaseGroupId,
-    DatabaseMutationId,
-    DatabaseTableId,
-} from "~/shared/id/types/id_types.js";
+import type {DatabaseGroupId} from "~/shared/id/types/id_types.js";
 import {Schema} from "~/shared/schema/schema.js";
 
 const LoaderSchema = Schema.object({
@@ -65,62 +56,14 @@ export default function DatabaseGroupLayoutRoute() {
 
     const wsUrl = `/api/durable-objects/database-groups/${databaseGroupId}?browserId=${browserId}`;
 
-    const {subscribeToEvents, procedures} = useWebSocket(
-        "DatabaseGroupService",
-        DatabaseRealtimeProtocol,
-        wsUrl,
-    );
-
-    const handlePagesChanged = useEvent((event: DatabaseRealtimeEvent) => {
-        if (event.type === "PagesChanged") {
-            conn.call("writePageDiffsFromRealtime", {
-                pageDiffs: event.pageDiffs,
-                mutationId: event.mutationId,
-            });
-        }
-    });
-
-    useEffect(() => {
-        return subscribeToEvents(handlePagesChanged);
-    }, [handlePagesChanged, subscribeToEvents]);
-
-    const {executeActionServer, ensureCacheIsUpToDate, acknowledgePages, reportError} = useEvents({
-        executeActionServer: async (
-            action: {name: "rawSql"; input: {readonly sql: string}},
-            options: {
-                mutationId: DatabaseMutationId;
-                returnResult?: boolean;
-                returnPages?: boolean;
-            },
-        ) => {
-            return procedures.executeAction({
-                action,
-                mutationId: options.mutationId,
-                returnResult: options.returnResult ?? true,
-                returnPages: options.returnPages ?? true,
-            });
-        },
-        ensureCacheIsUpToDate: async (
-            pageVersionsByIndex: ReadonlyMap<DatabaseTableId, ReadonlyMap<number, number>>,
-        ) => {
-            return procedures.ensureCacheIsUpToDate({pageVersionsByIndex});
-        },
-        acknowledgePages: (pageIndexes: ReadonlyMap<DatabaseTableId, ReadonlyArray<number>>) => {
-            void procedures.acknowledgePages({pageIndexes});
-        },
-        reportError: (message: string) => {
-            reporter.displayError("Couldn\u2019t save changes", new InternalError(message));
-        },
-    });
-
     const connectDatabase = useEvent(() => {
         db.connect({
             databaseGroupId,
+            webSocketUrl: wsUrl,
             initialPages: initialPagesRef.current,
-            executeActionServer,
-            ensureCacheIsUpToDate,
-            acknowledgePages,
-            reportError,
+            reportError: message => {
+                reporter.displayError("Couldn\u2019t save changes", new InternalError(message));
+            },
         }).catch((error: unknown) => {
             reporter.displayError(
                 "Couldn\u2019t connect to database",
