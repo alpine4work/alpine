@@ -64,7 +64,7 @@ import {
     spinAnimationClassName,
 } from "~/client/web/styles/styles.js";
 import {getAccountShortNameWithoutFullNameTooltip} from "~/shared/accounts/get_account_short_name_without_full_name_tooltip.js";
-import {formatContentDateString} from "~/shared/content/content_date_helpers.js";
+import {formatContentDateString} from "~/shared/content/format_content_date_string.js";
 import {ContentMention} from "~/shared/content/content_mention.js";
 import {emptyContentReferences} from "~/shared/content/content_references.js";
 import {formatContentDateAbsolute} from "~/shared/content/format_content_date.js";

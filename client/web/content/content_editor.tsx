@@ -180,7 +180,7 @@ import {
 import {getSynchronizedSystemClock} from "~/client/web/tracer/synchronized_system_clock.js";
 import {AccessLevel, hasAccessLevel} from "~/shared/access/access_policy.js";
 import {ContentCodeBlockLanguageId} from "~/shared/content/content_code_block_language_id.js";
-import {formatDateInOriginalFormat} from "~/shared/content/content_editor_date_format.js";
+import {printCalendarDateInOriginalFormat} from "~/shared/helpers/date/parse_calendar_dates.js";
 import {ContentMention} from "~/shared/content/content_mention.js";
 import {
     getContentReferencedIdsForSlice,
@@ -256,6 +256,7 @@ import {isSearchMentionEntityId} from "~/shared/search/search_entity_id.js";
 import {hasDatePickerFeature} from "~/shared/spaces/has_date_picker_feature.js";
 import {hasGifPickerFeature} from "~/shared/spaces/has_gif_picker_feature.js";
 import {ValueStore} from "~/shared/store/value_store.js";
+import {parseDate} from "@internationalized/date";
 
 // TODO(calebmer, #mobile-webkit-weirdness): Safari doesn't support
 // `ascent-override` and `descent-override` which means our phantom selection or
@@ -5355,12 +5356,19 @@ function ContentEditor<Content extends ContentWithReferences>(
      *                           Date picker handlers                             *
     \* ========================================================================== */
 
-    function handleDatePickerChange(newDateString: string) {
+    function handleDatePickerChange(
+        // TODO(calebmer): Can we make `newDateString` a `CalendarDate` instead? So we
+        // aren't passing around a loosely typed string.
+        newDateString: string,
+    ) {
         if (!datePickerState) return;
         const view = viewRef.current;
         if (!view) return;
 
-        const newText = formatDateInOriginalFormat(newDateString, datePickerState.match.format);
+        const newText = printCalendarDateInOriginalFormat(
+            parseDate(newDateString),
+            datePickerState.match.format,
+        );
         const {from, to} = datePickerState.match;
 
         // Re-focus the editor first so ProseMirror can accept the selection change. Focus

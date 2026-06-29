@@ -4,17 +4,16 @@
  * plugin.
  */
 
-import {
-    contentDateAbbreviatedMonthNames,
-    contentDateFullMonthNames,
-    isValidContentDate,
-    parseContentDateString,
-} from "~/shared/content/content_date_helpers.js";
+import {CalendarDate} from "@internationalized/date";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
+import {
+    dateAbbreviatedMonthNames,
+    dateFullMonthNames,
+} from "~/shared/helpers/date/date_month_names.js";
 
 /** Describes which date pattern was matched, preserving formatting details. */
-export type ContentEditorDateFormat =
+export type CalendarDateParserFormat =
     | {
           /**
            * - "March 7, 2026", "2 August 2026", "March 2nd, 2026"
@@ -81,15 +80,15 @@ export type ContentEditorDateFormat =
       };
 
 /** A detected date match within a string. */
-export type ContentEditorDateMatch = {
+export type CalendarDateParserMatch = {
     /** Start offset (inclusive) in the source string. */
     readonly start: number;
     /** End offset (exclusive) in the source string. */
     readonly end: number;
-    /** Normalized date in YYYY-MM-DD format. */
-    readonly date: string;
+    /** Normalized date. */
+    readonly date: CalendarDate;
     /** The format descriptor describing the original pattern. */
-    readonly format: ContentEditorDateFormat;
+    readonly format: CalendarDateParserFormat;
     /** The original text that was matched. */
     readonly originalText: string;
 };
@@ -129,11 +128,11 @@ function expandShortYear(shortYear: number): number {
  * @param text - The text to search for dates. @param defaultYear - The year to use
  * when the matched format doesn't include one.
  */
-export function detectContentEditorDates(
+export function parseCalendarDates(
     text: string,
     defaultYear?: number,
-): Array<ContentEditorDateMatch> {
-    const matches: Array<ContentEditorDateMatch> = [];
+): Array<CalendarDateParserMatch> {
+    const matches: Array<CalendarDateParserMatch> = [];
 
     // Track which character offsets are already claimed so more specific patterns
     // prevent less specific ones from overlapping.
@@ -161,21 +160,25 @@ export function detectContentEditorDates(
         const month = parseInt(monthStr, 10);
         const day = parseInt(dayStr, 10);
 
-        if (!isValidContentDate(year, month, day)) continue;
+        const date = new CalendarDate(year, month, day);
+
+        // Make sure the original values were valid and weren't clamped by the
+        // `CalendarDate` constructor
+        if (date.year !== year || date.month !== month || date.day !== day) continue;
 
         if (!claimRange(start, end)) continue;
 
         matches.push({
             start,
             end,
-            date: `${yearStr}-${monthStr}-${dayStr}`,
+            date,
             format: {type: "ISO"},
             originalText: fullMatch,
         });
     }
 
-    const fullMonthNamesPattern = contentDateFullMonthNames.join("|");
-    const abbreviatedMonthNamesPattern = contentDateAbbreviatedMonthNames.join("|");
+    const fullMonthNamesPattern = dateFullMonthNames.join("|");
+    const abbreviatedMonthNamesPattern = dateAbbreviatedMonthNames.join("|");
     const ordSuffix = "(?:st|nd|rd|th)";
 
     // Apostrophe characters: straight quote, left and right single quotation marks.
@@ -198,22 +201,24 @@ export function detectContentEditorDates(
             const start = match.index;
             const end = start + fullMatch.length;
 
-            const monthNames = abbreviated
-                ? contentDateAbbreviatedMonthNames
-                : contentDateFullMonthNames;
+            const monthNames = abbreviated ? dateAbbreviatedMonthNames : dateFullMonthNames;
 
             const month = monthNames.indexOf(monthName) + 1;
             const day = parseInt(dayStr, 10);
             const year = parseInt(yearStr, 10);
 
-            if (!isValidContentDate(year, month, day)) continue;
+            const date = new CalendarDate(year, month, day);
+
+            // Make sure the original values were valid and weren't clamped by the
+            // `CalendarDate` constructor
+            if (date.year !== year || date.month !== month || date.day !== day) continue;
 
             if (!claimRange(start, end)) continue;
 
             matches.push({
                 start,
                 end,
-                date: `${yearStr}-${pad2(month)}-${pad2(day)}`,
+                date,
                 format: {
                     type: "Prose",
                     year: {twoDigit: false, hasComma: comma === ","},
@@ -245,22 +250,24 @@ export function detectContentEditorDates(
             const start = match.index;
             const end = start + fullMatch.length;
 
-            const monthNames = abbreviated
-                ? contentDateAbbreviatedMonthNames
-                : contentDateFullMonthNames;
+            const monthNames = abbreviated ? dateAbbreviatedMonthNames : dateFullMonthNames;
 
             const month = monthNames.indexOf(monthName) + 1;
             const day = parseInt(dayStr, 10);
             const year = expandShortYear(parseInt(yearStr, 10));
 
-            if (!isValidContentDate(year, month, day)) continue;
+            const date = new CalendarDate(year, month, day);
+
+            // Make sure the original values were valid and weren't clamped by the
+            // `CalendarDate` constructor
+            if (date.year !== year || date.month !== month || date.day !== day) continue;
 
             if (!claimRange(start, end)) continue;
 
             matches.push({
                 start,
                 end,
-                date: `${year}-${pad2(month)}-${pad2(day)}`,
+                date,
                 format: {
                     type: "Prose",
                     year: {twoDigit: true, hasComma: comma === ",", apostrophe},
@@ -292,22 +299,24 @@ export function detectContentEditorDates(
             const start = match.index;
             const end = start + fullMatch.length;
 
-            const monthNames = abbreviated
-                ? contentDateAbbreviatedMonthNames
-                : contentDateFullMonthNames;
+            const monthNames = abbreviated ? dateAbbreviatedMonthNames : dateFullMonthNames;
 
             const month = monthNames.indexOf(monthName) + 1;
             const day = parseInt(dayStr, 10);
             const year = parseInt(yearStr, 10);
 
-            if (!isValidContentDate(year, month, day)) continue;
+            const date = new CalendarDate(year, month, day);
+
+            // Make sure the original values were valid and weren't clamped by the
+            // `CalendarDate` constructor
+            if (date.year !== year || date.month !== month || date.day !== day) continue;
 
             if (!claimRange(start, end)) continue;
 
             matches.push({
                 start,
                 end,
-                date: `${yearStr}-${pad2(month)}-${pad2(day)}`,
+                date,
                 format: {
                     type: "Prose",
                     year: {twoDigit: false, hasComma: comma === ","},
@@ -339,22 +348,24 @@ export function detectContentEditorDates(
             const start = match.index;
             const end = start + fullMatch.length;
 
-            const monthNames = abbreviated
-                ? contentDateAbbreviatedMonthNames
-                : contentDateFullMonthNames;
+            const monthNames = abbreviated ? dateAbbreviatedMonthNames : dateFullMonthNames;
 
             const month = monthNames.indexOf(monthName) + 1;
             const day = parseInt(dayStr, 10);
             const year = expandShortYear(parseInt(yearStr, 10));
 
-            if (!isValidContentDate(year, month, day)) continue;
+            const date = new CalendarDate(year, month, day);
+
+            // Make sure the original values were valid and weren't clamped by the
+            // `CalendarDate` constructor
+            if (date.year !== year || date.month !== month || date.day !== day) continue;
 
             if (!claimRange(start, end)) continue;
 
             matches.push({
                 start,
                 end,
-                date: `${year}-${pad2(month)}-${pad2(day)}`,
+                date,
                 format: {
                     type: "Prose",
                     year: {twoDigit: true, hasComma: comma === ",", apostrophe},
@@ -390,14 +401,18 @@ export function detectContentEditorDates(
             const shortYear = yearStr.length === 2;
             const year = shortYear ? expandShortYear(parseInt(yearStr, 10)) : parseInt(yearStr, 10);
 
-            if (!isValidContentDate(year, month, day)) continue;
+            const date = new CalendarDate(year, month, day);
+
+            // Make sure the original values were valid and weren't clamped by the
+            // `CalendarDate` constructor
+            if (date.year !== year || date.month !== month || date.day !== day) continue;
 
             if (!claimRange(start, end)) continue;
 
             matches.push({
                 start,
                 end,
-                date: `${String(year).padStart(4, "0")}-${pad2(month)}-${pad2(day)}`,
+                date,
                 format: {
                     type: "NumericSeparated",
                     separator,
@@ -427,21 +442,23 @@ export function detectContentEditorDates(
                 const start = match.index;
                 const end = start + fullMatch.length;
 
-                const monthNames = abbreviated
-                    ? contentDateAbbreviatedMonthNames
-                    : contentDateFullMonthNames;
+                const monthNames = abbreviated ? dateAbbreviatedMonthNames : dateFullMonthNames;
 
                 const month = monthNames.indexOf(monthName) + 1;
                 const day = parseInt(dayStr, 10);
 
-                if (!isValidContentDate(defaultYear, month, day)) continue;
+                const date: CalendarDate = new CalendarDate(defaultYear, month, day);
+
+                // Make sure the original values were valid and weren't clamped by the
+                // `CalendarDate` constructor
+                if (date.year !== defaultYear || date.month !== month || date.day !== day) continue;
 
                 if (!claimRange(start, end)) continue;
 
                 matches.push({
                     start,
                     end,
-                    date: `${defaultYear}-${pad2(month)}-${pad2(day)}`,
+                    date,
                     format: {
                         type: "Prose",
                         year: undefined,
@@ -475,21 +492,23 @@ export function detectContentEditorDates(
                 const start = match.index;
                 const end = start + fullMatch.length;
 
-                const monthNames = abbreviated
-                    ? contentDateAbbreviatedMonthNames
-                    : contentDateFullMonthNames;
+                const monthNames = abbreviated ? dateAbbreviatedMonthNames : dateFullMonthNames;
 
                 const month = monthNames.indexOf(monthName) + 1;
                 const day = parseInt(dayStr, 10);
 
-                if (!isValidContentDate(defaultYear, month, day)) continue;
+                const date: CalendarDate = new CalendarDate(defaultYear, month, day);
+
+                // Make sure the original values were valid and weren't clamped by the
+                // `CalendarDate` constructor
+                if (date.year !== defaultYear || date.month !== month || date.day !== day) continue;
 
                 if (!claimRange(start, end)) continue;
 
                 matches.push({
                     start,
                     end,
-                    date: `${defaultYear}-${pad2(month)}-${pad2(day)}`,
+                    date,
                     format: {
                         type: "Prose",
                         year: undefined,
@@ -525,14 +544,18 @@ export function detectContentEditorDates(
                 const month = parseInt(monthStr, 10);
                 const day = parseInt(dayStr, 10);
 
-                if (!isValidContentDate(defaultYear, month, day)) continue;
+                const date: CalendarDate = new CalendarDate(defaultYear, month, day);
+
+                // Make sure the original values were valid and weren't clamped by the
+                // `CalendarDate` constructor
+                if (date.year !== defaultYear || date.month !== month || date.day !== day) continue;
 
                 if (!claimRange(start, end)) continue;
 
                 matches.push({
                     start,
                     end,
-                    date: `${defaultYear}-${pad2(month)}-${pad2(day)}`,
+                    date,
                     format: {
                         type: "NumericSeparated",
                         separator,
@@ -558,14 +581,17 @@ export function detectContentEditorDates(
  * @param date - A date string in YYYY-MM-DD format. @param format - The format
  * descriptor returned by `detectContentEditorDates`.
  */
-export function formatDateInOriginalFormat(date: string, format: ContentEditorDateFormat): string {
-    const {year, month, day} = parseContentDateString(date);
-
+export function printCalendarDateInOriginalFormat(
+    date: CalendarDate,
+    format: CalendarDateParserFormat,
+): string {
     switch (format.type) {
         case "Prose": {
+            const {year, month, day} = date;
+
             const monthNames = format.month.abbreviated
-                ? contentDateAbbreviatedMonthNames
-                : contentDateFullMonthNames;
+                ? dateAbbreviatedMonthNames
+                : dateFullMonthNames;
 
             const monthName = assertExists(monthNames[month - 1]);
 
@@ -594,6 +620,8 @@ export function formatDateInOriginalFormat(date: string, format: ContentEditorDa
             return `${monthName} ${dayPart}${comma} ${yearPart}`;
         }
         case "NumericSeparated": {
+            const {year, month, day} = date;
+
             // TODO(#global-date-formatting): US-ordering assumption
             const monthStr = format.month.zeroPadded ? pad2(month) : String(month);
             const dayStr = format.day.zeroPadded ? pad2(day) : String(day);
@@ -607,7 +635,7 @@ export function formatDateInOriginalFormat(date: string, format: ContentEditorDa
             return `${monthStr}${format.separator}${dayStr}${format.separator}${yearStr}`;
         }
         case "ISO": {
-            return date;
+            return date.toString();
         }
         default:
             throw exhaustive(format);
