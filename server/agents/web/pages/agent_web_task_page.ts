@@ -1,3 +1,4 @@
+import {CalendarDate, fromDate, parseDate, toCalendarDate} from "@internationalized/date";
 import {produce} from "immer";
 import {Link, ListItem, Node, PhrasingContent, Root, Text} from "mdast";
 import {
@@ -22,15 +23,16 @@ import {
     ApiTaskPriority,
     ApiTaskStatus,
 } from "~/shared/api/specification/types/api_specification_convenience_types.js";
+import {formatPrettyAbsoluteDateWithoutFullTimeTooltip} from "~/shared/design/format_pretty_absolute_date_without_full_time_tooltip.js";
 import {InvalidArgumentError} from "~/shared/error/error.js";
 import {errorDisplayMessage} from "~/shared/error/error_display_message.js";
 import {emptyArray} from "~/shared/helpers/array/empty_array.js";
 import {interleaveArray} from "~/shared/helpers/array/interleave_array.js";
 import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
-import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 import {cast} from "~/shared/helpers/control/cast.js";
-import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
 import {isDeepEqual} from "~/shared/helpers/control/is_deep_equal.js";
+import {parseCalendarDates} from "~/shared/helpers/date/parse_calendar_dates.js";
+import {defaultLocale} from "~/shared/helpers/intl/locale.js";
 import {MaybePromise} from "~/shared/helpers/types/maybe_promise.js";
 import {TaskId} from "~/shared/id/types/id_types.js";
 
@@ -46,7 +48,7 @@ export type AgentWebTaskPage = {
     readonly assignee: ApiAccountReferenceResponse | null;
     readonly collections: ReadonlyArray<ApiTaskCollectionReferenceResponse>;
     readonly priority: ApiTaskPriority | null;
-    readonly due: ApiTaskDue | null;
+    readonly dueDateString: string | null;
 };
 
 export type AgentWebTaskPageMetadata = {
@@ -63,9 +65,14 @@ export async function readAgentWebTaskPage(
     id: TaskId,
     {printPage}: {printPage: (page: AgentWebTaskPage) => Promise<string>},
 ): Promise<{response: string; metadata: AgentWebTaskPageMetadata}> {
+    const contextTime = new Date();
+    const contextDate = toCalendarDate(fromDate(contextTime, context.timeZone));
+
     const {
         data: {task},
     } = await context.api.get(context.span, "/tasks/{id}", {params: {path: {id}}});
+
+    const taskDueDate = task.due ? parseDate(task.due.date) : null;
 
     const page: AgentWebTaskPageWithMetadata = {
         type: "Task",
@@ -79,7 +86,15 @@ export async function readAgentWebTaskPage(
                 title: collection.name,
             })) ?? emptyArray,
         priority: task.priority ?? null,
-        due: task.due ?? null,
+        dueDateString: taskDueDate
+            ? formatPrettyAbsoluteDateWithoutFullTimeTooltip(
+                  defaultLocale,
+                  context.timeZone,
+                  contextDate,
+                  taskDueDate.toDate(context.timeZone),
+                  {withoutTime: true},
+              )
+            : null,
         metadata: {
             type: "Task",
             id,
@@ -90,6 +105,29 @@ export async function readAgentWebTaskPage(
         response: await printPage(page),
         metadata: page.metadata,
     };
+}
+
+function parseAgentWebTaskPageDueDateStringForUpdate(
+    contextDate: CalendarDate,
+    dueDateString: string,
+) {
+    const matches = parseCalendarDates(dueDateString, contextDate.year);
+
+    if (
+        matches.length === 0 ||
+        matches.length > 1 ||
+        matches[0]!.start !== 0 ||
+        matches[0]!.end !== dueDateString.length
+    ) {
+        const quotedValue = quoteMarkdown([{type: "text", value: dueDateString}]);
+
+        // NOCOMMIT: Test that time isn't allowed
+        throw new InvalidArgumentError("Invalid task due date", {
+            displayMessage: errorDisplayMessage`Unexpected task due date ${quotedValue}. Try again with a date like \u201CJuly 12, 2027\u201D (not including the time, just the date).`,
+        });
+    }
+
+    return matches[0]!.date;
 }
 
 export function normalizeAgentWebTaskPage<Page extends AgentWebTaskPage>(page: Page): Page {
@@ -210,15 +248,14 @@ export async function printAgentWebTaskPage(
         });
     }
 
-    // NOCOMMIT: Nice printing of due date
-    if (page.due) {
+    if (page.dueDateString !== null) {
         listItemPromises.push({
             type: "listItem",
             spread: false,
             children: [
                 {
                     type: "paragraph",
-                    children: [{type: "text", value: `Due date: ${page.due.date}`}],
+                    children: [{type: "text", value: `Due date: ${page.dueDateString}`}],
                 },
             ],
         });
@@ -272,7 +309,7 @@ export async function parseAgentWebTaskPage(
         assignee: null,
         collections: [],
         priority: null,
-        due: null,
+        dueDateString: null,
     };
 
     if (root.children.length === 0) return page;
@@ -344,7 +381,7 @@ export async function parseAgentWebTaskPage(
                 break;
             }
             case "due": {
-                page = {...page, due: parseAgentWebTaskPageDue(item.position, value)};
+                page = {...page, dueDateString: parseAgentWebTaskPageDue(value)};
                 break;
             }
             default: {
@@ -578,4 +615,10 @@ function parseAgentWebTaskPagePriority(
             });
         }
     }
+}
+
+function parseAgentWebTaskPageDue(value: ReadonlyArray<PhrasingContent>): string | null {
+    const dateString = printMarkdownPhrasingContentText(value).trim();
+    if (dateString.length === 0) return null;
+    return dateString;
 }
