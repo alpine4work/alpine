@@ -309,7 +309,7 @@ export async function parseAgentWebTaskPage(
         // shouldn't have any other markdown in the list item after that.
         //
         // NOCOMMIT: Test this error for all field types!
-        if (remaining.length > 0 && label !== "collect") {
+        if (remaining.length > 0 && labelKey !== "collect") {
             throw new InvalidArgumentError("Unexpected markdown nested in task field", {
                 displayMessage: errorDisplayMessage`Unexpected markdown after task field \u201C${label}\u201D on line ${remaining[0]!.position?.start.line ?? item.position?.start.line ?? "unknown"}. Try again with an unordered list item for each task field where the field name is followed by the field value with a colon in between (e.g. \`- Priority: Medium\`).`,
             });
@@ -330,7 +330,12 @@ export async function parseAgentWebTaskPage(
             case "collect": {
                 page = {
                     ...page,
-                    collections: await parseAgentWebTaskPageCollections(storage, item, value),
+                    collections: await parseAgentWebTaskPageCollections(
+                        storage,
+                        item.position,
+                        value,
+                        remaining,
+                    ),
                 };
                 break;
             }
@@ -358,7 +363,7 @@ function parseAgentWebTaskPageField(item: ListItem) {
 
     const createError = () => {
         return new InvalidArgumentError("Invalid task fields", {
-            displayMessage: errorDisplayMessage`Unexpected markdown on line ${firstChild?.position?.start.line ?? item.position?.start.line ?? "unknown"}. Task fields must be unordered list items with the field name followed by the field value with a colon in between (e.g. \`- Priority: Medium\`).`,
+            displayMessage: errorDisplayMessage`Unexpected markdown on line ${firstChild?.position?.start.line ?? item.position?.start.line ?? "unknown"}. Try again with an unordered list item for each task field where the field name is followed by the field value with a colon in between (e.g. \`- Priority: Medium\`).`,
         });
     };
 
@@ -378,7 +383,7 @@ function parseAgentWebTaskPageField(item: ListItem) {
     if (rest.length > 0) value.push({type: "text", value: rest});
     for (const child of firstChild.children.slice(1)) value.push(child);
 
-    return {label, value};
+    return {label, value, remaining: item.children.slice(1)};
 }
 
 function parseAgentWebTaskPageStatus(
@@ -412,21 +417,24 @@ async function parseAgentWebTaskPageAssignee(
         const quotedValue = quoteMarkdown(value);
 
         return new InvalidArgumentError("Invalid task fields", {
-            displayMessage: errorDisplayMessage`Unexpected task assignee ${quotedValue} on line ${position?.start.line ?? itemPosition?.start.line ?? "unknown"}. Try again with a link to a human or bot (e.g. \`[John](/human/john-doe)\`).`,
+            displayMessage: errorDisplayMessage`Unexpected task assignee link ${quotedValue} on line ${position?.start.line ?? itemPosition?.start.line ?? "unknown"}. Try again with a link to a human or bot you\u2019ve seen before (e.g. \`[John](/human/john-doe)\`).`,
         });
     };
 
     let link: Link | null = null;
 
     for (const child of value) {
-        if (child.type === "link") {
+        // NOCOMMIT: if there's a second link we should throw
+        if (child.type === "link" && link === null) {
             link = child;
+            continue;
         }
+
         if (child.type === "text" && child.value.trim().length === 0) {
-            // continue
-        } else {
-            throw createError(child.position);
+            continue;
         }
+
+        throw createError(child.position);
     }
 
     if (link === null) return null;
@@ -439,6 +447,114 @@ async function parseAgentWebTaskPageAssignee(
 
     return pageLinkResult.pageLink;
 }
+
+async function parseAgentWebTaskPageCollections(
+    storage: AgentWebSessionStorage,
+    itemPosition: Node["position"],
+    value: ReadonlyArray<PhrasingContent>,
+    remaining: ReadonlyArray<ListItem["children"][number]>,
+): Promise<Array<ApiTaskCollectionReferenceResponse>> {
+    const collections: Array<ApiTaskCollectionReferenceResponse> = [];
+
+    for (const node of value) {
+        switch (node.type) {
+            case "link": {
+                const pageLinkResult = await routeAgentWebPageLinkPathname(storage, node.url);
+
+                if (!pageLinkResult || pageLinkResult.pageLink.type !== "TaskCollection") {
+                    const quotedValue = quoteMarkdown([node]);
+
+                    throw new InvalidArgumentError("Invalid task fields", {
+                        displayMessage: errorDisplayMessage`Unexpected task collection link ${quotedValue} on line ${node.position?.start.line ?? itemPosition?.start.line ?? "unknown"}. Try again with a link to a task collection you\u2019ve seen before (e.g. \`[My Collection](/task-collection/my-collection)\`).`,
+                    });
+                }
+
+                collections.push(pageLinkResult.pageLink);
+                break;
+            }
+
+            case "text": {
+                if (
+                    node.value
+                        .replace(/,/g, "")
+                        .replace(/\band\b/gi, "")
+                        .trim().length === 0
+                ) {
+                    break;
+                }
+
+                // Intentional fallthrough to `default` branch...
+            }
+
+            default: {
+                throw new InvalidArgumentError("Invalid task collections field", {
+                    displayMessage: errorDisplayMessage`Unexpected markdown for task collections field on line ${node.position?.start.line ?? itemPosition?.start.line ?? "unknown"}. Try again with a comma separated list of collection links (e.g. \`- Collections: [My Collection 1](/task-collection/my-collection-1), [My Collection 2](/task-collection/my-collection-2)\`).`,
+                });
+            }
+        }
+    }
+
+    // If there were just inline collections, great! Otherwise we'll try to parse a
+    // nested collection list.
+    if (remaining.length === 0) return collections;
+
+    const nestedList = remaining[0];
+
+    if (
+        collections.length > 0 ||
+        remaining.length !== 1 ||
+        nestedList!.type !== "list" ||
+        nestedList.ordered
+    ) {
+        throw new InvalidArgumentError("Invalid task collections field", {
+            displayMessage: errorDisplayMessage`Unexpected markdown after task collection list on line ${remaining[0]?.position?.start.line ?? itemPosition?.start.line ?? "unknown"}. Try again with a comma separated list of collection links and nothing else after that (e.g. \`- Collections: [My Collection 1](/task-collection/my-collection-1), [My Collection 2](/task-collection/my-collection-2)\`).`,
+        });
+    }
+
+    for (const nestedItem of nestedList.children) {
+        const createError = () => {
+            throw new InvalidArgumentError("Invalid task collections field", {
+                displayMessage: errorDisplayMessage`Unexpected markdown in task collection list item on line ${nestedItem.position?.start.line ?? "unknown"}. Try again with a single collection link (e.g. \`[My Collection](/task-collection/my-collection)\`) in each nested list item.`,
+            });
+        };
+
+        const paragraph = nestedItem.children[0];
+
+        if (nestedItem.children.length !== 1 || paragraph?.type !== "paragraph") {
+            throw createError();
+        }
+
+        let link: Link | null = null;
+
+        for (const child of paragraph.children) {
+            if (child.type === "link" && link === null) {
+                link = child;
+                continue;
+            }
+
+            if (child.type === "text" && child.value.trim().length === 0) {
+                continue;
+            }
+
+            throw createError();
+        }
+
+        if (link === null) {
+            throw createError();
+        }
+
+        const pageLinkResult = await routeAgentWebPageLinkPathname(storage, link.url);
+
+        if (!pageLinkResult || pageLinkResult.pageLink.type !== "TaskCollection") {
+            throw createError();
+        }
+
+        collections.push(pageLinkResult.pageLink);
+    }
+
+    return collections;
+}
+
 function parseAgentWebTaskPagePriority(
     itemPosition: Node["position"],
     value: ReadonlyArray<PhrasingContent>,
