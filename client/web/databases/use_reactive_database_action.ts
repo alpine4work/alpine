@@ -1,6 +1,7 @@
 import {useEffect, useRef, useState} from "react";
 import type {DatabaseReactiveActionHandle} from "~/client/web/databases/connect_to_database.js";
 import {useDatabaseConnection} from "~/client/web/databases/database_connection_context.js";
+import {useStableJsonValue} from "~/client/web/helpers/use_stable_json_value.js";
 import {useStore} from "~/client/web/helpers/use_store.js";
 import type {
     DatabaseActionInput,
@@ -10,6 +11,7 @@ import type {
 import type {LoaderDatabaseActionResult} from "~/shared/databases/database_protocol_schemas.js";
 import {isDeepEqual} from "~/shared/helpers/control/is_deep_equal.js";
 import type {Result} from "~/shared/helpers/control/result.js";
+import type {JsonStringifiableValue} from "~/shared/helpers/types/json_value.js";
 
 /**
  * Subscribes to a reactive (watched) action on the current database connection.
@@ -26,12 +28,15 @@ export function useReactiveDatabaseAction<N extends DatabaseActionName>(options:
     initialData?: LoaderDatabaseActionResult | null;
 }): Result<DatabaseActionOutput<N>, string> | null {
     const {name, input, initialData} = options;
+    const stableInput = useStableJsonValue(
+        input as JsonStringifiableValue | null,
+    ) as DatabaseActionInput<N> | null;
     const conn = useDatabaseConnection();
     const [handle, setHandle] = useState<DatabaseReactiveActionHandle<N> | null>(null);
     const initialDataRef = useRef(initialData);
 
     useEffect(() => {
-        if (input == null) return;
+        if (stableInput == null) return;
 
         const readPages = initialDataRef.current?.readPages;
         if (readPages !== undefined && readPages.size > 0) {
@@ -41,7 +46,7 @@ export function useReactiveDatabaseAction<N extends DatabaseActionName>(options:
         let cancelled = false;
         let h: DatabaseReactiveActionHandle<N> | null = null;
         void (async () => {
-            h = await conn.watchAction(name, input);
+            h = await conn.watchAction(name, stableInput);
             if (!cancelled) setHandle(h);
         })();
         return () => {
@@ -49,7 +54,7 @@ export function useReactiveDatabaseAction<N extends DatabaseActionName>(options:
             h?.unwatch();
             setHandle(null);
         };
-    }, [conn, name, input]);
+    }, [conn, name, stableInput]);
 
     const reactiveResult = useStore(handle?.store ?? null);
 
@@ -59,9 +64,9 @@ export function useReactiveDatabaseAction<N extends DatabaseActionName>(options:
     }
     if (
         initialData != null &&
-        input != null &&
+        stableInput != null &&
         initialData.name === name &&
-        isDeepEqual(initialData.input, input)
+        isDeepEqual(initialData.input, stableInput)
     ) {
         return {ok: true, value: initialData.output as DatabaseActionOutput<N>};
     }
