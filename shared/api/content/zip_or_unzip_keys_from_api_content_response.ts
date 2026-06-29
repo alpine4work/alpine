@@ -7,8 +7,20 @@ import {
 } from "~/shared/api/specification/types/api_content_response_without_keys.js";
 import {ApiContentResponse} from "~/shared/api/specification/types/api_specification_convenience_types.js";
 import {InternalError} from "~/shared/error/error.js";
+import {assert} from "~/shared/helpers/control/assert.js";
+import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
 
+/**
+ * Remove `key`s from `ApiContentResponse` and return them in a flat `keys` array.
+ * This flat `keys` array can be zipped back into the content via
+ * `zipKeysIntoApiContentResponse()`.
+ *
+ * This is useful for our agent web system since we unzip and print API content to
+ * markdown and we store the `keys` array in metadata (which is invisible to the
+ * agent). Then when the agent tries to reference content we parse and zip to get
+ * the full API content back so we can reference specific parts of the content.
+ */
 export function unzipKeysFromApiContentResponse(content: ApiContentResponse): {
     content: ApiContentResponseWithoutKeys;
     keys: ReadonlyArray<ApiContentKey>;
@@ -36,6 +48,15 @@ export function unzipKeysFromApiContentResponse(content: ApiContentResponse): {
     };
 }
 
+/**
+ * Add `key`s from a previous `unzipKeysFromApiContentResponse()` call back into
+ * API content to produce a full `ApiContentResponse`.
+ *
+ * This is useful for our agent web system since we unzip and print API content to
+ * markdown and we store the `keys` array in metadata (which is invisible to the
+ * agent). Then when the agent tries to reference content we parse and zip to get
+ * the full API content back so we can reference specific parts of the content.
+ */
 export function zipKeysIntoApiContentResponse({
     content,
     keys,
@@ -67,6 +88,56 @@ export function zipKeysIntoApiContentResponse({
     }
 
     return contentWithKeys as ApiContentResponse;
+}
+
+/**
+ * Create temporary keys and zip them into API content. These keys will be rejected
+ * by the API! However, it's useful if you want to identify positions in the API
+ * content before you know the actual keys in the API content. For example, if an
+ * agent is trying to create some content and is trying to reference previous
+ * content.
+ */
+export function unsafelyZipTemporaryKeysIntoApiContentResponse(
+    content: ApiContentResponseWithoutKeys,
+): {
+    content: ApiContentResponse;
+    temporaryKeys: ReadonlyArray<ApiContentKey>;
+} {
+    let keyIndex = 0;
+    const temporaryKeys: Array<ApiContentKey> = [];
+
+    const contentWithKeys = produce(content, content => {
+        const iterator = traverseKeysInApiContentResponse(content);
+
+        let step = iterator.next();
+
+        while (step.done !== true) {
+            const key = `temporary-${keyIndex}` as ApiContentKey;
+            temporaryKeys.push(key);
+            keyIndex++;
+
+            step = iterator.next(key);
+        }
+    });
+
+    return {
+        content: contentWithKeys as ApiContentResponse,
+        temporaryKeys,
+    };
+}
+
+/**
+ * `unsafelyZipTemporaryKeysIntoApiContentResponse()` creates keys containing an
+ * index of the key in the `temporaryKeys` array. Parse that index back out of the
+ * temporary key.
+ */
+export function parseTemporaryApiContentKey(key: string): number {
+    const match = assertExists(/^temporary-(0|[1-9][0-9]*)$/.exec(key));
+
+    const index = parseInt(match[1]!, 10);
+    assert(Number.isSafeInteger(index));
+
+    return index;
 }
 
 function* traverseKeysInApiContentResponse(

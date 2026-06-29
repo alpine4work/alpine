@@ -105,17 +105,19 @@ export type AgentWebMessagingPageMetadata = {
     // we're at the end of messages as well.
     readonly isEndOfMessages: boolean;
 
-    readonly messages: ReadonlyArray<{
-        readonly index: number;
-        readonly keys: ReadonlyArray<ApiContentKey>;
+    readonly messages: ReadonlyArray<AgentWebMessagingPageMetadataMessage>;
+};
 
-        // TODO(#agents-web): I'm like 99% sure that when we implement message updating
-        // that we're going to want `contentVersion` in here. So the agent gets an error if
-        // it tries to update a message at the wrong `contentVersion`.
-        //
-        // This `metadata` object isn't currently used, it mostly exists since I'm pretty
-        // sure it'll need to exist in the future.
-    }>;
+export type AgentWebMessagingPageMetadataMessage = {
+    readonly index: number;
+    readonly keys: ReadonlyArray<ApiContentKey>;
+
+    // TODO(#agents-web): I'm like 99% sure that when we implement message updating
+    // that we're going to want `contentVersion` in here. So the agent gets an error if
+    // it tries to update a message at the wrong `contentVersion`.
+    //
+    // This `metadata` object isn't currently used, it mostly exists since I'm pretty
+    // sure it'll need to exist in the future.
 };
 
 export type AgentWebMessagingPageNouns = {

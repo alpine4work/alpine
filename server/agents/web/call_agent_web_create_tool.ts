@@ -6,6 +6,7 @@ import {AgentWebPageMetadata} from "~/server/agents/web/agent_web_page.js";
 import {AgentWebPageLink} from "~/server/agents/web/agent_web_page_link.js";
 import {agentWebReadResponseExpirationHours} from "~/server/agents/web/call_agent_web_read_tool.js";
 import {createAgentWebPageLinkPathname} from "~/server/agents/web/create_agent_web_page_link_pathname.js";
+import {normalizeAgentWebStaticText} from "~/server/agents/web/internal/normalize_agent_web_static_text.js";
 import {quoteMarkdown} from "~/server/agents/web/internal/quote_markdown.js";
 import {
     createAgentWebChannelPage,
@@ -198,15 +199,7 @@ async function createAgentWebPageLink(
     //
     // Also normalize pascal case `DocumentThread` or `DocumentsThread`, whatever, to
     // kebab-case.
-
-    originalType = convertCamelCaseToKebabCase(originalType);
-    originalType = originalType.replaceAll(/[_ ]/g, "-");
-    originalType = originalType.toLowerCase();
-
-    const type = originalType
-        .split("-")
-        .map(word => stemmer(word))
-        .join("-");
+    const type = normalizeAgentWebStaticText(originalType);
 
     switch (type) {
         case "doc":

@@ -275,17 +275,14 @@ export async function createAgentWebChatPage(
                 error instanceof FailedPreconditionError &&
                 error.message === updateAgentWebMessagingPageUnexpectedNewMessageIndexesErrorMessage
             ) {
-                assert("newMessages" in error);
-                const {newMessages} = error;
-                assert(isReadonlyArray(newMessages));
-                assert(newMessages.length > 0);
-                const firstNewMessage = newMessages[0]!;
-                assert(isObject(firstNewMessage));
-                assert("index" in firstNewMessage);
-                const {index} = firstNewMessage;
-                assert(typeof index === "number");
-                assert(index >= 0);
-                assert(Number.isInteger(index));
+                assert("newMessageIndexes" in error);
+                const {newMessageIndexes} = error;
+                assert(isReadonlyArray(newMessageIndexes));
+                assert(newMessageIndexes.length > 0);
+                const firstNewMessageIndex = newMessageIndexes[0]!;
+                assert(typeof firstNewMessageIndex === "number");
+                assert(firstNewMessageIndex >= 0);
+                assert(Number.isInteger(firstNewMessageIndex));
 
                 const pathname = await createAgentWebPageStoredLinkPathname(
                     context.storage,
@@ -309,10 +306,10 @@ export async function createAgentWebChatPage(
                         updateAgentWebMessagingPageUnexpectedNewMessageIndexesErrorMessage,
                         {
                             cause: error,
-                            displayMessage: errorDisplayMessage`Create was successful. Found chat: [${printAgentWebPageStoredLinkLabel(pageLink)}](${pathname}). ${newMessages.length === 1 ? `The message you added was` : `The messages you added were`} created, but a chat with ${chatSummary} already existed so your ${newMessages.length === 1 ? `message was` : `messages were`} added to the end of the existing chat. If you want to see the previous messages in the chat before the new ${newMessages.length === 1 ? `message` : `messages`} you added then call the \`read\` tool with \`${pathname}?before=${index}\`.`,
+                            displayMessage: errorDisplayMessage`Create was successful. Found chat: [${printAgentWebPageStoredLinkLabel(pageLink)}](${pathname}). ${newMessageIndexes.length === 1 ? `The message you added was` : `The messages you added were`} created, but a chat with ${chatSummary} already existed so your ${newMessageIndexes.length === 1 ? `message was` : `messages were`} added to the end of the existing chat. If you want to see the previous messages in the chat before the new ${newMessageIndexes.length === 1 ? `message` : `messages`} you added then call the \`read\` tool with \`${pathname}?before=${firstNewMessageIndex}\`.`,
                         },
                     ),
-                    {newMessages},
+                    {newMessageIndexes},
                 );
             }
         }
