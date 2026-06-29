@@ -1,5 +1,6 @@
 /// <reference lib="webworker" />
 
+import {installSharedUniqueWorkerMessagePortBroker} from "~/client/web/helpers/workers/shared_unique_worker_message_port_broker.js";
 import {serializeWebPushSubscription} from "~/client/web/notifications/serialize_web_push_subscription.js";
 import {getWebPushStore} from "~/client/web/notifications/web_push_store.js";
 import {InternalError} from "~/shared/error/error.js";
@@ -13,6 +14,8 @@ import {TracerEvent} from "~/shared/tracer/tracer_event.js";
 import {TracerRoot} from "~/shared/tracer/tracer_root.js";
 
 declare const self: ServiceWorkerGlobalScope;
+
+installSharedUniqueWorkerMessagePortBroker({scope: self});
 
 // --- Database coordination: MessagePort relay ---
 //
