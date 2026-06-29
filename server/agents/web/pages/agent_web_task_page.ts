@@ -1,11 +1,12 @@
 import {produce} from "immer";
-import {Link, ListItem, Node, Paragraph, Parent, PhrasingContent, Root, Text} from "mdast";
+import {Link, ListItem, Node, PhrasingContent, Root, Text} from "mdast";
 import {
     AgentWebContext,
     AgentWebContextWithoutStorage,
 } from "~/server/agents/web/agent_web_context.js";
 import {AgentWebSessionStorage} from "~/server/agents/web/agent_web_session_storage.js";
 import {createAgentWebPageStoredLinkPathname} from "~/server/agents/web/create_agent_web_page_stored_link_pathname.js";
+import {normalizeAgentWebStaticText} from "~/server/agents/web/internal/normalize_agent_web_static_text.js";
 import {quoteMarkdown} from "~/server/agents/web/internal/quote_markdown.js";
 import {withApiContentNormalizerForAgentWebMarkdown} from "~/server/agents/web/normalize_api_content_for_agent_web_markdown.js";
 import {printMarkdownPhrasingContentText} from "~/server/agents/web/print_markdown_phrasing_content_text.js";
@@ -291,7 +292,7 @@ export async function parseAgentWebTaskPage(
     const seenFields = new Set<string>();
 
     for (const item of root.children[0].children) {
-        const {label, value} = parseAgentWebTaskPageField(item);
+        const {label, value, remaining} = parseAgentWebTaskPageField(item);
 
         let labelKey = normalizeAgentWebStaticText(label);
         if (labelKey === "due-date") labelKey = "due";
@@ -304,33 +305,46 @@ export async function parseAgentWebTaskPage(
 
         seenFields.add(labelKey);
 
+        // All fields, except collections, should only have a single paragraph and
+        // shouldn't have any other markdown in the list item after that.
+        //
+        // NOCOMMIT: Test this error for all field types!
+        if (remaining.length > 0 && label !== "collect") {
+            throw new InvalidArgumentError("Unexpected markdown nested in task field", {
+                displayMessage: errorDisplayMessage`Unexpected markdown after task field \u201C${label}\u201D on line ${remaining[0]!.position?.start.line ?? item.position?.start.line ?? "unknown"}. Try again with an unordered list item for each task field where the field name is followed by the field value with a colon in between (e.g. \`- Priority: Medium\`).`,
+            });
+        }
+
         switch (labelKey) {
             case "statu": {
                 page = {...page, status: parseAgentWebTaskPageStatus(item.position, value)};
                 break;
             }
             case "assigne": {
-                page = {...page, assignee: await parseAgentWebTaskPageAssignee(storage, field)};
+                page = {
+                    ...page,
+                    assignee: await parseAgentWebTaskPageAssignee(storage, item.position, value),
+                };
                 break;
             }
             case "collect": {
                 page = {
                     ...page,
-                    collections: await parseAgentWebTaskPageCollections(storage, field),
+                    collections: await parseAgentWebTaskPageCollections(storage, item, value),
                 };
                 break;
             }
             case "prioriti": {
-                page = {...page, priority: parseAgentWebTaskPagePriority(field)};
+                page = {...page, priority: parseAgentWebTaskPagePriority(item.position, value)};
                 break;
             }
             case "due": {
-                page = {...page, due: parseAgentWebTaskPageDue(field)};
+                page = {...page, due: parseAgentWebTaskPageDue(item.position, value)};
                 break;
             }
             default: {
                 throw new InvalidArgumentError("Unknown task field", {
-                    displayMessage: errorDisplayMessage`Unknown task field \u201C${field.label}\u201D on line ${item.position?.start.line ?? "unknown"}. Try again with one of \u201CStatus\u201D, \u201CAssignee\u201D, \u201CCollections\u201D, \u201CPriority\u201D, or \u201CDue date\u201D.`,
+                    displayMessage: errorDisplayMessage`Unknown task field \u201C${label}\u201D on line ${item.position?.start.line ?? "unknown"}. Try again with one of \u201CStatus\u201D, \u201CAssignee\u201D, \u201CCollections\u201D, \u201CPriority\u201D, or \u201CDue date\u201D.`,
                 });
             }
         }
@@ -383,7 +397,68 @@ function parseAgentWebTaskPageStatus(
             const quotedValue = quoteMarkdown(value);
 
             throw new InvalidArgumentError("Invalid task status", {
-                displayMessage: errorDisplayMessage`Unexpected task status ${quotedValue} on line ${value[0]?.position?.start.line ?? itemPosition?.start.line ?? "unknown"}. Expected \u201COpen\u201D or \u201COpen (Active)\u201D or \u201CClosed\u201D.`,
+                displayMessage: errorDisplayMessage`Unexpected task status ${quotedValue} on line ${value[0]?.position?.start.line ?? itemPosition?.start.line ?? "unknown"}. Try again with \u201COpen\u201D, \u201COpen (Active)\u201D, or \u201CClosed\u201D.`,
+            });
+        }
+    }
+}
+
+async function parseAgentWebTaskPageAssignee(
+    storage: AgentWebSessionStorage,
+    itemPosition: Node["position"],
+    value: ReadonlyArray<PhrasingContent>,
+): Promise<ApiAccountReferenceResponse | null> {
+    const createError = (position: Node["position"]) => {
+        const quotedValue = quoteMarkdown(value);
+
+        return new InvalidArgumentError("Invalid task fields", {
+            displayMessage: errorDisplayMessage`Unexpected task assignee ${quotedValue} on line ${position?.start.line ?? itemPosition?.start.line ?? "unknown"}. Try again with a link to a human or bot (e.g. \`[John](/human/john-doe)\`).`,
+        });
+    };
+
+    let link: Link | null = null;
+
+    for (const child of value) {
+        if (child.type === "link") {
+            link = child;
+        }
+        if (child.type === "text" && child.value.trim().length === 0) {
+            // continue
+        } else {
+            throw createError(child.position);
+        }
+    }
+
+    if (link === null) return null;
+
+    const pageLinkResult = await routeAgentWebPageLinkPathname(storage, link.url);
+
+    if (!pageLinkResult || pageLinkResult.pageLink.type !== "Account") {
+        throw createError(link.position);
+    }
+
+    return pageLinkResult.pageLink;
+}
+function parseAgentWebTaskPagePriority(
+    itemPosition: Node["position"],
+    value: ReadonlyArray<PhrasingContent>,
+): ApiTaskPriority | null {
+    switch (printMarkdownPhrasingContentText(value).trim().toLowerCase()) {
+        case "":
+            return null;
+        case "low":
+            return {type: "Low"};
+        case "medium":
+            return {type: "Medium"};
+        case "high":
+            return {type: "High"};
+        case "urgent":
+            return {type: "Urgent"};
+        default: {
+            const quotedValue = quoteMarkdown(value);
+
+            throw new InvalidArgumentError("Invalid task priority", {
+                displayMessage: errorDisplayMessage`Unexpected task priority ${quotedValue} on line ${value[0]?.position?.start.line ?? itemPosition?.start.line ?? "unknown"}. Try again with \u201CLow\u201D, \u201CMedium\u201D, \u201CHigh\u201D, or \u201CUrgent\u201D.`,
             });
         }
     }
