@@ -614,10 +614,12 @@ async function parseAgentWebTaskPageCollections(
     remaining: ReadonlyArray<ListItem["children"][number]>,
 ): Promise<Array<ApiTaskCollectionReferenceResponse>> {
     const collections: Array<ApiTaskCollectionReferenceResponse> = [];
+    let hasInlineListSyntax = false;
 
     for (const node of value) {
         switch (node.type) {
             case "link": {
+                hasInlineListSyntax = true;
                 const pageLinkResult = await routeAgentWebPageLinkPathname(storage, node.url);
 
                 if (!pageLinkResult || pageLinkResult.pageLink.type !== "TaskCollection") {
@@ -633,6 +635,10 @@ async function parseAgentWebTaskPageCollections(
             }
 
             case "text": {
+                if (node.value.trim().length > 0) {
+                    hasInlineListSyntax = true;
+                }
+
                 if (
                     node.value
                         .replace(/,/g, "")
@@ -660,6 +666,7 @@ async function parseAgentWebTaskPageCollections(
     const nestedList = remaining[0];
 
     if (
+        hasInlineListSyntax ||
         collections.length > 0 ||
         remaining.length !== 1 ||
         nestedList!.type !== "list" ||
