@@ -272,6 +272,12 @@ export async function parseAgentWebTaskPage(
 
     if (root.children[0]!.type !== "list" || root.children[0].ordered) {
         throw new InvalidArgumentError("Expected task fields", {
-            displayMessage: errorDisplayMessage`Unexpected markdown on line ${root.children[0]!.position?.start.line ?? "unknown"}. The task title on line 1 must be followed by fields (an unordered list with items like \`- Priority: Medium\`) or notes (markdown after the h2 \`## Notes\`).`,
+            displayMessage: errorDisplayMessage`Unexpected markdown on line ${root.children[0]!.position?.start.line ?? "unknown"}. Try again with either fields (an unordered list with items like \`- Priority: Medium\`) or notes (markdown after the h2 \`## Notes\`) after the task title.`,
         });
     }
+            throw new InvalidArgumentError("Unknown task field", {
+                displayMessage: errorDisplayMessage`Unknown task field \u201C${field.label}\u201D on line ${item.position?.start.line ?? "unknown"}. Try again with one of \u201CStatus\u201D, \u201CAssignee\u201D, \u201CCollections\u201D, \u201CPriority\u201D, or \u201CDue date\u201D.`,
+            });
+            throw new InvalidArgumentError("Duplicate task field", {
+                displayMessage: errorDisplayMessage`Duplicate task field \u201C${field.label}\u201D on line ${item.position?.start.line ?? "unknown"}. Try again with each task field only present once in the field list.`,
+            });
