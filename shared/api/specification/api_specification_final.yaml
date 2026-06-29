@@ -4355,7 +4355,13 @@ components:
                     const: SetAssignee
                 assignee:
                     oneOf:
-                        - $ref: "#/components/schemas/AccountId"
+                        - type: object
+                          required:
+                              - id
+                          additionalProperties: false
+                          properties:
+                              id:
+                                  $ref: "#/components/schemas/AccountId"
                         - type: "null"
         TaskSetStatusPatch:
             type: object

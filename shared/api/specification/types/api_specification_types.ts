@@ -3649,7 +3649,9 @@ export namespace ApiSpecification {
                  * {string}
                  */
                 readonly type: "SetAssignee";
-                readonly assignee: components["schemas"]["AccountId"] | null;
+                readonly assignee: {
+                    readonly id: components["schemas"]["AccountId"];
+                } | null;
             };
             readonly TaskSetStatusPatch: {
                 /**
