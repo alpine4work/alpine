@@ -107,6 +107,59 @@ export async function readAgentWebTaskPage(
     };
 }
 
+export async function createAgentWebTaskPage(
+    context: AgentWebContextWithoutStorage,
+    newPage: AgentWebTaskPage,
+): Promise<{
+    pageMetadata: AgentWebTaskPageMetadata;
+    pageLink: Extract<ApiMentionReferenceResponse, {readonly type: "Task"}>;
+}> {
+    const contextTime = new Date();
+    const contextDate = toCalendarDate(fromDate(contextTime, context.timeZone));
+
+    let due: ApiTaskDue | null = null;
+
+    if (newPage.dueDateString !== null) {
+        const date = parseAgentWebTaskPageDueDateStringForUpdate(
+            contextDate,
+            newPage.dueDateString,
+        ).toString();
+
+        due = {date};
+    }
+
+    const {
+        data: {task},
+    } = await context.api.post(context.span, "/tasks", {
+        body: {
+            spaceId: context.spaceId,
+            task: {
+                title: newPage.title,
+                status: newPage.status,
+                assignee: newPage.assignee ? {id: newPage.assignee.id} : undefined,
+                collections: newPage.collections.map(collection => ({
+                    collection: {id: collection.id},
+                })),
+                priority: newPage.priority ?? undefined,
+                due: due ?? undefined,
+            },
+        },
+    });
+
+    return {
+        pageMetadata: {
+            type: "Task",
+            id: task.id,
+        },
+        pageLink: {
+            type: "Task",
+            id: task.id,
+            title: task.title.length > 0 ? task.title : "Untitled",
+            status: task.status,
+        },
+    };
+}
+
 function parseAgentWebTaskPageDueDateStringForUpdate(
     contextDate: CalendarDate,
     dueDateString: string,
