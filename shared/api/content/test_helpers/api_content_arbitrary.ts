@@ -2,12 +2,12 @@ import fc, {Arbitrary, MaybeWeightedArbitrary} from "fast-check";
 import {produce} from "immer";
 import {ApiContentKeyEncoder} from "~/shared/api/content/closed_source/api_content_key_encoder.js";
 import {unknownFileId} from "~/shared/api/content/closed_source/unknown_file_id.js";
-import {visitDraftApiContent} from "~/shared/api/content/visit_and_produce_api_content.js";
 import {apiContentInlineElementMarkTypeNormalizedOrder} from "~/shared/api/content/normalize_api_content.js";
 import {
     isSimpleApiContentTableBlockElementForTest,
     printApiMentionReferenceToMentionUrl,
 } from "~/shared/api/content/print_api_content_to_markdown.js";
+import {visitDraftApiContent} from "~/shared/api/content/visit_and_produce_api_content.js";
 import {apiContentCodeBlockLanguageDefinition} from "~/shared/api/specification/api_content_code_block_language_definition.js";
 import {
     ApiAccountReferenceResponse,

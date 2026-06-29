@@ -21,8 +21,8 @@ import {impersonateAccountAsSystemContext} from "~/server/spaces/impersonate_acc
 import {AccessPolicy} from "~/shared/access/access_policy.js";
 import {extractFileIdsFromApiContent} from "~/shared/api/content/closed_source/extract_file_ids_from_api_content.js";
 import {fromApiContent} from "~/shared/api/content/closed_source/from_api_content.js";
-import {visitAndProduceApiContent} from "~/shared/api/content/visit_and_produce_api_content.js";
 import {parseApiContentFromMarkdown} from "~/shared/api/content/parse_api_content_from_markdown.js";
+import {visitAndProduceApiContent} from "~/shared/api/content/visit_and_produce_api_content.js";
 import {
     ApiContent,
     ApiContentBlockElement,

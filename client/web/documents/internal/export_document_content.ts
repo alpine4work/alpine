@@ -18,11 +18,11 @@ import {DocumentContentExportFormat} from "~/client/web/documents/internal/docum
 import {getSearchEntityRegistry} from "~/client/web/search/core/search_entity_registry_context.js";
 import {intoApiContent} from "~/shared/api/content/closed_source/into_api_content.js";
 import {prepareApiMentionTitle} from "~/shared/api/content/closed_source/prepare_api_mention_title.js";
-import {visitAndProduceApiContent} from "~/shared/api/content/visit_and_produce_api_content.js";
 import {
     printApiContentToMarkdownTree,
     printMarkdownTree,
 } from "~/shared/api/content/print_api_content_to_markdown.js";
+import {visitAndProduceApiContent} from "~/shared/api/content/visit_and_produce_api_content.js";
 import {lezerClassHighlighter} from "~/shared/content/code/lezer_class_highlighter.js";
 import {DocumentContentWithReferences} from "~/shared/documents/document_content_references.js";
 import {getDocumentContentTitle} from "~/shared/documents/document_model.js";

@@ -1,10 +1,10 @@
-import chalk from "chalk";
 import {highlightCode} from "@lezer/highlight";
 import {parser as lezerMarkdownParser} from "@lezer/markdown";
+import chalk from "chalk";
 import * as prettier from "prettier";
 import * as markdownPrettierPlugin from "prettier/plugins/markdown";
-import {getErrorDisplayMessage} from "~/shared/error/default_error_display_message.js";
 import {lezerClassHighlighter} from "~/shared/content/code/lezer_class_highlighter.js";
+import {getErrorDisplayMessage} from "~/shared/error/default_error_display_message.js";
 
 main().then(
     () => {
