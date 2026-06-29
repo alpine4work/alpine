@@ -27,6 +27,10 @@ import {
     parseAgentWebTaskMessageListPage,
     updateAgentWebTaskMessageListPage,
 } from "~/server/agents/web/pages/agent_web_task_message_list_page.js";
+import {
+    parseAgentWebTaskPage,
+    updateAgentWebTaskPage,
+} from "~/server/agents/web/pages/agent_web_task_page.js";
 import {parseMarkdownTree} from "~/shared/api/content/parse_api_content_from_markdown.js";
 import {getErrorDisplayMessage} from "~/shared/error/default_error_display_message.js";
 import {
@@ -341,6 +345,16 @@ async function updateAgentWebPageLink(
                 oldPage,
                 newPage,
             );
+        }
+        case "Task": {
+            const oldResponse = oldResponseLazy.get();
+
+            const [oldPage, newPage] = await runAllPromises([
+                parseAgentWebTaskPage(context.storage, oldPageMetadata.id, oldResponse),
+                parseAgentWebTaskPage(context.storage, oldPageMetadata.id, newResponse),
+            ]);
+
+            return await updateAgentWebTaskPage(context, oldPageMetadata, oldPage, newPage);
         }
         case "Post": {
             const oldResponse = oldResponseLazy.get();

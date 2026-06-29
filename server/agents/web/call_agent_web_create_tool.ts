@@ -27,6 +27,10 @@ import {
     createAgentWebPostPage,
     parseAgentWebPostPage,
 } from "~/server/agents/web/pages/agent_web_post_page.js";
+import {
+    createAgentWebTaskPage,
+    parseAgentWebTaskPage,
+} from "~/server/agents/web/pages/agent_web_task_page.js";
 import {parseMarkdownTree} from "~/shared/api/content/parse_api_content_from_markdown.js";
 import {printMarkdownTree} from "~/shared/api/content/print_api_content_to_markdown.js";
 import {getErrorDisplayMessage} from "~/shared/error/default_error_display_message.js";
@@ -258,6 +262,18 @@ async function createAgentWebPageLink(
                 pageMetadata,
                 pageLink,
                 pageLinkLabel: pageLink.title,
+            };
+        }
+        case "task": {
+            const newPage = await parseAgentWebTaskPage(context.storage, null, content);
+
+            const {pageMetadata, pageLink} = await createAgentWebTaskPage(context, newPage);
+
+            return {
+                noun: "task",
+                pageMetadata,
+                pageLink,
+                pageLinkLabel: pageLink.title.length > 0 ? pageLink.title : "Untitled",
             };
         }
         case "doc-thread":

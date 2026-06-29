@@ -33,6 +33,12 @@ export type ApiTaskReference = ApiSpecification.components["schemas"]["TaskRefer
 export type ApiTaskReferenceResponse =
     ApiSpecification.components["schemas"]["TaskReference_Response"];
 
+export type ApiTaskCollectionReference =
+    ApiSpecification.components["schemas"]["TaskCollectionReference"];
+
+export type ApiTaskCollectionReferenceResponse =
+    ApiSpecification.components["schemas"]["TaskCollectionReference_Response"];
+
 export type ApiMentionReference = ApiSpecification.components["schemas"]["MentionReference"];
 
 export type ApiMentionReferenceResponse =
@@ -348,7 +354,13 @@ export type ApiTaskLayout = ApiSpecification.components["schemas"]["TaskLayout"]
 
 export type ApiTaskStatus = ApiSpecification.components["schemas"]["TaskStatus"];
 
+export type ApiTaskPriority = ApiSpecification.components["schemas"]["TaskPriority"];
+
+export type ApiTaskDue = ApiSpecification.components["schemas"]["TaskDue"];
+
 export type ApiTaskCollection = ApiSpecification.components["schemas"]["TaskCollection"];
+
+export type ApiTaskPatch = ApiSpecification.components["schemas"]["TaskPatch"];
 
 export type ApiMessageStreamToolCallPartCreateCallReference =
     ApiSpecification.components["schemas"]["MessageStreamToolCallPartCreateCallReference"];

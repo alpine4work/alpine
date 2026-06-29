@@ -1134,10 +1134,9 @@ paths:
                                                 id:
                                                     $ref: "#/components/schemas/AccountId"
                                         due:
-                                            $ref: "#/components/schemas/TaskDueDate"
+                                            $ref: "#/components/schemas/TaskDue"
                                         priority:
-                                            type: string
-                                            enum: [Low, Medium, High, Urgent]
+                                            $ref: "#/components/schemas/TaskPriority"
                                         layout:
                                             $ref: "#/components/schemas/TaskLayout"
                                         parent:
@@ -3534,10 +3533,9 @@ components:
                 assignee:
                     $ref: "#/components/schemas/Account"
                 due:
-                    $ref: "#/components/schemas/TaskDueDate"
+                    $ref: "#/components/schemas/TaskDue"
                 priority:
-                    type: string
-                    enum: [Low, Medium, High, Urgent]
+                    $ref: "#/components/schemas/TaskPriority"
                 layout:
                     $ref: "#/components/schemas/TaskLayout"
                 parent:
@@ -3571,10 +3569,9 @@ components:
                 assignee:
                     $ref: "#/components/schemas/Account"
                 due:
-                    $ref: "#/components/schemas/TaskDueDate"
+                    $ref: "#/components/schemas/TaskDue"
                 priority:
-                    type: string
-                    enum: [Low, Medium, High, Urgent]
+                    $ref: "#/components/schemas/TaskPriority"
                 layout:
                     $ref: "#/components/schemas/TaskLayout"
                 parent:
@@ -3596,7 +3593,7 @@ components:
                 title:
                     type: string
 
-        TaskDueDate:
+        TaskDue:
             type: object
             required: [date]
             additionalProperties: false
@@ -3604,6 +3601,52 @@ components:
                 date:
                     type: string
                     format: date
+
+        TaskPriority:
+            oneOf:
+                - $ref: "#/components/schemas/TaskLowPriority"
+                - $ref: "#/components/schemas/TaskMediumPriority"
+                - $ref: "#/components/schemas/TaskHighPriority"
+                - $ref: "#/components/schemas/TaskUrgentPriority"
+            discriminator:
+                propertyName: type
+                mapping:
+                    Low: "#/components/schemas/TaskLowPriority"
+                    Medium: "#/components/schemas/TaskMediumPriority"
+                    High: "#/components/schemas/TaskHighPriority"
+                    Urgent: "#/components/schemas/TaskUrgentPriority"
+
+        TaskLowPriority:
+            type: object
+            required: [type]
+            additionalProperties: false
+            properties:
+                type:
+                    const: Low
+
+        TaskMediumPriority:
+            type: object
+            required: [type]
+            additionalProperties: false
+            properties:
+                type:
+                    const: Medium
+
+        TaskHighPriority:
+            type: object
+            required: [type]
+            additionalProperties: false
+            properties:
+                type:
+                    const: High
+
+        TaskUrgentPriority:
+            type: object
+            required: [type]
+            additionalProperties: false
+            properties:
+                type:
+                    const: Urgent
 
         TaskNotes:
             type: object
@@ -3650,12 +3693,27 @@ components:
                         id:
                             $ref: "#/components/schemas/TaskCollectionId"
 
+        TaskCollectionItem_Response:
+            type: object
+            required: [collection]
+            additionalProperties: false
+            properties:
+                collection:
+                    type: object
+                    required: [id, name]
+                    additionalProperties: false
+                    properties:
+                        id:
+                            $ref: "#/components/schemas/TaskCollectionId"
+                        name:
+                            $ref: "#/components/schemas/LabelString"
+
         TaskPatch:
             oneOf:
                 - $ref: "#/components/schemas/TaskSetTitlePatch"
                 - $ref: "#/components/schemas/TaskSetAssigneePatch"
                 - $ref: "#/components/schemas/TaskSetStatusPatch"
-                - $ref: "#/components/schemas/TaskSetDueDatePatch"
+                - $ref: "#/components/schemas/TaskSetDuePatch"
                 - $ref: "#/components/schemas/TaskSetPriorityPatch"
                 - $ref: "#/components/schemas/TaskSetLayoutPatch"
                 - $ref: "#/components/schemas/TaskSetParentPatch"
@@ -3667,7 +3725,7 @@ components:
                     SetTitle: "#/components/schemas/TaskSetTitlePatch"
                     SetAssignee: "#/components/schemas/TaskSetAssigneePatch"
                     SetStatus: "#/components/schemas/TaskSetStatusPatch"
-                    SetDueDate: "#/components/schemas/TaskSetDueDatePatch"
+                    SetDue: "#/components/schemas/TaskSetDuePatch"
                     SetPriority: "#/components/schemas/TaskSetPriorityPatch"
                     SetLayout: "#/components/schemas/TaskSetLayoutPatch"
                     SetParent: "#/components/schemas/TaskSetParentPatch"
@@ -3706,16 +3764,16 @@ components:
                 status:
                     $ref: "#/components/schemas/TaskStatus"
 
-        TaskSetDueDatePatch:
+        TaskSetDuePatch:
             type: object
             required: [type, due]
             additionalProperties: false
             properties:
                 type:
-                    const: SetDueDate
+                    const: SetDue
                 due:
                     oneOf:
-                        - $ref: "#/components/schemas/TaskDueDate"
+                        - $ref: "#/components/schemas/TaskDue"
                         - type: "null"
 
         TaskSetPriorityPatch:
@@ -3727,8 +3785,7 @@ components:
                     const: SetPriority
                 priority:
                     oneOf:
-                        - type: string
-                          enum: [Low, Medium, High, Urgent]
+                        - $ref: "#/components/schemas/TaskPriority"
                         - type: "null"
 
         TaskSetLayoutPatch:

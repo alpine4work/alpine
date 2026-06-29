@@ -1244,14 +1244,9 @@ paths:
                                                 id:
                                                     $ref: "#/components/schemas/AccountId"
                                         due:
-                                            $ref: "#/components/schemas/TaskDueDate"
+                                            $ref: "#/components/schemas/TaskDue"
                                         priority:
-                                            type: string
-                                            enum:
-                                                - Low
-                                                - Medium
-                                                - High
-                                                - Urgent
+                                            $ref: "#/components/schemas/TaskPriority"
                                         layout:
                                             $ref: "#/components/schemas/TaskLayout"
                                         parent:
@@ -1714,7 +1709,7 @@ paths:
                                     tasks:
                                         type: array
                                         items:
-                                            $ref: "#/components/schemas/TaskWithoutNotes"
+                                            $ref: "#/components/schemas/TaskWithoutNotes_Response"
                 default:
                     $ref: "#/components/responses/Error"
     /files/{id}:
@@ -4132,14 +4127,9 @@ components:
                 assignee:
                     $ref: "#/components/schemas/Account"
                 due:
-                    $ref: "#/components/schemas/TaskDueDate"
+                    $ref: "#/components/schemas/TaskDue"
                 priority:
-                    type: string
-                    enum:
-                        - Low
-                        - Medium
-                        - High
-                        - Urgent
+                    $ref: "#/components/schemas/TaskPriority"
                 layout:
                     $ref: "#/components/schemas/TaskLayout"
                 parent:
@@ -4176,14 +4166,9 @@ components:
                 assignee:
                     $ref: "#/components/schemas/Account"
                 due:
-                    $ref: "#/components/schemas/TaskDueDate"
+                    $ref: "#/components/schemas/TaskDue"
                 priority:
-                    type: string
-                    enum:
-                        - Low
-                        - Medium
-                        - High
-                        - Urgent
+                    $ref: "#/components/schemas/TaskPriority"
                 layout:
                     $ref: "#/components/schemas/TaskLayout"
                 parent:
@@ -4206,7 +4191,7 @@ components:
                     $ref: "#/components/schemas/TaskStatus"
                 title:
                     type: string
-        TaskDueDate:
+        TaskDue:
             type: object
             required:
                 - date
@@ -4215,6 +4200,51 @@ components:
                 date:
                     type: string
                     format: date
+        TaskPriority:
+            oneOf:
+                - $ref: "#/components/schemas/TaskLowPriority"
+                - $ref: "#/components/schemas/TaskMediumPriority"
+                - $ref: "#/components/schemas/TaskHighPriority"
+                - $ref: "#/components/schemas/TaskUrgentPriority"
+            discriminator:
+                propertyName: type
+                mapping:
+                    Low: "#/components/schemas/TaskLowPriority"
+                    Medium: "#/components/schemas/TaskMediumPriority"
+                    High: "#/components/schemas/TaskHighPriority"
+                    Urgent: "#/components/schemas/TaskUrgentPriority"
+        TaskLowPriority:
+            type: object
+            required:
+                - type
+            additionalProperties: false
+            properties:
+                type:
+                    const: Low
+        TaskMediumPriority:
+            type: object
+            required:
+                - type
+            additionalProperties: false
+            properties:
+                type:
+                    const: Medium
+        TaskHighPriority:
+            type: object
+            required:
+                - type
+            additionalProperties: false
+            properties:
+                type:
+                    const: High
+        TaskUrgentPriority:
+            type: object
+            required:
+                - type
+            additionalProperties: false
+            properties:
+                type:
+                    const: Urgent
         TaskNotes:
             type: object
             required:
@@ -4263,12 +4293,29 @@ components:
                     properties:
                         id:
                             $ref: "#/components/schemas/TaskCollectionId"
+        TaskCollectionItem_Response:
+            type: object
+            required:
+                - collection
+            additionalProperties: false
+            properties:
+                collection:
+                    type: object
+                    required:
+                        - id
+                        - name
+                    additionalProperties: false
+                    properties:
+                        id:
+                            $ref: "#/components/schemas/TaskCollectionId"
+                        name:
+                            $ref: "#/components/schemas/LabelString"
         TaskPatch:
             oneOf:
                 - $ref: "#/components/schemas/TaskSetTitlePatch"
                 - $ref: "#/components/schemas/TaskSetAssigneePatch"
                 - $ref: "#/components/schemas/TaskSetStatusPatch"
-                - $ref: "#/components/schemas/TaskSetDueDatePatch"
+                - $ref: "#/components/schemas/TaskSetDuePatch"
                 - $ref: "#/components/schemas/TaskSetPriorityPatch"
                 - $ref: "#/components/schemas/TaskSetLayoutPatch"
                 - $ref: "#/components/schemas/TaskSetParentPatch"
@@ -4280,7 +4327,7 @@ components:
                     SetTitle: "#/components/schemas/TaskSetTitlePatch"
                     SetAssignee: "#/components/schemas/TaskSetAssigneePatch"
                     SetStatus: "#/components/schemas/TaskSetStatusPatch"
-                    SetDueDate: "#/components/schemas/TaskSetDueDatePatch"
+                    SetDue: "#/components/schemas/TaskSetDuePatch"
                     SetPriority: "#/components/schemas/TaskSetPriorityPatch"
                     SetLayout: "#/components/schemas/TaskSetLayoutPatch"
                     SetParent: "#/components/schemas/TaskSetParentPatch"
@@ -4321,7 +4368,7 @@ components:
                     const: SetStatus
                 status:
                     $ref: "#/components/schemas/TaskStatus"
-        TaskSetDueDatePatch:
+        TaskSetDuePatch:
             type: object
             required:
                 - type
@@ -4329,10 +4376,10 @@ components:
             additionalProperties: false
             properties:
                 type:
-                    const: SetDueDate
+                    const: SetDue
                 due:
                     oneOf:
-                        - $ref: "#/components/schemas/TaskDueDate"
+                        - $ref: "#/components/schemas/TaskDue"
                         - type: "null"
         TaskSetPriorityPatch:
             type: object
@@ -4345,12 +4392,7 @@ components:
                     const: SetPriority
                 priority:
                     oneOf:
-                        - type: string
-                          enum:
-                              - Low
-                              - Medium
-                              - High
-                              - Urgent
+                        - $ref: "#/components/schemas/TaskPriority"
                         - type: "null"
         TaskSetLayoutPatch:
             type: object
@@ -5583,6 +5625,94 @@ components:
                         mapping:
                             File: "#/components/schemas/ContentFileBlockElement_Response"
                             Preview: "#/components/schemas/ContentPreviewBlockElement_Response"
+        Task_Response:
+            type: object
+            required:
+                - id
+                - status
+                - title
+                - notes
+            additionalProperties: false
+            properties:
+                id:
+                    $ref: "#/components/schemas/TaskId"
+                creator:
+                    type: object
+                    required:
+                        - id
+                    additionalProperties: false
+                    properties:
+                        id:
+                            $ref: "#/components/schemas/AccountId"
+                status:
+                    $ref: "#/components/schemas/TaskStatus"
+                title:
+                    type: string
+                    maxLength: 512
+                assignee:
+                    $ref: "#/components/schemas/Account"
+                due:
+                    $ref: "#/components/schemas/TaskDue"
+                priority:
+                    $ref: "#/components/schemas/TaskPriority"
+                layout:
+                    $ref: "#/components/schemas/TaskLayout"
+                parent:
+                    $ref: "#/components/schemas/TaskParent"
+                collections:
+                    type: array
+                    items:
+                        $ref: "#/components/schemas/TaskCollectionItem_Response"
+                notes:
+                    $ref: "#/components/schemas/TaskNotes_Response"
+        TaskWithoutNotes_Response:
+            type: object
+            required:
+                - id
+                - status
+                - title
+            additionalProperties: false
+            properties:
+                id:
+                    $ref: "#/components/schemas/TaskId"
+                creator:
+                    type: object
+                    required:
+                        - id
+                    additionalProperties: false
+                    properties:
+                        id:
+                            $ref: "#/components/schemas/AccountId"
+                status:
+                    $ref: "#/components/schemas/TaskStatus"
+                title:
+                    type: string
+                    maxLength: 512
+                assignee:
+                    $ref: "#/components/schemas/Account"
+                due:
+                    $ref: "#/components/schemas/TaskDue"
+                priority:
+                    $ref: "#/components/schemas/TaskPriority"
+                layout:
+                    $ref: "#/components/schemas/TaskLayout"
+                parent:
+                    $ref: "#/components/schemas/TaskParent"
+                collections:
+                    type: array
+                    items:
+                        $ref: "#/components/schemas/TaskCollectionItem_Response"
+        TaskAddCollectionPatch_Response:
+            type: object
+            required:
+                - type
+                - item
+            additionalProperties: false
+            properties:
+                type:
+                    const: AddCollection
+                item:
+                    $ref: "#/components/schemas/TaskCollectionItem_Response"
         MessagePayload_Response:
             oneOf:
                 - $ref: "#/components/schemas/MessageContentPayload_Response"
@@ -5728,6 +5858,29 @@ components:
                     type: array
                     items:
                         $ref: "#/components/schemas/ContentInlineElementMark"
+        TaskPatch_Response:
+            oneOf:
+                - $ref: "#/components/schemas/TaskSetTitlePatch"
+                - $ref: "#/components/schemas/TaskSetAssigneePatch"
+                - $ref: "#/components/schemas/TaskSetStatusPatch"
+                - $ref: "#/components/schemas/TaskSetDuePatch"
+                - $ref: "#/components/schemas/TaskSetPriorityPatch"
+                - $ref: "#/components/schemas/TaskSetLayoutPatch"
+                - $ref: "#/components/schemas/TaskSetParentPatch"
+                - $ref: "#/components/schemas/TaskAddCollectionPatch_Response"
+                - $ref: "#/components/schemas/TaskRemoveCollectionPatch"
+            discriminator:
+                propertyName: type
+                mapping:
+                    SetTitle: "#/components/schemas/TaskSetTitlePatch"
+                    SetAssignee: "#/components/schemas/TaskSetAssigneePatch"
+                    SetStatus: "#/components/schemas/TaskSetStatusPatch"
+                    SetDue: "#/components/schemas/TaskSetDuePatch"
+                    SetPriority: "#/components/schemas/TaskSetPriorityPatch"
+                    SetLayout: "#/components/schemas/TaskSetLayoutPatch"
+                    SetParent: "#/components/schemas/TaskSetParentPatch"
+                    AddCollection: "#/components/schemas/TaskAddCollectionPatch_Response"
+                    RemoveCollection: "#/components/schemas/TaskRemoveCollectionPatch"
         Message_Response:
             type: object
             required:
@@ -6082,51 +6235,6 @@ components:
                     minItems: 1
                     items:
                         $ref: "#/components/schemas/ContentTableBlockElementRow_Response"
-        Task_Response:
-            type: object
-            required:
-                - id
-                - status
-                - title
-                - notes
-            additionalProperties: false
-            properties:
-                id:
-                    $ref: "#/components/schemas/TaskId"
-                creator:
-                    type: object
-                    required:
-                        - id
-                    additionalProperties: false
-                    properties:
-                        id:
-                            $ref: "#/components/schemas/AccountId"
-                status:
-                    $ref: "#/components/schemas/TaskStatus"
-                title:
-                    type: string
-                    maxLength: 512
-                assignee:
-                    $ref: "#/components/schemas/Account"
-                due:
-                    $ref: "#/components/schemas/TaskDueDate"
-                priority:
-                    type: string
-                    enum:
-                        - Low
-                        - Medium
-                        - High
-                        - Urgent
-                layout:
-                    $ref: "#/components/schemas/TaskLayout"
-                parent:
-                    $ref: "#/components/schemas/TaskParent"
-                collections:
-                    type: array
-                    items:
-                        $ref: "#/components/schemas/TaskCollectionItem"
-                notes:
-                    $ref: "#/components/schemas/TaskNotes_Response"
         MessageStreamPartPayload_Response:
             oneOf:
                 - $ref: "#/components/schemas/MessageStreamContentPartPayload_Response"
