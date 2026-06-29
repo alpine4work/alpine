@@ -1,5 +1,5 @@
 import {produce} from "immer";
-import {Link, ListItem, Node, Paragraph, PhrasingContent, Root, Text} from "mdast";
+import {Link, ListItem, Node, Paragraph, Parent, PhrasingContent, Root, Text} from "mdast";
 import {
     AgentWebContext,
     AgentWebContextWithoutStorage,
@@ -26,7 +26,6 @@ import {errorDisplayMessage} from "~/shared/error/error_display_message.js";
 import {emptyArray} from "~/shared/helpers/array/empty_array.js";
 import {interleaveArray} from "~/shared/helpers/array/interleave_array.js";
 import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
-import {assert} from "~/shared/helpers/control/assert.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 import {cast} from "~/shared/helpers/control/cast.js";
 import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
@@ -34,6 +33,11 @@ import {isDeepEqual} from "~/shared/helpers/control/is_deep_equal.js";
 import {MaybePromise} from "~/shared/helpers/types/maybe_promise.js";
 import {TaskId} from "~/shared/id/types/id_types.js";
 
+// NOCOMMIT: Parent tasks
+//
+// NOCOMMIT: Notes
+//
+// NOCOMMIT: Subtasks
 export type AgentWebTaskPage = {
     readonly type: "Task";
     readonly title: string;
@@ -231,3 +235,43 @@ export async function printAgentWebTaskPage(
         ],
     };
 }
+
+export async function parseAgentWebTaskPage(
+    storage: AgentWebSessionStorage,
+    id: TaskId | null,
+    root: Root,
+): Promise<AgentWebTaskPage> {
+    let title: string;
+
+    {
+        const firstChild = root.children[0];
+
+        if (firstChild?.type === "heading" && firstChild.depth === 1) {
+            root.children.shift();
+            title = printMarkdownPhrasingContentText(firstChild.children);
+        } else {
+            throw new InvalidArgumentError("Missing title in task", {
+                displayMessage: errorDisplayMessage`A title is required for tasks. Try again but make sure the task starts with a markdown h1 (e.g. \`# My Task\`).`,
+            });
+        }
+    }
+
+    // NOCOMMIT: Reject additional h1s in `<notes>` like `agent_web_document_page.ts`
+
+    let page: AgentWebTaskPage = {
+        type: "Task",
+        title,
+        status: {type: "Open", isActive: false},
+        assignee: null,
+        collections: [],
+        priority: null,
+        due: null,
+    };
+
+    if (root.children.length === 0) return page;
+
+    if (root.children[0]!.type !== "list" || root.children[0].ordered) {
+        throw new InvalidArgumentError("Expected task fields", {
+            displayMessage: errorDisplayMessage`Unexpected markdown on line ${root.children[0]!.position?.start.line ?? "unknown"}. The task title on line 1 must be followed by fields (an unordered list with items like \`- Priority: Medium\`) or notes (markdown after the h2 \`## Notes\`).`,
+        });
+    }
