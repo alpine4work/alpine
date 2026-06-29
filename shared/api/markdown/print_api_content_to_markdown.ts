@@ -718,13 +718,13 @@ function printSimpleApiContentTableBlockElementToMarkdownIfPossible(
                 return null;
             }
 
-            // For some reason the text `\|` in inline code breaks GFM table parsing. I haven't
-            // investigated why specifically this breaks GFM table parsing but our generative
-            // test has produced a test showing it does.
-            //
-            // Handle this edge case by switching to table HTML syntax.
             if (paragraphElement !== null) {
                 for (const inlineElement of paragraphElement.elements) {
+                    // For some reason the text `\|` in inline code breaks GFM table parsing. I haven't
+                    // investigated why specifically this breaks GFM table parsing but our generative
+                    // test has produced a test showing it does.
+                    //
+                    // Handle this edge case by switching to table HTML syntax.
                     if (
                         inlineElement.type === "Text" &&
                         inlineElement.marks?.some(mark => mark.type === "Code") &&
@@ -732,6 +732,11 @@ function printSimpleApiContentTableBlockElementToMarkdownIfPossible(
                     ) {
                         return null;
                     }
+
+                    // Don't allow hard breaks in GFM. GFM tables assume content is on a single line.
+                    // We have tried printing breaks in GFM as HTML (`<br/>`) but have observed weird
+                    // GFM quirks around surrounding `_` characters.
+                    if (inlineElement.type === "Break") return null;
                 }
             }
 
@@ -739,12 +744,10 @@ function printSimpleApiContentTableBlockElementToMarkdownIfPossible(
                 type: "tableCell",
                 children:
                     paragraphElement !== null
-                        ? printApiContentInlineElementsToMarkdown(paragraphElement.elements, {
-                              ...options,
-                              // Can't have a line break character within a table cell. So use HTML syntax for
-                              // breaks.
-                              forceBreakHtml: true,
-                          })
+                        ? printApiContentInlineElementsToMarkdown(
+                              paragraphElement.elements,
+                              options,
+                          )
                         : [],
             });
         }
