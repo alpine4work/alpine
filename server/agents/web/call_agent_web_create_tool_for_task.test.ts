@@ -169,6 +169,37 @@ test("creates a minimal task with default open status", async () => {
     });
 });
 
+test("creates a task with explicit inactive open status", async () => {
+    mockCreateTask({
+        title: "Explicit inactive task",
+        status: {type: "Open", isActive: false},
+    });
+
+    await expect(
+        callAgentWebCreateTool(context, {
+            type: "task",
+            content: `\
+# Explicit inactive task
+
+- Status: Open (Inactive)`,
+        }),
+    ).resolves.toEqual(
+        "Create was successful. New task: [Explicit inactive task](/task/explicit-inactive-task).\n",
+    );
+
+    expect(getCreateTaskRequests()[0]?.body).toEqual({
+        spaceId,
+        task: {
+            title: "Explicit inactive task",
+            status: {type: "Open", isActive: false},
+            assignee: undefined,
+            collections: [],
+            priority: undefined,
+            due: undefined,
+        },
+    });
+});
+
 test("creates a task with every supported field", async () => {
     mockCreateTask({
         title: "Create everything",
@@ -210,6 +241,122 @@ test("creates a task with every supported field", async () => {
     });
 });
 
+test("creates a task with assignee and priority", async () => {
+    mockCreateTask({
+        title: "Create mixed fields",
+        status: {type: "Open", isActive: false},
+    });
+
+    await expect(
+        callAgentWebCreateTool(context, {
+            type: "task",
+            content: `\
+# Create mixed fields
+
+- Assignee: [Alice](/human/alice)
+- Priority: Medium`,
+        }),
+    ).resolves.toEqual(
+        "Create was successful. New task: [Create mixed fields](/task/create-mixed-fields).\n",
+    );
+
+    expect(getCreateTaskRequests()[0]?.body).toEqual({
+        spaceId,
+        task: {
+            title: "Create mixed fields",
+            status: {type: "Open", isActive: false},
+            assignee: {id: aliceAccount.id},
+            collections: [],
+            priority: {type: "Medium"},
+            due: undefined,
+        },
+    });
+});
+
+test("creates a task with status and inline collections", async () => {
+    mockCreateTask({
+        title: "Create collection fields",
+        status: {type: "Closed"},
+    });
+
+    await expect(
+        callAgentWebCreateTool(context, {
+            type: "task",
+            content: `\
+# Create collection fields
+
+- Status: Closed
+- Collections: [Engineering](/task-collection/engineering), [Roadmap](/task-collection/roadmap)`,
+        }),
+    ).resolves.toEqual(
+        "Create was successful. New task: [Create collection fields](/task/create-collection-fields).\n",
+    );
+
+    expect(getCreateTaskRequests()[0]?.body).toEqual({
+        spaceId,
+        task: {
+            title: "Create collection fields",
+            status: {type: "Closed"},
+            assignee: undefined,
+            collections: [
+                {collection: {id: engineeringCollectionId}},
+                {collection: {id: roadmapCollectionId}},
+            ],
+            priority: undefined,
+            due: undefined,
+        },
+    });
+});
+
+test("creates a task with yearless due date using context year", async () => {
+    mockCreateTask({
+        title: "Create yearless due date",
+        status: {type: "Open", isActive: false},
+    });
+
+    import.meta.jest.useFakeTimers();
+    try {
+        import.meta.jest.setSystemTime(new Date("2031-02-03T12:00:00.000Z"));
+
+        await expect(
+            callAgentWebCreateTool(context, {
+                type: "task",
+                content: `\
+# Create yearless due date
+
+- Due date: July 12th`,
+            }),
+        ).resolves.toEqual(
+            "Create was successful. New task: [Create yearless due date](/task/create-yearless-due-date).\n",
+        );
+    } finally {
+        import.meta.jest.useRealTimers();
+    }
+
+    expect(getCreateTaskRequests()[0]?.body).toEqual({
+        spaceId,
+        task: {
+            title: "Create yearless due date",
+            status: {type: "Open", isActive: false},
+            assignee: undefined,
+            collections: [],
+            priority: undefined,
+            due: {date: "2031-07-12"},
+        },
+    });
+});
+
+test("rejects a missing task title without calling the API", async () => {
+    await expectCreateDisplayMessage({
+        content: `\
+- Status: Open`,
+        expected:
+            "A title is required for tasks. Try again but make sure the task starts with a markdown h1 (e.g. `# My Task`).",
+    });
+
+    expect(getCreateTaskRequests()).toHaveLength(0);
+});
+
 test("rejects an unknown assignee link without calling the API", async () => {
     await expectCreateDisplayMessage({
         content: `\
@@ -224,8 +371,63 @@ test("rejects an unknown assignee link without calling the API", async () => {
     expect(getCreateTaskRequests()).toHaveLength(0);
 });
 
+test("rejects an unknown collection link without calling the API", async () => {
+    await expectCreateDisplayMessage({
+        content: `\
+# Unknown collection
+
+- Collections: [Missing](/task-collection/missing)`,
+        expected:
+            "Unexpected task collection link \u201CMissing\u201D on line 3. Try again with a link to a task collection you\u2019ve seen before (e.g. `[My Collection](/task-collection/my-collection)`).",
+    });
+
+    expect(getCreateTaskRequests()).toHaveLength(0);
+});
+
+test("rejects invalid task status without calling the API", async () => {
+    await expectCreateDisplayMessage({
+        content: `\
+# Invalid status
+
+- Status: Pending`,
+        expected:
+            "Unexpected task status \u201CPending\u201D on line 3. Try again with \u201COpen\u201D, \u201COpen (Active)\u201D, or \u201CClosed\u201D.",
+    });
+
+    expect(getCreateTaskRequests()).toHaveLength(0);
+});
+
+test("rejects invalid task priority without calling the API", async () => {
+    await expectCreateDisplayMessage({
+        content: `\
+# Invalid priority
+
+- Status: Open
+- Priority: Immediate`,
+        expected:
+            "Unexpected task priority \u201CImmediate\u201D on line 4. Try again with \u201CLow\u201D, \u201CMedium\u201D, or \u201CHigh\u201D.",
+    });
+
+    expect(getCreateTaskRequests()).toHaveLength(0);
+});
+
+test("rejects active task without assignee on create without calling the API", async () => {
+    await expectCreateDisplayMessage({
+        content: `\
+# Active task
+
+- Status: Open (Active)`,
+        expected:
+            "Can\u2019t set task as active if there\u2019s no assignee. We don\u2019t recommend setting a task as active unless you\u2019re about to work on the task or you know someone else is currently working on the task. Try again and either set the task as open but inactive (e.g. `- Status: Open`) or set an assignee (e.g. `- Assignee: [ChatGPT](/bot/chatgpt)`).",
+    });
+
+    expect(getCreateTaskRequests()).toHaveLength(0);
+});
+
 test.each([
     ["date with time", "2027-07-12T09:00:00"],
+    ["prose date with time", "July 12th, 2025 at 11:00pm"],
+    ["multiple dates", "July 12th, 2025 and July 13th, 2025"],
     ["not a date", "sometime after launch"],
 ])("rejects improperly formatted due date on create: %s", async (_name, dueDate) => {
     await expectCreateDisplayMessage({
