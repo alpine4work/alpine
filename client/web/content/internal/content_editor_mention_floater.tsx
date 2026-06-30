@@ -64,10 +64,10 @@ import {
     spinAnimationClassName,
 } from "~/client/web/styles/styles.js";
 import {getAccountShortNameWithoutFullNameTooltip} from "~/shared/accounts/get_account_short_name_without_full_name_tooltip.js";
-import {formatContentDateString} from "~/shared/content/format_content_date_string.js";
 import {ContentMention} from "~/shared/content/content_mention.js";
 import {emptyContentReferences} from "~/shared/content/content_references.js";
 import {formatContentDateAbsolute} from "~/shared/content/format_content_date.js";
+import {formatContentDateString} from "~/shared/content/format_content_date_string.js";
 import {getContentDateSuggestions} from "~/shared/content/get_content_date_suggestions.js";
 import {greyElevated2ClassName} from "~/shared/design/core/constant_class_names.js";
 import {fontSizesBySpacingScale} from "~/shared/design/core/fonts.js";
