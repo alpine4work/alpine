@@ -10,7 +10,6 @@ import {
     ApiAccountReferenceArbitrary,
     ApiContentTextArbitrary,
     ApiTaskCollectionReferenceArbitrary,
-    ApiTaskStatusArbitrary,
     createIdArbitrary,
 } from "~/shared/api/content/test_helpers/api_content_arbitrary.js";
 import {ApiTaskPriority} from "~/shared/api/specification/types/api_specification_convenience_types.js";
@@ -23,17 +22,26 @@ const ApiTaskPriorityArbitrary: Arbitrary<ApiTaskPriority> = fc.oneof(
     fc.constant({type: "Urgent"} as const),
 );
 
+const AgentWebTaskPageStatusArbitrary: Arbitrary<AgentWebTaskPage["status"]> = fc.oneof(
+    fc.constant({type: "Open", isActive: false} as const),
+    fc.constant({type: "Open", isActive: true} as const),
+    fc.constant({type: "Closed"} as const),
+);
+
 const AgentWebTaskPageArbitrary: Arbitrary<AgentWebTaskPage> = fc.record({
     type: fc.constant("Task"),
     title: ApiContentTextArbitrary,
-    status: ApiTaskStatusArbitrary,
+    status: AgentWebTaskPageStatusArbitrary,
     assignee: fc.oneof(ApiAccountReferenceArbitrary, fc.constant(null)),
     collections: fc.uniqueArray(ApiTaskCollectionReferenceArbitrary, {
         maxLength: 5,
         selector: collection => collection.id,
     }),
     priority: fc.oneof(ApiTaskPriorityArbitrary, fc.constant(null)),
-    dueDateString: fc.oneof(ApiContentTextArbitrary, fc.constant(null)),
+    dueDateString: fc.oneof(
+        ApiContentTextArbitrary.filter(text => text.trim() === text && text.length > 0),
+        fc.constant(null),
+    ),
 });
 
 runAgentWebPageGenerativeTests({
