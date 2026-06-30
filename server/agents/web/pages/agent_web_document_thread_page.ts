@@ -111,8 +111,8 @@ export type AgentWebDocumentThreadPageCustomBlock = {
     readonly type: "Custom";
     readonly tagName: "blockquote";
     readonly timeAttribute: null;
-    readonly hasCiteAttribute?: boolean;
-    readonly matchAttribute?: number | null;
+    readonly hasCiteAttribute: boolean;
+    readonly matchAttribute: number | null;
     readonly content: ApiContentResponseWithoutKeys;
 };
 
@@ -227,6 +227,7 @@ export async function readAgentWebDocumentThreadPage(
                     tagName: "blockquote",
                     timeAttribute: null,
                     hasCiteAttribute: true,
+                    matchAttribute: null,
                     // Just show the commented content to the agent without any of the surrounding
                     // context returned by the API. We use this format so that it's easy for the agent
                     // to create new document comment threads since all it needs to do is write the
@@ -496,7 +497,6 @@ export async function createAgentWebDocumentThreadPage(
     }
 
     if (
-        quoteBlock.matchAttribute !== undefined &&
         quoteBlock.matchAttribute !== null &&
         (quoteBlock.matchAttribute < 1 || quoteBlock.matchAttribute > ranges.length)
     ) {
@@ -505,10 +505,7 @@ export async function createAgentWebDocumentThreadPage(
         });
     }
 
-    if (
-        (quoteBlock.matchAttribute === undefined || quoteBlock.matchAttribute === null) &&
-        ranges.length > 1
-    ) {
+    if (quoteBlock.matchAttribute === null && ranges.length > 1) {
         throw new InvalidArgumentError("Quoted document content found more than once", {
             displayMessage: errorDisplayMessage`${ranges.length} matches were found for the quoted content in \`<blockquote>\` in \`${documentPath}\`. Try again but provide more surrounding context to make your match unique or add a 1-indexed \`match\` attribute to \`<blockquote>\` to choose which match to use (e.g. \`<blockquote match="2">\` uses the second match).`,
         });
@@ -597,13 +594,19 @@ export async function updateAgentWebDocumentThreadPage(
         oldPage,
         newPage,
         prepareCustomBlockUpdate: (oldCustomBlock, newCustomBlock) => {
+            if (oldCustomBlock.matchAttribute !== newCustomBlock.matchAttribute) {
+                throw new InvalidArgumentError("Can\u2019t update document preview match", {
+                    displayMessage: errorDisplayMessage`You can\u2019t update the \`<blockquote>\` \`match\` attribute in document comment thread markdown. \`<blockquote>\` is a read-only preview of the document\u2019s content around the comment and \`match\` is added when content in a document is repeated multiple times so you know which instance of the content the comment is for. Try again with a more specific update that only changes the content of comments from you or adds new comments. If you want to update the document\u2019s content then call the \`update\` tool on the document itself.`,
+                });
+            }
+
             const normalizedOldContent = normalizeApiContent(oldCustomBlock.content);
             const normalizedNewContent = normalizeApiContent(newCustomBlock.content);
 
             if (isDeepEqual(normalizedOldContent, normalizedNewContent)) return {update: asyncNoop};
 
             throw new InvalidArgumentError("Can\u2019t update document preview", {
-                displayMessage: errorDisplayMessage`You can\u2019t update the \`<blockquote>\` in document comment thread markdown. \`<blockquote>\` is a read-only preview of the document\u2019s content around the comment. If you want to update the document\u2019s content then call the \`update\` tool on the document itself.`,
+                displayMessage: errorDisplayMessage`You can\u2019t update the \`<blockquote>\` in document comment thread markdown. \`<blockquote>\` is a read-only preview of the document\u2019s content around the comment. Try again with a more specific update that only changes the content of comments from you or adds new comments. If you want to update the document\u2019s content then call the \`update\` tool on the document itself.`,
             });
         },
     });
@@ -694,7 +697,7 @@ export async function printAgentWebDocumentThreadPage(
                 openTag += ` cite="../.."`;
             }
 
-            if (block.matchAttribute !== undefined && block.matchAttribute !== null) {
+            if (block.matchAttribute !== null) {
                 openTag += ` match="${block.matchAttribute}"`;
             }
 
@@ -821,8 +824,8 @@ export async function parseAgentWebDocumentThreadPageAndReturnDocumentPath(
                     type: "Custom",
                     tagName: "blockquote",
                     timeAttribute: null,
-                    ...(hasCiteAttribute ? {hasCiteAttribute} : {}),
-                    ...(matchAttribute !== null ? {matchAttribute} : {}),
+                    hasCiteAttribute,
+                    matchAttribute,
                     content,
                 };
             },
