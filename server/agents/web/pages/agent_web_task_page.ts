@@ -1,6 +1,6 @@
 import {CalendarDate, fromDate, parseDate, toCalendarDate} from "@internationalized/date";
 import {produce} from "immer";
-import {Link, ListItem, Node, PhrasingContent, Root, Text} from "mdast";
+import {Link, ListItem, Node, Parent, PhrasingContent, Root, Text} from "mdast";
 import {
     AgentWebContext,
     AgentWebContextWithoutStorage,
@@ -10,13 +10,19 @@ import {createAgentWebPageStoredLinkPathname} from "~/server/agents/web/create_a
 import {normalizeAgentWebStaticText} from "~/server/agents/web/internal/normalize_agent_web_static_text.js";
 import {quoteMarkdown} from "~/server/agents/web/internal/quote_markdown.js";
 import {withApiContentNormalizerForAgentWebMarkdown} from "~/server/agents/web/normalize_api_content_for_agent_web_markdown.js";
+import {parseApiContentFromAgentWebMarkdownTree} from "~/server/agents/web/parse_api_content_from_agent_web_markdown.js";
+import {printApiContentToAgentWebMarkdownTree} from "~/server/agents/web/print_api_content_to_agent_web_markdown.js";
 import {printMarkdownPhrasingContentText} from "~/server/agents/web/print_markdown_phrasing_content_text.js";
 import {routeAgentWebPageLinkPathname} from "~/server/agents/web/route_agent_web_page_link_pathname.js";
+import {normalizeApiContent} from "~/shared/api/content/normalize_api_content.js";
 import {
     printApiMentionReferenceToMentionLinkLabel,
     printMarkdownTree,
 } from "~/shared/api/content/print_api_content_to_markdown.js";
+import {unzipKeysFromApiContentResponse} from "~/shared/api/content/zip_or_unzip_keys_from_api_content_response.js";
 import {intoApiAccountReference} from "~/shared/api/specification/into_api_account_reference.js";
+import {ApiContentKey} from "~/shared/api/specification/types/api_content_key.js";
+import {ApiContentResponseWithoutKeys} from "~/shared/api/specification/types/api_content_response_without_keys.js";
 import {
     ApiAccountReferenceResponse,
     ApiMentionReferenceResponse,
@@ -32,15 +38,15 @@ import {errorDisplayMessage} from "~/shared/error/error_display_message.js";
 import {emptyArray} from "~/shared/helpers/array/empty_array.js";
 import {interleaveArray} from "~/shared/helpers/array/interleave_array.js";
 import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
+import {assert} from "~/shared/helpers/control/assert.js";
 import {cast} from "~/shared/helpers/control/cast.js";
+import {isDeepEqual} from "~/shared/helpers/control/is_deep_equal.js";
 import {parseCalendarDates} from "~/shared/helpers/date/parse_calendar_dates.js";
 import {defaultLocale} from "~/shared/helpers/intl/locale.js";
 import {MaybePromise} from "~/shared/helpers/types/maybe_promise.js";
 import {TaskId} from "~/shared/id/types/id_types.js";
 
 // NOCOMMIT: Parent tasks
-//
-// NOCOMMIT: Notes
 //
 // NOCOMMIT: Subtasks
 export type AgentWebTaskPage = {
@@ -51,11 +57,16 @@ export type AgentWebTaskPage = {
     readonly collections: ReadonlyArray<ApiTaskCollectionReferenceResponse>;
     readonly priority: ApiTaskPriority | null;
     readonly dueDateString: string | null;
+    readonly notes: ApiContentResponseWithoutKeys;
 };
 
 export type AgentWebTaskPageMetadata = {
     readonly type: "Task";
     readonly id: TaskId;
+    readonly notes: {
+        readonly version: number;
+        readonly keys: ReadonlyArray<ApiContentKey>;
+    };
 };
 
 export type AgentWebTaskPageWithMetadata = AgentWebTaskPage & {
@@ -75,6 +86,7 @@ export async function readAgentWebTaskPage(
     } = await context.api.get(context.span, "/tasks/{id}", {params: {path: {id}}});
 
     const taskDueDate = task.due ? parseDate(task.due.date) : null;
+    const {content: notes, keys: notesKeys} = unzipKeysFromApiContentResponse(task.notes.content);
 
     const page: AgentWebTaskPageWithMetadata = {
         type: "Task",
@@ -97,9 +109,14 @@ export async function readAgentWebTaskPage(
                   {withoutTime: true, withLongMonth: true},
               )
             : null,
+        notes,
         metadata: {
             type: "Task",
             id,
+            notes: {
+                version: task.notes.version,
+                keys: notesKeys,
+            },
         },
     };
 
@@ -165,14 +182,21 @@ export async function createAgentWebTaskPage(
                 })),
                 priority: newPage.priority ?? undefined,
                 due: due ?? undefined,
+                content: isAgentWebTaskPageNotesEmpty(newPage.notes) ? undefined : newPage.notes,
             },
         },
     });
+
+    const {keys: notesKeys} = unzipKeysFromApiContentResponse(task.notes.content);
 
     return {
         pageMetadata: {
             type: "Task",
             id: task.id,
+            notes: {
+                version: task.notes.version,
+                keys: notesKeys,
+            },
         },
         pageLink: {
             type: "Task",
@@ -271,11 +295,39 @@ export async function updateAgentWebTaskPage(
         }
     }
 
-    if (patches.length > 0) {
-        await context.api.patch(context.span, "/tasks/{id}", {
-            params: {path: {id: oldPageMetadata.id}},
-            body: {patches},
-        });
+    const [, notesPatchResponse] = await runAllPromises([
+        patches.length > 0
+            ? context.api.patch(context.span, "/tasks/{id}", {
+                  params: {path: {id: oldPageMetadata.id}},
+                  body: {patches},
+              })
+            : null,
+
+        !isDeepEqual(normalizeApiContent(oldPage.notes), normalizeApiContent(newPage.notes))
+            ? context.api.patch(context.span, "/tasks/{id}/notes", {
+                  params: {path: {id: oldPageMetadata.id}},
+                  body: {
+                      notes: {
+                          version: oldPageMetadata.notes.version,
+                          content: newPage.notes,
+                      },
+                  },
+              })
+            : null,
+    ]);
+
+    if (notesPatchResponse) {
+        const {keys: notesKeys} = unzipKeysFromApiContentResponse(
+            notesPatchResponse.data.notes.content,
+        );
+
+        return {
+            ...oldPageMetadata,
+            notes: {
+                version: notesPatchResponse.data.notes.version,
+                keys: notesKeys,
+            },
+        };
     }
 
     return oldPageMetadata;
@@ -295,7 +347,6 @@ function parseAgentWebTaskPageDueDateStringForUpdate(
     ) {
         const quotedValue = quoteMarkdown([{type: "text", value: dueDateString}]);
 
-        // NOCOMMIT: Test that time isn't allowed
         throw new InvalidArgumentError("Invalid task due date", {
             displayMessage: errorDisplayMessage`Unexpected task due date ${quotedValue}. Try again with a date like \u201CJuly 12, 2027\u201D (not including the time, just the date).`,
         });
@@ -309,6 +360,7 @@ export function normalizeAgentWebTaskPage<Page extends AgentWebTaskPage>(page: P
         withApiContentNormalizerForAgentWebMarkdown(normalizer => {
             if (page.assignee) normalizer.normalizeReference(page.assignee);
             for (const collection of page.collections) normalizer.normalizeReference(collection);
+            normalizer.normalize(page.notes);
         });
     });
 }
@@ -368,9 +420,6 @@ export async function printAgentWebTaskPage(
         );
     }
 
-    // NOCOMMIT: Should be able to parse both a bullet list and inline link list. "and"
-    // should be optional, commas should be optional, we should be very lenient when
-    // parsing this list.
     if (page.collections.length > 0) {
         listItemPromises.push(
             (async () => {
@@ -435,21 +484,63 @@ export async function printAgentWebTaskPage(
         });
     }
 
+    const [listItems, notesRoot] = await runAllPromises([
+        runAllPromises(listItemPromises),
+
+        isAgentWebTaskPageNotesEmpty(page.notes)
+            ? null
+            : (async () => {
+                  const notesRoot = await printApiContentToAgentWebMarkdownTree(
+                      storage,
+                      page.notes,
+                  );
+
+                  const traverse = (node: Parent) => {
+                      for (const childNode of node.children) {
+                          if ("children" in childNode) traverse(childNode);
+
+                          if (childNode.type === "heading") {
+                              assert(childNode.depth < 6);
+                              childNode.depth = (childNode.depth + 1) as 1 | 2 | 3 | 4 | 5 | 6;
+                          }
+                      }
+                  };
+
+                  traverse(notesRoot);
+
+                  return notesRoot;
+              })(),
+    ]);
+
+    const children: Root["children"] = [
+        {
+            type: "heading",
+            depth: 1,
+            children: [{type: "text", value: page.title}],
+        },
+        {
+            type: "list",
+            ordered: false,
+            spread: false,
+            children: listItems,
+        },
+    ];
+
+    if (notesRoot) {
+        children.push({
+            type: "heading",
+            depth: 2,
+            children: [{type: "text", value: "Notes"}],
+        });
+
+        for (const child of notesRoot.children) {
+            children.push(child);
+        }
+    }
+
     return {
         type: "root",
-        children: [
-            {
-                type: "heading",
-                depth: 1,
-                children: [{type: "text", value: page.title}],
-            },
-            {
-                type: "list",
-                ordered: false,
-                spread: false,
-                children: await runAllPromises(listItemPromises),
-            },
-        ],
+        children,
     };
 }
 
