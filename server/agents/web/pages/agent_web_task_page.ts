@@ -12,7 +12,10 @@ import {quoteMarkdown} from "~/server/agents/web/internal/quote_markdown.js";
 import {withApiContentNormalizerForAgentWebMarkdown} from "~/server/agents/web/normalize_api_content_for_agent_web_markdown.js";
 import {printMarkdownPhrasingContentText} from "~/server/agents/web/print_markdown_phrasing_content_text.js";
 import {routeAgentWebPageLinkPathname} from "~/server/agents/web/route_agent_web_page_link_pathname.js";
-import {printApiMentionReferenceToMentionLinkLabel} from "~/shared/api/content/print_api_content_to_markdown.js";
+import {
+    printApiMentionReferenceToMentionLinkLabel,
+    printMarkdownTree,
+} from "~/shared/api/content/print_api_content_to_markdown.js";
 import {intoApiAccountReference} from "~/shared/api/specification/into_api_account_reference.js";
 import {
     ApiAccountReferenceResponse,
@@ -91,7 +94,7 @@ export async function readAgentWebTaskPage(
                   context.timeZone,
                   contextDate,
                   taskDueDate.toDate(context.timeZone),
-                  {withoutTime: true},
+                  {withoutTime: true, withLongMonth: true},
               )
             : null,
         metadata: {
@@ -117,6 +120,27 @@ export async function createAgentWebTaskPage(
     const contextDate = toCalendarDate(fromDate(contextTime, context.timeZone));
 
     let due: ApiTaskDue | null = null;
+
+    // Force the agent to set an assignee if they're marking a task as active. By
+    // default our API sets the bot as active when they make the task active if there's
+    // no assignee, we want the agent to make this choice explicitly.
+    //
+    // NOCOMMIT: Integration test that makes sure the bot can create an active task
+    // assigned to another account.
+    if (newPage.status.type === "Open" && newPage.status.isActive && !newPage.assignee) {
+        const assigneeLink: Link = {
+            type: "link",
+            url: context.botAccount.pathname,
+            children: [{type: "text", value: context.botAccount.shortName}],
+        };
+
+        throw new InvalidArgumentError(
+            "Can\u2019t set task as active if there\u2019s no assignee",
+            {
+                displayMessage: errorDisplayMessage`Can\u2019t set task as active if there\u2019s no assignee. We don\u2019t recommend setting a task as active unless you\u2019re about to work on the task or you know someone else is currently working on the task. Try again and either set the task as open but inactive (e.g. \`- Status: Open\`) or set an assignee (e.g. \`- Assignee: ${printMarkdownTree(assigneeLink).trim()}\`).`,
+            },
+        );
+    }
 
     if (newPage.dueDateString !== null) {
         const date = parseAgentWebTaskPageDueDateStringForUpdate(
@@ -167,6 +191,34 @@ export async function updateAgentWebTaskPage(
 ): Promise<AgentWebTaskPageMetadata> {
     const contextTime = new Date();
     const contextDate = toCalendarDate(fromDate(contextTime, context.timeZone));
+
+    // Force the agent to set an assignee if they're marking a task as active. By
+    // default our API sets the bot as active when they make the task active if there's
+    // no assignee, we want the agent to make this choice explicitly.
+    //
+    // NOCOMMIT: Integration test that makes sure the bot can update a task to active
+    // when the task is already assigned to another account. Also that the bot can
+    // update a task to active and update the assignee at the same time.
+    if (newPage.status.type === "Open" && newPage.status.isActive && !newPage.assignee) {
+        const assigneeLink: Link = {
+            type: "link",
+            url: context.botAccount.pathname,
+            children: [{type: "text", value: context.botAccount.shortName}],
+        };
+
+        if (oldPage.status.type !== "Open" || !oldPage.status.isActive) {
+            throw new InvalidArgumentError(
+                "Can\u2019t set task as active if there\u2019s no assignee",
+                {
+                    displayMessage: errorDisplayMessage`Can\u2019t set task as active if there\u2019s no assignee. We don\u2019t recommend setting a task as active unless you\u2019re about to work on the task or you know someone else is currently working on the task. Try again and either set the task as open but inactive (e.g. \`- Status: Open\`) or set an assignee (e.g. \`- Assignee: ${printMarkdownTree(assigneeLink).trim()}\`).`,
+                },
+            );
+        } else {
+            throw new InvalidArgumentError("Can\u2019t remove assignee from an active task", {
+                displayMessage: errorDisplayMessage`Can\u2019t remove the assignee from an active task. An active task implies someone is currently working on the task. An assignee is required for active tasks so we know who is currently working on the task. Try again but set the task as inactive first (e.g. \`- Status: Open\`).`,
+            });
+        }
+    }
 
     const patches: Array<ApiTaskPatch> = [];
 
