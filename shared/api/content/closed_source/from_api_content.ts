@@ -136,6 +136,7 @@ export function* fromApiContentBlockElements(
                         if (item.elements.length === 0) {
                             if (
                                 element.type !== "UnorderedList" ||
+                                itemIndex > 0 ||
                                 item.nestedListElements === undefined ||
                                 item.nestedListElements.every(
                                     nestedElement => nestedElement.items.length === 0,

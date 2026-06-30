@@ -915,6 +915,7 @@ test("unordered list item followed by phantom indented ordered list item", () =>
         type: "doc",
         content: [
             {type: "unorderedListItem", attrs: {indent: 0}, content: [{type: "paragraph"}]},
+            {type: "unorderedListItem", attrs: {indent: 0}, content: [{type: "paragraph"}]},
             {
                 type: "orderedListItem",
                 attrs: {indent: 1, orderStart: null},
@@ -943,10 +944,6 @@ test("unordered list item followed by phantom indented ordered list item (with u
                 items: [
                     {
                         elements: [{type: "Paragraph", elements: []}],
-                        nestedListElements: [],
-                    },
-                    {
-                        elements: [],
                         nestedListElements: [
                             {
                                 type: "UnorderedList",
