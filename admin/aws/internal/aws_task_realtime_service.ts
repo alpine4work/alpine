@@ -362,6 +362,9 @@ export class AwsTaskRealtimeService extends Construct {
             // Send logs to AWS. Container logs are short-lived and used for debugging obscure
             // machine-level issues. Our long-lived logs are in Honeycomb.
             logging: ecsCluster.shortLivedLogDriver,
+            // Match the main container so the gateway has time to drain proxied WebSocket
+            // connections while `TaskRealtimeService` shuts down.
+            stopTimeout: Duration.millis(ecsStopTimeoutMs),
             // DANGER: We need to run as root to listen on port 80. The process immediately
             // downgrades to the `www-data` user once we've bound to port 80. We could put the
             // gateway server in the main `TaskRealtimeService` container but we decide to use
