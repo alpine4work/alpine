@@ -438,7 +438,133 @@ Please clarify this requirement.
 
 </comment>`,
         expected:
-            "2 matches were found for the quoted content in `<blockquote>` in `/document/launch-spec`. Try again but provide more surrounding context to make your match unique.",
+            '2 matches were found for the quoted content in `<blockquote>` in `/document/launch-spec`. Try again but provide more surrounding context to make your match unique or add a 1-indexed `match` attribute to `<blockquote>` to choose which match to use (e.g. `<blockquote match="2">` uses the second match).',
+    });
+});
+
+test("rejects creating a document thread with a non-integer quote match", async () => {
+    await createAndReadDocument({bodyMarkdown: "Quoted launch requirement."});
+
+    await expectInvalidCreateDisplayMessage({
+        content: `\
+Document comment thread on [Launch Spec](/document/launch-spec).
+
+<blockquote match="second">
+
+Quoted launch requirement.
+
+</blockquote>
+
+<comment>
+
+Please clarify this requirement.
+
+</comment>`,
+        expected:
+            'Invalid `<blockquote>` `match` attribute on line 3. Try again with a 1-indexed integer like `match="2"`.',
+    });
+});
+
+test("rejects creating a document thread with an out-of-bounds quote match for one match", async () => {
+    await createAndReadDocument({bodyMarkdown: "Quoted launch requirement."});
+
+    await expectInvalidCreateDisplayMessage({
+        content: `\
+Document comment thread on [Launch Spec](/document/launch-spec).
+
+<blockquote match="2">
+
+Quoted launch requirement.
+
+</blockquote>
+
+<comment>
+
+Please clarify this requirement.
+
+</comment>`,
+        expected:
+            "The `<blockquote>` `match` attribute must be `1` or it can be omitted since there\u2019s only one match. Try again but omit the `match` attribute.",
+    });
+});
+
+test("uses quote match to choose between repeated document content", async () => {
+    await createAndReadDocument({
+        bodyMarkdown: `\
+Repeated launch requirement.
+
+Repeated launch requirement.`,
+    });
+
+    await expect(
+        callAgentWebCreateTool(context, {
+            type: "document-thread",
+            content: `\
+Document comment thread on [Launch Spec](/document/launch-spec).
+
+<blockquote match="2">
+
+Repeated launch requirement.
+
+</blockquote>
+
+<comment>
+
+Please clarify this requirement.
+
+</comment>`,
+        }),
+    ).rejects.toThrow(UnimplementedError);
+});
+
+test("rejects creating a document thread with an invalid quote cite", async () => {
+    await createAndReadDocument({bodyMarkdown: "Quoted launch requirement."});
+
+    await expectInvalidCreateDisplayMessage({
+        content: `\
+Document comment thread on [Launch Spec](/document/launch-spec).
+
+<blockquote cite="/document/launch-spec">
+
+Quoted launch requirement.
+
+</blockquote>
+
+<comment>
+
+Please clarify this requirement.
+
+</comment>`,
+        expected:
+            'Invalid `<blockquote>` `cite` attribute on line 3. The `<blockquote>` `cite` attribute must always be `cite="../.."` since we always want to quote content from the parent document. Try again with `cite="../.."` or omit the `cite` attribute entirely (`cite="../.."` is implied).',
+    });
+});
+
+test("rejects quote match zero as out of bounds for multiple matches", async () => {
+    await createAndReadDocument({
+        bodyMarkdown: `\
+Repeated launch requirement.
+
+Repeated launch requirement.`,
+    });
+
+    await expectInvalidCreateDisplayMessage({
+        content: `\
+Document comment thread on [Launch Spec](/document/launch-spec).
+
+<blockquote match="0">
+
+Repeated launch requirement.
+
+</blockquote>
+
+<comment>
+
+Please clarify this requirement.
+
+</comment>`,
+        expected:
+            'The `<blockquote>` `match` attribute must be between 1 and 2, instead it was `match="0"`. Try again with a valid 1-indexed `match` attribute.',
     });
 });
 
