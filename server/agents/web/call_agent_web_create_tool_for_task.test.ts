@@ -21,6 +21,13 @@ const storage = createAgentWebSessionStorageForTest(spaceId);
 const botAccountId = generateId<AccountId>();
 const botId = generateId<BotId>();
 const aliceAccount = createApiAccountMock({name: "Alice"});
+const parentTaskId = generateId<TaskId>();
+const parentTaskReference = {
+    type: "Task" as const,
+    id: parentTaskId,
+    title: "Parent task",
+    status: {type: "Open" as const, isActive: false},
+};
 const engineeringCollectionId = generateId<TaskCollectionId>();
 const roadmapCollectionId = generateId<TaskCollectionId>();
 const engineeringCollectionReference = {
@@ -52,6 +59,7 @@ const context: AgentWebContext = {
 
 beforeEach(async () => {
     await createAgentWebPageStoredLinkPathname(storage, intoApiAccountReference(aliceAccount));
+    await createAgentWebPageStoredLinkPathname(storage, parentTaskReference);
     await createAgentWebPageStoredLinkPathname(storage, engineeringCollectionReference);
     await createAgentWebPageStoredLinkPathname(storage, roadmapCollectionReference);
 });
@@ -161,6 +169,7 @@ test("creates a minimal task with default open status", async () => {
         task: {
             title: "Minimal task",
             status: {type: "Open", isActive: false},
+            parent: undefined,
             assignee: undefined,
             collections: [],
             priority: undefined,
@@ -193,6 +202,7 @@ test("creates a task with explicit inactive open status", async () => {
         task: {
             title: "Explicit inactive task",
             status: {type: "Open", isActive: false},
+            parent: undefined,
             assignee: undefined,
             collections: [],
             priority: undefined,
@@ -215,6 +225,7 @@ test("creates a task with every supported field", async () => {
 # Create everything
 
 - status: Open (Active)
+- parent: [Parent task](/task/parent-task)
 - assignee: [Alice](/human/alice)
 - collections:
   - [Engineering](/task-collection/engineering)
@@ -232,6 +243,7 @@ test("creates a task with every supported field", async () => {
         task: {
             title: "Create everything",
             status: {type: "Open", isActive: true},
+            parent: {task: {id: parentTaskId}},
             assignee: {id: aliceAccount.id},
             collections: [
                 {collection: {id: engineeringCollectionId}},
@@ -239,6 +251,40 @@ test("creates a task with every supported field", async () => {
             ],
             priority: {type: "High"},
             due: {date: "2027-07-12"},
+            content: undefined,
+        },
+    });
+});
+
+test("creates a task with parent and priority", async () => {
+    mockCreateTask({
+        title: "Create parent field",
+        status: {type: "Open", isActive: false},
+    });
+
+    await expect(
+        callAgentWebCreateTool(context, {
+            type: "task",
+            content: `\
+# Create parent field
+
+- Parent: [Parent task](/task/parent-task)
+- Priority: Medium`,
+        }),
+    ).resolves.toEqual(
+        "Create was successful. New task: [Create parent field](/task/create-parent-field).\n",
+    );
+
+    expect(getCreateTaskRequests()[0]?.body).toEqual({
+        spaceId,
+        task: {
+            title: "Create parent field",
+            status: {type: "Open", isActive: false},
+            parent: {task: {id: parentTaskId}},
+            assignee: undefined,
+            collections: [],
+            priority: {type: "Medium"},
+            due: undefined,
             content: undefined,
         },
     });
@@ -274,6 +320,7 @@ Use beta data.`,
         task: {
             title: "Create notes",
             status: {type: "Closed"},
+            parent: undefined,
             assignee: undefined,
             collections: [],
             priority: {type: "Low"},
@@ -324,6 +371,7 @@ test("creates a task with empty notes section without sending notes content", as
         task: {
             title: "Create empty notes",
             status: {type: "Open", isActive: false},
+            parent: undefined,
             assignee: undefined,
             collections: [],
             priority: undefined,
@@ -357,6 +405,7 @@ test("creates a task with assignee and priority", async () => {
         task: {
             title: "Create mixed fields",
             status: {type: "Open", isActive: false},
+            parent: undefined,
             assignee: {id: aliceAccount.id},
             collections: [],
             priority: {type: "Medium"},
@@ -390,6 +439,7 @@ test("creates a task with status and inline collections", async () => {
         task: {
             title: "Create collection fields",
             status: {type: "Closed"},
+            parent: undefined,
             assignee: undefined,
             collections: [
                 {collection: {id: engineeringCollectionId}},
@@ -432,6 +482,7 @@ test("creates a task with yearless due date using context year", async () => {
         task: {
             title: "Create yearless due date",
             status: {type: "Open", isActive: false},
+            parent: undefined,
             assignee: undefined,
             collections: [],
             priority: undefined,
@@ -471,6 +522,7 @@ test.each([
             task: {
                 title,
                 status: {type: "Open", isActive: false},
+                parent: undefined,
                 assignee: undefined,
                 collections: [],
                 priority: undefined,
@@ -501,6 +553,32 @@ test("rejects an unknown assignee link without calling the API", async () => {
 - assignee: [Missing](/human/missing)`,
         expected:
             "Unexpected task assignee link \u201CMissing\u201D on line 4. Try again with a link to a human or bot you\u2019ve seen before (e.g. `[John](/human/john-doe)`).",
+    });
+
+    expect(getCreateTaskRequests()).toHaveLength(0);
+});
+
+test("rejects an unknown parent link without calling the API", async () => {
+    await expectCreateDisplayMessage({
+        content: `\
+# Unknown parent
+
+- Parent: [Missing](/task/missing)`,
+        expected:
+            "Unexpected task parent link \u201CMissing\u201D on line 3. Try again with a link to a task you\u2019ve seen before (e.g. `[My Task](/task/my-task)`).",
+    });
+
+    expect(getCreateTaskRequests()).toHaveLength(0);
+});
+
+test("rejects a parent link to another entity type without calling the API", async () => {
+    await expectCreateDisplayMessage({
+        content: `\
+# Wrong parent
+
+- Parent: [Engineering](/task-collection/engineering)`,
+        expected:
+            "Unexpected task parent link \u201CEngineering\u201D on line 3. Try again with a link to a task you\u2019ve seen before (e.g. `[My Task](/task/my-task)`).",
     });
 
     expect(getCreateTaskRequests()).toHaveLength(0);
