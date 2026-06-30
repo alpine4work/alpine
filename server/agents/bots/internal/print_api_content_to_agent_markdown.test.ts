@@ -357,7 +357,7 @@ test("link with mention-like URL becomes HTML anchor tag with replaced href", as
                             marks: [
                                 {
                                     type: "Link",
-                                    url: `https://alpine.inc/doc/${documentId}?mention`,
+                                    url: `https://alpine.inc/doc/${documentId}#mention`,
                                 },
                             ],
                         },
@@ -393,7 +393,7 @@ test("code block with links gets href attributes replaced", async () => {
                                     marks: [
                                         {
                                             type: "Link",
-                                            url: `https://alpine.inc/d/123?mention=true`,
+                                            url: `https://alpine.inc/d/123#mention=true`,
                                         },
                                     ],
                                 },

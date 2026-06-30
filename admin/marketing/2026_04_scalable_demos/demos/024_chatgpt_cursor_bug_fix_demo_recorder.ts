@@ -30,11 +30,11 @@ runScalableDemoRecorder(async (context, services, recorder) => {
     const demoFixedTime = new Date("2025-10-16T11:58:00-04:00");
 
     const accountMentionUrl = (account: {id: string}) =>
-        `https://alpine.inc/mention/${account.id}?short`;
+        `https://alpine.inc/mention/${account.id}#short`;
     const documentMentionUrl = (document: TestDocument) =>
-        `https://alpine.inc/doc/${document.id}?mention`;
-    const postMentionUrl = (post: TestPost) => `https://alpine.inc/post/${post.id}?mention`;
-    const taskMentionUrl = (task: TestTask) => `https://alpine.inc/task/${task.id}?mention`;
+        `https://alpine.inc/doc/${document.id}#mention`;
+    const postMentionUrl = (post: TestPost) => `https://alpine.inc/post/${post.id}#mention`;
+    const taskMentionUrl = (task: TestTask) => `https://alpine.inc/task/${task.id}#mention`;
 
     const [engineeringChannel, planningChannel, supportChannel] = await runAllPromises([
         TestChannel.create(accounts.elleKappaTan, {

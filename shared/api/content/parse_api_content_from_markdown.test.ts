@@ -1558,7 +1558,7 @@ describe("checklist", () => {
 test("mention with short name format", () => {
     const accountId = "n93hre935d0yd7akahtrwcvv30";
     expect(
-        parseApiContentFromMarkdown(`[@alice](https://alpine.inc/mention/${accountId}?short)`),
+        parseApiContentFromMarkdown(`[@alice](https://alpine.inc/mention/${accountId}#short)`),
     ).toEqual({
         elements: [
             {
@@ -1578,7 +1578,7 @@ test("mention with short name format", () => {
 test("channel mention", () => {
     const channelId = "c93hre935d0yd7akahtrwcvv30";
     expect(
-        parseApiContentFromMarkdown(`[#general](https://alpine.inc/channel/${channelId}?mention)`),
+        parseApiContentFromMarkdown(`[#general](https://alpine.inc/channel/${channelId}#mention)`),
     ).toEqual({
         elements: [
             {
@@ -1597,7 +1597,7 @@ test("channel mention", () => {
 test("document mention", () => {
     const documentId = "d93hre935d0yd7akahtrwcvv30";
     expect(
-        parseApiContentFromMarkdown(`[Doc](https://alpine.inc/doc/${documentId}?mention)`),
+        parseApiContentFromMarkdown(`[Doc](https://alpine.inc/doc/${documentId}#mention)`),
     ).toEqual({
         elements: [
             {
@@ -1615,7 +1615,7 @@ test("document mention", () => {
 
 test("document mention with autolink syntax", () => {
     const documentId = "d93hre935d0yd7akahtrwcvv30";
-    expect(parseApiContentFromMarkdown(`<https://alpine.inc/doc/${documentId}?mention>`)).toEqual({
+    expect(parseApiContentFromMarkdown(`<https://alpine.inc/doc/${documentId}#mention>`)).toEqual({
         elements: [
             {
                 type: "Paragraph",
@@ -1633,7 +1633,7 @@ test("document mention with autolink syntax", () => {
 // Only https://alpine.inc is allowed for mentions
 test("parses mention from alpine.inc", () => {
     const documentId = "d93hre935d0yd7akahtrwcvv30";
-    expect(parseApiContentFromMarkdown(`<https://alpine.inc/doc/${documentId}?mention>`)).toEqual({
+    expect(parseApiContentFromMarkdown(`<https://alpine.inc/doc/${documentId}#mention>`)).toEqual({
         elements: [
             {
                 type: "Paragraph",
@@ -1665,7 +1665,7 @@ test.each(disallowedMentionDomains)(
     "does not parse mention from disallowed domain: %s (%s)",
     baseUrl => {
         const documentId = "d93hre935d0yd7akahtrwcvv30";
-        const url = `${baseUrl}/doc/${documentId}?mention`;
+        const url = `${baseUrl}/doc/${documentId}#mention`;
         expect(parseApiContentFromMarkdown(`<${url}>`)).toEqual({
             elements: [
                 {
@@ -1686,7 +1686,7 @@ test.each(disallowedMentionDomains)(
 test("post mention", () => {
     const postId = "p93hre935d0yd7akahtrwcvv30";
     expect(
-        parseApiContentFromMarkdown(`[Post](https://alpine.inc/post/${postId}?mention)`),
+        parseApiContentFromMarkdown(`[Post](https://alpine.inc/post/${postId}#mention)`),
     ).toEqual({
         elements: [
             {
@@ -1705,7 +1705,7 @@ test("post mention", () => {
 test("task mention", () => {
     const taskId = "t93hre935d0yd7akahtrwcvv30";
     expect(
-        parseApiContentFromMarkdown(`[Task](https://alpine.inc/task/${taskId}?mention)`),
+        parseApiContentFromMarkdown(`[Task](https://alpine.inc/task/${taskId}#mention)`),
     ).toEqual({
         elements: [
             {
@@ -1725,7 +1725,7 @@ test("task collection mention", () => {
     const collectionId = "tc3hre935d0yd7akahtrwcvv30";
     expect(
         parseApiContentFromMarkdown(
-            `[Collection](https://alpine.inc/task-collection/${collectionId}?mention)`,
+            `[Collection](https://alpine.inc/task-collection/${collectionId}#mention)`,
         ),
     ).toEqual({
         elements: [

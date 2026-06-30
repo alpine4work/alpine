@@ -168,12 +168,12 @@ Third case study published, demo script in Cliff\u2019s hands
 </table>
             `,
             {
-                cassMention: `[](https://alpine.inc/mention/${accounts.cassCade.account.id}?short)`,
-                masonMention: `[](https://alpine.inc/mention/${accounts.masonClay.account.id}?short)`,
-                mattMention: `[](https://alpine.inc/mention/${accounts.mattRHorn.account.id}?short)`,
-                elleMention: `[](https://alpine.inc/mention/${accounts.elleKappaTan.account.id}?short)`,
-                cliffMention: `[](https://alpine.inc/mention/${accounts.cliffWeathers.account.id}?short)`,
-                hollyMention: `[](https://alpine.inc/mention/${accounts.hollyEvergreen.account.id}?short)`,
+                cassMention: `[](https://alpine.inc/mention/${accounts.cassCade.account.id}#short)`,
+                masonMention: `[](https://alpine.inc/mention/${accounts.masonClay.account.id}#short)`,
+                mattMention: `[](https://alpine.inc/mention/${accounts.mattRHorn.account.id}#short)`,
+                elleMention: `[](https://alpine.inc/mention/${accounts.elleKappaTan.account.id}#short)`,
+                cliffMention: `[](https://alpine.inc/mention/${accounts.cliffWeathers.account.id}#short)`,
+                hollyMention: `[](https://alpine.inc/mention/${accounts.hollyEvergreen.account.id}#short)`,
             },
         ),
         sitePosition: {

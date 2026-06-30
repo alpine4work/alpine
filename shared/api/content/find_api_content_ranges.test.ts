@@ -451,33 +451,33 @@ const testCases: Array<{
     },
     {
         name: "find account short mention",
-        haystack: "hello [@alice](https://alpine.inc/mention/n93hre935d0yd7akahtrwcvv30?short)",
-        needle: "[@alice](https://alpine.inc/mention/n93hre935d0yd7akahtrwcvv30?short)",
+        haystack: "hello [@alice](https://alpine.inc/mention/n93hre935d0yd7akahtrwcvv30#short)",
+        needle: "[@alice](https://alpine.inc/mention/n93hre935d0yd7akahtrwcvv30#short)",
         ranges: [{from: 7, to: 8, slice: "<mention>"}],
     },
     {
         name: "reject account mention shortness mismatch",
-        haystack: "hello [@alice](https://alpine.inc/mention/n93hre935d0yd7akahtrwcvv30?short)",
+        haystack: "hello [@alice](https://alpine.inc/mention/n93hre935d0yd7akahtrwcvv30#short)",
         needle: "[@alice](https://alpine.inc/mention/n93hre935d0yd7akahtrwcvv30)",
         ranges: [],
     },
     {
         name: "find document mention",
         haystack:
-            "[Doc](https://alpine.inc/doc/d93hre935d0yd7akahtrwcvv30?mention) [Doc](https://alpine.inc/doc/d93hre935d0yd7akahtrwcvv31?mention)",
-        needle: "[Doc](https://alpine.inc/doc/d93hre935d0yd7akahtrwcvv30?mention)",
+            "[Doc](https://alpine.inc/doc/d93hre935d0yd7akahtrwcvv30#mention) [Doc](https://alpine.inc/doc/d93hre935d0yd7akahtrwcvv31#mention)",
+        needle: "[Doc](https://alpine.inc/doc/d93hre935d0yd7akahtrwcvv30#mention)",
         ranges: [{from: 1, to: 2, slice: "<mention>"}],
     },
     {
         name: "find bold account mention",
-        haystack: "**[@alice](https://alpine.inc/mention/n93hre935d0yd7akahtrwcvv30?short)**",
-        needle: "**[@alice](https://alpine.inc/mention/n93hre935d0yd7akahtrwcvv30?short)**",
+        haystack: "**[@alice](https://alpine.inc/mention/n93hre935d0yd7akahtrwcvv30#short)**",
+        needle: "**[@alice](https://alpine.inc/mention/n93hre935d0yd7akahtrwcvv30#short)**",
         ranges: [{from: 1, to: 2, slice: "<bold(mention)>"}],
     },
     {
         name: "find plain account mention against bold mention",
-        haystack: "**[@alice](https://alpine.inc/mention/n93hre935d0yd7akahtrwcvv30?short)**",
-        needle: "[@alice](https://alpine.inc/mention/n93hre935d0yd7akahtrwcvv30?short)",
+        haystack: "**[@alice](https://alpine.inc/mention/n93hre935d0yd7akahtrwcvv30#short)**",
+        needle: "[@alice](https://alpine.inc/mention/n93hre935d0yd7akahtrwcvv30#short)",
         ranges: [{from: 1, to: 2, slice: "<bold(mention)>"}],
     },
     {

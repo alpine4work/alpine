@@ -7038,7 +7038,7 @@ Ask <code>[@bob](https://alpine.inc/mention/${accountId})</code> about it
                         ],
                     },
                     expectedMarkdown: `\
-<code>[iris](https://alpine.inc/mention/${accountId}?short)</code>
+<code>[iris](https://alpine.inc/mention/${accountId}#short)</code>
 `,
                 },
                 {
@@ -7058,7 +7058,7 @@ Ask <code>[@bob](https://alpine.inc/mention/${accountId})</code> about it
                         ],
                     },
                     expectedMarkdown: `\
-<code>[Unknown task](https://alpine.inc/task/${taskId}?mention)</code>
+<code>[Unknown task](https://alpine.inc/task/${taskId}#mention)</code>
 `,
                 },
                 {
@@ -7893,7 +7893,7 @@ Text\\[^1] with footnote
                         ],
                     },
                     expectedMarkdown: `\
-[](https://alpine.inc/task/${taskId}?mention)
+[](https://alpine.inc/task/${taskId}#mention)
 `,
                 },
                 {
@@ -7955,7 +7955,7 @@ Text\\[^1] with footnote
                         ],
                     },
                     expectedMarkdown: `\
-<a href="http://a.aa">[Unknown task](https://alpine.inc/task/${taskId}?mention)</a>
+<a href="http://a.aa">[Unknown task](https://alpine.inc/task/${taskId}#mention)</a>
 
 <p></p>
 `,
@@ -7983,7 +7983,7 @@ Text\\[^1] with footnote
                         ],
                     },
                     expectedMarkdown: `\
-~~[Unknown document](https://alpine.inc/doc/${documentId}?mention)~~&#x30;
+~~[Unknown document](https://alpine.inc/doc/${documentId}#mention)~~&#x30;
 
 <p></p>
 `,
@@ -8237,7 +8237,7 @@ $\\*$&#x20;
                         ],
                     },
                     expectedMarkdown: `\
-<a href="http://a.aa/&amp;">[](https://alpine.inc/task-collection/${taskCollectionId}?mention)</a>
+<a href="http://a.aa/&amp;">[](https://alpine.inc/task-collection/${taskCollectionId}#mention)</a>
 `,
                 },
                 {
@@ -8313,7 +8313,7 @@ $\\*$&#x20;
                         ],
                     },
                     expectedMarkdown: `\
-$\\_[Unknown document](https://alpine.inc/doc/${documentId}?mention)$
+$\\_[Unknown document](https://alpine.inc/doc/${documentId}#mention)$
 `,
                 },
                 {
@@ -8500,7 +8500,7 @@ $(ab)$
                         ],
                     },
                     expectedMarkdown: `\
-<br /><br /><a href="http://a.aa">[](https://alpine.inc/post/${postId}?mention)</a>
+<br /><br /><a href="http://a.aa">[](https://alpine.inc/post/${postId}#mention)</a>
 `,
                 },
                 {
@@ -9656,7 +9656,7 @@ _-X_**[~~-y/@\\\`/$bz1~~](https://63o.kry)G**
                                         marks: [
                                             {
                                                 type: "Link",
-                                                url: `https://alpine.inc/doc/${documentId}?mention`,
+                                                url: `https://alpine.inc/doc/${documentId}#mention`,
                                             },
                                         ],
                                     },
@@ -9666,7 +9666,7 @@ _-X_**[~~-y/@\\\`/$bz1~~](https://63o.kry)G**
                         ],
                     },
                     expectedMarkdown: `\
-Click <a href="https://alpine.inc/doc/${documentId}?mention">here</a> to visit
+Click <a href="https://alpine.inc/doc/${documentId}#mention">here</a> to visit
 `,
                 },
                 {
@@ -9683,7 +9683,7 @@ Click <a href="https://alpine.inc/doc/${documentId}?mention">here</a> to visit
                                         marks: [
                                             {
                                                 type: "Link",
-                                                url: `https://alpine.inc/mention/${accountId}?short`,
+                                                url: `https://alpine.inc/mention/${accountId}#short`,
                                             },
                                         ],
                                     },
@@ -9693,7 +9693,7 @@ Click <a href="https://alpine.inc/doc/${documentId}?mention">here</a> to visit
                         ],
                     },
                     expectedMarkdown: `\
-Click <a href="https://alpine.inc/mention/${accountId}?short">here</a> to visit
+Click <a href="https://alpine.inc/mention/${accountId}#short">here</a> to visit
 `,
                 },
                 {

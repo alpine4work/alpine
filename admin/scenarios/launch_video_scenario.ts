@@ -660,7 +660,7 @@ field when they receive them. Comment on ideas you like!
                 payload: {
                     type: "Content",
                     content: parseApiContentFromMarkdown(
-                        `- [](https://alpine.inc/task/${followupTask1.id}?mention)`,
+                        `- [](https://alpine.inc/task/${followupTask1.id}#mention)`,
                     ),
                 },
             });
@@ -676,7 +676,7 @@ field when they receive them. Comment on ideas you like!
                 payload: {
                     type: "Content",
                     content: parseApiContentFromMarkdown(
-                        `- [](https://alpine.inc/task/${followupTask2.id}?mention)`,
+                        `- [](https://alpine.inc/task/${followupTask2.id}#mention)`,
                     ),
                 },
             });
@@ -692,7 +692,7 @@ field when they receive them. Comment on ideas you like!
                 payload: {
                     type: "Content",
                     content: parseApiContentFromMarkdown(
-                        `- [](https://alpine.inc/task/${followupTask3.id}?mention)`,
+                        `- [](https://alpine.inc/task/${followupTask3.id}#mention)`,
                     ),
                 },
             });
@@ -708,7 +708,7 @@ field when they receive them. Comment on ideas you like!
                 payload: {
                     type: "Content",
                     content: parseApiContentFromMarkdown(
-                        `- [](https://alpine.inc/task/${followupTask4.id}?mention)`,
+                        `- [](https://alpine.inc/task/${followupTask4.id}#mention)`,
                     ),
                 },
             });
@@ -724,7 +724,7 @@ field when they receive them. Comment on ideas you like!
                 payload: {
                     type: "Content",
                     content: parseApiContentFromMarkdown(
-                        `- [](https://alpine.inc/task/${followupTask5.id}?mention)`,
+                        `- [](https://alpine.inc/task/${followupTask5.id}#mention)`,
                     ),
                 },
             });
@@ -892,11 +892,11 @@ Below are the first five pilot programs we\u2019re mapping, plus owners and key 
 
 | Program                               | Launch Tier | Owner                                                              | Key Deadline |
 | ------------------------------------- | ----------- | ------------------------------------------------------------------ | ------------ |
-| EQIP 382 (Fence)                      | Pilot       | [Cass](https://alpine.inc/mention/{{cassCadeAccountId}}?short)     | June 12      |
-| CSP (Conservation Stewardship)        | Pilot       | [Elle](https://alpine.inc/mention/{{elleKappaTanAccountId}}?short) | June 20      |
-| REAP (Energy)                         | Beta        | [Mason](https://alpine.inc/mention/{{masonClayAccountId}}?short)   | June 26      |
-| CA State Soil Health Grant            | Pilot       | [Cass](https://alpine.inc/mention/{{cassCadeAccountId}}?short)     | June 22      |
-| Utility Energy Rebate (Midwest Co-op) | Beta        | [Matt](https://alpine.inc/mention/{{mattRHornAccountId}}?short)    | June 29      |
+| EQIP 382 (Fence)                      | Pilot       | [Cass](https://alpine.inc/mention/{{cassCadeAccountId}}#short)     | June 12      |
+| CSP (Conservation Stewardship)        | Pilot       | [Elle](https://alpine.inc/mention/{{elleKappaTanAccountId}}#short) | June 20      |
+| REAP (Energy)                         | Beta        | [Mason](https://alpine.inc/mention/{{masonClayAccountId}}#short)   | June 26      |
+| CA State Soil Health Grant            | Pilot       | [Cass](https://alpine.inc/mention/{{cassCadeAccountId}}#short)     | June 22      |
+| Utility Energy Rebate (Midwest Co-op) | Beta        | [Matt](https://alpine.inc/mention/{{mattRHornAccountId}}#short)    | June 29      |
 
 Feedback needed
 
@@ -964,7 +964,7 @@ Nice work, team!
             Mustache.render(
                 markdown`
 Remember we're meeting with Audacious Ventures in _five minutes_. Make sure you're ready
-[Rose](https://alpine.inc/mention/{{roseCompasAccountId}}?short). This is the big one! You got this!
+[Rose](https://alpine.inc/mention/{{roseCompasAccountId}}#short). This is the big one! You got this!
                 `,
                 {
                     spaceId: space.id,

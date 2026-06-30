@@ -32,7 +32,7 @@ runScalableDemoRecorder(async (context, services, recorder) => {
     // ── Documents ──────────────────────────────────────────────────────
 
     const mentionUrl = (accountSession: {account: {id: string}}) =>
-        `https://alpine.inc/mention/${accountSession.account.id}?short`;
+        `https://alpine.inc/mention/${accountSession.account.id}#short`;
 
     const q2UpdateDoc = await TestDocument.create(accounts.cassCade, {
         title: "FY2026 Q2 Update",
@@ -105,9 +105,9 @@ Senior backend engineer offer went out. Start date is early Q3.
     ]);
 
     // Rose's Q3 roadmap post in Leads, mentioning the Q2 Update doc with a preview.
-    const q2UpdateMentionUrl = `https://alpine.inc/doc/${q2UpdateDoc.id}?mention`;
+    const q2UpdateMentionUrl = `https://alpine.inc/doc/${q2UpdateDoc.id}#mention`;
     const q2UpdatePreviewUrl = `https://alpine.inc/doc/${q2UpdateDoc.id}/preview`;
-    const fy26Q3MentionUrl = `https://alpine.inc/task-collection/${fy26Q3Collection.id}?mention`;
+    const fy26Q3MentionUrl = `https://alpine.inc/task-collection/${fy26Q3Collection.id}#mention`;
     const rosePost = await leadsChannel.createPost(
         accounts.roseCompas,
         markdown`

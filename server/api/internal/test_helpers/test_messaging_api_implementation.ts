@@ -403,7 +403,7 @@ export function testMessagingApiImplementation(
             });
 
             expect(printApiContentToMarkdown(response.body.message.payload.content)).toEqual(
-                `Hello [Caleb](https://alpine.inc/mention/${session2.account.id}?short)\n`,
+                `Hello [Caleb](https://alpine.inc/mention/${session2.account.id}#short)\n`,
             );
         });
 
@@ -452,7 +452,7 @@ export function testMessagingApiImplementation(
             });
 
             expect(printApiContentToMarkdown(response.body.message.payload.content)).toEqual(
-                `We need to fix [Unknown task](https://alpine.inc/task/${unknownTaskId}?mention)\n`,
+                `We need to fix [Unknown task](https://alpine.inc/task/${unknownTaskId}#mention)\n`,
             );
         });
 
@@ -499,7 +499,7 @@ export function testMessagingApiImplementation(
             });
 
             expect(printApiContentToMarkdown(response.body.message.payload.content)).toEqual(
-                `We need to fix [Some bug](https://alpine.inc/task/${knownTaskId}?mention)\n`,
+                `We need to fix [Some bug](https://alpine.inc/task/${knownTaskId}#mention)\n`,
             );
         });
 
@@ -546,7 +546,7 @@ export function testMessagingApiImplementation(
             });
 
             expect(printApiContentToMarkdown(response.body.message.payload.content)).toEqual(
-                `We need to fix [Private task](https://alpine.inc/task/${privateTaskId}?mention)\n`,
+                `We need to fix [Private task](https://alpine.inc/task/${privateTaskId}#mention)\n`,
             );
         });
 
@@ -593,7 +593,7 @@ export function testMessagingApiImplementation(
             });
 
             expect(printApiContentToMarkdown(response.body.message.payload.content)).toEqual(
-                `We need to fix [Deleted task](https://alpine.inc/task/${deletedTaskId}?mention)\n`,
+                `We need to fix [Deleted task](https://alpine.inc/task/${deletedTaskId}#mention)\n`,
             );
         });
 
@@ -1122,7 +1122,7 @@ export function testMessagingApiImplementation(
             });
 
             expect(printApiContentToMarkdown(response.body.messages[0].payload.content)).toEqual(
-                `Hello [Caleb](https://alpine.inc/mention/${session2.account.id}?short)\n`,
+                `Hello [Caleb](https://alpine.inc/mention/${session2.account.id}#short)\n`,
             );
         });
 
@@ -1174,7 +1174,7 @@ export function testMessagingApiImplementation(
             });
 
             expect(printApiContentToMarkdown(response.body.messages[0].payload.content)).toEqual(
-                `We need to fix [Unknown task](https://alpine.inc/task/${unknownTaskId}?mention)\n`,
+                `We need to fix [Unknown task](https://alpine.inc/task/${unknownTaskId}#mention)\n`,
             );
         });
 
@@ -1224,7 +1224,7 @@ export function testMessagingApiImplementation(
             });
 
             expect(printApiContentToMarkdown(response.body.messages[0].payload.content)).toEqual(
-                `We need to fix [Some bug](https://alpine.inc/task/${knownTaskId}?mention)\n`,
+                `We need to fix [Some bug](https://alpine.inc/task/${knownTaskId}#mention)\n`,
             );
         });
 
@@ -1274,7 +1274,7 @@ export function testMessagingApiImplementation(
             });
 
             expect(printApiContentToMarkdown(response.body.messages[0].payload.content)).toEqual(
-                `We need to fix [Private task](https://alpine.inc/task/${privateTaskId}?mention)\n`,
+                `We need to fix [Private task](https://alpine.inc/task/${privateTaskId}#mention)\n`,
             );
         });
 
@@ -1324,7 +1324,7 @@ export function testMessagingApiImplementation(
             });
 
             expect(printApiContentToMarkdown(response.body.messages[0].payload.content)).toEqual(
-                `We need to fix [Deleted task](https://alpine.inc/task/${deletedTaskId}?mention)\n`,
+                `We need to fix [Deleted task](https://alpine.inc/task/${deletedTaskId}#mention)\n`,
             );
         });
 

@@ -194,9 +194,9 @@ for this customer?
             markdown`
 | Project                  | DRI                                                                       | Priority <span hidden data-column-widths="4,3,2"/> |
 | ------------------------ | ------------------------------------------------------------------------- | -------------------------------------------------- |
-| Receipt Mobile Scanner   | [Mason Clay]({{spaceUrl}}/accounts/{{masonClayAccountId}}?mention)        | <mark class="highlight-blue">Low</mark>            |
-| Profit by Acre Dashboard | [Elle Kappa-Tan]({{spaceUrl}}/accounts/{{elleKappaTanAccountId}}?mention) | <mark class="highlight-red">High</mark>            |
-| Grants Navigator         | [Cass Cade]({{spaceUrl}}/accounts/{{cassCadeAccountId}}?mention)          | <mark class="highlight-orange">Medium</mark>       |
+| Receipt Mobile Scanner   | [Mason Clay]({{spaceUrl}}/accounts/{{masonClayAccountId}}#mention)        | <mark class="highlight-blue">Low</mark>            |
+| Profit by Acre Dashboard | [Elle Kappa-Tan]({{spaceUrl}}/accounts/{{elleKappaTanAccountId}}#mention) | <mark class="highlight-red">High</mark>            |
+| Grants Navigator         | [Cass Cade]({{spaceUrl}}/accounts/{{cassCadeAccountId}}#mention)          | <mark class="highlight-orange">Medium</mark>       |
 
 As the quarter continues we\u2019ll reevaluate our approach. We don\u2019t expect to sign many large
 businesses this quarter (instead, we\u2019re looking to go up market in Q4) but that may change if

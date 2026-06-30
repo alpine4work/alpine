@@ -2345,7 +2345,7 @@ function* parseApiContentInlineElementFromMarkdown(
                 }
 
                 const isAccountShortName =
-                    mentionReference.type === "Account" && url?.searchParams.has("short");
+                    mentionReference.type === "Account" && url?.hash === "#short";
 
                 const marks = markStack.getMarks();
 

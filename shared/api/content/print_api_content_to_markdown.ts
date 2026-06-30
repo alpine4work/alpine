@@ -1513,25 +1513,25 @@ export function printApiMentionReferenceToMentionUrl(
 ) {
     switch (reference.type) {
         case "Account": {
-            return `https://alpine.inc/mention/${reference.id}${isAccountShortName ? "?short" : ""}`;
+            return `https://alpine.inc/mention/${reference.id}${isAccountShortName ? "#short" : ""}`;
         }
         case "Channel":
-            return `https://alpine.inc/channel/${reference.id}?mention`;
+            return `https://alpine.inc/channel/${reference.id}#mention`;
         case "Chat":
-            return `https://alpine.inc/chat/${reference.id}?mention`;
+            return `https://alpine.inc/chat/${reference.id}#mention`;
         case "Document":
-            return `https://alpine.inc/doc/${reference.id}?mention`;
+            return `https://alpine.inc/doc/${reference.id}#mention`;
         case "Post":
-            return `https://alpine.inc/post/${reference.id}?mention`;
+            return `https://alpine.inc/post/${reference.id}#mention`;
         case "Site":
             // TODO(#sites-api): This differs from the App! The question that we need to answer
             // is: "Should a Site API mention reroute the caller to the first entity in the
             // site?". Probably not
-            return `https://alpine.inc/site/${reference.id}?mention`;
+            return `https://alpine.inc/site/${reference.id}#mention`;
         case "Task":
-            return `https://alpine.inc/task/${reference.id}?mention`;
+            return `https://alpine.inc/task/${reference.id}#mention`;
         case "TaskCollection":
-            return `https://alpine.inc/task-collection/${reference.id}?mention`;
+            return `https://alpine.inc/task-collection/${reference.id}#mention`;
         default:
             throw exhaustive(reference);
     }
@@ -1648,7 +1648,7 @@ function* printApiContentInlineElementMarksToMarkdown(
         if (
             url?.protocol === "https:" &&
             url.host === "alpine.inc" &&
-            (url.searchParams.has("mention") || url.pathname.startsWith("/mention/"))
+            (url.hash === "#mention" || url.pathname.startsWith("/mention/"))
         ) {
             mentionishMark = mark;
         }

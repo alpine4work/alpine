@@ -22,7 +22,7 @@ runScalableDemoRecorder(async (context, services, recorder) => {
     );
 
     // Account mention helper: the markdown parser treats `alpine.inc` account links
-    // with a `?mention` search param as first-class `@` mentions, which in turn light
+    // with a `#mention` search param as first-class `@` mentions, which in turn light
     // up the inbox loud-notification path for the mentioned account.
     const mention = (account: {account: {id: string}}, displayName: string) =>
         `[@${displayName}](https://alpine.inc/mention/${account.account.id})`;

@@ -38,8 +38,8 @@ export function parseApiMentionReferenceFromMarkdownUrlIfPossible(
     }
 
     // This link is treated as a mention if it's an `https://alpine.inc` link with a
-    // `mention` search param.
-    if (!url.searchParams.has("mention")) return null;
+    // `mention` hash.
+    if (url.hash !== "#mention") return null;
 
     return parseApiMentionReferenceFromMarkdownPathnameSegmentsIfPossible(pathnameSegments);
 }

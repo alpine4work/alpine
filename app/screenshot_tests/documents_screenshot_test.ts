@@ -324,13 +324,13 @@ load-bearing. The tables design review pulled directly from it, and the next edi
 in there starts to feel out of date, fix it in place rather than starting a new doc.
             `,
             {
-                masonMention: `[](https://alpine.inc/mention/${accounts.masonClay.account.id}?short)`,
-                elleMention: `[](https://alpine.inc/mention/${accounts.elleKappaTan.account.id}?short)`,
-                cassMention: `[](https://alpine.inc/mention/${accounts.cassCade.account.id}?short)`,
-                mattMention: `[](https://alpine.inc/mention/${accounts.mattRHorn.account.id}?short)`,
-                roseMention: `[](https://alpine.inc/mention/${accounts.roseCompas.account.id}?short)`,
-                cliffMention: `[](https://alpine.inc/mention/${accounts.cliffWeathers.account.id}?short)`,
-                hollyMention: `[](https://alpine.inc/mention/${accounts.hollyEvergreen.account.id}?short)`,
+                masonMention: `[](https://alpine.inc/mention/${accounts.masonClay.account.id}#short)`,
+                elleMention: `[](https://alpine.inc/mention/${accounts.elleKappaTan.account.id}#short)`,
+                cassMention: `[](https://alpine.inc/mention/${accounts.cassCade.account.id}#short)`,
+                mattMention: `[](https://alpine.inc/mention/${accounts.mattRHorn.account.id}#short)`,
+                roseMention: `[](https://alpine.inc/mention/${accounts.roseCompas.account.id}#short)`,
+                cliffMention: `[](https://alpine.inc/mention/${accounts.cliffWeathers.account.id}#short)`,
+                hollyMention: `[](https://alpine.inc/mention/${accounts.hollyEvergreen.account.id}#short)`,
             },
         ),
     });
