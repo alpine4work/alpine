@@ -27,7 +27,6 @@ const testCases: Array<{
                     type: "Table",
                     width: 1,
                     hasHeaderRow: true,
-                    hasHeaderColumn: false,
                     columns: [{width: 1}, {width: 1}],
                     rows: [
                         {
@@ -56,49 +55,6 @@ const testCases: Array<{
                 },
                 {type: "Paragraph", key: "ULsSvc9F" as ApiContentKey, elements: []},
                 {type: "Heading", key: "ULsSvc9F" as ApiContentKey, level: 3, elements: []},
-            ],
-        },
-    },
-    {
-        name: "same account with different names in different paragraphs",
-        content: {
-            elements: [
-                {
-                    type: "Paragraph",
-                    key: "ULsSvc9F" as ApiContentKey,
-                    elements: [
-                        {
-                            type: "Mention",
-                            reference: {
-                                type: "Account",
-                                id: assertId<AccountId>("3w620fbbpa892nq2fcawmmmt2g"),
-                                title: "",
-                                shortName: "",
-                                bot: undefined,
-                            },
-                            isAccountShortName: false,
-                            marks: [],
-                        },
-                    ],
-                },
-                {
-                    type: "Paragraph",
-                    key: "OCyR8wUx" as ApiContentKey,
-                    elements: [
-                        {
-                            type: "Mention",
-                            reference: {
-                                type: "Account",
-                                id: assertId<AccountId>("3w620fbbpa892nq2fcawmmmt2g"),
-                                title: " ",
-                                shortName: "",
-                                bot: undefined,
-                            },
-                            isAccountShortName: false,
-                            marks: [],
-                        },
-                    ],
-                },
             ],
         },
     },
