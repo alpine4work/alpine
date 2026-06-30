@@ -9,6 +9,7 @@ import {runAgentWebPageTests} from "~/server/agents/web/test_helpers/run_agent_w
 import {
     ApiAccountReferenceResponse,
     ApiTaskCollectionReferenceResponse,
+    ApiTaskReferenceResponse,
 } from "~/shared/api/specification/types/api_specification_convenience_types.js";
 import {generateId} from "~/shared/id/id.js";
 import {AccountId, BotId, TaskCollectionId, TaskId} from "~/shared/id/types/id_types.js";
@@ -39,8 +40,18 @@ function collectionReference({name}: {name: string}): ApiTaskCollectionReference
     };
 }
 
+function taskReference({name}: {name: string}): ApiTaskReferenceResponse {
+    return {
+        type: "Task",
+        id: generateId<TaskId>(),
+        title: name,
+        status: {type: "Open", isActive: false},
+    };
+}
+
 const aliceReference = accountReference({name: "Alice"});
 const bobReference = accountReference({name: "Bob"});
+const parentReference = taskReference({name: "Parent task"});
 const engineeringReference = collectionReference({name: "Engineering"});
 const roadmapReference = collectionReference({name: "Roadmap"});
 
@@ -65,6 +76,31 @@ runAgentWebPageTests<TaskId, AgentWebTaskPage>({
                 type: "Task",
                 title: "Write spec",
                 status: {type: "Open", isActive: false},
+                parent: null,
+                assignee: null,
+                collections: [],
+                priority: null,
+                dueDateString: null,
+                notes: emptyNotes,
+            },
+        },
+        {
+            name: "task page with parent",
+            pageLink: taskId,
+            markdown: `\
+# Child task
+
+- Status: Open
+- Parent: [Parent task](/task/parent-task)
+`,
+            setupStorage: async storage => {
+                await createAgentWebPageStoredLinkPathname(storage, parentReference);
+            },
+            page: {
+                type: "Task",
+                title: "Child task",
+                status: {type: "Open", isActive: false},
+                parent: parentReference,
                 assignee: null,
                 collections: [],
                 priority: null,
@@ -79,12 +115,14 @@ runAgentWebPageTests<TaskId, AgentWebTaskPage>({
 # Lowercase fields
 
 - status: open (active)
+- parent: [Parent task](/task/parent-task)
 - assignee: [Alice](/human/alice)
 - collections: [Engineering](/task-collection/engineering)
 - priority: urgent
 - due date: 2027-07-12
 `,
             setupStorage: async storage => {
+                await createAgentWebPageStoredLinkPathname(storage, parentReference);
                 await createAgentWebPageStoredLinkPathname(storage, aliceReference);
                 await createAgentWebPageStoredLinkPathname(storage, engineeringReference);
             },
@@ -92,6 +130,7 @@ runAgentWebPageTests<TaskId, AgentWebTaskPage>({
 # Lowercase fields
 
 - Status: Open (Active)
+- Parent: [Parent task](/task/parent-task)
 - Assignee: [Alice](/human/alice)
 - Collections: [Engineering](/task-collection/engineering)
 - Priority: Urgent
@@ -101,6 +140,7 @@ runAgentWebPageTests<TaskId, AgentWebTaskPage>({
                 type: "Task",
                 title: "Lowercase fields",
                 status: {type: "Open", isActive: true},
+                parent: parentReference,
                 assignee: aliceReference,
                 collections: [engineeringReference],
                 priority: {type: "Urgent"},
@@ -135,6 +175,7 @@ runAgentWebPageTests<TaskId, AgentWebTaskPage>({
                 type: "Task",
                 title: "Ship task page",
                 status: {type: "Open", isActive: true},
+                parent: null,
                 assignee: aliceReference,
                 collections: [engineeringReference, roadmapReference],
                 priority: {type: "Urgent"},
@@ -154,6 +195,7 @@ runAgentWebPageTests<TaskId, AgentWebTaskPage>({
                 type: "Task",
                 title: "Closed task",
                 status: {type: "Closed"},
+                parent: null,
                 assignee: null,
                 collections: [],
                 priority: null,
@@ -174,6 +216,7 @@ runAgentWebPageTests<TaskId, AgentWebTaskPage>({
                 type: "Task",
                 title: "Low priority",
                 status: {type: "Open", isActive: false},
+                parent: null,
                 assignee: null,
                 collections: [],
                 priority: {type: "Low"},
@@ -194,6 +237,7 @@ runAgentWebPageTests<TaskId, AgentWebTaskPage>({
                 type: "Task",
                 title: "Medium priority",
                 status: {type: "Open", isActive: false},
+                parent: null,
                 assignee: null,
                 collections: [],
                 priority: {type: "Medium"},
@@ -214,6 +258,7 @@ runAgentWebPageTests<TaskId, AgentWebTaskPage>({
                 type: "Task",
                 title: "High priority",
                 status: {type: "Open", isActive: false},
+                parent: null,
                 assignee: null,
                 collections: [],
                 priority: {type: "High"},
@@ -242,6 +287,7 @@ runAgentWebPageTests<TaskId, AgentWebTaskPage>({
                 type: "Task",
                 title: "Blank optional fields",
                 status: {type: "Open", isActive: false},
+                parent: null,
                 assignee: null,
                 collections: [],
                 priority: null,
@@ -264,6 +310,7 @@ runAgentWebPageTests<TaskId, AgentWebTaskPage>({
                 type: "Task",
                 title: "Only title",
                 status: {type: "Open", isActive: false},
+                parent: null,
                 assignee: null,
                 collections: [],
                 priority: null,
@@ -287,6 +334,7 @@ Remember to check the API shape.
                 type: "Task",
                 title: "Notes task",
                 status: {type: "Open", isActive: false},
+                parent: null,
                 assignee: null,
                 collections: [],
                 priority: null,
@@ -324,6 +372,7 @@ Remember to check the API shape.
                 type: "Task",
                 title: "Notes only",
                 status: {type: "Open", isActive: false},
+                parent: null,
                 assignee: null,
                 collections: [],
                 priority: null,
@@ -356,6 +405,7 @@ Bring logs.
                 type: "Task",
                 title: "Notes heading task",
                 status: {type: "Open", isActive: false},
+                parent: null,
                 assignee: null,
                 collections: [],
                 priority: null,
@@ -439,7 +489,7 @@ Bring logs.
 - Owner: [Alice](/human/alice)
 `,
             parseError:
-                "Unknown task field \u201COwner\u201D on line 3. Try again with one of \u201CStatus\u201D, \u201CAssignee\u201D, \u201CCollections\u201D, \u201CPriority\u201D, or \u201CDue date\u201D.",
+                "Unknown task field \u201COwner\u201D on line 3. Try again with one of \u201CStatus\u201D, \u201CParent\u201D, \u201CAssignee\u201D, \u201CCollections\u201D, \u201CPriority\u201D, or \u201CDue date\u201D.",
         },
         {
             name: "task page with duplicate field",
@@ -476,6 +526,7 @@ Bring logs.
                 type: "Task",
                 title: "Out of order",
                 status: {type: "Open", isActive: false},
+                parent: null,
                 assignee: aliceReference,
                 collections: [],
                 priority: {type: "High"},
@@ -519,12 +570,28 @@ Bring logs.
                 type: "Task",
                 title: "Unvalidated due date",
                 status: {type: "Open", isActive: false},
+                parent: null,
                 assignee: null,
                 collections: [],
                 priority: null,
                 dueDateString: "2027-02-29",
                 notes: emptyNotes,
             },
+        },
+        {
+            name: "task page with parent link to collection",
+            pageLink: taskId,
+            markdown: `\
+# Wrong parent link
+
+- Status: Open
+- Parent: [Engineering](/task-collection/engineering)
+`,
+            setupStorage: async storage => {
+                await createAgentWebPageStoredLinkPathname(storage, engineeringReference);
+            },
+            parseError:
+                "Unexpected task parent link \u201CEngineering\u201D on line 4. Try again with a link to a task you\u2019ve seen before (e.g. `[My Task](/task/my-task)`).",
         },
         {
             name: "task page with assignee link to collection",
@@ -558,6 +625,7 @@ Bring logs.
                 type: "Task",
                 title: "Inline collections",
                 status: {type: "Open", isActive: false},
+                parent: null,
                 assignee: null,
                 collections: [engineeringReference, roadmapReference],
                 priority: null,
@@ -589,6 +657,7 @@ Bring logs.
                 type: "Task",
                 title: "Singular fields",
                 status: {type: "Open", isActive: true},
+                parent: null,
                 assignee: null,
                 collections: [engineeringReference],
                 priority: null,
@@ -698,6 +767,7 @@ Bring logs.
                 type: "Task",
                 title: "Inline collections no comma",
                 status: {type: "Open", isActive: false},
+                parent: null,
                 assignee: null,
                 collections: [engineeringReference, roadmapReference],
                 priority: null,
@@ -728,6 +798,7 @@ Bring logs.
                 type: "Task",
                 title: "Inline collections and",
                 status: {type: "Open", isActive: false},
+                parent: null,
                 assignee: null,
                 collections: [engineeringReference, roadmapReference],
                 priority: null,
@@ -758,6 +829,7 @@ Bring logs.
                 type: "Task",
                 title: "Adjacent inline collections",
                 status: {type: "Open", isActive: false},
+                parent: null,
                 assignee: null,
                 collections: [engineeringReference, roadmapReference],
                 priority: null,
