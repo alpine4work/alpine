@@ -389,7 +389,7 @@ export class TaskRealtimeQuery {
         };
         void this._loadingState.promise.finally(() => (this._loadingState = null));
 
-        return await this._loadingState.promise;
+        await this._loadingState.promise;
     }
 
     /**
@@ -769,6 +769,127 @@ export class TaskRealtimeQuery {
                 addVisibleTask(taskEntry);
             }),
         );
+    }
+
+    /**
+     * Load up to `limit` tasks (could be less than `limit` in some race conditions)
+     * after the provided `afterCursor` into this query. Unlike `loadMoreTasks()` which
+     * loads `limit` more tasks incrementally on top of what we've already loaded, this
+     * function loads `limit` tasks from `afterCursor`. So if there are 100 tasks,
+     * `afterCursor` points to task 54 and `limit` is 10 then this function does
+     * nothing.
+     *
+     * This function is free if the tasks you want are already loaded into the query.
+     * However, it's expensive if this is a big query and `afterCursor` is near the end
+     * of the query. Say this is a query with 1,000,000 tasks and `afterCursor` points
+     * to task 800,000. We will load the first 800,000 tasks into the query before
+     * returning!
+     *
+     * The problem is that `TaskRealtimeQuery` only supports one contiguous loaded
+     * range for the query: from query start to `loadedBeforeCursor`. If
+     * `TaskRealtimeQuery` supported multiple non-contiguous loaded ranges (which
+     * wouldn't require any change to our OpenSearch storage layer) then we'd only need
+     * to load the tasks after `afterCursor` and `TaskRealtimeQuery` would happily keep
+     * all our loaded ranges up-to-date in realtime.
+     *
+     * We name this function with the "expensively" prefix to discourage use, though in
+     * the common case (iterating forwards through a query over the course of 2 minutes
+     * or less) it's no more expensive than `loadMoreTasks()`. It's just the
+     * pathological case (random access of tasks in a 1,000,000 task query) where the
+     * performance of this function can be quite bad.
+     */
+    public async expensivelyLoadMoreTasksAfterCursor(
+        context: TaskRealtimeSystemActionContext,
+        {
+            limit,
+            afterCursor,
+        }: {
+            limit: number;
+            afterCursor: TaskQuerySortCursor | null;
+        },
+    ): Promise<void> {
+        // If there's no `afterCursor`, then this is basically the same as a
+        // `loadMoreTasks()` call.
+        if (afterCursor === null) {
+            const remainingLimit = limit - this._loadedCount;
+            if (remainingLimit > 0) {
+                await this.loadMoreTasks(context, remainingLimit);
+            }
+            return;
+        }
+
+        // We've fully loaded the query. There's nothing new to load!
+        if (this._loadedBeforeCursor === "FullyLoaded") return;
+
+        // If `afterCursor` isn't in the loaded range yet then we need to load tasks until
+        // we find `afterCursor`. This can get quite expensive, in the worst case we'll
+        // need to load the entire query!
+        //
+        // You could certainly imagine an optimized implementation of `TaskRealtimeQuery`
+        // that's able to load multiple ranges of tasks instead of one range (from start of
+        // query to end of query) and we only load tasks within the range between
+        // `afterCursor` and `limit` but it's not worth implementing this complexity now.
+        // For now, the use case is pagination via the API. You must start paginating the
+        // API from the start so you'll usually have already loaded all previous tasks.
+        // "Random access" of tasks in a query is possible, but unlikely.
+        {
+            let iteration = 1;
+
+            while (
+                this._loadedBeforeCursor === "Unloaded" ||
+                compareTaskQuerySortCursors(this.sorts, this._loadedBeforeCursor, afterCursor) < 0
+            ) {
+                // We load exponentially more tasks each iteration, if we have a query of 1,000,000
+                // tasks then loading all the tasks will take 16 iterations instead of thousands.
+                // Again, ideally we'd load multiple non-contiugous ranges within a
+                // `TaskRealtimeQuery` but for now that complexity isn't worth it.
+                //
+                // We add `limit` since ultimately we need to load tasks up until `afterCursor` and
+                // then we need to load `limit` more tasks. So as long as we're loading tasks,
+                // might as well make sure we at least have enough to fill `limit`. If
+                // `10 * 2 ** iteration` is less than `limit` then if we reach `afterCursor` in
+                // `10 * 2 ** iteration` tasks then we'll need to issue another request to load the
+                // remaining tasks. Might as well do it all at once.
+                await this.loadMoreTasks(context, 10 * 2 ** iteration + limit);
+                iteration++;
+            }
+        }
+
+        const iterator = this._tree.lowerBound(afterCursor);
+
+        // Advance the iterator if it's at `afterCursor`. We want to exclude `afterCursor`
+        // from our count.
+        {
+            const cursor = iterator.data();
+            if (
+                cursor !== null &&
+                compareTaskQuerySortCursors(this.sorts, cursor, afterCursor) === 0
+            ) {
+                iterator.next();
+            }
+        }
+
+        let remainingLimit = limit;
+
+        while (remainingLimit > 0) {
+            const cursor = iterator.data();
+
+            // Nothing more in the iterator, break!
+            if (cursor === null) break;
+
+            // This `cursor` is out of our loaded range and so doesn't count towards our
+            // `limit`.
+            if (compareTaskQuerySortCursors(this.sorts, this._loadedBeforeCursor, cursor) < 0)
+                break;
+
+            remainingLimit--;
+            iterator.next();
+        }
+
+        // Load any remaining tasks to satisfy `limit`.
+        if (remainingLimit > 0) {
+            await this._loadMoreTasks(context, remainingLimit);
+        }
     }
 
     /**

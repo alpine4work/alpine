@@ -65,6 +65,7 @@ import {TaskAction} from "~/shared/tasks/actions/task_action.js";
 import {TaskQueryNormalizedFilters} from "~/shared/tasks/task_query_normalized_filters.js";
 import {TaskQueryNormalizedSort} from "~/shared/tasks/task_query_normalized_sort.js";
 import {TaskRealtimeQueryLoadedState} from "~/shared/tasks/task_realtime_protocol.js";
+import {TaskQuerySortCursor} from "~/shared/tasks/task_query_sort_cursor.js";
 
 /**
  * This class is the main component of our task realtime implementation. It keeps
@@ -607,6 +608,39 @@ export class TaskRealtimeStoreInternal {
         return query.getLoadedTasks({
             limit,
             afterCursor: null,
+        });
+    }
+
+    // NOCOMMIT: Document
+    public async expensivelyLoadQueryAfterCursor(
+        context: TaskRealtimeSystemActionContext,
+        {
+            filters,
+            sorts,
+            limit,
+            afterCursor,
+        }: {
+            filters: TaskQueryNormalizedFilters;
+            sorts: ReadonlyArray<TaskQueryNormalizedSort>;
+            limit: number;
+            afterCursor: TaskQuerySortCursor | null;
+        },
+    ): Promise<{
+        loadedState: TaskRealtimeQueryLoadedState;
+        tasks: Array<TaskIndexDoc>;
+    }> {
+        assert(Number.isInteger(limit));
+
+        const query = this.getQuery({filters, sorts});
+
+        await query.expensivelyLoadMoreTasksAfterCursor(context, {
+            limit,
+            afterCursor,
+        });
+
+        return query.getLoadedTasks({
+            limit,
+            afterCursor,
         });
     }
 
