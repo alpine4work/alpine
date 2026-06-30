@@ -484,7 +484,7 @@ Please clarify this requirement.
 
 </comment>`,
         expected:
-            "The `<blockquote>` `match` attribute must be `1` or it can be omitted since there\u2019s only one match. Try again but omit the `match` attribute.",
+            'The `<blockquote>` `match` attribute must be 1 or it can be omitted since there\u2019s only one match, instead it was `match="2"`. Try again but omit the `match` attribute.',
     });
 });
 
