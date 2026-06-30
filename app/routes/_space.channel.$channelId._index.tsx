@@ -169,7 +169,7 @@ export async function loader({request, params, context: unauthenticatedContext}:
 
     const {
         data1: [channelResult, postsResult],
-        data2: [isSubscribed, isFavorite] = [false, false],
+        data2: [spaceId, isSubscribed, isFavorite] = [null, false, false],
         siteLoaderData,
     } = await loadWithSpaceAndSiteDiscovery(context, {
         request,
@@ -251,9 +251,10 @@ export async function loader({request, params, context: unauthenticatedContext}:
         load2: async ({spaceId}) => {
             // If we just created the channel then we should know the actor is subscribed but
             // the channel is not a favorite:
-            if (created) return [true, false];
+            if (created) return [spaceId, true, false];
 
             return await runAllPromises([
+                spaceId,
                 authorizeSpaceAccessIfPossible(context, spaceId).then(result => {
                     if (!result.ok) return false;
                     return isSubscribedToChannel(context.actor.authorizeSession(), channelId, {
@@ -267,6 +268,8 @@ export async function loader({request, params, context: unauthenticatedContext}:
             ]);
         },
     });
+
+    assert(spaceId);
 
     return jsonWithSchema(
         LoaderSchema,

@@ -1,10 +1,10 @@
 import {Modality} from "@react-aria/interactions";
 import {
     Memo,
-    MutableRefObject,
     ReactElement,
     Ref,
     RefAttributes,
+    RefObject,
     forwardRef,
     useCallback,
     useEffect,
@@ -15,6 +15,7 @@ import {
 import {flushSync} from "react-dom";
 import {useFileRegistry} from "~/client/web/content/file_registry_context.js";
 import {MessageInputFile} from "~/client/web/content/messaging/add_message_input_files.js";
+import {getMessageInputFileIds} from "~/client/web/content/messaging/get_message_input_file_ids.js";
 import {
     MessageContentPayloadParentWithMessages,
     MessageInputBase,
@@ -27,11 +28,17 @@ import {isElementOwnedBy} from "~/client/web/helpers/elements/is_element_owned_b
 import {useLayoutEffectWithoutServerSideWarning} from "~/client/web/helpers/lifecycle/use_layout_effect_without_server_side_warning.js";
 import {useMergedRefs} from "~/client/web/helpers/refs/use_merged_refs.js";
 import {useInboxContext} from "~/client/web/inbox/inbox_context.js";
+import {applyServerMessageDraftToInputState} from "~/client/web/messaging/apply_server_message_draft_to_input_state.js";
+import {createInitialMessageInputState} from "~/client/web/messaging/create_initial_message_input_state.js";
+import {hasMessageInputContent} from "~/client/web/messaging/has_message_input_content.js";
 import {MessageDeleteConfirmationDialog} from "~/client/web/messaging/internal/message_delete_confirmation_dialog.js";
 import {MessageEditing} from "~/client/web/messaging/message_editing.js";
+import {MessageInputDraftSyncState} from "~/client/web/messaging/message_input_draft_sync_state.js";
 import {MessageList} from "~/client/web/messaging/message_list.js";
+import {resolveInitialMessageInputState} from "~/client/web/messaging/resolve_initial_message_input_state.js";
 import {JumpToMessageRangeOptions} from "~/client/web/messaging/use_jump_to_message_range.js";
 import {JumpToPostRangeOptions} from "~/client/web/messaging/use_jump_to_post_range.js";
+import {useMessageInputDraft} from "~/client/web/messaging/use_message_input_draft.js";
 import {getClientInfo} from "~/client/web/remix/client_info_context.js";
 import {usePlatform} from "~/client/web/remix/platform_context.js";
 import {useSpaceContext} from "~/client/web/spaces/context/space_context.js";
@@ -39,7 +46,6 @@ import {isContentEmpty} from "~/shared/content/is_content_empty.js";
 import {
     MessageContent,
     MessageContentWithReferences,
-    emptyMessageContentWithReferences,
 } from "~/shared/content/message_content_schema.js";
 import {trimContentWithReferencesEnd} from "~/shared/content/trim_content.js";
 import {DocumentCommentThreadModel} from "~/shared/documents/document_model.js";
@@ -59,6 +65,8 @@ import {sliceIterable} from "~/shared/helpers/iterable/slice_iterable.js";
 import {emptyMap} from "~/shared/helpers/map/empty_map.js";
 import {Id, generateId} from "~/shared/id/id.js";
 import {FileId} from "~/shared/id/types/id_types.js";
+import {MessageDraft, MessageDraftWithFiles} from "~/shared/messaging/message_draft_schema.js";
+import {MessageDraftSurface} from "~/shared/messaging/message_draft_surface.js";
 import {MessageModel, OptimisticMessageModel} from "~/shared/messaging/message_model.js";
 import {MessageContentPayloadParent} from "~/shared/messaging/message_schema.js";
 import {emptyReactionSet} from "~/shared/reactions/reaction_set.js";
@@ -66,6 +74,8 @@ import {
     attachFileAsUploader,
     attachFileFromAttachment,
 } from "~/shared/rpc/files_rpc_definitions.js";
+
+const defaultDraftContentWriteDebounceMs = 1000;
 
 export type MessageInputProps<RoomKey extends string, Message extends MessageModel<RoomKey>> = {
     messageNoun?: string;
@@ -88,22 +98,47 @@ export type MessageInputProps<RoomKey extends string, Message extends MessageMod
     postRoom?: PostModel;
     documentCommentThreadRoom?: DocumentCommentThreadModel;
     parent: MessageContentPayloadParent | null;
+    messageDraft?: MessageDraft | MessageDraftWithFiles;
+    messageDraftSurface?: MessageDraftSurface;
+    onMessageDraftChange?: (draft: MessageDraft) => void;
     onParentClear: () => void;
+    onParentChange?: (parent: MessageContentPayloadParent | null) => void;
     onJumpToMessageRange: (options: JumpToMessageRangeOptions<RoomKey>) => void;
     onJumpToPostRange?: (options: JumpToPostRangeOptions) => void;
     onDeleteMessage: (messageIndex: number) => Promise<void>;
     onShowTypingIndicator: () => void;
     onHideTypingIndicator: () => void;
     "data-testid"?: string;
-    restoreStateRef?: MutableRefObject<{
-        state: ContentEditorState<MessageContentWithReferences>;
-        files: ReadonlyArray<MessageInputFile>;
-        isFocused: boolean;
-    } | null>;
+    restoreStateRef?: RefObject<MessageInputRestoreState | null>;
+
+    /**
+     * Flush any pending draft write when the input unmounts. Defaults to `false` when
+     * using `restoreStateRef` since local input state will be restored on remount.
+     */
+    shouldFlushDraftOnUnmount?: boolean;
     withMobileMaxHeight?: boolean;
     onFocus?: () => void;
     onBlur?: () => void;
     onBeforeFocusFromReplyOrEditingChange?: () => {preventDefault: boolean} | void;
+
+    /**
+     * How long to wait after the last edit before writing the message draft's content
+     * to the server. Edits made within this window are coalesced into a single write.
+     * The pending write is also flushed on unmount according to
+     * `shouldFlushDraftOnUnmount` and when the page is hidden. Defaults to one second.
+     */
+    draftContentWriteDebounceMs?: number;
+};
+
+/**
+ * Message input state stashed in a ref by the owner of a `<MessageInput>` so the
+ * input can be restored without a flash when it remounts (for example, when a
+ * post's comments are collapsed and expanded again).
+ */
+export type MessageInputRestoreState = {
+    state: ContentEditorState<MessageContentWithReferences>;
+    files: ReadonlyArray<MessageInputFile>;
+    isFocused: boolean;
 };
 
 const MessageInputForwardRef = forwardRef(MessageInput) as <
@@ -132,7 +167,11 @@ function MessageInput<RoomKey extends string, Message extends MessageModel<RoomK
         postRoom,
         documentCommentThreadRoom,
         parent: parentWithoutMessages,
+        messageDraft,
+        messageDraftSurface,
+        onMessageDraftChange,
         onParentClear,
+        onParentChange,
         onJumpToMessageRange,
         onJumpToPostRange,
         onDeleteMessage,
@@ -140,10 +179,12 @@ function MessageInput<RoomKey extends string, Message extends MessageModel<RoomK
         onHideTypingIndicator,
         "data-testid": dataTestId,
         restoreStateRef,
+        shouldFlushDraftOnUnmount,
         withMobileMaxHeight,
         onFocus,
         onBlur,
         onBeforeFocusFromReplyOrEditingChange,
+        draftContentWriteDebounceMs = defaultDraftContentWriteDebounceMs,
     }: MessageInputProps<RoomKey, Message>,
     externalRef: Ref<MessageInputRef>,
 ) {
@@ -205,21 +246,176 @@ function MessageInput<RoomKey extends string, Message extends MessageModel<RoomK
         }
     }, [messages, parentWithoutMessages, postRoom]);
 
-    const [{key: inputKey, state: inputState, files: inputFiles}, actuallySetInputState] =
-        useState<{
-            key: Id;
-            state: ContentEditorState<MessageContentWithReferences>;
-            files: ReadonlyArray<MessageInputFile>;
-        }>(() => ({
+    const [
+        {key: inputKey, state: inputState, files: inputFiles, draftSyncState},
+        actuallySetInputState,
+    ] = useState<{
+        key: Id;
+        state: ContentEditorState<MessageContentWithReferences>;
+        files: ReadonlyArray<MessageInputFile>;
+        draftSyncState: MessageInputDraftSyncState | null;
+    }>(() => {
+        const initialState = resolveInitialMessageInputState({
+            spaceId: space.id,
+            draft: messageDraft,
+            restoreStateRef,
+        });
+
+        return {
             key: generateId(),
-            state:
-                restoreStateRef?.current?.state ??
-                ContentEditorState.create({
-                    spaceId: space.id,
-                    content: emptyMessageContentWithReferences,
-                }),
-            files: restoreStateRef?.current?.files ?? emptyArray,
-        }));
+            state: initialState.state,
+            files: initialState.files,
+            draftSyncState: initialState.draftSyncState,
+        };
+    });
+
+    const inputFileIds = useMemo(() => getMessageInputFileIds(inputFiles), [inputFiles]);
+
+    const hasLocalDraftContent = hasMessageInputContent({
+        contentDoc: inputState.getDoc(),
+        parent: parentWithoutMessages,
+        fileIds: inputFileIds,
+    });
+
+    const {resolvedServerDraft, clearDraft} = useMessageInputDraft({
+        draftSurface: messageDraftSurface,
+        serverDraft: messageDraft,
+        inputState,
+        parent: parentWithoutMessages,
+        fileIds: inputFileIds,
+        draftSyncState,
+        hasLocalDraftContent,
+        isDisabled: messageEditingForThisInput !== null,
+        shouldFlushOnUnmount: shouldFlushDraftOnUnmount ?? !restoreStateRef,
+        draftContentWriteDebounceMs,
+        onDraftChange: onMessageDraftChange,
+    });
+
+    const lastAppliedServerDraftRef = useRef<MessageDraftWithFiles | null>(
+        resolvedServerDraft ?? null,
+    );
+    const messageDraftWithSyncedParentRef = useRef<MessageDraft | MessageDraftWithFiles | null>(
+        null,
+    );
+
+    // Restores a server draft's reply target into parent-owned state. Drafts persist
+    // `parent`, but the "Replying to…" UI is driven by the `parent` prop from
+    // `<PostListView>` or `<MessagingView>`. Sync before paint so the reply banner
+    // appears with the restored draft instead of after a flash.
+    useLayoutEffectWithoutServerSideWarning(() => {
+        if (!messageDraft?.parent) return;
+        if (messageEditingForThisInput) return;
+        if (parentWithoutMessages) return;
+        if (messageDraftWithSyncedParentRef.current === messageDraft) return;
+
+        messageDraftWithSyncedParentRef.current = messageDraft;
+        onParentChange?.(messageDraft.parent);
+    }, [messageDraft, messageEditingForThisInput, onParentChange, parentWithoutMessages]);
+
+    // Applies a server draft to the input once file hydration completes. Uses a layout
+    // effect so restored draft content/files paint before the browser draws.
+    useLayoutEffectWithoutServerSideWarning(() => {
+        if (!resolvedServerDraft || messageEditingForThisInput) return;
+        if (lastAppliedServerDraftRef.current === resolvedServerDraft) return;
+
+        // Ensure we don't apply a stale server draft that was restored from a previous
+        // mount.
+        const restoredState = restoreStateRef?.current;
+        if (
+            restoredState &&
+            !hasMessageInputContent({
+                contentDoc: restoredState.state.getDoc(),
+                parent: parentWithoutMessages,
+                fileIds: getMessageInputFileIds(restoredState.files),
+            }) &&
+            hasMessageInputContent({
+                contentDoc: resolvedServerDraft.content.doc,
+                parent: resolvedServerDraft.parent,
+                fileIds: resolvedServerDraft.fileIds,
+            })
+        ) {
+            lastAppliedServerDraftRef.current = resolvedServerDraft;
+            return;
+        }
+
+        // Don't resurrect a draft the user cleared while its files were still hydrating.
+        // The draft's content was applied at mount (recorded in `lastDraftSent`); if the
+        // input is now empty, the user cleared it, so keep it empty instead of re-applying
+        // the late-hydrated draft.
+        const lastSyncedDraft = draftSyncState?.lastDraftSent;
+        if (
+            !hasLocalDraftContent &&
+            lastSyncedDraft &&
+            hasMessageInputContent({
+                contentDoc: lastSyncedDraft.state.getDoc(),
+                parent: lastSyncedDraft.parent,
+                fileIds: lastSyncedDraft.fileIds,
+            })
+        ) {
+            lastAppliedServerDraftRef.current = resolvedServerDraft;
+            return;
+        }
+
+        const result = applyServerMessageDraftToInputState({
+            serverDraft: resolvedServerDraft,
+            spaceId: space.id,
+            currentState: inputState,
+            currentParent: parentWithoutMessages,
+            currentFileIds: inputFileIds,
+        });
+
+        switch (result.type) {
+            case "LocalWins":
+                actuallySetInputState(oldState => {
+                    if (
+                        oldState.draftSyncState?.lastDraftSent ===
+                            result.draftSyncState.lastDraftSent &&
+                        oldState.draftSyncState?.hasRemoteDraftContent ===
+                            result.draftSyncState.hasRemoteDraftContent
+                    ) {
+                        return oldState;
+                    }
+
+                    return {
+                        ...oldState,
+                        draftSyncState: result.draftSyncState,
+                    };
+                });
+                break;
+            case "ApplyFiles":
+                actuallySetInputState(oldState => ({
+                    ...oldState,
+                    files: result.files,
+                    draftSyncState: result.draftSyncState,
+                }));
+                break;
+            case "Apply":
+                actuallySetInputState(oldState => ({
+                    ...oldState,
+                    state: result.state,
+                    files: result.files,
+                    draftSyncState: result.draftSyncState,
+                }));
+
+                if (result.parentToApply) onParentChange?.(result.parentToApply);
+                break;
+            default:
+                throw exhaustive(result);
+        }
+
+        lastAppliedServerDraftRef.current = resolvedServerDraft;
+    }, [
+        draftSyncState,
+        hasLocalDraftContent,
+        inputFileIds,
+        inputState,
+        messageEditingForThisInput,
+        onParentChange,
+        parentWithoutMessages,
+        resolvedServerDraft,
+        restoreStateRef,
+        space.id,
+    ]);
 
     const setInputState = useCallback(
         (newInputState: ContentEditorState<MessageContentWithReferences>) => {
@@ -227,6 +423,7 @@ function MessageInput<RoomKey extends string, Message extends MessageModel<RoomK
                 key: oldState.key,
                 state: newInputState,
                 files: oldState.files,
+                draftSyncState: oldState.draftSyncState,
             }));
         },
         [],
@@ -235,11 +432,9 @@ function MessageInput<RoomKey extends string, Message extends MessageModel<RoomK
     const resetInputState = useCallback(() => {
         actuallySetInputState({
             key: generateId(),
-            state: ContentEditorState.create({
-                spaceId: space.id,
-                content: emptyMessageContentWithReferences,
-            }),
+            state: createInitialMessageInputState({spaceId: space.id}),
             files: emptyArray,
+            draftSyncState: null,
         });
     }, [space.id]);
 
@@ -248,6 +443,7 @@ function MessageInput<RoomKey extends string, Message extends MessageModel<RoomK
             key: oldState.key,
             state: oldState.state,
             files: [...oldState.files, file],
+            draftSyncState: oldState.draftSyncState,
         }));
     }, []);
 
@@ -256,18 +452,32 @@ function MessageInput<RoomKey extends string, Message extends MessageModel<RoomK
             key: oldState.key,
             state: oldState.state,
             files: oldState.files.filter(file => file.key !== fileKey),
+            draftSyncState: oldState.draftSyncState,
         }));
     }, []);
 
-    useEffect(() => {
-        if (restoreStateRef) {
-            // eslint-disable-next-line react-compiler/react-compiler
+    const restoreStateInputStateRef = useRef(inputState);
+    restoreStateInputStateRef.current = inputState;
+    const restoreStateInputFilesRef = useRef(inputFiles);
+    restoreStateInputFilesRef.current = inputFiles;
+
+    useLayoutEffectWithoutServerSideWarning(() => {
+        if (!restoreStateRef) return;
+
+        // eslint-disable-next-line react-compiler/react-compiler
+        restoreStateRef.current = {
+            state: restoreStateInputStateRef.current,
+            files: restoreStateInputFilesRef.current,
+            isFocused: inputRef.current?.isFocused() ?? false,
+        };
+
+        return () => {
             restoreStateRef.current = {
-                state: inputState,
-                files: inputFiles,
-                isFocused: inputRef.current?.isFocused() ?? false,
+                state: restoreStateInputStateRef.current,
+                files: restoreStateInputFilesRef.current,
+                isFocused: false,
             };
-        }
+        };
     }, [inputFiles, inputState, restoreStateRef]);
 
     // If we're editing a message then clear any new message text so when we finish
@@ -408,12 +618,10 @@ function MessageInput<RoomKey extends string, Message extends MessageModel<RoomK
                         await createMessage({
                             parent: parent ? parentWithoutMessages : null,
                             content: inputContent.doc,
-                            fileIds: inputFiles.map(inputFile =>
-                                inputFile.type === "FileEntity"
-                                    ? inputFile.fileEntityId
-                                    : inputFile.file.id,
-                            ),
+                            fileIds: inputFileIds,
                         });
+
+                        clearDraft();
                     })();
 
                     // Sending a message dismisses post comment entries and chat entries.

@@ -61,6 +61,8 @@ import {FileAttachmentTarget} from "~/shared/files/file_attachment_target.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 import {DistributiveOmit} from "~/shared/helpers/types/distributive_omit.js";
+import {MessageDraftWithFiles} from "~/shared/messaging/message_draft_schema.js";
+import {MessageDraftSurface} from "~/shared/messaging/message_draft_surface.js";
 import {MessageModel} from "~/shared/messaging/message_model.js";
 import {MessageContentPayloadParent} from "~/shared/messaging/message_schema.js";
 import {
@@ -222,6 +224,8 @@ function MessagingView<RoomKey extends string, Message extends MessageModel<Room
         deleteMessageReaction,
         startTypingInMessageInput,
         stopTypingInMessageInput,
+        messageDraftSurface,
+        messageDraft,
         isConnected,
         subscribeToEvents,
         subscribeToPongs,
@@ -375,6 +379,16 @@ function MessagingView<RoomKey extends string, Message extends MessageModel<Room
          * Stop showing a typing indicator to other connected clients for this user.
          */
         stopTypingInMessageInput: Memo<StopTypingInMessageInputProcedure>;
+
+        /**
+         * The private draft surface for this message input
+         */
+        messageDraftSurface?: MessageDraftSurface;
+
+        /**
+         * A previously persisted message draft for this input
+         */
+        messageDraft?: MessageDraftWithFiles;
 
         /**
          * Do we have a realtime connection to a service implementing our realtime
@@ -787,6 +801,7 @@ function MessagingView<RoomKey extends string, Message extends MessageModel<Room
                         messageEditing={messageEditing}
                         parent={inputParent}
                         onParentClear={() => setInputParent(null)}
+                        onParentChange={setInputParent}
                         onJumpToMessageRange={jumpToMessageRange}
                         onDeleteMessage={async messageIndex => {
                             await deleteMessage({messageIndex});
@@ -814,6 +829,8 @@ function MessagingView<RoomKey extends string, Message extends MessageModel<Room
                                 );
                         }}
                         restoreStateRef={inputRestoreStateRef}
+                        messageDraftSurface={messageDraftSurface}
+                        messageDraft={messageDraft}
                     />
                 )}
             </div>

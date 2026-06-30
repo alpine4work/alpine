@@ -71,6 +71,7 @@ import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 import {cast} from "~/shared/helpers/control/cast.js";
 import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
 import {ChatId} from "~/shared/id/types/id_types.js";
+import {MessageDraftWithFiles} from "~/shared/messaging/message_draft_schema.js";
 import {MessagingRealtimeEvent} from "~/shared/messaging/messaging_realtime_protocol.js";
 import {
     getChatMessagesFromEnd,
@@ -96,6 +97,7 @@ type ChatRealtimeWebSocketClientProcedures = MemoObject<
 export function ChatView({
     withInboxBanner,
     chat,
+    messageDraft,
     onUpdateChat,
     initialIsSubscribed,
     initialCheckpoint,
@@ -107,6 +109,7 @@ export function ChatView({
 }: {
     withInboxBanner: boolean;
     chat: ChatModel;
+    messageDraft: MessageDraftWithFiles;
     onUpdateChat: Memo<(chat: ChatModel) => void>;
     initialIsSubscribed: boolean | null;
     initialCheckpoint: ServerSynchronizationCheckpoint;
@@ -218,6 +221,7 @@ export function ChatView({
             />
             <ChatMessagingView
                 chat={chat}
+                messageDraft={messageDraft}
                 chatAccessPolicy={chatAccessPolicy}
                 isConnected={isConnected}
                 procedures={procedures}
@@ -909,6 +913,7 @@ function AccountFullName({account}: {account: AccountModel}) {
 
 function ChatMessagingView({
     chat,
+    messageDraft,
     isConnected,
     procedures,
     subscribeToEvents,
@@ -921,6 +926,7 @@ function ChatMessagingView({
     chatAccessPolicy,
 }: {
     chat: ChatModel;
+    messageDraft?: MessageDraftWithFiles;
     isConnected: boolean;
     procedures: ChatRealtimeWebSocketClientProcedures;
     subscribeToEvents: Memo<(listener: (event: ChatRealtimeEvent) => void) => () => void>;
@@ -975,6 +981,11 @@ function ChatMessagingView({
         }
     }, [chat.id, initialScrollToMessageIndex, initiallyFocus]);
 
+    const messageDraftSurface = useMemo(
+        () => ({type: "Chat" as const, chatId: chat.id}),
+        [chat.id],
+    );
+
     return (
         <MessagingView
             ref={messagingRef}
@@ -1014,6 +1025,8 @@ function ChatMessagingView({
             deleteMessageReaction={procedures.deleteMessageReaction}
             startTypingInMessageInput={procedures.startTypingInMessageInput}
             stopTypingInMessageInput={procedures.stopTypingInMessageInput}
+            messageDraftSurface={messageDraftSurface}
+            messageDraft={messageDraft}
             isConnected={isConnected}
             // There's a strange TypeScript error here that only shows up when Bazel runs
             // TypeScript where it thinks the type of `subscribeToEvents` should include

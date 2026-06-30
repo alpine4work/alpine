@@ -190,9 +190,14 @@ import {getOrSetDefaultMapValue} from "~/shared/helpers/map/get_or_set_default_m
 import {clamp} from "~/shared/helpers/number/clamp.js";
 import {assertId} from "~/shared/id/id.js";
 import {DocumentCommentThreadId, DocumentId, FileId} from "~/shared/id/types/id_types.js";
+import {
+    MessageDraftWithFiles,
+    emptyMessageDraftWithFiles,
+} from "~/shared/messaging/message_draft_schema.js";
 import {OptimisticMessageModel} from "~/shared/messaging/message_model.js";
 import {createProsemirrorIncrementalReducer} from "~/shared/prosemirror/prosemirror_incremental_reducer.js";
 import {createDocument, duplicateDocument} from "~/shared/rpc/documents_rpc_definitions.js";
+import {getMessageDraft} from "~/shared/rpc/message_drafts_rpc_definitions.js";
 import {createSpellCheckIgnoredLint} from "~/shared/rpc/spell_check_rpc_definitions.js";
 import {Schema} from "~/shared/schema/schema.js";
 import {SpellCheckIgnoredLintModel} from "~/shared/spell_check/spell_check_model.js";
@@ -252,6 +257,7 @@ type DocumentContentEditorSidebarData = {
     readonly initialComments: ReadonlyArray<DocumentCommentModel>;
     readonly initialOtherReferencedComments: ReadonlyArray<DocumentCommentModel>;
     readonly initialOptimisticComments: ReadonlyArray<OptimisticMessageModel>;
+    readonly messageDraft: MessageDraftWithFiles;
 };
 
 export function DocumentContentEditor({
@@ -276,6 +282,7 @@ export function DocumentContentEditor({
         commentThread: DocumentCommentThreadModel;
         initialComments: ReadonlyArray<DocumentCommentModel>;
         initialOtherReferencedComments: ReadonlyArray<DocumentCommentModel>;
+        messageDraft: MessageDraftWithFiles;
     } | null;
     initialSpellCheckIgnoredLints: RynamoQueryResult<SpellCheckIgnoredLintModel>;
     initialIsFavorite: boolean;
@@ -893,8 +900,27 @@ export function DocumentContentEditor({
                 commentThreadId,
                 limit: getInitialLoadMessageCount(getClientInfo()),
             })
-            .then((data): DocumentContentEditorSidebarData | null => {
+            .then(async (data): Promise<DocumentContentEditorSidebarData | null> => {
                 if (data.commentThread === null) return null;
+
+                let messageDraft = emptyMessageDraftWithFiles;
+                if (currentAccount) {
+                    try {
+                        ({draft: messageDraft} = await getMessageDraft(context, {
+                            spaceId,
+                            surface: {
+                                type: "DocumentCommentThread",
+                                documentId,
+                                commentThreadId: data.commentThread.id,
+                            },
+                        }));
+                    } catch (error) {
+                        reporter.logErrorWithoutDisplaying(
+                            "Couldn\u2019t load message draft",
+                            error,
+                        );
+                    }
+                }
 
                 return {
                     checkpoint: data.checkpoint,
@@ -902,6 +928,7 @@ export function DocumentContentEditor({
                     initialComments: data.initialComments,
                     initialOtherReferencedComments: data.initialOtherReferencedComments,
                     initialOptimisticComments: [],
+                    messageDraft,
                 };
             });
 
@@ -3035,6 +3062,7 @@ function DocumentContentEditorSidebar({
                                             initialDataResult.value.initialOtherReferencedComments,
                                         optimisticComments:
                                             initialDataResult.value.initialOptimisticComments,
+                                        messageDraft: initialDataResult.value.messageDraft,
                                     },
                                 ]}
                                 isConnected={isConnected}

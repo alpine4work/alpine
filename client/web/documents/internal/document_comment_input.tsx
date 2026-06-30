@@ -1,4 +1,4 @@
-import {Memo, Ref, RefObject, useCallback, useRef} from "react";
+import {Memo, Ref, RefObject, useCallback, useMemo, useRef} from "react";
 import {flushSync} from "react-dom";
 import {MessageInputRef} from "~/client/web/content/messaging/message_input_base.js";
 import {useReporter} from "~/client/web/design/reporter.js";
@@ -22,6 +22,7 @@ import {
     DocumentCommentThreadModel,
 } from "~/shared/documents/document_model.js";
 import {FileAttachmentTarget} from "~/shared/files/file_attachment_target.js";
+import {MessageDraft, MessageDraftWithFiles} from "~/shared/messaging/message_draft_schema.js";
 import {MessageContentPayloadParent} from "~/shared/messaging/message_schema.js";
 import {MessagingRealtimeEvent} from "~/shared/messaging/messaging_realtime_protocol.js";
 import {WebSocketPongMessage} from "~/shared/web_socket/web_socket_schema.js";
@@ -32,11 +33,13 @@ export function DocumentCommentInput({
     viewRef,
     commentThread,
     comments,
+    messageDraft,
     fileAttachmentTarget,
     onUpdateCommentThread,
     messageEditing,
     parent,
     onParentClear,
+    onParentChange,
     onJumpToCommentRange,
     onDeleteComment,
     isConnected,
@@ -52,6 +55,7 @@ export function DocumentCommentInput({
     viewRef: RefObject<VirtualizedScrollViewRef | null>;
     commentThread: DocumentCommentThreadModel;
     comments: MessageList<DocumentCommentModel>;
+    messageDraft: MessageDraft | MessageDraftWithFiles;
     fileAttachmentTarget: Memo<FileAttachmentTarget>;
     onUpdateCommentThread: (
         update: (state: {
@@ -65,6 +69,7 @@ export function DocumentCommentInput({
     messageEditing: MessageEditing<DocumentCommentRoomKey>;
     parent: MessageContentPayloadParent | null;
     onParentClear: () => void;
+    onParentChange: (parent: MessageContentPayloadParent | null) => void;
     onJumpToCommentRange: (options: JumpToMessageRangeOptions<DocumentCommentRoomKey>) => void;
     onDeleteComment: (commentIndex: number) => Promise<void>;
     isConnected: boolean;
@@ -78,6 +83,15 @@ export function DocumentCommentInput({
     const reporter = useReporter();
 
     const inputRef = useRef<MessageInputRef>(null);
+
+    const messageDraftSurface = useMemo(
+        () => ({
+            type: "DocumentCommentThread" as const,
+            documentId: commentThread.documentId,
+            commentThreadId: commentThread.id,
+        }),
+        [commentThread.documentId, commentThread.id],
+    );
 
     const handlePersistedContentEvent = useEvent(
         (updatedCommentThread: DocumentCommentThreadModel) => {
@@ -204,6 +218,7 @@ export function DocumentCommentInput({
             documentCommentThreadRoom={commentThread}
             parent={parent}
             onParentClear={onParentClear}
+            onParentChange={onParentChange}
             onJumpToMessageRange={onJumpToCommentRange}
             onDeleteMessage={onDeleteComment}
             onShowTypingIndicator={() => {
@@ -233,6 +248,8 @@ export function DocumentCommentInput({
             withMobileMaxHeight={withMobileMaxHeight}
             onFocus={onFocus}
             onBeforeFocusFromReplyOrEditingChange={onBeforeFocusFromReplyOrEditingChange}
+            messageDraftSurface={messageDraftSurface}
+            messageDraft={messageDraft}
         />
     );
 }

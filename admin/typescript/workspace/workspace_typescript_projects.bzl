@@ -172,6 +172,7 @@ WORKSPACE_TYPESCRIPT_PROJECTS = [
     "//server/language_models/all_mini_lm_l6_v2:all_mini_lm_l6_v2",
     "//server/language_models/cohere_embed_english_v3:cohere_embed_english_v3",
     "//server/language_models/core:core",
+    "//server/messaging/drafts:drafts",
     "//server/messaging/helpers:helpers",
     "//server/messaging/realtime:realtime",
     "//server/messaging/realtime/test_helpers:test_helpers",

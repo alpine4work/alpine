@@ -206,6 +206,7 @@ import {mapIterable} from "~/shared/helpers/iterable/map_iterable.js";
 import {emptyMap} from "~/shared/helpers/map/empty_map.js";
 import {generateOrderKeysBetween} from "~/shared/helpers/sort/order_key.js";
 import {TaskId} from "~/shared/id/types/id_types.js";
+import {MessageDraftWithFiles} from "~/shared/messaging/message_draft_schema.js";
 import {MessageContentPayloadParent} from "~/shared/messaging/message_schema.js";
 import {RpcContextModuleBase} from "~/shared/rpc/rpc_context_module_base.js";
 import {
@@ -287,6 +288,7 @@ export function TaskDetailView({
     affinityManager,
     shouldInitiallyFocus,
     initialComments,
+    initialMessageDraft,
     initialScrollToCommentIndex,
     commitActionTransactionAndCreateIfNeeded,
     shareActivationHint,
@@ -317,6 +319,7 @@ export function TaskDetailView({
         comments: ReadonlyArray<TaskCommentModel>;
         otherReferencedComments: ReadonlyArray<TaskCommentModel>;
     };
+    initialMessageDraft: MessageDraftWithFiles;
     initialScrollToCommentIndex: number | null;
     commitActionTransactionAndCreateIfNeeded: Memo<
         (
@@ -2483,6 +2486,7 @@ export function TaskDetailView({
                 const inputNode = (
                     <TaskCommentInput
                         isGhostTask={!taskSubscription}
+                        taskId={possiblyGhostTaskId}
                         inputRef={commentInputRef}
                         procedures={procedures}
                         fileAttachmentTarget={commentsFileAttachmentTarget}
@@ -2491,8 +2495,10 @@ export function TaskDetailView({
                         commentEditing={commentEditing}
                         parent={commentInputParent}
                         onParentClear={() => setCommentInputParent(null)}
+                        onParentChange={setCommentInputParent}
                         onJumpToCommentRange={jumpToCommentRange}
                         ensureCreateTask={ensureCreateTask}
+                        messageDraft={initialMessageDraft}
                     />
                 );
 
@@ -2582,6 +2588,7 @@ export function TaskDetailView({
             store,
             taskSubscription,
             initialFields,
+            initialMessageDraft,
             hasEditAccessLevel,
             isCreatedCollectionPrivate,
             focusChildrenGridViewStart,

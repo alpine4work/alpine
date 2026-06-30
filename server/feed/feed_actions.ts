@@ -877,13 +877,13 @@ export async function getFeedEntries(
             }
         }
 
-        const entries = await runAllPromises(entryPromises);
+        const entries = (await runAllPromises(entryPromises)).filter(isNonNullable);
 
         return {
             startCursor,
             endCursor,
             hasMoreEntries,
-            entries: entries.filter(isNonNullable),
+            entries,
         };
     } catch (error) {
         // Make sure we don't destroy `context` until everything in `entryPromises` has

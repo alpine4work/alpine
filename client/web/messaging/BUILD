@@ -31,6 +31,7 @@ ts_project(
         "//client/web/inbox",
         "//client/web/reactions",
         "//client/web/remix",
+        "//client/web/rpc",
         "//client/web/search/core",
         "//client/web/shimmer",
         "//client/web/spaces",

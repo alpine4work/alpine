@@ -79,6 +79,7 @@ import {
     maxPostPreviewCommentAuthorCount,
 } from "~/shared/forum/post_model.js";
 import {filterMapArray} from "~/shared/helpers/array/filter_map_array.js";
+import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
 import {scheduleMicrotask} from "~/shared/helpers/async/schedule_microtask.js";
 import {wait} from "~/shared/helpers/async/wait.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
@@ -124,6 +125,7 @@ export function PostContentView({
     idBase,
     onTogglePostComments,
     onLoadInitialPostComments,
+    onLoadPostCommentDraft,
     onScrollToIfNotVisible,
     isShowingAllContent,
     onIsShowingAllContentChange,
@@ -144,6 +146,7 @@ export function PostContentView({
     idBase: string;
     onTogglePostComments: () => void;
     onLoadInitialPostComments: () => Promise<void>;
+    onLoadPostCommentDraft: () => Promise<void>;
     onScrollToIfNotVisible: () => void;
     isShowingAllContent: boolean;
     onIsShowingAllContentChange: (isShowingAllContent: boolean) => void;
@@ -534,6 +537,7 @@ export function PostContentView({
                 isReadOnly={isReadOnly}
                 onTogglePostComments={onTogglePostComments}
                 onLoadInitialPostComments={onLoadInitialPostComments}
+                onLoadPostCommentDraft={onLoadPostCommentDraft}
                 onOptimisticPostRealtimeEvents={onOptimisticPostRealtimeEvents}
             />
         </Box>
@@ -547,6 +551,7 @@ function PostContentViewFooter({
     isReadOnly,
     onTogglePostComments,
     onLoadInitialPostComments,
+    onLoadPostCommentDraft,
     onOptimisticPostRealtimeEvents,
 }: {
     post: PostModel;
@@ -555,6 +560,7 @@ function PostContentViewFooter({
     isReadOnly: boolean;
     onTogglePostComments: () => void;
     onLoadInitialPostComments: () => Promise<void>;
+    onLoadPostCommentDraft: () => Promise<void>;
     onOptimisticPostRealtimeEvents: (
         promise: Promise<ReadonlyArray<RynamoEvent<PostModel>>>,
         postId: PostId,
@@ -763,33 +769,42 @@ function PostContentViewFooter({
                                 }
                             }
 
-                            // Open comments immediately if:
+                            // Open comments without additional loading if:
                             //
-                            // 1. There are more comments then our initial load request would fetch; AND
+                            // 1. There are more comments than our initial load request would fetch; AND
                             // 2. All of those comments are loaded.
                             //
                             // We want to load comments again when we have less than the initial load count
                             // because maybe some users added comments while the comment section was closed?
-                            if (
+                            //
+                            // We always wait for the draft to load before opening comments to ensure the draft
+                            // can be applied to the message input without any UI jank.
+                            const areInitialCommentsLoaded =
                                 postComments.getMessageCountExcludingOptimisticMessages() >=
-                                    initialLoadMessageCount &&
-                                areAllInitialMessagesLoaded
-                            ) {
+                                    initialLoadMessageCount && areAllInitialMessagesLoaded;
+
+                            const postCommentDraftPromise = onLoadPostCommentDraft();
+
+                            if (!areInitialCommentsLoaded) {
+                                const postCommentsPromise = onLoadInitialPostComments();
+
+                                await runAllPromises([
+                                    postCommentDraftPromise,
+                                    Promise.race([
+                                        postCommentsPromise,
+                                        wait(delayLoadingIndicatorLimitMs),
+                                    ]),
+                                ]);
                                 onTogglePostComments();
+
+                                // This promise is already pending from the race above, but we want to await it
+                                // here to ensure the loading indicator is shown.
+                                await postCommentsPromise;
                                 return;
                             }
 
-                            const postCommentsPromise = onLoadInitialPostComments();
-
-                            // Open post comments once we get our data back. But if the data is taking a long
-                            // time to load, open post comments after a delay.
-                            await Promise.race([
-                                postCommentsPromise,
-                                wait(delayLoadingIndicatorLimitMs),
-                            ]);
+                            await postCommentDraftPromise;
                             onTogglePostComments();
-
-                            await postCommentsPromise;
                         }}
                     >
                         <PrettyNumber number={commentCount} />

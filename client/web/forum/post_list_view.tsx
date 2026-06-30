@@ -57,6 +57,7 @@ import {useErrorState} from "~/client/web/helpers/use_error_state.js";
 import {useResizeObserver} from "~/client/web/helpers/use_resize_observer.js";
 import {getInitialLoadMessageCount} from "~/client/web/messaging/get_initial_load_message_count.js";
 import {useMessageEditing} from "~/client/web/messaging/message_editing.js";
+import {MessageInputRestoreState} from "~/client/web/messaging/message_input.js";
 import {MessageList} from "~/client/web/messaging/message_list.js";
 import {MessageListMessageShimmer} from "~/client/web/messaging/message_list_message_shimmer.js";
 import {MessagingTypingIndicators} from "~/client/web/messaging/messaging_typing_indicators.js";
@@ -130,6 +131,7 @@ import {FileAttachmentTarget} from "~/shared/files/file_attachment_target.js";
 import {ChannelPreviewModel} from "~/shared/forum/channel_model.js";
 import {PostCommentModel, PostModel} from "~/shared/forum/post_model.js";
 import {createPromiseResolver} from "~/shared/helpers/async/promise_resolver.js";
+import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
 import {wait} from "~/shared/helpers/async/wait.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
@@ -142,12 +144,14 @@ import {emptyMap} from "~/shared/helpers/map/empty_map.js";
 import {clamp} from "~/shared/helpers/number/clamp.js";
 import {MaybePromise} from "~/shared/helpers/types/maybe_promise.js";
 import {PostId} from "~/shared/id/types/id_types.js";
+import {MessageDraft} from "~/shared/messaging/message_draft_schema.js";
 import {MessageContentPayloadParent} from "~/shared/messaging/message_schema.js";
 import {
     getPostCommentsFromEnd,
     getPostCommentsFromStart,
     updatePostContent,
 } from "~/shared/rpc/forum_rpc_definitions.js";
+import {getMessageDraft} from "~/shared/rpc/message_drafts_rpc_definitions.js";
 import {ConstStore} from "~/shared/store/const_store.js";
 import {Store} from "~/shared/store/store.js";
 
@@ -225,6 +229,7 @@ function PostListView(
         withSafeAreaInsetTop = false,
         initialScrollForFirstPost,
         initialParentByPostId = emptyMap,
+        initialPostCommentDraftByPostId = emptyMap,
         isPostArchived,
         onArchivePost,
         onUnarchivePost,
@@ -393,6 +398,12 @@ function PostListView(
         initialParentByPostId?: ReadonlyMap<PostId, MessageContentPayloadParent>;
 
         /**
+         * Initial post comment drafts loaded by the route. Drafts for posts paginated in
+         * later are loaded automatically by `<PostListView>`.
+         */
+        initialPostCommentDraftByPostId?: ReadonlyMap<PostId, MessageDraft>;
+
+        /**
          * Is this post archived?
          *
          * We should the inbox archival button if this property is provided (even if always
@@ -419,6 +430,8 @@ function PostListView(
     const navigate = useNavigate();
     const {space, currentAccount} = useSpaceContext();
     const siteRegistry = useSiteRegistry();
+    const {postCommentDraftByPostId, loadPostCommentDraft, setPostCommentDraft} =
+        usePostCommentDraftsForPostList(initialPostCommentDraftByPostId);
 
     const viewRef = useRef<VirtualizedScrollViewRef>(null);
     const [viewContainerRef, viewSize] = useResizeObserver();
@@ -802,6 +815,45 @@ function PostListView(
     // Manages which comment `<PostCommentInput>` is currently replying to.
     const [inputParentByPostId, setInputParentByPostId] =
         useState<ReadonlyMap<PostId, MessageContentPayloadParent>>(initialParentByPostId);
+
+    // The parent change/clear callbacks are passed to `<PostCommentInput>` which uses
+    // them in effect dependencies, so they must be referentially stable. Otherwise
+    // every render that rebuilds our items would re-run those effects (re-applying the
+    // comment draft, for example).
+    const onInputParentChangeByPostId = useConstant(
+        () =>
+            new LazyMap<PostId, (parent: MessageContentPayloadParent | null) => void>(
+                postId => parent => {
+                    setInputParentByPostId(inputParentByPostId => {
+                        const newInputParentByPostId = new Map(inputParentByPostId);
+
+                        if (parent) {
+                            newInputParentByPostId.set(postId, parent);
+                        } else {
+                            newInputParentByPostId.delete(postId);
+                        }
+
+                        return newInputParentByPostId;
+                    });
+                },
+            ),
+    );
+    const onInputParentClearByPostId = useConstant(
+        () =>
+            new LazyMap<PostId, () => void>(postId => () => {
+                onInputParentChangeByPostId.get(postId)(null);
+            }),
+    );
+
+    // Message input state for each post's comment input. When a post's comments are
+    // collapsed the input unmounts, so we stash its state here to restore it without a
+    // flash if the comments are expanded again.
+    const inputRestoreStateRefByPostId = useConstant(
+        () =>
+            new LazyMap<PostId, RefObject<MessageInputRestoreState | null>>(() => ({
+                current: null,
+            })),
+    );
 
     const [isShowingAllContentByPostId, setIsShowingAllContentByPostId] =
         useState<ReadonlyMap<PostId, true>>(emptyMap);
@@ -1329,6 +1381,9 @@ function PostListView(
                                         onLoadInitialPostComments={() =>
                                             loadInitialPostComments(item)
                                         }
+                                        onLoadPostCommentDraft={() =>
+                                            loadPostCommentDraft(item.post.id)
+                                        }
                                         onScrollToIfNotVisible={() => {
                                             assertExists(viewRef.current).scrollToKeyIfExists(
                                                 `PostContent:${item.post.id}`,
@@ -1647,13 +1702,8 @@ function PostListView(
                             }
                             postCommentEditing={messageEditing}
                             parent={inputParent}
-                            onParentClear={() => {
-                                setInputParentByPostId(inputParentByPostId => {
-                                    const newInputParentByPostId = new Map(inputParentByPostId);
-                                    newInputParentByPostId.delete(item.post.id);
-                                    return newInputParentByPostId;
-                                });
-                            }}
+                            onParentClear={onInputParentClearByPostId.get(item.post.id)}
+                            onParentChange={onInputParentChangeByPostId.get(item.post.id)}
                             onJumpToPostCommentRange={jumpToMessageRange}
                             onJumpToPostRange={jumpToPostRange}
                             onDeletePostComment={async postCommentIndex => {
@@ -1669,6 +1719,9 @@ function PostListView(
                             }}
                             shouldBeConnectedToChannelRealtime={shouldBeConnectedToChannelRealtime}
                             onPostRealtimeEvents={onPostRealtimeEvents}
+                            restoreStateRef={inputRestoreStateRefByPostId.get(item.post.id)}
+                            messageDraft={postCommentDraftByPostId.get(item.post.id)}
+                            onMessageDraftChange={draft => setPostCommentDraft(item.post.id, draft)}
                         />
                     );
 
@@ -2048,6 +2101,12 @@ function PostListView(
             header,
             inputParentByPostId,
             inputRefByPostId,
+            inputRestoreStateRefByPostId,
+            postCommentDraftByPostId,
+            loadPostCommentDraft,
+            setPostCommentDraft,
+            onInputParentChangeByPostId,
+            onInputParentClearByPostId,
             shouldBeConnectedToChannelRealtime,
             onPostRealtimeEvents,
             platform,
@@ -2108,28 +2167,38 @@ function PostListView(
                         }
                     }
 
-                    // Open comments immediately if:
+                    // Open comments without additional loading if:
                     //
                     // 1. There are more comments then our initial load request would fetch; AND
                     // 2. All of those comments are loaded.
                     //
                     // We want to load comments again when we have less than the initial load count
                     // because maybe some users added comments while the comment section was closed?
-                    const shouldOpenCommentsImmediately =
+                    //
+                    // We always wait for the draft to load before opening comments to ensure the draft
+                    // can be applied to the message input without any UI jank.
+                    const areInitialCommentsLoaded =
                         postComments.getMessageCountExcludingOptimisticMessages() >=
                             initialLoadMessageCount && areAllInitialMessagesLoaded;
 
-                    if (!shouldOpenCommentsImmediately) {
+                    const postCommentDraftPromise = loadPostCommentDraft(postId);
+
+                    if (!areInitialCommentsLoaded) {
                         const postCommentsPromise = loadInitialPostComments({post, postComments});
 
-                        // Open post comments once we get our data back. But if the data is taking a long
-                        // time to load, open post comments after a delay.
-                        await Promise.race([
-                            postCommentsPromise,
-                            wait(delayLoadingIndicatorLimitMs),
+                        await runAllPromises([
+                            postCommentDraftPromise,
+                            Promise.race([postCommentsPromise, wait(delayLoadingIndicatorLimitMs)]),
                         ]);
+
+                        onTogglePostComments(postId);
+                        // This promise is already pending from the race above, but we want to await it
+                        // here to ensure the loading indicator is shown.
+                        await postCommentsPromise;
+                        return;
                     }
 
+                    await postCommentDraftPromise;
                     onTogglePostComments(postId);
                 }
 
@@ -2372,17 +2441,12 @@ function PostListView(
                                         onUpdatePostComments(lastPostContentItem.post.id, update)
                                     }
                                     parent={inputParent}
-                                    onParentClear={() => {
-                                        setInputParentByPostId(inputParentByPostId => {
-                                            const newInputParentByPostId = new Map(
-                                                inputParentByPostId,
-                                            );
-                                            newInputParentByPostId.delete(
-                                                lastPostContentItem.post.id,
-                                            );
-                                            return newInputParentByPostId;
-                                        });
-                                    }}
+                                    onParentClear={onInputParentClearByPostId.get(
+                                        lastPostContentItem.post.id,
+                                    )}
+                                    onParentChange={onInputParentChangeByPostId.get(
+                                        lastPostContentItem.post.id,
+                                    )}
                                     onJumpToPostCommentRange={jumpToMessageRange}
                                     onJumpToPostRange={jumpToPostRange}
                                     onDeletePostComment={async postCommentIndex => {
@@ -2402,6 +2466,12 @@ function PostListView(
                                         shouldBeConnectedToChannelRealtime
                                     }
                                     onPostRealtimeEvents={onPostRealtimeEvents}
+                                    restoreStateRef={inputRestoreStateRefByPostId.get(
+                                        lastPostContentItem.post.id,
+                                    )}
+                                    messageDraft={postCommentDraftByPostId.get(
+                                        lastPostContentItem.post.id,
+                                    )}
                                 />
                             );
                         })()}
@@ -2409,6 +2479,100 @@ function PostListView(
             </div>
         </>
     );
+}
+
+/**
+ * Manages an in-memory map of post comment drafts, loading them from the server as
+ * needed and updating them as they change.
+ */
+function usePostCommentDraftsForPostList(
+    initialPostCommentDraftByPostId: ReadonlyMap<PostId, MessageDraft>,
+): {
+    postCommentDraftByPostId: ReadonlyMap<PostId, MessageDraft>;
+    loadPostCommentDraft: (postId: PostId) => Promise<void>;
+    setPostCommentDraft: (postId: PostId, draft: MessageDraft) => void;
+} {
+    const context = useAppContext();
+    const {space, currentAccount} = useSpaceContext();
+    const [postCommentDraftByPostId, setPostCommentDraftByPostId] = useState(
+        () => new Map(initialPostCommentDraftByPostId),
+    );
+    const postCommentDraftByPostIdRef = useRef(postCommentDraftByPostId);
+    postCommentDraftByPostIdRef.current = postCommentDraftByPostId;
+    const loadingPostCommentDraftPromiseByPostIdRef = useRef(new Map<PostId, Promise<void>>());
+
+    useEffect(() => {
+        setPostCommentDraftByPostId(oldPostCommentDraftByPostId => {
+            let hasNewDraft = false;
+            const newPostCommentDraftByPostId = new Map(oldPostCommentDraftByPostId);
+
+            for (const [postId, draft] of initialPostCommentDraftByPostId) {
+                if (newPostCommentDraftByPostId.has(postId)) continue;
+
+                newPostCommentDraftByPostId.set(postId, draft);
+                hasNewDraft = true;
+            }
+
+            return hasNewDraft ? newPostCommentDraftByPostId : oldPostCommentDraftByPostId;
+        });
+    }, [initialPostCommentDraftByPostId]);
+
+    const loadPostCommentDraft = useCallback(
+        async (postId: PostId): Promise<void> => {
+            if (currentAccount === null) return;
+            if (postCommentDraftByPostIdRef.current.has(postId)) return;
+
+            const existingPromise = loadingPostCommentDraftPromiseByPostIdRef.current.get(postId);
+            if (existingPromise) {
+                await existingPromise;
+                return;
+            }
+
+            const promise = (async () => {
+                const {draft} = await getMessageDraft(context, {
+                    spaceId: space.id,
+                    surface: {type: "PostComment", postId},
+                });
+
+                setPostCommentDraftByPostId(oldPostCommentDraftByPostId => {
+                    if (oldPostCommentDraftByPostId.has(postId)) {
+                        return oldPostCommentDraftByPostId;
+                    }
+
+                    const newPostCommentDraftByPostId = new Map(oldPostCommentDraftByPostId);
+                    newPostCommentDraftByPostId.set(postId, draft);
+                    return newPostCommentDraftByPostId;
+                });
+            })();
+
+            loadingPostCommentDraftPromiseByPostIdRef.current.set(postId, promise);
+
+            try {
+                await promise;
+            } finally {
+                loadingPostCommentDraftPromiseByPostIdRef.current.delete(postId);
+            }
+        },
+        [context, currentAccount, space.id],
+    );
+
+    const setPostCommentDraft = useCallback((postId: PostId, draft: MessageDraft) => {
+        setPostCommentDraftByPostId(oldPostCommentDraftByPostId => {
+            if (oldPostCommentDraftByPostId.get(postId) === draft) {
+                return oldPostCommentDraftByPostId;
+            }
+
+            const newPostCommentDraftByPostId = new Map(oldPostCommentDraftByPostId);
+            newPostCommentDraftByPostId.set(postId, draft);
+            return newPostCommentDraftByPostId;
+        });
+    }, []);
+
+    return {
+        postCommentDraftByPostId,
+        loadPostCommentDraft,
+        setPostCommentDraft,
+    };
 }
 
 function isPostListPreviousItemPostWithCardBackground(

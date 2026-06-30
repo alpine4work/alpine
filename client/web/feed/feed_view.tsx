@@ -136,7 +136,6 @@ export function FeedView({
                         limit,
                         afterCursor: feed.endCursor ?? undefined,
                     });
-
                     setFeed(feed => feed.loadMoreEntries(output));
                 }}
                 shouldBeConnectedToChannelRealtime={false}
