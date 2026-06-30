@@ -11,6 +11,7 @@ import {
     ApiContentTextArbitrary,
     ApiContentWithoutCommentMarkArbitrary,
     ApiTaskCollectionReferenceArbitrary,
+    ApiTaskReferenceArbitrary,
     createIdArbitrary,
 } from "~/shared/api/content/test_helpers/api_content_arbitrary.js";
 import {ApiTaskPriority} from "~/shared/api/specification/types/api_specification_convenience_types.js";
@@ -33,6 +34,7 @@ const AgentWebTaskPageArbitrary: Arbitrary<AgentWebTaskPage> = fc.record({
     type: fc.constant("Task"),
     title: ApiContentTextArbitrary,
     status: AgentWebTaskPageStatusArbitrary,
+    parent: fc.oneof(ApiTaskReferenceArbitrary, fc.constant(null)),
     assignee: fc.oneof(ApiAccountReferenceArbitrary, fc.constant(null)),
     collections: fc.uniqueArray(ApiTaskCollectionReferenceArbitrary, {
         maxLength: 5,
