@@ -9,7 +9,10 @@ import {createAgentWebPageStoredLinkPathname} from "~/server/agents/web/create_a
 import {createAgentWebSessionStorageForTest} from "~/server/agents/web/test_helpers/create_agent_web_session_storage_for_test.js";
 import {ApiContentResponseWithoutKeys} from "~/shared/api/specification/types/api_content_response_without_keys.js";
 import {ApiTaskReferenceResponse} from "~/shared/api/specification/types/api_specification_convenience_types.js";
+import {ErrorBase, InternalError} from "~/shared/error/error.js";
+import {ErrorDisplayMessage} from "~/shared/error/types/error_display_message_type.js";
 import {assert} from "~/shared/helpers/control/assert.js";
+import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
 import {defaultTimeZone} from "~/shared/helpers/intl/time_zone.js";
 import {generateId} from "~/shared/id/id.js";
 import {AccountId, BotId, SpaceId, TaskId} from "~/shared/id/types/id_types.js";
@@ -132,6 +135,63 @@ function getCreateTaskCommentRequests() {
         .filter(request => request.method === "POST" && request.path === "/tasks/{id}/messages");
 }
 
+function printDisplayMessage(displayMessage: ErrorDisplayMessage): string {
+    let string = "";
+
+    for (const segment of displayMessage) {
+        switch (segment.type) {
+            case "Text":
+            case "SensitiveText":
+            case "Link": {
+                string += segment.text;
+                break;
+            }
+            default:
+                throw exhaustive(segment);
+        }
+    }
+
+    return string;
+}
+
+function getDisplayMessage(error: unknown): ErrorDisplayMessage {
+    if (error instanceof ErrorBase && error.displayMessage) {
+        return error.displayMessage;
+    }
+
+    if (error instanceof AggregateError) {
+        for (const childError of error.errors) {
+            if (childError instanceof ErrorBase && childError.displayMessage) {
+                return childError.displayMessage;
+            }
+        }
+    }
+
+    throw error;
+}
+
+async function expectUpdateDisplayMessage({
+    path,
+    updates,
+    expected,
+}: {
+    path: string;
+    updates: Parameters<typeof callAgentWebUpdateTool>[1]["updates"];
+    expected: string;
+}) {
+    let error: unknown;
+
+    try {
+        await callAgentWebUpdateTool(context, {path, updates});
+    } catch (actualError) {
+        error = actualError;
+    }
+
+    if (!error) throw new InternalError("Expected update tool call to throw");
+
+    expect(printDisplayMessage(getDisplayMessage(error))).toEqual(expected);
+}
+
 test("adds a task comment", async () => {
     await readTaskComments();
     mockCreateTaskComment({index: 0});
@@ -159,18 +219,18 @@ test("adds a task comment", async () => {
 test("rejects changing the task in the preamble", async () => {
     await readTaskComments();
 
-    await expect(
-        callAgentWebUpdateTool(context, {
-            path: taskCommentsPath,
-            updates: [
-                {
-                    old: "Comments on [Write Spec (Open)](/task/write-spec).",
-                    new: "Comments on [Review Spec (Open)](/task/review-spec).",
-                    replaceAll: false,
-                },
-            ],
-        }),
-    ).rejects.toThrow("Can\u2019t update task comments preamble");
+    await expectUpdateDisplayMessage({
+        path: taskCommentsPath,
+        updates: [
+            {
+                old: "Comments on [Write Spec (Open)](/task/write-spec).",
+                new: "Comments on [Review Spec (Open)](/task/review-spec).",
+                replaceAll: false,
+            },
+        ],
+        expected:
+            "You can only update your `<comment>`s. You can\u2019t change which task the comments belong to on line 1. Try again with a more specific update that only changes the content of comments from you or adds new comments.",
+    });
 
     expect(getCreateTaskCommentRequests()).toHaveLength(0);
 });
