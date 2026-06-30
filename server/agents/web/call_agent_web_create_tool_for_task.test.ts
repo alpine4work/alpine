@@ -346,6 +346,45 @@ test("creates a task with yearless due date using context year", async () => {
     });
 });
 
+test.each([
+    ["month first with ordinal", "July 12th, 2025", "2025-07-12"],
+    // eslint-disable-next-line cyberworlds/string-quotes
+    ["abbreviated month with short year", "Jul 12, '25", "2025-07-12"],
+    ["day first with ordinal", "12th July 2025", "2025-07-12"],
+    ["numeric slash with short year", "7/12/25", "2025-07-12"],
+    ["numeric dash with full year", "07-12-2025", "2025-07-12"],
+])(
+    "sets task due date from parsed date style on create: %s",
+    async (name, dueDate, expectedDate) => {
+        const title = `Create due date ${name}`;
+
+        mockCreateTask({
+            title,
+            status: {type: "Open", isActive: false},
+        });
+
+        await callAgentWebCreateTool(context, {
+            type: "task",
+            content: `\
+# ${title}
+
+- Due date: ${dueDate}`,
+        });
+
+        expect(getCreateTaskRequests()[0]?.body).toEqual({
+            spaceId,
+            task: {
+                title,
+                status: {type: "Open", isActive: false},
+                assignee: undefined,
+                collections: [],
+                priority: undefined,
+                due: {date: expectedDate},
+            },
+        });
+    },
+);
+
 test("rejects a missing task title without calling the API", async () => {
     await expectCreateDisplayMessage({
         content: `\
