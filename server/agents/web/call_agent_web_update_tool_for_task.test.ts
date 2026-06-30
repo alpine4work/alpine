@@ -25,6 +25,20 @@ const botAccountId = generateId<AccountId>();
 const botId = generateId<BotId>();
 const aliceAccount = createApiAccountMock({name: "Alice"});
 const bobAccount = createApiAccountMock({name: "Bob"});
+const parentTaskId = generateId<TaskId>();
+const otherParentTaskId = generateId<TaskId>();
+const parentTaskReference = {
+    type: "Task" as const,
+    id: parentTaskId,
+    title: "Parent task",
+    status: {type: "Open" as const, isActive: false},
+};
+const otherParentTaskReference = {
+    type: "Task" as const,
+    id: otherParentTaskId,
+    title: "Other parent task",
+    status: {type: "Closed" as const},
+};
 const engineeringCollectionId = generateId<TaskCollectionId>();
 const roadmapCollectionId = generateId<TaskCollectionId>();
 const engineeringCollectionReference = {
@@ -61,6 +75,8 @@ const emptyNotesContent: ApiContentResponseWithoutKeys = {
 beforeEach(async () => {
     await createAgentWebPageStoredLinkPathname(storage, intoApiAccountReference(aliceAccount));
     await createAgentWebPageStoredLinkPathname(storage, intoApiAccountReference(bobAccount));
+    await createAgentWebPageStoredLinkPathname(storage, parentTaskReference);
+    await createAgentWebPageStoredLinkPathname(storage, otherParentTaskReference);
     await createAgentWebPageStoredLinkPathname(storage, engineeringCollectionReference);
     await createAgentWebPageStoredLinkPathname(storage, roadmapCollectionReference);
 });
@@ -183,6 +199,7 @@ async function readTask({
     taskId = generateId<TaskId>(),
     title,
     status = {type: "Open", isActive: false} as const,
+    parent,
     assignee,
     collectionIds = [],
     priority,
@@ -193,6 +210,7 @@ async function readTask({
     taskId?: TaskId;
     title: string;
     status?: {readonly type: "Open"; readonly isActive: boolean} | {readonly type: "Closed"};
+    parent?: typeof parentTaskReference | typeof otherParentTaskReference;
     assignee?: typeof aliceAccount;
     collectionIds?: ReadonlyArray<TaskCollectionId>;
     priority?: {readonly type: "Low" | "Medium" | "High" | "Urgent"};
@@ -210,6 +228,17 @@ async function readTask({
     api.mockGetTask(spaceId, taskId, {
         title,
         status,
+        ...(parent
+            ? {
+                  parent: {
+                      task: {
+                          id: parent.id,
+                          title: parent.title,
+                          status: parent.status,
+                      },
+                  },
+              }
+            : {}),
         ...(assignee ? {assignee} : {}),
         collections: collectionIds.map(collectionId => ({
             collection: {
@@ -526,6 +555,125 @@ test("rejects setting task active without assignee on update", async () => {
         ],
         expected:
             "Can\u2019t set task as active if there\u2019s no assignee. We don\u2019t recommend setting a task as active unless you\u2019re about to work on the task or you know someone else is currently working on the task. Try again and either set the task as open but inactive (e.g. `- Status: Open`) or set an assignee (e.g. `- Assignee: [ChatGPT](/bot/chatgpt)`).",
+    });
+
+    expect(getTaskPatchRequests()).toHaveLength(0);
+});
+
+test("sets and clears task parent", async () => {
+    const {taskId, path} = await readTask({title: "Parent task child"});
+    mockTaskPatch(taskId, 2);
+
+    await callAgentWebUpdateTool(context, {
+        path,
+        updates: [
+            {
+                old: "- Status: Open",
+                new: "- Status: Open\n- Parent: [Parent task](/task/parent-task)",
+                replaceAll: false,
+            },
+        ],
+    });
+    await callAgentWebUpdateTool(context, {
+        path,
+        updates: [
+            {
+                old: "- Parent: [Parent task](/task/parent-task)",
+                new: "- Parent:",
+                replaceAll: false,
+            },
+        ],
+    });
+
+    expect(getTaskPatchRequests().map(request => request.body)).toEqual([
+        {patches: [{type: "SetParent", parent: {task: {id: parentTaskId}}}]},
+        {patches: [{type: "SetParent", parent: null}]},
+    ]);
+});
+
+test("removes task parent after reading task with parent set", async () => {
+    const {taskId, path} = await readTask({
+        title: "Parent task child",
+        parent: parentTaskReference,
+    });
+    mockTaskPatch(taskId);
+
+    await expect(
+        callAgentWebUpdateTool(context, {
+            path,
+            updates: [
+                {
+                    old: "\n- Parent: [Parent task](/task/parent-task)",
+                    new: "",
+                    replaceAll: false,
+                },
+            ],
+        }),
+    ).resolves.toEqual("Update was successful.\n");
+
+    expect(getTaskPatchRequests().map(request => request.body)).toEqual([
+        {patches: [{type: "SetParent", parent: null}]},
+    ]);
+});
+
+test("changes task parent after reading task with parent set", async () => {
+    const {taskId, path} = await readTask({
+        title: "Parent task child",
+        parent: parentTaskReference,
+    });
+    mockTaskPatch(taskId);
+
+    await expect(
+        callAgentWebUpdateTool(context, {
+            path,
+            updates: [
+                {
+                    old: "- Parent: [Parent task](/task/parent-task)",
+                    new: "- Parent: [Other parent task](/task/other-parent-task)",
+                    replaceAll: false,
+                },
+            ],
+        }),
+    ).resolves.toEqual("Update was successful.\n");
+
+    expect(getTaskPatchRequests().map(request => request.body)).toEqual([
+        {patches: [{type: "SetParent", parent: {task: {id: otherParentTaskId}}}]},
+    ]);
+});
+
+test("rejects an unknown task parent link on update", async () => {
+    const {path} = await readTask({title: "Parent task child"});
+
+    await expectUpdateDisplayMessage({
+        path,
+        updates: [
+            {
+                old: "- Status: Open",
+                new: "- Status: Open\n- Parent: [Missing](/task/missing)",
+                replaceAll: false,
+            },
+        ],
+        expected:
+            "Unexpected task parent link \u201CMissing\u201D on line 4. Try again with a link to a task you\u2019ve seen before (e.g. `[My Task](/task/my-task)`).",
+    });
+
+    expect(getTaskPatchRequests()).toHaveLength(0);
+});
+
+test("rejects task parent link to another entity type on update", async () => {
+    const {path} = await readTask({title: "Parent task child"});
+
+    await expectUpdateDisplayMessage({
+        path,
+        updates: [
+            {
+                old: "- Status: Open",
+                new: "- Status: Open\n- Parent: [Engineering](/task-collection/engineering)",
+                replaceAll: false,
+            },
+        ],
+        expected:
+            "Unexpected task parent link \u201CEngineering\u201D on line 4. Try again with a link to a task you\u2019ve seen before (e.g. `[My Task](/task/my-task)`).",
     });
 
     expect(getTaskPatchRequests()).toHaveLength(0);
