@@ -6,6 +6,7 @@ import {
     ApiContentBeforePosition,
     ApiContentInlinePosition,
     ApiContentPosition,
+    ApiContentRange,
 } from "~/shared/api/specification/types/api_content_position.js";
 import {
     ApiContentBlockElementResponse,
@@ -13,22 +14,21 @@ import {
     ApiContentInlineElementMark,
     ApiContentResponse,
 } from "~/shared/api/specification/types/api_specification_convenience_types.js";
-import {InternalError} from "~/shared/error/error.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
 import {DocumentCommentThreadId} from "~/shared/id/types/id_types.js";
 
 /**
- * Takes `documentContentSnippet` from an `ApiDocumentThread` and it slices out
- * just the commented content.
+ * Takes `content` from an `ApiDocumentThread` and it slices out just the commented
+ * content. Returns null if the comment isn't found in the content.
  */
-export function extractCommentFromApiDocumentThreadContentSnippet(
+export function extractCommentSliceFromApiContent(
     threadId: DocumentCommentThreadId,
-    contentSnippet: ApiContentResponse,
-) {
+    content: ApiContentResponse,
+): {range: ApiContentRange; contentSlice: ApiContentResponse} | null {
     let range: {start: ApiContentPosition; end: ApiContentPosition} | null = null;
 
-    for (const token of iterateApiContent(contentSnippet)) {
+    for (const token of iterateApiContent(content)) {
         if (token.marks?.some(mark => mark.type === "Comment" && mark.thread.id === threadId)) {
             range ??= {start: token.position, end: token.endPosition};
             range.end = token.endPosition;
@@ -39,24 +39,23 @@ export function extractCommentFromApiDocumentThreadContentSnippet(
         }
     }
 
-    if (range === null) {
-        throw new InternalError(
-            "Document comment thread snippet doesn\u2019t contain comment mark",
-        );
-    }
+    if (range === null) return null;
 
-    const slicedContentSnippet = sliceApiContentRange(contentSnippet, range);
-    assert(slicedContentSnippet.ok);
+    const contentSlice = sliceApiContentRange(content, range);
+    assert(contentSlice.ok);
 
-    return visitAndProduceApiContent(slicedContentSnippet.value, {
-        visitMark: (mark, {marks}) => {
-            if (mark.type === "Comment" && mark.thread.id === threadId) {
-                const index = marks.indexOf(mark);
-                assert(index !== -1);
-                marks.splice(index, 1);
-            }
-        },
-    });
+    return {
+        range,
+        contentSlice: visitAndProduceApiContent(contentSlice.value, {
+            visitMark: (mark, {marks}) => {
+                if (mark.type === "Comment" && mark.thread.id === threadId) {
+                    const index = marks.indexOf(mark);
+                    assert(index !== -1);
+                    marks.splice(index, 1);
+                }
+            },
+        }),
+    };
 }
 
 type Token = {

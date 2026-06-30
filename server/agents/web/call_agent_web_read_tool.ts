@@ -25,6 +25,7 @@ import {
     readAgentWebChatPage,
 } from "~/server/agents/web/pages/agent_web_chat_page.js";
 import {
+    AgentWebDocumentPageWithMetadata,
     normalizeAgentWebDocumentPage,
     parseAgentWebDocumentPage,
     printAgentWebDocumentPage,
@@ -70,11 +71,20 @@ import {errorDisplayMessage} from "~/shared/error/error_display_message.js";
 import {Mutex} from "~/shared/helpers/async/mutex.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
+import {Lazy} from "~/shared/helpers/control/lazy.js";
 import {getOrSetDefaultMapValue} from "~/shared/helpers/map/get_or_set_default_map_value.js";
 
 export const agentWebReadResponseExpirationHours = 1;
 
 export async function callAgentWebReadTool(
+    context: AgentWebContext,
+    options: {path: string; limit: string},
+): Promise<string> {
+    const {truncatedResponse} = await actuallyCallAgentWebReadTool(context, options);
+    return truncatedResponse;
+}
+
+async function actuallyCallAgentWebReadTool(
     context: AgentWebContext,
     {path: originalPath, limit: limitBytesString}: {path: string; limit: string},
 ) {
@@ -112,18 +122,23 @@ export async function callAgentWebReadTool(
             });
         }
 
-        const {response, metadata: pageMetadata} = await readAgentWebPageLink(context, pageLink, {
-            searchParams,
-            limitLength,
-            printPage: async page => {
-                const response = await printAgentWebPageToMarkdownForReadTool(
-                    context.storage,
-                    pageLink,
-                    page,
-                );
-                return response;
+        const {response, metadata: pageMetadata} = await readAgentWebPageLink(
+            context,
+            pathname,
+            pageLink,
+            {
+                searchParams,
+                limitLength,
+                printPage: async page => {
+                    const response = await printAgentWebPageToMarkdownForReadTool(
+                        context.storage,
+                        pageLink,
+                        page,
+                    );
+                    return response;
+                },
             },
-        });
+        );
 
         // In non-production environments, parse the response back into the underlying page
         // object just to make sure there are no parse errors. We don't do this in
@@ -155,20 +170,25 @@ export async function callAgentWebReadTool(
         // `newlineIndexes` is non-empty.
         newlineIndexes.push(response.length);
 
-        await context.storage.readResponseByPath.put(path, {
+        const readResponse = {
             expirationTime: addHours(new Date(), agentWebReadResponseExpirationHours),
             pageMetadata,
             response,
             newlineIndexes,
-        });
+        };
+
+        await context.storage.readResponseByPath.put(path, readResponse);
 
         if (response.length <= limitLength) {
-            return response;
+            return {readResponse, truncatedResponse: response};
         } else {
-            return truncateAgentWebReadResponse(
-                {response, newlineIndexes},
-                {offsetNewline: 0, limitLength, isScrollTool: false},
-            );
+            return {
+                readResponse,
+                truncatedResponse: truncateAgentWebReadResponse(
+                    {response, newlineIndexes},
+                    {offsetNewline: 0, limitLength, isScrollTool: false},
+                ),
+            };
         }
     });
 }
@@ -229,8 +249,9 @@ async function printAgentWebPageToMarkdownForReadTool(
     return string;
 }
 
-function readAgentWebPageLink(
+async function readAgentWebPageLink(
     context: AgentWebContext,
+    pathname: string,
     // We intentionally use the "key object" type so the code within this function
     // doesn't rely on `title` or any extra data we include in the full link object to
     // print a friendly path for the agent.
@@ -246,51 +267,61 @@ function readAgentWebPageLink(
             throw new UnimplementedError("NOCOMMIT");
         }
         case "Document": {
-            return readAgentWebDocumentPage(context, pageLink.id, options);
+            return await readAgentWebDocumentPage(context, pageLink.id, options);
         }
         case "DocumentThread": {
-            return readAgentWebDocumentThreadPage(
+            return await readAgentWebDocumentThreadPage(
                 context,
                 pageLink.document.id,
                 pageLink.threadId,
-                options,
+                {
+                    ...options,
+                    documentPagePromise: new Lazy(() =>
+                        maybeCallAgentWebReadToolForDocumentThread(context, pathname),
+                    ),
+                },
             );
         }
         case "DocumentMessage": {
-            return readAgentWebDocumentThreadMessagePage(
+            return await readAgentWebDocumentThreadMessagePage(
                 context,
                 pageLink.id,
                 pageLink.threadId,
                 pageLink.index,
-                options,
+                {
+                    ...options,
+                    documentPagePromise: new Lazy(() =>
+                        maybeCallAgentWebReadToolForDocumentThread(context, pathname),
+                    ),
+                },
             );
         }
         case "File": {
             throw new UnimplementedError("NOCOMMIT");
         }
         case "Channel": {
-            return readAgentWebChannelPage(context, pageLink.id, options);
+            return await readAgentWebChannelPage(context, pageLink.id, options);
         }
         case "Chat": {
-            return readAgentWebChatPage(context, pageLink.id, options);
+            return await readAgentWebChatPage(context, pageLink.id, options);
         }
         case "ChatMessage": {
-            return readAgentWebChatMessagePage(context, pageLink.id, pageLink.index, options);
+            return await readAgentWebChatMessagePage(context, pageLink.id, pageLink.index, options);
         }
         case "Post": {
-            return readAgentWebPostPage(context, pageLink.id, options);
+            return await readAgentWebPostPage(context, pageLink.id, options);
         }
         case "PostMessage": {
-            return readAgentWebPostMessagePage(context, pageLink.id, pageLink.index, options);
+            return await readAgentWebPostMessagePage(context, pageLink.id, pageLink.index, options);
         }
         case "Task": {
-            return readAgentWebTaskPage(context, pageLink.id, options);
+            return await readAgentWebTaskPage(context, pageLink.id, options);
         }
         case "TaskCollection": {
             throw new UnimplementedError("NOCOMMIT");
         }
         case "TaskMessage": {
-            return readAgentWebTaskMessageListMessagePage(
+            return await readAgentWebTaskMessageListMessagePage(
                 context,
                 pageLink.id,
                 pageLink.index,
@@ -298,7 +329,7 @@ function readAgentWebPageLink(
             );
         }
         case "TaskMessageList": {
-            return readAgentWebTaskMessageListPage(context, pageLink.task.id, options);
+            return await readAgentWebTaskMessageListPage(context, pageLink.task.id, options);
         }
         case "Site": {
             throw new UnimplementedError("NOCOMMIT");
@@ -306,6 +337,43 @@ function readAgentWebPageLink(
         default:
             throw exhaustive(pageLink);
     }
+}
+
+async function maybeCallAgentWebReadToolForDocumentThread(
+    context: AgentWebContext,
+    pathname: string,
+): Promise<AgentWebDocumentPageWithMetadata> {
+    const pathnameParts = pathname.slice(1).split("/");
+    assert(pathnameParts.length === 4);
+    assert(pathnameParts[0] === "document");
+    assert(pathnameParts[2] === "comments");
+    assert(/^(0|[1-9][0-9]*)$/.test(pathnameParts[3]!));
+
+    const documentPath = `/document/${pathnameParts[1]!}`;
+
+    let readResponse = await context.storage.readResponseByPath.get(documentPath);
+
+    // If we recently read the document, then use the cached response. Otherwise read
+    // the document fresh. We need the full document content so we can correctly
+    // reference positions within the document.
+    if (!readResponse || readResponse.expirationTime.getTime() < Date.now()) {
+        ({readResponse} = await actuallyCallAgentWebReadTool(context, {
+            path: documentPath,
+            limit: "1gb",
+        }));
+    }
+
+    assert(readResponse.pageMetadata.type === "Document");
+
+    const responseTree = parseMarkdownTree(readResponse.response);
+
+    const page = await parseAgentWebDocumentPage(
+        context.storage,
+        readResponse.pageMetadata.id,
+        responseTree,
+    );
+
+    return {...page, metadata: readResponse.pageMetadata};
 }
 
 function normalizeAgentWebPage(page: AgentWebPage): AgentWebPage {

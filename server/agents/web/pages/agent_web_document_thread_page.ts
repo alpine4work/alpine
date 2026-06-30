@@ -7,8 +7,11 @@ import {
 import {AgentWebPageDocumentThreadRoutedLink} from "~/server/agents/web/agent_web_page_routed_link.js";
 import {AgentWebSessionStorage} from "~/server/agents/web/agent_web_session_storage.js";
 import {createAgentWebPageRoutedLinkPathname} from "~/server/agents/web/create_agent_web_page_routed_link_pathname.js";
-import {extractCommentFromApiDocumentThreadContentSnippet} from "~/server/agents/web/internal/extract_comment_from_api_document_thread_content_snippet.js";
-import {parseAgentWebDocumentPage} from "~/server/agents/web/pages/agent_web_document_page.js";
+import {extractCommentSliceFromApiContent} from "~/server/agents/web/internal/extract_comment_slice_from_api_content.js";
+import {
+    AgentWebDocumentPageWithMetadata,
+    parseAgentWebDocumentPage,
+} from "~/server/agents/web/pages/agent_web_document_page.js";
 import {
     AgentWebMessagingPage,
     AgentWebMessagingPageBlock,
@@ -159,10 +162,12 @@ export async function readAgentWebDocumentThreadPage(
         searchParams: originalSearchParams,
         limitLength,
         printPage,
+        documentPagePromise,
     }: {
         searchParams: URLSearchParams;
         limitLength: number;
         printPage: (page: AgentWebDocumentThreadPage) => Promise<string>;
+        documentPagePromise: Lazy<Promise<AgentWebDocumentPageWithMetadata>>;
     },
 ): Promise<{response: string; metadata: AgentWebDocumentThreadPageMetadata}> {
     let excludesDocumentPreview = false;
@@ -200,16 +205,88 @@ export async function readAgentWebDocumentThreadPage(
         // block.
         if (excludesDocumentPreview) return await roomMetadataWithoutStartCustomBlock.get();
 
-        const {
-            data: {thread},
-        } = await context.api.get(context.span, "/documents/{id}/threads/{threadId}", {
-            params: {path: {id, threadId}},
+        const [
+            {
+                data: {thread},
+            },
+            documentPage,
+        ] = await runAllPromises([
+            context.api.get(context.span, "/documents/{id}/threads/{threadId}", {
+                params: {path: {id, threadId}},
+            }),
+            documentPagePromise.get(),
+        ]);
+
+        const documentContent = zipKeysIntoApiContentResponse({
+            content: documentPage.content,
+            keys: documentPage.metadata.keys,
         });
+
+        // Extract out the first slice of content where the comment appears. May return
+        // null if the comment was removed from the document.
+        const documentContentSliceResult = !thread.isResolved
+            ? extractCommentSliceFromApiContent(threadId, documentContent)
+            : null;
+
+        let matchAttribute: number | "deleted" | null = null;
+
+        if (!thread.isResolved) {
+            if (!documentContentSliceResult) {
+                matchAttribute = "deleted";
+            } else {
+                const ranges = Array.from(
+                    findApiContentRanges(documentContent, documentContentSliceResult.contentSlice),
+                );
+
+                if (ranges.length <= 1) {
+                    matchAttribute = null;
+                } else {
+                    const rangeIndex = ranges.findIndex(range =>
+                        isDeepEqual(range, documentContentSliceResult.range),
+                    );
+
+                    // To guarantee `findApiContentRanges()` finds the range returned by
+                    // `extractCommentSliceFromApiContent()` the implementations must be perfect in all
+                    // cases. Thanks to generative tests like
+                    // `slice_api_content_range_and_find_api_content_ranges_generative.test.ts` I
+                    // believe this to be true. But since the code is complex, maybe it's worth
+                    // defaulting to `null` or 0 or something like that in the rare case where the
+                    // range doesn't safely make the slice/find roundtrip.
+                    assert(rangeIndex !== -1);
+
+                    matchAttribute = rangeIndex + 1;
+                }
+            }
+        }
 
         const documentReference: ApiDocumentReferenceResponse = {
             type: "Document",
             id,
             title: thread.document.reference.title,
+        };
+
+        const block: AgentWebDocumentThreadPageCustomBlock = {
+            type: "Custom",
+            tagName: "blockquote",
+            timeAttribute: null,
+            hasCiteAttribute: true,
+            matchAttribute,
+            content:
+                documentContentSliceResult?.contentSlice ??
+                // If `documentContentSliceResult` doesn't exist then either this is a resolved
+                // comment thread and so the comment mark won't exist in the document (since we
+                // remove comment marks on resolution) or the comment mark was removed from the
+                // document while the thread was still unresolved.
+                //
+                // In this case, the server keeps track of a "fallback" content snippet we can use
+                // to preview the content that was in the document before the comment was removed.
+                // Use that as our content instead of a slice from the current document.
+                //
+                // NOCOMMIT: Add an integration test to make sure we render the fallback if the
+                // comment was removed from the document.
+                assertExists(
+                    extractCommentSliceFromApiContent(threadId, thread.documentContentSnippet),
+                ).contentSlice,
         };
 
         return {
@@ -223,24 +300,7 @@ export async function readAgentWebDocumentThreadPage(
                 document: documentReference,
                 isResolved: thread.isResolved,
             },
-            startCustomBlock: {
-                time: null,
-                block: {
-                    type: "Custom",
-                    tagName: "blockquote",
-                    timeAttribute: null,
-                    hasCiteAttribute: true,
-                    matchAttribute: null,
-                    // Just show the commented content to the agent without any of the surrounding
-                    // context returned by the API. We use this format so that it's easy for the agent
-                    // to create new document comment threads since all it needs to do is write the
-                    // content it's quoting and nothing else.
-                    content: extractCommentFromApiDocumentThreadContentSnippet(
-                        threadId,
-                        thread.documentContentSnippet,
-                    ),
-                },
-            },
+            startCustomBlock: {time: null, block},
         };
     });
 
@@ -396,15 +456,18 @@ export async function readAgentWebDocumentThreadMessagePage(
     {
         limitLength,
         printPage,
+        documentPagePromise,
     }: {
         limitLength: number;
         printPage: (page: AgentWebDocumentThreadPage) => Promise<string>;
+        documentPagePromise: Lazy<Promise<AgentWebDocumentPageWithMetadata>>;
     },
 ): Promise<{response: string; metadata: AgentWebDocumentThreadPageMetadata}> {
     return await readAgentWebDocumentThreadPage(context, id, threadId, {
         searchParams: new URLSearchParams([["comment", String(index)]]),
         limitLength,
         printPage,
+        documentPagePromise,
     });
 }
 
