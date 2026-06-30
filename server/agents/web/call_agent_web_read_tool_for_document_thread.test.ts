@@ -21,6 +21,7 @@ import {
     ApiDocumentReferenceResponse,
     ApiMessageResponse,
 } from "~/shared/api/specification/types/api_specification_convenience_types.js";
+import {assert} from "~/shared/helpers/control/assert.js";
 import {serializeDateString} from "~/shared/helpers/date/date_string.js";
 import {defaultTimeZone} from "~/shared/helpers/intl/time_zone.js";
 import {generateChronologicalId} from "~/shared/id/chronological_id.js";
@@ -193,6 +194,25 @@ function mockGetDocumentThread({
     );
 }
 
+function mockGetDocument({
+    content = documentContentSnippet(),
+}: {content?: ApiContentResponse} = {}) {
+    api.mockGetDocument(spaceId, documentId, {
+        title: documentReference.title,
+        content,
+    });
+}
+
+async function expireDocumentReadCache() {
+    const readResponse = await storage.readResponseByPath.get("/document/launch-spec");
+    assert(readResponse !== undefined);
+
+    await storage.readResponseByPath.put("/document/launch-spec", {
+        ...readResponse,
+        expirationTime: new Date(Date.now() - 1),
+    });
+}
+
 function mockMessages({
     totalMessageCount,
     cursor,
@@ -225,6 +245,7 @@ function mockMessages({
 
 test("reads a document thread with quoted commented content above comments", async () => {
     mockGetDocumentThread();
+    mockGetDocument();
     mockMessages({
         totalMessageCount: 1,
         createMessage: index =>
@@ -241,7 +262,7 @@ Document comment thread on [Launch Spec](/document/launch-spec).
 
 - [ ] Unresolved
 
-<blockquote cite="../..">\n\ncurrent\n\n</blockquote>\n
+<blockquote>\n\ncurrent\n\n</blockquote>\n
 <comment id="0" from="[Bob](/human/bob)">\n\nFirst comment.\n\n</comment>
 
 End of comments.`);
@@ -259,6 +280,7 @@ test("reads a document thread pagination link for the next page", async () => {
         });
 
     mockGetDocumentThread();
+    mockGetDocument();
     mockMessages({totalMessageCount, createMessage});
 
     const firstResponse = await callAgentWebReadTool(context, {
@@ -270,7 +292,7 @@ Document comment thread on [Launch Spec](/document/launch-spec). [Next page »](
 
 - [ ] Unresolved
 
-<blockquote cite="../..">
+<blockquote>
 
 current
 
@@ -393,7 +415,10 @@ End of comments.`);
 });
 
 test("reads a document thread with no comments", async () => {
-    mockGetDocumentThread({commentCount: 0, content: contentFromCommentedText("Preview only.")});
+    const content = contentFromCommentedText("Preview only.");
+
+    mockGetDocumentThread({commentCount: 0, content});
+    mockGetDocument({content});
     mockMessages({totalMessageCount: 0});
 
     await expect(
@@ -406,7 +431,137 @@ Document comment thread on [Launch Spec](/document/launch-spec).
 
 - [ ] Unresolved
 
-<blockquote cite="../..">\n\nPreview only.\n\n</blockquote>
+<blockquote>\n\nPreview only.\n\n</blockquote>
+
+End of comments.`);
+});
+
+test("loads the full document when computing quote match without a cached document", async () => {
+    const content = contentFromBlockElements([
+        paragraph([text("Repeated launch requirement.")]),
+        paragraph([commentedText("Repeated launch requirement.")]),
+    ]);
+
+    mockGetDocumentThread({
+        commentCount: 0,
+        content: contentFromCommentedText("Repeated launch requirement."),
+    });
+    mockGetDocument({content});
+    mockMessages({totalMessageCount: 0});
+
+    const response = await callAgentWebReadTool(context, {
+        path: documentThreadPath,
+        limit: "10kb",
+    });
+
+    expect({documentGetCount: api.getCallCount("GET", "/documents/{id}"), response}).toEqual({
+        documentGetCount: 1,
+        response: `\
+Document comment thread on [Launch Spec](/document/launch-spec).
+
+- [ ] Unresolved
+
+<blockquote match="2">\n\nRepeated launch requirement.\n\n</blockquote>
+
+End of comments.`,
+    });
+});
+
+test("uses a fresh cached document when computing quote match", async () => {
+    const content = contentFromBlockElements([
+        paragraph([text("Repeated launch requirement.")]),
+        paragraph([commentedText("Repeated launch requirement.")]),
+    ]);
+
+    mockGetDocument({content});
+    await callAgentWebReadTool(context, {
+        path: "/document/launch-spec",
+        limit: "10kb",
+    });
+
+    mockGetDocumentThread({
+        commentCount: 0,
+        content: contentFromCommentedText("Repeated launch requirement."),
+    });
+    mockMessages({totalMessageCount: 0});
+
+    const response = await callAgentWebReadTool(context, {
+        path: documentThreadPath,
+        limit: "10kb",
+    });
+
+    expect({documentGetCount: api.getCallCount("GET", "/documents/{id}"), response}).toEqual({
+        documentGetCount: 1,
+        response: `\
+Document comment thread on [Launch Spec](/document/launch-spec).
+
+- [ ] Unresolved
+
+<blockquote match="2">\n\nRepeated launch requirement.\n\n</blockquote>
+
+End of comments.`,
+    });
+});
+
+test("refreshes an expired cached document when computing quote match", async () => {
+    mockGetDocument({content: contentFromCommentedText("Old cached requirement.")});
+    await callAgentWebReadTool(context, {
+        path: "/document/launch-spec",
+        limit: "10kb",
+    });
+    await expireDocumentReadCache();
+
+    const content = contentFromBlockElements([
+        paragraph([text("Repeated launch requirement.")]),
+        paragraph([commentedText("Repeated launch requirement.")]),
+    ]);
+
+    mockGetDocumentThread({
+        commentCount: 0,
+        content: contentFromCommentedText("Repeated launch requirement."),
+    });
+    mockGetDocument({content});
+    mockMessages({totalMessageCount: 0});
+
+    const response = await callAgentWebReadTool(context, {
+        path: documentThreadPath,
+        limit: "10kb",
+    });
+
+    expect({documentGetCount: api.getCallCount("GET", "/documents/{id}"), response}).toEqual({
+        documentGetCount: 2,
+        response: `\
+Document comment thread on [Launch Spec](/document/launch-spec).
+
+- [ ] Unresolved
+
+<blockquote match="2">\n\nRepeated launch requirement.\n\n</blockquote>
+
+End of comments.`,
+    });
+});
+
+test("reads match deleted when unresolved commented content was removed", async () => {
+    mockGetDocumentThread({
+        commentCount: 0,
+        content: contentFromCommentedText("Removed launch requirement."),
+    });
+    mockGetDocument({
+        content: contentFromBlockElements([paragraph([text("Current launch requirement.")])]),
+    });
+    mockMessages({totalMessageCount: 0});
+
+    await expect(
+        callAgentWebReadTool(context, {
+            path: documentThreadPath,
+            limit: "10kb",
+        }),
+    ).resolves.toEqual(`\
+Document comment thread on [Launch Spec](/document/launch-spec).
+
+- [ ] Unresolved
+
+<blockquote match="deleted">\n\nRemoved launch requirement.\n\n</blockquote>
 
 End of comments.`);
 });
@@ -429,24 +584,24 @@ Document comment thread on [Launch Spec](/document/launch-spec).
 
 - [x] Resolved
 
-<blockquote cite="../..">\n\nPreview only.\n\n</blockquote>
+<blockquote>\n\nPreview only.\n\n</blockquote>
 
 End of comments.`);
 });
 
-test("reads formatted quoted commented text", async () => {
+test("reads quote match for repeated formatted text", async () => {
+    const content = contentFromBlockElements([
+        paragraph([text("Launch "), text("window", [{type: "Bold"}]), text(".")]),
+        paragraph([text("Launch "), commentedText("window", {marks: [{type: "Bold"}]}), text(".")]),
+    ]);
+
     mockGetDocumentThread({
         commentCount: 0,
         content: contentFromBlockElements([
-            paragraph([
-                text("Before "),
-                commentedText("bold", {marks: [{type: "Bold"}]}),
-                commentedText(" and "),
-                commentedText("italic", {marks: [{type: "Italic"}]}),
-                text(" after."),
-            ]),
+            paragraph([commentedText("window", {marks: [{type: "Bold"}]})]),
         ]),
     });
+    mockGetDocument({content});
     mockMessages({totalMessageCount: 0});
 
     await expect(
@@ -459,21 +614,30 @@ Document comment thread on [Launch Spec](/document/launch-spec).
 
 - [ ] Unresolved
 
-<blockquote cite="../..">\n\n**bold** and _italic_\n\n</blockquote>
+<blockquote match="2">\n\n**window**\n\n</blockquote>
 
 End of comments.`);
 });
 
-test("reads quoted commented content with multiple paragraphs", async () => {
+test("reads quote match for repeated formatted text (subset of text)", async () => {
+    const content = contentFromBlockElements([
+        paragraph([text("Launch "), text("window", [{type: "Bold"}]), text(".")]),
+        paragraph([
+            text("Launch "),
+            text("wi", [{type: "Bold"}]),
+            commentedText("ndo", {marks: [{type: "Bold"}]}),
+            text("w", [{type: "Bold"}]),
+            text("."),
+        ]),
+    ]);
+
     mockGetDocumentThread({
         commentCount: 0,
         content: contentFromBlockElements([
-            paragraph([text("Before paragraph.")]),
-            paragraph([commentedText("First paragraph.")]),
-            paragraph([commentedText("Second paragraph.")]),
-            paragraph([text("After paragraph.")]),
+            paragraph([commentedText("ndo", {marks: [{type: "Bold"}]})]),
         ]),
     });
+    mockGetDocument({content});
     mockMessages({totalMessageCount: 0});
 
     await expect(
@@ -486,27 +650,32 @@ Document comment thread on [Launch Spec](/document/launch-spec).
 
 - [ ] Unresolved
 
-<blockquote cite="../..">\n\nFirst paragraph.\n\nSecond paragraph.\n\n</blockquote>
+<blockquote match="2">\n\n**ndo**\n\n</blockquote>
 
 End of comments.`);
 });
 
-test("reads quoted commented list items with partial start and end items", async () => {
+test("reads quote match for repeated list item text", async () => {
+    const content = contentFromBlockElements([
+        {
+            type: "UnorderedList",
+            items: [
+                {elements: [paragraph([text("Repeated list item.")])]},
+                {elements: [paragraph([commentedText("Repeated list item.")])]},
+            ],
+        },
+    ]);
+
     mockGetDocumentThread({
         commentCount: 0,
         content: contentFromBlockElements([
             {
                 type: "UnorderedList",
-                items: [
-                    {elements: [paragraph([text("Before item.")])]},
-                    {elements: [paragraph([text("Start skip "), commentedText("first tail")])]},
-                    {elements: [paragraph([commentedText("middle item")])]},
-                    {elements: [paragraph([commentedText("last head"), text(" end skip")])]},
-                    {elements: [paragraph([text("After item.")])]},
-                ],
+                items: [{elements: [paragraph([commentedText("Repeated list item.")])]}],
             },
         ]),
     });
+    mockGetDocument({content});
     mockMessages({totalMessageCount: 0});
 
     await expect(
@@ -519,24 +688,205 @@ Document comment thread on [Launch Spec](/document/launch-spec).
 
 - [ ] Unresolved
 
-<blockquote cite="../..">\n\n- first tail\n\n- middle item\n\n- last head\n\n</blockquote>
+<blockquote match="2">\n\n- Repeated list item.\n\n</blockquote>
+
+End of comments.`);
+});
+
+test("reads quote match for repeated list item text (subset of text)", async () => {
+    const content = contentFromBlockElements([
+        {
+            type: "UnorderedList",
+            items: [
+                {elements: [paragraph([text("Repeated list item.")])]},
+                {
+                    elements: [
+                        paragraph([text("Re"), commentedText("peated list"), text(" item.")]),
+                    ],
+                },
+            ],
+        },
+    ]);
+
+    mockGetDocumentThread({
+        commentCount: 0,
+        content: contentFromBlockElements([
+            {
+                type: "UnorderedList",
+                items: [{elements: [paragraph([commentedText("peated list")])]}],
+            },
+        ]),
+    });
+    mockGetDocument({content});
+    mockMessages({totalMessageCount: 0});
+
+    await expect(
+        callAgentWebReadTool(context, {
+            path: documentThreadPath,
+            limit: "10kb",
+        }),
+    ).resolves.toEqual(`\
+Document comment thread on [Launch Spec](/document/launch-spec).
+
+- [ ] Unresolved
+
+<blockquote match="2">\n\n- peated list\n\n</blockquote>
+
+End of comments.`);
+});
+
+test("reads quote match for repeated table cell text", async () => {
+    const content = contentFromBlockElements([
+        {
+            type: "Table",
+            hasHeaderRow: true,
+            hasHeaderColumn: false,
+            width: 1,
+            columns: [{width: 1}, {width: 1}],
+            rows: [
+                {
+                    cells: [
+                        {elements: [paragraph([text("Area")])]},
+                        {elements: [paragraph([text("Status")])]},
+                    ],
+                },
+                {
+                    cells: [
+                        {elements: [paragraph([text("Launch")])]},
+                        {elements: [paragraph([text("Ready")])]},
+                    ],
+                },
+                {
+                    cells: [
+                        {elements: [paragraph([text("Launch")])]},
+                        {elements: [paragraph([commentedText("Ready")])]},
+                    ],
+                },
+            ],
+        },
+    ]);
+
+    mockGetDocumentThread({
+        commentCount: 0,
+        content: contentFromBlockElements([paragraph([commentedText("Ready")])]),
+    });
+    mockGetDocument({content});
+    mockMessages({totalMessageCount: 0});
+
+    const response = await callAgentWebReadTool(context, {
+        path: documentThreadPath,
+        limit: "10kb",
+    });
+
+    expect({
+        hasMatch: response.includes('<blockquote match="2">'),
+        hasTableCell: response.includes("Ready"),
+    }).toEqual({hasMatch: true, hasTableCell: true});
+});
+
+test("reads formatted quoted commented text", async () => {
+    const content = contentFromBlockElements([
+        paragraph([
+            text("Before "),
+            commentedText("bold", {marks: [{type: "Bold"}]}),
+            commentedText(" and "),
+            commentedText("italic", {marks: [{type: "Italic"}]}),
+            text(" after."),
+        ]),
+    ]);
+
+    mockGetDocumentThread({commentCount: 0, content});
+    mockGetDocument({content});
+    mockMessages({totalMessageCount: 0});
+
+    await expect(
+        callAgentWebReadTool(context, {
+            path: documentThreadPath,
+            limit: "10kb",
+        }),
+    ).resolves.toEqual(`\
+Document comment thread on [Launch Spec](/document/launch-spec).
+
+- [ ] Unresolved
+
+<blockquote>\n\n**bold** and _italic_\n\n</blockquote>
+
+End of comments.`);
+});
+
+test("reads quoted commented content with multiple paragraphs", async () => {
+    const content = contentFromBlockElements([
+        paragraph([text("Before paragraph.")]),
+        paragraph([commentedText("First paragraph.")]),
+        paragraph([commentedText("Second paragraph.")]),
+        paragraph([text("After paragraph.")]),
+    ]);
+
+    mockGetDocumentThread({commentCount: 0, content});
+    mockGetDocument({content});
+    mockMessages({totalMessageCount: 0});
+
+    await expect(
+        callAgentWebReadTool(context, {
+            path: documentThreadPath,
+            limit: "10kb",
+        }),
+    ).resolves.toEqual(`\
+Document comment thread on [Launch Spec](/document/launch-spec).
+
+- [ ] Unresolved
+
+<blockquote>\n\nFirst paragraph.\n\nSecond paragraph.\n\n</blockquote>
+
+End of comments.`);
+});
+
+test("reads quoted commented list items with partial start and end items", async () => {
+    const content = contentFromBlockElements([
+        {
+            type: "UnorderedList",
+            items: [
+                {elements: [paragraph([text("Before item.")])]},
+                {elements: [paragraph([text("Start skip "), commentedText("first tail")])]},
+                {elements: [paragraph([commentedText("middle item")])]},
+                {elements: [paragraph([commentedText("last head"), text(" end skip")])]},
+                {elements: [paragraph([text("After item.")])]},
+            ],
+        },
+    ]);
+
+    mockGetDocumentThread({commentCount: 0, content});
+    mockGetDocument({content});
+    mockMessages({totalMessageCount: 0});
+
+    await expect(
+        callAgentWebReadTool(context, {
+            path: documentThreadPath,
+            limit: "10kb",
+        }),
+    ).resolves.toEqual(`\
+Document comment thread on [Launch Spec](/document/launch-spec).
+
+- [ ] Unresolved
+
+<blockquote>\n\n- first tail\n\n- middle item\n\n- last head\n\n</blockquote>
 
 End of comments.`);
 });
 
 test("reads only the first disjoint quoted commented range", async () => {
-    mockGetDocumentThread({
-        commentCount: 0,
-        content: contentFromBlockElements([
-            paragraph([
-                text("Before "),
-                commentedText("first"),
-                text(" gap "),
-                commentedText("second"),
-                text(" after."),
-            ]),
+    const content = contentFromBlockElements([
+        paragraph([
+            text("Before "),
+            commentedText("first"),
+            text(" gap "),
+            commentedText("second"),
+            text(" after."),
         ]),
-    });
+    ]);
+
+    mockGetDocumentThread({commentCount: 0, content});
+    mockGetDocument({content});
     mockMessages({totalMessageCount: 0});
 
     await expect(
@@ -549,30 +899,30 @@ Document comment thread on [Launch Spec](/document/launch-spec).
 
 - [ ] Unresolved
 
-<blockquote cite="../..">\n\nfirst\n\n</blockquote>
+<blockquote>\n\nfirst\n\n</blockquote>
 
 End of comments.`);
 });
 
 test("reads quoted commented text through a fully commented file gallery", async () => {
-    mockGetDocumentThread({
-        commentCount: 0,
-        content: contentFromBlockElements([
-            paragraph([text("Before "), commentedText("Selected text.")]),
-            {
-                type: "FileGallery",
-                rows: [
-                    {
-                        items: [
-                            {width: 0.5, element: commentedFile("image/png")},
-                            {width: 0.5, element: commentedFile("video/mp4")},
-                        ],
-                    },
-                ],
-            },
-            paragraph([text("After gallery.")]),
-        ]),
-    });
+    const content = contentFromBlockElements([
+        paragraph([text("Before "), commentedText("Selected text.")]),
+        {
+            type: "FileGallery",
+            rows: [
+                {
+                    items: [
+                        {width: 0.5, element: commentedFile("image/png")},
+                        {width: 0.5, element: commentedFile("video/mp4")},
+                    ],
+                },
+            ],
+        },
+        paragraph([text("After gallery.")]),
+    ]);
+
+    mockGetDocumentThread({commentCount: 0, content});
+    mockGetDocument({content});
     mockMessages({totalMessageCount: 0});
 
     await expect(
@@ -585,7 +935,7 @@ Document comment thread on [Launch Spec](/document/launch-spec).
 
 - [ ] Unresolved
 
-<blockquote cite="../..">
+<blockquote>
 
 Selected text.
 
@@ -610,6 +960,7 @@ test("reads a document thread comment link around the comment", async () => {
     });
 
     mockGetDocumentThread();
+    mockGetDocument();
     mockMessages({
         cursor: -14,
         totalMessageCount: 3,
@@ -631,7 +982,7 @@ Document comment thread on [Launch Spec](/document/launch-spec).
 
 - [ ] Unresolved
 
-<blockquote cite="../..">\n\ncurrent\n\n</blockquote>\n
+<blockquote>\n\ncurrent\n\n</blockquote>\n
 <comment id="0" from="[Bob](/human/bob)">\n\nNearby comment.\n\n</comment>\n
 <comment id="1" from="[Alice](/human/alice)" time="5 minutes later">\n\nSecond comment.\n\n</comment>\n
 <comment id="2" from="[Bob](/human/bob)" time="5 minutes later">\n\nNearby comment.\n\n</comment>

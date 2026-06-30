@@ -517,14 +517,14 @@ Please clarify this requirement.
     ).rejects.toThrow(UnimplementedError);
 });
 
-test("rejects creating a document thread with an invalid quote cite", async () => {
+test("rejects creating a document thread with a deleted quote match", async () => {
     await createAndReadDocument({bodyMarkdown: "Quoted launch requirement."});
 
     await expectInvalidCreateDisplayMessage({
         content: `\
 Document comment thread on [Launch Spec](/document/launch-spec).
 
-<blockquote cite="/document/launch-spec">
+<blockquote match="deleted">
 
 Quoted launch requirement.
 
@@ -536,7 +536,7 @@ Please clarify this requirement.
 
 </comment>`,
         expected:
-            'Invalid `<blockquote>` `cite` attribute on line 3. The `<blockquote>` `cite` attribute must always be `cite="../.."` since we always want to quote content from the parent document. Try again with `cite="../.."` or omit the `cite` attribute entirely (`cite="../.."` is implied).',
+            'You can’t use `match="deleted"` when creating a document comment thread. `match="deleted"` is only used when reading an unresolved document comment thread whose commented content has been removed from the document. Try again with a 1-indexed integer `match` attribute or omit the `match` attribute.',
     });
 });
 

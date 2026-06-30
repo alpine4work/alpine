@@ -306,6 +306,13 @@ function mockGetDocumentThread({
     );
 }
 
+function mockGetDocument({content = createPreviewContent()}: {content?: ApiContentResponse} = {}) {
+    api.mockGetDocument(spaceId, documentId, {
+        title: documentReference.title,
+        content,
+    });
+}
+
 async function readDocumentThread({
     path = documentThreadPath,
     limit = "100kb",
@@ -321,7 +328,13 @@ async function readDocumentThread({
     previewContent?: ApiContentResponse;
     isResolved?: boolean;
 }): Promise<string> {
-    mockGetDocumentThread({content: previewContent, isResolved});
+    const actualPreviewContent = previewContent ?? createPreviewContent();
+
+    mockGetDocumentThread({content: actualPreviewContent, isResolved});
+
+    if (!isResolved) {
+        mockGetDocument({content: actualPreviewContent});
+    }
 
     mockApiGetDocumentThreadMessages(api, {
         spaceId,
@@ -419,8 +432,8 @@ async function addMatchAttributeToStoredDocumentPreview() {
     assert(readResponse !== undefined);
 
     const response = readResponse.response.replace(
-        '<blockquote cite="../..">',
-        '<blockquote cite="../.." match="2">',
+        "<blockquote>",
+        '<blockquote match="2">',
     );
     assert(response !== readResponse.response);
 
@@ -511,8 +524,8 @@ test("rejects edits to the document preview match attribute", async () => {
     await expectInvalidUpdateDisplayMessage({
         updates: [
             {
-                old: '<blockquote cite="../..">',
-                new: '<blockquote cite="../.." match="2">',
+                old: "<blockquote>",
+                new: '<blockquote match="2">',
                 replaceAll: false,
             },
         ],
@@ -528,8 +541,8 @@ test("rejects changing the document preview match attribute", async () => {
     await expectInvalidUpdateDisplayMessage({
         updates: [
             {
-                old: '<blockquote cite="../.." match="2">',
-                new: '<blockquote cite="../.." match="3">',
+                old: '<blockquote match="2">',
+                new: '<blockquote match="3">',
                 replaceAll: false,
             },
         ],
