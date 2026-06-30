@@ -1,0 +1,101 @@
+import {ApiClientMock} from "~/server/agents/api/test_helpers/api_client_mock.js";
+import {createApiAccountMock} from "~/server/agents/api/test_helpers/create_api_account_mock.js";
+import {AgentWebContext} from "~/server/agents/web/agent_web_context.js";
+import {callAgentWebReadTool} from "~/server/agents/web/call_agent_web_read_tool.js";
+import {createAgentWebPageStoredLinkPathname} from "~/server/agents/web/create_agent_web_page_stored_link_pathname.js";
+import {createAgentWebSessionStorageForTest} from "~/server/agents/web/test_helpers/create_agent_web_session_storage_for_test.js";
+import {defaultTimeZone} from "~/shared/helpers/intl/time_zone.js";
+import {generateId} from "~/shared/id/id.js";
+import {AccountId, BotId, SpaceId, TaskCollectionId, TaskId} from "~/shared/id/types/id_types.js";
+import {testTracer} from "~/shared/tracer/dev/test_tracer.js";
+
+const {span} = testTracer.startSpan("call_agent_web_read_tool_for_task.test.ts");
+const api = new ApiClientMock();
+const spaceId = generateId<SpaceId>();
+const storage = createAgentWebSessionStorageForTest(spaceId);
+
+const botAccountId = generateId<AccountId>();
+const botId = generateId<BotId>();
+
+const context: AgentWebContext = {
+    spaceId,
+    api,
+    storage,
+    span,
+    timeZone: defaultTimeZone,
+    botAccount: {
+        type: "Account",
+        id: botAccountId,
+        title: "ChatGPT",
+        shortName: "ChatGPT",
+        bot: {id: botId},
+        pathname: "/bot/chatgpt",
+    },
+};
+
+test("reads full task page", async () => {
+    const taskId = generateId<TaskId>();
+    const engineeringCollectionId = generateId<TaskCollectionId>();
+    const roadmapCollectionId = generateId<TaskCollectionId>();
+    const aliceAccount = createApiAccountMock({name: "Alice"});
+
+    await createAgentWebPageStoredLinkPathname(storage, {
+        type: "Task",
+        id: taskId,
+        title: "Ship task page",
+        status: {type: "Open", isActive: true},
+    });
+
+    api.mockGetTask(spaceId, taskId, {
+        title: "Ship task page",
+        status: {type: "Open", isActive: true},
+        assignee: aliceAccount,
+        collections: [
+            {collection: {id: engineeringCollectionId, name: "Engineering"}},
+            {collection: {id: roadmapCollectionId, name: "Roadmap"}},
+        ],
+        priority: {type: "Urgent"},
+        due: {date: "2025-07-12"},
+    });
+
+    expect(
+        await callAgentWebReadTool(context, {
+            path: "/task/ship-task-page",
+            limit: "10kb",
+        }),
+    ).toEqual(`\
+# Ship task page
+
+- Status: Open (Active)
+- Assignee: [Alice](/human/alice)
+- Collections: [Engineering](/task-collection/engineering), [Roadmap](/task-collection/roadmap)
+- Priority: Urgent
+- Due date: July 12th, 2025`);
+});
+
+test("reads task page with hidden optional fields", async () => {
+    const taskId = generateId<TaskId>();
+
+    await createAgentWebPageStoredLinkPathname(storage, {
+        type: "Task",
+        id: taskId,
+        title: "Bare task",
+        status: {type: "Closed"},
+    });
+
+    api.mockGetTask(spaceId, taskId, {
+        title: "Bare task",
+        status: {type: "Closed"},
+        collections: [],
+    });
+
+    expect(
+        await callAgentWebReadTool(context, {
+            path: "/task/bare-task",
+            limit: "10kb",
+        }),
+    ).toEqual(`\
+# Bare task
+
+- Status: Closed`);
+});
