@@ -114,8 +114,7 @@ export type AgentWebDocumentThreadPageCustomBlock = {
     readonly type: "Custom";
     readonly tagName: "blockquote";
     readonly timeAttribute: null;
-    readonly hasCiteAttribute: boolean;
-    readonly matchAttribute: number | null;
+    readonly matchAttribute: number | "deleted" | null;
     readonly content: ApiContentResponseWithoutKeys;
 };
 
@@ -205,32 +204,34 @@ export async function readAgentWebDocumentThreadPage(
         // block.
         if (excludesDocumentPreview) return await roomMetadataWithoutStartCustomBlock.get();
 
-        const [
-            {
-                data: {thread},
-            },
-            documentPage,
-        ] = await runAllPromises([
-            context.api.get(context.span, "/documents/{id}/threads/{threadId}", {
-                params: {path: {id, threadId}},
-            }),
-            documentPagePromise.get(),
-        ]);
-
-        const documentContent = zipKeysIntoApiContentResponse({
-            content: documentPage.content,
-            keys: documentPage.metadata.keys,
+        const {
+            data: {thread},
+        } = await context.api.get(context.span, "/documents/{id}/threads/{threadId}", {
+            params: {path: {id, threadId}},
         });
 
         // Extract out the first slice of content where the comment appears. May return
         // null if the comment was removed from the document.
-        const documentContentSliceResult = !thread.isResolved
-            ? extractCommentSliceFromApiContent(threadId, documentContent)
-            : null;
+        let documentContentSliceResult: {
+            contentSlice: ApiContentResponseWithoutKeys;
+            range: ApiContentRange;
+        } | null = null;
 
         let matchAttribute: number | "deleted" | null = null;
 
         if (!thread.isResolved) {
+            const documentPage = await documentPagePromise.get();
+
+            const documentContent = zipKeysIntoApiContentResponse({
+                content: documentPage.content,
+                keys: documentPage.metadata.keys,
+            });
+
+            documentContentSliceResult = extractCommentSliceFromApiContent(
+                threadId,
+                documentContent,
+            );
+
             if (!documentContentSliceResult) {
                 matchAttribute = "deleted";
             } else {
@@ -269,7 +270,6 @@ export async function readAgentWebDocumentThreadPage(
             type: "Custom",
             tagName: "blockquote",
             timeAttribute: null,
-            hasCiteAttribute: true,
             matchAttribute,
             content:
                 documentContentSliceResult?.contentSlice ??
@@ -562,6 +562,12 @@ export async function createAgentWebDocumentThreadPage(
         });
     }
 
+    if (quoteBlock.matchAttribute === "deleted") {
+        throw new InvalidArgumentError("Can\u2019t create document thread with deleted match", {
+            displayMessage: errorDisplayMessage`You can\u2019t use \`match="deleted"\` when creating a document comment thread. \`match="deleted"\` is only used when reading an unresolved document comment thread whose commented content has been removed from the document. Try again with a 1-indexed integer \`match\` attribute or omit the \`match\` attribute.`,
+        });
+    }
+
     if (
         quoteBlock.matchAttribute !== null &&
         (quoteBlock.matchAttribute < 1 || quoteBlock.matchAttribute > ranges.length)
@@ -765,10 +771,6 @@ export async function printAgentWebDocumentThreadPage(
 
             let openTag = "<blockquote";
 
-            if (block.hasCiteAttribute) {
-                openTag += ` cite="../.."`;
-            }
-
             if (block.matchAttribute !== null) {
                 openTag += ` match="${block.matchAttribute}"`;
             }
@@ -885,8 +887,10 @@ export async function parseAgentWebDocumentThreadPageAndReturnDocumentPath(
                 root,
                 {openTag, openTagPosition},
             ): Promise<AgentWebDocumentThreadPageCustomBlock> => {
-                const {hasCiteAttribute, matchAttribute} =
-                    parseAgentWebDocumentThreadPageBlockquoteOpenTag(openTag, openTagPosition);
+                const matchAttribute = parseAgentWebDocumentThreadPageBlockquoteOpenTag(
+                    openTag,
+                    openTagPosition,
+                );
 
                 const content = await parseApiContentFromAgentWebMarkdownTree(storage, root, {
                     documentId: pageLink?.document.id ?? null,
@@ -896,7 +900,6 @@ export async function parseAgentWebDocumentThreadPageAndReturnDocumentPath(
                     type: "Custom",
                     tagName: "blockquote",
                     timeAttribute: null,
-                    hasCiteAttribute,
                     matchAttribute,
                     content,
                 };
@@ -995,11 +998,10 @@ function parseAgentWebDocumentThreadPageResolvedState(
 function parseAgentWebDocumentThreadPageBlockquoteOpenTag(
     openTag: string,
     openTagPosition: Node["position"],
-): {hasCiteAttribute: boolean; matchAttribute: number | null} {
+): number | "deleted" | null {
     let hasBlockquoteOpenTag = false;
     let hasEndedBlockquoteOpenTag = false;
-    let startedAttribute: "cite" | "match" | null = null;
-    let citeAttribute: string | null = null;
+    let isReadingMatchAttribute = false;
     let matchAttributeString: string | null = null;
 
     const tokenizer = new HtmlTokenizer(
@@ -1013,7 +1015,7 @@ function parseAgentWebDocumentThreadPageBlockquoteOpenTag(
             },
             onopentagend: () => {
                 if (hasBlockquoteOpenTag) {
-                    assert(!startedAttribute);
+                    assert(!isReadingMatchAttribute);
                     hasEndedBlockquoteOpenTag = true;
                 }
             },
@@ -1023,13 +1025,8 @@ function parseAgentWebDocumentThreadPageBlockquoteOpenTag(
                 const attributeName = openTag.slice(start, end).toLowerCase();
 
                 switch (attributeName) {
-                    case "cite": {
-                        startedAttribute = "cite";
-                        citeAttribute = "";
-                        break;
-                    }
                     case "match": {
-                        startedAttribute = "match";
+                        isReadingMatchAttribute = true;
                         matchAttributeString = "";
                         break;
                     }
@@ -1038,33 +1035,19 @@ function parseAgentWebDocumentThreadPageBlockquoteOpenTag(
             onattribdata: (start, end) => {
                 const attributeData = openTag.slice(start, end);
 
-                switch (startedAttribute) {
-                    case "cite": {
-                        citeAttribute += attributeData;
-                        break;
-                    }
-                    case "match": {
-                        matchAttributeString += attributeData;
-                        break;
-                    }
+                if (isReadingMatchAttribute) {
+                    matchAttributeString += attributeData;
                 }
             },
             onattribentity: codepoint => {
                 const attributeData = String.fromCodePoint(codepoint);
 
-                switch (startedAttribute) {
-                    case "cite": {
-                        citeAttribute += attributeData;
-                        break;
-                    }
-                    case "match": {
-                        matchAttributeString += attributeData;
-                        break;
-                    }
+                if (isReadingMatchAttribute) {
+                    matchAttributeString += attributeData;
                 }
             },
             onattribend: () => {
-                startedAttribute = null;
+                isReadingMatchAttribute = false;
             },
             onclosetag: () => {},
             onselfclosingtag: () => {},
@@ -1083,16 +1066,12 @@ function parseAgentWebDocumentThreadPageBlockquoteOpenTag(
 
     assert(hasBlockquoteOpenTag);
 
-    const hasCiteAttribute = citeAttribute !== null;
-
-    if (hasCiteAttribute && citeAttribute !== "../..") {
-        throw new InvalidArgumentError("Invalid document quote cite attribute", {
-            displayMessage: errorDisplayMessage`Invalid \`<blockquote>\` \`cite\` attribute on line ${openTagPosition?.start.line ?? "unknown"}. The \`<blockquote>\` \`cite\` attribute must always be \`cite="../.."\` since we always want to quote content from the parent document. Try again with \`cite="../.."\` or omit the \`cite\` attribute entirely (\`cite="../.."\` is implied).`,
-        });
+    if (matchAttributeString === null) {
+        return null;
     }
 
-    if (matchAttributeString === null) {
-        return {hasCiteAttribute, matchAttribute: null};
+    if (matchAttributeString === "deleted") {
+        return "deleted";
     }
 
     const matchAttribute = parseInt(matchAttributeString, 10);
@@ -1103,5 +1082,5 @@ function parseAgentWebDocumentThreadPageBlockquoteOpenTag(
         });
     }
 
-    return {hasCiteAttribute, matchAttribute};
+    return matchAttribute;
 }
