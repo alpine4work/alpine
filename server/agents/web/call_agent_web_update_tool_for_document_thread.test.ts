@@ -414,6 +414,23 @@ End of comments.`;
     });
 }
 
+async function addMatchAttributeToStoredDocumentPreview() {
+    const readResponse = await storage.readResponseByPath.get(documentThreadPath);
+    assert(readResponse !== undefined);
+
+    const response = readResponse.response.replace(
+        '<blockquote cite="../..">',
+        '<blockquote cite="../.." match="2">',
+    );
+    assert(response !== readResponse.response);
+
+    await storage.readResponseByPath.put(documentThreadPath, {
+        ...readResponse,
+        response,
+        newlineIndexes: getNewlineIndexes(response),
+    });
+}
+
 test("creates the first comment on a document thread", async () => {
     await readDocumentThread({totalCommentCount: 0});
     mockCreateComments({count: 1});
@@ -468,7 +485,7 @@ test("rejects edits to the document preview content", async () => {
     await expectInvalidUpdateDisplayMessage({
         updates: [{old: "current", new: "changed", replaceAll: false}],
         expected:
-            "You can\u2019t update the `<blockquote>` in document comment thread markdown. `<blockquote>` is a read-only preview of the document\u2019s content around the comment. If you want to update the document\u2019s content then call the `update` tool on the document itself.",
+            "You can\u2019t update the `<blockquote>` in document comment thread markdown. `<blockquote>` is a read-only preview of the document\u2019s content around the comment. Try again with a more specific update that only changes the content of comments from you or adds new comments. If you want to update the document\u2019s content then call the `update` tool on the document itself.",
     });
 });
 
@@ -484,7 +501,40 @@ test("rejects edits to the document preview formatting", async () => {
             },
         ],
         expected:
-            "You can\u2019t update the `<blockquote>` in document comment thread markdown. `<blockquote>` is a read-only preview of the document\u2019s content around the comment. If you want to update the document\u2019s content then call the `update` tool on the document itself.",
+            "You can\u2019t update the `<blockquote>` in document comment thread markdown. `<blockquote>` is a read-only preview of the document\u2019s content around the comment. Try again with a more specific update that only changes the content of comments from you or adds new comments. If you want to update the document\u2019s content then call the `update` tool on the document itself.",
+    });
+});
+
+test("rejects edits to the document preview match attribute", async () => {
+    await readDocumentThread({totalCommentCount: 0});
+
+    await expectInvalidUpdateDisplayMessage({
+        updates: [
+            {
+                old: '<blockquote cite="../..">',
+                new: '<blockquote cite="../.." match="2">',
+                replaceAll: false,
+            },
+        ],
+        expected:
+            "You can\u2019t update the `<blockquote>` `match` attribute in document comment thread markdown. `<blockquote>` is a read-only preview of the document\u2019s content around the comment and `match` is added when content in a document is repeated multiple times so you know which instance of the content the comment is for. Try again with a more specific update that only changes the content of comments from you or adds new comments. If you want to update the document\u2019s content then call the `update` tool on the document itself.",
+    });
+});
+
+test("rejects changing the document preview match attribute", async () => {
+    await readDocumentThread({totalCommentCount: 0});
+    await addMatchAttributeToStoredDocumentPreview();
+
+    await expectInvalidUpdateDisplayMessage({
+        updates: [
+            {
+                old: '<blockquote cite="../.." match="2">',
+                new: '<blockquote cite="../.." match="3">',
+                replaceAll: false,
+            },
+        ],
+        expected:
+            "You can\u2019t update the `<blockquote>` `match` attribute in document comment thread markdown. `<blockquote>` is a read-only preview of the document\u2019s content around the comment and `match` is added when content in a document is repeated multiple times so you know which instance of the content the comment is for. Try again with a more specific update that only changes the content of comments from you or adds new comments. If you want to update the document\u2019s content then call the `update` tool on the document itself.",
     });
 });
 
