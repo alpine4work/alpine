@@ -505,15 +505,16 @@ export async function convertMarkdownTreeToAgentWebMarkdownTree(
                     }
 
                     // If the LLM output a URL that can be parsed as a mention then remove the
-                    // `mention` search param! The LLM is only allowed to create mentions via the agent
-                    // web markdown syntax. We can't allow the LLM to create mentions this way since we
+                    // `mention` hash! The LLM is only allowed to create mentions via the agent web
+                    // markdown syntax. We can't allow the LLM to create mentions this way since we
                     // won't be able to create a response mention object with `title`.
                     if (url && parseApiMentionReferenceFromMarkdownUrlIfPossible(url)) {
                         if (url.pathname.startsWith("/mention/")) {
                             url.pathname = `/account/${url.pathname.slice("/mention/".length)}${url.pathname.endsWith("/") ? "" : "/"}${storage.spaceId}`;
+                            url.hash = "";
                             urlString = url.toString();
                         } else {
-                            url.searchParams.delete("mention");
+                            url.hash = "";
                             urlString = url.toString();
                         }
                     }

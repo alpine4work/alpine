@@ -3439,7 +3439,7 @@ test("streams link formatting correctly for link that looks like mention", async
         },
     ]);
 
-    message.pushText(null, ` over the](https://alpine.inc/doc/${documentId}?mention)`);
+    message.pushText(null, ` over the](https://alpine.inc/doc/${documentId}#mention)`);
 
     expect(await message.update(null).then(items => items.map(item => item.part))).toEqual([
         {
@@ -3522,7 +3522,7 @@ test("drops mention search param from links that look like mentions", async () =
 
     message.pushText(
         null,
-        `Read [the document](https://alpine.inc/doc/${documentId}?mention&view=full).`,
+        `Read [the document](https://alpine.inc/doc/${documentId}?view=full#mention).`,
     );
 
     expect(await message.update(null).then(items => items.map(item => item.part))).toEqual([
@@ -3612,7 +3612,7 @@ test("streams account mention URL as a non-mention link", async () => {
 test("streams link formatting correctly for truncated link that looks like mention", async () => {
     const documentId = generateId<DocumentId>();
 
-    const truncatedUrl = `https://alpine.inc/doc/${documentId.slice(0, 17)}…${documentId.slice(-2)}?mention`;
+    const truncatedUrl = `https://alpine.inc/doc/${documentId.slice(0, 17)}…${documentId.slice(-2)}#mention`;
 
     expect(
         await printApiContentToAgentWebMarkdown(
@@ -3628,7 +3628,7 @@ test("streams link formatting correctly for truncated link that looks like menti
                                 marks: [
                                     {
                                         type: "Link",
-                                        url: `https://alpine.inc/doc/${documentId}?mention`,
+                                        url: `https://alpine.inc/doc/${documentId}#mention`,
                                     },
                                 ],
                             },
