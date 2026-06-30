@@ -22,6 +22,7 @@ const storage = createAgentWebSessionStorageForTest(spaceId);
 const botAccountId = generateId<AccountId>();
 const botId = generateId<BotId>();
 const aliceAccount = createApiAccountMock({name: "Alice"});
+const bobAccount = createApiAccountMock({name: "Bob"});
 const engineeringCollectionId = generateId<TaskCollectionId>();
 const roadmapCollectionId = generateId<TaskCollectionId>();
 const engineeringCollectionReference = {
@@ -53,6 +54,7 @@ const context: AgentWebContext = {
 
 beforeEach(async () => {
     await createAgentWebPageStoredLinkPathname(storage, intoApiAccountReference(aliceAccount));
+    await createAgentWebPageStoredLinkPathname(storage, intoApiAccountReference(bobAccount));
     await createAgentWebPageStoredLinkPathname(storage, engineeringCollectionReference);
     await createAgentWebPageStoredLinkPathname(storage, roadmapCollectionReference);
 });
@@ -201,7 +203,10 @@ test("updates task title", async () => {
 });
 
 test("updates task status to active and closed", async () => {
-    const {taskId, path} = await readTask({title: "Status task"});
+    const {taskId, path} = await readTask({
+        title: "Status task",
+        assignee: aliceAccount,
+    });
     mockTaskPatch(taskId, 2);
 
     await callAgentWebUpdateTool(context, {
@@ -217,6 +222,95 @@ test("updates task status to active and closed", async () => {
         {patches: [{type: "SetStatus", status: {type: "Open", isActive: true}}]},
         {patches: [{type: "SetStatus", status: {type: "Closed"}}]},
     ]);
+});
+
+test("updates task status to explicit inactive open", async () => {
+    const {taskId, path} = await readTask({
+        title: "Status task",
+        status: {type: "Closed"},
+    });
+    mockTaskPatch(taskId);
+
+    await expect(
+        callAgentWebUpdateTool(context, {
+            path,
+            updates: [
+                {
+                    old: "- Status: Closed",
+                    new: "- Status: Open (Inactive)",
+                    replaceAll: false,
+                },
+            ],
+        }),
+    ).resolves.toEqual("Update was successful.\n");
+
+    expect(getTaskPatchRequests().map(request => request.body)).toEqual([
+        {patches: [{type: "SetStatus", status: {type: "Open", isActive: false}}]},
+    ]);
+});
+
+test("removes task status after reading task with status set", async () => {
+    const {taskId, path} = await readTask({
+        title: "Status task",
+        status: {type: "Closed"},
+    });
+    mockTaskPatch(taskId);
+
+    await expect(
+        callAgentWebUpdateTool(context, {
+            path,
+            updates: [{old: "- Status: Closed", new: "", replaceAll: false}],
+        }),
+    ).resolves.toEqual("Update was successful.\n");
+
+    expect(getTaskPatchRequests().map(request => request.body)).toEqual([
+        {patches: [{type: "SetStatus", status: {type: "Open", isActive: false}}]},
+    ]);
+});
+
+test("changes task status after reading task with status set", async () => {
+    const {taskId, path} = await readTask({
+        title: "Status task",
+        status: {type: "Closed"},
+        assignee: aliceAccount,
+    });
+    mockTaskPatch(taskId);
+
+    await expect(
+        callAgentWebUpdateTool(context, {
+            path,
+            updates: [
+                {
+                    old: "- Status: Closed",
+                    new: "- Status: Open (Active)",
+                    replaceAll: false,
+                },
+            ],
+        }),
+    ).resolves.toEqual("Update was successful.\n");
+
+    expect(getTaskPatchRequests().map(request => request.body)).toEqual([
+        {patches: [{type: "SetStatus", status: {type: "Open", isActive: true}}]},
+    ]);
+});
+
+test("rejects setting task active without assignee on update", async () => {
+    const {path} = await readTask({title: "Status task"});
+
+    await expectUpdateDisplayMessage({
+        path,
+        updates: [
+            {
+                old: "- Status: Open",
+                new: "- Status: Open (Active)",
+                replaceAll: false,
+            },
+        ],
+        expected:
+            "Can\u2019t set task as active if there\u2019s no assignee. We don\u2019t recommend setting a task as active unless you\u2019re about to work on the task or you know someone else is currently working on the task. Try again and either set the task as open but inactive (e.g. `- Status: Open`) or set an assignee (e.g. `- Assignee: [ChatGPT](/bot/chatgpt)`).",
+    });
+
+    expect(getTaskPatchRequests()).toHaveLength(0);
 });
 
 test("sets and clears task assignee", async () => {
@@ -281,6 +375,79 @@ test("sets and clears task assignee by removing assignee field entirely", async 
     ]);
 });
 
+test("removes task assignee after reading task with assignee set", async () => {
+    const {taskId, path} = await readTask({
+        title: "Assignee task",
+        assignee: aliceAccount,
+    });
+    mockTaskPatch(taskId);
+
+    await expect(
+        callAgentWebUpdateTool(context, {
+            path,
+            updates: [
+                {
+                    old: "\n- Assignee: [Alice](/human/alice)",
+                    new: "",
+                    replaceAll: false,
+                },
+            ],
+        }),
+    ).resolves.toEqual("Update was successful.\n");
+
+    expect(getTaskPatchRequests().map(request => request.body)).toEqual([
+        {patches: [{type: "SetAssignee", assignee: null}]},
+    ]);
+});
+
+test("changes task assignee after reading task with assignee set", async () => {
+    const {taskId, path} = await readTask({
+        title: "Assignee task",
+        assignee: aliceAccount,
+    });
+    mockTaskPatch(taskId);
+
+    await expect(
+        callAgentWebUpdateTool(context, {
+            path,
+            updates: [
+                {
+                    old: "- Assignee: [Alice](/human/alice)",
+                    new: "- Assignee: [Bob](/human/bob)",
+                    replaceAll: false,
+                },
+            ],
+        }),
+    ).resolves.toEqual("Update was successful.\n");
+
+    expect(getTaskPatchRequests().map(request => request.body)).toEqual([
+        {patches: [{type: "SetAssignee", assignee: intoApiAccountReference(bobAccount)}]},
+    ]);
+});
+
+test("rejects removing assignee from active task on update", async () => {
+    const {path} = await readTask({
+        title: "Assignee task",
+        status: {type: "Open", isActive: true},
+        assignee: aliceAccount,
+    });
+
+    await expectUpdateDisplayMessage({
+        path,
+        updates: [
+            {
+                old: "\n- Assignee: [Alice](/human/alice)",
+                new: "",
+                replaceAll: false,
+            },
+        ],
+        expected:
+            "Can\u2019t remove the assignee from an active task. An active task implies someone is currently working on the task and so an assignee is required so we know who that is. Try again but set the task as inactive first (e.g. `- Status: Open`).",
+    });
+
+    expect(getTaskPatchRequests()).toHaveLength(0);
+});
+
 test("sets and clears task priority", async () => {
     const {taskId, path} = await readTask({title: "Priority task"});
     mockTaskPatch(taskId, 2);
@@ -303,6 +470,44 @@ test("sets and clears task priority", async () => {
     expect(getTaskPatchRequests().map(request => request.body)).toEqual([
         {patches: [{type: "SetPriority", priority: {type: "Urgent"}}]},
         {patches: [{type: "SetPriority", priority: null}]},
+    ]);
+});
+
+test("removes task priority after reading task with priority set", async () => {
+    const {taskId, path} = await readTask({
+        title: "Priority task",
+        priority: {type: "Urgent"},
+    });
+    mockTaskPatch(taskId);
+
+    await expect(
+        callAgentWebUpdateTool(context, {
+            path,
+            updates: [{old: "\n- Priority: Urgent", new: "", replaceAll: false}],
+        }),
+    ).resolves.toEqual("Update was successful.\n");
+
+    expect(getTaskPatchRequests().map(request => request.body)).toEqual([
+        {patches: [{type: "SetPriority", priority: null}]},
+    ]);
+});
+
+test("changes task priority after reading task with priority set", async () => {
+    const {taskId, path} = await readTask({
+        title: "Priority task",
+        priority: {type: "Urgent"},
+    });
+    mockTaskPatch(taskId);
+
+    await expect(
+        callAgentWebUpdateTool(context, {
+            path,
+            updates: [{old: "- Priority: Urgent", new: "- Priority: Low", replaceAll: false}],
+        }),
+    ).resolves.toEqual("Update was successful.\n");
+
+    expect(getTaskPatchRequests().map(request => request.body)).toEqual([
+        {patches: [{type: "SetPriority", priority: {type: "Low"}}]},
     ]);
 });
 
@@ -332,7 +537,111 @@ test("sets and clears task due date", async () => {
 });
 
 test.each([
+    ["month first with ordinal", "July 12th, 2025", "2025-07-12"],
+    // eslint-disable-next-line cyberworlds/string-quotes
+    ["abbreviated month with short year", "Jul 12, '25", "2025-07-12"],
+    ["day first with ordinal", "12th July 2025", "2025-07-12"],
+    ["numeric slash with short year", "7/12/25", "2025-07-12"],
+    ["numeric dash with full year", "07-12-2025", "2025-07-12"],
+])("sets task due date from parsed date style: %s", async (name, dueDate, expectedDate) => {
+    const {taskId, path} = await readTask({title: "Due date task"});
+    mockTaskPatch(taskId);
+
+    await expect(
+        callAgentWebUpdateTool(context, {
+            path,
+            updates: [
+                {
+                    old: "- Status: Open",
+                    new: `- Status: Open\n- Due date: ${dueDate}`,
+                    replaceAll: false,
+                },
+            ],
+        }),
+    ).resolves.toEqual("Update was successful.\n");
+
+    expect(getTaskPatchRequests().map(request => request.body)).toEqual([
+        {patches: [{type: "SetDue", due: {date: expectedDate}}]},
+    ]);
+});
+
+test("sets task due date without year using context year", async () => {
+    import.meta.jest.useFakeTimers();
+    try {
+        import.meta.jest.setSystemTime(new Date("2031-02-03T12:00:00.000Z"));
+
+        const {taskId, path} = await readTask({title: "Due date task"});
+        mockTaskPatch(taskId);
+
+        await expect(
+            callAgentWebUpdateTool(context, {
+                path,
+                updates: [
+                    {
+                        old: "- Status: Open",
+                        new: "- Status: Open\n- Due date: July 12",
+                        replaceAll: false,
+                    },
+                ],
+            }),
+        ).resolves.toEqual("Update was successful.\n");
+    } finally {
+        import.meta.jest.useRealTimers();
+    }
+
+    expect(getTaskPatchRequests().map(request => request.body)).toEqual([
+        {patches: [{type: "SetDue", due: {date: "2031-07-12"}}]},
+    ]);
+});
+
+test("removes task due date after reading task with due date set", async () => {
+    const {taskId, path} = await readTask({
+        title: "Due date task",
+        due: {date: "2027-07-12"},
+    });
+    mockTaskPatch(taskId);
+
+    await expect(
+        callAgentWebUpdateTool(context, {
+            path,
+            updates: [{old: "\n- Due date: July 12th, 2027", new: "", replaceAll: false}],
+        }),
+    ).resolves.toEqual("Update was successful.\n");
+
+    expect(getTaskPatchRequests().map(request => request.body)).toEqual([
+        {patches: [{type: "SetDue", due: null}]},
+    ]);
+});
+
+test("changes task due date after reading task with due date set", async () => {
+    const {taskId, path} = await readTask({
+        title: "Due date task",
+        due: {date: "2027-07-12"},
+    });
+    mockTaskPatch(taskId);
+
+    await expect(
+        callAgentWebUpdateTool(context, {
+            path,
+            updates: [
+                {
+                    old: "- Due date: July 12th, 2027",
+                    new: "- Due date: July 12th, 2025",
+                    replaceAll: false,
+                },
+            ],
+        }),
+    ).resolves.toEqual("Update was successful.\n");
+
+    expect(getTaskPatchRequests().map(request => request.body)).toEqual([
+        {patches: [{type: "SetDue", due: {date: "2025-07-12"}}]},
+    ]);
+});
+
+test.each([
     ["date with time", "2027-07-12T09:00:00"],
+    ["prose date with time", "July 12th, 2025 at 11:00pm"],
+    ["multiple dates", "July 12th, 2025 and July 13th, 2025"],
     ["not a date", "sometime after launch"],
 ])("rejects improperly formatted due date on update: %s", async (_name, dueDate) => {
     const {path} = await readTask({title: "Invalid due date task"});
@@ -388,4 +697,141 @@ test("adds and removes task collections", async () => {
         },
         {patches: [{type: "RemoveCollection", collectionId: engineeringCollectionId}]},
     ]);
+});
+
+test("adds task collection after reading task with collection set", async () => {
+    const {taskId, path} = await readTask({
+        title: "Collection task",
+        collectionIds: [engineeringCollectionId],
+    });
+    mockTaskPatch(taskId);
+
+    await expect(
+        callAgentWebUpdateTool(context, {
+            path,
+            updates: [
+                {
+                    old: "- Collections: [Engineering](/task-collection/engineering)",
+                    new: "- Collections: [Engineering](/task-collection/engineering), [Roadmap](/task-collection/roadmap)",
+                    replaceAll: false,
+                },
+            ],
+        }),
+    ).resolves.toEqual("Update was successful.\n");
+
+    expect(getTaskPatchRequests().map(request => request.body)).toEqual([
+        {
+            patches: [
+                {
+                    type: "AddCollection",
+                    item: {collection: roadmapCollectionReference},
+                },
+            ],
+        },
+    ]);
+});
+
+test("removes task collection after reading task with two collections set", async () => {
+    const {taskId, path} = await readTask({
+        title: "Collection task",
+        collectionIds: [engineeringCollectionId, roadmapCollectionId],
+    });
+    mockTaskPatch(taskId);
+
+    await expect(
+        callAgentWebUpdateTool(context, {
+            path,
+            updates: [
+                {
+                    old: "- Collections: [Engineering](/task-collection/engineering), [Roadmap](/task-collection/roadmap)",
+                    new: "- Collections: [Engineering](/task-collection/engineering)",
+                    replaceAll: false,
+                },
+            ],
+        }),
+    ).resolves.toEqual("Update was successful.\n");
+
+    expect(getTaskPatchRequests().map(request => request.body)).toEqual([
+        {patches: [{type: "RemoveCollection", collectionId: roadmapCollectionId}]},
+    ]);
+});
+
+test("removes task collections after reading task with collection set", async () => {
+    const {taskId, path} = await readTask({
+        title: "Collection task",
+        collectionIds: [engineeringCollectionId],
+    });
+    mockTaskPatch(taskId);
+
+    await expect(
+        callAgentWebUpdateTool(context, {
+            path,
+            updates: [
+                {
+                    old: "\n- Collections: [Engineering](/task-collection/engineering)",
+                    new: "",
+                    replaceAll: false,
+                },
+            ],
+        }),
+    ).resolves.toEqual("Update was successful.\n");
+
+    expect(getTaskPatchRequests().map(request => request.body)).toEqual([
+        {patches: [{type: "RemoveCollection", collectionId: engineeringCollectionId}]},
+    ]);
+});
+
+test("changes task collections after reading task with collection set", async () => {
+    const {taskId, path} = await readTask({
+        title: "Collection task",
+        collectionIds: [engineeringCollectionId],
+    });
+    mockTaskPatch(taskId);
+
+    await expect(
+        callAgentWebUpdateTool(context, {
+            path,
+            updates: [
+                {
+                    old: "- Collections: [Engineering](/task-collection/engineering)",
+                    new: "- Collections: [Roadmap](/task-collection/roadmap)",
+                    replaceAll: false,
+                },
+            ],
+        }),
+    ).resolves.toEqual("Update was successful.\n");
+
+    expect(getTaskPatchRequests().map(request => request.body)).toEqual([
+        {
+            patches: [
+                {type: "RemoveCollection", collectionId: engineeringCollectionId},
+                {
+                    type: "AddCollection",
+                    item: {collection: roadmapCollectionReference},
+                },
+            ],
+        },
+    ]);
+});
+
+test("does not patch task when collections are reordered", async () => {
+    const {path} = await readTask({
+        title: "Collection task",
+        collectionIds: [engineeringCollectionId, roadmapCollectionId],
+    });
+
+    await expect(
+        callAgentWebUpdateTool(context, {
+            path,
+            updates: [
+                {
+                    old: "- Collections: [Engineering](/task-collection/engineering), [Roadmap](/task-collection/roadmap)",
+                    new: "- Collections: [Roadmap](/task-collection/roadmap), [Engineering](/task-collection/engineering)",
+                    replaceAll: false,
+                },
+            ],
+        }),
+    ).resolves.toEqual("Update was successful.\n");
+
+    expect(getTaskPatchRequests()).toHaveLength(0);
 });
