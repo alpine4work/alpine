@@ -9,6 +9,7 @@ import {runAgentWebPageGenerativeTests} from "~/server/agents/web/test_helpers/r
 import {
     ApiAccountReferenceArbitrary,
     ApiContentTextArbitrary,
+    ApiContentWithoutCommentMarkArbitrary,
     ApiTaskCollectionReferenceArbitrary,
     createIdArbitrary,
 } from "~/shared/api/content/test_helpers/api_content_arbitrary.js";
@@ -42,6 +43,7 @@ const AgentWebTaskPageArbitrary: Arbitrary<AgentWebTaskPage> = fc.record({
         ApiContentTextArbitrary.filter(text => text.trim() === text && text.length > 0),
         fc.constant(null),
     ),
+    notes: ApiContentWithoutCommentMarkArbitrary,
 });
 
 runAgentWebPageGenerativeTests({
