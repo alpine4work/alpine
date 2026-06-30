@@ -7893,7 +7893,7 @@ Text\\[^1] with footnote
                         ],
                     },
                     expectedMarkdown: `\
-[](https://alpine.inc/task/${taskId}#mention)
+[Unknown task](https://alpine.inc/task/${taskId}#mention)
 `,
                 },
                 {
@@ -8237,7 +8237,7 @@ $\\*$&#x20;
                         ],
                     },
                     expectedMarkdown: `\
-<a href="http://a.aa/&amp;">[](https://alpine.inc/task-collection/${taskCollectionId}#mention)</a>
+<a href="http://a.aa/&amp;">[Unknown task collection](https://alpine.inc/task-collection/${taskCollectionId}#mention)</a>
 `,
                 },
                 {
@@ -8500,7 +8500,7 @@ $(ab)$
                         ],
                     },
                     expectedMarkdown: `\
-<br /><br /><a href="http://a.aa">[](https://alpine.inc/post/${postId}#mention)</a>
+<br /><br /><a href="http://a.aa">[Unknown post](https://alpine.inc/post/${postId}#mention)</a>
 `,
                 },
                 {

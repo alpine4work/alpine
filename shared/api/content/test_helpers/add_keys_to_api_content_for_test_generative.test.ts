@@ -36,7 +36,10 @@ test("can add keys to API content", () => {
                 getFileIfExists: () => undefined,
             });
 
-            const actualContent = addKeysToApiContentForTest(encoder, contentWithoutKeys);
+            const actualContent = addKeysToApiContentForTest(contentWithoutKeys, {
+                entityId: "Test",
+                version: 0,
+            });
 
             expect(actualContent).toEqual(expectedContent);
         }),

@@ -8,6 +8,8 @@ ts_project(
         "//server/agents/web/test_helpers",
         "//shared/api/content/closed_source",
         "//shared/api/content/test_helpers",
+        "//shared/documents",
+        "//shared/prosemirror/test_helpers",
         "//shared/tracer/dev",
     ],
     visibility = ["//visibility:public"],

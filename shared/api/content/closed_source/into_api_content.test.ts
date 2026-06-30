@@ -16,6 +16,7 @@ import {MessageContentProsemirrorSchema} from "~/shared/content/message_content_
 import {ContentTableMap} from "~/shared/content/table/content_table_map.js";
 import {HighlightColor} from "~/shared/design/core/highlight_color.js";
 import {DocumentWithoutTitleContentProsemirrorSchema as schema} from "~/shared/documents/document_content_schema.js";
+import {FileModelData} from "~/shared/files/file_model.js";
 import {generateChronologicalId} from "~/shared/id/chronological_id.js";
 import {generateId} from "~/shared/id/id.js";
 import {
@@ -25,6 +26,7 @@ import {
     DocumentId,
     FileId,
     PostId,
+    SpaceId,
     TaskCollectionId,
     TaskId,
 } from "~/shared/id/types/id_types.js";
@@ -1326,7 +1328,6 @@ test("converts account mention into API content", () => {
                             title: "Unknown",
                             shortName: "Unknown",
                         },
-                        isAccountShortName: false,
                     },
                     {type: "Text", text: "!"},
                 ],
@@ -1651,7 +1652,6 @@ test("converts marked mention into API content", () => {
                                 title: "Unknown",
                                 shortName: "Unknown",
                             },
-                            isAccountShortName: false,
                             marks: [{type: "Bold"}, {type: "Italic"}],
                         },
                     ],
@@ -2774,9 +2774,9 @@ test("converts text with highlight, comment, and other marks into API content", 
                             text: "bold highlighted commented",
                             marks: [
                                 {type: "Comment", thread: {id: threadId}},
+                                {type: "Highlight", color: "Purple"},
                                 {type: "Bold"},
                                 {type: "Italic"},
-                                {type: "Highlight", color: "Purple"},
                             ],
                         },
                         {type: "Text", text: " text"},
@@ -4192,10 +4192,47 @@ test("converts ordered list with second item having different orderStart", () =>
 describe("file block elements", () => {
     const fileId1 = generateChronologicalId<FileId>();
     const fileId2 = generateChronologicalId<FileId>();
+    const spaceId = generateId<SpaceId>();
     const testDocumentId = generateId<DocumentId>();
     const testChannelId = generateId<ChannelId>();
     const documentEntityId = `Document:${testDocumentId}` as const;
     const channelEntityId = `Channel:${testChannelId}` as const;
+
+    function createFileModelData(
+        fileId: FileId,
+        overrides: Partial<FileModelData> = {},
+    ): FileModelData {
+        return {
+            id: fileId,
+            spaceId,
+            contentType: "image/png",
+            contentLength: 1024,
+            isUploading: false,
+            alternative: null,
+            preview: {
+                type: "Image",
+                isProcessing: true,
+                size: "Processing",
+                placeholder: "Processing",
+            },
+            analysis: null,
+            transcript: null,
+            ...overrides,
+        };
+    }
+
+    function createImagePreview(
+        width: number,
+        height: number,
+    ): NonNullable<FileModelData["preview"]> {
+        return {
+            type: "Image",
+            isProcessing: false,
+            ok: true,
+            size: {width, height, scale: 1, hasAlpha: false},
+            placeholder: null as any,
+        };
+    }
 
     const fileOptions: ApiContentMarkdownIntoOptionsWithoutKeys = {
         getAccountMentionTitleIfExists: () => undefined,
@@ -4205,14 +4242,7 @@ describe("file block elements", () => {
             return undefined;
         },
         getSearchTaskEntityDisplayStatusIfExists: () => undefined,
-        getFileIfExists: () => ({
-            preview: {
-                type: "Image",
-                isProcessing: true,
-                size: "Processing",
-                placeholder: "Processing",
-            },
-        }),
+        getFileIfExists: fileId => createFileModelData(fileId),
     };
 
     function testFileIntoApiContent(node: Node, content: ApiContentResponseWithoutKeys) {
@@ -4344,7 +4374,7 @@ describe("file block elements", () => {
                             {
                                 items: [
                                     {
-                                        width: 0.337838,
+                                        width: 0.53,
                                         element: {
                                             type: "File",
                                             id: fileId1,
@@ -4353,7 +4383,7 @@ describe("file block elements", () => {
                                         },
                                     },
                                     {
-                                        width: 0.662162,
+                                        width: 0.47,
                                         element: {
                                             type: "Preview",
                                             reference: {
@@ -4486,7 +4516,7 @@ describe("file block elements", () => {
         );
     });
 
-    describe.skip("gallery row width computation", () => {
+    describe("gallery row width computation", () => {
         test("two square files without dimensions default to 50/50", () => {
             // fileOptions doesn't provide width/height, so files assume square.
             const result = intoApiContent(
@@ -4506,29 +4536,23 @@ describe("file block elements", () => {
                 getFileIfExists: fileId => {
                     // Wide landscape photo
                     if (fileId === fileId1) {
-                        return {
-                            type: "Image",
-                            isProcessing: false,
-                            ok: true,
-                            size: {width: 2000, height: 1000, scale: 1, hasAlpha: false},
-                            placeholder: null as any,
-                        };
+                        return createFileModelData(fileId, {
+                            preview: createImagePreview(2000, 1000),
+                        });
                     }
                     // Square photo
                     if (fileId === fileId2) {
-                        return {
-                            contentType: "image/png",
+                        return createFileModelData(fileId, {
                             contentLength: 100,
-                            size: {width: 1000, height: 1000},
-                        };
+                            preview: createImagePreview(1000, 1000),
+                        });
                     }
                     // Tall portrait photo
                     if (fileId === fileId3) {
-                        return {
-                            contentType: "image/png",
+                        return createFileModelData(fileId, {
                             contentLength: 100,
-                            size: {width: 500, height: 1000},
-                        };
+                            preview: createImagePreview(500, 1000),
+                        });
                     }
                     return undefined;
                 },
@@ -4548,7 +4572,7 @@ describe("file block elements", () => {
                 (i: any) => i.width,
             ) as Array<number>;
 
-            expect(widths).toEqual([0.571429, 0.285714, 0.142857]);
+            expect(widths).toEqual([0.57, 0.29, 0.14]);
         });
 
         test("same height but different widths", () => {
@@ -4558,27 +4582,24 @@ describe("file block elements", () => {
                 getFileIfExists: fileId => {
                     // Wide photo
                     if (fileId === fileId1) {
-                        return {
-                            contentType: "image/png",
+                        return createFileModelData(fileId, {
                             contentLength: 100,
-                            size: {width: 3000, height: 1000},
-                        };
+                            preview: createImagePreview(3000, 1000),
+                        });
                     }
                     // Medium photo
                     if (fileId === fileId2) {
-                        return {
-                            contentType: "image/png",
+                        return createFileModelData(fileId, {
                             contentLength: 100,
-                            size: {width: 1500, height: 1000},
-                        };
+                            preview: createImagePreview(1500, 1000),
+                        });
                     }
                     // Narrow photo
                     if (fileId === fileId3) {
-                        return {
-                            contentType: "image/png",
+                        return createFileModelData(fileId, {
                             contentLength: 100,
-                            size: {width: 800, height: 1000},
-                        };
+                            preview: createImagePreview(800, 1000),
+                        });
                     }
                     return undefined;
                 },
@@ -4599,7 +4620,7 @@ describe("file block elements", () => {
             ) as Array<number>;
 
             // Wider files get more space, proportional to their aspect ratios.
-            expect(widths).toEqual([0.508647, 0.320448, 0.170905]);
+            expect(widths).toEqual([0.51, 0.32, 0.17]);
         });
 
         test("all different widths and heights", () => {
@@ -4609,27 +4630,24 @@ describe("file block elements", () => {
                 getFileIfExists: fileId => {
                     // Large landscape photo
                     if (fileId === fileId1) {
-                        return {
-                            contentType: "image/png",
+                        return createFileModelData(fileId, {
                             contentLength: 100,
-                            size: {width: 4000, height: 2000},
-                        };
+                            preview: createImagePreview(4000, 2000),
+                        });
                     }
                     // Standard photo
                     if (fileId === fileId2) {
-                        return {
-                            contentType: "image/png",
+                        return createFileModelData(fileId, {
                             contentLength: 100,
-                            size: {width: 1200, height: 800},
-                        };
+                            preview: createImagePreview(1200, 800),
+                        });
                     }
                     // Phone screenshot
                     if (fileId === fileId3) {
-                        return {
-                            contentType: "image/png",
+                        return createFileModelData(fileId, {
                             contentLength: 100,
-                            size: {width: 828, height: 1792},
-                        };
+                            preview: createImagePreview(828, 1792),
+                        });
                     }
                     return undefined;
                 },
@@ -4650,7 +4668,7 @@ describe("file block elements", () => {
             ) as Array<number>;
 
             // Landscape photo gets the most space, phone screenshot the least.
-            expect(widths).toEqual([0.497065, 0.372798, 0.130137]);
+            expect(widths).toEqual([0.5, 0.37, 0.13]);
         });
 
         test("audio file next to image", () => {
@@ -4659,15 +4677,24 @@ describe("file block elements", () => {
                 getFileIfExists: fileId => {
                     // Audio file (no image dimensions)
                     if (fileId === fileId1) {
-                        return {contentType: "audio/mpeg", contentLength: 5000};
+                        return createFileModelData(fileId, {
+                            contentType: "audio/mpeg",
+                            contentLength: 5000,
+                            preview: {
+                                type: "Audio",
+                                isProcessing: false,
+                                ok: true,
+                                duration: 5000,
+                                metadata: {title: null, artist: null, album: null},
+                            },
+                        });
                     }
                     // Standard photo
                     if (fileId === fileId2) {
-                        return {
-                            contentType: "image/png",
+                        return createFileModelData(fileId, {
                             contentLength: 100,
-                            size: {width: 1000, height: 1000},
-                        };
+                            preview: createImagePreview(1000, 1000),
+                        });
                     }
                     return undefined;
                 },
@@ -4683,7 +4710,7 @@ describe("file block elements", () => {
 
             // Audio files are wide and short so they take more horizontal space than a square
             // image.
-            expect(widths).toEqual([0.704225, 0.295775]);
+            expect(widths).toEqual([0.7, 0.3]);
         });
 
         test("code file next to image", () => {
@@ -4692,15 +4719,22 @@ describe("file block elements", () => {
                 getFileIfExists: fileId => {
                     // JavaScript code file
                     if (fileId === fileId1) {
-                        return {contentType: "text/javascript", contentLength: 2000};
+                        return createFileModelData(fileId, {
+                            contentType: "text/javascript",
+                            contentLength: 2000,
+                            preview: {
+                                type: "Code",
+                                isProcessing: true,
+                                content: "Processing",
+                            },
+                        });
                     }
                     // Standard photo
                     if (fileId === fileId2) {
-                        return {
-                            contentType: "image/png",
+                        return createFileModelData(fileId, {
                             contentLength: 100,
-                            size: {width: 1000, height: 1000},
-                        };
+                            preview: createImagePreview(1000, 1000),
+                        });
                     }
                     return undefined;
                 },
@@ -4716,7 +4750,7 @@ describe("file block elements", () => {
 
             // Code files have a wide aspect ratio (63:32) so they take more horizontal space
             // than a square image.
-            expect(widths).toEqual([0.663158, 0.336842]);
+            expect(widths).toEqual([0.66, 0.34]);
         });
 
         test("audio, code, and image together", () => {
@@ -4725,19 +4759,33 @@ describe("file block elements", () => {
                 ...fileOptions,
                 getFileIfExists: fileId => {
                     if (fileId === fileId1) {
-                        return {contentType: "audio/wav", contentLength: 10000};
+                        return createFileModelData(fileId, {
+                            contentType: "audio/wav",
+                            contentLength: 10000,
+                            preview: {
+                                type: "Audio",
+                                isProcessing: false,
+                                ok: true,
+                                duration: 10000,
+                                metadata: {title: null, artist: null, album: null},
+                            },
+                        });
                     }
                     if (fileId === fileId2) {
-                        return {contentType: "application/json", contentLength: 500};
+                        return createFileModelData(fileId, {
+                            contentType: "application/json",
+                            contentLength: 500,
+                            preview: {
+                                type: "Code",
+                                isProcessing: true,
+                                content: "Processing",
+                            },
+                        });
                     }
                     if (fileId === fileId3) {
-                        return {
-                            type: "Image",
-                            isProcessing: false,
-                            ok: true,
-                            size: {width: 800, height: 600, scale: 1, hasAlpha: false},
-                            placeholder: null as any,
-                        };
+                        return createFileModelData(fileId, {
+                            preview: createImagePreview(800, 600),
+                        });
                     }
                     return undefined;
                 },
@@ -4758,7 +4806,7 @@ describe("file block elements", () => {
             ) as Array<number>;
 
             // Audio is widest (very short), code is medium (63:32), image is narrowest (4:3).
-            expect(widths).toEqual([0.418958, 0.346426, 0.234616]);
+            expect(widths).toEqual([0.42, 0.35, 0.23]);
         });
 
         test("binary file next to image", () => {
@@ -4771,13 +4819,9 @@ describe("file block elements", () => {
                     }
                     // Wide landscape photo
                     if (fileId === fileId2) {
-                        return {
-                            type: "Image",
-                            isProcessing: false,
-                            ok: true,
-                            size: {width: 2000, height: 1000, scale: 1, hasAlpha: false},
-                            placeholder: null as any,
-                        };
+                        return createFileModelData(fileId, {
+                            preview: createImagePreview(2000, 1000),
+                        });
                     }
                     return undefined;
                 },
@@ -4801,17 +4845,17 @@ describe("file block elements", () => {
                 ...fileOptions,
                 getFileIfExists: fileId => {
                     if (fileId === fileId1) {
-                        return {
-                            type: "Image",
-                            isProcessing: false,
-                            ok: true,
-                            size: {width: 3000, height: 1000, scale: 1, hasAlpha: false},
-                            placeholder: null as any,
-                        };
+                        return createFileModelData(fileId, {
+                            preview: createImagePreview(3000, 1000),
+                        });
                     }
                     // No dimensions for fileId2 (e.g. a non-image file).
                     if (fileId === fileId2) {
-                        return {contentType: "application/pdf", contentLength: 100};
+                        return createFileModelData(fileId, {
+                            contentType: "application/pdf",
+                            contentLength: 100,
+                            preview: null,
+                        });
                     }
                     return undefined;
                 },
@@ -4825,7 +4869,7 @@ describe("file block elements", () => {
                 (i: any) => i.width,
             ) as Array<number>;
 
-            expect(widths).toEqual([0.662162, 0.337838]);
+            expect(widths).toEqual([0.66, 0.34]);
         });
 
         test("file without dimensions next to preview", () => {
@@ -4837,7 +4881,7 @@ describe("file block elements", () => {
                 (i: any) => i.width,
             ) as Array<number>;
 
-            expect(widths).toEqual([0.337838, 0.662162]);
+            expect(widths).toEqual([0.53, 0.47]);
         });
 
         test("single file has no widths (unwrapped to standalone)", () => {
@@ -4851,22 +4895,14 @@ describe("file block elements", () => {
                 ...fileOptions,
                 getFileIfExists: fileId => {
                     if (fileId === fileId1) {
-                        return {
-                            type: "Image",
-                            isProcessing: false,
-                            ok: true,
-                            size: {width: 2000, height: 1000, scale: 1, hasAlpha: false},
-                            placeholder: null as any,
-                        };
+                        return createFileModelData(fileId, {
+                            preview: createImagePreview(2000, 1000),
+                        });
                     }
                     if (fileId === fileId2) {
-                        return {
-                            type: "Image",
-                            isProcessing: false,
-                            ok: true,
-                            size: {width: 500, height: 1000, scale: 1, hasAlpha: false},
-                            placeholder: null as any,
-                        };
+                        return createFileModelData(fileId, {
+                            preview: createImagePreview(500, 1000),
+                        });
                     }
                     return undefined;
                 },

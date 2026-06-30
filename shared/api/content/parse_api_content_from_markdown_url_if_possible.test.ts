@@ -95,7 +95,7 @@ test("parses document preview URL", () => {
         parseApiContentFileOrPreviewBlockElementFromMarkdownUrlIfPossible(
             `https://alpine.inc/doc/${documentId}/preview`,
         ),
-    ).toEqual({type: "Preview", target: {type: "Document", id: documentId}});
+    ).toEqual({type: "Preview", reference: {type: "Document", id: documentId}});
 });
 
 test("parses channel preview URL", () => {
@@ -104,7 +104,7 @@ test("parses channel preview URL", () => {
         parseApiContentFileOrPreviewBlockElementFromMarkdownUrlIfPossible(
             `https://alpine.inc/channel/${channelId}/preview`,
         ),
-    ).toEqual({type: "Preview", target: {type: "Channel", id: channelId}});
+    ).toEqual({type: "Preview", reference: {type: "Channel", id: channelId}});
 });
 
 test("parses chat preview URL", () => {
@@ -113,7 +113,7 @@ test("parses chat preview URL", () => {
         parseApiContentFileOrPreviewBlockElementFromMarkdownUrlIfPossible(
             `https://alpine.inc/chat/${chatId}/preview`,
         ),
-    ).toEqual({type: "Preview", target: {type: "Chat", id: chatId}});
+    ).toEqual({type: "Preview", reference: {type: "Chat", id: chatId}});
 });
 
 test("parses post preview URL", () => {
@@ -122,7 +122,7 @@ test("parses post preview URL", () => {
         parseApiContentFileOrPreviewBlockElementFromMarkdownUrlIfPossible(
             `https://alpine.inc/post/${postId}/preview`,
         ),
-    ).toEqual({type: "Preview", target: {type: "Post", id: postId}});
+    ).toEqual({type: "Preview", reference: {type: "Post", id: postId}});
 });
 
 test("parses site preview URL", () => {
@@ -131,7 +131,7 @@ test("parses site preview URL", () => {
         parseApiContentFileOrPreviewBlockElementFromMarkdownUrlIfPossible(
             `https://alpine.inc/site/${siteId}/preview`,
         ),
-    ).toEqual({type: "Preview", target: {type: "Site", id: siteId}});
+    ).toEqual({type: "Preview", reference: {type: "Site", id: siteId}});
 });
 
 test("parses task preview URL", () => {
@@ -140,7 +140,7 @@ test("parses task preview URL", () => {
         parseApiContentFileOrPreviewBlockElementFromMarkdownUrlIfPossible(
             `https://alpine.inc/task/${taskId}/preview`,
         ),
-    ).toEqual({type: "Preview", target: {type: "Task", id: taskId}});
+    ).toEqual({type: "Preview", reference: {type: "Task", id: taskId}});
 });
 
 test("parses task collection preview URL", () => {
@@ -151,7 +151,7 @@ test("parses task collection preview URL", () => {
         ),
     ).toEqual({
         type: "Preview",
-        target: {type: "TaskCollection", id: taskCollectionId},
+        reference: {type: "TaskCollection", id: taskCollectionId},
     });
 });
 

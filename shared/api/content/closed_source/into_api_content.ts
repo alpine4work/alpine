@@ -44,7 +44,6 @@ import {HighlightColor} from "~/shared/design/core/highlight_color.js";
 import {InternalError} from "~/shared/error/error.js";
 import {isFileEntityId, parseFileEntityId} from "~/shared/files/file_entity_id.js";
 import {FileModelData} from "~/shared/files/file_model.js";
-import {FilePreview} from "~/shared/files/file_preview.js";
 import {createArrayWithLength} from "~/shared/helpers/array/create_array_with_length.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";

@@ -8,13 +8,12 @@ import {unknownFileId} from "~/shared/api/content/closed_source/unknown_file_id.
 import {normalizeApiContent} from "~/shared/api/content/normalize_api_content.js";
 import {parseApiContentFromMarkdown} from "~/shared/api/content/parse_api_content_from_markdown.js";
 import {printApiContentToMarkdown} from "~/shared/api/content/print_api_content_to_markdown.js";
-import {
-    ApiContent,
-    ApiContentResponse,
-} from "~/shared/api/specification/types/api_specification_convenience_types.js";
+import {ApiContentResponseWithoutKeys} from "~/shared/api/specification/types/api_content_response_without_keys.js";
+import {ApiContent} from "~/shared/api/specification/types/api_specification_convenience_types.js";
 import {DocumentWithoutTitleContentProsemirrorSchema} from "~/shared/documents/document_content_schema.js";
+import {FileModelData} from "~/shared/files/file_model.js";
 import {generateId} from "~/shared/id/id.js";
-import {ChannelId, DocumentId, FileId} from "~/shared/id/types/id_types.js";
+import {ChannelId, DocumentId, FileId, SpaceId} from "~/shared/id/types/id_types.js";
 
 const schema = DocumentWithoutTitleContentProsemirrorSchema;
 
@@ -174,7 +173,7 @@ test("ordered list item with order start 1", () => {
             ],
         },
         `\
-1. <span data-start=\u201D1\u201D/>foo
+1. <span data-start=\u201D1\u201D></span>foo
 
 2. bar
 `,
@@ -226,11 +225,11 @@ test("ordered list item with order start 1 and and reset to 1", () => {
             ],
         },
         `\
-1. <span data-start=\u201D1\u201D/>foo
+1. <span data-start=\u201D1\u201D></span>foo
 
 2. bar
 
-1) <span data-start=\u201D1\u201D/>restart 1
+1) <span data-start=\u201D1\u201D></span>restart 1
 `,
     );
 });
@@ -342,10 +341,30 @@ test("second ordered list item with order start 2", () => {
 const fileId1 = generateId<DocumentId>() as string as FileId;
 const fileId2 = generateId<DocumentId>() as string as FileId;
 const fileId3 = generateId<DocumentId>() as string as FileId;
+const spaceId = generateId<SpaceId>();
 const testDocumentId = generateId<DocumentId>();
 const testChannelId = generateId<ChannelId>();
 const documentEntityId = `Document:${testDocumentId}` as const;
 const channelEntityId = `Channel:${testChannelId}` as const;
+
+function createFileModelData(fileId: FileId): FileModelData {
+    return {
+        id: fileId,
+        spaceId,
+        contentType: "image/png",
+        contentLength: 1024,
+        isUploading: false,
+        alternative: null,
+        preview: {
+            type: "Image",
+            isProcessing: true,
+            size: "Processing",
+            placeholder: "Processing",
+        },
+        analysis: null,
+        transcript: null,
+    };
+}
 
 const fileOptions: ApiContentMarkdownIntoOptionsWithoutKeys = {
     getAccountMentionTitleIfExists: () => undefined,
@@ -355,12 +374,7 @@ const fileOptions: ApiContentMarkdownIntoOptionsWithoutKeys = {
         return undefined;
     },
     getSearchTaskEntityDisplayStatusIfExists: () => undefined,
-    getFileIfExists: () => ({
-        type: "Image",
-        isProcessing: true,
-        size: "Processing",
-        placeholder: "Processing",
-    }),
+    getFileIfExists: fileId => createFileModelData(fileId),
 };
 
 function fileUrl(fileId: FileId) {
@@ -373,7 +387,7 @@ function previewUrl(entityPath: string) {
 
 function testFileIntoApiContentAndPrintToMarkdown(
     prosemirrorNode: Node,
-    expectedApiContent: ApiContentResponse,
+    expectedApiContent: ApiContentResponseWithoutKeys,
     expectedMarkdown: string,
 ) {
     prosemirrorNode.check();
@@ -428,7 +442,9 @@ test("fileFloat with left direction", () => {
             ],
         },
         `\
-<div style="float: left; clear: both"><img src="${fileUrl(fileId1)}"/></div>
+<div style="float: left; clear: both">
+<img src="${fileUrl(fileId1)}" />
+</div>
 `,
     );
 });
@@ -455,7 +471,9 @@ test("fileFloat with right direction", () => {
             ],
         },
         `\
-<div style="float: right; clear: both"><img src="${fileUrl(fileId1)}"/></div>
+<div style="float: right; clear: both">
+<img src="${fileUrl(fileId1)}" />
+</div>
 `,
     );
 });
@@ -501,8 +519,8 @@ test("file gallery with multiple files", () => {
         },
         `\
 <div style="display: flex; align-items: stretch">
-<img src="${fileUrl(fileId1)}" style="flex: 0 0 50%"/>
-<img src="${fileUrl(fileId2)}" style="flex: 0 0 50%"/>
+<img src="${fileUrl(fileId1)}" style="flex: 0 0 50%" />
+<img src="${fileUrl(fileId2)}" style="flex: 0 0 50%" />
 </div>
 `,
     );
@@ -525,7 +543,7 @@ test("file gallery with three files", () => {
                         {
                             items: [
                                 {
-                                    width: 0.333333,
+                                    width: 0.33,
                                     element: {
                                         type: "File",
                                         id: fileId1,
@@ -534,7 +552,7 @@ test("file gallery with three files", () => {
                                     },
                                 },
                                 {
-                                    width: 0.333333,
+                                    width: 0.33,
                                     element: {
                                         type: "File",
                                         id: fileId2,
@@ -543,7 +561,7 @@ test("file gallery with three files", () => {
                                     },
                                 },
                                 {
-                                    width: 0.333334,
+                                    width: 0.34,
                                     element: {
                                         type: "File",
                                         id: fileId3,
@@ -559,9 +577,9 @@ test("file gallery with three files", () => {
         },
         `\
 <div style="display: flex; align-items: stretch">
-<img src="${fileUrl(fileId1)}" style="flex: 0 0 33%"/>
-<img src="${fileUrl(fileId2)}" style="flex: 0 0 33%"/>
-<img src="${fileUrl(fileId3)}" style="flex: 0 0 34%"/>
+<img src="${fileUrl(fileId1)}" style="flex: 0 0 33%" />
+<img src="${fileUrl(fileId2)}" style="flex: 0 0 33%" />
+<img src="${fileUrl(fileId3)}" style="flex: 0 0 34%" />
 </div>
 `,
     );
@@ -578,8 +596,7 @@ test("preview of a document entity", () => {
             elements: [
                 {
                     type: "Preview",
-                    reference: {type: "Document", id: testDocumentId},
-                    title: "My Document",
+                    reference: {type: "Document", id: testDocumentId, title: "My Document"},
                 },
             ],
         },
@@ -603,14 +620,15 @@ test("fileFloat with preview entity", () => {
                     side: "Left",
                     element: {
                         type: "Preview",
-                        reference: {type: "Channel", id: testChannelId},
-                        title: "General",
+                        reference: {type: "Channel", id: testChannelId, title: "General"},
                     },
                 },
             ],
         },
         `\
-<div style="float: left; clear: both"><img alt="General" src="${previewUrl(`channel/${testChannelId}`)}"/></div>
+<div style="float: left; clear: both">
+<img alt="General" src="${previewUrl(`channel/${testChannelId}`)}" />
+</div>
 `,
     );
 });
@@ -631,7 +649,7 @@ test("file gallery with mixed files and previews", () => {
                         {
                             items: [
                                 {
-                                    width: 0.337838,
+                                    width: 0.53,
                                     element: {
                                         type: "File",
                                         id: fileId1,
@@ -640,14 +658,14 @@ test("file gallery with mixed files and previews", () => {
                                     },
                                 },
                                 {
-                                    width: 0.662162,
+                                    width: 0.47,
                                     element: {
                                         type: "Preview",
                                         reference: {
                                             type: "Document",
                                             id: testDocumentId,
+                                            title: "My Document",
                                         },
-                                        title: "My Document",
                                     },
                                 },
                             ],
@@ -658,8 +676,8 @@ test("file gallery with mixed files and previews", () => {
         },
         `\
 <div style="display: flex; align-items: stretch">
-<img src="${fileUrl(fileId1)}" style="flex: 0 0 34%"/>
-<img alt="My Document" src="${previewUrl(`doc/${testDocumentId}`)}" style="flex: 0 0 66%"/>
+<img src="${fileUrl(fileId1)}" style="flex: 0 0 53%" />
+<img alt="My Document" src="${previewUrl(`doc/${testDocumentId}`)}" style="flex: 0 0 47%" />
 </div>
 `,
     );

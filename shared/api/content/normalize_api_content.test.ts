@@ -37,8 +37,7 @@ test("FileGallery with single row and single Preview unwraps to standalone Previ
                             {
                                 element: {
                                     type: "Preview",
-                                    reference: {type: "Document", id: documentId},
-                                    title: "Doc",
+                                    reference: {type: "Document", id: documentId, title: "Doc"},
                                 },
                             },
                         ],
@@ -53,14 +52,13 @@ test("FileGallery with single row and single Preview unwraps to standalone Previ
     });
 });
 
-test("Preview title is stripped during normalization", () => {
+test("Preview reference title is stripped during normalization", () => {
     const documentId = generateId<DocumentId>();
     const content: ApiContent = {
         elements: [
             {
                 type: "Preview",
-                reference: {type: "Document", id: documentId},
-                title: "My Document",
+                reference: {type: "Document", id: documentId, title: "My Document"},
             },
         ],
     };
@@ -385,7 +383,7 @@ test("standalone File between two FileGalleries normalizes the same as one combi
     expect(normalizeApiContent(withStandalone)).toEqual(normalizeApiContent(combined));
 });
 
-test("single empty paragraph in table cell is removed", () => {
+test("single empty paragraph in table cell is preserved", () => {
     const content: ApiContent = {
         elements: [
             {
@@ -414,7 +412,7 @@ test("single empty paragraph in table cell is removed", () => {
         rows: [
             {
                 cells: [
-                    {elements: []},
+                    {elements: [{type: "Paragraph", elements: []}]},
                     {elements: [{type: "Paragraph", elements: [{type: "Text", text: "hi"}]}]},
                 ],
             },
@@ -422,7 +420,7 @@ test("single empty paragraph in table cell is removed", () => {
     });
 });
 
-test("empty paragraph alongside File in table cell is preserved", () => {
+test("empty table cell is filled with an empty paragraph", () => {
     const content: ApiContent = {
         elements: [
             {
@@ -458,7 +456,7 @@ test("empty paragraph alongside File in table cell is preserved", () => {
                             {type: "File", id: fileId1},
                         ],
                     },
-                    {elements: []},
+                    {elements: [{type: "Paragraph", elements: []}]},
                 ],
             },
         ],
@@ -474,8 +472,7 @@ test("FileFloat normalizes inner element", () => {
                 side: "Left",
                 element: {
                     type: "Preview",
-                    reference: {type: "Document", id: documentId},
-                    title: "My Document",
+                    reference: {type: "Document", id: documentId, title: "My Document"},
                 },
             },
         ],
@@ -526,8 +523,11 @@ test("FileGallery normalizes Preview title inside items", () => {
                             {
                                 element: {
                                     type: "Preview",
-                                    reference: {type: "Document", id: documentId},
-                                    title: "My Document",
+                                    reference: {
+                                        type: "Document",
+                                        id: documentId,
+                                        title: "My Document",
+                                    },
                                 },
                             },
                         ],
