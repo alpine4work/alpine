@@ -148,6 +148,9 @@ function buildAgentWebDocumentThreadPage(
     };
 }
 
+// NOCOMMIT: Integration test that you can read a document comment link from search
+// without first reading the document. This should work and it should end up
+// reading the document under-the-hood.
 export async function readAgentWebDocumentThreadPage(
     context: AgentWebContext,
     id: DocumentId,
