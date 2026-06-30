@@ -165,6 +165,7 @@ test("creates a minimal task with default open status", async () => {
             collections: [],
             priority: undefined,
             due: undefined,
+            content: undefined,
         },
     });
 });
@@ -196,6 +197,7 @@ test("creates a task with explicit inactive open status", async () => {
             collections: [],
             priority: undefined,
             due: undefined,
+            content: undefined,
         },
     });
 });
@@ -237,6 +239,96 @@ test("creates a task with every supported field", async () => {
             ],
             priority: {type: "High"},
             due: {date: "2027-07-12"},
+            content: undefined,
+        },
+    });
+});
+
+test("creates a task with notes", async () => {
+    mockCreateTask({
+        title: "Create notes",
+        status: {type: "Closed"},
+    });
+
+    await expect(
+        callAgentWebCreateTool(context, {
+            type: "task",
+            content: `\
+# Create notes
+
+- Status: Closed
+- Priority: Low
+
+## Notes
+
+Create notes body.
+
+### Context
+
+Use beta data.`,
+        }),
+    ).resolves.toEqual("Create was successful. New task: [Create notes](/task/create-notes).\n");
+
+    expect(getCreateTaskRequests()[0]?.body).toEqual({
+        spaceId,
+        task: {
+            title: "Create notes",
+            status: {type: "Closed"},
+            assignee: undefined,
+            collections: [],
+            priority: {type: "Low"},
+            due: undefined,
+            content: {
+                elements: [
+                    {
+                        type: "Paragraph",
+                        elements: [{type: "Text", text: "Create notes body."}],
+                    },
+                    {
+                        type: "Heading",
+                        level: 1,
+                        elements: [{type: "Text", text: "Context"}],
+                    },
+                    {
+                        type: "Paragraph",
+                        elements: [{type: "Text", text: "Use beta data."}],
+                    },
+                ],
+            },
+        },
+    });
+});
+
+test("creates a task with empty notes section without sending notes content", async () => {
+    mockCreateTask({
+        title: "Create empty notes",
+        status: {type: "Open", isActive: false},
+    });
+
+    await expect(
+        callAgentWebCreateTool(context, {
+            type: "task",
+            content: `\
+# Create empty notes
+
+- Status: Open
+
+## Notes`,
+        }),
+    ).resolves.toEqual(
+        "Create was successful. New task: [Create empty notes](/task/create-empty-notes).\n",
+    );
+
+    expect(getCreateTaskRequests()[0]?.body).toEqual({
+        spaceId,
+        task: {
+            title: "Create empty notes",
+            status: {type: "Open", isActive: false},
+            assignee: undefined,
+            collections: [],
+            priority: undefined,
+            due: undefined,
+            content: undefined,
         },
     });
 });
@@ -269,6 +361,7 @@ test("creates a task with assignee and priority", async () => {
             collections: [],
             priority: {type: "Medium"},
             due: undefined,
+            content: undefined,
         },
     });
 });
@@ -304,6 +397,7 @@ test("creates a task with status and inline collections", async () => {
             ],
             priority: undefined,
             due: undefined,
+            content: undefined,
         },
     });
 });
@@ -342,6 +436,7 @@ test("creates a task with yearless due date using context year", async () => {
             collections: [],
             priority: undefined,
             due: {date: "2031-07-12"},
+            content: undefined,
         },
     });
 });
@@ -380,6 +475,7 @@ test.each([
                 collections: [],
                 priority: undefined,
                 due: {date: expectedDate},
+                content: undefined,
             },
         });
     },

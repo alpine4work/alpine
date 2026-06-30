@@ -1,6 +1,6 @@
 import {CalendarDate, fromDate, parseDate, toCalendarDate} from "@internationalized/date";
 import {produce} from "immer";
-import {Link, List, ListItem, Node, Parent, PhrasingContent, Root, Text} from "mdast";
+import {Link, List, ListItem, Node, Parent, PhrasingContent, Root, RootContent, Text} from "mdast";
 import {
     AgentWebContext,
     AgentWebContextWithoutStorage,

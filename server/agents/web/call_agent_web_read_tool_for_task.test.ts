@@ -4,6 +4,8 @@ import {AgentWebContext} from "~/server/agents/web/agent_web_context.js";
 import {callAgentWebReadTool} from "~/server/agents/web/call_agent_web_read_tool.js";
 import {createAgentWebPageStoredLinkPathname} from "~/server/agents/web/create_agent_web_page_stored_link_pathname.js";
 import {createAgentWebSessionStorageForTest} from "~/server/agents/web/test_helpers/create_agent_web_session_storage_for_test.js";
+import {addKeysToApiContentForTest} from "~/shared/api/content/test_helpers/add_keys_to_api_content_for_test.js";
+import {ApiContentResponseWithoutKeys} from "~/shared/api/specification/types/api_content_response_without_keys.js";
 import {defaultTimeZone} from "~/shared/helpers/intl/time_zone.js";
 import {generateId} from "~/shared/id/id.js";
 import {AccountId, BotId, SpaceId, TaskCollectionId, TaskId} from "~/shared/id/types/id_types.js";
@@ -33,6 +35,10 @@ const context: AgentWebContext = {
     },
 };
 
+const emptyNotesContent: ApiContentResponseWithoutKeys = {
+    elements: [{type: "Paragraph", elements: []}],
+};
+
 test("reads full task page", async () => {
     const taskId = generateId<TaskId>();
     const engineeringCollectionId = generateId<TaskCollectionId>();
@@ -56,6 +62,26 @@ test("reads full task page", async () => {
         ],
         priority: {type: "Urgent"},
         due: {date: "2025-07-12"},
+        notes: {
+            version: 3,
+            content: addKeysToApiContentForTest({
+                elements: [
+                    {
+                        type: "Paragraph",
+                        elements: [{type: "Text", text: "Read rollout notes."}],
+                    },
+                    {
+                        type: "Heading",
+                        level: 1,
+                        elements: [{type: "Text", text: "Context"}],
+                    },
+                    {
+                        type: "Paragraph",
+                        elements: [{type: "Text", text: "Ship behind a flag."}],
+                    },
+                ],
+            }),
+        },
     });
 
     expect(
@@ -70,7 +96,15 @@ test("reads full task page", async () => {
 - Assignee: [Alice](/human/alice)
 - Collections: [Engineering](/task-collection/engineering), [Roadmap](/task-collection/roadmap)
 - Priority: Urgent
-- Due date: July 12th, 2025`);
+- Due date: July 12th, 2025
+
+## Notes
+
+Read rollout notes.
+
+### Context
+
+Ship behind a flag.`);
 });
 
 test("reads task page with hidden optional fields", async () => {
@@ -87,6 +121,7 @@ test("reads task page with hidden optional fields", async () => {
         title: "Bare task",
         status: {type: "Closed"},
         collections: [],
+        notes: {version: 0, content: addKeysToApiContentForTest(emptyNotesContent)},
     });
 
     expect(

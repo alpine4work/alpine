@@ -5,7 +5,9 @@ import {callAgentWebReadTool} from "~/server/agents/web/call_agent_web_read_tool
 import {callAgentWebUpdateTool} from "~/server/agents/web/call_agent_web_update_tool.js";
 import {createAgentWebPageStoredLinkPathname} from "~/server/agents/web/create_agent_web_page_stored_link_pathname.js";
 import {createAgentWebSessionStorageForTest} from "~/server/agents/web/test_helpers/create_agent_web_session_storage_for_test.js";
+import {addKeysToApiContentForTest} from "~/shared/api/content/test_helpers/add_keys_to_api_content_for_test.js";
 import {intoApiAccountReference} from "~/shared/api/specification/into_api_account_reference.js";
+import {ApiContentResponseWithoutKeys} from "~/shared/api/specification/types/api_content_response_without_keys.js";
 import {ErrorBase, InternalError} from "~/shared/error/error.js";
 import {ErrorDisplayMessage} from "~/shared/error/types/error_display_message_type.js";
 import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
@@ -52,6 +54,10 @@ const context: AgentWebContext = {
     },
 };
 
+const emptyNotesContent: ApiContentResponseWithoutKeys = {
+    elements: [{type: "Paragraph", elements: []}],
+};
+
 beforeEach(async () => {
     await createAgentWebPageStoredLinkPathname(storage, intoApiAccountReference(aliceAccount));
     await createAgentWebPageStoredLinkPathname(storage, intoApiAccountReference(bobAccount));
@@ -80,10 +86,40 @@ function mockTaskPatch(taskId: TaskId, count = 1) {
     }
 }
 
+function mockTaskNotesPatch({
+    taskId,
+    version,
+    content,
+}: {
+    taskId: TaskId;
+    version: number;
+    content: ApiContentResponseWithoutKeys;
+}) {
+    api.mockPatch(
+        "/tasks/{id}/notes",
+        {
+            data: {
+                spaceId,
+                notes: {
+                    version,
+                    content: addKeysToApiContentForTest(content),
+                },
+            },
+        },
+        {path: {id: taskId}},
+    );
+}
+
 function getTaskPatchRequests() {
     return api
         .getRequestHistory()
         .filter(request => request.method === "PATCH" && request.path === "/tasks/{id}");
+}
+
+function getTaskNotesPatchRequests() {
+    return api
+        .getRequestHistory()
+        .filter(request => request.method === "PATCH" && request.path === "/tasks/{id}/notes");
 }
 
 function printDisplayMessage(displayMessage: ErrorDisplayMessage): string {
@@ -151,6 +187,8 @@ async function readTask({
     collectionIds = [],
     priority,
     due,
+    notesVersion = 0,
+    notesContent = emptyNotesContent,
 }: {
     taskId?: TaskId;
     title: string;
@@ -159,6 +197,8 @@ async function readTask({
     collectionIds?: ReadonlyArray<TaskCollectionId>;
     priority?: {readonly type: "Low" | "Medium" | "High" | "Urgent"};
     due?: {readonly date: string};
+    notesVersion?: number;
+    notesContent?: ApiContentResponseWithoutKeys;
 }): Promise<{taskId: TaskId; path: string}> {
     const path = await createAgentWebPageStoredLinkPathname(storage, {
         type: "Task",
@@ -179,6 +219,13 @@ async function readTask({
         })),
         ...(priority ? {priority} : {}),
         ...(due ? {due} : {}),
+        notes: {
+            version: notesVersion,
+            content: addKeysToApiContentForTest(notesContent, {
+                entityId: `Task:${taskId}`,
+                version: notesVersion,
+            }),
+        },
     });
 
     await callAgentWebReadTool(context, {path, limit: "10kb"});
@@ -200,6 +247,177 @@ test("updates task title", async () => {
     expect(getTaskPatchRequests().map(request => request.body)).toEqual([
         {patches: [{type: "SetTitle", title: "New title"}]},
     ]);
+});
+
+test("adds task notes", async () => {
+    const {taskId, path} = await readTask({
+        title: "Notes task",
+        notesVersion: 4,
+    });
+    const notesContent: ApiContentResponseWithoutKeys = {
+        elements: [
+            {
+                type: "Paragraph",
+                elements: [{type: "Text", text: "Write release notes."}],
+            },
+        ],
+    };
+    mockTaskNotesPatch({taskId, version: 5, content: notesContent});
+
+    await expect(
+        callAgentWebUpdateTool(context, {
+            path,
+            updates: [
+                {
+                    old: "- Status: Open",
+                    new: "- Status: Open\n\n## Notes\n\nWrite release notes.",
+                    replaceAll: false,
+                },
+            ],
+        }),
+    ).resolves.toEqual("Update was successful.\n");
+
+    expect({
+        taskPatches: getTaskPatchRequests().map(request => request.body),
+        notesPatches: getTaskNotesPatchRequests().map(request => request.body),
+    }).toEqual({
+        taskPatches: [],
+        notesPatches: [{notes: {version: 4, content: notesContent}}],
+    });
+});
+
+test("adds task notes with heading", async () => {
+    const {taskId, path} = await readTask({title: "Notes heading task"});
+    const notesContent: ApiContentResponseWithoutKeys = {
+        elements: [
+            {
+                type: "Heading",
+                level: 1,
+                elements: [{type: "Text", text: "Context"}],
+            },
+            {
+                type: "Paragraph",
+                elements: [{type: "Text", text: "Bring logs."}],
+            },
+        ],
+    };
+    mockTaskNotesPatch({taskId, version: 1, content: notesContent});
+
+    await expect(
+        callAgentWebUpdateTool(context, {
+            path,
+            updates: [
+                {
+                    old: "- Status: Open",
+                    new: "- Status: Open\n\n## Notes\n\n### Context\n\nBring logs.",
+                    replaceAll: false,
+                },
+            ],
+        }),
+    ).resolves.toEqual("Update was successful.\n");
+
+    expect(getTaskNotesPatchRequests().map(request => request.body)).toEqual([
+        {notes: {version: 0, content: notesContent}},
+    ]);
+});
+
+test("clears task notes after reading task with notes set", async () => {
+    const oldNotesContent: ApiContentResponseWithoutKeys = {
+        elements: [
+            {
+                type: "Paragraph",
+                elements: [{type: "Text", text: "Old notes."}],
+            },
+        ],
+    };
+    const {taskId, path} = await readTask({
+        title: "Notes task",
+        notesVersion: 6,
+        notesContent: oldNotesContent,
+    });
+    mockTaskNotesPatch({taskId, version: 7, content: emptyNotesContent});
+
+    await expect(
+        callAgentWebUpdateTool(context, {
+            path,
+            updates: [{old: "\n\n## Notes\n\nOld notes.", new: "", replaceAll: false}],
+        }),
+    ).resolves.toEqual("Update was successful.\n");
+
+    expect(getTaskNotesPatchRequests().map(request => request.body)).toEqual([
+        {notes: {version: 6, content: emptyNotesContent}},
+    ]);
+});
+
+test("changes task notes after reading task with notes set", async () => {
+    const oldNotesContent: ApiContentResponseWithoutKeys = {
+        elements: [
+            {
+                type: "Paragraph",
+                elements: [{type: "Text", text: "Old notes."}],
+            },
+        ],
+    };
+    const newNotesContent: ApiContentResponseWithoutKeys = {
+        elements: [
+            {
+                type: "Paragraph",
+                elements: [{type: "Text", text: "New notes."}],
+            },
+        ],
+    };
+    const {taskId, path} = await readTask({
+        title: "Notes task",
+        notesVersion: 10,
+        notesContent: oldNotesContent,
+    });
+    mockTaskNotesPatch({taskId, version: 11, content: newNotesContent});
+
+    await expect(
+        callAgentWebUpdateTool(context, {
+            path,
+            updates: [{old: "Old notes.", new: "New notes.", replaceAll: false}],
+        }),
+    ).resolves.toEqual("Update was successful.\n");
+
+    expect(getTaskNotesPatchRequests().map(request => request.body)).toEqual([
+        {notes: {version: 10, content: newNotesContent}},
+    ]);
+});
+
+test("updates task fields and notes", async () => {
+    const {taskId, path} = await readTask({title: "Mixed task"});
+    const notesContent: ApiContentResponseWithoutKeys = {
+        elements: [
+            {
+                type: "Paragraph",
+                elements: [{type: "Text", text: "Closed after QA."}],
+            },
+        ],
+    };
+    mockTaskPatch(taskId);
+    mockTaskNotesPatch({taskId, version: 1, content: notesContent});
+
+    await expect(
+        callAgentWebUpdateTool(context, {
+            path,
+            updates: [
+                {
+                    old: "- Status: Open",
+                    new: "- Status: Closed\n\n## Notes\n\nClosed after QA.",
+                    replaceAll: false,
+                },
+            ],
+        }),
+    ).resolves.toEqual("Update was successful.\n");
+
+    expect({
+        taskPatches: getTaskPatchRequests().map(request => request.body),
+        notesPatches: getTaskNotesPatchRequests().map(request => request.body),
+    }).toEqual({
+        taskPatches: [{patches: [{type: "SetStatus", status: {type: "Closed"}}]}],
+        notesPatches: [{notes: {version: 0, content: notesContent}}],
+    });
 });
 
 test("updates task status to active and closed", async () => {

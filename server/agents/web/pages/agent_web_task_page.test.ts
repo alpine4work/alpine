@@ -44,6 +44,10 @@ const bobReference = accountReference({name: "Bob"});
 const engineeringReference = collectionReference({name: "Engineering"});
 const roadmapReference = collectionReference({name: "Roadmap"});
 
+const emptyNotes: AgentWebTaskPage["notes"] = {
+    elements: [{type: "Paragraph", elements: []}],
+};
+
 runAgentWebPageTests<TaskId, AgentWebTaskPage>({
     print: printAgentWebTaskPage,
     parse: parseAgentWebTaskPage,
@@ -65,6 +69,7 @@ runAgentWebPageTests<TaskId, AgentWebTaskPage>({
                 collections: [],
                 priority: null,
                 dueDateString: null,
+                notes: emptyNotes,
             },
         },
         {
@@ -100,6 +105,7 @@ runAgentWebPageTests<TaskId, AgentWebTaskPage>({
                 collections: [engineeringReference],
                 priority: {type: "Urgent"},
                 dueDateString: "2027-07-12",
+                notes: emptyNotes,
             },
         },
         {
@@ -133,6 +139,7 @@ runAgentWebPageTests<TaskId, AgentWebTaskPage>({
                 collections: [engineeringReference, roadmapReference],
                 priority: {type: "Urgent"},
                 dueDateString: "2027-07-12",
+                notes: emptyNotes,
             },
         },
         {
@@ -151,6 +158,7 @@ runAgentWebPageTests<TaskId, AgentWebTaskPage>({
                 collections: [],
                 priority: null,
                 dueDateString: null,
+                notes: emptyNotes,
             },
         },
         {
@@ -170,6 +178,7 @@ runAgentWebPageTests<TaskId, AgentWebTaskPage>({
                 collections: [],
                 priority: {type: "Low"},
                 dueDateString: null,
+                notes: emptyNotes,
             },
         },
         {
@@ -189,6 +198,7 @@ runAgentWebPageTests<TaskId, AgentWebTaskPage>({
                 collections: [],
                 priority: {type: "Medium"},
                 dueDateString: null,
+                notes: emptyNotes,
             },
         },
         {
@@ -208,6 +218,7 @@ runAgentWebPageTests<TaskId, AgentWebTaskPage>({
                 collections: [],
                 priority: {type: "High"},
                 dueDateString: null,
+                notes: emptyNotes,
             },
         },
         {
@@ -235,6 +246,7 @@ runAgentWebPageTests<TaskId, AgentWebTaskPage>({
                 collections: [],
                 priority: null,
                 dueDateString: null,
+                notes: emptyNotes,
             },
         },
         {
@@ -256,6 +268,111 @@ runAgentWebPageTests<TaskId, AgentWebTaskPage>({
                 collections: [],
                 priority: null,
                 dueDateString: null,
+                notes: emptyNotes,
+            },
+        },
+        {
+            name: "task page with notes",
+            pageLink: taskId,
+            markdown: `\
+# Notes task
+
+- Status: Open
+
+## Notes
+
+Remember to check the API shape.
+`,
+            page: {
+                type: "Task",
+                title: "Notes task",
+                status: {type: "Open", isActive: false},
+                assignee: null,
+                collections: [],
+                priority: null,
+                dueDateString: null,
+                notes: {
+                    elements: [
+                        {
+                            type: "Paragraph",
+                            elements: [{type: "Text", text: "Remember to check the API shape."}],
+                        },
+                    ],
+                },
+            },
+        },
+        {
+            name: "task page with notes and no fields",
+            pageLink: taskId,
+            markdown: `\
+# Notes only
+
+## Notes
+
+Remember to check the API shape.
+`,
+            printMarkdown: `\
+# Notes only
+
+- Status: Open
+
+## Notes
+
+Remember to check the API shape.
+`,
+            page: {
+                type: "Task",
+                title: "Notes only",
+                status: {type: "Open", isActive: false},
+                assignee: null,
+                collections: [],
+                priority: null,
+                dueDateString: null,
+                notes: {
+                    elements: [
+                        {
+                            type: "Paragraph",
+                            elements: [{type: "Text", text: "Remember to check the API shape."}],
+                        },
+                    ],
+                },
+            },
+        },
+        {
+            name: "task page with notes heading",
+            pageLink: taskId,
+            markdown: `\
+# Notes heading task
+
+- Status: Open
+
+## Notes
+
+### Context
+
+Bring logs.
+`,
+            page: {
+                type: "Task",
+                title: "Notes heading task",
+                status: {type: "Open", isActive: false},
+                assignee: null,
+                collections: [],
+                priority: null,
+                dueDateString: null,
+                notes: {
+                    elements: [
+                        {
+                            type: "Heading",
+                            level: 1,
+                            elements: [{type: "Text", text: "Context"}],
+                        },
+                        {
+                            type: "Paragraph",
+                            elements: [{type: "Text", text: "Bring logs."}],
+                        },
+                    ],
+                },
             },
         },
         {
@@ -278,7 +395,7 @@ runAgentWebPageTests<TaskId, AgentWebTaskPage>({
 # Extra task
 `,
             parseError:
-                "Unexpected markdown on line 5. Try again with only allowed sections like fields (an unordered list with items like `- Priority: Medium`) or notes (markdown after the h2 `## Notes`).",
+                "Unexpected markdown on line 5. Try again with only allowed sections like fields (an unordered list with items like `- Priority: Medium`) or notes (the h2 `## Notes` and the content after).",
         },
         {
             name: "task page with ordered field list",
@@ -289,7 +406,7 @@ runAgentWebPageTests<TaskId, AgentWebTaskPage>({
 1. Status: Open
 `,
             parseError:
-                "Unexpected markdown on line 3. Try again with either fields (an unordered list with items like `- Priority: Medium`) or notes (markdown after the h2 `## Notes`) after the task title.",
+                "Unexpected markdown on line 3. Try again with only allowed sections like fields (an unordered list with items like `- Priority: Medium`) or notes (the h2 `## Notes` and the content after).",
         },
         {
             name: "task page with field missing colon",
@@ -363,6 +480,7 @@ runAgentWebPageTests<TaskId, AgentWebTaskPage>({
                 collections: [],
                 priority: {type: "High"},
                 dueDateString: null,
+                notes: emptyNotes,
             },
         },
         {
@@ -405,6 +523,7 @@ runAgentWebPageTests<TaskId, AgentWebTaskPage>({
                 collections: [],
                 priority: null,
                 dueDateString: "2027-02-29",
+                notes: emptyNotes,
             },
         },
         {
@@ -443,6 +562,7 @@ runAgentWebPageTests<TaskId, AgentWebTaskPage>({
                 collections: [engineeringReference, roadmapReference],
                 priority: null,
                 dueDateString: null,
+                notes: emptyNotes,
             },
         },
         {
@@ -473,6 +593,7 @@ runAgentWebPageTests<TaskId, AgentWebTaskPage>({
                 collections: [engineeringReference],
                 priority: null,
                 dueDateString: "2027-07-12",
+                notes: emptyNotes,
             },
         },
         {
@@ -581,6 +702,7 @@ runAgentWebPageTests<TaskId, AgentWebTaskPage>({
                 collections: [engineeringReference, roadmapReference],
                 priority: null,
                 dueDateString: null,
+                notes: emptyNotes,
             },
         },
         {
@@ -610,6 +732,7 @@ runAgentWebPageTests<TaskId, AgentWebTaskPage>({
                 collections: [engineeringReference, roadmapReference],
                 priority: null,
                 dueDateString: null,
+                notes: emptyNotes,
             },
         },
         {
@@ -639,6 +762,7 @@ runAgentWebPageTests<TaskId, AgentWebTaskPage>({
                 collections: [engineeringReference, roadmapReference],
                 priority: null,
                 dueDateString: null,
+                notes: emptyNotes,
             },
         },
         {
@@ -657,7 +781,7 @@ runAgentWebPageTests<TaskId, AgentWebTaskPage>({
                 await createAgentWebPageStoredLinkPathname(storage, bobReference);
             },
             parseError:
-                "Unexpected markdown in task collection list item on line 6. Try again with a single collection link (e.g. `[My Collection](/task-collection/my-collection)`) in each nested list item.",
+                "Unexpected task collection link \u201CAlice\u201D on line 6. Try again with a link to a task collection you\u2019ve seen before (e.g. `[My Collection](/task-collection/my-collection)`).",
         },
     ],
 });
