@@ -903,6 +903,51 @@ export namespace ApiSpecification {
                             readonly "application/json": {
                                 readonly spaceId: components["schemas"]["SpaceId"];
                                 readonly thread: components["schemas"]["DocumentThread_Response"];
+                                readonly document: components["schemas"]["Document_Response"];
+                            };
+                        };
+                    };
+                    readonly default: components["responses"]["Error"];
+                };
+            };
+            readonly put?: never;
+            readonly post?: never;
+            readonly delete?: never;
+            readonly options?: never;
+            readonly head?: never;
+            readonly patch?: never;
+            readonly trace?: never;
+        };
+        readonly "/documents/{id}/threads/{threadId}/preview": {
+            readonly parameters: {
+                readonly query?: never;
+                readonly header?: never;
+                readonly path: {
+                    readonly id: components["schemas"]["DocumentId"];
+                    readonly threadId: components["schemas"]["DocumentThreadId"];
+                };
+                readonly cookie?: never;
+            };
+            readonly get: {
+                readonly parameters: {
+                    readonly query?: never;
+                    readonly header?: never;
+                    readonly path: {
+                        readonly id: components["schemas"]["DocumentId"];
+                        readonly threadId: components["schemas"]["DocumentThreadId"];
+                    };
+                    readonly cookie?: never;
+                };
+                readonly requestBody?: never;
+                readonly responses: {
+                    readonly 200: {
+                        headers: {
+                            readonly [name: string]: unknown;
+                        };
+                        content: {
+                            readonly "application/json": {
+                                readonly spaceId: components["schemas"]["SpaceId"];
+                                readonly thread: components["schemas"]["DocumentThreadPreview"];
                             };
                         };
                     };
@@ -3482,14 +3527,8 @@ export namespace ApiSpecification {
                 readonly id: components["schemas"]["DocumentId"];
                 readonly title: string;
             };
-            readonly DocumentThread: {
+            readonly DocumentThreadPreview: {
                 readonly id: components["schemas"]["DocumentThreadId"];
-                readonly document: {
-                    readonly id: components["schemas"]["DocumentId"];
-                    readonly reference: {
-                        readonly title: string;
-                    };
-                };
                 readonly isResolved: boolean;
                 readonly totalMessageCount: number;
                 readonly firstMessage: {
@@ -3497,7 +3536,22 @@ export namespace ApiSpecification {
                     readonly createdTime: components["schemas"]["DateTime"];
                     readonly createdTimeZone: components["schemas"]["TimeZone"];
                 };
-                readonly documentContentSnippet: components["schemas"]["Content"];
+            };
+            readonly DocumentThread: {
+                readonly id: components["schemas"]["DocumentThreadId"];
+                readonly isResolved: boolean;
+                readonly totalMessageCount: number;
+                readonly firstMessage: {
+                    readonly author: components["schemas"]["Account"];
+                    readonly createdTime: components["schemas"]["DateTime"];
+                    readonly createdTimeZone: components["schemas"]["TimeZone"];
+                };
+                readonly marked: {
+                    readonly preview: {
+                        readonly version: number;
+                        readonly contentSnippet: components["schemas"]["Content"];
+                    };
+                };
             };
             readonly ChannelPreview: {
                 readonly id: components["schemas"]["ChannelId"];
@@ -4513,12 +4567,6 @@ export namespace ApiSpecification {
             };
             readonly DocumentThread_Response: {
                 readonly id: components["schemas"]["DocumentThreadId"];
-                readonly document: {
-                    readonly id: components["schemas"]["DocumentId"];
-                    readonly reference: {
-                        readonly title: string;
-                    };
-                };
                 readonly isResolved: boolean;
                 readonly totalMessageCount: number;
                 readonly firstMessage: {
@@ -4526,7 +4574,12 @@ export namespace ApiSpecification {
                     readonly createdTime: components["schemas"]["DateTime"];
                     readonly createdTimeZone: components["schemas"]["TimeZone"];
                 };
-                readonly documentContentSnippet: components["schemas"]["Content_Response"];
+                readonly marked: {
+                    readonly preview: {
+                        readonly version: number;
+                        readonly contentSnippet: components["schemas"]["Content_Response"];
+                    };
+                };
             };
             readonly Channel_Response: {
                 readonly id: components["schemas"]["ChannelId"];

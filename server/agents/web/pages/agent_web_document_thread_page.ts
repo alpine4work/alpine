@@ -162,12 +162,10 @@ export async function readAgentWebDocumentThreadPage(
         searchParams: originalSearchParams,
         limitLength,
         printPage,
-        documentPagePromise,
     }: {
         searchParams: URLSearchParams;
         limitLength: number;
         printPage: (page: AgentWebDocumentThreadPage) => Promise<string>;
-        documentPagePromise: Lazy<Promise<AgentWebDocumentPageWithMetadata>>;
     },
 ): Promise<{response: string; metadata: AgentWebDocumentThreadPageMetadata}> {
     let excludesDocumentPreview = false;
@@ -206,7 +204,7 @@ export async function readAgentWebDocumentThreadPage(
         if (excludesDocumentPreview) return await roomMetadataWithoutStartCustomBlock.get();
 
         const {
-            data: {thread},
+            data: {thread, document},
         } = await context.api.get(context.span, "/documents/{id}/threads/{threadId}", {
             params: {path: {id, threadId}},
         });
@@ -221,30 +219,23 @@ export async function readAgentWebDocumentThreadPage(
         let matchAttribute: number | "deleted" | null = null;
 
         if (!thread.isResolved) {
-            const documentPage = await documentPagePromise.get();
-
-            const documentContent = zipKeysIntoApiContentResponse({
-                content: documentPage.content,
-                keys: documentPage.metadata.keys,
-            });
-
             documentContentSliceResult = extractCommentSliceFromApiContent(
                 threadId,
-                documentContent,
+                document.content,
             );
 
             if (!documentContentSliceResult) {
                 matchAttribute = "deleted";
             } else {
                 const ranges = Array.from(
-                    findApiContentRanges(documentContent, documentContentSliceResult.contentSlice),
+                    findApiContentRanges(document.content, documentContentSliceResult.contentSlice),
                 );
 
                 if (ranges.length <= 1) {
                     matchAttribute = null;
                 } else {
                     const rangeIndex = ranges.findIndex(range =>
-                        isDeepEqual(range, documentContentSliceResult.range),
+                        isDeepEqual(range, documentContentSliceResult!.range),
                     );
 
                     // To guarantee `findApiContentRanges()` finds the range returned by
@@ -264,7 +255,7 @@ export async function readAgentWebDocumentThreadPage(
         const documentReference: ApiDocumentReferenceResponse = {
             type: "Document",
             id,
-            title: thread.document.reference.title,
+            title: document.title,
         };
 
         const block: AgentWebDocumentThreadPageCustomBlock = {
@@ -286,7 +277,10 @@ export async function readAgentWebDocumentThreadPage(
                 // NOCOMMIT: Add an integration test to make sure we render the fallback if the
                 // comment was removed from the document.
                 assertExists(
-                    extractCommentSliceFromApiContent(threadId, thread.documentContentSnippet),
+                    extractCommentSliceFromApiContent(
+                        threadId,
+                        thread.marked.preview.contentSnippet,
+                    ),
                 ).contentSlice,
         };
 
@@ -457,18 +451,15 @@ export async function readAgentWebDocumentThreadMessagePage(
     {
         limitLength,
         printPage,
-        documentPagePromise,
     }: {
         limitLength: number;
         printPage: (page: AgentWebDocumentThreadPage) => Promise<string>;
-        documentPagePromise: Lazy<Promise<AgentWebDocumentPageWithMetadata>>;
     },
 ): Promise<{response: string; metadata: AgentWebDocumentThreadPageMetadata}> {
     return await readAgentWebDocumentThreadPage(context, id, threadId, {
         searchParams: new URLSearchParams([["comment", String(index)]]),
         limitLength,
         printPage,
-        documentPagePromise,
     });
 }
 
@@ -499,14 +490,11 @@ export async function createAgentWebDocumentThreadPage(
     }
 
     assert(documentReadResponse.pageMetadata.type === "Document");
+    const documentId = documentReadResponse.pageMetadata.id;
 
     const responseTree = parseMarkdownTree(documentReadResponse.response);
 
-    const documentPage = await parseAgentWebDocumentPage(
-        context.storage,
-        documentReadResponse.pageMetadata.id,
-        responseTree,
-    );
+    const documentPage = await parseAgentWebDocumentPage(context.storage, documentId, responseTree);
 
     if (newPage.subType === "Tail") {
         throw new InvalidArgumentError("Document quote is created when creating a comment thread", {
@@ -625,7 +613,7 @@ export async function createAgentWebDocumentThreadPage(
 
             return {
                 type: "DocumentThread",
-                id: thread.document.id,
+                id: documentId,
                 threadId: thread.id,
                 isStartOfMessages: true,
                 isEndOfMessages: true,

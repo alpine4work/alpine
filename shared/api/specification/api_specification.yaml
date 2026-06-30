@@ -568,13 +568,41 @@ paths:
                         application/json:
                             schema:
                                 type: object
-                                required: [spaceId, thread]
+                                required: [spaceId, thread, document]
                                 additionalProperties: false
                                 properties:
                                     spaceId:
                                         $ref: "#/components/schemas/SpaceId"
                                     thread:
                                         $ref: "#/components/schemas/DocumentThread"
+                                    document:
+                                        $ref: "#/components/schemas/Document"
+
+    /documents/{id}/threads/{threadId}/preview:
+        parameters:
+            - name: id
+              in: path
+              required: true
+              schema: {$ref: "#/components/schemas/DocumentId"}
+            - name: threadId
+              in: path
+              required: true
+              schema: {$ref: "#/components/schemas/DocumentThreadId"}
+        get:
+            responses:
+                default: {$ref: "#/components/responses/Error"}
+                "200":
+                    content:
+                        application/json:
+                            schema:
+                                type: object
+                                required: [spaceId, thread, document]
+                                additionalProperties: false
+                                properties:
+                                    spaceId:
+                                        $ref: "#/components/schemas/SpaceId"
+                                    thread:
+                                        $ref: "#/components/schemas/DocumentThreadPreview"
 
     /documents/{id}/threads/{threadId}/messages/{index}:
         parameters:
@@ -3384,26 +3412,13 @@ components:
                 title:
                     type: string
 
-        DocumentThread:
+        DocumentThreadPreview:
             type: object
-            required:
-                [id, document, isResolved, totalMessageCount, firstMessage, documentContentSnippet]
+            required: [id, isResolved, totalMessageCount, firstMessage]
             additionalProperties: false
-            properties:
+            properties: &documentThreadPreviewProperties
                 id:
                     $ref: "#/components/schemas/DocumentThreadId"
-                document:
-                    type: object
-                    required: [id, reference]
-                    properties:
-                        id:
-                            $ref: "#/components/schemas/DocumentId"
-                        reference:
-                            type: object
-                            required: [title]
-                            properties:
-                                title:
-                                    type: string
                 isResolved:
                     type: boolean
                 totalMessageCount:
@@ -3419,8 +3434,29 @@ components:
                             $ref: "#/components/schemas/DateTime"
                         createdTimeZone:
                             $ref: "#/components/schemas/TimeZone"
-                documentContentSnippet:
-                    $ref: "#/components/schemas/Content"
+
+        DocumentThread:
+            type: object
+            required: [id, isResolved, totalMessageCount, firstMessage, marked]
+            additionalProperties: false
+            properties:
+                <<: *documentThreadPreviewProperties
+                # NOCOMMIT: Consider adding `marked.ranges` here? If we add this it'll simplify
+                # our document comment thread agent web code. We can remove
+                # `extractCommentSliceFromApiContent()`.
+                marked:
+                    type: object
+                    required: [preview]
+                    properties:
+                        preview:
+                            type: object
+                            required: [version, contentSnippet]
+                            properties:
+                                version:
+                                    type: integer
+                                    minimum: 0
+                                contentSnippet:
+                                    $ref: "#/components/schemas/Content"
 
         ChannelPreview:
             type: object

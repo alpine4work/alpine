@@ -614,12 +614,46 @@ paths:
                                 required:
                                     - spaceId
                                     - thread
+                                    - document
                                 additionalProperties: false
                                 properties:
                                     spaceId:
                                         $ref: "#/components/schemas/SpaceId"
                                     thread:
                                         $ref: "#/components/schemas/DocumentThread_Response"
+                                    document:
+                                        $ref: "#/components/schemas/Document_Response"
+                default:
+                    $ref: "#/components/responses/Error"
+    /documents/{id}/threads/{threadId}/preview:
+        parameters:
+            - name: id
+              in: path
+              required: true
+              schema:
+                  $ref: "#/components/schemas/DocumentId"
+            - name: threadId
+              in: path
+              required: true
+              schema:
+                  $ref: "#/components/schemas/DocumentThreadId"
+        get:
+            responses:
+                "200":
+                    content:
+                        application/json:
+                            schema:
+                                type: object
+                                required:
+                                    - spaceId
+                                    - thread
+                                    - document
+                                additionalProperties: false
+                                properties:
+                                    spaceId:
+                                        $ref: "#/components/schemas/SpaceId"
+                                    thread:
+                                        $ref: "#/components/schemas/DocumentThreadPreview"
                 default:
                     $ref: "#/components/responses/Error"
     /documents/{id}/threads/{threadId}/messages/{index}:
@@ -3965,34 +3999,17 @@ components:
                     $ref: "#/components/schemas/DocumentId"
                 title:
                     type: string
-        DocumentThread:
+        DocumentThreadPreview:
             type: object
             required:
                 - id
-                - document
                 - isResolved
                 - totalMessageCount
                 - firstMessage
-                - documentContentSnippet
             additionalProperties: false
             properties:
                 id:
                     $ref: "#/components/schemas/DocumentThreadId"
-                document:
-                    type: object
-                    required:
-                        - id
-                        - reference
-                    properties:
-                        id:
-                            $ref: "#/components/schemas/DocumentId"
-                        reference:
-                            type: object
-                            required:
-                                - title
-                            properties:
-                                title:
-                                    type: string
                 isResolved:
                     type: boolean
                 totalMessageCount:
@@ -4011,8 +4028,52 @@ components:
                             $ref: "#/components/schemas/DateTime"
                         createdTimeZone:
                             $ref: "#/components/schemas/TimeZone"
-                documentContentSnippet:
-                    $ref: "#/components/schemas/Content"
+        DocumentThread:
+            type: object
+            required:
+                - id
+                - isResolved
+                - totalMessageCount
+                - firstMessage
+                - marked
+            additionalProperties: false
+            properties:
+                id:
+                    $ref: "#/components/schemas/DocumentThreadId"
+                isResolved:
+                    type: boolean
+                totalMessageCount:
+                    type: integer
+                    minimum: 0
+                firstMessage:
+                    type: object
+                    required:
+                        - author
+                        - createdTime
+                        - createdTimeZone
+                    properties:
+                        author:
+                            $ref: "#/components/schemas/Account"
+                        createdTime:
+                            $ref: "#/components/schemas/DateTime"
+                        createdTimeZone:
+                            $ref: "#/components/schemas/TimeZone"
+                marked:
+                    type: object
+                    required:
+                        - preview
+                    properties:
+                        preview:
+                            type: object
+                            required:
+                                - version
+                                - contentSnippet
+                            properties:
+                                version:
+                                    type: integer
+                                    minimum: 0
+                                contentSnippet:
+                                    $ref: "#/components/schemas/Content"
         ChannelPreview:
             type: object
             required:
@@ -6066,30 +6127,14 @@ components:
             type: object
             required:
                 - id
-                - document
                 - isResolved
                 - totalMessageCount
                 - firstMessage
-                - documentContentSnippet
+                - marked
             additionalProperties: false
             properties:
                 id:
                     $ref: "#/components/schemas/DocumentThreadId"
-                document:
-                    type: object
-                    required:
-                        - id
-                        - reference
-                    properties:
-                        id:
-                            $ref: "#/components/schemas/DocumentId"
-                        reference:
-                            type: object
-                            required:
-                                - title
-                            properties:
-                                title:
-                                    type: string
                 isResolved:
                     type: boolean
                 totalMessageCount:
@@ -6108,8 +6153,22 @@ components:
                             $ref: "#/components/schemas/DateTime"
                         createdTimeZone:
                             $ref: "#/components/schemas/TimeZone"
-                documentContentSnippet:
-                    $ref: "#/components/schemas/Content_Response"
+                marked:
+                    type: object
+                    required:
+                        - preview
+                    properties:
+                        preview:
+                            type: object
+                            required:
+                                - version
+                                - contentSnippet
+                            properties:
+                                version:
+                                    type: integer
+                                    minimum: 0
+                                contentSnippet:
+                                    $ref: "#/components/schemas/Content_Response"
         Channel_Response:
             type: object
             required:

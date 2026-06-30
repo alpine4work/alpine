@@ -71,7 +71,6 @@ import {errorDisplayMessage} from "~/shared/error/error_display_message.js";
 import {Mutex} from "~/shared/helpers/async/mutex.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
-import {Lazy} from "~/shared/helpers/control/lazy.js";
 import {getOrSetDefaultMapValue} from "~/shared/helpers/map/get_or_set_default_map_value.js";
 
 export const agentWebReadResponseExpirationHours = 1;
@@ -274,12 +273,7 @@ async function readAgentWebPageLink(
                 context,
                 pageLink.document.id,
                 pageLink.threadId,
-                {
-                    ...options,
-                    documentPagePromise: new Lazy(() =>
-                        maybeCallAgentWebReadToolForDocumentThread(context, pathname),
-                    ),
-                },
+                options,
             );
         }
         case "DocumentMessage": {
@@ -288,12 +282,7 @@ async function readAgentWebPageLink(
                 pageLink.id,
                 pageLink.threadId,
                 pageLink.index,
-                {
-                    ...options,
-                    documentPagePromise: new Lazy(() =>
-                        maybeCallAgentWebReadToolForDocumentThread(context, pathname),
-                    ),
-                },
+                options,
             );
         }
         case "File": {
@@ -337,43 +326,6 @@ async function readAgentWebPageLink(
         default:
             throw exhaustive(pageLink);
     }
-}
-
-async function maybeCallAgentWebReadToolForDocumentThread(
-    context: AgentWebContext,
-    pathname: string,
-): Promise<AgentWebDocumentPageWithMetadata> {
-    const pathnameParts = pathname.slice(1).split("/");
-    assert(pathnameParts.length === 4);
-    assert(pathnameParts[0] === "document");
-    assert(pathnameParts[2] === "comments");
-    assert(/^(0|[1-9][0-9]*)$/.test(pathnameParts[3]!));
-
-    const documentPath = `/document/${pathnameParts[1]!}`;
-
-    let readResponse = await context.storage.readResponseByPath.get(documentPath);
-
-    // If we recently read the document, then use the cached response. Otherwise read
-    // the document fresh. We need the full document content so we can correctly
-    // reference positions within the document.
-    if (!readResponse || readResponse.expirationTime.getTime() < Date.now()) {
-        ({readResponse} = await actuallyCallAgentWebReadTool(context, {
-            path: documentPath,
-            limit: "1gb",
-        }));
-    }
-
-    assert(readResponse.pageMetadata.type === "Document");
-
-    const responseTree = parseMarkdownTree(readResponse.response);
-
-    const page = await parseAgentWebDocumentPage(
-        context.storage,
-        readResponse.pageMetadata.id,
-        responseTree,
-    );
-
-    return {...page, metadata: readResponse.pageMetadata};
 }
 
 function normalizeAgentWebPage(page: AgentWebPage): AgentWebPage {
