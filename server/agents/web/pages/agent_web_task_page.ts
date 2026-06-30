@@ -550,12 +550,10 @@ export async function parseAgentWebTaskPage(
     root: Root,
 ): Promise<AgentWebTaskPage> {
     let title: string;
-
     {
         const firstChild = root.children[0];
 
         if (firstChild?.type === "heading" && firstChild.depth === 1) {
-            root.children.shift();
             title = printMarkdownPhrasingContentText(firstChild.children);
         } else {
             throw new InvalidArgumentError("Missing title in task", {
