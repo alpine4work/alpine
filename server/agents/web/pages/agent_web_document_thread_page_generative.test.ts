@@ -44,10 +44,10 @@ const AgentWebDocumentThreadPageCustomBlockArbitrary: Arbitrary<AgentWebDocument
         type: fc.constant("Custom"),
         tagName: fc.constant("blockquote"),
         timeAttribute: fc.constant(null),
-        hasCiteAttribute: fc.boolean(),
         matchAttribute: fc.oneof(
-            {weight: 10, arbitrary: fc.constant(null)},
-            {weight: 1, arbitrary: fc.integer({min: 1, max: 10})},
+            {weight: 100, arbitrary: fc.constant(null)},
+            {weight: 10, arbitrary: fc.integer({min: 1, max: 10})},
+            {weight: 1, arbitrary: fc.constant("deleted" as const)},
         ),
         content: ApiContentWithoutCommentMarkArbitrary,
     });
