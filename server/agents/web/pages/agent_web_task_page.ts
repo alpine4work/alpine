@@ -809,24 +809,14 @@ async function parseAgentWebTaskPageCollections(
     value: ReadonlyArray<PhrasingContent>,
     remaining: ReadonlyArray<ListItem["children"][number]>,
 ): Promise<Array<ApiTaskCollectionReferenceResponse>> {
-    const collections: Array<ApiTaskCollectionReferenceResponse> = [];
+    const collectionLinks: Array<Link> = [];
     let hasInlineListSyntax = false;
 
     for (const node of value) {
         switch (node.type) {
             case "link": {
                 hasInlineListSyntax = true;
-                const pageLinkResult = await routeAgentWebPageLinkPathname(storage, node.url);
-
-                if (!pageLinkResult || pageLinkResult.pageLink.type !== "TaskCollection") {
-                    const quotedValue = quoteMarkdown([node]);
-
-                    throw new InvalidArgumentError("Invalid task fields", {
-                        displayMessage: errorDisplayMessage`Unexpected task collection link ${quotedValue} on line ${node.position?.start.line ?? itemPosition?.start.line ?? "unknown"}. Try again with a link to a task collection you\u2019ve seen before (e.g. \`[My Collection](/task-collection/my-collection)\`).`,
-                    });
-                }
-
-                collections.push(pageLinkResult.pageLink);
+                collectionLinks.push(node);
                 break;
             }
 
@@ -857,13 +847,29 @@ async function parseAgentWebTaskPageCollections(
 
     // If there were just inline collections, great! Otherwise we'll try to parse a
     // nested collection list.
-    if (remaining.length === 0) return collections;
+    if (remaining.length === 0) {
+        const collectionPromises = collectionLinks.map(async link => {
+            const pageLinkResult = await routeAgentWebPageLinkPathname(storage, link.url);
+
+            if (!pageLinkResult || pageLinkResult.pageLink.type !== "TaskCollection") {
+                const quotedValue = quoteMarkdown([link]);
+
+                throw new InvalidArgumentError("Invalid task fields", {
+                    displayMessage: errorDisplayMessage`Unexpected task collection link ${quotedValue} on line ${link.position?.start.line ?? itemPosition?.start.line ?? "unknown"}. Try again with a link to a task collection you\u2019ve seen before (e.g. \`[My Collection](/task-collection/my-collection)\`).`,
+                });
+            }
+
+            return pageLinkResult.pageLink;
+        });
+
+        return await runAllPromises(collectionPromises);
+    }
 
     const nestedList = remaining[0];
 
     if (
         hasInlineListSyntax ||
-        collections.length > 0 ||
+        collectionLinks.length > 0 ||
         remaining.length !== 1 ||
         nestedList!.type !== "list" ||
         nestedList.ordered
@@ -905,16 +911,24 @@ async function parseAgentWebTaskPageCollections(
             throw createError();
         }
 
+        collectionLinks.push(link);
+    }
+
+    const collectionPromises = collectionLinks.map(async link => {
         const pageLinkResult = await routeAgentWebPageLinkPathname(storage, link.url);
 
         if (!pageLinkResult || pageLinkResult.pageLink.type !== "TaskCollection") {
-            throw createError();
+            const quotedValue = quoteMarkdown([link]);
+
+            throw new InvalidArgumentError("Invalid task fields", {
+                displayMessage: errorDisplayMessage`Unexpected task collection link ${quotedValue} on line ${link.position?.start.line ?? itemPosition?.start.line ?? "unknown"}. Try again with a link to a task collection you\u2019ve seen before (e.g. \`[My Collection](/task-collection/my-collection)\`).`,
+            });
         }
 
-        collections.push(pageLinkResult.pageLink);
-    }
+        return pageLinkResult.pageLink;
+    });
 
-    return collections;
+    return await runAllPromises(collectionPromises);
 }
 
 function parseAgentWebTaskPagePriority(
