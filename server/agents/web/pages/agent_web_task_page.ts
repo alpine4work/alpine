@@ -30,6 +30,7 @@ import {
     ApiTaskDue,
     ApiTaskPatch,
     ApiTaskPriority,
+    ApiTaskReferenceResponse,
     ApiTaskStatus,
 } from "~/shared/api/specification/types/api_specification_convenience_types.js";
 import {formatPrettyAbsoluteDateWithoutFullTimeTooltip} from "~/shared/design/format_pretty_absolute_date_without_full_time_tooltip.js";
@@ -46,13 +47,12 @@ import {defaultLocale} from "~/shared/helpers/intl/locale.js";
 import {MaybePromise} from "~/shared/helpers/types/maybe_promise.js";
 import {TaskId} from "~/shared/id/types/id_types.js";
 
-// NOCOMMIT: Parent tasks
-//
 // NOCOMMIT: Subtasks
 export type AgentWebTaskPage = {
     readonly type: "Task";
     readonly title: string;
     readonly status: ApiTaskStatus;
+    readonly parent: ApiTaskReferenceResponse | null;
     readonly assignee: ApiAccountReferenceResponse | null;
     readonly collections: ReadonlyArray<ApiTaskCollectionReferenceResponse>;
     readonly priority: ApiTaskPriority | null;
@@ -92,6 +92,14 @@ export async function readAgentWebTaskPage(
         type: "Task",
         title: task.title,
         status: task.status,
+        parent: task.parent
+            ? {
+                  type: "Task",
+                  id: task.parent.task.id,
+                  title: task.parent.task.title,
+                  status: task.parent.task.status,
+              }
+            : null,
         assignee: task.assignee ? intoApiAccountReference(task.assignee) : null,
         collections:
             task.collections?.map(({collection}) => ({
@@ -176,6 +184,7 @@ export async function createAgentWebTaskPage(
             task: {
                 title: newPage.title,
                 status: newPage.status,
+                parent: newPage.parent ? {task: {id: newPage.parent.id}} : undefined,
                 assignee: newPage.assignee ? {id: newPage.assignee.id} : undefined,
                 collections: newPage.collections.map(collection => ({
                     collection: {id: collection.id},
@@ -257,6 +266,13 @@ export async function updateAgentWebTaskPage(
             oldPage.status.isActive !== newPage.status.isActive)
     ) {
         patches.push({type: "SetStatus", status: newPage.status});
+    }
+
+    if (oldPage.parent?.id !== newPage.parent?.id) {
+        patches.push({
+            type: "SetParent",
+            parent: newPage.parent ? {task: {id: newPage.parent.id}} : null,
+        });
     }
 
     if (oldPage.assignee?.id !== newPage.assignee?.id) {
@@ -358,6 +374,7 @@ function parseAgentWebTaskPageDueDateStringForUpdate(
 export function normalizeAgentWebTaskPage<Page extends AgentWebTaskPage>(page: Page): Page {
     return produce(page, page => {
         withApiContentNormalizerForAgentWebMarkdown(normalizer => {
+            if (page.parent) normalizer.normalizeReference(page.parent);
             if (page.assignee) normalizer.normalizeReference(page.assignee);
             for (const collection of page.collections) normalizer.normalizeReference(collection);
             normalizer.normalize(page.notes);
@@ -387,6 +404,35 @@ export async function printAgentWebTaskPage(
             ],
         },
     ];
+
+    if (page.parent) {
+        const {parent} = page;
+
+        listItemPromises.push(
+            (async () => ({
+                type: "listItem",
+                spread: false,
+                children: [
+                    {
+                        type: "paragraph",
+                        children: [
+                            {type: "text", value: "Parent: "},
+                            {
+                                type: "link",
+                                url: await createAgentWebPageStoredLinkPathname(storage, parent),
+                                children: [
+                                    {
+                                        type: "text",
+                                        value: printApiMentionReferenceToMentionLinkLabel(parent),
+                                    },
+                                ],
+                            },
+                        ],
+                    },
+                ],
+            }))(),
+        );
+    }
 
     if (page.assignee) {
         const {assignee} = page;
@@ -593,6 +639,7 @@ export async function parseAgentWebTaskPage(
     }
 
     let status: ApiTaskStatus = {type: "Open", isActive: false};
+    let parentPromise: Promise<ApiTaskReferenceResponse | null> | null = null;
     let assigneePromise: Promise<ApiAccountReferenceResponse | null> | null = null;
     let collectionsPromise: Promise<ReadonlyArray<ApiTaskCollectionReferenceResponse>> | null =
         null;
@@ -632,6 +679,10 @@ export async function parseAgentWebTaskPage(
                     status = parseAgentWebTaskPageStatus(item.position, value);
                     break;
                 }
+                case "parent": {
+                    parentPromise = parseAgentWebTaskPageParent(storage, item.position, value);
+                    break;
+                }
                 case "assigne": {
                     assigneePromise = parseAgentWebTaskPageAssignee(storage, item.position, value);
                     break;
@@ -655,7 +706,7 @@ export async function parseAgentWebTaskPage(
                 }
                 default: {
                     throw new InvalidArgumentError("Unknown task field", {
-                        displayMessage: errorDisplayMessage`Unknown task field \u201C${label}\u201D on line ${item.position?.start.line ?? "unknown"}. Try again with one of \u201CStatus\u201D, \u201CAssignee\u201D, \u201CCollections\u201D, \u201CPriority\u201D, or \u201CDue date\u201D.`,
+                        displayMessage: errorDisplayMessage`Unknown task field \u201C${label}\u201D on line ${item.position?.start.line ?? "unknown"}. Try again with one of \u201CStatus\u201D, \u201CParent\u201D, \u201CAssignee\u201D, \u201CCollections\u201D, \u201CPriority\u201D, or \u201CDue date\u201D.`,
                     });
                 }
             }
@@ -685,7 +736,8 @@ export async function parseAgentWebTaskPage(
         notesPromise = parseApiContentFromAgentWebMarkdownTree(storage, notesRoot);
     }
 
-    const [assignee, collections, notes] = await runAllPromises([
+    const [parent, assignee, collections, notes] = await runAllPromises([
+        parentPromise,
         assigneePromise,
         collectionsPromise,
         notesPromise,
@@ -695,6 +747,7 @@ export async function parseAgentWebTaskPage(
         type: "Task",
         title,
         status,
+        parent,
         assignee,
         collections: collections ?? [],
         priority,
@@ -761,6 +814,46 @@ function parseAgentWebTaskPageStatus(
             });
         }
     }
+}
+
+async function parseAgentWebTaskPageParent(
+    storage: AgentWebSessionStorage,
+    itemPosition: Node["position"],
+    value: ReadonlyArray<PhrasingContent>,
+): Promise<ApiTaskReferenceResponse | null> {
+    const createError = (position: Node["position"]) => {
+        const quotedValue = quoteMarkdown(value);
+
+        return new InvalidArgumentError("Invalid task fields", {
+            displayMessage: errorDisplayMessage`Unexpected task parent link ${quotedValue} on line ${position?.start.line ?? itemPosition?.start.line ?? "unknown"}. Try again with a link to a task you\u2019ve seen before (e.g. \`[My Task](/task/my-task)\`).`,
+        });
+    };
+
+    let link: Link | null = null;
+
+    for (const child of value) {
+        // NOCOMMIT: test that if there's a second link we should throw
+        if (child.type === "link" && link === null) {
+            link = child;
+            continue;
+        }
+
+        if (child.type === "text" && child.value.trim().length === 0) {
+            continue;
+        }
+
+        throw createError(child.position);
+    }
+
+    if (link === null) return null;
+
+    const pageLinkResult = await routeAgentWebPageLinkPathname(storage, link.url);
+
+    if (!pageLinkResult || pageLinkResult.pageLink.type !== "Task") {
+        throw createError(link.position);
+    }
+
+    return pageLinkResult.pageLink;
 }
 
 async function parseAgentWebTaskPageAssignee(
