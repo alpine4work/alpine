@@ -1,4 +1,5 @@
-import {Root, RootContent} from "mdast";
+import {Tokenizer as HtmlTokenizer} from "htmlparser2";
+import {Node, Root, RootContent} from "mdast";
 import {
     AgentWebContext,
     AgentWebContextWithoutStorage,
@@ -110,6 +111,8 @@ export type AgentWebDocumentThreadPageCustomBlock = {
     readonly type: "Custom";
     readonly tagName: "blockquote";
     readonly timeAttribute: null;
+    readonly hasCiteAttribute?: boolean;
+    readonly matchAttribute?: number | null;
     readonly content: ApiContentResponseWithoutKeys;
 };
 
@@ -223,6 +226,7 @@ export async function readAgentWebDocumentThreadPage(
                     type: "Custom",
                     tagName: "blockquote",
                     timeAttribute: null,
+                    hasCiteAttribute: true,
                     // Just show the commented content to the agent without any of the surrounding
                     // context returned by the API. We use this format so that it's easy for the agent
                     // to create new document comment threads since all it needs to do is write the
@@ -491,11 +495,22 @@ export async function createAgentWebDocumentThreadPage(
         });
     }
 
-    // NOCOMMIT: If there's more than one match we need a way for the agent to specify
-    // which instance of the content it wants.
-    if (ranges.length > 1) {
+    if (
+        quoteBlock.matchAttribute !== undefined &&
+        quoteBlock.matchAttribute !== null &&
+        (quoteBlock.matchAttribute < 1 || quoteBlock.matchAttribute > ranges.length)
+    ) {
+        throw new InvalidArgumentError("Quoted document content match out of bounds", {
+            displayMessage: errorDisplayMessage`The \`<blockquote>\` \`match\` attribute must be between 1 and ${ranges.length}, instead it was \`match="${quoteBlock.matchAttribute}"\`. Try again with a valid 1-indexed \`match\` attribute.`,
+        });
+    }
+
+    if (
+        (quoteBlock.matchAttribute === undefined || quoteBlock.matchAttribute === null) &&
+        ranges.length > 1
+    ) {
         throw new InvalidArgumentError("Quoted document content found more than once", {
-            displayMessage: errorDisplayMessage`${ranges.length} matches were found for the quoted content in \`<blockquote>\` in \`${documentPath}\`. Try again but provide more surrounding context to make your match unique.`,
+            displayMessage: errorDisplayMessage`${ranges.length} matches were found for the quoted content in \`<blockquote>\` in \`${documentPath}\`. Try again but provide more surrounding context to make your match unique or add a 1-indexed \`match\` attribute to \`<blockquote>\` to choose which match to use (e.g. \`<blockquote match="2">\` uses the second match).`,
         });
     }
 
@@ -673,10 +688,22 @@ export async function printAgentWebDocumentThreadPage(
                 {documentId: pageLink.document.id},
             );
 
+            let openTag = "<blockquote";
+
+            if (block.hasCiteAttribute) {
+                openTag += ` cite="../.."`;
+            }
+
+            if (block.matchAttribute !== undefined && block.matchAttribute !== null) {
+                openTag += ` match="${block.matchAttribute}"`;
+            }
+
+            openTag += ">";
+
             return {
                 type: "root",
                 children: [
-                    {type: "html", value: "<blockquote>"},
+                    {type: "html", value: openTag},
                     ...contentTree.children,
                     {type: "html", value: "</blockquote>"},
                 ],
@@ -778,7 +805,14 @@ export async function parseAgentWebDocumentThreadPageAndReturnDocumentPath(
             return {type: "Tail", document: secondElement.reference};
         },
         parseCustomBlockByTagName: {
-            blockquote: async (storage, root): Promise<AgentWebDocumentThreadPageCustomBlock> => {
+            blockquote: async (
+                storage,
+                root,
+                {openTag, openTagPosition},
+            ): Promise<AgentWebDocumentThreadPageCustomBlock> => {
+                const {hasCiteAttribute, matchAttribute} =
+                    parseAgentWebDocumentThreadPageBlockquoteOpenTag(openTag, openTagPosition);
+
                 const content = await parseApiContentFromAgentWebMarkdownTree(storage, root, {
                     documentId: pageLink?.document.id ?? null,
                 });
@@ -787,6 +821,8 @@ export async function parseAgentWebDocumentThreadPageAndReturnDocumentPath(
                     type: "Custom",
                     tagName: "blockquote",
                     timeAttribute: null,
+                    ...(hasCiteAttribute ? {hasCiteAttribute} : {}),
+                    ...(matchAttribute !== null ? {matchAttribute} : {}),
                     content,
                 };
             },
@@ -879,4 +915,118 @@ function parseAgentWebDocumentThreadPageResolvedState(
     if (text !== "Resolved" && text !== "Unresolved") return null;
 
     return {type: "Present", isResolved: item.checked};
+}
+
+function parseAgentWebDocumentThreadPageBlockquoteOpenTag(
+    openTag: string,
+    openTagPosition: Node["position"],
+): {hasCiteAttribute: boolean; matchAttribute: number | null} {
+    let hasBlockquoteOpenTag = false;
+    let hasEndedBlockquoteOpenTag = false;
+    let startedAttribute: "cite" | "match" | null = null;
+    let citeAttribute: string | null = null;
+    let matchAttributeString: string | null = null;
+
+    const tokenizer = new HtmlTokenizer(
+        {},
+        {
+            onopentagname: (start, end) => {
+                const tagName = openTag.slice(start, end).toLowerCase();
+                if (tagName !== "blockquote") return;
+
+                hasBlockquoteOpenTag = true;
+            },
+            onopentagend: () => {
+                if (hasBlockquoteOpenTag) {
+                    assert(!startedAttribute);
+                    hasEndedBlockquoteOpenTag = true;
+                }
+            },
+            onattribname: (start, end) => {
+                if (!hasBlockquoteOpenTag || hasEndedBlockquoteOpenTag) return;
+
+                const attributeName = openTag.slice(start, end).toLowerCase();
+
+                switch (attributeName) {
+                    case "cite": {
+                        startedAttribute = "cite";
+                        citeAttribute = "";
+                        break;
+                    }
+                    case "match": {
+                        startedAttribute = "match";
+                        matchAttributeString = "";
+                        break;
+                    }
+                }
+            },
+            onattribdata: (start, end) => {
+                const attributeData = openTag.slice(start, end);
+
+                switch (startedAttribute) {
+                    case "cite": {
+                        citeAttribute += attributeData;
+                        break;
+                    }
+                    case "match": {
+                        matchAttributeString += attributeData;
+                        break;
+                    }
+                }
+            },
+            onattribentity: codepoint => {
+                const attributeData = String.fromCodePoint(codepoint);
+
+                switch (startedAttribute) {
+                    case "cite": {
+                        citeAttribute += attributeData;
+                        break;
+                    }
+                    case "match": {
+                        matchAttributeString += attributeData;
+                        break;
+                    }
+                }
+            },
+            onattribend: () => {
+                startedAttribute = null;
+            },
+            onclosetag: () => {},
+            onselfclosingtag: () => {},
+            ontext: () => {},
+            ontextentity: () => {},
+            oncdata: () => {},
+            oncomment: () => {},
+            ondeclaration: () => {},
+            onprocessinginstruction: () => {},
+            onend: () => {},
+        },
+    );
+
+    tokenizer.write(openTag);
+    tokenizer.end();
+
+    assert(hasBlockquoteOpenTag);
+
+    const hasCiteAttribute = citeAttribute !== null;
+
+    if (hasCiteAttribute && citeAttribute !== "../..") {
+        throw new InvalidArgumentError("Invalid document quote cite attribute", {
+            displayMessage: errorDisplayMessage`Invalid \`<blockquote>\` \`cite\` attribute on line ${openTagPosition?.start.line ?? "unknown"}. The \`<blockquote>\` \`cite\` attribute must always be \`cite="../.."\` since we always want to quote content from the parent document. Try again with \`cite="../.."\` or omit the \`cite\` attribute entirely (\`cite="../.."\` is implied).`,
+        });
+    }
+
+    if (matchAttributeString === null) {
+        return {hasCiteAttribute, matchAttribute: null};
+    }
+
+    const matchAttribute = parseInt(matchAttributeString, 10);
+
+    if (!/^-?[0-9]+$/.test(matchAttributeString) || !Number.isSafeInteger(matchAttribute)) {
+        throw new InvalidArgumentError("Invalid document quote match attribute", {
+            displayMessage: errorDisplayMessage`Invalid \`<blockquote>\` \`match\` attribute on line ${openTagPosition?.start.line ?? "unknown"}. Try again with a 1-indexed integer like \`match="2"\`.`,
+        });
+    }
+
+    return {hasCiteAttribute, matchAttribute};
 }
