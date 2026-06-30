@@ -500,6 +500,12 @@ export async function createAgentWebDocumentThreadPage(
         quoteBlock.matchAttribute !== null &&
         (quoteBlock.matchAttribute < 1 || quoteBlock.matchAttribute > ranges.length)
     ) {
+        if (ranges.length === 1) {
+            throw new InvalidArgumentError("Quoted document content match out of bounds", {
+                displayMessage: errorDisplayMessage`The \`<blockquote>\` \`match\` attribute must be 1 or it can be omitted since there\u2019s only one match, instead it was \`match="${quoteBlock.matchAttribute}"\`. Try again but omit the \`match\` attribute.`,
+            });
+        }
+
         throw new InvalidArgumentError("Quoted document content match out of bounds", {
             displayMessage: errorDisplayMessage`The \`<blockquote>\` \`match\` attribute must be between 1 and ${ranges.length}, instead it was \`match="${quoteBlock.matchAttribute}"\`. Try again with a valid 1-indexed \`match\` attribute.`,
         });
