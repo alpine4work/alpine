@@ -1,6 +1,6 @@
 import {CalendarDate, fromDate, parseDate, toCalendarDate} from "@internationalized/date";
 import {produce} from "immer";
-import {Link, ListItem, Node, Parent, PhrasingContent, Root, Text} from "mdast";
+import {Link, List, ListItem, Node, Parent, PhrasingContent, Root, Text} from "mdast";
 import {
     AgentWebContext,
     AgentWebContextWithoutStorage,
@@ -564,100 +564,155 @@ export async function parseAgentWebTaskPage(
         }
     }
 
-    // NOCOMMIT: Reject additional h1s or h2s in `## Notes` like
-    // `agent_web_document_page.ts`
-
-    let page: AgentWebTaskPage = {
-        type: "Task",
-        title,
-        status: {type: "Open", isActive: false},
-        assignee: null,
-        collections: [],
-        priority: null,
-        dueDateString: null,
+    const createUnexpectedError = () => {
+        return new InvalidArgumentError("Expected task fields", {
+            displayMessage: errorDisplayMessage`Unexpected markdown on line ${root.children[childIndex]?.position?.start.line ?? "unknown"}. Try again with only allowed sections like fields (an unordered list with items like \`- Priority: Medium\`) or notes (the h2 \`## Notes\` and the content after).`,
+        });
     };
 
-    if (root.children.length === 0) return page;
+    let childIndex = 1;
+    let fieldsList: List | null = null;
+    let notesChildren: Array<RootContent> | null = null;
 
-    if (root.children[0]!.type !== "list" || root.children[0].ordered) {
-        throw new InvalidArgumentError("Expected task fields", {
-            displayMessage: errorDisplayMessage`Unexpected markdown on line ${root.children[0]!.position?.start.line ?? "unknown"}. Try again with either fields (an unordered list with items like \`- Priority: Medium\`) or notes (markdown after the h2 \`## Notes\`) after the task title.`,
-        });
+    while (childIndex < root.children.length) {
+        const nextChild = root.children[childIndex]!;
+
+        if (notesChildren === null && nextChild.type === "list") {
+            if (nextChild.ordered) throw createUnexpectedError();
+            fieldsList = nextChild;
+            childIndex++;
+        } else if (
+            nextChild.type === "heading" &&
+            nextChild.depth === 2 &&
+            normalizeAgentWebStaticText(printMarkdownPhrasingContentText(nextChild.children)) ===
+                "note"
+        ) {
+            notesChildren = root.children.slice(childIndex + 1);
+            childIndex = root.children.length;
+        } else {
+            throw createUnexpectedError();
+        }
     }
 
-    if (root.children.length > 1) {
-        throw new InvalidArgumentError("Expected task fields", {
-            displayMessage: errorDisplayMessage`Unexpected markdown on line ${root.children[1]!.position?.start.line ?? "unknown"}. Try again with only allowed sections like fields (an unordered list with items like \`- Priority: Medium\`) or notes (markdown after the h2 \`## Notes\`).`,
-        });
-    }
+    let status: ApiTaskStatus = {type: "Open", isActive: false};
+    let assigneePromise: Promise<ApiAccountReferenceResponse | null> | null = null;
+    let collectionsPromise: Promise<ReadonlyArray<ApiTaskCollectionReferenceResponse>> | null =
+        null;
+    let priority: ApiTaskPriority | null = null;
+    let dueDateString: string | null = null;
+    let notesPromise: Promise<ApiContentResponseWithoutKeys> | null = null;
 
-    const seenFields = new Set<string>();
+    if (fieldsList !== null) {
+        const seenFields = new Set<string>();
 
-    for (const item of root.children[0].children) {
-        const {label, value, remaining} = parseAgentWebTaskPageField(item);
+        for (const item of fieldsList.children) {
+            const {label, value, remaining} = parseAgentWebTaskPageField(item);
 
-        let labelKey = normalizeAgentWebStaticText(label);
-        if (labelKey === "due-date") labelKey = "due";
+            let labelKey = normalizeAgentWebStaticText(label);
+            if (labelKey === "due-date") labelKey = "due";
 
-        if (seenFields.has(labelKey)) {
-            throw new InvalidArgumentError("Duplicate task field", {
-                displayMessage: errorDisplayMessage`Duplicate task field \u201C${label}\u201D on line ${item.position?.start.line ?? "unknown"}. Try again with each task field only present once in the field list.`,
-            });
-        }
-
-        seenFields.add(labelKey);
-
-        // All fields, except collections, should only have a single paragraph and
-        // shouldn't have any other markdown in the list item after that.
-        //
-        // NOCOMMIT: Test this error for all field types!
-        if (remaining.length > 0 && labelKey !== "collect") {
-            throw new InvalidArgumentError("Unexpected markdown nested in task field", {
-                displayMessage: errorDisplayMessage`Unexpected markdown after task field \u201C${label}\u201D on line ${remaining[0]!.position?.start.line ?? item.position?.start.line ?? "unknown"}. Try again with an unordered list item for each task field where the field name is followed by the field value with a colon in between (e.g. \`- Priority: Medium\`).`,
-            });
-        }
-
-        switch (labelKey) {
-            case "statu": {
-                page = {...page, status: parseAgentWebTaskPageStatus(item.position, value)};
-                break;
+            if (seenFields.has(labelKey)) {
+                throw new InvalidArgumentError("Duplicate task field", {
+                    displayMessage: errorDisplayMessage`Duplicate task field \u201C${label}\u201D on line ${item.position?.start.line ?? "unknown"}. Try again with each task field only present once in the field list.`,
+                });
             }
-            case "assigne": {
-                page = {
-                    ...page,
-                    assignee: await parseAgentWebTaskPageAssignee(storage, item.position, value),
-                };
-                break;
+
+            seenFields.add(labelKey);
+
+            // All fields, except collections, should only have a single paragraph and
+            // shouldn't have any other markdown in the list item after that.
+            //
+            // NOCOMMIT: Test this error for all field types!
+            if (remaining.length > 0 && labelKey !== "collect") {
+                throw new InvalidArgumentError("Unexpected markdown nested in task field", {
+                    displayMessage: errorDisplayMessage`Unexpected markdown after task field \u201C${label}\u201D on line ${remaining[0]!.position?.start.line ?? item.position?.start.line ?? "unknown"}. Try again with an unordered list item for each task field where the field name is followed by the field value with a colon in between (e.g. \`- Priority: Medium\`).`,
+                });
             }
-            case "collect": {
-                page = {
-                    ...page,
-                    collections: await parseAgentWebTaskPageCollections(
+
+            switch (labelKey) {
+                case "statu": {
+                    status = parseAgentWebTaskPageStatus(item.position, value);
+                    break;
+                }
+                case "assigne": {
+                    assigneePromise = parseAgentWebTaskPageAssignee(storage, item.position, value);
+                    break;
+                }
+                case "collect": {
+                    collectionsPromise = parseAgentWebTaskPageCollections(
                         storage,
                         item.position,
                         value,
                         remaining,
-                    ),
-                };
-                break;
-            }
-            case "prioriti": {
-                page = {...page, priority: parseAgentWebTaskPagePriority(item.position, value)};
-                break;
-            }
-            case "due": {
-                page = {...page, dueDateString: parseAgentWebTaskPageDue(value)};
-                break;
-            }
-            default: {
-                throw new InvalidArgumentError("Unknown task field", {
-                    displayMessage: errorDisplayMessage`Unknown task field \u201C${label}\u201D on line ${item.position?.start.line ?? "unknown"}. Try again with one of \u201CStatus\u201D, \u201CAssignee\u201D, \u201CCollections\u201D, \u201CPriority\u201D, or \u201CDue date\u201D.`,
-                });
+                    );
+                    break;
+                }
+                case "prioriti": {
+                    priority = parseAgentWebTaskPagePriority(item.position, value);
+                    break;
+                }
+                case "due": {
+                    dueDateString = parseAgentWebTaskPageDue(value);
+                    break;
+                }
+                default: {
+                    throw new InvalidArgumentError("Unknown task field", {
+                        displayMessage: errorDisplayMessage`Unknown task field \u201C${label}\u201D on line ${item.position?.start.line ?? "unknown"}. Try again with one of \u201CStatus\u201D, \u201CAssignee\u201D, \u201CCollections\u201D, \u201CPriority\u201D, or \u201CDue date\u201D.`,
+                    });
+                }
             }
         }
     }
 
-    return page;
+    if (notesChildren !== null) {
+        const notesRoot: Root = {
+            type: "root",
+            children: notesChildren,
+        };
+
+        const traverse = (node: Parent) => {
+            for (const childNode of node.children) {
+                if ("children" in childNode) traverse(childNode);
+
+                if (childNode.type === "heading") {
+                    // NOCOMMIT: Throw error if depth is less than 2.
+
+                    childNode.depth = Math.max(childNode.depth - 1, 1) as 1 | 2 | 3 | 4 | 5 | 6;
+                }
+            }
+        };
+
+        traverse(notesRoot);
+
+        notesPromise = parseApiContentFromAgentWebMarkdownTree(storage, notesRoot);
+    }
+
+    const [assignee, collections, notes] = await runAllPromises([
+        assigneePromise,
+        collectionsPromise,
+        notesPromise,
+    ]);
+
+    return {
+        type: "Task",
+        title,
+        status,
+        assignee,
+        collections: collections ?? [],
+        priority,
+        dueDateString,
+        notes: notes ?? {elements: [{type: "Paragraph", elements: []}]},
+    };
+}
+
+function isAgentWebTaskPageNotesEmpty(notes: ApiContentResponseWithoutKeys): boolean {
+    const element = notes.elements[0];
+
+    return (
+        notes.elements.length === 1 &&
+        element?.type === "Paragraph" &&
+        element.elements.length === 0
+    );
 }
 
 function parseAgentWebTaskPageField(item: ListItem) {
