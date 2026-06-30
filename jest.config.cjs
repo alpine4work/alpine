@@ -2,18 +2,9 @@
 
 const testMatch = "**/*.test.js";
 
-const isAlpineJestCoverageEnabled = process.env.ALPINE_JEST_COVERAGE === "1";
 const alpineJestCoverageDirectory = process.env.TEST_UNDECLARED_OUTPUTS_DIR
     ? `${process.env.TEST_UNDECLARED_OUTPUTS_DIR}/coverage`
     : "coverage";
-const alpineJestCoverageConfig = isAlpineJestCoverageEnabled
-    ? {
-          collectCoverage: true,
-          coverageDirectory: alpineJestCoverageDirectory,
-          coverageProvider: "v8",
-          coverageReporters: ["json"],
-      }
-    : {};
 
 const baseJestConfig = {
     testMatch: [testMatch],
@@ -39,7 +30,10 @@ const baseJestConfig = {
 };
 
 module.exports = {
-    ...alpineJestCoverageConfig,
+    collectCoverage: true,
+    coverageDirectory: alpineJestCoverageDirectory,
+    coverageProvider: "v8",
+    coverageReporters: ["json"],
     projects: [
         {
             ...baseJestConfig,

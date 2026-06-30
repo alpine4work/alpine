@@ -5,7 +5,7 @@ const path = require("path");
 const {ESLint} = require("eslint");
 const typescriptEslint = require("@typescript-eslint/eslint-plugin");
 
-const workspacePath = process.cwd();
+const workspacePath = process.env.BUILD_WORKING_DIRECTORY ?? process.cwd();
 
 const runfilesPath = process.env.RUNFILES || workspacePath;
 

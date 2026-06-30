@@ -14,8 +14,8 @@ main();
  * Runs Jest unit tests with coverage enabled and writes aggregate reports.
  *
  * This is the implementation behind `dev coverage`. It discovers the matching
- * Bazel Jest targets, runs them with `ALPINE_JEST_COVERAGE=1`, then delegates the
- * final report generation to the shared merge script.
+ * Bazel Jest targets, then delegates the final report generation to the shared
+ * merge script.
  */
 function main() {
     try {
@@ -306,20 +306,16 @@ function hasLibreOfficeInstalled() {
 }
 
 /**
- * Runs selected Bazel test targets with Jest coverage enabled.
+ * Runs selected Bazel test targets.
  */
 function runCoverageTests({targetLabels, workspacePath}) {
     const bazelPath = bazelExecutablePath(workspacePath);
-    const result = childProcess.spawnSync(
-        "xargs",
-        [bazelPath, "test", "--test_env=ALPINE_JEST_COVERAGE=1"],
-        {
-            cwd: workspacePath,
-            encoding: "utf8",
-            input: `${targetLabels.join("\n")}\n`,
-            stdio: ["pipe", "inherit", "inherit"],
-        },
-    );
+    const result = childProcess.spawnSync("xargs", [bazelPath, "test"], {
+        cwd: workspacePath,
+        encoding: "utf8",
+        input: `${targetLabels.join("\n")}\n`,
+        stdio: ["pipe", "inherit", "inherit"],
+    });
     if (result.status !== 0) {
         throw new Error(`Coverage tests failed with status ${formatStatus(result)}`);
     }
@@ -355,10 +351,6 @@ function runMergeJestCoverage({
         ],
         {
             cwd: workspacePath,
-            env: {
-                ...process.env,
-                NODE_PATH: nodePathEnv(workspacePath),
-            },
             stdio: "inherit",
         },
     );
@@ -387,10 +379,6 @@ function runReportUncoveredChangedLines({coverageFinalPath, sourceFilePath, work
         ],
         {
             cwd: workspacePath,
-            env: {
-                ...process.env,
-                NODE_PATH: nodePathEnv(workspacePath),
-            },
             stdio: "inherit",
         },
     );
@@ -405,19 +393,6 @@ function runReportUncoveredChangedLines({coverageFinalPath, sourceFilePath, work
 function getWorkspacePath() {
     const workingDirectoryPath = process.env.BUILD_WORKING_DIRECTORY || process.cwd();
     return runGit(["rev-parse", "--show-toplevel"], {cwd: workingDirectoryPath});
-}
-
-/**
- * Builds a Node module search path for source checkouts.
- */
-function nodePathEnv(workspacePath) {
-    return [
-        path.join(workspacePath, "node_modules", ".pnpm", "node_modules"),
-        path.join(workspacePath, "node_modules"),
-        process.env.NODE_PATH,
-    ]
-        .filter(value => value)
-        .join(path.delimiter);
 }
 
 /**

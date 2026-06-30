@@ -76,7 +76,7 @@ write_dev_test_coverage_report() {
         return
     fi
 
-    if ! NODE_PATH="$workspace_path/node_modules/.pnpm/node_modules${NODE_PATH:+:$NODE_PATH}" ./admin/bin/node admin/analysis/merge_jest_coverage.cjs --workspace "$workspace_path" --targets-file "$targets_file" --testlogs "$bazel_testlogs_path" --output "$coverage_output_path" --quiet --no-honeycomb --skip-uncovered-source-files; then
+    if ! ./admin/bin/bazel run --ui_event_filters=-info //admin/analysis:merge_jest_coverage -- --workspace "$workspace_path" --targets-file "$targets_file" --testlogs "$bazel_testlogs_path" --output "$coverage_output_path" --quiet --no-honeycomb --skip-uncovered-source-files; then
         rm -f "$targets_file"
         return 1
     fi
@@ -84,7 +84,7 @@ write_dev_test_coverage_report() {
     echo "Coverage report: admin/coverage/test/index.html"
 
     if [ "${#coverage_report_paths[@]}" -gt 0 ]; then
-        NODE_PATH="$workspace_path/node_modules/.pnpm/node_modules${NODE_PATH:+:$NODE_PATH}" ./admin/bin/node admin/analysis/report_uncovered_lines.cjs --workspace "$workspace_path" --coverage-final "$coverage_output_path/coverage-final.json" --base main --source-file-type typescript -- "${coverage_report_paths[@]}" || true
+        ./admin/bin/bazel run --ui_event_filters=-info //admin/analysis:report_uncovered_lines -- --workspace "$workspace_path" --coverage-final "$coverage_output_path/coverage-final.json" --base main --source-file-type typescript -- "${coverage_report_paths[@]}" || true
     fi
 }
 
@@ -268,18 +268,20 @@ case "$1" in
             js_files=$(echo "$format_files" | tr ' ' '\n' | grep -E '\.(tsx?|[cm]ts|jsx?|[cm]?js)$' | tr '\n' ' ')
             if [ -n "$js_files" ]; then
                 echo "Running ESLint --fix..."
-                ./admin/bin/node admin/eslint/eslint_test.cjs --fix $js_files
+                ./admin/bin/bazel run --ui_event_filters=-info //admin/eslint:eslint_fix -- --fix $js_files
                 echo
             fi
 
-            # Then run Prettier on all files
             echo "Running Prettier..."
-
-            # TODO: Technically this won't work unless the developer has run pnpm install.
-            # Ideally we'd implement this script hermetically with Bazel. Which would
-            # involve setting up an sh_binary() or js_binary(), wiring in all the
-            # dependencies, etc. then calling bazel run on that binary.
-            ./admin/bin/pnpm exec prettier --write $format_files
+            prettier_files=()
+            for format_file in $format_files; do
+                if [[ "$format_file" == /* ]]; then
+                    prettier_files+=("$format_file")
+                else
+                    prettier_files+=("$workspace_path/$format_file")
+                fi
+            done
+            ./admin/bin/bazel run --ui_event_filters=-info //admin/prettier/plugin:prettier -- --write "${prettier_files[@]}"
         fi
         ;;
 
@@ -310,7 +312,7 @@ case "$1" in
             fi
 
             tests="$(dev_test_query_all "$has_libreoffice")"
-            ./admin/bin/bazel test //... "--test_tag_filters=$test_tag_filters" --test_env=ALPINE_JEST_COVERAGE=1
+            ./admin/bin/bazel test //... "--test_tag_filters=$test_tag_filters"
             read_coverage_report_paths < <(changed_typescript_files)
             write_dev_test_coverage_report "$tests" "${coverage_report_paths[@]}"
         elif [ -z "$2" ]; then
@@ -335,7 +337,7 @@ case "$1" in
                 if [ -z "$tests" ]; then
                     echo "No tests for sources"
                 else
-                    printf "%s\n" "$tests" | xargs ./admin/bin/bazel test --test_env=ALPINE_JEST_COVERAGE=1
+                    printf "%s\n" "$tests" | xargs ./admin/bin/bazel test
                     read_coverage_report_paths <<< "$changed_files"
                     write_dev_test_coverage_report "$tests" "${coverage_report_paths[@]}"
                 fi
@@ -354,11 +356,11 @@ case "$1" in
                 if [ -z "$tests" ]; then
                     echo "No tests for sources"
                 elif [ "$(wc -l <<< "$tests" | tr -d " ")" = "1" ]; then
-                    printf "%s\n" "$tests" | xargs ./admin/bin/bazel test --test_output=streamed --test_env=ALPINE_JEST_COVERAGE=1
+                    printf "%s\n" "$tests" | xargs ./admin/bin/bazel test --test_output=streamed
                     read_coverage_report_paths < <(coverage_report_paths_for_args "${@:2}")
                     write_dev_test_coverage_report "$tests" "${coverage_report_paths[@]}"
                 else
-                    printf "%s\n" "$tests" | xargs ./admin/bin/bazel test --test_env=ALPINE_JEST_COVERAGE=1
+                    printf "%s\n" "$tests" | xargs ./admin/bin/bazel test
                     read_coverage_report_paths < <(coverage_report_paths_for_args "${@:2}")
                     write_dev_test_coverage_report "$tests" "${coverage_report_paths[@]}"
                 fi
@@ -367,7 +369,7 @@ case "$1" in
         ;;
 
     coverage)
-        exec ./admin/bin/node admin/analysis/dev_coverage_main.cjs "${@:2}"
+        exec ./admin/bin/bazel run --ui_event_filters=-info //admin/analysis:dev_coverage -- "${@:2}"
         ;;
 
     testlogs)

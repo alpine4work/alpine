@@ -913,6 +913,18 @@ importers:
       isbot:
         specifier: ^3.6.12
         version: 3.6.12
+      istanbul-lib-coverage:
+        specifier: 3.2.0
+        version: 3.2.0
+      istanbul-lib-instrument:
+        specifier: 6.0.0
+        version: 6.0.0(supports-color@10.2.2)
+      istanbul-lib-report:
+        specifier: 3.0.0
+        version: 3.0.0
+      istanbul-reports:
+        specifier: 3.1.5
+        version: 3.1.5
       jest:
         specifier: 29.4.0
         version: 29.4.0(@types/node@20.3.2(patch_hash=4zjoxiw4th676hgmdgid4hevxy))(supports-color@10.2.2)

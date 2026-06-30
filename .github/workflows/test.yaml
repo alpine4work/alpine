@@ -206,7 +206,6 @@ jobs:
                       admin/bin/bazel --bazelrc=admin/bazel/aspect_bazelrc/ci.bazelrc test \
                       --config=github-runner \
                       --nofetch \
-                      --test_env=ALPINE_JEST_COVERAGE=1 \
                       $bazel_test_flags \
                       $targets
 
@@ -486,9 +485,12 @@ jobs:
               name: Install coverage report dependencies
               run: |
                   # Keep this aggregate job light. The unit shards already paid
-                  # for Bazel and uploaded the coverage outputs, so initializing
-                  # the full Bazel cache here would add minutes just to run a
-                  # small Node.js report collector.
+                  # for Bazel and uploaded the coverage outputs. This is
+                  # intentionally not hermetic and breaks Bazel's rules: there is
+                  # nothing Bazel-specific about statically merging uploaded JSON
+                  # and zip files, and initializing the full Bazel cache here
+                  # would add minutes just to run a small Node.js report
+                  # collector.
                   npm install \
                       --prefix "$RUNNER_TEMP/analysis-node" \
                       --no-audit \
@@ -505,9 +507,6 @@ jobs:
             - if: needs.prepare-ci.result == 'success' && needs.unit-tests.result == 'success'
               name: Collect unit coverage reports
               run: |
-                  # Use system Node with the tiny dependency install above
-                  # instead of `bazel run`, which would force this GitHub-hosted
-                  # aggregate job to initialize the full Bazel cache.
                   NODE_PATH="$RUNNER_TEMP/analysis-node/node_modules" \
                       node admin/analysis/collect_ci_jest_coverage.cjs \
                       --artifacts "$RUNNER_TEMP/unit-coverage-artifacts" \
