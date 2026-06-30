@@ -386,7 +386,7 @@ runAgentWebPageTests<TaskId, AgentWebTaskPage>({
 - Priority: Immediate
 `,
             parseError:
-                "Unexpected task priority \u201CImmediate\u201D on line 4. Try again with \u201CLow\u201D, \u201CMedium\u201D, \u201CHigh\u201D, or \u201CUrgent\u201D.",
+                "Unexpected task priority \u201CImmediate\u201D on line 4. Try again with \u201CLow\u201D, \u201CMedium\u201D, or \u201CHigh\u201D.",
         },
         {
             name: "task page with unvalidated due date string",

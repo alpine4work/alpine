@@ -792,7 +792,11 @@ function parseAgentWebTaskPagePriority(
             const quotedValue = quoteMarkdown(value);
 
             throw new InvalidArgumentError("Invalid task priority", {
-                displayMessage: errorDisplayMessage`Unexpected task priority ${quotedValue} on line ${value[0]?.position?.start.line ?? itemPosition?.start.line ?? "unknown"}. Try again with \u201CLow\u201D, \u201CMedium\u201D, \u201CHigh\u201D, or \u201CUrgent\u201D.`,
+                // We intentionally don't include "Urgent" in the list of valid priorities here.
+                // "Urgent" is a secret priority we'll mention in skills. Very few tasks should
+                // have an "Urgent" priority as urgent tasks will constantly notify the owner that
+                // the task is still open.
+                displayMessage: errorDisplayMessage`Unexpected task priority ${quotedValue} on line ${value[0]?.position?.start.line ?? itemPosition?.start.line ?? "unknown"}. Try again with \u201CLow\u201D, \u201CMedium\u201D, or \u201CHigh\u201D.`,
             });
         }
     }
