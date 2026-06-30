@@ -215,7 +215,7 @@ export async function updateAgentWebTaskPage(
             );
         } else {
             throw new InvalidArgumentError("Can\u2019t remove assignee from an active task", {
-                displayMessage: errorDisplayMessage`Can\u2019t remove the assignee from an active task. An active task implies someone is currently working on the task. An assignee is required for active tasks so we know who is currently working on the task. Try again but set the task as inactive first (e.g. \`- Status: Open\`).`,
+                displayMessage: errorDisplayMessage`Can\u2019t remove the assignee from an active task. An active task implies someone is currently working on the task and so an assignee is required so we know who that is. Try again but set the task as inactive first (e.g. \`- Status: Open\`).`,
             });
         }
     }
