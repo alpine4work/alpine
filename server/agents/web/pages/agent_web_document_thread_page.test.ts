@@ -78,7 +78,6 @@ const previewBlock: AgentWebDocumentThreadPageCustomBlock = {
     type: "Custom",
     tagName: "blockquote",
     timeAttribute: null,
-    hasCiteAttribute: false,
     matchAttribute: null,
     content: content([paragraph([text("Preview body.")])]),
 };
@@ -189,14 +188,14 @@ Preview body.
                 "Document comment thread markdown must start with `Document comment thread on [My Document](/document/my-document).`. Optionally followed by `- [ ] Unresolved` or `- [x] Resolved`. Try again with a proper start to document comment thread markdown on line 1.",
         },
         {
-            name: "document thread quote cite and match attributes",
+            name: "document thread quote match attribute",
             pageLink,
             markdown: `\
 Document comment thread on [Launch Spec](/document/launch-spec).
 
 - [ ] Unresolved
 
-<blockquote cite="../.." match="2">
+<blockquote match="2">
 
 Preview body.
 
@@ -215,8 +214,41 @@ Preview body.
                 blocks: [
                     {
                         ...previewBlock,
-                        hasCiteAttribute: true,
                         matchAttribute: 2,
+                    },
+                ],
+            },
+            createParseError:
+                "Document comment thread markdown must start with `Document comment thread on [My Document](/document/my-document).`. Optionally followed by `- [ ] Unresolved` or `- [x] Resolved`. Try again with a proper start to document comment thread markdown on line 1.",
+        },
+        {
+            name: "document thread quote deleted match attribute",
+            pageLink,
+            markdown: `\
+Document comment thread on [Launch Spec](/document/launch-spec).
+
+- [ ] Unresolved
+
+<blockquote match="deleted">
+
+Preview body.
+
+</blockquote>
+`,
+            page: {
+                type: "DocumentThread",
+                subType: "Head",
+                preamble: {
+                    type: "Head",
+                    document: documentReference,
+                    isResolved: false,
+                },
+                pagination: null,
+                isEndOfMessages: false,
+                blocks: [
+                    {
+                        ...previewBlock,
+                        matchAttribute: "deleted",
                     },
                 ],
             },
@@ -252,36 +284,6 @@ Preview body.
                 'Invalid `<blockquote>` `match` attribute on line 5. Try again with a 1-indexed integer like `match="2"`.',
             createParseError:
                 'Invalid `<blockquote>` `match` attribute on line 5. Try again with a 1-indexed integer like `match="2"`.',
-        },
-        {
-            name: "document thread quote with invalid cite attribute",
-            pageLink,
-            markdown: `\
-Document comment thread on [Launch Spec](/document/launch-spec).
-
-- [ ] Unresolved
-
-<blockquote cite="/document/launch-spec">
-
-Preview body.
-
-</blockquote>
-`,
-            setupStorage: async storage => {
-                await createAgentWebPageStoredLinkPathname(storage, pageLink.document);
-                await storage.documentCommentThreadNumberById.put(
-                    `${pageLink.document.id}-${pageLink.threadId}`,
-                    1,
-                );
-                await storage.documentCommentThreadIdByNumber.put(
-                    `${pageLink.document.id}-1`,
-                    pageLink.threadId,
-                );
-            },
-            parseError:
-                'Invalid `<blockquote>` `cite` attribute on line 5. The `<blockquote>` `cite` attribute must always be `cite="../.."` since we always want to quote content from the parent document. Try again with `cite="../.."` or omit the `cite` attribute entirely (`cite="../.."` is implied).',
-            createParseError:
-                'Invalid `<blockquote>` `cite` attribute on line 5. The `<blockquote>` `cite` attribute must always be `cite="../.."` since we always want to quote content from the parent document. Try again with `cite="../.."` or omit the `cite` attribute entirely (`cite="../.."` is implied).',
         },
         {
             name: "resolved document thread state uses checkbox",
@@ -590,7 +592,6 @@ Please **review this section** *today*.
                         type: "Custom",
                         tagName: "blockquote",
                         timeAttribute: null,
-                        hasCiteAttribute: false,
                         matchAttribute: null,
                         content: content([
                             paragraph([
