@@ -241,7 +241,7 @@ Document comment thread on [Launch Spec](/document/launch-spec).
 
 - [ ] Unresolved
 
-<blockquote>\n\ncurrent\n\n</blockquote>\n
+<blockquote cite="../..">\n\ncurrent\n\n</blockquote>\n
 <comment id="0" from="[Bob](/human/bob)">\n\nFirst comment.\n\n</comment>
 
 End of comments.`);
@@ -270,7 +270,7 @@ Document comment thread on [Launch Spec](/document/launch-spec). [Next page »](
 
 - [ ] Unresolved
 
-<blockquote>
+<blockquote cite="../..">
 
 current
 
@@ -406,7 +406,7 @@ Document comment thread on [Launch Spec](/document/launch-spec).
 
 - [ ] Unresolved
 
-<blockquote>\n\nPreview only.\n\n</blockquote>
+<blockquote cite="../..">\n\nPreview only.\n\n</blockquote>
 
 End of comments.`);
 });
@@ -429,7 +429,7 @@ Document comment thread on [Launch Spec](/document/launch-spec).
 
 - [x] Resolved
 
-<blockquote>\n\nPreview only.\n\n</blockquote>
+<blockquote cite="../..">\n\nPreview only.\n\n</blockquote>
 
 End of comments.`);
 });
@@ -459,7 +459,7 @@ Document comment thread on [Launch Spec](/document/launch-spec).
 
 - [ ] Unresolved
 
-<blockquote>\n\n**bold** and _italic_\n\n</blockquote>
+<blockquote cite="../..">\n\n**bold** and _italic_\n\n</blockquote>
 
 End of comments.`);
 });
@@ -486,7 +486,7 @@ Document comment thread on [Launch Spec](/document/launch-spec).
 
 - [ ] Unresolved
 
-<blockquote>\n\nFirst paragraph.\n\nSecond paragraph.\n\n</blockquote>
+<blockquote cite="../..">\n\nFirst paragraph.\n\nSecond paragraph.\n\n</blockquote>
 
 End of comments.`);
 });
@@ -519,7 +519,7 @@ Document comment thread on [Launch Spec](/document/launch-spec).
 
 - [ ] Unresolved
 
-<blockquote>\n\n- first tail\n\n- middle item\n\n- last head\n\n</blockquote>
+<blockquote cite="../..">\n\n- first tail\n\n- middle item\n\n- last head\n\n</blockquote>
 
 End of comments.`);
 });
@@ -549,7 +549,7 @@ Document comment thread on [Launch Spec](/document/launch-spec).
 
 - [ ] Unresolved
 
-<blockquote>\n\nfirst\n\n</blockquote>
+<blockquote cite="../..">\n\nfirst\n\n</blockquote>
 
 End of comments.`);
 });
@@ -585,7 +585,7 @@ Document comment thread on [Launch Spec](/document/launch-spec).
 
 - [ ] Unresolved
 
-<blockquote>
+<blockquote cite="../..">
 
 Selected text.
 
@@ -631,7 +631,7 @@ Document comment thread on [Launch Spec](/document/launch-spec).
 
 - [ ] Unresolved
 
-<blockquote>\n\ncurrent\n\n</blockquote>\n
+<blockquote cite="../..">\n\ncurrent\n\n</blockquote>\n
 <comment id="0" from="[Bob](/human/bob)">\n\nNearby comment.\n\n</comment>\n
 <comment id="1" from="[Alice](/human/alice)" time="5 minutes later">\n\nSecond comment.\n\n</comment>\n
 <comment id="2" from="[Bob](/human/bob)" time="5 minutes later">\n\nNearby comment.\n\n</comment>
