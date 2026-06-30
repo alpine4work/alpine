@@ -41,6 +41,7 @@ const emptyNotesContent: ApiContentResponseWithoutKeys = {
 
 test("reads full task page", async () => {
     const taskId = generateId<TaskId>();
+    const parentTaskId = generateId<TaskId>();
     const engineeringCollectionId = generateId<TaskCollectionId>();
     const roadmapCollectionId = generateId<TaskCollectionId>();
     const aliceAccount = createApiAccountMock({name: "Alice"});
@@ -55,6 +56,13 @@ test("reads full task page", async () => {
     api.mockGetTask(spaceId, taskId, {
         title: "Ship task page",
         status: {type: "Open", isActive: true},
+        parent: {
+            task: {
+                id: parentTaskId,
+                title: "Parent task",
+                status: {type: "Open", isActive: false},
+            },
+        },
         assignee: aliceAccount,
         collections: [
             {collection: {id: engineeringCollectionId, name: "Engineering"}},
@@ -93,6 +101,7 @@ test("reads full task page", async () => {
 # Ship task page
 
 - Status: Open (Active)
+- Parent: [Parent task](/task/parent-task)
 - Assignee: [Alice](/human/alice)
 - Collections: [Engineering](/task-collection/engineering), [Roadmap](/task-collection/roadmap)
 - Priority: Urgent
