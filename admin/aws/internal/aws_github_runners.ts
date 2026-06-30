@@ -5,7 +5,7 @@ import {
     LambdaAccess,
     Os,
 } from "@cloudsnorkel/cdk-github-runners";
-import {Duration, Fn, RemovalPolicy, Size, Stack} from "aws-cdk-lib";
+import {Fn, RemovalPolicy, Size, Stack} from "aws-cdk-lib";
 import {IVpc, InstanceClass, InstanceSize, InstanceType, SubnetType} from "aws-cdk-lib/aws-ec2";
 import {ManagedPolicy, PolicyStatement, Role} from "aws-cdk-lib/aws-iam";
 import {BlockPublicAccess, Bucket} from "aws-cdk-lib/aws-s3";
@@ -54,10 +54,6 @@ export class AwsGithubRunners extends Construct {
             // If this bucket is deleted from a stack, we can delete the objects within.
             // They're cache artifacts which can easily be rebuilt.
             autoDeleteObjects: true,
-            // Delete artifacts after 14 days (two weeks) if they haven't been used.
-            // `bazel-remote` is configured to update the modification time when there's a
-            // cache hit.
-            lifecycleRules: [{expiration: Duration.days(14)}],
         });
 
         // 8 vCPU, 32 GiB memory, Gravitron (ARM) processor
