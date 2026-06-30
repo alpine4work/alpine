@@ -3680,6 +3680,23 @@ components:
                         id:
                             $ref: "#/components/schemas/TaskId"
 
+        TaskParent_Response:
+            type: object
+            required: [task]
+            additionalProperties: false
+            properties:
+                task:
+                    type: object
+                    required: [id, title, status]
+                    additionalProperties: false
+                    properties:
+                        id:
+                            $ref: "#/components/schemas/TaskId"
+                        title:
+                            type: string
+                        status:
+                            $ref: "#/components/schemas/TaskStatus"
+
         TaskCollectionItem:
             type: object
             required: [collection]

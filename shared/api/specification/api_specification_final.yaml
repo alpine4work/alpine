@@ -4279,6 +4279,26 @@ components:
                     properties:
                         id:
                             $ref: "#/components/schemas/TaskId"
+        TaskParent_Response:
+            type: object
+            required:
+                - task
+            additionalProperties: false
+            properties:
+                task:
+                    type: object
+                    required:
+                        - id
+                        - title
+                        - status
+                    additionalProperties: false
+                    properties:
+                        id:
+                            $ref: "#/components/schemas/TaskId"
+                        title:
+                            type: string
+                        status:
+                            $ref: "#/components/schemas/TaskStatus"
         TaskCollectionItem:
             type: object
             required:
@@ -5664,7 +5684,7 @@ components:
                 layout:
                     $ref: "#/components/schemas/TaskLayout"
                 parent:
-                    $ref: "#/components/schemas/TaskParent"
+                    $ref: "#/components/schemas/TaskParent_Response"
                 collections:
                     type: array
                     items:
@@ -5703,11 +5723,24 @@ components:
                 layout:
                     $ref: "#/components/schemas/TaskLayout"
                 parent:
-                    $ref: "#/components/schemas/TaskParent"
+                    $ref: "#/components/schemas/TaskParent_Response"
                 collections:
                     type: array
                     items:
                         $ref: "#/components/schemas/TaskCollectionItem_Response"
+        TaskSetParentPatch_Response:
+            type: object
+            required:
+                - type
+                - parent
+            additionalProperties: false
+            properties:
+                type:
+                    const: SetParent
+                parent:
+                    oneOf:
+                        - $ref: "#/components/schemas/TaskParent_Response"
+                        - type: "null"
         TaskAddCollectionPatch_Response:
             type: object
             required:
@@ -5872,7 +5905,7 @@ components:
                 - $ref: "#/components/schemas/TaskSetDuePatch"
                 - $ref: "#/components/schemas/TaskSetPriorityPatch"
                 - $ref: "#/components/schemas/TaskSetLayoutPatch"
-                - $ref: "#/components/schemas/TaskSetParentPatch"
+                - $ref: "#/components/schemas/TaskSetParentPatch_Response"
                 - $ref: "#/components/schemas/TaskAddCollectionPatch_Response"
                 - $ref: "#/components/schemas/TaskRemoveCollectionPatch"
             discriminator:
@@ -5884,7 +5917,7 @@ components:
                     SetDue: "#/components/schemas/TaskSetDuePatch"
                     SetPriority: "#/components/schemas/TaskSetPriorityPatch"
                     SetLayout: "#/components/schemas/TaskSetLayoutPatch"
-                    SetParent: "#/components/schemas/TaskSetParentPatch"
+                    SetParent: "#/components/schemas/TaskSetParentPatch_Response"
                     AddCollection: "#/components/schemas/TaskAddCollectionPatch_Response"
                     RemoveCollection: "#/components/schemas/TaskRemoveCollectionPatch"
         Message_Response:

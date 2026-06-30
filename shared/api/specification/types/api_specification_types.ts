@@ -3614,6 +3614,13 @@ export namespace ApiSpecification {
                     readonly id: components["schemas"]["TaskId"];
                 };
             };
+            readonly TaskParent_Response: {
+                readonly task: {
+                    readonly id: components["schemas"]["TaskId"];
+                    readonly title: string;
+                    readonly status: components["schemas"]["TaskStatus"];
+                };
+            };
             readonly TaskCollectionItem: {
                 readonly collection: {
                     readonly id: components["schemas"]["TaskCollectionId"];
@@ -4330,7 +4337,7 @@ export namespace ApiSpecification {
                 readonly due?: components["schemas"]["TaskDue"];
                 readonly priority?: components["schemas"]["TaskPriority"];
                 readonly layout?: components["schemas"]["TaskLayout"];
-                readonly parent?: components["schemas"]["TaskParent"];
+                readonly parent?: components["schemas"]["TaskParent_Response"];
                 readonly collections?: readonly components["schemas"]["TaskCollectionItem_Response"][];
                 readonly notes: components["schemas"]["TaskNotes_Response"];
             };
@@ -4345,8 +4352,16 @@ export namespace ApiSpecification {
                 readonly due?: components["schemas"]["TaskDue"];
                 readonly priority?: components["schemas"]["TaskPriority"];
                 readonly layout?: components["schemas"]["TaskLayout"];
-                readonly parent?: components["schemas"]["TaskParent"];
+                readonly parent?: components["schemas"]["TaskParent_Response"];
                 readonly collections?: readonly components["schemas"]["TaskCollectionItem_Response"][];
+            };
+            readonly TaskSetParentPatch_Response: {
+                /**
+                 * @description discriminator enum property added by openapi-typescript @enum
+                 * {string}
+                 */
+                readonly type: "SetParent";
+                readonly parent: components["schemas"]["TaskParent_Response"] | null;
             };
             readonly TaskAddCollectionPatch_Response: {
                 /**
@@ -4432,7 +4447,7 @@ export namespace ApiSpecification {
                 | components["schemas"]["TaskSetDuePatch"]
                 | components["schemas"]["TaskSetPriorityPatch"]
                 | components["schemas"]["TaskSetLayoutPatch"]
-                | components["schemas"]["TaskSetParentPatch"]
+                | components["schemas"]["TaskSetParentPatch_Response"]
                 | components["schemas"]["TaskAddCollectionPatch_Response"]
                 | components["schemas"]["TaskRemoveCollectionPatch"];
             readonly Message_Response: {
