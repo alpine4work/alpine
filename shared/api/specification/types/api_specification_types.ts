@@ -2865,8 +2865,8 @@ export namespace ApiSpecification {
                  * {string}
                  */
                 readonly type: "Paragraph";
-                readonly key?: components["schemas"]["ContentKey"];
                 readonly elements: readonly components["schemas"]["ContentInlineElement"][];
+                readonly key?: components["schemas"]["ContentKey"];
             };
             readonly ContentParagraphBlockElement_Response: {
                 /**
@@ -2875,6 +2875,14 @@ export namespace ApiSpecification {
                  */
                 readonly type: "Paragraph";
                 readonly key: components["schemas"]["ContentKey"];
+                readonly elements: readonly components["schemas"]["ContentInlineElement_Response"][];
+            };
+            readonly ContentParagraphBlockElement_Response_WithoutKeys: {
+                /**
+                 * @description discriminator enum property added by openapi-typescript @enum
+                 * {string}
+                 */
+                readonly type: "Paragraph";
                 readonly elements: readonly components["schemas"]["ContentInlineElement_Response"][];
             };
             readonly ContentListBlockElement:
@@ -2934,9 +2942,9 @@ export namespace ApiSpecification {
                  * {string}
                  */
                 readonly type: "Heading";
-                readonly key?: components["schemas"]["ContentKey"];
                 readonly level: number;
                 readonly elements: readonly components["schemas"]["ContentInlineElement"][];
+                readonly key?: components["schemas"]["ContentKey"];
             };
             readonly ContentHeadingBlockElement_Response: {
                 /**
@@ -2945,6 +2953,15 @@ export namespace ApiSpecification {
                  */
                 readonly type: "Heading";
                 readonly key: components["schemas"]["ContentKey"];
+                readonly level: number;
+                readonly elements: readonly components["schemas"]["ContentInlineElement_Response"][];
+            };
+            readonly ContentHeadingBlockElement_Response_WithoutKeys: {
+                /**
+                 * @description discriminator enum property added by openapi-typescript @enum
+                 * {string}
+                 */
+                readonly type: "Heading";
                 readonly level: number;
                 readonly elements: readonly components["schemas"]["ContentInlineElement_Response"][];
             };
@@ -2963,6 +2980,13 @@ export namespace ApiSpecification {
                  */
                 readonly type: "Divider";
                 readonly key: components["schemas"]["ContentKey"];
+            };
+            readonly ContentDividerBlockElement_Response_WithoutKeys: {
+                /**
+                 * @description discriminator enum property added by openapi-typescript @enum
+                 * {string}
+                 */
+                readonly type: "Divider";
             };
             readonly ContentTableBlockElement: {
                 /**
@@ -3048,6 +3072,9 @@ export namespace ApiSpecification {
                 readonly key: components["schemas"]["ContentKey"];
                 readonly elements: readonly components["schemas"]["ContentCodeBlockElementTextInlineElement"][];
             };
+            readonly ContentCodeBlockElementLine_Response_WithoutKeys: {
+                readonly elements: readonly components["schemas"]["ContentCodeBlockElementTextInlineElement"][];
+            };
             readonly ContentFileBlockElement: {
                 /**
                  * @description discriminator enum property added by openapi-typescript @enum
@@ -3072,6 +3099,17 @@ export namespace ApiSpecification {
                 readonly contentLength: number;
                 readonly marks?: readonly components["schemas"]["ContentCommentMark"][];
             };
+            readonly ContentFileBlockElement_Response_WithoutKeys: {
+                /**
+                 * @description discriminator enum property added by openapi-typescript @enum
+                 * {string}
+                 */
+                readonly type: "File";
+                readonly id: components["schemas"]["FileId"];
+                readonly contentType: components["schemas"]["FileContentType"];
+                readonly contentLength: number;
+                readonly marks?: readonly components["schemas"]["ContentCommentMark"][];
+            };
             readonly ContentPreviewBlockElement: {
                 /**
                  * @description discriminator enum property added by openapi-typescript @enum
@@ -3089,6 +3127,15 @@ export namespace ApiSpecification {
                  */
                 readonly type: "Preview";
                 readonly key: components["schemas"]["ContentKey"];
+                readonly reference: components["schemas"]["PreviewReference_Response"];
+                readonly marks?: readonly components["schemas"]["ContentCommentMark"][];
+            };
+            readonly ContentPreviewBlockElement_Response_WithoutKeys: {
+                /**
+                 * @description discriminator enum property added by openapi-typescript @enum
+                 * {string}
+                 */
+                readonly type: "Preview";
                 readonly reference: components["schemas"]["PreviewReference_Response"];
                 readonly marks?: readonly components["schemas"]["ContentCommentMark"][];
             };
@@ -4308,15 +4355,38 @@ export namespace ApiSpecification {
             readonly SearchResultParsedFilter: {
                 readonly summary: string;
             };
-            readonly MentionReference_Response:
-                | components["schemas"]["AccountReference_Response"]
-                | components["schemas"]["ChannelReference_Response"]
-                | components["schemas"]["ChatReference_Response"]
-                | components["schemas"]["DocumentReference_Response"]
-                | components["schemas"]["PostReference_Response"]
-                | components["schemas"]["TaskReference_Response"]
-                | components["schemas"]["TaskCollectionReference_Response"]
-                | components["schemas"]["SiteReference_Response"];
+            readonly TaskWithoutNotes_Response: {
+                readonly id: components["schemas"]["TaskId"];
+                readonly creator?: {
+                    readonly id: components["schemas"]["AccountId"];
+                };
+                readonly status: components["schemas"]["TaskStatus"];
+                readonly title: string;
+                readonly assignee?: components["schemas"]["Account"];
+                readonly due?: components["schemas"]["TaskDue"];
+                readonly priority?: components["schemas"]["TaskPriority"];
+                readonly layout?: components["schemas"]["TaskLayout"];
+                readonly parent?: components["schemas"]["TaskParent_Response"];
+                readonly collections?: readonly components["schemas"]["TaskCollectionItem_Response"][];
+            };
+            readonly MessageContentPayloadParent_Response:
+                | components["schemas"]["MessageContentPayloadMessageParent_Response"]
+                | components["schemas"]["MessageContentPayloadPostParent_Response"];
+            readonly Task_Response: {
+                readonly id: components["schemas"]["TaskId"];
+                readonly creator?: {
+                    readonly id: components["schemas"]["AccountId"];
+                };
+                readonly status: components["schemas"]["TaskStatus"];
+                readonly title: string;
+                readonly assignee?: components["schemas"]["Account"];
+                readonly due?: components["schemas"]["TaskDue"];
+                readonly priority?: components["schemas"]["TaskPriority"];
+                readonly layout?: components["schemas"]["TaskLayout"];
+                readonly parent?: components["schemas"]["TaskParent_Response"];
+                readonly collections?: readonly components["schemas"]["TaskCollectionItem_Response"][];
+                readonly notes: components["schemas"]["TaskNotes_Response"];
+            };
             readonly PreviewReference_Response:
                 | components["schemas"]["ChannelReference_Response"]
                 | components["schemas"]["ChatReference_Response"]
@@ -4339,29 +4409,25 @@ export namespace ApiSpecification {
                 | components["schemas"]["ContentFileGalleryBlockElement_Response"]
                 | components["schemas"]["ContentFileFloatBlockElement_Response"]
                 | components["schemas"]["ContentPreviewBlockElement_Response"];
-            readonly ContentListBlockElementItem_Response: {
-                readonly elements: readonly components["schemas"]["ContentParagraphBlockElement_Response"][];
-                readonly nestedListElements?: readonly components["schemas"]["ContentListBlockElement_Response"][];
+            readonly TaskSetParentPatch_Response: {
+                /**
+                 * @description discriminator enum property added by openapi-typescript @enum
+                 * {string}
+                 */
+                readonly type: "SetParent";
+                readonly parent: components["schemas"]["TaskParent_Response"] | null;
             };
-            readonly ContentCheckListBlockElementItem_Response: {
-                readonly checked: boolean;
-                readonly elements: readonly components["schemas"]["ContentParagraphBlockElement_Response"][];
-                readonly nestedListElements?: readonly components["schemas"]["ContentListBlockElement_Response"][];
+            readonly TaskAddCollectionPatch_Response: {
+                /**
+                 * @description discriminator enum property added by openapi-typescript @enum
+                 * {string}
+                 */
+                readonly type: "AddCollection";
+                readonly item: components["schemas"]["TaskCollectionItem_Response"];
             };
-            readonly ContentQuoteBlockElementBlockElement_Response:
-                | components["schemas"]["ContentParagraphBlockElement_Response"]
-                | components["schemas"]["ContentUnorderedListBlockElement_Response"]
-                | components["schemas"]["ContentOrderedListBlockElement_Response"]
-                | components["schemas"]["ContentCheckListBlockElement_Response"];
-            readonly ContentTableBlockElementCellBlockElement_Response:
-                | components["schemas"]["ContentParagraphBlockElement_Response"]
-                | components["schemas"]["ContentUnorderedListBlockElement_Response"]
-                | components["schemas"]["ContentOrderedListBlockElement_Response"]
-                | components["schemas"]["ContentCheckListBlockElement_Response"]
-                | components["schemas"]["ContentQuoteBlockElement_Response"]
-                | components["schemas"]["ContentCodeBlockElement_Response"]
-                | components["schemas"]["ContentFileBlockElement_Response"]
-                | components["schemas"]["ContentPreviewBlockElement_Response"];
+            readonly MessagePayload_Response:
+                | components["schemas"]["MessageContentPayload_Response"]
+                | components["schemas"]["MessageDeletedPayload"];
             readonly ContentCodeBlockElement_Response: {
                 /**
                  * @description discriminator enum property added by openapi-typescript @enum
@@ -4409,9 +4475,6 @@ export namespace ApiSpecification {
                     | "ocaml";
                 readonly lines: readonly components["schemas"]["ContentCodeBlockElementLine_Response"][];
             };
-            readonly ContentFileGalleryBlockElementRow_Response: {
-                readonly items: readonly components["schemas"]["ContentFileGalleryBlockElementRowItem_Response"][];
-            };
             readonly ContentFileFloatBlockElement_Response: {
                 /**
                  * @description discriminator enum property added by openapi-typescript @enum
@@ -4424,64 +4487,195 @@ export namespace ApiSpecification {
                     | components["schemas"]["ContentFileBlockElement_Response"]
                     | components["schemas"]["ContentPreviewBlockElement_Response"];
             };
-            readonly Task_Response: {
-                readonly id: components["schemas"]["TaskId"];
-                readonly creator?: {
-                    readonly id: components["schemas"]["AccountId"];
-                };
-                readonly status: components["schemas"]["TaskStatus"];
-                readonly title: string;
-                readonly assignee?: components["schemas"]["Account"];
-                readonly due?: components["schemas"]["TaskDue"];
-                readonly priority?: components["schemas"]["TaskPriority"];
-                readonly layout?: components["schemas"]["TaskLayout"];
-                readonly parent?: components["schemas"]["TaskParent_Response"];
-                readonly collections?: readonly components["schemas"]["TaskCollectionItem_Response"][];
-                readonly notes: components["schemas"]["TaskNotes_Response"];
+            readonly MentionReference_Response:
+                | components["schemas"]["AccountReference_Response"]
+                | components["schemas"]["ChannelReference_Response"]
+                | components["schemas"]["ChatReference_Response"]
+                | components["schemas"]["DocumentReference_Response"]
+                | components["schemas"]["PostReference_Response"]
+                | components["schemas"]["TaskReference_Response"]
+                | components["schemas"]["TaskCollectionReference_Response"]
+                | components["schemas"]["SiteReference_Response"];
+            readonly ContentListBlockElementItem_Response: {
+                readonly elements: readonly components["schemas"]["ContentParagraphBlockElement_Response"][];
+                readonly nestedListElements?: readonly components["schemas"]["ContentListBlockElement_Response"][];
             };
-            readonly TaskWithoutNotes_Response: {
-                readonly id: components["schemas"]["TaskId"];
-                readonly creator?: {
-                    readonly id: components["schemas"]["AccountId"];
-                };
-                readonly status: components["schemas"]["TaskStatus"];
-                readonly title: string;
-                readonly assignee?: components["schemas"]["Account"];
-                readonly due?: components["schemas"]["TaskDue"];
-                readonly priority?: components["schemas"]["TaskPriority"];
-                readonly layout?: components["schemas"]["TaskLayout"];
-                readonly parent?: components["schemas"]["TaskParent_Response"];
-                readonly collections?: readonly components["schemas"]["TaskCollectionItem_Response"][];
+            readonly ContentCheckListBlockElementItem_Response: {
+                readonly checked: boolean;
+                readonly elements: readonly components["schemas"]["ContentParagraphBlockElement_Response"][];
+                readonly nestedListElements?: readonly components["schemas"]["ContentListBlockElement_Response"][];
             };
-            readonly TaskSetParentPatch_Response: {
-                /**
-                 * @description discriminator enum property added by openapi-typescript @enum
-                 * {string}
-                 */
-                readonly type: "SetParent";
-                readonly parent: components["schemas"]["TaskParent_Response"] | null;
+            readonly ContentQuoteBlockElementBlockElement_Response:
+                | components["schemas"]["ContentParagraphBlockElement_Response"]
+                | components["schemas"]["ContentUnorderedListBlockElement_Response"]
+                | components["schemas"]["ContentOrderedListBlockElement_Response"]
+                | components["schemas"]["ContentCheckListBlockElement_Response"];
+            readonly ContentFileGalleryBlockElementRow_Response: {
+                readonly items: readonly components["schemas"]["ContentFileGalleryBlockElementRowItem_Response"][];
             };
-            readonly TaskAddCollectionPatch_Response: {
-                /**
-                 * @description discriminator enum property added by openapi-typescript @enum
-                 * {string}
-                 */
-                readonly type: "AddCollection";
-                readonly item: components["schemas"]["TaskCollectionItem_Response"];
-            };
-            readonly MessagePayload_Response:
-                | components["schemas"]["MessageContentPayload_Response"]
-                | components["schemas"]["MessageDeletedPayload"];
-            readonly MessageContentPayloadParent_Response:
-                | components["schemas"]["MessageContentPayloadMessageParent_Response"]
-                | components["schemas"]["MessageContentPayloadPostParent_Response"];
             readonly MessageStreamToolCallPartCreateCallReference_Response:
                 | components["schemas"]["DocumentReference_Response"]
                 | components["schemas"]["PostReference_Response"]
                 | components["schemas"]["TaskReference_Response"]
                 | components["schemas"]["TaskCollectionReference_Response"];
+            readonly ContentTableBlockElementCellBlockElement_Response:
+                | components["schemas"]["ContentParagraphBlockElement_Response"]
+                | components["schemas"]["ContentUnorderedListBlockElement_Response"]
+                | components["schemas"]["ContentOrderedListBlockElement_Response"]
+                | components["schemas"]["ContentCheckListBlockElement_Response"]
+                | components["schemas"]["ContentQuoteBlockElement_Response"]
+                | components["schemas"]["ContentCodeBlockElement_Response"]
+                | components["schemas"]["ContentFileBlockElement_Response"]
+                | components["schemas"]["ContentPreviewBlockElement_Response"];
+            readonly ContentBlockElement_Response_WithoutKeys:
+                | components["schemas"]["ContentParagraphBlockElement_Response_WithoutKeys"]
+                | components["schemas"]["ContentUnorderedListBlockElement_Response_WithoutKeys"]
+                | components["schemas"]["ContentOrderedListBlockElement_Response_WithoutKeys"]
+                | components["schemas"]["ContentCheckListBlockElement_Response_WithoutKeys"]
+                | components["schemas"]["ContentQuoteBlockElement_Response_WithoutKeys"]
+                | components["schemas"]["ContentHeadingBlockElement_Response_WithoutKeys"]
+                | components["schemas"]["ContentDividerBlockElement_Response_WithoutKeys"]
+                | components["schemas"]["ContentTableBlockElement_Response_WithoutKeys"]
+                | components["schemas"]["ContentCodeBlockElement_Response_WithoutKeys"]
+                | components["schemas"]["ContentFileBlockElement_Response_WithoutKeys"]
+                | components["schemas"]["ContentFileGalleryBlockElement_Response_WithoutKeys"]
+                | components["schemas"]["ContentFileFloatBlockElement_Response_WithoutKeys"]
+                | components["schemas"]["ContentPreviewBlockElement_Response_WithoutKeys"];
+            readonly ContentCodeBlockElement_Response_WithoutKeys: {
+                /**
+                 * @description discriminator enum property added by openapi-typescript @enum
+                 * {string}
+                 */
+                readonly type: "Code";
+                /** @enum {string} */
+                readonly language:
+                    | "text"
+                    | "javascript"
+                    | "html"
+                    | "css"
+                    | "sql"
+                    | "python"
+                    | "typescript"
+                    | "shell"
+                    | "java"
+                    | "json"
+                    | "markdown"
+                    | "csharp"
+                    | "cpp"
+                    | "c"
+                    | "php"
+                    | "go"
+                    | "yaml"
+                    | "powershell"
+                    | "rust"
+                    | "kotlin"
+                    | "ruby"
+                    | "lua"
+                    | "xml"
+                    | "dart"
+                    | "swift"
+                    | "assembly"
+                    | "webassembly"
+                    | "scala"
+                    | "r"
+                    | "elixir"
+                    | "objectivec"
+                    | "perl"
+                    | "haskell"
+                    | "solidity"
+                    | "clojure"
+                    | "erlang"
+                    | "ocaml";
+                readonly lines: readonly components["schemas"]["ContentCodeBlockElementLine_Response_WithoutKeys"][];
+            };
+            readonly ContentFileFloatBlockElement_Response_WithoutKeys: {
+                /**
+                 * @description discriminator enum property added by openapi-typescript @enum
+                 * {string}
+                 */
+                readonly type: "FileFloat";
+                /** @enum {string} */
+                readonly side: "Left" | "Right";
+                readonly element:
+                    | components["schemas"]["ContentFileBlockElement_Response_WithoutKeys"]
+                    | components["schemas"]["ContentPreviewBlockElement_Response_WithoutKeys"];
+            };
+            readonly ContentListBlockElementItem_Response_WithoutKeys: {
+                readonly elements: readonly components["schemas"]["ContentParagraphBlockElement_Response_WithoutKeys"][];
+                readonly nestedListElements?: readonly components["schemas"]["ContentListBlockElement_Response_WithoutKeys"][];
+            };
+            readonly ContentCheckListBlockElementItem_Response_WithoutKeys: {
+                readonly checked: boolean;
+                readonly elements: readonly components["schemas"]["ContentParagraphBlockElement_Response_WithoutKeys"][];
+                readonly nestedListElements?: readonly components["schemas"]["ContentListBlockElement_Response_WithoutKeys"][];
+            };
+            readonly ContentQuoteBlockElementBlockElement_Response_WithoutKeys:
+                | components["schemas"]["ContentParagraphBlockElement_Response_WithoutKeys"]
+                | components["schemas"]["ContentUnorderedListBlockElement_Response_WithoutKeys"]
+                | components["schemas"]["ContentOrderedListBlockElement_Response_WithoutKeys"]
+                | components["schemas"]["ContentCheckListBlockElement_Response_WithoutKeys"];
+            readonly ContentFileGalleryBlockElementRowItem_Response_WithoutKeys: {
+                readonly width: number;
+                readonly element:
+                    | components["schemas"]["ContentFileBlockElement_Response_WithoutKeys"]
+                    | components["schemas"]["ContentPreviewBlockElement_Response_WithoutKeys"];
+            };
+            readonly ContentTableBlockElementCellBlockElement_Response_WithoutKeys:
+                | components["schemas"]["ContentParagraphBlockElement_Response_WithoutKeys"]
+                | components["schemas"]["ContentUnorderedListBlockElement_Response_WithoutKeys"]
+                | components["schemas"]["ContentOrderedListBlockElement_Response_WithoutKeys"]
+                | components["schemas"]["ContentCheckListBlockElement_Response_WithoutKeys"]
+                | components["schemas"]["ContentQuoteBlockElement_Response_WithoutKeys"]
+                | components["schemas"]["ContentCodeBlockElement_Response_WithoutKeys"]
+                | components["schemas"]["ContentFileBlockElement_Response_WithoutKeys"]
+                | components["schemas"]["ContentPreviewBlockElement_Response_WithoutKeys"];
             readonly Content_Response: {
                 readonly elements: readonly components["schemas"]["ContentBlockElement_Response"][];
+            };
+            readonly TaskPatch_Response:
+                | components["schemas"]["TaskSetTitlePatch"]
+                | components["schemas"]["TaskSetAssigneePatch"]
+                | components["schemas"]["TaskSetStatusPatch"]
+                | components["schemas"]["TaskSetDuePatch"]
+                | components["schemas"]["TaskSetPriorityPatch"]
+                | components["schemas"]["TaskSetLayoutPatch"]
+                | components["schemas"]["TaskSetParentPatch_Response"]
+                | components["schemas"]["TaskAddCollectionPatch_Response"]
+                | components["schemas"]["TaskRemoveCollectionPatch"];
+            readonly Message_Response: {
+                readonly index: number;
+                readonly author: components["schemas"]["Account"];
+                readonly createdTime: components["schemas"]["DateTime"];
+                readonly createdTimeZone: components["schemas"]["TimeZone"];
+                readonly payload: components["schemas"]["MessagePayload_Response"];
+            };
+            readonly BotWebhookCreatedMessageEvent_Response: {
+                /**
+                 * @description discriminator enum property added by openapi-typescript @enum
+                 * {string}
+                 */
+                readonly type: "CreatedMessage";
+                readonly room: components["schemas"]["MessageRoomReference"];
+                readonly index: number;
+                readonly author: {
+                    readonly id: components["schemas"]["AccountId"];
+                };
+                readonly createdTimeZone: components["schemas"]["TimeZone"];
+                readonly parent?: components["schemas"]["BotWebhookCreatedMessageEventParent"];
+                readonly wasMentioned?: boolean;
+                readonly viewing?: {
+                    readonly reference: components["schemas"]["MentionReference_Response"];
+                };
+            };
+            readonly ContentMentionInlineElement_Response: {
+                /**
+                 * @description discriminator enum property added by openapi-typescript @enum
+                 * {string}
+                 */
+                readonly type: "Mention";
+                readonly reference: components["schemas"]["MentionReference_Response"];
+                readonly isAccountShortName?: boolean;
+                readonly marks?: readonly components["schemas"]["ContentInlineElementMark"][];
             };
             readonly ContentUnorderedListBlockElement_Response: {
                 /**
@@ -4516,9 +4710,6 @@ export namespace ApiSpecification {
                 readonly type: "Quote";
                 readonly elements: readonly components["schemas"]["ContentQuoteBlockElementBlockElement_Response"][];
             };
-            readonly ContentTableBlockElementCell_Response: {
-                readonly elements: readonly components["schemas"]["ContentTableBlockElementCellBlockElement_Response"][];
-            };
             readonly ContentFileGalleryBlockElement_Response: {
                 /**
                  * @description discriminator enum property added by openapi-typescript @enum
@@ -4527,33 +4718,6 @@ export namespace ApiSpecification {
                 readonly type: "FileGallery";
                 readonly rows: readonly components["schemas"]["ContentFileGalleryBlockElementRow_Response"][];
                 readonly marks?: readonly components["schemas"]["ContentCommentMark"][];
-            };
-            readonly ContentMentionInlineElement_Response: {
-                /**
-                 * @description discriminator enum property added by openapi-typescript @enum
-                 * {string}
-                 */
-                readonly type: "Mention";
-                readonly reference: components["schemas"]["MentionReference_Response"];
-                readonly isAccountShortName?: boolean;
-                readonly marks?: readonly components["schemas"]["ContentInlineElementMark"][];
-            };
-            readonly TaskPatch_Response:
-                | components["schemas"]["TaskSetTitlePatch"]
-                | components["schemas"]["TaskSetAssigneePatch"]
-                | components["schemas"]["TaskSetStatusPatch"]
-                | components["schemas"]["TaskSetDuePatch"]
-                | components["schemas"]["TaskSetPriorityPatch"]
-                | components["schemas"]["TaskSetLayoutPatch"]
-                | components["schemas"]["TaskSetParentPatch_Response"]
-                | components["schemas"]["TaskAddCollectionPatch_Response"]
-                | components["schemas"]["TaskRemoveCollectionPatch"];
-            readonly Message_Response: {
-                readonly index: number;
-                readonly author: components["schemas"]["Account"];
-                readonly createdTime: components["schemas"]["DateTime"];
-                readonly createdTimeZone: components["schemas"]["TimeZone"];
-                readonly payload: components["schemas"]["MessagePayload_Response"];
             };
             readonly MessageStreamToolCallPartPayloadReadCall_Response: {
                 /**
@@ -4571,43 +4735,50 @@ export namespace ApiSpecification {
                 readonly type: "Create";
                 readonly reference: components["schemas"]["MessageStreamToolCallPartCreateCallReference_Response"];
             };
-            readonly BotWebhookCreatedMessageEvent_Response: {
+            readonly ContentTableBlockElementCell_Response: {
+                readonly elements: readonly components["schemas"]["ContentTableBlockElementCellBlockElement_Response"][];
+            };
+            readonly Content_Response_WithoutKeys: {
+                readonly elements: readonly components["schemas"]["ContentBlockElement_Response_WithoutKeys"][];
+            };
+            readonly ContentUnorderedListBlockElement_Response_WithoutKeys: {
                 /**
                  * @description discriminator enum property added by openapi-typescript @enum
                  * {string}
                  */
-                readonly type: "CreatedMessage";
-                readonly room: components["schemas"]["MessageRoomReference"];
-                readonly index: number;
-                readonly author: {
-                    readonly id: components["schemas"]["AccountId"];
-                };
-                readonly createdTimeZone: components["schemas"]["TimeZone"];
-                readonly parent?: components["schemas"]["BotWebhookCreatedMessageEventParent"];
-                readonly wasMentioned?: boolean;
-                readonly viewing?: {
-                    readonly reference: components["schemas"]["MentionReference_Response"];
-                };
+                readonly type: "UnorderedList";
+                readonly items: readonly components["schemas"]["ContentListBlockElementItem_Response_WithoutKeys"][];
             };
-            readonly ContentListBlockElement_Response:
-                | components["schemas"]["ContentUnorderedListBlockElement_Response"]
-                | components["schemas"]["ContentOrderedListBlockElement_Response"]
-                | components["schemas"]["ContentCheckListBlockElement_Response"];
-            readonly ContentTableBlockElementRow_Response: {
-                readonly cells: readonly components["schemas"]["ContentTableBlockElementCell_Response"][];
+            readonly ContentOrderedListBlockElement_Response_WithoutKeys: {
+                /**
+                 * @description discriminator enum property added by openapi-typescript @enum
+                 * {string}
+                 */
+                readonly type: "OrderedList";
+                readonly orderStart?: number;
+                readonly items: readonly components["schemas"]["ContentListBlockElementItem_Response_WithoutKeys"][];
             };
-            readonly ContentInlineElement_Response:
-                | components["schemas"]["ContentTextInlineElement"]
-                | components["schemas"]["ContentBreakInlineElement"]
-                | components["schemas"]["ContentMentionInlineElement_Response"];
-            readonly Document_Response: {
-                readonly id: components["schemas"]["DocumentId"];
-                readonly creator?: {
-                    readonly id: components["schemas"]["AccountId"];
-                };
-                readonly version: number;
-                readonly title: string;
-                readonly content: components["schemas"]["Content_Response"];
+            readonly ContentCheckListBlockElement_Response_WithoutKeys: {
+                /**
+                 * @description discriminator enum property added by openapi-typescript @enum
+                 * {string}
+                 */
+                readonly type: "CheckList";
+                readonly items: readonly components["schemas"]["ContentCheckListBlockElementItem_Response_WithoutKeys"][];
+            };
+            readonly ContentQuoteBlockElement_Response_WithoutKeys: {
+                /**
+                 * @description discriminator enum property added by openapi-typescript @enum
+                 * {string}
+                 */
+                readonly type: "Quote";
+                readonly elements: readonly components["schemas"]["ContentQuoteBlockElementBlockElement_Response_WithoutKeys"][];
+            };
+            readonly ContentFileGalleryBlockElementRow_Response_WithoutKeys: {
+                readonly items: readonly components["schemas"]["ContentFileGalleryBlockElementRowItem_Response_WithoutKeys"][];
+            };
+            readonly ContentTableBlockElementCell_Response_WithoutKeys: {
+                readonly elements: readonly components["schemas"]["ContentTableBlockElementCellBlockElement_Response_WithoutKeys"][];
             };
             readonly DocumentThread_Response: {
                 readonly id: components["schemas"]["DocumentThreadId"];
@@ -4621,14 +4792,41 @@ export namespace ApiSpecification {
                 readonly marked: {
                     readonly preview: {
                         readonly version: number;
-                        readonly contentSnippet: components["schemas"]["Content_Response"];
+                        readonly contentSnippet: components["schemas"]["Content_Response_WithoutKeys"];
                     };
                 };
+            };
+            readonly Document_Response: {
+                readonly id: components["schemas"]["DocumentId"];
+                readonly creator?: {
+                    readonly id: components["schemas"]["AccountId"];
+                };
+                readonly version: number;
+                readonly title: string;
+                readonly content: components["schemas"]["Content_Response"];
             };
             readonly Channel_Response: {
                 readonly id: components["schemas"]["ChannelId"];
                 readonly name: components["schemas"]["LabelString"];
                 readonly description: components["schemas"]["Content_Response"];
+            };
+            readonly PostPreview_Response: {
+                readonly id: components["schemas"]["PostId"];
+                readonly author: components["schemas"]["Account"];
+                readonly createdTime: components["schemas"]["DateTime"];
+                readonly createdTimeZone: components["schemas"]["TimeZone"];
+                readonly channel?: components["schemas"]["ChannelPreview"];
+                readonly contentSnippet: components["schemas"]["Content_Response_WithoutKeys"];
+                readonly reference: {
+                    readonly title: string;
+                };
+            };
+            readonly BotWebhookEvent_Response:
+                | components["schemas"]["BotWebhookCreatedMessageEvent_Response"]
+                | components["schemas"]["BotWebhookCreatedPostEvent"];
+            readonly TaskNotes_Response: {
+                readonly version: number;
+                readonly content: components["schemas"]["Content_Response"];
             };
             readonly Post_Response: {
                 readonly id: components["schemas"]["PostId"];
@@ -4641,21 +4839,10 @@ export namespace ApiSpecification {
                     readonly title: string;
                 };
             };
-            readonly PostPreview_Response: {
-                readonly id: components["schemas"]["PostId"];
-                readonly author: components["schemas"]["Account"];
-                readonly createdTime: components["schemas"]["DateTime"];
-                readonly createdTimeZone: components["schemas"]["TimeZone"];
-                readonly channel?: components["schemas"]["ChannelPreview"];
-                readonly contentSnippet: components["schemas"]["Content_Response"];
-                readonly reference: {
-                    readonly title: string;
-                };
-            };
-            readonly TaskNotes_Response: {
-                readonly version: number;
-                readonly content: components["schemas"]["Content_Response"];
-            };
+            readonly ContentInlineElement_Response:
+                | components["schemas"]["ContentTextInlineElement"]
+                | components["schemas"]["ContentBreakInlineElement"]
+                | components["schemas"]["ContentMentionInlineElement_Response"];
             readonly MessageStreamContentPartPayload_Response: {
                 /**
                  * @description discriminator enum property added by openapi-typescript @enum
@@ -4676,9 +4863,41 @@ export namespace ApiSpecification {
                 | components["schemas"]["MessageStreamToolCallPartPayloadReadCall_Response"]
                 | components["schemas"]["MessageStreamToolCallPartPayloadSearchCall"]
                 | components["schemas"]["MessageStreamToolCallPartPayloadCreateCall_Response"];
-            readonly BotWebhookEvent_Response:
-                | components["schemas"]["BotWebhookCreatedMessageEvent_Response"]
-                | components["schemas"]["BotWebhookCreatedPostEvent"];
+            readonly ContentTableBlockElementRow_Response: {
+                readonly cells: readonly components["schemas"]["ContentTableBlockElementCell_Response"][];
+            };
+            readonly ContentListBlockElement_Response:
+                | components["schemas"]["ContentUnorderedListBlockElement_Response"]
+                | components["schemas"]["ContentOrderedListBlockElement_Response"]
+                | components["schemas"]["ContentCheckListBlockElement_Response"];
+            readonly ContentFileGalleryBlockElement_Response_WithoutKeys: {
+                /**
+                 * @description discriminator enum property added by openapi-typescript @enum
+                 * {string}
+                 */
+                readonly type: "FileGallery";
+                readonly rows: readonly components["schemas"]["ContentFileGalleryBlockElementRow_Response_WithoutKeys"][];
+                readonly marks?: readonly components["schemas"]["ContentCommentMark"][];
+            };
+            readonly ContentTableBlockElementRow_Response_WithoutKeys: {
+                readonly cells: readonly components["schemas"]["ContentTableBlockElementCell_Response_WithoutKeys"][];
+            };
+            readonly ContentListBlockElement_Response_WithoutKeys:
+                | components["schemas"]["ContentUnorderedListBlockElement_Response_WithoutKeys"]
+                | components["schemas"]["ContentOrderedListBlockElement_Response_WithoutKeys"]
+                | components["schemas"]["ContentCheckListBlockElement_Response_WithoutKeys"];
+            readonly MessageStreamPartPayload_Response:
+                | components["schemas"]["MessageStreamContentPartPayload_Response"]
+                | components["schemas"]["MessageStreamToolCallPartPayload_Response"]
+                | components["schemas"]["MessageStreamReasoningPartPayload_Response"];
+            readonly MessageStreamToolCallPartPayload_Response: {
+                /**
+                 * @description discriminator enum property added by openapi-typescript @enum
+                 * {string}
+                 */
+                readonly type: "ToolCall";
+                readonly call: components["schemas"]["MessageStreamToolCallPartPayloadCall_Response"];
+            };
             readonly ContentTableBlockElement_Response: {
                 /**
                  * @description discriminator enum property added by openapi-typescript @enum
@@ -4693,24 +4912,19 @@ export namespace ApiSpecification {
                 }[];
                 readonly rows: readonly components["schemas"]["ContentTableBlockElementRow_Response"][];
             };
-            readonly MessageStreamPartPayload_Response:
-                | components["schemas"]["MessageStreamContentPartPayload_Response"]
-                | components["schemas"]["MessageStreamToolCallPartPayload_Response"]
-                | components["schemas"]["MessageStreamReasoningPartPayload_Response"];
-            readonly MessageStreamToolCallPartPayload_Response: {
+            readonly ContentTableBlockElement_Response_WithoutKeys: {
                 /**
                  * @description discriminator enum property added by openapi-typescript @enum
                  * {string}
                  */
-                readonly type: "ToolCall";
-                readonly call: components["schemas"]["MessageStreamToolCallPartPayloadCall_Response"];
-            };
-            readonly MessageStreamPart_Response: {
-                readonly index: number;
-                /** Format: date-time */
-                readonly createdTime: DateString;
-                readonly version: number;
-                readonly payload: components["schemas"]["MessageStreamPartPayload_Response"];
+                readonly type: "Table";
+                readonly width: number;
+                readonly hasHeaderRow?: boolean;
+                readonly hasHeaderColumn?: boolean;
+                readonly columns: readonly {
+                    readonly width: number;
+                }[];
+                readonly rows: readonly components["schemas"]["ContentTableBlockElementRow_Response_WithoutKeys"][];
             };
         };
         responses: {

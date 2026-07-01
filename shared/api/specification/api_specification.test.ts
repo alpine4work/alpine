@@ -284,12 +284,13 @@ function validate(specification: JsonValue) {
                 }
 
                 // Rule: Schema names should be `PascalCase` since it's a type name. Or
-                // `PascalCase_Specialization`.
+                // `PascalCase` followed by any number of `_Specialization` suffixes (e.g.
+                // `Content_Response_WithoutKeys`).
                 if (
                     path[0] === "components" &&
                     path[1] === "schemas" &&
                     path.length === 2 &&
-                    !/^[A-Z][a-zA-Z0-9]+(_[A-Z][a-zA-Z0-9]+)?$/.test(key)
+                    !/^[A-Z][a-zA-Z0-9]+(_[A-Z][a-zA-Z0-9]+)*$/.test(key)
                 ) {
                     errors.push(
                         quote`Schema name ${key} must be \`PascalCase\` (path: ${printPath()})`,

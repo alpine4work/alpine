@@ -2537,12 +2537,12 @@ components:
             properties:
                 type:
                     const: Paragraph
-                key:
-                    $ref: "#/components/schemas/ContentKey"
                 elements:
                     type: array
                     items:
                         $ref: "#/components/schemas/ContentInlineElement"
+                key:
+                    $ref: "#/components/schemas/ContentKey"
         ContentParagraphBlockElement_Response:
             type: object
             required:
@@ -2555,6 +2555,19 @@ components:
                     const: Paragraph
                 key:
                     $ref: "#/components/schemas/ContentKey"
+                elements:
+                    type: array
+                    items:
+                        $ref: "#/components/schemas/ContentInlineElement_Response"
+        ContentParagraphBlockElement_Response_WithoutKeys:
+            type: object
+            required:
+                - type
+                - elements
+            additionalProperties: false
+            properties:
+                type:
+                    const: Paragraph
                 elements:
                     type: array
                     items:
@@ -2683,8 +2696,6 @@ components:
             properties:
                 type:
                     const: Heading
-                key:
-                    $ref: "#/components/schemas/ContentKey"
                 level:
                     type: integer
                     minimum: 1
@@ -2693,6 +2704,8 @@ components:
                     type: array
                     items:
                         $ref: "#/components/schemas/ContentInlineElement"
+                key:
+                    $ref: "#/components/schemas/ContentKey"
         ContentHeadingBlockElement_Response:
             type: object
             required:
@@ -2706,6 +2719,24 @@ components:
                     const: Heading
                 key:
                     $ref: "#/components/schemas/ContentKey"
+                level:
+                    type: integer
+                    minimum: 1
+                    maximum: 3
+                elements:
+                    type: array
+                    items:
+                        $ref: "#/components/schemas/ContentInlineElement_Response"
+        ContentHeadingBlockElement_Response_WithoutKeys:
+            type: object
+            required:
+                - type
+                - level
+                - elements
+            additionalProperties: false
+            properties:
+                type:
+                    const: Heading
                 level:
                     type: integer
                     minimum: 1
@@ -2735,6 +2766,14 @@ components:
                     const: Divider
                 key:
                     $ref: "#/components/schemas/ContentKey"
+        ContentDividerBlockElement_Response_WithoutKeys:
+            type: object
+            required:
+                - type
+            additionalProperties: false
+            properties:
+                type:
+                    const: Divider
         ContentTableBlockElement:
             type: object
             required:
@@ -2890,6 +2929,16 @@ components:
                     type: array
                     items:
                         $ref: "#/components/schemas/ContentCodeBlockElementTextInlineElement"
+        ContentCodeBlockElementLine_Response_WithoutKeys:
+            type: object
+            required:
+                - elements
+            additionalProperties: false
+            properties:
+                elements:
+                    type: array
+                    items:
+                        $ref: "#/components/schemas/ContentCodeBlockElementTextInlineElement"
         ContentFileBlockElement:
             type: object
             required:
@@ -2937,6 +2986,28 @@ components:
                     type: array
                     items:
                         $ref: "#/components/schemas/ContentCommentMark"
+        ContentFileBlockElement_Response_WithoutKeys:
+            type: object
+            required:
+                - type
+                - id
+                - contentType
+                - contentLength
+            additionalProperties: false
+            properties:
+                type:
+                    const: File
+                id:
+                    $ref: "#/components/schemas/FileId"
+                contentType:
+                    $ref: "#/components/schemas/FileContentType"
+                contentLength:
+                    type: integer
+                    minimum: 0
+                marks:
+                    type: array
+                    items:
+                        $ref: "#/components/schemas/ContentCommentMark"
         ContentPreviewBlockElement:
             type: object
             required:
@@ -2966,6 +3037,21 @@ components:
                     const: Preview
                 key:
                     $ref: "#/components/schemas/ContentKey"
+                reference:
+                    $ref: "#/components/schemas/PreviewReference_Response"
+                marks:
+                    type: array
+                    items:
+                        $ref: "#/components/schemas/ContentCommentMark"
+        ContentPreviewBlockElement_Response_WithoutKeys:
+            type: object
+            required:
+                - type
+                - reference
+            additionalProperties: false
+            properties:
+                type:
+                    const: Preview
                 reference:
                     $ref: "#/components/schemas/PreviewReference_Response"
                 marks:
@@ -5565,27 +5651,92 @@ components:
             properties:
                 summary:
                     type: string
-        MentionReference_Response:
+        TaskWithoutNotes_Response:
+            type: object
+            required:
+                - id
+                - status
+                - title
+            additionalProperties: false
+            properties:
+                id:
+                    $ref: "#/components/schemas/TaskId"
+                creator:
+                    type: object
+                    required:
+                        - id
+                    additionalProperties: false
+                    properties:
+                        id:
+                            $ref: "#/components/schemas/AccountId"
+                status:
+                    $ref: "#/components/schemas/TaskStatus"
+                title:
+                    type: string
+                    maxLength: 512
+                assignee:
+                    $ref: "#/components/schemas/Account"
+                due:
+                    $ref: "#/components/schemas/TaskDue"
+                priority:
+                    $ref: "#/components/schemas/TaskPriority"
+                layout:
+                    $ref: "#/components/schemas/TaskLayout"
+                parent:
+                    $ref: "#/components/schemas/TaskParent_Response"
+                collections:
+                    type: array
+                    items:
+                        $ref: "#/components/schemas/TaskCollectionItem_Response"
+        MessageContentPayloadParent_Response:
             oneOf:
-                - $ref: "#/components/schemas/AccountReference_Response"
-                - $ref: "#/components/schemas/ChannelReference_Response"
-                - $ref: "#/components/schemas/ChatReference_Response"
-                - $ref: "#/components/schemas/DocumentReference_Response"
-                - $ref: "#/components/schemas/PostReference_Response"
-                - $ref: "#/components/schemas/TaskReference_Response"
-                - $ref: "#/components/schemas/TaskCollectionReference_Response"
-                - $ref: "#/components/schemas/SiteReference_Response"
+                - $ref: "#/components/schemas/MessageContentPayloadMessageParent_Response"
+                - $ref: "#/components/schemas/MessageContentPayloadPostParent_Response"
             discriminator:
                 propertyName: type
                 mapping:
-                    Account: "#/components/schemas/AccountReference_Response"
-                    Channel: "#/components/schemas/ChannelReference_Response"
-                    Chat: "#/components/schemas/ChatReference_Response"
-                    Document: "#/components/schemas/DocumentReference_Response"
-                    Post: "#/components/schemas/PostReference_Response"
-                    Task: "#/components/schemas/TaskReference_Response"
-                    TaskCollection: "#/components/schemas/TaskCollectionReference_Response"
-                    Site: "#/components/schemas/SiteReference_Response"
+                    Message: "#/components/schemas/MessageContentPayloadMessageParent_Response"
+                    Post: "#/components/schemas/MessageContentPayloadPostParent_Response"
+        Task_Response:
+            type: object
+            required:
+                - id
+                - status
+                - title
+                - notes
+            additionalProperties: false
+            properties:
+                id:
+                    $ref: "#/components/schemas/TaskId"
+                creator:
+                    type: object
+                    required:
+                        - id
+                    additionalProperties: false
+                    properties:
+                        id:
+                            $ref: "#/components/schemas/AccountId"
+                status:
+                    $ref: "#/components/schemas/TaskStatus"
+                title:
+                    type: string
+                    maxLength: 512
+                assignee:
+                    $ref: "#/components/schemas/Account"
+                due:
+                    $ref: "#/components/schemas/TaskDue"
+                priority:
+                    $ref: "#/components/schemas/TaskPriority"
+                layout:
+                    $ref: "#/components/schemas/TaskLayout"
+                parent:
+                    $ref: "#/components/schemas/TaskParent_Response"
+                collections:
+                    type: array
+                    items:
+                        $ref: "#/components/schemas/TaskCollectionItem_Response"
+                notes:
+                    $ref: "#/components/schemas/TaskNotes_Response"
         PreviewReference_Response:
             oneOf:
                 - $ref: "#/components/schemas/ChannelReference_Response"
@@ -5636,71 +5787,39 @@ components:
                     FileGallery: "#/components/schemas/ContentFileGalleryBlockElement_Response"
                     FileFloat: "#/components/schemas/ContentFileFloatBlockElement_Response"
                     Preview: "#/components/schemas/ContentPreviewBlockElement_Response"
-        ContentListBlockElementItem_Response:
+        TaskSetParentPatch_Response:
             type: object
             required:
-                - elements
+                - type
+                - parent
             additionalProperties: false
             properties:
-                elements:
-                    type: array
-                    items:
-                        $ref: "#/components/schemas/ContentParagraphBlockElement_Response"
-                nestedListElements:
-                    type: array
-                    items:
-                        $ref: "#/components/schemas/ContentListBlockElement_Response"
-        ContentCheckListBlockElementItem_Response:
+                type:
+                    const: SetParent
+                parent:
+                    oneOf:
+                        - $ref: "#/components/schemas/TaskParent_Response"
+                        - type: "null"
+        TaskAddCollectionPatch_Response:
             type: object
             required:
-                - checked
-                - elements
+                - type
+                - item
             additionalProperties: false
             properties:
-                checked:
-                    type: boolean
-                elements:
-                    type: array
-                    items:
-                        $ref: "#/components/schemas/ContentParagraphBlockElement_Response"
-                nestedListElements:
-                    type: array
-                    items:
-                        $ref: "#/components/schemas/ContentListBlockElement_Response"
-        ContentQuoteBlockElementBlockElement_Response:
+                type:
+                    const: AddCollection
+                item:
+                    $ref: "#/components/schemas/TaskCollectionItem_Response"
+        MessagePayload_Response:
             oneOf:
-                - $ref: "#/components/schemas/ContentParagraphBlockElement_Response"
-                - $ref: "#/components/schemas/ContentUnorderedListBlockElement_Response"
-                - $ref: "#/components/schemas/ContentOrderedListBlockElement_Response"
-                - $ref: "#/components/schemas/ContentCheckListBlockElement_Response"
+                - $ref: "#/components/schemas/MessageContentPayload_Response"
+                - $ref: "#/components/schemas/MessageDeletedPayload"
             discriminator:
                 propertyName: type
                 mapping:
-                    Paragraph: "#/components/schemas/ContentParagraphBlockElement_Response"
-                    UnorderedList: "#/components/schemas/ContentUnorderedListBlockElement_Response"
-                    OrderedList: "#/components/schemas/ContentOrderedListBlockElement_Response"
-                    CheckList: "#/components/schemas/ContentCheckListBlockElement_Response"
-        ContentTableBlockElementCellBlockElement_Response:
-            oneOf:
-                - $ref: "#/components/schemas/ContentParagraphBlockElement_Response"
-                - $ref: "#/components/schemas/ContentUnorderedListBlockElement_Response"
-                - $ref: "#/components/schemas/ContentOrderedListBlockElement_Response"
-                - $ref: "#/components/schemas/ContentCheckListBlockElement_Response"
-                - $ref: "#/components/schemas/ContentQuoteBlockElement_Response"
-                - $ref: "#/components/schemas/ContentCodeBlockElement_Response"
-                - $ref: "#/components/schemas/ContentFileBlockElement_Response"
-                - $ref: "#/components/schemas/ContentPreviewBlockElement_Response"
-            discriminator:
-                propertyName: type
-                mapping:
-                    Paragraph: "#/components/schemas/ContentParagraphBlockElement_Response"
-                    UnorderedList: "#/components/schemas/ContentUnorderedListBlockElement_Response"
-                    OrderedList: "#/components/schemas/ContentOrderedListBlockElement_Response"
-                    CheckList: "#/components/schemas/ContentCheckListBlockElement_Response"
-                    Quote: "#/components/schemas/ContentQuoteBlockElement_Response"
-                    Code: "#/components/schemas/ContentCodeBlockElement_Response"
-                    File: "#/components/schemas/ContentFileBlockElement_Response"
-                    Preview: "#/components/schemas/ContentPreviewBlockElement_Response"
+                    Content: "#/components/schemas/MessageContentPayload_Response"
+                    Deleted: "#/components/schemas/MessageDeletedPayload"
         ContentCodeBlockElement_Response:
             type: object
             required:
@@ -5756,18 +5875,6 @@ components:
                     minItems: 1
                     items:
                         $ref: "#/components/schemas/ContentCodeBlockElementLine_Response"
-        ContentFileGalleryBlockElementRow_Response:
-            type: object
-            required:
-                - items
-            additionalProperties: false
-            properties:
-                items:
-                    type: array
-                    minItems: 1
-                    maxItems: 3
-                    items:
-                        $ref: "#/components/schemas/ContentFileGalleryBlockElementRowItem_Response"
         ContentFileFloatBlockElement_Response:
             type: object
             required:
@@ -5792,125 +5899,83 @@ components:
                         mapping:
                             File: "#/components/schemas/ContentFileBlockElement_Response"
                             Preview: "#/components/schemas/ContentPreviewBlockElement_Response"
-        Task_Response:
-            type: object
-            required:
-                - id
-                - status
-                - title
-                - notes
-            additionalProperties: false
-            properties:
-                id:
-                    $ref: "#/components/schemas/TaskId"
-                creator:
-                    type: object
-                    required:
-                        - id
-                    additionalProperties: false
-                    properties:
-                        id:
-                            $ref: "#/components/schemas/AccountId"
-                status:
-                    $ref: "#/components/schemas/TaskStatus"
-                title:
-                    type: string
-                    maxLength: 512
-                assignee:
-                    $ref: "#/components/schemas/Account"
-                due:
-                    $ref: "#/components/schemas/TaskDue"
-                priority:
-                    $ref: "#/components/schemas/TaskPriority"
-                layout:
-                    $ref: "#/components/schemas/TaskLayout"
-                parent:
-                    $ref: "#/components/schemas/TaskParent_Response"
-                collections:
-                    type: array
-                    items:
-                        $ref: "#/components/schemas/TaskCollectionItem_Response"
-                notes:
-                    $ref: "#/components/schemas/TaskNotes_Response"
-        TaskWithoutNotes_Response:
-            type: object
-            required:
-                - id
-                - status
-                - title
-            additionalProperties: false
-            properties:
-                id:
-                    $ref: "#/components/schemas/TaskId"
-                creator:
-                    type: object
-                    required:
-                        - id
-                    additionalProperties: false
-                    properties:
-                        id:
-                            $ref: "#/components/schemas/AccountId"
-                status:
-                    $ref: "#/components/schemas/TaskStatus"
-                title:
-                    type: string
-                    maxLength: 512
-                assignee:
-                    $ref: "#/components/schemas/Account"
-                due:
-                    $ref: "#/components/schemas/TaskDue"
-                priority:
-                    $ref: "#/components/schemas/TaskPriority"
-                layout:
-                    $ref: "#/components/schemas/TaskLayout"
-                parent:
-                    $ref: "#/components/schemas/TaskParent_Response"
-                collections:
-                    type: array
-                    items:
-                        $ref: "#/components/schemas/TaskCollectionItem_Response"
-        TaskSetParentPatch_Response:
-            type: object
-            required:
-                - type
-                - parent
-            additionalProperties: false
-            properties:
-                type:
-                    const: SetParent
-                parent:
-                    oneOf:
-                        - $ref: "#/components/schemas/TaskParent_Response"
-                        - type: "null"
-        TaskAddCollectionPatch_Response:
-            type: object
-            required:
-                - type
-                - item
-            additionalProperties: false
-            properties:
-                type:
-                    const: AddCollection
-                item:
-                    $ref: "#/components/schemas/TaskCollectionItem_Response"
-        MessagePayload_Response:
+        MentionReference_Response:
             oneOf:
-                - $ref: "#/components/schemas/MessageContentPayload_Response"
-                - $ref: "#/components/schemas/MessageDeletedPayload"
+                - $ref: "#/components/schemas/AccountReference_Response"
+                - $ref: "#/components/schemas/ChannelReference_Response"
+                - $ref: "#/components/schemas/ChatReference_Response"
+                - $ref: "#/components/schemas/DocumentReference_Response"
+                - $ref: "#/components/schemas/PostReference_Response"
+                - $ref: "#/components/schemas/TaskReference_Response"
+                - $ref: "#/components/schemas/TaskCollectionReference_Response"
+                - $ref: "#/components/schemas/SiteReference_Response"
             discriminator:
                 propertyName: type
                 mapping:
-                    Content: "#/components/schemas/MessageContentPayload_Response"
-                    Deleted: "#/components/schemas/MessageDeletedPayload"
-        MessageContentPayloadParent_Response:
+                    Account: "#/components/schemas/AccountReference_Response"
+                    Channel: "#/components/schemas/ChannelReference_Response"
+                    Chat: "#/components/schemas/ChatReference_Response"
+                    Document: "#/components/schemas/DocumentReference_Response"
+                    Post: "#/components/schemas/PostReference_Response"
+                    Task: "#/components/schemas/TaskReference_Response"
+                    TaskCollection: "#/components/schemas/TaskCollectionReference_Response"
+                    Site: "#/components/schemas/SiteReference_Response"
+        ContentListBlockElementItem_Response:
+            type: object
+            required:
+                - elements
+            additionalProperties: false
+            properties:
+                elements:
+                    type: array
+                    items:
+                        $ref: "#/components/schemas/ContentParagraphBlockElement_Response"
+                nestedListElements:
+                    type: array
+                    items:
+                        $ref: "#/components/schemas/ContentListBlockElement_Response"
+        ContentCheckListBlockElementItem_Response:
+            type: object
+            required:
+                - checked
+                - elements
+            additionalProperties: false
+            properties:
+                checked:
+                    type: boolean
+                elements:
+                    type: array
+                    items:
+                        $ref: "#/components/schemas/ContentParagraphBlockElement_Response"
+                nestedListElements:
+                    type: array
+                    items:
+                        $ref: "#/components/schemas/ContentListBlockElement_Response"
+        ContentQuoteBlockElementBlockElement_Response:
             oneOf:
-                - $ref: "#/components/schemas/MessageContentPayloadMessageParent_Response"
-                - $ref: "#/components/schemas/MessageContentPayloadPostParent_Response"
+                - $ref: "#/components/schemas/ContentParagraphBlockElement_Response"
+                - $ref: "#/components/schemas/ContentUnorderedListBlockElement_Response"
+                - $ref: "#/components/schemas/ContentOrderedListBlockElement_Response"
+                - $ref: "#/components/schemas/ContentCheckListBlockElement_Response"
             discriminator:
                 propertyName: type
                 mapping:
-                    Message: "#/components/schemas/MessageContentPayloadMessageParent_Response"
-                    Post: "#/components/schemas/MessageContentPayloadPostParent_Response"
+                    Paragraph: "#/components/schemas/ContentParagraphBlockElement_Response"
+                    UnorderedList: "#/components/schemas/ContentUnorderedListBlockElement_Response"
+                    OrderedList: "#/components/schemas/ContentOrderedListBlockElement_Response"
+                    CheckList: "#/components/schemas/ContentCheckListBlockElement_Response"
+        ContentFileGalleryBlockElementRow_Response:
+            type: object
+            required:
+                - items
+            additionalProperties: false
+            properties:
+                items:
+                    type: array
+                    minItems: 1
+                    maxItems: 3
+                    items:
+                        $ref: "#/components/schemas/ContentFileGalleryBlockElementRowItem_Response"
         MessageStreamToolCallPartCreateCallReference_Response:
             oneOf:
                 - $ref: "#/components/schemas/DocumentReference_Response"
@@ -5924,6 +5989,239 @@ components:
                     Post: "#/components/schemas/PostReference_Response"
                     Task: "#/components/schemas/TaskReference_Response"
                     TaskCollection: "#/components/schemas/TaskCollectionReference_Response"
+        ContentTableBlockElementCellBlockElement_Response:
+            oneOf:
+                - $ref: "#/components/schemas/ContentParagraphBlockElement_Response"
+                - $ref: "#/components/schemas/ContentUnorderedListBlockElement_Response"
+                - $ref: "#/components/schemas/ContentOrderedListBlockElement_Response"
+                - $ref: "#/components/schemas/ContentCheckListBlockElement_Response"
+                - $ref: "#/components/schemas/ContentQuoteBlockElement_Response"
+                - $ref: "#/components/schemas/ContentCodeBlockElement_Response"
+                - $ref: "#/components/schemas/ContentFileBlockElement_Response"
+                - $ref: "#/components/schemas/ContentPreviewBlockElement_Response"
+            discriminator:
+                propertyName: type
+                mapping:
+                    Paragraph: "#/components/schemas/ContentParagraphBlockElement_Response"
+                    UnorderedList: "#/components/schemas/ContentUnorderedListBlockElement_Response"
+                    OrderedList: "#/components/schemas/ContentOrderedListBlockElement_Response"
+                    CheckList: "#/components/schemas/ContentCheckListBlockElement_Response"
+                    Quote: "#/components/schemas/ContentQuoteBlockElement_Response"
+                    Code: "#/components/schemas/ContentCodeBlockElement_Response"
+                    File: "#/components/schemas/ContentFileBlockElement_Response"
+                    Preview: "#/components/schemas/ContentPreviewBlockElement_Response"
+        ContentBlockElement_Response_WithoutKeys:
+            oneOf:
+                - $ref: "#/components/schemas/ContentParagraphBlockElement_Response_WithoutKeys"
+                - $ref: "#/components/schemas/ContentUnorderedListBlockElement_Response_WithoutKe\
+                      ys"
+                - $ref: "#/components/schemas/ContentOrderedListBlockElement_Response_WithoutKeys"
+                - $ref: "#/components/schemas/ContentCheckListBlockElement_Response_WithoutKeys"
+                - $ref: "#/components/schemas/ContentQuoteBlockElement_Response_WithoutKeys"
+                - $ref: "#/components/schemas/ContentHeadingBlockElement_Response_WithoutKeys"
+                - $ref: "#/components/schemas/ContentDividerBlockElement_Response_WithoutKeys"
+                - $ref: "#/components/schemas/ContentTableBlockElement_Response_WithoutKeys"
+                - $ref: "#/components/schemas/ContentCodeBlockElement_Response_WithoutKeys"
+                - $ref: "#/components/schemas/ContentFileBlockElement_Response_WithoutKeys"
+                - $ref: "#/components/schemas/ContentFileGalleryBlockElement_Response_WithoutKeys"
+                - $ref: "#/components/schemas/ContentFileFloatBlockElement_Response_WithoutKeys"
+                - $ref: "#/components/schemas/ContentPreviewBlockElement_Response_WithoutKeys"
+            discriminator:
+                propertyName: type
+                mapping:
+                    Paragraph: "#/components/schemas/ContentParagraphBlockElement_Response_WithoutK\
+                        eys"
+                    UnorderedList: "#/components/schemas/ContentUnorderedListBlockElement_Response_\
+                        WithoutKeys"
+                    OrderedList: "#/components/schemas/ContentOrderedListBlockElement_Response_With\
+                        outKeys"
+                    CheckList: "#/components/schemas/ContentCheckListBlockElement_Response_WithoutK\
+                        eys"
+                    Quote: "#/components/schemas/ContentQuoteBlockElement_Response_WithoutKeys"
+                    Heading: "#/components/schemas/ContentHeadingBlockElement_Response_WithoutKeys"
+                    Divider: "#/components/schemas/ContentDividerBlockElement_Response_WithoutKeys"
+                    Table: "#/components/schemas/ContentTableBlockElement_Response_WithoutKeys"
+                    Code: "#/components/schemas/ContentCodeBlockElement_Response_WithoutKeys"
+                    File: "#/components/schemas/ContentFileBlockElement_Response_WithoutKeys"
+                    FileGallery: "#/components/schemas/ContentFileGalleryBlockElement_Response_With\
+                        outKeys"
+                    FileFloat: "#/components/schemas/ContentFileFloatBlockElement_Response_WithoutK\
+                        eys"
+                    Preview: "#/components/schemas/ContentPreviewBlockElement_Response_WithoutKeys"
+        ContentCodeBlockElement_Response_WithoutKeys:
+            type: object
+            required:
+                - type
+                - language
+                - lines
+            additionalProperties: false
+            properties:
+                type:
+                    const: Code
+                language:
+                    type: string
+                    enum:
+                        - text
+                        - javascript
+                        - html
+                        - css
+                        - sql
+                        - python
+                        - typescript
+                        - shell
+                        - java
+                        - json
+                        - markdown
+                        - csharp
+                        - cpp
+                        - c
+                        - php
+                        - go
+                        - yaml
+                        - powershell
+                        - rust
+                        - kotlin
+                        - ruby
+                        - lua
+                        - xml
+                        - dart
+                        - swift
+                        - assembly
+                        - webassembly
+                        - scala
+                        - r
+                        - elixir
+                        - objectivec
+                        - perl
+                        - haskell
+                        - solidity
+                        - clojure
+                        - erlang
+                        - ocaml
+                lines:
+                    type: array
+                    minItems: 1
+                    items:
+                        $ref: "#/components/schemas/ContentCodeBlockElementLine_Response_WithoutKeys"
+        ContentFileFloatBlockElement_Response_WithoutKeys:
+            type: object
+            required:
+                - type
+                - side
+                - element
+            additionalProperties: false
+            properties:
+                type:
+                    const: FileFloat
+                side:
+                    type: string
+                    enum:
+                        - Left
+                        - Right
+                element:
+                    oneOf:
+                        - $ref: "#/components/schemas/ContentFileBlockElement_Response_WithoutKeys"
+                        - $ref: "#/components/schemas/ContentPreviewBlockElement_Response_WithoutKeys"
+                    discriminator:
+                        propertyName: type
+                        mapping:
+                            File: "#/components/schemas/ContentFileBlockElement_Response_WithoutKeys"
+                            Preview: "#/components/schemas/ContentPreviewBlockElement_Response_WithoutKeys"
+        ContentListBlockElementItem_Response_WithoutKeys:
+            type: object
+            required:
+                - elements
+            additionalProperties: false
+            properties:
+                elements:
+                    type: array
+                    items:
+                        $ref: "#/components/schemas/ContentParagraphBlockElement_Response_WithoutKeys"
+                nestedListElements:
+                    type: array
+                    items:
+                        $ref: "#/components/schemas/ContentListBlockElement_Response_WithoutKeys"
+        ContentCheckListBlockElementItem_Response_WithoutKeys:
+            type: object
+            required:
+                - checked
+                - elements
+            additionalProperties: false
+            properties:
+                checked:
+                    type: boolean
+                elements:
+                    type: array
+                    items:
+                        $ref: "#/components/schemas/ContentParagraphBlockElement_Response_WithoutKeys"
+                nestedListElements:
+                    type: array
+                    items:
+                        $ref: "#/components/schemas/ContentListBlockElement_Response_WithoutKeys"
+        ContentQuoteBlockElementBlockElement_Response_WithoutKeys:
+            oneOf:
+                - $ref: "#/components/schemas/ContentParagraphBlockElement_Response_WithoutKeys"
+                - $ref: "#/components/schemas/ContentUnorderedListBlockElement_Response_WithoutKe\
+                      ys"
+                - $ref: "#/components/schemas/ContentOrderedListBlockElement_Response_WithoutKeys"
+                - $ref: "#/components/schemas/ContentCheckListBlockElement_Response_WithoutKeys"
+            discriminator:
+                propertyName: type
+                mapping:
+                    Paragraph: "#/components/schemas/ContentParagraphBlockElement_Response_WithoutK\
+                        eys"
+                    UnorderedList: "#/components/schemas/ContentUnorderedListBlockElement_Response_\
+                        WithoutKeys"
+                    OrderedList: "#/components/schemas/ContentOrderedListBlockElement_Response_With\
+                        outKeys"
+                    CheckList: "#/components/schemas/ContentCheckListBlockElement_Response_WithoutK\
+                        eys"
+        ContentFileGalleryBlockElementRowItem_Response_WithoutKeys:
+            type: object
+            required:
+                - width
+                - element
+            additionalProperties: false
+            properties:
+                width:
+                    type: number
+                    minimum: 0
+                    maximum: 1
+                element:
+                    oneOf:
+                        - $ref: "#/components/schemas/ContentFileBlockElement_Response_WithoutKeys"
+                        - $ref: "#/components/schemas/ContentPreviewBlockElement_Response_WithoutKeys"
+                    discriminator:
+                        propertyName: type
+                        mapping:
+                            File: "#/components/schemas/ContentFileBlockElement_Response_WithoutKeys"
+                            Preview: "#/components/schemas/ContentPreviewBlockElement_Response_WithoutKeys"
+        ContentTableBlockElementCellBlockElement_Response_WithoutKeys:
+            oneOf:
+                - $ref: "#/components/schemas/ContentParagraphBlockElement_Response_WithoutKeys"
+                - $ref: "#/components/schemas/ContentUnorderedListBlockElement_Response_WithoutKe\
+                      ys"
+                - $ref: "#/components/schemas/ContentOrderedListBlockElement_Response_WithoutKeys"
+                - $ref: "#/components/schemas/ContentCheckListBlockElement_Response_WithoutKeys"
+                - $ref: "#/components/schemas/ContentQuoteBlockElement_Response_WithoutKeys"
+                - $ref: "#/components/schemas/ContentCodeBlockElement_Response_WithoutKeys"
+                - $ref: "#/components/schemas/ContentFileBlockElement_Response_WithoutKeys"
+                - $ref: "#/components/schemas/ContentPreviewBlockElement_Response_WithoutKeys"
+            discriminator:
+                propertyName: type
+                mapping:
+                    Paragraph: "#/components/schemas/ContentParagraphBlockElement_Response_WithoutK\
+                        eys"
+                    UnorderedList: "#/components/schemas/ContentUnorderedListBlockElement_Response_\
+                        WithoutKeys"
+                    OrderedList: "#/components/schemas/ContentOrderedListBlockElement_Response_With\
+                        outKeys"
+                    CheckList: "#/components/schemas/ContentCheckListBlockElement_Response_WithoutK\
+                        eys"
+                    Quote: "#/components/schemas/ContentQuoteBlockElement_Response_WithoutKeys"
+                    Code: "#/components/schemas/ContentCodeBlockElement_Response_WithoutKeys"
+                    File: "#/components/schemas/ContentFileBlockElement_Response_WithoutKeys"
+                    Preview: "#/components/schemas/ContentPreviewBlockElement_Response_WithoutKeys"
         Content_Response:
             type: object
             additionalProperties: false
@@ -5934,6 +6232,106 @@ components:
                     type: array
                     items:
                         $ref: "#/components/schemas/ContentBlockElement_Response"
+        TaskPatch_Response:
+            oneOf:
+                - $ref: "#/components/schemas/TaskSetTitlePatch"
+                - $ref: "#/components/schemas/TaskSetAssigneePatch"
+                - $ref: "#/components/schemas/TaskSetStatusPatch"
+                - $ref: "#/components/schemas/TaskSetDuePatch"
+                - $ref: "#/components/schemas/TaskSetPriorityPatch"
+                - $ref: "#/components/schemas/TaskSetLayoutPatch"
+                - $ref: "#/components/schemas/TaskSetParentPatch_Response"
+                - $ref: "#/components/schemas/TaskAddCollectionPatch_Response"
+                - $ref: "#/components/schemas/TaskRemoveCollectionPatch"
+            discriminator:
+                propertyName: type
+                mapping:
+                    SetTitle: "#/components/schemas/TaskSetTitlePatch"
+                    SetAssignee: "#/components/schemas/TaskSetAssigneePatch"
+                    SetStatus: "#/components/schemas/TaskSetStatusPatch"
+                    SetDue: "#/components/schemas/TaskSetDuePatch"
+                    SetPriority: "#/components/schemas/TaskSetPriorityPatch"
+                    SetLayout: "#/components/schemas/TaskSetLayoutPatch"
+                    SetParent: "#/components/schemas/TaskSetParentPatch_Response"
+                    AddCollection: "#/components/schemas/TaskAddCollectionPatch_Response"
+                    RemoveCollection: "#/components/schemas/TaskRemoveCollectionPatch"
+        Message_Response:
+            type: object
+            required:
+                - index
+                - author
+                - createdTime
+                - createdTimeZone
+                - payload
+            additionalProperties: false
+            properties:
+                index:
+                    type: integer
+                    minimum: 0
+                author:
+                    $ref: "#/components/schemas/Account"
+                createdTime:
+                    $ref: "#/components/schemas/DateTime"
+                createdTimeZone:
+                    $ref: "#/components/schemas/TimeZone"
+                payload:
+                    $ref: "#/components/schemas/MessagePayload_Response"
+        BotWebhookCreatedMessageEvent_Response:
+            type: object
+            required:
+                - type
+                - room
+                - index
+                - author
+                - createdTimeZone
+            additionalProperties: false
+            properties:
+                type:
+                    const: CreatedMessage
+                room:
+                    $ref: "#/components/schemas/MessageRoomReference"
+                index:
+                    type: integer
+                    minimum: 0
+                author:
+                    type: object
+                    required:
+                        - id
+                    additionalProperties: false
+                    properties:
+                        id:
+                            $ref: "#/components/schemas/AccountId"
+                createdTimeZone:
+                    $ref: "#/components/schemas/TimeZone"
+                parent:
+                    $ref: "#/components/schemas/BotWebhookCreatedMessageEventParent"
+                wasMentioned:
+                    type: boolean
+                viewing:
+                    type: object
+                    required:
+                        - reference
+                    additionalProperties: false
+                    properties:
+                        reference:
+                            $ref: "#/components/schemas/MentionReference_Response"
+        ContentMentionInlineElement_Response:
+            type: object
+            required:
+                - type
+                - reference
+            additionalProperties: false
+            properties:
+                type:
+                    const: Mention
+                reference:
+                    $ref: "#/components/schemas/MentionReference_Response"
+                isAccountShortName:
+                    type: boolean
+                marks:
+                    type: array
+                    items:
+                        $ref: "#/components/schemas/ContentInlineElementMark"
         ContentUnorderedListBlockElement_Response:
             type: object
             required:
@@ -5993,16 +6391,6 @@ components:
                     minItems: 1
                     items:
                         $ref: "#/components/schemas/ContentQuoteBlockElementBlockElement_Response"
-        ContentTableBlockElementCell_Response:
-            type: object
-            required:
-                - elements
-            additionalProperties: false
-            properties:
-                elements:
-                    type: array
-                    items:
-                        $ref: "#/components/schemas/ContentTableBlockElementCellBlockElement_Response"
         ContentFileGalleryBlockElement_Response:
             type: object
             required:
@@ -6021,67 +6409,6 @@ components:
                     type: array
                     items:
                         $ref: "#/components/schemas/ContentCommentMark"
-        ContentMentionInlineElement_Response:
-            type: object
-            required:
-                - type
-                - reference
-            additionalProperties: false
-            properties:
-                type:
-                    const: Mention
-                reference:
-                    $ref: "#/components/schemas/MentionReference_Response"
-                isAccountShortName:
-                    type: boolean
-                marks:
-                    type: array
-                    items:
-                        $ref: "#/components/schemas/ContentInlineElementMark"
-        TaskPatch_Response:
-            oneOf:
-                - $ref: "#/components/schemas/TaskSetTitlePatch"
-                - $ref: "#/components/schemas/TaskSetAssigneePatch"
-                - $ref: "#/components/schemas/TaskSetStatusPatch"
-                - $ref: "#/components/schemas/TaskSetDuePatch"
-                - $ref: "#/components/schemas/TaskSetPriorityPatch"
-                - $ref: "#/components/schemas/TaskSetLayoutPatch"
-                - $ref: "#/components/schemas/TaskSetParentPatch_Response"
-                - $ref: "#/components/schemas/TaskAddCollectionPatch_Response"
-                - $ref: "#/components/schemas/TaskRemoveCollectionPatch"
-            discriminator:
-                propertyName: type
-                mapping:
-                    SetTitle: "#/components/schemas/TaskSetTitlePatch"
-                    SetAssignee: "#/components/schemas/TaskSetAssigneePatch"
-                    SetStatus: "#/components/schemas/TaskSetStatusPatch"
-                    SetDue: "#/components/schemas/TaskSetDuePatch"
-                    SetPriority: "#/components/schemas/TaskSetPriorityPatch"
-                    SetLayout: "#/components/schemas/TaskSetLayoutPatch"
-                    SetParent: "#/components/schemas/TaskSetParentPatch_Response"
-                    AddCollection: "#/components/schemas/TaskAddCollectionPatch_Response"
-                    RemoveCollection: "#/components/schemas/TaskRemoveCollectionPatch"
-        Message_Response:
-            type: object
-            required:
-                - index
-                - author
-                - createdTime
-                - createdTimeZone
-                - payload
-            additionalProperties: false
-            properties:
-                index:
-                    type: integer
-                    minimum: 0
-                author:
-                    $ref: "#/components/schemas/Account"
-                createdTime:
-                    $ref: "#/components/schemas/DateTime"
-                createdTimeZone:
-                    $ref: "#/components/schemas/TimeZone"
-                payload:
-                    $ref: "#/components/schemas/MessagePayload_Response"
         MessageStreamToolCallPartPayloadReadCall_Response:
             type: object
             required:
@@ -6105,104 +6432,111 @@ components:
                 reference:
                     $ref: "#/components/schemas/MessageStreamToolCallPartCreateCallReference_Respon\
                         se"
-        BotWebhookCreatedMessageEvent_Response:
+        ContentTableBlockElementCell_Response:
+            type: object
+            required:
+                - elements
+            additionalProperties: false
+            properties:
+                elements:
+                    type: array
+                    items:
+                        $ref: "#/components/schemas/ContentTableBlockElementCellBlockElement_Response"
+        Content_Response_WithoutKeys:
+            type: object
+            additionalProperties: false
+            required:
+                - elements
+            properties:
+                elements:
+                    type: array
+                    items:
+                        $ref: "#/components/schemas/ContentBlockElement_Response_WithoutKeys"
+        ContentUnorderedListBlockElement_Response_WithoutKeys:
             type: object
             required:
                 - type
-                - room
-                - index
-                - author
-                - createdTimeZone
+                - items
             additionalProperties: false
             properties:
                 type:
-                    const: CreatedMessage
-                room:
-                    $ref: "#/components/schemas/MessageRoomReference"
-                index:
-                    type: integer
-                    minimum: 0
-                author:
-                    type: object
-                    required:
-                        - id
-                    additionalProperties: false
-                    properties:
-                        id:
-                            $ref: "#/components/schemas/AccountId"
-                createdTimeZone:
-                    $ref: "#/components/schemas/TimeZone"
-                parent:
-                    $ref: "#/components/schemas/BotWebhookCreatedMessageEventParent"
-                wasMentioned:
-                    type: boolean
-                viewing:
-                    type: object
-                    required:
-                        - reference
-                    additionalProperties: false
-                    properties:
-                        reference:
-                            $ref: "#/components/schemas/MentionReference_Response"
-        ContentListBlockElement_Response:
-            oneOf:
-                - $ref: "#/components/schemas/ContentUnorderedListBlockElement_Response"
-                - $ref: "#/components/schemas/ContentOrderedListBlockElement_Response"
-                - $ref: "#/components/schemas/ContentCheckListBlockElement_Response"
-            discriminator:
-                propertyName: type
-                mapping:
-                    UnorderedList: "#/components/schemas/ContentUnorderedListBlockElement_Response"
-                    OrderedList: "#/components/schemas/ContentOrderedListBlockElement_Response"
-                    CheckList: "#/components/schemas/ContentCheckListBlockElement_Response"
-        ContentTableBlockElementRow_Response:
-            type: object
-            required:
-                - cells
-            additionalProperties: false
-            properties:
-                cells:
+                    const: UnorderedList
+                items:
                     type: array
-                    minItems: 2
+                    minItems: 1
                     items:
-                        $ref: "#/components/schemas/ContentTableBlockElementCell_Response"
-        ContentInlineElement_Response:
-            oneOf:
-                - $ref: "#/components/schemas/ContentTextInlineElement"
-                - $ref: "#/components/schemas/ContentBreakInlineElement"
-                - $ref: "#/components/schemas/ContentMentionInlineElement_Response"
-            discriminator:
-                propertyName: type
-                mapping:
-                    Text: "#/components/schemas/ContentTextInlineElement"
-                    Break: "#/components/schemas/ContentBreakInlineElement"
-                    Mention: "#/components/schemas/ContentMentionInlineElement_Response"
-        Document_Response:
+                        $ref: "#/components/schemas/ContentListBlockElementItem_Response_WithoutKeys"
+        ContentOrderedListBlockElement_Response_WithoutKeys:
             type: object
             required:
-                - id
-                - version
-                - title
-                - content
+                - type
+                - items
             additionalProperties: false
             properties:
-                id:
-                    $ref: "#/components/schemas/DocumentId"
-                creator:
-                    type: object
-                    required:
-                        - id
-                    additionalProperties: false
-                    properties:
-                        id:
-                            $ref: "#/components/schemas/AccountId"
-                version:
+                type:
+                    const: OrderedList
+                orderStart:
                     type: integer
-                    minimum: 0
-                title:
-                    type: string
-                content:
-                    $ref: "#/components/schemas/Content_Response"
+                    minimum: 1
+                items:
+                    type: array
+                    minItems: 1
+                    items:
+                        $ref: "#/components/schemas/ContentListBlockElementItem_Response_WithoutKeys"
+        ContentCheckListBlockElement_Response_WithoutKeys:
+            type: object
+            required:
+                - type
+                - items
+            additionalProperties: false
+            properties:
+                type:
+                    const: CheckList
+                items:
+                    type: array
+                    minItems: 1
+                    items:
+                        $ref: "#/components/schemas/ContentCheckListBlockElementItem_Response_WithoutKe\
+                            ys"
+        ContentQuoteBlockElement_Response_WithoutKeys:
+            type: object
+            required:
+                - type
+                - elements
+            additionalProperties: false
+            properties:
+                type:
+                    const: Quote
+                elements:
+                    type: array
+                    minItems: 1
+                    items:
+                        $ref: "#/components/schemas/ContentQuoteBlockElementBlockElement_Response_Witho\
+                            utKeys"
+        ContentFileGalleryBlockElementRow_Response_WithoutKeys:
+            type: object
+            required:
+                - items
+            additionalProperties: false
+            properties:
+                items:
+                    type: array
+                    minItems: 1
+                    maxItems: 3
+                    items:
+                        $ref: "#/components/schemas/ContentFileGalleryBlockElementRowItem_Response_With\
+                            outKeys"
+        ContentTableBlockElementCell_Response_WithoutKeys:
+            type: object
+            required:
+                - elements
+            additionalProperties: false
+            properties:
+                elements:
+                    type: array
+                    items:
+                        $ref: "#/components/schemas/ContentTableBlockElementCellBlockElement_Response_W\
+                            ithoutKeys"
         DocumentThread_Response:
             type: object
             required:
@@ -6248,7 +6582,33 @@ components:
                                     type: integer
                                     minimum: 0
                                 contentSnippet:
-                                    $ref: "#/components/schemas/Content_Response"
+                                    $ref: "#/components/schemas/Content_Response_WithoutKeys"
+        Document_Response:
+            type: object
+            required:
+                - id
+                - version
+                - title
+                - content
+            additionalProperties: false
+            properties:
+                id:
+                    $ref: "#/components/schemas/DocumentId"
+                creator:
+                    type: object
+                    required:
+                        - id
+                    additionalProperties: false
+                    properties:
+                        id:
+                            $ref: "#/components/schemas/AccountId"
+                version:
+                    type: integer
+                    minimum: 0
+                title:
+                    type: string
+                content:
+                    $ref: "#/components/schemas/Content_Response"
         Channel_Response:
             type: object
             required:
@@ -6262,6 +6622,58 @@ components:
                 name:
                     $ref: "#/components/schemas/LabelString"
                 description:
+                    $ref: "#/components/schemas/Content_Response"
+        PostPreview_Response:
+            type: object
+            required:
+                - id
+                - author
+                - createdTime
+                - createdTimeZone
+                - contentSnippet
+                - reference
+            additionalProperties: false
+            properties:
+                id:
+                    $ref: "#/components/schemas/PostId"
+                author:
+                    $ref: "#/components/schemas/Account"
+                createdTime:
+                    $ref: "#/components/schemas/DateTime"
+                createdTimeZone:
+                    $ref: "#/components/schemas/TimeZone"
+                channel:
+                    $ref: "#/components/schemas/ChannelPreview"
+                contentSnippet:
+                    $ref: "#/components/schemas/Content_Response_WithoutKeys"
+                reference:
+                    type: object
+                    required:
+                        - title
+                    additionalProperties: false
+                    properties:
+                        title:
+                            type: string
+        BotWebhookEvent_Response:
+            oneOf:
+                - $ref: "#/components/schemas/BotWebhookCreatedMessageEvent_Response"
+                - $ref: "#/components/schemas/BotWebhookCreatedPostEvent"
+            discriminator:
+                propertyName: type
+                mapping:
+                    CreatedMessage: "#/components/schemas/BotWebhookCreatedMessageEvent_Response"
+                    CreatedPost: "#/components/schemas/BotWebhookCreatedPostEvent"
+        TaskNotes_Response:
+            type: object
+            required:
+                - version
+                - content
+            additionalProperties: false
+            properties:
+                version:
+                    type: integer
+                    minimum: 0
+                content:
                     $ref: "#/components/schemas/Content_Response"
         Post_Response:
             type: object
@@ -6294,49 +6706,17 @@ components:
                     properties:
                         title:
                             type: string
-        PostPreview_Response:
-            type: object
-            required:
-                - id
-                - author
-                - createdTime
-                - createdTimeZone
-                - contentSnippet
-                - reference
-            additionalProperties: false
-            properties:
-                id:
-                    $ref: "#/components/schemas/PostId"
-                author:
-                    $ref: "#/components/schemas/Account"
-                createdTime:
-                    $ref: "#/components/schemas/DateTime"
-                createdTimeZone:
-                    $ref: "#/components/schemas/TimeZone"
-                channel:
-                    $ref: "#/components/schemas/ChannelPreview"
-                contentSnippet:
-                    $ref: "#/components/schemas/Content_Response"
-                reference:
-                    type: object
-                    required:
-                        - title
-                    additionalProperties: false
-                    properties:
-                        title:
-                            type: string
-        TaskNotes_Response:
-            type: object
-            required:
-                - version
-                - content
-            additionalProperties: false
-            properties:
-                version:
-                    type: integer
-                    minimum: 0
-                content:
-                    $ref: "#/components/schemas/Content_Response"
+        ContentInlineElement_Response:
+            oneOf:
+                - $ref: "#/components/schemas/ContentTextInlineElement"
+                - $ref: "#/components/schemas/ContentBreakInlineElement"
+                - $ref: "#/components/schemas/ContentMentionInlineElement_Response"
+            discriminator:
+                propertyName: type
+                mapping:
+                    Text: "#/components/schemas/ContentTextInlineElement"
+                    Break: "#/components/schemas/ContentBreakInlineElement"
+                    Mention: "#/components/schemas/ContentMentionInlineElement_Response"
         MessageStreamContentPartPayload_Response:
             type: object
             required:
@@ -6371,15 +6751,95 @@ components:
                     Search: "#/components/schemas/MessageStreamToolCallPartPayloadSearchCall"
                     Create: "#/components/schemas/MessageStreamToolCallPartPayloadCreateCall_Respon\
                         se"
-        BotWebhookEvent_Response:
+        ContentTableBlockElementRow_Response:
+            type: object
+            required:
+                - cells
+            additionalProperties: false
+            properties:
+                cells:
+                    type: array
+                    minItems: 2
+                    items:
+                        $ref: "#/components/schemas/ContentTableBlockElementCell_Response"
+        ContentListBlockElement_Response:
             oneOf:
-                - $ref: "#/components/schemas/BotWebhookCreatedMessageEvent_Response"
-                - $ref: "#/components/schemas/BotWebhookCreatedPostEvent"
+                - $ref: "#/components/schemas/ContentUnorderedListBlockElement_Response"
+                - $ref: "#/components/schemas/ContentOrderedListBlockElement_Response"
+                - $ref: "#/components/schemas/ContentCheckListBlockElement_Response"
             discriminator:
                 propertyName: type
                 mapping:
-                    CreatedMessage: "#/components/schemas/BotWebhookCreatedMessageEvent_Response"
-                    CreatedPost: "#/components/schemas/BotWebhookCreatedPostEvent"
+                    UnorderedList: "#/components/schemas/ContentUnorderedListBlockElement_Response"
+                    OrderedList: "#/components/schemas/ContentOrderedListBlockElement_Response"
+                    CheckList: "#/components/schemas/ContentCheckListBlockElement_Response"
+        ContentFileGalleryBlockElement_Response_WithoutKeys:
+            type: object
+            required:
+                - type
+                - rows
+            additionalProperties: false
+            properties:
+                type:
+                    const: FileGallery
+                rows:
+                    type: array
+                    minItems: 1
+                    items:
+                        $ref: "#/components/schemas/ContentFileGalleryBlockElementRow_Response_WithoutK\
+                            eys"
+                marks:
+                    type: array
+                    items:
+                        $ref: "#/components/schemas/ContentCommentMark"
+        ContentTableBlockElementRow_Response_WithoutKeys:
+            type: object
+            required:
+                - cells
+            additionalProperties: false
+            properties:
+                cells:
+                    type: array
+                    minItems: 2
+                    items:
+                        $ref: "#/components/schemas/ContentTableBlockElementCell_Response_WithoutKeys"
+        ContentListBlockElement_Response_WithoutKeys:
+            oneOf:
+                - $ref: "#/components/schemas/ContentUnorderedListBlockElement_Response_WithoutKe\
+                      ys"
+                - $ref: "#/components/schemas/ContentOrderedListBlockElement_Response_WithoutKeys"
+                - $ref: "#/components/schemas/ContentCheckListBlockElement_Response_WithoutKeys"
+            discriminator:
+                propertyName: type
+                mapping:
+                    UnorderedList: "#/components/schemas/ContentUnorderedListBlockElement_Response_\
+                        WithoutKeys"
+                    OrderedList: "#/components/schemas/ContentOrderedListBlockElement_Response_With\
+                        outKeys"
+                    CheckList: "#/components/schemas/ContentCheckListBlockElement_Response_WithoutK\
+                        eys"
+        MessageStreamPartPayload_Response:
+            oneOf:
+                - $ref: "#/components/schemas/MessageStreamContentPartPayload_Response"
+                - $ref: "#/components/schemas/MessageStreamToolCallPartPayload_Response"
+                - $ref: "#/components/schemas/MessageStreamReasoningPartPayload_Response"
+            discriminator:
+                propertyName: type
+                mapping:
+                    Content: "#/components/schemas/MessageStreamContentPartPayload_Response"
+                    ToolCall: "#/components/schemas/MessageStreamToolCallPartPayload_Response"
+                    Reasoning: "#/components/schemas/MessageStreamReasoningPartPayload_Response"
+        MessageStreamToolCallPartPayload_Response:
+            type: object
+            required:
+                - type
+                - call
+            additionalProperties: false
+            properties:
+                type:
+                    const: ToolCall
+                call:
+                    $ref: "#/components/schemas/MessageStreamToolCallPartPayloadCall_Response"
         ContentTableBlockElement_Response:
             type: object
             required:
@@ -6413,45 +6873,36 @@ components:
                     minItems: 1
                     items:
                         $ref: "#/components/schemas/ContentTableBlockElementRow_Response"
-        MessageStreamPartPayload_Response:
-            oneOf:
-                - $ref: "#/components/schemas/MessageStreamContentPartPayload_Response"
-                - $ref: "#/components/schemas/MessageStreamToolCallPartPayload_Response"
-                - $ref: "#/components/schemas/MessageStreamReasoningPartPayload_Response"
-            discriminator:
-                propertyName: type
-                mapping:
-                    Content: "#/components/schemas/MessageStreamContentPartPayload_Response"
-                    ToolCall: "#/components/schemas/MessageStreamToolCallPartPayload_Response"
-                    Reasoning: "#/components/schemas/MessageStreamReasoningPartPayload_Response"
-        MessageStreamToolCallPartPayload_Response:
+        ContentTableBlockElement_Response_WithoutKeys:
             type: object
             required:
                 - type
-                - call
+                - width
+                - columns
+                - rows
             additionalProperties: false
             properties:
                 type:
-                    const: ToolCall
-                call:
-                    $ref: "#/components/schemas/MessageStreamToolCallPartPayloadCall_Response"
-        MessageStreamPart_Response:
-            type: object
-            required:
-                - index
-                - createdTime
-                - version
-                - payload
-            additionalProperties: false
-            properties:
-                index:
-                    type: integer
-                    minimum: 0
-                createdTime:
-                    type: string
-                    format: date-time
-                version:
-                    type: integer
-                    minimum: 0
-                payload:
-                    $ref: "#/components/schemas/MessageStreamPartPayload_Response"
+                    const: Table
+                width:
+                    type: number
+                hasHeaderRow:
+                    type: boolean
+                hasHeaderColumn:
+                    type: boolean
+                columns:
+                    type: array
+                    minItems: 2
+                    items:
+                        type: object
+                        required:
+                            - width
+                        additionalProperties: false
+                        properties:
+                            width:
+                                type: number
+                rows:
+                    type: array
+                    minItems: 1
+                    items:
+                        $ref: "#/components/schemas/ContentTableBlockElementRow_Response_WithoutKeys"

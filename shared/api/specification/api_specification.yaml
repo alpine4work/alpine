@@ -7,10 +7,10 @@
 # - There are some template variables you can use that'll be replaced (for
 #   example `idRegExp` in Mustache curly brackets).
 #
-# - Schema names that end with an underscore (e.g. `_Response`) are
-#   "specializations" of the base type (e.g.
-#   `ContentMentionInlineElement_Response` is a specialization of
-#   `ContentMentionInlineElement`).
+# - Schema names may end with any number of underscore-separated
+#   "specializations", spelled in alphabetical order (e.g.
+#   `ContentParagraphBlockElement_Response_WithoutKeys` is the
+#   `{Response, WithoutKeys}` variant of `ContentParagraphBlockElement`).
 #
 #   Specializations create entirely new type hierarchies that use the
 #   specialized type instead of the base type. For example, we generate
@@ -18,9 +18,19 @@
 #   `ContentMentionInlineElement_Response` instead of
 #   `ContentMentionInlineElement`.
 #
-#   We also update any schema references used in request bodies or responses
-#   to use the `_Request` or `_Response` specialization respectively if such a
-#   specialization is available.
+#   Specializations compose by set union and references resolve to the closest
+#   variant that exists: a reference to `Content_WithoutKeys` in a schema being
+#   specialized for `Response` becomes `Content_Response_WithoutKeys`, which
+#   uses `_Response_WithoutKeys` schemas where available, then `_Response`
+#   schemas, then the base schemas.
+#
+#   Request bodies use the `Request` specialization of every schema they
+#   reference and responses use the `Response` specialization. A variant is
+#   only generated when it's demanded and structurally different from the
+#   variant it would otherwise resolve to.
+#
+#   See `specialize()` in `generate_api_specification_main.ts` for the full
+#   model.
 
 openapi: 3.0.0
 info:
@@ -2272,8 +2282,6 @@ components:
             properties:
                 type:
                     const: Paragraph
-                key:
-                    $ref: "#/components/schemas/ContentKey"
                 elements:
                     type: array
                     items:
@@ -2288,6 +2296,18 @@ components:
                     const: Paragraph
                 key:
                     $ref: "#/components/schemas/ContentKey"
+                elements:
+                    type: array
+                    items:
+                        $ref: "#/components/schemas/ContentInlineElement_Response"
+
+        ContentParagraphBlockElement_Response_WithoutKeys:
+            type: object
+            required: [type, elements]
+            additionalProperties: false
+            properties:
+                type:
+                    const: Paragraph
                 elements:
                     type: array
                     items:
@@ -2418,8 +2438,6 @@ components:
             properties:
                 type:
                     const: Heading
-                key:
-                    $ref: "#/components/schemas/ContentKey"
                 level:
                     type: integer
                     minimum: 1
@@ -2447,6 +2465,22 @@ components:
                     items:
                         $ref: "#/components/schemas/ContentInlineElement_Response"
 
+        ContentHeadingBlockElement_Response_WithoutKeys:
+            type: object
+            required: [type, level, elements]
+            additionalProperties: false
+            properties:
+                type:
+                    const: Heading
+                level:
+                    type: integer
+                    minimum: 1
+                    maximum: 3
+                elements:
+                    type: array
+                    items:
+                        $ref: "#/components/schemas/ContentInlineElement_Response"
+
         ContentDividerBlockElement:
             type: object
             required: [type]
@@ -2464,6 +2498,14 @@ components:
                     const: Divider
                 key:
                     $ref: "#/components/schemas/ContentKey"
+
+        ContentDividerBlockElement_Response_WithoutKeys:
+            type: object
+            required: [type]
+            additionalProperties: false
+            properties:
+                type:
+                    const: Divider
 
         ContentTableBlockElement:
             type: object
@@ -2575,6 +2617,16 @@ components:
                     items:
                         $ref: "#/components/schemas/ContentCodeBlockElementTextInlineElement"
 
+        ContentCodeBlockElementLine_Response_WithoutKeys:
+            type: object
+            required: [elements]
+            additionalProperties: false
+            properties:
+                elements:
+                    type: array
+                    items:
+                        $ref: "#/components/schemas/ContentCodeBlockElementTextInlineElement"
+
         ContentFileBlockElement:
             type: object
             required: [type, id]
@@ -2610,6 +2662,25 @@ components:
                     items:
                         $ref: "#/components/schemas/ContentCommentMark"
 
+        ContentFileBlockElement_Response_WithoutKeys:
+            type: object
+            required: [type, id, contentType, contentLength]
+            additionalProperties: false
+            properties:
+                type:
+                    const: File
+                id:
+                    $ref: "#/components/schemas/FileId"
+                contentType:
+                    $ref: "#/components/schemas/FileContentType"
+                contentLength:
+                    type: integer
+                    minimum: 0
+                marks:
+                    type: array
+                    items:
+                        $ref: "#/components/schemas/ContentCommentMark"
+
         ContentPreviewBlockElement:
             type: object
             required: [type, reference]
@@ -2633,6 +2704,20 @@ components:
                     const: Preview
                 key:
                     $ref: "#/components/schemas/ContentKey"
+                reference:
+                    $ref: "#/components/schemas/PreviewReference"
+                marks:
+                    type: array
+                    items:
+                        $ref: "#/components/schemas/ContentCommentMark"
+
+        ContentPreviewBlockElement_Response_WithoutKeys:
+            type: object
+            required: [type, reference]
+            additionalProperties: false
+            properties:
+                type:
+                    const: Preview
                 reference:
                     $ref: "#/components/schemas/PreviewReference"
                 marks:
@@ -3456,7 +3541,7 @@ components:
                                     type: integer
                                     minimum: 0
                                 contentSnippet:
-                                    $ref: "#/components/schemas/Content"
+                                    $ref: "#/components/schemas/Content_WithoutKeys"
 
         ChannelPreview:
             type: object
@@ -3535,7 +3620,7 @@ components:
                 channel:
                     $ref: "#/components/schemas/ChannelPreview"
                 contentSnippet:
-                    $ref: "#/components/schemas/Content"
+                    $ref: "#/components/schemas/Content_WithoutKeys"
                 # TODO(#public-api): Document how this is the same as the chat's `title` when
                 # displayed as a mention.
                 reference:
