@@ -4684,6 +4684,15 @@ components:
                 - element
             additionalProperties: false
             properties:
+                element:
+                    oneOf:
+                        - $ref: "#/components/schemas/MessageContentPayloadFileElement"
+                        - $ref: "#/components/schemas/MessageContentPayloadPreviewElement"
+                    discriminator:
+                        propertyName: type
+                        mapping:
+                            File: "#/components/schemas/MessageContentPayloadFileElement"
+                            Preview: "#/components/schemas/MessageContentPayloadPreviewElement"
                 rowIndex:
                     type: integer
                     minimum: 0
@@ -4691,15 +4700,6 @@ components:
                     type: number
                     minimum: 0
                     maximum: 1
-                element:
-                    oneOf:
-                        - $ref: "#/components/schemas/ContentFileBlockElement"
-                        - $ref: "#/components/schemas/ContentPreviewBlockElement"
-                    discriminator:
-                        propertyName: type
-                        mapping:
-                            File: "#/components/schemas/ContentFileBlockElement"
-                            Preview: "#/components/schemas/ContentPreviewBlockElement"
         MessageContentPayloadFile_Response:
             type: object
             required:
@@ -4717,13 +4717,93 @@ components:
                     maximum: 1
                 element:
                     oneOf:
-                        - $ref: "#/components/schemas/ContentFileBlockElement_Response"
-                        - $ref: "#/components/schemas/ContentPreviewBlockElement_Response"
+                        - $ref: "#/components/schemas/MessageContentPayloadFileElement_Response"
+                        - $ref: "#/components/schemas/MessageContentPayloadPreviewElement_Response"
                     discriminator:
                         propertyName: type
                         mapping:
-                            File: "#/components/schemas/ContentFileBlockElement_Response"
-                            Preview: "#/components/schemas/ContentPreviewBlockElement_Response"
+                            File: "#/components/schemas/MessageContentPayloadFileElement_Response"
+                            Preview: "#/components/schemas/MessageContentPayloadPreviewElement_Response"
+        MessageContentPayloadFileElement:
+            type: object
+            required:
+                - type
+                - id
+            additionalProperties: false
+            properties:
+                type:
+                    const: File
+                id:
+                    $ref: "#/components/schemas/FileId"
+                contentType:
+                    $ref: "#/components/schemas/FileContentType"
+                contentLength:
+                    type: integer
+                    minimum: 0
+                key:
+                    $ref: "#/components/schemas/ContentKey"
+                marks:
+                    type: array
+                    items:
+                        $ref: "#/components/schemas/ContentCommentMark"
+        MessageContentPayloadFileElement_Response:
+            type: object
+            required:
+                - type
+                - id
+                - contentType
+                - contentLength
+            additionalProperties: false
+            properties:
+                type:
+                    const: File
+                id:
+                    $ref: "#/components/schemas/FileId"
+                contentType:
+                    $ref: "#/components/schemas/FileContentType"
+                contentLength:
+                    type: integer
+                    minimum: 0
+                key:
+                    $ref: "#/components/schemas/ContentKey"
+                marks:
+                    type: array
+                    items:
+                        $ref: "#/components/schemas/ContentCommentMark"
+        MessageContentPayloadPreviewElement:
+            type: object
+            required:
+                - type
+                - reference
+            additionalProperties: false
+            properties:
+                type:
+                    const: Preview
+                reference:
+                    $ref: "#/components/schemas/PreviewReference"
+                key:
+                    $ref: "#/components/schemas/ContentKey"
+                marks:
+                    type: array
+                    items:
+                        $ref: "#/components/schemas/ContentCommentMark"
+        MessageContentPayloadPreviewElement_Response:
+            type: object
+            required:
+                - type
+                - reference
+            additionalProperties: false
+            properties:
+                type:
+                    const: Preview
+                reference:
+                    $ref: "#/components/schemas/PreviewReference_Response"
+                key:
+                    $ref: "#/components/schemas/ContentKey"
+                marks:
+                    type: array
+                    items:
+                        $ref: "#/components/schemas/ContentCommentMark"
         MessageContentPayloadParent:
             oneOf:
                 - $ref: "#/components/schemas/MessageContentPayloadMessageParent"

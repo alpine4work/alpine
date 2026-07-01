@@ -1,6 +1,6 @@
 import {
-    ApiContentFileBlockElementResponseWithOptionalKeys,
-    ApiContentPreviewBlockElementResponseWithOptionalKeys,
+    ApiContentFileBlockElementResponseWithoutKeys,
+    ApiContentPreviewBlockElementResponseWithoutKeys,
 } from "~/shared/api/specification/types/api_content_response_without_keys.js";
 import {
     computeFileRowLayout,
@@ -15,17 +15,19 @@ import {FileId} from "~/shared/id/types/id_types.js";
 
 export function computeApiContentFileRowWidths(
     elements: ReadonlyArray<
-        | ApiContentFileBlockElementResponseWithOptionalKeys
-        | ApiContentPreviewBlockElementResponseWithOptionalKeys
+        | ApiContentFileBlockElementResponseWithoutKeys
+        | ApiContentPreviewBlockElementResponseWithoutKeys
     >,
-    options: {
-        readonly getFileIfExists: (fileId: FileId) => FileModelData | undefined;
+    {
+        getFileIfExists,
+    }: {
+        getFileIfExists: (fileId: FileId) => FileModelData | undefined;
     },
 ): Array<number> {
     const layouts = computeFileRowLayout(
         elements.map(element => {
             if (element.type === "File") {
-                const file = options.getFileIfExists(element.id);
+                const file = getFileIfExists(element.id);
                 return getFilePreviewSize(file?.preview);
             }
 

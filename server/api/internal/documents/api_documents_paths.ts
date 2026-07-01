@@ -119,22 +119,19 @@ export const apiDocumentsPaths: Pick<
                     creatorId: creator?.id,
                     consistency,
                 }),
-                intoApiContentWithReferences(
-                    context.dynamo.unexpectStrongReadConsistency(),
+                intoApiContentWithReferences(context, {
                     spaceId,
-                    FileDocumentAuthorizer.bind({
+                    fileAuthorizer: FileDocumentAuthorizer.bind({
                         type: "Document",
                         documentId,
                     }),
-                    documentContent,
-                    {
-                        encoder: new ApiContentKeyEncoder({
-                            entityId: `Document:${documentId}`,
-                            // All documents are created with version 0
-                            version: 0,
-                        }),
-                    },
-                ),
+                    content: documentContent,
+                    contentKeyEncoder: new ApiContentKeyEncoder({
+                        entityId: `Document:${documentId}`,
+                        // All documents are created with version 0
+                        version: 0,
+                    }),
+                }),
             ]);
 
             return {
@@ -166,21 +163,18 @@ export const apiDocumentsPaths: Pick<
                         creator: document.creator.id ? {id: document.creator.id} : undefined,
                         version: document.version,
                         title: getDocumentContentTitleWithoutFallback(document.content),
-                        content: await intoApiContentWithReferences(
-                            context,
-                            document.spaceId,
-                            FileDocumentAuthorizer.bind({
+                        content: await intoApiContentWithReferences(context, {
+                            spaceId: document.spaceId,
+                            fileAuthorizer: FileDocumentAuthorizer.bind({
                                 type: "Document",
                                 documentId: pathParameters.id,
                             }),
-                            document.content,
-                            {
-                                encoder: new ApiContentKeyEncoder({
-                                    entityId: `Document:${pathParameters.id}`,
-                                    version: document.version,
-                                }),
-                            },
-                        ),
+                            content: document.content,
+                            contentKeyEncoder: new ApiContentKeyEncoder({
+                                entityId: `Document:${pathParameters.id}`,
+                                version: document.version,
+                            }),
+                        }),
                     },
                 },
             };
@@ -239,21 +233,18 @@ export const apiDocumentsPaths: Pick<
                         creator: responseBody.creatorId ? {id: responseBody.creatorId} : undefined,
                         version: responseBody.newVersion,
                         title: getDocumentContentTitleWithoutFallback(responseBody.newContent),
-                        content: await intoApiContentWithReferences(
-                            context,
-                            responseBody.spaceId,
-                            FileDocumentAuthorizer.bind({
+                        content: await intoApiContentWithReferences(context, {
+                            spaceId: responseBody.spaceId,
+                            fileAuthorizer: FileDocumentAuthorizer.bind({
                                 type: "Document",
                                 documentId: pathParameters.id,
                             }),
-                            responseBody.newContent,
-                            {
-                                encoder: new ApiContentKeyEncoder({
-                                    entityId: `Document:${pathParameters.id}`,
-                                    version: responseBody.newVersion,
-                                }),
-                            },
-                        ),
+                            content: responseBody.newContent,
+                            contentKeyEncoder: new ApiContentKeyEncoder({
+                                entityId: `Document:${pathParameters.id}`,
+                                version: responseBody.newVersion,
+                            }),
+                        }),
                     },
                 },
             };
@@ -317,43 +308,37 @@ export const apiDocumentsPaths: Pick<
 
                     let contentSnippet: ApiContentResponse | null = null;
                     if (commentThreadSnippet) {
-                        contentSnippet = await intoApiContentWithReferences(
-                            context,
-                            commentThread.spaceId,
-                            FileDocumentAuthorizer.bind({
+                        contentSnippet = await intoApiContentWithReferences(context, {
+                            spaceId: commentThread.spaceId,
+                            fileAuthorizer: FileDocumentAuthorizer.bind({
                                 type: "Document",
                                 documentId: pathParameters.id,
                             }),
-                            commentThreadSnippet.node,
-                            {
-                                encoder: new ApiContentKeyEncoder({
-                                    entityId: `Document:${pathParameters.id}`,
-                                    version: documentContent.version,
-                                }),
-                                posOffset: commentThreadSnippet.posOffset,
-                            },
-                        );
+                            content: commentThreadSnippet.node,
+                            contentKeyEncoder: new ApiContentKeyEncoder({
+                                entityId: `Document:${pathParameters.id}`,
+                                version: documentContent.version,
+                            }),
+                            posOffset: commentThreadSnippet.posOffset,
+                        });
                     } else if (commentThread.fallbackContentSnippet) {
-                        contentSnippet = await intoApiContentWithReferences(
-                            context,
-                            commentThread.spaceId,
-                            FileDocumentAuthorizer.bind({
+                        contentSnippet = await intoApiContentWithReferences(context, {
+                            spaceId: commentThread.spaceId,
+                            fileAuthorizer: FileDocumentAuthorizer.bind({
                                 type: "Document",
                                 documentId: pathParameters.id,
                             }),
-                            commentThread.fallbackContentSnippet.node,
-                            {
-                                // The fallback snippet was saved from an older version of the document, so encode
-                                // its keys with that version. The keys identify blocks within the snippet but
-                                // can't be resolved against the current document content.
-                                encoder: new ApiContentKeyEncoder({
-                                    entityId: `Document:${pathParameters.id}`,
-                                    version: commentThread.fallbackContentSnippet.version,
-                                }),
-                                // NOCOMMIT: We need a `posOffset` here! It needs to be included in the fallback
-                                // content snippet.
-                            },
-                        );
+                            content: commentThread.fallbackContentSnippet.node,
+                            // The fallback snippet was saved from an older version of the document, so encode
+                            // its keys with that version. The keys identify blocks within the snippet but
+                            // can't be resolved against the current document content.
+                            contentKeyEncoder: new ApiContentKeyEncoder({
+                                entityId: `Document:${pathParameters.id}`,
+                                version: commentThread.fallbackContentSnippet.version,
+                            }),
+                            // NOCOMMIT: We need a `posOffset` here! It needs to be included in the fallback
+                            // content snippet.
+                        });
                     }
 
                     return contentSnippet;
@@ -397,6 +382,11 @@ export const apiDocumentsPaths: Pick<
                     spaceId: message.spaceId,
                     message: await intoApiMessage(context, {
                         spaceId: message.spaceId,
+                        entityId: `DocumentComment:${pathParameters.id}-${pathParameters.threadId}-${pathParameters.index}`,
+                        fileAuthorizer: FileDocumentAuthorizer.bind({
+                            type: "DocumentComments",
+                            documentId: pathParameters.id,
+                        }),
                         message,
                         intoContentPayloadParent: createIntoApiDocumentCommentContentPayloadParent(
                             context,
@@ -404,7 +394,6 @@ export const apiDocumentsPaths: Pick<
                             pathParameters.id,
                             pathParameters.threadId,
                         ),
-                        entityId: `DocumentComment:${pathParameters.id}-${pathParameters.threadId}-${pathParameters.index}`,
                     }),
                 },
             };
@@ -463,6 +452,11 @@ export const apiDocumentsPaths: Pick<
                         comments.map(message =>
                             intoApiMessage(context, {
                                 spaceId,
+                                entityId: `DocumentComment:${pathParameters.id}-${pathParameters.threadId}-${message.index}`,
+                                fileAuthorizer: FileDocumentAuthorizer.bind({
+                                    type: "DocumentComments",
+                                    documentId: pathParameters.id,
+                                }),
                                 message,
                                 intoContentPayloadParent:
                                     createIntoApiDocumentCommentContentPayloadParent(
@@ -471,7 +465,6 @@ export const apiDocumentsPaths: Pick<
                                         pathParameters.id,
                                         pathParameters.threadId,
                                     ),
-                                entityId: `DocumentComment:${pathParameters.id}-${pathParameters.threadId}-${message.index}`,
                             }),
                         ),
                     ),
@@ -569,6 +562,11 @@ export const apiDocumentsPaths: Pick<
                     spaceId,
                     message: await intoApiMessage(context, {
                         spaceId,
+                        entityId: `DocumentComment:${pathParameters.id}-${pathParameters.threadId}-${index}`,
+                        fileAuthorizer: FileDocumentAuthorizer.bind({
+                            type: "DocumentComments",
+                            documentId: pathParameters.id,
+                        }),
                         message: {
                             index,
                             version: 0,
@@ -586,7 +584,6 @@ export const apiDocumentsPaths: Pick<
                             pathParameters.id,
                             pathParameters.threadId,
                         ),
-                        entityId: `DocumentComment:${pathParameters.id}-${pathParameters.threadId}-${index}`,
                     }),
                 },
             };

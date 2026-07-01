@@ -759,6 +759,9 @@ function assertApiContentCheckListBlockElementItemHasKeys(
     }
 }
 
+// IMPORTANT: This code is copied to `into_api_message.ts`, specifically
+// `intoApiMessagePayloadFiles()`. If you make a change to this code you probably
+// need to make a change there too.
 function intoApiContentFileOrPreviewElement(
     context: ApiContentMarkdownIntoContext,
     node: Node,
@@ -784,6 +787,9 @@ function intoApiContentFileOrPreviewElement(
 
     const fileId: string | null = node.attrs.fileId;
     if (fileId === null) {
+        // IMPORTANT: This code is copied to `into_api_message.ts`, specifically
+        // `intoApiMessagePayloadFiles()`. If you make a change to this code you probably
+        // need to make a change there too.
         return {
             type: "File",
             // NOCOMMIT: Test with unknown file id?
@@ -798,6 +804,9 @@ function intoApiContentFileOrPreviewElement(
     if (isFileEntityId(fileId)) {
         const entityIdObject = parseFileEntityId(fileId);
 
+        // IMPORTANT: This code is copied to `into_api_message.ts`, specifically
+        // `intoApiMessagePayloadFiles()`. If you make a change to this code you probably
+        // need to make a change there too.
         const title =
             context.getSearchEntityMentionTitleIfExists(fileId) ??
             `Unknown ${getApiMentionReferenceNoun(entityIdObject.type)}`;
@@ -869,6 +878,9 @@ function intoApiContentFileOrPreviewElement(
                 throw exhaustive(entityIdObject);
         }
 
+        // IMPORTANT: This code is copied to `into_api_message.ts`, specifically
+        // `intoApiMessagePayloadFiles()`. If you make a change to this code you probably
+        // need to make a change there too.
         return {
             type: "Preview",
             ...(key !== undefined ? {key} : {}),

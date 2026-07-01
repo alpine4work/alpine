@@ -133,23 +133,20 @@ export const apiTasksPaths: Pick<
                     assigneeId: taskInput.assignee?.id,
                     status: taskInput.status,
                     dueDate,
-                    priority: taskInput.priority,
+                    priority: taskInput.priority?.type,
                     layout: taskInput.layout ? fromApiTaskLayout(taskInput.layout) : undefined,
                     parentTaskId: taskInput.parent?.task.id,
                     collectionIds: taskInput.collections?.map(item => item.collection.id),
                 }),
-                intoApiContentWithReferences(
-                    context,
+                intoApiContentWithReferences(context, {
                     spaceId,
-                    FileTaskAuthorizer.bind({type: "TaskNotes", taskId}),
-                    notesContent ?? emptyTaskNotesContent,
-                    {
-                        encoder: new ApiContentKeyEncoder({
-                            entityId: `Task:${taskId}`,
-                            version: 0,
-                        }),
-                    },
-                ),
+                    fileAuthorizer: FileTaskAuthorizer.bind({type: "TaskNotes", taskId}),
+                    content: notesContent ?? emptyTaskNotesContent,
+                    contentKeyEncoder: new ApiContentKeyEncoder({
+                        entityId: `Task:${taskId}`,
+                        version: 0,
+                    }),
+                }),
             ]);
 
             const assigneeId = task.assigneeId;
@@ -309,13 +306,17 @@ export const apiTasksPaths: Pick<
                     spaceId: message.spaceId,
                     message: await intoApiMessage(context, {
                         spaceId: message.spaceId,
+                        entityId: `TaskComment:${pathParameters.id}-${pathParameters.index}`,
+                        fileAuthorizer: FileTaskAuthorizer.bind({
+                            type: "TaskComments",
+                            taskId: pathParameters.id,
+                        }),
                         message,
                         intoContentPayloadParent: createIntoApiTaskCommentContentPayloadParent(
                             context,
                             message.spaceId,
                             pathParameters.id,
                         ),
-                        entityId: `TaskComment:${pathParameters.id}-${pathParameters.index}`,
                     }),
                 },
             };
@@ -372,6 +373,11 @@ export const apiTasksPaths: Pick<
                         comments.map(message =>
                             intoApiMessage(context, {
                                 spaceId,
+                                entityId: `TaskComment:${pathParameters.id}-${message.index}`,
+                                fileAuthorizer: FileTaskAuthorizer.bind({
+                                    type: "TaskComments",
+                                    taskId: pathParameters.id,
+                                }),
                                 message,
                                 intoContentPayloadParent:
                                     createIntoApiTaskCommentContentPayloadParent(
@@ -379,7 +385,6 @@ export const apiTasksPaths: Pick<
                                         spaceId,
                                         pathParameters.id,
                                     ),
-                                entityId: `TaskComment:${pathParameters.id}-${message.index}`,
                             }),
                         ),
                     ),
@@ -456,6 +461,11 @@ export const apiTasksPaths: Pick<
                     spaceId,
                     message: await intoApiMessage(context, {
                         spaceId,
+                        entityId: `TaskComment:${pathParameters.id}-${index}`,
+                        fileAuthorizer: FileTaskAuthorizer.bind({
+                            type: "TaskComments",
+                            taskId: pathParameters.id,
+                        }),
                         message: {
                             index,
                             version: 0,
@@ -472,7 +482,6 @@ export const apiTasksPaths: Pick<
                             spaceId,
                             pathParameters.id,
                         ),
-                        entityId: `TaskComment:${pathParameters.id}-${index}`,
                     }),
                 },
             };

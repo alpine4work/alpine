@@ -50,13 +50,12 @@ describe("intoApiContentWithReferences", () => {
             ),
         );
 
-        const result = await intoApiContentWithReferences(
-            session.action(),
-            space.id,
-            "AssertHasNoFiles",
+        const result = await intoApiContentWithReferences(session.action(), {
+            spaceId: space.id,
+            fileAuthorizer: "AssertHasNoFiles",
             content,
-            {encoder: new ApiContentKeyEncoder({entityId: documentEntityId, version: 17})},
-        );
+            contentKeyEncoder: new ApiContentKeyEncoder({entityId: documentEntityId, version: 17}),
+        });
 
         expect(result).toMatchObject({
             elements: [
@@ -96,44 +95,6 @@ describe("intoApiContentWithReferences", () => {
         ]);
     });
 
-    test("omits keys when no version is provided", async () => {
-        const space = await TestSpace.create(context);
-        const session = await space.createSession({role: "Admin"});
-
-        const content = assertDocumentContent(
-            schema.node(
-                "doc",
-                {
-                    accessPolicy: {
-                        type: "Local",
-                        accountGrantById: new Map([
-                            [session.account.id, {level: "Manage", generation: 0}],
-                        ]),
-                        defaultGrant: null,
-                        urlGrant: null,
-                    },
-                },
-                [schema.node("title"), schema.node("paragraph", {}, [schema.text("Hello")])],
-            ),
-        );
-
-        const result = await intoApiContentWithReferences(
-            session.action(),
-            space.id,
-            "AssertHasNoFiles",
-            content,
-        );
-
-        expect(result).toEqual({
-            elements: [
-                {
-                    type: "Paragraph",
-                    elements: [{type: "Text", text: "Hello"}],
-                },
-            ],
-        });
-    });
-
     test("returns loaded mention references alongside keyed content", async () => {
         const space = await TestSpace.create(context);
         const session = await space.createSession({name: "Alice Smith", role: "Admin"});
@@ -168,13 +129,12 @@ describe("intoApiContentWithReferences", () => {
             ),
         );
 
-        const result = await intoApiContentWithReferencesAndReturnReferences(
-            session.action(),
-            space.id,
-            "AssertHasNoFiles",
+        const result = await intoApiContentWithReferencesAndReturnReferences(session.action(), {
+            spaceId: space.id,
+            fileAuthorizer: "AssertHasNoFiles",
             content,
-            {encoder: new ApiContentKeyEncoder({entityId: documentEntityId, version: 23})},
-        );
+            contentKeyEncoder: new ApiContentKeyEncoder({entityId: documentEntityId, version: 23}),
+        });
 
         expect(result.content).toEqual({
             elements: [

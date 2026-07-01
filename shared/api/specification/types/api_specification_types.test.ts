@@ -2,6 +2,8 @@ import {ApiReference} from "~/shared/api/specification/types/api_reference.js";
 import {ApiReferenceResponse} from "~/shared/api/specification/types/api_reference_response.js";
 import {
     ApiBotWebhookCreatedMessageEventParent,
+    ApiContentFileBlockElementResponse,
+    ApiContentPreviewBlockElementResponse,
     ApiContentTextInlineElement,
     ApiCreateDocumentRequestBody,
     ApiCreateTaskCollectionRequestBody,
@@ -11,9 +13,11 @@ import {
     ApiGetTaskResponse,
     ApiMentionReference,
     ApiMentionReferenceResponse,
+    ApiMessageContentPayloadFileElementResponse,
     ApiMessageContentPayloadFileResponse,
     ApiMessageContentPayloadParentContentSnippetTextInlineElement,
     ApiMessageContentPayloadParentResponse,
+    ApiMessageContentPayloadPreviewElementResponse,
     ApiMessageStreamToolCallPartCreateCallReference,
     ApiSearchResult,
     ApiSearchResultBodyMatch,
@@ -124,5 +128,19 @@ test("`ApiMessageContentPayloadParentResponse` is assignable to `ApiBotWebhookCr
     assertAssignableTypes<
         ApiMessageContentPayloadParentResponse,
         ApiBotWebhookCreatedMessageEventParent
+    >();
+});
+
+test("`ApiContentFileBlockElementResponse` is assignable to `ApiMessageContentPayloadFileElementResponse`", () => {
+    assertAssignableTypes<
+        ApiContentFileBlockElementResponse,
+        ApiMessageContentPayloadFileElementResponse
+    >();
+});
+
+test("`ApiContentPreviewBlockElementResponse` is assignable to `ApiMessageContentPayloadPreviewElementResponse`", () => {
+    assertAssignableTypes<
+        ApiContentPreviewBlockElementResponse,
+        ApiMessageContentPayloadPreviewElementResponse
     >();
 });

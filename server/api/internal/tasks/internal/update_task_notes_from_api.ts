@@ -72,18 +72,15 @@ export async function updateTaskNotesFromApi(
         spaceId: responseBody.spaceId,
         notes: {
             version: responseBody.newVersion,
-            content: await intoApiContentWithReferences(
-                context,
-                responseBody.spaceId,
-                FileTaskAuthorizer.bind({type: "TaskNotes", taskId}),
-                responseBody.newContent,
-                {
-                    encoder: new ApiContentKeyEncoder({
-                        entityId: `Task:${taskId}`,
-                        version: responseBody.newVersion,
-                    }),
-                },
-            ),
+            content: await intoApiContentWithReferences(context, {
+                spaceId: responseBody.spaceId,
+                fileAuthorizer: FileTaskAuthorizer.bind({type: "TaskNotes", taskId}),
+                content: responseBody.newContent,
+                contentKeyEncoder: new ApiContentKeyEncoder({
+                    entityId: `Task:${taskId}`,
+                    version: responseBody.newVersion,
+                }),
+            }),
         },
     };
 }

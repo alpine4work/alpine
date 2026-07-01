@@ -21,21 +21,15 @@ export async function getApiTaskNotes(
         context,
         taskId,
         async (context, spaceId, task) =>
-            await intoApiContentWithReferences(
-                context,
+            await intoApiContentWithReferences(context, {
                 spaceId,
-                FileTaskAuthorizer.bind({
-                    type: "TaskNotes",
-                    taskId,
+                fileAuthorizer: FileTaskAuthorizer.bind({type: "TaskNotes", taskId}),
+                content: task.notesContent,
+                contentKeyEncoder: new ApiContentKeyEncoder({
+                    entityId: `Task:${taskId}`,
+                    version: task.notesVersion,
                 }),
-                task.notesContent,
-                {
-                    encoder: new ApiContentKeyEncoder({
-                        entityId: `Task:${taskId}`,
-                        version: task.notesVersion,
-                    }),
-                },
-            ),
+            }),
         {consistency},
     );
 

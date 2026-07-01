@@ -3846,18 +3846,62 @@ export namespace ApiSpecification {
                 readonly files: readonly components["schemas"]["MessageContentPayloadFile_Response"][];
             };
             readonly MessageContentPayloadFile: {
+                readonly element:
+                    | components["schemas"]["MessageContentPayloadFileElement"]
+                    | components["schemas"]["MessageContentPayloadPreviewElement"];
                 readonly rowIndex?: number;
                 readonly width?: number;
-                readonly element:
-                    | components["schemas"]["ContentFileBlockElement"]
-                    | components["schemas"]["ContentPreviewBlockElement"];
             };
             readonly MessageContentPayloadFile_Response: {
                 readonly rowIndex: number;
                 readonly width: number;
                 readonly element:
-                    | components["schemas"]["ContentFileBlockElement_Response"]
-                    | components["schemas"]["ContentPreviewBlockElement_Response"];
+                    | components["schemas"]["MessageContentPayloadFileElement_Response"]
+                    | components["schemas"]["MessageContentPayloadPreviewElement_Response"];
+            };
+            readonly MessageContentPayloadFileElement: {
+                /**
+                 * @description discriminator enum property added by openapi-typescript @enum
+                 * {string}
+                 */
+                readonly type: "File";
+                readonly id: components["schemas"]["FileId"];
+                readonly contentType?: components["schemas"]["FileContentType"];
+                readonly contentLength?: number;
+                readonly key?: components["schemas"]["ContentKey"];
+                readonly marks?: readonly components["schemas"]["ContentCommentMark"][];
+            };
+            readonly MessageContentPayloadFileElement_Response: {
+                /**
+                 * @description discriminator enum property added by openapi-typescript @enum
+                 * {string}
+                 */
+                readonly type: "File";
+                readonly id: components["schemas"]["FileId"];
+                readonly contentType: components["schemas"]["FileContentType"];
+                readonly contentLength: number;
+                readonly key?: components["schemas"]["ContentKey"];
+                readonly marks?: readonly components["schemas"]["ContentCommentMark"][];
+            };
+            readonly MessageContentPayloadPreviewElement: {
+                /**
+                 * @description discriminator enum property added by openapi-typescript @enum
+                 * {string}
+                 */
+                readonly type: "Preview";
+                readonly reference: components["schemas"]["PreviewReference"];
+                readonly key?: components["schemas"]["ContentKey"];
+                readonly marks?: readonly components["schemas"]["ContentCommentMark"][];
+            };
+            readonly MessageContentPayloadPreviewElement_Response: {
+                /**
+                 * @description discriminator enum property added by openapi-typescript @enum
+                 * {string}
+                 */
+                readonly type: "Preview";
+                readonly reference: components["schemas"]["PreviewReference_Response"];
+                readonly key?: components["schemas"]["ContentKey"];
+                readonly marks?: readonly components["schemas"]["ContentCommentMark"][];
             };
             readonly MessageContentPayloadParent:
                 | components["schemas"]["MessageContentPayloadMessageParent"]

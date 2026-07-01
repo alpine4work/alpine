@@ -4041,22 +4041,15 @@ components:
             required: [element]
             additionalProperties: false
             properties:
-                rowIndex:
-                    type: integer
-                    minimum: 0
-                width:
-                    type: number
-                    minimum: 0
-                    maximum: 1
                 element:
                     oneOf:
-                        - $ref: "#/components/schemas/ContentFileBlockElement"
-                        - $ref: "#/components/schemas/ContentPreviewBlockElement"
+                        - $ref: "#/components/schemas/MessageContentPayloadFileElement"
+                        - $ref: "#/components/schemas/MessageContentPayloadPreviewElement"
                     discriminator:
                         propertyName: type
                         mapping:
-                            File: "#/components/schemas/ContentFileBlockElement"
-                            Preview: "#/components/schemas/ContentPreviewBlockElement"
+                            File: "#/components/schemas/MessageContentPayloadFileElement"
+                            Preview: "#/components/schemas/MessageContentPayloadPreviewElement"
 
         MessageContentPayloadFile_Response:
             type: object
@@ -4072,13 +4065,78 @@ components:
                     maximum: 1
                 element:
                     oneOf:
-                        - $ref: "#/components/schemas/ContentFileBlockElement_Response"
-                        - $ref: "#/components/schemas/ContentPreviewBlockElement_Response"
+                        - $ref: "#/components/schemas/MessageContentPayloadFileElement_Response"
+                        - $ref: "#/components/schemas/MessageContentPayloadPreviewElement_Response"
                     discriminator:
                         propertyName: type
                         mapping:
-                            File: "#/components/schemas/ContentFileBlockElement_Response"
-                            Preview: "#/components/schemas/ContentPreviewBlockElement_Response"
+                            File: "#/components/schemas/MessageContentPayloadFileElement_Response"
+                            Preview: "#/components/schemas/MessageContentPayloadPreviewElement_Response"
+
+        MessageContentPayloadFileElement:
+            type: object
+            required: [type, id]
+            additionalProperties: false
+            properties:
+                type:
+                    const: File
+                id:
+                    $ref: "#/components/schemas/FileId"
+
+        MessageContentPayloadFileElement_Response:
+            type: object
+            required: [type, id, contentType, contentLength]
+            additionalProperties: false
+            properties:
+                type:
+                    const: File
+                id:
+                    $ref: "#/components/schemas/FileId"
+                contentType:
+                    $ref: "#/components/schemas/FileContentType"
+                contentLength:
+                    type: integer
+                    minimum: 0
+                # NOTE(calebmer): Optional so you can pass a `ContentFileBlockElement` into
+                # here. We should document this and mark the field as hidden for the API.
+                key:
+                    $ref: "#/components/schemas/ContentKey"
+                # NOTE(calebmer): Optional so you can pass a `ContentFileBlockElement` into
+                # here. We should document this and mark the field as hidden for the API.
+                marks:
+                    type: array
+                    items:
+                        $ref: "#/components/schemas/ContentCommentMark"
+
+        MessageContentPayloadPreviewElement:
+            type: object
+            required: [type, reference]
+            additionalProperties: false
+            properties:
+                type:
+                    const: Preview
+                reference:
+                    $ref: "#/components/schemas/PreviewReference"
+
+        MessageContentPayloadPreviewElement_Response:
+            type: object
+            required: [type, reference]
+            additionalProperties: false
+            properties:
+                type:
+                    const: Preview
+                reference:
+                    $ref: "#/components/schemas/PreviewReference"
+                # NOTE(calebmer): Optional so you can pass a `ContentPreviewBlockElement` into
+                # here. We should document this and mark the field as hidden for the API.
+                key:
+                    $ref: "#/components/schemas/ContentKey"
+                # NOTE(calebmer): Optional so you can pass a `ContentPreviewBlockElement` into
+                # here. We should document this and mark the field as hidden for the API.
+                marks:
+                    type: array
+                    items:
+                        $ref: "#/components/schemas/ContentCommentMark"
 
         MessageContentPayloadParent:
             oneOf:

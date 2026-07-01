@@ -211,13 +211,17 @@ export const apiChatPaths: Pick<ApiPaths, (keyof ApiPaths & `/chats/${string}`) 
                 spaceId: message.spaceId,
                 message: await intoApiMessage(context, {
                     spaceId: message.spaceId,
+                    entityId: `ChatMessage:${pathParameters.id}-${pathParameters.index}`,
+                    fileAuthorizer: FileChatAuthorizer.bind({
+                        type: "ChatMessages",
+                        chatId: pathParameters.id,
+                    }),
                     message,
                     intoContentPayloadParent: createIntoApiChatMessageContentPayloadParent(
                         context,
                         message.spaceId,
                         pathParameters.id,
                     ),
-                    entityId: `ChatMessage:${pathParameters.id}-${pathParameters.index}`,
                 }),
             };
 
@@ -340,6 +344,11 @@ export const apiChatPaths: Pick<ApiPaths, (keyof ApiPaths & `/chats/${string}`) 
                         messages.map(message =>
                             intoApiMessage(context, {
                                 spaceId,
+                                entityId: `ChatMessage:${pathParameters.id}-${message.index}`,
+                                fileAuthorizer: FileChatAuthorizer.bind({
+                                    type: "ChatMessages",
+                                    chatId: pathParameters.id,
+                                }),
                                 message,
                                 intoContentPayloadParent:
                                     createIntoApiChatMessageContentPayloadParent(
@@ -347,7 +356,6 @@ export const apiChatPaths: Pick<ApiPaths, (keyof ApiPaths & `/chats/${string}`) 
                                         spaceId,
                                         pathParameters.id,
                                     ),
-                                entityId: `ChatMessage:${pathParameters.id}-${message.index}`,
                             }),
                         ),
                     ),
@@ -446,6 +454,11 @@ export const apiChatPaths: Pick<ApiPaths, (keyof ApiPaths & `/chats/${string}`) 
                     spaceId,
                     message: await intoApiMessage(context, {
                         spaceId,
+                        entityId: `ChatMessage:${pathParameters.id}-${index}`,
+                        fileAuthorizer: FileChatAuthorizer.bind({
+                            type: "ChatMessages",
+                            chatId: pathParameters.id,
+                        }),
                         message: {
                             index,
                             version: 0,
@@ -462,7 +475,6 @@ export const apiChatPaths: Pick<ApiPaths, (keyof ApiPaths & `/chats/${string}`) 
                             spaceId,
                             pathParameters.id,
                         ),
-                        entityId: `ChatMessage:${pathParameters.id}-${index}`,
                     }),
                 },
             };

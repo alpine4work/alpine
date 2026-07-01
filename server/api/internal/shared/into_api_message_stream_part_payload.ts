@@ -74,8 +74,8 @@ export async function intoApiMessageStreamPartPayload(
         case "Content": {
             const content = await intoApiMessageContentWithReferences(context, {
                 spaceId,
-                node: payload.content,
-                encoder: contentKeyEncoder,
+                content: payload.content,
+                contentKeyEncoder,
                 posOffset,
             });
             return {type: "Content", content};
@@ -83,8 +83,8 @@ export async function intoApiMessageStreamPartPayload(
         case "Reasoning": {
             const content = await intoApiMessageContentWithReferences(context, {
                 spaceId,
-                node: payload.content,
-                encoder: contentKeyEncoder,
+                content: payload.content,
+                contentKeyEncoder,
                 posOffset,
             });
             return {type: "Reasoning", content};

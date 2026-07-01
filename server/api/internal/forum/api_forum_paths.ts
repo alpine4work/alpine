@@ -69,8 +69,8 @@ export const apiForumPaths: Pick<
                         name: channel.name,
                         description: await intoApiMessageContentWithReferences(context, {
                             spaceId: channel.spaceId,
-                            node: channel.description,
-                            encoder: new ApiContentKeyEncoder({
+                            content: channel.description,
+                            contentKeyEncoder: new ApiContentKeyEncoder({
                                 entityId: `Channel:${pathParameters.id}`,
                                 // We don't track channel versions like we do for messages/posts
                                 version: 0,
@@ -112,25 +112,22 @@ export const apiForumPaths: Pick<
                 postsResult.posts.map(async post => {
                     const [author, {content: contentSnippet, references}] = await runAllPromises([
                         getApiAccount(referencesContext, postsResult.spaceId, post.authorId),
-                        intoApiContentWithReferencesAndReturnReferences(
-                            referencesContext,
-                            postsResult.spaceId,
-                            FilePostAuthorizer.bind({
+                        intoApiContentWithReferencesAndReturnReferences(referencesContext, {
+                            spaceId: postsResult.spaceId,
+                            fileAuthorizer: FilePostAuthorizer.bind({
                                 type: "Post",
                                 postId: post.postId,
                             }),
                             // NOCOMMIT: Test that we snip correctly
-                            getPostContentSnippet(post.content, {
+                            content: getPostContentSnippet(post.content, {
                                 platform: "desktop",
                                 routeLayout: "wide",
                             }),
-                            {
-                                encoder: new ApiContentKeyEncoder({
-                                    entityId: `Post:${post.postId}`,
-                                    version: post.contentVersion,
-                                }),
-                            },
-                        ),
+                            contentKeyEncoder: new ApiContentKeyEncoder({
+                                entityId: `Post:${post.postId}`,
+                                version: post.contentVersion,
+                            }),
+                        }),
                     ]);
 
                     return {
@@ -230,18 +227,15 @@ export const apiForumPaths: Pick<
             // Resolve content references after creating the post so the file authorizer can
             // find the post attachment target.
             const {content: contentWithReferences, references} =
-                await intoApiContentWithReferencesAndReturnReferences(
-                    referencesContext,
-                    referencesContext.actor.getSpaceId(),
-                    FilePostAuthorizer.bind({type: "Post", postId}),
+                await intoApiContentWithReferencesAndReturnReferences(referencesContext, {
+                    spaceId: referencesContext.actor.getSpaceId(),
+                    fileAuthorizer: FilePostAuthorizer.bind({type: "Post", postId}),
                     content,
-                    {
-                        encoder: new ApiContentKeyEncoder({
-                            entityId: `Post:${postId}`,
-                            version: 0,
-                        }),
-                    },
-                );
+                    contentKeyEncoder: new ApiContentKeyEncoder({
+                        entityId: `Post:${postId}`,
+                        version: 0,
+                    }),
+                });
 
             return {
                 content: {
@@ -280,18 +274,18 @@ export const apiForumPaths: Pick<
                 async (context, spaceId, post) => {
                     const [author, {content, references}] = await runAllPromises([
                         getApiAccount(referencesContext, spaceId, post.authorId),
-                        intoApiContentWithReferencesAndReturnReferences(
-                            referencesContext,
+                        intoApiContentWithReferencesAndReturnReferences(referencesContext, {
                             spaceId,
-                            FilePostAuthorizer.bind({type: "Post", postId: pathParameters.id}),
-                            post.content,
-                            {
-                                encoder: new ApiContentKeyEncoder({
-                                    entityId: `Post:${pathParameters.id}`,
-                                    version: post.contentVersion,
-                                }),
-                            },
-                        ),
+                            fileAuthorizer: FilePostAuthorizer.bind({
+                                type: "Post",
+                                postId: pathParameters.id,
+                            }),
+                            content: post.content,
+                            contentKeyEncoder: new ApiContentKeyEncoder({
+                                entityId: `Post:${pathParameters.id}`,
+                                version: post.contentVersion,
+                            }),
+                        }),
                     ]);
 
                     return {
@@ -344,22 +338,22 @@ export const apiForumPaths: Pick<
                 async (context, spaceId, post) => {
                     const [author, {content: contentSnippet, references}] = await runAllPromises([
                         getApiAccount(referencesContext, spaceId, post.authorId),
-                        intoApiContentWithReferencesAndReturnReferences(
-                            referencesContext,
+                        intoApiContentWithReferencesAndReturnReferences(referencesContext, {
                             spaceId,
-                            FilePostAuthorizer.bind({type: "Post", postId: pathParameters.id}),
+                            fileAuthorizer: FilePostAuthorizer.bind({
+                                type: "Post",
+                                postId: pathParameters.id,
+                            }),
                             // NOCOMMIT: Test that we snip correctly
-                            getPostContentSnippet(post.content, {
+                            content: getPostContentSnippet(post.content, {
                                 platform: "desktop",
                                 routeLayout: "wide",
                             }),
-                            {
-                                encoder: new ApiContentKeyEncoder({
-                                    entityId: `Post:${pathParameters.id}`,
-                                    version: post.contentVersion,
-                                }),
-                            },
-                        ),
+                            contentKeyEncoder: new ApiContentKeyEncoder({
+                                entityId: `Post:${pathParameters.id}`,
+                                version: post.contentVersion,
+                            }),
+                        }),
                     ]);
 
                     return {
@@ -437,13 +431,17 @@ export const apiForumPaths: Pick<
                     spaceId: message.spaceId,
                     message: await intoApiMessage(context, {
                         spaceId: message.spaceId,
+                        entityId: `PostComment:${pathParameters.id}-${pathParameters.index}`,
+                        fileAuthorizer: FilePostAuthorizer.bind({
+                            type: "PostComments",
+                            postId: pathParameters.id,
+                        }),
                         message,
                         intoContentPayloadParent: createIntoApiPostCommentContentPayloadParent(
                             context,
                             message.spaceId,
                             pathParameters.id,
                         ),
-                        entityId: `PostComment:${pathParameters.id}-${pathParameters.index}`,
                     }),
                 },
             };
@@ -500,6 +498,11 @@ export const apiForumPaths: Pick<
                         comments.map(message =>
                             intoApiMessage(context, {
                                 spaceId,
+                                entityId: `PostComment:${pathParameters.id}-${message.index}`,
+                                fileAuthorizer: FilePostAuthorizer.bind({
+                                    type: "PostComments",
+                                    postId: pathParameters.id,
+                                }),
                                 message,
                                 intoContentPayloadParent:
                                     createIntoApiPostCommentContentPayloadParent(
@@ -507,7 +510,6 @@ export const apiForumPaths: Pick<
                                         spaceId,
                                         pathParameters.id,
                                     ),
-                                entityId: `PostComment:${pathParameters.id}-${message.index}`,
                             }),
                         ),
                     ),
@@ -603,6 +605,11 @@ export const apiForumPaths: Pick<
                     spaceId,
                     message: await intoApiMessage(context, {
                         spaceId,
+                        entityId: `PostComment:${pathParameters.id}-${index}`,
+                        fileAuthorizer: FilePostAuthorizer.bind({
+                            type: "PostComments",
+                            postId: pathParameters.id,
+                        }),
                         message: {
                             index,
                             version: 0,
@@ -619,7 +626,6 @@ export const apiForumPaths: Pick<
                             spaceId,
                             pathParameters.id,
                         ),
-                        entityId: `PostComment:${pathParameters.id}-${index}`,
                     }),
                 },
             };
