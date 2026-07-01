@@ -3246,12 +3246,11 @@ export async function updateDocumentContent(
                                 ...commentThreadItem,
                                 fallbackContentSnippet: {
                                     version: internalDocument.version,
-                                    pos: contentSnippet.pos,
                                     // Convert from `DocumentContent` to `DocumentWithOptionalTitleContent`. This
                                     // should also drop the `accessPolicy` attr on `doc`.
                                     node: assertDocumentWithOptionalTitleContent(
                                         DocumentWithOptionalTitleContentProsemirrorSchema.nodeFromJSON(
-                                            contentSnippet.node.toJSON(),
+                                            contentSnippet.toJSON(),
                                         ),
                                     ),
                                 },

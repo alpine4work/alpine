@@ -1,9 +1,6 @@
 import {Node} from "prosemirror-model";
 import {createContentBuilder} from "~/shared/content/create_content_builder.js";
-import {
-    DocumentCommentThreadSnippet,
-    createDocumentCommentThreadSnippetCollector,
-} from "~/shared/documents/create_document_comment_thread_snippet_collector.js";
+import {createDocumentCommentThreadSnippetCollector} from "~/shared/documents/create_document_comment_thread_snippet_collector.js";
 import {
     assertDocumentContent,
     DocumentContentProsemirrorSchema as schema,
@@ -27,10 +24,7 @@ const {
     comment,
 } = createContentBuilder(schema);
 
-function getSnippet(
-    content: Node,
-    commentThreadId: DocumentCommentThreadId,
-): DocumentCommentThreadSnippet {
+function getSnippet(content: Node, commentThreadId: DocumentCommentThreadId) {
     return assertExists(
         createDocumentCommentThreadSnippetCollector([commentThreadId])(
             assertDocumentContent(content),
@@ -51,7 +45,7 @@ test("returns the top-level block snippet when the snippet starts between docume
 
     const snippet = getSnippet(content, commentThreadId);
 
-    expect(snippet.node.toJSON()).toEqual(
+    expect(snippet.toJSON()).toEqual(
         doc(
             paragraph("Paragraph 2"),
             paragraph("Paragraph 3"),
@@ -78,7 +72,7 @@ test("returns the containing quote block when the snippet starts inside it", () 
 
     const snippet = getSnippet(content, commentThreadId);
 
-    expect(snippet.node.toJSON()).toEqual(
+    expect(snippet.toJSON()).toEqual(
         doc(
             quoteBlock(
                 paragraph("Quote 1"),
@@ -115,7 +109,7 @@ test("returns the trailing quote block content for a long quote block snippet", 
 
     const snippet = getSnippet(content, commentThreadId);
 
-    expect(snippet.node.toJSON()).toEqual(
+    expect(snippet.toJSON()).toEqual(
         doc(
             quoteBlock(
                 paragraph("Quote 6"),
@@ -158,7 +152,7 @@ test("cuts entirely within a quote block", () => {
 
     const snippet = getSnippet(content, commentThreadId);
 
-    expect(snippet.node.toJSON()).toEqual(
+    expect(snippet.toJSON()).toEqual(
         doc(
             quoteBlock(
                 paragraph("Quote 3"),
@@ -199,7 +193,7 @@ test("returns the containing table when the snippet starts inside a table cell",
 
     const snippet = getSnippet(content, commentThreadId);
 
-    expect(snippet.node.toJSON()).toEqual(
+    expect(snippet.toJSON()).toEqual(
         doc(
             table(
                 {columnWidths: []},
@@ -232,7 +226,7 @@ test("collects snippets for comments on files in file rows", () => {
 
     const snippet = getSnippet(content, commentThreadId);
 
-    expect(snippet.node.toJSON()).toEqual(
+    expect(snippet.toJSON()).toEqual(
         doc(
             paragraph("Paragraph 2"),
             paragraph("Paragraph 3"),
@@ -257,7 +251,7 @@ test("collects snippets for comments on floated files", () => {
 
     const snippet = getSnippet(content, commentThreadId);
 
-    expect(snippet.node.toJSON()).toEqual(
+    expect(snippet.toJSON()).toEqual(
         doc(
             paragraph("Paragraph 2"),
             paragraph("Paragraph 3"),
@@ -290,7 +284,7 @@ test("collects snippets for comments on files in table cells", () => {
 
     const snippet = getSnippet(content, commentThreadId);
 
-    expect(snippet.node.toJSON()).toEqual(
+    expect(snippet.toJSON()).toEqual(
         doc(
             table(
                 {columnWidths: []},

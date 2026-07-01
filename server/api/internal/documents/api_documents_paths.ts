@@ -33,10 +33,8 @@ import {
     fromApiContentToDocumentChildNodes,
 } from "~/shared/api/content/closed_source/from_api_content.js";
 import {unknownFileId} from "~/shared/api/content/closed_source/unknown_file_id.js";
-import {
-    ApiContent,
-    ApiContentResponse,
-} from "~/shared/api/specification/types/api_specification_convenience_types.js";
+import {ApiContentResponseWithoutKeys} from "~/shared/api/specification/types/api_content_response_without_keys.js";
+import {ApiContent} from "~/shared/api/specification/types/api_specification_convenience_types.js";
 import {
     MessageContentProsemirrorSchema,
     assertMessageContent,
@@ -300,7 +298,7 @@ export const apiDocumentsPaths: Pick<
 
                     let markedPreview: {
                         version: number;
-                        contentSnippet: ApiContentResponse;
+                        contentSnippet: ApiContentResponseWithoutKeys;
                     } | null = null;
 
                     if (commentThreadSnippet) {
@@ -311,16 +309,10 @@ export const apiDocumentsPaths: Pick<
                                 documentId: pathParameters.id,
                             }),
                             // NOCOMMIT: Test that we see other comment marks in the content in this case.
-                            content: commentThreadSnippet.node,
-                            contentKeyEncoder: new ApiContentKeyEncoder({
-                                entityId: `Document:${pathParameters.id}`,
-                                version: document.version,
-                            }),
-                            // NOCOMMIT: Extensive tests that we get the right keys with this `posOffset`
-                            // value. What happens if a `paragraph` is cut from the front or the end? Do we get
-                            // different keys? Probably. Does it matter? Probably not. We should still resolve
-                            // to the right position.
-                            posOffset: commentThreadSnippet.pos,
+                            content: commentThreadSnippet,
+                            // Because this is a content snippet, we won't be able to encode keys that match
+                            // the source content. So don't include any keys in the content type.
+                            contentKeyEncoder: null,
                         });
 
                         markedPreview = {
@@ -336,18 +328,9 @@ export const apiDocumentsPaths: Pick<
                             }),
                             // NOCOMMIT: Test that we see other comment marks in the content in this case.
                             content: commentThread.fallbackContentSnippet.node,
-                            // The fallback snippet was saved from an older version of the document, so encode
-                            // its keys with that version. The keys identify blocks within the snippet but
-                            // can't be resolved against the current document content.
-                            contentKeyEncoder: new ApiContentKeyEncoder({
-                                entityId: `Document:${pathParameters.id}`,
-                                version: commentThread.fallbackContentSnippet.version,
-                            }),
-                            // NOCOMMIT: Extensive tests that we get the right keys with this `posOffset`
-                            // value. What happens if a `paragraph` is cut from the front or the end? Do we get
-                            // different keys? Probably. Does it matter? Probably not. We should still resolve
-                            // to the right position.
-                            posOffset: commentThread.fallbackContentSnippet.pos,
+                            // Because this is a content snippet, we won't be able to encode keys that match
+                            // the source content. So don't include any keys in the content type.
+                            contentKeyEncoder: null,
                         });
 
                         markedPreview = {

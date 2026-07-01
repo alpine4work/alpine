@@ -416,13 +416,7 @@ function DocumentCommentThreadListView(
     const contentSnippetByCommentThreadId = useStableValue(
         ContentSnippetByCommentThreadIdSchema,
         useMemo(
-            () =>
-                new Map(
-                    mapIterable(
-                        collectCommentThreadSnippets(content.doc),
-                        ([commentThreadId, snippet]) => [commentThreadId, snippet.node],
-                    ),
-                ),
+            () => new Map(collectCommentThreadSnippets(content.doc)),
             [collectCommentThreadSnippets, content.doc],
         ),
     );

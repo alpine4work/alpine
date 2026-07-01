@@ -8,19 +8,6 @@ import {getOrSetDefaultMapValue} from "~/shared/helpers/map/get_or_set_default_m
 import {DocumentCommentThreadId} from "~/shared/id/types/id_types.js";
 import {createProsemirrorIncrementalReducer} from "~/shared/prosemirror/prosemirror_incremental_reducer.js";
 
-export type DocumentCommentThreadSnippet = {
-    /**
-     * Add this to a position inside `node` to get the corresponding position in the
-     * source document.
-     */
-    pos: number;
-
-    /**
-     * The snippet content cut from the document.
-     */
-    node: Node;
-};
-
 /**
  * Creates a function that will incrementally collect snippets from a document for
  * the provided comment threads at the first position the comment thread appears.
@@ -61,7 +48,7 @@ export function createDocumentCommentThreadSnippetCollector(
         };
     });
 
-    return (doc: DocumentContent): Map<DocumentCommentThreadId, DocumentCommentThreadSnippet> => {
+    return (doc: DocumentContent): Map<DocumentCommentThreadId, Node> => {
         const resolvedPosByCommentThreadId = getResolvedPosByCommentThreadId(new Map(), doc);
 
         return new Map(
@@ -72,25 +59,8 @@ export function createDocumentCommentThreadSnippetCollector(
                     linesBelow: 8,
                 });
 
-                return [
-                    commentThreadId,
-                    {
-                        // NOCOMMIT: Don't try to return `pos`
-                        pos: getCutContentPosOffset(doc, snippetPos.from),
-                        node: cutContent(doc, snippetPos.from, snippetPos.to),
-                    },
-                ];
+                return [commentThreadId, cutContent(doc, snippetPos.from, snippetPos.to)];
             }),
         );
     };
-}
-
-function getCutContentPosOffset(doc: Node, from: number): number {
-    const resolvedFrom = doc.resolve(from);
-
-    // `Node.cut()` keeps the ancestors opened by `from` so the first copied top node
-    // starts at local position `0`. Each open ancestor adds one local position before
-    // the cut content, so subtract the open depth to convert the cut range start into
-    // the offset used by local snippet positions.
-    return from - resolvedFrom.depth;
 }

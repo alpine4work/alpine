@@ -77,8 +77,8 @@ export type ApiContentMarkdownIntoOptions = {
 export type ApiContentMarkdownIntoOptionsWithoutKeys = Replace<
     ApiContentMarkdownIntoOptions,
     {
-        readonly encoder?: undefined;
-        readonly posOffset?: undefined;
+        readonly encoder?: ApiContentKeyEncoder;
+        readonly posOffset?: number;
     }
 >;
 

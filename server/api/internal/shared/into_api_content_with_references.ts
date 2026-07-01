@@ -13,6 +13,7 @@ import {missingAccountName} from "~/shared/accounts/missing_account_name.js";
 import {ApiContentKeyEncoder} from "~/shared/api/content/closed_source/api_content_key_encoder.js";
 import {intoApiContent} from "~/shared/api/content/closed_source/into_api_content.js";
 import {prepareApiMentionTitle} from "~/shared/api/content/closed_source/prepare_api_mention_title.js";
+import {ApiContentResponseWithoutKeys} from "~/shared/api/specification/types/api_content_response_without_keys.js";
 import {ApiContentResponse} from "~/shared/api/specification/types/api_specification_convenience_types.js";
 import {getContentReferencedIdsForNode} from "~/shared/content/content_referenced_ids.js";
 import {ContentReferencesSearchEntity} from "~/shared/content/content_references.js";
@@ -37,18 +38,26 @@ import {
 import {SearchEntityModel} from "~/shared/search/search_entity_model.js";
 import {TaskDisplayStatus} from "~/shared/tasks/task_display_status.js";
 
-export async function intoApiContentWithReferences(
+export async function intoApiContentWithReferences<
+    ContentKeyEncoder extends ApiContentKeyEncoder | null,
+>(
     context: ServerAccountActionContext,
     options: {
         spaceId: SpaceId;
         fileAuthorizer: FileAuthorizer | "AssertHasNoFiles";
         content: Node;
-        contentKeyEncoder: ApiContentKeyEncoder;
+        contentKeyEncoder: ContentKeyEncoder;
         posOffset?: number;
     },
-): Promise<ApiContentResponse> {
+): Promise<
+    ContentKeyEncoder extends ApiContentKeyEncoder
+        ? ApiContentResponse
+        : ApiContentResponseWithoutKeys
+> {
     const {content} = await intoApiContentWithReferencesAndReturnReferences(context, options);
-    return content;
+
+    // Can't safely assign to a conditional type in TypeScript so cast to `any`.
+    return content as any;
 }
 
 export async function intoApiMessageContentWithReferences(
@@ -67,7 +76,9 @@ export async function intoApiMessageContentWithReferences(
     return content;
 }
 
-export async function intoApiContentWithReferencesAndReturnReferences(
+export async function intoApiContentWithReferencesAndReturnReferences<
+    ContentKeyEncoder extends ApiContentKeyEncoder | null,
+>(
     context: ServerAccountActionContext,
     {
         spaceId,
@@ -79,11 +90,13 @@ export async function intoApiContentWithReferencesAndReturnReferences(
         spaceId: SpaceId;
         fileAuthorizer: FileAuthorizer | "AssertHasNoFiles";
         content: Node;
-        contentKeyEncoder: ApiContentKeyEncoder;
+        contentKeyEncoder: ContentKeyEncoder;
         posOffset?: number;
     },
 ): Promise<{
-    content: ApiContentResponse;
+    content: ContentKeyEncoder extends ApiContentKeyEncoder
+        ? ApiContentResponse
+        : ApiContentResponseWithoutKeys;
     references: {
         accountById: ReadonlyMap<AccountId, Omit<AccountModelWithoutSpaceData, "avatar">>;
         searchEntityById: ReadonlyMap<SearchMentionEntityId, ContentReferencesSearchEntity>;
@@ -152,7 +165,7 @@ export async function intoApiContentWithReferencesAndReturnReferences(
     );
 
     const apiContent = intoApiContent(content, {
-        encoder: contentKeyEncoder,
+        encoder: contentKeyEncoder ?? undefined,
         posOffset,
         getAccountMentionTitleIfExists: (accountId, {isShort}) => {
             const account = accountById.get(accountId);
@@ -180,7 +193,8 @@ export async function intoApiContentWithReferencesAndReturnReferences(
     });
 
     return {
-        content: apiContent,
+        // Can't safely assign to a conditional type in TypeScript so cast to `any`.
+        content: apiContent as any,
         references: {
             accountById,
             searchEntityById,
