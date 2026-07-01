@@ -38,7 +38,7 @@ function getSnippet(
     );
 }
 
-test("returns the top-level block position when the snippet starts between document children", () => {
+test("returns the top-level block snippet when the snippet starts between document children", () => {
     const commentThreadId = generateId<DocumentCommentThreadId>();
     const content = doc(
         paragraph("Paragraph 1"),
@@ -51,22 +51,18 @@ test("returns the top-level block position when the snippet starts between docum
 
     const snippet = getSnippet(content, commentThreadId);
 
-    expect(snippet.node.toJSON()).toEqual({
-        from: 13,
-        to: 78,
-        openFrom: 0,
-        openTo: 0,
-        node: doc(
+    expect(snippet.node.toJSON()).toEqual(
+        doc(
             paragraph("Paragraph 2"),
             paragraph("Paragraph 3"),
             paragraph("Paragraph 4"),
             paragraph(comment(commentThreadId, "Paragraph 5")),
             paragraph("Paragraph 6"),
         ).toJSON(),
-    });
+    );
 });
 
-test("subtracts open depth when the snippet starts inside a quote block", () => {
+test("returns the containing quote block when the snippet starts inside it", () => {
     const commentThreadId = generateId<DocumentCommentThreadId>();
     const content = doc(
         paragraph("Intro"),
@@ -82,12 +78,8 @@ test("subtracts open depth when the snippet starts inside a quote block", () => 
 
     const snippet = getSnippet(content, commentThreadId);
 
-    expect(snippet.node.toJSON()).toEqual({
-        from: 8,
-        to: 61,
-        openFrom: 1,
-        openTo: 0,
-        node: doc(
+    expect(snippet.node.toJSON()).toEqual(
+        doc(
             quoteBlock(
                 paragraph("Quote 1"),
                 paragraph("Quote 2"),
@@ -97,10 +89,10 @@ test("subtracts open depth when the snippet starts inside a quote block", () => 
             ),
             paragraph("Outro"),
         ).toJSON(),
-    });
+    );
 });
 
-test("subtracts open depth when the snippet starts inside a very long quote block", () => {
+test("returns the trailing quote block content for a long quote block snippet", () => {
     const commentThreadId = generateId<DocumentCommentThreadId>();
     const content = doc(
         paragraph("Intro"),
@@ -123,12 +115,8 @@ test("subtracts open depth when the snippet starts inside a very long quote bloc
 
     const snippet = getSnippet(content, commentThreadId);
 
-    expect(snippet.node.toJSON()).toEqual({
-        from: 53,
-        to: 127,
-        openFrom: 1,
-        openTo: 0,
-        node: doc(
+    expect(snippet.node.toJSON()).toEqual(
+        doc(
             quoteBlock(
                 paragraph("Quote 6"),
                 paragraph("Quote 7"),
@@ -140,7 +128,7 @@ test("subtracts open depth when the snippet starts inside a very long quote bloc
             ),
             paragraph("Outro"),
         ).toJSON(),
-    });
+    );
 });
 
 test("cuts entirely within a quote block", () => {
@@ -170,12 +158,8 @@ test("cuts entirely within a quote block", () => {
 
     const snippet = getSnippet(content, commentThreadId);
 
-    expect(snippet.node.toJSON()).toEqual({
-        from: 26,
-        to: 139,
-        openFrom: 1,
-        openTo: 1,
-        node: doc(
+    expect(snippet.node.toJSON()).toEqual(
+        doc(
             quoteBlock(
                 paragraph("Quote 3"),
                 paragraph("Quote 4"),
@@ -191,10 +175,10 @@ test("cuts entirely within a quote block", () => {
                 paragraph("Quote 14"),
             ),
         ).toJSON(),
-    });
+    );
 });
 
-test("subtracts multiple open depths when the snippet starts inside a table cell", () => {
+test("returns the containing table when the snippet starts inside a table cell", () => {
     const commentThreadId = generateId<DocumentCommentThreadId>();
     const content = doc(
         paragraph("Intro"),
@@ -215,12 +199,8 @@ test("subtracts multiple open depths when the snippet starts inside a table cell
 
     const snippet = getSnippet(content, commentThreadId);
 
-    expect(snippet.node.toJSON()).toEqual({
-        from: 9,
-        to: 60,
-        openFrom: 2,
-        openTo: 0,
-        node: doc(
+    expect(snippet.node.toJSON()).toEqual(
+        doc(
             table(
                 {columnWidths: []},
                 tableRow(
@@ -235,7 +215,7 @@ test("subtracts multiple open depths when the snippet starts inside a table cell
             ),
             paragraph("Outro"),
         ).toJSON(),
-    });
+    );
 });
 
 test("collects snippets for comments on files in file rows", () => {
@@ -252,19 +232,15 @@ test("collects snippets for comments on files in file rows", () => {
 
     const snippet = getSnippet(content, commentThreadId);
 
-    expect(snippet.node.toJSON()).toEqual({
-        from: 13,
-        to: 68,
-        openFrom: 0,
-        openTo: 0,
-        node: doc(
+    expect(snippet.node.toJSON()).toEqual(
+        doc(
             paragraph("Paragraph 2"),
             paragraph("Paragraph 3"),
             paragraph("Paragraph 4"),
             fileRow(comment(commentThreadId, file({fileId}))),
             paragraph("Paragraph 5"),
         ).toJSON(),
-    });
+    );
 });
 
 test("collects snippets for comments on floated files", () => {
@@ -281,19 +257,15 @@ test("collects snippets for comments on floated files", () => {
 
     const snippet = getSnippet(content, commentThreadId);
 
-    expect(snippet.node.toJSON()).toEqual({
-        from: 13,
-        to: 68,
-        openFrom: 0,
-        openTo: 0,
-        node: doc(
+    expect(snippet.node.toJSON()).toEqual(
+        doc(
             paragraph("Paragraph 2"),
             paragraph("Paragraph 3"),
             paragraph("Paragraph 4"),
             fileFloat({direction: "left"}, comment(commentThreadId, file({fileId}))),
             paragraph("Paragraph 5"),
         ).toJSON(),
-    });
+    );
 });
 
 test("collects snippets for comments on files in table cells", () => {
@@ -318,12 +290,8 @@ test("collects snippets for comments on files in table cells", () => {
 
     const snippet = getSnippet(content, commentThreadId);
 
-    expect(snippet.node.toJSON()).toEqual({
-        from: 9,
-        to: 55,
-        openFrom: 2,
-        openTo: 0,
-        node: doc(
+    expect(snippet.node.toJSON()).toEqual(
+        doc(
             table(
                 {columnWidths: []},
                 tableRow(
@@ -338,5 +306,5 @@ test("collects snippets for comments on files in table cells", () => {
             ),
             paragraph("Outro"),
         ).toJSON(),
-    });
+    );
 });
