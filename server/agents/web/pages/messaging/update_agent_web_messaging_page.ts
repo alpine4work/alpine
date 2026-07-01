@@ -39,6 +39,7 @@ import {assert} from "~/shared/helpers/control/assert.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 import {isDeepEqual} from "~/shared/helpers/control/is_deep_equal.js";
 import {unwrapMaybeThunk} from "~/shared/helpers/control/unwrap_maybe_thunk.js";
+import {areRangesOverlapping} from "~/shared/helpers/geometry/are_ranges_overlapping.js";
 import {reverseIterable} from "~/shared/helpers/iterable/reverse_iterable.js";
 import {omitObject} from "~/shared/helpers/object/omit_object.js";
 import {MaybePromise} from "~/shared/helpers/types/maybe_promise.js";
@@ -136,17 +137,28 @@ export async function updateAgentWebMessagingPage<
             : 0;
 
     let fallbackMessageIndex = newPagePaginationPreviousLinkBeforeMessageIndex;
+    const resolvedIdAttributes: Array<AgentWebMessagingPageMessageRange | null> = [];
 
     for (let index = 0; index < commonBlocksLength; index++) {
         const oldBlock = oldPage.blocks[index]!;
         const newBlock = newPage.blocks[index]!;
 
-        if (newBlock.type === "Message") {
+        if (newBlock.type !== "Message") {
+            resolvedIdAttributes.push(null);
+        } else {
+            let idAttribute: AgentWebMessagingPageMessageRange;
+
             if (newBlock.idAttribute) {
-                fallbackMessageIndex = newBlock.idAttribute.endMessageIndex;
+                idAttribute = newBlock.idAttribute;
             } else {
-                fallbackMessageIndex++;
+                idAttribute = {
+                    startMessageIndex: fallbackMessageIndex,
+                    endMessageIndex: fallbackMessageIndex + 1,
+                };
             }
+
+            fallbackMessageIndex = idAttribute.endMessageIndex;
+            resolvedIdAttributes.push(idAttribute);
         }
 
         if (oldBlock.type === "Custom" || newBlock.type === "Custom") {
@@ -252,10 +264,7 @@ export async function updateAgentWebMessagingPage<
             });
         }
 
-        const idAttribute = normalizedNewBlock.idAttribute ?? {
-            startMessageIndex: fallbackMessageIndex - 1,
-            endMessageIndex: fallbackMessageIndex,
-        };
+        const idAttribute = assertExists(resolvedIdAttributes[index]);
 
         if (idAttribute.startMessageIndex !== idAttribute.endMessageIndex - 1) {
             throw new InternalError("We should never merge the current bot\u2019s messages");
@@ -320,7 +329,6 @@ export async function updateAgentWebMessagingPage<
             }
         }
 
-        // NOCOMMIT: Optional `from` when creating messages?
         if (newBlock.author !== null && newBlock.author.id !== context.botAccount.id) {
             const authorLink: Link = {
                 type: "link",
@@ -333,12 +341,13 @@ export async function updateAgentWebMessagingPage<
             });
         }
 
+        const expectedNewMessageIndex = lastMessageIndex + (index - commonBlocksLength);
+        expectedNewMessageIndexes.push(expectedNewMessageIndex);
+
         if (
             newBlock.idAttribute &&
-            (newBlock.idAttribute.startMessageIndex !==
-                lastMessageIndex + (index - commonBlocksLength) ||
-                newBlock.idAttribute.endMessageIndex !==
-                    lastMessageIndex + (index - commonBlocksLength) + 1)
+            (newBlock.idAttribute.startMessageIndex !== expectedNewMessageIndex ||
+                newBlock.idAttribute.endMessageIndex !== expectedNewMessageIndex + 1)
         ) {
             throw new InvalidArgumentError(
                 "Can\u2019t create message with incorrect `id` attribute",
@@ -348,10 +357,12 @@ export async function updateAgentWebMessagingPage<
             );
         }
 
-        expectedNewMessageIndexes.push(
-            newBlock.idAttribute?.startMessageIndex ??
-                lastMessageIndex + (index - commonBlocksLength),
-        );
+        const idAttribute = newBlock.idAttribute ?? {
+            startMessageIndex: expectedNewMessageIndex,
+            endMessageIndex: expectedNewMessageIndex + 1,
+        };
+
+        resolvedIdAttributes.push(idAttribute);
 
         if (newBlock.timeAttribute) {
             throw new InvalidArgumentError("Can\u2019t set the created time of a new message", {
@@ -368,47 +379,82 @@ export async function updateAgentWebMessagingPage<
         // text in our message page. We use temporary `ApiContentKey`s which we can convert
         // into proper `ApiContentKey`s in `createThunk`.
         if (newBlock.parent) {
-            const ranges: Array<{
-                messageRange: AgentWebMessagingPageMessageRange;
-                contentRange: ApiContentRange;
-            }> = [];
+            let citedBlock: {
+                block: Extract<AgentWebMessagingPageBlock<never>, {type: "Message"}>;
+                idAttribute: AgentWebMessagingPageMessageRange;
+            } | null = null;
 
             for (let otherIndex = 0; otherIndex < index; otherIndex++) {
                 const otherNewBlock = newPage.blocks[otherIndex]!;
                 if (otherNewBlock.type !== "Message") continue;
 
-                // Ignore messages not authored by the account declared in the `<blockquote cite>`
-                // attribute.
-                //
-                // NOCOMMIT: Make sure we can quote previous created messages without `from`.
+                const otherIdAttribute = assertExists(resolvedIdAttributes[otherIndex]);
+
                 if (
-                    (otherNewBlock.author?.id ?? context.botAccount.id) !==
-                    newBlock.parent.author.id
+                    otherIdAttribute.startMessageIndex ===
+                        newBlock.parent.citeAttribute.startMessageIndex &&
+                    otherIdAttribute.endMessageIndex ===
+                        newBlock.parent.citeAttribute.endMessageIndex
                 ) {
-                    continue;
+                    citedBlock = {block: otherNewBlock, idAttribute: otherIdAttribute};
+                    break;
                 }
 
-                // NOCOMMIT: What about deleted messages??
-                const {content: otherContent} = unsafelyZipTemporaryKeysIntoApiContentResponse(
-                    otherNewBlock.content,
-                );
+                if (
+                    areRangesOverlapping(
+                        otherIdAttribute.startMessageIndex,
+                        otherIdAttribute.endMessageIndex - 1,
+                        newBlock.parent.citeAttribute.startMessageIndex,
+                        newBlock.parent.citeAttribute.endMessageIndex - 1,
+                    )
+                ) {
+                    const otherIdAttributeString =
+                        printAgentWebMessagingPageMessageIndexRange(otherIdAttribute);
 
-                for (const range of findApiContentRanges(
-                    otherContent,
-                    newBlock.parent.previewContent,
-                )) {
-                    ranges.push({
-                        // NOCOMMIT: Test replying to content within message block
-                        messageRange: otherNewBlock.idAttribute ?? {
-                            // NOCOMMIT: Add test for this default fallback
-                            startMessageIndex: lastMessageIndex + (otherIndex - commonBlocksLength),
-                            endMessageIndex:
-                                lastMessageIndex + (otherIndex - commonBlocksLength) + 1,
+                    const parentCiteAttributeString = printAgentWebMessagingPageMessageIndexRange(
+                        newBlock.parent.citeAttribute,
+                    );
+
+                    throw new InvalidArgumentError(
+                        "`<blockquote>` `cite` attribute overlaps with a message block `id` but doesn\u2019t exactly equal the message block `id`",
+                        {
+                            displayMessage: errorDisplayMessage`The \`<blockquote>\` \`cite\` attribute must exactly match a \`<${messageNouns.noun}>\` \`id\` on the current page. \`cite="?${messageNouns.noun}=${parentCiteAttributeString}"\` overlaps with \`<${messageNouns.noun} id="${otherIdAttributeString}">\`, but doesn\u2019t exactly match it. Try again with \`cite="?${messageNouns.noun}=${otherIdAttributeString}"\`.`,
                         },
-                        contentRange: range,
-                    });
+                    );
                 }
             }
+
+            if (citedBlock === null) {
+                const parentCiteAttributeString = printAgentWebMessagingPageMessageIndexRange(
+                    newBlock.parent.citeAttribute,
+                );
+
+                throw new InvalidArgumentError("`<blockquote>` `cite` not found on this page", {
+                    displayMessage: errorDisplayMessage`Couldn\u2019t find \`<${messageNouns.noun} id="${parentCiteAttributeString}">\` referenced by \`<blockquote cite="?${messageNouns.noun}=${parentCiteAttributeString}">\` on the current page. To create a ${messageNouns.noun} that replies to another ${messageNouns.noun}, the cited ${messageNouns.noun} must be visible on the current page. If you\u2019re trying to quote a ${messageNouns.noun} that\u2019s not on this page then call the \`read\` tool with a larger \`limit\` so that the ${messageNouns.noun} you\u2019re replying to is on the same page you\u2019re updating. Try again without the \`<blockquote>\`, with a different \`cite\` attribute reference a message on the current page, or after calling \`read\` with a larger limit so the \`<${messageNouns.noun}>\` you\u2019re replying to is on the same page you\u2019re updating.`,
+                });
+            }
+
+            const citedBlockAuthor = citedBlock.block.author ?? context.botAccount;
+            if (citedBlockAuthor.id !== newBlock.parent.author.id) {
+                const idAttributeString = printAgentWebMessagingPageMessageIndexRange(
+                    citedBlock.idAttribute,
+                );
+
+                throw new InvalidArgumentError(
+                    "`<blockquote>` author prefix does not match cited message author",
+                    {
+                        displayMessage: errorDisplayMessage`The \`<blockquote>\` content starts with \`[${newBlock.parent.author.shortName}](...): \`, but \`<${messageNouns.noun} id="${idAttributeString}">\` is from \u201C${citedBlockAuthor.shortName}\u201D. Try again with \`[${citedBlockAuthor.shortName}](...): \` before any other \`<blockquote>\` content.`,
+                    },
+                );
+            }
+
+            // NOCOMMIT: What about deleted messages??
+            const {content: otherContent} = unsafelyZipTemporaryKeysIntoApiContentResponse(
+                citedBlock.block.content,
+            );
+            const ranges = Array.from(
+                findApiContentRanges(otherContent, newBlock.parent.previewContent),
+            );
 
             // NOCOMMIT: Include a link to a skill with more information about content
             // matching.
@@ -426,7 +472,10 @@ export async function updateAgentWebMessagingPage<
                 });
             }
 
-            newBlockParentRange = ranges[0]!;
+            newBlockParentRange = {
+                messageRange: citedBlock.idAttribute,
+                contentRange: ranges[0]!,
+            };
         }
 
         createThunks.push(async newPageMetadata => {
