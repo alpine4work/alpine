@@ -157,13 +157,15 @@ function mockGetDocumentReference() {
 
 function mockGetDocumentThread({
     commentCount = 1,
+    documentContent = documentContentSnippet(),
     createdTime = new Date("2026-05-14T15:00:00.000Z"),
-    content = documentContentSnippet(),
+    previewContent = documentContent,
     isResolved = false,
 }: {
     commentCount?: number;
+    documentContent?: ApiContentResponse;
     createdTime?: Date;
-    content?: ApiContentResponse;
+    previewContent?: ApiContentResponse;
     isResolved?: boolean;
 } = {}) {
     api.mockGet(
@@ -173,12 +175,6 @@ function mockGetDocumentThread({
                 spaceId,
                 thread: {
                     id: threadId,
-                    document: {
-                        id: documentId,
-                        reference: {
-                            title: documentReference.title,
-                        },
-                    },
                     isResolved,
                     totalMessageCount: commentCount,
                     firstMessage: {
@@ -186,7 +182,18 @@ function mockGetDocumentThread({
                         createdTime: serializeDateString(createdTime),
                         createdTimeZone: defaultTimeZone,
                     },
-                    documentContentSnippet: content,
+                    marked: {
+                        preview: {
+                            version: 1,
+                            contentSnippet: previewContent,
+                        },
+                    },
+                },
+                document: {
+                    id: documentId,
+                    title: documentReference.title,
+                    content: documentContent,
+                    version: 1,
                 },
             },
         },
@@ -245,7 +252,6 @@ function mockMessages({
 
 test("reads a document thread with quoted commented content above comments", async () => {
     mockGetDocumentThread();
-    mockGetDocument();
     mockMessages({
         totalMessageCount: 1,
         createMessage: index =>
@@ -280,7 +286,6 @@ test("reads a document thread pagination link for the next page", async () => {
         });
 
     mockGetDocumentThread();
-    mockGetDocument();
     mockMessages({totalMessageCount, createMessage});
 
     const firstResponse = await callAgentWebReadTool(context, {
@@ -417,8 +422,7 @@ End of comments.`);
 test("reads a document thread with no comments", async () => {
     const content = contentFromCommentedText("Preview only.");
 
-    mockGetDocumentThread({commentCount: 0, content});
-    mockGetDocument({content});
+    mockGetDocumentThread({commentCount: 0, documentContent: content});
     mockMessages({totalMessageCount: 0});
 
     await expect(
@@ -436,7 +440,7 @@ Document comment thread on [Launch Spec](/document/launch-spec).
 End of comments.`);
 });
 
-test("loads the full document when computing quote match without a cached document", async () => {
+test("computes quote match from the document returned with the thread", async () => {
     const content = contentFromBlockElements([
         paragraph([text("Repeated launch requirement.")]),
         paragraph([commentedText("Repeated launch requirement.")]),
@@ -444,9 +448,8 @@ test("loads the full document when computing quote match without a cached docume
 
     mockGetDocumentThread({
         commentCount: 0,
-        content: contentFromCommentedText("Repeated launch requirement."),
+        documentContent: content,
     });
-    mockGetDocument({content});
     mockMessages({totalMessageCount: 0});
 
     const response = await callAgentWebReadTool(context, {
@@ -455,7 +458,7 @@ test("loads the full document when computing quote match without a cached docume
     });
 
     expect({documentGetCount: api.getCallCount("GET", "/documents/{id}"), response}).toEqual({
-        documentGetCount: 1,
+        documentGetCount: 0,
         response: `\
 Document comment thread on [Launch Spec](/document/launch-spec).
 
@@ -467,13 +470,13 @@ End of comments.`,
     });
 });
 
-test("uses a fresh cached document when computing quote match", async () => {
+test("uses the thread document instead of a fresh cached document when computing quote match", async () => {
     const content = contentFromBlockElements([
         paragraph([text("Repeated launch requirement.")]),
         paragraph([commentedText("Repeated launch requirement.")]),
     ]);
 
-    mockGetDocument({content});
+    mockGetDocument({content: contentFromCommentedText("Old cached requirement.")});
     await callAgentWebReadTool(context, {
         path: "/document/launch-spec",
         limit: "10kb",
@@ -481,7 +484,7 @@ test("uses a fresh cached document when computing quote match", async () => {
 
     mockGetDocumentThread({
         commentCount: 0,
-        content: contentFromCommentedText("Repeated launch requirement."),
+        documentContent: content,
     });
     mockMessages({totalMessageCount: 0});
 
@@ -503,7 +506,7 @@ End of comments.`,
     });
 });
 
-test("refreshes an expired cached document when computing quote match", async () => {
+test("does not refresh an expired cached document when computing quote match", async () => {
     mockGetDocument({content: contentFromCommentedText("Old cached requirement.")});
     await callAgentWebReadTool(context, {
         path: "/document/launch-spec",
@@ -518,9 +521,8 @@ test("refreshes an expired cached document when computing quote match", async ()
 
     mockGetDocumentThread({
         commentCount: 0,
-        content: contentFromCommentedText("Repeated launch requirement."),
+        documentContent: content,
     });
-    mockGetDocument({content});
     mockMessages({totalMessageCount: 0});
 
     const response = await callAgentWebReadTool(context, {
@@ -529,7 +531,7 @@ test("refreshes an expired cached document when computing quote match", async ()
     });
 
     expect({documentGetCount: api.getCallCount("GET", "/documents/{id}"), response}).toEqual({
-        documentGetCount: 2,
+        documentGetCount: 1,
         response: `\
 Document comment thread on [Launch Spec](/document/launch-spec).
 
@@ -544,10 +546,10 @@ End of comments.`,
 test("reads match deleted when unresolved commented content was removed", async () => {
     mockGetDocumentThread({
         commentCount: 0,
-        content: contentFromCommentedText("Removed launch requirement."),
-    });
-    mockGetDocument({
-        content: contentFromBlockElements([paragraph([text("Current launch requirement.")])]),
+        documentContent: contentFromBlockElements([
+            paragraph([text("Current launch requirement.")]),
+        ]),
+        previewContent: contentFromCommentedText("Removed launch requirement."),
     });
     mockMessages({totalMessageCount: 0});
 
@@ -569,7 +571,10 @@ End of comments.`);
 test("reads a resolved document thread", async () => {
     mockGetDocumentThread({
         commentCount: 0,
-        content: contentFromCommentedText("Preview only."),
+        documentContent: contentFromBlockElements([
+            paragraph([text("Current launch requirement.")]),
+        ]),
+        previewContent: contentFromCommentedText("Preview only."),
         isResolved: true,
     });
     mockMessages({totalMessageCount: 0});
@@ -597,11 +602,8 @@ test("reads quote match for repeated formatted text", async () => {
 
     mockGetDocumentThread({
         commentCount: 0,
-        content: contentFromBlockElements([
-            paragraph([commentedText("window", {marks: [{type: "Bold"}]})]),
-        ]),
+        documentContent: content,
     });
-    mockGetDocument({content});
     mockMessages({totalMessageCount: 0});
 
     await expect(
@@ -633,11 +635,8 @@ test("reads quote match for repeated formatted text (subset of text)", async () 
 
     mockGetDocumentThread({
         commentCount: 0,
-        content: contentFromBlockElements([
-            paragraph([commentedText("ndo", {marks: [{type: "Bold"}]})]),
-        ]),
+        documentContent: content,
     });
-    mockGetDocument({content});
     mockMessages({totalMessageCount: 0});
 
     await expect(
@@ -668,14 +667,8 @@ test("reads quote match for repeated list item text", async () => {
 
     mockGetDocumentThread({
         commentCount: 0,
-        content: contentFromBlockElements([
-            {
-                type: "UnorderedList",
-                items: [{elements: [paragraph([commentedText("Repeated list item.")])]}],
-            },
-        ]),
+        documentContent: content,
     });
-    mockGetDocument({content});
     mockMessages({totalMessageCount: 0});
 
     await expect(
@@ -710,14 +703,8 @@ test("reads quote match for repeated list item text (subset of text)", async () 
 
     mockGetDocumentThread({
         commentCount: 0,
-        content: contentFromBlockElements([
-            {
-                type: "UnorderedList",
-                items: [{elements: [paragraph([commentedText("peated list")])]}],
-            },
-        ]),
+        documentContent: content,
     });
-    mockGetDocument({content});
     mockMessages({totalMessageCount: 0});
 
     await expect(
@@ -768,9 +755,8 @@ test("reads quote match for repeated table cell text", async () => {
 
     mockGetDocumentThread({
         commentCount: 0,
-        content: contentFromBlockElements([paragraph([commentedText("Ready")])]),
+        documentContent: content,
     });
-    mockGetDocument({content});
     mockMessages({totalMessageCount: 0});
 
     const response = await callAgentWebReadTool(context, {
@@ -795,8 +781,7 @@ test("reads formatted quoted commented text", async () => {
         ]),
     ]);
 
-    mockGetDocumentThread({commentCount: 0, content});
-    mockGetDocument({content});
+    mockGetDocumentThread({commentCount: 0, documentContent: content});
     mockMessages({totalMessageCount: 0});
 
     await expect(
@@ -822,8 +807,7 @@ test("reads quoted commented content with multiple paragraphs", async () => {
         paragraph([text("After paragraph.")]),
     ]);
 
-    mockGetDocumentThread({commentCount: 0, content});
-    mockGetDocument({content});
+    mockGetDocumentThread({commentCount: 0, documentContent: content});
     mockMessages({totalMessageCount: 0});
 
     await expect(
@@ -855,8 +839,7 @@ test("reads quoted commented list items with partial start and end items", async
         },
     ]);
 
-    mockGetDocumentThread({commentCount: 0, content});
-    mockGetDocument({content});
+    mockGetDocumentThread({commentCount: 0, documentContent: content});
     mockMessages({totalMessageCount: 0});
 
     await expect(
@@ -885,8 +868,7 @@ test("reads only the first disjoint quoted commented range", async () => {
         ]),
     ]);
 
-    mockGetDocumentThread({commentCount: 0, content});
-    mockGetDocument({content});
+    mockGetDocumentThread({commentCount: 0, documentContent: content});
     mockMessages({totalMessageCount: 0});
 
     await expect(
@@ -921,8 +903,7 @@ test("reads quoted commented text through a fully commented file gallery", async
         paragraph([text("After gallery.")]),
     ]);
 
-    mockGetDocumentThread({commentCount: 0, content});
-    mockGetDocument({content});
+    mockGetDocumentThread({commentCount: 0, documentContent: content});
     mockMessages({totalMessageCount: 0});
 
     await expect(
@@ -960,7 +941,6 @@ test("reads a document thread comment link around the comment", async () => {
     });
 
     mockGetDocumentThread();
-    mockGetDocument();
     mockMessages({
         cursor: -14,
         totalMessageCount: 3,

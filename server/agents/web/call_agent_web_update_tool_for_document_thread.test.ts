@@ -270,12 +270,14 @@ function getReadPageInfo(path: string): {
 }
 
 function mockGetDocumentThread({
-    content = createPreviewContent(),
+    documentContent = createPreviewContent(),
     createdTime = new Date("2026-05-14T15:00:00.000Z"),
+    previewContent = documentContent,
     isResolved = false,
 }: {
-    content?: ApiContentResponse;
+    documentContent?: ApiContentResponse;
     createdTime?: Date;
+    previewContent?: ApiContentResponse;
     isResolved?: boolean;
 } = {}) {
     api.mockGet(
@@ -285,12 +287,6 @@ function mockGetDocumentThread({
                 spaceId,
                 thread: {
                     id: threadId,
-                    document: {
-                        id: documentId,
-                        reference: {
-                            title: documentReference.title,
-                        },
-                    },
                     isResolved,
                     totalMessageCount: 0,
                     firstMessage: {
@@ -298,19 +294,23 @@ function mockGetDocumentThread({
                         createdTime: serializeDateString(createdTime),
                         createdTimeZone: defaultTimeZone,
                     },
-                    documentContentSnippet: content,
+                    marked: {
+                        preview: {
+                            version: 1,
+                            contentSnippet: previewContent,
+                        },
+                    },
+                },
+                document: {
+                    id: documentId,
+                    title: documentReference.title,
+                    content: documentContent,
+                    version: 1,
                 },
             },
         },
         {path: {id: documentId, threadId}},
     );
-}
-
-function mockGetDocument({content = createPreviewContent()}: {content?: ApiContentResponse} = {}) {
-    api.mockGetDocument(spaceId, documentId, {
-        title: documentReference.title,
-        content,
-    });
 }
 
 async function readDocumentThread({
@@ -330,11 +330,7 @@ async function readDocumentThread({
 }): Promise<string> {
     const actualPreviewContent = previewContent ?? createPreviewContent();
 
-    mockGetDocumentThread({content: actualPreviewContent, isResolved});
-
-    if (!isResolved) {
-        mockGetDocument({content: actualPreviewContent});
-    }
+    mockGetDocumentThread({documentContent: actualPreviewContent, isResolved});
 
     mockApiGetDocumentThreadMessages(api, {
         spaceId,
