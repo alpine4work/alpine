@@ -26,8 +26,14 @@ export function createContentBuilder(schema: ContentProsemirrorSchema) {
         unorderedListItem: (indent: number, ...content: Array<Node>) =>
             schema.nodes.unorderedListItem.create({indent}, content),
 
-        orderedListItem: (indent: number, ...content: Array<Node>) =>
-            schema.nodes.orderedListItem.create({indent}, content),
+        orderedListItem: (
+            attrs: number | {indent?: number; orderStart?: number | null},
+            ...content: Array<Node>
+        ) =>
+            schema.nodes.orderedListItem.create(
+                typeof attrs === "number" ? {indent: attrs} : attrs,
+                content,
+            ),
 
         checkListItem: (indent: number, checked: boolean, ...content: Array<Node>) =>
             assertExists(schema.nodes.checkListItem).create({indent, checked}, content),

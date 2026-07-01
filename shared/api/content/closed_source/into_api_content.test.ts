@@ -1,6 +1,6 @@
 /* eslint-disable cyberworlds/string-quotes */
 
-import {Mark, Node} from "prosemirror-model";
+import {Node} from "prosemirror-model";
 import {fromApiContent} from "~/shared/api/content/closed_source/from_api_content.js";
 import {
     ApiContentMarkdownIntoOptionsWithoutKeys,
@@ -12,6 +12,7 @@ import {parseApiContentFromMarkdown} from "~/shared/api/content/parse_api_conten
 import {printApiContentToMarkdown} from "~/shared/api/content/print_api_content_to_markdown.js";
 import {ApiContentResponseWithoutKeys} from "~/shared/api/specification/types/api_content_response_without_keys.js";
 import {ContentMention} from "~/shared/content/content_mention.js";
+import {createContentBuilder} from "~/shared/content/create_content_builder.js";
 import {MessageContentProsemirrorSchema} from "~/shared/content/message_content_schema.js";
 import {ContentTableMap} from "~/shared/content/table/content_table_map.js";
 import {HighlightColor} from "~/shared/design/core/highlight_color.js";
@@ -31,51 +32,35 @@ import {
     TaskId,
 } from "~/shared/id/types/id_types.js";
 
-// Node builders
-const doc = (...content: Array<Node>) => schema.nodes.doc.create(null, content);
-const paragraph = (...content: Array<Node>) => schema.nodes.paragraph.create(null, content);
-const text = (string: string, marks?: Array<Mark>) => schema.text(string, marks);
-const quoteBlock = (...content: Array<Node>) => schema.nodes.quoteBlock.create(null, content);
-const codeBlock = (language: string, ...lines: Array<Node>) =>
-    schema.nodes.codeBlock.create({language}, lines);
-const codeBlockLine = (...content: Array<Node>) => schema.nodes.codeBlockLine.create(null, content);
-const unorderedListItem = (indent: number, ...content: Array<Node>) =>
-    schema.nodes.unorderedListItem.create({indent}, content);
-const orderedListItem = (indent: number, ...content: Array<Node>) =>
-    schema.nodes.orderedListItem.create({indent}, content);
-const checkListItem = (indent: number, checked: boolean, ...content: Array<Node>) =>
-    schema.nodes.checkListItem.create({indent, checked}, content);
-const br = (marks?: Array<Mark>) => schema.nodes.break.create(null, null, marks);
-const mention = (mentionData: ContentMention, marks?: Array<Mark>) =>
-    schema.nodes.mention.create({mention: mentionData}, null, marks);
-const table = (
-    attrs: {
-        tableWidth?: number;
-        columnWidths: Array<number>;
-        hasHeaderRow?: boolean;
-        hasHeaderColumn?: boolean;
-    },
-    ...rows: Array<Node>
-) => schema.nodes.table.create(attrs, rows);
-const tableRow = (...cells: Array<Node>) => schema.nodes.tableRow.create(null, cells);
-const tableCell = (...content: Array<Node>) => schema.nodes.tableCell.create(null, content);
-const heading = (level: number, ...content: Array<Node>) =>
-    schema.nodes.heading.create({level}, content);
-const divider = () => schema.nodes.divider.create();
-const fileRow = (...content: Array<Node>) => schema.nodes.fileRow!.create(null, content);
-const file = (attrs: {fileId: string | null}) => schema.nodes.file!.create(attrs);
-const fileFloat = (attrs: {direction: string}, ...content: Array<Node>) =>
-    schema.nodes.fileFloat!.create(attrs, content);
-const fileRowTable = (...content: Array<Node>) => schema.nodes.fileRowTable!.create(null, content);
-
-// Mark builders
-const bold = () => schema.marks.bold.create();
-const italic = () => schema.marks.italic.create();
-const code = () => schema.marks.code.create();
-const link = (url: string) => schema.marks.link.create({url});
-const strike = () => schema.marks.strike.create();
-const highlight = (color: HighlightColor) => schema.marks.highlight.create({color});
-const comment = (commentThreadId: string) => schema.marks.comment.create({commentThreadId});
+const {
+    doc,
+    paragraph,
+    text,
+    quoteBlock,
+    codeBlock,
+    codeBlockLine,
+    unorderedListItem,
+    orderedListItem,
+    checkListItem,
+    break: br,
+    mention,
+    table,
+    tableRow,
+    tableCell,
+    heading,
+    divider,
+    fileRow,
+    file,
+    fileFloat,
+    fileRowTable,
+    bold,
+    italic,
+    code,
+    link,
+    strike,
+    highlight,
+    comment,
+} = createContentBuilder(schema);
 
 function normalizeNode(node: Node): Node {
     if (node.isText) return node;
@@ -3909,11 +3894,12 @@ describe("checklist", () => {
 test("converts ordered list with orderStart into API content", () => {
     testIntoApiContent(
         doc(
-            schema.nodes.orderedListItem.create({indent: 0, orderStart: 5}, [
+            orderedListItem(
+                {orderStart: 5},
                 paragraph(text("Fifth item")),
                 paragraph(text("Sixth item")),
                 paragraph(text("Seventh item")),
-            ]),
+            ),
         ),
         {
             elements: [
@@ -3947,11 +3933,9 @@ test("converts ordered list with orderStart into API content", () => {
 test("converts ordered list with orderStart on first item only", () => {
     testIntoApiContentOnly(
         doc(
-            schema.nodes.orderedListItem.create({indent: 0, orderStart: 2}, [
-                paragraph(text("Second item")),
-            ]),
-            schema.nodes.orderedListItem.create({indent: 0}, [paragraph(text("Third item"))]),
-            schema.nodes.orderedListItem.create({indent: 0}, [paragraph(text("Fourth item"))]),
+            orderedListItem({orderStart: 2}, paragraph(text("Second item"))),
+            orderedListItem(0, paragraph(text("Third item"))),
+            orderedListItem(0, paragraph(text("Fourth item"))),
         ),
         {
             elements: [
@@ -3990,16 +3974,10 @@ test("converts ordered list with orderStart on first item only", () => {
 test("converts nested ordered lists with separate orderStart values", () => {
     testIntoApiContent(
         doc(
-            schema.nodes.orderedListItem.create({indent: 0, orderStart: 2}, [
-                paragraph(text("Second item")),
-            ]),
-            schema.nodes.orderedListItem.create({indent: 1, orderStart: 5}, [
-                paragraph(text("Nested fifth item")),
-            ]),
-            schema.nodes.orderedListItem.create({indent: 1}, [
-                paragraph(text("Nested sixth item")),
-            ]),
-            schema.nodes.orderedListItem.create({indent: 0}, [paragraph(text("Third item"))]),
+            orderedListItem({orderStart: 2}, paragraph(text("Second item"))),
+            orderedListItem({indent: 1, orderStart: 5}, paragraph(text("Nested fifth item"))),
+            orderedListItem(1, paragraph(text("Nested sixth item"))),
+            orderedListItem(0, paragraph(text("Third item"))),
         ),
         {
             elements: [
@@ -4058,13 +4036,9 @@ test("converts nested ordered lists with separate orderStart values", () => {
 test("converts ordered list nested inside unordered list with orderStart", () => {
     testIntoApiContent(
         doc(
-            schema.nodes.unorderedListItem.create({indent: 0}, [paragraph(text("Bullet item"))]),
-            schema.nodes.orderedListItem.create({indent: 1, orderStart: 3}, [
-                paragraph(text("Nested third item")),
-            ]),
-            schema.nodes.orderedListItem.create({indent: 1}, [
-                paragraph(text("Nested fourth item")),
-            ]),
+            unorderedListItem(0, paragraph(text("Bullet item"))),
+            orderedListItem({indent: 1, orderStart: 3}, paragraph(text("Nested third item"))),
+            orderedListItem(1, paragraph(text("Nested fourth item"))),
         ),
         {
             elements: [
@@ -4117,14 +4091,13 @@ test("converts ordered list nested inside unordered list with orderStart", () =>
 test("converts ordered list with second item having different orderStart", () => {
     testIntoApiContent(
         doc(
-            schema.nodes.orderedListItem.create({indent: 0, orderStart: 2}, [
-                paragraph(text("Second item")),
-            ]),
-            schema.nodes.orderedListItem.create({indent: 0, orderStart: 5}, [
+            orderedListItem({orderStart: 2}, paragraph(text("Second item"))),
+            orderedListItem(
+                {orderStart: 5},
                 paragraph(text("Third item with different order start")),
-            ]),
-            schema.nodes.orderedListItem.create({indent: 1}, [paragraph(text("Nested item"))]),
-            schema.nodes.orderedListItem.create({indent: 0}, [paragraph(text("Fourth item"))]),
+            ),
+            orderedListItem(1, paragraph(text("Nested item"))),
+            orderedListItem(0, paragraph(text("Fourth item"))),
         ),
         {
             elements: [
