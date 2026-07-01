@@ -3,25 +3,22 @@ import {createAccessPolicyForContentCreatedByBot} from "~/server/access/create_a
 import {ApiPaths} from "~/server/api/internal/shared/api_paths_type.js";
 import {fromApiMessageContentPayloadParent} from "~/server/api/internal/shared/from_api_message_content_payload_parent.js";
 import {fromApiMessageStreamPartPayload} from "~/server/api/internal/shared/from_api_message_stream_part_payload.js";
-import {getApiAccount} from "~/server/api/internal/shared/get_api_account.js";
 import {
     getApiMentionTitleWithStrongConsistency,
     getApiTaskMentionTitleWithStrongConsistency,
     intoApiContentWithReferences,
 } from "~/server/api/internal/shared/into_api_content_with_references.js";
 import {intoApiMessage} from "~/server/api/internal/shared/into_api_message.js";
+import {ApiTaskConverter} from "~/server/api/internal/tasks/internal/api_task_converter.js";
 import {createIntoApiTaskCommentContentPayloadParent} from "~/server/api/internal/tasks/internal/create_into_api_task_comment_content_payload_parent.ts.js";
 import {createTaskFromApi} from "~/server/api/internal/tasks/internal/create_task_from_api.js";
 import {fromApiTaskLayout} from "~/server/api/internal/tasks/internal/from_api_task_layout.js";
-import {getApiTaskCollectionItems} from "~/server/api/internal/tasks/internal/get_api_task_collection_items.js";
 import {getApiTaskNotes} from "~/server/api/internal/tasks/internal/get_api_task_notes.js";
-import {getApiTasksWithoutNotes} from "~/server/api/internal/tasks/internal/get_api_tasks_without_notes.js";
-import {intoApiTask} from "~/server/api/internal/tasks/internal/into_api_task.js";
-import {intoApiTaskLayout} from "~/server/api/internal/tasks/internal/into_api_task_layout.js";
 import {updateTaskCollectionFromApi} from "~/server/api/internal/tasks/internal/update_task_collection_from_api.js";
 import {updateTaskNotesFromApi} from "~/server/api/internal/tasks/internal/update_task_notes_from_api.js";
 import {updateTaskWithoutNotesFromApi} from "~/server/api/internal/tasks/internal/update_task_without_notes_from_api.js";
 import {attachFileToTargetAsBot} from "~/server/files/data/attach_file_to_target_as_bot.js";
+import {getAccount} from "~/server/spaces/get_account.js";
 import {FileTaskAuthorizer} from "~/server/tasks/data/authorization/file_task_authorizer.js";
 import {commitTaskActionTransaction} from "~/server/tasks/data/commit_task_action_transaction.js";
 import {
@@ -49,6 +46,9 @@ import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
 import {HybridLogicalClock} from "~/shared/helpers/clock/hybrid_logical_clock.js";
 import {unsynchronizedSystemClock} from "~/shared/helpers/clock/unsynchronized_system_clock.js";
 import {assert} from "~/shared/helpers/control/assert.js";
+import {assertExists} from "~/shared/helpers/control/assert_exists.js";
+import {unwrapResult} from "~/shared/helpers/control/capture_result.js";
+import {captureResultPromise} from "~/shared/helpers/control/capture_result_promise.js";
 import {serializeDateString} from "~/shared/helpers/date/date_string.js";
 import {defaultTimeZone} from "~/shared/helpers/intl/time_zone.js";
 import {emptyMap} from "~/shared/helpers/map/empty_map.js";
@@ -57,6 +57,8 @@ import {TaskCollectionId, TaskId} from "~/shared/id/types/id_types.js";
 import {MessageContentPayload} from "~/shared/messaging/message_schema.js";
 import {MessagingRealtimeBroadcastNewMessageRequestSchema} from "~/shared/messaging/messaging_realtime_protocol.js";
 import {emptyReactionSet} from "~/shared/reactions/reaction_set.js";
+import {evaluateTaskQueryNormalizedFiltersForModel} from "~/shared/tasks/model/evaluate_task_query_normalized_filters_for_model.js";
+import {getTaskQueryNormalizedSortCursorForModel} from "~/shared/tasks/model/get_task_query_normalized_sort_cursor_for_model.js";
 import {TaskActor} from "~/shared/tasks/task_creator.js";
 import {
     TaskNotesContentProsemirrorSchema,
@@ -68,7 +70,8 @@ import {
     TaskQueryDisplayStatusNormalizedFilter,
     assertNonEmptyReadonlyMap,
 } from "~/shared/tasks/task_query_normalized_filters.js";
-import {TaskQueryNormalizedSort} from "~/shared/tasks/task_query_normalized_sort.js";
+import {normalizeTaskQuerySorts} from "~/shared/tasks/task_query_normalized_sort.js";
+import {compareTaskQuerySortCursors} from "~/shared/tasks/task_query_sort_cursor.js";
 
 export const apiTasksPaths: Pick<
     ApiPaths,
@@ -122,7 +125,7 @@ export const apiTasksPaths: Pick<
                 accessPolicy = await accessPolicyPromise;
             }
 
-            const [task, content] = await runAllPromises([
+            const [task, content, assignee, resultResult] = await runAllPromises([
                 createTaskFromApi(context, {
                     taskId,
                     spaceId,
@@ -147,40 +150,43 @@ export const apiTasksPaths: Pick<
                         version: 0,
                     }),
                 }),
+                taskInput.assignee?.id !== undefined
+                    ? getAccount(
+                          context.dynamo.unexpectStrongReadConsistency(),
+                          spaceId,
+                          taskInput.assignee.id,
+                      )
+                    : undefined,
+                // If you don't have access to the parent task or `collectionIds` then
+                // `createTaskFromApi()` will throw and we want to use that error.
+                captureResultPromise(
+                    context.tasks.loadQueries(
+                        // NOCOMMIT: What happens if task exists but in a different space? We should throw
+                        // some kind of error.
+                        context.actor.getSpaceId(),
+                        {
+                            queries: [],
+                            taskIds: taskInput.parent?.task.id ? [taskInput.parent?.task.id] : [],
+                            // NOCOMMIT: Test what happens if you don't have access to the parent task or
+                            // collections?
+                            collectionIds:
+                                taskInput.collections?.map(item => item.collection.id) ?? [],
+                        },
+                        {consistency: "StrongWithinCache"},
+                    ),
+                ),
             ]);
 
-            const assigneeId = task.assigneeId;
-            const apiAssignee =
-                assigneeId !== undefined
-                    ? await getApiAccount(context, spaceId, assigneeId, {
-                          consistency: "StrongWithinCache",
-                      })
-                    : undefined;
-
-            const collections = await getApiTaskCollectionItems(
-                context,
-                spaceId,
-                task.collectionIds,
-            );
+            const result = unwrapResult(resultResult);
 
             return {
                 content: {
                     spaceId,
                     task: {
-                        id: task.id,
-                        creator: {id: task.creatorId},
-                        status: task.status,
-                        title: task.title,
-                        assignee: apiAssignee ?? undefined,
-                        due: task.dueDate ? {date: task.dueDate.toString()} : undefined,
-                        priority: task.priority,
-                        layout: intoApiTaskLayout(task.layout),
-                        parent: task.parentTaskId ? {task: {id: task.parentTaskId}} : undefined,
-                        collections,
-                        notes: {
-                            version: 0,
-                            content,
-                        },
+                        ...new ApiTaskConverter(result.updateEvent).into(task, {
+                            referencedAccounts: assignee ? [assignee] : [],
+                        }),
+                        notes: {version: 0, content},
                     },
                 },
             };
@@ -193,7 +199,7 @@ export const apiTasksPaths: Pick<
             const consistency = "StrongWithinCache" as const;
             const taskId = pathParameters.id;
 
-            const [task, {notes}] = await runAllPromises([
+            const [{updatedTask, updateEvent}, {notes}] = await runAllPromises([
                 updateTaskWithoutNotesFromApi(context, {
                     spaceId,
                     taskId,
@@ -206,22 +212,31 @@ export const apiTasksPaths: Pick<
             return {
                 content: {
                     spaceId,
-                    task: await intoApiTask(context, task, notes),
+                    task: {
+                        ...new ApiTaskConverter(updateEvent).into(updatedTask),
+                        notes,
+                    },
                 },
             };
         },
 
         get: async (context, {pathParameters}) => {
-            const [task, {notes}] = await runAllPromises([
+            const [result, {notes}] = await runAllPromises([
                 // TODO(calebmer): An optimization that would be pretty nice here is if we move
                 // notes loading into `TaskRealtimeService`. Currently we have to load the data for
                 // bot authorization twice. Once here in `ApiService` and again in
                 // `TaskRealtimeService`. If we pushed task notes loading into
                 // `TaskRealtimeService` then we could leverage `ContextCache` to only load the bot
                 // authorization data once.
-                context.tasks.getTaskWithoutDependencies(
+                context.tasks.loadQueries(
+                    // NOCOMMIT: What happens if task exists but in a different space? We should throw
+                    // some kind of error.
                     context.actor.getSpaceId(),
-                    pathParameters.id,
+                    {
+                        queries: [],
+                        taskIds: [pathParameters.id],
+                        collectionIds: [],
+                    },
                     {consistency: "StrongWithinCache"},
                 ),
                 getApiTaskNotes(context, pathParameters.id, {
@@ -231,8 +246,11 @@ export const apiTasksPaths: Pick<
 
             return {
                 content: {
-                    spaceId: task.getSpaceId(),
-                    task: await intoApiTask(context, task, notes),
+                    spaceId: context.actor.getSpaceId(),
+                    task: {
+                        ...new ApiTaskConverter(result.updateEvent).into(pathParameters.id),
+                        notes,
+                    },
                 },
             };
         },
@@ -726,23 +744,66 @@ export const apiTasksPaths: Pick<
                     assertNonEmptyReadonlyMap(new Map([[collectionId, false]])),
                 ]);
 
-            const sort: TaskQueryNormalizedSort = {
-                type: "CollectionPosition",
-                collectionId,
-                direction: "Ascending",
-                missing: "Last",
-            };
+            const {queries, updateEvent} = await context.tasks.loadQueries(
+                context.actor.getSpaceId(),
+                {
+                    queries: [
+                        {
+                            type: "Normalized",
+                            limit,
+                            filters: {displayStatusFilter, collectionsFilter},
+                            sorts: normalizeTaskQuerySorts([
+                                {
+                                    type: "CollectionPosition",
+                                    collectionId,
+                                    direction: "Ascending",
+                                    missing: "Last",
+                                },
+                            ]),
+                        },
+                    ],
+                    taskIds: [],
+                    collectionIds: [collectionId],
+                },
+                {consistency: "StrongWithinCache"},
+            );
 
-            const {tasks, nextCursor} = await getApiTasksWithoutNotes(context, {
-                collectionId,
-                cursor: queryParameters.cursor ?? null,
-                limit,
-                filters: {displayStatusFilter, collectionsFilter},
-                sorts: [sort],
-            });
+            const query = assertExists(queries[0]);
+
+            const tasks = [];
+
+            const {sorts, filtersResult} = query;
+
+            if (filtersResult.type === "Possible") {
+                const filters = filtersResult.normalizedFilters;
+
+                for (const backfillTask of updateEvent.backfillTasks) {
+                    if (
+                        backfillTask.type === "Authorized" &&
+                        evaluateTaskQueryNormalizedFiltersForModel(filters, backfillTask.task)
+                    ) {
+                        tasks.push(backfillTask.task);
+                    }
+                }
+            }
+
+            tasks.sort((task1, task2) =>
+                compareTaskQuerySortCursors(
+                    sorts,
+                    getTaskQueryNormalizedSortCursorForModel(sorts, task1),
+                    getTaskQueryNormalizedSortCursorForModel(sorts, task2),
+                ),
+            );
+
+            const converter = new ApiTaskConverter(updateEvent);
 
             return {
-                content: {spaceId, nextCursor, tasks},
+                content: {
+                    spaceId,
+                    // NOCOMMIT: Implement this!
+                    nextCursor: null,
+                    tasks: tasks.map(task => converter.into(task)),
+                },
             };
 
             function assertValidTaskQueryDisplayStatusNormalizedFilter<

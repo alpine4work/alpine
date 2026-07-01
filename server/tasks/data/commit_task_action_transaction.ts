@@ -257,18 +257,18 @@ export function commitTaskActionTransaction(
             }
         }
 
-        // Try and wait until the transaction is processed before returning to the client.
-        // We only wait up to 100ms then let the transaction processing finish in the
-        // background.
-        //
-        // Given the client only sends one `commitTaskActionTransaction()` request at a
-        // time, this helps reduce conflicts when indexing many sequential actions on the
-        // same task (e.g. from typing in the title). And helps other users connected to
-        // realtime see these actions in the same order they were made.
-        await Promise.race([processPromise.catch(() => {}), wait(100 - (endTime - startTime))]);
-
         if (options.waitForProcessing) {
             await processPromise;
+        } else {
+            // Try and wait until the transaction is processed before returning to the client.
+            // We only wait up to 100ms then let the transaction processing finish in the
+            // background.
+            //
+            // Given the client only sends one `commitTaskActionTransaction()` request at a
+            // time, this helps reduce conflicts when indexing many sequential actions on the
+            // same task (e.g. from typing in the title). And helps other users connected to
+            // realtime see these actions in the same order they were made.
+            await Promise.race([processPromise.catch(() => {}), wait(100 - (endTime - startTime))]);
         }
 
         return {
