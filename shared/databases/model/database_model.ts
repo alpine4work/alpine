@@ -67,7 +67,7 @@ export class DatabaseModel {
             FROM
                 ${sql.tableRef(tableId, "_alpine_table")}
         `.selectOne(this.db, DatabaseTableRow);
-        return new DatabaseTableModel(this, row);
+        return new DatabaseTableModel(this, tableId, row);
     }
 
     getTable(tableId: DatabaseTableId) {
@@ -170,14 +170,12 @@ export class DatabaseTableModel {
 
     constructor(
         readonly schema: DatabaseModel,
+        readonly id: DatabaseTableId,
         readonly row: DatabaseTableRow,
     ) {
         this.db = schema.db;
     }
 
-    get id() {
-        return this.row.id;
-    }
     get name() {
         return this.row.name;
     }
@@ -228,7 +226,6 @@ export class DatabaseTableModel {
             SELECT
                 id,
                 name,
-                table_id,
             FROM
                 ${sql.tableRef(this.id, "_alpine_views")}
             WHERE
@@ -256,7 +253,6 @@ export class DatabaseTableModel {
             SELECT
                 id,
                 name,
-                table_id,
             FROM
                 ${sql.tableRef(this.id, "_alpine_views")}
             ORDER BY
@@ -271,7 +267,6 @@ export class DatabaseTableModel {
         const row = sql`
             SELECT
                 id,
-                table_id,
                 name,
                 column_name,
                 JSON(config) AS config,
@@ -359,15 +354,11 @@ export class DatabaseViewModel {
     get name() {
         return this.row.name;
     }
-    get tableId() {
-        return this.row.tableId;
-    }
 
     getFields() {
         return sql`
             SELECT
                 field.id,
-                field.table_id,
                 field.name,
                 field.column_name,
                 JSON(field.config) AS config,

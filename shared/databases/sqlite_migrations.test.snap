@@ -62,12 +62,6 @@ exports[`sqlite migrations preserves the current migrated SQLite schema contract
       "type": "index",
     },
     {
-      "name": "_alpine_index_<sourceTableId>_created_at",
-      "sql": "CREATE INDEX "_alpine_index_<sourceTableId>_created_at" ON "projects" (_created_at)",
-      "tbl_name": "projects",
-      "type": "index",
-    },
-    {
       "name": "sqlite_autoindex__alpine_fields_2",
       "sql": null,
       "tbl_name": "_alpine_fields",
@@ -95,12 +89,6 @@ exports[`sqlite migrations preserves the current migrated SQLite schema contract
       "name": "_alpine_views",
       "sql": "CREATE TABLE "_alpine_views" ( id TEXT PRIMARY KEY, table_id TEXT NOT NULL REFERENCES _alpine_table (id), name TEXT NOT NULL, CHECK (is_id (id)), CHECK (is_id (table_id)) ) STRICT, WITHOUT ROWID",
       "tbl_name": "_alpine_views",
-      "type": "table",
-    },
-    {
-      "name": "projects",
-      "sql": "CREATE TABLE "projects" ( _id TEXT PRIMARY KEY DEFAULT (generate_id ()), _created_at TEXT NOT NULL DEFAULT (DATETIME('now')), "name" TEXT_alpine_<id> NOT NULL DEFAULT '' CHECK ( TYPEOF("name") = 'text' ), CHECK (is_id (_id)), CHECK (DATETIME(_created_at) IS NOT NULL) ) WITHOUT ROWID",
-      "tbl_name": "projects",
       "type": "table",
     },
   ],
@@ -112,12 +100,6 @@ exports[`sqlite migrations preserves the current migrated SQLite schema contract
       "type": "index",
     },
     {
-      "name": "_alpine_index_<targetTableId>_created_at",
-      "sql": "CREATE INDEX "_alpine_index_<targetTableId>_created_at" ON "people" (_created_at)",
-      "tbl_name": "people",
-      "type": "index",
-    },
-    {
       "name": "sqlite_autoindex__alpine_fields_2",
       "sql": null,
       "tbl_name": "_alpine_fields",
@@ -145,12 +127,6 @@ exports[`sqlite migrations preserves the current migrated SQLite schema contract
       "name": "_alpine_views",
       "sql": "CREATE TABLE "_alpine_views" ( id TEXT PRIMARY KEY, table_id TEXT NOT NULL REFERENCES _alpine_table (id), name TEXT NOT NULL, CHECK (is_id (id)), CHECK (is_id (table_id)) ) STRICT, WITHOUT ROWID",
       "tbl_name": "_alpine_views",
-      "type": "table",
-    },
-    {
-      "name": "people",
-      "sql": "CREATE TABLE "people" ( _id TEXT PRIMARY KEY DEFAULT (generate_id ()), _created_at TEXT NOT NULL DEFAULT (DATETIME('now')), "name" TEXT_alpine_<id> NOT NULL DEFAULT '' CHECK ( TYPEOF("name") = 'text' ), CHECK (is_id (_id)), CHECK (DATETIME(_created_at) IS NOT NULL) ) WITHOUT ROWID",
-      "tbl_name": "people",
       "type": "table",
     },
   ],

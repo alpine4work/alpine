@@ -7,7 +7,6 @@ import {ObjectSchemaConfigType, Schema} from "~/shared/schema/schema.js";
 export type DatabaseTableKind = "table" | "join";
 
 export const DatabaseTableRow = {
-    id: Schema.id<DatabaseTableId>(),
     name: Schema.string,
     tableName: Schema.string.originalPropertyKey("table_name"),
     nameFieldId: Schema.id<DatabaseFieldId>().originalPropertyKey("name_field_id"),
@@ -25,14 +24,12 @@ export type DatabaseJoinTableRow = ObjectSchemaConfigType<typeof DatabaseJoinTab
 
 export const DatabaseViewRow = {
     id: Schema.id<DatabaseViewId>(),
-    tableId: Schema.id<DatabaseTableId>().originalPropertyKey("table_id"),
     name: Schema.string,
 };
 export type DatabaseViewRow = ObjectSchemaConfigType<typeof DatabaseViewRow>;
 
 export const DatabaseFieldRow = {
     id: Schema.id<DatabaseFieldId>(),
-    tableId: Schema.id<DatabaseTableId>().originalPropertyKey("table_id"),
     name: Schema.string,
     columnName: Schema.string.originalPropertyKey("column_name"),
     config: DatabaseFieldConfigSqlSchema,
