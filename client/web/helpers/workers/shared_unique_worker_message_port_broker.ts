@@ -1,52 +1,38 @@
-export const sharedUniqueWorkerRegisterLeaderMessageType = "shared-unique-worker-register-leader";
-export const sharedUniqueWorkerUnregisterLeaderMessageType =
-    "shared-unique-worker-unregister-leader";
-export const sharedUniqueWorkerConnectMessageType = "shared-unique-worker-connect";
-export const sharedUniqueWorkerPortMessageType = "shared-unique-worker-port";
-export const sharedUniqueWorkerConnectErrorMessageType = "shared-unique-worker-connect-error";
+/// <reference lib="webworker" />
 
-interface SharedUniqueWorkerBrokerClient {
-    postMessage(message: unknown, transfer?: Array<Transferable>): void;
-}
-
-interface SharedUniqueWorkerBrokerClients {
-    get(clientId: string): Promise<SharedUniqueWorkerBrokerClient | undefined>;
-}
-
-interface SharedUniqueWorkerBrokerMessageEvent {
-    readonly data: unknown;
-    readonly ports: ReadonlyArray<MessagePort>;
-    readonly source: {readonly id?: string} | null;
-    waitUntil(promise: Promise<unknown>): void;
-}
-
-interface SharedUniqueWorkerBrokerScope {
-    readonly clients: SharedUniqueWorkerBrokerClients;
-    addEventListener(
-        type: "message",
-        handler: (event: SharedUniqueWorkerBrokerMessageEvent) => void,
-    ): void;
-}
-
-interface SharedUniqueWorkerRegisterLeaderMessage {
-    readonly type: typeof sharedUniqueWorkerRegisterLeaderMessageType;
+type SharedUniqueWorkerRegisterLeaderMessage = {
+    readonly type: "shared-unique-worker:register-leader";
     readonly key: string;
-}
+};
 
-interface SharedUniqueWorkerUnregisterLeaderMessage {
-    readonly type: typeof sharedUniqueWorkerUnregisterLeaderMessageType;
+type SharedUniqueWorkerUnregisterLeaderMessage = {
+    readonly type: "shared-unique-worker:unregister-leader";
     readonly key: string;
-}
+};
 
-interface SharedUniqueWorkerConnectMessage {
-    readonly type: typeof sharedUniqueWorkerConnectMessageType;
+type SharedUniqueWorkerConnectMessage = {
+    readonly type: "shared-unique-worker:connect";
     readonly key: string;
-}
+};
+
+type SharedUniqueWorkerPortMessage = {
+    readonly type: "shared-unique-worker:port";
+    readonly key: string;
+};
+
+type SharedUniqueWorkerConnectErrorMessage = {
+    readonly type: "shared-unique-worker:connect-error";
+    readonly message: string;
+};
 
 type SharedUniqueWorkerBrokerMessage =
     | SharedUniqueWorkerRegisterLeaderMessage
     | SharedUniqueWorkerUnregisterLeaderMessage
     | SharedUniqueWorkerConnectMessage;
+
+export type SharedUniqueWorkerClientMessage =
+    | SharedUniqueWorkerPortMessage
+    | SharedUniqueWorkerConnectErrorMessage;
 
 /**
  * Installs the ServiceWorker-side MessagePort broker used by `UniqueSharedWorker`.
@@ -56,32 +42,31 @@ type SharedUniqueWorkerBrokerMessage =
  * compatibility are validated by the worker handshake.
  */
 export function installSharedUniqueWorkerMessagePortBroker(options?: {
-    scope?: SharedUniqueWorkerBrokerScope;
+    scope?: ServiceWorkerGlobalScope;
 }): void {
-    const scope = options?.scope ?? (globalThis as unknown as SharedUniqueWorkerBrokerScope);
+    const scope = options?.scope ?? (globalThis as unknown as ServiceWorkerGlobalScope);
     const leaderClientIdsByKey = new Map<string, string>();
 
     scope.addEventListener("message", event => {
-        const message = event.data as Partial<SharedUniqueWorkerBrokerMessage> | null;
+        const message = receiveSharedUniqueWorkerBrokerMessage(event.data);
+        if (message === null) return;
 
-        switch (message?.type) {
-            case sharedUniqueWorkerRegisterLeaderMessageType:
-                if (typeof message.key === "string" && event.source?.id !== undefined) {
-                    leaderClientIdsByKey.set(message.key, event.source.id);
+        switch (message.type) {
+            case "shared-unique-worker:register-leader": {
+                leaderClientIdsByKey.set(message.key, (event.source as Client).id);
+                break;
+            }
+
+            case "shared-unique-worker:unregister-leader": {
+                const sourceClientId = (event.source as Client).id;
+                const leaderClientId = leaderClientIdsByKey.get(message.key);
+                if (leaderClientId === sourceClientId) {
+                    leaderClientIdsByKey.delete(message.key);
                 }
                 break;
+            }
 
-            case sharedUniqueWorkerUnregisterLeaderMessageType:
-                if (typeof message.key === "string" && event.source?.id !== undefined) {
-                    const leaderClientId = leaderClientIdsByKey.get(message.key);
-                    if (leaderClientId === event.source.id) {
-                        leaderClientIdsByKey.delete(message.key);
-                    }
-                }
-                break;
-
-            case sharedUniqueWorkerConnectMessageType:
-                if (typeof message.key !== "string") return;
+            case "shared-unique-worker:connect":
                 event.waitUntil(
                     connectSharedUniqueWorkerFollower({
                         clients: scope.clients,
@@ -95,8 +80,67 @@ export function installSharedUniqueWorkerMessagePortBroker(options?: {
     });
 }
 
+export function sendSharedUniqueWorkerRegisterLeaderMessage(
+    target: ServiceWorker | {postMessage(message: unknown, transfer?: Array<Transferable>): void},
+    key: string,
+): void {
+    target.postMessage(
+        {
+            type: "shared-unique-worker:register-leader",
+            key,
+        } satisfies SharedUniqueWorkerRegisterLeaderMessage,
+        [],
+    );
+}
+
+export function sendSharedUniqueWorkerUnregisterLeaderMessage(
+    target: ServiceWorker | {postMessage(message: unknown, transfer?: Array<Transferable>): void},
+    key: string,
+): void {
+    target.postMessage(
+        {
+            type: "shared-unique-worker:unregister-leader",
+            key,
+        } satisfies SharedUniqueWorkerUnregisterLeaderMessage,
+        [],
+    );
+}
+
+export function sendSharedUniqueWorkerConnectMessage(
+    target: ServiceWorker | {postMessage(message: unknown, transfer?: Array<Transferable>): void},
+    key: string,
+    port: Transferable,
+): void {
+    target.postMessage(
+        {
+            type: "shared-unique-worker:connect",
+            key,
+        } satisfies SharedUniqueWorkerConnectMessage,
+        [port],
+    );
+}
+
+export function receiveSharedUniqueWorkerClientMessage(
+    data: unknown,
+): SharedUniqueWorkerClientMessage | null {
+    return receiveSharedUniqueWorkerMessage(data) as SharedUniqueWorkerClientMessage | null;
+}
+
+function receiveSharedUniqueWorkerBrokerMessage(
+    data: unknown,
+): SharedUniqueWorkerBrokerMessage | null {
+    return receiveSharedUniqueWorkerMessage(data) as SharedUniqueWorkerBrokerMessage | null;
+}
+
+function receiveSharedUniqueWorkerMessage(data: unknown): {readonly type: string} | null {
+    const type = (data as {type?: unknown} | null)?.type;
+    if (typeof type !== "string") return null;
+    if (!type.startsWith("shared-unique-worker:")) return null;
+    return data as {readonly type: string};
+}
+
 async function connectSharedUniqueWorkerFollower(options: {
-    clients: SharedUniqueWorkerBrokerClients;
+    clients: Clients;
     leaderClientIdsByKey: Map<string, string>;
     key: string;
     port: MessagePort | undefined;
@@ -106,30 +150,40 @@ async function connectSharedUniqueWorkerFollower(options: {
 
     const leaderClientId = leaderClientIdsByKey.get(key);
     if (leaderClientId === undefined) {
-        sendSharedUniqueWorkerConnectError(port, `No shared unique worker leader for ${key}`);
+        sendSharedUniqueWorkerConnectErrorMessage(
+            port,
+            `No shared unique worker leader for ${key}`,
+        );
         return;
     }
 
     const leaderClient = await clients.get(leaderClientId);
     if (leaderClient === undefined) {
         leaderClientIdsByKey.delete(key);
-        sendSharedUniqueWorkerConnectError(port, `No shared unique worker leader for ${key}`);
+        sendSharedUniqueWorkerConnectErrorMessage(
+            port,
+            `No shared unique worker leader for ${key}`,
+        );
         return;
     }
 
-    leaderClient.postMessage(
+    sendSharedUniqueWorkerPortMessage(leaderClient, key, port);
+}
+
+function sendSharedUniqueWorkerPortMessage(target: Client, key: string, port: Transferable): void {
+    target.postMessage(
         {
-            type: sharedUniqueWorkerPortMessageType,
+            type: "shared-unique-worker:port",
             key,
-        },
+        } satisfies SharedUniqueWorkerPortMessage,
         [port],
     );
 }
 
-function sendSharedUniqueWorkerConnectError(port: MessagePort, message: string): void {
+function sendSharedUniqueWorkerConnectErrorMessage(port: MessagePort, message: string): void {
     port.postMessage({
-        type: sharedUniqueWorkerConnectErrorMessageType,
+        type: "shared-unique-worker:connect-error",
         message,
-    });
+    } satisfies SharedUniqueWorkerConnectErrorMessage);
     port.close();
 }

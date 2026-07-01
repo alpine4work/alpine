@@ -1,9 +1,9 @@
 import {
-    sharedUniqueWorkerConnectErrorMessageType,
-    sharedUniqueWorkerConnectMessageType,
-    sharedUniqueWorkerPortMessageType,
-    sharedUniqueWorkerRegisterLeaderMessageType,
-    sharedUniqueWorkerUnregisterLeaderMessageType,
+    type SharedUniqueWorkerClientMessage,
+    receiveSharedUniqueWorkerClientMessage,
+    sendSharedUniqueWorkerConnectMessage,
+    sendSharedUniqueWorkerRegisterLeaderMessage,
+    sendSharedUniqueWorkerUnregisterLeaderMessage,
 } from "~/client/web/helpers/workers/shared_unique_worker_message_port_broker.js";
 import {WebWorkerRpc, WebWorkerRpcHandlers} from "~/client/web/helpers/workers/web_worker_rpc.js";
 import {WebWorkerRpcMethodDefinitions} from "~/client/web/helpers/workers/web_worker_rpc_method.js";
@@ -18,12 +18,40 @@ import {
 import {assert} from "~/shared/helpers/control/assert.js";
 import {SchemaType} from "~/shared/schema/schema.js";
 
-const sharedUniqueWorkerNewLeaderMessageType = "shared-unique-worker-new-leader";
-const sharedUniqueWorkerLeaderClosingMessageType = "shared-unique-worker-leader-closing";
-const sharedUniqueWorkerWorkerConnectMessageType = "shared-unique-worker-worker-connect";
-const sharedUniqueWorkerReadyMessageType = "shared-unique-worker-ready";
-const sharedUniqueWorkerSetupErrorMessageType = "shared-unique-worker-setup-error";
-const sharedUniqueWorkerCloseMessageType = "shared-unique-worker-close";
+type UniqueSharedWorkerBroadcastMessage =
+    | {
+          readonly type: "shared-unique-worker:new-leader";
+          readonly key: string;
+      }
+    | {
+          readonly type: "shared-unique-worker:leader-closing";
+          readonly key: string;
+      };
+
+type UniqueSharedWorkerConnectPortMessage = {
+    readonly type: "shared-unique-worker:worker-connect";
+    readonly key: string;
+    readonly workerUrl: string;
+};
+
+type UniqueSharedWorkerReadyMessage = {
+    readonly type: "shared-unique-worker:ready";
+    readonly workerUrl: string;
+};
+
+type UniqueSharedWorkerSetupErrorMessage = {
+    readonly type: "shared-unique-worker:setup-error";
+    readonly message: string;
+};
+
+type UniqueSharedWorkerCloseMessage = {
+    readonly type: "shared-unique-worker:close";
+};
+
+type UniqueSharedWorkerPortSetupMessage =
+    | UniqueSharedWorkerReadyMessage
+    | UniqueSharedWorkerSetupErrorMessage
+    | SharedUniqueWorkerClientMessage;
 
 interface UniqueSharedWorkerOptions<
     WorkerDef extends WebWorkerRpcMethodDefinitions,
@@ -243,10 +271,7 @@ export class UniqueSharedWorker<
         if (state.type === "closed") return;
 
         if (state.type === "connected-leader" || state.type === "promoting-to-leader") {
-            this.broadcastChannel.postMessage({
-                type: sharedUniqueWorkerLeaderClosingMessageType,
-                key: this.key,
-            });
+            sendUniqueSharedWorkerLeaderClosingMessage(this.broadcastChannel, this.key);
             this.unregisterLeader();
             state.worker?.terminate();
             state.releaseLock();
@@ -360,15 +385,15 @@ export class UniqueSharedWorker<
     }
 
     private handleBroadcast(data: unknown): void {
-        const message = data as {type?: string; key?: string} | null;
-        if (message?.key !== this.key) return;
+        const message = receiveUniqueSharedWorkerBroadcastMessage(data);
+        if (message === null || message.key !== this.key) return;
 
         switch (message.type) {
-            case sharedUniqueWorkerLeaderClosingMessageType:
+            case "shared-unique-worker:leader-closing":
                 this.handleLeaderClosing();
                 break;
 
-            case sharedUniqueWorkerNewLeaderMessageType:
+            case "shared-unique-worker:new-leader":
                 void this.reconnectAsFollower();
                 break;
         }
@@ -384,8 +409,12 @@ export class UniqueSharedWorker<
     }
 
     private handleServiceWorkerMessage(event: {data: unknown; ports: Array<MessagePort>}): void {
-        const message = event.data as {type?: string; key?: string} | null;
-        if (message?.type !== sharedUniqueWorkerPortMessageType || message.key !== this.key) {
+        const message = receiveSharedUniqueWorkerClientMessage(event.data);
+        if (
+            message === null ||
+            message.type !== "shared-unique-worker:port" ||
+            message.key !== this.key
+        ) {
             return;
         }
 
@@ -397,14 +426,7 @@ export class UniqueSharedWorker<
                 : undefined;
         if (port === undefined || worker === undefined) return;
 
-        worker.postMessage(
-            {
-                type: sharedUniqueWorkerWorkerConnectMessageType,
-                key: this.key,
-                workerUrl: this.workerUrl,
-            },
-            [port],
-        );
+        sendUniqueSharedWorkerConnectPortMessage(worker, this.key, this.workerUrl, port);
     }
 
     private setupLockWait(): void {
@@ -454,10 +476,7 @@ export class UniqueSharedWorker<
             }
 
             this.state = {type: "promoting-to-leader", releaseLock, connection, worker};
-            this.broadcastChannel.postMessage({
-                type: sharedUniqueWorkerNewLeaderMessageType,
-                key: this.key,
-            });
+            sendUniqueSharedWorkerNewLeaderMessage(this.broadcastChannel, this.key);
             if (runReconnect) {
                 await this.runReconnectHook();
             }
@@ -554,14 +573,7 @@ export class UniqueSharedWorker<
     }> {
         const worker = this.runtime.createWorker(this.workerUrl);
         const channel = this.runtime.createMessageChannel();
-        worker.postMessage(
-            {
-                type: sharedUniqueWorkerWorkerConnectMessageType,
-                key: this.key,
-                workerUrl: this.workerUrl,
-            },
-            [channel.port2],
-        );
+        sendUniqueSharedWorkerConnectPortMessage(worker, this.key, this.workerUrl, channel.port2);
 
         const connection = await this.createConnectionFromPort(channel.port1);
         await this.registerLeader();
@@ -594,13 +606,7 @@ export class UniqueSharedWorker<
     > {
         const active = await this.getActiveServiceWorker();
         const channel = this.runtime.createMessageChannel();
-        active.postMessage(
-            {
-                type: sharedUniqueWorkerConnectMessageType,
-                key: this.key,
-            },
-            [channel.port2],
-        );
+        sendSharedUniqueWorkerConnectMessage(active, this.key, channel.port2);
         return await this.createConnectionFromPort(channel.port1);
     }
 
@@ -634,7 +640,7 @@ export class UniqueSharedWorker<
             port,
             close() {
                 try {
-                    port.postMessage({type: sharedUniqueWorkerCloseMessageType});
+                    sendUniqueSharedWorkerCloseMessage(port);
                 } catch {
                     // The other side may already be gone.
                 }
@@ -660,19 +666,13 @@ export class UniqueSharedWorker<
 
     private async registerLeader(): Promise<void> {
         const active = await this.getActiveServiceWorker();
-        active.postMessage({
-            type: sharedUniqueWorkerRegisterLeaderMessageType,
-            key: this.key,
-        });
+        sendSharedUniqueWorkerRegisterLeaderMessage(active, this.key);
     }
 
     private unregisterLeader(): void {
         this.getActiveServiceWorker().then(
             active => {
-                active.postMessage({
-                    type: sharedUniqueWorkerUnregisterLeaderMessageType,
-                    key: this.key,
-                });
+                sendSharedUniqueWorkerUnregisterLeaderMessage(active, this.key);
             },
             () => {},
         );
@@ -748,13 +748,8 @@ export class UniqueSharedWorkerLeader<
     }
 
     private async handleMessage(data: unknown, ports: Array<MessagePort>): Promise<void> {
-        const message = data as {type?: string; key?: string; workerUrl?: string} | null;
-        if (
-            message?.type !== sharedUniqueWorkerWorkerConnectMessageType ||
-            message.key !== this.key
-        ) {
-            return;
-        }
+        const message = receiveUniqueSharedWorkerConnectPortMessage(data);
+        if (message === null || message.key !== this.key) return;
 
         const port = ports[0];
         if (port === undefined) return;
@@ -784,8 +779,8 @@ export class UniqueSharedWorkerLeader<
             await this.options.onConnect?.(connection);
 
             port.onmessage = event => {
-                const message = event.data as {type?: string} | null;
-                if (message?.type === sharedUniqueWorkerCloseMessageType) {
+                const message = receiveUniqueSharedWorkerCloseMessage(event.data);
+                if (message !== null) {
                     this.removeConnection(connection!);
                     port.close();
                     return;
@@ -793,18 +788,15 @@ export class UniqueSharedWorkerLeader<
                 rpc.handleMessage(event.data);
             };
             port.start();
-            port.postMessage({
-                type: sharedUniqueWorkerReadyMessageType,
-                workerUrl,
-            });
+            sendUniqueSharedWorkerReadyMessage(port, workerUrl);
         } catch (error) {
             if (connection !== undefined) {
                 this.removeConnection(connection);
             }
-            port.postMessage({
-                type: sharedUniqueWorkerSetupErrorMessageType,
-                message: error instanceof Error ? error.message : String(error),
-            });
+            sendUniqueSharedWorkerSetupErrorMessage(
+                port,
+                error instanceof Error ? error.message : String(error),
+            );
             port.close();
         }
     }
@@ -935,6 +927,95 @@ function wrapUniqueSharedWorkerPort(port: MessagePort): UniqueSharedWorkerPort {
     };
 }
 
+function sendUniqueSharedWorkerLeaderClosingMessage(
+    target: UniqueSharedWorkerBroadcastChannel,
+    key: string,
+): void {
+    target.postMessage({
+        type: "shared-unique-worker:leader-closing",
+        key,
+    } satisfies UniqueSharedWorkerBroadcastMessage);
+}
+
+function sendUniqueSharedWorkerNewLeaderMessage(
+    target: UniqueSharedWorkerBroadcastChannel,
+    key: string,
+): void {
+    target.postMessage({
+        type: "shared-unique-worker:new-leader",
+        key,
+    } satisfies UniqueSharedWorkerBroadcastMessage);
+}
+
+function receiveUniqueSharedWorkerBroadcastMessage(
+    data: unknown,
+): UniqueSharedWorkerBroadcastMessage | null {
+    return receiveUniqueSharedWorkerMessage(data) as UniqueSharedWorkerBroadcastMessage | null;
+}
+
+function sendUniqueSharedWorkerConnectPortMessage(
+    target: UniqueSharedWorkerHandle,
+    key: string,
+    workerUrl: string,
+    port: Transferable,
+): void {
+    target.postMessage(
+        {
+            type: "shared-unique-worker:worker-connect",
+            key,
+            workerUrl,
+        } satisfies UniqueSharedWorkerConnectPortMessage,
+        [port],
+    );
+}
+
+function receiveUniqueSharedWorkerConnectPortMessage(
+    data: unknown,
+): UniqueSharedWorkerConnectPortMessage | null {
+    return receiveUniqueSharedWorkerMessage(data) as UniqueSharedWorkerConnectPortMessage | null;
+}
+
+function sendUniqueSharedWorkerReadyMessage(port: MessagePort, workerUrl: string): void {
+    port.postMessage({
+        type: "shared-unique-worker:ready",
+        workerUrl,
+    } satisfies UniqueSharedWorkerReadyMessage);
+}
+
+function sendUniqueSharedWorkerSetupErrorMessage(port: MessagePort, message: string): void {
+    port.postMessage({
+        type: "shared-unique-worker:setup-error",
+        message,
+    } satisfies UniqueSharedWorkerSetupErrorMessage);
+}
+
+function sendUniqueSharedWorkerCloseMessage(port: UniqueSharedWorkerPort): void {
+    port.postMessage({
+        type: "shared-unique-worker:close",
+    } satisfies UniqueSharedWorkerCloseMessage);
+}
+
+function receiveUniqueSharedWorkerCloseMessage(
+    data: unknown,
+): UniqueSharedWorkerCloseMessage | null {
+    return receiveUniqueSharedWorkerMessage(data) as UniqueSharedWorkerCloseMessage | null;
+}
+
+function receiveUniqueSharedWorkerPortSetupMessage(
+    data: unknown,
+): UniqueSharedWorkerPortSetupMessage | null {
+    const clientMessage = receiveSharedUniqueWorkerClientMessage(data);
+    if (clientMessage !== null) return clientMessage;
+    return receiveUniqueSharedWorkerMessage(data) as UniqueSharedWorkerPortSetupMessage | null;
+}
+
+function receiveUniqueSharedWorkerMessage(data: unknown): {readonly type: string} | null {
+    const type = (data as {type?: unknown} | null)?.type;
+    if (typeof type !== "string") return null;
+    if (!type.startsWith("shared-unique-worker:")) return null;
+    return data as {readonly type: string};
+}
+
 function normalizeUniqueSharedWorkerKey(key: string): string {
     return `UniqueSharedWorker(${key})`;
 }
@@ -956,45 +1037,32 @@ function waitForUniqueSharedWorkerHandshake(
 ): Promise<{type: "ready"; workerUrl: string} | {type: "error"; error: Error}> {
     return new Promise(resolve => {
         port.onmessage = event => {
-            const message = event.data as {
-                type?: string;
-                workerUrl?: string;
-                message?: string;
-            } | null;
+            const message = receiveUniqueSharedWorkerPortSetupMessage(event.data);
+            if (message === null) return;
 
-            switch (message?.type) {
-                case sharedUniqueWorkerReadyMessageType:
-                    if (typeof message.workerUrl === "string") {
-                        resolve({
-                            type: "ready",
-                            workerUrl: normalizeUniqueSharedWorkerUrl(message.workerUrl),
-                        });
-                    } else {
-                        resolve({
-                            type: "error",
-                            error: new FailedPreconditionError(
-                                "Unique shared worker ready message did not include workerUrl",
-                            ),
-                        });
-                    }
-                    break;
-
-                case sharedUniqueWorkerSetupErrorMessageType:
+            switch (message.type) {
+                case "shared-unique-worker:ready":
                     resolve({
-                        type: "error",
-                        error: new FailedPreconditionError(
-                            message.message ?? "Unique shared worker setup failed",
-                        ),
+                        type: "ready",
+                        workerUrl: normalizeUniqueSharedWorkerUrl(message.workerUrl),
                     });
                     break;
 
-                case sharedUniqueWorkerConnectErrorMessageType:
+                case "shared-unique-worker:setup-error":
                     resolve({
                         type: "error",
-                        error: new UnavailableError(
-                            message.message ?? "Unique shared worker connection failed",
-                        ),
+                        error: new FailedPreconditionError(message.message),
                     });
+                    break;
+
+                case "shared-unique-worker:connect-error":
+                    resolve({
+                        type: "error",
+                        error: new UnavailableError(message.message),
+                    });
+                    break;
+
+                case "shared-unique-worker:port":
                     break;
             }
         };
