@@ -8,20 +8,28 @@ import {assertExists} from "~/shared/helpers/control/assert_exists.js";
  * A helper for conveniently creating content nodes. Mostly used in tests.
  */
 export function createContentBuilder(schema: ContentProsemirrorSchema) {
+    const mark = (mark: Mark, node: Node | string) =>
+        typeof node === "string" ? schema.text(node, [mark]) : node.mark(mark.addToSet(node.marks));
+
     return {
         doc: (...content: Array<Node>) => schema.nodes.doc.create(null, content),
 
-        paragraph: (...content: Array<Node>) => schema.nodes.paragraph.create(null, content),
-
-        text: (string: string, marks?: Array<Mark>) => schema.text(string, marks),
+        paragraph: (...content: Array<Node | string>) =>
+            schema.nodes.paragraph.create(
+                null,
+                content.map(node => (typeof node === "string" ? schema.text(node) : node)),
+            ),
 
         quoteBlock: (...content: Array<Node>) => schema.nodes.quoteBlock.create(null, content),
 
         codeBlock: (language: string, ...lines: Array<Node>) =>
             schema.nodes.codeBlock.create({language}, lines),
 
-        codeBlockLine: (...content: Array<Node>) =>
-            schema.nodes.codeBlockLine.create(null, content),
+        codeBlockLine: (...content: Array<Node | string>) =>
+            schema.nodes.codeBlockLine.create(
+                null,
+                content.map(node => (typeof node === "string" ? schema.text(node) : node)),
+            ),
 
         unorderedListItem: (indent: number, ...content: Array<Node>) =>
             schema.nodes.unorderedListItem.create({indent}, content),
@@ -38,10 +46,10 @@ export function createContentBuilder(schema: ContentProsemirrorSchema) {
         checkListItem: (indent: number, checked: boolean, ...content: Array<Node>) =>
             assertExists(schema.nodes.checkListItem).create({indent, checked}, content),
 
-        break: (marks?: Array<Mark>) => schema.nodes.break.create(null, null, marks),
+        break: () => schema.nodes.break.create(null, null),
 
-        mention: (mention: ContentMention, marks?: Array<Mark>) =>
-            assertExists(schema.nodes.mention).create({mention}, null, marks),
+        mention: (mention: ContentMention) =>
+            assertExists(schema.nodes.mention).create({mention}, null),
 
         table: (
             attrs: {
@@ -57,16 +65,19 @@ export function createContentBuilder(schema: ContentProsemirrorSchema) {
 
         tableCell: (...content: Array<Node>) => schema.nodes.tableCell.create(null, content),
 
-        heading: (level: number, ...content: Array<Node>) =>
-            schema.nodes.heading.create({level}, content),
+        heading: (level: number, ...content: Array<Node | string>) =>
+            schema.nodes.heading.create(
+                {level},
+                content.map(node => (typeof node === "string" ? schema.text(node) : node)),
+            ),
 
         divider: () => schema.nodes.divider.create(),
 
         fileRow: (...content: Array<Node>) =>
             assertExists(schema.nodes.fileRow).create(null, content),
 
-        file: (attrs: {fileId: string | null}, marks?: ReadonlyArray<Mark>) =>
-            assertExists(schema.nodes.file).create(attrs, null, marks),
+        file: (attrs: {fileId: string | null}) =>
+            assertExists(schema.nodes.file).create(attrs, null),
 
         fileFloat: (attrs: {direction: string}, ...content: Array<Node>) =>
             assertExists(schema.nodes.fileFloat).create(attrs, content),
@@ -74,19 +85,20 @@ export function createContentBuilder(schema: ContentProsemirrorSchema) {
         fileRowTable: (...content: Array<Node>) =>
             assertExists(schema.nodes.fileRowTable).create(null, content),
 
-        bold: () => schema.marks.bold.create(),
+        bold: (node: Node | string) => mark(schema.marks.bold.create(), node),
 
-        italic: () => schema.marks.italic.create(),
+        italic: (node: Node | string) => mark(schema.marks.italic.create(), node),
 
-        code: () => schema.marks.code.create(),
+        code: (node: Node | string) => mark(schema.marks.code.create(), node),
 
-        link: (url: string) => schema.marks.link.create({url}),
+        link: (url: string, node: Node | string) => mark(schema.marks.link.create({url}), node),
 
-        strike: () => schema.marks.strike.create(),
+        strike: (node: Node | string) => mark(schema.marks.strike.create(), node),
 
-        highlight: (color: HighlightColor) => assertExists(schema.marks.highlight).create({color}),
+        highlight: (color: HighlightColor, node: Node | string) =>
+            mark(assertExists(schema.marks.highlight).create({color}), node),
 
-        comment: (commentThreadId: string) =>
-            assertExists(schema.marks.comment).create({commentThreadId}),
+        comment: (commentThreadId: string, node: Node | string) =>
+            mark(assertExists(schema.marks.comment).create({commentThreadId}), node),
     };
 }
