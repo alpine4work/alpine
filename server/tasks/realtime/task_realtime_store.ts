@@ -64,8 +64,8 @@ import {AccountModel} from "~/shared/spaces/account_model.js";
 import {TaskAction} from "~/shared/tasks/actions/task_action.js";
 import {TaskQueryNormalizedFilters} from "~/shared/tasks/task_query_normalized_filters.js";
 import {TaskQueryNormalizedSort} from "~/shared/tasks/task_query_normalized_sort.js";
-import {TaskRealtimeQueryLoadedState} from "~/shared/tasks/task_realtime_protocol.js";
 import {TaskQuerySortCursor} from "~/shared/tasks/task_query_sort_cursor.js";
+import {TaskRealtimeQueryLoadedState} from "~/shared/tasks/task_realtime_protocol.js";
 
 /**
  * This class is the main component of our task realtime implementation. It keeps
@@ -181,6 +181,23 @@ export class TaskRealtimeStore {
     }> {
         return await this._withFatalErrorHandling(context, () =>
             this._internal.loadQuery(context, options),
+        );
+    }
+
+    public async expensivelyLoadQueryAfterCursor(
+        context: TaskRealtimeSystemActionContext,
+        options: {
+            filters: TaskQueryNormalizedFilters;
+            sorts: ReadonlyArray<TaskQueryNormalizedSort>;
+            limit: number;
+            afterCursor: TaskQuerySortCursor | null;
+        },
+    ): Promise<{
+        loadedState: TaskRealtimeQueryLoadedState;
+        tasks: Array<TaskIndexDoc>;
+    }> {
+        return await this._withFatalErrorHandling(context, () =>
+            this._internal.expensivelyLoadQueryAfterCursor(context, options),
         );
     }
 
@@ -611,7 +628,13 @@ export class TaskRealtimeStoreInternal {
         });
     }
 
-    // NOCOMMIT: Document
+    /**
+     * Loads tasks after `afterCursor` into a query by first extending the contiguous
+     * loaded range from the start of the query up to `afterCursor`.
+     *
+     * This can be expensive for random access deep into a large query. Prefer forward
+     * pagination from the beginning of the query.
+     */
     public async expensivelyLoadQueryAfterCursor(
         context: TaskRealtimeSystemActionContext,
         {

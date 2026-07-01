@@ -818,9 +818,6 @@ export class TaskRealtimeQuery {
             return;
         }
 
-        // We've fully loaded the query. There's nothing new to load!
-        if (this._loadedBeforeCursor === "FullyLoaded") return;
-
         // If `afterCursor` isn't in the loaded range yet then we need to load tasks until
         // we find `afterCursor`. This can get quite expensive, in the worst case we'll
         // need to load the entire query!
@@ -837,7 +834,9 @@ export class TaskRealtimeQuery {
 
             while (
                 this._loadedBeforeCursor === "Unloaded" ||
-                compareTaskQuerySortCursors(this.sorts, this._loadedBeforeCursor, afterCursor) < 0
+                (this._loadedBeforeCursor !== "FullyLoaded" &&
+                    compareTaskQuerySortCursors(this.sorts, this._loadedBeforeCursor, afterCursor) <
+                        0)
             ) {
                 // We load exponentially more tasks each iteration, if we have a query of 1,000,000
                 // tasks then loading all the tasks will take 16 iterations instead of thousands.
@@ -879,8 +878,12 @@ export class TaskRealtimeQuery {
 
             // This `cursor` is out of our loaded range and so doesn't count towards our
             // `limit`.
-            if (compareTaskQuerySortCursors(this.sorts, this._loadedBeforeCursor, cursor) < 0)
+            if (
+                this._loadedBeforeCursor !== "FullyLoaded" &&
+                compareTaskQuerySortCursors(this.sorts, this._loadedBeforeCursor, cursor) < 0
+            ) {
                 break;
+            }
 
             remainingLimit--;
             iterator.next();
