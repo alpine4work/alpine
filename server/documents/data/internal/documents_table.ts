@@ -50,6 +50,12 @@ const DocumentCommentThreadAttributesSchema = Schema.object({
      */
     fallbackContentSnippet: Schema.object({
         version: Schema.integer,
+        pos: Schema.integer
+            // NOTE(calebmer): `pos` doesn't exist on `fallbackContentSnippet`s before
+            // 2026-07-01. Default these to 0. There should be very few of these out there and
+            // they're by definition on dead comment references so I wouldn't recommend adding
+            // special support for this case.
+            .default(0),
         node: DocumentWithOptionalTitleContentSchema,
     })
         .nullable()

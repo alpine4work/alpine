@@ -2046,17 +2046,6 @@ export async function getDocumentCommentThreadContent(
         iterableFirst(commentThreadItem.commentsSummary.commentCountByAuthorId.keys()),
     );
 
-    const fallbackContentSnippet = commentThreadItem.fallbackContentSnippet
-        ? {
-              version: commentThreadItem.fallbackContentSnippet.version,
-              node: assertDocumentWithOptionalTitleContent(
-                  stripDocumentContentCommentMarks(commentThreadItem.fallbackContentSnippet.node, {
-                      exceptCommentThreadIds: new Set([commentThreadItem.commentThreadId]),
-                  }),
-              ),
-          }
-        : null;
-
     return {
         spaceId,
         id: commentThreadId,
@@ -2065,7 +2054,7 @@ export async function getDocumentCommentThreadContent(
         isResolved: commentThreadItem.resolutionState.type === "Resolved",
         commentCount: getDocumentCommentCount(commentThreadItem.commentsSummary),
         firstCommentAuthorId,
-        fallbackContentSnippet,
+        fallbackContentSnippet: commentThreadItem.fallbackContentSnippet,
     };
 }
 
@@ -3257,6 +3246,7 @@ export async function updateDocumentContent(
                                 ...commentThreadItem,
                                 fallbackContentSnippet: {
                                     version: internalDocument.version,
+                                    pos: contentSnippet.pos,
                                     // Convert from `DocumentContent` to `DocumentWithOptionalTitleContent`. This
                                     // should also drop the `accessPolicy` attr on `doc`.
                                     node: assertDocumentWithOptionalTitleContent(
