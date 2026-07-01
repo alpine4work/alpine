@@ -8,7 +8,7 @@ import {
     type DatabaseActionOutput,
     databaseActions,
 } from "~/shared/databases/database_actions.js";
-import {DatabaseSchema} from "~/shared/databases/database_schema.js";
+import {DatabaseModel} from "~/shared/databases/model/database_model.js";
 import {DatabaseFieldConfigSqlSchema} from "~/shared/databases/fields/database_field_providers.js";
 import {databaseTableSchemaName, sql} from "~/shared/databases/sql.js";
 import {SqliteDatabase} from "~/shared/databases/sqlite.js";
@@ -56,7 +56,7 @@ function attachTableDb(db: SqliteDatabase, tableId: DatabaseTableId): void {
 function makeCtx(db: SqliteDatabase): DatabaseActionContext {
     return {
         db,
-        schema: new DatabaseSchema(db),
+        schema: new DatabaseModel(db),
         server: {
             attach(tableId) {
                 attachTableDb(db, tableId);
@@ -74,7 +74,91 @@ function run<N extends DatabaseActionName>(
     return databaseActions[name].run(makeCtx(db), input as never) as DatabaseActionOutput<N>;
 }
 
+function readSqliteSchemaObjects(
+    db: Database,
+    tableId: DatabaseTableId | null,
+): Array<Record<string, unknown>> {
+    const sqliteSchema =
+        tableId == null ? sql.identifier("sqlite_schema") : sql.tableRef(tableId, "sqlite_schema");
+    return sql`
+        SELECT
+            type,
+            name,
+            tbl_name,
+            sql
+        FROM
+            ${sqliteSchema}
+        ORDER BY
+            type,
+            name
+    `.selectAllUnknown(db);
+}
+
+function normalizeSchemaObjectIds(
+    schemaObjects: Array<Record<string, unknown>>,
+    replacements: ReadonlyMap<string, string>,
+): Array<Record<string, unknown>> {
+    return schemaObjects.map(schemaObject =>
+        Object.fromEntries(
+            Object.entries(schemaObject).map(([key, value]) => {
+                if (typeof value !== "string") return [key, value];
+                const normalized = normalizeGeneratedIds(value, replacements);
+                return [key, key === "sql" ? compactSql(normalized) : normalized];
+            }),
+        ),
+    );
+}
+
+function normalizeGeneratedIds(value: string, replacements: ReadonlyMap<string, string>): string {
+    let normalized = value;
+    for (const [id, replacement] of replacements) {
+        normalized = normalized.split(id).join(replacement);
+    }
+    return normalized.replace(/[0-9a-z]{26}/g, "<id>");
+}
+
+function compactSql(value: string): string {
+    return value.replace(/\s+/g, " ").trim();
+}
+
 describe("sqlite migrations", () => {
+    test("preserves the current migrated SQLite schema contract", async () => {
+        const db = await createDb();
+        const source = run(db, "createTable", {name: "Projects"});
+        const target = run(db, "createTable", {name: "People"});
+        const relation = run(db, "createRelationField", {
+            tableId: source.tableId,
+            viewId: source.viewId,
+            name: "Owner",
+            linkedTableId: target.tableId,
+            cardinality: "one",
+        });
+        const replacements = new Map([
+            [source.tableId, "<sourceTableId>"],
+            [target.tableId, "<targetTableId>"],
+            [relation.joinTableId, "<joinTableId>"],
+        ]);
+
+        const currentSchema = {
+            main: normalizeSchemaObjectIds(readSqliteSchemaObjects(db, null), replacements),
+            sourceTable: normalizeSchemaObjectIds(
+                readSqliteSchemaObjects(db, source.tableId),
+                replacements,
+            ),
+            targetTable: normalizeSchemaObjectIds(
+                readSqliteSchemaObjects(db, target.tableId),
+                replacements,
+            ),
+            joinTable: normalizeSchemaObjectIds(
+                readSqliteSchemaObjects(db, relation.joinTableId),
+                replacements,
+            ),
+        };
+
+        expect(currentSchema).toMatchSnapshot();
+        db.close();
+    });
+
     test("main migration backfills existing table rows as user tables", async () => {
         const sqlite3 = await sqlite3Promise;
         const db = new sqlite3.oo1.DB(`/test-main-migration-${dbCounter++}.sqlite3`, "ct");
@@ -691,7 +775,7 @@ function addRelationFieldMetadata(
                 ${tableId},
                 ${name},
                 ${"links"},
-                ${DatabaseFieldConfigSqlSchema.serialize(config)}
+                jsonb (${DatabaseFieldConfigSqlSchema.serialize(config)})
             )
     `.exec(db);
     sql`
@@ -717,7 +801,7 @@ function readFieldById(
         SELECT
             id,
             name,
-            config
+            JSON(config) AS config
         FROM
             ${sql.tableRef(tableId, "_alpine_fields")}
         WHERE
@@ -1717,10 +1801,10 @@ describe("getViewRowsPage", () => {
         sql`
             UPDATE ${sql.tableRef(target.tableId, "_alpine_fields")}
             SET
-                config = ${DatabaseFieldConfigSqlSchema.serialize({
+                config = jsonb (${DatabaseFieldConfigSqlSchema.serialize({
                 type: "number",
                 decimalPlaces: 2,
-            })}
+            })})
             WHERE
                 id = ${scoreFieldId}
         `.exec(db);

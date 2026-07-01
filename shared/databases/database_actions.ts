@@ -1,4 +1,8 @@
-import {DatabaseFieldSchema, DatabaseSchema} from "~/shared/databases/database_schema.js";
+import {
+    DatabaseFieldModel,
+    DatabaseModel,
+    DatabaseTableModel,
+} from "~/shared/databases/model/database_model.js";
 import {
     type DatabaseFieldConfig,
     DatabaseFieldConfigSchema,
@@ -12,8 +16,8 @@ import {formatUniqueSqlName} from "~/shared/databases/internal/format_unique_sql
 import {
     DatabaseFieldRow,
     DatabaseViewFieldRow,
-} from "~/shared/databases/schema/database_row_schemas.js";
-import {SqlBooleanSchema, SqlJsonSchema} from "~/shared/databases/schema/sqlite_schema.js";
+} from "~/shared/databases/model/database_row_schemas.js";
+import {SqlBooleanSchema, SqlJsonSchema} from "~/shared/databases/model/sqlite_schema.js";
 import {type SqlQuery, sql} from "~/shared/databases/sql.js";
 import {SqliteDatabase} from "~/shared/databases/sqlite.js";
 import type {SqliteWriteLevel} from "~/shared/databases/sqlite_authorizer.js";
@@ -30,6 +34,7 @@ import type {
 import {LabelStringSchema} from "~/shared/schema/helpers/label_string_schema.js";
 import {OrderKeySchema} from "~/shared/schema/helpers/order_key_schema.js";
 import {type ObjectSchema, Schema, type SchemaType} from "~/shared/schema/schema.js";
+import {schema} from "prosemirror-schema-basic";
 
 /**
  * Server-only capabilities. Present on the server, `null` on the client — so
@@ -51,7 +56,7 @@ export interface DatabaseActionContext {
     /** Server-only capabilities, or `null` on the client. */
     server: DatabaseActionServerContext | null;
     /** The database schema */
-    schema: DatabaseSchema;
+    model: DatabaseModel;
 }
 
 /**
@@ -91,10 +96,9 @@ function defineDatabaseAction<Input, Output>(def: {
  * with the appropriate type affinity and CHECK constraint.
  */
 function createField(
-    schema: DatabaseSchema,
+    table: DatabaseTableModel,
     {
         fieldId,
-        tableId,
         viewId,
         name,
         type,
@@ -131,7 +135,7 @@ function createField(
 }
 
 function createFieldMetadata(
-    schema: DatabaseSchema,
+    schema: DatabaseModel,
     {
         fieldId,
         tableId,
@@ -183,7 +187,7 @@ function createFieldMetadata(
 }
 
 function insertFieldIntoView(
-    schema: DatabaseSchema,
+    schema: DatabaseModel,
     {
         tableId,
         viewId,
@@ -251,7 +255,7 @@ function readNameFieldReference(
     const field = sql`
         SELECT
             column_name,
-            config
+            JSON(config) AS config
         FROM
             ${sql.tableRef(tableId, "_alpine_fields")}
         WHERE
@@ -270,7 +274,7 @@ type DatabaseRelationProjection = {
 };
 
 function createRelationProjection(
-    field: DatabaseFieldSchema,
+    field: DatabaseFieldModel,
     {
         rowAlias,
         fieldIndex,
@@ -291,19 +295,21 @@ function createRelationProjection(
     const projectionSql = sql`
         (
             SELECT
-                COALESCE(
-                    JSONB_GROUP_ARRAY (
-                        JSONB_OBJECT (
-                            'id',
-                            linked_row._id,
-                            'name',
-                            ${sql.identifier("linked_row", linkedNameField.columnName)}
-                        )
-                        ORDER BY
-                            link_row._created_at,
-                            link_row.rowid
-                    ),
-                    '[]'
+                JSON(
+                    COALESCE(
+                        JSONB_GROUP_ARRAY (
+                            JSONB_OBJECT (
+                                'id',
+                                linked_row._id,
+                                'name',
+                                ${sql.identifier("linked_row", linkedNameField.columnName)}
+                            )
+                            ORDER BY
+                                link_row._created_at,
+                                link_row.rowid
+                        ),
+                        JSONB ('[]')
+                    )
                 )
             FROM
                 ${sql.tableRef(relation.joinTable.id, "_alpine_links")} link_row
@@ -374,82 +380,18 @@ export const databaseActions = {
         // Server-only so it can mint ids internally and attach a brand-new per-db file
         // without client/server divergence; the client routes this to the server.
         serverOnly: true,
-        run({db, server, schema}, {name}) {
+        run({db, server, model}, {name}) {
             assert(server !== null, "createTable is server-only");
             const tableId = generateChronologicalId<DatabaseTableId>();
-            const viewId = generateChronologicalId<DatabaseViewId>();
-            const fieldId = generateChronologicalId<DatabaseFieldId>();
 
             // Attach + migrate the new per-db file before writing any of the table's data or
             // metadata into it. `attach` is a no-op if already attached.
             server.attach(tableId);
             runTableMigrations(db, tableId);
 
-            // Public main database: ID-only registry + routing.
-            sql`
-                INSERT INTO
-                    _alpine_tables (id)
-                VALUES
-                    (${tableId})
-            `.exec(db);
-            sql`
-                INSERT INTO
-                    _alpine_views (id, table_id)
-                VALUES
-                    (
-                        ${viewId},
-                        ${tableId}
-                    )
-            `.exec(db);
+            const {table, defaultView} = model.createTable(tableId, name);
 
-            // SQLite identifier for the data table. It only has to be unique within this
-            // table's own file, and `formatUniqueSqlName` strips leading underscores so it can
-            // never collide with the `_alpine_*` metadata tables.
-            const tableName = formatUniqueSqlName(name, new Set());
-
-            // Real, table-scoped metadata lives in the per-db file, never in the public main
-            // database.
-            sql`
-                INSERT INTO
-                    ${sql.tableRef(tableId, "_alpine_table")} (id, name, table_name, name_field_id)
-                VALUES
-                    (
-                        ${tableId},
-                        ${name},
-                        ${tableName},
-                        ${fieldId}
-                    )
-            `.exec(db);
-            sql`
-                INSERT INTO
-                    ${sql.tableRef(tableId, "_alpine_views")} (id, table_id, name)
-                VALUES
-                    (
-                        ${viewId},
-                        ${tableId},
-                        ${"Grid view"}
-                    )
-            `.exec(db);
-
-            sql`
-                CREATE TABLE ${sql.tableRef(tableId, tableName)} (
-                    _id TEXT PRIMARY KEY DEFAULT (generate_id ()),
-                    _created_at TEXT NOT NULL DEFAULT (DATETIME('now')),
-                    CHECK (is_id (_id)),
-                    CHECK (DATETIME(_created_at) IS NOT NULL)
-                ) WITHOUT ROWID
-            `.exec(db);
-
-            createField(schema, {fieldId, tableId, viewId, name: "Name", type: "plainText"});
-
-            sql`
-                CREATE INDEX ${sql.tableRef(
-                    tableId,
-                    `_alpine_index_${tableId}_created_at`,
-                )} ON ${sql.identifier(tableName)} (_created_at)
-            `.exec(db);
-
-            return {tableId, tableName, viewId};
+            return {tableId: table, tableName: table.tableName, viewId: defaultView.id};
         },
     }),
 
@@ -462,30 +404,11 @@ export const databaseActions = {
             tableName: Schema.string,
         }),
         writeLevel: "schema+data",
-        run({db, schema}, {tableId, name}) {
-            const existing = schema.getTable(tableId);
+        run({model}, {tableId, name}) {
+            const table = model.getTable(tableId);
+            const updated = table.updateName(name);
 
-            // The identifier only has to be unique within this table's own file, so there are
-            // no other names to avoid.
-            const tableName = formatUniqueSqlName(name, new Set());
-
-            if (tableName !== existing.tableName) {
-                sql`
-                    ALTER TABLE ${sql.tableRef(tableId, existing.tableName)}
-                    RENAME TO ${sql.identifier(tableName)}
-                `.exec(db);
-            }
-
-            sql`
-                UPDATE ${sql.tableRef(tableId, "_alpine_table")}
-                SET
-                    name = ${name},
-                    table_name = ${tableName}
-                WHERE
-                    id = ${tableId}
-            `.exec(db);
-
-            return {tableName};
+            return {tableName: updated.tableName};
         },
     }),
 
@@ -495,8 +418,8 @@ export const databaseActions = {
             tableIds: Schema.array(Schema.id<DatabaseTableId>()),
         }),
         writeLevel: "none",
-        run({schema}) {
-            return {tableIds: schema.getTableIds()};
+        run({model}) {
+            return {tableIds: model.getTableIds()};
         },
     }),
 
@@ -511,11 +434,11 @@ export const databaseActions = {
             ),
         }),
         writeLevel: "none",
-        run({schema}) {
+        run({model}) {
             return {
-                tables: schema.getTableIds().map(tableId => ({
+                tables: model.getTableIds().map(tableId => ({
                     id: tableId,
-                    name: schema.getTable(tableId).name,
+                    name: model.getTable(tableId).name,
                 })),
             };
         },
@@ -548,7 +471,7 @@ export const databaseActions = {
                     f.id,
                     f.name,
                     f.column_name,
-                    f.config,
+                    JSON(f.config) AS config,
                     vf.position,
                     vf.width,
                     vf.hidden
@@ -616,7 +539,7 @@ export const databaseActions = {
             });
             const endCursor = rows.length === limit ? rows[rows.length - 1]!.id : null;
 
-            return {tableId: table.id, viewId: view.id, tableName: table.name, endCursor};
+            return {tableId: table.id, viewId: view.id, tableName: table.tableName, endCursor};
         },
     }),
 
@@ -648,9 +571,10 @@ export const databaseActions = {
                         rowAlias: "_alpine_data_row",
                         fieldIndex,
                     });
-                    return projectionSql;
+                    selectColumns.push(projectionSql);
+                    continue;
                 }
-                return sql.identifier("_alpine_data_row", field.columnName);
+                selectColumns.push(sql.identifier("_alpine_data_row", field.columnName));
             }
             const selectList = sql.raw(selectColumns.map(c => c.query).join(", "));
 
@@ -788,7 +712,7 @@ export const databaseActions = {
         run({db, schema, server}, {tableId, viewId, name, linkedTableId, cardinality}) {
             assert(server !== null, "createRelationField is server-only");
             const sourceTable = schema.getTable(tableId);
-            const linkedTable = schema.getTable(linkedTableId);
+            assert(schema.getTableIfExists(linkedTableId) !== null, "linked table not found");
 
             const joinTableId = generateChronologicalId<DatabaseTableId>();
             const sourceFieldId = generateChronologicalId<DatabaseFieldId>();

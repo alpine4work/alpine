@@ -1,3 +1,4 @@
+import {parseString} from "set-cookie-parser";
 import {defineDatabaseFieldProvider} from "~/shared/databases/fields/database_field_provider.js";
 import {sql} from "~/shared/databases/sql.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
@@ -13,7 +14,7 @@ export const databaseNumberFieldProvider = defineDatabaseFieldProvider({
     }),
     sqliteType: "REAL",
     nullable: true,
-    defaultValue: "NULL",
+    defaultValue: sql`NULL`,
     generateCheckConstraint: columnName => sql`
         CHECK (
             TYPEOF(${sql.identifier(columnName)}) IN ('real', 'integer', 'null')

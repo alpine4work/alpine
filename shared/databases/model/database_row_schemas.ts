@@ -1,5 +1,5 @@
 import {DatabaseFieldConfigSqlSchema} from "~/shared/databases/fields/database_field_providers.js";
-import {SqlBooleanSchema} from "~/shared/databases/schema/sqlite_schema.js";
+import {SqlBooleanSchema} from "~/shared/databases/model/sqlite_schema.js";
 import {DatabaseFieldId, DatabaseTableId, DatabaseViewId} from "~/shared/id/types/id_types.js";
 import {OrderKeySchema} from "~/shared/schema/helpers/order_key_schema.js";
 import {ObjectSchemaConfigType, Schema} from "~/shared/schema/schema.js";

@@ -1,3 +1,4 @@
+import {parseString} from "set-cookie-parser";
 import {defineDatabaseFieldProvider} from "~/shared/databases/fields/database_field_provider.js";
 import {sql} from "~/shared/databases/sql.js";
 import {Schema} from "~/shared/schema/schema.js";
@@ -8,7 +9,7 @@ export const databaseCheckboxFieldProvider = defineDatabaseFieldProvider({
     configSchema: Schema.object({type: Schema.value("checkbox")}),
     sqliteType: "INTEGER",
     nullable: false,
-    defaultValue: "0",
+    defaultValue: sql`0`,
     generateCheckConstraint: columnName => sql`
         CHECK (
             TYPEOF(${sql.identifier(columnName)}) = 'integer'

@@ -9,7 +9,7 @@ import {
     databaseActions,
 } from "~/shared/databases/database_actions.js";
 import type {ReadonlyDatabasePageSet} from "~/shared/databases/database_protocol_schemas.js";
-import {DatabaseSchema} from "~/shared/databases/database_schema.js";
+import {DatabaseModel} from "~/shared/databases/model/database_model.js";
 import type {InstalledVfs, VfsFile} from "~/shared/databases/install_vfs.js";
 import {installVfs} from "~/shared/databases/install_vfs.js";
 import {
@@ -293,7 +293,7 @@ export class Database {
         const ctx: DatabaseActionContext = {
             db: this.db,
             server: this.serverContext,
-            schema: new DatabaseSchema(this.db),
+            schema: new DatabaseModel(this.db),
         };
         const {result, readPages, writtenPages} = this.execute(
             () => action.run(ctx, actionObject.input as never),

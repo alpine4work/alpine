@@ -3,7 +3,7 @@ import type {SqliteStorageType} from "~/shared/databases/fields/database_field_p
 import {databaseNumberFieldProvider} from "~/shared/databases/fields/database_number_field.js";
 import {databasePlainTextFieldProvider} from "~/shared/databases/fields/database_plain_text_field.js";
 import {databaseRelationFieldProvider} from "~/shared/databases/fields/database_relation_field.js";
-import {SqlJsonSchema} from "~/shared/databases/schema/sqlite_schema.js";
+import {SqlJsonSchema} from "~/shared/databases/model/sqlite_schema.js";
 import type {SqlQuery} from "~/shared/databases/sql.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import type {Result} from "~/shared/helpers/control/result.js";

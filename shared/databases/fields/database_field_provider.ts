@@ -1,3 +1,5 @@
+import {DatabaseFieldModel} from "~/shared/databases/model/database_model.js";
+import {DatabaseFieldRow} from "~/shared/databases/model/database_row_schemas.js";
 import type {SqlQuery} from "~/shared/databases/sql.js";
 import type {Result} from "~/shared/helpers/control/result.js";
 import type {Schema, SchemaSerializedValue} from "~/shared/schema/schema.js";
@@ -46,7 +48,7 @@ export function defineDatabaseFieldProvider<
      * a `NOT NULL` clause and `generateCheckConstraint` must accept `NULL`.
      */
     readonly nullable: boolean;
-    readonly defaultValue: string;
+    readonly defaultValue: SqlQuery;
     readonly generateCheckConstraint: (columnName: string) => SqlQuery;
     readonly toSqlValue: (value: Value) => SqliteTypeMap[SqlType] | null;
     readonly fromSqlValue: (sqlValue: SqliteTypeMap[SqlType] | null) => Value;

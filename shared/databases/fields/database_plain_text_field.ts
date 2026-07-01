@@ -10,7 +10,7 @@ export const databasePlainTextFieldProvider = defineDatabaseFieldProvider({
     configSchema: Schema.object({type: Schema.value("plainText")}),
     sqliteType: "TEXT",
     nullable: false,
-    defaultValue: "''",
+    defaultValue: sql`''`,
     generateCheckConstraint: columnName => sql`
         CHECK (
             TYPEOF(${sql.identifier(columnName)}) = 'text'
