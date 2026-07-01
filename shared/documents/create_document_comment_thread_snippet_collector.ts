@@ -10,16 +10,15 @@ import {createProsemirrorIncrementalReducer} from "~/shared/prosemirror/prosemir
 
 export type DocumentCommentThreadSnippet = {
     /**
+     * Add this to a position inside `node` to get the corresponding position in the
+     * source document.
+     */
+    pos: number;
+
+    /**
      * The snippet content cut from the document.
      */
     node: Node;
-
-    /**
-     * Add this to a position inside `node` to get the corresponding position in the
-     * source document. Positions only map exactly for content in whole text blocks, so
-     * use the `wholeTextBlocks` collector option when you need this mapping.
-     */
-    posOffset: number;
 };
 
 /**
@@ -76,12 +75,22 @@ export function createDocumentCommentThreadSnippetCollector(
                 return [
                     commentThreadId,
                     {
+                        // NOCOMMIT: Don't try to return `pos`
+                        pos: getCutContentPosOffset(doc, snippetPos.from),
                         node: cutContent(doc, snippetPos.from, snippetPos.to),
-                        // NOCOMMIT: Make sure this `posOffset` is correct
-                        posOffset: snippetPos.from - doc.resolve(snippetPos.from).depth,
                     },
                 ];
             }),
         );
     };
+}
+
+function getCutContentPosOffset(doc: Node, from: number): number {
+    const resolvedFrom = doc.resolve(from);
+
+    // `Node.cut()` keeps the ancestors opened by `from` so the first copied top node
+    // starts at local position `0`. Each open ancestor adds one local position before
+    // the cut content, so subtract the open depth to convert the cut range start into
+    // the offset used by local snippet positions.
+    return from - resolvedFrom.depth;
 }
