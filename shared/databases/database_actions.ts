@@ -1,4 +1,4 @@
-import type {Database} from "~/external/sqlite/ext/wasm/jswasm/sqlite3.mjs";
+import {DatabaseFieldSchema, DatabaseSchema} from "~/shared/databases/database_schema.js";
 import {
     type DatabaseFieldConfig,
     DatabaseFieldConfigSchema,
@@ -7,9 +7,15 @@ import {
     DatabaseFieldTypeSchema,
     getDatabaseFieldProvider,
 } from "~/shared/databases/fields/database_field_providers.js";
-import type {DatabaseRelationValue} from "~/shared/databases/fields/database_relation_field.js";
-import {formatUniqueSqlName} from "~/shared/databases/internal/database_sql_helpers.js";
+import {DatabaseRelationValueSchema} from "~/shared/databases/fields/database_relation_field.js";
+import {formatUniqueSqlName} from "~/shared/databases/internal/format_unique_sql_name.js";
+import {
+    DatabaseFieldRow,
+    DatabaseViewFieldRow,
+} from "~/shared/databases/schema/database_row_schemas.js";
+import {SqlBooleanSchema, SqlJsonSchema} from "~/shared/databases/schema/sqlite_schema.js";
 import {type SqlQuery, sql} from "~/shared/databases/sql.js";
+import {SqliteDatabase} from "~/shared/databases/sqlite.js";
 import type {SqliteWriteLevel} from "~/shared/databases/sqlite_authorizer.js";
 import {databaseViewDefaultColumnWidth} from "~/shared/databases/sqlite_constants.js";
 import {runJoinTableMigrations, runTableMigrations} from "~/shared/databases/sqlite_migrations.js";
@@ -23,34 +29,7 @@ import type {
 } from "~/shared/id/types/id_types.js";
 import {LabelStringSchema} from "~/shared/schema/helpers/label_string_schema.js";
 import {OrderKeySchema} from "~/shared/schema/helpers/order_key_schema.js";
-import {
-    type ObjectSchema,
-    Schema,
-    type SchemaSerializedValue,
-    type SchemaType,
-} from "~/shared/schema/schema.js";
-
-// -- Helpers ------------------------------------------------------------------
-
-/**
- * SQLite stores booleans as INTEGER 0/1 but `Schema.boolean` expects a real
- * boolean. This schema migrates 0/1 on read and relies on the SQLite binding layer
- * converting `true`/`false` back to 1/0 on write.
- */
-const sqlBoolean = Schema.boolean.migration({
-    serialize: value => value,
-    deserialize: value => (value === 1 ? true : value === 0 ? false : value),
-});
-
-// -- Row schema configs -------------------------------------------------------
-
-/** Row config for a per-db file's singleton `_alpine_table`. */
-const alpineTableConfig = {
-    id: Schema.id<DatabaseTableId>(),
-    name: Schema.string,
-    tableName: Schema.string.originalPropertyKey("table_name"),
-    nameFieldId: Schema.id<DatabaseFieldId>().nullable().originalPropertyKey("name_field_id"),
-};
+import {type ObjectSchema, Schema, type SchemaType} from "~/shared/schema/schema.js";
 
 /**
  * Server-only capabilities. Present on the server, `null` on the client — so
@@ -68,9 +47,11 @@ export interface DatabaseActionServerContext {
 /** Context handed to a database action's `run()`. */
 export interface DatabaseActionContext {
     /** The SQLite handle the action runs against. */
-    db: Database;
+    db: SqliteDatabase;
     /** Server-only capabilities, or `null` on the client. */
     server: DatabaseActionServerContext | null;
+    /** The database schema */
+    schema: DatabaseSchema;
 }
 
 /**
@@ -104,117 +85,13 @@ function defineDatabaseAction<Input, Output>(def: {
 }
 
 /**
- * Reads a table's SQLite identifier (`table_name`) from its own per-db file. The
- * display name and identifier are private and never live in the public main
- * database.
- */
-function readTableName(db: Database, tableId: DatabaseTableId): string {
-    return sql`
-        SELECT
-            table_name
-        FROM
-            ${sql.tableRef(tableId, "_alpine_table")}
-    `.selectValue(db, Schema.string);
-}
-
-function readTableDisplayName(db: Database, tableId: DatabaseTableId): string {
-    return sql`
-        SELECT
-            name
-        FROM
-            ${sql.tableRef(tableId, "_alpine_table")}
-    `.selectValue(db, Schema.string);
-}
-
-function listUserTableIds(db: Database): ReadonlyArray<DatabaseTableId> {
-    return sql`
-        SELECT
-            id
-        FROM
-            _alpine_tables
-        WHERE
-            kind = 'table'
-        ORDER BY
-            id
-    `.selectValues(db, Schema.id<DatabaseTableId>());
-}
-
-/**
- * Stable name for a table's `_created_at` index. Keyed by the immutable table id
- * (not the mutable SQL table name), so renaming the table leaves the index in
- * place rather than dropping and rebuilding it.
- */
-function createdAtIndexName(tableId: DatabaseTableId): string {
-    return `_alpine_index_${tableId}_created_at`;
-}
-
-/**
- * Resolves a `tableOrViewId` (which may be either a table ID or a view ID) into
- * the canonical triple of `{tableId, viewId, tableName}`.
- *
- * A bare view ID is routed to its owning table through the main database's ID-only
- * `_alpine_views(id, table_id)` routing index (the happy path after URL
- * canonicalization); the table's name then comes from its per-db file. A bare
- * table ID falls back to picking its first view from that table's per-db file.
- */
-function resolveTableOrViewId(
-    db: Database,
-    tableOrViewId: string,
-): {tableId: DatabaseTableId; viewId: DatabaseViewId; tableName: string} {
-    // Happy path: route the view ID to its table via the main routing index (URLs
-    // canonicalize to view IDs).
-    const routing = sql`
-        SELECT
-            table_id
-        FROM
-            _alpine_views
-        WHERE
-            id = ${tableOrViewId}
-    `.selectOneOrNone(db, {
-        tableId: Schema.id<DatabaseTableId>().originalPropertyKey("table_id"),
-    });
-
-    if (routing !== null) {
-        return {
-            tableId: routing.tableId,
-            viewId: tableOrViewId as DatabaseViewId,
-            tableName: readTableName(db, routing.tableId),
-        };
-    }
-
-    // Fallback: resolve as a table ID and pick its first view from that table's per-db
-    // file.
-    const table = sql`
-        SELECT
-            id
-        FROM
-            _alpine_tables
-        WHERE
-            id = ${tableOrViewId}
-    `.selectOne(db, {id: Schema.id<DatabaseTableId>()});
-
-    const view = sql`
-        SELECT
-            id
-        FROM
-            ${sql.tableRef(table.id, "_alpine_views")}
-        ORDER BY
-            id
-        LIMIT
-            1
-    `.selectOne(db, {id: Schema.id<DatabaseViewId>()});
-
-    return {tableId: table.id, viewId: view.id, tableName: readTableName(db, table.id)};
-}
-
-/**
  * Add a field to an existing table: resolves the table name, generates a unique
  * column name, computes the next view position, inserts metadata into
  * `_alpine_fields` and `_alpine_view_fields`, then runs `ALTER TABLE ADD COLUMN`
  * with the appropriate type affinity and CHECK constraint.
  */
 function createField(
-    db: Database,
+    schema: DatabaseSchema,
     {
         fieldId,
         tableId,
@@ -231,7 +108,7 @@ function createField(
 ): void {
     const provider = getDatabaseFieldProvider(type);
     const fieldConfig = provider.getDefaultConfig();
-    const columnName = createFieldMetadata(db, {
+    const columnName = createFieldMetadata(schema, {
         fieldId,
         tableId,
         viewIds: [viewId],
@@ -240,7 +117,7 @@ function createField(
     });
     if (provider.storage === "virtual") return;
 
-    const tableName = readTableName(db, tableId);
+    const tableName = schema.getTable(tableId).name;
 
     const {sqliteType, defaultValue, nullable, generateCheckConstraint} = provider;
     const notNullClause = nullable ? sql.raw("") : sql.raw("NOT NULL");
@@ -250,11 +127,11 @@ function createField(
         ADD COLUMN ${sql.identifier(columnName)} ${sql.raw(sqliteType)}_alpine_${sql.raw(
             fieldId,
         )} ${notNullClause} DEFAULT ${sql.raw(defaultValue)} ${generateCheckConstraint(columnName)}
-    `.exec(db);
+    `.exec(schema.db);
 }
 
 function createFieldMetadata(
-    db: Database,
+    schema: DatabaseSchema,
     {
         fieldId,
         tableId,
@@ -278,7 +155,7 @@ function createFieldMetadata(
             WHERE
                 table_id = ${tableId}
         `
-            .selectAll(db, {columnName: Schema.string.originalPropertyKey("column_name")})
+            .selectAll(schema.db, {columnName: Schema.string.originalPropertyKey("column_name")})
             .map(row => row.columnName),
     );
     const columnName = formatUniqueSqlName(name, existingColumnNames);
@@ -294,19 +171,19 @@ function createFieldMetadata(
                 ${tableId},
                 ${name},
                 ${columnName},
-                ${fieldConfig}
+                jsonb (${fieldConfig})
             )
-    `.exec(db);
+    `.exec(schema.db);
 
     for (const viewId of viewIds) {
-        insertFieldIntoView(db, {tableId, viewId, fieldId});
+        insertFieldIntoView(schema, {tableId, viewId, fieldId});
     }
 
     return columnName;
 }
 
 function insertFieldIntoView(
-    db: Database,
+    schema: DatabaseSchema,
     {
         tableId,
         viewId,
@@ -324,7 +201,7 @@ function insertFieldIntoView(
             ${sql.tableRef(tableId, "_alpine_view_fields")}
         WHERE
             view_id = ${viewId}
-    `.selectValue(db, Schema.string.nullable());
+    `.selectValue(schema.db, Schema.string.nullable());
 
     sql`
         INSERT INTO
@@ -336,7 +213,7 @@ function insertFieldIntoView(
                 generate_order_key (${maxPosition}, NULL),
                 ${databaseViewDefaultColumnWidth}
             )
-    `.exec(db);
+    `.exec(schema.db);
 }
 
 function formatUniqueFieldName(name: string, existing: ReadonlySet<string>): string {
@@ -347,188 +224,6 @@ function formatUniqueFieldName(name: string, existing: ReadonlySet<string>): str
     }
 }
 
-type DatabaseRelationFieldConfig = Extract<DatabaseFieldConfig, {type: "relation"}>;
-
-type DatabaseRelationFieldSide = DatabaseRelationFieldConfig["side"];
-
-type DatabaseJoinTableMeta = {
-    id: DatabaseTableId;
-    sourceTableId: DatabaseTableId;
-    sourceFieldId: DatabaseFieldId;
-    targetTableId: DatabaseTableId;
-    targetFieldId: DatabaseFieldId;
-};
-
-function readJoinTableMeta(db: Database, joinTableId: DatabaseTableId): DatabaseJoinTableMeta {
-    return sql`
-        SELECT
-            id,
-            source_table_id,
-            source_field_id,
-            target_table_id,
-            target_field_id
-        FROM
-            ${sql.tableRef(joinTableId, "_alpine_join_table")}
-        WHERE
-            id = ${joinTableId}
-    `.selectOne(db, {
-        id: Schema.id<DatabaseTableId>(),
-        sourceTableId: Schema.id<DatabaseTableId>().originalPropertyKey("source_table_id"),
-        sourceFieldId: Schema.id<DatabaseFieldId>().originalPropertyKey("source_field_id"),
-        targetTableId: Schema.id<DatabaseTableId>().originalPropertyKey("target_table_id"),
-        targetFieldId: Schema.id<DatabaseFieldId>().originalPropertyKey("target_field_id"),
-    });
-}
-
-function readRelationFieldConfig(
-    db: Database,
-    {
-        tableId,
-        fieldId,
-    }: {
-        tableId: DatabaseTableId;
-        fieldId: DatabaseFieldId;
-    },
-): DatabaseRelationFieldConfig {
-    const field = sql`
-        SELECT
-            config
-        FROM
-            ${sql.tableRef(tableId, "_alpine_fields")}
-        WHERE
-            id = ${fieldId}
-    `.selectOne(db, {config: DatabaseFieldConfigSqlSchema});
-    assert(field.config.type === "relation", "field is not a relation field");
-    return field.config;
-}
-
-function assertRelationEndpointExists(
-    db: Database,
-    {
-        tableId,
-        rowId,
-        message,
-    }: {
-        tableId: DatabaseTableId;
-        rowId: DatabaseRowId;
-        message: string;
-    },
-): void {
-    const tableName = readTableName(db, tableId);
-    const row = sql`
-        SELECT
-            _id
-        FROM
-            ${sql.tableRef(tableId, tableName)}
-        WHERE
-            _id = ${rowId}
-    `.selectOneOrNone(db, {id: Schema.id<DatabaseRowId>().originalPropertyKey("_id")});
-    assert(row !== null, message);
-}
-
-function resolveRelationField(
-    db: Database,
-    {
-        tableId,
-        fieldId,
-    }: {
-        tableId: DatabaseTableId;
-        fieldId: DatabaseFieldId;
-    },
-): {
-    config: DatabaseRelationFieldConfig;
-    joinTableId: DatabaseTableId;
-    linkedTableId: DatabaseTableId;
-    mineColumnName: "source_row_id" | "target_row_id";
-    theirsColumnName: "source_row_id" | "target_row_id";
-} {
-    const config = readRelationFieldConfig(db, {tableId, fieldId});
-    const joinTable = readJoinTableMeta(db, config.joinTableId);
-
-    let linkedTableId: DatabaseTableId;
-    switch (config.side) {
-        case "source":
-            assert(joinTable.sourceTableId === tableId, "relation source table mismatch");
-            assert(joinTable.sourceFieldId === fieldId, "relation source field mismatch");
-            linkedTableId = joinTable.targetTableId;
-            break;
-        case "target":
-            assert(joinTable.targetTableId === tableId, "relation target table mismatch");
-            assert(joinTable.targetFieldId === fieldId, "relation target field mismatch");
-            linkedTableId = joinTable.sourceTableId;
-            break;
-    }
-    assert(config.linkedTableId === linkedTableId, "relation linked table mismatch");
-
-    return {
-        config,
-        joinTableId: config.joinTableId,
-        linkedTableId,
-        mineColumnName: relationSideColumnName(config.side),
-        theirsColumnName: relationSideColumnName(oppositeRelationSide(config.side)),
-    };
-}
-
-function resolveRelationEndpoints(
-    db: Database,
-    {
-        tableId,
-        fieldId,
-        rowId,
-        linkedRowId,
-    }: {
-        tableId: DatabaseTableId;
-        fieldId: DatabaseFieldId;
-        rowId: DatabaseRowId;
-        linkedRowId: DatabaseRowId;
-    },
-): {
-    config: DatabaseRelationFieldConfig;
-    joinTableId: DatabaseTableId;
-    mineColumnName: "source_row_id" | "target_row_id";
-    theirsColumnName: "source_row_id" | "target_row_id";
-    sourceRowId: DatabaseRowId;
-    targetRowId: DatabaseRowId;
-} {
-    const relation = resolveRelationField(db, {tableId, fieldId});
-
-    assertRelationEndpointExists(db, {tableId, rowId, message: "row not found"});
-    assertRelationEndpointExists(db, {
-        tableId: relation.linkedTableId,
-        rowId: linkedRowId,
-        message: "linked row not found",
-    });
-
-    return {
-        config: relation.config,
-        joinTableId: relation.joinTableId,
-        mineColumnName: relation.mineColumnName,
-        theirsColumnName: relation.theirsColumnName,
-        sourceRowId: relation.config.side === "source" ? rowId : linkedRowId,
-        targetRowId: relation.config.side === "source" ? linkedRowId : rowId,
-    };
-}
-
-function relationSideColumnName(
-    side: DatabaseRelationFieldSide,
-): "source_row_id" | "target_row_id" {
-    switch (side) {
-        case "source":
-            return "source_row_id";
-        case "target":
-            return "target_row_id";
-    }
-}
-
-function oppositeRelationSide(side: DatabaseRelationFieldSide): DatabaseRelationFieldSide {
-    switch (side) {
-        case "source":
-            return "target";
-        case "target":
-            return "source";
-    }
-}
-
 type DatabaseNameFieldReference = {
     tableName: string;
     columnName: string;
@@ -536,7 +231,7 @@ type DatabaseNameFieldReference = {
 };
 
 function readNameFieldReference(
-    db: Database,
+    db: SqliteDatabase,
     tableId: DatabaseTableId,
 ): DatabaseNameFieldReference {
     const table = sql`
@@ -569,70 +264,36 @@ function readNameFieldReference(
     return {tableName: table.tableName, columnName: field.columnName, config: field.config};
 }
 
-function formatNameFieldValue(config: DatabaseFieldConfig, rawValue: unknown): string | null {
-    if (rawValue == null) return null;
-    const provider = getDatabaseFieldProvider(config.type);
-    assert(provider.storage === "column", "record-name field must be column-backed");
-    const value = provider.sqlValueSchema.deserialize(rawValue as SchemaSerializedValue);
-    return formatNameFieldValueFromValue(config, value);
-}
-
-function formatNameFieldValueFromValue(config: DatabaseFieldConfig, value: unknown): string | null {
-    const provider = getDatabaseFieldProvider(config.type);
-    assert(provider.storage === "column", "record-name field must be column-backed");
-    const formatted = provider.formatString(value, config);
-    return formatted === "" ? null : formatted;
-}
-
 type DatabaseRelationProjection = {
     fieldIndex: number;
     nameFieldConfig: DatabaseFieldConfig;
 };
 
-const DatabaseRelationProjectionValueSchema = Schema.array(
-    Schema.object({
-        id: Schema.id<DatabaseRowId>(),
-        name: Schema.unknown(),
-    }),
-);
-
-function parseRelationProjectionValue(
-    rawJson: unknown,
-    nameFieldConfig: DatabaseFieldConfig,
-): DatabaseRelationValue {
-    assert(typeof rawJson === "string", "relation projection must be JSON text");
-    const links = DatabaseRelationProjectionValueSchema.deserialize(JSON.parse(rawJson));
-    return links.map(link => ({
-        id: link.id,
-        name: formatNameFieldValue(nameFieldConfig, link.name),
-    }));
-}
-
 function createRelationProjection(
-    db: Database,
+    field: DatabaseFieldSchema,
     {
-        tableId,
-        fieldId,
         rowAlias,
         fieldIndex,
     }: {
-        tableId: DatabaseTableId;
-        fieldId: DatabaseFieldId;
         rowAlias: string;
         fieldIndex: number;
     },
 ): {sql: SqlQuery; projection: DatabaseRelationProjection} {
-    const relation = resolveRelationField(db, {tableId, fieldId});
-    const linkedNameField = readNameFieldReference(db, relation.linkedTableId);
-    const linkedNameProvider = getDatabaseFieldProvider(linkedNameField.config.type);
-    assert(linkedNameProvider.storage === "column", "record-name field must be column-backed");
+    assert(field.config.type === "relation", "field is not a relation field");
+    const relation = field.resolveRelation();
+    const linkedTable = field.schema.getTable(relation.linkedTableId);
+    const linkedNameField = linkedTable.getNameField();
+    assert(
+        linkedNameField.getProvider().storage === "column",
+        "record-name field must be column-backed",
+    );
 
     const projectionSql = sql`
         (
             SELECT
                 COALESCE(
-                    JSON_GROUP_ARRAY(
-                        JSON_OBJECT(
+                    JSONB_GROUP_ARRAY (
+                        JSONB_OBJECT (
                             'id',
                             linked_row._id,
                             'name',
@@ -645,13 +306,13 @@ function createRelationProjection(
                     '[]'
                 )
             FROM
-                ${sql.tableRef(relation.joinTableId, "_alpine_links")} link_row
-                JOIN ${sql.tableRef(
-            relation.linkedTableId,
-            linkedNameField.tableName,
-        )} linked_row ON linked_row._id = ${sql.identifier("link_row", relation.theirsColumnName)}
+                ${sql.tableRef(relation.joinTable.id, "_alpine_links")} link_row
+                JOIN ${linkedTable.identifier()} linked_row ON linked_row._id = ${sql.identifier(
+            "link_row",
+            relation.theirColumnName,
+        )}
             WHERE
-                ${sql.identifier("link_row", relation.mineColumnName)} = ${sql.identifier(
+                ${sql.identifier("link_row", relation.ourColumnName)} = ${sql.identifier(
             rowAlias,
             "_id",
         )}
@@ -713,7 +374,7 @@ export const databaseActions = {
         // Server-only so it can mint ids internally and attach a brand-new per-db file
         // without client/server divergence; the client routes this to the server.
         serverOnly: true,
-        run({db, server}, {name}) {
+        run({db, server, schema}, {name}) {
             assert(server !== null, "createTable is server-only");
             const tableId = generateChronologicalId<DatabaseTableId>();
             const viewId = generateChronologicalId<DatabaseViewId>();
@@ -779,12 +440,12 @@ export const databaseActions = {
                 ) WITHOUT ROWID
             `.exec(db);
 
-            createField(db, {fieldId, tableId, viewId, name: "Name", type: "plainText"});
+            createField(schema, {fieldId, tableId, viewId, name: "Name", type: "plainText"});
 
             sql`
                 CREATE INDEX ${sql.tableRef(
                     tableId,
-                    createdAtIndexName(tableId),
+                    `_alpine_index_${tableId}_created_at`,
                 )} ON ${sql.identifier(tableName)} (_created_at)
             `.exec(db);
 
@@ -801,13 +462,8 @@ export const databaseActions = {
             tableName: Schema.string,
         }),
         writeLevel: "schema+data",
-        run({db}, {tableId, name}) {
-            const existing = sql`
-                SELECT
-                    *
-                FROM
-                    ${sql.tableRef(tableId, "_alpine_table")}
-            `.selectOne(db, alpineTableConfig);
+        run({db, schema}, {tableId, name}) {
+            const existing = schema.getTable(tableId);
 
             // The identifier only has to be unique within this table's own file, so there are
             // no other names to avoid.
@@ -839,8 +495,8 @@ export const databaseActions = {
             tableIds: Schema.array(Schema.id<DatabaseTableId>()),
         }),
         writeLevel: "none",
-        run({db}) {
-            return {tableIds: listUserTableIds(db)};
+        run({schema}) {
+            return {tableIds: schema.getTableIds()};
         },
     }),
 
@@ -855,12 +511,11 @@ export const databaseActions = {
             ),
         }),
         writeLevel: "none",
-        run({db}) {
-            const tableIds = listUserTableIds(db);
+        run({schema}) {
             return {
-                tables: tableIds.map(tableId => ({
+                tables: schema.getTableIds().map(tableId => ({
                     id: tableId,
-                    name: readTableDisplayName(db, tableId),
+                    name: schema.getTable(tableId).name,
                 })),
             };
         },
@@ -880,13 +535,13 @@ export const databaseActions = {
                     config: DatabaseFieldConfigSchema,
                     position: OrderKeySchema,
                     width: Schema.integer,
-                    hidden: sqlBoolean,
+                    hidden: SqlBooleanSchema,
                 }),
             ),
         }),
         writeLevel: "none",
-        run({db}, {tableOrViewId}) {
-            const {tableId, viewId, tableName} = resolveTableOrViewId(db, tableOrViewId);
+        run({db, schema}, {tableOrViewId}) {
+            const {table, view} = schema.resolveTableOrViewId(tableOrViewId);
 
             const fields = sql`
                 SELECT
@@ -898,26 +553,26 @@ export const databaseActions = {
                     vf.width,
                     vf.hidden
                 FROM
-                    ${sql.tableRef(tableId, "_alpine_view_fields")} vf
-                    JOIN ${sql.tableRef(tableId, "_alpine_fields")} f ON f.id = vf.field_id
+                    ${sql.tableRef(table.id, "_alpine_view_fields")} vf
+                    JOIN ${sql.tableRef(table.id, "_alpine_fields")} f ON f.id = vf.field_id
                 WHERE
-                    vf.view_id = ${viewId}
+                    vf.view_id = ${view.id}
                 ORDER BY
                     vf.position
             `.selectAll(db, {
-                id: Schema.id<DatabaseFieldId>(),
-                name: Schema.string,
-                columnName: Schema.string.originalPropertyKey("column_name"),
-                config: DatabaseFieldConfigSqlSchema,
-                position: OrderKeySchema,
-                width: Schema.integer,
-                hidden: sqlBoolean,
+                id: DatabaseFieldRow.id,
+                name: DatabaseFieldRow.name,
+                columnName: DatabaseFieldRow.columnName,
+                config: DatabaseFieldRow.config,
+                position: DatabaseViewFieldRow.position,
+                width: DatabaseViewFieldRow.width,
+                hidden: DatabaseViewFieldRow.hidden,
             });
 
             return {
-                tableId,
-                viewId,
-                tableName,
+                tableId: table.id,
+                viewId: view.id,
+                tableName: table.name,
                 fields,
             };
         },
@@ -936,8 +591,8 @@ export const databaseActions = {
             endCursor: Schema.id<DatabaseRowId>().nullable(),
         }),
         writeLevel: "none",
-        run({db}, {tableOrViewId, afterCursor, limit}) {
-            const {tableId, viewId, tableName} = resolveTableOrViewId(db, tableOrViewId);
+        run({db, schema}, {tableOrViewId, afterCursor, limit}) {
+            const {table, view} = schema.resolveTableOrViewId(tableOrViewId);
 
             const whereClause =
                 afterCursor != null
@@ -951,7 +606,7 @@ export const databaseActions = {
                 SELECT
                     _id
                 FROM
-                    ${sql.tableRef(tableId, tableName)} ${whereClause}
+                    ${table.identifier()} ${whereClause}
                 ORDER BY
                     _id
                 LIMIT
@@ -961,7 +616,7 @@ export const databaseActions = {
             });
             const endCursor = rows.length === limit ? rows[rows.length - 1]!.id : null;
 
-            return {tableId, viewId, tableName, endCursor};
+            return {tableId: table.id, viewId: view.id, tableName: table.name, endCursor};
         },
     }),
 
@@ -976,66 +631,37 @@ export const databaseActions = {
             rows: Schema.array(Schema.array(Schema.unknown())),
         }),
         writeLevel: "none",
-        run({db}, {tableOrViewId, afterCursor, endCursor}) {
-            const {tableId, viewId, tableName} = resolveTableOrViewId(db, tableOrViewId);
+        run({db, schema}, {tableOrViewId, afterCursor, endCursor}) {
+            const {table, view} = schema.resolveTableOrViewId(tableOrViewId);
 
-            // Get the view's fields in position order so we can build a deterministic SELECT
-            // list and a per-page field-index mapping.
-            const viewFields = sql`
-                SELECT
-                    f.id,
-                    f.column_name,
-                    f.config
-                FROM
-                    ${sql.tableRef(tableId, "_alpine_view_fields")} vf
-                    JOIN ${sql.tableRef(tableId, "_alpine_fields")} f ON f.id = vf.field_id
-                WHERE
-                    vf.view_id = ${viewId}
-                ORDER BY
-                    vf.position
-            `.selectAll(db, {
-                id: Schema.id<DatabaseFieldId>(),
-                columnName: Schema.string.originalPropertyKey("column_name"),
-                config: DatabaseFieldConfigSqlSchema,
-            });
+            const fields = view.getFields();
 
-            // SQLite version prerequisite for relation projection: WORKSPACE pins
-            // sqlite-src-3510200 (SQLite 3.51.2), so `json_group_array(... ORDER BY ...)` is
-            // available when the relation subquery is added.
-            //
             // \_id is always at index 0; view fields start at 1.
-            const relationProjections: Array<DatabaseRelationProjection> = [];
-            const selectColumns = [
-                sql.identifier("data_row", "_id"),
-                ...viewFields.map((f, i) => {
-                    const fieldIndex = i + 1;
-                    if (f.config.type === "relation") {
-                        const {sql: projectionSql, projection} = createRelationProjection(db, {
-                            tableId,
-                            fieldId: f.id,
-                            rowAlias: "data_row",
-                            fieldIndex,
-                        });
-                        relationProjections.push(projection);
-                        return projectionSql;
-                    }
-                    return sql.identifier("data_row", f.columnName);
-                }),
-            ];
-            const selectList = sql.raw(selectColumns.map(c => c.query).join(", "));
-
+            const selectColumns = [sql.identifier("_alpine_data_row", "_id")];
             const fieldIndexes = new Map<DatabaseFieldId, number>();
-            for (let i = 0; i < viewFields.length; i++) {
-                fieldIndexes.set(viewFields[i]!.id, i + 1);
+            for (let i = 0; i < fields.length; i++) {
+                const fieldIndex = i + 1;
+                fieldIndexes.set(fields[i]!.id, fieldIndex);
+                const field = fields[i]!;
+                if (field.config.type === "relation") {
+                    const {sql: projectionSql} = createRelationProjection(field, {
+                        rowAlias: "_alpine_data_row",
+                        fieldIndex,
+                    });
+                    return projectionSql;
+                }
+                return sql.identifier("_alpine_data_row", field.columnName);
             }
+            const selectList = sql.raw(selectColumns.map(c => c.query).join(", "));
 
             // Build a schema tuple matching the SELECT list so raw SQL values are deserialized
             // through each field's sqlValueSchema (e.g. INTEGER → boolean for checkboxes).
             const columnSchemas: Array<Schema<any>> = [
                 Schema.id<DatabaseRowId>(),
-                ...viewFields.map(f => {
+                ...fields.map(f => {
                     const provider = getDatabaseFieldProvider(f.config.type);
-                    if (f.config.type === "relation") return Schema.string;
+                    if (f.config.type === "relation")
+                        return SqlJsonSchema(DatabaseRelationValueSchema);
                     assert(
                         provider.storage === "column",
                         `virtual field ${f.id} is not implemented in getViewRowsPage`,
@@ -1048,18 +674,18 @@ export const databaseActions = {
             if (afterCursor != null && endCursor != null) {
                 whereClause = sql`
                     WHERE
-                        ${sql.identifier("data_row", "_id")} > ${afterCursor}
-                        AND ${sql.identifier("data_row", "_id")} <= ${endCursor}
+                        ${sql.identifier("_alpine_data_row", "_id")} > ${afterCursor}
+                        AND ${sql.identifier("_alpine_data_row", "_id")} <= ${endCursor}
                 `;
             } else if (afterCursor != null) {
                 whereClause = sql`
                     WHERE
-                        ${sql.identifier("data_row", "_id")} > ${afterCursor}
+                        ${sql.identifier("_alpine_data_row", "_id")} > ${afterCursor}
                 `;
             } else if (endCursor != null) {
                 whereClause = sql`
                     WHERE
-                        ${sql.identifier("data_row", "_id")} <= ${endCursor}
+                        ${sql.identifier("_alpine_data_row", "_id")} <= ${endCursor}
                 `;
             } else {
                 whereClause = sql``;
@@ -1069,21 +695,10 @@ export const databaseActions = {
                 SELECT
                     ${selectList}
                 FROM
-                    ${sql.tableRef(tableId, tableName)} AS ${sql.identifier(
-                    "data_row",
-                )} ${whereClause}
+                    ${table.identifier()} AS ${sql.identifier("_alpine_data_row")} ${whereClause}
                 ORDER BY
-                    ${sql.identifier("data_row", "_id")}
+                    ${sql.identifier("_alpine_data_row", "_id")}
             `.selectAllArrays(db, columnSchemas);
-
-            for (const row of rows) {
-                for (const projection of relationProjections) {
-                    row[projection.fieldIndex] = parseRelationProjectionValue(
-                        row[projection.fieldIndex],
-                        projection.nameFieldConfig,
-                    );
-                }
-            }
 
             return {fieldIndexes, rows};
         },
@@ -1098,27 +713,16 @@ export const databaseActions = {
         }),
         output: Schema.object({}),
         writeLevel: "data",
-        run({db}, {tableId, fieldId, rowId, value}) {
-            const field = sql`
-                SELECT
-                    column_name,
-                    config
-                FROM
-                    ${sql.tableRef(tableId, "_alpine_fields")}
-                WHERE
-                    id = ${fieldId}
-            `.selectOne(db, {
-                columnName: Schema.string.originalPropertyKey("column_name"),
-                config: DatabaseFieldConfigSqlSchema,
-            });
-            const provider = getDatabaseFieldProvider(field.config.type);
+        run({db, schema}, {tableId, fieldId, rowId, value}) {
+            const table = schema.getTable(tableId);
+            const field = table.getField(fieldId);
+            const provider = field.getProvider();
             assert(
                 provider.storage === "column",
                 `cannot update virtual field ${fieldId} with updateCellValue`,
             );
-            const tableName = readTableName(db, tableId);
             sql`
-                UPDATE ${sql.tableRef(tableId, tableName)}
+                UPDATE ${table.identifier()}
                 SET
                     ${sql.identifier(field.columnName)} = ${provider.sqlValueSchema.serialize(
                     value,
@@ -1137,11 +741,11 @@ export const databaseActions = {
         }),
         output: Schema.object({}),
         writeLevel: "data",
-        run({db}, {tableId, rowId}) {
-            const tableName = readTableName(db, tableId);
+        run({db, schema}, {tableId, rowId}) {
+            const table = schema.getTable(tableId);
             sql`
                 INSERT INTO
-                    ${sql.tableRef(tableId, tableName)} (_id)
+                    ${table.identifier()} (_id)
                 VALUES
                     (${rowId})
             `.exec(db);
@@ -1159,9 +763,9 @@ export const databaseActions = {
         }),
         output: Schema.object({}),
         writeLevel: "schema+data",
-        run({db}, {fieldId, tableId, viewId, name, type}) {
+        run({schema}, {fieldId, tableId, viewId, name, type}) {
             assert(type !== "relation", "use createRelationField to create relation fields");
-            createField(db, {fieldId, tableId, viewId, name, type});
+            createField(schema, {fieldId, tableId, viewId, name, type});
             return {};
         },
     }),
@@ -1181,29 +785,10 @@ export const databaseActions = {
         }),
         writeLevel: "schema+data",
         serverOnly: true,
-        run({db, server}, {tableId, viewId, name, linkedTableId, cardinality}) {
+        run({db, schema, server}, {tableId, viewId, name, linkedTableId, cardinality}) {
             assert(server !== null, "createRelationField is server-only");
-            const sourceTable = sql`
-                SELECT
-                    id
-                FROM
-                    _alpine_tables
-                WHERE
-                    id = ${tableId}
-                    AND kind = 'table'
-            `.selectOneOrNone(db, {id: Schema.id<DatabaseTableId>()});
-            assert(sourceTable !== null, "source table not found");
-
-            const linkedTable = sql`
-                SELECT
-                    id
-                FROM
-                    _alpine_tables
-                WHERE
-                    id = ${linkedTableId}
-                    AND kind = 'table'
-            `.selectOneOrNone(db, {id: Schema.id<DatabaseTableId>()});
-            assert(linkedTable !== null, "linked table not found");
+            const sourceTable = schema.getTable(tableId);
+            const linkedTable = schema.getTable(linkedTableId);
 
             const joinTableId = generateChronologicalId<DatabaseTableId>();
             const sourceFieldId = generateChronologicalId<DatabaseFieldId>();
@@ -1237,7 +822,7 @@ export const databaseActions = {
                     )
             `.exec(db);
 
-            createFieldMetadata(db, {
+            createFieldMetadata(schema, {
                 fieldId: sourceFieldId,
                 tableId,
                 viewIds: [viewId],
@@ -1259,10 +844,7 @@ export const databaseActions = {
                         ${sql.tableRef(linkedTableId, "_alpine_fields")}
                 `.selectValues(db, Schema.string),
             );
-            const targetName = formatUniqueFieldName(
-                readTableDisplayName(db, tableId),
-                existingTargetFieldNames,
-            );
+            const targetName = formatUniqueFieldName(sourceTable.name, existingTargetFieldNames);
             const targetViewIds = sql`
                 SELECT
                     id
@@ -1272,7 +854,7 @@ export const databaseActions = {
                     id
             `.selectValues(db, Schema.id<DatabaseViewId>());
 
-            createFieldMetadata(db, {
+            createFieldMetadata(schema, {
                 fieldId: targetFieldId,
                 tableId: linkedTableId,
                 viewIds: targetViewIds,
@@ -1299,31 +881,36 @@ export const databaseActions = {
         }),
         output: Schema.object({}),
         writeLevel: "data",
-        run({db}, {tableId, fieldId, rowId, linkedRowId}) {
-            const relation = resolveRelationEndpoints(db, {tableId, fieldId, rowId, linkedRowId});
+        run({db, schema}, {tableId, fieldId, rowId, linkedRowId}) {
+            const table = schema.getTable(tableId);
+            const relation = table.getField(fieldId).resolveRelation();
+            const linkedTable = schema.getTable(relation.linkedTableId);
+
+            assert(table.rowExists(rowId), "row not found");
+            assert(linkedTable.rowExists(linkedRowId), "linked row not found");
 
             if (relation.config.cardinality === "one") {
                 sql`
-                    DELETE FROM ${sql.tableRef(relation.joinTableId, "_alpine_links")}
+                    DELETE FROM ${sql.tableRef(relation.joinTable.id, "_alpine_links")}
                     WHERE
-                        ${sql.identifier("_alpine_links", relation.mineColumnName)} = ${rowId}
+                        ${sql.identifier("_alpine_links", relation.ourColumnName)} = ${rowId}
                         AND ${sql.identifier(
                         "_alpine_links",
-                        relation.theirsColumnName,
+                        relation.theirColumnName,
                     )} != ${linkedRowId}
                 `.exec(db);
             }
 
             sql`
                 INSERT OR IGNORE INTO
-                    ${sql.tableRef(
-                    relation.joinTableId,
-                    "_alpine_links",
-                )} (source_row_id, target_row_id)
+                    ${sql.tableRef(relation.joinTable.id, "_alpine_links")} (
+                        ${sql.identifier(relation.ourColumnName)},
+                        ${sql.identifier(relation.theirColumnName)}
+                    )
                 VALUES
                     (
-                        ${relation.sourceRowId},
-                        ${relation.targetRowId}
+                        ${rowId},
+                        ${linkedRowId}
                     )
             `.exec(db);
 
@@ -1340,16 +927,17 @@ export const databaseActions = {
         }),
         output: Schema.object({}),
         writeLevel: "data",
-        run({db}, {tableId, fieldId, rowId, linkedRowId}) {
-            const relation = resolveRelationEndpoints(db, {tableId, fieldId, rowId, linkedRowId});
+        run({db, schema}, {tableId, fieldId, rowId, linkedRowId}) {
+            const table = schema.getTable(tableId);
+            const relation = table.getField(fieldId).resolveRelation();
 
             sql`
-                DELETE FROM ${sql.tableRef(relation.joinTableId, "_alpine_links")}
+                DELETE FROM ${sql.tableRef(relation.joinTable.id, "_alpine_links")}
                 WHERE
-                    ${sql.identifier("_alpine_links", relation.mineColumnName)} = ${rowId}
+                    ${sql.identifier("_alpine_links", relation.ourColumnName)} = ${rowId}
                     AND ${sql.identifier(
                     "_alpine_links",
-                    relation.theirsColumnName,
+                    relation.theirColumnName,
                 )} = ${linkedRowId}
             `.exec(db);
 
@@ -1372,15 +960,20 @@ export const databaseActions = {
             ),
         }),
         writeLevel: "none",
-        run({db}, {tableId, fieldId, rowId}) {
-            const relation = resolveRelationField(db, {tableId, fieldId});
-            assertRelationEndpointExists(db, {tableId, rowId, message: "row not found"});
+        run({db, schema}, {tableId, fieldId, rowId}) {
+            const table = schema.getTable(tableId);
+            const relation = table.getField(fieldId).resolveRelation();
+
+            assert(table.rowExists(rowId), "row not found");
+
+            const linkedTable = schema.getTable(relation.linkedTableId);
             const linkedNameField = readNameFieldReference(db, relation.linkedTableId);
-            const linkedNameProvider = getDatabaseFieldProvider(linkedNameField.config.type);
+            const linkedNameProvider = linkedTable.getNameField().getProvider();
             assert(
                 linkedNameProvider.storage === "column",
                 "record-name field must be column-backed",
             );
+
             const rows = sql`
                 SELECT
                     linked_row._id,
@@ -1395,12 +988,12 @@ export const databaseActions = {
                         SELECT
                             1
                         FROM
-                            ${sql.tableRef(relation.joinTableId, "_alpine_links")} link_row
+                            ${sql.tableRef(relation.joinTable.id, "_alpine_links")} link_row
                         WHERE
-                            ${sql.identifier("link_row", relation.mineColumnName)} = ${rowId}
+                            ${sql.identifier("link_row", relation.ourColumnName)} = ${rowId}
                             AND ${sql.identifier(
                     "link_row",
-                    relation.theirsColumnName,
+                    relation.theirColumnName,
                 )} = linked_row._id
                     )
                 ORDER BY
@@ -1414,7 +1007,7 @@ export const databaseActions = {
             return {
                 rows: rows.map(row => ({
                     id: row.id,
-                    name: formatNameFieldValueFromValue(linkedNameField.config, row.nameValue),
+                    name: linkedNameProvider.formatString(row.nameValue, linkedNameField.config),
                 })),
             };
         },
@@ -1422,31 +1015,27 @@ export const databaseActions = {
 
     updateFieldConfig: defineDatabaseAction({
         input: Schema.object({
+            tableId: Schema.id<DatabaseTableId>(),
             fieldId: Schema.id<DatabaseFieldId>(),
             config: DatabaseFieldConfigSchema,
         }),
         output: Schema.object({}),
         writeLevel: "data",
-        run({db}, {fieldId, config}) {
-            const existing = sql`
-                SELECT
-                    config
-                FROM
-                    _alpine_fields
-                WHERE
-                    id = ${fieldId}
-            `.selectOne(db, {config: Schema.string});
-            const existingConfig = DatabaseFieldConfigSqlSchema.deserialize(existing.config);
+        run({db, schema}, {tableId, fieldId, config}) {
+            const table = schema.getTable(tableId);
+            const existing = table.getField(fieldId);
+
             assert(
-                existingConfig.type === config.type,
-                `cannot change field type from ${existingConfig.type} to ${config.type}`,
+                existing.config.type === config.type,
+                `cannot change field type from ${existing.config.type} to ${config.type}`,
             );
-            assertRelationFieldConfigUpdate(existingConfig, config);
-            const serialized = DatabaseFieldConfigSqlSchema.serialize(config);
+
+            assertRelationFieldConfigUpdate(existing.config, config);
+
             sql`
-                UPDATE _alpine_fields
+                UPDATE ${sql.tableRef(tableId, "_alpine_fields")}
                 SET
-                    config = ${serialized}
+                    config = jsonb (${DatabaseFieldConfigSqlSchema.serialize(config)})
                 WHERE
                     id = ${fieldId}
             `.exec(db);
@@ -1463,7 +1052,8 @@ export const databaseActions = {
         }),
         output: Schema.object({}),
         writeLevel: "data",
-        run({db}, {tableId, viewId, fieldId, width}) {
+        run({db, schema}, {tableId, viewId, fieldId, width}) {
+            schema.getTable(tableId).getField(fieldId);
             sql`
                 UPDATE ${sql.tableRef(tableId, "_alpine_view_fields")}
                 SET
@@ -1486,7 +1076,8 @@ export const databaseActions = {
         }),
         output: Schema.object({}),
         writeLevel: "data",
-        run({db}, {tableId, viewId, fieldId, position, isHidden}) {
+        run({db, schema}, {tableId, viewId, fieldId, position, isHidden}) {
+            schema.getTable(tableId).getField(fieldId);
             sql`
                 INSERT INTO
                     ${sql.tableRef(
@@ -1518,22 +1109,10 @@ export const databaseActions = {
         }),
         output: Schema.object({}),
         writeLevel: "schema+data",
-        run({db}, {tableId, fieldId, name}) {
-            const field = sql`
-                SELECT
-                    column_name,
-                    config
-                FROM
-                    ${sql.tableRef(tableId, "_alpine_fields")}
-                WHERE
-                    id = ${fieldId}
-            `.selectOne(db, {
-                columnName: Schema.string.originalPropertyKey("column_name"),
-                config: DatabaseFieldConfigSqlSchema,
-            });
-            const provider = getDatabaseFieldProvider(field.config.type);
-
-            const tableName = readTableName(db, tableId);
+        run({db, schema}, {tableId, fieldId, name}) {
+            const table = schema.getTable(tableId);
+            const existingField = table.getField(fieldId);
+            const provider = existingField.getProvider();
 
             const existingColumnNames = new Set(
                 sql`
@@ -1543,11 +1122,7 @@ export const databaseActions = {
                         ${sql.tableRef(tableId, "_alpine_fields")}
                     WHERE
                         id != ${fieldId}
-                `
-                    .selectAll(db, {
-                        columnName: Schema.string.originalPropertyKey("column_name"),
-                    })
-                    .map(row => row.columnName),
+                `.selectValues(db, Schema.string),
             );
             const newColumnName = formatUniqueSqlName(name, existingColumnNames);
 
@@ -1563,8 +1138,8 @@ export const databaseActions = {
             if (provider.storage === "virtual") return {};
 
             sql`
-                ALTER TABLE ${sql.tableRef(tableId, tableName)}
-                RENAME COLUMN ${sql.identifier(field.columnName)} TO ${sql.identifier(
+                ALTER TABLE ${table.identifier()}
+                RENAME COLUMN ${sql.identifier(existingField.columnName)} TO ${sql.identifier(
                     newColumnName,
                 )}
             `.exec(db);

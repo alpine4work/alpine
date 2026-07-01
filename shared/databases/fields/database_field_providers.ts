@@ -3,10 +3,11 @@ import type {SqliteStorageType} from "~/shared/databases/fields/database_field_p
 import {databaseNumberFieldProvider} from "~/shared/databases/fields/database_number_field.js";
 import {databasePlainTextFieldProvider} from "~/shared/databases/fields/database_plain_text_field.js";
 import {databaseRelationFieldProvider} from "~/shared/databases/fields/database_relation_field.js";
+import {SqlJsonSchema} from "~/shared/databases/schema/sqlite_schema.js";
 import type {SqlQuery} from "~/shared/databases/sql.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import type {Result} from "~/shared/helpers/control/result.js";
-import {Schema, type SchemaSerializedValue, type SchemaType} from "~/shared/schema/schema.js";
+import {Schema, type SchemaType} from "~/shared/schema/schema.js";
 
 // -- Provider registry --------------------------------------------------------
 
@@ -116,7 +117,4 @@ export type DatabaseFieldConfig<Type extends DatabaseFieldType = DatabaseFieldTy
  * Schema that serializes a {@link DatabaseFieldConfig} to/from a JSON string for
  * storage in the `_alpine_fields.type` SQLite column.
  */
-export const DatabaseFieldConfigSqlSchema = DatabaseFieldConfigSchema.migration({
-    serialize: (serialized: SchemaSerializedValue) => JSON.stringify(serialized),
-    deserialize: (raw: SchemaSerializedValue) => JSON.parse(raw as string),
-});
+export const DatabaseFieldConfigSqlSchema = SqlJsonSchema(DatabaseFieldConfigSchema);

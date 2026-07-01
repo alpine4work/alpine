@@ -1,7 +1,6 @@
 /* eslint-disable cyberworlds/string-quotes -- SQL literals */
 
 import sqlite3InitModule from "~/external/sqlite/ext/wasm/jswasm/sqlite3.mjs";
-import type {Database} from "~/external/sqlite/ext/wasm/jswasm/sqlite3.mjs";
 import {
     type DatabaseActionContext,
     type DatabaseActionInput,
@@ -9,8 +8,10 @@ import {
     type DatabaseActionOutput,
     databaseActions,
 } from "~/shared/databases/database_actions.js";
+import {DatabaseSchema} from "~/shared/databases/database_schema.js";
 import {DatabaseFieldConfigSqlSchema} from "~/shared/databases/fields/database_field_providers.js";
 import {databaseTableSchemaName, sql} from "~/shared/databases/sql.js";
+import {SqliteDatabase} from "~/shared/databases/sqlite.js";
 import {databaseViewDefaultColumnWidth} from "~/shared/databases/sqlite_constants.js";
 import {registerSqliteCustomFunctions} from "~/shared/databases/sqlite_custom_functions.js";
 import {
@@ -33,7 +34,7 @@ import {Schema} from "~/shared/schema/schema.js";
 const sqlite3Promise = sqlite3InitModule();
 let dbCounter = 0;
 
-async function createDb(): Promise<Database> {
+async function createDb(): Promise<SqliteDatabase> {
     const sqlite3 = await sqlite3Promise;
     const db = new sqlite3.oo1.DB(`/test-actions-${dbCounter++}.sqlite3`, "ct");
     registerSqliteCustomFunctions(sqlite3, db);
@@ -41,7 +42,7 @@ async function createDb(): Promise<Database> {
     return db;
 }
 
-function attachTableDb(db: Database, tableId: DatabaseTableId): void {
+function attachTableDb(db: SqliteDatabase, tableId: DatabaseTableId): void {
     sql` ATTACH DATABASE ':memory:' AS ${sql.identifier(databaseTableSchemaName(tableId))} `.exec(
         db,
     );
@@ -52,9 +53,10 @@ function attachTableDb(db: Database, tableId: DatabaseTableId): void {
  * file is simulated with an in-memory attached database under the table id's
  * schema.
  */
-function makeCtx(db: Database): DatabaseActionContext {
+function makeCtx(db: SqliteDatabase): DatabaseActionContext {
     return {
         db,
+        schema: new DatabaseSchema(db),
         server: {
             attach(tableId) {
                 attachTableDb(db, tableId);
@@ -628,7 +630,7 @@ describe("updateFieldViewVisibility", () => {
 
 /** Helper: creates a field via the action and returns its id. */
 function addFieldAndGetId(
-    db: Database,
+    db: SqliteDatabase,
     tableId: DatabaseTableId,
     viewId: DatabaseViewId,
     name: string,
@@ -639,13 +641,13 @@ function addFieldAndGetId(
     return {fieldId};
 }
 
-function createRowAndGetId(db: Database, tableId: DatabaseTableId): DatabaseRowId {
+function createRowAndGetId(db: SqliteDatabase, tableId: DatabaseTableId): DatabaseRowId {
     const rowId = generateChronologicalId<DatabaseRowId>();
     run(db, "createRow", {tableId, rowId});
     return rowId;
 }
 
-function readNameFieldId(db: Database, tableId: DatabaseTableId): DatabaseFieldId {
+function readNameFieldId(db: SqliteDatabase, tableId: DatabaseTableId): DatabaseFieldId {
     return sql`
         SELECT
             name_field_id
@@ -658,7 +660,7 @@ function readNameFieldId(db: Database, tableId: DatabaseTableId): DatabaseFieldI
  * Helper: inserts relation metadata without implementing createRelationField.
  */
 function addRelationFieldMetadata(
-    db: Database,
+    db: SqliteDatabase,
     tableId: DatabaseTableId,
     viewId: DatabaseViewId,
     name = "Links",
@@ -707,7 +709,7 @@ function addRelationFieldMetadata(
 }
 
 function readFieldById(
-    db: Database,
+    db: SqliteDatabase,
     tableId: DatabaseTableId,
     fieldId: DatabaseFieldId,
 ): {id: DatabaseFieldId; name: string; config: unknown} {
@@ -728,7 +730,7 @@ function readFieldById(
 }
 
 function readLinks(
-    db: Database,
+    db: SqliteDatabase,
     joinTableId: DatabaseTableId,
 ): Array<{sourceRowId: DatabaseRowId; targetRowId: DatabaseRowId}> {
     return sql`

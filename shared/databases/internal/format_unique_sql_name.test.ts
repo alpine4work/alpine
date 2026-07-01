@@ -1,4 +1,4 @@
-import {formatUniqueSqlName} from "~/shared/databases/internal/database_sql_helpers.js";
+import {formatUniqueSqlName} from "~/shared/databases/internal/format_unique_sql_name.js";
 
 const empty = new Set<string>();
 

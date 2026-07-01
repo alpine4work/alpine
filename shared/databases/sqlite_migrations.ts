@@ -102,12 +102,6 @@ export const tableSqliteMigrations: ReadonlyArray<TableSqliteMigration> = [
             WITHOUT ROWID
         `.exec(db);
         sql`
-            CREATE INDEX ${sql.tableRef(
-                tableId,
-                "_alpine_views_table_id",
-            )} ON _alpine_views (table_id)
-        `.exec(db);
-        sql`
             CREATE TABLE ${sql.tableRef(tableId, "_alpine_view_fields")} (
                 view_id TEXT NOT NULL REFERENCES _alpine_views (id),
                 field_id TEXT NOT NULL REFERENCES _alpine_fields (id),
@@ -139,6 +133,68 @@ export const tableSqliteMigrations: ReadonlyArray<TableSqliteMigration> = [
             WHERE
                 name_field_id IS NULL
         `.exec(db);
+        sql`
+            ALTER TABLE ${sql.tableRef(tableId, "_alpine_table")} ALTER COLUMN name_field_id
+            SET
+                NOT NULL
+        `.exec(db);
+    },
+    function migration3(db: Database, tableId: DatabaseTableId): void {
+        // Store `_alpine_fields.config` as an SQLite **JSONB** blob rather than JSON text,
+        // and enforce it with `json_valid(config, 8)` (flag `8` = "well-formed JSONB
+        // blob"). SQLite has no `ALTER COLUMN` to change a column's type or add a `CHECK`,
+        // so we follow the canonical
+        // [table-rebuild procedure](https://www.sqlite.org/lang_altertable.html): create
+        // the new shape, copy through `jsonb()`, drop, rename, and recreate indexes.
+        //
+        // Foreign keys are disabled around the rebuild because dropping `_alpine_fields`
+        // would otherwise trip the FK from `_alpine_view_fields`. The rebuild preserves
+        // every `id` verbatim, so referential integrity is intact by construction; we
+        // restore the connection's default (`foreign_keys = ON`) at the end.
+        // `PRAGMA foreign_keys` is a no-op inside a transaction, and the migration runner
+        // executes statements in autocommit, so the toggle takes effect here.
+        db.exec("PRAGMA foreign_keys = OFF");
+        sql`
+            CREATE TABLE ${sql.tableRef(tableId, "_alpine_fields_new")} (
+                id TEXT PRIMARY KEY,
+                table_id TEXT NOT NULL REFERENCES _alpine_table (id),
+                name TEXT NOT NULL,
+                column_name TEXT NOT NULL,
+                config BLOB NOT NULL,
+                UNIQUE (table_id, column_name),
+                CHECK (is_id (id)),
+                CHECK (is_id (table_id)),
+                CHECK (JSON_VALID(config, 8))
+            ) STRICT,
+            WITHOUT ROWID
+        `.exec(db);
+        sql`
+            INSERT INTO
+                ${sql.tableRef(
+                tableId,
+                "_alpine_fields_new",
+            )} (id, table_id, name, column_name, config)
+            SELECT
+                id,
+                table_id,
+                name,
+                column_name,
+                jsonb (config)
+            FROM
+                ${sql.tableRef(tableId, "_alpine_fields")}
+        `.exec(db);
+        sql`DROP TABLE ${sql.tableRef(tableId, "_alpine_fields")}`.exec(db);
+        sql`
+            ALTER TABLE ${sql.tableRef(tableId, "_alpine_fields_new")}
+            RENAME TO ${sql.identifier("_alpine_fields")}
+        `.exec(db);
+        sql`
+            CREATE INDEX ${sql.tableRef(
+                tableId,
+                "_alpine_fields_table_id",
+            )} ON _alpine_fields (table_id)
+        `.exec(db);
+        db.exec("PRAGMA foreign_keys = ON");
     },
 ];
 

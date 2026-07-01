@@ -707,17 +707,17 @@ http_archive(
 http_archive(
     name = "sqlite",
     build_file = "@//admin/bazel:third_party/BUILD.sqlite.bazel",
-    integrity = "sha256-hREPdi1QeUFNmd1deRe8P/fgWHbmzL0T2ElqOBfyCCk=",
+    integrity = "sha256-u4C/ijv/wZJBzoq6WkvHTpw5gAE8sLXw8JdqmVFpQq8=",
     patch_args = ["-p1"],
     patches = ["//admin/patches:bazel/sqlite.patch"],
-    strip_prefix = "sqlite-src-3510200",
-    url = "https://sqlite.org/2026/sqlite-src-3510200.zip",
+    strip_prefix = "sqlite-src-3530300",
+    url = "https://sqlite.org/2026/sqlite-src-3530300.zip",
 )
 
 http_file(
     name = "sqlite_dts",
     integrity = "sha256-o4RoN7nanENHIdBVMhQgYTM8409WN41ExINWxzMdlI0=",
-    url = "https://raw.githubusercontent.com/sqlite/sqlite-wasm/2adc35d7f3e8306edb7b8738812c9a11a635b198/src/index.d.ts",
+    url = "https://raw.githubusercontent.com/sqlite/sqlite-wasm/f783d4d7e666da8197088c79d830e387d6c31586/src/index.d.ts",
 )
 
 # =========================================================================== #
