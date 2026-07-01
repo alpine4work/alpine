@@ -6,14 +6,14 @@ import {
 import {createContentBuilder} from "~/shared/content/create_content_builder.js";
 import {MessageContentProsemirrorSchema as schema} from "~/shared/content/message_content_schema.js";
 
-const {doc, paragraph, text, quoteBlock, unorderedListItem} = createContentBuilder(schema);
+const {doc, paragraph, quoteBlock, unorderedListItem} = createContentBuilder(schema);
 
 test("indents list item in block quote", () => {
     const inputDoc = doc(
         quoteBlock(
-            paragraph(text("a")),
-            unorderedListItem(0, paragraph(text("b"))),
-            unorderedListItem(0, paragraph(text("c"))),
+            paragraph("a"),
+            unorderedListItem(0, paragraph("b")),
+            unorderedListItem(0, paragraph("c")),
         ),
     );
 
@@ -32,9 +32,9 @@ test("indents list item in block quote", () => {
 
     const expectedDoc = doc(
         quoteBlock(
-            paragraph(text("a")),
-            unorderedListItem(0, paragraph(text("b"))),
-            unorderedListItem(1, paragraph(text("c"))),
+            paragraph("a"),
+            unorderedListItem(0, paragraph("b")),
+            unorderedListItem(1, paragraph("c")),
         ),
     );
     expect(newState.doc.toJSON()).toEqual(expectedDoc.toJSON());
@@ -43,9 +43,9 @@ test("indents list item in block quote", () => {
 test("dedents list item in block quote", () => {
     const inputDoc = doc(
         quoteBlock(
-            paragraph(text("a")),
-            unorderedListItem(0, paragraph(text("b"))),
-            unorderedListItem(1, paragraph(text("c"))),
+            paragraph("a"),
+            unorderedListItem(0, paragraph("b")),
+            unorderedListItem(1, paragraph("c")),
         ),
     );
 
@@ -64,9 +64,9 @@ test("dedents list item in block quote", () => {
 
     const expectedDoc = doc(
         quoteBlock(
-            paragraph(text("a")),
-            unorderedListItem(0, paragraph(text("b"))),
-            unorderedListItem(0, paragraph(text("c"))),
+            paragraph("a"),
+            unorderedListItem(0, paragraph("b")),
+            unorderedListItem(0, paragraph("c")),
         ),
     );
     expect(newState.doc.toJSON()).toEqual(expectedDoc.toJSON());
@@ -74,8 +74,8 @@ test("dedents list item in block quote", () => {
 
 test("indents list item not in block quote", () => {
     const inputDoc = doc(
-        unorderedListItem(0, paragraph(text("a"))),
-        unorderedListItem(0, paragraph(text("b"))),
+        unorderedListItem(0, paragraph("a")),
+        unorderedListItem(0, paragraph("b")),
     );
 
     const state = EditorState.create({
@@ -92,16 +92,16 @@ test("indents list item not in block quote", () => {
     expect(commandResult).toBe(true);
 
     const expectedDoc = doc(
-        unorderedListItem(0, paragraph(text("a"))),
-        unorderedListItem(1, paragraph(text("b"))),
+        unorderedListItem(0, paragraph("a")),
+        unorderedListItem(1, paragraph("b")),
     );
     expect(newState.doc.toJSON()).toEqual(expectedDoc.toJSON());
 });
 
 test("dedents list item not in block quote", () => {
     const inputDoc = doc(
-        unorderedListItem(0, paragraph(text("a"))),
-        unorderedListItem(1, paragraph(text("b"))),
+        unorderedListItem(0, paragraph("a")),
+        unorderedListItem(1, paragraph("b")),
     );
 
     const state = EditorState.create({
@@ -118,14 +118,14 @@ test("dedents list item not in block quote", () => {
     expect(commandResult).toBe(true);
 
     const expectedDoc = doc(
-        unorderedListItem(0, paragraph(text("a"))),
-        unorderedListItem(0, paragraph(text("b"))),
+        unorderedListItem(0, paragraph("a")),
+        unorderedListItem(0, paragraph("b")),
     );
     expect(newState.doc.toJSON()).toEqual(expectedDoc.toJSON());
 });
 
 test("fails to indent list item without preceding list item", () => {
-    const inputDoc = doc(paragraph(text("a")), unorderedListItem(0, paragraph(text("b"))));
+    const inputDoc = doc(paragraph("a"), unorderedListItem(0, paragraph("b")));
 
     const state = EditorState.create({
         doc: inputDoc,
@@ -144,8 +144,8 @@ test("fails to indent list item without preceding list item", () => {
 
 test("fails to dedent list item at indent 0", () => {
     const inputDoc = doc(
-        unorderedListItem(0, paragraph(text("a"))),
-        unorderedListItem(0, paragraph(text("b"))),
+        unorderedListItem(0, paragraph("a")),
+        unorderedListItem(0, paragraph("b")),
     );
 
     const state = EditorState.create({
@@ -165,10 +165,10 @@ test("fails to dedent list item at indent 0", () => {
 
 test("fails to indent when selection includes block quote between list items", () => {
     const inputDoc = doc(
-        unorderedListItem(0, paragraph(text("item 1"))),
-        quoteBlock(paragraph(text("block quote"))),
-        unorderedListItem(0, paragraph(text("item 2"))),
-        unorderedListItem(0, paragraph(text("item 3"))),
+        unorderedListItem(0, paragraph("item 1")),
+        quoteBlock(paragraph("block quote")),
+        unorderedListItem(0, paragraph("item 2")),
+        unorderedListItem(0, paragraph("item 3")),
     );
 
     const state = EditorState.create({
@@ -188,11 +188,11 @@ test("fails to indent when selection includes block quote between list items", (
 
 test("fails to dedent when selection includes block quote between list items", () => {
     const inputDoc = doc(
-        unorderedListItem(0, paragraph(text("item 0"))),
-        unorderedListItem(1, paragraph(text("item 1"))),
-        quoteBlock(paragraph(text("block quote"))),
-        unorderedListItem(1, paragraph(text("item 2"))),
-        unorderedListItem(1, paragraph(text("item 3"))),
+        unorderedListItem(0, paragraph("item 0")),
+        unorderedListItem(1, paragraph("item 1")),
+        quoteBlock(paragraph("block quote")),
+        unorderedListItem(1, paragraph("item 2")),
+        unorderedListItem(1, paragraph("item 3")),
     );
 
     const state = EditorState.create({
@@ -212,10 +212,10 @@ test("fails to dedent when selection includes block quote between list items", (
 
 test("fails to indent when selection spans from list item into block quote", () => {
     const inputDoc = doc(
-        unorderedListItem(0, paragraph(text("item 1"))),
-        unorderedListItem(0, paragraph(text("item 2"))),
-        unorderedListItem(0, paragraph(text("item 3"))),
-        quoteBlock(paragraph(text("block quote"))),
+        unorderedListItem(0, paragraph("item 1")),
+        unorderedListItem(0, paragraph("item 2")),
+        unorderedListItem(0, paragraph("item 3")),
+        quoteBlock(paragraph("block quote")),
     );
 
     const state = EditorState.create({
@@ -235,10 +235,10 @@ test("fails to indent when selection spans from list item into block quote", () 
 
 test("fails to dedent when selection spans from list item into block quote", () => {
     const inputDoc = doc(
-        unorderedListItem(0, paragraph(text("item 1"))),
-        unorderedListItem(1, paragraph(text("item 2"))),
-        unorderedListItem(1, paragraph(text("item 3"))),
-        quoteBlock(paragraph(text("block quote"))),
+        unorderedListItem(0, paragraph("item 1")),
+        unorderedListItem(1, paragraph("item 2")),
+        unorderedListItem(1, paragraph("item 3")),
+        quoteBlock(paragraph("block quote")),
     );
 
     const state = EditorState.create({
