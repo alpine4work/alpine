@@ -830,6 +830,8 @@ function buildAgentWebMessagingPageFromApiMessages<
                                     ? messageParent.endIndex + 1
                                     : messageParent.index + 1,
                         },
+                        // NOCOMMIT: Proper value for `matchAttribute` on read
+                        matchAttribute: null,
                         author: intoApiAccountReference(messageParent.author),
                         previewContent:
                             convertApiMessageContentPayloadParentContentSnippetToContent(

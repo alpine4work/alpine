@@ -55,6 +55,10 @@ export const AgentWebMessagingPageMessageBlockArbitrary: Arbitrary<AgentWebMessa
                             startMessageIndex,
                             endMessageIndex: startMessageIndex + length,
                         })),
+                    matchAttribute: fc.oneof(
+                        {weight: 10, arbitrary: fc.constant(null)},
+                        {weight: 1, arbitrary: fc.integer({min: 1, max: 10})},
+                    ),
                     author: ApiAccountReferenceArbitrary,
                     previewContent: ApiContentWithoutCommentMarkArbitrary,
                 }),

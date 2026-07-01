@@ -138,8 +138,9 @@ async function actuallyParseAgentWebMessagingPage<
             openTagPosition: Node["position"];
             hasEndedOpenTag: boolean;
             hasCloseTag: boolean;
-            startedAttribute: "cite" | null;
+            startedAttribute: "cite" | "match" | null;
             citeAttribute: string | null;
+            matchAttribute: string | null;
             children: Array<RootContent>;
         } | null;
         children: Array<RootContent>;
@@ -259,6 +260,7 @@ async function actuallyParseAgentWebMessagingPage<
                                 hasCloseTag: false,
                                 startedAttribute: null,
                                 citeAttribute: null,
+                                matchAttribute: null,
                                 children: [],
                             };
 
@@ -442,6 +444,26 @@ async function actuallyParseAgentWebMessagingPage<
                                     state.parent.openTagPosition,
                                     state.parent.citeAttribute,
                                 );
+
+                                let matchAttribute: number | null;
+                                if (state.parent.matchAttribute === null) {
+                                    matchAttribute = null;
+                                } else {
+                                    matchAttribute = parseInt(state.parent.matchAttribute, 10);
+
+                                    if (
+                                        !/^-?[0-9]+$/.test(state.parent.matchAttribute) ||
+                                        !Number.isSafeInteger(matchAttribute)
+                                    ) {
+                                        throw new InvalidArgumentError(
+                                            "Invalid parent `match` attribute",
+                                            {
+                                                displayMessage: errorDisplayMessage`Invalid \`<blockquote>\` \`match\` attribute on line ${state.parent.openTagPosition?.start.line ?? "unknown"}. Try again with a 1-indexed integer like \`match="2"\`.`,
+                                            },
+                                        );
+                                    }
+                                }
+
                                 const {authorLink, previewChildren} =
                                     takeAgentWebMessagingPageParentAuthorLinkFromChildren(
                                         messageNouns,
@@ -451,6 +473,7 @@ async function actuallyParseAgentWebMessagingPage<
 
                                 parent = runAllObjectPromises({
                                     citeAttribute,
+                                    matchAttribute,
                                     author: parseAccountLink(
                                         state.parent.openTagPosition,
                                         authorLink,
@@ -566,6 +589,13 @@ async function actuallyParseAgentWebMessagingPage<
                                 }
                                 break;
                             }
+                            case "match": {
+                                if (state.parent && !state.parent.hasEndedOpenTag) {
+                                    state.parent.startedAttribute = "match";
+                                    state.parent.matchAttribute = "";
+                                }
+                                break;
+                            }
                         }
                     }
                 },
@@ -596,6 +626,10 @@ async function actuallyParseAgentWebMessagingPage<
                             switch (state.parent.startedAttribute) {
                                 case "cite": {
                                     state.parent.citeAttribute += attributeData;
+                                    break;
+                                }
+                                case "match": {
+                                    state.parent.matchAttribute += attributeData;
                                     break;
                                 }
                             }
@@ -629,6 +663,10 @@ async function actuallyParseAgentWebMessagingPage<
                             switch (state.parent.startedAttribute) {
                                 case "cite": {
                                     state.parent.citeAttribute += attributeData;
+                                    break;
+                                }
+                                case "match": {
+                                    state.parent.matchAttribute += attributeData;
                                     break;
                                 }
                             }

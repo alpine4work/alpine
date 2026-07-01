@@ -14,6 +14,7 @@ import {
     FailedPreconditionError,
     InternalError,
     InvalidArgumentError,
+    UnimplementedError,
 } from "~/shared/error/error.js";
 import type {ErrorDisplayMessage} from "~/shared/error/types/error_display_message_type.js";
 import {assert} from "~/shared/helpers/control/assert.js";
@@ -552,6 +553,305 @@ End of messages.`,
     });
     expect(getCreateChatRequests()).toEqual([]);
     expect(getCreateMessageRequests()).toEqual([]);
+});
+
+test("does not create a chat when a reply parent is not found", async () => {
+    await expectInvalidCreateDisplayMessage({
+        content: `\
+Chat with [Alice](/human/alice) and [Bob](/human/bob).
+
+<message id="0" from="[ChatGPT](/bot/chatgpt)">
+
+<blockquote cite="?message=0">
+
+[Alice](/human/alice): Missing parent message
+
+</blockquote>
+
+Replying to a parent that is not in the new chat.
+
+</message>
+
+End of messages.`,
+        expected:
+            'Couldn\u2019t find `<message id="0">` referenced by `<blockquote cite="?message=0">` on the current page. To create a message that replies to another message, the cited message must be visible on the current page. If you\u2019re trying to quote a message that\u2019s not on this page then call the `read` tool with a larger `limit` so that the message you\u2019re replying to is on the same page you\u2019re updating. Try again without the `<blockquote>`, with a different `cite` attribute that references a message on the current page, or with a larger limit when calling `read` so the `<message>` you\u2019re replying to is on the same page you\u2019re updating.',
+    });
+    expect(getCreateChatRequests()).toEqual([]);
+    expect(getCreateMessageRequests()).toEqual([]);
+});
+
+test("does not create a chat when a later reply parent is not found", async () => {
+    await expectInvalidCreateDisplayMessage({
+        content: `\
+Chat with [Alice](/human/alice) and [Bob](/human/bob).
+
+<message id="0" from="[ChatGPT](/bot/chatgpt)">
+
+First message should not be partially created.
+
+</message>
+
+<message id="1" from="[ChatGPT](/bot/chatgpt)">
+
+<blockquote cite="?message=0">
+
+[ChatGPT](/bot/chatgpt): Missing parent message
+
+</blockquote>
+
+Replying to a parent that is not in the new chat.
+
+</message>
+
+End of messages.`,
+        expected:
+            "Couldn\u2019t find the quoted content in `<blockquote>` in the current message page. To create a message that replies to another message you must exactly recreate the content you\u2019re replying to in `<blockquote>` so we can find the corresponding range in the messages on this page. If you\u2019re trying to quote a message that\u2019s not on this page then call the `read` tool with a larger `limit` so that the message you\u2019re replying to is on the same page you\u2019re updating. Formatting is flexible when matching content so `**needle**` will match `**foo needle bar**` and `- needle` will match `- foo needle bar` because `**needle**` and `- needle` correctly match the word \u201cneedle\u201d and have the right formatting. Simply `needle` without formatting will also match `**foo needle bar**` and `- foo needle bar` however `_needle_` will match neither because it has incorrect formatting. Your content in `<blockquote>` must be valid markdown so `**foo needle` won\u2019t match `**foo needle bar**` because the formatting (`**`) is unterminated, either `**foo needle**` or `foo needle` (without formatting) will match. Try again but make sure to exactly copy the content you want to reply to in the current message page into a `<blockquote>`.",
+    });
+    expect(getCreateChatRequests()).toEqual([]);
+    expect(getCreateMessageRequests()).toEqual([]);
+});
+
+test("does not create a chat when a reply parent omits the author prefix", async () => {
+    await expectInvalidCreateDisplayMessage({
+        content: `\
+Chat with [Alice](/human/alice) and [Bob](/human/bob).
+
+<message id="0" from="[ChatGPT](/bot/chatgpt)">
+
+Parent from this create call.
+
+</message>
+
+<message id="1" from="[ChatGPT](/bot/chatgpt)">
+
+<blockquote cite="?message=0">
+
+Parent from this create call.
+
+</blockquote>
+
+Replying without an author prefix.
+
+</message>
+
+End of messages.`,
+        expected:
+            "`<blockquote>` content on line 11 must start with a link to the message author followed by a colon. For example: `[John](/human/john-doe): quoted text`. Try again with a link to the message author.",
+    });
+    expect(getCreateChatRequests()).toEqual([]);
+    expect(getCreateMessageRequests()).toEqual([]);
+});
+
+test("does not create a chat when a reply parent author prefix is wrong", async () => {
+    await expectInvalidCreateDisplayMessage({
+        content: `\
+Chat with [Alice](/human/alice) and [Bob](/human/bob).
+
+<message id="0" from="[ChatGPT](/bot/chatgpt)">
+
+Parent from this create call.
+
+</message>
+
+<message id="1" from="[ChatGPT](/bot/chatgpt)">
+
+<blockquote cite="?message=0">
+
+[Alice](/human/alice): Parent from this create call.
+
+</blockquote>
+
+Replying with the wrong author prefix.
+
+</message>
+
+End of messages.`,
+        expected:
+            'The `<blockquote>` content starts with `[Alice](...): `, but `<message id="0">` is from \u201CChatGPT\u201D. Try again with `[ChatGPT](...): ` before any other `<blockquote>` content.',
+    });
+    expect(getCreateChatRequests()).toEqual([]);
+    expect(getCreateMessageRequests()).toEqual([]);
+});
+
+test("only searches the cited new message when creating a reply parent", async () => {
+    const chatId = mockCreateDirectChat({title: "Alice and Bob Reply"});
+    mockCreateMessages({chatId, count: 2});
+
+    await expect(
+        callAgentWebCreateTool(context, {
+            type: "chat",
+            content: `\
+Chat with [Alice](/human/alice) and [Bob](/human/bob).
+
+<message id="0" from="[ChatGPT](/bot/chatgpt)">
+
+Duplicate parent
+
+</message>
+
+<message id="1" from="[ChatGPT](/bot/chatgpt)">
+
+Duplicate parent
+
+</message>
+
+<message id="2" from="[ChatGPT](/bot/chatgpt)">
+
+<blockquote cite="?message=0">
+
+[ChatGPT](/bot/chatgpt): Duplicate parent
+
+</blockquote>
+
+Replying to an ambiguous parent.
+
+</message>
+
+End of messages.`,
+        }),
+    ).rejects.toThrow(UnimplementedError);
+
+    expect(getCreateChatRequests()).toHaveLength(1);
+    expect(getCreateMessageRequests().map(request => request.body)).toEqual([
+        {content: createTextContent("Duplicate parent")},
+        {content: createTextContent("Duplicate parent")},
+    ]);
+});
+
+test("does not create a chat when a new reply parent has multiple matches without match", async () => {
+    await expectInvalidCreateDisplayMessage({
+        content: `\
+Chat with [Alice](/human/alice) and [Bob](/human/bob).
+
+<message id="0" from="[ChatGPT](/bot/chatgpt)">
+
+needle needle
+
+</message>
+
+<message id="1" from="[ChatGPT](/bot/chatgpt)">
+
+<blockquote cite="?message=0">
+
+[ChatGPT](/bot/chatgpt): needle
+
+</blockquote>
+
+Replying to an ambiguous parent.
+
+</message>
+
+End of messages.`,
+        expected:
+            '2 matches were found for the quoted content in `<blockquote>` in `<message id="0">`. Try again but provide more surrounding context to make your match unique or add a 1-indexed `match` attribute to `<blockquote>` to choose which match to use (e.g. `<blockquote match="2">` uses the second match).',
+    });
+    expect(getCreateChatRequests()).toEqual([]);
+    expect(getCreateMessageRequests()).toEqual([]);
+});
+
+test("uses quote match when creating a reply to repeated new parent content", async () => {
+    const chatId = mockCreateDirectChat({title: "Alice and Bob Reply"});
+    mockCreateMessages({chatId, count: 1});
+
+    const result = await captureResultPromise(
+        async () =>
+            await callAgentWebCreateTool(context, {
+                type: "chat",
+                content: `\
+Chat with [Alice](/human/alice) and [Bob](/human/bob).
+
+<message id="0" from="[ChatGPT](/bot/chatgpt)">
+
+needle needle
+
+</message>
+
+<message id="1" from="[ChatGPT](/bot/chatgpt)">
+
+<blockquote cite="?message=0" match="2">
+
+[ChatGPT](/bot/chatgpt): needle
+
+</blockquote>
+
+Replying to the second match.
+
+</message>
+
+End of messages.`,
+            }),
+    );
+
+    if (result.ok) {
+        throw new InternalError("Expected create tool call to throw");
+    }
+
+    expect(result.error).toBeInstanceOf(UnimplementedError);
+    expect((result.error as UnimplementedError).cause).toMatchObject({
+        cause: {
+            startMessageIndex: 0,
+            endMessageIndex: 1,
+            range: {
+                start: {type: "Inline", index: 7},
+                end: {type: "Inline", index: 13},
+            },
+        },
+    });
+    expect(getCreateChatRequests()).toHaveLength(1);
+    expect(getCreateMessageRequests().map(request => request.body)).toEqual([
+        {content: createTextContent("needle needle")},
+    ]);
+});
+
+test("allows a later new message to quote an earlier new message", async () => {
+    const chatId = mockCreateDirectChat({title: "Alice and Bob Reply"});
+    mockCreateMessages({chatId, count: 1});
+
+    await expect(
+        callAgentWebCreateTool(context, {
+            type: "chat",
+            content: `\
+Chat with [Alice](/human/alice) and [Bob](/human/bob).
+
+<message id="0" from="[ChatGPT](/bot/chatgpt)">
+
+Parent from this create call.
+
+</message>
+
+<message id="1" from="[ChatGPT](/bot/chatgpt)">
+
+<blockquote cite="?message=0">
+
+[ChatGPT](/bot/chatgpt): Parent from this create call.
+
+</blockquote>
+
+Replying to the message we just created.
+
+</message>
+
+End of messages.`,
+        }),
+    ).rejects.toThrow(UnimplementedError);
+
+    expect(getCreateChatRequests()).toMatchObject([
+        {
+            body: {
+                spaceId,
+                chat: {
+                    type: "Direct",
+                    members: [
+                        {account: intoApiAccountReference(aliceAccount)},
+                        {account: intoApiAccountReference(bobAccount)},
+                    ],
+                },
+            },
+        },
+    ]);
+    expect(getCreateMessageRequests().map(request => request.body)).toEqual([
+        {content: createTextContent("Parent from this create call.")},
+    ]);
 });
 
 test("creates a room chat without messages", async () => {

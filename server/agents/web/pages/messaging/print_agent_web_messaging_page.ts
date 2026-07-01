@@ -299,14 +299,22 @@ export async function printAgentWebMessagingPage<
                 });
 
                 if (block.parent !== null) {
+                    let blockquoteOpenTag = `<blockquote cite="${escapeHtml(
+                        printAgentWebMessagingPageParentCiteAttribute(
+                            messageNouns,
+                            block.parent.citeAttribute,
+                        ),
+                    )}"`;
+
+                    if (block.parent.matchAttribute !== null) {
+                        blockquoteOpenTag += ` match="${block.parent.matchAttribute}"`;
+                    }
+
+                    blockquoteOpenTag += ">";
+
                     children.push({
                         type: "html",
-                        value: `<blockquote cite="${escapeHtml(
-                            printAgentWebMessagingPageParentCiteAttribute(
-                                messageNouns,
-                                block.parent.citeAttribute,
-                            ),
-                        )}">`,
+                        value: blockquoteOpenTag,
                     });
 
                     for (const childNode of printAgentWebMessagingPageParentPreviewContentTree(

@@ -85,6 +85,7 @@ export type AgentWebMessagingPageCustomBlockBase = {
 
 export type AgentWebMessagingPageMessageBlockParent = {
     readonly citeAttribute: AgentWebMessagingPageMessageRange;
+    readonly matchAttribute: number | null;
     readonly author: ApiAccountReferenceResponse;
     readonly previewContent: ApiContentResponseWithoutKeys;
 };

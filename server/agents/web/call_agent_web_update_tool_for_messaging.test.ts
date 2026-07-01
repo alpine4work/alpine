@@ -23,6 +23,8 @@ import {agentWebMessagingPageMessageNouns} from "~/server/agents/web/pages/messa
 import {getReadAgentWebMessagingPageAroundMessageStartCursor} from "~/server/agents/web/pages/messaging/read_agent_web_messaging_page.js";
 import {updateAgentWebMessagingPage} from "~/server/agents/web/pages/messaging/update_agent_web_messaging_page.js";
 import {createAgentWebSessionStorageForTest} from "~/server/agents/web/test_helpers/create_agent_web_session_storage_for_test.js";
+import {intoApiAccountReference} from "~/shared/api/specification/into_api_account_reference.js";
+import {ApiContentKey} from "~/shared/api/specification/types/api_content_key.js";
 import {ApiContentResponseWithoutKeys} from "~/shared/api/specification/types/api_content_response_without_keys.js";
 import {
     ApiAccount,
@@ -398,6 +400,30 @@ test("creates multiple messages in one update in order", async () => {
         },
         {
             content: createTextContent("Second new message."),
+        },
+    ]);
+});
+
+test("allows a later new message to quote an earlier new message", async () => {
+    await readChat({totalMessageCount: 0});
+    mockCreateMessages({count: 1});
+
+    await expect(
+        callAgentWebUpdateTool(context, {
+            path: chatPath,
+            updates: [
+                {
+                    old: "\n\nEnd of messages.",
+                    new: '\n\n<message id="0" from="[ChatGPT](/bot/chatgpt)">\n\nParent from this update.\n\n</message>\n\n<message id="1" from="[ChatGPT](/bot/chatgpt)">\n\n<blockquote cite="?message=0">\n\n[ChatGPT](/bot/chatgpt): Parent from this update.\n\n</blockquote>\n\nReplying to the message we just created.\n\n</message>\n\nEnd of messages.',
+                    replaceAll: false,
+                },
+            ],
+        }),
+    ).rejects.toThrow(UnimplementedError);
+
+    expect(getCreateMessageRequests().map(request => request.body)).toEqual([
+        {
+            content: createTextContent("Parent from this update."),
         },
     ]);
 });
@@ -1183,6 +1209,313 @@ test("throws UnimplementedError when creating a reply with a blockquote parent",
     ).rejects.toThrow(UnimplementedError);
 });
 
+test("rejects creating a reply when the quoted parent content is not found", async () => {
+    await readChat({
+        totalMessageCount: 1,
+        createMessage: index =>
+            createMessage({index, author: aliceAccount, content: "Parent message"}),
+    });
+
+    await expectInvalidUpdateDisplayMessage({
+        updates: [
+            {
+                old: "\n\nEnd of messages.",
+                new: '\n\n<message id="1" from="[ChatGPT](/bot/chatgpt)">\n\n<blockquote cite="?message=0">\n\n[Alice](/human/alice): Missing parent message\n\n</blockquote>\n\nReplying to the parent.\n\n</message>\n\nEnd of messages.',
+                replaceAll: false,
+            },
+        ],
+        expected:
+            "Couldn\u2019t find the quoted content in `<blockquote>` in the current message page. To create a message that replies to another message you must exactly recreate the content you\u2019re replying to in `<blockquote>` so we can find the corresponding range in the messages on this page. If you\u2019re trying to quote a message that\u2019s not on this page then call the `read` tool with a larger `limit` so that the message you\u2019re replying to is on the same page you\u2019re updating. Formatting is flexible when matching content so `**needle**` will match `**foo needle bar**` and `- needle` will match `- foo needle bar` because `**needle**` and `- needle` correctly match the word \u201cneedle\u201d and have the right formatting. Simply `needle` without formatting will also match `**foo needle bar**` and `- foo needle bar` however `_needle_` will match neither because it has incorrect formatting. Your content in `<blockquote>` must be valid markdown so `**foo needle` won\u2019t match `**foo needle bar**` because the formatting (`**`) is unterminated, either `**foo needle**` or `foo needle` (without formatting) will match. Try again but make sure to exactly copy the content you want to reply to in the current message page into a `<blockquote>`.",
+    });
+
+    expect(getCreateMessageRequests()).toEqual([]);
+});
+
+test("rejects creating a reply when the cited parent message is not on the page", async () => {
+    await readChat({
+        totalMessageCount: 1,
+        createMessage: index =>
+            createMessage({index, author: aliceAccount, content: "Parent message"}),
+    });
+
+    await expectInvalidUpdateDisplayMessage({
+        updates: [
+            {
+                old: "\n\nEnd of messages.",
+                new: '\n\n<message id="1" from="[ChatGPT](/bot/chatgpt)">\n\n<blockquote cite="?message=4">\n\n[Alice](/human/alice): Parent message\n\n</blockquote>\n\nReplying to a parent that is not on this page.\n\n</message>\n\nEnd of messages.',
+                replaceAll: false,
+            },
+        ],
+        expected:
+            'Couldn\u2019t find `<message id="4">` referenced by `<blockquote cite="?message=4">` on the current page. To create a message that replies to another message, the cited message must be visible on the current page. If you\u2019re trying to quote a message that\u2019s not on this page then call the `read` tool with a larger `limit` so that the message you\u2019re replying to is on the same page you\u2019re updating. Try again without the `<blockquote>`, with a different `cite` attribute that references a message on the current page, or with a larger limit when calling `read` so the `<message>` you\u2019re replying to is on the same page you\u2019re updating.',
+    });
+
+    expect(getCreateMessageRequests()).toEqual([]);
+});
+
+test("rejects creating a reply when the blockquote author prefix is wrong", async () => {
+    await readChat({
+        totalMessageCount: 1,
+        createMessage: index =>
+            createMessage({index, author: aliceAccount, content: "Parent message"}),
+    });
+    await createAgentWebPageStoredLinkPathname(storage, intoApiAccountReference(bobAccount));
+
+    await expectInvalidUpdateDisplayMessage({
+        updates: [
+            {
+                old: "\n\nEnd of messages.",
+                new: '\n\n<message id="1" from="[ChatGPT](/bot/chatgpt)">\n\n<blockquote cite="?message=0">\n\n[Bob](/human/bob): Parent message\n\n</blockquote>\n\nReplying with the wrong author prefix.\n\n</message>\n\nEnd of messages.',
+                replaceAll: false,
+            },
+        ],
+        expected:
+            'The `<blockquote>` content starts with `[Bob](...): `, but `<message id="0">` is from \u201CAlice\u201D. Try again with `[Alice](...): ` before any other `<blockquote>` content.',
+    });
+
+    expect(getCreateMessageRequests()).toEqual([]);
+});
+
+test("rejects creating a reply when the quoted parent content matches twice in one message", async () => {
+    await readChat({
+        totalMessageCount: 1,
+        createMessage: index =>
+            createMessage({index, author: aliceAccount, content: "needle needle"}),
+    });
+
+    await expectInvalidUpdateDisplayMessage({
+        updates: [
+            {
+                old: "\n\nEnd of messages.",
+                new: '\n\n<message id="1" from="[ChatGPT](/bot/chatgpt)">\n\n<blockquote cite="?message=0">\n\n[Alice](/human/alice): needle\n\n</blockquote>\n\nReplying to the parent.\n\n</message>\n\nEnd of messages.',
+                replaceAll: false,
+            },
+        ],
+        expected:
+            '2 matches were found for the quoted content in `<blockquote>` in `<message id="0">`. Try again but provide more surrounding context to make your match unique or add a 1-indexed `match` attribute to `<blockquote>` to choose which match to use (e.g. `<blockquote match="2">` uses the second match).',
+    });
+
+    expect(getCreateMessageRequests()).toEqual([]);
+});
+
+test("rejects creating a reply when the quote match is out of bounds for one match", async () => {
+    await readChat({
+        totalMessageCount: 1,
+        createMessage: index =>
+            createMessage({index, author: aliceAccount, content: "Parent message"}),
+    });
+
+    await expectInvalidUpdateDisplayMessage({
+        updates: [
+            {
+                old: "\n\nEnd of messages.",
+                new: '\n\n<message id="1" from="[ChatGPT](/bot/chatgpt)">\n\n<blockquote cite="?message=0" match="2">\n\n[Alice](/human/alice): Parent message\n\n</blockquote>\n\nReplying to the parent.\n\n</message>\n\nEnd of messages.',
+                replaceAll: false,
+            },
+        ],
+        expected:
+            'The `<blockquote>` `match` attribute must be 1 or it can be omitted since there\u2019s only one match, instead it was `match="2"`. Try again but omit the `match` attribute.',
+    });
+
+    expect(getCreateMessageRequests()).toEqual([]);
+});
+
+test("rejects creating a reply when the quote match is out of bounds for multiple matches", async () => {
+    await readChat({
+        totalMessageCount: 1,
+        createMessage: index =>
+            createMessage({index, author: aliceAccount, content: "needle needle"}),
+    });
+
+    await expectInvalidUpdateDisplayMessage({
+        updates: [
+            {
+                old: "\n\nEnd of messages.",
+                new: '\n\n<message id="1" from="[ChatGPT](/bot/chatgpt)">\n\n<blockquote cite="?message=0" match="3">\n\n[Alice](/human/alice): needle\n\n</blockquote>\n\nReplying to the parent.\n\n</message>\n\nEnd of messages.',
+                replaceAll: false,
+            },
+        ],
+        expected:
+            'The `<blockquote>` `match` attribute must be between 1 and 2, instead it was `match="3"`. Try again with a valid 1-indexed `match` attribute.',
+    });
+
+    expect(getCreateMessageRequests()).toEqual([]);
+});
+
+test("uses quote match when creating a reply to repeated parent content", async () => {
+    await readChat({
+        totalMessageCount: 1,
+        createMessage: index =>
+            createMessage({
+                index,
+                author: aliceAccount,
+                content: {
+                    elements: [
+                        {
+                            type: "Paragraph",
+                            key: "repeated-parent" as ApiContentKey,
+                            elements: [{type: "Text", text: "needle needle"}],
+                        },
+                    ],
+                },
+            }),
+    });
+
+    const result = await captureResultPromise(
+        async () =>
+            await callAgentWebUpdateTool(context, {
+                path: chatPath,
+                updates: [
+                    {
+                        old: "\n\nEnd of messages.",
+                        new: '\n\n<message id="1" from="[ChatGPT](/bot/chatgpt)">\n\n<blockquote cite="?message=0" match="2">\n\n[Alice](/human/alice): needle\n\n</blockquote>\n\nReplying to the second match.\n\n</message>\n\nEnd of messages.',
+                        replaceAll: false,
+                    },
+                ],
+            }),
+    );
+
+    if (result.ok) {
+        throw new InternalError("Expected update tool call to throw");
+    }
+
+    expect(result.error).toMatchObject({
+        cause: {
+            startMessageIndex: 0,
+            endMessageIndex: 1,
+            range: {
+                start: {type: "Inline", key: "repeated-parent", index: 7},
+                end: {type: "Inline", key: "repeated-parent", index: 13},
+            },
+        },
+    });
+    expect(result.error).toBeInstanceOf(UnimplementedError);
+    expect(getCreateMessageRequests()).toEqual([]);
+});
+
+test("only searches the cited message when creating a reply", async () => {
+    await readChat({
+        totalMessageCount: 3,
+        createMessage: index =>
+            createMessage({
+                index,
+                author: index === 1 ? bobAccount : aliceAccount,
+                content: index === 1 ? "Different author duplicate" : "Duplicate parent",
+            }),
+    });
+
+    await expect(
+        callAgentWebUpdateTool(context, {
+            path: chatPath,
+            updates: [
+                {
+                    old: "\n\nEnd of messages.",
+                    new: '\n\n<message id="3" from="[ChatGPT](/bot/chatgpt)">\n\n<blockquote cite="?message=0">\n\n[Alice](/human/alice): Duplicate parent\n\n</blockquote>\n\nReplying to the parent.\n\n</message>\n\nEnd of messages.',
+                    replaceAll: false,
+                },
+            ],
+        }),
+    ).rejects.toThrow(UnimplementedError);
+
+    expect(getCreateMessageRequests()).toEqual([]);
+});
+
+test("rejects creating a reply when cite overlaps but does not match a merged message block", async () => {
+    const page = await readChat({
+        totalMessageCount: 2,
+        createMessage: index =>
+            createMessage({
+                index,
+                author: aliceAccount,
+                createdTime: new Date(Date.UTC(2026, 4, 14, 15, index * 3)).toISOString(),
+                content: index === 0 ? "First merged parent." : "Second merged parent.",
+            }),
+    });
+    assert(page.includes('<message id="0-1" from="[Alice](/human/alice)">'));
+
+    await expectInvalidUpdateDisplayMessage({
+        updates: [
+            {
+                old: "\n\nEnd of messages.",
+                new: '\n\n<message id="2" from="[ChatGPT](/bot/chatgpt)">\n\n<blockquote cite="?message=1">\n\n[Alice](/human/alice): Second merged parent.\n\n</blockquote>\n\nReplying to one message inside a merged block.\n\n</message>\n\nEnd of messages.',
+                replaceAll: false,
+            },
+        ],
+        expected:
+            'The `<blockquote>` `cite` attribute must exactly match a `<message>` `id` on the current page. `cite="?message=1"` overlaps with `<message id="0-1">`, but doesn\u2019t exactly match it. Try again with `cite="?message=0-1"`.',
+    });
+
+    expect(getCreateMessageRequests()).toEqual([]);
+});
+
+test("throws UnimplementedError when replying to content spanning a merged message block", async () => {
+    const firstMergedParentParagraph = "First merged parent paragraph.";
+    const secondMergedParentParagraph = "Second merged parent paragraph.";
+
+    const page = await readChat({
+        totalMessageCount: 2,
+        createMessage: index =>
+            createMessage({
+                index,
+                author: aliceAccount,
+                createdTime: new Date(Date.UTC(2026, 4, 14, 15, index * 3)).toISOString(),
+                content: {
+                    elements: [
+                        {
+                            type: "Paragraph",
+                            key: `merged-parent-${index}` as ApiContentKey,
+                            elements: [
+                                {
+                                    type: "Text",
+                                    text:
+                                        index === 0
+                                            ? firstMergedParentParagraph
+                                            : secondMergedParentParagraph,
+                                },
+                            ],
+                        },
+                    ],
+                },
+            }),
+    });
+    assert(page.includes('<message id="0-1" from="[Alice](/human/alice)">'));
+
+    const result = await captureResultPromise(
+        async () =>
+            await callAgentWebUpdateTool(context, {
+                path: chatPath,
+                updates: [
+                    {
+                        old: "\n\nEnd of messages.",
+                        new: `\n\n<message id="2" from="[ChatGPT](/bot/chatgpt)">\n\n<blockquote cite="?message=0-1">\n\n[Alice](/human/alice): ${firstMergedParentParagraph}\n\n${secondMergedParentParagraph}\n\n</blockquote>\n\nReplying to both merged messages.\n\n</message>\n\nEnd of messages.`,
+                        replaceAll: false,
+                    },
+                ],
+            }),
+    );
+
+    if (result.ok) {
+        throw new InternalError("Expected update tool call to throw");
+    }
+
+    expect(result.error).toMatchObject({
+        cause: {
+            startMessageIndex: 0,
+            endMessageIndex: 2,
+            range: {
+                start: {type: "Inline", key: "merged-parent-0", index: 0},
+                end: {
+                    type: "Inline",
+                    key: "merged-parent-1",
+                    index: secondMergedParentParagraph.length,
+                },
+            },
+        },
+    });
+    expect(result.error).toBeInstanceOf(UnimplementedError);
+    expect(getCreateMessageRequests()).toEqual([]);
+});
+
 test("throws UnimplementedError when creating a message with a timezone attribute", async () => {
     await readChat({
         totalMessageCount: 1,
@@ -1203,13 +1536,12 @@ test("throws UnimplementedError when creating a message with a timezone attribut
     ).rejects.toThrow(UnimplementedError);
 });
 
-test("throws UnimplementedError when updating and creating messages together", async () => {
+test("throws UnimplementedError without creating when updating and creating together", async () => {
     await readChat({
         totalMessageCount: 1,
         createMessage: index =>
             createMessage({index, author: botApiAccount, content: "Bot original"}),
     });
-    mockCreateMessages({count: 1, startIndex: 1});
 
     await expect(
         callAgentWebUpdateTool(context, {
@@ -1225,11 +1557,7 @@ test("throws UnimplementedError when updating and creating messages together", a
         }),
     ).rejects.toThrow(UnimplementedError);
 
-    expect(getCreateMessageRequests().map(request => request.body)).toEqual([
-        {
-            content: createTextContent("New bot message."),
-        },
-    ]);
+    expect(getCreateMessageRequests()).toEqual([]);
 });
 
 test("throws UnimplementedError when updating a cached new message without an id", async () => {

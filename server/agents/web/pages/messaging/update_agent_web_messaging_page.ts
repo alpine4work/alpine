@@ -209,6 +209,7 @@ export async function updateAgentWebMessagingPage<
                 parent: block.parent
                     ? {
                           citeAttribute: block.parent.citeAttribute,
+                          matchAttribute: block.parent.matchAttribute,
                           author: normalizeApiReference(block.parent.author),
                           previewContent: normalizeApiContent(block.parent.previewContent),
                       }
@@ -464,17 +465,35 @@ export async function updateAgentWebMessagingPage<
                 });
             }
 
-            // NOCOMMIT: If there's more than one match we need a way for the agent to specify
-            // which instance of the content it wants.
-            if (ranges.length > 1) {
+            if (
+                newBlock.parent.matchAttribute !== null &&
+                (newBlock.parent.matchAttribute < 1 ||
+                    newBlock.parent.matchAttribute > ranges.length)
+            ) {
+                if (ranges.length === 1) {
+                    throw new InvalidArgumentError("Quoted message content match out of bounds", {
+                        displayMessage: errorDisplayMessage`The \`<blockquote>\` \`match\` attribute must be 1 or it can be omitted since there\u2019s only one match, instead it was \`match="${newBlock.parent.matchAttribute}"\`. Try again but omit the \`match\` attribute.`,
+                    });
+                }
+
+                throw new InvalidArgumentError("Quoted message content match out of bounds", {
+                    displayMessage: errorDisplayMessage`The \`<blockquote>\` \`match\` attribute must be between 1 and ${ranges.length}, instead it was \`match="${newBlock.parent.matchAttribute}"\`. Try again with a valid 1-indexed \`match\` attribute.`,
+                });
+            }
+
+            if (newBlock.parent.matchAttribute === null && ranges.length > 1) {
+                const citeAttributeString = printAgentWebMessagingPageMessageIndexRange(
+                    newBlock.parent.citeAttribute,
+                );
+
                 throw new InvalidArgumentError("Quoted message content found more than once", {
-                    displayMessage: errorDisplayMessage`${ranges.length} matches were found for the quoted content in \`<blockquote>\` in the current ${messageNouns.noun} page. Try again but provide more surrounding context to make your match unique.`,
+                    displayMessage: errorDisplayMessage`${ranges.length} matches were found for the quoted content in \`<blockquote>\` in \`<${messageNouns.noun} id="${citeAttributeString}">\`. Try again but provide more surrounding context to make your match unique or add a 1-indexed \`match\` attribute to \`<blockquote>\` to choose which match to use (e.g. \`<blockquote match="2">\` uses the second match).`,
                 });
             }
 
             newBlockParentRange = {
                 messageRange: citedBlock.idAttribute,
-                contentRange: ranges[0]!,
+                contentRange: ranges[(newBlock.parent.matchAttribute ?? 1) - 1]!,
             };
         }
 

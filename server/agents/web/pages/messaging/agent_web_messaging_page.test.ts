@@ -553,6 +553,7 @@ const done = true;
                         timeZoneAttribute: null,
                         parent: {
                             citeAttribute: {startMessageIndex: 4, endMessageIndex: 5},
+                            matchAttribute: null,
                             author: aliceReference,
                             previewContent: content([
                                 paragraph([
@@ -624,6 +625,7 @@ Escaped attributes survive.
                         timeZoneAttribute: "GMT+0 & east",
                         parent: {
                             citeAttribute: {startMessageIndex: 4, endMessageIndex: 8},
+                            matchAttribute: null,
                             author: escapedCarolDanTeamReference,
                             previewContent: content([paragraph([text("Quoted reply.")])]),
                         },
@@ -944,6 +946,23 @@ Quoted.
                 "Invalid `<blockquote>` `cite` attribute on line 3. Expected `cite` to be a relative link like `?message=42` or `?message=4-7`. Try again with a valid `cite` attribute.",
         },
         {
+            name: "blockquote with non-integer match attribute",
+            pageLink: true,
+            markdown: `\
+<message from="[Alice](/human/alice)">
+
+<blockquote cite="?message=2" match="second">
+
+[Bob](/human/bob): Quoted.
+
+</blockquote>
+
+</message>
+`,
+            parseError:
+                'Invalid `<blockquote>` `match` attribute on line 3. Try again with a 1-indexed integer like `match="2"`.',
+        },
+        {
             name: "blockquote without author prefix",
             pageLink: true,
             markdown: `\
@@ -1154,7 +1173,7 @@ Hello there.
             markdown: `\
 <message from="[Alice](/human/alice)">
 
-<blockquote cite="?message=2">
+<blockquote cite="?message=2" match="2">
 
 [Bob](/human/bob): foo
 
@@ -1168,7 +1187,7 @@ Hello there.
             printMarkdown: `\
 <message from="[Alice](/human/alice)">
 
-<blockquote cite="?message=2">
+<blockquote cite="?message=2" match="2">
 
 [Bob](/human/bob): foo
 
@@ -1193,6 +1212,7 @@ Hello there.
                         timeZoneAttribute: null,
                         parent: {
                             citeAttribute: {startMessageIndex: 2, endMessageIndex: 3},
+                            matchAttribute: 2,
                             author: bobReference,
                             previewContent: content([
                                 paragraph([text("foo")]),
