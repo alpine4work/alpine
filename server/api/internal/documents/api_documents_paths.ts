@@ -51,10 +51,7 @@ import {
     DocumentContentProsemirrorSchema,
     assertDocumentContent,
 } from "~/shared/documents/document_content_schema.js";
-import {
-    getDocumentContentTitle,
-    getDocumentContentTitleWithoutFallback,
-} from "~/shared/documents/document_model.js";
+import {getDocumentContentTitleWithoutFallback} from "~/shared/documents/document_model.js";
 import {InvalidArgumentError} from "~/shared/error/error.js";
 import {errorDisplayMessage} from "~/shared/error/error_display_message.js";
 import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
@@ -276,21 +273,16 @@ export const apiDocumentsPaths: Pick<
 
     "/documents/{id}/threads/{threadId}": {
         get: async (context, {pathParameters}) => {
-            const options = {consistency: "StrongWithinCache"} as const;
-
-            const [commentThread, documentContent] = await runAllPromises([
+            const [commentThread, document] = await runAllPromises([
                 getDocumentCommentThreadContent(
                     context,
-                    {
-                        documentId: pathParameters.id,
-                        commentThreadId: pathParameters.threadId,
-                    },
-                    options,
+                    {documentId: pathParameters.id, commentThreadId: pathParameters.threadId},
+                    {consistency: "StrongWithinCache"},
                 ),
-                getDocumentContent(context, pathParameters.id, options),
+                getDocumentContent(context, pathParameters.id, {consistency: "StrongWithinCache"}),
             ]);
 
-            const [firstCommentAuthor, contentSnippet] = await runAllPromises([
+            const [firstCommentAuthor, markedPreview, documentContent] = await runAllPromises([
                 getApiAccount(
                     context.dynamo.unexpectStrongReadConsistency(),
                     commentThread.spaceId,
@@ -299,35 +291,50 @@ export const apiDocumentsPaths: Pick<
                 (async () => {
                     const contentSnippetByCommentThreadId =
                         createDocumentCommentThreadSnippetCollector([pathParameters.threadId])(
-                            documentContent.content,
+                            document.content,
                         );
 
                     const commentThreadSnippet = contentSnippetByCommentThreadId.get(
                         pathParameters.threadId,
                     );
 
-                    let contentSnippet: ApiContentResponse | null = null;
+                    let markedPreview: {
+                        version: number;
+                        contentSnippet: ApiContentResponse;
+                    } | null = null;
+
                     if (commentThreadSnippet) {
-                        contentSnippet = await intoApiContentWithReferences(context, {
+                        const contentSnippet = await intoApiContentWithReferences(context, {
                             spaceId: commentThread.spaceId,
                             fileAuthorizer: FileDocumentAuthorizer.bind({
                                 type: "Document",
                                 documentId: pathParameters.id,
                             }),
+                            // NOCOMMIT: Test that we see other comment marks in the content in this case.
                             content: commentThreadSnippet.node,
                             contentKeyEncoder: new ApiContentKeyEncoder({
                                 entityId: `Document:${pathParameters.id}`,
-                                version: documentContent.version,
+                                version: document.version,
                             }),
-                            posOffset: commentThreadSnippet.posOffset,
+                            // NOCOMMIT: Extensive tests that we get the right keys with this `posOffset`
+                            // value. What happens if a `paragraph` is cut from the front or the end? Do we get
+                            // different keys? Probably. Does it matter? Probably not. We should still resolve
+                            // to the right position.
+                            posOffset: commentThreadSnippet.pos,
                         });
+
+                        markedPreview = {
+                            version: document.version,
+                            contentSnippet,
+                        };
                     } else if (commentThread.fallbackContentSnippet) {
-                        contentSnippet = await intoApiContentWithReferences(context, {
+                        const contentSnippet = await intoApiContentWithReferences(context, {
                             spaceId: commentThread.spaceId,
                             fileAuthorizer: FileDocumentAuthorizer.bind({
                                 type: "Document",
                                 documentId: pathParameters.id,
                             }),
+                            // NOCOMMIT: Test that we see other comment marks in the content in this case.
                             content: commentThread.fallbackContentSnippet.node,
                             // The fallback snippet was saved from an older version of the document, so encode
                             // its keys with that version. The keys identify blocks within the snippet but
@@ -336,13 +343,33 @@ export const apiDocumentsPaths: Pick<
                                 entityId: `Document:${pathParameters.id}`,
                                 version: commentThread.fallbackContentSnippet.version,
                             }),
-                            // NOCOMMIT: We need a `posOffset` here! It needs to be included in the fallback
-                            // content snippet.
+                            // NOCOMMIT: Extensive tests that we get the right keys with this `posOffset`
+                            // value. What happens if a `paragraph` is cut from the front or the end? Do we get
+                            // different keys? Probably. Does it matter? Probably not. We should still resolve
+                            // to the right position.
+                            posOffset: commentThread.fallbackContentSnippet.pos,
                         });
+
+                        markedPreview = {
+                            version: commentThread.fallbackContentSnippet.version,
+                            contentSnippet,
+                        };
                     }
 
-                    return contentSnippet;
+                    return markedPreview;
                 })(),
+                intoApiContentWithReferences(context, {
+                    spaceId: document.spaceId,
+                    fileAuthorizer: FileDocumentAuthorizer.bind({
+                        type: "Document",
+                        documentId: pathParameters.id,
+                    }),
+                    content: document.content,
+                    contentKeyEncoder: new ApiContentKeyEncoder({
+                        entityId: `Document:${pathParameters.id}`,
+                        version: document.version,
+                    }),
+                }),
             ]);
 
             return {
@@ -350,18 +377,56 @@ export const apiDocumentsPaths: Pick<
                     spaceId: commentThread.spaceId,
                     thread: {
                         id: pathParameters.threadId,
-                        document: {
-                            id: pathParameters.id,
-                            reference: {
-                                title: getDocumentContentTitle(documentContent.content),
-                            },
-                        },
-                        createdTime: serializeDateString(commentThread.createdTime),
-                        createdTimeZone: commentThread.createdTimeZone,
                         isResolved: commentThread.isResolved,
-                        commentCount: commentThread.commentCount,
-                        firstCommentAuthor,
-                        documentContentSnippet: contentSnippet ?? {elements: []},
+                        totalMessageCount: commentThread.commentCount,
+                        firstMessage: {
+                            author: firstCommentAuthor,
+                            createdTime: serializeDateString(commentThread.createdTime),
+                            createdTimeZone: commentThread.createdTimeZone,
+                        },
+                        marked: {
+                            preview: markedPreview ?? {version: 0, contentSnippet: {elements: []}},
+                        },
+                    },
+                    document: {
+                        id: pathParameters.id,
+                        creator: document.creator.id ? {id: document.creator.id} : undefined,
+                        version: document.version,
+                        title: getDocumentContentTitleWithoutFallback(document.content),
+                        content: documentContent,
+                    },
+                },
+            };
+        },
+    },
+
+    // NOCOMMIT: Tests for this endpoint
+    "/documents/{id}/threads/{threadId}/preview": {
+        get: async (context, {pathParameters}) => {
+            const commentThread = await getDocumentCommentThreadContent(
+                context,
+                {documentId: pathParameters.id, commentThreadId: pathParameters.threadId},
+                {consistency: "StrongWithinCache"},
+            );
+
+            const firstCommentAuthor = await getApiAccount(
+                context.dynamo.unexpectStrongReadConsistency(),
+                commentThread.spaceId,
+                commentThread.firstCommentAuthorId,
+            );
+
+            return {
+                content: {
+                    spaceId: commentThread.spaceId,
+                    thread: {
+                        id: pathParameters.threadId,
+                        isResolved: commentThread.isResolved,
+                        totalMessageCount: commentThread.commentCount,
+                        firstMessage: {
+                            author: firstCommentAuthor,
+                            createdTime: serializeDateString(commentThread.createdTime),
+                            createdTimeZone: commentThread.createdTimeZone,
+                        },
                     },
                 },
             };
