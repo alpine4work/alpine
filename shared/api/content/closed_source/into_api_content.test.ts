@@ -35,7 +35,6 @@ import {
 const {
     doc,
     paragraph,
-    text,
     quoteBlock,
     codeBlock,
     codeBlockLine,
@@ -126,7 +125,7 @@ test("converts empty paragraph into API content", () => {
 });
 
 test("converts paragraph with text into API content", () => {
-    testIntoApiContent(doc(paragraph(text("Hello, world!"))), {
+    testIntoApiContent(doc(paragraph("Hello, world!")), {
         elements: [
             {
                 type: "Paragraph",
@@ -139,9 +138,9 @@ test("converts paragraph with text into API content", () => {
 test("converts multiple paragraphs into API content", () => {
     testIntoApiContent(
         doc(
-            paragraph(text("First paragraph")),
-            paragraph(text("Second paragraph")),
-            paragraph(text("Third paragraph")),
+            paragraph("First paragraph"),
+            paragraph("Second paragraph"),
+            paragraph("Third paragraph"),
         ),
         {
             elements: [
@@ -163,7 +162,7 @@ test("converts multiple paragraphs into API content", () => {
 });
 
 test("converts paragraph with line break into API content", () => {
-    testIntoApiContent(doc(paragraph(text("Line one"), br(), text("Line two"))), {
+    testIntoApiContent(doc(paragraph("Line one", br(), "Line two")), {
         elements: [
             {
                 type: "Paragraph",
@@ -178,7 +177,7 @@ test("converts paragraph with line break into API content", () => {
 });
 
 test("converts quote block into API content", () => {
-    testIntoApiContent(doc(quoteBlock(paragraph(text("This is a quote")))), {
+    testIntoApiContent(doc(quoteBlock(paragraph("This is a quote"))), {
         elements: [
             {
                 type: "Quote",
@@ -198,9 +197,9 @@ test("converts code block into API content", () => {
         doc(
             codeBlock(
                 "javascript",
-                codeBlockLine(text("function hello() {")),
-                codeBlockLine(text("  console.log('Hello');")),
-                codeBlockLine(text("}")),
+                codeBlockLine("function hello() {"),
+                codeBlockLine("  console.log('Hello');"),
+                codeBlockLine("}"),
             ),
         ),
         {
@@ -220,7 +219,7 @@ test("converts code block into API content", () => {
 });
 
 test("converts code block with default language into API content", () => {
-    testIntoApiContent(doc(codeBlock("text", codeBlockLine(text("Plain text")))), {
+    testIntoApiContent(doc(codeBlock("text", codeBlockLine("Plain text"))), {
         elements: [
             {
                 type: "Code",
@@ -234,9 +233,9 @@ test("converts code block with default language into API content", () => {
 test("converts simple unordered list into API content", () => {
     testIntoApiContent(
         doc(
-            unorderedListItem(0, paragraph(text("First item"))),
-            unorderedListItem(0, paragraph(text("Second item"))),
-            unorderedListItem(0, paragraph(text("Third item"))),
+            unorderedListItem(0, paragraph("First item")),
+            unorderedListItem(0, paragraph("Second item")),
+            unorderedListItem(0, paragraph("Third item")),
         ),
         {
             elements: [
@@ -277,9 +276,9 @@ test("converts simple unordered list into API content", () => {
 test("converts simple ordered list into API content", () => {
     testIntoApiContent(
         doc(
-            orderedListItem(0, paragraph(text("First item"))),
-            orderedListItem(0, paragraph(text("Second item"))),
-            orderedListItem(0, paragraph(text("Third item"))),
+            orderedListItem(0, paragraph("First item")),
+            orderedListItem(0, paragraph("Second item")),
+            orderedListItem(0, paragraph("Third item")),
         ),
         {
             elements: [
@@ -320,10 +319,10 @@ test("converts simple ordered list into API content", () => {
 test("converts nested unordered list into API content", () => {
     testIntoApiContent(
         doc(
-            unorderedListItem(0, paragraph(text("Parent item"))),
-            unorderedListItem(1, paragraph(text("Child item 1"))),
-            unorderedListItem(1, paragraph(text("Child item 2"))),
-            unorderedListItem(0, paragraph(text("Another parent"))),
+            unorderedListItem(0, paragraph("Parent item")),
+            unorderedListItem(1, paragraph("Child item 1")),
+            unorderedListItem(1, paragraph("Child item 2")),
+            unorderedListItem(0, paragraph("Another parent")),
         ),
         {
             elements: [
@@ -389,10 +388,10 @@ test("converts nested unordered list into API content", () => {
 test("converts deeply nested mixed lists into API content", () => {
     testIntoApiContent(
         doc(
-            unorderedListItem(0, paragraph(text("Level 0"))),
-            orderedListItem(1, paragraph(text("Level 1 ordered"))),
-            unorderedListItem(2, paragraph(text("Level 2 unordered"))),
-            orderedListItem(3, paragraph(text("Level 3 ordered"))),
+            unorderedListItem(0, paragraph("Level 0")),
+            orderedListItem(1, paragraph("Level 1 ordered")),
+            unorderedListItem(2, paragraph("Level 2 unordered")),
+            orderedListItem(3, paragraph("Level 3 ordered")),
         ),
         {
             elements: [
@@ -476,7 +475,7 @@ test("converts deeply nested mixed lists into API content", () => {
 
 test("converts list with phantom indentation into API content", () => {
     // First item has indent 2, which should create phantom items for indent 0 and 1
-    testIntoApiContent(doc(unorderedListItem(2, paragraph(text("Starts at indent 2")))), {
+    testIntoApiContent(doc(unorderedListItem(2, paragraph("Starts at indent 2"))), {
         elements: [
             {
                 type: "UnorderedList",
@@ -523,11 +522,11 @@ test("converts list with phantom indentation into API content", () => {
 test("converts mixed unordered and ordered list items at same indentation", () => {
     testIntoApiContent(
         doc(
-            unorderedListItem(0, paragraph(text("Unordered 1"))),
-            unorderedListItem(0, paragraph(text("Unordered 2"))),
-            orderedListItem(0, paragraph(text("Ordered 1"))),
-            orderedListItem(0, paragraph(text("Ordered 2"))),
-            unorderedListItem(0, paragraph(text("Unordered 3"))),
+            unorderedListItem(0, paragraph("Unordered 1")),
+            unorderedListItem(0, paragraph("Unordered 2")),
+            orderedListItem(0, paragraph("Ordered 1")),
+            orderedListItem(0, paragraph("Ordered 2")),
+            unorderedListItem(0, paragraph("Unordered 3")),
         ),
         {
             elements: [
@@ -594,9 +593,9 @@ test("converts mixed unordered and ordered list items at same indentation", () =
 test("converts list with phantom jump from indent 1 to 3", () => {
     testIntoApiContent(
         doc(
-            unorderedListItem(0, paragraph(text("Level 0"))),
-            unorderedListItem(1, paragraph(text("Level 1"))),
-            unorderedListItem(3, paragraph(text("Level 3 (jumps from 1 to 3)"))),
+            unorderedListItem(0, paragraph("Level 0")),
+            unorderedListItem(1, paragraph("Level 1")),
+            unorderedListItem(3, paragraph("Level 3 (jumps from 1 to 3)")),
         ),
         {
             elements: [
@@ -666,9 +665,9 @@ test("converts list with phantom jump from indent 1 to 3", () => {
 test("converts list with big phantom jump from indent 0 to 4", () => {
     testIntoApiContent(
         doc(
-            orderedListItem(0, paragraph(text("Level 0"))),
-            orderedListItem(4, paragraph(text("Level 4 (big jump)"))),
-            orderedListItem(2, paragraph(text("Level 2 (back down)"))),
+            orderedListItem(0, paragraph("Level 0")),
+            orderedListItem(4, paragraph("Level 4 (big jump)")),
+            orderedListItem(2, paragraph("Level 2 (back down)")),
         ),
         {
             elements: [
@@ -763,14 +762,14 @@ test("converts list with big phantom jump from indent 0 to 4", () => {
 test("converts complex list with multiple type changes and indentations", () => {
     testIntoApiContent(
         doc(
-            unorderedListItem(0, paragraph(text("Unordered 0"))),
-            orderedListItem(1, paragraph(text("Ordered 1"))),
-            orderedListItem(1, paragraph(text("Ordered 1 again"))),
-            unorderedListItem(2, paragraph(text("Unordered 2"))),
-            unorderedListItem(2, paragraph(text("Unordered 2 again"))),
-            orderedListItem(3, paragraph(text("Ordered 3"))),
-            unorderedListItem(1, paragraph(text("Back to unordered 1"))),
-            orderedListItem(0, paragraph(text("Back to ordered 0"))),
+            unorderedListItem(0, paragraph("Unordered 0")),
+            orderedListItem(1, paragraph("Ordered 1")),
+            orderedListItem(1, paragraph("Ordered 1 again")),
+            unorderedListItem(2, paragraph("Unordered 2")),
+            unorderedListItem(2, paragraph("Unordered 2 again")),
+            orderedListItem(3, paragraph("Ordered 3")),
+            unorderedListItem(1, paragraph("Back to unordered 1")),
+            orderedListItem(0, paragraph("Back to ordered 0")),
         ),
         {
             elements: [
@@ -912,10 +911,10 @@ test("converts complex list with multiple type changes and indentations", () => 
 test("converts list starting with phantom indent at level 3", () => {
     testIntoApiContent(
         doc(
-            unorderedListItem(3, paragraph(text("Starts at level 3"))),
-            unorderedListItem(3, paragraph(text("Another at level 3"))),
-            unorderedListItem(4, paragraph(text("Goes to level 4"))),
-            unorderedListItem(1, paragraph(text("Back to level 1"))),
+            unorderedListItem(3, paragraph("Starts at level 3")),
+            unorderedListItem(3, paragraph("Another at level 3")),
+            unorderedListItem(4, paragraph("Goes to level 4")),
+            unorderedListItem(1, paragraph("Back to level 1")),
         ),
         {
             elements: [
@@ -1023,12 +1022,12 @@ test("converts list starting with phantom indent at level 3", () => {
 test("converts list with maximum indentation level", () => {
     testIntoApiContent(
         doc(
-            unorderedListItem(0, paragraph(text("Level 0"))),
-            unorderedListItem(1, paragraph(text("Level 1"))),
-            unorderedListItem(2, paragraph(text("Level 2"))),
-            unorderedListItem(3, paragraph(text("Level 3"))),
-            unorderedListItem(4, paragraph(text("Level 4"))),
-            unorderedListItem(5, paragraph(text("Level 5 (max)"))),
+            unorderedListItem(0, paragraph("Level 0")),
+            unorderedListItem(1, paragraph("Level 1")),
+            unorderedListItem(2, paragraph("Level 2")),
+            unorderedListItem(3, paragraph("Level 3")),
+            unorderedListItem(4, paragraph("Level 4")),
+            unorderedListItem(5, paragraph("Level 5 (max)")),
         ),
         {
             elements: [
@@ -1155,14 +1154,8 @@ test("converts table into API content", () => {
         doc(
             table(
                 {columnWidths: [50, 50]},
-                tableRow(
-                    tableCell(paragraph(text("Cell 1"))),
-                    tableCell(paragraph(text("Cell 2"))),
-                ),
-                tableRow(
-                    tableCell(paragraph(text("Cell 3"))),
-                    tableCell(paragraph(text("Cell 4"))),
-                ),
+                tableRow(tableCell(paragraph("Cell 1")), tableCell(paragraph("Cell 2"))),
+                tableRow(tableCell(paragraph("Cell 3")), tableCell(paragraph("Cell 4"))),
             ),
         ),
         {
@@ -1224,14 +1217,8 @@ test("converts table with header row and column into API content", () => {
         doc(
             table(
                 {columnWidths: [50, 50], hasHeaderRow: true, hasHeaderColumn: true},
-                tableRow(
-                    tableCell(paragraph(text("Header 1"))),
-                    tableCell(paragraph(text("Header 2"))),
-                ),
-                tableRow(
-                    tableCell(paragraph(text("Row header"))),
-                    tableCell(paragraph(text("Data"))),
-                ),
+                tableRow(tableCell(paragraph("Header 1")), tableCell(paragraph("Header 2"))),
+                tableRow(tableCell(paragraph("Row header")), tableCell(paragraph("Data"))),
             ),
         ),
         {
@@ -1299,7 +1286,7 @@ test("converts account mention into API content", () => {
         isShort: false,
     };
 
-    testIntoApiContent(doc(paragraph(text("Hello "), mention(accountMention), text("!"))), {
+    testIntoApiContent(doc(paragraph("Hello ", mention(accountMention), "!")), {
         elements: [
             {
                 type: "Paragraph",
@@ -1359,7 +1346,7 @@ test("converts document mention into API content", () => {
         entityId: `Document:${documentId}`,
     };
 
-    testIntoApiContent(doc(paragraph(text("See "), mention(documentMention))), {
+    testIntoApiContent(doc(paragraph("See ", mention(documentMention))), {
         elements: [
             {
                 type: "Paragraph",
@@ -1477,7 +1464,7 @@ test("converts post mention into API content", () => {
 });
 
 test("converts text with bold mark into API content", () => {
-    testIntoApiContent(doc(paragraph(text("This is "), text("bold", [bold()]), text(" text"))), {
+    testIntoApiContent(doc(paragraph("This is ", bold("bold"), " text")), {
         elements: [
             {
                 type: "Paragraph",
@@ -1492,50 +1479,38 @@ test("converts text with bold mark into API content", () => {
 });
 
 test("converts text with italic mark into API content", () => {
-    testIntoApiContent(
-        doc(paragraph(text("This is "), text("italic", [italic()]), text(" text"))),
-        {
-            elements: [
-                {
-                    type: "Paragraph",
-                    elements: [
-                        {type: "Text", text: "This is "},
-                        {type: "Text", text: "italic", marks: [{type: "Italic"}]},
-                        {type: "Text", text: " text"},
-                    ],
-                },
-            ],
-        },
-    );
+    testIntoApiContent(doc(paragraph("This is ", italic("italic"), " text")), {
+        elements: [
+            {
+                type: "Paragraph",
+                elements: [
+                    {type: "Text", text: "This is "},
+                    {type: "Text", text: "italic", marks: [{type: "Italic"}]},
+                    {type: "Text", text: " text"},
+                ],
+            },
+        ],
+    });
 });
 
 test("converts text with code mark into API content", () => {
-    testIntoApiContent(
-        doc(paragraph(text("Run "), text("npm install", [code()]), text(" to start"))),
-        {
-            elements: [
-                {
-                    type: "Paragraph",
-                    elements: [
-                        {type: "Text", text: "Run "},
-                        {type: "Text", text: "npm install", marks: [{type: "Code"}]},
-                        {type: "Text", text: " to start"},
-                    ],
-                },
-            ],
-        },
-    );
+    testIntoApiContent(doc(paragraph("Run ", code("npm install"), " to start")), {
+        elements: [
+            {
+                type: "Paragraph",
+                elements: [
+                    {type: "Text", text: "Run "},
+                    {type: "Text", text: "npm install", marks: [{type: "Code"}]},
+                    {type: "Text", text: " to start"},
+                ],
+            },
+        ],
+    });
 });
 
 test("converts text with link mark into API content", () => {
     testIntoApiContent(
-        doc(
-            paragraph(
-                text("Visit "),
-                text("our website", [link("https://example.com")]),
-                text(" today"),
-            ),
-        ),
+        doc(paragraph("Visit ", link("https://example.com", "our website"), " today")),
         {
             elements: [
                 {
@@ -1556,49 +1531,41 @@ test("converts text with link mark into API content", () => {
 });
 
 test("converts text with strike mark into API content", () => {
-    testIntoApiContent(
-        doc(paragraph(text("This is "), text("strikethrough", [strike()]), text(" text"))),
-        {
-            elements: [
-                {
-                    type: "Paragraph",
-                    elements: [
-                        {type: "Text", text: "This is "},
-                        {type: "Text", text: "strikethrough", marks: [{type: "Strike"}]},
-                        {type: "Text", text: " text"},
-                    ],
-                },
-            ],
-        },
-    );
+    testIntoApiContent(doc(paragraph("This is ", strike("strikethrough"), " text")), {
+        elements: [
+            {
+                type: "Paragraph",
+                elements: [
+                    {type: "Text", text: "This is "},
+                    {type: "Text", text: "strikethrough", marks: [{type: "Strike"}]},
+                    {type: "Text", text: " text"},
+                ],
+            },
+        ],
+    });
 });
 
 test("converts text with multiple marks into API content", () => {
-    testIntoApiContent(
-        doc(
-            paragraph(text("This is "), text("bold and italic", [bold(), italic()]), text(" text")),
-        ),
-        {
-            elements: [
-                {
-                    type: "Paragraph",
-                    elements: [
-                        {type: "Text", text: "This is "},
-                        {
-                            type: "Text",
-                            text: "bold and italic",
-                            marks: [{type: "Bold"}, {type: "Italic"}],
-                        },
-                        {type: "Text", text: " text"},
-                    ],
-                },
-            ],
-        },
-    );
+    testIntoApiContent(doc(paragraph("This is ", italic(bold("bold and italic")), " text")), {
+        elements: [
+            {
+                type: "Paragraph",
+                elements: [
+                    {type: "Text", text: "This is "},
+                    {
+                        type: "Text",
+                        text: "bold and italic",
+                        marks: [{type: "Bold"}, {type: "Italic"}],
+                    },
+                    {type: "Text", text: " text"},
+                ],
+            },
+        ],
+    });
 });
 
 test("converts marked line break into API content", () => {
-    testIntoApiContent(doc(paragraph(text("Bold"), br([bold()]), text("text", [bold()]))), {
+    testIntoApiContent(doc(paragraph("Bold", bold(br()), bold("text"))), {
         elements: [
             {
                 type: "Paragraph",
@@ -1621,53 +1588,43 @@ test("converts marked mention into API content", () => {
         isShort: false,
     };
 
-    testIntoApiContent(
-        doc(paragraph(text("Hello "), mention(accountMention, [bold(), italic()]))),
-        {
-            elements: [
-                {
-                    type: "Paragraph",
-                    elements: [
-                        {type: "Text", text: "Hello "},
-                        {
-                            type: "Mention",
-                            reference: {
-                                type: "Account",
-                                id: accountId,
-                                title: "Unknown",
-                                shortName: "Unknown",
-                            },
-                            marks: [{type: "Bold"}, {type: "Italic"}],
+    testIntoApiContent(doc(paragraph("Hello ", italic(bold(mention(accountMention))))), {
+        elements: [
+            {
+                type: "Paragraph",
+                elements: [
+                    {type: "Text", text: "Hello "},
+                    {
+                        type: "Mention",
+                        reference: {
+                            type: "Account",
+                            id: accountId,
+                            title: "Unknown",
+                            shortName: "Unknown",
                         },
-                    ],
-                },
-            ],
-        },
-    );
+                        marks: [{type: "Bold"}, {type: "Italic"}],
+                    },
+                ],
+            },
+        ],
+    });
 });
 
 test("converts complex nested content into API content", () => {
     testIntoApiContent(
         doc(
-            paragraph(
-                text("Introduction with "),
-                text("bold", [bold()]),
-                text(" and "),
-                text("italic", [italic()]),
-            ),
+            paragraph("Introduction with ", bold("bold"), " and ", italic("italic")),
             quoteBlock(
-                paragraph(text("A quote with "), text("code", [code()])),
-                unorderedListItem(0, paragraph(text("List in quote"))),
-                unorderedListItem(1, paragraph(text("Nested item"))),
+                paragraph("A quote with ", code("code")),
+                unorderedListItem(0, paragraph("List in quote")),
+                unorderedListItem(1, paragraph("Nested item")),
             ),
-            codeBlock("typescript", codeBlockLine(text("const greeting = 'Hello';"))),
+            codeBlock("typescript", codeBlockLine("const greeting = 'Hello';")),
             table(
                 {columnWidths: [50, 50]},
                 tableRow(
-                    tableCell(
-                        paragraph(text("Cell with "), text("link", [link("https://example.com")])),
-                    ),
-                    tableCell(paragraph(text("Quote in table"))),
+                    tableCell(paragraph("Cell with ", link("https://example.com", "link"))),
+                    tableCell(paragraph("Quote in table")),
                 ),
             ),
         ),
@@ -1776,11 +1733,11 @@ test("converts complex nested content into API content", () => {
 test("converts mixed list types with alternating indents into API content", () => {
     testIntoApiContent(
         doc(
-            unorderedListItem(0, paragraph(text("Unordered 1"))),
-            orderedListItem(0, paragraph(text("Ordered 1"))),
-            unorderedListItem(1, paragraph(text("Nested unordered"))),
-            orderedListItem(0, paragraph(text("Ordered 2"))),
-            unorderedListItem(0, paragraph(text("Unordered 2"))),
+            unorderedListItem(0, paragraph("Unordered 1")),
+            orderedListItem(0, paragraph("Ordered 1")),
+            unorderedListItem(1, paragraph("Nested unordered")),
+            orderedListItem(0, paragraph("Ordered 2")),
+            unorderedListItem(0, paragraph("Unordered 2")),
         ),
         {
             elements: [
@@ -1861,9 +1818,9 @@ test("converts list item with multiple paragraphs into API content", () => {
         doc(
             unorderedListItem(
                 0,
-                paragraph(text("First paragraph")),
-                paragraph(text("Second paragraph")),
-                paragraph(text("Third paragraph")),
+                paragraph("First paragraph"),
+                paragraph("Second paragraph"),
+                paragraph("Third paragraph"),
             ),
         ),
         {
@@ -1899,9 +1856,9 @@ test("converts empty code block lines into API content", () => {
         doc(
             codeBlock(
                 "python",
-                codeBlockLine(text("def hello():")),
+                codeBlockLine("def hello():"),
                 codeBlockLine(),
-                codeBlockLine(text("    print('Hello')")),
+                codeBlockLine("    print('Hello')"),
                 codeBlockLine(),
             ),
         ),
@@ -1928,15 +1885,11 @@ test("converts code block with marks into API content", () => {
         doc(
             codeBlock(
                 "javascript",
+                codeBlockLine(bold("const "), bold("greeting"), " = 'Hello';"),
                 codeBlockLine(
-                    text("const ", [bold()]),
-                    text("greeting", [bold()]),
-                    text(" = 'Hello';"),
-                ),
-                codeBlockLine(
-                    text("console.log(", [italic()]),
-                    text("greeting", [link("https://example.com")]),
-                    text(");", [strike()]),
+                    italic("console.log("),
+                    link("https://example.com", "greeting"),
+                    strike(");"),
                 ),
             ),
         ),
@@ -1973,12 +1926,7 @@ test("converts code block with marks into API content", () => {
 test("code mark is not allowed in code blocks", () => {
     // The code mark is explicitly not supported within code blocks This test verifies
     // that attempting to use it throws an error
-    const node = doc(
-        codeBlock(
-            "javascript",
-            codeBlockLine(text("const ", [code()]), text("x", [code()]), text(" = 5;")),
-        ),
-    );
+    const node = doc(codeBlock("javascript", codeBlockLine(code("const "), code("x"), " = 5;")));
 
     expect(() =>
         intoApiContent(node, {
@@ -1996,17 +1944,11 @@ test("converts code block with multiple marks on same text", () => {
             codeBlock(
                 "typescript",
                 codeBlockLine(
-                    text("interface ", [bold(), italic()]),
-                    text("User", [bold(), italic(), link("https://api.com/user")]),
-                    text(" {"),
+                    italic(bold("interface ")),
+                    link("https://api.com/user", italic(bold("User"))),
+                    " {",
                 ),
-                codeBlockLine(
-                    text("  "),
-                    text("name", [bold()]),
-                    text(": "),
-                    text("string", [strike()]),
-                    text(";"),
-                ),
+                codeBlockLine("  ", bold("name"), ": ", strike("string"), ";"),
             ),
         ),
         {
@@ -2055,8 +1997,8 @@ test("converts table with empty cells into API content", () => {
         doc(
             table(
                 {columnWidths: [50, 50]},
-                tableRow(tableCell(paragraph(text("Has content"))), tableCell(paragraph())),
-                tableRow(tableCell(paragraph()), tableCell(paragraph(text("Also has content")))),
+                tableRow(tableCell(paragraph("Has content")), tableCell(paragraph())),
+                tableRow(tableCell(paragraph()), tableCell(paragraph("Also has content"))),
             ),
         ),
         {
@@ -2110,12 +2052,12 @@ test("converts table with many columns into API content", () => {
                 {tableWidth: 2, columnWidths, hasHeaderRow: true, hasHeaderColumn: false},
                 tableRow(
                     ...Array.from({length: columnCount}, (_, i) =>
-                        tableCell(paragraph(text(`Header ${i + 1}`))),
+                        tableCell(paragraph(`Header ${i + 1}`)),
                     ),
                 ),
                 tableRow(
                     ...Array.from({length: columnCount}, (_, i) =>
-                        tableCell(paragraph(text(`Cell ${i + 1}`))),
+                        tableCell(paragraph(`Cell ${i + 1}`)),
                     ),
                 ),
             ),
@@ -2167,20 +2109,20 @@ test("converts table with rows having different number of columns", () => {
                     hasHeaderColumn: false,
                 },
                 tableRow(
-                    tableCell(paragraph(text("Row 1 Cell 1"))),
-                    tableCell(paragraph(text("Row 1 Cell 2"))),
-                    tableCell(paragraph(text("Row 1 Cell 3"))),
+                    tableCell(paragraph("Row 1 Cell 1")),
+                    tableCell(paragraph("Row 1 Cell 2")),
+                    tableCell(paragraph("Row 1 Cell 3")),
                 ),
                 tableRow(
-                    tableCell(paragraph(text("Row 2 Cell 1"))),
-                    tableCell(paragraph(text("Row 2 Cell 2"))),
+                    tableCell(paragraph("Row 2 Cell 1")),
+                    tableCell(paragraph("Row 2 Cell 2")),
                     // Missing third cell
                 ),
                 tableRow(
-                    tableCell(paragraph(text("Row 3 Cell 1"))),
-                    tableCell(paragraph(text("Row 3 Cell 2"))),
-                    tableCell(paragraph(text("Row 3 Cell 3"))),
-                    tableCell(paragraph(text("Row 3 Cell 4"))), // Extra cell
+                    tableCell(paragraph("Row 3 Cell 1")),
+                    tableCell(paragraph("Row 3 Cell 2")),
+                    tableCell(paragraph("Row 3 Cell 3")),
+                    tableCell(paragraph("Row 3 Cell 4")), // Extra cell
                 ),
             ),
         ),
@@ -2294,14 +2236,14 @@ test("converts table with more columnWidths than actual columns", () => {
                     hasHeaderColumn: false,
                 },
                 tableRow(
-                    tableCell(paragraph(text("Cell 1"))),
-                    tableCell(paragraph(text("Cell 2"))),
-                    tableCell(paragraph(text("Cell 3"))),
+                    tableCell(paragraph("Cell 1")),
+                    tableCell(paragraph("Cell 2")),
+                    tableCell(paragraph("Cell 3")),
                 ),
                 tableRow(
-                    tableCell(paragraph(text("Cell 4"))),
-                    tableCell(paragraph(text("Cell 5"))),
-                    tableCell(paragraph(text("Cell 6"))),
+                    tableCell(paragraph("Cell 4")),
+                    tableCell(paragraph("Cell 5")),
+                    tableCell(paragraph("Cell 6")),
                 ),
             ),
         ),
@@ -2382,16 +2324,16 @@ test("converts table with fewer columnWidths than actual columns", () => {
             table(
                 {tableWidth: 1.8, columnWidths: [2, 3], hasHeaderRow: false, hasHeaderColumn: true},
                 tableRow(
-                    tableCell(paragraph(text("A"))),
-                    tableCell(paragraph(text("B"))),
-                    tableCell(paragraph(text("C"))),
-                    tableCell(paragraph(text("D"))),
+                    tableCell(paragraph("A")),
+                    tableCell(paragraph("B")),
+                    tableCell(paragraph("C")),
+                    tableCell(paragraph("D")),
                 ),
                 tableRow(
-                    tableCell(paragraph(text("E"))),
-                    tableCell(paragraph(text("F"))),
-                    tableCell(paragraph(text("G"))),
-                    tableCell(paragraph(text("H"))),
+                    tableCell(paragraph("E")),
+                    tableCell(paragraph("F")),
+                    tableCell(paragraph("G")),
+                    tableCell(paragraph("H")),
                 ),
             ),
         ),
@@ -2516,11 +2458,11 @@ test("converts quote block with lists inside into API content", () => {
     testIntoApiContent(
         doc(
             quoteBlock(
-                paragraph(text("Quote intro")),
-                unorderedListItem(0, paragraph(text("Item 1"))),
-                unorderedListItem(0, paragraph(text("Item 2"))),
-                orderedListItem(0, paragraph(text("Ordered 1"))),
-                orderedListItem(0, paragraph(text("Ordered 2"))),
+                paragraph("Quote intro"),
+                unorderedListItem(0, paragraph("Item 1")),
+                unorderedListItem(0, paragraph("Item 2")),
+                orderedListItem(0, paragraph("Ordered 1")),
+                orderedListItem(0, paragraph("Ordered 2")),
             ),
         ),
         {
@@ -2583,11 +2525,7 @@ test("converts quote block with lists inside into API content", () => {
 
 test("converts headings into API content", () => {
     testIntoApiContent(
-        doc(
-            heading(1, text("Heading 1")),
-            heading(2, text("Heading 2")),
-            heading(3, text("Heading 3")),
-        ),
+        doc(heading(1, "Heading 1"), heading(2, "Heading 2"), heading(3, "Heading 3")),
         {
             elements: [
                 {type: "Heading", level: 1, elements: [{type: "Text", text: "Heading 1"}]},
@@ -2606,13 +2544,7 @@ test("converts dividers into API content", () => {
 
 test("converts text with highlight mark into API content", () => {
     testIntoApiContentOnly(
-        doc(
-            paragraph(
-                text("This is "),
-                text("highlighted", [highlight(HighlightColor.Red)]),
-                text(" text"),
-            ),
-        ),
+        doc(paragraph("This is ", highlight(HighlightColor.Red, "highlighted"), " text")),
         {
             elements: [
                 {
@@ -2635,36 +2567,33 @@ test("converts text with highlight mark into API content", () => {
 test("converts text with comment mark into API content", () => {
     const threadId = generateId<DocumentCommentThreadId>();
 
-    testIntoApiContentOnly(
-        doc(paragraph(text("This is "), text("commented", [comment(threadId)]), text(" text"))),
-        {
-            elements: [
-                {
-                    type: "Paragraph",
-                    elements: [
-                        {type: "Text", text: "This is "},
-                        {
-                            type: "Text",
-                            text: "commented",
-                            marks: [{type: "Comment", thread: {id: threadId}}],
-                        },
-                        {type: "Text", text: " text"},
-                    ],
-                },
-            ],
-        },
-    );
+    testIntoApiContentOnly(doc(paragraph("This is ", comment(threadId, "commented"), " text")), {
+        elements: [
+            {
+                type: "Paragraph",
+                elements: [
+                    {type: "Text", text: "This is "},
+                    {
+                        type: "Text",
+                        text: "commented",
+                        marks: [{type: "Comment", thread: {id: threadId}}],
+                    },
+                    {type: "Text", text: " text"},
+                ],
+            },
+        ],
+    });
 });
 
 test("converts text with multiple highlight colors into API content", () => {
     testIntoApiContentOnly(
         doc(
             paragraph(
-                text("Red ", [highlight(HighlightColor.Red)]),
-                text("Orange ", [highlight(HighlightColor.Orange)]),
-                text("Green ", [highlight(HighlightColor.Green)]),
-                text("Blue ", [highlight(HighlightColor.Blue)]),
-                text("Purple", [highlight(HighlightColor.Purple)]),
+                highlight(HighlightColor.Red, "Red "),
+                highlight(HighlightColor.Orange, "Orange "),
+                highlight(HighlightColor.Green, "Green "),
+                highlight(HighlightColor.Blue, "Blue "),
+                highlight(HighlightColor.Purple, "Purple"),
             ),
         ),
         {
@@ -2702,12 +2631,9 @@ test("converts text with combined highlight and comment marks into API content",
     testIntoApiContentOnly(
         doc(
             paragraph(
-                text("This is "),
-                text("highlighted and commented", [
-                    highlight(HighlightColor.Blue),
-                    comment(threadId),
-                ]),
-                text(" text"),
+                "This is ",
+                comment(threadId, highlight(HighlightColor.Blue, "highlighted and commented")),
+                " text",
             ),
         ),
         {
@@ -2738,14 +2664,12 @@ test("converts text with highlight, comment, and other marks into API content", 
     testIntoApiContentOnly(
         doc(
             paragraph(
-                text("This is "),
-                text("bold highlighted commented", [
-                    bold(),
-                    italic(),
-                    highlight(HighlightColor.Purple),
-                    comment(threadId),
-                ]),
-                text(" text"),
+                "This is ",
+                comment(
+                    threadId,
+                    highlight(HighlightColor.Purple, italic(bold("bold highlighted commented"))),
+                ),
+                " text",
             ),
         ),
         {
@@ -2780,13 +2704,9 @@ test("converts text with multiple comment marks into API content", () => {
     testIntoApiContentOnly(
         doc(
             paragraph(
-                text("This text has "),
-                text("multiple comments", [
-                    comment(threadId1),
-                    comment(threadId2),
-                    comment(threadId3),
-                ]),
-                text(" on it"),
+                "This text has ",
+                comment(threadId3, comment(threadId2, comment(threadId1, "multiple comments"))),
+                " on it",
             ),
         ),
         {
@@ -2816,9 +2736,9 @@ describe("checklist", () => {
     test("converts simple checklist into API content", () => {
         testIntoApiContent(
             doc(
-                checkListItem(0, false, paragraph(text("Unchecked item"))),
-                checkListItem(0, true, paragraph(text("Checked item"))),
-                checkListItem(0, false, paragraph(text("Another unchecked"))),
+                checkListItem(0, false, paragraph("Unchecked item")),
+                checkListItem(0, true, paragraph("Checked item")),
+                checkListItem(0, false, paragraph("Another unchecked")),
             ),
             {
                 elements: [
@@ -2862,9 +2782,9 @@ describe("checklist", () => {
     test("converts checklist with all items checked into API content", () => {
         testIntoApiContent(
             doc(
-                checkListItem(0, true, paragraph(text("Task 1"))),
-                checkListItem(0, true, paragraph(text("Task 2"))),
-                checkListItem(0, true, paragraph(text("Task 3"))),
+                checkListItem(0, true, paragraph("Task 1")),
+                checkListItem(0, true, paragraph("Task 2")),
+                checkListItem(0, true, paragraph("Task 3")),
             ),
             {
                 elements: [
@@ -2908,10 +2828,10 @@ describe("checklist", () => {
     test("converts nested checklist into API content", () => {
         testIntoApiContent(
             doc(
-                checkListItem(0, true, paragraph(text("Parent task"))),
-                checkListItem(1, false, paragraph(text("Subtask 1"))),
-                checkListItem(1, true, paragraph(text("Subtask 2"))),
-                checkListItem(0, false, paragraph(text("Another parent"))),
+                checkListItem(0, true, paragraph("Parent task")),
+                checkListItem(1, false, paragraph("Subtask 1")),
+                checkListItem(1, true, paragraph("Subtask 2")),
+                checkListItem(0, false, paragraph("Another parent")),
             ),
             {
                 elements: [
@@ -2975,10 +2895,10 @@ describe("checklist", () => {
     test("converts deeply nested checklist into API content", () => {
         testIntoApiContent(
             doc(
-                checkListItem(0, true, paragraph(text("Level 0"))),
-                checkListItem(1, false, paragraph(text("Level 1"))),
-                checkListItem(2, true, paragraph(text("Level 2"))),
-                checkListItem(3, false, paragraph(text("Level 3"))),
+                checkListItem(0, true, paragraph("Level 0")),
+                checkListItem(1, false, paragraph("Level 1")),
+                checkListItem(2, true, paragraph("Level 2")),
+                checkListItem(3, false, paragraph("Level 3")),
             ),
             {
                 elements: [
@@ -3062,9 +2982,9 @@ describe("checklist", () => {
     test("converts checklist with big phantom jump from indent 0 to 4", () => {
         testIntoApiContent(
             doc(
-                checkListItem(0, true, paragraph(text("Level 0"))),
-                checkListItem(4, false, paragraph(text("Level 4 (big jump)"))),
-                checkListItem(2, true, paragraph(text("Level 2 (back down)"))),
+                checkListItem(0, true, paragraph("Level 0")),
+                checkListItem(4, false, paragraph("Level 4 (big jump)")),
+                checkListItem(2, true, paragraph("Level 2 (back down)")),
             ),
             {
                 elements: [
@@ -3163,13 +3083,13 @@ describe("checklist", () => {
     test("converts mixed unordered, ordered, and checklist items at same indentation into list group elements", () => {
         testIntoApiContent(
             doc(
-                unorderedListItem(0, paragraph(text("Unordered 1"))),
-                unorderedListItem(0, paragraph(text("Unordered 2"))),
-                orderedListItem(0, paragraph(text("Ordered 1"))),
-                orderedListItem(0, paragraph(text("Ordered 2"))),
-                checkListItem(0, true, paragraph(text("Checked 1"))),
-                checkListItem(0, false, paragraph(text("Unchecked 1"))),
-                unorderedListItem(0, paragraph(text("Unordered 3"))),
+                unorderedListItem(0, paragraph("Unordered 1")),
+                unorderedListItem(0, paragraph("Unordered 2")),
+                orderedListItem(0, paragraph("Ordered 1")),
+                orderedListItem(0, paragraph("Ordered 2")),
+                checkListItem(0, true, paragraph("Checked 1")),
+                checkListItem(0, false, paragraph("Unchecked 1")),
+                unorderedListItem(0, paragraph("Unordered 3")),
             ),
             {
                 elements: [
@@ -3259,10 +3179,10 @@ describe("checklist", () => {
     test("converts mixed nested list types with checklists", () => {
         testIntoApiContent(
             doc(
-                checkListItem(0, true, paragraph(text("Checklist parent"))),
-                unorderedListItem(1, paragraph(text("Unordered child"))),
-                orderedListItem(2, paragraph(text("Ordered grandchild"))),
-                checkListItem(3, false, paragraph(text("Checklist great-grandchild"))),
+                checkListItem(0, true, paragraph("Checklist parent")),
+                unorderedListItem(1, paragraph("Unordered child")),
+                orderedListItem(2, paragraph("Ordered grandchild")),
+                checkListItem(3, false, paragraph("Checklist great-grandchild")),
             ),
             {
                 elements: [
@@ -3349,9 +3269,9 @@ describe("checklist", () => {
                 checkListItem(
                     0,
                     true,
-                    paragraph(text("First paragraph")),
-                    paragraph(text("Second paragraph")),
-                    paragraph(text("Third paragraph")),
+                    paragraph("First paragraph"),
+                    paragraph("Second paragraph"),
+                    paragraph("Third paragraph"),
                 ),
             ),
             {
@@ -3386,13 +3306,13 @@ describe("checklist", () => {
     test("converts complex mixed list with alternating checklist types", () => {
         testIntoApiContent(
             doc(
-                unorderedListItem(0, paragraph(text("Unordered 1"))),
-                checkListItem(1, true, paragraph(text("Nested checklist"))),
-                checkListItem(1, false, paragraph(text("Another nested checklist"))),
-                orderedListItem(0, paragraph(text("Ordered 1"))),
-                checkListItem(1, true, paragraph(text("Checklist under ordered"))),
-                unorderedListItem(2, paragraph(text("Unordered nested deeper"))),
-                checkListItem(0, false, paragraph(text("Back to checklist at root"))),
+                unorderedListItem(0, paragraph("Unordered 1")),
+                checkListItem(1, true, paragraph("Nested checklist")),
+                checkListItem(1, false, paragraph("Another nested checklist")),
+                orderedListItem(0, paragraph("Ordered 1")),
+                checkListItem(1, true, paragraph("Checklist under ordered")),
+                unorderedListItem(2, paragraph("Unordered nested deeper")),
+                checkListItem(0, false, paragraph("Back to checklist at root")),
             ),
             {
                 elements: [
@@ -3522,19 +3442,15 @@ describe("checklist", () => {
     test("converts checklist with formatted text into API content", () => {
         testIntoApiContent(
             doc(
-                checkListItem(
-                    0,
-                    true,
-                    paragraph(text("Task with "), text("bold", [bold()]), text(" text")),
-                ),
+                checkListItem(0, true, paragraph("Task with ", bold("bold"), " text")),
                 checkListItem(
                     0,
                     false,
                     paragraph(
-                        text("Task with "),
-                        text("link", [link("https://example.com")]),
-                        text(" and "),
-                        text("italic", [italic()]),
+                        "Task with ",
+                        link("https://example.com", "link"),
+                        " and ",
+                        italic("italic"),
                     ),
                 ),
             ),
@@ -3588,12 +3504,12 @@ describe("checklist", () => {
     test("converts checklist with maximum indentation level", () => {
         testIntoApiContent(
             doc(
-                checkListItem(0, true, paragraph(text("Level 0"))),
-                checkListItem(1, false, paragraph(text("Level 1"))),
-                checkListItem(2, true, paragraph(text("Level 2"))),
-                checkListItem(3, false, paragraph(text("Level 3"))),
-                checkListItem(4, true, paragraph(text("Level 4"))),
-                checkListItem(5, false, paragraph(text("Level 5 (max)"))),
+                checkListItem(0, true, paragraph("Level 0")),
+                checkListItem(1, false, paragraph("Level 1")),
+                checkListItem(2, true, paragraph("Level 2")),
+                checkListItem(3, false, paragraph("Level 3")),
+                checkListItem(4, true, paragraph("Level 4")),
+                checkListItem(5, false, paragraph("Level 5 (max)")),
             ),
             {
                 elements: [
@@ -3789,10 +3705,10 @@ describe("checklist", () => {
         });
         expect(result.toJSON()).toEqual(
             doc(
-                unorderedListItem(0, paragraph(text("Checked item"))),
-                unorderedListItem(1, paragraph(text("Nested item"))),
-                unorderedListItem(1, paragraph(text("Unordered item"))),
-                orderedListItem(1, paragraph(text("Ordered item"))),
+                unorderedListItem(0, paragraph("Checked item")),
+                unorderedListItem(1, paragraph("Nested item")),
+                unorderedListItem(1, paragraph("Unordered item")),
+                orderedListItem(1, paragraph("Ordered item")),
             ).toJSON(),
         );
     });
@@ -3801,12 +3717,12 @@ describe("checklist", () => {
         testIntoApiContent(
             doc(
                 quoteBlock(
-                    paragraph(text("Quote intro")),
-                    checkListItem(0, false, paragraph(text("Task"))),
-                    unorderedListItem(0, paragraph(text("Item 1"))),
-                    orderedListItem(0, paragraph(text("Ordered 1"))),
-                    checkListItem(1, true, paragraph(text("Completed task"))),
-                    paragraph(text("Quote outro")),
+                    paragraph("Quote intro"),
+                    checkListItem(0, false, paragraph("Task")),
+                    unorderedListItem(0, paragraph("Item 1")),
+                    orderedListItem(0, paragraph("Ordered 1")),
+                    checkListItem(1, true, paragraph("Completed task")),
+                    paragraph("Quote outro"),
                 ),
             ),
             {
@@ -3896,9 +3812,9 @@ test("converts ordered list with orderStart into API content", () => {
         doc(
             orderedListItem(
                 {orderStart: 5},
-                paragraph(text("Fifth item")),
-                paragraph(text("Sixth item")),
-                paragraph(text("Seventh item")),
+                paragraph("Fifth item"),
+                paragraph("Sixth item"),
+                paragraph("Seventh item"),
             ),
         ),
         {
@@ -3933,9 +3849,9 @@ test("converts ordered list with orderStart into API content", () => {
 test("converts ordered list with orderStart on first item only", () => {
     testIntoApiContentOnly(
         doc(
-            orderedListItem({orderStart: 2}, paragraph(text("Second item"))),
-            orderedListItem(0, paragraph(text("Third item"))),
-            orderedListItem(0, paragraph(text("Fourth item"))),
+            orderedListItem({orderStart: 2}, paragraph("Second item")),
+            orderedListItem(0, paragraph("Third item")),
+            orderedListItem(0, paragraph("Fourth item")),
         ),
         {
             elements: [
@@ -3974,10 +3890,10 @@ test("converts ordered list with orderStart on first item only", () => {
 test("converts nested ordered lists with separate orderStart values", () => {
     testIntoApiContent(
         doc(
-            orderedListItem({orderStart: 2}, paragraph(text("Second item"))),
-            orderedListItem({indent: 1, orderStart: 5}, paragraph(text("Nested fifth item"))),
-            orderedListItem(1, paragraph(text("Nested sixth item"))),
-            orderedListItem(0, paragraph(text("Third item"))),
+            orderedListItem({orderStart: 2}, paragraph("Second item")),
+            orderedListItem({indent: 1, orderStart: 5}, paragraph("Nested fifth item")),
+            orderedListItem(1, paragraph("Nested sixth item")),
+            orderedListItem(0, paragraph("Third item")),
         ),
         {
             elements: [
@@ -4036,9 +3952,9 @@ test("converts nested ordered lists with separate orderStart values", () => {
 test("converts ordered list nested inside unordered list with orderStart", () => {
     testIntoApiContent(
         doc(
-            unorderedListItem(0, paragraph(text("Bullet item"))),
-            orderedListItem({indent: 1, orderStart: 3}, paragraph(text("Nested third item"))),
-            orderedListItem(1, paragraph(text("Nested fourth item"))),
+            unorderedListItem(0, paragraph("Bullet item")),
+            orderedListItem({indent: 1, orderStart: 3}, paragraph("Nested third item")),
+            orderedListItem(1, paragraph("Nested fourth item")),
         ),
         {
             elements: [
@@ -4091,13 +4007,10 @@ test("converts ordered list nested inside unordered list with orderStart", () =>
 test("converts ordered list with second item having different orderStart", () => {
     testIntoApiContent(
         doc(
-            orderedListItem({orderStart: 2}, paragraph(text("Second item"))),
-            orderedListItem(
-                {orderStart: 5},
-                paragraph(text("Third item with different order start")),
-            ),
-            orderedListItem(1, paragraph(text("Nested item"))),
-            orderedListItem(0, paragraph(text("Fourth item"))),
+            orderedListItem({orderStart: 2}, paragraph("Second item")),
+            orderedListItem({orderStart: 5}, paragraph("Third item with different order start")),
+            orderedListItem(1, paragraph("Nested item")),
+            orderedListItem(0, paragraph("Fourth item")),
         ),
         {
             elements: [
@@ -4412,7 +4325,7 @@ describe("file block elements", () => {
                     table(
                         {columnWidths: [1, 1]},
                         tableRow(
-                            tableCell(paragraph(text("text"))),
+                            tableCell(paragraph("text")),
                             tableCell(fileRowTable(file({fileId: fileId1}))),
                         ),
                     ),
@@ -4455,7 +4368,7 @@ describe("file block elements", () => {
     test("file with comments", () => {
         const thread1 = generateId<DocumentCommentThreadId>();
 
-        testFileIntoApiContent(doc(fileRow(file({fileId: fileId1}).mark([comment(thread1)]))), {
+        testFileIntoApiContent(doc(fileRow(comment(thread1, file({fileId: fileId1})))), {
             elements: [
                 {
                     type: "File",
@@ -4471,22 +4384,19 @@ describe("file block elements", () => {
     test("preview with comments", () => {
         const thread1 = generateId<DocumentCommentThreadId>();
 
-        testFileIntoApiContent(
-            doc(fileRow(file({fileId: documentEntityId}).mark([comment(thread1)]))),
-            {
-                elements: [
-                    {
-                        type: "Preview",
-                        reference: {
-                            type: "Document",
-                            id: testDocumentId,
-                            title: "My Document",
-                        },
-                        marks: [{type: "Comment", thread: {id: thread1}}],
+        testFileIntoApiContent(doc(fileRow(comment(thread1, file({fileId: documentEntityId})))), {
+            elements: [
+                {
+                    type: "Preview",
+                    reference: {
+                        type: "Document",
+                        id: testDocumentId,
+                        title: "My Document",
                     },
-                ],
-            },
-        );
+                    marks: [{type: "Comment", thread: {id: thread1}}],
+                },
+            ],
+        });
     });
 
     describe("gallery row width computation", () => {
