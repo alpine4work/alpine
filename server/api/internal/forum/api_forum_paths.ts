@@ -123,6 +123,7 @@ export const apiForumPaths: Pick<
                                 platform: "desktop",
                                 routeLayout: "wide",
                             }),
+                            // NOCOMMIT: Remove keys from this content
                             contentKeyEncoder: new ApiContentKeyEncoder({
                                 entityId: `Post:${post.postId}`,
                                 version: post.contentVersion,
