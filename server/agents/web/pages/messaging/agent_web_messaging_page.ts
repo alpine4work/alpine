@@ -3,6 +3,7 @@ import {ApiContentKey} from "~/shared/api/specification/types/api_content_key.js
 import {ApiContentResponseWithoutKeys} from "~/shared/api/specification/types/api_content_response_without_keys.js";
 import {ApiAccountReferenceResponse} from "~/shared/api/specification/types/api_specification_convenience_types.js";
 
+// NOCOMMIT: Files in messages
 export type AgentWebMessagingPage<
     Preamble,
     CustomBlock extends AgentWebMessagingPageCustomBlockBase,
