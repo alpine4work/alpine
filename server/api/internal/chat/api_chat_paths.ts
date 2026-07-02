@@ -38,6 +38,7 @@ import {defaultTimeZone} from "~/shared/helpers/intl/time_zone.js";
 import {filterIterable} from "~/shared/helpers/iterable/filter_iterable.js";
 import {mapIterable} from "~/shared/helpers/iterable/map_iterable.js";
 import {emptyMap} from "~/shared/helpers/map/empty_map.js";
+import {omitObject} from "~/shared/helpers/object/omit_object.js";
 import {isId} from "~/shared/id/id.js";
 import {FileId} from "~/shared/id/types/id_types.js";
 import {MessageContentPayload} from "~/shared/messaging/message_schema.js";
@@ -274,14 +275,10 @@ export const apiChatPaths: Pick<ApiPaths, (keyof ApiPaths & `/chats/${string}`) 
                         if (content.message.payload.type === "Content") {
                             const {payload} = content.message;
 
-                            (content as any).message.payload =
-                                payload.parent === undefined
-                                    ? {content: payload.content, type: payload.type}
-                                    : {
-                                          content: payload.content,
-                                          type: payload.type,
-                                          parent: payload.parent,
-                                      };
+                            (content as any).message.payload = {
+                                content: payload.content,
+                                ...omitObject(payload, ["content"]),
+                            };
                         }
                         break;
                     }
