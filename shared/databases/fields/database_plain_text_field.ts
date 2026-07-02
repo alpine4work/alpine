@@ -14,8 +14,6 @@ export class DatabasePlainTextFieldProvider extends ColumnBackedDatabaseFieldPro
     DatabasePlainTextFieldValue,
     DatabasePlainTextFieldConfig
 > {
-    static readonly instance = new DatabasePlainTextFieldProvider();
-
     readonly type = "plainText";
     readonly valueSchema = DatabasePlainTextFieldValueSchema;
     readonly configSchema = DatabasePlainTextFieldConfigSchema;
@@ -40,4 +38,5 @@ export class DatabasePlainTextFieldProvider extends ColumnBackedDatabaseFieldPro
     }
 }
 
-export const databasePlainTextFieldProvider = DatabasePlainTextFieldProvider.instance;
+export const databasePlainTextFieldProvider: DatabasePlainTextFieldProvider =
+    DatabasePlainTextFieldProvider.get();

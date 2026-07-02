@@ -1,4 +1,4 @@
-import {DatabaseFieldType} from "~/shared/databases/fields/all_database_field_providers.js";
+import type {DatabaseFieldType} from "~/shared/databases/fields/all_database_field_providers.js";
 import {
     type DatabaseFieldModel,
     type DatabaseFieldModelOfType,
@@ -10,12 +10,33 @@ import type {Schema, SchemaSerializedValue} from "~/shared/schema/schema.js";
 
 export type SqliteStorageType = "INTEGER" | "REAL" | "TEXT" | "BLOB";
 
+type DatabaseFieldProviderConstructor<Provider> = {
+    readonly prototype: Provider;
+};
+
+const databaseFieldProviderInstances = new WeakMap<
+    object,
+    DatabaseFieldProviderBase<string, any, any>
+>();
+
 export abstract class DatabaseFieldProviderBase<
     const Type extends DatabaseFieldType,
     Value,
     Config extends {type: Type},
 > {
     protected constructor() {}
+
+    static get<Provider extends DatabaseFieldProviderBase<string, any, any>>(
+        this: DatabaseFieldProviderConstructor<Provider>,
+    ): Provider {
+        const existingProvider = databaseFieldProviderInstances.get(this);
+        if (existingProvider) return existingProvider as Provider;
+
+        const ProviderConstructor = this as unknown as new () => Provider;
+        const provider = new ProviderConstructor();
+        databaseFieldProviderInstances.set(this, provider);
+        return provider;
+    }
 
     abstract readonly type: Type;
     abstract readonly valueSchema: Schema<Value>;

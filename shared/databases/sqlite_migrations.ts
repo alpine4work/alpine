@@ -1,5 +1,5 @@
 import {type Database} from "~/external/sqlite/ext/wasm/jswasm/sqlite3.mjs";
-import {type SqlQuery, databaseTableSchemaName, sql} from "~/shared/databases/sql.js";
+import {SqlQuery, databaseTableSchemaName, sql} from "~/shared/databases/sql.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import type {DatabaseTableId} from "~/shared/id/types/id_types.js";
 import {Schema} from "~/shared/schema/schema.js";

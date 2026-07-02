@@ -29,8 +29,6 @@ export class DatabaseRelationFieldProvider extends DatabaseFieldProviderBase<
     DatabaseRelationFieldValue,
     DatabaseRelationFieldConfig
 > {
-    static readonly instance = new DatabaseRelationFieldProvider();
-
     readonly type = "relation";
     readonly valueSchema = DatabaseRelationFieldValueSchema;
     readonly configSchema = DatabaseRelationFieldConfigSchema;
@@ -150,4 +148,5 @@ export class DatabaseRelationFieldProvider extends DatabaseFieldProviderBase<
     }
 }
 
-export const databaseRelationFieldProvider = DatabaseRelationFieldProvider.instance;
+export const databaseRelationFieldProvider: DatabaseRelationFieldProvider =
+    DatabaseRelationFieldProvider.get();
