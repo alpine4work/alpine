@@ -42,11 +42,9 @@ import {
     assertMessageContent,
 } from "~/shared/content/message_content_schema.js";
 import {InternalError} from "~/shared/error/error.js";
-import {assertNonEmptyReadonlyArray} from "~/shared/helpers/array/non_empty_readonly_array.js";
 import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
 import {HybridLogicalClock} from "~/shared/helpers/clock/hybrid_logical_clock.js";
 import {unsynchronizedSystemClock} from "~/shared/helpers/clock/unsynchronized_system_clock.js";
-import {assert} from "~/shared/helpers/control/assert.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 import {unwrapResult} from "~/shared/helpers/control/capture_result.js";
 import {captureResultPromise} from "~/shared/helpers/control/capture_result_promise.js";
@@ -73,7 +71,6 @@ import {
     assertTaskNotesContent,
     emptyTaskNotesContent,
 } from "~/shared/tasks/task_notes_content_schema.js";
-import {TaskQueryDisplayStatusNormalizedFilter} from "~/shared/tasks/task_query_normalized_filters.js";
 import {compareTaskQuerySortCursors} from "~/shared/tasks/task_query_sort_cursor.js";
 
 export const apiTasksPaths: Pick<
@@ -753,9 +750,6 @@ export const apiTasksPaths: Pick<
                     ? decodeApiTaskCursor(sorts, queryParameters.cursor)
                     : null;
 
-            // NOCOMMIT: Test with parent task above cursor and parent task after end cursor.
-            // Should not be present in `tasks` but the parent task should still work. Also
-            // test parent task is exactly `afterCursor`.
             if (filtersResult.type === "Possible") {
                 const filters = filtersResult.normalizedFilters;
 
@@ -845,11 +839,6 @@ export const apiTasksPaths: Pick<
                 },
             };
 
-            function assertValidTaskQueryDisplayStatusNormalizedFilter<
-                T extends Record<string, boolean> = TaskQueryDisplayStatusNormalizedFilter,
-            >(obj: Record<string, boolean>): asserts obj is T {
-                assert(Object.values(obj).some(v => v));
-            }
         },
     },
 };

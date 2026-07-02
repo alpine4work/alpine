@@ -11,12 +11,15 @@ import {getTaskNotesContentWithoutReferences} from "~/server/tasks/data/get_task
 import {tasksInjection} from "~/server/tasks/data/tasks_injection.js";
 import {getTaskItemForTest} from "~/server/tasks/data/test_helpers/get_task_item_for_test.js";
 import {TestTask} from "~/server/tasks/data/test_helpers/test_task.js";
+import {testTaskClock} from "~/server/tasks/data/test_helpers/test_task_clock.js";
 import {TestTaskCollection} from "~/server/tasks/data/test_helpers/test_task_collection.js";
 import {updateTaskNotesContent} from "~/server/tasks/data/update_task_notes_content.js";
 import {TestTaskRealtimeServer} from "~/server/tasks/realtime/test_helpers/test_task_realtime_server.js";
 import {ProcessContextModule} from "~/shared/context/process_context_module.js";
 import {InternalError} from "~/shared/error/error.js";
 import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
+import {zeroHybridLogicalTime} from "~/shared/helpers/clock/hybrid_logical_clock.js";
+import {initialOrderKey} from "~/shared/helpers/sort/order_key.js";
 import {assertId, generateId} from "~/shared/id/id.js";
 import {TaskCollectionId, TaskId} from "~/shared/id/types/id_types.js";
 import {diffProsemirrorNodes} from "~/shared/prosemirror/diff_prosemirror_nodes.js";
@@ -2258,6 +2261,33 @@ test("can read task collection information with task scope", async () => {
 });
 
 describe("/task-collections/{id}/tasks", () => {
+    type TaskCollectionTasksResponse = {
+        body: {
+            nextCursor: string | null;
+            tasks: ReadonlyArray<{
+                cursor: string;
+                task: {id: TaskId};
+            }>;
+        };
+    };
+
+    function getTaskCollectionTaskIds(response: TaskCollectionTasksResponse): Array<TaskId> {
+        return response.body.tasks.map(({task}) => task.id);
+    }
+
+    function getTaskCollectionNextCursor(response: TaskCollectionTasksResponse): string {
+        expect(response.body.nextCursor).toEqual(expect.any(String));
+        return response.body.nextCursor!;
+    }
+
+    function getTaskCollectionTaskCursor(
+        response: TaskCollectionTasksResponse,
+        index: number,
+    ): string {
+        expect(response.body.tasks[index]?.cursor).toEqual(expect.any(String));
+        return response.body.tasks[index]!.cursor;
+    }
+
     test("returns 403 response if actor is not authorized to access collection", async () => {
         const space = await TestSpace.create(context);
         const session1 = await space.createSession({name: "Alice Smith", role: "Admin"});
@@ -2330,18 +2360,28 @@ describe("/task-collections/{id}/tasks", () => {
                 spaceId: space.id,
                 tasks: [
                     {
-                        creator: {id: session.account.id},
-                        id: task1.id,
-                        title: "First Task",
-                        status: {type: "Open", isActive: false},
-                        collections: [{collection: {id: collection.id, name: "Public Collection"}}],
+                        cursor: expect.any(String),
+                        task: {
+                            creator: {id: session.account.id},
+                            id: task1.id,
+                            title: "First Task",
+                            status: {type: "Open", isActive: false},
+                            collections: [
+                                {collection: {id: collection.id, name: "Public Collection"}},
+                            ],
+                        },
                     },
                     {
-                        creator: {id: session.account.id},
-                        id: task2.id,
-                        title: "Second Task",
-                        status: {type: "Open", isActive: false},
-                        collections: [{collection: {id: collection.id, name: "Public Collection"}}],
+                        cursor: expect.any(String),
+                        task: {
+                            creator: {id: session.account.id},
+                            id: task2.id,
+                            title: "Second Task",
+                            status: {type: "Open", isActive: false},
+                            collections: [
+                                {collection: {id: collection.id, name: "Public Collection"}},
+                            ],
+                        },
                     },
                 ],
                 nextCursor: null,
@@ -2379,19 +2419,8 @@ describe("/task-collections/{id}/tasks", () => {
             headers: {authorization: `bearer ${apiKey}`},
         });
 
-        expect(response).toEqual({
-            status: 200,
-            headers: expect.objectContaining({"content-type": "application/json"}),
-            body: expect.objectContaining({
-                spaceId: space.id,
-                tasks: [
-                    expect.objectContaining({id: task1.id, title: "Task A"}),
-                    expect.objectContaining({id: task2.id, title: "Task B"}),
-                    expect.objectContaining({id: task3.id, title: "Task C"}),
-                ],
-                nextCursor: null,
-            }),
-        });
+        expect(response.status).toBe(200);
+        expect(getTaskCollectionTaskIds(response)).toEqual([task1.id, task2.id, task3.id]);
     });
 
     test("returns tasks with correct content including assignee, due date, and priority", async () => {
@@ -2422,104 +2451,80 @@ describe("/task-collections/{id}/tasks", () => {
         expect(response).toEqual({
             status: 200,
             headers: expect.objectContaining({"content-type": "application/json"}),
-            body: {
+            body: expect.objectContaining({
                 spaceId: space.id,
                 tasks: [
                     {
-                        creator: {id: session1.account.id},
-                        id: task.id,
-                        title: "Detailed Task",
-                        status: {type: "Open", isActive: false},
-                        assignee: {
-                            id: session2.account.id,
-                            name: "Bob Johnson",
-                            shortName: "Bob",
-                            space: {
-                                addedTime: expect.any(String),
-                                role: "Member",
+                        cursor: expect.any(String),
+                        task: {
+                            creator: {id: session1.account.id},
+                            id: task.id,
+                            title: "Detailed Task",
+                            status: {type: "Open", isActive: false},
+                            assignee: {
+                                id: session2.account.id,
+                                name: "Bob Johnson",
+                                shortName: "Bob",
+                                space: {
+                                    addedTime: expect.any(String),
+                                    role: "Member",
+                                },
                             },
+                            due: {
+                                date: "2025-12-31",
+                            },
+                            priority: {type: "High"},
+                            collections: [
+                                {collection: {id: collection.id, name: "Collection with Details"}},
+                            ],
                         },
-                        due: {
-                            date: "2025-12-31",
-                        },
-                        priority: {type: "High"},
-                        collections: [
-                            {collection: {id: collection.id, name: "Collection with Details"}},
-                        ],
                     },
                 ],
                 nextCursor: null,
-            },
+            }),
         });
     });
 
-    test("filters out closed tasks by default", async () => {
-        const space = await TestSpace.create(context);
-        const session = await space.createSession({name: "Alice Smith", role: "Admin"});
-
-        const bot = await TestBot.createAndInstantiate(session);
-        const apiKey = await bot.createApiKey(session);
-
-        const collection = await TestTaskCollection.create(session, {
-            name: "Mixed Status Collection",
-            access: "Public",
-        });
-
-        const openTask = await TestTask.create(session, {title: "Open Task"});
-        const closedTask = await TestTask.create(session, {title: "Closed Task"});
-
-        await openTask.addCollection(session, collection);
-        await closedTask.addCollection(session, collection);
-        await closedTask.updateStatus(session, "Closed");
-
-        await ProcessContextModule.waitForTestTasks();
-
-        const response = await server.GET(`/task-collections/${collection.id}/tasks`, {
-            headers: {authorization: `bearer ${apiKey}`},
-        });
-
-        expect(response).toEqual({
-            status: 200,
-            headers: expect.objectContaining({"content-type": "application/json"}),
-            body: {
-                spaceId: space.id,
-                tasks: [
-                    {
-                        creator: {id: session.account.id},
-                        id: openTask.id,
-                        title: "Open Task",
-                        status: expect.objectContaining({type: "Open"}),
-                        collections: [
-                            {collection: {id: collection.id, name: "Mixed Status Collection"}},
-                        ],
-                    },
-                ],
-                nextCursor: null,
-            },
-        });
-    });
-
-    test("includes both active and inactive open tasks", async () => {
+    test("applies the collection default filters and sorts", async () => {
         const space = await TestSpace.create(context);
         const session1 = await space.createSession({name: "Alice Smith", role: "Admin"});
-        const session2 = await space.createSession({name: "Bob Johnson"});
 
         const bot = await TestBot.createAndInstantiate(session1);
         const apiKey = await bot.createApiKey(session1);
 
         const collection = await TestTaskCollection.create(session1, {
-            name: "Active/Inactive Collection",
+            name: "Filtered and Sorted Collection",
             access: "Public",
         });
 
-        const activeTask = await TestTask.create(session1, {title: "Active Task"});
-        const inactiveTask = await TestTask.create(session1, {title: "Inactive Task"});
+        await collection.updateDefaults(session1, {
+            filters: [
+                {
+                    type: "Priority",
+                    operation: {type: "OneOf", priorities: new Set(["High", "Urgent"])},
+                },
+            ],
+            sorts: [{type: "Priority", direction: "Descending"}],
+        });
 
-        await activeTask.updateAssignee(session1, session2, {assigneeStatus: "Active"});
-        await inactiveTask.updateAssignee(session1, session2, {assigneeStatus: "Inactive"});
+        const lowTask = await TestTask.create(session1, {title: "Low Task", priority: "Low"});
+        const highTask = await TestTask.create(session1, {title: "High Task", priority: "High"});
+        const urgentTask = await TestTask.create(session1, {
+            title: "Urgent Task",
+            priority: "Urgent",
+        });
+        const closedUrgentTask = await TestTask.create(session1, {
+            title: "Closed Urgent Task",
+            priority: "Urgent",
+            status: "Closed",
+        });
 
-        await activeTask.addCollection(session1, collection);
-        await inactiveTask.addCollection(session1, collection);
+        await runAllPromises([
+            lowTask.addCollection(session1, collection),
+            highTask.addCollection(session1, collection),
+            urgentTask.addCollection(session1, collection),
+            closedUrgentTask.addCollection(session1, collection),
+        ]);
 
         await ProcessContextModule.waitForTestTasks();
 
@@ -2527,31 +2532,11 @@ describe("/task-collections/{id}/tasks", () => {
             headers: {authorization: `bearer ${apiKey}`},
         });
 
-        expect(response).toEqual({
-            status: 200,
-            headers: expect.objectContaining({"content-type": "application/json"}),
-            body: expect.objectContaining({
-                spaceId: space.id,
-                tasks: expect.arrayContaining([
-                    expect.objectContaining({
-                        id: activeTask.id,
-                        title: "Active Task",
-                        status: expect.objectContaining({type: "Open", isActive: true}),
-                    }),
-                    expect.objectContaining({
-                        id: inactiveTask.id,
-                        title: "Inactive Task",
-                        status: expect.objectContaining({type: "Open", isActive: false}),
-                    }),
-                ]),
-                nextCursor: null,
-            }),
-        });
-
-        expect(response.body.tasks).toHaveLength(2);
+        expect(response.status).toBe(200);
+        expect(getTaskCollectionTaskIds(response)).toEqual([urgentTask.id, highTask.id]);
     });
 
-    test("respects custom limit parameter", async () => {
+    test("paginates through a collection once", async () => {
         const space = await TestSpace.create(context);
         const session = await space.createSession({name: "Alice Smith", role: "Admin"});
 
@@ -2559,13 +2544,12 @@ describe("/task-collections/{id}/tasks", () => {
         const apiKey = await bot.createApiKey(session);
 
         const collection = await TestTaskCollection.create(session, {
-            name: "Large Collection",
+            name: "Paginated Collection",
             access: "Public",
         });
 
-        // Create 5 tasks
-        const tasks = await Promise.all(
-            Array.from({length: 5}, (_, i) => TestTask.create(session, {title: `Task ${i + 1}`})),
+        const tasks = await runAllPromises(
+            Array.from({length: 4}, (_, i) => TestTask.create(session, {title: `Task ${i + 1}`})),
         );
 
         for (const task of tasks) {
@@ -2574,23 +2558,79 @@ describe("/task-collections/{id}/tasks", () => {
 
         await ProcessContextModule.waitForTestTasks();
 
-        // Request only 3 tasks
-        const response = await server.GET(`/task-collections/${collection.id}/tasks?limit=3`, {
-            headers: {authorization: `bearer ${apiKey}`},
+        const firstPageResponse = await server.GET(
+            `/task-collections/${collection.id}/tasks?limit=2`,
+            {
+                headers: {authorization: `bearer ${apiKey}`},
+            },
+        );
+        expect(firstPageResponse.status).toBe(200);
+        expect(getTaskCollectionTaskIds(firstPageResponse)).toEqual([tasks[0]!.id, tasks[1]!.id]);
+
+        const secondPageResponse = await server.GET(
+            `/task-collections/${collection.id}/tasks?limit=2&cursor=${getTaskCollectionNextCursor(firstPageResponse)}`,
+            {
+                headers: {authorization: `bearer ${apiKey}`},
+            },
+        );
+        expect(secondPageResponse.status).toBe(200);
+        expect(secondPageResponse.body.nextCursor).toBeNull();
+        expect(getTaskCollectionTaskIds(secondPageResponse)).toEqual([tasks[2]!.id, tasks[3]!.id]);
+    });
+
+    test("paginates twice through a collection with different limits", async () => {
+        const space = await TestSpace.create(context);
+        const session = await space.createSession({name: "Alice Smith", role: "Admin"});
+
+        const bot = await TestBot.createAndInstantiate(session);
+        const apiKey = await bot.createApiKey(session);
+
+        const collection = await TestTaskCollection.create(session, {
+            name: "Multi-Page Collection",
+            access: "Public",
         });
 
-        expect(response).toEqual({
-            status: 200,
-            headers: expect.objectContaining({"content-type": "application/json"}),
-            body: expect.objectContaining({
-                spaceId: space.id,
-                tasks: expect.any(Array),
-                nextCursor: expect.any(String),
-            }),
-        });
+        const tasks = await runAllPromises(
+            Array.from({length: 7}, (_, i) => TestTask.create(session, {title: `Task ${i + 1}`})),
+        );
 
-        expect(response.body.tasks).toHaveLength(3);
-        expect(response.body.nextCursor).not.toBeNull();
+        for (const task of tasks) {
+            await task.addCollection(session, collection);
+        }
+
+        await ProcessContextModule.waitForTestTasks();
+
+        const firstPageResponse = await server.GET(
+            `/task-collections/${collection.id}/tasks?limit=2`,
+            {
+                headers: {authorization: `bearer ${apiKey}`},
+            },
+        );
+        expect(firstPageResponse.status).toBe(200);
+        expect(getTaskCollectionTaskIds(firstPageResponse)).toEqual([tasks[0]!.id, tasks[1]!.id]);
+
+        const secondPageResponse = await server.GET(
+            `/task-collections/${collection.id}/tasks?limit=3&cursor=${getTaskCollectionNextCursor(firstPageResponse)}`,
+            {
+                headers: {authorization: `bearer ${apiKey}`},
+            },
+        );
+        expect(secondPageResponse.status).toBe(200);
+        expect(getTaskCollectionTaskIds(secondPageResponse)).toEqual([
+            tasks[2]!.id,
+            tasks[3]!.id,
+            tasks[4]!.id,
+        ]);
+
+        const thirdPageResponse = await server.GET(
+            `/task-collections/${collection.id}/tasks?limit=2&cursor=${getTaskCollectionNextCursor(secondPageResponse)}`,
+            {
+                headers: {authorization: `bearer ${apiKey}`},
+            },
+        );
+        expect(thirdPageResponse.status).toBe(200);
+        expect(thirdPageResponse.body.nextCursor).toBeNull();
+        expect(getTaskCollectionTaskIds(thirdPageResponse)).toEqual([tasks[5]!.id, tasks[6]!.id]);
     });
 
     test("returns null cursor when all tasks are returned", async () => {
@@ -2620,10 +2660,13 @@ describe("/task-collections/{id}/tasks", () => {
             body: expect.objectContaining({
                 spaceId: space.id,
                 tasks: [
-                    expect.objectContaining({
-                        id: task.id,
-                        title: "Only Task",
-                    }),
+                    {
+                        cursor: expect.any(String),
+                        task: expect.objectContaining({
+                            id: task.id,
+                            title: "Only Task",
+                        }),
+                    },
                 ],
                 nextCursor: null,
             }),
@@ -2642,18 +2685,21 @@ describe("/task-collections/{id}/tasks", () => {
             access: "Public",
         });
 
-        const task1 = await TestTask.create(session, {title: "Task 1"});
-        const task2 = await TestTask.create(session, {title: "Task 2"});
-        const task3 = await TestTask.create(session, {title: "Task 3"});
+        const [task1, task2, task3] = await runAllPromises([
+            TestTask.create(session, {title: "Task 1"}),
+            TestTask.create(session, {title: "Task 2"}),
+            TestTask.create(session, {title: "Task 3"}),
+        ]);
 
-        await task1.addCollection(session, collection);
-        await task2.addCollection(session, collection);
-        await task3.addCollection(session, collection);
+        await runAllPromises([
+            task1.addCollection(session, collection),
+            task2.addCollection(session, collection),
+            task3.addCollection(session, collection),
+        ]);
 
         await ProcessContextModule.waitForTestTasks();
         const response = await server.GET(`/task-collections/${collection.id}/tasks?limit=1`, {
             headers: {authorization: `bearer ${apiKey}`},
-            body: {limit: 2},
         });
 
         expect(response).toEqual({
@@ -2661,12 +2707,363 @@ describe("/task-collections/{id}/tasks", () => {
             headers: expect.objectContaining({"content-type": "application/json"}),
             body: expect.objectContaining({
                 spaceId: space.id,
-                tasks: expect.arrayContaining([
-                    expect.objectContaining({id: task1.id, title: "Task 1"}),
-                ]),
+                tasks: [
+                    {
+                        cursor: expect.any(String),
+                        task: expect.objectContaining({id: task1.id, title: "Task 1"}),
+                    },
+                ],
                 nextCursor: expect.any(String),
             }),
         });
+    });
+
+    test("returns 400 response for cursor strings in the incorrect format", async () => {
+        const space = await TestSpace.create(context);
+        const session = await space.createSession({name: "Alice Smith", role: "Admin"});
+
+        const bot = await TestBot.createAndInstantiate(session);
+        const apiKey = await bot.createApiKey(session);
+
+        const collection = await TestTaskCollection.create(session, {
+            name: "Cursor Format Collection",
+            access: "Public",
+        });
+
+        await ProcessContextModule.waitForTestTasks();
+
+        const response = await server.GET(
+            `/task-collections/${collection.id}/tasks?cursor=not-a-task-cursor`,
+            {
+                headers: {authorization: `bearer ${apiKey}`},
+            },
+        );
+
+        expect(response).toEqual({
+            status: 400,
+            headers: expect.objectContaining({"content-type": "application/json"}),
+            body: {
+                error: expect.objectContaining({
+                    message: expect.stringMatching("Invalid task cursor for this collection"),
+                }),
+            },
+        });
+    });
+
+    test("returns 400 response for a cursor from a different collection", async () => {
+        const space = await TestSpace.create(context);
+        const session = await space.createSession({name: "Alice Smith", role: "Admin"});
+
+        const bot = await TestBot.createAndInstantiate(session);
+        const apiKey = await bot.createApiKey(session);
+
+        const collection1 = await TestTaskCollection.create(session, {
+            name: "First Collection",
+            access: "Public",
+        });
+        const collection2 = await TestTaskCollection.create(session, {
+            name: "Second Collection",
+            access: "Public",
+        });
+        const task = await TestTask.create(session, {title: "Task"});
+
+        await runAllPromises([
+            task.addCollection(session, collection1),
+            task.addCollection(session, collection2),
+        ]);
+        await ProcessContextModule.waitForTestTasks();
+
+        const collection1Response = await server.GET(
+            `/task-collections/${collection1.id}/tasks?limit=1`,
+            {
+                headers: {authorization: `bearer ${apiKey}`},
+            },
+        );
+        expect(collection1Response.status).toBe(200);
+
+        const response = await server.GET(
+            `/task-collections/${collection2.id}/tasks?cursor=${getTaskCollectionTaskCursor(collection1Response, 0)}`,
+            {
+                headers: {authorization: `bearer ${apiKey}`},
+            },
+        );
+
+        expect(response).toEqual({
+            status: 400,
+            headers: expect.objectContaining({"content-type": "application/json"}),
+            body: {
+                error: expect.objectContaining({
+                    message: expect.stringMatching("Invalid task cursor for this collection"),
+                }),
+            },
+        });
+    });
+
+    test("returns 400 response for a cursor from different default sorts", async () => {
+        const space = await TestSpace.create(context);
+        const session = await space.createSession({name: "Alice Smith", role: "Admin"});
+
+        const bot = await TestBot.createAndInstantiate(session);
+        const apiKey = await bot.createApiKey(session);
+
+        const collection = await TestTaskCollection.create(session, {
+            name: "Changing Sorts Collection",
+            access: "Public",
+        });
+        const [task1, task2] = await runAllPromises([
+            TestTask.create(session, {title: "Task 1", priority: "Low"}),
+            TestTask.create(session, {title: "Task 2", priority: "High"}),
+        ]);
+
+        await runAllPromises([
+            task1.addCollection(session, collection),
+            task2.addCollection(session, collection),
+        ]);
+        await ProcessContextModule.waitForTestTasks();
+
+        const firstPageResponse = await server.GET(
+            `/task-collections/${collection.id}/tasks?limit=1`,
+            {
+                headers: {authorization: `bearer ${apiKey}`},
+            },
+        );
+
+        await collection.updateDefaults(session, {
+            filters: [],
+            sorts: [{type: "Priority", direction: "Descending"}],
+        });
+        await ProcessContextModule.waitForTestTasks();
+
+        const response = await server.GET(
+            `/task-collections/${collection.id}/tasks?cursor=${getTaskCollectionNextCursor(firstPageResponse)}`,
+            {
+                headers: {authorization: `bearer ${apiKey}`},
+            },
+        );
+
+        expect(response).toEqual({
+            status: 400,
+            headers: expect.objectContaining({"content-type": "application/json"}),
+            body: {
+                error: expect.objectContaining({
+                    message: expect.stringMatching("Invalid task cursor for this collection"),
+                }),
+            },
+        });
+    });
+
+    test("includes a parent reference when the parent task is above afterCursor", async () => {
+        const space = await TestSpace.create(context);
+        const session = await space.createSession({name: "Alice Smith", role: "Admin"});
+
+        const bot = await TestBot.createAndInstantiate(session);
+        const apiKey = await bot.createApiKey(session);
+
+        const collection = await TestTaskCollection.create(session, {
+            name: "Parent Above Cursor Collection",
+            access: "Public",
+        });
+        const parentTask = await TestTask.create(session, {title: "Parent Task"});
+        const childTask = await TestTask.create(session, {
+            title: "Child Task",
+            parent: parentTask,
+        });
+
+        await parentTask.addCollection(session, collection);
+        await childTask.addCollection(session, collection);
+        await ProcessContextModule.waitForTestTasks();
+
+        const firstPageResponse = await server.GET(
+            `/task-collections/${collection.id}/tasks?limit=1`,
+            {
+                headers: {authorization: `bearer ${apiKey}`},
+            },
+        );
+
+        const secondPageResponse = await server.GET(
+            `/task-collections/${collection.id}/tasks?limit=1&cursor=${getTaskCollectionNextCursor(firstPageResponse)}`,
+            {
+                headers: {authorization: `bearer ${apiKey}`},
+            },
+        );
+
+        expect(secondPageResponse).toEqual({
+            status: 200,
+            headers: expect.objectContaining({"content-type": "application/json"}),
+            body: expect.objectContaining({
+                tasks: [
+                    {
+                        cursor: expect.any(String),
+                        task: expect.objectContaining({
+                            id: childTask.id,
+                            parent: {
+                                task: {
+                                    id: parentTask.id,
+                                    title: "Parent Task",
+                                    status: {type: "Open", isActive: false},
+                                },
+                            },
+                        }),
+                    },
+                ],
+                nextCursor: null,
+            }),
+        });
+    });
+
+    test("includes a parent reference when the parent task is after endCursor", async () => {
+        const space = await TestSpace.create(context);
+        const session = await space.createSession({name: "Alice Smith", role: "Admin"});
+
+        const bot = await TestBot.createAndInstantiate(session);
+        const apiKey = await bot.createApiKey(session);
+
+        const collection = await TestTaskCollection.create(session, {
+            name: "Parent After End Cursor Collection",
+            access: "Public",
+        });
+        const parentTask = await TestTask.create(session, {title: "Parent Task"});
+        const childTask = await TestTask.create(session, {
+            title: "Child Task",
+            parent: parentTask,
+        });
+        const siblingTask = await TestTask.create(session, {title: "Sibling Task"});
+
+        await childTask.addCollection(session, collection);
+        await siblingTask.addCollection(session, collection);
+        await parentTask.addCollection(session, collection);
+        await ProcessContextModule.waitForTestTasks();
+
+        const response = await server.GET(`/task-collections/${collection.id}/tasks?limit=1`, {
+            headers: {authorization: `bearer ${apiKey}`},
+        });
+
+        expect(response).toEqual({
+            status: 200,
+            headers: expect.objectContaining({"content-type": "application/json"}),
+            body: expect.objectContaining({
+                tasks: [
+                    {
+                        cursor: expect.any(String),
+                        task: expect.objectContaining({
+                            id: childTask.id,
+                            parent: {
+                                task: {
+                                    id: parentTask.id,
+                                    title: "Parent Task",
+                                    status: {type: "Open", isActive: false},
+                                },
+                            },
+                        }),
+                    },
+                ],
+                nextCursor: expect.any(String),
+            }),
+        });
+    });
+
+    test("paginates when the previous page end task moves into the next page", async () => {
+        const space = await TestSpace.create(context);
+        const session = await space.createSession({name: "Alice Smith", role: "Admin"});
+
+        const bot = await TestBot.createAndInstantiate(session);
+        const apiKey = await bot.createApiKey(session);
+
+        const collection = await TestTaskCollection.create(session, {
+            name: "Moving Later Collection",
+            access: "Public",
+        });
+        const tasks = await runAllPromises(
+            Array.from({length: 5}, (_, i) => TestTask.create(session, {title: `Task ${i + 1}`})),
+        );
+
+        for (const task of tasks) {
+            await task.addCollection(session, collection);
+        }
+        await ProcessContextModule.waitForTestTasks();
+
+        const firstPageResponse = await server.GET(
+            `/task-collections/${collection.id}/tasks?limit=3`,
+            {
+                headers: {authorization: `bearer ${apiKey}`},
+            },
+        );
+        expect(firstPageResponse.status).toBe(200);
+        expect(getTaskCollectionTaskIds(firstPageResponse)).toEqual([
+            tasks[0]!.id,
+            tasks[1]!.id,
+            tasks[2]!.id,
+        ]);
+
+        await tasks[2]!.updateCollectionPosition(session, collection, {
+            orderTime: testTaskClock.now(),
+            orderKey: initialOrderKey,
+        });
+        await ProcessContextModule.waitForTestTasks();
+
+        const secondPageResponse = await server.GET(
+            `/task-collections/${collection.id}/tasks?limit=3&cursor=${getTaskCollectionNextCursor(firstPageResponse)}`,
+            {
+                headers: {authorization: `bearer ${apiKey}`},
+            },
+        );
+        expect(secondPageResponse.status).toBe(200);
+        expect(secondPageResponse.body.nextCursor).toBeNull();
+        expect(getTaskCollectionTaskIds(secondPageResponse)).toEqual([
+            tasks[3]!.id,
+            tasks[4]!.id,
+            tasks[2]!.id,
+        ]);
+    });
+
+    test("paginates when the previous page end task moves to an earlier page", async () => {
+        const space = await TestSpace.create(context);
+        const session = await space.createSession({name: "Alice Smith", role: "Admin"});
+
+        const bot = await TestBot.createAndInstantiate(session);
+        const apiKey = await bot.createApiKey(session);
+
+        const collection = await TestTaskCollection.create(session, {
+            name: "Moving Earlier Collection",
+            access: "Public",
+        });
+        const tasks = await runAllPromises(
+            Array.from({length: 5}, (_, i) => TestTask.create(session, {title: `Task ${i + 1}`})),
+        );
+
+        for (const task of tasks) {
+            await task.addCollection(session, collection);
+        }
+        await ProcessContextModule.waitForTestTasks();
+
+        const firstPageResponse = await server.GET(
+            `/task-collections/${collection.id}/tasks?limit=3`,
+            {
+                headers: {authorization: `bearer ${apiKey}`},
+            },
+        );
+        expect(firstPageResponse.status).toBe(200);
+        expect(getTaskCollectionTaskIds(firstPageResponse)).toEqual([
+            tasks[0]!.id,
+            tasks[1]!.id,
+            tasks[2]!.id,
+        ]);
+
+        await tasks[2]!.updateCollectionPosition(session, collection, {
+            orderTime: zeroHybridLogicalTime,
+            orderKey: initialOrderKey,
+        });
+        await ProcessContextModule.waitForTestTasks();
+
+        const secondPageResponse = await server.GET(
+            `/task-collections/${collection.id}/tasks?limit=3&cursor=${getTaskCollectionNextCursor(firstPageResponse)}`,
+            {
+                headers: {authorization: `bearer ${apiKey}`},
+            },
+        );
+        expect(secondPageResponse.status).toBe(200);
+        expect(secondPageResponse.body.nextCursor).toBeNull();
+        expect(getTaskCollectionTaskIds(secondPageResponse)).toEqual([tasks[3]!.id, tasks[4]!.id]);
     });
 
     test("returns empty array for collection with no tasks", async () => {
@@ -2732,353 +3129,16 @@ describe("/task-collections/{id}/tasks", () => {
                 spaceId: space.id,
                 tasks: [
                     expect.objectContaining({
-                        id: task.id,
-                        collections: [
-                            {collection: {id: activeCollection.id, name: "Active Collection"}},
-                        ],
+                        cursor: expect.any(String),
+                        task: expect.objectContaining({
+                            id: task.id,
+                            collections: [
+                                {collection: {id: activeCollection.id, name: "Active Collection"}},
+                            ],
+                        }),
                     }),
                 ],
             }),
-        });
-    });
-
-    test("returns empty array for collection with only closed tasks", async () => {
-        const space = await TestSpace.create(context);
-        const session = await space.createSession({name: "Alice Smith", role: "Admin"});
-
-        const bot = await TestBot.createAndInstantiate(session);
-        const apiKey = await bot.createApiKey(session);
-
-        const collection = await TestTaskCollection.create(session, {
-            name: "All Closed Collection",
-            access: "Public",
-        });
-
-        const task1 = await TestTask.create(session, {title: "Closed Task 1"});
-        const task2 = await TestTask.create(session, {title: "Closed Task 2"});
-
-        await task1.addCollection(session, collection);
-        await task2.addCollection(session, collection);
-
-        await task1.updateStatus(session, "Closed");
-        await task2.updateStatus(session, "Closed");
-
-        await ProcessContextModule.waitForTestTasks();
-
-        const response = await server.GET(`/task-collections/${collection.id}/tasks`, {
-            headers: {authorization: `bearer ${apiKey}`},
-        });
-
-        expect(response).toEqual({
-            status: 200,
-            headers: expect.objectContaining({"content-type": "application/json"}),
-            body: expect.objectContaining({
-                spaceId: space.id,
-                tasks: [],
-                nextCursor: null,
-            }),
-        });
-    });
-
-    test("only returns open tasks when status is [Open]", async () => {
-        const space = await TestSpace.create(context);
-        const session1 = await space.createSession({name: "Alice Smith", role: "Admin"});
-        const session2 = await space.createSession({name: "Bob Johnson"});
-
-        const bot = await TestBot.createAndInstantiate(session1);
-        const apiKey = await bot.createApiKey(session1);
-
-        const collection = await TestTaskCollection.create(session1, {
-            name: "Status Filter Collection",
-            access: "Public",
-        });
-
-        // Create tasks with different statuses
-        const closedTask = await TestTask.create(session1, {title: "Closed Task"});
-        const activeTask = await TestTask.create(session1, {title: "Active Task"});
-        const inactiveTask = await TestTask.create(session1, {title: "Inactive Task"});
-
-        await closedTask.addCollection(session1, collection);
-        await activeTask.addCollection(session1, collection);
-        await inactiveTask.addCollection(session1, collection);
-
-        await closedTask.updateStatus(session1, "Closed");
-        await activeTask.updateAssignee(session1, session2, {assigneeStatus: "Active"});
-        await inactiveTask.updateAssignee(session1, session2, {assigneeStatus: "Inactive"});
-
-        await ProcessContextModule.waitForTestTasks();
-
-        const response = await server.GET(`/task-collections/${collection.id}/tasks?status=Open`, {
-            headers: {authorization: `bearer ${apiKey}`},
-        });
-
-        expect(response).toEqual({
-            status: 200,
-            headers: expect.objectContaining({"content-type": "application/json"}),
-            body: expect.objectContaining({
-                spaceId: space.id,
-                tasks: [
-                    expect.objectContaining({
-                        id: activeTask.id,
-                        title: "Active Task",
-                        status: {type: "Open", isActive: true},
-                    }),
-                    expect.objectContaining({
-                        id: inactiveTask.id,
-                        title: "Inactive Task",
-                        status: {type: "Open", isActive: false},
-                    }),
-                ],
-                nextCursor: null,
-            }),
-        });
-    });
-
-    test("only returns closed tasks when status is [Closed]", async () => {
-        const space = await TestSpace.create(context);
-        const session1 = await space.createSession({name: "Alice Smith", role: "Admin"});
-        const session2 = await space.createSession({name: "Bob Johnson"});
-
-        const bot = await TestBot.createAndInstantiate(session1);
-        const apiKey = await bot.createApiKey(session1);
-
-        const collection = await TestTaskCollection.create(session1, {
-            name: "Status Filter Collection",
-            access: "Public",
-        });
-
-        // Create tasks with different statuses
-        const closedTask = await TestTask.create(session1, {title: "Closed Task"});
-        const activeTask = await TestTask.create(session1, {title: "Active Task"});
-        const inactiveTask = await TestTask.create(session1, {title: "Inactive Task"});
-
-        await closedTask.addCollection(session1, collection);
-        await activeTask.addCollection(session1, collection);
-        await inactiveTask.addCollection(session1, collection);
-
-        await closedTask.updateStatus(session1, "Closed");
-        await activeTask.updateAssignee(session1, session2, {assigneeStatus: "Active"});
-        await inactiveTask.updateAssignee(session1, session2, {assigneeStatus: "Inactive"});
-
-        await ProcessContextModule.waitForTestTasks();
-
-        const response = await server.GET(
-            `/task-collections/${collection.id}/tasks?status=Closed`,
-            {
-                headers: {authorization: `bearer ${apiKey}`},
-            },
-        );
-
-        expect(response).toEqual({
-            status: 200,
-            headers: expect.objectContaining({"content-type": "application/json"}),
-            body: expect.objectContaining({
-                spaceId: space.id,
-                tasks: [
-                    expect.objectContaining({
-                        id: closedTask.id,
-                        title: "Closed Task",
-                        status: {type: "Closed"},
-                    }),
-                ],
-                nextCursor: null,
-            }),
-        });
-    });
-
-    test("can filter tasks by status using repeated query parameters", async () => {
-        const space = await TestSpace.create(context);
-        const session1 = await space.createSession({name: "Alice Smith", role: "Admin"});
-        const session2 = await space.createSession({name: "Bob Johnson"});
-
-        const bot = await TestBot.createAndInstantiate(session1);
-        const apiKey = await bot.createApiKey(session1);
-
-        const collection = await TestTaskCollection.create(session1, {
-            name: "Status Filter Collection",
-            access: "Public",
-        });
-
-        // Create tasks with different statuses
-        const closedTask = await TestTask.create(session1, {title: "Closed Task"});
-        const activeTask = await TestTask.create(session1, {title: "Active Task"});
-        const inactiveTask = await TestTask.create(session1, {title: "Inactive Task"});
-
-        await closedTask.addCollection(session1, collection);
-        await activeTask.addCollection(session1, collection);
-        await inactiveTask.addCollection(session1, collection);
-
-        await closedTask.updateStatus(session1, "Closed");
-        await activeTask.updateAssignee(session1, session2, {assigneeStatus: "Active"});
-        await inactiveTask.updateAssignee(session1, session2, {assigneeStatus: "Inactive"});
-
-        await ProcessContextModule.waitForTestTasks();
-
-        // Filter for Closed and OpenActive using repeated parameters
-        const response = await server.GET(
-            `/task-collections/${collection.id}/tasks?status=Closed&status=Open`,
-            {
-                headers: {authorization: `bearer ${apiKey}`},
-            },
-        );
-
-        expect(response).toEqual({
-            status: 200,
-            headers: expect.objectContaining({"content-type": "application/json"}),
-            body: expect.objectContaining({
-                spaceId: space.id,
-                tasks: [
-                    expect.objectContaining({
-                        id: closedTask.id,
-                        title: "Closed Task",
-                        status: {type: "Closed"},
-                    }),
-                    expect.objectContaining({
-                        id: activeTask.id,
-                        title: "Active Task",
-                        status: {type: "Open", isActive: true},
-                    }),
-                    expect.objectContaining({
-                        id: inactiveTask.id,
-                        title: "Inactive Task",
-                        status: {type: "Open", isActive: false},
-                    }),
-                ],
-                nextCursor: null,
-            }),
-        });
-    });
-
-    test("can filter tasks by status using comma-separated values", async () => {
-        const space = await TestSpace.create(context);
-        const session1 = await space.createSession({name: "Alice Smith", role: "Admin"});
-        const session2 = await space.createSession({name: "Bob Johnson"});
-
-        const bot = await TestBot.createAndInstantiate(session1);
-        const apiKey = await bot.createApiKey(session1);
-
-        const collection = await TestTaskCollection.create(session1, {
-            name: "Comma-Separated Collection",
-            access: "Public",
-        });
-
-        const closedTask = await TestTask.create(session1, {title: "Closed Task"});
-        const activeTask = await TestTask.create(session1, {title: "Active Task"});
-        const inactiveTask = await TestTask.create(session1, {title: "Inactive Task"});
-
-        await closedTask.addCollection(session1, collection);
-        await activeTask.addCollection(session1, collection);
-        await inactiveTask.addCollection(session1, collection);
-
-        await closedTask.updateStatus(session1, "Closed");
-        await activeTask.updateAssignee(session1, session2, {assigneeStatus: "Active"});
-        await inactiveTask.updateAssignee(session1, session2, {assigneeStatus: "Inactive"});
-
-        await ProcessContextModule.waitForTestTasks();
-
-        // Filter using comma-separated values
-        const response = await server.GET(
-            `/task-collections/${collection.id}/tasks?status=Open,Closed`,
-            {
-                headers: {authorization: `bearer ${apiKey}`},
-            },
-        );
-
-        expect(response).toEqual({
-            status: 200,
-            headers: expect.objectContaining({"content-type": "application/json"}),
-            body: expect.objectContaining({
-                spaceId: space.id,
-                tasks: [
-                    expect.objectContaining({
-                        id: closedTask.id,
-                        title: "Closed Task",
-                        status: {type: "Closed"},
-                    }),
-                    expect.objectContaining({
-                        id: activeTask.id,
-                        title: "Active Task",
-                        status: {type: "Open", isActive: true},
-                    }),
-                    expect.objectContaining({
-                        id: inactiveTask.id,
-                        title: "Inactive Task",
-                        status: {type: "Open", isActive: false},
-                    }),
-                ],
-                nextCursor: null,
-            }),
-        });
-    });
-
-    test("returns 400 error for invalid status enum value", async () => {
-        const space = await TestSpace.create(context);
-        const session = await space.createSession({name: "Alice Smith", role: "Admin"});
-
-        const bot = await TestBot.createAndInstantiate(session);
-        const apiKey = await bot.createApiKey(session);
-
-        const collection = await TestTaskCollection.create(session, {
-            name: "Test Collection",
-            access: "Public",
-        });
-
-        await ProcessContextModule.waitForTestTasks();
-
-        const response = await server.GET(
-            `/task-collections/${collection.id}/tasks?status=OpenActive&status=Closed`,
-            {
-                headers: {authorization: `bearer ${apiKey}`},
-            },
-        );
-
-        expect(response).toEqual({
-            status: 400,
-            headers: expect.objectContaining({"content-type": "application/json"}),
-            body: {
-                error: {
-                    message: "Invalid query parameters.",
-                    retry: {
-                        able: false,
-                    },
-                },
-            },
-        });
-    });
-
-    test("returns 400 error for unexpected list length (repeat values)", async () => {
-        const space = await TestSpace.create(context);
-        const session = await space.createSession({name: "Alice Smith", role: "Admin"});
-
-        const bot = await TestBot.createAndInstantiate(session);
-        const apiKey = await bot.createApiKey(session);
-
-        const collection = await TestTaskCollection.create(session, {
-            name: "Test Collection",
-            access: "Public",
-        });
-
-        await ProcessContextModule.waitForTestTasks();
-
-        // Mix of valid and invalid values
-        const response = await server.GET(
-            `/task-collections/${collection.id}/tasks?status=Closed&status=Closed&status=Open`,
-            {
-                headers: {authorization: `bearer ${apiKey}`},
-            },
-        );
-
-        expect(response).toEqual({
-            status: 400,
-            headers: expect.objectContaining({"content-type": "application/json"}),
-            body: {
-                error: {
-                    message: "Invalid `status` query parameter.",
-                    retry: {
-                        able: false,
-                    },
-                },
-            },
         });
     });
 });
