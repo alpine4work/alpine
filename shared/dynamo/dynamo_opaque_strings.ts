@@ -16,7 +16,7 @@ import {Schema} from "~/shared/schema/schema.js";
  */
 export type DynamoItemKey = string & {readonly _DynamoItemKey: never};
 
-export const DynamoItemKeySchema = Schema.string as Schema<any> as Schema<DynamoItemKey>;
+export const DynamoItemKeySchema = Schema.stringAs<DynamoItemKey>();
 
 /**
  * An opaque string representing the partition key of a DynamoDB item. A DynamoDB
@@ -25,8 +25,7 @@ export const DynamoItemKeySchema = Schema.string as Schema<any> as Schema<Dynamo
  */
 export type DynamoItemPartitionKey = string & {readonly _DynamoItemPartitionKey: never};
 
-export const DynamoItemPartitionKeySchema =
-    Schema.string as Schema<any> as Schema<DynamoItemPartitionKey>;
+export const DynamoItemPartitionKeySchema = Schema.stringAs<DynamoItemPartitionKey>();
 
 /**
  * An opaque string representing the sort key of a DynamoDB item. A DynamoDB item's
@@ -43,8 +42,7 @@ export type DynamoItemSortKey = string & {readonly _DynamoItemSortKey: never};
  */
 export type DynamoIndexPartitionKey = string & {readonly _DynamoIndexPartitionKey: never};
 
-export const DynamoIndexPartitionKeySchema =
-    Schema.string as Schema<any> as Schema<DynamoIndexPartitionKey>;
+export const DynamoIndexPartitionKeySchema = Schema.stringAs<DynamoIndexPartitionKey>();
 
 /**
  * An opaque string representing a position in a DynamoDB index.
@@ -68,4 +66,4 @@ export const DynamoIndexPartitionKeySchema =
  */
 export type DynamoIndexCursor = string & {readonly _DynamoIndexCursor: never};
 
-export const DynamoIndexCursorSchema = Schema.string as Schema<any> as Schema<DynamoIndexCursor>;
+export const DynamoIndexCursorSchema = Schema.stringAs<DynamoIndexCursor>();

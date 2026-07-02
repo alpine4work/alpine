@@ -101,7 +101,7 @@ export const SitesTable = RynamoTableSchema.new({
                          * The site's root container — always either a TopBar or a SideBar. Created
                          * atomically with the site itself in `createSite` so this is never null.
                          */
-                        rootContainerId: Schema.string as Schema<SiteRootContainerId>,
+                        rootContainerId: Schema.stringAs<SiteRootContainerId>(),
                     }),
                 },
 

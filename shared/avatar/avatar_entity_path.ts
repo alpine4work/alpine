@@ -12,7 +12,7 @@ import {Schema} from "~/shared/schema/schema.js";
 
 export type AvatarEntityPath = `account/${AccountId}` | `space/${SpaceId}` | `bot/${BotId}`;
 
-export const AvatarEntityPathSchema = Schema.string as Schema<AvatarEntityPath>;
+export const AvatarEntityPathSchema = Schema.stringAs<AvatarEntityPath>();
 
 export type AvatarEntityPathObject =
     | {readonly type: "account"; readonly accountId: AccountId}

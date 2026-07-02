@@ -340,6 +340,22 @@ export class Schema<Value> implements SchemaWithOnlySerialization<Value> {
     public static string: StringSchema;
 
     /**
+     * Accept a string value of a specific type. For example:
+     * `const EntityIdSchema = Schema.stringAs<EntityId>()`.
+     *
+     * This does depend on you controlling the deserialized values since we perform no
+     * runtime validation that the deserialized string conforms to the type. We also
+     * perform no backwards compatibility checking on the string type. So you are
+     * accepting some type unsafety when using this type.
+     *
+     * The name is `Schema.stringAs<Value>()` since it's an alias for
+     * `Schema.string as Schema<Value>`.
+     */
+    public static stringAs<Value extends string>(): Schema<Value> {
+        return this.string as any;
+    }
+
+    /**
      * Accept any `Id` value.
      *
      * A function so that you may pass in a nominal ID type.

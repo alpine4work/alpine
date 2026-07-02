@@ -41,6 +41,6 @@ export const IndexSearchEntityEmbeddingChunksJobDescriptionSchema = Schema.objec
     type: Schema.value("IndexSearchEntityEmbeddingChunks"),
     id: Schema.id<Id>(),
     spaceId: Schema.id<SpaceId>(),
-    entityId: Schema.string as Schema<SearchDynamicEntityId>,
+    entityId: Schema.stringAs<SearchDynamicEntityId>(),
     forceMetadataUpdate: Schema.boolean.default(false),
 });

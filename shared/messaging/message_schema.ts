@@ -275,7 +275,7 @@ const MessageStreamToolCallPartPayloadCallSchema = Schema.union({
         // `ApiMentionReferencePath` after doing this.
         //
         // NOCOMMIT: Rename to `reference`?
-        targetPath: Schema.string as Schema<ApiMentionReferencePath>,
+        targetPath: Schema.stringAs<ApiMentionReferencePath>(),
     }),
     Search: Schema.object({
         type: Schema.value("Search"),
