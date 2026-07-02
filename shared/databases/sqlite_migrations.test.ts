@@ -1,7 +1,5 @@
 import * as Prettier from "prettier";
-import * as sqlPrettierPlugin from "prettier-plugin-sql";
-import * as estreePrettierPlugin from "prettier/plugins/estree";
-import * as typescriptPrettierPlugin from "prettier/plugins/typescript";
+import sqlPrettierPlugin from "prettier-plugin-sql";
 import type {Database} from "~/external/sqlite/ext/wasm/jswasm/sqlite3.mjs";
 import sqlite3InitModule from "~/external/sqlite/ext/wasm/jswasm/sqlite3.mjs";
 import {databaseTableSchemaName, sql} from "~/shared/databases/sql.js";
@@ -59,23 +57,22 @@ async function readSqliteSchema(db: Database, tableId: DatabaseTableId | null): 
         sql: Schema.string,
     });
 
-    const source = rows
-        .map(row => {
-            return `// ${row.type} ${row.name} ${row.tbl_name}\nsql\`${row.sql}\``;
-        })
-        .join("\n\n");
+    const formattedRows = [];
+    for (const row of rows) {
+        const formattedSql = await Prettier.format(row.sql, {
+            plugins: [sqlPrettierPlugin],
+            parser: "sql",
+            printWidth: 100,
+            tabWidth: 4,
+            language: "sqlite",
+            keywordCase: "upper",
+            dataTypeCase: "upper",
+            functionCase: "upper",
+        });
+        formattedRows.push(`// ${row.type} ${row.name} ${row.tbl_name}\n${formattedSql.trim()}`);
+    }
 
-    return await Prettier.format(source, {
-        plugins: [estreePrettierPlugin, typescriptPrettierPlugin, sqlPrettierPlugin],
-        parser: "typescript",
-        printWidth: 100,
-        tabWidth: 4,
-        embeddedSqlTags: ["sql"],
-        language: "sqlite",
-        keywordCase: "upper",
-        dataTypeCase: "upper",
-        functionCase: "upper",
-    });
+    return formattedRows.join("\n\n");
 }
 
 function normalizeSchemaObjectIds(
