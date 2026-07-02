@@ -1,3 +1,7 @@
+import * as Prettier from "prettier";
+import * as sqlPrettierPlugin from "prettier-plugin-sql";
+import * as estreePrettierPlugin from "prettier/plugins/estree";
+import * as typescriptPrettierPlugin from "prettier/plugins/typescript";
 import type {Database} from "~/external/sqlite/ext/wasm/jswasm/sqlite3.mjs";
 import sqlite3InitModule from "~/external/sqlite/ext/wasm/jswasm/sqlite3.mjs";
 import {DatabaseFieldConfigSqlSchema} from "~/shared/databases/fields/all_database_field_providers.js";
@@ -14,9 +18,7 @@ import {
 } from "~/shared/databases/sqlite_migrations.js";
 import {generateChronologicalId} from "~/shared/id/chronological_id.js";
 import type {DatabaseFieldId, DatabaseTableId} from "~/shared/id/types/id_types.js";
-import * as Prettier from "prettier";
-import {Schema, Schema} from "~/shared/schema/schema.js";
-import {schema} from "prosemirror-schema-basic";
+import {Schema} from "~/shared/schema/schema.js";
 
 const sqlite3Promise = sqlite3InitModule();
 let dbCounter = 0;
@@ -46,6 +48,8 @@ async function readSqliteSchema(db: Database, tableId: DatabaseTableId | null): 
             sql
         FROM
             ${sqliteSchema}
+        WHERE
+            sql IS NOT NULL
         ORDER BY
             type,
             name
@@ -66,7 +70,8 @@ async function readSqliteSchema(db: Database, tableId: DatabaseTableId | null): 
         .join("\n");
 
     return await Prettier.format(source, {
-        plugins: ["prettier-plugin-sql"],
+        plugins: [estreePrettierPlugin, typescriptPrettierPlugin, sqlPrettierPlugin],
+        parser: "typescript",
         printWidth: 100,
         tabWidth: 4,
         embeddedSqlTags: ["sql"],
@@ -80,7 +85,7 @@ async function readSqliteSchema(db: Database, tableId: DatabaseTableId | null): 
 function normalizeSchemaObjectIds(
     schema: string,
     replacements?: ReadonlyMap<string, string>,
-): Array<Record<string, unknown>> {
+): string {
     let normalized = schema;
     if (replacements) {
         for (const [id, replacement] of replacements) {
@@ -97,7 +102,7 @@ describe("sqlite migrations", () => {
 
             runMainMigrations(db, i);
 
-            const schema = normalizeSchemaObjectIds(readSqliteSchema(db, null));
+            const schema = normalizeSchemaObjectIds(await readSqliteSchema(db, null));
             expect(schema).toMatchSnapshot();
             db.close();
         });
@@ -114,7 +119,10 @@ describe("sqlite migrations", () => {
 
             const replacements = new Map([[tableId, "<tableId>"]]);
 
-            const schema = normalizeSchemaObjectIds(readSqliteSchema(db, tableId), replacements);
+            const schema = normalizeSchemaObjectIds(
+                await readSqliteSchema(db, tableId),
+                replacements,
+            );
             expect(schema).toMatchSnapshot();
             db.close();
         });
@@ -132,7 +140,7 @@ describe("sqlite migrations", () => {
             const replacements = new Map([[joinTableId, "<joinTableId>"]]);
 
             const schema = normalizeSchemaObjectIds(
-                readSqliteSchema(db, joinTableId),
+                await readSqliteSchema(db, joinTableId),
                 replacements,
             );
             expect(schema).toMatchSnapshot();
