@@ -277,7 +277,7 @@ function MessageInput<RoomKey extends string, Message extends MessageModel<RoomK
         fileIds: inputFileIds,
     });
 
-    const {resolvedServerDraft, clearDraft} = useMessageInputDraft({
+    const {resolvedServerDraft, clearDraftOptimistically} = useMessageInputDraft({
         draftSurface: messageDraftSurface,
         serverDraft: messageDraft,
         inputState,
@@ -305,7 +305,16 @@ function MessageInput<RoomKey extends string, Message extends MessageModel<RoomK
     useLayoutEffectWithoutServerSideWarning(() => {
         if (!messageDraft?.parent) return;
         if (messageEditingForThisInput) return;
-        if (parentWithoutMessages) return;
+
+        if (parentWithoutMessages) {
+            // If the draft's parent and the current parent are the same, we've already
+            // reconciled this draft so don't apply it again.
+            if (isDeepEqual(parentWithoutMessages, messageDraft.parent)) {
+                messageDraftWithSyncedParentRef.current = messageDraft;
+            }
+            return;
+        }
+
         if (messageDraftWithSyncedParentRef.current === messageDraft) return;
 
         messageDraftWithSyncedParentRef.current = messageDraft;
@@ -620,9 +629,12 @@ function MessageInput<RoomKey extends string, Message extends MessageModel<RoomK
                             content: inputContent.doc,
                             fileIds: inputFileIds,
                         });
-
-                        clearDraft();
                     })();
+
+                    // Optimistically clear the message draft. The local input is already empty; this
+                    // commits the clear to the server once the send resolves and keeps the draft if it
+                    // fails.
+                    clearDraftOptimistically(promise);
 
                     // Sending a message dismisses post comment entries and chat entries.
                     // Optimistically archive these entries so we don't need to wait for realtime. The

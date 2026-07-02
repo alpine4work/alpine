@@ -237,6 +237,20 @@ async function cancelMessageDraftReplyParent(page: Page) {
     await expect(page.getByTestId("MessageInputParent")).toBeHidden();
 }
 
+async function sendMessageDraft(page: Page, messageNoun: "message" | "comment", isMobile = false) {
+    const sendButton = page.getByRole("button", {name: `Send ${messageNoun}`});
+    await expect(sendButton).toBeEnabled();
+
+    if (isMobile) {
+        await getMessageDraftInput(page, messageNoun).blur();
+        await sendButton.tap();
+    } else {
+        await sendButton.click();
+    }
+
+    await expect(getMessageDraftInput(page, messageNoun)).toHaveText("");
+}
+
 async function getMessageInputDropPosition(pageOrLocator: Page | Locator) {
     const messageInputBox = assertExists(
         await (
@@ -363,7 +377,7 @@ async function waitForDraftAccountMention(
         .toBe(true);
 }
 
-async function waitForDraftMessagesRangeParent(
+export async function waitForDraftMessagesRangeParent(
     session: MessageDraftTestSession,
     surface: MessageDraftSurface,
     {
@@ -405,7 +419,7 @@ export async function seedMessageDraft(
     });
 }
 
-async function seedMessageDraftWithParent(
+export async function seedMessageDraftWithParent(
     session: MessageDraftTestSession,
     surface: MessageDraftSurface,
     text: string,
@@ -741,6 +755,35 @@ export function getMessageDraftBehaviorTests(): Array<MessageDraftBehaviorTest> 
                 await clearMessageDraftInput(page, scenario.messageNoun, isMobile);
                 await cancelMessageDraftReplyParent(page);
                 await blurMessageDraftInput(page, scenario.messageNoun);
+                await waitForDraftToBeEmpty(scenario.session, scenario.surface);
+            },
+        },
+        {
+            title: "clears a draft with a reply parent after sending",
+            skipOnMobile: true,
+            run: async ({page, context: browserContext, isMobile}, prepares, services) => {
+                const scenario = await prepares.prepareWithReplyParent();
+
+                await seedMessageDraftWithParent(
+                    scenario.session,
+                    scenario.surface,
+                    `${scenario.draftLabel} with parent to send`,
+                    getReplyParentForScenario(scenario),
+                );
+                await navigate(page, browserContext, services, scenario, isMobile);
+
+                await expect(page.getByTestId("MessageInputParent")).toBeVisible();
+                await waitForDraftMessagesRangeParent(scenario.session, scenario.surface, {
+                    startIndex: scenario.replyParentStartIndex,
+                    endIndex: scenario.replyParentEndIndex,
+                });
+                await expect(getMessageDraftInput(page, scenario.messageNoun)).toHaveText(
+                    `${scenario.draftLabel} with parent to send`,
+                    {timeout: 10_000},
+                );
+
+                await sendMessageDraft(page, scenario.messageNoun, isMobile);
+                await expect(page.getByTestId("MessageInputParent")).toBeHidden();
                 await waitForDraftToBeEmpty(scenario.session, scenario.surface);
             },
         },

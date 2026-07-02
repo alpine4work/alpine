@@ -91,6 +91,7 @@ export function useMessageInputDraft({
     resolvedServerDraft: MessageDraftWithFiles | undefined;
     flushDraft: Memo<() => void>;
     clearDraft: Memo<() => void>;
+    clearDraftOptimistically: Memo<(sendPromise: Promise<unknown>) => void>;
 } {
     const context = useAppContext();
     const reporter = useReporter();
@@ -185,6 +186,25 @@ export function useMessageInputDraft({
             surface: hasAccessibleDraftSurface,
             surfaceKey: getMessageDraftSurfaceKey(hasAccessibleDraftSurface),
         });
+    });
+
+    const clearDraftOptimistically = useEvent((sendPromise: Promise<unknown>) => {
+        cancelDraftSaveDebounce();
+
+        // Forget the draft locally so the now-empty input doesn't eagerly clear the server
+        // draft. We keep the server row until the message actually sends so a failed send
+        // still restores the draft on reload.
+        lastDraftSentRef.current = null;
+        hasRemoteDraftContentRef.current = false;
+
+        // Commit the clear to the server once the send resolves. If the send fails we
+        // leave the server draft intact.
+        sendPromise.then(
+            () => {
+                clearDraft();
+            },
+            () => {},
+        );
     });
 
     const maybeClearRemoteDraftWhenInputEmpty = useEvent(() => {
@@ -416,7 +436,7 @@ export function useMessageInputDraft({
         };
     }, [shouldFlushOnUnmount, flushDraft]);
 
-    return {resolvedServerDraft, flushDraft, clearDraft};
+    return {resolvedServerDraft, flushDraft, clearDraft, clearDraftOptimistically};
 }
 
 function getMessageDraftForWriteOperation(operation: MessageDraftWriteOperation): MessageDraft {
