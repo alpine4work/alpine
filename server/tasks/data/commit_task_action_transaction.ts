@@ -710,7 +710,6 @@ class TaskActionTransactionCommitState {
 
         const transactionEntries: Array<DynamoTransactionEntry | RynamoTransactionEntry> = [];
         const extraActions: Array<TaskAction> = [];
-        const actor = getTaskActionActorFromContext(this._context);
 
         for (const transactionEntry of this._transactionEntryByTaskId.values()) {
             switch (transactionEntry.action) {
@@ -746,7 +745,6 @@ class TaskActionTransactionCommitState {
                     type: "UpdateTask",
                     // For our extra action's time, add a tick to the max action time.
                     time: [maxActionTime[0], maxActionTime[1] + 1],
-                    ...(actor === null ? {} : {actor}),
                     taskId: transactionEntry.taskItem.taskId,
                     taskAction: {
                         type: "UpdateChildrenCounts",
@@ -1417,7 +1415,7 @@ async function actuallyCommitTaskActionTransaction(
 
         switch (action.type) {
             case "UpdateTask": {
-                validateTaskActionActorForServer(state, action.actor, "task action");
+                await validateTaskActionActorForServer(state, action.actor, "task action");
 
                 const {taskId, taskAction} = action;
 
@@ -2402,7 +2400,11 @@ async function actuallyCommitTaskActionTransaction(
                 break;
             }
             case "UpdateCollection": {
-                validateTaskActionActorForServer(state, action.actor, "task collection action");
+                await validateTaskActionActorForServer(
+                    state,
+                    action.actor,
+                    "task collection action",
+                );
 
                 const {collectionId, collectionAction} = action;
 
@@ -2783,15 +2785,36 @@ function registerSharedTaskFeedCandidateEntry(
     });
 }
 
-function validateTaskActionActorForServer(
+async function validateTaskActionActorForServer(
     state: TaskActionTransactionCommitState,
     actor: TaskActor | undefined,
-    label: string,
+    label: "task action" | "task collection action",
 ) {
     if (actor === undefined) return;
 
-    if (actor.accountId !== state.getActorAccountId() && state.getActorType() !== "Bot") {
-        throw new PermissionDeniedError(`Only bots can record ${label} actors on behalf of others`);
+    if (actor.accountId !== state.getActorAccountId()) {
+        if (state.getActorType() !== "Bot") {
+            throw new PermissionDeniedError(
+                `Only bots can record ${label} actors on behalf of others`,
+            );
+        }
+
+        if (!(await state.isAccountMemberOfSpace(actor.accountId))) {
+            switch (label) {
+                case "task action": {
+                    throw new PermissionDeniedError(`Unexpected ${label} actor outside of space`, {
+                        displayMessage: errorDisplayMessage`Actor must be a member of the same space the task is in. Try again without an actor or with an actor in the same space as the task.`,
+                    });
+                }
+                case "task collection action": {
+                    throw new PermissionDeniedError(`Unexpected ${label} actor outside of space`, {
+                        displayMessage: errorDisplayMessage`Actor must be a member of the same space the task collection is in. Try again without an actor or with an actor in the same space as the task collection.`,
+                    });
+                }
+                default:
+                    throw exhaustive(label);
+            }
+        }
     }
 
     if (actor.from === null) return;

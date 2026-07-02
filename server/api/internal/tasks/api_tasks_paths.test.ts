@@ -861,7 +861,8 @@ test("returns 403 when updating a task with an actor outside the space", async (
         headers: expect.objectContaining({"content-type": "application/json"}),
         body: expect.objectContaining({
             error: expect.objectContaining({
-                message: "API actor must be a member of the space",
+                message:
+                    "Actor must be a member of the same space the task is in. Try again without an actor or with an actor in the same space as the task.",
             }),
         }),
     });
@@ -1916,7 +1917,8 @@ test("returns 403 when updating a task collection with an actor outside the spac
         headers: expect.objectContaining({"content-type": "application/json"}),
         body: expect.objectContaining({
             error: expect.objectContaining({
-                message: "API actor must be a member of the space",
+                message:
+                    "Actor must be a member of the same space the task collection is in. Try again without an actor or with an actor in the same space as the task collection.",
             }),
         }),
     });
