@@ -16,7 +16,7 @@ const context = TestTaskRealtimeServer.with(
     }),
 );
 
-describe("updateTaskMetadataFromApi()", () => {
+describe("updateTaskWithoutNotesFromApi()", () => {
     test("applies a SetTitle patch", async () => {
         const space = await TestSpace.create(context);
         const session = await space.createSession({name: "Alice Smith", role: "Admin"});
@@ -26,7 +26,7 @@ describe("updateTaskMetadataFromApi()", () => {
 
         await ProcessContextModule.waitForTestTasks();
 
-        const updatedTask = await updateTaskWithoutNotesFromApi(
+        const {updatedTask} = await updateTaskWithoutNotesFromApi(
             context.getTaskRealtimeServer().botAction(bot, session),
             {
                 spaceId: space.id,
@@ -48,12 +48,12 @@ describe("updateTaskMetadataFromApi()", () => {
 
         await ProcessContextModule.waitForTestTasks();
 
-        const updatedTask = await updateTaskWithoutNotesFromApi(
+        const {updatedTask} = await updateTaskWithoutNotesFromApi(
             context.getTaskRealtimeServer().botAction(bot, session1),
             {
                 spaceId: space.id,
                 taskId: task.id,
-                patches: [{type: "SetAssignee", assignee: session2.account.id}],
+                patches: [{type: "SetAssignee", assignee: {id: session2.account.id}}],
             },
         );
 
@@ -71,7 +71,7 @@ describe("updateTaskMetadataFromApi()", () => {
 
         await ProcessContextModule.waitForTestTasks();
 
-        const updatedTask = await updateTaskWithoutNotesFromApi(
+        const {updatedTask} = await updateTaskWithoutNotesFromApi(
             context.getTaskRealtimeServer().botAction(bot, session1),
             {
                 spaceId: space.id,
@@ -92,7 +92,7 @@ describe("updateTaskMetadataFromApi()", () => {
 
         await ProcessContextModule.waitForTestTasks();
 
-        const updatedTask = await updateTaskWithoutNotesFromApi(
+        const {updatedTask} = await updateTaskWithoutNotesFromApi(
             context.getTaskRealtimeServer().botAction(bot, session),
             {
                 spaceId: space.id,
@@ -113,7 +113,7 @@ describe("updateTaskMetadataFromApi()", () => {
 
         await ProcessContextModule.waitForTestTasks();
 
-        const updatedTask = await updateTaskWithoutNotesFromApi(
+        const {updatedTask} = await updateTaskWithoutNotesFromApi(
             context.getTaskRealtimeServer().botAction(bot, session),
             {
                 spaceId: space.id,
@@ -128,7 +128,7 @@ describe("updateTaskMetadataFromApi()", () => {
         }).toEqual({displayStatus: "OpenActive", assigneeId: bot.id});
     });
 
-    test("applies a SetDueDate patch", async () => {
+    test("applies a SetDue patch", async () => {
         const space = await TestSpace.create(context);
         const session = await space.createSession({name: "Alice Smith", role: "Admin"});
         const bot = await TestBot.createAndInstantiate(session);
@@ -137,19 +137,19 @@ describe("updateTaskMetadataFromApi()", () => {
 
         await ProcessContextModule.waitForTestTasks();
 
-        const updatedTask = await updateTaskWithoutNotesFromApi(
+        const {updatedTask} = await updateTaskWithoutNotesFromApi(
             context.getTaskRealtimeServer().botAction(bot, session),
             {
                 spaceId: space.id,
                 taskId: task.id,
-                patches: [{type: "SetDueDate", due: {date: "2026-06-15"}}],
+                patches: [{type: "SetDue", due: {date: "2026-06-15"}}],
             },
         );
 
         expect(updatedTask.getDueDate()?.toString()).toBe("2026-06-15");
     });
 
-    test("clearing the due date with a null SetDueDate patch", async () => {
+    test("clearing the due date with a null SetDue patch", async () => {
         const space = await TestSpace.create(context);
         const session = await space.createSession({name: "Alice Smith", role: "Admin"});
         const bot = await TestBot.createAndInstantiate(session);
@@ -161,12 +161,12 @@ describe("updateTaskMetadataFromApi()", () => {
 
         await ProcessContextModule.waitForTestTasks();
 
-        const updatedTask = await updateTaskWithoutNotesFromApi(
+        const {updatedTask} = await updateTaskWithoutNotesFromApi(
             context.getTaskRealtimeServer().botAction(bot, session),
             {
                 spaceId: space.id,
                 taskId: task.id,
-                patches: [{type: "SetDueDate", due: null}],
+                patches: [{type: "SetDue", due: null}],
             },
         );
 
@@ -182,12 +182,12 @@ describe("updateTaskMetadataFromApi()", () => {
 
         await ProcessContextModule.waitForTestTasks();
 
-        const updatedTask = await updateTaskWithoutNotesFromApi(
+        const {updatedTask} = await updateTaskWithoutNotesFromApi(
             context.getTaskRealtimeServer().botAction(bot, session),
             {
                 spaceId: space.id,
                 taskId: task.id,
-                patches: [{type: "SetPriority", priority: "High"}],
+                patches: [{type: "SetPriority", priority: {type: "High"}}],
             },
         );
 
@@ -204,7 +204,7 @@ describe("updateTaskMetadataFromApi()", () => {
 
         await ProcessContextModule.waitForTestTasks();
 
-        const updatedTask = await updateTaskWithoutNotesFromApi(
+        const {updatedTask} = await updateTaskWithoutNotesFromApi(
             context.getTaskRealtimeServer().botAction(bot, session),
             {
                 spaceId: space.id,
@@ -231,7 +231,7 @@ describe("updateTaskMetadataFromApi()", () => {
 
         await ProcessContextModule.waitForTestTasks();
 
-        const updatedTask = await updateTaskWithoutNotesFromApi(
+        const {updatedTask} = await updateTaskWithoutNotesFromApi(
             context.getTaskRealtimeServer().botAction(bot, session),
             {
                 spaceId: space.id,
@@ -253,16 +253,16 @@ describe("updateTaskMetadataFromApi()", () => {
 
         await ProcessContextModule.waitForTestTasks();
 
-        const updatedTask = await updateTaskWithoutNotesFromApi(
+        const {updatedTask} = await updateTaskWithoutNotesFromApi(
             context.getTaskRealtimeServer().botAction(bot, session1),
             {
                 spaceId: space.id,
                 taskId: task.id,
                 patches: [
                     {type: "SetTitle", title: "Updated Task"},
-                    {type: "SetAssignee", assignee: session2.account.id},
-                    {type: "SetPriority", priority: "Urgent"},
-                    {type: "SetDueDate", due: {date: "2026-06-15"}},
+                    {type: "SetAssignee", assignee: {id: session2.account.id}},
+                    {type: "SetPriority", priority: {type: "Urgent"}},
+                    {type: "SetDue", due: {date: "2026-06-15"}},
                 ],
             },
         );
@@ -289,7 +289,7 @@ describe("updateTaskMetadataFromApi()", () => {
 
         await ProcessContextModule.waitForTestTasks();
 
-        const updatedTask = await updateTaskWithoutNotesFromApi(
+        const {updatedTask} = await updateTaskWithoutNotesFromApi(
             context.getTaskRealtimeServer().botAction(bot, session),
             {
                 spaceId: space.id,

@@ -239,8 +239,10 @@ export async function createTaskFromApi(
         }
     }
 
+    const allActions = [createAction, ...actions];
+
     const [, taskSortableAccountById] = await runAllPromises([
-        commitTaskActionTransaction(context, spaceId, [createAction, ...actions], {
+        commitTaskActionTransaction(context, spaceId, allActions, {
             consistency: "StrongWithinCache",
             // Very important! For the API to have read-after-write consistency we need to wait
             // until our actions have been sent to every `TaskRealtimeService`. Then future
@@ -263,7 +265,7 @@ export async function createTaskFromApi(
         // We're loading references so eventual consistency is ok.
         loadTaskSortableAccountsForActions(context.dynamo.unexpectStrongReadConsistency(), {
             spaceId,
-            actions,
+            actions: allActions,
         }),
     ]);
 

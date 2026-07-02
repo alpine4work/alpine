@@ -797,11 +797,20 @@ export const apiTasksPaths: Pick<
 
             const converter = new ApiTaskConverter(updateEvent);
 
+            // NOCOMMIT: Implement this! The `cursor` query parameter is still ignored, we only
+            // report the cursor to continue from when the query has more tasks.
+            const lastTask = tasks[tasks.length - 1];
+            const nextCursor =
+                query.loadedState.type === "Partial" && lastTask !== undefined
+                    ? serializeTaskQuerySortCursorForApi(
+                          getTaskQueryNormalizedSortCursorForModel(sorts, lastTask),
+                      )
+                    : null;
+
             return {
                 content: {
                     spaceId,
-                    // NOCOMMIT: Implement this!
-                    nextCursor: null,
+                    nextCursor,
                     tasks: tasks.map(task => converter.into(task)),
                 },
             };

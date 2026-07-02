@@ -144,9 +144,12 @@ describe("intoApiContentWithReferences", () => {
                     elements: [
                         {
                             type: "Mention",
-                            target: {type: "Account", id: session.account.id},
-                            title: "Alice Smith",
-                            isAccountShortName: false,
+                            reference: {
+                                type: "Account",
+                                id: session.account.id,
+                                title: "Alice Smith",
+                                shortName: "Alice",
+                            },
                         },
                     ],
                 },

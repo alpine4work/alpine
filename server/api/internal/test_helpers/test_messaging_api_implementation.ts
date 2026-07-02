@@ -61,7 +61,7 @@ function getApiMessageEntityIdForRoomPath(
     switch (room.type) {
         case "Chat":
             return `ChatMessage:${room.id}-${messageIndex}`;
-        case "DocumentCommentThread":
+        case "DocumentThread":
             return `DocumentComment:${room.id}-${room.threadId}-${messageIndex}`;
         case "Post":
             return `PostComment:${room.id}-${messageIndex}`;

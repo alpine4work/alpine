@@ -264,7 +264,7 @@ export const apiChatPaths: Pick<ApiPaths, (keyof ApiPaths & `/chats/${string}`) 
                             if (firstElement) {
                                 (content.message.payload.content.elements as any)[0] = {
                                     elements: (firstElement as any).elements,
-                                    type: firstElement.type,
+                                    ...omitObject(firstElement as any, ["elements"]),
                                 };
                             }
                         }

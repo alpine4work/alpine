@@ -351,7 +351,7 @@ test("does not return deleted task collections when reading a task", async () =>
             spaceId: space.id,
             task: expect.objectContaining({
                 id: task.id,
-                collections: [{collection: {id: activeCollection.id}}],
+                collections: [{collection: {id: activeCollection.id, name: "Active"}}],
             }),
         }),
     });
@@ -381,7 +381,7 @@ test("can read task with high priority", async () => {
             task: expect.objectContaining({
                 id: task.id,
                 title: "High Priority Task",
-                priority: "High",
+                priority: {type: "High"},
             }),
         }),
     });
@@ -461,7 +461,7 @@ test("can create an empty task", async () => {
         body: {
             spaceId: space.id,
             task: {
-                id: response.body.task.id,
+                id: expect.any(String),
                 creator: {id: bot.id},
                 status: {type: "Open", isActive: false},
                 title: "",
@@ -502,7 +502,7 @@ test("can create a task with all fields", async () => {
                 title: "Full task",
                 assignee: {id: session2.account.id},
                 due: {date: "2026-12-31"},
-                priority: "High",
+                priority: {type: "High"},
                 content: {
                     elements: [
                         {
@@ -529,7 +529,7 @@ test("can create a task with all fields", async () => {
                     name: "Bob Johnson",
                 }),
                 due: {date: "2026-12-31"},
-                priority: "High",
+                priority: {type: "High"},
                 notes: expect.objectContaining({
                     version: 0,
                     content: expect.objectContaining({
@@ -749,10 +749,17 @@ test("can create a project task with parent task and collections", async () => {
             task: expect.objectContaining({
                 title: "Project task",
                 layout: {type: "Project"},
-                parent: {task: {id: parentTask.id}},
-                collections: collections.map(collection => ({
-                    collection: {id: collection.id},
-                })),
+                parent: {
+                    task: {
+                        id: parentTask.id,
+                        title: "Parent task",
+                        status: {type: "Open", isActive: false},
+                    },
+                },
+                collections: [
+                    {collection: {id: collections[0].id, name: "Roadmap"}},
+                    {collection: {id: collections[1].id, name: "Engineering"}},
+                ],
             }),
         },
     });
@@ -1006,9 +1013,9 @@ test("can update multiple task fields at once", async () => {
             actor: {id: session1.account.id},
             patches: [
                 {type: "SetTitle", title: "Updated Task"},
-                {type: "SetAssignee", assignee: session2.account.id},
-                {type: "SetPriority", priority: "Urgent"},
-                {type: "SetDueDate", due: {date: "2026-06-15"}},
+                {type: "SetAssignee", assignee: {id: session2.account.id}},
+                {type: "SetPriority", priority: {type: "Urgent"}},
+                {type: "SetDue", due: {date: "2026-06-15"}},
             ],
         },
     });
@@ -1022,7 +1029,7 @@ test("can update multiple task fields at once", async () => {
                     id: session2.account.id,
                     name: "Bob Johnson",
                 }),
-                priority: "Urgent",
+                priority: {type: "Urgent"},
                 due: {date: "2026-06-15"},
             }),
         }),
@@ -1090,7 +1097,7 @@ test("can clear nullable task fields with null", async () => {
             patches: [
                 {type: "SetAssignee", assignee: null},
                 {type: "SetPriority", priority: null},
-                {type: "SetDueDate", due: null},
+                {type: "SetDue", due: null},
             ],
         },
     });
@@ -1173,7 +1180,13 @@ test("can update and clear parent task", async () => {
         body: {
             task: expect.objectContaining({
                 id: task.id,
-                parent: {task: {id: parentTask.id}},
+                parent: {
+                    task: {
+                        id: parentTask.id,
+                        title: "Parent task",
+                        status: {type: "Open", isActive: false},
+                    },
+                },
             }),
         },
     });
@@ -1223,7 +1236,7 @@ test("patch only changes the fields that are passed", async () => {
                     id: session2.account.id,
                     name: "Bob Johnson",
                 }),
-                priority: "High",
+                priority: {type: "High"},
                 due: {date: "2026-12-31"},
             }),
         }),
@@ -1416,7 +1429,7 @@ test("setting active status before changing assignee keeps the task active", asy
         body: {
             patches: [
                 {type: "SetStatus", status: {type: "Open", isActive: true}},
-                {type: "SetAssignee", assignee: session2.account.id},
+                {type: "SetAssignee", assignee: {id: session2.account.id}},
             ],
         },
     });
@@ -1486,7 +1499,7 @@ test("can clear and reassign before setting active in the same patch request", a
             patches: [
                 {type: "SetAssignee", assignee: null},
                 {type: "SetStatus", status: {type: "Open", isActive: true}},
-                {type: "SetAssignee", assignee: session2.account.id},
+                {type: "SetAssignee", assignee: {id: session2.account.id}},
             ],
         },
     });
@@ -2319,14 +2332,14 @@ describe("/task-collections/{id}/tasks", () => {
                         id: task1.id,
                         title: "First Task",
                         status: {type: "Open", isActive: false},
-                        collections: [{collection: {id: collection.id}}],
+                        collections: [{collection: {id: collection.id, name: "Public Collection"}}],
                     },
                     {
                         creator: {id: session.account.id},
                         id: task2.id,
                         title: "Second Task",
                         status: {type: "Open", isActive: false},
-                        collections: [{collection: {id: collection.id}}],
+                        collections: [{collection: {id: collection.id, name: "Public Collection"}}],
                     },
                 ],
                 nextCursor: null,
@@ -2427,8 +2440,10 @@ describe("/task-collections/{id}/tasks", () => {
                         due: {
                             date: "2025-12-31",
                         },
-                        priority: "High",
-                        collections: [{collection: {id: collection.id}}],
+                        priority: {type: "High"},
+                        collections: [
+                            {collection: {id: collection.id, name: "Collection with Details"}},
+                        ],
                     },
                 ],
                 nextCursor: null,
@@ -2472,7 +2487,9 @@ describe("/task-collections/{id}/tasks", () => {
                         id: openTask.id,
                         title: "Open Task",
                         status: expect.objectContaining({type: "Open"}),
-                        collections: [{collection: {id: collection.id}}],
+                        collections: [
+                            {collection: {id: collection.id, name: "Mixed Status Collection"}},
+                        ],
                     },
                 ],
                 nextCursor: null,
@@ -2714,7 +2731,9 @@ describe("/task-collections/{id}/tasks", () => {
                 tasks: [
                     expect.objectContaining({
                         id: task.id,
-                        collections: [{collection: {id: activeCollection.id}}],
+                        collections: [
+                            {collection: {id: activeCollection.id, name: "Active Collection"}},
+                        ],
                     }),
                 ],
             }),

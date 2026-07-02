@@ -64,7 +64,7 @@ describe("POST /chats", () => {
         });
     });
 
-    test("fails if actor bot isn't included in members", async () => {
+    test("fails if actor bot isn\u2019t included in members", async () => {
         const space = await TestSpace.create(context);
         const session1 = await space.createSession({role: "Admin"});
         const session2 = await space.createSession();
