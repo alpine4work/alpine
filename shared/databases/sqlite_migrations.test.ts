@@ -1,10 +1,8 @@
 import * as Prettier from "prettier";
 import * as sqlPrettierPlugin from "prettier-plugin-sql";
-import * as estreePrettierPlugin from "prettier/plugins/estree";
 import * as typescriptPrettierPlugin from "prettier/plugins/typescript";
 import type {Database} from "~/external/sqlite/ext/wasm/jswasm/sqlite3.mjs";
 import sqlite3InitModule from "~/external/sqlite/ext/wasm/jswasm/sqlite3.mjs";
-import {DatabaseFieldConfigSqlSchema} from "~/shared/databases/fields/all_database_field_providers.js";
 import {databaseTableSchemaName, sql} from "~/shared/databases/sql.js";
 import {SqliteDatabase} from "~/shared/databases/sqlite.js";
 import {registerSqliteCustomFunctions} from "~/shared/databases/sqlite_custom_functions.js";
@@ -17,7 +15,7 @@ import {
     tableSqliteMigrations,
 } from "~/shared/databases/sqlite_migrations.js";
 import {generateChronologicalId} from "~/shared/id/chronological_id.js";
-import type {DatabaseFieldId, DatabaseTableId} from "~/shared/id/types/id_types.js";
+import type {DatabaseTableId} from "~/shared/id/types/id_types.js";
 import {Schema} from "~/shared/schema/schema.js";
 
 const sqlite3Promise = sqlite3InitModule();
@@ -62,15 +60,12 @@ async function readSqliteSchema(db: Database, tableId: DatabaseTableId | null): 
 
     const source = rows
         .map(row => {
-            return `
-            // ${row.type} ${row.name} ${row.tbl_name}
-            sql\`${row.sql}\`
-        `;
+            return `// ${row.type} ${row.name} ${row.tbl_name}\nsql\`${row.sql}\``;
         })
-        .join("\n");
+        .join("\n\n");
 
     return await Prettier.format(source, {
-        plugins: [estreePrettierPlugin, typescriptPrettierPlugin, sqlPrettierPlugin],
+        plugins: [typescriptPrettierPlugin, sqlPrettierPlugin],
         parser: "typescript",
         printWidth: 100,
         tabWidth: 4,
