@@ -1,6 +1,7 @@
 import {
     DatabaseClient,
     type DatabaseClientConnection,
+    type TestSqliteMigration,
 } from "~/client/web/databases/database_client.js";
 import {
     tabToWorkerDatabaseRpcMethods,
@@ -22,7 +23,6 @@ import type {
     DatabasePageVersionsByIndex,
     DatabasePages,
 } from "~/shared/databases/database_protocol_schemas.js";
-import type {SqliteMigration} from "~/shared/databases/sqlite_migrations.js";
 import {CancelledError} from "~/shared/error/error.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import type {Result} from "~/shared/helpers/control/result.js";
@@ -396,7 +396,7 @@ export class DatabaseActiveTabWorker {
      */
     async executeLocallyForTests(
         databaseGroupId: DatabaseGroupId,
-        migration: SqliteMigration,
+        migration: TestSqliteMigration,
     ): Promise<void> {
         assert(import.meta.jest, "executeLocallyForTests is test-only");
         const client = await this.getOrCreateClientForTests(databaseGroupId);

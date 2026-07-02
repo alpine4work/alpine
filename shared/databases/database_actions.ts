@@ -1,6 +1,10 @@
-import {DatabaseFieldModel, DatabaseModel} from "~/shared/databases/model/database_model.js";
-import {formatUniqueSqlName} from "~/shared/databases/internal/format_unique_sql_name.js";
-import {SqlBooleanSchema, SqlJsonSchema} from "~/shared/databases/model/sqlite_schema.js";
+import {
+    DatabaseFieldConfigSchema,
+    getDatabaseFieldProvider,
+} from "~/shared/databases/fields/all_database_field_providers.js";
+import {ColumnBackedDatabaseFieldProvider} from "~/shared/databases/fields/base/database_field_provider_base.js";
+import {DatabaseModel} from "~/shared/databases/model/database_model.js";
+import {SqlBooleanSchema} from "~/shared/databases/model/sqlite_schema.js";
 import {type SqlQuery, sql} from "~/shared/databases/sql.js";
 import {SqliteDatabase} from "~/shared/databases/sqlite.js";
 import type {SqliteWriteLevel} from "~/shared/databases/sqlite_authorizer.js";
@@ -16,12 +20,6 @@ import type {
 import {LabelStringSchema} from "~/shared/schema/helpers/label_string_schema.js";
 import {OrderKeySchema} from "~/shared/schema/helpers/order_key_schema.js";
 import {type ObjectSchema, Schema, type SchemaType} from "~/shared/schema/schema.js";
-import {
-    DatabaseFieldConfig,
-    DatabaseFieldConfigSchema,
-    getDatabaseFieldProvider,
-} from "~/shared/databases/fields/all_database_field_providers.js";
-import {ColumnBackedDatabaseFieldProvider} from "~/shared/databases/fields/base/database_field_provider_base.js";
 
 /**
  * Server-only capabilities. Present on the server, `null` on the client — so
@@ -629,7 +627,7 @@ export const databaseActions = {
         }),
         output: Schema.object({}),
         writeLevel: "data",
-        run({db, model}, {tableId, fieldId, config}) {
+        run({model}, {tableId, fieldId, config}) {
             const table = model.getTable(tableId);
             const field = table.getField(fieldId);
 
@@ -655,7 +653,7 @@ export const databaseActions = {
         }),
         output: Schema.object({}),
         writeLevel: "data",
-        run({db, model}, {tableId, viewId, fieldId, width}) {
+        run({model}, {tableId, viewId, fieldId, width}) {
             const table = model.getTable(tableId);
             const view = table.getView(viewId);
             const field = table.getField(fieldId);
