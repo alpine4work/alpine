@@ -149,13 +149,18 @@ export function joinTableSqliteMigrations(
  * Runs any pending {@link mainSqliteMigrations} against the main database. Uses
  * `PRAGMA user_version` to track which migrations have already been applied.
  */
-export function runMainMigrations(db: Database): void {
+export function runMainMigrations(db: Database, migrationLimitForTest?: number): void {
+    if (migrationLimitForTest) {
+        assert(import.meta.jest);
+    }
+
+    const migrationLimit = migrationLimitForTest ?? mainSqliteMigrations.length;
     const version = sql`PRAGMA user_version`.selectValue(db, Schema.integer);
     assert(
-        version <= mainSqliteMigrations.length,
-        `main user_version (${version}) is ahead of known migrations (${mainSqliteMigrations.length})`,
+        version <= migrationLimit,
+        `main user_version (${version}) is ahead of known migrations (${migrationLimit})`,
     );
-    for (let i = version; i < mainSqliteMigrations.length; i++) {
+    for (let i = version; i < migrationLimit; i++) {
         const migration = mainSqliteMigrations[i]!;
         sql`BEGIN`.exec(db);
         if (migration instanceof SqlQuery) {
@@ -165,8 +170,8 @@ export function runMainMigrations(db: Database): void {
         }
         sql`COMMIT`.exec(db);
     }
-    if (version < mainSqliteMigrations.length) {
-        db.exec(`PRAGMA user_version = ${mainSqliteMigrations.length}`);
+    if (version < migrationLimit) {
+        db.exec(`PRAGMA user_version = ${migrationLimit}`);
     }
 }
 
@@ -178,16 +183,36 @@ export function runMainMigrations(db: Database): void {
  * Runs server-side only: the server is canonical for schema, and clients trust the
  * pages it syncs.
  */
-export function runTableMigrations(db: Database, tableId: DatabaseTableId): void {
-    runSchemaMigrations(db, tableId, tableSqliteMigrations(tableId), "table");
+export function runTableMigrations(
+    db: Database,
+    tableId: DatabaseTableId,
+    migrationLimitForTest?: number,
+): void {
+    runSchemaMigrations(
+        db,
+        tableId,
+        tableSqliteMigrations(tableId),
+        "table",
+        migrationLimitForTest,
+    );
 }
 
 /**
  * Runs any pending {@link joinTableSqliteMigrations} against `tableId`'s
  * `ATTACH`-ed join-table database.
  */
-export function runJoinTableMigrations(db: Database, tableId: DatabaseTableId): void {
-    runSchemaMigrations(db, tableId, joinTableSqliteMigrations(tableId), "join table");
+export function runJoinTableMigrations(
+    db: Database,
+    tableId: DatabaseTableId,
+    migrationLimitForTest?: number,
+): void {
+    runSchemaMigrations(
+        db,
+        tableId,
+        joinTableSqliteMigrations(tableId),
+        "join table",
+        migrationLimitForTest,
+    );
 }
 
 function runSchemaMigrations(
@@ -195,15 +220,21 @@ function runSchemaMigrations(
     tableId: DatabaseTableId,
     migrations: ReadonlyArray<SqliteMigration>,
     description: string,
+    migrationLimitForTest?: number,
 ): void {
+    if (migrationLimitForTest) {
+        assert(import.meta.jest);
+    }
+
+    const migrationLimit = migrationLimitForTest ?? migrations.length;
     const schema = sql.identifier(databaseTableSchemaName(tableId));
     const version = sql`PRAGMA ${schema}.user_version`.selectValue(db, Schema.integer);
     assert(
-        version <= migrations.length,
-        `${description} ${tableId} user_version (${version}) is ahead of known migrations (${migrations.length})`,
+        version <= migrationLimit,
+        `${description} ${tableId} user_version (${version}) is ahead of known migrations (${migrationLimit})`,
     );
 
-    for (let i = version; i < migrations.length; i++) {
+    for (let i = version; i < migrationLimit; i++) {
         const migration = migrations[i]!;
         sql`BEGIN`.exec(db);
         if (migration instanceof SqlQuery) {
@@ -214,7 +245,7 @@ function runSchemaMigrations(
         sql`COMMIT`.exec(db);
     }
 
-    if (version < migrations.length) {
-        sql` PRAGMA ${schema}.user_version = ${sql.raw(String(migrations.length))} `.exec(db);
+    if (version < migrationLimit) {
+        sql` PRAGMA ${schema}.user_version = ${sql.raw(String(migrationLimit))} `.exec(db);
     }
 }

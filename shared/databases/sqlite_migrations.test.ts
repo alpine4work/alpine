@@ -5,12 +5,18 @@ import {databaseTableSchemaName, sql} from "~/shared/databases/sql.js";
 import {SqliteDatabase} from "~/shared/databases/sqlite.js";
 import {registerSqliteCustomFunctions} from "~/shared/databases/sqlite_custom_functions.js";
 import {
+    joinTableSqliteMigrations,
+    mainSqliteMigrations,
     runJoinTableMigrations,
     runMainMigrations,
     runTableMigrations,
+    tableSqliteMigrations,
 } from "~/shared/databases/sqlite_migrations.js";
 import {generateChronologicalId} from "~/shared/id/chronological_id.js";
 import type {DatabaseFieldId, DatabaseTableId} from "~/shared/id/types/id_types.js";
+import * as Prettier from "prettier";
+import {Schema, Schema} from "~/shared/schema/schema.js";
+import {schema} from "prosemirror-schema-basic";
 
 const sqlite3Promise = sqlite3InitModule();
 let dbCounter = 0;
@@ -29,13 +35,10 @@ function attachTableDb(db: SqliteDatabase, tableId: DatabaseTableId): void {
     );
 }
 
-function readSqliteSchemaObjects(
-    db: Database,
-    tableId: DatabaseTableId | null,
-): Array<Record<string, unknown>> {
+async function readSqliteSchema(db: Database, tableId: DatabaseTableId | null): string {
     const sqliteSchema =
         tableId == null ? sql.identifier("sqlite_schema") : sql.tableRef(tableId, "sqlite_schema");
-    return sql`
+    const rows = sql`
         SELECT
             type,
             name,
@@ -46,220 +49,94 @@ function readSqliteSchemaObjects(
         ORDER BY
             type,
             name
-    `.selectAllUnknown(db);
+    `.selectAll(db, {
+        type: Schema.string,
+        name: Schema.string,
+        tbl_name: Schema.string,
+        sql: Schema.string,
+    });
+
+    const source = rows
+        .map(row => {
+            return `
+            // ${row.type} ${row.name} ${row.tbl_name}
+            sql\`${row.sql}\`
+        `;
+        })
+        .join("\n");
+
+    return await Prettier.format(source, {
+        plugins: ["prettier-plugin-sql"],
+        printWidth: 100,
+        tabWidth: 4,
+        embeddedSqlTags: ["sql"],
+        language: "sqlite",
+        keywordCase: "upper",
+        dataTypeCase: "upper",
+        functionCase: "upper",
+    });
 }
 
 function normalizeSchemaObjectIds(
-    schemaObjects: Array<Record<string, unknown>>,
-    replacements: ReadonlyMap<string, string>,
+    schema: string,
+    replacements?: ReadonlyMap<string, string>,
 ): Array<Record<string, unknown>> {
-    return schemaObjects.map(schemaObject =>
-        Object.fromEntries(
-            Object.entries(schemaObject).map(([key, value]) => {
-                if (typeof value !== "string") return [key, value];
-                const normalized = normalizeGeneratedIds(value, replacements);
-                return [key, key === "sql" ? compactSql(normalized) : normalized];
-            }),
-        ),
-    );
-}
-
-function normalizeGeneratedIds(value: string, replacements: ReadonlyMap<string, string>): string {
-    let normalized = value;
-    for (const [id, replacement] of replacements) {
-        normalized = normalized.split(id).join(replacement);
+    let normalized = schema;
+    if (replacements) {
+        for (const [id, replacement] of replacements) {
+            normalized = normalized.split(id).join(replacement);
+        }
     }
     return normalized.replace(/[0-9a-z]{26}/g, "<id>");
 }
 
-function compactSql(value: string): string {
-    return value.replace(/\s+/g, " ").trim();
-}
-
 describe("sqlite migrations", () => {
-    test("preserves the current migrated SQLite schema contract", async () => {
-        const db = await createDb();
-        const sourceTableId = generateChronologicalId<DatabaseTableId>();
-        const targetTableId = generateChronologicalId<DatabaseTableId>();
-        const joinTableId = generateChronologicalId<DatabaseTableId>();
-        attachTableDb(db, sourceTableId);
-        attachTableDb(db, targetTableId);
-        attachTableDb(db, joinTableId);
+    for (let i = 1; i <= mainSqliteMigrations.length; i++) {
+        test(`main migration up to ${i}`, async () => {
+            const db = await createDb();
 
-        runTableMigrations(db, sourceTableId);
-        runTableMigrations(db, targetTableId);
-        runJoinTableMigrations(db, joinTableId);
-        const replacements = new Map([
-            [sourceTableId, "<sourceTableId>"],
-            [targetTableId, "<targetTableId>"],
-            [joinTableId, "<joinTableId>"],
-        ]);
+            runMainMigrations(db, i);
 
-        const currentSchema = {
-            main: normalizeSchemaObjectIds(readSqliteSchemaObjects(db, null), replacements),
-            sourceTable: normalizeSchemaObjectIds(
-                readSqliteSchemaObjects(db, sourceTableId),
-                replacements,
-            ),
-            targetTable: normalizeSchemaObjectIds(
-                readSqliteSchemaObjects(db, targetTableId),
-                replacements,
-            ),
-            joinTable: normalizeSchemaObjectIds(
-                readSqliteSchemaObjects(db, joinTableId),
-                replacements,
-            ),
-        };
-
-        expect(currentSchema).toMatchSnapshot();
-        db.close();
-    });
-
-    test("main migration creates the table kind registry", async () => {
-        const db = await createDb();
-        const tableId = generateChronologicalId<DatabaseTableId>();
-
-        sql`
-            INSERT INTO
-                _alpine_tables (id, kind)
-            VALUES
-                (${tableId}, 'table')
-        `.exec(db);
-
-        const rows = sql`
-            SELECT
-                *
-            FROM
-                _alpine_tables
-        `.selectAllUnknown(db);
-        expect(rows).toEqual([{id: tableId, kind: "table"}]);
-        db.close();
-    });
-
-    test("table migration stores JSONB field config and enforces the singleton table id", async () => {
-        const db = await createDb();
-        const tableId = generateChronologicalId<DatabaseTableId>();
-        const firstFieldId = generateChronologicalId<DatabaseFieldId>();
-        attachTableDb(db, tableId);
-        runTableMigrations(db, tableId);
-        sql`
-            INSERT INTO
-                ${sql.tableRef(tableId, "_alpine_fields")} (id, name, column_name, config)
-            VALUES
-                (
-                    ${firstFieldId},
-                    'First',
-                    'first',
-                    jsonb (${DatabaseFieldConfigSqlSchema.serialize({type: "plainText"})})
-                )
-        `.exec(db);
-        sql`
-            INSERT INTO
-                ${sql.tableRef(tableId, "_alpine_table")} (id, name, table_name, name_field_id)
-            VALUES
-                (
-                    ${tableId},
-                    'Tasks',
-                    'tasks',
-                    ${firstFieldId}
-                )
-        `.exec(db);
-
-        const row = sql`
-            SELECT
-                JSON(config) AS config
-            FROM
-                ${sql.tableRef(tableId, "_alpine_fields")}
-        `.selectOne(db, {
-            config: DatabaseFieldConfigSqlSchema,
+            const schema = normalizeSchemaObjectIds(readSqliteSchema(db, null));
+            expect(schema).toMatchSnapshot();
+            db.close();
         });
-        expect(row.config).toEqual({type: "plainText"});
+    }
 
-        expect(() =>
-            sql`
-                INSERT INTO
-                    ${sql.tableRef(tableId, "_alpine_table")} (id, name, table_name, name_field_id)
-                VALUES
-                    (
-                        ${generateChronologicalId<DatabaseTableId>()},
-                        'Other',
-                        'other',
-                        ${firstFieldId}
-                    )
-            `.exec(db),
-        ).toThrow("CHECK");
-        db.close();
-    });
+    const tableId = generateChronologicalId<DatabaseTableId>();
+    const tableMigrations = tableSqliteMigrations(tableId);
 
-    test("join table migration creates metadata and enforces the singleton table id", async () => {
-        const db = await createDb();
-        const joinTableId = generateChronologicalId<DatabaseTableId>();
-        const sourceTableId = generateChronologicalId<DatabaseTableId>();
-        const sourceFieldId = generateChronologicalId<DatabaseFieldId>();
-        const targetTableId = generateChronologicalId<DatabaseTableId>();
-        const targetFieldId = generateChronologicalId<DatabaseFieldId>();
-        attachTableDb(db, joinTableId);
+    for (let i = 1; i <= tableMigrations.length; i++) {
+        test(`table migration up to ${i}`, async () => {
+            const db = await createDb();
+            attachTableDb(db, tableId);
+            runTableMigrations(db, tableId, i);
 
-        runJoinTableMigrations(db, joinTableId);
-        sql`
-            INSERT INTO
-                ${sql.tableRef(joinTableId, "_alpine_join_table")} (
-                    id,
-                    table_name,
-                    source_table_id,
-                    source_field_id,
-                    target_table_id,
-                    target_field_id,
-                    source_row_id_column_name,
-                    source_position_column_name,
-                    target_row_id_column_name,
-                    target_position_column_name
-                )
-            VALUES
-                (
-                    ${joinTableId},
-                    'project_tasks',
-                    ${sourceTableId},
-                    ${sourceFieldId},
-                    ${targetTableId},
-                    ${targetFieldId},
-                    'tasks_id',
-                    'tasks_position',
-                    'projects_id',
-                    'projects_position'
-                )
-        `.exec(db);
+            const replacements = new Map([[tableId, "<tableId>"]]);
 
-        expect(() =>
-            sql`
-                INSERT INTO
-                    ${sql.tableRef(joinTableId, "_alpine_join_table")} (
-                        id,
-                        table_name,
-                        source_table_id,
-                        source_field_id,
-                        target_table_id,
-                        target_field_id,
-                        source_row_id_column_name,
-                        source_position_column_name,
-                        target_row_id_column_name,
-                        target_position_column_name
-                    )
-                VALUES
-                    (
-                        ${generateChronologicalId<DatabaseTableId>()},
-                        'other',
-                        ${sourceTableId},
-                        ${sourceFieldId},
-                        ${targetTableId},
-                        ${targetFieldId},
-                        'tasks_id',
-                        'tasks_position',
-                        'projects_id',
-                        'projects_position'
-                    )
-            `.exec(db),
-        ).toThrow("CHECK");
-        db.close();
-    });
+            const schema = normalizeSchemaObjectIds(readSqliteSchema(db, tableId), replacements);
+            expect(schema).toMatchSnapshot();
+            db.close();
+        });
+    }
+
+    const joinTableId = generateChronologicalId<DatabaseTableId>();
+    const joinTableMigrations = joinTableSqliteMigrations(joinTableId);
+
+    for (let i = 1; i <= joinTableMigrations.length; i++) {
+        test(`join table migration up to ${i}`, async () => {
+            const db = await createDb();
+            attachTableDb(db, joinTableId);
+            runJoinTableMigrations(db, joinTableId, i);
+
+            const replacements = new Map([[joinTableId, "<joinTableId>"]]);
+
+            const schema = normalizeSchemaObjectIds(
+                readSqliteSchema(db, joinTableId),
+                replacements,
+            );
+            expect(schema).toMatchSnapshot();
+            db.close();
+        });
+    }
 });
