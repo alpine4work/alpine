@@ -12,6 +12,7 @@ import {defaultTimeZone} from "~/shared/helpers/intl/time_zone.js";
 import {mapIterable} from "~/shared/helpers/iterable/map_iterable.js";
 import {generateOrderKeysBetween} from "~/shared/helpers/sort/order_key.js";
 import {AccountId, SiteId, SpaceId, TaskCollectionId, TaskId} from "~/shared/id/types/id_types.js";
+import {AccountModel} from "~/shared/spaces/account_model.js";
 import {collectReferencedIdsFromTaskAction} from "~/shared/tasks/actions/collect_referenced_ids_from_task_action.js";
 import {TaskAction, TaskUpdateTaskAction} from "~/shared/tasks/actions/task_action.js";
 import {TaskModel} from "~/shared/tasks/model/task_model.js";
@@ -57,7 +58,7 @@ export async function createTaskFromApi(
         parentTaskId?: TaskId;
         collectionIds?: ReadonlyArray<TaskCollectionId>;
     },
-): Promise<TaskModel> {
+): Promise<{task: TaskModel; referencedAccounts: Array<AccountModel>}> {
     const botAccountId = context.actor.getBotAccountId();
     const currentTime = new Date();
     const createdTimeZone = defaultTimeZone;
@@ -241,7 +242,7 @@ export async function createTaskFromApi(
 
     const allActions = [createAction, ...actions];
 
-    const [, taskSortableAccountById] = await runAllPromises([
+    const [, {taskSortableAccountById, referencedAccounts}] = await runAllPromises([
         commitTaskActionTransaction(context, spaceId, allActions, {
             consistency: "StrongWithinCache",
             // Very important! For the API to have read-after-write consistency we need to wait
@@ -283,7 +284,10 @@ export async function createTaskFromApi(
         );
     }
 
-    return task;
+    return {
+        task,
+        referencedAccounts,
+    };
 }
 
 /**
@@ -299,14 +303,17 @@ async function loadTaskSortableAccountsForActions(
         spaceId: SpaceId;
         actions: ReadonlyArray<TaskAction>;
     },
-): Promise<Map<AccountId, TaskSortableAccount>> {
+): Promise<{
+    taskSortableAccountById: Map<AccountId, TaskSortableAccount>;
+    referencedAccounts: Array<AccountModel>;
+}> {
     const accountIds = new Set<AccountId>();
     const siteIds = new Set<SiteId>();
     for (const action of actions) {
         collectReferencedIdsFromTaskAction(accountIds, siteIds, action);
     }
 
-    const accounts = await runAllPromises(
+    const referencedAccounts = await runAllPromises(
         mapIterable(accountIds, accountId => getAccount(context, spaceId, accountId)),
     );
 
@@ -315,8 +322,8 @@ async function loadTaskSortableAccountsForActions(
     // `TaskModel.applyAction()` needs sortable account payloads, not bare account IDs,
     // so load and cache any referenced accounts that weren't already present on the
     // task.
-    for (let i = 0; i < accounts.length; i++) {
-        const account = accounts[i]!;
+    for (let i = 0; i < referencedAccounts.length; i++) {
+        const account = referencedAccounts[i]!;
 
         taskSortableAccountById.set(account.id, {
             accountId: account.id,
@@ -325,5 +332,5 @@ async function loadTaskSortableAccountsForActions(
         });
     }
 
-    return taskSortableAccountById;
+    return {taskSortableAccountById, referencedAccounts};
 }

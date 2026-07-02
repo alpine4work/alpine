@@ -14,11 +14,11 @@ import {createIntoApiTaskCommentContentPayloadParent} from "~/server/api/interna
 import {createTaskFromApi} from "~/server/api/internal/tasks/internal/create_task_from_api.js";
 import {fromApiTaskLayout} from "~/server/api/internal/tasks/internal/from_api_task_layout.js";
 import {getApiTaskNotes} from "~/server/api/internal/tasks/internal/get_api_task_notes.js";
+import {serializeTaskQuerySortCursorForApi} from "~/server/api/internal/tasks/internal/serialize_task_query_sort_cursor_for_api.js";
 import {updateTaskCollectionFromApi} from "~/server/api/internal/tasks/internal/update_task_collection_from_api.js";
 import {updateTaskNotesFromApi} from "~/server/api/internal/tasks/internal/update_task_notes_from_api.js";
 import {updateTaskWithoutNotesFromApi} from "~/server/api/internal/tasks/internal/update_task_without_notes_from_api.js";
 import {attachFileToTargetAsBot} from "~/server/files/data/attach_file_to_target_as_bot.js";
-import {getAccount} from "~/server/spaces/get_account.js";
 import {FileTaskAuthorizer} from "~/server/tasks/data/authorization/file_task_authorizer.js";
 import {commitTaskActionTransaction} from "~/server/tasks/data/commit_task_action_transaction.js";
 import {
@@ -125,7 +125,7 @@ export const apiTasksPaths: Pick<
                 accessPolicy = await accessPolicyPromise;
             }
 
-            const [task, content, assignee, resultResult] = await runAllPromises([
+            const [{task, referencedAccounts}, content, resultResult] = await runAllPromises([
                 createTaskFromApi(context, {
                     taskId,
                     spaceId,
@@ -150,13 +150,6 @@ export const apiTasksPaths: Pick<
                         version: 0,
                     }),
                 }),
-                taskInput.assignee?.id !== undefined
-                    ? getAccount(
-                          context.dynamo.unexpectStrongReadConsistency(),
-                          spaceId,
-                          taskInput.assignee.id,
-                      )
-                    : undefined,
                 // If you don't have access to the parent task or `collectionIds` then
                 // `createTaskFromApi()` will throw and we want to use that error.
                 captureResultPromise(
@@ -184,7 +177,7 @@ export const apiTasksPaths: Pick<
                     spaceId,
                     task: {
                         ...new ApiTaskConverter(result.updateEvent).into(task, {
-                            referencedAccounts: assignee ? [assignee] : [],
+                            referencedAccounts,
                         }),
                         notes: {version: 0, content},
                     },
