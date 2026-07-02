@@ -22,6 +22,7 @@ import type {
     DatabasePageVersionsByIndex,
     DatabasePages,
 } from "~/shared/databases/database_protocol_schemas.js";
+import type {SqliteMigration} from "~/shared/databases/sqlite_migrations.js";
 import {CancelledError} from "~/shared/error/error.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import type {Result} from "~/shared/helpers/control/result.js";
@@ -393,10 +394,13 @@ export class DatabaseActiveTabWorker {
      * overlay; pair with {@link commitOptimisticPagesForTests} to materialize them on
      * disk. Use for test schema setup only.
      */
-    async executeLocallyForTests(databaseGroupId: DatabaseGroupId, sql: string): Promise<void> {
+    async executeLocallyForTests(
+        databaseGroupId: DatabaseGroupId,
+        migration: SqliteMigration,
+    ): Promise<void> {
         assert(import.meta.jest, "executeLocallyForTests is test-only");
         const client = await this.getOrCreateClientForTests(databaseGroupId);
-        client.executeLocallyForTests(sql);
+        client.executeLocallyForTests(migration);
     }
 
     /**

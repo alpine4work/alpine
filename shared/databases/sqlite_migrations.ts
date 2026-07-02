@@ -1,7 +1,5 @@
-/* eslint-disable cyberworlds/string-quotes -- SQL literals */
-
 import {type Database} from "~/external/sqlite/ext/wasm/jswasm/sqlite3.mjs";
-import {databaseTableSchemaName, sql, SqlQuery} from "~/shared/databases/sql.js";
+import {type SqlQuery, databaseTableSchemaName, sql} from "~/shared/databases/sql.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import type {DatabaseTableId} from "~/shared/id/types/id_types.js";
 import {Schema} from "~/shared/schema/schema.js";

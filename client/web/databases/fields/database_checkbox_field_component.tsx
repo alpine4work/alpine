@@ -6,7 +6,9 @@ import {
 } from "~/client/web/databases/fields/database_field_component_provider.js";
 import {Box} from "~/client/web/design/box.js";
 import {CheckboxIcon} from "~/client/web/design/checkbox_icon.js";
-import {databaseCheckboxFieldProvider} from "~/shared/databases/fields/database_checkbox_field.js";
+import {DatabaseCheckboxFieldProvider} from "~/shared/databases/fields/database_checkbox_field.js";
+
+const databaseCheckboxFieldProvider = new DatabaseCheckboxFieldProvider();
 
 export const databaseCheckboxFieldComponentProvider = defineDatabaseFieldComponentProvider(
     databaseCheckboxFieldProvider,

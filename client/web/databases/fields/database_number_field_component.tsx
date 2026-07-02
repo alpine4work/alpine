@@ -10,7 +10,9 @@ import {
 } from "~/client/web/databases/fields/database_field_component_provider.js";
 import {Box} from "~/client/web/design/box.js";
 import {sprinkles} from "~/client/web/styles/styles.js";
-import {databaseNumberFieldProvider} from "~/shared/databases/fields/database_number_field.js";
+import {DatabaseNumberFieldProvider} from "~/shared/databases/fields/database_number_field.js";
+
+const databaseNumberFieldProvider = new DatabaseNumberFieldProvider();
 
 function DatabaseNumberGridViewCellContent({
     ref,
@@ -31,7 +33,7 @@ function DatabaseNumberGridViewCellContent({
             color="grey-100"
             onClick={onCellClick}
         >
-            {databaseNumberFieldProvider.formatString(value, config)}
+            {databaseNumberFieldProvider.valueToString(value, config)}
         </Box>
     );
 }
@@ -61,7 +63,7 @@ function DatabaseNumberGridViewCellEditorOverlay({
     }, []);
 
     const tryCommit = (raw: string) => {
-        const parsed = databaseNumberFieldProvider.parseString(raw, config);
+        const parsed = databaseNumberFieldProvider.parseValueString(raw, config);
         if (parsed.ok) commitValue(parsed.value);
     };
 

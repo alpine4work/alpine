@@ -983,10 +983,9 @@ describe("DatabaseServer — per-table storage", () => {
         const relation = server1.executeAction<"createRelationField">({
             name: "createRelationField",
             input: {
-                tableId: source.tableId,
-                viewId: source.viewId,
-                name: "Project",
-                linkedTableId: target.tableId,
+                sourceTableId: source.tableId,
+                sourceFieldName: "Project",
+                targetTableId: target.tableId,
                 cardinality: "many",
             },
         }).result;

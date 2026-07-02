@@ -3,11 +3,11 @@ import type {ComponentType, Ref} from "react";
 
 import type {MenuActions} from "~/client/web/design/menu.js";
 import {
-    DatabaseCellValue,
     DatabaseFieldConfig,
     DatabaseFieldProvider,
     DatabaseFieldType,
-} from "~/shared/databases/fields/database_field_providers.js";
+    DatabaseFieldValue,
+} from "~/shared/databases/fields/all_database_field_providers.js";
 import type {DatabaseFieldId, DatabaseRowId, DatabaseTableId} from "~/shared/id/types/id_types.js";
 
 // -- Grid view cell props -----------------------------------------------------
@@ -19,8 +19,8 @@ export type DatabaseGridViewCellContentProps<Type extends DatabaseFieldType> = {
     ref?: Ref<HTMLElement>;
     fieldName: string;
     config: DatabaseFieldConfig<Type>;
-    value: DatabaseCellValue<Type>;
-    commitValue: (value: DatabaseCellValue<Type>) => void;
+    value: DatabaseFieldValue<Type>;
+    commitValue: (value: DatabaseFieldValue<Type>) => void;
     onCellClick: () => void;
 };
 
@@ -34,7 +34,7 @@ export type DatabaseGridViewCellEditorOverlayProps<Type extends DatabaseFieldTyp
     rowId: DatabaseRowId;
     config: DatabaseFieldConfig<Type>;
     /** The current typed value of the cell. */
-    initialValue: DatabaseCellValue<Type>;
+    initialValue: DatabaseFieldValue<Type>;
     /**
      * Optional string seed when the editor was opened by typing a character or
      * pressing delete/backspace. Takes precedence over `initialValue` for the editor's
@@ -42,7 +42,7 @@ export type DatabaseGridViewCellEditorOverlayProps<Type extends DatabaseFieldTyp
      * editor may ignore non-numeric seeds.
      */
     initialEditString: string | null;
-    commitValue: (value: DatabaseCellValue<Type>) => void;
+    commitValue: (value: DatabaseFieldValue<Type>) => void;
     onClose: () => void;
     moveSelection: (deltaRow: number, deltaField: number) => void;
     onCreateRow: () => void;

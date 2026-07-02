@@ -1,14 +1,15 @@
 import sqlite3InitModule from "~/external/sqlite/ext/wasm/jswasm/sqlite3.mjs";
-import {databaseNumberFieldProvider} from "~/shared/databases/fields/database_number_field.js";
+import {DatabaseNumberFieldProvider} from "~/shared/databases/fields/database_number_field.js";
 import {sql} from "~/shared/databases/sql.js";
 
+const databaseNumberFieldProvider = new DatabaseNumberFieldProvider();
 const sqlite3Promise = sqlite3InitModule();
 let dbCounter = 0;
 
 async function createDbWithCheckedColumn() {
     const sqlite3 = await sqlite3Promise;
     const db = new sqlite3.oo1.DB(`/test-number-${dbCounter++}.sqlite3`, "ct");
-    const check = databaseNumberFieldProvider.generateCheckConstraint("v");
+    const check = databaseNumberFieldProvider.generateCheckConstraint(sql.identifier("v"));
     // Match the production DDL: nullable REAL with no NOT NULL clause.
     sql`
         CREATE TABLE t (
@@ -23,16 +24,7 @@ describe("databaseNumberFieldProvider", () => {
         expect(databaseNumberFieldProvider.nullable).toBe(true);
     });
 
-    test("getDefaultConfig is unlimited (null) decimal places", () => {
-        expect(databaseNumberFieldProvider.getDefaultConfig()).toEqual({
-            type: "number",
-            decimalPlaces: null,
-        });
-    });
-
     describe("parseString", () => {
-        const config = {type: "number" as const, decimalPlaces: null};
-
         test.each([
             ["", null],
             ["   ", null],
@@ -94,7 +86,7 @@ describe("databaseNumberFieldProvider", () => {
             ["1,234,567", 1234567],
             ["$1,234.56", 1234.56],
         ])("parses %j as %s", (input, expected) => {
-            expect(databaseNumberFieldProvider.parseString(input, config)).toEqual({
+            expect(databaseNumberFieldProvider.parseValueString(input)).toEqual({
                 ok: true,
                 value: expected,
             });
@@ -109,7 +101,7 @@ describe("databaseNumberFieldProvider", () => {
         ])("scales %j as ~0.0314", input => {
             // `3.14 × 0.01` isn't exact in IEEE-754, so use a tolerant compare instead of
             // `toEqual`.
-            const result = databaseNumberFieldProvider.parseString(input, config);
+            const result = databaseNumberFieldProvider.parseValueString(input);
             expect(result.ok).toBe(true);
             if (result.ok) expect(result.value!).toBeCloseTo(0.0314, 10);
         });
@@ -185,41 +177,32 @@ describe("databaseNumberFieldProvider", () => {
             ["USD ( 3.14% )"],
             ["(USD (3.14%))"],
         ])("rejects %j", input => {
-            expect(databaseNumberFieldProvider.parseString(input, config).ok).toBe(false);
+            expect(databaseNumberFieldProvider.parseValueString(input).ok).toBe(false);
         });
     });
 
     describe("formatString", () => {
         test("null renders blank", () => {
             const config = {type: "number" as const, decimalPlaces: null};
-            expect(databaseNumberFieldProvider.formatString(null, config)).toBe("");
+            expect(databaseNumberFieldProvider.valueToString(null, config)).toBe("");
         });
 
         test("with null decimalPlaces, full precision is preserved", () => {
             const config = {type: "number" as const, decimalPlaces: null};
-            expect(databaseNumberFieldProvider.formatString(3.14159, config)).toBe("3.14159");
-            expect(databaseNumberFieldProvider.formatString(0, config)).toBe("0");
-            expect(databaseNumberFieldProvider.formatString(-1.5, config)).toBe("-1.5");
+            expect(databaseNumberFieldProvider.valueToString(3.14159, config)).toBe("3.14159");
+            expect(databaseNumberFieldProvider.valueToString(0, config)).toBe("0");
+            expect(databaseNumberFieldProvider.valueToString(-1.5, config)).toBe("-1.5");
         });
 
         test("with decimalPlaces=2, rounds to 2 places", () => {
             const config = {type: "number" as const, decimalPlaces: 2};
-            expect(databaseNumberFieldProvider.formatString(3.14159, config)).toBe("3.14");
-            expect(databaseNumberFieldProvider.formatString(1, config)).toBe("1.00");
+            expect(databaseNumberFieldProvider.valueToString(3.14159, config)).toBe("3.14");
+            expect(databaseNumberFieldProvider.valueToString(1, config)).toBe("1.00");
         });
 
         test("with decimalPlaces=0, rounds to integer", () => {
             const config = {type: "number" as const, decimalPlaces: 0};
-            expect(databaseNumberFieldProvider.formatString(3.7, config)).toBe("4");
-        });
-    });
-
-    describe("toSqlValue / fromSqlValue", () => {
-        test("identity for numbers and null", () => {
-            expect(databaseNumberFieldProvider.toSqlValue(3.14)).toBe(3.14);
-            expect(databaseNumberFieldProvider.toSqlValue(null)).toBeNull();
-            expect(databaseNumberFieldProvider.fromSqlValue(42)).toBe(42);
-            expect(databaseNumberFieldProvider.fromSqlValue(null)).toBeNull();
+            expect(databaseNumberFieldProvider.valueToString(3.7, config)).toBe("4");
         });
     });
 

@@ -13,8 +13,10 @@ import {useReactiveDatabaseAction} from "~/client/web/databases/use_reactive_dat
 import {Box} from "~/client/web/design/box.js";
 import {useReporter} from "~/client/web/design/reporter.js";
 import {useEvent} from "~/client/web/helpers/lifecycle/use_event.js";
-import {databaseRelationFieldProvider} from "~/shared/databases/fields/database_relation_field.js";
+import {DatabaseRelationFieldProvider} from "~/shared/databases/fields/database_relation_field.js";
 import type {DatabaseRowId} from "~/shared/id/types/id_types.js";
+
+const databaseRelationFieldProvider = new DatabaseRelationFieldProvider();
 
 function DatabaseRelationGridViewCellContent({
     ref,

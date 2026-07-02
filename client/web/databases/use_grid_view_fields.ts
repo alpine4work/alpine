@@ -7,8 +7,7 @@ import {useSpacingScale} from "~/client/web/remix/spacing_scale_context.js";
 import {
     type DatabaseFieldConfig,
     type DatabaseFieldType,
-    getDatabaseFieldProvider,
-} from "~/shared/databases/fields/database_field_providers.js";
+} from "~/shared/databases/fields/all_database_field_providers.js";
 import {databaseViewDefaultColumnWidth} from "~/shared/databases/sqlite_constants.js";
 import {remPxBySpacingScale} from "~/shared/design/core/spacing_scale.js";
 import {assert} from "~/shared/helpers/control/assert.js";
@@ -178,7 +177,7 @@ export function useGridViewFields({
                     field: {
                         id: fieldId,
                         name,
-                        config: getDatabaseFieldProvider(fieldType).getDefaultConfig(),
+                        config: getDefaultFieldConfig(fieldType),
                         position: addPosition,
                         width: databaseViewDefaultColumnWidth,
                         hidden: false,
@@ -187,9 +186,8 @@ export function useGridViewFields({
                 await conn.executeAction("createField", {
                     fieldId,
                     tableId,
-                    viewId,
                     name,
-                    type: fieldType,
+                    config: getDefaultFieldConfig(fieldType),
                 });
             });
         },
@@ -210,10 +208,9 @@ export function useGridViewFields({
             assert(relationOptions !== null, "relation field options are required");
             startTransition(async () => {
                 await conn.executeAction("createRelationField", {
-                    tableId,
-                    viewId,
-                    name: trimmed,
-                    linkedTableId: relationOptions.linkedTableId,
+                    sourceTableId: tableId,
+                    sourceFieldName: trimmed,
+                    targetTableId: relationOptions.linkedTableId,
                     cardinality: relationOptions.cardinality,
                 });
             });
@@ -454,7 +451,7 @@ export function useGridViewFields({
                     viewId,
                     fieldId,
                     position,
-                    isHidden,
+                    isVisible: !isHidden,
                 });
             });
         },
@@ -463,7 +460,7 @@ export function useGridViewFields({
     const updateFieldConfig = useEvent((fieldId: DatabaseFieldId, config: DatabaseFieldConfig) => {
         startTransition(async () => {
             applyOptimisticField({type: "updateConfig", fieldId, config});
-            await conn.executeAction("updateFieldConfig", {fieldId, config});
+            await conn.executeAction("updateFieldConfig", {tableId, fieldId, config});
         });
     });
 
@@ -502,7 +499,7 @@ function getPendingFieldConfig(
     tableId: DatabaseTableId,
 ): DatabaseFieldConfig {
     if (editingState.fieldType !== "relation") {
-        return getDatabaseFieldProvider(editingState.fieldType).getDefaultConfig();
+        return getDefaultFieldConfig(editingState.fieldType);
     }
     return {
         type: "relation",
@@ -511,6 +508,17 @@ function getPendingFieldConfig(
         cardinality: editingState.relationOptions?.cardinality ?? "many",
         linkedTableId: editingState.relationOptions?.linkedTableId ?? tableId,
     };
+}
+
+function getDefaultFieldConfig(type: Exclude<DatabaseFieldType, "relation">): DatabaseFieldConfig {
+    switch (type) {
+        case "checkbox":
+            return {type: "checkbox"};
+        case "number":
+            return {type: "number", decimalPlaces: null};
+        case "plainText":
+            return {type: "plainText"};
+    }
 }
 
 function pendingRelationJoinTableId(fieldId: DatabaseFieldId): DatabaseTableId {

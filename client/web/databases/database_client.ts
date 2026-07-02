@@ -692,7 +692,7 @@ export class DatabaseClient {
         if (typeof migration === "function") {
             migration(db);
         } else {
-            db.exec(migration);
+            migration.exec(db);
         }
     }
 

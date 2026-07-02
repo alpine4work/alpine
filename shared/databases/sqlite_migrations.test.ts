@@ -1,6 +1,6 @@
 import type {Database} from "~/external/sqlite/ext/wasm/jswasm/sqlite3.mjs";
 import sqlite3InitModule from "~/external/sqlite/ext/wasm/jswasm/sqlite3.mjs";
-import {DatabaseFieldConfigSqlSchema} from "~/shared/databases/fields/database_field_providers.js";
+import {DatabaseFieldConfigSqlSchema} from "~/shared/databases/fields/all_database_field_providers.js";
 import {databaseTableSchemaName, sql} from "~/shared/databases/sql.js";
 import {SqliteDatabase} from "~/shared/databases/sqlite.js";
 import {registerSqliteCustomFunctions} from "~/shared/databases/sqlite_custom_functions.js";
@@ -160,7 +160,12 @@ describe("sqlite migrations", () => {
         const firstFieldId = generateChronologicalId<DatabaseFieldId>();
         const secondFieldId = generateChronologicalId<DatabaseFieldId>();
         attachTableDb(db, tableId);
-        tableSqliteMigrations[0]!(db, tableId);
+        const migration = tableSqliteMigrations(tableId)[0]!;
+        if (typeof migration === "function") {
+            migration(db);
+        } else {
+            migration.exec(db);
+        }
         sql`
             INSERT INTO
                 ${sql.tableRef(tableId, "_alpine_table")} (id, name, table_name)

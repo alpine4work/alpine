@@ -47,10 +47,10 @@ import {
     type VirtualizedScrollViewRef,
 } from "~/client/web/virtualized/virtualized_scroll_view.js";
 import type {
-    DatabaseCellValue,
     DatabaseFieldConfig,
     DatabaseFieldType,
-} from "~/shared/databases/fields/database_field_providers.js";
+    DatabaseFieldValue,
+} from "~/shared/databases/fields/all_database_field_providers.js";
 import type {Spacing} from "~/shared/design/core/spacing.js";
 import {spacing} from "~/shared/design/core/spacing.js";
 import {remPxBySpacingScale} from "~/shared/design/core/spacing_scale.js";
@@ -561,7 +561,7 @@ function DatabaseGridViewHeaderRow({
     onUpdateFieldVisibility: (
         fieldId: DatabaseFieldId,
         position: OrderKey,
-        isHidden: boolean,
+        isVisible: boolean,
     ) => void;
     onUpdateFieldConfig: (fieldId: DatabaseFieldId, config: DatabaseFieldConfig) => void;
 }) {
@@ -1117,7 +1117,7 @@ function DatabaseGridViewCell({
             fieldId={field.id}
             rowId={rowId}
             config={field.config}
-            initialValue={optimisticValue as DatabaseCellValue}
+            initialValue={optimisticValue as DatabaseFieldValue}
             initialEditString={initialEditValue}
             commitValue={commitValue}
             onClose={() => dispatch({type: "blur"})}
@@ -1152,7 +1152,7 @@ function DatabaseGridViewCell({
                     ref={cellRef}
                     fieldName={field.name}
                     config={field.config}
-                    value={optimisticValue as DatabaseCellValue}
+                    value={optimisticValue as DatabaseFieldValue}
                     commitValue={commitValue}
                     onCellClick={() => dispatch({type: "click", rowId, fieldId: field.id})}
                 />

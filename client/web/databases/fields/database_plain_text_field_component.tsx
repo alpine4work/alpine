@@ -11,7 +11,9 @@ import {
 import {Box} from "~/client/web/design/box.js";
 import {TextAreaWithAutoGrowingHeight} from "~/client/web/design/text_area_with_auto_growing_height.js";
 import {sprinkles} from "~/client/web/styles/styles.js";
-import {databasePlainTextFieldProvider} from "~/shared/databases/fields/database_plain_text_field.js";
+import {DatabasePlainTextFieldProvider} from "~/shared/databases/fields/database_plain_text_field.js";
+
+const databasePlainTextFieldProvider = new DatabasePlainTextFieldProvider();
 
 function DatabasePlainTextGridViewCellContent({
     ref,
