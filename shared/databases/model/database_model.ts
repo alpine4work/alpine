@@ -83,8 +83,27 @@ export class DatabaseModel {
         return assertExists(this.getTableIfExists(tableId));
     }
 
-    formatUniqueTableName(name: string) {
-        return formatUniqueSqlName(name, new Set());
+    formatUniqueTableName(name: string, oldName?: string) {
+        const existingTableNames = new Set<string>();
+        for (const tableId of this.getTableIds("table")) {
+            existingTableNames.add(this.getTable(tableId).tableName);
+        }
+        for (const joinTableId of this.getTableIds("join")) {
+            const schema = sql.identifier(databaseTableSchemaName(joinTableId));
+            const tableName = sql`
+                SELECT
+                    table_name
+                FROM
+                    ${schema}._alpine_join_table
+            `.selectValueIfExists(this.db, Schema.string);
+            if (tableName) {
+                existingTableNames.add(tableName);
+            }
+        }
+        if (oldName) {
+            existingTableNames.delete(oldName);
+        }
+        return formatUniqueSqlName(name, existingTableNames);
     }
 
     createTable(tableId: DatabaseTableId, name: string) {
@@ -161,15 +180,15 @@ export class DatabaseModel {
         assert(target.config.linkedTableId === source.table.id, "target linked table mismatch");
 
         const joinTableId = source.config.joinTableId;
+        const schema = sql.identifier(databaseTableSchemaName(joinTableId));
+        const joinTableName = this.formatUniqueTableName(`${source.name} ${target.name}`);
+
         sql`
             INSERT INTO
                 _alpine_tables (id, kind)
             VALUES
                 (${joinTableId}, 'join')
         `.exec(this.db);
-
-        const schema = sql.identifier(databaseTableSchemaName(joinTableId));
-        const joinTableName = this.formatUniqueTableName(`${source.name} ${target.name}`);
 
         const sourceColumnNames = this.formatJoinTableColumnNames(source.table, target.table);
 
@@ -348,7 +367,7 @@ export class DatabaseTableModel extends DatabaseSchemaScopedBaseModel {
     }
 
     updateName(name: string) {
-        const newTableName = this.root.formatUniqueTableName(name);
+        const newTableName = this.root.formatUniqueTableName(name, this.tableName);
         if (newTableName !== this.tableName) {
             sql`
                 ALTER TABLE ${this.tableRef}
@@ -768,7 +787,10 @@ export class DatabaseJoinTableModel extends DatabaseSchemaScopedBaseModel {
         const sourceName = this.root.getTable(this.sourceTableId).getField(this.sourceFieldId).name;
         const targetName = this.root.getTable(this.targetTableId).getField(this.targetFieldId).name;
 
-        const joinTableName = this.root.formatUniqueTableName(`${sourceName} ${targetName}`);
+        const joinTableName = this.root.formatUniqueTableName(
+            `${sourceName} ${targetName}`,
+            this.tableName,
+        );
 
         if (joinTableName === this.tableName) return;
 

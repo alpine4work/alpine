@@ -3,7 +3,7 @@ import {
     getDatabaseFieldProvider,
 } from "~/shared/databases/fields/all_database_field_providers.js";
 import {ColumnBackedDatabaseFieldProvider} from "~/shared/databases/fields/base/database_field_provider_base.js";
-import {DatabaseModel, type DatabaseTableModel} from "~/shared/databases/model/database_model.js";
+import {DatabaseModel} from "~/shared/databases/model/database_model.js";
 import {SqlBooleanSchema} from "~/shared/databases/model/sqlite_schema.js";
 import {type SqlQuery, sql} from "~/shared/databases/sql.js";
 import {SqliteDatabase} from "~/shared/databases/sqlite.js";
@@ -91,16 +91,6 @@ export function executeDatabaseAction<N extends DatabaseActionName>(
     } finally {
         // eslint-disable-next-line no-console
         console.groupEnd();
-    }
-}
-
-function formatUniqueFieldDisplayName(table: DatabaseTableModel, name: string): string {
-    const existingNames = new Set(table.getFields().map(field => field.name));
-    if (!existingNames.has(name)) return name;
-
-    for (let i = 2; ; i++) {
-        const candidate = `${name} ${i}`;
-        if (!existingNames.has(candidate)) return candidate;
     }
 }
 
@@ -423,10 +413,8 @@ export const databaseActions = {
         serverOnly: true,
         run({db, model, server}, {sourceTableId, sourceFieldName, targetTableId, cardinality}) {
             assert(server !== null, "createRelationField is server-only");
-            const sourceTable = model.getTableIfExists(sourceTableId);
-            assert(sourceTable !== null, "source table not found");
-            const targetTable = model.getTableIfExists(targetTableId);
-            assert(targetTable !== null, "linked table not found");
+            const sourceTable = model.getTable(sourceTableId);
+            const targetTable = model.getTable(targetTableId);
 
             const joinTableId = generateChronologicalId<DatabaseTableId>();
             const sourceFieldId = generateChronologicalId<DatabaseFieldId>();
@@ -444,8 +432,7 @@ export const databaseActions = {
             });
             sourceTable.appendFieldToAllViews(sourceField);
 
-            const targetFieldName = formatUniqueFieldDisplayName(targetTable, sourceTable.name);
-            const targetField = targetTable.createField(targetFieldId, targetFieldName, {
+            const targetField = targetTable.createField(targetFieldId, sourceTable.name, {
                 type: "relation",
                 joinTableId,
                 side: "target",
@@ -476,7 +463,7 @@ export const databaseActions = {
         run({db, model}, {tableId, fieldId, rowId, linkedRowId}) {
             const table = model.getTable(tableId);
             const field = table.getField(fieldId);
-            assert(field.isType("relation"), "field is not a relation field");
+            assert(field.isType("relation"));
             const provider = getDatabaseFieldProvider(field.config.type);
             const relation = provider.resolveRelation(field);
             const linkedTable = model.getTable(relation.linkedTableId);

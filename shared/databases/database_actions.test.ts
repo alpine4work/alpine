@@ -275,15 +275,13 @@ describe("createTable", () => {
         expect(nameCol!.type).toMatch(/^TEXT_alpine_[0-9a-z]{26}_[0-9a-z]{26}$/);
     });
 
-    test("duplicate names each land in their own file (no cross-table dedup)", async () => {
+    test("duplicate table names get unique SQL identifiers", async () => {
         const db = await createDb();
         const first = run(db, "createTable", {name: "Tasks"});
         const second = run(db, "createTable", {name: "Tasks"});
 
-        // Each table owns its own per-db file, so the SQLite identifier only needs to be
-        // unique within that file — no "\_2" suffix across tables.
         expect(first.tableName).toBe("tasks");
-        expect(second.tableName).toBe("tasks");
+        expect(second.tableName).toBe("tasks_2");
     });
 
     test("index exists on _created_at", async () => {
@@ -861,7 +859,7 @@ describe("createRelationField", () => {
         db.close();
     });
 
-    test("deduplicates the symmetric field name against target fields", async () => {
+    test("allows duplicated symmetric field display names", async () => {
         const db = await createDb();
         const source = run(db, "createTable", {name: "Name"});
         const target = run(db, "createTable", {name: "Projects"});
@@ -874,7 +872,7 @@ describe("createRelationField", () => {
         });
 
         const targetField = readFieldById(db, target.tableId, result.targetFieldId);
-        expect(targetField.name).toBe("Name 2");
+        expect(targetField.name).toBe("Name");
         db.close();
     });
 
@@ -912,44 +910,6 @@ describe("createRelationField", () => {
             {id: result.sourceFieldId, name: "Related", config: {side: "source"}},
             {id: result.targetFieldId, name: "Tasks", config: {side: "target"}},
         ]);
-        db.close();
-    });
-
-    test("rejects unknown linked tables", async () => {
-        const db = await createDb();
-        const source = run(db, "createTable", {name: "Tasks"});
-        const linkedTableId = generateChronologicalId<DatabaseTableId>();
-
-        expect(() =>
-            run(db, "createRelationField", {
-                sourceTableId: source.tableId,
-                sourceFieldName: "Missing",
-                targetTableId: linkedTableId,
-                cardinality: "many",
-            }),
-        ).toThrow("linked table not found");
-        db.close();
-    });
-
-    test("rejects join tables as linked targets", async () => {
-        const db = await createDb();
-        const source = run(db, "createTable", {name: "Tasks"});
-        const linkedTableId = generateChronologicalId<DatabaseTableId>();
-        sql`
-            INSERT INTO
-                _alpine_tables (id, kind)
-            VALUES
-                (${linkedTableId}, 'join')
-        `.exec(db);
-
-        expect(() =>
-            run(db, "createRelationField", {
-                sourceTableId: source.tableId,
-                sourceFieldName: "Join",
-                targetTableId: linkedTableId,
-                cardinality: "many",
-            }),
-        ).toThrow("linked table not found");
         db.close();
     });
 });
@@ -1078,24 +1038,6 @@ describe("addLink", () => {
             }),
         ).toThrow("linked row not found");
         expect(readLinks(db, relation.joinTableId)).toEqual([{sourceRowId, targetRowId}]);
-        db.close();
-    });
-
-    test("rejects non-relation fields", async () => {
-        const db = await createDb();
-        const table = run(db, "createTable", {name: "Tasks"});
-        const fieldId = readNameFieldId(db, table.tableId);
-        const rowId = createRowAndGetId(db, table.tableId);
-        const linkedRowId = createRowAndGetId(db, table.tableId);
-
-        expect(() =>
-            run(db, "addLink", {
-                tableId: table.tableId,
-                fieldId,
-                rowId,
-                linkedRowId,
-            }),
-        ).toThrow("field is not a relation field");
         db.close();
     });
 });
@@ -1301,16 +1243,14 @@ describe("renameTable", () => {
         db.close();
     });
 
-    test("rename within its own file does not add a dedup suffix", async () => {
+    test("rename deduplicates against other tables", async () => {
         const db = await createDb();
-        // A separate table named "Tasks" lives in its own file, so it does not collide
-        // with this rename.
         run(db, "createTable", {name: "Tasks"});
         const {tableId} = run(db, "createTable", {name: "Projects"});
 
         const {tableName} = run(db, "renameTable", {tableId, name: "Tasks"});
 
-        expect(tableName).toBe("tasks");
+        expect(tableName).toBe("tasks_2");
         db.close();
     });
 });
