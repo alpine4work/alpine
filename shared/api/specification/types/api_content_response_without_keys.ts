@@ -4,14 +4,22 @@ import {
     ApiContentBlockElementResponse,
     ApiContentCheckListBlockElementItemResponse,
     ApiContentCodeBlockElementLineResponse,
+    ApiContentDividerBlockElementResponse,
     ApiContentFileBlockElementResponse,
+    ApiContentFileFloatBlockElementResponse,
+    ApiContentFileGalleryBlockElementResponse,
+    ApiContentFileGalleryBlockElementRowItemResponse,
+    ApiContentFileGalleryBlockElementRowResponse,
     ApiContentHeadingBlockElementResponse,
     ApiContentListBlockElementItemResponse,
     ApiContentListBlockElementResponse,
     ApiContentParagraphBlockElementResponse,
     ApiContentPreviewBlockElementResponse,
+    ApiContentQuoteBlockElementBlockElementResponse,
     ApiContentResponse,
+    ApiContentTableBlockElementCellBlockElementResponse,
     ApiContentTableBlockElementCellResponse,
+    ApiContentTableBlockElementResponse,
     ApiContentTableBlockElementRowResponse,
 } from "~/shared/api/specification/types/api_specification_convenience_types.js";
 import {JsonScalarValue} from "~/shared/helpers/types/json_value.js";
@@ -73,6 +81,9 @@ export type ApiContentParagraphBlockElementResponseWithoutKeys =
 export type ApiContentHeadingBlockElementResponseWithoutKeys =
     MakeApiContentWithoutKeys<ApiContentHeadingBlockElementResponse>;
 
+export type ApiContentQuoteBlockElementBlockElementResponseWithoutKeys =
+    MakeApiContentWithoutKeys<ApiContentQuoteBlockElementBlockElementResponse>;
+
 export type ApiContentListBlockElementResponseWithoutKeys =
     MakeApiContentWithoutKeys<ApiContentListBlockElementResponse>;
 
@@ -82,6 +93,9 @@ export type ApiContentListBlockElementItemResponseWithoutKeys =
 export type ApiContentCheckListBlockElementItemResponseWithoutKeys =
     MakeApiContentWithoutKeys<ApiContentCheckListBlockElementItemResponse>;
 
+export type ApiContentDividerBlockElementResponseWithoutKeys =
+    MakeApiContentWithoutKeys<ApiContentDividerBlockElementResponse>;
+
 export type ApiContentCodeBlockElementLineResponseWithoutKeys =
     MakeApiContentWithoutKeys<ApiContentCodeBlockElementLineResponse>;
 
@@ -90,6 +104,30 @@ export type ApiContentFileBlockElementResponseWithoutKeys =
 
 export type ApiContentPreviewBlockElementResponseWithoutKeys =
     MakeApiContentWithoutKeys<ApiContentPreviewBlockElementResponse>;
+
+export type ApiContentFileGalleryBlockElementResponseWithoutKeys =
+    MakeApiContentWithoutKeys<ApiContentFileGalleryBlockElementResponse>;
+
+export type ApiContentFileGalleryBlockElementRowResponseWithoutKeys =
+    MakeApiContentWithoutKeys<ApiContentFileGalleryBlockElementRowResponse>;
+
+export type ApiContentFileGalleryBlockElementRowItemResponseWithoutKeys =
+    MakeApiContentWithoutKeys<ApiContentFileGalleryBlockElementRowItemResponse>;
+
+export type ApiContentFileFloatBlockElementResponseWithoutKeys =
+    MakeApiContentWithoutKeys<ApiContentFileFloatBlockElementResponse>;
+
+export type ApiContentTableBlockElementResponseWithoutKeys =
+    MakeApiContentWithoutKeys<ApiContentTableBlockElementResponse>;
+
+export type ApiContentTableBlockElementRowResponseWithoutKeys =
+    MakeApiContentWithoutKeys<ApiContentTableBlockElementRowResponse>;
+
+export type ApiContentTableBlockElementCellResponseWithoutKeys =
+    MakeApiContentWithoutKeys<ApiContentTableBlockElementCellResponse>;
+
+export type ApiContentTableBlockElementCellBlockElementResponseWithoutKeys =
+    MakeApiContentWithoutKeys<ApiContentTableBlockElementCellBlockElementResponse>;
 
 type MakeApiContentWithOptionalKeys<Value> = Value extends JsonScalarValue | undefined
     ? Value

@@ -7,6 +7,26 @@ import {
     ApiContentRange,
 } from "~/shared/api/specification/types/api_content_position.js";
 import {
+    ApiContentBlockElementResponseWithoutKeys,
+    ApiContentCheckListBlockElementItemResponseWithoutKeys,
+    ApiContentDividerBlockElementResponseWithoutKeys,
+    ApiContentFileBlockElementResponseWithoutKeys,
+    ApiContentFileFloatBlockElementResponseWithoutKeys,
+    ApiContentFileGalleryBlockElementResponseWithoutKeys,
+    ApiContentFileGalleryBlockElementRowItemResponseWithoutKeys,
+    ApiContentFileGalleryBlockElementRowResponseWithoutKeys,
+    ApiContentListBlockElementItemResponseWithoutKeys,
+    ApiContentListBlockElementResponseWithoutKeys,
+    ApiContentParagraphBlockElementResponseWithoutKeys,
+    ApiContentPreviewBlockElementResponseWithoutKeys,
+    ApiContentQuoteBlockElementBlockElementResponseWithoutKeys,
+    ApiContentResponseWithoutKeys,
+    ApiContentTableBlockElementCellBlockElementResponseWithoutKeys,
+    ApiContentTableBlockElementCellResponseWithoutKeys,
+    ApiContentTableBlockElementResponseWithoutKeys,
+    ApiContentTableBlockElementRowResponseWithoutKeys,
+} from "~/shared/api/specification/types/api_content_response_without_keys.js";
+import {
     ApiContentBlockElementResponse,
     ApiContentCheckListBlockElementItemResponse,
     ApiContentCheckListBlockElementResponse,
@@ -17,8 +37,6 @@ import {
     ApiContentFileBlockElementResponse,
     ApiContentFileFloatBlockElementResponse,
     ApiContentFileGalleryBlockElementResponse,
-    ApiContentFileGalleryBlockElementRowItemResponse,
-    ApiContentFileGalleryBlockElementRowResponse,
     ApiContentInlineElementResponse,
     ApiContentListBlockElementItemResponse,
     ApiContentListBlockElementResponse,
@@ -28,15 +46,14 @@ import {
     ApiContentQuoteBlockElementBlockElementResponse,
     ApiContentResponse,
     ApiContentTableBlockElementCellBlockElementResponse,
-    ApiContentTableBlockElementCellResponse,
     ApiContentTableBlockElementResponse,
-    ApiContentTableBlockElementRowResponse,
     ApiContentUnorderedListBlockElementResponse,
 } from "~/shared/api/specification/types/api_specification_convenience_types.js";
 import {InternalError} from "~/shared/error/error.js";
 import {cast} from "~/shared/helpers/control/cast.js";
 import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
 import {Result} from "~/shared/helpers/control/result.js";
+import {omitObject} from "~/shared/helpers/object/omit_object.js";
 import {quote} from "~/shared/helpers/string/quote.js";
 
 type SliceContext = {
@@ -47,7 +64,7 @@ type SliceContext = {
 export function sliceApiContentRange(
     content: ApiContentResponse,
     range: ApiContentRange,
-): Result<ApiContentResponse, "StartNotFound" | "EndNotFound"> {
+): Result<ApiContentResponseWithoutKeys, "StartNotFound" | "EndNotFound"> {
     const context: SliceContext = {range, state: "Before"};
 
     const elements = sliceBlockElements(context, content.elements);
@@ -61,8 +78,8 @@ export function sliceApiContentRange(
 function sliceBlockElements(
     context: SliceContext,
     elements: ReadonlyArray<ApiContentBlockElementResponse>,
-): Array<ApiContentBlockElementResponse> | undefined {
-    let slicedElements: Array<ApiContentBlockElementResponse> | undefined;
+): Array<ApiContentBlockElementResponseWithoutKeys> | undefined {
+    let slicedElements: Array<ApiContentBlockElementResponseWithoutKeys> | undefined;
 
     for (const element of elements) {
         if (context.state === "After") break;
@@ -80,7 +97,7 @@ function sliceBlockElements(
 function sliceBlockElement(
     context: SliceContext,
     element: ApiContentBlockElementResponse,
-): ApiContentBlockElementResponse | undefined {
+): ApiContentBlockElementResponseWithoutKeys | undefined {
     switch (element.type) {
         case "Paragraph": {
             return sliceParagraphBlockElement(context, element);
@@ -88,7 +105,7 @@ function sliceBlockElement(
         case "Heading": {
             const elements = sliceInlineElements(context, element.key, element.elements);
             if (elements === undefined || elements.length === 0) return undefined;
-            return {...element, elements};
+            return {...omitObject(element, ["key"]), elements};
         }
         case "Quote": {
             const elements = sliceQuoteBlockElements(context, element.elements);
@@ -127,10 +144,13 @@ function sliceBlockElement(
 function sliceParagraphBlockElement(
     context: SliceContext,
     element: ApiContentParagraphBlockElementResponse,
-): ApiContentParagraphBlockElementResponse | undefined {
+): ApiContentParagraphBlockElementResponseWithoutKeys | undefined {
     const elements = sliceInlineElements(context, element.key, element.elements);
     if (elements === undefined || elements.length === 0) return undefined;
-    return {...element, elements};
+
+    // We remove `key`s because a `key` for a sliced paragraph won't be valid anymore
+    // since the start/end of the node is different.
+    return {...omitObject(element, ["key"]), elements};
 }
 
 function sliceInlineElements(
@@ -236,8 +256,10 @@ function consumeInlineToken(
 function sliceQuoteBlockElements(
     context: SliceContext,
     elements: ReadonlyArray<ApiContentQuoteBlockElementBlockElementResponse>,
-): Array<ApiContentQuoteBlockElementBlockElementResponse> | undefined {
-    let slicedElements: Array<ApiContentQuoteBlockElementBlockElementResponse> | undefined;
+): Array<ApiContentQuoteBlockElementBlockElementResponseWithoutKeys> | undefined {
+    let slicedElements:
+        | Array<ApiContentQuoteBlockElementBlockElementResponseWithoutKeys>
+        | undefined;
 
     for (const element of elements) {
         if (context.state === "After") break;
@@ -292,7 +314,7 @@ function sliceListBlockElement(
         | ApiContentUnorderedListBlockElementResponse
         | ApiContentOrderedListBlockElementResponse
         | ApiContentCheckListBlockElementResponse,
-): ApiContentListBlockElementResponse | undefined {
+): ApiContentListBlockElementResponseWithoutKeys | undefined {
     switch (element.type) {
         case "UnorderedList":
         case "OrderedList": {
@@ -313,8 +335,8 @@ function sliceListBlockElement(
 function sliceListBlockElementItems(
     context: SliceContext,
     items: ReadonlyArray<ApiContentListBlockElementItemResponse>,
-): Array<ApiContentListBlockElementItemResponse> | undefined {
-    let slicedItems: Array<ApiContentListBlockElementItemResponse> | undefined;
+): Array<ApiContentListBlockElementItemResponseWithoutKeys> | undefined {
+    let slicedItems: Array<ApiContentListBlockElementItemResponseWithoutKeys> | undefined;
 
     for (const item of items) {
         if (context.state === "After") break;
@@ -345,8 +367,8 @@ function sliceListBlockElementItems(
 function sliceParagraphBlockElements(
     context: SliceContext,
     elements: ReadonlyArray<ApiContentParagraphBlockElementResponse>,
-): Array<ApiContentParagraphBlockElementResponse> {
-    const slicedElements: Array<ApiContentParagraphBlockElementResponse> = [];
+): Array<ApiContentParagraphBlockElementResponseWithoutKeys> {
+    const slicedElements: Array<ApiContentParagraphBlockElementResponseWithoutKeys> = [];
 
     for (const element of elements) {
         if (context.state === "After") break;
@@ -361,8 +383,8 @@ function sliceParagraphBlockElements(
 function sliceListBlockElements(
     context: SliceContext,
     elements: ReadonlyArray<ApiContentListBlockElementResponse>,
-): Array<ApiContentListBlockElementResponse> {
-    const slicedElements: Array<ApiContentListBlockElementResponse> = [];
+): Array<ApiContentListBlockElementResponseWithoutKeys> {
+    const slicedElements: Array<ApiContentListBlockElementResponseWithoutKeys> = [];
 
     for (const element of elements) {
         if (context.state === "After") break;
@@ -377,8 +399,8 @@ function sliceListBlockElements(
 function sliceCheckListBlockElementItems(
     context: SliceContext,
     items: ReadonlyArray<ApiContentCheckListBlockElementItemResponse>,
-): Array<ApiContentCheckListBlockElementItemResponse> | undefined {
-    let slicedItems: Array<ApiContentCheckListBlockElementItemResponse> | undefined;
+): Array<ApiContentCheckListBlockElementItemResponseWithoutKeys> | undefined {
+    let slicedItems: Array<ApiContentCheckListBlockElementItemResponseWithoutKeys> | undefined;
 
     for (const item of items) {
         if (context.state === "After") break;
@@ -547,11 +569,11 @@ function getCodeLineElementsLength(
 function sliceDividerBlockElement(
     context: SliceContext,
     element: ApiContentDividerBlockElementResponse,
-): ApiContentDividerBlockElementResponse | undefined {
+): ApiContentDividerBlockElementResponseWithoutKeys | undefined {
     if (
         consumeToken(context, {type: "Before", key: element.key}, {type: "After", key: element.key})
     ) {
-        return element;
+        return omitObject(element, ["key"]);
     }
 
     return undefined;
@@ -560,11 +582,14 @@ function sliceDividerBlockElement(
 function sliceFileOrPreviewBlockElement(
     context: SliceContext,
     element: ApiContentFileBlockElementResponse | ApiContentPreviewBlockElementResponse,
-): ApiContentFileBlockElementResponse | ApiContentPreviewBlockElementResponse | undefined {
+):
+    | ApiContentFileBlockElementResponseWithoutKeys
+    | ApiContentPreviewBlockElementResponseWithoutKeys
+    | undefined {
     if (
         consumeToken(context, {type: "Before", key: element.key}, {type: "After", key: element.key})
     ) {
-        return element;
+        return omitObject(element, ["key"]);
     }
 
     return undefined;
@@ -573,13 +598,13 @@ function sliceFileOrPreviewBlockElement(
 function sliceFileGalleryBlockElement(
     context: SliceContext,
     element: ApiContentFileGalleryBlockElementResponse,
-): ApiContentFileGalleryBlockElementResponse | undefined {
-    let rows: Array<ApiContentFileGalleryBlockElementRowResponse> | undefined;
+): ApiContentFileGalleryBlockElementResponseWithoutKeys | undefined {
+    let rows: Array<ApiContentFileGalleryBlockElementRowResponseWithoutKeys> | undefined;
 
     for (const row of element.rows) {
         if (context.state === "After") break;
 
-        let items: Array<ApiContentFileGalleryBlockElementRowItemResponse> | undefined;
+        let items: Array<ApiContentFileGalleryBlockElementRowItemResponseWithoutKeys> | undefined;
 
         for (const item of row.items) {
             // @ts-expect-error: `sliceFileOrPreviewBlockElement()` may mutate `context.state`.
@@ -605,7 +630,7 @@ function sliceFileGalleryBlockElement(
 function sliceFileFloatBlockElement(
     context: SliceContext,
     element: ApiContentFileFloatBlockElementResponse,
-): ApiContentFileFloatBlockElementResponse | undefined {
+): ApiContentFileFloatBlockElementResponseWithoutKeys | undefined {
     const slicedElement = sliceFileOrPreviewBlockElement(context, element.element);
     if (slicedElement === undefined) return undefined;
     return {...element, element: slicedElement};
@@ -614,13 +639,13 @@ function sliceFileFloatBlockElement(
 function sliceTableBlockElement(
     context: SliceContext,
     element: ApiContentTableBlockElementResponse,
-): ApiContentTableBlockElementResponse | undefined {
-    let rows: Array<ApiContentTableBlockElementRowResponse> | undefined;
+): ApiContentTableBlockElementResponseWithoutKeys | undefined {
+    let rows: Array<ApiContentTableBlockElementRowResponseWithoutKeys> | undefined;
 
     for (const row of element.rows) {
         if (context.state === "After") break;
 
-        let cells: Array<ApiContentTableBlockElementCellResponse> | undefined;
+        let cells: Array<ApiContentTableBlockElementCellResponseWithoutKeys> | undefined;
 
         for (const cell of row.cells) {
             // @ts-expect-error: `sliceTableCellBlockElements()` may mutate `context.state`.
@@ -646,8 +671,10 @@ function sliceTableBlockElement(
 function sliceTableCellBlockElements(
     context: SliceContext,
     elements: ReadonlyArray<ApiContentTableBlockElementCellBlockElementResponse>,
-): Array<ApiContentTableBlockElementCellBlockElementResponse> | undefined {
-    let slicedElements: Array<ApiContentTableBlockElementCellBlockElementResponse> | undefined;
+): Array<ApiContentTableBlockElementCellBlockElementResponseWithoutKeys> | undefined {
+    let slicedElements:
+        | Array<ApiContentTableBlockElementCellBlockElementResponseWithoutKeys>
+        | undefined;
 
     for (const element of elements) {
         if (context.state === "After") break;
