@@ -406,11 +406,10 @@ export class DatabaseTableModel extends DatabaseSchemaScopedBaseModel {
     createView(viewId: DatabaseViewId, name: string): DatabaseViewModel {
         sql`
             INSERT INTO
-                ${this.schema}._alpine_views (id, table_id, name)
+                ${this.schema}._alpine_views (id, name)
             VALUES
                 (
                     ${viewId},
-                    ${this.id},
                     ${name}
                 )
         `.exec(this.db);
@@ -499,14 +498,13 @@ export class DatabaseTableModel extends DatabaseSchemaScopedBaseModel {
 
         sql`
             INSERT INTO
-                ${this.schema}._alpine_fields (id, table_id, name, column_name, config)
+                ${this.schema}._alpine_fields (id, name, column_name, config)
             VALUES
                 (
                     ${fieldId},
-                    ${this.id},
                     ${name},
                     ${columnName},
-                    ${DatabaseFieldConfigSqlSchema.serialize(config)}
+                    jsonb (${DatabaseFieldConfigSqlSchema.serialize(config)})
                 )
         `.exec(this.db);
 

@@ -114,7 +114,10 @@ describe("createTable", () => {
 
         const fields = sql`
             SELECT
-                *
+                id,
+                name,
+                column_name,
+                JSON(config) AS config
             FROM
                 ${sql.tableRef(tableId, "_alpine_fields")}
         `.selectAllUnknown(db);
@@ -129,7 +132,6 @@ describe("createTable", () => {
 
         expect(fields).toMatchObject([
             {
-                table_id: tableId,
                 name: "Name",
                 column_name: "name",
                 config: DatabaseFieldConfigSqlSchema.serialize({type: "plainText"}),
@@ -305,11 +307,9 @@ describe("createTable", () => {
                 *
             FROM
                 ${sql.tableRef(tableId, "_alpine_views")}
-            WHERE
-                table_id = ${tableId}
         `.selectAllUnknown(db);
 
-        expect(views).toMatchObject([{id: viewId, table_id: tableId, name: "Grid view"}]);
+        expect(views).toMatchObject([{id: viewId, name: "Grid view"}]);
         db.close();
     });
 
@@ -524,14 +524,13 @@ function addRelationFieldMetadata(
     const position = generateOrderKeyBetween(maxPosition as OrderKey | null, null);
     sql`
         INSERT INTO
-            ${sql.tableRef(tableId, "_alpine_fields")} (id, table_id, name, column_name, config)
+            ${sql.tableRef(tableId, "_alpine_fields")} (id, name, column_name, config)
         VALUES
             (
                 ${fieldId},
-                ${tableId},
                 ${name},
                 ${"links"},
-                ${DatabaseFieldConfigSqlSchema.serialize(config)}
+                jsonb (${DatabaseFieldConfigSqlSchema.serialize(config)})
             )
     `.exec(db);
     sql`
@@ -731,24 +730,16 @@ describe("createRelationField", () => {
         const sourceSecondViewId = generateChronologicalId<DatabaseViewId>();
         sql`
             INSERT INTO
-                ${sql.tableRef(source.tableId, "_alpine_views")} (id, table_id, name)
+                ${sql.tableRef(source.tableId, "_alpine_views")} (id, name)
             VALUES
-                (
-                    ${sourceSecondViewId},
-                    ${source.tableId},
-                    'Other view'
-                )
+                (${sourceSecondViewId}, 'Other view')
         `.exec(db);
         const targetSecondViewId = generateChronologicalId<DatabaseViewId>();
         sql`
             INSERT INTO
-                ${sql.tableRef(target.tableId, "_alpine_views")} (id, table_id, name)
+                ${sql.tableRef(target.tableId, "_alpine_views")} (id, name)
             VALUES
-                (
-                    ${targetSecondViewId},
-                    ${target.tableId},
-                    'Other view'
-                )
+                (${targetSecondViewId}, 'Other view')
         `.exec(db);
 
         const result = run(db, "createRelationField", {
@@ -891,7 +882,7 @@ describe("createRelationField", () => {
             SELECT
                 id,
                 name,
-                config
+                JSON(config) AS config
             FROM
                 ${sql.tableRef(table.tableId, "_alpine_fields")}
             WHERE
@@ -1526,10 +1517,10 @@ describe("getViewRowsPage", () => {
         sql`
             UPDATE ${sql.tableRef(target.tableId, "_alpine_fields")}
             SET
-                config = ${DatabaseFieldConfigSqlSchema.serialize({
+                config = jsonb (${DatabaseFieldConfigSqlSchema.serialize({
                 type: "number",
                 decimalPlaces: 2,
-            })}
+            })})
             WHERE
                 id = ${scoreFieldId}
         `.exec(db);
@@ -1660,8 +1651,6 @@ describe("updateCellValue", () => {
                 id
             FROM
                 ${sql.tableRef(tableId, "_alpine_fields")}
-            WHERE
-                table_id = ${tableId}
         `.selectOne(db, {
             fieldId: Schema.id<DatabaseFieldId>().originalPropertyKey("id"),
         });
@@ -1722,13 +1711,9 @@ describe("createField", () => {
         const secondViewId = generateChronologicalId<DatabaseViewId>();
         sql`
             INSERT INTO
-                ${sql.tableRef(tableId, "_alpine_views")} (id, table_id, name)
+                ${sql.tableRef(tableId, "_alpine_views")} (id, name)
             VALUES
-                (
-                    ${secondViewId},
-                    ${tableId},
-                    'Second view'
-                )
+                (${secondViewId}, 'Second view')
         `.exec(db);
         const fieldId = generateChronologicalId<DatabaseFieldId>();
 

@@ -4,61 +4,31 @@ exports[`sqlite migrations preserves the current migrated SQLite schema contract
 {
   "joinTable": [
     {
-      "name": "_alpine_links_source",
-      "sql": "CREATE INDEX "_alpine_links_source" ON _alpine_links (source_row_id)",
-      "tbl_name": "_alpine_links",
-      "type": "index",
-    },
-    {
-      "name": "_alpine_links_target",
-      "sql": "CREATE INDEX "_alpine_links_target" ON _alpine_links (target_row_id)",
-      "tbl_name": "_alpine_links",
-      "type": "index",
-    },
-    {
-      "name": "sqlite_autoindex__alpine_links_1",
-      "sql": null,
-      "tbl_name": "_alpine_links",
-      "type": "index",
-    },
-    {
       "name": "_alpine_join_table",
-      "sql": "CREATE TABLE "_alpine_join_table" ( id TEXT PRIMARY KEY, source_table_id TEXT NOT NULL, source_field_id TEXT NOT NULL, target_table_id TEXT NOT NULL, target_field_id TEXT NOT NULL, CHECK (is_id (id)), CHECK (is_id (source_table_id)), CHECK (is_id (source_field_id)), CHECK (is_id (target_table_id)), CHECK (is_id (target_field_id)) ) STRICT, WITHOUT ROWID",
+      "sql": "CREATE TABLE _alpine_join_table ( id TEXT PRIMARY KEY, table_name TEXT NOT NULL, source_table_id TEXT NOT NULL, source_field_id TEXT NOT NULL, target_table_id TEXT NOT NULL, target_field_id TEXT NOT NULL, source_row_id_column_name TEXT NOT NULL, source_position_column_name TEXT NOT NULL, target_row_id_column_name TEXT NOT NULL, target_position_column_name TEXT NOT NULL, CHECK (id = '<joinTableId>'), CHECK (is_id (source_table_id)), CHECK (is_id (source_field_id)), CHECK (is_id (target_table_id)), CHECK (is_id (target_field_id)) ) STRICT, WITHOUT ROWID",
       "tbl_name": "_alpine_join_table",
-      "type": "table",
-    },
-    {
-      "name": "_alpine_links",
-      "sql": "CREATE TABLE "_alpine_links" ( source_row_id TEXT NOT NULL, target_row_id TEXT NOT NULL, _created_at TEXT NOT NULL DEFAULT (DATETIME('now')), UNIQUE (source_row_id, target_row_id), CHECK (is_id (source_row_id)), CHECK (is_id (target_row_id)), CHECK (DATETIME(_created_at) IS NOT NULL) ) STRICT",
-      "tbl_name": "_alpine_links",
       "type": "table",
     },
   ],
   "main": [
     {
-      "name": "_alpine_views_table_id",
-      "sql": "CREATE INDEX _alpine_views_table_id ON _alpine_views(table_id)",
-      "tbl_name": "_alpine_views",
-      "type": "index",
-    },
-    {
       "name": "_alpine_tables",
-      "sql": "CREATE TABLE _alpine_tables ( id TEXT PRIMARY KEY, kind TEXT NOT NULL DEFAULT 'table' CHECK (kind IN ('table', 'join')), CHECK(is_id(id)) ) STRICT, WITHOUT ROWID",
+      "sql": "CREATE TABLE _alpine_tables ( id TEXT PRIMARY KEY, kind TEXT NOT NULL, CHECK (is_id (id)), CHECK (kind IN ('table', 'join')) ) STRICT, WITHOUT ROWID",
       "tbl_name": "_alpine_tables",
       "type": "table",
     },
     {
       "name": "_alpine_views",
-      "sql": "CREATE TABLE _alpine_views ( id TEXT PRIMARY KEY, table_id TEXT NOT NULL REFERENCES _alpine_tables(id), CHECK(is_id(id)), CHECK(is_id(table_id)) ) STRICT, WITHOUT ROWID",
+      "sql": "CREATE TABLE _alpine_views ( id TEXT PRIMARY KEY, table_id TEXT NOT NULL REFERENCES _alpine_tables (id), CHECK (is_id (id)), CHECK (is_id (table_id)) ) STRICT, WITHOUT ROWID",
       "tbl_name": "_alpine_views",
       "type": "table",
     },
   ],
   "sourceTable": [
     {
-      "name": "_alpine_fields_table_id",
-      "sql": "CREATE INDEX "_alpine_fields_table_id" ON _alpine_fields (table_id)",
-      "tbl_name": "_alpine_fields",
+      "name": "_alpine_view_fields_view_id",
+      "sql": "CREATE INDEX _alpine_view_fields_view_id ON _alpine_view_fields (view_id, position)",
+      "tbl_name": "_alpine_view_fields",
       "type": "index",
     },
     {
@@ -69,34 +39,34 @@ exports[`sqlite migrations preserves the current migrated SQLite schema contract
     },
     {
       "name": "_alpine_fields",
-      "sql": "CREATE TABLE "_alpine_fields" ( id TEXT PRIMARY KEY, table_id TEXT NOT NULL REFERENCES _alpine_table (id), name TEXT NOT NULL, column_name TEXT NOT NULL, config BLOB NOT NULL, UNIQUE (table_id, column_name), CHECK (is_id (id)), CHECK (is_id (table_id)), CHECK (JSON_VALID(config, 8)) ) STRICT, WITHOUT ROWID",
+      "sql": "CREATE TABLE _alpine_fields ( id TEXT PRIMARY KEY, name TEXT NOT NULL, column_name TEXT NOT NULL, config BLOB NOT NULL, UNIQUE (column_name), CHECK (is_id (id)), CHECK (JSON_VALID(config, 8)) ) STRICT, WITHOUT ROWID",
       "tbl_name": "_alpine_fields",
       "type": "table",
     },
     {
       "name": "_alpine_table",
-      "sql": "CREATE TABLE "_alpine_table" ( id TEXT PRIMARY KEY, name TEXT NOT NULL, table_name TEXT NOT NULL, name_field_id TEXT NOT NULL, CHECK (is_id (id)) ) STRICT, WITHOUT ROWID",
+      "sql": "CREATE TABLE _alpine_table ( id TEXT PRIMARY KEY, name TEXT NOT NULL, table_name TEXT NOT NULL, name_field_id TEXT NOT NULL REFERENCES _alpine_fields (id), CHECK (id = '<sourceTableId>') ) STRICT, WITHOUT ROWID",
       "tbl_name": "_alpine_table",
       "type": "table",
     },
     {
       "name": "_alpine_view_fields",
-      "sql": "CREATE TABLE "_alpine_view_fields" ( view_id TEXT NOT NULL REFERENCES _alpine_views (id), field_id TEXT NOT NULL REFERENCES _alpine_fields (id), position TEXT NOT NULL, width INTEGER NOT NULL, hidden INTEGER NOT NULL DEFAULT 0, PRIMARY KEY (view_id, field_id), CHECK (is_id (view_id)), CHECK (is_id (field_id)), CHECK (is_order_key (position)) ) STRICT, WITHOUT ROWID",
+      "sql": "CREATE TABLE _alpine_view_fields ( view_id TEXT NOT NULL REFERENCES _alpine_views (id), field_id TEXT NOT NULL REFERENCES _alpine_fields (id), position TEXT NOT NULL, width INTEGER NOT NULL, is_visible INTEGER NOT NULL DEFAULT 1, PRIMARY KEY (view_id, field_id), CHECK (is_id (view_id)), CHECK (is_id (field_id)), CHECK (is_order_key (position)) ) STRICT, WITHOUT ROWID",
       "tbl_name": "_alpine_view_fields",
       "type": "table",
     },
     {
       "name": "_alpine_views",
-      "sql": "CREATE TABLE "_alpine_views" ( id TEXT PRIMARY KEY, table_id TEXT NOT NULL REFERENCES _alpine_table (id), name TEXT NOT NULL, CHECK (is_id (id)), CHECK (is_id (table_id)) ) STRICT, WITHOUT ROWID",
+      "sql": "CREATE TABLE _alpine_views ( id TEXT PRIMARY KEY, name TEXT NOT NULL, CHECK (is_id (id)) ) STRICT, WITHOUT ROWID",
       "tbl_name": "_alpine_views",
       "type": "table",
     },
   ],
   "targetTable": [
     {
-      "name": "_alpine_fields_table_id",
-      "sql": "CREATE INDEX "_alpine_fields_table_id" ON _alpine_fields (table_id)",
-      "tbl_name": "_alpine_fields",
+      "name": "_alpine_view_fields_view_id",
+      "sql": "CREATE INDEX _alpine_view_fields_view_id ON _alpine_view_fields (view_id, position)",
+      "tbl_name": "_alpine_view_fields",
       "type": "index",
     },
     {
@@ -107,25 +77,25 @@ exports[`sqlite migrations preserves the current migrated SQLite schema contract
     },
     {
       "name": "_alpine_fields",
-      "sql": "CREATE TABLE "_alpine_fields" ( id TEXT PRIMARY KEY, table_id TEXT NOT NULL REFERENCES _alpine_table (id), name TEXT NOT NULL, column_name TEXT NOT NULL, config BLOB NOT NULL, UNIQUE (table_id, column_name), CHECK (is_id (id)), CHECK (is_id (table_id)), CHECK (JSON_VALID(config, 8)) ) STRICT, WITHOUT ROWID",
+      "sql": "CREATE TABLE _alpine_fields ( id TEXT PRIMARY KEY, name TEXT NOT NULL, column_name TEXT NOT NULL, config BLOB NOT NULL, UNIQUE (column_name), CHECK (is_id (id)), CHECK (JSON_VALID(config, 8)) ) STRICT, WITHOUT ROWID",
       "tbl_name": "_alpine_fields",
       "type": "table",
     },
     {
       "name": "_alpine_table",
-      "sql": "CREATE TABLE "_alpine_table" ( id TEXT PRIMARY KEY, name TEXT NOT NULL, table_name TEXT NOT NULL, name_field_id TEXT NOT NULL, CHECK (is_id (id)) ) STRICT, WITHOUT ROWID",
+      "sql": "CREATE TABLE _alpine_table ( id TEXT PRIMARY KEY, name TEXT NOT NULL, table_name TEXT NOT NULL, name_field_id TEXT NOT NULL REFERENCES _alpine_fields (id), CHECK (id = '<targetTableId>') ) STRICT, WITHOUT ROWID",
       "tbl_name": "_alpine_table",
       "type": "table",
     },
     {
       "name": "_alpine_view_fields",
-      "sql": "CREATE TABLE "_alpine_view_fields" ( view_id TEXT NOT NULL REFERENCES _alpine_views (id), field_id TEXT NOT NULL REFERENCES _alpine_fields (id), position TEXT NOT NULL, width INTEGER NOT NULL, hidden INTEGER NOT NULL DEFAULT 0, PRIMARY KEY (view_id, field_id), CHECK (is_id (view_id)), CHECK (is_id (field_id)), CHECK (is_order_key (position)) ) STRICT, WITHOUT ROWID",
+      "sql": "CREATE TABLE _alpine_view_fields ( view_id TEXT NOT NULL REFERENCES _alpine_views (id), field_id TEXT NOT NULL REFERENCES _alpine_fields (id), position TEXT NOT NULL, width INTEGER NOT NULL, is_visible INTEGER NOT NULL DEFAULT 1, PRIMARY KEY (view_id, field_id), CHECK (is_id (view_id)), CHECK (is_id (field_id)), CHECK (is_order_key (position)) ) STRICT, WITHOUT ROWID",
       "tbl_name": "_alpine_view_fields",
       "type": "table",
     },
     {
       "name": "_alpine_views",
-      "sql": "CREATE TABLE "_alpine_views" ( id TEXT PRIMARY KEY, table_id TEXT NOT NULL REFERENCES _alpine_table (id), name TEXT NOT NULL, CHECK (is_id (id)), CHECK (is_id (table_id)) ) STRICT, WITHOUT ROWID",
+      "sql": "CREATE TABLE _alpine_views ( id TEXT PRIMARY KEY, name TEXT NOT NULL, CHECK (is_id (id)) ) STRICT, WITHOUT ROWID",
       "tbl_name": "_alpine_views",
       "type": "table",
     },

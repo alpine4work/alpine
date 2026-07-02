@@ -8,11 +8,9 @@ import {
     runJoinTableMigrations,
     runMainMigrations,
     runTableMigrations,
-    tableSqliteMigrations,
 } from "~/shared/databases/sqlite_migrations.js";
 import {generateChronologicalId} from "~/shared/id/chronological_id.js";
-import type {DatabaseFieldId, DatabaseRowId, DatabaseTableId} from "~/shared/id/types/id_types.js";
-import {Schema} from "~/shared/schema/schema.js";
+import type {DatabaseFieldId, DatabaseTableId} from "~/shared/id/types/id_types.js";
 
 const sqlite3Promise = sqlite3InitModule();
 let dbCounter = 0;
@@ -117,32 +115,16 @@ describe("sqlite migrations", () => {
         db.close();
     });
 
-    test("main migration backfills existing table rows as user tables", async () => {
-        const sqlite3 = await sqlite3Promise;
-        const db = new sqlite3.oo1.DB(`/test-main-migration-${dbCounter++}.sqlite3`, "ct");
-        registerSqliteCustomFunctions(sqlite3, db);
+    test("main migration creates the table kind registry", async () => {
+        const db = await createDb();
         const tableId = generateChronologicalId<DatabaseTableId>();
 
-        db.exec(`CREATE TABLE _alpine_tables (
-            id TEXT PRIMARY KEY,
-            CHECK(is_id(id))
-        ) STRICT, WITHOUT ROWID`);
-        db.exec(`CREATE TABLE _alpine_views (
-            id TEXT PRIMARY KEY,
-            table_id TEXT NOT NULL REFERENCES _alpine_tables(id),
-            CHECK(is_id(id)),
-            CHECK(is_id(table_id))
-        ) STRICT, WITHOUT ROWID`);
-        db.exec(`CREATE INDEX _alpine_views_table_id ON _alpine_views(table_id)`);
         sql`
             INSERT INTO
-                _alpine_tables (id)
+                _alpine_tables (id, kind)
             VALUES
-                (${tableId})
+                (${tableId}, 'table')
         `.exec(db);
-        db.exec("PRAGMA user_version = 1");
-
-        runMainMigrations(db);
 
         const rows = sql`
             SELECT
@@ -154,72 +136,68 @@ describe("sqlite migrations", () => {
         db.close();
     });
 
-    test("table migration backfills name_field_id from the first field id", async () => {
+    test("table migration stores JSONB field config and enforces the singleton table id", async () => {
         const db = await createDb();
         const tableId = generateChronologicalId<DatabaseTableId>();
         const firstFieldId = generateChronologicalId<DatabaseFieldId>();
-        const secondFieldId = generateChronologicalId<DatabaseFieldId>();
         attachTableDb(db, tableId);
-        const migration = tableSqliteMigrations(tableId)[0]!;
-        if (typeof migration === "function") {
-            migration(db);
-        } else {
-            migration.exec(db);
-        }
+        runTableMigrations(db, tableId);
         sql`
             INSERT INTO
-                ${sql.tableRef(tableId, "_alpine_table")} (id, name, table_name)
+                ${sql.tableRef(tableId, "_alpine_fields")} (id, name, column_name, config)
+            VALUES
+                (
+                    ${firstFieldId},
+                    'First',
+                    'first',
+                    jsonb (${DatabaseFieldConfigSqlSchema.serialize({type: "plainText"})})
+                )
+        `.exec(db);
+        sql`
+            INSERT INTO
+                ${sql.tableRef(tableId, "_alpine_table")} (id, name, table_name, name_field_id)
             VALUES
                 (
                     ${tableId},
                     'Tasks',
-                    'tasks'
+                    'tasks',
+                    ${firstFieldId}
                 )
         `.exec(db);
-        sql`
-            INSERT INTO
-                ${sql.tableRef(tableId, "_alpine_fields")} (id, table_id, name, column_name, config)
-            VALUES
-                (
-                    ${secondFieldId},
-                    ${tableId},
-                    'Second',
-                    'second',
-                    ${DatabaseFieldConfigSqlSchema.serialize({type: "plainText"})}
-                ),
-                (
-                    ${firstFieldId},
-                    ${tableId},
-                    'First',
-                    'first',
-                    ${DatabaseFieldConfigSqlSchema.serialize({type: "plainText"})}
-                )
-        `.exec(db);
-        sql` PRAGMA ${sql.identifier(databaseTableSchemaName(tableId))}.user_version = 1 `.exec(db);
-
-        runTableMigrations(db, tableId);
 
         const row = sql`
             SELECT
-                name_field_id
+                JSON(config) AS config
             FROM
-                ${sql.tableRef(tableId, "_alpine_table")}
+                ${sql.tableRef(tableId, "_alpine_fields")}
         `.selectOne(db, {
-            nameFieldId: Schema.id<DatabaseFieldId>().originalPropertyKey("name_field_id"),
+            config: DatabaseFieldConfigSqlSchema,
         });
-        expect(row.nameFieldId).toBe(firstFieldId);
+        expect(row.config).toEqual({type: "plainText"});
+
+        expect(() =>
+            sql`
+                INSERT INTO
+                    ${sql.tableRef(tableId, "_alpine_table")} (id, name, table_name, name_field_id)
+                VALUES
+                    (
+                        ${generateChronologicalId<DatabaseTableId>()},
+                        'Other',
+                        'other',
+                        ${firstFieldId}
+                    )
+            `.exec(db),
+        ).toThrow("CHECK");
         db.close();
     });
 
-    test("join table migration creates metadata, links, and unique link pairs", async () => {
+    test("join table migration creates metadata and enforces the singleton table id", async () => {
         const db = await createDb();
         const joinTableId = generateChronologicalId<DatabaseTableId>();
         const sourceTableId = generateChronologicalId<DatabaseTableId>();
         const sourceFieldId = generateChronologicalId<DatabaseFieldId>();
         const targetTableId = generateChronologicalId<DatabaseTableId>();
         const targetFieldId = generateChronologicalId<DatabaseFieldId>();
-        const sourceRowId = generateChronologicalId<DatabaseRowId>();
-        const targetRowId = generateChronologicalId<DatabaseRowId>();
         attachTableDb(db, joinTableId);
 
         runJoinTableMigrations(db, joinTableId);
@@ -227,63 +205,61 @@ describe("sqlite migrations", () => {
             INSERT INTO
                 ${sql.tableRef(joinTableId, "_alpine_join_table")} (
                     id,
+                    table_name,
                     source_table_id,
                     source_field_id,
                     target_table_id,
-                    target_field_id
+                    target_field_id,
+                    source_row_id_column_name,
+                    source_position_column_name,
+                    target_row_id_column_name,
+                    target_position_column_name
                 )
             VALUES
                 (
                     ${joinTableId},
+                    'project_tasks',
                     ${sourceTableId},
                     ${sourceFieldId},
                     ${targetTableId},
-                    ${targetFieldId}
+                    ${targetFieldId},
+                    'tasks_id',
+                    'tasks_position',
+                    'projects_id',
+                    'projects_position'
                 )
         `.exec(db);
-        sql`
-            INSERT INTO
-                ${sql.tableRef(joinTableId, "_alpine_links")} (source_row_id, target_row_id)
-            VALUES
-                (
-                    ${sourceRowId},
-                    ${targetRowId}
-                )
-        `.exec(db);
+
         expect(() =>
             sql`
                 INSERT INTO
-                    ${sql.tableRef(joinTableId, "_alpine_links")} (source_row_id, target_row_id)
+                    ${sql.tableRef(joinTableId, "_alpine_join_table")} (
+                        id,
+                        table_name,
+                        source_table_id,
+                        source_field_id,
+                        target_table_id,
+                        target_field_id,
+                        source_row_id_column_name,
+                        source_position_column_name,
+                        target_row_id_column_name,
+                        target_position_column_name
+                    )
                 VALUES
                     (
-                        ${sourceRowId},
-                        ${targetRowId}
+                        ${generateChronologicalId<DatabaseTableId>()},
+                        'other',
+                        ${sourceTableId},
+                        ${sourceFieldId},
+                        ${targetTableId},
+                        ${targetFieldId},
+                        'tasks_id',
+                        'tasks_position',
+                        'projects_id',
+                        'projects_position'
                     )
             `.exec(db),
-        ).toThrow("UNIQUE constraint failed: _alpine_links.source_row_id");
-
-        const linkCount = sql`
-            SELECT
-                COUNT(*)
-            FROM
-                ${sql.tableRef(joinTableId, "_alpine_links")}
-        `.selectValue(db, Schema.integer);
-        const indexes = sql`
-            PRAGMA ${sql.tableRef(joinTableId, "index_list")} (${sql.identifier("_alpine_links")})
-        `.selectAllUnknown(db);
-
-        expect({
-            linkCount,
-            nonUniqueIndexNames: indexes
-                .filter(index => index.unique === 0)
-                .map(index => index.name)
-                .sort(),
-            hasUniqueLinkPairIndex: indexes.some(index => index.unique === 1),
-        }).toMatchObject({
-            linkCount: 1,
-            nonUniqueIndexNames: ["_alpine_links_source", "_alpine_links_target"],
-            hasUniqueLinkPairIndex: true,
-        });
+        ).toThrow("CHECK");
         db.close();
     });
 });
