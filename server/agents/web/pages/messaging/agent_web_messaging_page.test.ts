@@ -591,6 +591,100 @@ const done = true;
             },
         },
         {
+            name: "bot message with reply preview starting with unordered list",
+            pageLink: true,
+            markdown: `\
+<message from="[Assistant](/bot/assistant)">
+
+<blockquote cite="?message=4">
+
+[Alice](/human/alice):
+
+- quoted
+
+</blockquote>
+
+Replying to a list item.
+
+</message>
+`,
+            page: {
+                preamble: {elements: []},
+                pagination: null,
+                isEndOfMessages: false,
+                blocks: [
+                    {
+                        type: "Message",
+                        idAttribute: null,
+                        author: assistantReference,
+                        timeAttribute: null,
+                        timeZoneAttribute: null,
+                        parent: {
+                            citeAttribute: {startMessageIndex: 4, endMessageIndex: 5},
+                            matchAttribute: null,
+                            author: aliceReference,
+                            previewContent: content([
+                                {
+                                    type: "UnorderedList",
+                                    items: [
+                                        {
+                                            elements: [paragraph([text("quoted")])],
+                                        },
+                                    ],
+                                },
+                            ]),
+                        },
+                        content: content([paragraph([text("Replying to a list item.")])]),
+                    },
+                ],
+            },
+        },
+        {
+            name: "bot message with reply preview starting with quote block",
+            pageLink: true,
+            markdown: `\
+<message from="[Assistant](/bot/assistant)">
+
+<blockquote cite="?message=4">
+
+[Alice](/human/alice):
+
+> quoted
+
+</blockquote>
+
+Replying to a quote block.
+
+</message>
+`,
+            page: {
+                preamble: {elements: []},
+                pagination: null,
+                isEndOfMessages: false,
+                blocks: [
+                    {
+                        type: "Message",
+                        idAttribute: null,
+                        author: assistantReference,
+                        timeAttribute: null,
+                        timeZoneAttribute: null,
+                        parent: {
+                            citeAttribute: {startMessageIndex: 4, endMessageIndex: 5},
+                            matchAttribute: null,
+                            author: aliceReference,
+                            previewContent: content([
+                                {
+                                    type: "Quote",
+                                    elements: [paragraph([text("quoted")])],
+                                },
+                            ]),
+                        },
+                        content: content([paragraph([text("Replying to a quote block.")])]),
+                    },
+                ],
+            },
+        },
+        {
             name: "escaped messaging html",
             pageLink: true,
             markdown: `\

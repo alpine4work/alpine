@@ -1209,6 +1209,66 @@ test("throws UnimplementedError when creating a reply with a blockquote parent",
     ).rejects.toThrow(UnimplementedError);
 });
 
+test("throws UnimplementedError when creating a reply to a bullet list item", async () => {
+    await readChat({
+        totalMessageCount: 1,
+        createMessage: index =>
+            createMessage({
+                index,
+                author: aliceAccount,
+                content: {
+                    elements: [
+                        {
+                            type: "UnorderedList",
+                            items: [
+                                {
+                                    elements: [
+                                        {
+                                            type: "Paragraph",
+                                            key: "bullet-parent" as ApiContentKey,
+                                            elements: [{type: "Text", text: "quoted"}],
+                                        },
+                                    ],
+                                },
+                            ],
+                        },
+                    ],
+                },
+            }),
+    });
+
+    const result = await captureResultPromise(
+        async () =>
+            await callAgentWebUpdateTool(context, {
+                path: chatPath,
+                updates: [
+                    {
+                        old: "\n\nEnd of messages.",
+                        new: '\n\n<message id="1" from="[ChatGPT](/bot/chatgpt)">\n\n<blockquote cite="?message=0">\n\n[Alice](/human/alice):\n\n- quoted\n\n</blockquote>\n\nReplying to the parent list item.\n\n</message>\n\nEnd of messages.',
+                        replaceAll: false,
+                    },
+                ],
+            }),
+    );
+
+    if (result.ok) {
+        throw new InternalError("Expected update tool call to throw");
+    }
+
+    expect(result.error).toMatchObject({
+        cause: {
+            startMessageIndex: 0,
+            endMessageIndex: 1,
+            range: {
+                start: {type: "Inline", key: "bullet-parent", index: 0},
+                end: {type: "Inline", key: "bullet-parent", index: "quoted".length},
+            },
+        },
+    });
+    expect(result.error).toBeInstanceOf(UnimplementedError);
+    expect(getCreateMessageRequests()).toEqual([]);
+});
+
 test("rejects creating a reply when the quoted parent content is not found", async () => {
     await readChat({
         totalMessageCount: 1,
