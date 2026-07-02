@@ -1,12 +1,12 @@
 import {DatabaseFieldType} from "~/shared/databases/fields/all_database_field_providers.js";
 import {
-    DatabaseFieldModel,
-    DatabaseFieldModelOfType,
+    type DatabaseFieldModel,
+    type DatabaseFieldModelOfType,
 } from "~/shared/databases/model/database_model.js";
-import {sql, SqlQuery} from "~/shared/databases/sql.js";
+import {type SqlQuery, sql} from "~/shared/databases/sql.js";
 import {assert} from "~/shared/helpers/control/assert.js";
-import {Result} from "~/shared/helpers/control/result.js";
-import {Schema, SchemaSerializedValue} from "~/shared/schema/schema.js";
+import type {Result} from "~/shared/helpers/control/result.js";
+import type {Schema, SchemaSerializedValue} from "~/shared/schema/schema.js";
 
 export type SqliteStorageType = "INTEGER" | "REAL" | "TEXT" | "BLOB";
 
@@ -15,6 +15,8 @@ export abstract class DatabaseFieldProviderBase<
     Value,
     Config extends {type: Type},
 > {
+    protected constructor() {}
+
     abstract readonly type: Type;
     abstract readonly valueSchema: Schema<Value>;
     abstract readonly configSchema: Schema<Config>;

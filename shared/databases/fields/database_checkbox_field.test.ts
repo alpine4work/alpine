@@ -1,10 +1,9 @@
 /* eslint-disable cyberworlds/string-quotes -- SQL literals */
 
 import sqlite3InitModule from "~/external/sqlite/ext/wasm/jswasm/sqlite3.mjs";
-import {DatabaseCheckboxFieldProvider} from "~/shared/databases/fields/database_checkbox_field.js";
+import {databaseCheckboxFieldProvider} from "~/shared/databases/fields/database_checkbox_field.js";
 import {sql} from "~/shared/databases/sql.js";
 
-const databaseCheckboxFieldProvider = new DatabaseCheckboxFieldProvider();
 const sqlite3Promise = sqlite3InitModule();
 let dbCounter = 0;
 

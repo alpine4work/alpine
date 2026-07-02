@@ -1,6 +1,6 @@
 import {ColumnBackedDatabaseFieldProvider} from "~/shared/databases/fields/base/database_field_provider_base.js";
 import {SqlBooleanSchema} from "~/shared/databases/model/sqlite_schema.js";
-import {SqlQuery, sql} from "~/shared/databases/sql.js";
+import {type SqlQuery, sql} from "~/shared/databases/sql.js";
 import {Result} from "~/shared/helpers/control/result.js";
 import {Schema, type SchemaType} from "~/shared/schema/schema.js";
 
@@ -15,6 +15,8 @@ export class DatabaseCheckboxFieldProvider extends ColumnBackedDatabaseFieldProv
     DatabaseCheckboxFieldValue,
     DatabaseCheckboxFieldConfig
 > {
+    static readonly instance = new DatabaseCheckboxFieldProvider();
+
     readonly type = "checkbox";
     readonly valueSchema = DatabaseCheckboxFieldValueSchema;
     readonly configSchema = DatabaseCheckboxFieldConfigSchema;
@@ -40,6 +42,8 @@ export class DatabaseCheckboxFieldProvider extends ColumnBackedDatabaseFieldProv
         return value ? "true" : "false";
     }
 }
+
+export const databaseCheckboxFieldProvider = DatabaseCheckboxFieldProvider.instance;
 
 /**
  * Strings interpreted as `false` by `parseString`. Match is on a trimmed,

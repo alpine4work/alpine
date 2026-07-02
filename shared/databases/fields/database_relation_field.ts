@@ -1,10 +1,7 @@
 import {getDatabaseFieldProvider} from "~/shared/databases/fields/all_database_field_providers.js";
 import {DatabaseFieldProviderBase} from "~/shared/databases/fields/base/database_field_provider_base.js";
-import {
-    DatabaseFieldModel,
-    DatabaseFieldModelOfType,
-} from "~/shared/databases/model/database_model.js";
-import {SqlQuery, sql} from "~/shared/databases/sql.js";
+import type {DatabaseFieldModelOfType} from "~/shared/databases/model/database_model.js";
+import {type SqlQuery, sql} from "~/shared/databases/sql.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {Result} from "~/shared/helpers/control/result.js";
 import type {DatabaseRowId, DatabaseTableId} from "~/shared/id/types/id_types.js";
@@ -32,6 +29,8 @@ export class DatabaseRelationFieldProvider extends DatabaseFieldProviderBase<
     DatabaseRelationFieldValue,
     DatabaseRelationFieldConfig
 > {
+    static readonly instance = new DatabaseRelationFieldProvider();
+
     readonly type = "relation";
     readonly valueSchema = DatabaseRelationFieldValueSchema;
     readonly configSchema = DatabaseRelationFieldConfigSchema;
@@ -150,3 +149,5 @@ export class DatabaseRelationFieldProvider extends DatabaseFieldProviderBase<
         };
     }
 }
+
+export const databaseRelationFieldProvider = DatabaseRelationFieldProvider.instance;

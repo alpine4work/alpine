@@ -1,8 +1,8 @@
 import {ColumnBackedDatabaseFieldProvider} from "~/shared/databases/fields/base/database_field_provider_base.js";
-import {sql, SqlQuery} from "~/shared/databases/sql.js";
+import {type SqlQuery, sql} from "~/shared/databases/sql.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 import type {Result} from "~/shared/helpers/control/result.js";
-import {Schema, SchemaType} from "~/shared/schema/schema.js";
+import {Schema, type SchemaType} from "~/shared/schema/schema.js";
 
 export const DatabaseNumberFieldConfigSchema = Schema.object({
     type: Schema.value("number"),
@@ -18,6 +18,8 @@ export class DatabaseNumberFieldProvider extends ColumnBackedDatabaseFieldProvid
     DatabaseNumberFieldValue,
     DatabaseNumberFieldConfig
 > {
+    static readonly instance = new DatabaseNumberFieldProvider();
+
     readonly type = "number";
     readonly valueSchema = DatabaseNumberFieldValueSchema;
     readonly configSchema = DatabaseNumberFieldConfigSchema;
@@ -43,6 +45,8 @@ export class DatabaseNumberFieldProvider extends ColumnBackedDatabaseFieldProvid
         return config.decimalPlaces == null ? String(value) : value.toFixed(config.decimalPlaces);
     }
 }
+
+export const databaseNumberFieldProvider = DatabaseNumberFieldProvider.instance;
 
 // -- parseString --------------------------------------------------------------
 

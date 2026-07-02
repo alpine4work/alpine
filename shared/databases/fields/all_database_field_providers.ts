@@ -1,17 +1,17 @@
 import {DatabaseFieldProviderBase} from "~/shared/databases/fields/base/database_field_provider_base.js";
-import {DatabaseCheckboxFieldProvider} from "~/shared/databases/fields/database_checkbox_field.js";
-import {DatabaseNumberFieldProvider} from "~/shared/databases/fields/database_number_field.js";
-import {DatabasePlainTextFieldProvider} from "~/shared/databases/fields/database_plain_text_field.js";
-import {DatabaseRelationFieldProvider} from "~/shared/databases/fields/database_relation_field.js";
+import {databaseCheckboxFieldProvider} from "~/shared/databases/fields/database_checkbox_field.js";
+import {databaseNumberFieldProvider} from "~/shared/databases/fields/database_number_field.js";
+import {databasePlainTextFieldProvider} from "~/shared/databases/fields/database_plain_text_field.js";
+import {databaseRelationFieldProvider} from "~/shared/databases/fields/database_relation_field.js";
 import {SqlJsonSchema} from "~/shared/databases/model/sqlite_schema.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {Schema, SchemaType} from "~/shared/schema/schema.js";
 
 const allDatabaseFieldProviders = [
-    new DatabaseCheckboxFieldProvider(),
-    new DatabaseNumberFieldProvider(),
-    new DatabasePlainTextFieldProvider(),
-    new DatabaseRelationFieldProvider(),
+    databaseCheckboxFieldProvider,
+    databaseNumberFieldProvider,
+    databasePlainTextFieldProvider,
+    databaseRelationFieldProvider,
 ] as const;
 
 export type DatabaseFieldType = (typeof allDatabaseFieldProviders)[number]["type"];

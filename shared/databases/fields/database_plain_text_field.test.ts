@@ -1,8 +1,7 @@
 import sqlite3InitModule from "~/external/sqlite/ext/wasm/jswasm/sqlite3.mjs";
-import {DatabasePlainTextFieldProvider} from "~/shared/databases/fields/database_plain_text_field.js";
+import {databasePlainTextFieldProvider} from "~/shared/databases/fields/database_plain_text_field.js";
 import {sql} from "~/shared/databases/sql.js";
 
-const databasePlainTextFieldProvider = new DatabasePlainTextFieldProvider();
 const sqlite3Promise = sqlite3InitModule();
 let dbCounter = 0;
 

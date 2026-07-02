@@ -1,8 +1,7 @@
 import sqlite3InitModule from "~/external/sqlite/ext/wasm/jswasm/sqlite3.mjs";
-import {DatabaseNumberFieldProvider} from "~/shared/databases/fields/database_number_field.js";
+import {databaseNumberFieldProvider} from "~/shared/databases/fields/database_number_field.js";
 import {sql} from "~/shared/databases/sql.js";
 
-const databaseNumberFieldProvider = new DatabaseNumberFieldProvider();
 const sqlite3Promise = sqlite3InitModule();
 let dbCounter = 0;
 

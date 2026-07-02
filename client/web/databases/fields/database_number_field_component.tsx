@@ -10,9 +10,7 @@ import {
 } from "~/client/web/databases/fields/database_field_component_provider.js";
 import {Box} from "~/client/web/design/box.js";
 import {sprinkles} from "~/client/web/styles/styles.js";
-import {DatabaseNumberFieldProvider} from "~/shared/databases/fields/database_number_field.js";
-
-const databaseNumberFieldProvider = new DatabaseNumberFieldProvider();
+import {databaseNumberFieldProvider} from "~/shared/databases/fields/database_number_field.js";
 
 function DatabaseNumberGridViewCellContent({
     ref,
