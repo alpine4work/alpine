@@ -35,8 +35,9 @@ describe("intoApiMessageContentPayloadParent", () => {
                 type: "Message",
                 index: 5,
                 contentSnippet: {
-                    elements: [{type: "Text", text: "Short message"}],
-                    isTruncated: false,
+                    elements: [
+                        {type: "Paragraph", elements: [{type: "Text", text: "Short message"}]},
+                    ],
                 },
                 author: expect.objectContaining({
                     id: session.account.id,
@@ -64,8 +65,9 @@ describe("intoApiMessageContentPayloadParent", () => {
                 index: 0,
                 endIndex: 1,
                 contentSnippet: {
-                    elements: [{type: "Text", text: "Test content"}],
-                    isTruncated: false,
+                    elements: [
+                        {type: "Paragraph", elements: [{type: "Text", text: "Test content"}]},
+                    ],
                 },
                 author: expect.objectContaining({
                     id: session.account.id,
@@ -91,8 +93,9 @@ describe("intoApiMessageContentPayloadParent", () => {
             expect(result).toEqual({
                 type: "Post",
                 contentSnippet: {
-                    elements: [{type: "Text", text: "Post content"}],
-                    isTruncated: false,
+                    elements: [
+                        {type: "Paragraph", elements: [{type: "Text", text: "Post content"}]},
+                    ],
                 },
                 author: expect.objectContaining({
                     id: session.account.id,
@@ -101,37 +104,12 @@ describe("intoApiMessageContentPayloadParent", () => {
         });
     });
 
-    describe("content snippet and truncation detection", () => {
-        test("correctly detects non-truncated short content", async () => {
+    describe("content snippet structure", () => {
+        test("preserves multiple paragraphs without truncation", async () => {
             const space = await TestSpace.create(context);
             const session = await space.createSession({role: "Admin"});
             const bot = await TestBot.createAndInstantiate(session);
 
-            const content = createSimpleMessageContent("Short");
-
-            const result = await intoApiMessageContentPayloadParent(bot.action(), space.id, {
-                type: "Message",
-                index: 0,
-                content,
-                authorId: session.account.id,
-            });
-
-            expect(result).toEqual({
-                type: "Message",
-                index: 0,
-                contentSnippet: {elements: [{type: "Text", text: "Short"}], isTruncated: false},
-                author: expect.objectContaining({
-                    id: session.account.id,
-                }),
-            });
-        });
-
-        test("correctly detects truncated multi-paragraph content", async () => {
-            const space = await TestSpace.create(context);
-            const session = await space.createSession({role: "Admin"});
-            const bot = await TestBot.createAndInstantiate(session);
-
-            // Create content with many paragraphs that will be truncated to 3 lines
             const content = MessageContentProsemirrorSchema.node("doc", {}, [
                 MessageContentProsemirrorSchema.node("paragraph", {}, [
                     MessageContentProsemirrorSchema.text("First paragraph with some content"),
@@ -140,18 +118,10 @@ describe("intoApiMessageContentPayloadParent", () => {
                     MessageContentProsemirrorSchema.text("Second paragraph with more content"),
                 ]),
                 MessageContentProsemirrorSchema.node("paragraph", {}, [
-                    MessageContentProsemirrorSchema.text("Third paragraph with even more content"),
-                ]),
-                MessageContentProsemirrorSchema.node("paragraph", {}, [
                     MessageContentProsemirrorSchema.text(
-                        "Fourth paragraph with much more text because the number 4 is pretty cool",
-                    ),
-                ]),
-                MessageContentProsemirrorSchema.node("paragraph", {}, [
-                    MessageContentProsemirrorSchema.text(
-                        `Fifth paragraph should be truncated ${"because it has a lot of text ".repeat(
+                        `Third paragraph with a lot of text ${"because it has a lot of text ".repeat(
                             50,
-                        )}`,
+                        )}`.trim(),
                     ),
                 ]),
             ]);
@@ -169,30 +139,54 @@ describe("intoApiMessageContentPayloadParent", () => {
                 contentSnippet: {
                     elements: [
                         {
-                            type: "Text",
-                            text: "First paragraph with some content. Second paragraph with more content. Third paragraph with even more content. Fourth paragraph with much more text because the number 4 is pretty cool. Fifth paragraph should be truncated because it has a lot of text because it has a lot of text because it has a lot of text because it has a lot of text because it has a lot of text because it has a lot of text because",
+                            type: "Paragraph",
+                            elements: [{type: "Text", text: "First paragraph with some content"}],
+                        },
+                        {
+                            type: "Paragraph",
+                            elements: [{type: "Text", text: "Second paragraph with more content"}],
+                        },
+                        {
+                            type: "Paragraph",
+                            elements: [
+                                {
+                                    type: "Text",
+                                    text: `Third paragraph with a lot of text ${"because it has a lot of text ".repeat(
+                                        50,
+                                    )}`.trim(),
+                                },
+                            ],
                         },
                     ],
-                    isTruncated: true,
                 },
                 author: expect.objectContaining({
                     id: session.account.id,
                 }),
             });
         });
-        test("correctly detects truncated content with very long text", async () => {
+
+        test("preserves list structure", async () => {
             const space = await TestSpace.create(context);
             const session = await space.createSession({role: "Admin"});
             const bot = await TestBot.createAndInstantiate(session);
 
-            // Create a very long single paragraph that exceeds 3 lines
-            const longText = "hello world ".repeat(1000); // Very long text that will definitely be truncated
-            const content = createSimpleMessageContent(longText);
+            const content = MessageContentProsemirrorSchema.node("doc", {}, [
+                MessageContentProsemirrorSchema.node("unorderedListItem", {indent: 0}, [
+                    MessageContentProsemirrorSchema.node("paragraph", {}, [
+                        MessageContentProsemirrorSchema.text("First list item"),
+                    ]),
+                ]),
+                MessageContentProsemirrorSchema.node("unorderedListItem", {indent: 0}, [
+                    MessageContentProsemirrorSchema.node("paragraph", {}, [
+                        MessageContentProsemirrorSchema.text("Second list item"),
+                    ]),
+                ]),
+            ]);
 
             const result = await intoApiMessageContentPayloadParent(bot.action(), space.id, {
                 type: "Message",
                 index: 0,
-                content,
+                content: assertMessageContent(content),
                 authorId: session.account.id,
             });
 
@@ -200,8 +194,29 @@ describe("intoApiMessageContentPayloadParent", () => {
                 type: "Message",
                 index: 0,
                 contentSnippet: {
-                    elements: [{type: "Text", text: "hello world ".repeat(33).trim()}],
-                    isTruncated: true,
+                    elements: [
+                        {
+                            type: "UnorderedList",
+                            items: [
+                                {
+                                    elements: [
+                                        {
+                                            type: "Paragraph",
+                                            elements: [{type: "Text", text: "First list item"}],
+                                        },
+                                    ],
+                                },
+                                {
+                                    elements: [
+                                        {
+                                            type: "Paragraph",
+                                            elements: [{type: "Text", text: "Second list item"}],
+                                        },
+                                    ],
+                                },
+                            ],
+                        },
+                    ],
                 },
                 author: expect.objectContaining({
                     id: session.account.id,
@@ -230,7 +245,7 @@ describe("intoApiMessageContentPayloadParent", () => {
             expect(result).toEqual({
                 type: "Message",
                 index: 0,
-                contentSnippet: {elements: [], isTruncated: false},
+                contentSnippet: {elements: []},
                 author: expect.objectContaining({
                     id: session.account.id,
                 }),
@@ -254,7 +269,41 @@ describe("intoApiMessageContentPayloadParent", () => {
 
             expect(result).toEqual({
                 type: "Post",
-                contentSnippet: {elements: [], isTruncated: false},
+                contentSnippet: {elements: []},
+                author: expect.objectContaining({
+                    id: session.account.id,
+                }),
+            });
+        });
+
+        test("drops empty paragraphs surrounding the content", async () => {
+            const space = await TestSpace.create(context);
+            const session = await space.createSession({role: "Admin"});
+            const bot = await TestBot.createAndInstantiate(session);
+
+            const content = MessageContentProsemirrorSchema.node("doc", {}, [
+                MessageContentProsemirrorSchema.node("paragraph"),
+                MessageContentProsemirrorSchema.node("paragraph", {}, [
+                    MessageContentProsemirrorSchema.text("Middle paragraph"),
+                ]),
+                MessageContentProsemirrorSchema.node("paragraph"),
+            ]);
+
+            const result = await intoApiMessageContentPayloadParent(bot.action(), space.id, {
+                type: "Message",
+                index: 0,
+                content: assertMessageContent(content),
+                authorId: session.account.id,
+            });
+
+            expect(result).toEqual({
+                type: "Message",
+                index: 0,
+                contentSnippet: {
+                    elements: [
+                        {type: "Paragraph", elements: [{type: "Text", text: "Middle paragraph"}]},
+                    ],
+                },
                 author: expect.objectContaining({
                     id: session.account.id,
                 }),
@@ -291,20 +340,14 @@ describe("intoApiMessageContentPayloadParent", () => {
                 contentSnippet: {
                     elements: [
                         {
-                            type: "Text",
-                            text: "This is ",
-                        },
-                        {
-                            type: "Text",
-                            text: "code text",
-                            marks: [{type: "Code"}],
-                        },
-                        {
-                            type: "Text",
-                            text: " here",
+                            type: "Paragraph",
+                            elements: [
+                                {type: "Text", text: "This is "},
+                                {type: "Text", text: "code text", marks: [{type: "Code"}]},
+                                {type: "Text", text: " here"},
+                            ],
                         },
                     ],
-                    isTruncated: false,
                 },
                 author: expect.objectContaining({
                     id: session.account.id,
@@ -312,7 +355,7 @@ describe("intoApiMessageContentPayloadParent", () => {
             });
         });
 
-        test("doesn\u2019t include bold marks in content snippet", async () => {
+        test("includes bold and italic marks in content snippet", async () => {
             const space = await TestSpace.create(context);
             const session = await space.createSession({role: "Admin"});
             const bot = await TestBot.createAndInstantiate(session);
@@ -323,47 +366,10 @@ describe("intoApiMessageContentPayloadParent", () => {
                     MessageContentProsemirrorSchema.text("bold text", [
                         MessageContentProsemirrorSchema.mark("bold"),
                     ]),
-                    MessageContentProsemirrorSchema.text(" here"),
-                ]),
-            ]);
-
-            const result = await intoApiMessageContentPayloadParent(bot.action(), space.id, {
-                type: "Message",
-                index: 0,
-                content: assertMessageContent(content),
-                authorId: session.account.id,
-            });
-
-            expect(result).toEqual({
-                type: "Message",
-                index: 0,
-                contentSnippet: {
-                    elements: [
-                        {
-                            type: "Text",
-                            text: "This is bold text here",
-                        },
-                    ],
-                    isTruncated: false,
-                },
-                author: expect.objectContaining({
-                    id: session.account.id,
-                }),
-            });
-        });
-
-        test("doesn\u2019t include italic marks in content snippet", async () => {
-            const space = await TestSpace.create(context);
-            const session = await space.createSession({role: "Admin"});
-            const bot = await TestBot.createAndInstantiate(session);
-
-            const content = MessageContentProsemirrorSchema.node("doc", {}, [
-                MessageContentProsemirrorSchema.node("paragraph", {}, [
-                    MessageContentProsemirrorSchema.text("This is "),
+                    MessageContentProsemirrorSchema.text(" and "),
                     MessageContentProsemirrorSchema.text("italic text", [
                         MessageContentProsemirrorSchema.mark("italic"),
                     ]),
-                    MessageContentProsemirrorSchema.text(" here"),
                 ]),
             ]);
 
@@ -380,60 +386,15 @@ describe("intoApiMessageContentPayloadParent", () => {
                 contentSnippet: {
                     elements: [
                         {
-                            type: "Text",
-                            text: "This is italic text here",
+                            type: "Paragraph",
+                            elements: [
+                                {type: "Text", text: "This is "},
+                                {type: "Text", text: "bold text", marks: [{type: "Bold"}]},
+                                {type: "Text", text: " and "},
+                                {type: "Text", text: "italic text", marks: [{type: "Italic"}]},
+                            ],
                         },
                     ],
-                    isTruncated: false,
-                },
-                author: expect.objectContaining({
-                    id: session.account.id,
-                }),
-            });
-        });
-
-        test("includes strike marks in content snippet", async () => {
-            const space = await TestSpace.create(context);
-            const session = await space.createSession({role: "Admin"});
-            const bot = await TestBot.createAndInstantiate(session);
-
-            const content = MessageContentProsemirrorSchema.node("doc", {}, [
-                MessageContentProsemirrorSchema.node("paragraph", {}, [
-                    MessageContentProsemirrorSchema.text("Some "),
-                    MessageContentProsemirrorSchema.text("strikethrough", [
-                        MessageContentProsemirrorSchema.mark("strike"),
-                    ]),
-                    MessageContentProsemirrorSchema.text(" text"),
-                ]),
-            ]);
-
-            const result = await intoApiMessageContentPayloadParent(bot.action(), space.id, {
-                type: "Message",
-                index: 0,
-                content: assertMessageContent(content),
-                authorId: session.account.id,
-            });
-
-            expect(result).toEqual({
-                type: "Message",
-                index: 0,
-                contentSnippet: {
-                    elements: [
-                        {
-                            type: "Text",
-                            text: "Some ",
-                        },
-                        {
-                            type: "Text",
-                            text: "strikethrough",
-                            marks: [{type: "Strike"}],
-                        },
-                        {
-                            type: "Text",
-                            text: " text",
-                        },
-                    ],
-                    isTruncated: false,
                 },
                 author: expect.objectContaining({
                     id: session.account.id,
@@ -469,120 +430,17 @@ describe("intoApiMessageContentPayloadParent", () => {
                 contentSnippet: {
                     elements: [
                         {
-                            type: "Text",
-                            text: "Text with ",
-                        },
-                        {
-                            type: "Text",
-                            text: "code and strike",
-                            marks: [{type: "Code"}, {type: "Strike"}],
-                        },
-                    ],
-                    isTruncated: false,
-                },
-                author: expect.objectContaining({
-                    id: session.account.id,
-                }),
-            });
-        });
-
-        test("includes strike and code marks", async () => {
-            const space = await TestSpace.create(context);
-            const session = await space.createSession({role: "Admin"});
-            const bot = await TestBot.createAndInstantiate(session);
-
-            const content = MessageContentProsemirrorSchema.node("doc", {}, [
-                MessageContentProsemirrorSchema.node("paragraph", {}, [
-                    MessageContentProsemirrorSchema.text("Some "),
-                    MessageContentProsemirrorSchema.text("strikethrough", [
-                        MessageContentProsemirrorSchema.mark("strike"),
-                    ]),
-                    MessageContentProsemirrorSchema.text(" and "),
-                    MessageContentProsemirrorSchema.text("code", [
-                        MessageContentProsemirrorSchema.mark("code"),
-                    ]),
-                ]),
-            ]);
-
-            const result = await intoApiMessageContentPayloadParent(bot.action(), space.id, {
-                type: "Message",
-                index: 0,
-                content: assertMessageContent(content),
-                authorId: session.account.id,
-            });
-
-            expect(result).toEqual({
-                type: "Message",
-                index: 0,
-                contentSnippet: {
-                    elements: [
-                        {
-                            type: "Text",
-                            text: "Some ",
-                        },
-                        {
-                            type: "Text",
-                            text: "strikethrough",
-                            marks: [{type: "Strike"}],
-                        },
-                        {
-                            type: "Text",
-                            text: " and ",
-                        },
-                        {
-                            type: "Text",
-                            text: "code",
-                            marks: [{type: "Code"}],
+                            type: "Paragraph",
+                            elements: [
+                                {type: "Text", text: "Text with "},
+                                {
+                                    type: "Text",
+                                    text: "code and strike",
+                                    marks: [{type: "Strike"}, {type: "Code"}],
+                                },
+                            ],
                         },
                     ],
-                    isTruncated: false,
-                },
-                author: expect.objectContaining({
-                    id: session.account.id,
-                }),
-            });
-        });
-
-        test("preserves code marks in truncated content", async () => {
-            const space = await TestSpace.create(context);
-            const session = await space.createSession({role: "Admin"});
-            const bot = await TestBot.createAndInstantiate(session);
-
-            const content = MessageContentProsemirrorSchema.node("doc", {}, [
-                MessageContentProsemirrorSchema.node("paragraph", {}, [
-                    MessageContentProsemirrorSchema.text("Normal text "),
-                    MessageContentProsemirrorSchema.text("code text ".repeat(100), [
-                        MessageContentProsemirrorSchema.mark("code"),
-                    ]),
-                ]),
-                MessageContentProsemirrorSchema.node("paragraph", {}, [
-                    MessageContentProsemirrorSchema.text("This should be truncated"),
-                ]),
-            ]);
-
-            const result = await intoApiMessageContentPayloadParent(bot.action(), space.id, {
-                type: "Message",
-                index: 0,
-                content: assertMessageContent(content),
-                authorId: session.account.id,
-            });
-
-            expect(result).toEqual({
-                type: "Message",
-                index: 0,
-                contentSnippet: {
-                    elements: [
-                        {
-                            type: "Text",
-                            text: "Normal text ",
-                        },
-                        {
-                            type: "Text",
-                            text: "code text ".repeat(38) + "code",
-                            marks: [{type: "Code"}],
-                        },
-                    ],
-                    isTruncated: true,
                 },
                 author: expect.objectContaining({
                     id: session.account.id,

@@ -591,6 +591,99 @@ const done = true;
             },
         },
         {
+            name: "bot message with reply preview of a list with the author on its own line",
+            pageLink: true,
+            markdown: `\
+<message from="[Assistant](/bot/assistant)">
+
+<blockquote cite="?message=4">
+
+[Alice](/human/alice):
+
+- First list item
+
+- Second list item
+
+</blockquote>
+
+Sounds good.
+
+</message>
+`,
+            page: {
+                preamble: {elements: []},
+                pagination: null,
+                isEndOfMessages: false,
+                blocks: [
+                    {
+                        type: "Message",
+                        idAttribute: null,
+                        author: assistantReference,
+                        timeAttribute: null,
+                        timeZoneAttribute: null,
+                        parent: {
+                            citeAttribute: {startMessageIndex: 4, endMessageIndex: 5},
+                            matchAttribute: null,
+                            author: aliceReference,
+                            previewContent: content([
+                                {
+                                    type: "UnorderedList",
+                                    items: [
+                                        {elements: [paragraph([text("First list item")])]},
+                                        {elements: [paragraph([text("Second list item")])]},
+                                    ],
+                                },
+                            ]),
+                        },
+                        content: content([paragraph([text("Sounds good.")])]),
+                    },
+                ],
+            },
+        },
+        {
+            name: "bot message with reply preview of multiple paragraphs",
+            pageLink: true,
+            markdown: `\
+<message from="[Assistant](/bot/assistant)">
+
+<blockquote cite="?message=4">
+
+[Alice](/human/alice): First quoted paragraph.
+
+Second quoted paragraph.
+
+</blockquote>
+
+Sounds good.
+
+</message>
+`,
+            page: {
+                preamble: {elements: []},
+                pagination: null,
+                isEndOfMessages: false,
+                blocks: [
+                    {
+                        type: "Message",
+                        idAttribute: null,
+                        author: assistantReference,
+                        timeAttribute: null,
+                        timeZoneAttribute: null,
+                        parent: {
+                            citeAttribute: {startMessageIndex: 4, endMessageIndex: 5},
+                            matchAttribute: null,
+                            author: aliceReference,
+                            previewContent: content([
+                                paragraph([text("First quoted paragraph.")]),
+                                paragraph([text("Second quoted paragraph.")]),
+                            ]),
+                        },
+                        content: content([paragraph([text("Sounds good.")])]),
+                    },
+                ],
+            },
+        },
+        {
             name: "escaped messaging html",
             pageLink: true,
             markdown: `\

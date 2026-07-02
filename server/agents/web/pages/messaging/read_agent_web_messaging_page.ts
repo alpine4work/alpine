@@ -22,13 +22,8 @@ import {
 import {unzipKeysFromApiContentResponse} from "~/shared/api/content/zip_or_unzip_keys_from_api_content_response.js";
 import {intoApiAccountReference} from "~/shared/api/specification/into_api_account_reference.js";
 import {ApiContentKey} from "~/shared/api/specification/types/api_content_key.js";
+import {ApiContentBlockElementResponseWithoutKeys} from "~/shared/api/specification/types/api_content_response_without_keys.js";
 import {
-    ApiContentBlockElementResponseWithoutKeys,
-    ApiContentResponseWithoutKeys,
-} from "~/shared/api/specification/types/api_content_response_without_keys.js";
-import {
-    ApiContentInlineElementResponse,
-    ApiMessageContentPayloadParentContentSnippet,
     ApiMessageResponse,
     ApiMessageRoomReference,
 } from "~/shared/api/specification/types/api_specification_convenience_types.js";
@@ -833,10 +828,7 @@ function buildAgentWebMessagingPageFromApiMessages<
                         // NOCOMMIT: Proper value for `matchAttribute` on read
                         matchAttribute: null,
                         author: intoApiAccountReference(messageParent.author),
-                        previewContent:
-                            convertApiMessageContentPayloadParentContentSnippetToContent(
-                                messageParent.contentSnippet,
-                            ),
+                        previewContent: messageParent.contentSnippet,
                     };
                     break;
                 }
@@ -895,14 +887,4 @@ function buildAgentWebMessagingPageFromApiMessages<
 
         currentBlock = null;
     }
-}
-
-function convertApiMessageContentPayloadParentContentSnippetToContent(
-    parent: ApiMessageContentPayloadParentContentSnippet,
-): ApiContentResponseWithoutKeys {
-    const elements: ReadonlyArray<ApiContentInlineElementResponse> = !parent.isTruncated
-        ? parent.elements
-        : [...parent.elements, {type: "Text", text: " […]"}];
-
-    return {elements: [{type: "Paragraph", elements}]};
 }

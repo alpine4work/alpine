@@ -809,8 +809,12 @@ export function testMessagingApiImplementation(
                                 index: message2.index,
                                 author: expect.objectContaining({id: session.account.id}),
                                 contentSnippet: {
-                                    isTruncated: false,
-                                    elements: [{type: "Text", text: "foobar"}],
+                                    elements: [
+                                        {
+                                            type: "Paragraph",
+                                            elements: [{type: "Text", text: "foobar"}],
+                                        },
+                                    ],
                                 },
                             }),
                         }),
@@ -876,8 +880,12 @@ export function testMessagingApiImplementation(
                                 index: message2.index,
                                 author: expect.objectContaining({id: session.account.id}),
                                 contentSnippet: {
-                                    isTruncated: false,
-                                    elements: [{type: "Text", text: "foobar"}],
+                                    elements: [
+                                        {
+                                            type: "Paragraph",
+                                            elements: [{type: "Text", text: "foobar"}],
+                                        },
+                                    ],
                                 },
                             }),
                         }),
@@ -2543,12 +2551,18 @@ export function testMessagingApiImplementation(
                     decoder.decode(part1Element.key),
                     decoder.decode(part2Element.key),
                 ]).toEqual([
-                    {version: 0, pos: 0, nodeSize: baseNode.nodeSize},
-                    {version: 0, pos: baseNode.nodeSize, nodeSize: part1Node.nodeSize},
+                    {version: 0, pos: 0, nodeSize: baseNode.nodeSize, isInline: true},
+                    {
+                        version: 0,
+                        pos: baseNode.nodeSize,
+                        nodeSize: part1Node.nodeSize,
+                        isInline: true,
+                    },
                     {
                         version: 0,
                         pos: baseNode.nodeSize + part1Node.nodeSize,
                         nodeSize: part2Node.nodeSize,
+                        isInline: true,
                     },
                 ]);
             });
@@ -4436,7 +4450,7 @@ export function testMessagingApiImplementation(
         });
 
         describe("message parents", () => {
-            test("includes parent with short content snippet (not truncated)", async () => {
+            test("includes parent content snippet", async () => {
                 const space = await TestSpace.create(context);
                 const session = await space.createSession({name: "Alice Smith", role: "Admin"});
 
@@ -4470,11 +4484,10 @@ export function testMessagingApiImplementation(
                     contentSnippet: {
                         elements: [
                             {
-                                type: "Text",
-                                text: "Short parent",
+                                type: "Paragraph",
+                                elements: [{type: "Text", text: "Short parent"}],
                             },
                         ],
-                        isTruncated: false,
                     },
                     author: expect.objectContaining({
                         id: session.account.id,
@@ -4483,7 +4496,7 @@ export function testMessagingApiImplementation(
                 });
             });
 
-            test("includes parent with long content snippet (truncated)", async () => {
+            test("includes parent content snippet without truncating long content", async () => {
                 const space = await TestSpace.create(context);
                 const session = await space.createSession({name: "Bob Jones", role: "Admin"});
 
@@ -4492,9 +4505,9 @@ export function testMessagingApiImplementation(
 
                 const {roomPath, room} = await createPrivateRoom(session, bot);
 
-                // Create a long parent message that should be truncated
-                const longText =
-                    "This is a very long parent message that should be truncated. ".repeat(10);
+                const longText = "This is a very long parent message that should not be truncated. "
+                    .repeat(10)
+                    .trimEnd();
                 const parentMessage = await TestMessagingRoomBase.createMessage(
                     room,
                     session,
@@ -4519,18 +4532,91 @@ export function testMessagingApiImplementation(
                     contentSnippet: {
                         elements: [
                             {
-                                type: "Text",
-                                text:
-                                    "This is a very long parent message that should be truncated. ".repeat(
-                                        6,
-                                    ) + "This is a very long parent",
+                                type: "Paragraph",
+                                elements: [{type: "Text", text: longText}],
                             },
                         ],
-                        isTruncated: true,
                     },
                     author: expect.objectContaining({
                         id: session.account.id,
                         name: "Bob Jones",
+                    }),
+                });
+            });
+
+            test("includes parent list content in content snippet", async () => {
+                const space = await TestSpace.create(context);
+                const session = await space.createSession({name: "Harry Hill", role: "Admin"});
+
+                const bot = await TestBot.createAndInstantiate(session);
+                const apiKey = await bot.createApiKey(session);
+
+                const {roomPath, room} = await createPrivateRoom(session, bot);
+
+                const parentContent = MessageContentProsemirrorSchema.node("doc", {}, [
+                    MessageContentProsemirrorSchema.node("unorderedListItem", {indent: 0}, [
+                        MessageContentProsemirrorSchema.node("paragraph", {}, [
+                            MessageContentProsemirrorSchema.text("First list item"),
+                        ]),
+                    ]),
+                    MessageContentProsemirrorSchema.node("unorderedListItem", {indent: 0}, [
+                        MessageContentProsemirrorSchema.node("paragraph", {}, [
+                            MessageContentProsemirrorSchema.text("Second list item"),
+                        ]),
+                    ]),
+                ]);
+
+                const parentMessage = await TestMessagingRoomBase.createMessage(
+                    room,
+                    session,
+                    assertMessageContent(parentContent),
+                );
+
+                const replyMessage = await TestMessagingRoomBase.createMessage(
+                    room,
+                    session,
+                    "Reply to list",
+                    {parent: parentMessage},
+                );
+
+                const response = await server.GET(`${roomPath}/messages/${replyMessage.index}`, {
+                    headers: {authorization: `bearer ${apiKey}`},
+                });
+
+                expect(response.status).toEqual(200);
+                expect(response.body.message.payload.parent).toEqual({
+                    type: "Message",
+                    index: parentMessage.index,
+                    contentSnippet: {
+                        elements: [
+                            {
+                                type: "UnorderedList",
+                                items: [
+                                    {
+                                        elements: [
+                                            {
+                                                type: "Paragraph",
+                                                elements: [{type: "Text", text: "First list item"}],
+                                            },
+                                        ],
+                                    },
+                                    {
+                                        elements: [
+                                            {
+                                                type: "Paragraph",
+                                                elements: [
+                                                    {type: "Text", text: "Second list item"},
+                                                ],
+                                            },
+                                        ],
+                                    },
+                                ],
+                            },
+                        ],
+                    },
+                    author: expect.objectContaining({
+                        id: session.account.id,
+                        name: "Harry Hill",
                     }),
                 });
             });
@@ -4584,29 +4670,33 @@ export function testMessagingApiImplementation(
                     contentSnippet: {
                         elements: [
                             {
-                                type: "Text",
-                                text: "This is ",
-                            },
-                            {
-                                type: "Text",
-                                text: "code",
-                                marks: [{type: "Code"}],
-                            },
-                            {
-                                type: "Text",
-                                text: " and ",
-                            },
-                            {
-                                type: "Text",
-                                text: "strike",
-                                marks: [{type: "Strike"}],
-                            },
-                            {
-                                type: "Text",
-                                text: " text",
+                                type: "Paragraph",
+                                elements: [
+                                    {
+                                        type: "Text",
+                                        text: "This is ",
+                                    },
+                                    {
+                                        type: "Text",
+                                        text: "code",
+                                        marks: [{type: "Code"}],
+                                    },
+                                    {
+                                        type: "Text",
+                                        text: " and ",
+                                    },
+                                    {
+                                        type: "Text",
+                                        text: "strike",
+                                        marks: [{type: "Strike"}],
+                                    },
+                                    {
+                                        type: "Text",
+                                        text: " text",
+                                    },
+                                ],
                             },
                         ],
-                        isTruncated: false,
                     },
                     author: expect.objectContaining({
                         id: session.account.id,
@@ -4665,16 +4755,20 @@ export function testMessagingApiImplementation(
                                     contentSnippet: {
                                         elements: [
                                             {
-                                                type: "Text",
-                                                text: "Normal text and ",
-                                            },
-                                            {
-                                                type: "Text",
-                                                text: "code strike",
-                                                marks: [{type: "Code"}, {type: "Strike"}],
+                                                type: "Paragraph",
+                                                elements: [
+                                                    {
+                                                        type: "Text",
+                                                        text: "Normal text and ",
+                                                    },
+                                                    {
+                                                        type: "Text",
+                                                        text: "code strike",
+                                                        marks: [{type: "Strike"}, {type: "Code"}],
+                                                    },
+                                                ],
                                             },
                                         ],
-                                        isTruncated: false,
                                     },
                                     author: expect.objectContaining({id: session.account.id}),
                                 },
@@ -4684,7 +4778,7 @@ export function testMessagingApiImplementation(
                 });
             });
 
-            test("includes MessagesRange parent with short content snippet (not truncated)", async () => {
+            test("includes MessagesRange parent with a content snippet spanning messages", async () => {
                 const space = await TestSpace.create(context);
                 const session = await space.createSession({name: "Eve Adams", role: "Admin"});
 
@@ -4735,11 +4829,18 @@ export function testMessagingApiImplementation(
                     contentSnippet: {
                         elements: [
                             {
-                                type: "Text",
-                                text: "t message. Second message. Thi",
+                                type: "Paragraph",
+                                elements: [{type: "Text", text: "t message"}],
+                            },
+                            {
+                                type: "Paragraph",
+                                elements: [{type: "Text", text: "Second message"}],
+                            },
+                            {
+                                type: "Paragraph",
+                                elements: [{type: "Text", text: "Thi"}],
                             },
                         ],
-                        isTruncated: false,
                     },
                     author: expect.objectContaining({
                         id: session.account.id,
@@ -4748,7 +4849,7 @@ export function testMessagingApiImplementation(
                 });
             });
 
-            test("includes MessagesRange parent with long content snippet (truncated)", async () => {
+            test("includes MessagesRange parent content snippet without truncating long content", async () => {
                 const space = await TestSpace.create(context);
                 const session = await space.createSession({name: "Frank Miller", role: "Admin"});
 
@@ -4757,10 +4858,9 @@ export function testMessagingApiImplementation(
 
                 const {roomPath, room} = await createPrivateRoom(session, bot);
 
-                // Create a long first message that should be truncated
-                const longText = "This is a very long message that should be truncated. ".repeat(
-                    10,
-                );
+                const longText = "This is a very long message that should not be truncated. "
+                    .repeat(10)
+                    .trimEnd();
                 const message1 = await TestMessagingRoomBase.createMessage(room, session, longText);
                 const message2 = await TestMessagingRoomBase.createMessage(
                     room,
@@ -4798,11 +4898,14 @@ export function testMessagingApiImplementation(
                         contentSnippet: {
                             elements: [
                                 {
-                                    type: "Text",
-                                    text: " is a very long message that should be truncated. This is a very long message that should be truncated. This is a very long message that should be truncated. This is a very long message that should be truncated. This is a very long message that should be truncated. This is a very long message that should be truncated. This is a very long message that should be truncated. This is a very long",
+                                    type: "Paragraph",
+                                    elements: [{type: "Text", text: longText.slice(4)}],
+                                },
+                                {
+                                    type: "Paragraph",
+                                    elements: [{type: "Text", text: "Second message"}],
                                 },
                             ],
-                            isTruncated: true,
                         },
                         author: expect.objectContaining({
                             id: session.account.id,
@@ -4810,12 +4913,6 @@ export function testMessagingApiImplementation(
                         }),
                     }),
                 );
-
-                // Verify that contentSnippet exists but is truncated
-                expect(response.body.message.payload.parent.contentSnippet).toBeDefined();
-                const snippetText =
-                    response.body.message.payload.parent.contentSnippet.elements[0].text;
-                expect(snippetText.length).toBeLessThan(longText.length);
             });
 
             test("includes MessagesRange parent with marks in content snippet", async () => {
@@ -4883,29 +4980,37 @@ export function testMessagingApiImplementation(
                     contentSnippet: {
                         elements: [
                             {
-                                type: "Text",
-                                text: " is ",
+                                type: "Paragraph",
+                                elements: [
+                                    {
+                                        type: "Text",
+                                        text: " is ",
+                                    },
+                                    {
+                                        type: "Text",
+                                        text: "code",
+                                        marks: [{type: "Code"}],
+                                    },
+                                    {
+                                        type: "Text",
+                                        text: " and ",
+                                    },
+                                    {
+                                        type: "Text",
+                                        text: "strike",
+                                        marks: [{type: "Strike"}],
+                                    },
+                                    {
+                                        type: "Text",
+                                        text: " text",
+                                    },
+                                ],
                             },
                             {
-                                type: "Text",
-                                text: "code",
-                                marks: [{type: "Code"}],
-                            },
-                            {
-                                type: "Text",
-                                text: " and ",
-                            },
-                            {
-                                type: "Text",
-                                text: "strike",
-                                marks: [{type: "Strike"}],
-                            },
-                            {
-                                type: "Text",
-                                text: " text. Second me",
+                                type: "Paragraph",
+                                elements: [{type: "Text", text: "Second me"}],
                             },
                         ],
-                        isTruncated: false,
                     },
                     author: expect.objectContaining({
                         id: session.account.id,

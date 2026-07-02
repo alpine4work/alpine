@@ -1209,6 +1209,75 @@ test("throws UnimplementedError when creating a reply with a blockquote parent",
     ).rejects.toThrow(UnimplementedError);
 });
 
+test("creates a reply quoting list content with the author on its own line", async () => {
+    await readChat({
+        totalMessageCount: 1,
+        createMessage: index =>
+            createMessage({
+                index,
+                author: aliceAccount,
+                content: {
+                    elements: [
+                        {
+                            type: "UnorderedList",
+                            items: [
+                                {
+                                    elements: [
+                                        {
+                                            type: "Paragraph",
+                                            key: "list-parent" as ApiContentKey,
+                                            elements: [{type: "Text", text: "First list item"}],
+                                        },
+                                    ],
+                                },
+                                {
+                                    elements: [
+                                        {
+                                            type: "Paragraph",
+                                            key: "list-parent-2" as ApiContentKey,
+                                            elements: [{type: "Text", text: "Second list item"}],
+                                        },
+                                    ],
+                                },
+                            ],
+                        },
+                    ],
+                },
+            }),
+    });
+
+    const result = await captureResultPromise(
+        async () =>
+            await callAgentWebUpdateTool(context, {
+                path: chatPath,
+                updates: [
+                    {
+                        old: "\n\nEnd of messages.",
+                        new: '\n\n<message id="1" from="[ChatGPT](/bot/chatgpt)">\n\n<blockquote cite="?message=0">\n\n[Alice](/human/alice):\n\n- First list item\n\n</blockquote>\n\nReplying to the list item.\n\n</message>\n\nEnd of messages.',
+                        replaceAll: false,
+                    },
+                ],
+            }),
+    );
+
+    if (result.ok) {
+        throw new InternalError("Expected update tool call to throw");
+    }
+
+    expect(result.error).toMatchObject({
+        cause: {
+            startMessageIndex: 0,
+            endMessageIndex: 1,
+            range: {
+                start: {type: "Inline", key: "list-parent", index: 0},
+                end: {type: "Inline", key: "list-parent", index: "First list item".length},
+            },
+        },
+    });
+    expect(result.error).toBeInstanceOf(UnimplementedError);
+    expect(getCreateMessageRequests()).toEqual([]);
+});
+
 test("rejects creating a reply when the quoted parent content is not found", async () => {
     await readChat({
         totalMessageCount: 1,

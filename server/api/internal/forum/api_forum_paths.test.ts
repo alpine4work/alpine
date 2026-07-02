@@ -1031,7 +1031,7 @@ describe("post creation", () => {
 });
 
 describe("post comment parents", () => {
-    test("includes PostRange parent with short content snippet (not truncated)", async () => {
+    test("includes PostRange parent content snippet", async () => {
         const space = await TestSpace.create(context);
         const session = await space.createSession({name: "Alice Smith", role: "Admin"});
 
@@ -1064,11 +1064,10 @@ describe("post comment parents", () => {
             contentSnippet: {
                 elements: [
                     {
-                        type: "Text",
-                        text: "Short pos",
+                        type: "Paragraph",
+                        elements: [{type: "Text", text: "Short pos"}],
                     },
                 ],
-                isTruncated: false,
             },
             author: expect.objectContaining({
                 id: session.account.id,
@@ -1077,7 +1076,7 @@ describe("post comment parents", () => {
         });
     });
 
-    test("includes PostRange parent with long content snippet (truncated)", async () => {
+    test("includes PostRange parent content snippet for a range of a long post", async () => {
         const space = await TestSpace.create(context);
         const session = await space.createSession({name: "Bob Jones", role: "Admin"});
 
@@ -1113,11 +1112,10 @@ describe("post comment parents", () => {
                 contentSnippet: {
                     elements: [
                         {
-                            type: "Text",
-                            text: " very long",
+                            type: "Paragraph",
+                            elements: [{type: "Text", text: " very long"}],
                         },
                     ],
-                    isTruncated: false,
                 },
                 author: expect.objectContaining({
                     id: session.account.id,
@@ -1176,16 +1174,20 @@ describe("post comment parents", () => {
             contentSnippet: {
                 elements: [
                     {
-                        type: "Text",
-                        text: "This is ",
-                    },
-                    {
-                        type: "Text",
-                        text: "c",
-                        marks: [{type: "Code"}],
+                        type: "Paragraph",
+                        elements: [
+                            {
+                                type: "Text",
+                                text: "This is ",
+                            },
+                            {
+                                type: "Text",
+                                text: "c",
+                                marks: [{type: "Code"}],
+                            },
+                        ],
                     },
                 ],
-                isTruncated: false,
             },
             author: expect.objectContaining({
                 id: session.account.id,
@@ -1234,11 +1236,10 @@ describe("post comment parents", () => {
             contentSnippet: {
                 elements: [
                     {
-                        type: "Text",
-                        text: "Normal te",
+                        type: "Paragraph",
+                        elements: [{type: "Text", text: "Normal te"}],
                     },
                 ],
-                isTruncated: false,
             },
             author: expect.objectContaining({id: session.account.id}),
         });
