@@ -83,15 +83,8 @@ export class DatabaseModel {
         return assertExists(this.getTableIfExists(tableId));
     }
 
-    formatUniqueTableName(name: string, oldName?: string) {
-        const existingTableNames = new Set<string>();
-        for (const tableId of this.getTableIds("all")) {
-            existingTableNames.add(this.getTable(tableId).tableName);
-        }
-        if (oldName) {
-            existingTableNames.delete(oldName);
-        }
-        return formatUniqueSqlName(name, existingTableNames);
+    formatUniqueTableName(name: string) {
+        return formatUniqueSqlName(name, new Set());
     }
 
     createTable(tableId: DatabaseTableId, name: string) {
@@ -102,9 +95,9 @@ export class DatabaseModel {
 
         sql`
             INSERT INTO
-                _alpine_tables (id)
+                _alpine_tables (id, kind)
             VALUES
-                (${tableId})
+                (${tableId}, 'table')
         `.exec(this.db);
         sql`
             INSERT INTO
@@ -128,11 +121,14 @@ export class DatabaseModel {
             ) WITHOUT ROWID
         `.exec(this.db);
         sql`
-            CREATE INDEX ${table.schema}._alpine_rows_created_at ON ${table.tableRef} (_created_at)
+            CREATE INDEX ${table.schema}._alpine_rows_created_at ON ${sql.identifier(
+                table.tableName,
+            )} (_created_at)
         `.exec(this.db);
 
-        const nameField = table.createField(nameFieldId, "Name", {type: "plainText"});
         const defaultView = table.createView(defaultViewId, "Grid view");
+        const nameField = table.createField(nameFieldId, "Name", {type: "plainText"});
+        table.appendFieldToAllViews(nameField);
 
         return {table, nameField, defaultView};
     }
@@ -142,10 +138,15 @@ export class DatabaseModel {
         const row = sql`
             SELECT
                 id,
+                table_name,
                 source_table_id,
                 source_field_id,
                 target_table_id,
                 target_field_id,
+                source_row_id_column_name,
+                source_position_column_name,
+                target_row_id_column_name,
+                target_position_column_name
             FROM
                 ${sql.tableRef(tableId, "_alpine_join_table")}
         `.selectOne(this.db, DatabaseJoinTableRow);
@@ -159,7 +160,7 @@ export class DatabaseModel {
         assert(source.config.linkedTableId === target.table.id, "source linked table mismatch");
         assert(target.config.linkedTableId === source.table.id, "target linked table mismatch");
 
-        const joinTableId = generateChronologicalId<DatabaseTableId>();
+        const joinTableId = source.config.joinTableId;
         sql`
             INSERT INTO
                 _alpine_tables (id, kind)
@@ -170,10 +171,7 @@ export class DatabaseModel {
         const schema = sql.identifier(databaseTableSchemaName(joinTableId));
         const joinTableName = this.formatUniqueTableName(`${source.name} ${target.name}`);
 
-        const sourceRowIdColumnName = `${source.table.tableName}_id`;
-        const sourcePositionColumnName = `${source.table.tableName}_position`;
-        const targetRowIdColumnName = `${target.table.tableName}_id`;
-        const targetPositionColumnName = `${target.table.tableName}_position`;
+        const sourceColumnNames = this.formatJoinTableColumnNames(source.table, target.table);
 
         const row = sql`
             INSERT INTO
@@ -197,10 +195,10 @@ export class DatabaseModel {
                     ${source.id},
                     ${target.table.id},
                     ${target.id},
-                    ${sourceRowIdColumnName},
-                    ${sourcePositionColumnName},
-                    ${targetRowIdColumnName},
-                    ${targetPositionColumnName}
+                    ${sourceColumnNames.sourceRowIdColumnName},
+                    ${sourceColumnNames.sourcePositionColumnName},
+                    ${sourceColumnNames.targetRowIdColumnName},
+                    ${sourceColumnNames.targetPositionColumnName}
                 )
             RETURNING
                 *
@@ -234,14 +232,18 @@ export class DatabaseModel {
         `.exec(this.db);
 
         sql`
-            CREATE INDEX ${joinTable.schema}._alpine_join_table_source_row_id ON ${joinTable.tableRef} (
+            CREATE INDEX ${joinTable.schema}._alpine_join_table_source_row_id ON ${sql.identifier(
+                joinTable.tableName,
+            )} (
                 ${sourceRowIdColumn},
                 ${sourcePositionColumn}
             )
         `.exec(this.db);
 
         sql`
-            CREATE INDEX ${joinTable.schema}._alpine_join_table_target_row_id ON ${joinTable.tableRef} (
+            CREATE INDEX ${joinTable.schema}._alpine_join_table_target_row_id ON ${sql.identifier(
+                joinTable.tableName,
+            )} (
                 ${targetRowIdColumn},
                 ${targetPositionColumn}
             )
@@ -268,6 +270,28 @@ export class DatabaseModel {
         // fallback: table ID. take the first view from the table:
         const table = this.getTable(tableOrViewId as DatabaseTableId);
         return {table, view: table.getFirstView()};
+    }
+
+    formatJoinTableColumnNames(sourceTable: DatabaseTableModel, targetTable: DatabaseTableModel) {
+        const sourceRowIdColumnName = `${sourceTable.tableName}_id`;
+        const sourcePositionColumnName = `${sourceTable.tableName}_position`;
+        const existingColumnNames = new Set([sourceRowIdColumnName, sourcePositionColumnName]);
+        const targetRowIdColumnName = formatUniqueSqlName(
+            `${targetTable.tableName} id`,
+            existingColumnNames,
+        );
+        existingColumnNames.add(targetRowIdColumnName);
+        const targetPositionColumnName = formatUniqueSqlName(
+            `${targetTable.tableName} position`,
+            existingColumnNames,
+        );
+
+        return {
+            sourceRowIdColumnName,
+            sourcePositionColumnName,
+            targetRowIdColumnName,
+            targetPositionColumnName,
+        };
     }
 }
 
@@ -324,15 +348,15 @@ export class DatabaseTableModel extends DatabaseSchemaScopedBaseModel {
     }
 
     updateName(name: string) {
-        const newTableName = this.root.formatUniqueTableName(name, this.tableName);
+        const newTableName = this.root.formatUniqueTableName(name);
         if (newTableName !== this.tableName) {
             sql`
                 ALTER TABLE ${this.tableRef}
-                RENAME TO ${newTableName}
+                RENAME TO ${sql.identifier(newTableName)}
             `.exec(this.db);
         }
         sql`
-            UPDATE ${this.tableRef}
+            UPDATE ${this.schema}._alpine_table
             SET
                 name = ${name},
                 table_name = ${newTableName}
@@ -351,7 +375,7 @@ export class DatabaseTableModel extends DatabaseSchemaScopedBaseModel {
         const row = sql`
             SELECT
                 id,
-                name,
+                name
             FROM
                 ${this.schema}._alpine_views
             WHERE
@@ -371,6 +395,15 @@ export class DatabaseTableModel extends DatabaseSchemaScopedBaseModel {
                     ${name}
                 )
         `.exec(this.db);
+        sql`
+            INSERT INTO
+                _alpine_views (id, table_id)
+            VALUES
+                (
+                    ${viewId},
+                    ${this.id}
+                )
+        `.exec(this.db);
         return this.getView(viewId);
     }
 
@@ -378,7 +411,7 @@ export class DatabaseTableModel extends DatabaseSchemaScopedBaseModel {
         const row = sql`
             SELECT
                 id,
-                name,
+                name
             FROM
                 ${this.schema}._alpine_views
             ORDER BY
@@ -395,7 +428,7 @@ export class DatabaseTableModel extends DatabaseSchemaScopedBaseModel {
                 id,
                 name,
                 column_name,
-                JSON(config) AS config,
+                JSON(config) AS config
             FROM
                 ${this.schema}._alpine_fields
             WHERE
@@ -410,7 +443,7 @@ export class DatabaseTableModel extends DatabaseSchemaScopedBaseModel {
                 id,
                 name,
                 column_name,
-                JSON(config) AS config,
+                JSON(config) AS config
             FROM
                 ${this.schema}._alpine_fields
         `
@@ -423,18 +456,18 @@ export class DatabaseTableModel extends DatabaseSchemaScopedBaseModel {
     }
 
     formatUniqueFieldName(name: string, existing?: string) {
-        const existingFieldNames = new Set<string>(
+        const existingColumnNames = new Set<string>(
             sql`
                 SELECT
-                    name
+                    column_name
                 FROM
                     ${this.schema}._alpine_fields
             `.selectValues(this.db, Schema.string),
         );
         if (existing) {
-            existingFieldNames.delete(existing);
+            existingColumnNames.delete(existing);
         }
-        return formatUniqueSqlName(name, existingFieldNames);
+        return formatUniqueSqlName(name, existingColumnNames);
     }
 
     createField(
@@ -454,14 +487,16 @@ export class DatabaseTableModel extends DatabaseSchemaScopedBaseModel {
                     ${this.id},
                     ${name},
                     ${columnName},
-                    ${config}
+                    ${DatabaseFieldConfigSqlSchema.serialize(config)}
                 )
         `.exec(this.db);
 
         if (provider instanceof ColumnBackedDatabaseFieldProvider) {
             const column = sql.identifier(columnName);
 
-            const columnType = formatSqliteColumnType(provider.sqliteType, this.id, fieldId);
+            const columnType = sql.raw(
+                formatSqliteColumnType(provider.sqliteType, this.id, fieldId),
+            );
             const notNullClause = provider.nullable ? sql`` : sql`NOT NULL`;
             const check = provider.generateCheckConstraint(column);
 
@@ -480,15 +515,16 @@ export class DatabaseTableModel extends DatabaseSchemaScopedBaseModel {
         assert(field.table.id === this.id);
         sql`
             INSERT INTO
-                ${this.schema}._alpine_view_fields (view_id, field_id, position)
+                ${this.schema}._alpine_view_fields (view_id, field_id, position, width)
             SELECT
                 views.id,
                 ${field.id},
-                generate_order_key (MAX(view_fields.position), NULL)
+                generate_order_key (MAX(view_fields.position), NULL),
+                ${databaseViewDefaultColumnWidth}
             FROM
                 ${this.schema}._alpine_views views
                 LEFT JOIN ${this
-                .schema}._alpine_view_fields view_fields ON view_field.view_id = view.id
+                .schema}._alpine_view_fields view_fields ON view_fields.view_id = views.id
             GROUP BY
                 views.id
         `.exec(this.db);
@@ -529,7 +565,7 @@ export class DatabaseViewModel extends DatabaseTableScopedBaseModel {
                 fields.id,
                 fields.name,
                 fields.column_name,
-                JSON(fields.config) AS config,
+                JSON(fields.config) AS config
             FROM
                 ${this.schema}._alpine_view_fields view_fields
                 JOIN ${this.schema}._alpine_fields fields ON fields.id = view_fields.field_id
@@ -551,7 +587,7 @@ export class DatabaseViewModel extends DatabaseTableScopedBaseModel {
                 JSON(fields.config) AS config,
                 view_fields.position,
                 view_fields.width,
-                view_fields.hidden
+                NOT view_fields.is_visible AS hidden
             FROM
                 ${this.schema}._alpine_view_fields view_fields
                 JOIN ${this.schema}._alpine_fields fields ON fields.id = view_fields.field_id
@@ -566,7 +602,7 @@ export class DatabaseViewModel extends DatabaseTableScopedBaseModel {
             config: DatabaseFieldRow.config,
             position: DatabaseViewFieldRow.position,
             width: DatabaseViewFieldRow.width,
-            isVisible: DatabaseViewFieldRow.isVisible,
+            hidden: SqlBooleanSchema,
         });
     }
 
@@ -586,7 +622,7 @@ export class DatabaseViewModel extends DatabaseTableScopedBaseModel {
         assert(field.table.id === this.table.id);
         sql`
             INSERT INTO
-                ${this.schema}._alpine_view_fields (view_id, field_id, visible, position, width)
+                ${this.schema}._alpine_view_fields (view_id, field_id, is_visible, position, width)
             VALUES
                 (
                     ${this.id},
@@ -597,7 +633,7 @@ export class DatabaseViewModel extends DatabaseTableScopedBaseModel {
                 )
             ON CONFLICT (view_id, field_id) DO UPDATE
             SET
-                visible = excluded.visible,
+                is_visible = excluded.is_visible,
                 position = excluded.position
         `.exec(this.db);
     }
@@ -732,20 +768,17 @@ export class DatabaseJoinTableModel extends DatabaseSchemaScopedBaseModel {
         const sourceName = this.root.getTable(this.sourceTableId).getField(this.sourceFieldId).name;
         const targetName = this.root.getTable(this.targetTableId).getField(this.targetFieldId).name;
 
-        const joinTableName = this.root.formatUniqueTableName(
-            `${sourceName} ${targetName}`,
-            this.tableName,
-        );
+        const joinTableName = this.root.formatUniqueTableName(`${sourceName} ${targetName}`);
 
         if (joinTableName === this.tableName) return;
 
         sql`
             ALTER TABLE ${this.tableRef}
-            RENAME TO ${joinTableName}
+            RENAME TO ${sql.identifier(joinTableName)}
         `.exec(this.db);
 
         sql`
-            UPDATE ${this.tableRef}
+            UPDATE ${this.schema}._alpine_join_table
             SET
                 table_name = ${joinTableName}
             WHERE
@@ -755,12 +788,13 @@ export class DatabaseJoinTableModel extends DatabaseSchemaScopedBaseModel {
 
     ensureColumnNamesAreUpToDate() {
         const sourceTable = this.root.getTable(this.sourceTableId);
-        const sourceRowIdColumnName = `${sourceTable.tableName}_id`;
-        const sourcePositionColumnName = `${sourceTable.tableName}_position`;
-
         const targetTable = this.root.getTable(this.targetTableId);
-        const targetRowIdColumnName = `${targetTable.tableName}_id`;
-        const targetPositionColumnName = `${targetTable.tableName}_position`;
+        const {
+            sourceRowIdColumnName,
+            sourcePositionColumnName,
+            targetRowIdColumnName,
+            targetPositionColumnName,
+        } = this.root.formatJoinTableColumnNames(sourceTable, targetTable);
 
         if (
             sourceRowIdColumnName === this.sourceRowIdColumnName &&

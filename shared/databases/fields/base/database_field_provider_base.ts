@@ -56,7 +56,7 @@ export abstract class ColumnBackedDatabaseFieldProvider<
     abstract readonly sqliteType: SqliteStorageType;
 
     _selectColumn(field: DatabaseFieldModel, dataRow: SqlQuery): SqlQuery {
-        return sql`${dataRow}.${field.columnName}`;
+        return sql`${dataRow}.${field.column()}`;
     }
 
     abstract generateCheckConstraint(columnName: SqlQuery, config: Config): SqlQuery;

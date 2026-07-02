@@ -16,7 +16,7 @@ export type DatabaseTableRow = ObjectSchemaConfigType<typeof DatabaseTableRow>;
 
 export const DatabaseJoinTableRow = {
     id: Schema.id<DatabaseTableId>(),
-    tableName: Schema.string,
+    tableName: Schema.string.originalPropertyKey("table_name"),
     sourceTableId: Schema.id<DatabaseTableId>().originalPropertyKey("source_table_id"),
     sourceFieldId: Schema.id<DatabaseFieldId>().originalPropertyKey("source_field_id"),
     targetTableId: Schema.id<DatabaseTableId>().originalPropertyKey("target_table_id"),
@@ -47,6 +47,6 @@ export const DatabaseViewFieldRow = {
     fieldId: Schema.id<DatabaseFieldId>().originalPropertyKey("field_id"),
     position: OrderKeySchema,
     width: Schema.integer,
-    isVisible: SqlBooleanSchema,
+    isVisible: SqlBooleanSchema.originalPropertyKey("is_visible"),
 };
 export type DatabaseViewFieldRow = ObjectSchemaConfigType<typeof DatabaseViewFieldRow>;

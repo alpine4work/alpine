@@ -1,6 +1,10 @@
 import {getDatabaseFieldProvider} from "~/shared/databases/fields/all_database_field_providers.js";
 import {DatabaseFieldProviderBase} from "~/shared/databases/fields/base/database_field_provider_base.js";
-import type {DatabaseFieldModelOfType} from "~/shared/databases/model/database_model.js";
+import type {
+    DatabaseFieldModel,
+    DatabaseFieldModelOfType,
+} from "~/shared/databases/model/database_model.js";
+import {SqlJsonSchema} from "~/shared/databases/model/sqlite_schema.js";
 import {type SqlQuery, sql} from "~/shared/databases/sql.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {Result} from "~/shared/helpers/control/result.js";
@@ -33,6 +37,7 @@ export class DatabaseRelationFieldProvider extends DatabaseFieldProviderBase<
 
     readonly type = "relation";
     readonly valueSchema = DatabaseRelationFieldValueSchema;
+    override readonly sqlValueSchema = SqlJsonSchema(DatabaseRelationFieldValueSchema);
     readonly configSchema = DatabaseRelationFieldConfigSchema;
 
     parseValueString(): Result<DatabaseRelationFieldValue, void> {
@@ -52,9 +57,7 @@ export class DatabaseRelationFieldProvider extends DatabaseFieldProviderBase<
         const joinRow = sql.identifier(`_join_${field.id}`);
         const linkedRow = sql.identifier(`_linked_${field.id}`);
 
-        const linkedNameColumnSql = getDatabaseFieldProvider(
-            linkedNameField.config.type,
-        ).selectColumn(linkedNameField, linkedRow);
+        const linkedNameColumnSql = selectLinkedNameColumn(linkedNameField, linkedRow);
 
         return sql`
             (
@@ -152,3 +155,33 @@ export class DatabaseRelationFieldProvider extends DatabaseFieldProviderBase<
 
 export const databaseRelationFieldProvider: DatabaseRelationFieldProvider =
     DatabaseRelationFieldProvider.instance;
+
+function selectLinkedNameColumn(field: DatabaseFieldModel, dataRow: SqlQuery) {
+    const value = getDatabaseFieldProvider(field.config.type).selectColumn(field, dataRow);
+    switch (field.config.type) {
+        case "checkbox":
+            return sql`
+                CASE ${value}
+                    WHEN 1 THEN 'true'
+                    ELSE 'false'
+                END
+            `;
+        case "number":
+            if (field.config.decimalPlaces == null) {
+                return sql`CAST(${value} AS TEXT)`;
+            }
+            return sql`
+                CASE
+                    WHEN ${value} IS NULL THEN ''
+                    ELSE PRINTF(
+                        ${`%.${field.config.decimalPlaces}f`},
+                        ${value}
+                    )
+                END
+            `;
+        case "plainText":
+            return value;
+        default:
+            assert(false, `unsupported relation name field type: ${field.config.type}`);
+    }
+}

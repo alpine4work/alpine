@@ -3,7 +3,7 @@ import {
     getDatabaseFieldProvider,
 } from "~/shared/databases/fields/all_database_field_providers.js";
 import {ColumnBackedDatabaseFieldProvider} from "~/shared/databases/fields/base/database_field_provider_base.js";
-import {DatabaseModel} from "~/shared/databases/model/database_model.js";
+import {DatabaseModel, type DatabaseTableModel} from "~/shared/databases/model/database_model.js";
 import {SqlBooleanSchema} from "~/shared/databases/model/sqlite_schema.js";
 import {type SqlQuery, sql} from "~/shared/databases/sql.js";
 import {SqliteDatabase} from "~/shared/databases/sqlite.js";
@@ -94,6 +94,16 @@ export function executeDatabaseAction<N extends DatabaseActionName>(
     }
 }
 
+function formatUniqueFieldDisplayName(table: DatabaseTableModel, name: string): string {
+    const existingNames = new Set(table.getFields().map(field => field.name));
+    if (!existingNames.has(name)) return name;
+
+    for (let i = 2; ; i++) {
+        const candidate = `${name} ${i}`;
+        if (!existingNames.has(candidate)) return candidate;
+    }
+}
+
 export const databaseActions = {
     rawSql: defineDatabaseAction({
         input: Schema.object({sql: Schema.string}),
@@ -135,7 +145,7 @@ export const databaseActions = {
 
             const {table, defaultView} = model.createTable(tableId, name);
 
-            return {tableId: table, tableName: table.tableName, viewId: defaultView.id};
+            return {tableId: table.id, tableName: table.tableName, viewId: defaultView.id};
         },
     }),
 
@@ -250,7 +260,7 @@ export const databaseActions = {
                 FROM
                     ${table.tableRef} ${whereClause}
                 ORDER BY
-                    _id DESC
+                    _id
                 LIMIT
                     ${limit}
             `.selectValues(db, Schema.id<DatabaseRowId>());
@@ -293,7 +303,7 @@ export const databaseActions = {
                 columnSchemas.push(provider.sqlValueSchema ?? provider.valueSchema);
             }
 
-            const selectList = sql.raw(selectColumns.map(c => c.query).join(", "));
+            const selectList = sql.join(selectColumns, ", ");
 
             let whereClause: SqlQuery;
             if (afterCursor != null && endCursor != null) {
@@ -413,8 +423,10 @@ export const databaseActions = {
         serverOnly: true,
         run({db, model, server}, {sourceTableId, sourceFieldName, targetTableId, cardinality}) {
             assert(server !== null, "createRelationField is server-only");
-            const sourceTable = model.getTable(sourceTableId);
-            const targetTable = model.getTable(targetTableId);
+            const sourceTable = model.getTableIfExists(sourceTableId);
+            assert(sourceTable !== null, "source table not found");
+            const targetTable = model.getTableIfExists(targetTableId);
+            assert(targetTable !== null, "linked table not found");
 
             const joinTableId = generateChronologicalId<DatabaseTableId>();
             const sourceFieldId = generateChronologicalId<DatabaseFieldId>();
@@ -432,7 +444,8 @@ export const databaseActions = {
             });
             sourceTable.appendFieldToAllViews(sourceField);
 
-            const targetField = targetTable.createField(targetFieldId, sourceTable.name, {
+            const targetFieldName = formatUniqueFieldDisplayName(targetTable, sourceTable.name);
+            const targetField = targetTable.createField(targetFieldId, targetFieldName, {
                 type: "relation",
                 joinTableId,
                 side: "target",
@@ -463,7 +476,7 @@ export const databaseActions = {
         run({db, model}, {tableId, fieldId, rowId, linkedRowId}) {
             const table = model.getTable(tableId);
             const field = table.getField(fieldId);
-            assert(field.isType("relation"));
+            assert(field.isType("relation"), "field is not a relation field");
             const provider = getDatabaseFieldProvider(field.config.type);
             const relation = provider.resolveRelation(field);
             const linkedTable = model.getTable(relation.linkedTableId);
@@ -482,7 +495,7 @@ export const databaseActions = {
 
             const ourPosition = sql`
                 SELECT
-                    generate_order_key (${relation.our.positionColumn}), NULL)
+                    generate_order_key (MAX(${relation.our.positionColumn}), NULL)
                 FROM
                     ${joinTable.tableRef}
                 WHERE
@@ -495,13 +508,13 @@ export const databaseActions = {
 
             const theirPosition = sql`
                 SELECT
-                    generate_order_key (${relation.our.positionColumn}), NULL)
+                    generate_order_key (MAX(${relation.their.positionColumn}), NULL)
                 FROM
                     ${joinTable.tableRef}
                 WHERE
-                    ${relation.our.rowIdColumn} = ${rowId}
+                    ${relation.their.rowIdColumn} = ${linkedRowId}
                 ORDER BY
-                    ${relation.our.positionColumn} DESC
+                    ${relation.their.positionColumn} DESC
                 LIMIT
                     1
             `.selectValue(db, Schema.string);

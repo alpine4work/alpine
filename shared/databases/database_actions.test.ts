@@ -280,7 +280,7 @@ describe("createTable", () => {
             .selectAllUnknown(db);
 
         const nameCol = colInfo.find(c => c.name === "name");
-        expect(nameCol!.type).toMatch(/^TEXT_alpine_[0-9a-z]{26}$/);
+        expect(nameCol!.type).toMatch(/^TEXT_alpine_[0-9a-z]{26}_[0-9a-z]{26}$/);
     });
 
     test("duplicate names each land in their own file (no cross-table dedup)", async () => {
@@ -434,7 +434,7 @@ describe("updateFieldViewVisibility", () => {
                 view_id = ${viewId}
                 AND field_id = ${fieldId}
         `.selectAllUnknown(db);
-        expect(row).toMatchObject([{position: "a1", hidden: 1}]);
+        expect(row).toMatchObject([{position: "a1", is_visible: 0}]);
         db.close();
     });
 
@@ -467,7 +467,7 @@ describe("updateFieldViewVisibility", () => {
                 view_id = ${viewId}
                 AND field_id = ${fieldId}
         `.selectAllUnknown(db);
-        expect(row).toMatchObject([{position: "a2", hidden: 0}]);
+        expect(row).toMatchObject([{position: "a2", is_visible: 1}]);
         db.close();
     });
 });
@@ -589,15 +589,16 @@ function readLinks(
     db: SqliteDatabase,
     joinTableId: DatabaseTableId,
 ): Array<{sourceRowId: DatabaseRowId; targetRowId: DatabaseRowId}> {
+    const joinTable = new DatabaseModel(db).getJoinTable(joinTableId);
     return sql`
         SELECT
-            source_row_id,
-            target_row_id
+            ${joinTable.sourceRowIdColumn()} AS source_row_id,
+            ${joinTable.targetRowIdColumn()} AS target_row_id
         FROM
-            ${sql.tableRef(joinTableId, "_alpine_links")}
+            ${joinTable.tableRef}
         ORDER BY
-            source_row_id,
-            target_row_id
+            ${joinTable.sourceRowIdColumn()},
+            ${joinTable.targetRowIdColumn()}
     `.selectAll(db, {
         sourceRowId: Schema.id<DatabaseRowId>().originalPropertyKey("source_row_id"),
         targetRowId: Schema.id<DatabaseRowId>().originalPropertyKey("target_row_id"),
@@ -743,6 +744,17 @@ describe("createRelationField", () => {
         const db = await createDb();
         const source = run(db, "createTable", {name: "Tasks"});
         const target = run(db, "createTable", {name: "Projects"});
+        const sourceSecondViewId = generateChronologicalId<DatabaseViewId>();
+        sql`
+            INSERT INTO
+                ${sql.tableRef(source.tableId, "_alpine_views")} (id, table_id, name)
+            VALUES
+                (
+                    ${sourceSecondViewId},
+                    ${source.tableId},
+                    'Other view'
+                )
+        `.exec(db);
         const targetSecondViewId = generateChronologicalId<DatabaseViewId>();
         sql`
             INSERT INTO
@@ -778,6 +790,30 @@ describe("createRelationField", () => {
         `.selectAllUnknown(db)[0];
         const sourceField = readFieldById(db, source.tableId, result.sourceFieldId);
         const targetField = readFieldById(db, target.tableId, result.targetFieldId);
+        const joinTableColumns = sql
+            .raw(
+                "PRAGMA " +
+                    sql.tableRef(result.joinTableId, "table_info").query +
+                    " (" +
+                    sql.identifier(joinRow!.table_name as string).query +
+                    ")",
+            )
+            .selectAllUnknown(db)
+            .map(column => column.name);
+        const sourceViewFieldIds = sql`
+            SELECT
+                field_id
+            FROM
+                ${sql.tableRef(source.tableId, "_alpine_view_fields")}
+            WHERE
+                field_id = ${result.sourceFieldId}
+            ORDER BY
+                view_id
+        `
+            .selectAll(db, {
+                fieldId: Schema.id<DatabaseFieldId>().originalPropertyKey("field_id"),
+            })
+            .map(viewField => viewField.fieldId);
         const targetViewFieldIds = sql`
             SELECT
                 field_id
@@ -798,15 +834,22 @@ describe("createRelationField", () => {
             joinRow,
             sourceField,
             targetField,
+            joinTableColumns,
+            sourceViewFieldIds,
             targetViewFieldIds,
         }).toMatchObject({
             registryRow: {id: result.joinTableId, kind: "join"},
             joinRow: {
                 id: result.joinTableId,
+                table_name: "project_tasks",
                 source_table_id: source.tableId,
                 source_field_id: result.sourceFieldId,
                 target_table_id: target.tableId,
                 target_field_id: result.targetFieldId,
+                source_row_id_column_name: "tasks_id",
+                source_position_column_name: "tasks_position",
+                target_row_id_column_name: "projects_id",
+                target_position_column_name: "projects_position",
             },
             sourceField: {
                 name: "Project",
@@ -828,6 +871,8 @@ describe("createRelationField", () => {
                     linkedTableId: source.tableId,
                 },
             },
+            joinTableColumns: ["tasks_id", "projects_id", "tasks_position", "projects_position"],
+            sourceViewFieldIds: [result.sourceFieldId, result.sourceFieldId],
             targetViewFieldIds: [result.targetFieldId, result.targetFieldId],
         });
         db.close();
@@ -1754,6 +1799,59 @@ describe("updateCellValue", () => {
 });
 
 describe("createField", () => {
+    test("adds the field to all views in the table", async () => {
+        const db = await createDb();
+        const {tableId, viewId} = run(db, "createTable", {name: "T"});
+        const secondViewId = generateChronologicalId<DatabaseViewId>();
+        sql`
+            INSERT INTO
+                ${sql.tableRef(tableId, "_alpine_views")} (id, table_id, name)
+            VALUES
+                (
+                    ${secondViewId},
+                    ${tableId},
+                    'Second view'
+                )
+        `.exec(db);
+        const fieldId = generateChronologicalId<DatabaseFieldId>();
+
+        run(db, "createField", {
+            fieldId,
+            tableId,
+            name: "Status",
+            config: {type: "plainText"},
+        });
+
+        const viewFields = sql`
+            SELECT
+                view_id,
+                field_id,
+                width,
+                is_visible
+            FROM
+                ${sql.tableRef(tableId, "_alpine_view_fields")}
+            WHERE
+                field_id = ${fieldId}
+            ORDER BY
+                view_id
+        `.selectAllUnknown(db);
+        expect(viewFields).toMatchObject([
+            {
+                view_id: viewId,
+                field_id: fieldId,
+                width: databaseViewDefaultColumnWidth,
+                is_visible: 1,
+            },
+            {
+                view_id: secondViewId,
+                field_id: fieldId,
+                width: databaseViewDefaultColumnWidth,
+                is_visible: 1,
+            },
+        ]);
+        db.close();
+    });
+
     test("rejects relation fields", async () => {
         const db = await createDb();
         const {tableId} = run(db, "createTable", {name: "T"});
@@ -1924,26 +2022,45 @@ describe("renameField", () => {
         db.close();
     });
 
-    test("renames virtual field metadata without altering the data table", async () => {
+    test("renames relation field metadata and keeps the join table name in sync", async () => {
         const db = await createDb();
-        const {tableId, viewId} = run(db, "createTable", {name: "T"});
-        const {fieldId} = addRelationFieldMetadata(db, tableId, viewId);
+        const source = run(db, "createTable", {name: "Tasks"});
+        const target = run(db, "createTable", {name: "Projects"});
+        const relation = run(db, "createRelationField", {
+            sourceTableId: source.tableId,
+            sourceFieldName: "Project",
+            targetTableId: target.tableId,
+            cardinality: "many",
+        });
 
-        run(db, "renameField", {tableId, fieldId, name: "Partners"});
+        run(db, "renameField", {
+            tableId: source.tableId,
+            fieldId: relation.sourceFieldId,
+            name: "Partners",
+        });
 
         const meta = sql`
             SELECT
                 name,
                 column_name
             FROM
-                ${sql.tableRef(tableId, "_alpine_fields")}
+                ${sql.tableRef(source.tableId, "_alpine_fields")}
             WHERE
-                id = ${fieldId}
+                id = ${relation.sourceFieldId}
         `.selectOne(db, {
             name: Schema.string,
             columnName: Schema.string.originalPropertyKey("column_name"),
         });
-        expect(meta).toMatchObject({name: "Partners", columnName: "partners"});
+        const joinTableName = sql`
+            SELECT
+                table_name
+            FROM
+                ${sql.tableRef(relation.joinTableId, "_alpine_join_table")}
+        `.selectValue(db, Schema.string);
+        expect({meta, joinTableName}).toMatchObject({
+            meta: {name: "Partners", columnName: "partners"},
+            joinTableName: "partners_tasks",
+        });
         db.close();
     });
 });

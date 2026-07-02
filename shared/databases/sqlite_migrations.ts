@@ -64,20 +64,22 @@ export function tableSqliteMigrations(tableId: DatabaseTableId): ReadonlyArray<S
         sql`
             CREATE TABLE ${schema}._alpine_fields (
                 id TEXT PRIMARY KEY,
+                table_id TEXT NOT NULL,
                 name TEXT NOT NULL,
                 column_name TEXT NOT NULL,
-                config BLOB NOT NULL,
+                config TEXT NOT NULL,
                 UNIQUE (table_id, column_name),
                 CHECK (is_id (id)),
-                CHECK (is_id (table_id)),
-                CHECK (JSON_VALID(config, 8))
+                CHECK (is_id (table_id))
             ) STRICT,
             WITHOUT ROWID;
 
             CREATE TABLE ${schema}._alpine_views (
                 id TEXT PRIMARY KEY,
+                table_id TEXT NOT NULL,
                 name TEXT NOT NULL,
                 CHECK (is_id (id)),
+                CHECK (is_id (table_id))
             ) STRICT,
             WITHOUT ROWID;
 
@@ -94,14 +96,13 @@ export function tableSqliteMigrations(tableId: DatabaseTableId): ReadonlyArray<S
             ) STRICT,
             WITHOUT ROWID;
 
-            CREATE INDEX ${schema}._alpine_view_fields_view_id ON ${schema}._alpine_view_fields (view_id, position);
+            CREATE INDEX ${schema}._alpine_view_fields_view_id ON _alpine_view_fields (view_id, position);
 
             CREATE TABLE ${schema}._alpine_table (
                 id TEXT PRIMARY KEY,
                 name TEXT NOT NULL,
                 table_name TEXT NOT NULL,
-                name_field_id TEXT NOT NULL REFERENCES _alpine_fields (id),
-                CHECK (id = ${tableId})
+                name_field_id TEXT NOT NULL REFERENCES _alpine_fields (id)
             ) STRICT,
             WITHOUT ROWID;
         `,
@@ -128,9 +129,8 @@ export function joinTableSqliteMigrations(
                 target_field_id TEXT NOT NULL,
                 source_row_id_column_name TEXT NOT NULL,
                 source_position_column_name TEXT NOT NULL,
-                target_row_id_column_name TEXTw NOT NULL,
+                target_row_id_column_name TEXT NOT NULL,
                 target_position_column_name TEXT NOT NULL,
-                CHECK (id = ${tableId}),
                 CHECK (is_id (source_table_id)),
                 CHECK (is_id (source_field_id)),
                 CHECK (is_id (target_table_id)),
