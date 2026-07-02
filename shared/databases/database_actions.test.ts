@@ -1,12 +1,13 @@
 /* eslint-disable cyberworlds/string-quotes -- SQL literals */
 
-import sqlite3InitModule from "~/external/sqlite/ext/wasm/jswasm/sqlite3.mjs";
+import sqlite3InitModule, {Database} from "~/external/sqlite/ext/wasm/jswasm/sqlite3.mjs";
 import {
     type DatabaseActionContext,
     type DatabaseActionInput,
     type DatabaseActionName,
     type DatabaseActionOutput,
     databaseActions,
+    executeDatabaseAction,
 } from "~/shared/databases/database_actions.js";
 import {DatabaseFieldConfigSqlSchema} from "~/shared/databases/fields/database_field_providers.js";
 import {DatabaseModel} from "~/shared/databases/model/database_model.js";
@@ -66,7 +67,7 @@ function run<N extends DatabaseActionName>(
     name: N,
     input: DatabaseActionInput<N>,
 ): DatabaseActionOutput<N> {
-    return databaseActions[name].run(makeCtx(db), input as never) as DatabaseActionOutput<N>;
+    return executeDatabaseAction<N>({name, input} as any, makeCtx(db));
 }
 
 describe("createTable", () => {

@@ -7,6 +7,7 @@ import {
     type DatabaseActionOutput,
     type DatabaseActionServerContext,
     databaseActions,
+    executeDatabaseAction,
 } from "~/shared/databases/database_actions.js";
 import type {ReadonlyDatabasePageSet} from "~/shared/databases/database_protocol_schemas.js";
 import {DatabaseModel} from "~/shared/databases/model/database_model.js";
@@ -293,10 +294,10 @@ export class Database {
         const ctx: DatabaseActionContext = {
             db: this.db,
             server: this.serverContext,
-            schema: new DatabaseModel(this.db),
+            model: new DatabaseModel(this.db),
         };
         const {result, readPages, writtenPages} = this.execute(
-            () => action.run(ctx, actionObject.input as never),
+            () => executeDatabaseAction(actionObject, ctx),
             {allowWrites: action.writeLevel},
         );
         return {result: result as DatabaseActionOutput<N>, readPages, writtenPages};

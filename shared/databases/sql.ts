@@ -274,6 +274,21 @@ sql.identifier = (name: string, ...moreNames: Array<string>): SqlQuery =>
     );
 
 /**
+ * Join an array of {@link SqlQuery}s with a separator.
+ */
+sql.join = (queries: Array<SqlQuery>, separator: string): SqlQuery => {
+    const texts = [];
+    const bindings = [];
+
+    for (const query of queries) {
+        texts.push(query.query);
+        bindings.push(...query.bind);
+    }
+
+    return new SqlQuery(texts.join(separator), bindings);
+};
+
+/**
  * Prefix for the SQLite schema name of a table's `ATTACH`-ed per-db file.
  * Deliberately verbose and unique so it can be matched back out of SQLite's "no
  * such table" / "unknown database" error text to recover the {@link
@@ -297,7 +312,9 @@ export function databaseTableSchemaName(tableId: DatabaseTableId): string {
  * for referencing a table (or index) in a {@link DatabaseTableId}'s `ATTACH`-ed
  * per-db file. Both parts are quoted and escaped via {@link sql.identifier}.
  */
-sql.tableRef = (schema: DatabaseTableId, name: string): SqlQuery =>
-    sql.identifier(databaseTableSchemaName(schema), name);
+sql.tableRef = (schema: DatabaseTableId, name?: string): SqlQuery =>
+    name
+        ? sql.identifier(databaseTableSchemaName(schema), name)
+        : sql.identifier(databaseTableSchemaName(schema));
 
 export {sql, SqlQuery};
