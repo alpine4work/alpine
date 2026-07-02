@@ -8,6 +8,44 @@ const path = require("node:path");
 const yargs = require("yargs/yargs");
 const {isCoverageSourceFile} = require("./coverage_source_file.cjs");
 
+const mergeJestCoverageDependencies = [
+    "fflate",
+    "istanbul-lib-coverage",
+    "istanbul-lib-instrument",
+    "istanbul-lib-report",
+    "istanbul-reports",
+    "yargs/yargs",
+];
+const reportUncoveredLinesDependencies = ["istanbul-lib-coverage", "yargs/yargs"];
+
+// The coverage helpers should stay compatible with Bazel's hermetic runfiles, but
+// they are not Bazel-only tools. CI coverage aggregation stays deliberately slim
+// and can run these scripts with just their direct Node dependencies.
+/* eslint-disable cyberworlds/string-quotes */
+const workspaceNodeDependencyCheckScript = `
+const fs = require("node:fs");
+const path = require("node:path");
+const workspacePath = process.argv[1];
+const dependencies = JSON.parse(process.argv[2]);
+const nodeModulesPath = path.join(workspacePath, "node_modules");
+const nodeModulesPrefix = nodeModulesPath + path.sep;
+
+if (!fs.existsSync(nodeModulesPath)) process.exit(1);
+
+for (const dependency of dependencies) {
+    let resolvedPath;
+    try {
+        resolvedPath = require.resolve(dependency, {paths: [workspacePath]});
+    } catch {
+        process.exit(1);
+    }
+
+    if (!path.resolve(resolvedPath).startsWith(nodeModulesPrefix)) process.exit(1);
+    require(resolvedPath);
+}
+`;
+/* eslint-enable cyberworlds/string-quotes */
+
 main();
 
 /**
@@ -334,10 +372,11 @@ function runMergeJestCoverage({
     const bazelTestlogsPath = runBazel(["info", "bazel-testlogs"], {workspacePath});
     const sourceFileArgs = sourceFilePath ? ["--source-file", sourceFilePath] : [];
     const changedLinesOnlyArgs = changedLinesOnly ? ["--quiet", "--no-honeycomb"] : [];
-    const result = childProcess.spawnSync(
-        process.execPath,
-        [
-            path.join(__dirname, "merge_jest_coverage.cjs"),
+    const result = runCoverageTool({
+        bazelTarget: "//admin/analysis:merge_jest_coverage",
+        dependencies: mergeJestCoverageDependencies,
+        scriptPath: path.join(workspacePath, "admin", "analysis", "merge_jest_coverage.cjs"),
+        scriptArgs: [
             "--workspace",
             workspacePath,
             "--targets-file",
@@ -349,11 +388,8 @@ function runMergeJestCoverage({
             ...sourceFileArgs,
             ...changedLinesOnlyArgs,
         ],
-        {
-            cwd: workspacePath,
-            stdio: "inherit",
-        },
-    );
+        workspacePath,
+    });
     if (result.status !== 0) {
         throw new Error(`Jest coverage merge failed with status ${formatStatus(result)}`);
     }
@@ -363,10 +399,11 @@ function runMergeJestCoverage({
  * Prints uncovered changed lines from a single-file coverage report.
  */
 function runReportUncoveredChangedLines({coverageFinalPath, sourceFilePath, workspacePath}) {
-    const result = childProcess.spawnSync(
-        process.execPath,
-        [
-            path.join(__dirname, "report_uncovered_lines.cjs"),
+    const result = runCoverageTool({
+        bazelTarget: "//admin/analysis:report_uncovered_lines",
+        dependencies: reportUncoveredLinesDependencies,
+        scriptPath: path.join(workspacePath, "admin", "analysis", "report_uncovered_lines.cjs"),
+        scriptArgs: [
             "--workspace",
             workspacePath,
             "--coverage-final",
@@ -377,14 +414,46 @@ function runReportUncoveredChangedLines({coverageFinalPath, sourceFilePath, work
             "--",
             sourceFilePath,
         ],
-        {
-            cwd: workspacePath,
-            stdio: "inherit",
-        },
-    );
+        workspacePath,
+    });
     if (result.status !== 0) {
         throw new Error(`Changed-line coverage report failed with status ${formatStatus(result)}`);
     }
+}
+
+/**
+ * Runs a coverage helper directly when the slim dependency set is installed.
+ *
+ * If the workspace install is missing, fall back to the preferred Bazel-managed
+ * dependency graph so fresh worktrees do not need to run `pnpm install`.
+ */
+function runCoverageTool({bazelTarget, dependencies, scriptArgs, scriptPath, workspacePath}) {
+    if (workspaceNodeDependenciesAvailable({dependencies, workspacePath})) {
+        return runNodeScriptStreaming([scriptPath, ...scriptArgs], {workspacePath});
+    }
+
+    return runBazelStreaming(
+        ["run", "--ui_event_filters=-info", bazelTarget, "--", ...scriptArgs],
+        {workspacePath},
+    );
+}
+
+/**
+ * Checks that the workspace install can load all direct helper dependencies.
+ *
+ * This is intentionally stricter than Node's default resolver: the dependency must
+ * come from this workspace's `node_modules`, not a parent checkout.
+ */
+function workspaceNodeDependenciesAvailable({dependencies, workspacePath}) {
+    const result = childProcess.spawnSync(
+        process.execPath,
+        ["-e", workspaceNodeDependencyCheckScript, workspacePath, JSON.stringify(dependencies)],
+        {
+            cwd: workspacePath,
+            stdio: "ignore",
+        },
+    );
+    return result.status === 0;
 }
 
 /**
@@ -400,6 +469,26 @@ function getWorkspacePath() {
  */
 function runBazel(args, {workspacePath}) {
     return runCommand(bazelExecutablePath(workspacePath), args, {cwd: workspacePath});
+}
+
+/**
+ * Runs a Node.js script while streaming stdout and stderr.
+ */
+function runNodeScriptStreaming(args, {workspacePath}) {
+    return childProcess.spawnSync(process.execPath, args, {
+        cwd: workspacePath,
+        stdio: "inherit",
+    });
+}
+
+/**
+ * Runs the repo's Bazel wrapper while streaming stdout and stderr.
+ */
+function runBazelStreaming(args, {workspacePath}) {
+    return childProcess.spawnSync(bazelExecutablePath(workspacePath), args, {
+        cwd: workspacePath,
+        stdio: "inherit",
+    });
 }
 
 /**
