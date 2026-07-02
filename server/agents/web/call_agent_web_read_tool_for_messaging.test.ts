@@ -320,7 +320,7 @@ Taking a look now.
 End of messages.`);
 });
 
-test("prints reply previews with multiple paragraphs", async () => {
+test("marks truncated reply previews with an ellipsis", async () => {
     mockApiGetChat(api, {spaceId, chatId, name: "Incident Response"});
     mockApiGetChatMessages(api, {
         spaceId,
@@ -337,16 +337,8 @@ test("prints reply previews with multiple paragraphs", async () => {
                     author: aliceAccount,
                     index: 0,
                     contentSnippet: {
-                        elements: [
-                            {
-                                type: "Paragraph",
-                                elements: [{type: "Text", text: "Can you review the rollout?"}],
-                            },
-                            {
-                                type: "Paragraph",
-                                elements: [{type: "Text", text: "It looks stuck to me."}],
-                            },
-                        ],
+                        elements: [{type: "Text", text: "Can you review"}],
+                        isTruncated: true,
                     },
                 },
                 content: "Taking a look now.",
@@ -367,86 +359,7 @@ test("prints reply previews with multiple paragraphs", async () => {
 
 <blockquote cite="?message=0">
 
-[Alice](/human/alice): Can you review the rollout?
-
-It looks stuck to me.
-
-</blockquote>
-
-Taking a look now.
-
-</message>
-
-End of messages.`);
-});
-
-test("prints reply previews with the author on its own line for non-paragraph content", async () => {
-    mockApiGetChat(api, {spaceId, chatId, name: "Incident Response"});
-    mockApiGetChatMessages(api, {
-        spaceId,
-        chatId,
-        from: "End",
-        totalMessageCount: 1,
-        limit: 30,
-        createMessage: index =>
-            createApiMessageMock({
-                index,
-                author: bobAccount,
-                createdTime: "2026-05-14T15:05:00.000Z",
-                parent: {
-                    author: aliceAccount,
-                    index: 0,
-                    contentSnippet: {
-                        elements: [
-                            {
-                                type: "UnorderedList",
-                                items: [
-                                    {
-                                        elements: [
-                                            {
-                                                type: "Paragraph",
-                                                elements: [{type: "Text", text: "First list item"}],
-                                            },
-                                        ],
-                                    },
-                                    {
-                                        elements: [
-                                            {
-                                                type: "Paragraph",
-                                                elements: [
-                                                    {type: "Text", text: "Second list item"},
-                                                ],
-                                            },
-                                        ],
-                                    },
-                                ],
-                            },
-                        ],
-                    },
-                },
-                content: "Taking a look now.",
-            }),
-    });
-
-    expect(
-        await callAgentWebReadTool(context, {
-            path: "/chat/incident-response",
-            limit: "10kb",
-        }),
-    ).toEqual(`\
-# Incident Response
-
-<time>May 14th at 11:05am EDT</time>
-
-<message id="0" from="[Bob](/human/bob)">
-
-<blockquote cite="?message=0">
-
-[Alice](/human/alice):
-
-- First list item
-
-- Second list item
+[Alice](/human/alice): Can you review \\[…]
 
 </blockquote>
 

@@ -4264,7 +4264,7 @@ components:
                 author:
                     $ref: "#/components/schemas/Account"
                 contentSnippet:
-                    $ref: "#/components/schemas/Content_Response_WithoutKeys"
+                    $ref: "#/components/schemas/MessageContentPayloadParentContentSnippet"
 
         MessageContentPayloadPostParent:
             type: object
@@ -4278,8 +4278,9 @@ components:
         # now. In order for a client to use the actual range, we need to return the start
         # and end index *along with the content version*. Eventually, we should encode these
         # into `postSelectionId` – but I don't think we should expose the range in the meantime.
-        # In terms of our agents, the `contentSnippet` is the exact content being replied
-        # to which should give the agent enough context to reply to the request.
+        # In terms of our agents, we can use the `isTruncated` property to determine whether we
+        # need to fetch the whole post. The full message and the truncated message should give
+        # the agent enough context to reply to the request.
         MessageContentPayloadPostParent_Response:
             type: object
             required: [type, author, contentSnippet]
@@ -4290,7 +4291,7 @@ components:
                 author:
                     $ref: "#/components/schemas/Account"
                 contentSnippet:
-                    $ref: "#/components/schemas/Content_Response_WithoutKeys"
+                    $ref: "#/components/schemas/MessageContentPayloadParentContentSnippet"
 
         MessageDeletedPayload:
             type: object
@@ -4529,6 +4530,42 @@ components:
                     $ref: "#/components/schemas/TimeZone"
                 wasMentioned:
                     type: boolean
+
+        MessageContentPayloadParentContentSnippet:
+            type: object
+            required: [elements, isTruncated]
+            additionalProperties: false
+            properties:
+                elements:
+                    type: array
+                    items:
+                        $ref: "#/components/schemas/MessageContentPayloadParentContentSnippetTextInlineElement"
+                isTruncated:
+                    type: boolean
+
+        MessageContentPayloadParentContentSnippetTextInlineElement:
+            type: object
+            required: [type, text]
+            additionalProperties: false
+            properties:
+                type:
+                    const: Text
+                text:
+                    type: string
+                marks:
+                    type: array
+                    items:
+                        $ref: "#/components/schemas/MessageContentPayloadParentContentSnippetInlineElementMark"
+
+        MessageContentPayloadParentContentSnippetInlineElementMark:
+            oneOf:
+                - $ref: "#/components/schemas/ContentStrikeMark"
+                - $ref: "#/components/schemas/ContentCodeMark"
+            discriminator:
+                propertyName: type
+                mapping:
+                    Strike: "#/components/schemas/ContentStrikeMark"
+                    Code: "#/components/schemas/ContentCodeMark"
 
         MessageRoomReference:
             oneOf:

@@ -1,16 +1,20 @@
 import {Node} from "prosemirror-model";
 import {getApiAccount} from "~/server/api/internal/shared/get_api_account.js";
-import {intoApiContentWithReferences} from "~/server/api/internal/shared/into_api_content_with_references.js";
+import {getContentReferences} from "~/server/content/get_content_references.js";
 import {ServerBotActionContext} from "~/server/context/server_action_context.js";
-import {ApiContentKeyEncoder} from "~/shared/api/content/closed_source/api_content_key_encoder.js";
-import {getApiContentRangeSpanningContent} from "~/shared/api/content/get_api_content_range_spanning_content.js";
-import {sliceApiContentRange} from "~/shared/api/content/slice_api_content_range.js";
-import {ApiContentResponseWithoutKeys} from "~/shared/api/specification/types/api_content_response_without_keys.js";
-import {ApiMessageContentPayloadParentResponse} from "~/shared/api/specification/types/api_specification_convenience_types.js";
+import {intoApiContentSnippetInlineElementMarks} from "~/shared/api/content/closed_source/into_api_content.js";
+import {
+    ApiMessageContentPayloadParentContentSnippet,
+    ApiMessageContentPayloadParentResponse,
+} from "~/shared/api/specification/types/api_specification_convenience_types.js";
+import {getContentReferencedIdsForNode} from "~/shared/content/content_referenced_ids.js";
+import {ContentWithReferences} from "~/shared/content/content_references.js";
+import {printContentSingleLineTextSnippetPreservingMarks} from "~/shared/content/print_content_single_line_text_snippet.js";
+import {truncateContentForMessageReplyPreview} from "~/shared/content/truncate_content_for_message_reply_preview.js";
 import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
-import {assert} from "~/shared/helpers/control/assert.js";
 import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
 import {AccountId, SpaceId} from "~/shared/id/types/id_types.js";
+import {getAuthorFromSearchEntityIfExists} from "~/shared/search/get_author_from_search_entity_if_exists.js";
 
 export async function intoApiMessageContentPayloadParent(
     context: ServerBotActionContext,
@@ -63,34 +67,66 @@ export async function intoApiMessageContentPayloadParent(
     }
 }
 
+async function getContentSnippetWithReferences(
+    context: ServerBotActionContext,
+    spaceId: SpaceId,
+    content: Node,
+): Promise<{contentSnippet: ContentWithReferences; isTruncated: boolean}> {
+    const contentSnippetWithoutReferences = truncateContentForMessageReplyPreview(content);
+
+    const references = await getContentReferences(
+        context,
+        spaceId,
+        "AssertHasNoFiles",
+        getContentReferencedIdsForNode(contentSnippetWithoutReferences),
+    );
+
+    return {
+        contentSnippet: {
+            doc: contentSnippetWithoutReferences,
+            references,
+        },
+        isTruncated: content.nodeSize !== contentSnippetWithoutReferences.nodeSize,
+    };
+}
+
 async function intoApiContentSnippet(
     context: ServerBotActionContext,
     spaceId: SpaceId,
     content: Node,
-): Promise<ApiContentResponseWithoutKeys> {
-    // The parent `content` was already cut down by our data layer to just the range of
-    // content being replied to. Convert the content and slice the whole thing with
-    // `sliceApiContentRange()` so the snippet has the exact shape a slice of the
-    // parent message content would have. Which guarantees `findApiContentRanges()`
-    // will find the snippet in the parent message content when a reply is recreated
-    // from the snippet.
-    //
-    // The content keys we encode here never leave this function since
-    // `sliceApiContentRange()` removes them.
-    const apiContent = await intoApiContentWithReferences(context, {
-        spaceId,
-        fileAuthorizer: "AssertHasNoFiles",
-        content,
-        contentKeyEncoder: new ApiContentKeyEncoder({
-            entityId: "MessageContentPayloadParentContentSnippet",
-            version: 0,
-        }),
+): Promise<ApiMessageContentPayloadParentContentSnippet> {
+    const {
+        contentSnippet: {doc: contentSnippet, references},
+        isTruncated,
+    } = await getContentSnippetWithReferences(context, spaceId, content);
+
+    const segmentsWithMarks = printContentSingleLineTextSnippetPreservingMarks(contentSnippet, {
+        shouldPreserveMark: mark => mark.type.name === "code" || mark.type.name === "strike",
+        getAccountIfExists: accountId => references.accountById.get(accountId)?.initialData ?? null,
+        getSearchEntityIfExists: entityId => {
+            const entity = references.searchEntityById.get(entityId);
+            if (!entity) return null;
+            if (entity.isPrivate) return entity;
+
+            const author = getAuthorFromSearchEntityIfExists(entity.entity.initialData);
+            return {
+                isPrivate: false,
+                title: entity.entity.initialData.title,
+                getAuthorData: author ? () => author.initialData : null,
+            };
+        },
+        getFileIfExists: fileId => references.fileById?.get(fileId)?.file.initialData ?? null,
     });
 
-    const range = getApiContentRangeSpanningContent(apiContent);
-    if (range === null) return {elements: []};
-
-    const contentSnippet = sliceApiContentRange(apiContent, range);
-    assert(contentSnippet.ok);
-    return contentSnippet.value;
+    return {
+        elements: segmentsWithMarks.map(segment => ({
+            type: "Text",
+            text: segment.text,
+            marks:
+                segment.marks.length > 0
+                    ? intoApiContentSnippetInlineElementMarks(segment.marks)
+                    : undefined,
+        })),
+        isTruncated,
+    };
 }

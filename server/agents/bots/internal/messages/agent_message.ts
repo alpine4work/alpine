@@ -77,10 +77,9 @@ export class AgentMessage {
 
                 const {parent} = message.payload;
 
-                const {children} = await printApiContentToAgentMarkdownTree(
-                    transaction,
-                    parent.contentSnippet,
-                );
+                const {children} = await printApiContentToAgentMarkdownTree(transaction, {
+                    elements: [{type: "Paragraph", elements: parent.contentSnippet.elements}],
+                });
 
                 return {...parent, markdownContent: children};
             })(),

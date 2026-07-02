@@ -1,8 +1,8 @@
 import {addKeysToApiContentForTest} from "~/shared/api/content/test_helpers/add_keys_to_api_content_for_test.js";
-import {ApiContentResponseWithoutKeys} from "~/shared/api/specification/types/api_content_response_without_keys.js";
 import {
     ApiAccount,
     ApiContentResponse,
+    ApiMessageContentPayloadParentContentSnippet,
     ApiMessageResponse,
 } from "~/shared/api/specification/types/api_specification_convenience_types.js";
 import {isReadonlyArray} from "~/shared/helpers/array/is_readonly_array.js";
@@ -13,7 +13,7 @@ export type ApiMessageMockParent = {
     author: ApiAccount;
     index: number;
     endIndex?: number;
-    contentSnippet: ApiContentResponseWithoutKeys | string;
+    contentSnippet: ApiMessageContentPayloadParentContentSnippet | string;
 };
 
 export function createApiMessageMock({
@@ -58,12 +58,8 @@ export function createApiMessageMock({
                       contentSnippet:
                           typeof parent.contentSnippet === "string"
                               ? {
-                                    elements: [
-                                        {
-                                            type: "Paragraph",
-                                            elements: [{type: "Text", text: parent.contentSnippet}],
-                                        },
-                                    ],
+                                    elements: [{type: "Text", text: parent.contentSnippet}],
+                                    isTruncated: false,
                                 }
                               : parent.contentSnippet,
                   }

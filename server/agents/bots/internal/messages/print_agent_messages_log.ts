@@ -233,8 +233,23 @@ function* getMessageParentHtml(
 
     yield {type: "html", value: `<blockquote cite="${escapeHtml(parent.author.name)}">`};
 
-    for (const element of parent.markdownContent) {
+    for (const element of parent.markdownContent.slice(0, -1)) {
         yield element;
+    }
+
+    const lastElement = parent.markdownContent[parent.markdownContent.length - 1]!;
+
+    if (!parent.contentSnippet.isTruncated) {
+        yield lastElement;
+    } else {
+        const truncatedTextElement = {type: "text", value: " […]"} as const;
+
+        if (lastElement.type === "paragraph") {
+            lastElement.children.push(truncatedTextElement);
+            yield lastElement;
+        } else {
+            yield {type: "paragraph", children: [truncatedTextElement]};
+        }
     }
 
     yield {type: "html", value: "</blockquote>"};

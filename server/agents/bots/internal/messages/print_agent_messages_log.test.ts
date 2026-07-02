@@ -5,10 +5,10 @@ import {MemoryStorage} from "@miniflare/storage-memory";
 import {AgentMessage} from "~/server/agents/bots/internal/messages/agent_message.js";
 import {printAgentMessagesLog} from "~/server/agents/bots/internal/messages/print_agent_messages_log.js";
 import {addKeysToApiContentForTest} from "~/shared/api/content/test_helpers/add_keys_to_api_content_for_test.js";
-import {ApiContentResponseWithoutKeys} from "~/shared/api/specification/types/api_content_response_without_keys.js";
 import {
     ApiAccount,
     ApiContentResponse,
+    ApiMessageContentPayloadParentContentSnippet,
 } from "~/shared/api/specification/types/api_specification_convenience_types.js";
 import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
 import {assertDateString, serializeDateString} from "~/shared/helpers/date/date_string.js";
@@ -46,7 +46,7 @@ function createTestAgentMessage({
     createdTimeZone?: TimeZone;
     parent?: {
         author: "Alice" | "Assistant" | {id: AccountId; name: string; botId?: BotId};
-        contentSnippet: ApiContentResponseWithoutKeys | string;
+        contentSnippet: ApiMessageContentPayloadParentContentSnippet;
     };
 }) {
     return storage.transaction(transaction => {
@@ -71,7 +71,7 @@ function createTestAgentMessage({
             type: "Message";
             author: ApiAccount;
             index: number;
-            contentSnippet: ApiContentResponseWithoutKeys;
+            contentSnippet: ApiMessageContentPayloadParentContentSnippet;
         } | null = null;
 
         if (parent) {
@@ -93,17 +93,7 @@ function createTestAgentMessage({
                     },
                 },
                 index: 0,
-                contentSnippet:
-                    typeof parent.contentSnippet === "string"
-                        ? {
-                              elements: [
-                                  {
-                                      type: "Paragraph",
-                                      elements: [{type: "Text", text: parent.contentSnippet}],
-                                  },
-                              ],
-                          }
-                        : parent.contentSnippet,
+                contentSnippet: parent.contentSnippet,
             };
         }
 
@@ -1180,7 +1170,10 @@ describe("messages with parents", () => {
                 content: "This is my reply",
                 parent: {
                     author: {id: generateId<AccountId>(), name: "Bob"},
-                    contentSnippet: "Original message from Bob",
+                    contentSnippet: {
+                        elements: [{type: "Text", text: "Original message from Bob"}],
+                        isTruncated: false,
+                    },
                 },
             }),
         ]);
@@ -1208,7 +1201,10 @@ This is my reply
                 content: "Thanks for the help!",
                 parent: {
                     author: "Assistant",
-                    contentSnippet: "Here is the answer to your question",
+                    contentSnippet: {
+                        elements: [{type: "Text", text: "Here is the answer to your question"}],
+                        isTruncated: false,
+                    },
                 },
             }),
         ]);
@@ -1236,7 +1232,10 @@ Thanks for the help!
                 content: "Let me address your question",
                 parent: {
                     author: "Alice",
-                    contentSnippet: "Can you help me with this?",
+                    contentSnippet: {
+                        elements: [{type: "Text", text: "Can you help me with this?"}],
+                        isTruncated: false,
+                    },
                 },
             }),
         ]);
@@ -1255,7 +1254,7 @@ Let me address your question
 `);
     });
 
-    test("message with multiple paragraphs of parent content", async () => {
+    test("message with truncated parent content shows truncated text with ellipsis", async () => {
         const baseTime = new Date("2024-01-01T12:00:00Z");
         const messages = await runAllPromises([
             createTestAgentMessage({
@@ -1266,15 +1265,9 @@ Let me address your question
                     author: {id: generateId<AccountId>(), name: "Bob"},
                     contentSnippet: {
                         elements: [
-                            {
-                                type: "Paragraph",
-                                elements: [{type: "Text", text: "First quoted paragraph."}],
-                            },
-                            {
-                                type: "Paragraph",
-                                elements: [{type: "Text", text: "Second quoted paragraph."}],
-                            },
+                            {type: "Text", text: "This is just a snippet of a much longer message"},
                         ],
+                        isTruncated: true,
                     },
                 },
             }),
@@ -1286,14 +1279,33 @@ Let me address your question
 
 <human name="Alice">
 <blockquote cite="Bob">
-First quoted paragraph.
-
-Second quoted paragraph.
+This is just a snippet of a much longer message […]
 </blockquote>
 
 I agree with this part
 </human>
 `);
+    });
+
+    test("message with non-truncated parent does not show completeness attribute", async () => {
+        const baseTime = new Date("2024-01-01T12:00:00Z");
+        const messages = await runAllPromises([
+            createTestAgentMessage({
+                author: "Alice",
+                createdTime: baseTime,
+                content: "Reply",
+                parent: {
+                    author: {id: generateId<AccountId>(), name: "Bob"},
+                    contentSnippet: {
+                        elements: [{type: "Text", text: "Short message"}],
+                        isTruncated: false,
+                    },
+                },
+            }),
+        ]);
+
+        const result = printAgentMessagesLog(messages, {time: baseTime, timeZone: defaultTimeZone});
+        expect(result).not.toContain("completeness");
     });
 
     test("HTML escaping in parent author name", async () => {
@@ -1305,7 +1317,10 @@ I agree with this part
                 content: "My reply",
                 parent: {
                     author: {id: generateId<AccountId>(), name: 'Bob & Carol\'s "Account"'},
-                    contentSnippet: "Original message",
+                    contentSnippet: {
+                        elements: [{type: "Text", text: "Original message"}],
+                        isTruncated: false,
+                    },
                 },
             }),
         ]);
@@ -1343,7 +1358,10 @@ My reply
                 content: "I need help with this",
                 parent: {
                     author: "Assistant",
-                    contentSnippet: "Hi there! How can I help?",
+                    contentSnippet: {
+                        elements: [{type: "Text", text: "Hi there! How can I help?"}],
+                        isTruncated: false,
+                    },
                 },
             }),
         ]);
@@ -1384,7 +1402,10 @@ I need help with this
                 content: "Second message with reply",
                 parent: {
                     author: {id: generateId<AccountId>(), name: "Bob"},
-                    contentSnippet: "Bob's message",
+                    contentSnippet: {
+                        elements: [{type: "Text", text: "Bob's message"}],
+                        isTruncated: false,
+                    },
                 },
             }),
         ]);
@@ -1416,7 +1437,10 @@ Second message with reply
                 content: "Follow-up to my own message",
                 parent: {
                     author: "Alice",
-                    contentSnippet: "My earlier point",
+                    contentSnippet: {
+                        elements: [{type: "Text", text: "My earlier point"}],
+                        isTruncated: false,
+                    },
                 },
             }),
         ]);
@@ -1435,7 +1459,7 @@ Follow-up to my own message
 `);
     });
 
-    test("message with parent content ending with code element", async () => {
+    test("message with truncated parent content ending with code element", async () => {
         const baseTime = new Date("2024-01-01T12:00:00Z");
         const messages = await runAllPromises([
             createTestAgentMessage({
@@ -1446,14 +1470,10 @@ Follow-up to my own message
                     author: {id: generateId<AccountId>(), name: "Bob"},
                     contentSnippet: {
                         elements: [
-                            {
-                                type: "Paragraph",
-                                elements: [
-                                    {type: "Text", text: "Try running "},
-                                    {type: "Text", text: "npm install", marks: [{type: "Code"}]},
-                                ],
-                            },
+                            {type: "Text", text: "Try running "},
+                            {type: "Text", text: "npm install", marks: [{type: "Code"}]},
                         ],
+                        isTruncated: true,
                     },
                 },
             }),
@@ -1465,7 +1485,7 @@ Follow-up to my own message
 
 <human name="Alice">
 <blockquote cite="Bob">
-Try running \`npm install\`
+Try running \`npm install\` […]
 </blockquote>
 
 That looks interesting
