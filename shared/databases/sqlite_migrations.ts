@@ -177,7 +177,7 @@ export function runMainMigrations(db: Database): void {
  * pages it syncs.
  */
 export function runTableMigrations(db: Database, tableId: DatabaseTableId): void {
-    runSchemaMigrations(db, tableSqliteMigrations(tableId), "table");
+    runSchemaMigrations(db, tableId, tableSqliteMigrations(tableId), "table");
 }
 
 /**
@@ -185,7 +185,7 @@ export function runTableMigrations(db: Database, tableId: DatabaseTableId): void
  * `ATTACH`-ed join-table database.
  */
 export function runJoinTableMigrations(db: Database, tableId: DatabaseTableId): void {
-    runSchemaMigrations(db, tableId, joinTableSqliteMigrations, "join table");
+    runSchemaMigrations(db, tableId, joinTableSqliteMigrations(tableId), "join table");
 }
 
 function runSchemaMigrations(
