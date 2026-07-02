@@ -41,7 +41,11 @@ ts_project(
         ["**/*.ts"],
         exclude = CORE_SRCS + ["**/*.test.ts"],
     ),
-    test_deps = ["//:node_modules/diff", "//:node_modules/expect-type"],
+    test_deps = [
+        "//:node_modules/diff",
+        "//:node_modules/expect-type",
+        "//:node_modules/fast-check",
+    ],
     visibility = ["//visibility:public"],
     deps = [
         ":helpers_core",

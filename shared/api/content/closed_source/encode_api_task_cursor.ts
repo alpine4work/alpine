@@ -1,3 +1,4 @@
+import {ApiTaskCursor} from "~/shared/api/specification/types/api_task_cursor.js";
 import {InvalidArgumentError} from "~/shared/error/error.js";
 import {decodeBase64, encodeBase64} from "~/shared/helpers/binary/base64.js";
 import {scrambleBytes, unscrambleBytes} from "~/shared/helpers/binary/scramble_bytes.js";
@@ -45,7 +46,7 @@ const taskQueryNormalizedSortTypeIndexes = {
 export function encodeApiTaskCursor(
     sorts: ReadonlyArray<TaskQueryNormalizedSort>,
     cursor: TaskQuerySortCursor,
-): string {
+): ApiTaskCursor {
     assert(cursor.length === sorts.length + 1);
 
     const payload: Array<number> = [];
@@ -59,12 +60,15 @@ export function encodeApiTaskCursor(
 
     for (const byte of decodeId(assertId<TaskId>(taskId))) payload.push(byte);
 
-    return encodeBase64(scrambleBytes(Uint8Array.from(payload), scrambleSeed), "Rfc4648Url");
+    return encodeBase64(
+        scrambleBytes(Uint8Array.from(payload), scrambleSeed),
+        "Rfc4648Url",
+    ) as ApiTaskCursor;
 }
 
 export function decodeApiTaskCursor(
     sorts: ReadonlyArray<TaskQueryNormalizedSort>,
-    cursorString: string,
+    cursorString: ApiTaskCursor,
 ): TaskQuerySortCursor {
     const payload = unscrambleBytes(decodeBase64(cursorString, "Rfc4648Url"), scrambleSeed);
 
