@@ -4,6 +4,7 @@ import {
     ApiContentBlockElementResponse,
     ApiContentCheckListBlockElementItemResponse,
     ApiContentCodeBlockElementLineResponse,
+    ApiContentCodeBlockElementResponse,
     ApiContentDividerBlockElementResponse,
     ApiContentFileBlockElementResponse,
     ApiContentFileFloatBlockElementResponse,
@@ -95,6 +96,9 @@ export type ApiContentCheckListBlockElementItemResponseWithoutKeys =
 
 export type ApiContentDividerBlockElementResponseWithoutKeys =
     MakeApiContentWithoutKeys<ApiContentDividerBlockElementResponse>;
+
+export type ApiContentCodeBlockElementResponseWithoutKeys =
+    MakeApiContentWithoutKeys<ApiContentCodeBlockElementResponse>;
 
 export type ApiContentCodeBlockElementLineResponseWithoutKeys =
     MakeApiContentWithoutKeys<ApiContentCodeBlockElementLineResponse>;

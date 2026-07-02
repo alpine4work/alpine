@@ -200,13 +200,18 @@ test("can find sliced content", async () => {
                     $from.nodeAfter?.type.name === "file"
                         ? {
                               type: "Before",
-                              key: encoder.encode({pos: from, nodeSize: $from.nodeAfter.nodeSize}),
+                              key: encoder.encode({
+                                  pos: from,
+                                  nodeSize: $from.nodeAfter.nodeSize,
+                                  inlineContent: $from.nodeAfter.inlineContent,
+                              }),
                           }
                         : {
                               type: "Inline",
                               key: encoder.encode({
                                   pos: $from.before(),
                                   nodeSize: $from.parent.nodeSize,
+                                  inlineContent: $from.parent.inlineContent,
                               }),
                               index: $from.parentOffset,
                           };
@@ -218,6 +223,7 @@ test("can find sliced content", async () => {
                               key: encoder.encode({
                                   pos: to - 1,
                                   nodeSize: $to.nodeBefore.nodeSize,
+                                  inlineContent: $to.nodeBefore.inlineContent,
                               }),
                           }
                         : {
@@ -225,6 +231,7 @@ test("can find sliced content", async () => {
                               key: encoder.encode({
                                   pos: $to.before(),
                                   nodeSize: $to.parent.nodeSize,
+                                  inlineContent: $to.parent.inlineContent,
                               }),
                               index: $to.parentOffset,
                           };

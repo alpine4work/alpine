@@ -1223,13 +1223,18 @@ for (const testCase of testCases) {
             $from.nodeAfter && !$from.nodeAfter.type.isInline
                 ? {
                       type: "Before",
-                      key: encoder.encode({pos: testCase.from, nodeSize: $from.nodeAfter.nodeSize}),
+                      key: encoder.encode({
+                          pos: testCase.from,
+                          nodeSize: $from.nodeAfter.nodeSize,
+                          inlineContent: $from.nodeAfter.inlineContent,
+                      }),
                   }
                 : {
                       type: "Inline",
                       key: encoder.encode({
                           pos: $from.before(),
                           nodeSize: $from.parent.nodeSize,
+                          inlineContent: $from.parent.inlineContent,
                       }),
                       index: $from.parentOffset,
                   };
@@ -1241,6 +1246,7 @@ for (const testCase of testCases) {
                       key: encoder.encode({
                           pos: testCase.to - 1,
                           nodeSize: $to.nodeBefore.nodeSize,
+                          inlineContent: $to.nodeBefore.inlineContent,
                       }),
                   }
                 : {
@@ -1248,6 +1254,7 @@ for (const testCase of testCases) {
                       key: encoder.encode({
                           pos: $to.before(),
                           nodeSize: $to.parent.nodeSize,
+                          inlineContent: $to.parent.inlineContent,
                       }),
                       index: $to.parentOffset,
                   };

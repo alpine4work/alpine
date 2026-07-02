@@ -9,6 +9,8 @@ import {
 import {
     ApiContentBlockElementResponseWithoutKeys,
     ApiContentCheckListBlockElementItemResponseWithoutKeys,
+    ApiContentCodeBlockElementLineResponseWithoutKeys,
+    ApiContentCodeBlockElementResponseWithoutKeys,
     ApiContentDividerBlockElementResponseWithoutKeys,
     ApiContentFileBlockElementResponseWithoutKeys,
     ApiContentFileFloatBlockElementResponseWithoutKeys,
@@ -432,8 +434,8 @@ function sliceCheckListBlockElementItems(
 function sliceCodeBlockElement(
     context: SliceContext,
     element: ApiContentCodeBlockElementResponse,
-): ApiContentCodeBlockElementResponse | undefined {
-    let lines: Array<ApiContentCodeBlockElementLineResponse> | undefined;
+): ApiContentCodeBlockElementResponseWithoutKeys | undefined {
+    let lines: Array<ApiContentCodeBlockElementLineResponseWithoutKeys> | undefined;
 
     let previousLine: {line: ApiContentCodeBlockElementLineResponse; length: number} | undefined;
 
@@ -455,14 +457,20 @@ function sliceCodeBlockElement(
             (lines === undefined || lines.length === 0)
         ) {
             lines ??= [];
-            lines.push({...previousLine.line, elements: []});
+
+            // We remove `key`s because a `key` for a sliced code line won't be valid anymore
+            // since the start/end of the node is different.
+            lines.push({...omitObject(previousLine.line, ["key"]), elements: []});
         }
 
         const lineElements = sliceCodeLineElements(context, line.key, line.elements);
 
         if (selectedBreak || lineElements.length > 0) {
             lines ??= [];
-            lines.push({...line, elements: lineElements});
+
+            // We remove `key`s because a `key` for a sliced code line won't be valid anymore
+            // since the start/end of the node is different.
+            lines.push({...omitObject(line, ["key"]), elements: lineElements});
         }
 
         previousLine = {

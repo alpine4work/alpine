@@ -294,15 +294,6 @@ export type ApiMessageContentPayloadParent =
 export type ApiMessageContentPayloadParentResponse =
     ApiSpecification.components["schemas"]["MessageContentPayloadParent_Response"];
 
-export type ApiMessageContentPayloadParentContentSnippet =
-    ApiSpecification.components["schemas"]["MessageContentPayloadParentContentSnippet"];
-
-export type ApiMessageContentPayloadParentContentSnippetTextInlineElement =
-    ApiSpecification.components["schemas"]["MessageContentPayloadParentContentSnippetTextInlineElement"];
-
-export type ApiMessageContentPayloadParentContentSnippetInlineElementMark =
-    ApiSpecification.components["schemas"]["MessageContentPayloadParentContentSnippetInlineElementMark"];
-
 export type ApiMessageStreamPartPayload =
     ApiSpecification.components["schemas"]["MessageStreamPartPayload"];
 
