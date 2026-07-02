@@ -10,7 +10,13 @@ export function getApiContentPositionPos(
 ): number {
     switch (position.type) {
         case "Inline": {
-            const {pos, nodeSize} = decoder.decode(position.key);
+            const {pos, nodeSize, inlineContent} = decoder.decode(position.key);
+
+            if (!inlineContent) {
+                throw new InvalidArgumentError("Content key isn\u2019t for inline content", {
+                    displayMessage: errorDisplayMessage`Content key doesn\u2019t support \`Inline\` positions. Try again with a \`Before\` or \`After\` position.`,
+                });
+            }
 
             if (!(0 <= position.index && position.index <= nodeSize)) {
                 throw new InvalidArgumentError("Index out of bounds", {

@@ -859,12 +859,13 @@ test("stream message content keys use version zero and merged content positions"
         decoder.decode(part1Element.key),
         decoder.decode(part2Element.key),
     ]).toEqual([
-        {version: 0, pos: 0, nodeSize: baseNode.nodeSize},
-        {version: 0, pos: baseNode.nodeSize, nodeSize: part1Node.nodeSize},
+        {version: 0, pos: 0, nodeSize: baseNode.nodeSize, inlineContent: true},
+        {version: 0, pos: baseNode.nodeSize, nodeSize: part1Node.nodeSize, inlineContent: true},
         {
             version: 0,
             pos: baseNode.nodeSize + part1Node.nodeSize,
             nodeSize: part2Node.nodeSize,
+            inlineContent: true,
         },
     ]);
 });

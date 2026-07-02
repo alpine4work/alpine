@@ -264,7 +264,9 @@ const apiContentKeyEncoder = new ApiContentKeyEncoder({entityId: "Test", version
 // We don't really need to exercise content keys in the generative test. So choose
 // randomly between one of 5 constant values.
 const ApiContentKeyArbitrary = fc.oneof(
-    ...[0, 1, 2, 3, 4].map(pos => fc.constant(apiContentKeyEncoder.encode({pos, nodeSize: 0}))),
+    ...[0, 1, 2, 3, 4].map(pos =>
+        fc.constant(apiContentKeyEncoder.encode({pos, nodeSize: 0, inlineContent: true})),
+    ),
 );
 
 const ApiContentFileBlockElementArbitrary: Arbitrary<ApiContentFileBlockElementResponse> =

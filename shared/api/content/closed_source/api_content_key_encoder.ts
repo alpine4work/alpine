@@ -24,8 +24,8 @@ export class ApiContentKeyEncoder {
 
         const basePayload: Array<number> = [];
 
-        // Use 23 bits of the entity hash as a way to detect when you're using a key for
-        // the wrong entity. Collision chance is 1 / 8,388,608 which is fine since it's not
+        // Use 22 bits of the entity hash as a way to detect when you're using a key for
+        // the wrong entity. Collision chance is 1 / 4,194,304 which is fine since it's not
         // a strong invariant that we catch every misused content key. It's mostly to
         // improve the developer experience and catch accidental mistakes.
         //
@@ -34,7 +34,10 @@ export class ApiContentKeyEncoder {
         // that we're using a new format. However, since the version is inside the
         // scrambled payload that kind locks the scramble strategy in place since the
         // decoder will always need to unscramble.
-        basePayload.push(entityIdHash & 0b01111111);
+        //
+        // The second bit is the "inline" bit. `encode()` sets it when the keyed element
+        // has inline content and therefore supports `Inline` positions.
+        basePayload.push(entityIdHash & 0b00111111);
         basePayload.push((entityIdHash >>> 8) & 0b11111111);
         basePayload.push((entityIdHash >>> 16) & 0b11111111);
 
@@ -44,7 +47,15 @@ export class ApiContentKeyEncoder {
         this.#basePayload = basePayload;
     }
 
-    encode({pos, nodeSize}: {pos: number; nodeSize: number}) {
+    encode({
+        pos,
+        nodeSize,
+        inlineContent,
+    }: {
+        pos: number;
+        nodeSize: number;
+        inlineContent: boolean;
+    }) {
         assert(pos >= 0);
         assert(Number.isSafeInteger(pos));
 
@@ -52,6 +63,8 @@ export class ApiContentKeyEncoder {
         assert(Number.isSafeInteger(nodeSize));
 
         const payload = [...this.#basePayload];
+
+        if (inlineContent) payload[0] = payload[0]! | 0b01000000;
 
         writeVarint(pos, payload);
         writeVarint(nodeSize, payload);
@@ -80,6 +93,7 @@ export class ApiContentKeyDecoder {
         version: number;
         pos: number;
         nodeSize: number;
+        inlineContent: boolean;
     } {
         const bytes = decodeBase64(key, "Rfc4648Url");
 
@@ -110,8 +124,10 @@ export class ApiContentKeyDecoder {
 
         // Check the the entity hash in the key matches the expected entity hash. After
         // we've verified that the structure
+        //
+        // The first byte masks out the "inline" bit since it varies per key.
         if (
-            payload[0] !== (this.#entityIdHash & 0b01111111) ||
+            (payload[0]! & 0b10111111) !== (this.#entityIdHash & 0b00111111) ||
             payload[1] !== ((this.#entityIdHash >>> 8) & 0b11111111) ||
             payload[2] !== ((this.#entityIdHash >>> 16) & 0b11111111)
         ) {
@@ -130,6 +146,7 @@ export class ApiContentKeyDecoder {
             version: versionResult.value,
             pos: posResult.value,
             nodeSize: nodeSizeResult.value,
+            inlineContent: (payload[0]! & 0b01000000) !== 0,
         };
     }
 }

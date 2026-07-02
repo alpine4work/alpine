@@ -104,7 +104,10 @@ function addKeysToApiContentBlockElement(
             const nodeSize = 1;
             state.pos += nodeSize;
 
-            return {...element, key: encoder.encode({pos: nodePos, nodeSize})};
+            return {
+                ...element,
+                key: encoder.encode({pos: nodePos, nodeSize, inlineContent: false}),
+            };
         }
         case "Table": {
             state.pos += 1;
@@ -145,7 +148,7 @@ function addKeysToApiContentBlockElement(
 
                 return {
                     ...line,
-                    key: encoder.encode({pos: linePos, nodeSize}),
+                    key: encoder.encode({pos: linePos, nodeSize, inlineContent: true}),
                 };
             });
 
@@ -224,7 +227,7 @@ function addKeysToApiContentParagraphBlockElement(
     const nodeSize = getApiContentInlineElementsNodeSize(element.elements) + 2;
     state.pos += nodeSize;
 
-    return {...element, key: encoder.encode({pos: nodePos, nodeSize})};
+    return {...element, key: encoder.encode({pos: nodePos, nodeSize, inlineContent: true})};
 }
 
 function addKeysToApiContentHeadingBlockElement(
@@ -236,7 +239,7 @@ function addKeysToApiContentHeadingBlockElement(
     const nodeSize = getApiContentInlineElementsNodeSize(element.elements) + 2;
     state.pos += nodeSize;
 
-    return {...element, key: encoder.encode({pos: nodePos, nodeSize})};
+    return {...element, key: encoder.encode({pos: nodePos, nodeSize, inlineContent: true})};
 }
 
 function addKeysToApiContentListBlockElements(
@@ -333,7 +336,7 @@ function addKeyToApiContentFileOrPreviewBlockElement(
     element: ApiContentFileOrPreviewBlockElementResponseWithoutKeys,
     pos: number,
 ): ApiContentFileBlockElementResponse | ApiContentPreviewBlockElementResponse {
-    const key = encoder.encode({pos, nodeSize: 1});
+    const key = encoder.encode({pos, nodeSize: 1, inlineContent: false});
 
     switch (element.type) {
         case "File":

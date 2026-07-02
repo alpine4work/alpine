@@ -29,7 +29,6 @@ import {
     ApiContentListBlockElementItemResponse,
     ApiContentResponse,
     ApiMentionReferenceResponse,
-    ApiMessageContentPayloadParentContentSnippetInlineElementMark,
     ApiPreviewReferenceResponse,
 } from "~/shared/api/specification/types/api_specification_convenience_types.js";
 import {ContentMention} from "~/shared/content/content_mention.js";
@@ -665,7 +664,11 @@ function maybeEncodeApiContentKey(
 
     if (!context.encoder) return undefined;
 
-    return context.encoder.encode({pos, nodeSize: node.nodeSize});
+    return context.encoder.encode({
+        pos,
+        nodeSize: node.nodeSize,
+        inlineContent: node.inlineContent,
+    });
 }
 
 function assertApiContentResponseHasKeys(
@@ -1089,27 +1092,6 @@ function intoApiContentInlineElementMark(mark: Mark): ApiContentInlineElementMar
         }
         default:
             throw exhaustive(typeName);
-    }
-}
-
-export function intoApiContentSnippetInlineElementMarks(
-    marks: ReadonlyArray<Mark>,
-): ReadonlyArray<ApiMessageContentPayloadParentContentSnippetInlineElementMark> {
-    return marks.map(intoApiContentSnippetInlineElementMark);
-}
-
-function intoApiContentSnippetInlineElementMark(
-    mark: Mark,
-): ApiMessageContentPayloadParentContentSnippetInlineElementMark {
-    switch (mark.type.name) {
-        case "strike":
-            return {type: "Strike"};
-        case "code":
-            return {type: "Code"};
-        default:
-            throw new InternalError(
-                quote`${mark.type.name} mark isn\u2019t supported in \`ContentSnippet\` inline element`,
-            );
     }
 }
 

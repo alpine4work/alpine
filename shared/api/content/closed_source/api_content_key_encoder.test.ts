@@ -13,116 +13,134 @@ test.each([
         version: 0,
         pos: 0,
         nodeSize: 1,
-        key: "NaTPHJCG",
+        inlineContent: true,
+        key: "8uf_rEFd",
     },
     {
         version: 1,
         pos: 0,
         nodeSize: 1,
-        key: "6GxnEP9Q",
+        inlineContent: true,
+        key: "HKOo62np",
     },
     {
         version: 2,
         pos: 0,
         nodeSize: 1,
-        key: "9rrkjAoK",
+        inlineContent: true,
+        key: "TWv8PGBY",
     },
     {
         version: 3,
         pos: 0,
         nodeSize: 1,
-        key: "PGzXTwPf",
+        inlineContent: true,
+        key: "XO9CZMEA",
     },
     {
         version: 0,
         pos: 1,
         nodeSize: 1,
+        inlineContent: false,
         key: "aTg91-8t",
     },
     {
         version: 0,
         pos: 2,
         nodeSize: 1,
+        inlineContent: false,
         key: "PHvmQ0fr",
     },
     {
         version: 0,
         pos: 3,
         nodeSize: 1,
+        inlineContent: false,
         key: "BErauysH",
     },
     {
         version: 1,
         pos: 1,
         nodeSize: 1,
-        key: "QRcT0ykx",
+        inlineContent: true,
+        key: "Lac3_Q9w",
     },
     {
         version: 1,
         pos: 2,
         nodeSize: 1,
+        inlineContent: false,
         key: "e_yUygj3",
     },
     {
         version: 1,
         pos: 3,
         nodeSize: 1,
-        key: "5buv3gy4",
+        inlineContent: true,
+        key: "l9Xd1iZa",
     },
     {
         version: 2,
         pos: 1,
         nodeSize: 1,
+        inlineContent: false,
         key: "_4B6NiO8",
     },
     {
         version: 2,
         pos: 2,
         nodeSize: 1,
-        key: "y-y-VxGw",
+        inlineContent: true,
+        key: "i7e2z-ZT",
     },
     {
         version: 2,
         pos: 3,
         nodeSize: 1,
+        inlineContent: false,
         key: "X-dc6tWR",
     },
     {
         version: 0,
         pos: 14,
         nodeSize: 31,
-        key: "yMV5z1PG",
+        inlineContent: true,
+        key: "6Opahuto",
     },
     {
         version: 2,
         pos: 148,
         nodeSize: 42,
+        inlineContent: false,
         key: "YAzvYOj8Uw",
     },
     {
         version: 7,
         pos: 12_834,
         nodeSize: 1_209,
-        key: "O2-60-sO_OY",
+        inlineContent: true,
+        key: "pi0mlaUgPzw",
     },
     {
         version: 13,
         pos: 1_030_441,
         nodeSize: 89_003,
+        inlineContent: false,
         key: "fBRdXOTtuD8jfQ",
     },
     {
         version: 6_120,
         pos: 48_218_390,
         nodeSize: 2_048,
-        key: "Jvt6JG8v925lV9w",
+        inlineContent: true,
+        key: "ToSIMNunyA66tJw",
     },
-])("encodes and decodes `$key`", ({version, pos, nodeSize, key}) => {
+])("encodes and decodes `$key`", ({version, pos, nodeSize, inlineContent, key}) => {
     const encoder = new ApiContentKeyEncoder({entityId: documentEntityId, version});
     const decoder = new ApiContentKeyDecoder(documentEntityId);
 
-    expect(encoder.encode({pos, nodeSize})).toEqual(key);
-    expect(decoder.decode(key)).toEqual({version, pos, nodeSize});
+    expect(encoder.encode({pos, nodeSize, inlineContent})).toEqual(key);
+    expect(decoder.decode(key)).toEqual({version, pos, nodeSize, inlineContent});
 });
 
 test("decodes exact data encoded for random content keys", () => {
@@ -131,15 +149,16 @@ test("decodes exact data encoded for random content keys", () => {
         version: randomSafeInteger(),
         pos: randomSafeInteger(),
         nodeSize: randomSafeInteger(),
+        inlineContent: Math.random() < 0.5,
     }));
 
-    for (const {entityId, version, pos, nodeSize} of cases) {
+    for (const {entityId, version, pos, nodeSize, inlineContent} of cases) {
         const encoder = new ApiContentKeyEncoder({entityId, version});
         const decoder = new ApiContentKeyDecoder(entityId);
 
-        const key = encoder.encode({pos, nodeSize});
+        const key = encoder.encode({pos, nodeSize, inlineContent});
 
-        expect(decoder.decode(key)).toEqual({version, pos, nodeSize});
+        expect(decoder.decode(key)).toEqual({version, pos, nodeSize, inlineContent});
     }
 });
 
