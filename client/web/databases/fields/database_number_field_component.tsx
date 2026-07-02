@@ -38,7 +38,6 @@ function DatabaseNumberGridViewCellContent({
 
 function DatabaseNumberGridViewCellEditorOverlay({
     ref,
-    config,
     initialValue,
     initialEditString,
     commitValue,
@@ -61,7 +60,7 @@ function DatabaseNumberGridViewCellEditorOverlay({
     }, []);
 
     const tryCommit = (raw: string) => {
-        const parsed = databaseNumberFieldProvider.parseValueString(raw, config);
+        const parsed = databaseNumberFieldProvider.parseValueString(raw);
         if (parsed.ok) commitValue(parsed.value);
     };
 

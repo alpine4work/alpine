@@ -15,6 +15,8 @@ export class DatabaseCheckboxFieldProvider extends ColumnBackedDatabaseFieldProv
     DatabaseCheckboxFieldValue,
     DatabaseCheckboxFieldConfig
 > {
+    static readonly instance = new DatabaseCheckboxFieldProvider();
+
     readonly type = "checkbox";
     readonly valueSchema = DatabaseCheckboxFieldValueSchema;
     readonly configSchema = DatabaseCheckboxFieldConfigSchema;
@@ -42,7 +44,7 @@ export class DatabaseCheckboxFieldProvider extends ColumnBackedDatabaseFieldProv
 }
 
 export const databaseCheckboxFieldProvider: DatabaseCheckboxFieldProvider =
-    DatabaseCheckboxFieldProvider.get();
+    DatabaseCheckboxFieldProvider.instance;
 
 /**
  * Strings interpreted as `false` by `parseString`. Match is on a trimmed,

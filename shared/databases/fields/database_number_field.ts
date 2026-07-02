@@ -18,6 +18,8 @@ export class DatabaseNumberFieldProvider extends ColumnBackedDatabaseFieldProvid
     DatabaseNumberFieldValue,
     DatabaseNumberFieldConfig
 > {
+    static readonly instance = new DatabaseNumberFieldProvider();
+
     readonly type = "number";
     readonly valueSchema = DatabaseNumberFieldValueSchema;
     readonly configSchema = DatabaseNumberFieldConfigSchema;
@@ -45,7 +47,7 @@ export class DatabaseNumberFieldProvider extends ColumnBackedDatabaseFieldProvid
 }
 
 export const databaseNumberFieldProvider: DatabaseNumberFieldProvider =
-    DatabaseNumberFieldProvider.get();
+    DatabaseNumberFieldProvider.instance;
 
 // -- parseString --------------------------------------------------------------
 
