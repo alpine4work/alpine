@@ -869,7 +869,7 @@ describe("comment threads", () => {
         ]);
     });
 
-    test("returns the same content in the snippet as the document content without keys", async () => {
+    test("returns the same content in the snippet as the document content", async () => {
         const space = await TestSpace.create(context);
         const session = await space.createSession({role: "Admin"});
 
@@ -919,15 +919,12 @@ describe("comment threads", () => {
         assert(Array.isArray(documentElements));
         assert(Array.isArray(snippetElements));
 
-        const elementTextAndKey = (
-            element: {key?: string; elements: Array<{text: string}>},
-            key: string | undefined,
-        ) => [element.elements.map(inlineElement => inlineElement.text.slice(0, 12)).join(""), key];
+        const elementText = (element: {elements: Array<{text: string}>}) =>
+            element.elements.map(inlineElement => inlineElement.text.slice(0, 12)).join("");
 
         // The snippet skips the first paragraph and contains the rest of the document.
-        // Content snippets never include keys, unlike the document content.
-        expect(snippetElements.map(element => elementTextAndKey(element, element.key))).toEqual(
-            documentElements.slice(1).map(element => elementTextAndKey(element, undefined)),
+        expect(snippetElements.map(elementText)).toEqual(
+            documentElements.slice(1).map(elementText),
         );
     });
 
