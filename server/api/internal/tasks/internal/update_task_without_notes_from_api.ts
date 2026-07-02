@@ -129,27 +129,82 @@ export async function updateTaskWithoutNotesFromApi(
 
     if (actions.length === 0) return {updatedTask: initialTask, updateEvent: result.updateEvent};
 
-    const [, taskSortableAccountById] = await runAllPromises([
-        commitTaskActionTransaction(context, spaceId, actions, {
-            consistency: "StrongWithinCache",
-            // Very important! For the API to have read-after-write consistency we need to wait
-            // until our actions have been sent to every `TaskRealtimeService`. Then future
-            // reads against `TaskRealtimeService` will return the data we wrote.
-            waitForProcessing: true,
-        }),
-        // We're loading references so eventual consistency is ok.
-        loadTaskSortableAccountsForActions(context.dynamo.unexpectStrongReadConsistency(), {
-            spaceId,
-            initialTask,
-            actions,
-        }),
-    ]);
+    // The update event we loaded above only backfills the task's references from
+    // before the patch. Load any parent task, collections, or assignee account the
+    // patch newly references so the API response can include their data.
+    const newParentTaskIds =
+        finalState.parentTaskId !== null && finalState.parentTaskId !== initialState.parentTaskId
+            ? [finalState.parentTaskId]
+            : [];
+    const newCollectionIds = [...finalState.collectionIds].filter(
+        collectionId => !initialState.collectionIds.has(collectionId),
+    );
+
+    const [, taskSortableAccountById, newReferencesResult, newAssigneeAccount] =
+        await runAllPromises([
+            commitTaskActionTransaction(context, spaceId, actions, {
+                consistency: "StrongWithinCache",
+                // Very important! For the API to have read-after-write consistency we need to wait
+                // until our actions have been sent to every `TaskRealtimeService`. Then future
+                // reads against `TaskRealtimeService` will return the data we wrote.
+                waitForProcessing: true,
+            }),
+            // We're loading references so eventual consistency is ok.
+            loadTaskSortableAccountsForActions(context.dynamo.unexpectStrongReadConsistency(), {
+                spaceId,
+                initialTask,
+                actions,
+            }),
+            newParentTaskIds.length > 0 || newCollectionIds.length > 0
+                ? context.tasks.loadQueries(
+                      spaceId,
+                      {queries: [], taskIds: newParentTaskIds, collectionIds: newCollectionIds},
+                      {consistency: "StrongWithinCache"},
+                  )
+                : null,
+            finalState.assigneeId !== null && finalState.assigneeId !== initialState.assigneeId
+                ? getAccount(
+                      context.dynamo.unexpectStrongReadConsistency(),
+                      spaceId,
+                      finalState.assigneeId,
+                  )
+                : null,
+        ]);
 
     const updatedTask = applyActionsToTaskModel(initialTask, actions, taskSortableAccountById);
 
+    let updateEvent = result.updateEvent;
+
+    updateEvent = {
+        ...updateEvent,
+
+        backfillTasks: [
+            ...updateEvent.backfillTasks,
+            ...(newReferencesResult?.updateEvent.backfillTasks ?? []),
+            {type: "Authorized", task: updatedTask},
+        ],
+
+        backfillCollections:
+            newReferencesResult === null
+                ? updateEvent.backfillCollections
+                : [
+                      ...updateEvent.backfillCollections,
+                      ...newReferencesResult.updateEvent.backfillCollections,
+                  ],
+
+        referencedAccounts:
+            newReferencesResult === null && newAssigneeAccount === null
+                ? updateEvent.referencedAccounts
+                : [
+                      ...updateEvent.referencedAccounts,
+                      ...(newReferencesResult?.updateEvent.referencedAccounts ?? []),
+                      ...(newAssigneeAccount !== null ? [newAssigneeAccount] : []),
+                  ],
+    };
+
     return {
         updatedTask,
-        updateEvent: result.updateEvent,
+        updateEvent,
     };
 }
 
