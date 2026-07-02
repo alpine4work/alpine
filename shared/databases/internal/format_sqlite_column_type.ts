@@ -1,4 +1,4 @@
-import {SqliteType} from "~/shared/databases/fields/base/database_field_provider_base.js";
+import {SqliteStorageType} from "~/shared/databases/fields/base/database_field_provider_base.js";
 import {DatabaseFieldId, DatabaseTableId} from "~/shared/id/types/id_types.js";
 
 /**
@@ -9,7 +9,7 @@ import {DatabaseFieldId, DatabaseTableId} from "~/shared/id/types/id_types.js";
  * columns back to our datamodel for richer rendering.
  */
 export function formatSqliteColumnType(
-    type: SqliteType,
+    type: SqliteStorageType,
     tableId: DatabaseTableId,
     fieldId: DatabaseFieldId,
 ): string {

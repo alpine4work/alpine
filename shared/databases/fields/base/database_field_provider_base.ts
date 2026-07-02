@@ -6,9 +6,9 @@ import {
 import {sql, SqlQuery} from "~/shared/databases/sql.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {Result} from "~/shared/helpers/control/result.js";
-import {Schema} from "~/shared/schema/schema.js";
+import {Schema, SchemaSerializedValue} from "~/shared/schema/schema.js";
 
-export type SqliteType = "INTEGER" | "REAL" | "TEXT" | "BLOB";
+export type SqliteStorageType = "INTEGER" | "REAL" | "TEXT" | "BLOB";
 
 export abstract class DatabaseFieldProviderBase<
     const Type extends DatabaseFieldType,
@@ -51,7 +51,7 @@ export abstract class ColumnBackedDatabaseFieldProvider<
 > extends DatabaseFieldProviderBase<Type, Value, Config> {
     abstract readonly nullable: boolean;
     abstract readonly defaultValue: SqlQuery;
-    abstract readonly sqliteType: SqliteType;
+    abstract readonly sqliteType: SqliteStorageType;
 
     _selectColumn(field: DatabaseFieldModel, dataRow: SqlQuery): SqlQuery {
         return sql`${dataRow}.${field.columnName}`;
@@ -59,7 +59,7 @@ export abstract class ColumnBackedDatabaseFieldProvider<
 
     abstract generateCheckConstraint(columnName: SqlQuery, config: Config): SqlQuery;
 
-    unknownValueToSql(value: unknown): SqlQuery {
+    unknownValueToSql(value: SchemaSerializedValue): SqlQuery {
         return this.valueToSql(this.valueSchema.deserialize(value));
     }
 
@@ -68,7 +68,10 @@ export abstract class ColumnBackedDatabaseFieldProvider<
         return sql`${schema.serialize(value)}`;
     }
 
-    _renameFieldInSchema(oldField: DatabaseFieldModel<Type>, newField: DatabaseFieldModel<Type>) {
+    _renameFieldInSchema(
+        oldField: DatabaseFieldModelOfType<Type>,
+        newField: DatabaseFieldModelOfType<Type>,
+    ) {
         sql`
             ALTER TABLE ${oldField.table.tableRef}
             RENAME COLUMN ${sql.identifier(oldField.columnName)} TO ${sql.identifier(

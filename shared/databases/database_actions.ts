@@ -582,7 +582,7 @@ export const databaseActions = {
 
             const linkedTable = model.getTable(relation.linkedTableId);
             const linkedNameField = linkedTable.getNameField();
-            const linkedNameProvider = getDatabaseFieldProvider(linkedNameField.config.type);
+            const linkedNameProvider = getDatabaseFieldProvider<void>(linkedNameField.config.type);
             const linkedNameColumn = linkedNameProvider.selectColumn(
                 linkedNameField,
                 sql.identifier("linked_row"),
@@ -615,7 +615,7 @@ export const databaseActions = {
             return {
                 rows: rows.map(row => ({
                     id: row.id,
-                    name: linkedNameProvider.valueToString(row.name as any, linkedNameField.config),
+                    name: linkedNameProvider.valueToString(row.name, linkedNameField.config),
                 })),
             };
         },
