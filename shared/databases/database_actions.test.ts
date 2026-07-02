@@ -254,13 +254,11 @@ describe("createTable", () => {
         const {tableId, tableName} = run(db, "createTable", {name: "T"});
 
         expect(() => {
-            // `sql.raw` for the blob literal: the sql template JSON-encodes bound objects, so
-            // a blob value can't go through a `?` parameter.
             sql`
                 INSERT INTO
                     ${sql.tableRef(tableId, tableName)} (name)
                 VALUES
-                    (${sql.raw("x'00'")})
+                    (x'00')
             `.exec(db);
         }).toThrow("CHECK");
     });
@@ -269,15 +267,9 @@ describe("createTable", () => {
         const db = await createDb();
         const {tableId, tableName} = run(db, "createTable", {name: "T"});
 
-        const colInfo = sql
-            .raw(
-                "PRAGMA " +
-                    sql.tableRef(tableId, "table_info").query +
-                    " (" +
-                    sql.identifier(tableName).query +
-                    ")",
-            )
-            .selectAllUnknown(db);
+        const colInfo = sql`
+            PRAGMA ${sql.tableRef(tableId, "table_info")} (${sql.identifier(tableName)})
+        `.selectAllUnknown(db);
 
         const nameCol = colInfo.find(c => c.name === "name");
         expect(nameCol!.type).toMatch(/^TEXT_alpine_[0-9a-z]{26}_[0-9a-z]{26}$/);
@@ -298,15 +290,9 @@ describe("createTable", () => {
         const db = await createDb();
         const {tableId, tableName} = run(db, "createTable", {name: "T"});
 
-        const indexes = sql
-            .raw(
-                "PRAGMA " +
-                    sql.tableRef(tableId, "index_list").query +
-                    " (" +
-                    sql.identifier(tableName).query +
-                    ")",
-            )
-            .selectAllUnknown(db);
+        const indexes = sql`
+            PRAGMA ${sql.tableRef(tableId, "index_list")} (${sql.identifier(tableName)})
+        `.selectAllUnknown(db);
 
         expect(indexes.some(idx => (idx.name as string).includes("_created_at"))).toBe(true);
         db.close();
@@ -790,14 +776,11 @@ describe("createRelationField", () => {
         `.selectAllUnknown(db)[0];
         const sourceField = readFieldById(db, source.tableId, result.sourceFieldId);
         const targetField = readFieldById(db, target.tableId, result.targetFieldId);
-        const joinTableColumns = sql
-            .raw(
-                "PRAGMA " +
-                    sql.tableRef(result.joinTableId, "table_info").query +
-                    " (" +
-                    sql.identifier(joinRow!.table_name as string).query +
-                    ")",
-            )
+        const joinTableColumns = sql`
+            PRAGMA ${sql.tableRef(result.joinTableId, "table_info")} (${sql.identifier(
+                joinRow!.table_name as string,
+            )})
+        `
             .selectAllUnknown(db)
             .map(column => column.name);
         const sourceViewFieldIds = sql`
@@ -1311,15 +1294,9 @@ describe("renameTable", () => {
         `.selectAllUnknown(db);
         expect(rows).toMatchObject([{name: "keep me"}]);
         // The created_at index follows the rename.
-        const indexes = sql
-            .raw(
-                "PRAGMA " +
-                    sql.tableRef(tableId, "index_list").query +
-                    " (" +
-                    sql.identifier("projects").query +
-                    ")",
-            )
-            .selectAllUnknown(db);
+        const indexes = sql`
+            PRAGMA ${sql.tableRef(tableId, "index_list")} (${sql.identifier("projects")})
+        `.selectAllUnknown(db);
         expect(indexes.some(idx => (idx.name as string).includes("_created_at"))).toBe(true);
         db.close();
     });

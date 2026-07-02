@@ -266,7 +266,7 @@ sql.raw = (text: string): SqlQuery => new SqlQuery(text);
  * {@link SqlQuery} that can be interpolated into a tagged template.
  */
 sql.identifier = (name: string, ...moreNames: Array<string>): SqlQuery =>
-    new SqlQuery(
+    sql.raw(
         [name, ...moreNames]
             // eslint-disable-next-line cyberworlds/string-quotes -- SQL identifier quoting
             .map(identifierName => `"${identifierName.replace(/"/g, '""')}"`)

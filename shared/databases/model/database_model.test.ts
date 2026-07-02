@@ -70,14 +70,7 @@ function createRelation(model: DatabaseModel) {
 }
 
 function readColumnNames(db: SqliteDatabase, tableId: DatabaseTableId, tableName: string) {
-    return sql
-        .raw(
-            "PRAGMA " +
-                sql.tableRef(tableId, "table_info").query +
-                " (" +
-                sql.identifier(tableName).query +
-                ")",
-        )
+    return sql`PRAGMA ${sql.tableRef(tableId, "table_info")} (${sql.identifier(tableName)})`
         .selectAllUnknown(db)
         .map(column => column.name);
 }
