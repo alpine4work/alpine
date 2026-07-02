@@ -33,8 +33,6 @@ import {getOrSetDefaultMapValue} from "~/shared/helpers/map/get_or_set_default_m
 import {generateId} from "~/shared/id/id.js";
 import type {DatabaseMutationId, DatabaseTableId} from "~/shared/id/types/id_types.js";
 
-export type TestSqliteMigration = string | SqliteMigration;
-
 interface OptimisticMutation {
     mutationId: DatabaseMutationId;
     action: DatabaseActionObject;
@@ -684,7 +682,7 @@ export class DatabaseClient {
      * {@link Database} buffer; pair with {@link commitOptimisticPagesForTests} to
      * materialize them on disk. Use for test setup only.
      */
-    executeLocallyForTests(migration: TestSqliteMigration): void {
+    executeLocallyForTests(migration: SqliteMigration): void {
         assert(import.meta.jest, "executeLocallyForTests is test-only");
         // The Database authorizer is permissive while idle (writeLevel === null), so
         // calling SQL directly on the underlying handle works for setup. Writes route
@@ -693,8 +691,6 @@ export class DatabaseClient {
         const db = this.database.unsafeGetDbForTests();
         if (typeof migration === "function") {
             migration(db);
-        } else if (typeof migration === "string") {
-            db.exec(migration);
         } else {
             migration.exec(db);
         }
