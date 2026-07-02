@@ -1,11 +1,12 @@
-import {
-    decodeApiTaskCursor,
-    encodeApiTaskCursor,
-} from "~/shared/api/content/closed_source/encode_api_task_cursor.js";
 import {InvalidArgumentError} from "~/shared/error/error.js";
 import {assertOrderKey} from "~/shared/helpers/sort/order_key.js";
 import {assertId} from "~/shared/id/id.js";
+import {ApiTaskCursor} from "~/shared/id/types/api_task_cursor.js";
 import {TaskCollectionId, TaskId} from "~/shared/id/types/id_types.js";
+import {
+    decodeApiTaskCursor,
+    encodeApiTaskCursor,
+} from "~/shared/tasks/model/encode_api_task_cursor.js";
 import {TaskQueryNormalizedSort} from "~/shared/tasks/task_query_normalized_sort.js";
 import {TaskQuerySortCursor} from "~/shared/tasks/task_query_sort_cursor.js";
 
@@ -57,7 +58,7 @@ test.each([
     encoded: string;
 }>)("encodes and decodes `$encoded`", ({sorts, cursor, encoded}) => {
     expect(encodeApiTaskCursor(sorts, cursor)).toBe(encoded);
-    expect(decodeApiTaskCursor(sorts, encoded)).toEqual(cursor);
+    expect(decodeApiTaskCursor(sorts, encoded as ApiTaskCursor)).toEqual(cursor);
 });
 
 test("throws if the cursor was encoded with different sorts", () => {
@@ -106,7 +107,7 @@ test("throws for invalid cursor strings", () => {
     expect(() =>
         decodeApiTaskCursor(
             [{type: "CreatedTime", direction: "Ascending", missing: "Last"}],
-            "not-valid-base64!",
+            "not-valid-base64!" as ApiTaskCursor,
         ),
     ).toThrow(InvalidArgumentError);
 });

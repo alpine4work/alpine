@@ -1,4 +1,3 @@
-import {ApiTaskCursor} from "~/shared/api/specification/types/api_task_cursor.js";
 import {InvalidArgumentError} from "~/shared/error/error.js";
 import {decodeBase64, encodeBase64} from "~/shared/helpers/binary/base64.js";
 import {scrambleBytes, unscrambleBytes} from "~/shared/helpers/binary/scramble_bytes.js";
@@ -7,6 +6,7 @@ import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
 import {decodeOrderKey, encodeOrderKey} from "~/shared/helpers/sort/encode_order_key.js";
 import {assertOrderKey} from "~/shared/helpers/sort/order_key.js";
 import {assertId, decodeId, encodeId, idByteLength} from "~/shared/id/id.js";
+import {ApiTaskCursor} from "~/shared/id/types/api_task_cursor.js";
 import {TaskId} from "~/shared/id/types/id_types.js";
 import {
     deserializeHybridLogicalTime,
@@ -22,23 +22,6 @@ const sortByteFormatMask = 0b10000000;
 const sortByteNullMask = 0b00000001;
 const collectionIdPrefixByteLength = 3;
 const scrambleSeed = 0x5441_534b; // "TASK" in ASCII
-
-const taskQueryNormalizedSortTypeIndexes = {
-    DisplayStatus: 0,
-    Priority: 1,
-    Layout: 2,
-    Assignee: 3,
-    Creator: 4,
-    Assigner: 5,
-    DueDate: 6,
-    CreatedTime: 7,
-    AssignedTime: 8,
-    ClosedTime: 9,
-    ActivatedTime: 10,
-    ParentPosition: 11,
-    CollectionPosition: 12,
-    AssigneePosition: 13,
-} satisfies Record<TaskQueryNormalizedSort["type"], number>;
 
 /**
  * Encodes a `TaskQuerySortCursor` to an opaque string we'll share over the API.
@@ -285,6 +268,23 @@ function readTaskQuerySortCursorValue(
             throw exhaustive(sort);
     }
 }
+
+const taskQueryNormalizedSortTypeIndexes: Record<TaskQueryNormalizedSort["type"], number> = {
+    DisplayStatus: 0,
+    Priority: 1,
+    Layout: 2,
+    Assignee: 3,
+    Creator: 4,
+    Assigner: 5,
+    DueDate: 6,
+    CreatedTime: 7,
+    AssignedTime: 8,
+    ClosedTime: 9,
+    ActivatedTime: 10,
+    ParentPosition: 11,
+    CollectionPosition: 12,
+    AssigneePosition: 13,
+};
 
 function getTaskQueryNormalizedSortByte(sort: TaskQueryNormalizedSort): number {
     const typeIndex = taskQueryNormalizedSortTypeIndexes[sort.type];
