@@ -103,6 +103,9 @@ export async function updateTaskWithoutNotesFromApi(
         ),
     );
 
+    // Make sure all times we generate are higher than the times in `initialTask`.
+    initialTask.tick(clock);
+
     const initialState = createTaskWithoutNotesPatchState(initialTask);
     const finalState = applyTaskWithoutNotesPatches(initialState, patches);
 
