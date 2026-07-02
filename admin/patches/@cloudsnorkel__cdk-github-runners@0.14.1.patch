@@ -473,8 +473,8 @@ index d1a6f14ad2a72fc3abd53cec9c197ed9d28eb019..ecbb20f42cdd33c6550416a86e94bedb
  labels="{}"
  registrationURL="{}"
 +export USER_DATA_EXTRA="$(echo "{}" | base64 --decode)"
-+export ALPINE_RUNNER_TAG="$(node -e "process.stdout.write((JSON.parse(process.env.USER_DATA_EXTRA || '{}').alpineRunnerTag || ''))")"
-+export ALPINE_CLOUDWATCH_AGENT_LOG_SETUP="$(node -e "process.stdout.write((JSON.parse(process.env.USER_DATA_EXTRA || '{}').cloudWatchAgentLogSetup || ''))")"
++export ALPINE_RUNNER_TAG="$(node -e "process.stdout.write((JSON.parse(process.env.USER_DATA_EXTRA || 'null')?.alpineRunnerTag || ''))")"
++export ALPINE_CLOUDWATCH_AGENT_LOG_SETUP="$(node -e "process.stdout.write((JSON.parse(process.env.USER_DATA_EXTRA || 'null')?.cloudWatchAgentLogSetup || ''))")"
 @@ -30,3 +34,11 @@ heartbeat () {
    done
  }

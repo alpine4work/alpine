@@ -5366,10 +5366,10 @@ Resources:
                         RL=\\\"{}\\\"\\nexport USER_DATA_EXTRA=\\\"$(echo \\\"{}\\\" | base64
                         --decode)\\\"\\nexport ALPINE_RUNNER_TAG=\\\"$(node -e
                         \\\"process.stdout.write((JSON.parse(process.env.USER_DATA_EXTRA ||
-                        '{}').alpineRunnerTag || ''))\\\")\\\"\\nexport
+                        'null')?.alpineRunnerTag || ''))\\\")\\\"\\nexport
                         ALPINE_CLOUDWATCH_AGENT_LOG_SETUP=\\\"$(node -e
                         \\\"process.stdout.write((JSON.parse(process.env.USER_DATA_EXTRA ||
-                        '{}').cloudWatchAgentLogSetup || ''))\\\")\\\"\\n\\nheartbeat ()
+                        'null')?.cloudWatchAgentLogSetup || ''))\\\")\\\"\\n\\nheartbeat ()
                         \\\\{\\n  while true; do\\n    aws stepfunctions send-task-heartbeat
                         --task-token \\\"$TASK_TOKEN\\\"\\n    sleep
                         60\\n  done\\n\\\\}\\nsetup_logs () \\\\{\\n  if [
@@ -6324,10 +6324,10 @@ Resources:
                         RL=\\\"{}\\\"\\nexport USER_DATA_EXTRA=\\\"$(echo \\\"{}\\\" | base64
                         --decode)\\\"\\nexport ALPINE_RUNNER_TAG=\\\"$(node -e
                         \\\"process.stdout.write((JSON.parse(process.env.USER_DATA_EXTRA ||
-                        '{}').alpineRunnerTag || ''))\\\")\\\"\\nexport
+                        'null')?.alpineRunnerTag || ''))\\\")\\\"\\nexport
                         ALPINE_CLOUDWATCH_AGENT_LOG_SETUP=\\\"$(node -e
                         \\\"process.stdout.write((JSON.parse(process.env.USER_DATA_EXTRA ||
-                        '{}').cloudWatchAgentLogSetup || ''))\\\")\\\"\\n\\nheartbeat ()
+                        'null')?.cloudWatchAgentLogSetup || ''))\\\")\\\"\\n\\nheartbeat ()
                         \\\\{\\n  while true; do\\n    aws stepfunctions send-task-heartbeat
                         --task-token \\\"$TASK_TOKEN\\\"\\n    sleep
                         60\\n  done\\n\\\\}\\nsetup_logs () \\\\{\\n  if [
@@ -6664,10 +6664,10 @@ Resources:
                         RL=\\\"{}\\\"\\nexport USER_DATA_EXTRA=\\\"$(echo \\\"{}\\\" | base64
                         --decode)\\\"\\nexport ALPINE_RUNNER_TAG=\\\"$(node -e
                         \\\"process.stdout.write((JSON.parse(process.env.USER_DATA_EXTRA ||
-                        '{}').alpineRunnerTag || ''))\\\")\\\"\\nexport
+                        'null')?.alpineRunnerTag || ''))\\\")\\\"\\nexport
                         ALPINE_CLOUDWATCH_AGENT_LOG_SETUP=\\\"$(node -e
                         \\\"process.stdout.write((JSON.parse(process.env.USER_DATA_EXTRA ||
-                        '{}').cloudWatchAgentLogSetup || ''))\\\")\\\"\\n\\nheartbeat ()
+                        'null')?.cloudWatchAgentLogSetup || ''))\\\")\\\"\\n\\nheartbeat ()
                         \\\\{\\n  while true; do\\n    aws stepfunctions send-task-heartbeat
                         --task-token \\\"$TASK_TOKEN\\\"\\n    sleep
                         60\\n  done\\n\\\\}\\nsetup_logs () \\\\{\\n  if [
