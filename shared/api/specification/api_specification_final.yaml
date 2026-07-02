@@ -1711,7 +1711,7 @@ paths:
                 - name: cursor
                   in: query
                   schema:
-                      type: string
+                      $ref: "#/components/schemas/TaskCursor"
                 - name: status
                   in: query
                   schema:
@@ -1730,20 +1730,23 @@ paths:
                                 type: object
                                 required:
                                     - spaceId
+                                    - collection
                                     - nextCursor
                                     - tasks
                                 additionalProperties: false
                                 properties:
                                     spaceId:
                                         $ref: "#/components/schemas/SpaceId"
+                                    collection:
+                                        $ref: "#/components/schemas/TaskCollection"
                                     nextCursor:
-                                        type:
-                                            - string
-                                            - "null"
+                                        oneOf:
+                                            - $ref: "#/components/schemas/TaskCursor"
+                                            - type: "null"
                                     tasks:
                                         type: array
                                         items:
-                                            $ref: "#/components/schemas/TaskWithoutNotes_Response"
+                                            $ref: "#/components/schemas/TaskCollectionTask_Response"
                 default:
                     $ref: "#/components/responses/Error"
     /files/{id}:
@@ -4247,6 +4250,8 @@ components:
                     properties:
                         title:
                             type: string
+        TaskCursor:
+            type: string
         Task:
             type: object
             required:
@@ -4488,6 +4493,7 @@ components:
                 - $ref: "#/components/schemas/TaskSetParentPatch"
                 - $ref: "#/components/schemas/TaskAddCollectionPatch"
                 - $ref: "#/components/schemas/TaskRemoveCollectionPatch"
+                - $ref: "#/components/schemas/TaskMoveInCollectionPatch"
             discriminator:
                 propertyName: type
                 mapping:
@@ -4500,6 +4506,7 @@ components:
                     SetParent: "#/components/schemas/TaskSetParentPatch"
                     AddCollection: "#/components/schemas/TaskAddCollectionPatch"
                     RemoveCollection: "#/components/schemas/TaskRemoveCollectionPatch"
+                    MoveInCollection: "#/components/schemas/TaskMoveInCollectionPatch"
         TaskSetTitlePatch:
             type: object
             required:
@@ -4615,6 +4622,61 @@ components:
                     const: RemoveCollection
                 collectionId:
                     $ref: "#/components/schemas/TaskCollectionId"
+        TaskMoveInCollectionPatch:
+            type: object
+            required:
+                - type
+                - collectionId
+                - item
+            additionalProperties: false
+            properties:
+                type:
+                    const: MoveInCollection
+                collectionId:
+                    $ref: "#/components/schemas/TaskCollectionId"
+                position:
+                    $ref: "#/components/schemas/TaskMoveInCollectionPatchPosition"
+        TaskMoveInCollectionPatchPosition:
+            oneOf:
+                - $ref: "#/components/schemas/TaskMoveInCollectionPatchStartPosition"
+                - $ref: "#/components/schemas/TaskMoveInCollectionPatchEndPosition"
+                - $ref: "#/components/schemas/TaskMoveInCollectionPatchBetweenPosition"
+            discriminator:
+                propertyName: type
+                mapping:
+                    Start: "#/components/schemas/TaskMoveInCollectionPatchStartPosition"
+                    End: "#/components/schemas/TaskMoveInCollectionPatchEndPosition"
+                    Between: "#/components/schemas/TaskMoveInCollectionPatchBetweenPosition"
+        TaskMoveInCollectionPatchStartPosition:
+            type: object
+            required:
+                - type
+            additionalProperties: false
+            properties:
+                type:
+                    const: Start
+        TaskMoveInCollectionPatchEndPosition:
+            type: object
+            required:
+                - type
+            additionalProperties: false
+            properties:
+                type:
+                    const: End
+        TaskMoveInCollectionPatchBetweenPosition:
+            type: object
+            required:
+                - type
+                - afterCursor
+                - beforeCursor
+            additionalProperties: false
+            properties:
+                type:
+                    const: Between
+                afterCursor:
+                    $ref: "#/components/schemas/TaskCursor"
+                beforeCursor:
+                    $ref: "#/components/schemas/TaskCursor"
         TaskCollectionPatch:
             oneOf:
                 - $ref: "#/components/schemas/TaskCollectionSetNamePatch"
@@ -4696,9 +4758,18 @@ components:
                 name:
                     $ref: "#/components/schemas/LabelString"
                 color:
-                    oneOf:
-                        - $ref: "#/components/schemas/TaskCollectionColor"
-                        - type: "null"
+                    $ref: "#/components/schemas/TaskCollectionColor"
+        TaskCollectionTask:
+            type: object
+            required:
+                - cursor
+                - task
+            additionalProperties: false
+            properties:
+                cursor:
+                    $ref: "#/components/schemas/TaskCursor"
+                task:
+                    $ref: "#/components/schemas/TaskWithoutNotes"
         Message:
             type: object
             required:
@@ -5651,43 +5722,6 @@ components:
             properties:
                 summary:
                     type: string
-        TaskWithoutNotes_Response:
-            type: object
-            required:
-                - id
-                - status
-                - title
-            additionalProperties: false
-            properties:
-                id:
-                    $ref: "#/components/schemas/TaskId"
-                creator:
-                    type: object
-                    required:
-                        - id
-                    additionalProperties: false
-                    properties:
-                        id:
-                            $ref: "#/components/schemas/AccountId"
-                status:
-                    $ref: "#/components/schemas/TaskStatus"
-                title:
-                    type: string
-                    maxLength: 512
-                assignee:
-                    $ref: "#/components/schemas/Account"
-                due:
-                    $ref: "#/components/schemas/TaskDue"
-                priority:
-                    $ref: "#/components/schemas/TaskPriority"
-                layout:
-                    $ref: "#/components/schemas/TaskLayout"
-                parent:
-                    $ref: "#/components/schemas/TaskParent_Response"
-                collections:
-                    type: array
-                    items:
-                        $ref: "#/components/schemas/TaskCollectionItem_Response"
         MessageContentPayloadParent_Response:
             oneOf:
                 - $ref: "#/components/schemas/MessageContentPayloadMessageParent_Response"
@@ -5811,6 +5845,43 @@ components:
                     const: AddCollection
                 item:
                     $ref: "#/components/schemas/TaskCollectionItem_Response"
+        TaskWithoutNotes_Response:
+            type: object
+            required:
+                - id
+                - status
+                - title
+            additionalProperties: false
+            properties:
+                id:
+                    $ref: "#/components/schemas/TaskId"
+                creator:
+                    type: object
+                    required:
+                        - id
+                    additionalProperties: false
+                    properties:
+                        id:
+                            $ref: "#/components/schemas/AccountId"
+                status:
+                    $ref: "#/components/schemas/TaskStatus"
+                title:
+                    type: string
+                    maxLength: 512
+                assignee:
+                    $ref: "#/components/schemas/Account"
+                due:
+                    $ref: "#/components/schemas/TaskDue"
+                priority:
+                    $ref: "#/components/schemas/TaskPriority"
+                layout:
+                    $ref: "#/components/schemas/TaskLayout"
+                parent:
+                    $ref: "#/components/schemas/TaskParent_Response"
+                collections:
+                    type: array
+                    items:
+                        $ref: "#/components/schemas/TaskCollectionItem_Response"
         MessagePayload_Response:
             oneOf:
                 - $ref: "#/components/schemas/MessageContentPayload_Response"
@@ -6243,6 +6314,7 @@ components:
                 - $ref: "#/components/schemas/TaskSetParentPatch_Response"
                 - $ref: "#/components/schemas/TaskAddCollectionPatch_Response"
                 - $ref: "#/components/schemas/TaskRemoveCollectionPatch"
+                - $ref: "#/components/schemas/TaskMoveInCollectionPatch"
             discriminator:
                 propertyName: type
                 mapping:
@@ -6255,6 +6327,18 @@ components:
                     SetParent: "#/components/schemas/TaskSetParentPatch_Response"
                     AddCollection: "#/components/schemas/TaskAddCollectionPatch_Response"
                     RemoveCollection: "#/components/schemas/TaskRemoveCollectionPatch"
+                    MoveInCollection: "#/components/schemas/TaskMoveInCollectionPatch"
+        TaskCollectionTask_Response:
+            type: object
+            required:
+                - cursor
+                - task
+            additionalProperties: false
+            properties:
+                cursor:
+                    $ref: "#/components/schemas/TaskCursor"
+                task:
+                    $ref: "#/components/schemas/TaskWithoutNotes_Response"
         Message_Response:
             type: object
             required:

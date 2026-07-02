@@ -1,4 +1,4 @@
-import {parseDate} from "@internationalized/date";
+import {parseDate, today} from "@internationalized/date";
 import {createAccessPolicyForContentCreatedByBot} from "~/server/access/create_access_policy_for_content_created_by_bot.js";
 import {ApiPaths} from "~/server/api/internal/shared/api_paths_type.js";
 import {fromApiMessageContentPayloadParent} from "~/server/api/internal/shared/from_api_message_content_payload_parent.js";
@@ -14,7 +14,7 @@ import {createIntoApiTaskCommentContentPayloadParent} from "~/server/api/interna
 import {createTaskFromApi} from "~/server/api/internal/tasks/internal/create_task_from_api.js";
 import {fromApiTaskLayout} from "~/server/api/internal/tasks/internal/from_api_task_layout.js";
 import {getApiTaskNotes} from "~/server/api/internal/tasks/internal/get_api_task_notes.js";
-import {serializeTaskQuerySortCursorForApi} from "~/server/api/internal/tasks/internal/serialize_task_query_sort_cursor_for_api.js";
+import {intoApiTaskCollection} from "~/server/api/internal/tasks/internal/into_api_task_collection.js";
 import {updateTaskCollectionFromApi} from "~/server/api/internal/tasks/internal/update_task_collection_from_api.js";
 import {updateTaskNotesFromApi} from "~/server/api/internal/tasks/internal/update_task_notes_from_api.js";
 import {updateTaskWithoutNotesFromApi} from "~/server/api/internal/tasks/internal/update_task_without_notes_from_api.js";
@@ -41,6 +41,7 @@ import {
     MessageContentProsemirrorSchema,
     assertMessageContent,
 } from "~/shared/content/message_content_schema.js";
+import {InternalError} from "~/shared/error/error.js";
 import {assertNonEmptyReadonlyArray} from "~/shared/helpers/array/non_empty_readonly_array.js";
 import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
 import {HybridLogicalClock} from "~/shared/helpers/clock/hybrid_logical_clock.js";
@@ -49,14 +50,21 @@ import {assert} from "~/shared/helpers/control/assert.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 import {unwrapResult} from "~/shared/helpers/control/capture_result.js";
 import {captureResultPromise} from "~/shared/helpers/control/capture_result_promise.js";
+import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
 import {serializeDateString} from "~/shared/helpers/date/date_string.js";
 import {defaultTimeZone} from "~/shared/helpers/intl/time_zone.js";
+import {findMapIterable} from "~/shared/helpers/iterable/find_map_iterable.js";
 import {emptyMap} from "~/shared/helpers/map/empty_map.js";
 import {generateId} from "~/shared/id/id.js";
+import {ApiTaskCursor} from "~/shared/id/types/api_task_cursor.js";
 import {TaskCollectionId, TaskId} from "~/shared/id/types/id_types.js";
 import {MessageContentPayload} from "~/shared/messaging/message_schema.js";
 import {MessagingRealtimeBroadcastNewMessageRequestSchema} from "~/shared/messaging/messaging_realtime_protocol.js";
 import {emptyReactionSet} from "~/shared/reactions/reaction_set.js";
+import {
+    decodeApiTaskCursor,
+    encodeApiTaskCursor,
+} from "~/shared/tasks/model/encode_api_task_cursor.js";
 import {evaluateTaskQueryNormalizedFiltersForModel} from "~/shared/tasks/model/evaluate_task_query_normalized_filters_for_model.js";
 import {getTaskQueryNormalizedSortCursorForModel} from "~/shared/tasks/model/get_task_query_normalized_sort_cursor_for_model.js";
 import {TaskActor} from "~/shared/tasks/task_creator.js";
@@ -65,12 +73,7 @@ import {
     assertTaskNotesContent,
     emptyTaskNotesContent,
 } from "~/shared/tasks/task_notes_content_schema.js";
-import {
-    TaskQueryCollectionsNormalizedFilter,
-    TaskQueryDisplayStatusNormalizedFilter,
-    assertNonEmptyReadonlyMap,
-} from "~/shared/tasks/task_query_normalized_filters.js";
-import {normalizeTaskQuerySorts} from "~/shared/tasks/task_query_normalized_sort.js";
+import {TaskQueryDisplayStatusNormalizedFilter} from "~/shared/tasks/task_query_normalized_filters.js";
 import {compareTaskQuerySortCursors} from "~/shared/tasks/task_query_sort_cursor.js";
 
 export const apiTasksPaths: Pick<
@@ -672,16 +675,7 @@ export const apiTasksPaths: Pick<
             return {
                 content: {
                     spaceId: context.actor.getSpaceId(),
-                    collection: {
-                        id: collection.id,
-                        creator: collection.rawData.creator?.accountId
-                            ? {id: collection.rawData.creator.accountId}
-                            : undefined,
-                        name: collection.getName(),
-                        color: collection.getColor()
-                            ? intoApiThemeColor(collection.getColor()!)
-                            : undefined,
-                    },
+                    collection: intoApiTaskCollection(collection),
                 },
             };
         },
@@ -716,43 +710,21 @@ export const apiTasksPaths: Pick<
             const collectionId = pathParameters.id;
             const spaceId = context.actor.getSpaceId();
 
-            const statuses = new Set(
-                queryParameters.status && queryParameters.status.length > 0
-                    ? queryParameters.status
-                    : // NOTE(iftizsimmons, 2025-11-05): We'll only showing open tasks by default since
-                      // that is the default behavior in the UI. One day, when users can set default
-                      // filters for a task collection, we should use that filter instead.
-                      ["Open"],
-            );
-
-            const displayStatusFilter = {
-                ifOpenInactive: statuses.has("Open"),
-                ifOpenActive: statuses.has("Open"),
-                ifClosed: statuses.has("Closed"),
-            };
-            assertValidTaskQueryDisplayStatusNormalizedFilter(displayStatusFilter);
-
-            const collectionsFilter: TaskQueryCollectionsNormalizedFilter =
-                assertNonEmptyReadonlyArray([
-                    assertNonEmptyReadonlyMap(new Map([[collectionId, false]])),
-                ]);
+            // NOCOMMIT: Bring filters back! How?
 
             const {queries, updateEvent} = await context.tasks.loadQueries(
                 context.actor.getSpaceId(),
                 {
                     queries: [
                         {
-                            type: "Normalized",
+                            type: "Collection",
                             limit,
-                            filters: {displayStatusFilter, collectionsFilter},
-                            sorts: normalizeTaskQuerySorts([
-                                {
-                                    type: "CollectionPosition",
-                                    collectionId,
-                                    direction: "Ascending",
-                                    missing: "Last",
-                                },
-                            ]),
+                            collectionId,
+                            evaluationContext: {
+                                currentAccountId: null,
+                                currentDate: today(defaultTimeZone),
+                            },
+                            expensivelyAfterCursorForApi: queryParameters.cursor,
                         },
                     ],
                     taskIds: [],
@@ -763,48 +735,113 @@ export const apiTasksPaths: Pick<
 
             const query = assertExists(queries[0]);
 
+            const collection = assertExists(
+                findMapIterable(updateEvent.backfillCollections, backfillCollection =>
+                    backfillCollection.type === "Authorized" &&
+                    backfillCollection.collection.id === collectionId
+                        ? backfillCollection.collection
+                        : undefined,
+                ),
+            );
+
             const tasks = [];
 
-            const {sorts, filtersResult} = query;
+            const {loadedState, sorts, filtersResult} = query;
 
+            const afterCursor =
+                queryParameters.cursor !== undefined
+                    ? decodeApiTaskCursor(sorts, queryParameters.cursor)
+                    : null;
+
+            // NOCOMMIT: Test with parent task above cursor and parent task after end cursor.
+            // Should not be present in `tasks` but the parent task should still work. Also
+            // test parent task is exactly `afterCursor`.
             if (filtersResult.type === "Possible") {
                 const filters = filtersResult.normalizedFilters;
 
                 for (const backfillTask of updateEvent.backfillTasks) {
+                    if (backfillTask.type !== "Authorized") continue;
+                    const {task} = backfillTask;
+
+                    if (!evaluateTaskQueryNormalizedFiltersForModel(filters, task)) continue;
+
+                    const cursor = getTaskQueryNormalizedSortCursorForModel(sorts, task);
+
+                    // If the task is before or equal to `afterCursor` then it's outside the loaded
+                    // range for this request.
                     if (
-                        backfillTask.type === "Authorized" &&
-                        evaluateTaskQueryNormalizedFiltersForModel(filters, backfillTask.task)
+                        afterCursor !== null &&
+                        compareTaskQuerySortCursors(sorts, afterCursor, cursor) >= 0
                     ) {
-                        tasks.push(backfillTask.task);
+                        continue;
                     }
+
+                    // If the task is after (though not equal to) `endCursor` then it's outside the
+                    // loaded range for this request.
+                    if (
+                        loadedState.type === "Partial" &&
+                        loadedState.endCursor !== null &&
+                        compareTaskQuerySortCursors(sorts, loadedState.endCursor, cursor) < 0
+                    ) {
+                        continue;
+                    }
+
+                    tasks.push({cursor, task});
                 }
             }
 
             tasks.sort((task1, task2) =>
-                compareTaskQuerySortCursors(
-                    sorts,
-                    getTaskQueryNormalizedSortCursorForModel(sorts, task1),
-                    getTaskQueryNormalizedSortCursorForModel(sorts, task2),
-                ),
+                compareTaskQuerySortCursors(sorts, task1.cursor, task2.cursor),
             );
 
-            const converter = new ApiTaskConverter(updateEvent);
+            let nextCursor: ApiTaskCursor | null;
 
-            // NOCOMMIT: Implement this! The `cursor` query parameter is still ignored, we only
-            // report the cursor to continue from when the query has more tasks.
-            const lastTask = tasks[tasks.length - 1];
-            const nextCursor =
-                query.loadedState.type === "Partial" && lastTask !== undefined
-                    ? serializeTaskQuerySortCursorForApi(
-                          getTaskQueryNormalizedSortCursorForModel(sorts, lastTask),
-                      )
-                    : null;
+            switch (loadedState.type) {
+                case "Full": {
+                    nextCursor = null;
+                    break;
+                }
+                case "Partial": {
+                    // NOTE(calebmer): I'll be honest, I don't think `endCursor` null should be
+                    // possible here but I'm not 100% sure. There may be a rare edge case in here where
+                    // we call `loadQuery()` which then queries OpenSearch which then returns `limit`
+                    // items but then when we apply the recent action history ALL `limit` tasks move so
+                    // they're out of the loaded range. But even in that case wouldn't then `endCursor`
+                    // be the end of the loaded range? Anyway, I'm not sure. ([This is the case I'm
+                    // thinking of.][1])
+                    //
+                    // What I do know is that the API doesn't support expressing "has next page but we
+                    // don't have a cursor". So throw for now. Let's see if this error actually happens
+                    // in practice. Another solution idea is to retry the query. If this is the result
+                    // of an edge case where tasks have recently moved then retrying the query on an
+                    // exponential backoff until we get data should work? _Shrug_
+                    //
+                    // [1]:
+                    //     https://github.com/cyberworlds/cyberworlds/blob/cb7c5fa0445a72db694b2a2973f8a20eb3fd9d23/server/tasks/realtime/task_realtime_query.ts#L470-L480
+                    if (loadedState.endCursor === null) {
+                        throw new InternalError(
+                            "Expected non-null `endCursor` for `Partial` loaded state",
+                        );
+                    }
+
+                    nextCursor = encodeApiTaskCursor(sorts, loadedState.endCursor);
+                    break;
+                }
+                default:
+                    throw exhaustive(loadedState);
+            }
+
+            const converter = new ApiTaskConverter(updateEvent);
 
             return {
                 content: {
                     spaceId,
+                    collection: intoApiTaskCollection(collection),
                     nextCursor,
-                    tasks: tasks.map(task => converter.into(task)),
+                    tasks: tasks.map(({cursor, task}) => ({
+                        cursor: encodeApiTaskCursor(sorts, cursor),
+                        task: converter.into(task),
+                    })),
                 },
             };
 

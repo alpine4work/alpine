@@ -1554,7 +1554,7 @@ paths:
                 - name: cursor
                   in: query
                   schema:
-                      type: string
+                      $ref: "#/components/schemas/TaskCursor"
                 - name: status
                   in: query
                   schema:
@@ -1570,17 +1570,24 @@ paths:
                         application/json:
                             schema:
                                 type: object
-                                required: [spaceId, nextCursor, tasks]
+                                required: [spaceId, collection, nextCursor, tasks]
                                 additionalProperties: false
                                 properties:
                                     spaceId:
                                         $ref: "#/components/schemas/SpaceId"
+                                    collection:
+                                        $ref: "#/components/schemas/TaskCollection"
+                                    # TODO(calebmer): We should document how if the default sorts change
+                                    # while iterating through this collection an error will be thrown if
+                                    # sorts aren't explicitly specified.
                                     nextCursor:
-                                        type: [string, "null"]
+                                        oneOf:
+                                            - $ref: "#/components/schemas/TaskCursor"
+                                            - type: "null"
                                     tasks:
                                         type: array
                                         items:
-                                            $ref: "#/components/schemas/TaskWithoutNotes"
+                                            $ref: "#/components/schemas/TaskCollectionTask"
 
     /files/{id}:
         parameters:
@@ -3631,6 +3638,9 @@ components:
                         title:
                             type: string
 
+        TaskCursor:
+            type: string
+
         Task:
             type: object
             # NOCOMMIT: Make notes optional. If notes is empty the object shouldn't be present
@@ -3857,6 +3867,7 @@ components:
                 - $ref: "#/components/schemas/TaskSetParentPatch"
                 - $ref: "#/components/schemas/TaskAddCollectionPatch"
                 - $ref: "#/components/schemas/TaskRemoveCollectionPatch"
+                - $ref: "#/components/schemas/TaskMoveInCollectionPatch"
             discriminator:
                 propertyName: type
                 mapping:
@@ -3869,6 +3880,7 @@ components:
                     SetParent: "#/components/schemas/TaskSetParentPatch"
                     AddCollection: "#/components/schemas/TaskAddCollectionPatch"
                     RemoveCollection: "#/components/schemas/TaskRemoveCollectionPatch"
+                    MoveInCollection: "#/components/schemas/TaskMoveInCollectionPatch"
 
         TaskSetTitlePatch:
             type: object
@@ -3975,6 +3987,58 @@ components:
                 collectionId:
                     $ref: "#/components/schemas/TaskCollectionId"
 
+        TaskMoveInCollectionPatch:
+            type: object
+            required: [type, collectionId, item]
+            additionalProperties: false
+            properties:
+                type:
+                    const: MoveInCollection
+                collectionId:
+                    $ref: "#/components/schemas/TaskCollectionId"
+                position:
+                    $ref: "#/components/schemas/TaskMoveInCollectionPatchPosition"
+
+        TaskMoveInCollectionPatchPosition:
+            oneOf:
+                - $ref: "#/components/schemas/TaskMoveInCollectionPatchStartPosition"
+                - $ref: "#/components/schemas/TaskMoveInCollectionPatchEndPosition"
+                - $ref: "#/components/schemas/TaskMoveInCollectionPatchBetweenPosition"
+            discriminator:
+                propertyName: type
+                mapping:
+                    Start: "#/components/schemas/TaskMoveInCollectionPatchStartPosition"
+                    End: "#/components/schemas/TaskMoveInCollectionPatchEndPosition"
+                    Between: "#/components/schemas/TaskMoveInCollectionPatchBetweenPosition"
+
+        TaskMoveInCollectionPatchStartPosition:
+            type: object
+            required: [type]
+            additionalProperties: false
+            properties:
+                type:
+                    const: Start
+
+        TaskMoveInCollectionPatchEndPosition:
+            type: object
+            required: [type]
+            additionalProperties: false
+            properties:
+                type:
+                    const: End
+
+        TaskMoveInCollectionPatchBetweenPosition:
+            type: object
+            required: [type, afterCursor, beforeCursor]
+            additionalProperties: false
+            properties:
+                type:
+                    const: Between
+                afterCursor:
+                    $ref: "#/components/schemas/TaskCursor"
+                beforeCursor:
+                    $ref: "#/components/schemas/TaskCursor"
+
         TaskCollectionPatch:
             oneOf:
                 - $ref: "#/components/schemas/TaskCollectionSetNamePatch"
@@ -4052,9 +4116,17 @@ components:
                 name:
                     $ref: "#/components/schemas/LabelString"
                 color:
-                    oneOf:
-                        - $ref: "#/components/schemas/TaskCollectionColor"
-                        - type: "null"
+                    $ref: "#/components/schemas/TaskCollectionColor"
+
+        TaskCollectionTask:
+            type: object
+            required: [cursor, task]
+            additionalProperties: false
+            properties:
+                cursor:
+                    $ref: "#/components/schemas/TaskCursor"
+                task:
+                    $ref: "#/components/schemas/TaskWithoutNotes"
 
         # =========================================================================== #
         #                                  Messages                                   #
