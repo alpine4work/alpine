@@ -15,7 +15,7 @@ import {
     createInMemoryOpfsDirectoryHandle,
     extractOpfsPages,
 } from "~/client/web/databases/test_helpers/in_memory_opfs.js";
-import {installUniqueWorkerTestGlobals} from "~/client/web/helpers/workers/test_helpers/install_unique_worker_test_globals.js";
+import {installUniqueWorkerTestMocks} from "~/client/web/helpers/workers/test_helpers/install_unique_worker_test_mocks.js";
 import {settleUniqueWorkerTest} from "~/client/web/helpers/workers/test_helpers/settle_unique_worker_test.js";
 import {uniqueWorkerWebLockName} from "~/client/web/helpers/workers/unique_worker_client.js";
 import type {DatabaseExecuteActionResponse} from "~/shared/databases/database_protocol_schemas.js";
@@ -124,7 +124,7 @@ function createDatabaseTestEnv(config: {
     crashLeaderTab(): void;
     readonly worker: DatabaseActiveTabWorker;
 } {
-    const globals = installUniqueWorkerTestGlobals();
+    const mocks = installUniqueWorkerTestMocks();
     const databaseGroupId = config.databaseGroupId ?? testDatabaseGroupId;
     const workers: Array<DatabaseActiveTabWorker> = [];
 
@@ -217,7 +217,7 @@ function createDatabaseTestEnv(config: {
         close: () => {},
     });
 
-    globals.setWorkerScriptFactory(() => {
+    mocks.setWorkerScriptFactory(() => {
         const worker = new DatabaseActiveTabWorker(
             config.dir.getDirectoryHandle("databases", {create: true}),
             {createRealtimeConnection},
@@ -236,7 +236,7 @@ function createDatabaseTestEnv(config: {
             return db.connection;
         },
         crashLeaderTab() {
-            globals.forceReleaseWebLock(uniqueWorkerWebLockName(databaseUniqueWorkerKey));
+            mocks.forceReleaseWebLock(uniqueWorkerWebLockName(databaseUniqueWorkerKey));
         },
         // The current leader's worker (the most recently spawned one).
         get worker() {

@@ -1,7 +1,7 @@
 import {
     UniqueWorkerTestWorkerScript,
-    installUniqueWorkerTestGlobals,
-} from "~/client/web/helpers/workers/test_helpers/install_unique_worker_test_globals.js";
+    installUniqueWorkerTestMocks,
+} from "~/client/web/helpers/workers/test_helpers/install_unique_worker_test_mocks.js";
 import {settleUniqueWorkerTest} from "~/client/web/helpers/workers/test_helpers/settle_unique_worker_test.js";
 import {
     UniqueWorkerClient,
@@ -41,7 +41,7 @@ type TestHost = UniqueWorkerHost<typeof testWorkerMethods, typeof testTabMethods
 const testKey = "test-worker";
 
 function createTestHarness() {
-    const globals = installUniqueWorkerTestGlobals();
+    const mocks = installUniqueWorkerTestMocks();
     const hostsByTag = new Map<string, TestHost>();
     const workerGates = new Map<string, Promise<void>>();
     const workerScriptOverrides = new Map<string, UniqueWorkerTestWorkerScript>();
@@ -62,7 +62,7 @@ function createTestHarness() {
         return {handleMessage: (data, ports) => host.handleMessage(data, ports)};
     }
 
-    globals.setWorkerScriptFactory(url => {
+    mocks.setWorkerScriptFactory(url => {
         const tag = url.replace("test-worker://", "");
         const clientName = tag.split("-worker-")[0]!;
         const override = workerScriptOverrides.get(clientName);
@@ -115,7 +115,7 @@ function createTestHarness() {
     return {
         createClient,
         hostsByTag,
-        crashLeaderTab: () => globals.forceReleaseWebLock(uniqueWorkerWebLockName(testKey)),
+        crashLeaderTab: () => mocks.forceReleaseWebLock(uniqueWorkerWebLockName(testKey)),
     };
 }
 

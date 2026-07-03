@@ -1,5 +1,5 @@
 import {createUniqueWorkerBroker} from "~/client/web/helpers/workers/create_unique_worker_broker.js";
-import {installUniqueWorkerTestGlobals} from "~/client/web/helpers/workers/test_helpers/install_unique_worker_test_globals.js";
+import {installUniqueWorkerTestMocks} from "~/client/web/helpers/workers/test_helpers/install_unique_worker_test_mocks.js";
 import {settleUniqueWorkerTest} from "~/client/web/helpers/workers/test_helpers/settle_unique_worker_test.js";
 
 // Message-level tests for the broker. Full multi-tab behavior is covered by
@@ -7,7 +7,7 @@ import {settleUniqueWorkerTest} from "~/client/web/helpers/workers/test_helpers/
 // mocked globals provide `navigator.locks` (client liveness) and `MessageChannel`.
 
 function createTestBroker() {
-    installUniqueWorkerTestGlobals();
+    installUniqueWorkerTestMocks();
     const broker = createUniqueWorkerBroker();
 
     let nextTab = 0;

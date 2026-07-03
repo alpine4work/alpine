@@ -38,7 +38,7 @@ import {SchemaType} from "~/shared/schema/schema.js";
 //   arrive while no leader is registered queue inside the broker until one
 //   registers, so clients never poll or retry on a timer.
 //
-// Tests run this class against `test_helpers/install_unique_worker_test_globals`,
+// Tests run this class against `test_helpers/install_unique_worker_test_mocks`,
 // which replaces `navigator.locks`, `MessageChannel`, `Worker`, and `SharedWorker`
 // with in-process fakes (the broker fake runs the real broker logic).
 

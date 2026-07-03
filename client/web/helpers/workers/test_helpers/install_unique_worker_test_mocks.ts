@@ -14,7 +14,7 @@ export interface UniqueWorkerTestWorkerScript {
     handleMessage(data: unknown, ports: ReadonlyArray<MessagePort>): void;
 }
 
-export interface UniqueWorkerTestGlobals {
+export interface UniqueWorkerTestMocks {
     /**
      * Provides the in-process implementation behind `new Worker(url)`. The factory
      * receives the URL the production code passed, so tests can vary the script per
@@ -36,11 +36,11 @@ export interface UniqueWorkerTestGlobals {
  * in-process fakes so the unique worker system runs unmodified under Jest. The
  * `SharedWorker` fake hosts the real broker logic; only the dedicated worker's
  * script needs to be provided via {@link
- * UniqueWorkerTestGlobals.setWorkerScriptFactory}.
+ * UniqueWorkerTestMocks.setWorkerScriptFactory}.
  *
  * Call once per test — each call installs fresh, isolated state.
  */
-export function installUniqueWorkerTestGlobals(): UniqueWorkerTestGlobals {
+export function installUniqueWorkerTestMocks(): UniqueWorkerTestMocks {
     const locks = new UniqueWorkerTestLockManager();
     Object.defineProperty(globalThis.navigator, "locks", {
         value: locks as unknown as LockManager,
@@ -60,7 +60,7 @@ export function installUniqueWorkerTestGlobals(): UniqueWorkerTestGlobals {
         constructor(url: string | URL) {
             if (workerScriptFactory === null) {
                 throw new InternalError(
-                    "installUniqueWorkerTestGlobals: call setWorkerScriptFactory before the code under test creates workers",
+                    "installUniqueWorkerTestMocks: call setWorkerScriptFactory before the code under test creates workers",
                 );
             }
             this.script = workerScriptFactory(String(url));
