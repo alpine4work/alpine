@@ -1,5 +1,6 @@
 import sqlite3InitModule from "~/external/sqlite/ext/wasm/jswasm/sqlite3.mjs";
-import {type DatabaseFieldModel, DatabaseModel} from "~/shared/databases/model/database_model.js";
+import type {DatabaseFieldModel} from "~/shared/databases/model/database_field_model.js";
+import {DatabaseModel} from "~/shared/databases/model/database_root_model.js";
 import {databaseTableSchemaName, sql} from "~/shared/databases/sql.js";
 import {SqliteDatabase} from "~/shared/databases/sqlite.js";
 import {databaseViewDefaultColumnWidth} from "~/shared/databases/sqlite_constants.js";

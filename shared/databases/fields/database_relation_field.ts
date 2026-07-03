@@ -3,7 +3,7 @@ import {DatabaseFieldProviderBase} from "~/shared/databases/fields/base/database
 import type {
     DatabaseFieldModel,
     DatabaseFieldModelOfType,
-} from "~/shared/databases/model/database_model.js";
+} from "~/shared/databases/model/database_field_model.js";
 import {SqlJsonSchema} from "~/shared/databases/model/sqlite_schema.js";
 import {type SqlQuery, sql} from "~/shared/databases/sql.js";
 import {assert} from "~/shared/helpers/control/assert.js";

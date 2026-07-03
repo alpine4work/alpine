@@ -12,7 +12,7 @@ import {
     type DatabaseFieldConfig,
     DatabaseFieldConfigSqlSchema,
 } from "~/shared/databases/fields/all_database_field_providers.js";
-import {DatabaseModel} from "~/shared/databases/model/database_model.js";
+import {DatabaseModel} from "~/shared/databases/model/database_root_model.js";
 import {databaseTableSchemaName, sql} from "~/shared/databases/sql.js";
 import {SqliteDatabase} from "~/shared/databases/sqlite.js";
 import {databaseViewDefaultColumnWidth} from "~/shared/databases/sqlite_constants.js";

@@ -2,7 +2,7 @@ import type {DatabaseFieldType} from "~/shared/databases/fields/all_database_fie
 import {
     type DatabaseFieldModel,
     type DatabaseFieldModelOfType,
-} from "~/shared/databases/model/database_model.js";
+} from "~/shared/databases/model/database_field_model.js";
 import {type SqlQuery, sql} from "~/shared/databases/sql.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import type {Result} from "~/shared/helpers/control/result.js";
