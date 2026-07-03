@@ -1,22 +1,21 @@
 import {
-    type ActiveTabBroadcastChannel,
-    type ActiveTabLockManager,
-    type ActiveTabPort,
-    type ActiveTabServiceWorkerClients,
-    type ActiveTabServiceWorkerContainer,
-    type ActiveTabServiceWorkerRegistration,
-    type ActiveTabWorkerHandle,
-    DatabaseActiveTabManager,
-    DatabaseActiveTabServiceWorker,
-    DatabaseActiveTabWorker,
     type DatabaseWorkerConnection,
-} from "~/client/web/databases/database_active_tab_manager.js";
+    createDatabaseGroupConnection,
+    databaseUniqueWorkerKey,
+} from "~/client/web/databases/connect_to_database.js";
+import {
+    type DatabaseActiveTabRealtimeConnection,
+    DatabaseActiveTabWorker,
+} from "~/client/web/databases/database_active_tab_worker.js";
 import {
     createInMemoryOpfsDirectoryHandle,
     extractOpfsPages,
 } from "~/client/web/databases/test_helpers/in_memory_opfs.js";
 import {DatabaseClient} from "~/client/web/databases/worker/database_client.js";
 import type {OpfsDirectoryHandle} from "~/client/web/databases/worker/opfs.js";
+import {installUniqueWorkerTestMocks} from "~/client/web/helpers/workers/test_helpers/install_unique_worker_test_mocks.js";
+import {settleUniqueWorkerTest} from "~/client/web/helpers/workers/test_helpers/settle_unique_worker_test.js";
+import {uniqueWorkerWebLockName} from "~/client/web/helpers/workers/unique_worker_client.js";
 import type {DatabaseExecuteActionResponse} from "~/shared/databases/database_protocol_schemas.js";
 import {diffPage} from "~/shared/databases/page_diff.js";
 import {SqlQuery, sql} from "~/shared/databases/sql.js";
@@ -34,7 +33,7 @@ const testDatabaseGroupId = generateId<DatabaseGroupId>();
 
 /**
  * Creates a {@link DatabaseClient} seeded into the per-database OPFS subdirectory
- * so that the mock worker can find it.
+ * so that the worker can find it.
  */
 async function createSeededClient(
     dir: OpfsDirectoryHandle,
@@ -119,242 +118,19 @@ async function extractPages(
 }
 
 // ---------------------------------------------------------------------------
-// Mock MessagePort pair
+// Test environment
 // ---
+//
+// The unique worker machinery (locks, broker, ports, workers) comes from the
+// mocked globals; this harness provides the fake dedicated worker (a real
+// `DatabaseActiveTabWorker` on in-memory OPFS) and simulates the realtime server
+// connection against the local OPFS state. Each `connect()` call plays the role of
+// one tab; a leader tab crash is simulated by force-releasing the election Web
+// Lock.
 //
 // ---
 
-function createMockPortPair(): [ActiveTabPort, ActiveTabPort] {
-    const portA: ActiveTabPort = {
-        postMessage(data: unknown, transfer: Array<ActiveTabPort> = []) {
-            const handler = portB.onmessage;
-            if (handler) {
-                queueMicrotask(() => handler({data, ports: transfer}));
-            }
-        },
-        onmessage: null,
-        start() {},
-        close() {},
-    };
-
-    const portB: ActiveTabPort = {
-        postMessage(data: unknown, transfer: Array<ActiveTabPort> = []) {
-            const handler = portA.onmessage;
-            if (handler) {
-                queueMicrotask(() => handler({data, ports: transfer}));
-            }
-        },
-        onmessage: null,
-        start() {},
-        close() {},
-    };
-
-    return [portA, portB];
-}
-
-function createMockMessageChannel(): {port1: ActiveTabPort; port2: ActiveTabPort} {
-    const [port1, port2] = createMockPortPair();
-    return {port1, port2};
-}
-
-// ---------------------------------------------------------------------------
-// Mock LockManager — supports ifAvailable and blocking wait
-// ---
-//
-// ---
-
-class MockLockManager implements ActiveTabLockManager {
-    private readonly held = new Set<string>();
-    private readonly holdResolvers = new Map<string, () => void>();
-    private readonly waitQueue = new Map<string, Array<() => void>>();
-
-    async request(
-        name: string,
-        options: {ifAvailable: boolean},
-        callback: (lock: unknown) => Promise<unknown>,
-    ): Promise<unknown> {
-        if (this.held.has(name)) {
-            if (options.ifAvailable) {
-                return callback(null);
-            }
-            // Block until the lock is released
-            await new Promise<void>(resolve => {
-                const queue = this.waitQueue.get(name) ?? [];
-                queue.push(resolve);
-                this.waitQueue.set(name, queue);
-            });
-        }
-
-        this.held.add(name);
-
-        // Race the callback against an external release() call
-        const holdPromise = new Promise<void>(resolve => {
-            this.holdResolvers.set(name, resolve);
-        });
-
-        await Promise.race([callback({name}), holdPromise]);
-
-        // Lock released — clean up and grant to next waiter
-        this.held.delete(name);
-        this.holdResolvers.delete(name);
-
-        const queue = this.waitQueue.get(name);
-        if (queue !== undefined && queue.length > 0) {
-            const next = queue.shift()!;
-            next();
-        }
-    }
-
-    /** Simulate tab death: release the held lock. */
-    release(name: string): void {
-        const resolve = this.holdResolvers.get(name);
-        resolve?.();
-    }
-}
-
-// ---------------------------------------------------------------------------
-// Mock BroadcastChannel bus
-// ---
-//
-// ---
-
-class MockBroadcastChannelBus {
-    private readonly channels = new Map<string, Set<ActiveTabBroadcastChannel>>();
-
-    create(name: string): ActiveTabBroadcastChannel {
-        const channel: ActiveTabBroadcastChannel = {
-            postMessage: (data: unknown) => {
-                const set = this.channels.get(name);
-                if (!set) return;
-                for (const ch of set) {
-                    if (ch !== channel && ch.onmessage) {
-                        const handler = ch.onmessage;
-                        queueMicrotask(() => handler({data}));
-                    }
-                }
-            },
-            onmessage: null,
-            close: () => {
-                this.channels.get(name)?.delete(channel);
-            },
-        };
-
-        let set = this.channels.get(name);
-        if (set === undefined) {
-            set = new Set();
-            this.channels.set(name, set);
-        }
-        set.add(channel);
-
-        return channel;
-    }
-}
-
-// ---------------------------------------------------------------------------
-// Mock ServiceWorker bridge
-// ---
-//
-// ---
-
-/**
- * Simulates the ServiceWorker's port relay. Creates {@link
- * ActiveTabServiceWorkerContainer} instances for each "tab" and routes messages
- * through a real {@link DatabaseActiveTabServiceWorker} instance.
- */
-class MockServiceWorkerBridge {
-    private readonly sw: DatabaseActiveTabServiceWorker;
-    private readonly clientHandlers = new Map<
-        string,
-        (event: {data: unknown; ports: Array<ActiveTabPort>}) => void
-    >();
-
-    constructor() {
-        const clients: ActiveTabServiceWorkerClients = {
-            postMessage: async (clientId, data, transfer) => {
-                const handler = this.clientHandlers.get(clientId);
-                handler?.({data, ports: transfer});
-            },
-        };
-        this.sw = new DatabaseActiveTabServiceWorker(clients);
-    }
-
-    containerFor(clientId: string): ActiveTabServiceWorkerContainer {
-        const reg: ActiveTabServiceWorkerRegistration = {
-            active: {
-                postMessage: (data: unknown, transfer: Array<ActiveTabPort> = []) => {
-                    // Deliver to the real SW handler
-                    void this.sw.handleMessage(clientId, data, transfer);
-                },
-            },
-        };
-
-        return {
-            ready: Promise.resolve(reg),
-            addEventListener: (
-                _type: "message",
-                handler: (event: {data: unknown; ports: Array<ActiveTabPort>}) => void,
-            ) => {
-                this.clientHandlers.set(clientId, handler);
-            },
-        };
-    }
-}
-
-// ---------------------------------------------------------------------------
-// Mock worker
-// ---
-//
-// ---
-
-function createMockWorker(dir: OpfsDirectoryHandle): {
-    handle: ActiveTabWorkerHandle;
-    worker: DatabaseActiveTabWorker;
-} {
-    let handler: ((data: unknown, ports: Array<ActiveTabPort>) => void) | null = null;
-    let resolvedWorker!: DatabaseActiveTabWorker;
-    const [mainEnd, workerEnd] = createMockPortPair();
-
-    const ready = dir.getDirectoryHandle("databases", {create: true}).then(dbsDir => {
-        resolvedWorker = new DatabaseActiveTabWorker(dbsDir);
-        handler = resolvedWorker.createMessageHandler(message => workerEnd.postMessage(message));
-        workerEnd.onmessage = event => handler!(event.data, event.ports);
-    });
-
-    return {
-        handle: {
-            ready,
-            postMessage(data: unknown, transfer: Array<ActiveTabPort> = []) {
-                queueMicrotask(() => handler?.(data, transfer));
-            },
-            get onmessage() {
-                return mainEnd.onmessage;
-            },
-            set onmessage(
-                h: ((event: {data: unknown; ports: Array<ActiveTabPort>}) => void) | null,
-            ) {
-                mainEnd.onmessage = h;
-            },
-            start() {},
-            close() {},
-            terminate() {},
-        },
-        get worker() {
-            return resolvedWorker;
-        },
-    };
-}
-
-// ---------------------------------------------------------------------------
-// Test helper — creates a tab simulation
-// ---
-//
-// ---
-
-function createTestTab(config: {
-    locks: MockLockManager;
-    sw: MockServiceWorkerBridge;
-    bc: MockBroadcastChannelBus;
-    clientId: string;
+function createDatabaseTestEnv(config: {
     dir: OpfsDirectoryHandle;
     databaseGroupId?: DatabaseGroupId;
     executeActionServer?: (
@@ -366,24 +142,15 @@ function createTestTab(config: {
         },
     ) => Promise<DatabaseExecuteActionResponse>;
 }): {
-    manager: DatabaseActiveTabManager;
-    fireUnload: () => void;
-    worker: DatabaseActiveTabWorker;
+    connect(): Promise<DatabaseWorkerConnection>;
+    crashLeaderTab(): void;
+    readonly worker: DatabaseActiveTabWorker;
 } {
-    const unloadListeners: Array<() => void> = [];
-    let mockWorker: ReturnType<typeof createMockWorker> | undefined;
+    const mocks = installUniqueWorkerTestMocks();
+    const databaseGroupId = config.databaseGroupId ?? testDatabaseGroupId;
+    const workers: Array<DatabaseActiveTabWorker> = [];
 
-    const manager = new DatabaseActiveTabManager({
-        databaseGroupId: config.databaseGroupId ?? testDatabaseGroupId,
-        locks: config.locks,
-        serviceWorker: config.sw.containerFor(config.clientId),
-        createWorker: () => {
-            mockWorker = createMockWorker(config.dir);
-            return mockWorker.handle;
-        },
-        createMessageChannel: createMockMessageChannel,
-        createBroadcastChannel: name => config.bc.create(name),
-        addUnloadListener: callback => unloadListeners.push(callback),
+    const createRealtimeConnection = (): DatabaseActiveTabRealtimeConnection => ({
         executeActionServer:
             config.executeActionServer ??
             (() => {
@@ -411,7 +178,6 @@ function createTestTab(config: {
             // server that agrees with the local cache.
             try {
                 const dbsDir = await config.dir.getDirectoryHandle("databases");
-                const databaseGroupId = config.databaseGroupId ?? testDatabaseGroupId;
                 const groupDir = await dbsDir.getDirectoryHandle(databaseGroupId);
                 const dataDir = await groupDir.getDirectoryHandle(databaseMainTableId);
                 const indexFile = await dataDir.getFileHandle("index.json");
@@ -469,15 +235,34 @@ function createTestTab(config: {
             return empty;
         },
         acknowledgePages: () => {},
+        reportError: () => {},
+        close: () => {},
+    });
+
+    mocks.setWorkerScriptFactory(() => {
+        const worker = new DatabaseActiveTabWorker(
+            config.dir.getDirectoryHandle("databases", {create: true}),
+            {createRealtimeConnection},
+        );
+        workers.push(worker);
+        return {handleMessage: (data, ports) => worker.host.handleMessage(data, ports)};
     });
 
     return {
-        manager,
-        fireUnload: () => {
-            for (const cb of unloadListeners) cb();
+        async connect() {
+            const db = createDatabaseGroupConnection();
+            await db.connect({
+                databaseGroupId,
+                webSocketUrl: "ws://test.invalid",
+            });
+            return db.connection;
         },
+        crashLeaderTab() {
+            mocks.forceReleaseWebLock(uniqueWorkerWebLockName(databaseUniqueWorkerKey));
+        },
+        // The current leader's worker (the most recently spawned one).
         get worker() {
-            return mockWorker!.worker;
+            return workers[workers.length - 1]!;
         },
     };
 }
@@ -488,15 +273,12 @@ function createTestTab(config: {
 //
 // ---
 
-describe("DatabaseActiveTabManager", () => {
+describe("connectToDatabaseGroup", () => {
     test("leader can execute queries", async () => {
-        const locks = new MockLockManager();
-        const sw = new MockServiceWorkerBridge();
-        const bc = new MockBroadcastChannelBus();
         const dir = await createSeededTestDir();
+        const env = createDatabaseTestEnv({dir});
 
-        const {manager} = createTestTab({locks, sw, bc, clientId: "tab-a", dir});
-        const conn = await manager.connect();
+        const conn = await env.connect();
 
         const rows = await executeSql(
             conn,
@@ -508,25 +290,18 @@ describe("DatabaseActiveTabManager", () => {
         expect(rows).toMatchObject([{result: 2}]);
     });
 
-    test("follower queries reach leader worker", async () => {
-        const locks = new MockLockManager();
-        const sw = new MockServiceWorkerBridge();
-        const bc = new MockBroadcastChannelBus();
+    test("follower queries reach leader\u2019s worker", async () => {
         const dir = await createSeededTestDir();
+        const env = createDatabaseTestEnv({dir});
 
-        // Tab A — leader
-        const tabA = createTestTab({locks, sw, bc, clientId: "tab-a", dir});
-        const connA = await tabA.manager.connect();
+        const connA = await env.connect();
+        const connB = await env.connect();
 
-        // Tab B — follower
-        const {manager: managerB} = createTestTab({locks, sw, bc, clientId: "tab-b", dir});
-        const connB = await managerB.connect();
-
-        await tabA.worker.executeLocallyForTests(
+        await env.worker.executeLocallyForTests(
             testDatabaseGroupId,
             sql`CREATE TABLE t (id INTEGER PRIMARY KEY, name TEXT)`,
         );
-        await tabA.worker.commitOptimisticPagesForTests(testDatabaseGroupId);
+        await env.worker.commitOptimisticPagesForTests(testDatabaseGroupId);
         await executeSql(
             connA,
             sql`
@@ -550,23 +325,18 @@ describe("DatabaseActiveTabManager", () => {
     });
 
     test("multiple followers query the same database", async () => {
-        const locks = new MockLockManager();
-        const sw = new MockServiceWorkerBridge();
-        const bc = new MockBroadcastChannelBus();
         const dir = await createSeededTestDir();
+        const env = createDatabaseTestEnv({dir});
 
-        const tab = (clientId: string) => createTestTab({locks, sw, bc, clientId, dir});
+        const connA = await env.connect();
+        const connB = await env.connect();
+        const connC = await env.connect();
 
-        const tabA = tab("tab-a");
-        const connA = await tabA.manager.connect();
-        const connB = await tab("tab-b").manager.connect();
-        const connC = await tab("tab-c").manager.connect();
-
-        await tabA.worker.executeLocallyForTests(
+        await env.worker.executeLocallyForTests(
             testDatabaseGroupId,
             sql`CREATE TABLE items (id INTEGER PRIMARY KEY, val TEXT)`,
         );
-        await tabA.worker.commitOptimisticPagesForTests(testDatabaseGroupId);
+        await env.worker.commitOptimisticPagesForTests(testDatabaseGroupId);
         await executeSql(
             connA,
             sql`
@@ -601,12 +371,10 @@ describe("DatabaseActiveTabManager", () => {
     });
 });
 
-describe("DatabaseActiveTabManager resilience", () => {
+describe("connectToDatabaseGroup resilience", () => {
     test("follower becomes leader after leader death", async () => {
-        const locks = new MockLockManager();
-        const sw = new MockServiceWorkerBridge();
-        const bc = new MockBroadcastChannelBus();
         const dir = await createSeededTestDir();
+        const env = createDatabaseTestEnv({dir});
 
         // Pre-populate OPFS so data persists across leader death
         const seed = await createSeededClient(dir);
@@ -620,19 +388,13 @@ describe("DatabaseActiveTabManager resilience", () => {
         `);
         seed.commitOptimisticPagesForTests();
 
-        // Tab A — leader
-        const {manager: managerA} = createTestTab({locks, sw, bc, clientId: "tab-a", dir});
-        await managerA.connect();
+        await env.connect();
+        const connB = await env.connect();
 
-        // Tab B — follower
-        const {manager: managerB} = createTestTab({locks, sw, bc, clientId: "tab-b", dir});
-        const connB = await managerB.connect();
+        // Leader dies — its Web Lock releases and the follower promotes.
+        env.crashLeaderTab();
+        await settleUniqueWorkerTest();
 
-        // Leader dies — release the lock
-        locks.release("alpine-db");
-
-        // Follower's connection should still work (it becomes the new leader via
-        // lock-wait). The call is queued until promotion completes.
         const rows = await executeSql(
             connB,
             sql`
@@ -645,56 +407,9 @@ describe("DatabaseActiveTabManager resilience", () => {
         expect(rows).toMatchObject([{id: 42}]);
     });
 
-    test("graceful handoff via beforeunload", async () => {
-        const locks = new MockLockManager();
-        const sw = new MockServiceWorkerBridge();
-        const bc = new MockBroadcastChannelBus();
+    test("queries after leader death resolve on the new leader", async () => {
         const dir = await createSeededTestDir();
-
-        // Pre-populate OPFS so data persists across leader change
-        const seed = await createSeededClient(dir);
-        seed.executeLocallyForTests(sql`CREATE TABLE t (id INTEGER PRIMARY KEY, val TEXT)`);
-        seed.commitOptimisticPagesForTests();
-        seed.executeLocallyForTests(sql`
-            INSERT INTO
-                t (val)
-            VALUES
-                ('hello')
-        `);
-        seed.commitOptimisticPagesForTests();
-
-        // Tab A — leader
-        const tabA = createTestTab({locks, sw, bc, clientId: "tab-a", dir});
-        await tabA.manager.connect();
-
-        // Tab B — follower
-        const {manager: managerB} = createTestTab({locks, sw, bc, clientId: "tab-b", dir});
-        const connB = await managerB.connect();
-
-        // Leader announces graceful close
-        tabA.fireUnload();
-
-        // Release the lock (tab actually closes)
-        locks.release("alpine-db");
-
-        // Follower takes over — queries should succeed
-        const rows = await executeSql(
-            connB,
-            sql`
-                SELECT
-                    *
-                FROM
-                    t
-            `,
-        );
-        expect(rows).toMatchObject([{id: 1, val: "hello"}]);
-    });
-
-    test("queries queued during transition resolve after reconnection", async () => {
-        const locks = new MockLockManager();
-        const sw = new MockServiceWorkerBridge();
-        const bc = new MockBroadcastChannelBus();
-        const dir = await createSeededTestDir();
+        const env = createDatabaseTestEnv({dir});
 
         // Pre-populate OPFS so data persists across leader death
         const seed = await createSeededClient(dir);
@@ -715,17 +430,15 @@ describe("DatabaseActiveTabManager resilience", () => {
         `);
         seed.commitOptimisticPagesForTests();
 
-        const {manager: managerA} = createTestTab({locks, sw, bc, clientId: "tab-a", dir});
-        await managerA.connect();
+        await env.connect();
+        const connB = await env.connect();
 
-        const {manager: managerB} = createTestTab({locks, sw, bc, clientId: "tab-b", dir});
-        const connB = await managerB.connect();
+        // Kill leader and let the follower promote. (Calls in flight _during_ the failover
+        // window reject rather than being replayed — that behavior is covered in
+        // unique_worker_client.test.ts.)
+        env.crashLeaderTab();
+        await settleUniqueWorkerTest();
 
-        // Kill leader
-        locks.release("alpine-db");
-
-        // Submit multiple queries before reconnection settles — they should all be queued
-        // and eventually resolve.
         const [rows1, rows2] = await Promise.all([
             executeSql(
                 connB,
@@ -756,10 +469,8 @@ describe("DatabaseActiveTabManager resilience", () => {
     });
 
     test("leader closing connection (navigation) lets followers recover", async () => {
-        const locks = new MockLockManager();
-        const sw = new MockServiceWorkerBridge();
-        const bc = new MockBroadcastChannelBus();
         const dir = await createSeededTestDir();
+        const env = createDatabaseTestEnv({dir});
 
         // Pre-populate OPFS so data persists across leader change
         const seed = await createSeededClient(dir);
@@ -773,20 +484,14 @@ describe("DatabaseActiveTabManager resilience", () => {
         `);
         seed.commitOptimisticPagesForTests();
 
-        // Tab A — leader
-        const {manager: managerA} = createTestTab({locks, sw, bc, clientId: "tab-a", dir});
-        const connA = await managerA.connect();
-
-        // Tab B — follower
-        const {manager: managerB} = createTestTab({locks, sw, bc, clientId: "tab-b", dir});
-        const connB = await managerB.connect();
+        const connA = await env.connect();
+        const connB = await env.connect();
 
         // Leader's component unmounts (page navigation) — conn.close() is called but the
-        // tab stays alive.
+        // tab stays alive. The Web Lock releases and the follower promotes.
         connA.close();
+        await settleUniqueWorkerTest();
 
-        // Follower should recover: lock is released by closeConnection(), lock-wait fires,
-        // follower promotes to leader.
         const rows = await executeSql(
             connB,
             sql`
@@ -800,10 +505,8 @@ describe("DatabaseActiveTabManager resilience", () => {
     });
 
     test("multiple followers handle leader death", async () => {
-        const locks = new MockLockManager();
-        const sw = new MockServiceWorkerBridge();
-        const bc = new MockBroadcastChannelBus();
         const dir = await createSeededTestDir();
+        const env = createDatabaseTestEnv({dir});
 
         // Pre-populate OPFS so data persists across leader death
         const seed = await createSeededClient(dir);
@@ -817,18 +520,14 @@ describe("DatabaseActiveTabManager resilience", () => {
         `);
         seed.commitOptimisticPagesForTests();
 
-        const tab = (clientId: string) => createTestTab({locks, sw, bc, clientId, dir});
+        await env.connect();
+        const connB = await env.connect();
+        const connC = await env.connect();
 
-        // Tab A — leader, Tabs B and C — followers
-        await tab("tab-a").manager.connect();
-        const connB = await tab("tab-b").manager.connect();
-        const connC = await tab("tab-c").manager.connect();
+        // Kill leader — one follower becomes leader, the other reconnects to it.
+        env.crashLeaderTab();
+        await settleUniqueWorkerTest();
 
-        // Kill leader
-        locks.release("alpine-db");
-
-        // Both followers should recover — one becomes leader, the other reconnects as
-        // follower to it.
         const [rowsB, rowsC] = await Promise.all([
             executeSql(
                 connB,
@@ -855,19 +554,11 @@ describe("DatabaseActiveTabManager resilience", () => {
     });
 });
 
-describe("DatabaseActiveTabManager mutations", () => {
+describe("connectToDatabaseGroup mutations", () => {
     test("leader can execute mutations optimistically", async () => {
-        const locks = new MockLockManager();
-        const sw = new MockServiceWorkerBridge();
-        const bc = new MockBroadcastChannelBus();
         const dir = await createSeededTestDir();
-
         let capturedMutationId: DatabaseMutationId | null = null;
-        const tab = createTestTab({
-            locks,
-            sw,
-            bc,
-            clientId: "tab-a",
+        const env = createDatabaseTestEnv({
             dir,
             executeActionServer: (_action, options) => {
                 capturedMutationId = options.mutationId;
@@ -876,14 +567,14 @@ describe("DatabaseActiveTabManager mutations", () => {
                 return new Promise(() => {});
             },
         });
-        const conn = await tab.manager.connect();
+        const conn = await env.connect();
 
         // Create table first, then mutate
-        await tab.worker.executeLocallyForTests(
+        await env.worker.executeLocallyForTests(
             testDatabaseGroupId,
             sql`CREATE TABLE t (id INTEGER PRIMARY KEY, title TEXT)`,
         );
-        await tab.worker.commitOptimisticPagesForTests(testDatabaseGroupId);
+        await env.worker.commitOptimisticPagesForTests(testDatabaseGroupId);
         const rows = await executeSql(
             conn,
             sql`
@@ -904,45 +595,10 @@ describe("DatabaseActiveTabManager mutations", () => {
         expect(capturedMutationId).not.toBeNull();
     });
 
-    test("follower mutations route through follower executeActionServer", async () => {
-        const locks = new MockLockManager();
-        const sw = new MockServiceWorkerBridge();
-        const bc = new MockBroadcastChannelBus();
+    test("follower mutations route through leader worker\u2019s realtime connection", async () => {
         const dir = await createSeededTestDir();
-
-        // Tab A — leader
-        const tabA = createTestTab({
-            locks,
-            sw,
-            bc,
-            clientId: "tab-a",
-            dir,
-        });
-        const connA = await tabA.manager.connect();
-
-        // Create table via leader
-        await tabA.worker.executeLocallyForTests(
-            testDatabaseGroupId,
-            sql`CREATE TABLE t (id INTEGER PRIMARY KEY, done INTEGER DEFAULT 0)`,
-        );
-        await tabA.worker.commitOptimisticPagesForTests(testDatabaseGroupId);
-        await executeSql(
-            connA,
-            sql`
-                INSERT INTO
-                    t (id)
-                VALUES
-                    (1)
-            `,
-        );
-
-        // Tab B — follower with working executeActionServer
         let capturedAction: {name: string; input: unknown} | null = null;
-        const {manager: managerB} = createTestTab({
-            locks,
-            sw,
-            bc,
-            clientId: "tab-b",
+        const env = createDatabaseTestEnv({
             dir,
             executeActionServer: async action => {
                 capturedAction = action;
@@ -952,7 +608,28 @@ describe("DatabaseActiveTabManager mutations", () => {
                 } as DatabaseExecuteActionResponse;
             },
         });
-        const connB = await managerB.connect();
+        await env.connect();
+
+        // Create table via leader
+        await env.worker.executeLocallyForTests(
+            testDatabaseGroupId,
+            sql`CREATE TABLE t (id INTEGER PRIMARY KEY, done INTEGER DEFAULT 0)`,
+        );
+        await env.worker.commitOptimisticPagesForTests(testDatabaseGroupId);
+        await env.worker.executeLocallyForTests(
+            testDatabaseGroupId,
+            sql`
+                INSERT INTO
+                    t (id)
+                VALUES
+                    (1)
+            `,
+        );
+        await env.worker.commitOptimisticPagesForTests(testDatabaseGroupId);
+
+        // Follower tab. Its calls are proxied to the leader worker, so it does not get a
+        // separate server route.
+        const connB = await env.connect();
 
         const updateSql = sql`
             UPDATE t
@@ -961,7 +638,7 @@ describe("DatabaseActiveTabManager mutations", () => {
         `;
         await executeSql(connB, updateSql);
 
-        // Background server call routes through follower's executeActionServer
+        // Background server call routes through the leader worker's realtime connection.
         await new Promise(resolve => setTimeout(resolve, 0));
         expect(capturedAction).toMatchObject({
             name: "rawSql",
@@ -970,19 +647,9 @@ describe("DatabaseActiveTabManager mutations", () => {
     });
 
     test("mutation errors propagate to caller", async () => {
-        const locks = new MockLockManager();
-        const sw = new MockServiceWorkerBridge();
-        const bc = new MockBroadcastChannelBus();
         const dir = await createSeededTestDir();
-
-        const {manager} = createTestTab({
-            locks,
-            sw,
-            bc,
-            clientId: "tab-a",
-            dir,
-        });
-        const conn = await manager.connect();
+        const env = createDatabaseTestEnv({dir});
+        const conn = await env.connect();
 
         // No table exists — local execution fails
         await expect(
@@ -1001,19 +668,15 @@ describe("DatabaseActiveTabManager mutations", () => {
 
 describe("Reactive actions", () => {
     test("registerReactiveAction returns initial result", async () => {
-        const locks = new MockLockManager();
-        const sw = new MockServiceWorkerBridge();
-        const bc = new MockBroadcastChannelBus();
         const dir = await createSeededTestDir();
+        const env = createDatabaseTestEnv({dir});
+        const conn = await env.connect();
 
-        const tab = createTestTab({locks, sw, bc, clientId: "tab-a", dir});
-        const conn = await tab.manager.connect();
-
-        await tab.worker.executeLocallyForTests(
+        await env.worker.executeLocallyForTests(
             testDatabaseGroupId,
             sql`CREATE TABLE t (id INTEGER PRIMARY KEY, val TEXT)`,
         );
-        await tab.worker.commitOptimisticPagesForTests(testDatabaseGroupId);
+        await env.worker.commitOptimisticPagesForTests(testDatabaseGroupId);
         await executeSql(
             conn,
             sql`
@@ -1045,19 +708,15 @@ describe("Reactive actions", () => {
     });
 
     test("reactive action re-executes when overlapping pages are written", async () => {
-        const locks = new MockLockManager();
-        const sw = new MockServiceWorkerBridge();
-        const bc = new MockBroadcastChannelBus();
         const dir = await createSeededTestDir();
+        const env = createDatabaseTestEnv({dir});
+        const conn = await env.connect();
 
-        const tab = createTestTab({locks, sw, bc, clientId: "tab-a", dir});
-        const conn = await tab.manager.connect();
-
-        await tab.worker.executeLocallyForTests(
+        await env.worker.executeLocallyForTests(
             testDatabaseGroupId,
             sql`CREATE TABLE t (id INTEGER PRIMARY KEY, val TEXT)`,
         );
-        await tab.worker.commitOptimisticPagesForTests(testDatabaseGroupId);
+        await env.worker.commitOptimisticPagesForTests(testDatabaseGroupId);
         await executeSql(
             conn,
             sql`
@@ -1123,27 +782,23 @@ describe("Reactive actions", () => {
     });
 
     test("reactive action does NOT re-execute when non-overlapping pages are written", async () => {
-        const locks = new MockLockManager();
-        const sw = new MockServiceWorkerBridge();
-        const bc = new MockBroadcastChannelBus();
         const dir = await createSeededTestDir();
-
-        const tab = createTestTab({locks, sw, bc, clientId: "tab-a", dir});
-        const conn = await tab.manager.connect();
+        const env = createDatabaseTestEnv({dir});
+        const conn = await env.connect();
 
         // All setup writes go to the base store via executeLocallyForTests so we control
         // the page change set we then ship as a realtime event.
-        await tab.worker.executeLocallyForTests(
+        await env.worker.executeLocallyForTests(
             testDatabaseGroupId,
             sql`CREATE TABLE t1 (id INTEGER PRIMARY KEY, val TEXT)`,
         );
-        await tab.worker.commitOptimisticPagesForTests(testDatabaseGroupId);
-        await tab.worker.executeLocallyForTests(
+        await env.worker.commitOptimisticPagesForTests(testDatabaseGroupId);
+        await env.worker.executeLocallyForTests(
             testDatabaseGroupId,
             sql`CREATE TABLE t2 (id INTEGER PRIMARY KEY, val TEXT)`,
         );
-        await tab.worker.commitOptimisticPagesForTests(testDatabaseGroupId);
-        await tab.worker.executeLocallyForTests(
+        await env.worker.commitOptimisticPagesForTests(testDatabaseGroupId);
+        await env.worker.executeLocallyForTests(
             testDatabaseGroupId,
             sql`
                 INSERT INTO
@@ -1152,8 +807,8 @@ describe("Reactive actions", () => {
                     ('a')
             `,
         );
-        await tab.worker.commitOptimisticPagesForTests(testDatabaseGroupId);
-        await tab.worker.executeLocallyForTests(
+        await env.worker.commitOptimisticPagesForTests(testDatabaseGroupId);
+        await env.worker.executeLocallyForTests(
             testDatabaseGroupId,
             sql`
                 INSERT INTO
@@ -1162,7 +817,7 @@ describe("Reactive actions", () => {
                     ('b')
             `,
         );
-        await tab.worker.commitOptimisticPagesForTests(testDatabaseGroupId);
+        await env.worker.commitOptimisticPagesForTests(testDatabaseGroupId);
 
         // Watch only t1.
         const handle = await conn.watchAction("readonlyRawSql", {
@@ -1185,7 +840,7 @@ describe("Reactive actions", () => {
 
         // Mutate t2 via the base store, then take diff between before/after snapshots.
         const pagesBefore = await extractPages(dir);
-        await tab.worker.executeLocallyForTests(
+        await env.worker.executeLocallyForTests(
             testDatabaseGroupId,
             sql`
                 INSERT INTO
@@ -1194,7 +849,7 @@ describe("Reactive actions", () => {
                     ('c')
             `,
         );
-        await tab.worker.commitOptimisticPagesForTests(testDatabaseGroupId);
+        await env.worker.commitOptimisticPagesForTests(testDatabaseGroupId);
         const pagesAfter = await extractPages(dir);
 
         // Drop page 0 — SQLite touches its file-change counter on every write, and that's
@@ -1231,19 +886,15 @@ describe("Reactive actions", () => {
     });
 
     test("unregisterReactiveAction stops re-execution", async () => {
-        const locks = new MockLockManager();
-        const sw = new MockServiceWorkerBridge();
-        const bc = new MockBroadcastChannelBus();
         const dir = await createSeededTestDir();
+        const env = createDatabaseTestEnv({dir});
+        const conn = await env.connect();
 
-        const tab = createTestTab({locks, sw, bc, clientId: "tab-a", dir});
-        const conn = await tab.manager.connect();
-
-        await tab.worker.executeLocallyForTests(
+        await env.worker.executeLocallyForTests(
             testDatabaseGroupId,
             sql`CREATE TABLE t (id INTEGER PRIMARY KEY, val TEXT)`,
         );
-        await tab.worker.commitOptimisticPagesForTests(testDatabaseGroupId);
+        await env.worker.commitOptimisticPagesForTests(testDatabaseGroupId);
         await executeSql(
             conn,
             sql`
@@ -1304,19 +955,15 @@ describe("Reactive actions", () => {
 
 describe("watchAction", () => {
     test("returns store with initial data", async () => {
-        const locks = new MockLockManager();
-        const sw = new MockServiceWorkerBridge();
-        const bc = new MockBroadcastChannelBus();
         const dir = await createSeededTestDir();
+        const env = createDatabaseTestEnv({dir});
+        const conn = await env.connect();
 
-        const tab = createTestTab({locks, sw, bc, clientId: "tab-a", dir});
-        const conn = await tab.manager.connect();
-
-        await tab.worker.executeLocallyForTests(
+        await env.worker.executeLocallyForTests(
             testDatabaseGroupId,
             sql`CREATE TABLE t (id INTEGER PRIMARY KEY, val TEXT)`,
         );
-        await tab.worker.commitOptimisticPagesForTests(testDatabaseGroupId);
+        await env.worker.commitOptimisticPagesForTests(testDatabaseGroupId);
         await executeSql(
             conn,
             sql`
@@ -1343,10 +990,8 @@ describe("watchAction", () => {
     });
 
     test("store updates when pages change", async () => {
-        const locks = new MockLockManager();
-        const sw = new MockServiceWorkerBridge();
-        const bc = new MockBroadcastChannelBus();
         const dir = await createSeededTestDir();
+        const env = createDatabaseTestEnv({dir});
 
         // Pre-populate OPFS so data is in the base store (no optimistic queue to replay on
         // writePageDiffsFromRealtime).
@@ -1361,8 +1006,7 @@ describe("watchAction", () => {
         `);
         seed.commitOptimisticPagesForTests();
 
-        const {manager} = createTestTab({locks, sw, bc, clientId: "tab-a", dir});
-        const conn = await manager.connect();
+        const conn = await env.connect();
 
         const handle = await conn.watchAction("readonlyRawSql", {
             sql: "SELECT * FROM t ORDER BY id",
@@ -1430,25 +1074,18 @@ describe("watchAction", () => {
     });
 
     test("watches re-register after leader death", async () => {
-        const locks = new MockLockManager();
-        const sw = new MockServiceWorkerBridge();
-        const bc = new MockBroadcastChannelBus();
         const dir = await createSeededTestDir();
+        const env = createDatabaseTestEnv({dir});
 
-        // Tab A — leader
-        const tabA = createTestTab({locks, sw, bc, clientId: "tab-a", dir});
-        await tabA.manager.connect();
+        await env.connect();
+        const connB = await env.connect();
 
-        // Tab B — follower
-        const {manager: managerB} = createTestTab({locks, sw, bc, clientId: "tab-b", dir});
-        const connB = await managerB.connect();
-
-        await tabA.worker.executeLocallyForTests(
+        await env.worker.executeLocallyForTests(
             testDatabaseGroupId,
             sql`CREATE TABLE t (id INTEGER PRIMARY KEY, val TEXT)`,
         );
-        await tabA.worker.commitOptimisticPagesForTests(testDatabaseGroupId);
-        await tabA.worker.executeLocallyForTests(
+        await env.worker.commitOptimisticPagesForTests(testDatabaseGroupId);
+        await env.worker.executeLocallyForTests(
             testDatabaseGroupId,
             sql`
                 INSERT INTO
@@ -1457,7 +1094,7 @@ describe("watchAction", () => {
                     ('hello')
             `,
         );
-        await tabA.worker.commitOptimisticPagesForTests(testDatabaseGroupId);
+        await env.worker.commitOptimisticPagesForTests(testDatabaseGroupId);
 
         // Watch from follower
         const handle = await connB.watchAction("readonlyRawSql", {
@@ -1472,10 +1109,9 @@ describe("watchAction", () => {
         const initial = handle.store.getSnapshot();
         expect(initial).toMatchObject({ok: true, value: {rows: [{id: 1, val: "hello"}]}});
 
-        // Kill leader — follower promotes
-        locks.release("alpine-db");
-
-        // Wait for promotion + re-registration
+        // Kill leader — the follower promotes and re-registers its watches with the new
+        // worker via the reconnect hook.
+        env.crashLeaderTab();
         await new Promise(resolve => setTimeout(resolve, 200));
 
         // Watch should still work — verify by checking the store has data (re-registration

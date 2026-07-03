@@ -14,34 +14,6 @@ import {TracerRoot} from "~/shared/tracer/tracer_root.js";
 
 declare const self: ServiceWorkerGlobalScope;
 
-// --- Database coordination: MessagePort relay ---
-//
-// The leader tab registers its clientId. Follower tabs send a MessagePort which we
-// relay to the leader so followers can talk directly to the leader's worker.
-//
-// This is an inline copy of `DatabaseActiveTabServiceWorker` to avoid pulling
-// `client/web/databases` (and its heavy SQLite deps) into the service worker
-// bundle.
-
-let dbLeaderClientId: string | null = null;
-
-self.addEventListener("message", (event: ExtendableMessageEvent) => {
-    const data = event.data;
-    if (data?.type === "db-register-leader") {
-        dbLeaderClientId = (event.source as Client).id;
-    } else if (data?.type === "db-connect") {
-        const port = event.ports[0];
-        if (dbLeaderClientId === null || !port) return;
-        event.waitUntil(
-            self.clients.get(dbLeaderClientId).then(client => {
-                if (client) {
-                    client.postMessage({type: "db-port"}, [port]);
-                }
-            }),
-        );
-    }
-});
-
 // Install event - fired when the service worker is first installed
 self.addEventListener("install", (event: ExtendableEvent) => {
     event.waitUntil(self.skipWaiting());
@@ -158,8 +130,7 @@ self.addEventListener("fetch", (event: FetchEvent) => {
         // re-synced state.
         //
         // This is inlined rather than importing `client/web/databases` to keep the heavy
-        // SQLite deps out of the service worker bundle, matching the database coordination
-        // relay above.
+        // SQLite deps out of the service worker bundle.
         const clearDatabasesStorage = async () => {
             // Wait for the sign out request to finish successfully.
             await event.handled;

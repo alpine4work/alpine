@@ -13,9 +13,12 @@ ts_project(
         "//client/web/design",
         "//client/web/helpers",
         "//client/web/remix",
+        "//shared/context",
         "//shared/error",
         "//shared/helpers",
         "//shared/schema",
+        "//shared/store",
+        "//shared/tracer",
         "//shared/web_socket",
     ],
 )

@@ -2,7 +2,7 @@ import type {
     DatabaseReactiveActionHandle,
     DatabaseReactiveActionResult,
     DatabaseWorkerConnection,
-} from "~/client/web/databases/database_active_tab_manager.js";
+} from "~/client/web/databases/connect_to_database.js";
 import {DatabaseQuery} from "~/client/web/databases/database_query.js";
 import type {DatabaseQueryRow} from "~/client/web/databases/database_query_row.js";
 import {createInMemoryOpfsDirectoryHandle} from "~/client/web/databases/test_helpers/in_memory_opfs.js";

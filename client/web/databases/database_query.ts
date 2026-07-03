@@ -1,7 +1,7 @@
 import type {
     DatabaseReactiveActionHandle,
     DatabaseWorkerConnection,
-} from "~/client/web/databases/database_active_tab_manager.js";
+} from "~/client/web/databases/connect_to_database.js";
 import {DatabaseQueryPage, DatabaseQueryRow} from "~/client/web/databases/database_query_row.js";
 import {VirtualizedTree} from "~/client/web/virtualized/helpers/virtualized_tree.js";
 import type {DatabasePages} from "~/shared/databases/database_protocol_schemas.js";
