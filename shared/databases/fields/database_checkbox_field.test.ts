@@ -1,5 +1,6 @@
 import sqlite3InitModule from "~/external/sqlite/ext/wasm/jswasm/sqlite3.mjs";
 import {databaseCheckboxFieldProvider} from "~/shared/databases/fields/database_checkbox_field.js";
+import {databaseFieldProviderStrings} from "~/shared/databases/fields/database_field_provider_test_helpers.js";
 import {sql} from "~/shared/databases/sql.js";
 
 const sqlite3Promise = sqlite3InitModule();
@@ -62,9 +63,20 @@ describe("databaseCheckboxFieldProvider", () => {
     });
 
     describe("formatString", () => {
-        test("true formats to true and false formats to false", () => {
-            expect(databaseCheckboxFieldProvider.valueToString(true)).toBe("true");
-            expect(databaseCheckboxFieldProvider.valueToString(false)).toBe("false");
+        test.each([
+            [true, "true"],
+            [false, "false"],
+        ])("formats %s as %s", async (value, expected) => {
+            const db = await createDbWithCheckedColumn();
+            expect(
+                databaseFieldProviderStrings({
+                    db,
+                    provider: databaseCheckboxFieldProvider,
+                    value,
+                    config: {type: "checkbox"},
+                }),
+            ).toEqual({valueToString: expected, selectColumnAsString: expected});
+            db.close();
         });
     });
 

@@ -1,4 +1,5 @@
 import sqlite3InitModule from "~/external/sqlite/ext/wasm/jswasm/sqlite3.mjs";
+import {databaseFieldProviderStrings} from "~/shared/databases/fields/database_field_provider_test_helpers.js";
 import {databasePlainTextFieldProvider} from "~/shared/databases/fields/database_plain_text_field.js";
 import {sql} from "~/shared/databases/sql.js";
 
@@ -36,9 +37,20 @@ describe("databasePlainTextFieldProvider", () => {
     });
 
     describe("formatString", () => {
-        test("returns the value unchanged", () => {
-            expect(databasePlainTextFieldProvider.valueToString("hello")).toBe("hello");
-            expect(databasePlainTextFieldProvider.valueToString("")).toBe("");
+        test.each([
+            ["hello", "hello"],
+            ["", ""],
+        ])("formats %j as %j", async (value, expected) => {
+            const db = await createDbWithCheckedColumn();
+            expect(
+                databaseFieldProviderStrings({
+                    db,
+                    provider: databasePlainTextFieldProvider,
+                    value,
+                    config: {type: "plainText"},
+                }),
+            ).toEqual({valueToString: expected, selectColumnAsString: expected});
+            db.close();
         });
     });
 

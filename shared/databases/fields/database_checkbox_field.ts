@@ -1,8 +1,5 @@
 import {ColumnBackedDatabaseFieldProvider} from "~/shared/databases/fields/base/database_field_provider_base.js";
-import {
-    DatabaseFieldModel,
-    DatabaseFieldModelOfType,
-} from "~/shared/databases/model/database_field_model.js";
+import {DatabaseFieldModelOfType} from "~/shared/databases/model/database_field_model.js";
 import {SqlBooleanSchema} from "~/shared/databases/model/sqlite_schema.js";
 import {type SqlQuery, sql} from "~/shared/databases/sql.js";
 import {Result} from "~/shared/helpers/control/result.js";

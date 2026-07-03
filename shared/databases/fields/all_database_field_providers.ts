@@ -6,7 +6,19 @@ import {databaseRelationFieldProvider} from "~/shared/databases/fields/database_
 import {SqlJsonSchema} from "~/shared/databases/model/sqlite_schema.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {Lazy} from "~/shared/helpers/control/lazy.js";
-import {Schema, SchemaType} from "~/shared/schema/schema.js";
+import {Schema, type SchemaSerializedValue, type SchemaType} from "~/shared/schema/schema.js";
+
+class LazySchema<Value> extends Schema<Value> {
+    constructor(schema: Lazy<Schema<Value>>) {
+        super({
+            getDescription: () => schema.get().getDescription(),
+            serialize: value => schema.get().serialize(value),
+            deserialize: (serializedValue: SchemaSerializedValue) =>
+                schema.get().deserialize(serializedValue),
+            validate: value => schema.get().validate?.(value),
+        });
+    }
+}
 
 const allDatabaseFieldProviders = new Lazy(
     () =>
@@ -37,14 +49,17 @@ export type UnknownDatabaseFieldProvider = DatabaseFieldProviderBase<
     {type: DatabaseFieldType}
 >;
 
-const databaseFieldProviderMap = new Map<DatabaseFieldType, DatabaseFieldProvider>(
-    allDatabaseFieldProviders.map(provider => [provider.type, provider]),
+const databaseFieldProviderMap = new Lazy(
+    () =>
+        new Map<DatabaseFieldType, DatabaseFieldProvider>(
+            allDatabaseFieldProviders.get().map(provider => [provider.type, provider]),
+        ),
 );
 
 export function getUnknownDatabaseFieldProvider(
     type: DatabaseFieldType,
 ): UnknownDatabaseFieldProvider {
-    const provider = databaseFieldProviderMap.get(type);
+    const provider = databaseFieldProviderMap.get().get(type);
     assert(provider != null, `unknown field type: ${type}`);
     return provider as UnknownDatabaseFieldProvider;
 }
@@ -54,9 +69,13 @@ export function getDatabaseFieldProvider<Type extends DatabaseFieldType>(
     return getUnknownDatabaseFieldProvider(type) as DatabaseFieldProvider<Type>;
 }
 
-const configSchemas = Object.fromEntries(
-    allDatabaseFieldProviders.map(provider => [provider.type, provider.configSchema]),
-) as unknown as {[K in DatabaseFieldConfig as K["type"]]: Schema<K>};
-export const DatabaseFieldConfigSchema = Schema.union(configSchemas);
+const databaseFieldConfigSchema = new Lazy(() =>
+    Schema.union(
+        Object.fromEntries(
+            allDatabaseFieldProviders.get().map(provider => [provider.type, provider.configSchema]),
+        ) as unknown as {[K in DatabaseFieldConfig as K["type"]]: Schema<K>},
+    ),
+);
+export const DatabaseFieldConfigSchema = new LazySchema(databaseFieldConfigSchema);
 
 export const DatabaseFieldConfigSqlSchema = SqlJsonSchema(DatabaseFieldConfigSchema);

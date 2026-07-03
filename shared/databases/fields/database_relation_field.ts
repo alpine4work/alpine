@@ -1,15 +1,6 @@
-import {
-    getDatabaseFieldProvider,
-    getDatabaseFieldProvider,
-} from "~/shared/databases/fields/all_database_field_providers.js";
+import {getDatabaseFieldProvider} from "~/shared/databases/fields/all_database_field_providers.js";
 import {DatabaseFieldProviderBase} from "~/shared/databases/fields/base/database_field_provider_base.js";
-import {databaseCheckboxFieldProvider} from "~/shared/databases/fields/database_checkbox_field.js";
-import {databaseNumberFieldProvider} from "~/shared/databases/fields/database_number_field.js";
-import {databasePlainTextFieldProvider} from "~/shared/databases/fields/database_plain_text_field.js";
-import type {
-    DatabaseFieldModel,
-    DatabaseFieldModelOfType,
-} from "~/shared/databases/model/database_field_model.js";
+import type {DatabaseFieldModelOfType} from "~/shared/databases/model/database_field_model.js";
 import {SqlJsonSchema} from "~/shared/databases/model/sqlite_schema.js";
 import {type SqlQuery, sql} from "~/shared/databases/sql.js";
 import {assert} from "~/shared/helpers/control/assert.js";

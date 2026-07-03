@@ -1,4 +1,5 @@
 import sqlite3InitModule from "~/external/sqlite/ext/wasm/jswasm/sqlite3.mjs";
+import {databaseFieldProviderStrings} from "~/shared/databases/fields/database_field_provider_test_helpers.js";
 import {databaseNumberFieldProvider} from "~/shared/databases/fields/database_number_field.js";
 import {sql} from "~/shared/databases/sql.js";
 
@@ -181,27 +182,25 @@ describe("databaseNumberFieldProvider", () => {
     });
 
     describe("formatString", () => {
-        test("null renders blank", () => {
-            const config = {type: "number" as const, decimalPlaces: null};
-            expect(databaseNumberFieldProvider.valueToString(null, config)).toBe("");
-        });
-
-        test("with null decimalPlaces, full precision is preserved", () => {
-            const config = {type: "number" as const, decimalPlaces: null};
-            expect(databaseNumberFieldProvider.valueToString(3.14159, config)).toBe("3.14159");
-            expect(databaseNumberFieldProvider.valueToString(0, config)).toBe("0");
-            expect(databaseNumberFieldProvider.valueToString(-1.5, config)).toBe("-1.5");
-        });
-
-        test("with decimalPlaces=2, rounds to 2 places", () => {
-            const config = {type: "number" as const, decimalPlaces: 2};
-            expect(databaseNumberFieldProvider.valueToString(3.14159, config)).toBe("3.14");
-            expect(databaseNumberFieldProvider.valueToString(1, config)).toBe("1.00");
-        });
-
-        test("with decimalPlaces=0, rounds to integer", () => {
-            const config = {type: "number" as const, decimalPlaces: 0};
-            expect(databaseNumberFieldProvider.valueToString(3.7, config)).toBe("4");
+        test.each([
+            [null, null, ""],
+            [null, 3.14159, "3.14159"],
+            [null, 0, "0"],
+            [null, -1.5, "-1.5"],
+            [2, 3.14159, "3.14"],
+            [2, 1, "1.00"],
+            [0, 3.7, "4"],
+        ])("formats %s with decimalPlaces=%s as %s", async (decimalPlaces, value, expected) => {
+            const db = await createDbWithCheckedColumn();
+            expect(
+                databaseFieldProviderStrings({
+                    db,
+                    provider: databaseNumberFieldProvider,
+                    value,
+                    config: {type: "number", decimalPlaces},
+                }),
+            ).toEqual({valueToString: expected, selectColumnAsString: expected});
+            db.close();
         });
     });
 
