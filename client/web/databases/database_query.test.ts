@@ -5,11 +5,11 @@ import type {
     DatabaseReactiveActionResult,
     DatabaseWorkerConnection,
 } from "~/client/web/databases/database_active_tab_manager.js";
-import {DatabaseClient} from "~/client/web/databases/database_client.js";
 import {DatabaseQuery} from "~/client/web/databases/database_query.js";
 import type {DatabaseQueryRow} from "~/client/web/databases/database_query_row.js";
 import {createInMemoryOpfsDirectoryHandle} from "~/client/web/databases/test_helpers/in_memory_opfs.js";
 import {makeDatabaseClientConnection} from "~/client/web/databases/test_helpers/make_database_client_connection.js";
+import {DatabaseClient} from "~/client/web/databases/worker/database_client.js";
 import {Database} from "~/shared/databases/database.js";
 import type {
     DatabaseActionInput,

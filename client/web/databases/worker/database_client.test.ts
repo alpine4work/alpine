@@ -1,18 +1,17 @@
 /* eslint-disable cyberworlds/string-quotes -- SQL literals */
-
-import type {DatabaseClientConnection} from "~/client/web/databases/database_client.js";
-import {DatabaseClient} from "~/client/web/databases/database_client.js";
-import type {
-    OpfsDirectoryHandle,
-    OpfsFileHandle,
-    OpfsSyncAccessHandle,
-} from "~/client/web/databases/opfs.js";
 import {
     createInMemoryOpfsDirectoryHandle,
     extractOpfsPages,
     prepopulateOpfsPages,
 } from "~/client/web/databases/test_helpers/in_memory_opfs.js";
 import {makeDatabaseClientConnection} from "~/client/web/databases/test_helpers/make_database_client_connection.js";
+import type {DatabaseClientConnection} from "~/client/web/databases/worker/database_client.js";
+import {DatabaseClient} from "~/client/web/databases/worker/database_client.js";
+import type {
+    OpfsDirectoryHandle,
+    OpfsFileHandle,
+    OpfsSyncAccessHandle,
+} from "~/client/web/databases/worker/opfs.js";
 import type {
     DatabaseActionObject,
     DatabaseActionResult,

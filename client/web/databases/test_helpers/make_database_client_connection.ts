@@ -1,4 +1,4 @@
-import type {DatabaseClientConnection} from "~/client/web/databases/database_client.js";
+import type {DatabaseClientConnection} from "~/client/web/databases/worker/database_client.js";
 
 /**
  * Builds a {@link DatabaseClientConnection} with safe defaults for every method,

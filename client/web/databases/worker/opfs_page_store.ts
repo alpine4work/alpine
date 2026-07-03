@@ -1,4 +1,7 @@
-import type {OpfsDirectoryHandle, OpfsSyncAccessHandle} from "~/client/web/databases/opfs.js";
+import type {
+    OpfsDirectoryHandle,
+    OpfsSyncAccessHandle,
+} from "~/client/web/databases/worker/opfs.js";
 import {sqlitePageSize} from "~/shared/databases/sqlite_constants.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {Schema, type SchemaSerializedValue} from "~/shared/schema/schema.js";

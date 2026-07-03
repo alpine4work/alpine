@@ -1,12 +1,12 @@
 import {
     DatabaseClient,
     type DatabaseClientConnection,
-} from "~/client/web/databases/database_client.js";
+} from "~/client/web/databases/worker/database_client.js";
 import {
     tabToWorkerDatabaseRpcMethods,
     workerToTabDatabaseRpcMethods,
-} from "~/client/web/databases/database_worker_rpc_methods.js";
-import type {OpfsDirectoryHandle} from "~/client/web/databases/opfs.js";
+} from "~/client/web/databases/worker/database_worker_rpc_methods.js";
+import type {OpfsDirectoryHandle} from "~/client/web/databases/worker/opfs.js";
 import {WebWorkerRpc} from "~/client/web/helpers/workers/web_worker_rpc.js";
 import type {
     DatabaseActionInput,

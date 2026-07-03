@@ -1,6 +1,6 @@
-import type {OpfsDirectoryHandle} from "~/client/web/databases/opfs.js";
-import {OpfsDatabaseStorage} from "~/client/web/databases/opfs_database_storage.js";
-import type {OpfsPageStore} from "~/client/web/databases/opfs_page_store.js";
+import type {OpfsDirectoryHandle} from "~/client/web/databases/worker/opfs.js";
+import {OpfsDatabaseStorage} from "~/client/web/databases/worker/opfs_database_storage.js";
+import type {OpfsPageStore} from "~/client/web/databases/worker/opfs_page_store.js";
 import {Database, type DatabaseExecuteActionResult} from "~/shared/databases/database.js";
 import {
     type DatabaseActionName,

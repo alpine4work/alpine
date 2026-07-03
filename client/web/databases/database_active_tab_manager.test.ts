@@ -13,12 +13,12 @@ import {
     DatabaseActiveTabWorker,
     type DatabaseWorkerConnection,
 } from "~/client/web/databases/database_active_tab_manager.js";
-import {DatabaseClient} from "~/client/web/databases/database_client.js";
-import type {OpfsDirectoryHandle} from "~/client/web/databases/opfs.js";
 import {
     createInMemoryOpfsDirectoryHandle,
     extractOpfsPages,
 } from "~/client/web/databases/test_helpers/in_memory_opfs.js";
+import {DatabaseClient} from "~/client/web/databases/worker/database_client.js";
+import type {OpfsDirectoryHandle} from "~/client/web/databases/worker/opfs.js";
 import type {DatabaseExecuteActionResponse} from "~/shared/databases/database_protocol_schemas.js";
 import {diffPage} from "~/shared/databases/page_diff.js";
 import {sql} from "~/shared/databases/sql.js";
