@@ -43,7 +43,174 @@ has_arg() {
     return 1
 }
 
-if has_arg "--help" "$@" && ! has_arg "stack" "$@" && ! has_arg "experimental" "$@" && ! has_arg "agents" "$@" && ! has_arg "demo" "$@"; then
+node_dependencies_available() {
+    local dependencies_json="$1"
+
+    if ! command -v node > /dev/null; then
+        return 1
+    fi
+
+    node -e '
+const fs = require("node:fs");
+const path = require("node:path");
+const workspacePath = process.argv[1];
+const dependencies = JSON.parse(process.argv[2]);
+const nodeModulesPath = path.join(workspacePath, "node_modules");
+const nodeModulesPrefix = nodeModulesPath + path.sep;
+
+if (!fs.existsSync(nodeModulesPath)) process.exit(1);
+
+for (const dependency of dependencies) {
+    let resolvedPath;
+    try {
+        resolvedPath = require.resolve(dependency, {paths: [workspacePath]});
+    } catch {
+        process.exit(1);
+    }
+
+    if (!path.resolve(resolvedPath).startsWith(nodeModulesPrefix)) process.exit(1);
+    require(resolvedPath);
+}
+' "$workspace_path" "$dependencies_json" > /dev/null 2>&1
+}
+
+run_merge_jest_coverage() {
+    local merge_args=("$@")
+    local dependencies_json='["fflate","istanbul-lib-coverage","istanbul-lib-instrument","istanbul-lib-report","istanbul-reports","yargs/yargs"]'
+
+    # Keep the report generators compatible with the preferred Bazel-managed
+    # dependency graph, but do not require Bazel. CI coverage aggregation is
+    # intentionally slim and may only install the direct Node dependencies for
+    # these scripts instead of initializing Bazel.
+    if node_dependencies_available "$dependencies_json"; then
+        node "$workspace_path/admin/analysis/merge_jest_coverage.cjs" "${merge_args[@]}"
+    else
+        ./admin/bin/bazel run --ui_event_filters=-info //admin/analysis:merge_jest_coverage -- "${merge_args[@]}"
+    fi
+}
+
+run_report_uncovered_lines() {
+    local report_args=("$@")
+    local dependencies_json='["istanbul-lib-coverage","yargs/yargs"]'
+
+    # See `run_merge_jest_coverage()`: Bazel is the preferred hermetic graph,
+    # but these helpers should also work with a small workspace `node_modules`.
+    if node_dependencies_available "$dependencies_json"; then
+        node "$workspace_path/admin/analysis/report_uncovered_lines.cjs" "${report_args[@]}"
+    else
+        ./admin/bin/bazel run --ui_event_filters=-info //admin/analysis:report_uncovered_lines -- "${report_args[@]}"
+    fi
+}
+
+write_dev_test_coverage_report() {
+    local test_targets="$1"
+    shift
+    local coverage_report_paths=("$@")
+
+    local test_target_set
+    test_target_set="$(echo "$test_targets" | xargs)"
+    if [ -z "$test_target_set" ]; then
+        return
+    fi
+
+    local coverage_targets
+    if ! coverage_targets="$(./admin/bin/bazel query --noshow_progress "attr(tags, '\bjest\b', set($test_target_set))")"; then
+        echo "Coverage report skipped: failed to query Jest unit tests" >&2
+        return
+    fi
+    if [ -z "$coverage_targets" ]; then
+        echo "Coverage report skipped: no Jest unit tests" >&2
+        return
+    fi
+
+    local coverage_output_path="$workspace_path/admin/coverage/test"
+    local targets_file
+    targets_file="$(mktemp)"
+    printf "%s\n" "$coverage_targets" > "$targets_file"
+
+    local bazel_testlogs_path
+    if ! bazel_testlogs_path="$(./admin/bin/bazel info bazel-testlogs)"; then
+        echo "Coverage report skipped: failed to find Bazel testlogs" >&2
+        rm -f "$targets_file"
+        return
+    fi
+
+    if ! run_merge_jest_coverage --workspace "$workspace_path" --targets-file "$targets_file" --testlogs "$bazel_testlogs_path" --output "$coverage_output_path" --quiet --no-honeycomb --skip-uncovered-source-files; then
+        rm -f "$targets_file"
+        return 1
+    fi
+    rm -f "$targets_file"
+    echo "Coverage report: admin/coverage/test/index.html"
+
+    if [ "${#coverage_report_paths[@]}" -gt 0 ]; then
+        run_report_uncovered_lines --workspace "$workspace_path" --coverage-final "$coverage_output_path/coverage-final.json" --base main --source-file-type typescript -- "${coverage_report_paths[@]}" || true
+    fi
+}
+
+changed_typescript_files() {
+    git diff --name-only main | grep -E '\.tsx?$' | while IFS= read -r file_path; do
+        if [ -e "$file_path" ]; then
+            printf "%s\n" "$file_path"
+        fi
+    done
+}
+
+read_coverage_report_paths() {
+    coverage_report_paths=()
+    local coverage_report_path
+    while IFS= read -r coverage_report_path; do
+        if [ -n "$coverage_report_path" ]; then
+            coverage_report_paths+=("$coverage_report_path")
+        fi
+    done
+}
+
+coverage_report_paths_for_args() {
+    local path_arg
+    local source_path
+    for path_arg in "$@"; do
+        echo "$path_arg"
+        if [[ "$path_arg" == *.test.ts ]]; then
+            source_path="${path_arg%.test.ts}.ts"
+        elif [[ "$path_arg" == *.test.tsx ]]; then
+            source_path="${path_arg%.test.tsx}.tsx"
+        else
+            continue
+        fi
+
+        if [ -f "$workspace_path/$source_path" ]; then
+            echo "$source_path"
+        fi
+    done
+}
+
+dev_test_query_for_files() {
+    local files="$1"
+    local has_libreoffice="$2"
+    local query_base="tests(//...)"
+    local query="attr(tags, '\bdev-test\b', $query_base)"
+    query="$query except attr(tags, '\badhoc\b', $query_base)"
+    if [[ "$has_libreoffice" == "false" ]]; then
+        query="$query except attr(tags, '\blibreoffice\b', $query_base)"
+    fi
+    query="tests(rdeps($query, $files))"
+
+    ./admin/bin/bazel query --noshow_progress "$query"
+}
+
+dev_test_query_all() {
+    local has_libreoffice="$1"
+    local query_base="tests(//...)"
+    local query="attr(tags, '\bdev-test\b', $query_base)"
+    query="$query except attr(tags, '\badhoc\b', $query_base)"
+    if [[ "$has_libreoffice" == "false" ]]; then
+        query="$query except attr(tags, '\blibreoffice\b', $query_base)"
+    fi
+
+    ./admin/bin/bazel query --noshow_progress "$query"
+}
+
+if has_arg "--help" "$@" && ! has_arg "analysis" "$@" && ! has_arg "coverage" "$@" && ! has_arg "stack" "$@" && ! has_arg "experimental" "$@" && ! has_arg "agents" "$@" && ! has_arg "demo" "$@"; then
     # Notational conventions:
     #
     # - `[arg]`: Optional argument
@@ -59,9 +226,12 @@ Usage:
     dev format               Run ESLint with --fix and Prettier on changed files
     dev format [...paths]    Run ESLint with --fix and Prettier on the provided files
     dev format --all         Run ESLint with --fix and Prettier on all files
-    dev test                 Run unit tests for changed files
-    dev test [...paths]      Run unit tests for the provided files
-    dev test --all           Run all unit tests
+    dev test                 Run unit tests and coverage for changed files
+    dev test [...paths]      Run unit tests and coverage for the provided files
+    dev test --all           Run all unit tests and coverage
+    dev coverage             Run all unit tests and generate aggregate coverage reports
+    dev coverage <package>   Run unit tests and coverage for one Bazel package
+    dev coverage <source>    Run adjacent unit test coverage for one source file
     dev testlogs             Inspect failed tests
     dev testlogs [path]      Inspect failed tests from a \"bazel_testlogs.zip\" file
     dev whoami               Print the username used to create branches
@@ -97,7 +267,8 @@ case "$1" in
             #
             # - `xargs | sed "s/ / union /g"`: Put files on one line with the string
             #   " union " between each file.
-            files="$(git diff --name-only main | grep -E '\.tsx?$' | xargs find 2> /dev/null | xargs | sed "s/ / union /g")"
+            changed_files="$(git diff --name-only main | grep -E '\.tsx?$' | xargs find 2> /dev/null | xargs)"
+            files="$(echo "$changed_files" | xargs | sed "s/ / union /g")"
 
             if [ -z "$files" ]; then
                 echo "No changed files"
@@ -156,18 +327,20 @@ case "$1" in
             js_files=$(echo "$format_files" | tr ' ' '\n' | grep -E '\.(tsx?|[cm]ts|jsx?|[cm]?js)$' | tr '\n' ' ')
             if [ -n "$js_files" ]; then
                 echo "Running ESLint --fix..."
-                ./admin/bin/node admin/eslint/eslint_test.cjs --fix $js_files
+                ./admin/bin/bazel run --ui_event_filters=-info //admin/eslint:eslint_fix -- --fix $js_files
                 echo
             fi
 
-            # Then run Prettier on all files
             echo "Running Prettier..."
-
-            # TODO: Technically this won't work unless the developer has run pnpm install.
-            # Ideally we'd implement this script hermetically with Bazel. Which would
-            # involve setting up an sh_binary() or js_binary(), wiring in all the
-            # dependencies, etc. then calling bazel run on that binary.
-            ./admin/bin/pnpm exec prettier --write $format_files
+            prettier_files=()
+            for format_file in $format_files; do
+                if [[ "$format_file" == /* ]]; then
+                    prettier_files+=("$format_file")
+                else
+                    prettier_files+=("$workspace_path/$format_file")
+                fi
+            done
+            ./admin/bin/bazel run --ui_event_filters=-info //admin/prettier/plugin:prettier -- --write "${prettier_files[@]}"
         fi
         ;;
 
@@ -197,7 +370,10 @@ case "$1" in
                 test_tag_filters="$test_tag_filters,-libreoffice"
             fi
 
+            tests="$(dev_test_query_all "$has_libreoffice")"
             ./admin/bin/bazel test //... "--test_tag_filters=$test_tag_filters"
+            read_coverage_report_paths < <(changed_typescript_files)
+            write_dev_test_coverage_report "$tests" "${coverage_report_paths[@]}"
         elif [ -z "$2" ]; then
             # - `git diff --name-only main`: Finds all the files which are different from
             #   the `main` branch.
@@ -210,20 +386,20 @@ case "$1" in
             #
             # - `xargs | sed "s/ / union /g"`: Put files on one line with the string
             #   " union " between each file.
-            files="$(git diff --name-only main | grep -E '\.tsx?$' | xargs find 2> /dev/null | xargs | sed "s/ / union /g")"
+            changed_files="$(changed_typescript_files)"
+            files="$(echo "$changed_files" | xargs | sed "s/ / union /g")"
 
             if [ -z "$files" ]; then
                 echo "No changed files"
             else
-                query_base="tests(//...)"
-                query="attr(tags, '\bdev-test\b', $query_base)"
-                query="$query except attr(tags, '\badhoc\b', $query_base)"
-                if [[ "$has_libreoffice" == "false" ]]; then
-                    query="$query except attr(tags, '\blibreoffice\b', $query_base)"
+                tests="$(dev_test_query_for_files "$files" "$has_libreoffice")"
+                if [ -z "$tests" ]; then
+                    echo "No tests for sources"
+                else
+                    printf "%s\n" "$tests" | xargs ./admin/bin/bazel test
+                    read_coverage_report_paths <<< "$changed_files"
+                    write_dev_test_coverage_report "$tests" "${coverage_report_paths[@]}"
                 fi
-                query="tests(rdeps($query, $files))"
-
-                ./admin/bin/bazel query --noshow_progress "$query" | xargs ./admin/bin/bazel test
             fi
         else
             # - `echo "${@:2}"`: Use files from the command line.
@@ -235,22 +411,24 @@ case "$1" in
             if [ -z "$files" ]; then
                 echo "No tests for sources"
             else
-                query_base="tests(//...)"
-                query="attr(tags, '\bdev-test\b', $query_base)"
-                query="$query except attr(tags, '\badhoc\b', $query_base)"
-                if [[ "$has_libreoffice" == "false" ]]; then
-                    query="$query except attr(tags, '\blibreoffice\b', $query_base)"
-                fi
-                query="tests(rdeps($query, $files))"
-
-                tests="$(./admin/bin/bazel query --noshow_progress "$query")"
-                if [ "$(wc -l <<< "$tests" | tr -d " ")" = "1" ]; then
-                    echo -n $tests | xargs ./admin/bin/bazel test --test_output=streamed
+                tests="$(dev_test_query_for_files "$files" "$has_libreoffice")"
+                if [ -z "$tests" ]; then
+                    echo "No tests for sources"
+                elif [ "$(wc -l <<< "$tests" | tr -d " ")" = "1" ]; then
+                    printf "%s\n" "$tests" | xargs ./admin/bin/bazel test --test_output=streamed
+                    read_coverage_report_paths < <(coverage_report_paths_for_args "${@:2}")
+                    write_dev_test_coverage_report "$tests" "${coverage_report_paths[@]}"
                 else
-                    echo -n $tests | xargs ./admin/bin/bazel test
+                    printf "%s\n" "$tests" | xargs ./admin/bin/bazel test
+                    read_coverage_report_paths < <(coverage_report_paths_for_args "${@:2}")
+                    write_dev_test_coverage_report "$tests" "${coverage_report_paths[@]}"
                 fi
             fi
         fi
+        ;;
+
+    coverage)
+        exec ./admin/bin/bazel run --ui_event_filters=-info //admin/analysis:dev_coverage -- "${@:2}"
         ;;
 
     testlogs)

@@ -6,6 +6,7 @@ import {
     addContentFilePreviewBehavior,
     renderContentFilePreview,
 } from "~/client/web/content/internal/content_file_preview.js";
+import {useMediaDebugModeEnabled} from "~/client/web/content/media_debug_mode.js";
 import {useAppContext} from "~/client/web/context/app_context.js";
 import {useReporter} from "~/client/web/design/reporter.js";
 import {useIsInitialAppRender} from "~/client/web/helpers/lifecycle/initial_app_render.js";
@@ -14,7 +15,7 @@ import {useStore} from "~/client/web/helpers/use_store.js";
 import {usePlatform} from "~/client/web/remix/platform_context.js";
 import {useSpacingScale} from "~/client/web/remix/spacing_scale_context.js";
 import {useNavigate, useRootNavigate} from "~/client/web/remix/use_navigate.js";
-import {useSpaceContext} from "~/client/web/spaces/space_context.js";
+import {useSpaceContext} from "~/client/web/spaces/context/space_context.js";
 import {contentStyles} from "~/client/web/styles/styles.js";
 import {fontSizesBySpacingScale} from "~/shared/design/core/fonts.js";
 import {FileAttachmentTarget} from "~/shared/files/file_attachment_target.js";
@@ -45,6 +46,7 @@ export function ContentFilePreview({
     const spacingScale = useSpacingScale();
     const {space} = useSpaceContext();
     const fileRegistry = useFileRegistry();
+    const isMediaDebugModeEnabled = useMediaDebugModeEnabled();
 
     const containerRef = useRef<HTMLDivElement>(null);
 
@@ -79,6 +81,7 @@ export function ContentFilePreview({
             // Disable video and audio file interactivity. When pressed we should always open
             // the post in a peek.
             withoutInteractivity: true,
+            isMediaDebugModeEnabled,
         });
 
         html.setAttribute(
@@ -91,7 +94,16 @@ export function ContentFilePreview({
         );
 
         return html;
-    }, [file, isInitialAppRender, node, platform, size, space.id, spacingScale]);
+    }, [
+        file,
+        isInitialAppRender,
+        isMediaDebugModeEnabled,
+        node,
+        platform,
+        size,
+        space.id,
+        spacingScale,
+    ]);
 
     const previousHtmlGeneratorRef = useRef<HtmlGenerator | null>(null);
 

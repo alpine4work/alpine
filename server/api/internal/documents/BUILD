@@ -3,6 +3,7 @@ load("//admin/typescript:typescript.bzl", "ts_project")
 ts_project(
     name = "documents",
     test_deps = [
+        "//:node_modules/@jest/globals",
         "//:node_modules/@types/supertest",
         "//:node_modules/supertest",
         "//server/api/internal/test_helpers",

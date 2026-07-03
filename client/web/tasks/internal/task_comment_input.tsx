@@ -1,4 +1,4 @@
-import {Memo, Ref} from "react";
+import {Memo, Ref, useMemo} from "react";
 import {MessageInputRef} from "~/client/web/content/messaging/message_input_base.js";
 import {useReporter} from "~/client/web/design/reporter.js";
 import {useEvent} from "~/client/web/helpers/lifecycle/use_event.js";
@@ -10,11 +10,13 @@ import {getClientInfo} from "~/client/web/remix/client_info_context.js";
 import {TaskDetailNotesContentEditorWebSocketClientProcedures} from "~/client/web/tasks/task_detail_notes_content_editor_web_socket_client.js";
 import {FileAttachmentTarget} from "~/shared/files/file_attachment_target.js";
 import {TaskId} from "~/shared/id/types/id_types.js";
+import {MessageDraftWithFiles} from "~/shared/messaging/message_draft_schema.js";
 import {MessageContentPayloadParent} from "~/shared/messaging/message_schema.js";
 import {TaskCommentModel} from "~/shared/tasks/model/task_comment_model.js";
 
 export function TaskCommentInput({
     isGhostTask,
+    taskId,
     inputRef,
     procedures,
     comments,
@@ -23,10 +25,13 @@ export function TaskCommentInput({
     commentEditing,
     parent,
     onParentClear,
+    onParentChange,
     onJumpToCommentRange,
     ensureCreateTask,
+    messageDraft,
 }: {
     isGhostTask: boolean;
+    taskId: TaskId;
     inputRef: Ref<MessageInputRef>;
     procedures: TaskDetailNotesContentEditorWebSocketClientProcedures;
     comments: MessageList<TaskCommentModel>;
@@ -37,12 +42,19 @@ export function TaskCommentInput({
     commentEditing: MessageEditing<TaskId>;
     parent: MessageContentPayloadParent | null;
     onParentClear: () => void;
+    onParentChange: (parent: MessageContentPayloadParent | null) => void;
     onJumpToCommentRange: (options: JumpToMessageRangeOptions<TaskId>) => void;
     ensureCreateTask: Memo<() => Promise<void>>;
+    messageDraft?: MessageDraftWithFiles;
 }) {
     const reporter = useReporter();
 
     const getProcedures = useEvent(() => procedures);
+
+    const draftSurface = useMemo(
+        () => (!isGhostTask ? ({type: "TaskComment" as const, taskId} as const) : undefined),
+        [isGhostTask, taskId],
+    );
 
     return (
         <MessageInput
@@ -92,6 +104,7 @@ export function TaskCommentInput({
             messageEditing={commentEditing}
             parent={parent}
             onParentClear={onParentClear}
+            onParentChange={onParentChange}
             onJumpToMessageRange={onJumpToCommentRange}
             onDeleteMessage={async commentIndex => {
                 await procedures.deleteComment({commentIndex});
@@ -120,6 +133,8 @@ export function TaskCommentInput({
                         ),
                     );
             }}
+            messageDraftSurface={draftSurface}
+            messageDraft={messageDraft}
         />
     );
 }

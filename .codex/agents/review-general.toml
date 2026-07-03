@@ -1,5 +1,5 @@
 name = "review-general"
-description = "General PR code review agent. Reviews diff for bugs, performance issues, and code style problems using project review rules."
+description = '''Alpine project-local general PR code review agent. Reviews diff for bugs, performance issues, and code style problems using project review rules.'''
 developer_instructions = '''
 You are a senior code reviewer for a large TypeScript codebase. You will be given a diff and a
 parent branch to review against.
@@ -228,8 +228,16 @@ Write your findings to the file path provided in the task prompt. Use this forma
 
 `path/to/file.ts:42`
 
-\`\`\`ts // surrounding context ////////////// // // Review comment explaining the issue //
-////////////// const problematicLine = something(); // more context \`\`\`
+\`\`\`ts
+// surrounding context
+//////////////
+//
+// Review comment explaining the issue
+//
+//////////////
+const problematicLine = something();
+// more context
+\`\`\`
 
 ## Performance Issues
 
@@ -237,8 +245,15 @@ Write your findings to the file path provided in the task prompt. Use this forma
 
 `path/to/file.ts:88`
 
-\`\`\`ts // context ////////////// // // Explanation of the performance concern // //////////////
-await sequentialCall(); \`\`\`
+\`\`\`ts
+// context
+//////////////
+//
+// Explanation of the performance concern
+//
+//////////////
+await sequentialCall();
+\`\`\`
 
 ## Code Style
 
@@ -246,8 +261,15 @@ await sequentialCall(); \`\`\`
 
 `path/to/file.ts:15`
 
-\`\`\`ts // context ////////////// // // Style issue explanation // ////////////// const
-SCREAMING_CASE = "bad"; \`\`\`
+\`\`\`ts
+// context
+//////////////
+//
+// Style issue explanation
+//
+//////////////
+const SCREAMING_CASE = "bad";
+\`\`\`
 ```
 
 IMPORTANT:

@@ -54,13 +54,13 @@ const awsGithubRunnerAmiSourceBundleKeyParameterName =
     "/cyberworlds/github-runners/test-runner-asg/ami-source-bundle-key";
 const awsGithubRunnerAmiBazelCacheKeyParameterName =
     "/cyberworlds/github-runners/test-runner-asg/bazel-cache-key";
+const awsGithubRunnerInstanceType = InstanceType.of(InstanceClass.M7G, InstanceSize.XLARGE2);
 
 /* eslint-disable cyberworlds/string-quotes */
 function createLinuxUserDataTemplate() {
     return `#!/bin/bash -x
 set -o pipefail
 TASK_TOKEN="{}"
-logGroupName="{}"
 runnerNamePath="{}"
 runnerTokenPath="{}"
 registrationURL="{}"
@@ -70,55 +70,6 @@ export USER_DATA_EXTRA="$(echo "{}" | base64 --decode)"
 export ALPINE_RUNNER_TAG="$label"
 export ALPINE_AMI_BAZEL_CACHE_KEY_PATH="${awsGithubRunnerAmiCacheKeyPath}"
 
-setup_logs () {
-  # Ship the runner bootstrap log to CloudWatch so Step Functions timeouts and
-  # instance startup failures are debuggable after the machine terminates.
-  if ! cat > /tmp/log.conf <<EOF
-  {
-    "logs": {
-      "log_stream_name": "unknown",
-      "logs_collected": {
-        "files": {
-          "collect_list": [
-            {
-              "file_path": "/var/log/runner.log",
-              "log_group_name": "$logGroupName",
-              "log_stream_name": "$runnerNamePath",
-              "timezone": "UTC"
-            }
-          ]
-        }
-      }
-    }
-  }
-EOF
-  then
-    echo "Failed to write CloudWatch Agent log config." >&2
-    return 1
-  fi
-
-  # The SSM association that installs the CloudWatch Agent may also configure it
-  # on first boot. Retry through that startup race so transient log setup
-  # failures do not make runner startup less reliable than the test itself.
-  for attempt in 1 2 3 4 5 6; do
-    if /opt/aws/amazon-cloudwatch-agent/bin/amazon-cloudwatch-agent-ctl \
-        -a fetch-config \
-        -m ec2 \
-        -s \
-        -c file:/tmp/log.conf; then
-      return 0
-    fi
-
-    echo "CloudWatch Agent log setup failed on attempt $attempt." >&2
-    if [ "$attempt" = "6" ]; then
-      break
-    fi
-    sleep $((attempt * 2))
-  done
-
-  echo "CloudWatch Agent log setup failed after retries." >&2
-  return 1
-}
 setup_runtime_env () {
   # Resolve the region from IMDS so the bootstrap can use the instance role for
   # both Step Functions callbacks and the Bazel remote cache proxy.
@@ -184,14 +135,7 @@ action () {
   [ -n "$STATUS" ] && echo CDKGHA JOB DONE "$label" "$STATUS"
 }
 if setup_runtime_env; then
-  if ! setup_logs; then
-    # TODO(imjoshin): This is a band-aid. About 1 in 50 runners can still
-    # miss CloudWatch logs if setup never succeeds; revisit the CloudWatch
-    # Agent/SSM first-boot race instead of ignoring it here.
-    echo "CloudWatch Agent log setup failed; continuing without log shipping." >&2
-  fi
-
-  if action | tee /var/log/runner.log 2>&1; then
+  if action 2>&1 | tee /var/log/runner.log; then
     aws stepfunctions send-task-success --task-token "$TASK_TOKEN" --task-output '{"ok": true}'
   else
     aws stepfunctions send-task-failure --task-token "$TASK_TOKEN"
@@ -319,7 +263,7 @@ export class AwsGithubRunnerAsgProvider extends Construct implements IRunnerProv
                 // The AMI build runs `bazel fetch //...` and `build //:node_modules`. Give it a
                 // runner-sized box so weekly/main image refreshes spend their time warming the
                 // cache rather than waiting on a tiny builder.
-                instanceType: InstanceType.of(InstanceClass.M7G, InstanceSize.XLARGE2),
+                instanceType: awsGithubRunnerInstanceType,
             },
             components: awsGithubTestRunnerImageBuilderComponents([], {
                 amiSourceBundleBucketName,
@@ -358,11 +302,7 @@ export class AwsGithubRunnerAsgProvider extends Construct implements IRunnerProv
             awsGithubRunnerAmiRootBlockDeviceMappings,
         );
 
-        assert(
-            runnerAmi.architecture.instanceTypeMatch(
-                InstanceType.of(InstanceClass.M7G, InstanceSize.XLARGE2),
-            ),
-        );
+        assert(runnerAmi.architecture.instanceTypeMatch(awsGithubRunnerInstanceType));
         this.runnerLaunchTemplateId = assertExists(runnerAmi.launchTemplate.launchTemplateId);
         this.userDataTemplate = createLinuxUserDataTemplate();
         this.userDataExtraBase64 = Fn.base64(userDataExtra);
@@ -414,15 +354,11 @@ export class AwsGithubRunnerAsgProvider extends Construct implements IRunnerProv
                     },
                     MinCount: 1,
                     MaxCount: 1,
-                    InstanceType: InstanceType.of(
-                        InstanceClass.M7G,
-                        InstanceSize.XLARGE2,
-                    ).toString(),
+                    InstanceType: awsGithubRunnerInstanceType.toString(),
                     UserData: JsonPath.base64Encode(
                         JsonPath.format(
                             this.userDataTemplate,
                             JsonPath.taskToken,
-                            this.logGroup.logGroupName,
                             parameters.runnerNamePath,
                             parameters.runnerTokenPath,
                             parameters.registrationUrl,
@@ -454,10 +390,6 @@ export class AwsGithubRunnerAsgProvider extends Construct implements IRunnerProv
                         {
                             ResourceType: "instance",
                             Tags: [
-                                {
-                                    Key: "CloudWatchAgent",
-                                    Value: "true",
-                                },
                                 {
                                     Key: "GitHubRunners:Provider",
                                     Value: this.node.path,

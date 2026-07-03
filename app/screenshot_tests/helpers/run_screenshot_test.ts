@@ -405,11 +405,17 @@ class ScreenshotRunner {
             // Wait for all scrollbars to be hidden. If the page just scrolled before our
             // screenshot then there may be some visible scrollbars and we need to wait for
             // those scrollbars to disappear.
-            const scrollbarsPromise = page
-                .locator(
-                    `.${scrollbarStyles.scrollbarThumbHitClassName}:not(.${scrollbarStyles.scrollbarThumbHitHideClassName})`,
-                )
-                .waitFor({state: "detached"});
+            //
+            // We wait for the count of visible thumbs to reach zero rather than using
+            // `.waitFor({state: "detached"})`. There can be more than one visible thumb on
+            // screen — e.g. the persistent site sidebar scroll view wrapping the route's own
+            // scroll view — and `waitFor` throws a strict-mode violation when its selector
+            // resolves to multiple elements.
+            const visibleScrollbarThumbSelector = `.${scrollbarStyles.scrollbarThumbHitClassName}:not(.${scrollbarStyles.scrollbarThumbHitHideClassName})`;
+            const scrollbarsPromise = page.waitForFunction(
+                selector => document.querySelectorAll(selector).length === 0,
+                visibleScrollbarThumbSelector,
+            );
 
             // Make sure we wait for images to load before taking any screenshot.
             const filesPromise = page.evaluate(

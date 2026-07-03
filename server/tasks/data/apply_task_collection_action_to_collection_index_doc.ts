@@ -89,6 +89,19 @@ export function applyTaskCollectionActionToCollectionIndexDoc<
                 accessPolicy: newAccessPolicy,
             };
         }
+        case "UpdateDefaults": {
+            const newDefaults = collection.defaults.apply({
+                value: action.defaults,
+                version: actionTime,
+            });
+
+            if (collection.defaults === newDefaults) return collection;
+
+            return {
+                ...collection,
+                defaults: newDefaults,
+            };
+        }
         default:
             throw exhaustive(action);
     }

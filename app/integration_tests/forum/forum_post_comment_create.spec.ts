@@ -1,4 +1,5 @@
 import {Page, expect, test} from "@playwright/test";
+import {activateMobileButton} from "~/app/integration_tests/helpers/activate_mobile_button.js";
 import {createTestServices} from "~/app/integration_tests/helpers/create_test_services.js";
 import {updateAccountReactionCharacter} from "~/server/accounts/update_account_reaction_character.js";
 import {createTestSession} from "~/server/dynamo/test_helpers/create_test_session.js";
@@ -101,7 +102,7 @@ test("can open and close post comments in channel", async ({
     if (!isMobile) {
         await page.getByRole("button", {name: "3 comments"}).click();
     } else {
-        await page.getByRole("button", {name: "Go back"}).click();
+        await activateMobileButton(page, "Go back");
     }
 
     await expect(page.getByText("Test post content 1")).toBeVisible();
@@ -426,7 +427,7 @@ test("can see new comments when opening post comments", async ({
     if (!isMobile) {
         await page1.getByRole("button", {name: "1 comment"}).click();
     } else {
-        await page1.getByRole("button", {name: "Go back"}).click();
+        await activateMobileButton(page1, "Go back");
     }
 
     await expect(page1.getByLabel("1 comment")).toBeVisible();

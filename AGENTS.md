@@ -105,13 +105,14 @@ You can run all tests in a package like this:
 bazel test //shared/helpers/...
 ```
 
-We some scripts available from the `dev` executable for running Bazel tests just on files that
+We have some scripts available from the `dev` executable for running Bazel tests just on files that
 changed in the current git branch:
 
 ```bash
 dev check  # Runs type check and lint tests for packages affected by changes in the current branch
-dev test   # Runs Jest unit tests for packages affected by changes in the current branch
+dev test   # Runs Jest unit tests and coverage for packages affected by changes in the current branch
 dev format # Runs Prettier and on all changed files in the current branch
+dev coverage <path-to-source> --changed-lines-only # Reports uncovered changed lines one by one
 ```
 
 Instead of running type checking for a single package (e.g.
@@ -119,6 +120,17 @@ Instead of running type checking for a single package (e.g.
 checking a single package with Bazel won’t check types for the _dependencies_ of the package which
 might have been affected if you updated exports. Generally running `dev check` is much better than
 individually running lint, type check, and formatting tests.
+
+`dev test` generates coverage reports for the tests it just ran and writes them to
+`admin/coverage/test`. It may print warnings of uncovered lines of changed files. If the warning is
+truncated with `(X more range(s))` or you need exact line-by-line detail, run
+`dev coverage <path-to-source> --changed-lines-only` for the affected source file. When running
+`dev test` on an explicit adjacent test file, such as `foo.test.ts`, coverage warnings also include
+changed lines in the matching source file, such as `foo.ts`. When coverage warnings identify
+uncovered changed lines, check whether the branch already adds or updates unit tests for that
+behavior. If it does, add the missing coverage to those tests. If it does not, tell the user the
+changed lines should have unit test coverage and ask whether they want you to add it before creating
+new tests or broadening the test scope.
 
 Prefer `bazel test *_lint_test` or `dev check` to running ESLint directly (e.g. `pnpm eslint`). The
 Bazel lint tests are configured with the correct plugins and settings.
@@ -168,6 +180,8 @@ The full code style ruleset can be found in `admin/docs/code_style.md`, if neede
 ### TypeScript
 
 - Helper functions in individual modules. Avoid `_utils.ts` files. One helper per file.
+- Avoid one-use helper functions. Only extract logic into a helper if it is very large and used at
+  least twice, or small and used at least three times.
 - For module scope functions prefer function declarations (`function f() {}`) to arrow functions
   (`const f = () => {}`).
 - Avoid classes. Prefer discriminated unions and composition over inheritance.

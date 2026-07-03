@@ -322,5 +322,5 @@ export const backfillSite = defineRpc({
     },
 });
 
-// TODO(#sites): We should probably have `batchAdd`, `batchDelete`, and `batchMove`
-// RPCs.
+// TODO(#sites-not-blocking): We should probably have `batchAdd`, `batchDelete`,
+// and `batchMove` RPCs.

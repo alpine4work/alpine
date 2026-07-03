@@ -34,7 +34,11 @@ import {
     extrapolateHighlightColor,
     extrapolateHighlightRawColorWithoutBounds,
 } from "~/client/web/styles/other/internal/helpers/extrapolate_highlight_color.js";
-import {navigationBarHeight} from "~/client/web/styles/other/internal/navigation_bar.css.js";
+import {
+    navigationBarBreadcrumbToTitleSpacing,
+    navigationBarHeight,
+    navigationBarTitleBreadcrumbButtonHeight,
+} from "~/client/web/styles/other/internal/navigation_bar.css.js";
 import {borderRadius} from "~/shared/design/core/border_radius.js";
 import {colors} from "~/shared/design/core/colors.js";
 import {
@@ -216,6 +220,20 @@ export const withUserSelectNoneDocClassName = style({
  */
 export const withoutTitleTopSpacingDocClassName = style({});
 
+/**
+ * Grow the title node's top breathing room by the height of the site breadcrumb
+ * row (`SiteBreadcrumbChip`'s button plus its breadcrumb-to-title spacing). Used
+ * by `<DocumentContentEditor>` when it overlays an absolutely positioned site
+ * breadcrumb above the title: the editor stays in flow covering 100% of the space
+ * (so covers lay out normally and clicking the top area focuses the editor) and
+ * this clearance makes room for the chip between the navigation bar and the title
+ * text.
+ *
+ * Only narrow-layout variants exist since the site breadcrumb only renders in
+ * narrow layouts (mobile or a peek).
+ */
+export const withTitleSiteBreadcrumbDocClassName = style({});
+
 const blockStyles = {
     position: "relative",
     width: "100%",
@@ -375,7 +393,7 @@ globalStyle(
 // `withoutTitleTopSpacingDocClassName`. Covers wide, desktop-narrow, and mobile
 // variants since each declares its own `padding-top` / `min-height`.
 globalStyle(`${docClassName}${withoutTitleTopSpacingDocClassName} ${titleClassName}`, {
-    paddingTop: "var(--safe-area-inset-top, 0px)",
+    paddingTop: 0,
     minHeight: fontSizes[titleFontSize.wide].lineHeight,
 });
 globalStyle(
@@ -390,7 +408,57 @@ globalStyle(
         `${mobilePlatformSelector} ${docClassName}${withoutTitleTopSpacingDocClassName} ${narrowRouteLayoutDocClassName} ${titleClassName}`,
     ].join(", "),
     {
+        // The mobile-platform title `padding-top` (declared with a
+        // `mobilePlatformSelector` ancestor) out-specifies the base strip above, so
+        // re-strip it here — otherwise the title keeps its full `titlePaddingTop` on
+        // mobile and leaves a gap below whatever sits above it (e.g. a site breadcrumb).
+        paddingTop: 0,
         minHeight: fontSizes[titleFontSize.narrow].lineHeight,
+    },
+);
+
+// The title's top clearance grown by the site breadcrumb row, per narrow layout.
+// The chip itself carries the breadcrumb-to-title gap as `padding-bottom` so the
+// row height is the button height plus that gap.
+const titlePaddingTopWithSiteBreadcrumb = {
+    mobileNarrow: addRemLengths(
+        titlePaddingTop.mobileNarrow,
+        navigationBarTitleBreadcrumbButtonHeight,
+        navigationBarBreadcrumbToTitleSpacing.mobile,
+    ),
+    desktopNarrow: addRemLengths(
+        titlePaddingTop.desktopNarrow,
+        navigationBarTitleBreadcrumbButtonHeight,
+        navigationBarBreadcrumbToTitleSpacing.desktop,
+    ),
+};
+
+globalStyle(
+    [
+        `${docClassName}${withTitleSiteBreadcrumbDocClassName}${narrowRouteLayoutDocClassName} ${titleClassName}`,
+        `${docClassName}${withTitleSiteBreadcrumbDocClassName} ${narrowRouteLayoutDocClassName} ${titleClassName}`,
+    ].join(", "),
+    {
+        paddingTop: `calc(${
+            titlePaddingTopWithSiteBreadcrumb.desktopNarrow
+        } + var(--safe-area-inset-top, 0px))`,
+        minHeight: `calc(${fontSizes[titleFontSize.narrow].lineHeight} + ${
+            titlePaddingTopWithSiteBreadcrumb.desktopNarrow
+        })`,
+    },
+);
+globalStyle(
+    [
+        `${mobilePlatformSelector} ${docClassName}${withTitleSiteBreadcrumbDocClassName} ${titleClassName}`,
+        `${mobilePlatformSelector} ${docClassName}${withTitleSiteBreadcrumbDocClassName} ${narrowRouteLayoutDocClassName} ${titleClassName}`,
+    ].join(", "),
+    {
+        paddingTop: `calc(${
+            titlePaddingTopWithSiteBreadcrumb.mobileNarrow
+        } + var(--safe-area-inset-top, 0px))`,
+        minHeight: `calc(${fontSizes[titleFontSize.narrow].lineHeight} + ${
+            titlePaddingTopWithSiteBreadcrumb.mobileNarrow
+        })`,
     },
 );
 
@@ -1292,6 +1360,96 @@ globalStyle(fileClassName, {
 globalStyle(`${fileClassName} > *`, {
     pointerEvents: "none",
 });
+
+export const fileDebugWidgetClassName = style({
+    zIndex: "90",
+    position: "absolute",
+    top: spacing["2"],
+    right: spacing["2"],
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "center",
+    width: spacing["6"],
+    height: spacing["6"],
+    borderRadius: spacing["1"],
+    color: colorSchemeVars["green-90"],
+    pointerEvents: "auto",
+    cursor: "help",
+    selectors: {
+        "&::before": {
+            content: '""',
+            position: "absolute",
+            inset: "0",
+            borderRadius: spacing["1"],
+            backgroundColor: colorSchemeVars["green-10"],
+            opacity: 0.4,
+            transition: "opacity 100ms ease-in-out",
+        },
+        [`${fileClassName}:hover &::before`]: {
+            opacity: 0.65,
+        },
+        "&:hover::before": {
+            opacity: 0.85,
+        },
+    },
+});
+
+export const fileDebugWidgetIconClassName = style({
+    zIndex: "1",
+    width: spacing["4"],
+    height: spacing["4"],
+});
+
+export const fileDebugWidgetOverlayClassName = style({
+    zIndex: "100",
+    position: "absolute",
+    top: "100%",
+    right: "0",
+    width: "max-content",
+    maxWidth: "min(42rem, calc(100vw - 2rem))",
+    maxHeight: "24rem",
+    marginTop: spacing["1"],
+    padding: spacing["2"],
+    borderRadius: spacing["1.5"],
+    overflow: "auto",
+    whiteSpace: "pre-wrap",
+    textAlign: "left",
+    backgroundColor: colorSchemeVars["grey-0"],
+    color: colorSchemeVars["grey-80"],
+    boxShadow: elevationVars["elevation-20"],
+    pointerEvents: "auto",
+    userSelect: "text",
+    cursor: "text",
+    opacity: 0,
+    visibility: "hidden",
+    transition: "opacity 100ms ease-in-out, visibility 100ms ease-in-out",
+    ...fontStyles.code,
+    fontSize: "11px",
+    lineHeight: "16px",
+    selectors: {
+        [`${fileDebugWidgetClassName}:hover &`]: {
+            opacity: 1,
+            visibility: "visible",
+        },
+    },
+});
+
+globalStyle(`${fileClassName}:has(${fileDebugWidgetClassName}:hover)`, {
+    overflow: "visible",
+    zIndex: "1000",
+});
+
+// Hacky, but this only affects the media debug widget. The widget is never shown
+// to users, and elevating the row/float keeps nearby comments, posts, and
+// reactions from rendering over the debug overlay.
+globalStyle(
+    `:is(${fileRowLikeClassName}, ${fileFloatClassName}):has(${fileDebugWidgetClassName}:hover)`,
+    {
+        overflow: "visible",
+        position: "relative",
+        zIndex: "1000",
+    },
+);
 
 export const fileImageViewerClassName = style({
     selectors: {

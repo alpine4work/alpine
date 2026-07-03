@@ -27,6 +27,7 @@ export async function createTaskCollectionModelSearchResultFromItem(
             name: collectionItem.name,
             color: collectionItem.color,
             accessPolicy: collectionItem.accessPolicy,
+            defaults: collectionItem.defaults,
         }),
         referencedAccessPolicySite:
             collectionItem.accessPolicy.value.type === "Site"

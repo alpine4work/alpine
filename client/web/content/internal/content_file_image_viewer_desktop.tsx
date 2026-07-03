@@ -29,7 +29,7 @@ import {useLayoutEffectWithoutServerSideWarning} from "~/client/web/helpers/life
 import {useErrorState} from "~/client/web/helpers/use_error_state.js";
 import {usePromise} from "~/client/web/helpers/use_promise.js";
 import {useSpacingScale} from "~/client/web/remix/spacing_scale_context.js";
-import {useSpaceContext} from "~/client/web/spaces/space_context.js";
+import {useSpaceContext} from "~/client/web/spaces/context/space_context.js";
 import {contentStyles, spinAnimationClassName, sprinkles} from "~/client/web/styles/styles.js";
 import {getFilePreviewSize} from "~/shared/content/get_file_preview_size.js";
 import {fileClassName} from "~/shared/design/core/constant_class_names.js";

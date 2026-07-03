@@ -1,7 +1,6 @@
 import {Page, expect, test} from "@playwright/test";
 import {createTestServices} from "~/app/integration_tests/helpers/create_test_services.js";
 import {pageKeyboardShortcut} from "~/app/integration_tests/helpers/page_keyboard_shortcut.js";
-import {getSearchDynamicEntityPathFromEntityIdObject} from "~/client/web/search/core/get_search_entity_path.js";
 import {TestChat} from "~/server/chat/test_helpers/test_chat.js";
 import {TestDocument} from "~/server/documents/test_helpers/test_document.js";
 import {TestChannel} from "~/server/forum/test_helpers/test_channel.js";
@@ -22,6 +21,7 @@ import {initialOrderKey} from "~/shared/helpers/sort/order_key.js";
 import {quote} from "~/shared/helpers/string/quote.js";
 import {generateId} from "~/shared/id/id.js";
 import {SiteId} from "~/shared/id/types/id_types.js";
+import {getSearchDynamicEntityPathFromEntityIdObject} from "~/shared/search/path/get_search_entity_path.js";
 import {
     SearchDynamicEntityIdObject,
     SearchMentionEntityType,
@@ -194,17 +194,21 @@ const testCaseByEntityType: Record<
             });
 
             return {
-                entityId: {type: "Site", siteId: site.id, firstEntityId},
-                updateTitle: async (page, {newTitle}) => {
+                // We have to pass `firstEntityId: null` here because the "can render immediately
+                // after creation" test directly calls
+                // `getSearchDynamicEntityPathFromEntityIdObject` to add the mention to the
+                // document, which returns the URL for the first entity of a site. When we create
+                // mentions in the product, we do some special wrangling to render the site mention
+                // but set the href to the first entity's path.
+                entityId: {type: "Site", siteId: site.id, firstEntityId: null},
+                updateTitle: async (page, {oldTitle, newTitle}) => {
+                    // The site mention peeks the site's first entity. The site breadcrumb chip routes
+                    // the peek to the site navigate view, which owns the "Edit name" action.
+                    await page.getByRole("button", {name: oldTitle}).click();
                     await page.getByTestId("PeekStackOverlay").getByLabel("More").click();
-                    await page.getByRole("menuitem", {name: "Edit"}).click();
-                    await page
-                        .getByLabel("Post")
-                        .press(await pageKeyboardShortcut(page, "mod", "a"));
-                    await page.getByLabel("Post").fill(newTitle);
-                    await page
-                        .getByLabel("Post")
-                        .press(await pageKeyboardShortcut(page, "mod", "enter"));
+                    await page.getByRole("menuitem", {name: "Edit name"}).click();
+                    await page.getByPlaceholder(oldTitle).fill(newTitle);
+                    await page.getByPlaceholder(oldTitle).press("Enter");
                 },
             };
         },
@@ -212,9 +216,6 @@ const testCaseByEntityType: Record<
 };
 
 for (const [entityType, testCase] of getObjectEntriesWithKeyofType(testCaseByEntityType)) {
-    // TODO(#sites): Implement tests for sites
-    if (entityType === "Site") continue;
-
     test(quote`can render and update ${entityType}`, async ({context: browserContext, page}) => {
         const space = await TestSpace.create(context, {name: "Test Space"});
         const session = await space.createSession();

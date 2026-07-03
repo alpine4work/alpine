@@ -56,6 +56,7 @@ type IrrelevantAppSpaceRouteIdWithoutShimmer =
     | "routes/_space.settings.$spaceId._index"
     // TODO(#sites): Add shimmers for these routes.
     | "routes/_space.site.$siteId._index"
+    | "routes/_space.site.$siteId.navigate"
     // TODO(databases): Add shimmers for these routes.
     | "routes/_space.databases.$spaceId"
     | "routes/_space.databases.$spaceId._index"

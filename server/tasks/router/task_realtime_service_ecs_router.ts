@@ -20,6 +20,9 @@ import {
     TaskRealtimeServiceRouterBase,
     TaskRealtimeServiceRoutes,
 } from "~/server/tasks/router/task_realtime_service_router_base.js";
+import {Context} from "~/shared/context/context.js";
+import {ProcessContextModule} from "~/shared/context/process_context_module.js";
+import {TracerContextModule} from "~/shared/context/tracer_context_module.js";
 import {InternalError} from "~/shared/error/error.js";
 import {createArrayWithLength} from "~/shared/helpers/array/create_array_with_length.js";
 import {filterMapArray} from "~/shared/helpers/array/filter_map_array.js";
@@ -43,7 +46,7 @@ export class TaskRealtimeServiceEcsRouter extends TaskRealtimeServiceRouterBase 
     private readonly _ecsTaskDefinitionFamily: string;
     private readonly _securityGroupId: string;
 
-    constructor({
+    private constructor({
         region,
         ecsCluster,
         ecsTaskDefinitionFamily,
@@ -60,6 +63,44 @@ export class TaskRealtimeServiceEcsRouter extends TaskRealtimeServiceRouterBase 
         this._ecsCluster = ecsCluster;
         this._ecsTaskDefinitionFamily = ecsTaskDefinitionFamily;
         this._securityGroupId = securityGroupId;
+    }
+
+    /**
+     * Construct a router, load its routes once, and start the background refresh loop.
+     * Resolves only after routes are ready, so a service can block startup on it and
+     * never route a request before it knows where `TaskRealtimeService` lives.
+     * `registerShutdown` is wired to stop the loop on process shutdown.
+     */
+    public static async new(
+        {
+            region,
+            ecsCluster,
+            ecsTaskDefinitionFamily,
+            securityGroupId,
+        }: {
+            region: string;
+            ecsCluster: string;
+            ecsTaskDefinitionFamily: string;
+            securityGroupId: string;
+        },
+        {
+            context,
+            registerShutdown,
+        }: {
+            context: Context<{process: ProcessContextModule; tracer: TracerContextModule}>;
+            registerShutdown: (cleanup: () => void) => void;
+        },
+    ): Promise<TaskRealtimeServiceEcsRouter> {
+        const router = new TaskRealtimeServiceEcsRouter({
+            region,
+            ecsCluster,
+            ecsTaskDefinitionFamily,
+            securityGroupId,
+        });
+
+        await router._getRoutesAndStartRefreshInterval(context, {registerShutdown});
+
+        return router;
     }
 
     protected _loadRoutes(

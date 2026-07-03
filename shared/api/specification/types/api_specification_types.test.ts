@@ -17,13 +17,37 @@ import {
     ApiMessageContentPayloadParentResponse,
     ApiMessageStreamToolCallPartCreateCallTarget,
     ApiSearchResult,
+    ApiSearchResultBodyMatch,
+    ApiSearchResultParsedFilter,
 } from "~/shared/api/specification/types/api_specification_convenience_types.js";
 import {ApiSpecification} from "~/shared/api/specification/types/api_specification_types.js";
 import {ApiTarget} from "~/shared/api/specification/types/api_target.js";
 import {assertAssignableTypes} from "~/shared/helpers/control/assert_assignable_types.js";
 
 test("all search results are assignable to `ApiTarget`", () => {
-    assertAssignableTypes<ApiSearchResult, ApiTarget>();
+    // TODO(@#sites-api): Add Site to ApiTarget once we decide how to share site data
+    // across the API. I'm still not exactly sure about what that should look like.
+    // Theoretically, if it were to look like the app, fetching a Site's entity should
+    // also return the site chrome. And since our hypothesis is generally that you
+    // can't understand a site's entity without the site context (e.g. a "Status"
+    // channel in a Site named "Add meeting notetaker to Alpine"), it may make sense to
+    // load the two together as opposed to making callers fetch them separately? Or
+    // maybe we just load the site Id and name, and have the caller fetch the rest of
+    // the site if so desired? And what does it look like? Do we load the "access" for
+    // the client which can be "Site" or "Local"? Do we expose all of the grants? Lots
+    // of open questions...
+    assertAssignableTypes<Exclude<ApiSearchResult, {type: "Site"}>, ApiTarget>();
+});
+
+test("all search results have the same common properties", () => {
+    assertAssignableTypes<
+        ApiSearchResult,
+        {
+            title: string | null;
+            bodyMatch: ApiSearchResultBodyMatch | null;
+            parsedFilter?: ApiSearchResultParsedFilter;
+        }
+    >();
 });
 
 test("Create tool call target is assignable to ApiMentionTarget", () => {
@@ -43,7 +67,8 @@ test("`/mention` paths are assignable to `ApiMentionResponse`", () => {
 });
 
 test("all mention targets are assignable to `ApiTarget`", () => {
-    assertAssignableTypes<ApiMentionTarget, ApiTarget>();
+    // TODO(#sites-api)
+    assertAssignableTypes<Exclude<ApiMentionTarget, {type: "Site"}>, ApiTarget>();
 });
 
 test("`ApiMentionTargetResponse` is assignable to `ApiMentionTarget`", () => {

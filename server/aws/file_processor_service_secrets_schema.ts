@@ -5,6 +5,7 @@ export const FileProcessorServiceSecretsSchema = ServerSecretsSchema.omit([
     "servicePrivateKey",
 ]).merge(
     Schema.object({
+        awsBedrockTokenForDevelopment: Schema.string.optional(),
         servicePrivateKey: Schema.string.originalPropertyKey("fileProcessorServicePrivateKey"),
     }),
 );

@@ -1,6 +1,7 @@
 import {createClientRoutes, loadRouteModuleWithBlockingLinks} from "@remix-run/react";
 import jsonStableStringify from "json-stable-stringify";
 import {DataRouteObject, LazyRouteFunction} from "react-router";
+import {getSiteLoaderDataForPendingNavigation} from "~/app/router/get_site_loader_data_for_pending_navigation.js";
 import {RootErrorBoundary} from "~/app/router/root_error_boundary.js";
 import {createLoadingIndicatorLoaderData} from "~/client/web/remix/loading_indicator_loader_data.js";
 import {processLoaderResult} from "~/client/web/remix/process_loader_result.js";
@@ -621,11 +622,22 @@ function makeSpaceDataRouteShowLoadingIndicator(route: DataRouteObject) {
         if (result !== makeSpaceDataRouteShowLoadingIndicatorSymbol) {
             return result;
         } else {
+            const [{request, params}] = args;
+
             return createLoadingIndicatorLoaderData(
                 PromiseImmediate.resolve(routeLoaderPromise)
                     // Since `@remix-run/router` won't get a chance to unwrap the response we have to
                     // do it here.
                     .then(processLoaderResult),
+                {
+                    // Let the site context follow a pending within-site navigation while the route
+                    // shimmer is showing.
+                    siteLoaderData: getSiteLoaderDataForPendingNavigation({
+                        routeId: route.id,
+                        request,
+                        params,
+                    }),
+                },
             );
         }
     };

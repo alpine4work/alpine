@@ -1,4 +1,5 @@
 import {ApiServiceBotActionContext} from "~/server/api/internal/shared/api_service_context.js";
+import {validateApiActor} from "~/server/api/internal/tasks/internal/validate_api_actor.js";
 import {commitTaskActionTransaction} from "~/server/tasks/data/commit_task_action_transaction.js";
 import {fromApiThemeColor} from "~/shared/api/content/from_api_theme_color.js";
 import {intoApiThemeColor} from "~/shared/api/content/into_api_theme_color.js";
@@ -7,9 +8,10 @@ import {HybridLogicalClock} from "~/shared/helpers/clock/hybrid_logical_clock.js
 import {unsynchronizedSystemClock} from "~/shared/helpers/clock/unsynchronized_system_clock.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
-import {SpaceId, TaskCollectionId} from "~/shared/id/types/id_types.js";
+import {AccountId, SpaceId, TaskCollectionId} from "~/shared/id/types/id_types.js";
 import {TaskAction} from "~/shared/tasks/actions/task_action.js";
 import {TaskCollectionModel} from "~/shared/tasks/model/task_collection_model.js";
+import {TaskActor} from "~/shared/tasks/task_creator.js";
 
 type TaskCollectionPatch = ApiSpecification.components["schemas"]["TaskCollectionPatch"];
 type ApiTaskCollectionColor = Extract<TaskCollectionPatch, {readonly type: "SetColor"}>["color"];
@@ -32,15 +34,23 @@ export async function updateTaskCollectionFromApi(
     {
         spaceId,
         collectionId,
+        actorId,
         patches,
     }: {
         spaceId: SpaceId;
         collectionId: TaskCollectionId;
+        actorId?: AccountId;
         patches: ReadonlyArray<TaskCollectionPatch>;
     },
 ): Promise<TaskCollectionModel> {
     const consistency = "StrongWithinCache" as const;
     const clock = new HybridLogicalClock(unsynchronizedSystemClock);
+    const botAccountId = context.actor.getBotAccountId();
+    await validateApiActor(context, {spaceId, actorId});
+    const actor: TaskActor = {
+        accountId: actorId ?? botAccountId,
+        from: {type: "Bot", accountId: botAccountId},
+    };
 
     const initialCollection = await context.tasks.getCollection(spaceId, collectionId, {
         consistency,
@@ -53,6 +63,7 @@ export async function updateTaskCollectionFromApi(
         initialState,
         finalState,
         clock,
+        actor,
     });
 
     if (actions.length > 0) {
@@ -115,11 +126,13 @@ function createTaskCollectionPatchActions({
     initialState,
     finalState,
     clock,
+    actor,
 }: {
     collectionId: TaskCollectionId;
     initialState: TaskCollectionPatchState;
     finalState: TaskCollectionPatchState;
     clock: HybridLogicalClock;
+    actor: TaskActor;
 }): Array<TaskAction> {
     const actions: Array<TaskAction> = [];
 
@@ -132,6 +145,7 @@ function createTaskCollectionPatchActions({
         actions.push({
             type: "UpdateCollection",
             time: clock.now(),
+            actor,
             collectionId,
             collectionAction,
         });

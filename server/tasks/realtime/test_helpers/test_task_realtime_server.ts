@@ -1,5 +1,6 @@
 import {parseAbsolute, toCalendarDate} from "@internationalized/date";
 import {TestActualContext} from "~/admin/environment/test/unit/with_unit_test_environment.js";
+import {TestBotAccount} from "~/server/bots/test_helpers/test_bot.js";
 import {
     ServerAccountActionContextModules,
     ServerActionContextModules,
@@ -260,6 +261,20 @@ export class TestTaskRealtimeServer {
             tasks: new TestTaskContextModuleWithRealtimeServer({
                 server: this,
                 dangerouslyEscalateToSystemContext: session.context.escalateToSystemContext,
+            }),
+        });
+    }
+
+    /**
+     * Similar to `action(session)` but for a bot actor. The returned `context.tasks`
+     * module supports methods that must call into `TaskRealtimeService` like
+     * `context.tasks.getTaskWithoutDependencies()`.
+     */
+    public botAction(bot: TestBotAccount, scope?: Parameters<TestBotAccount["action"]>[0]) {
+        return bot.action(scope).clone({
+            tasks: new TestTaskContextModuleWithRealtimeServer({
+                server: this,
+                dangerouslyEscalateToSystemContext: this.context.escalateToSystemContext,
             }),
         });
     }

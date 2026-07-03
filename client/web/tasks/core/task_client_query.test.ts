@@ -48,7 +48,11 @@ import {
     TaskRealtimeUpdateEventSchema,
     taskAuthorizedState,
 } from "~/shared/tasks/task_realtime_protocol.js";
-import {TaskTitleUpdateModel, emptyTaskTitleModel} from "~/shared/tasks/title/task_title.js";
+import {
+    TaskTitleUpdateModel,
+    emptyTaskTitleModel,
+    generateTaskTitleClientIdFromRealmId,
+} from "~/shared/tasks/title/task_title.js";
 
 beforeEach(() => {
     import.meta.jest.useFakeTimers();
@@ -326,6 +330,7 @@ test("if optimistic task creation is reverted then queries remove the task", asy
             value: taskAuthorizedState,
             version: zeroHybridLogicalTime,
         }),
+        revertCount: 0,
     });
 
     expect(query.taskOrderStore.getSnapshot().keys.map(getTaskQuerySortCursorTaskId)).toEqual([]);
@@ -352,6 +357,7 @@ test("if optimistic task creation is reverted then queries remove the task", asy
             value: taskAuthorizedState,
             version: zeroHybridLogicalTime,
         }),
+        revertCount: 0,
     });
 
     expect(query.taskOrderStore.getSnapshot().keys.map(getTaskQuerySortCursorTaskId)).toEqual([
@@ -3754,6 +3760,7 @@ test("temporarily holds on to actions applied to task that wasn\u2019t backfille
         actions: [action],
         optimisticState: null,
         authorizationState: null,
+        revertCount: 0,
     });
 
     expect(errors.length).toEqual(0);
@@ -4993,6 +5000,7 @@ test("can handle unauthorized task with another unauthorized task parent due to 
             authorizationStateVersion1,
         ),
         optimisticState: null,
+        revertCount: 0,
     });
 
     expect(getTaskEntryIfExists(store, task3.id)).toEqual({
@@ -5003,6 +5011,7 @@ test("can handle unauthorized task with another unauthorized task parent due to 
             authorizationStateVersion1,
         ),
         optimisticState: null,
+        revertCount: 0,
     });
 
     expect(store.getCollectionEntrySnapshot(collection.id)).toEqual(null);
@@ -5037,6 +5046,7 @@ test("can handle unauthorized task with another unauthorized task parent due to 
             authorizationStateVersion2,
         ),
         optimisticState: null,
+        revertCount: 0,
     });
 
     expect(getTaskEntryIfExists(store, task3.id)).toEqual({
@@ -5047,6 +5057,7 @@ test("can handle unauthorized task with another unauthorized task parent due to 
             authorizationStateVersion1,
         ),
         optimisticState: null,
+        revertCount: 0,
     });
 
     expect(store.getCollectionEntrySnapshot(collection.id)).toEqual({
@@ -5098,7 +5109,9 @@ test("can undo/redo creation of many tasks", async () => {
     });
 
     function createTaskTitleUpdateModel(text: string): TaskTitleUpdateModel {
-        return emptyTaskTitleModel.get().replace(0, 0, text);
+        return emptyTaskTitleModel
+            .get()
+            .replace(generateTaskTitleClientIdFromRealmId({revertCount: 0}), 0, 0, text);
     }
 
     const rootTaskId = assertId<TaskId>("n8h72shgj0w9fvchbfdqqyyvxg");

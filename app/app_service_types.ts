@@ -48,6 +48,8 @@ export type AppServiceConstants = {
             readonly importerServiceSecurityGroups?: string;
             readonly importerServiceEbsVolumeRoleArn?: string;
             readonly importerLocalUploadPathForTest?: string;
+            // Used to test LLM calls against real AWS Bedrock in development. Optional.
+            readonly awsBedrockTokenForDevelopment?: string;
         };
 };
 

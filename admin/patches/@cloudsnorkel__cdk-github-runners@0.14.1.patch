@@ -1,3 +1,444 @@
+diff --git a/assets/delete-failed-runner.lambda/index.js b/assets/delete-failed-runner.lambda/index.js
+index fef53d11c40758f02c6faf135868ffd037a27297..2ba55d8b7e313171737151a1ac14b9694bb68e65 100644
+--- a/assets/delete-failed-runner.lambda/index.js
++++ b/assets/delete-failed-runner.lambda/index.js
+@@ -13178,12 +13178,41 @@ function baseUrlFromDomain(domain) {
+   return `https://${domain}/api/v3`;
+ }
+ var octokitCache = {};
+-async function getOctokit(installationId) {
++var allowedWebhookInstallationIds = /* @__PURE__ */ new Set([
++  // PATCH(imjoshin): Graphite's installation id for cyberworlds/cyberworlds.
++  // This id is allowed to trigger runner creation, but we never mint runner
++  // tokens for it.
++  71591534
++]);
++function assertAllowedWebhookInstallationId(installationId, runnerInstallationId) {
++  if (installationId === runnerInstallationId || allowedWebhookInstallationIds.has(installationId)) {
++    return;
++  }
++  throw new Error(`Unexpected workflow_job installation id ${installationId}; expected runner app installation id or an allowed trigger app installation id.`);
++}
++async function resolveInstallationId(appOctokit, installationId, owner, repo) {
++  // PATCH(imjoshin): We saw Graphite's installation id in the
++  // `workflow_job` webhook payload, but these Lambdas authenticate as the AWS
++  // runner app. Resolve the repo installation for the runner app before
++  // minting tokens so webhook delivery metadata cannot select another app's
++  // installation.
++  if (owner && repo) {
++    const installation = await appOctokit.rest.apps.getRepoInstallation({
++      owner,
++      repo
++    });
++    const runnerInstallationId = installation.data.id;
++    assertAllowedWebhookInstallationId(installationId, runnerInstallationId);
++    return runnerInstallationId;
++  }
++  return installationId;
++}
++async function getOctokit(installationId, owner, repo) {
+   if (!process.env.GITHUB_SECRET_ARN || !process.env.GITHUB_PRIVATE_KEY_SECRET_ARN) {
+     throw new Error("Missing environment variables");
+   }
+   const githubSecrets = await getSecretJsonValue(process.env.GITHUB_SECRET_ARN);
+-  if (octokitCache.octokit && octokitCache.installationId == installationId && octokitCache.secrets && octokitCache.secrets.domain == githubSecrets.domain && octokitCache.secrets.appId == githubSecrets.appId && octokitCache.secrets.personalAuthToken == githubSecrets.personalAuthToken) {
++  if (octokitCache.octokit && octokitCache.installationId == installationId && octokitCache.owner == owner && octokitCache.repo == repo && octokitCache.secrets && octokitCache.secrets.domain == githubSecrets.domain && octokitCache.secrets.appId == githubSecrets.appId && octokitCache.secrets.personalAuthToken == githubSecrets.personalAuthToken) {
+     try {
+       await octokitCache.octokit.rest.meta.getOctocat();
+       console.log("Using cached octokit");
+@@ -13210,10 +13239,12 @@ async function getOctokit(installationId) {
+         privateKey
+       }
+     });
++    const resolvedInstallationId = await resolveInstallationId(appOctokit, installationId, owner, repo);
+     token = (await appOctokit.auth({
+       type: "installation",
+-      installationId
++      installationId: resolvedInstallationId
+     })).token;
++    installationId = resolvedInstallationId;
+   }
+   const octokit = new import_rest.Octokit({
+     baseUrl,
+@@ -13221,6 +13252,8 @@ async function getOctokit(installationId) {
+   });
+   octokitCache.octokit = octokit;
+   octokitCache.installationId = installationId;
++  octokitCache.owner = owner;
++  octokitCache.repo = repo;
+   octokitCache.secrets = githubSecrets;
+   return {
+     octokit,
+@@ -13286,7 +13319,7 @@ var ReraisedError = class _ReraisedError extends Error {
+   }
+ };
+ async function handler(event) {
+-  const { octokit, githubSecrets } = await getOctokit(event.installationId);
++  const { octokit, githubSecrets } = await getOctokit(event.installationId, event.owner, event.repo);
+   const runner = await getRunner(octokit, githubSecrets.runnerLevel, event.owner, event.repo, event.runnerName);
+   if (!runner) {
+     console.error(`Unable to find runner id for ${event.owner}/${event.repo}:${event.runnerName}`);
+diff --git a/assets/idle-runner-repear.lambda/index.js b/assets/idle-runner-repear.lambda/index.js
+index 701c46bf776e265f1910f0b2f7feb736171187a9..e5ddd715d71d8c70a290e5d88d91ebeb8f21a46d 100644
+--- a/assets/idle-runner-repear.lambda/index.js
++++ b/assets/idle-runner-repear.lambda/index.js
+@@ -13179,12 +13179,41 @@ function baseUrlFromDomain(domain) {
+   return `https://${domain}/api/v3`;
+ }
+ var octokitCache = {};
+-async function getOctokit(installationId) {
++var allowedWebhookInstallationIds = /* @__PURE__ */ new Set([
++  // PATCH(imjoshin): Graphite's installation id for cyberworlds/cyberworlds.
++  // This id is allowed to trigger runner creation, but we never mint runner
++  // tokens for it.
++  71591534
++]);
++function assertAllowedWebhookInstallationId(installationId, runnerInstallationId) {
++  if (installationId === runnerInstallationId || allowedWebhookInstallationIds.has(installationId)) {
++    return;
++  }
++  throw new Error(`Unexpected workflow_job installation id ${installationId}; expected runner app installation id or an allowed trigger app installation id.`);
++}
++async function resolveInstallationId(appOctokit, installationId, owner, repo) {
++  // PATCH(imjoshin): We saw Graphite's installation id in the
++  // `workflow_job` webhook payload, but these Lambdas authenticate as the AWS
++  // runner app. Resolve the repo installation for the runner app before
++  // minting tokens so webhook delivery metadata cannot select another app's
++  // installation.
++  if (owner && repo) {
++    const installation = await appOctokit.rest.apps.getRepoInstallation({
++      owner,
++      repo
++    });
++    const runnerInstallationId = installation.data.id;
++    assertAllowedWebhookInstallationId(installationId, runnerInstallationId);
++    return runnerInstallationId;
++  }
++  return installationId;
++}
++async function getOctokit(installationId, owner, repo) {
+   if (!process.env.GITHUB_SECRET_ARN || !process.env.GITHUB_PRIVATE_KEY_SECRET_ARN) {
+     throw new Error("Missing environment variables");
+   }
+   const githubSecrets = await getSecretJsonValue(process.env.GITHUB_SECRET_ARN);
+-  if (octokitCache.octokit && octokitCache.installationId == installationId && octokitCache.secrets && octokitCache.secrets.domain == githubSecrets.domain && octokitCache.secrets.appId == githubSecrets.appId && octokitCache.secrets.personalAuthToken == githubSecrets.personalAuthToken) {
++  if (octokitCache.octokit && octokitCache.installationId == installationId && octokitCache.owner == owner && octokitCache.repo == repo && octokitCache.secrets && octokitCache.secrets.domain == githubSecrets.domain && octokitCache.secrets.appId == githubSecrets.appId && octokitCache.secrets.personalAuthToken == githubSecrets.personalAuthToken) {
+     try {
+       await octokitCache.octokit.rest.meta.getOctocat();
+       console.log("Using cached octokit");
+@@ -13211,10 +13240,12 @@ async function getOctokit(installationId) {
+         privateKey
+       }
+     });
++    const resolvedInstallationId = await resolveInstallationId(appOctokit, installationId, owner, repo);
+     token = (await appOctokit.auth({
+       type: "installation",
+-      installationId
++      installationId: resolvedInstallationId
+     })).token;
++    installationId = resolvedInstallationId;
+   }
+   const octokit = new import_rest.Octokit({
+     baseUrl,
+@@ -13222,6 +13253,8 @@ async function getOctokit(installationId) {
+   });
+   octokitCache.octokit = octokit;
+   octokitCache.installationId = installationId;
++  octokitCache.owner = owner;
++  octokitCache.repo = repo;
+   octokitCache.secrets = githubSecrets;
+   return {
+     octokit,
+@@ -13292,7 +13325,7 @@ async function handler(event) {
+       continue;
+     }
+     if (!octokitCache2) {
+-      const { octokit, githubSecrets } = await getOctokit(input.installationId);
++      const { octokit, githubSecrets } = await getOctokit(input.installationId, input.owner, input.repo);
+       octokitCache2 = octokit;
+       runnerLevel = githubSecrets.runnerLevel;
+     }
+diff --git a/assets/token-retriever.lambda/index.js b/assets/token-retriever.lambda/index.js
+index 1ba70581d2c8e191c90aa6f54e2d537d23d07636..a59478c9a5da8dc7e16b271ba8fc900c52ea28b0 100644
+--- a/assets/token-retriever.lambda/index.js
++++ b/assets/token-retriever.lambda/index.js
+@@ -13178,12 +13178,41 @@ function baseUrlFromDomain(domain) {
+   return `https://${domain}/api/v3`;
+ }
+ var octokitCache = {};
+-async function getOctokit(installationId) {
++var allowedWebhookInstallationIds = /* @__PURE__ */ new Set([
++  // PATCH(imjoshin): Graphite's installation id for cyberworlds/cyberworlds.
++  // This id is allowed to trigger runner creation, but we never mint runner
++  // tokens for it.
++  71591534
++]);
++function assertAllowedWebhookInstallationId(installationId, runnerInstallationId) {
++  if (installationId === runnerInstallationId || allowedWebhookInstallationIds.has(installationId)) {
++    return;
++  }
++  throw new Error(`Unexpected workflow_job installation id ${installationId}; expected runner app installation id or an allowed trigger app installation id.`);
++}
++async function resolveInstallationId(appOctokit, installationId, owner, repo) {
++  // PATCH(imjoshin): We saw Graphite's installation id in the
++  // `workflow_job` webhook payload, but these Lambdas authenticate as the AWS
++  // runner app. Resolve the repo installation for the runner app before
++  // minting tokens so webhook delivery metadata cannot select another app's
++  // installation.
++  if (owner && repo) {
++    const installation = await appOctokit.rest.apps.getRepoInstallation({
++      owner,
++      repo
++    });
++    const runnerInstallationId = installation.data.id;
++    assertAllowedWebhookInstallationId(installationId, runnerInstallationId);
++    return runnerInstallationId;
++  }
++  return installationId;
++}
++async function getOctokit(installationId, owner, repo) {
+   if (!process.env.GITHUB_SECRET_ARN || !process.env.GITHUB_PRIVATE_KEY_SECRET_ARN) {
+     throw new Error("Missing environment variables");
+   }
+   const githubSecrets = await getSecretJsonValue(process.env.GITHUB_SECRET_ARN);
+-  if (octokitCache.octokit && octokitCache.installationId == installationId && octokitCache.secrets && octokitCache.secrets.domain == githubSecrets.domain && octokitCache.secrets.appId == githubSecrets.appId && octokitCache.secrets.personalAuthToken == githubSecrets.personalAuthToken) {
++  if (octokitCache.octokit && octokitCache.installationId == installationId && octokitCache.owner == owner && octokitCache.repo == repo && octokitCache.secrets && octokitCache.secrets.domain == githubSecrets.domain && octokitCache.secrets.appId == githubSecrets.appId && octokitCache.secrets.personalAuthToken == githubSecrets.personalAuthToken) {
+     try {
+       await octokitCache.octokit.rest.meta.getOctocat();
+       console.log("Using cached octokit");
+@@ -13210,10 +13239,12 @@ async function getOctokit(installationId) {
+         privateKey
+       }
+     });
++    const resolvedInstallationId = await resolveInstallationId(appOctokit, installationId, owner, repo);
+     token = (await appOctokit.auth({
+       type: "installation",
+-      installationId
++      installationId: resolvedInstallationId
+     })).token;
++    installationId = resolvedInstallationId;
+   }
+   const octokit = new import_rest.Octokit({
+     baseUrl,
+@@ -13221,6 +13252,8 @@ async function getOctokit(installationId) {
+   });
+   octokitCache.octokit = octokit;
+   octokitCache.installationId = installationId;
++  octokitCache.owner = owner;
++  octokitCache.repo = repo;
+   octokitCache.secrets = githubSecrets;
+   return {
+     octokit,
+@@ -13241,7 +13274,7 @@ async function handler(event) {
+     const {
+       githubSecrets,
+       octokit
+-    } = await getOctokit(event.installationId);
++    } = await getOctokit(event.installationId, event.owner, event.repo);
+     let token;
+     let registrationUrl;
+     if (githubSecrets.runnerLevel === "repo" || githubSecrets.runnerLevel === void 0) {
+diff --git a/assets/webhook-handler.lambda/index.js b/assets/webhook-handler.lambda/index.js
+index 1045d220b6fea8464da6f6e121b7d8197c1e17b0..3c0d51c30796a552bb72fb0b389103e136ab7ef7 100644
+--- a/assets/webhook-handler.lambda/index.js
++++ b/assets/webhook-handler.lambda/index.js
+@@ -13181,12 +13181,41 @@ function baseUrlFromDomain(domain) {
+   return `https://${domain}/api/v3`;
+ }
+ var octokitCache = {};
+-async function getOctokit(installationId) {
++var allowedWebhookInstallationIds = /* @__PURE__ */ new Set([
++  // PATCH(imjoshin): Graphite's installation id for cyberworlds/cyberworlds.
++  // This id is allowed to trigger runner creation, but we never mint runner
++  // tokens for it.
++  71591534
++]);
++function assertAllowedWebhookInstallationId(installationId, runnerInstallationId) {
++  if (installationId === runnerInstallationId || allowedWebhookInstallationIds.has(installationId)) {
++    return;
++  }
++  throw new Error(`Unexpected workflow_job installation id ${installationId}; expected runner app installation id or an allowed trigger app installation id.`);
++}
++async function resolveInstallationId(appOctokit, installationId, owner, repo) {
++  // PATCH(imjoshin): We saw Graphite's installation id in the
++  // `workflow_job` webhook payload, but these Lambdas authenticate as the AWS
++  // runner app. Resolve the repo installation for the runner app before
++  // minting tokens so webhook delivery metadata cannot select another app's
++  // installation.
++  if (owner && repo) {
++    const installation = await appOctokit.rest.apps.getRepoInstallation({
++      owner,
++      repo
++    });
++    const runnerInstallationId = installation.data.id;
++    assertAllowedWebhookInstallationId(installationId, runnerInstallationId);
++    return runnerInstallationId;
++  }
++  return installationId;
++}
++async function getOctokit(installationId, owner, repo) {
+   if (!process.env.GITHUB_SECRET_ARN || !process.env.GITHUB_PRIVATE_KEY_SECRET_ARN) {
+     throw new Error("Missing environment variables");
+   }
+   const githubSecrets = await getSecretJsonValue(process.env.GITHUB_SECRET_ARN);
+-  if (octokitCache.octokit && octokitCache.installationId == installationId && octokitCache.secrets && octokitCache.secrets.domain == githubSecrets.domain && octokitCache.secrets.appId == githubSecrets.appId && octokitCache.secrets.personalAuthToken == githubSecrets.personalAuthToken) {
++  if (octokitCache.octokit && octokitCache.installationId == installationId && octokitCache.owner == owner && octokitCache.repo == repo && octokitCache.secrets && octokitCache.secrets.domain == githubSecrets.domain && octokitCache.secrets.appId == githubSecrets.appId && octokitCache.secrets.personalAuthToken == githubSecrets.personalAuthToken) {
+     try {
+       await octokitCache.octokit.rest.meta.getOctocat();
+       console.log("Using cached octokit");
+@@ -13213,10 +13242,12 @@ async function getOctokit(installationId) {
+         privateKey
+       }
+     });
++    const resolvedInstallationId = await resolveInstallationId(appOctokit, installationId, owner, repo);
+     token = (await appOctokit.auth({
+       type: "installation",
+-      installationId
++      installationId: resolvedInstallationId
+     })).token;
++    installationId = resolvedInstallationId;
+   }
+   const octokit = new import_rest.Octokit({
+     baseUrl,
+@@ -13224,6 +13255,8 @@ async function getOctokit(installationId) {
+   });
+   octokitCache.octokit = octokit;
+   octokitCache.installationId = installationId;
++  octokitCache.owner = owner;
++  octokitCache.repo = repo;
+   octokitCache.secrets = githubSecrets;
+   return {
+     octokit,
+@@ -13267,7 +13300,7 @@ async function isDeploymentPending(payload) {
+     return false;
+   }
+   try {
+-    const { octokit } = await getOctokit(payload.installation?.id);
++    const { octokit } = await getOctokit(payload.installation?.id, payload.repository.owner.login, payload.repository.name);
+     const statuses = await octokit.request(statusesUrl);
+     return statuses.data[0]?.state === "waiting";
+   } catch (e) {
+@@ -13280,7 +13313,8 @@ function matchLabelsToProvider(labels) {
+   const supportedLabels = JSON.parse(process.env.SUPPORTED_LABELS);
+   for (const supportedLabelSet of supportedLabels) {
+     const lowerCasedSupportedLabelSet = supportedLabelSet.labels.map((label) => label.toLowerCase());
+-    if (jobLabelSet.every((label) => label == "self-hosted" || lowerCasedSupportedLabelSet.includes(label))) {
++    const lowerCasedDynamicLabelPrefixes = (supportedLabelSet.dynamicLabelPrefixes ?? []).map((labelPrefix) => labelPrefix.toLowerCase());
++    if (jobLabelSet.every((label) => label == "self-hosted" || lowerCasedSupportedLabelSet.includes(label) || lowerCasedDynamicLabelPrefixes.some((labelPrefix) => label.startsWith(labelPrefix)))) {
+       return supportedLabelSet.provider;
+     }
+   }
+diff --git a/lib/delete-failed-runner.lambda.js b/lib/delete-failed-runner.lambda.js
+index 4d6b6445170e8de57dabc00fae51f41cfff979de..94d70081ca9b8d4a0a5f18e13d3bd8b850e78dba 100644
+--- a/lib/delete-failed-runner.lambda.js
++++ b/lib/delete-failed-runner.lambda.js
+@@ -18,7 +18,7 @@ class ReraisedError extends Error {
+     }
+ }
+ async function handler(event) {
+-    const { octokit, githubSecrets } = await (0, lambda_github_1.getOctokit)(event.installationId);
++    const { octokit, githubSecrets } = await (0, lambda_github_1.getOctokit)(event.installationId, event.owner, event.repo);
+     // find runner id
+     const runner = await (0, lambda_github_1.getRunner)(octokit, githubSecrets.runnerLevel, event.owner, event.repo, event.runnerName);
+     if (!runner) {
+diff --git a/lib/idle-runner-repear.lambda.js b/lib/idle-runner-repear.lambda.js
+index ebb8d4713cf859c20a7ff7a287fd61c62ee48061..9f9580793dcc0424d58f2826fd000a08023d3758 100644
+--- a/lib/idle-runner-repear.lambda.js
++++ b/lib/idle-runner-repear.lambda.js
+@@ -28,7 +28,7 @@ async function handler(event) {
+         // get github access
+         if (!octokitCache) {
+             // getOctokit calls secrets manager every time, so cache the result
+-            const { octokit, githubSecrets } = await (0, lambda_github_1.getOctokit)(input.installationId);
++            const { octokit, githubSecrets } = await (0, lambda_github_1.getOctokit)(input.installationId, input.owner, input.repo);
+             // TODO if installationId changes during normal operations, we may have some records with good installationId, and some with bad
+             octokitCache = octokit;
+             runnerLevel = githubSecrets.runnerLevel;
+diff --git a/lib/lambda-github.d.ts b/lib/lambda-github.d.ts
+index 3b6d38b979818362596860d0568143a41d34b2f7..7fb7f34ee7cd3d56b28dc43218a1a0d8d48412d2 100644
+--- a/lib/lambda-github.d.ts
++++ b/lib/lambda-github.d.ts
+@@ -7,7 +7,7 @@ export interface GitHubSecrets {
+     personalAuthToken: string;
+     runnerLevel: RunnerLevel;
+ }
+-export declare function getOctokit(installationId?: number): Promise<{
++export declare function getOctokit(installationId?: number, owner?: string, repo?: string): Promise<{
+     octokit: Octokit;
+     githubSecrets: GitHubSecrets;
+ }>;
+diff --git a/lib/lambda-github.js b/lib/lambda-github.js
+index 4b6eef52ad95c843866ac830e37a8653eca4e1e8..07db1c03ee13f9fb49fd1be9b12e890d7b8dee79 100644
+--- a/lib/lambda-github.js
++++ b/lib/lambda-github.js
+@@ -12,12 +12,42 @@ function baseUrlFromDomain(domain) {
+ }
+ exports.baseUrlFromDomain = baseUrlFromDomain;
+ const octokitCache = {};
+-async function getOctokit(installationId) {
++const allowedWebhookInstallationIds = new Set([
++    // PATCH(imjoshin): Graphite's installation id for cyberworlds/cyberworlds.
++    // This id is allowed to trigger runner creation, but we never mint runner
++    // tokens for it.
++    71591534,
++]);
++function assertAllowedWebhookInstallationId(installationId, runnerInstallationId) {
++    if (installationId === runnerInstallationId || allowedWebhookInstallationIds.has(installationId)) {
++        return;
++    }
++    throw new Error(`Unexpected workflow_job installation id ${installationId}; expected runner app installation id or an allowed trigger app installation id.`);
++}
++async function resolveInstallationId(appOctokit, installationId, owner, repo) {
++    // PATCH(imjoshin): We saw Graphite's installation id in the
++    // `workflow_job` webhook payload, but these Lambdas authenticate as the AWS
++    // runner app. Resolve the repo installation for the runner app before
++    // minting tokens so webhook delivery metadata cannot select another app's
++    // installation.
++    if (owner && repo) {
++        const installation = await appOctokit.rest.apps.getRepoInstallation({
++            owner,
++            repo,
++        });
++        const runnerInstallationId = installation.data.id;
++        assertAllowedWebhookInstallationId(installationId, runnerInstallationId);
++        return runnerInstallationId;
++    }
++    return installationId;
++}
++async function getOctokit(installationId, owner, repo) {
+     if (!process.env.GITHUB_SECRET_ARN || !process.env.GITHUB_PRIVATE_KEY_SECRET_ARN) {
+         throw new Error('Missing environment variables');
+     }
+     const githubSecrets = await (0, lambda_helpers_1.getSecretJsonValue)(process.env.GITHUB_SECRET_ARN);
+-    if (octokitCache.octokit && octokitCache.installationId == installationId && octokitCache.secrets &&
++    if (octokitCache.octokit && octokitCache.installationId == installationId && octokitCache.owner == owner &&
++        octokitCache.repo == repo && octokitCache.secrets &&
+         octokitCache.secrets.domain == githubSecrets.domain && octokitCache.secrets.appId == githubSecrets.appId &&
+         octokitCache.secrets.personalAuthToken == githubSecrets.personalAuthToken) {
+         // test and use cache
+@@ -49,10 +79,12 @@ async function getOctokit(installationId) {
+                 privateKey: privateKey,
+             },
+         });
++        const resolvedInstallationId = await resolveInstallationId(appOctokit, installationId, owner, repo);
+         token = (await appOctokit.auth({
+             type: 'installation',
+-            installationId: installationId,
++            installationId: resolvedInstallationId,
+         })).token;
++        installationId = resolvedInstallationId;
+     }
+     const octokit = new rest_1.Octokit({
+         baseUrl,
+@@ -60,6 +92,8 @@ async function getOctokit(installationId) {
+     });
+     octokitCache.octokit = octokit;
+     octokitCache.installationId = installationId;
++    octokitCache.owner = owner;
++    octokitCache.repo = repo;
+     octokitCache.secrets = githubSecrets;
+     return {
+         octokit,
 diff --git a/lib/providers/ec2.d.ts b/lib/providers/ec2.d.ts
 index 5ed1001f3d3abd6312c3d172cab2163486333c6c..635fa215633aa9b39cca0494e450852fdb7abc50 100644
 --- a/lib/providers/ec2.d.ts
@@ -16,36 +457,54 @@ index 5ed1001f3d3abd6312c3d172cab2163486333c6c..635fa215633aa9b39cca0494e450852f
  /**
   * GitHub Actions runner provider using EC2 to execute jobs.
 diff --git a/lib/providers/ec2.js b/lib/providers/ec2.js
-index d1a6f14ad2a72fc3abd53cec9c197ed9d28eb019..fde524ec479f28df03a6cc828833bc40dcf95bb5 100644
+index d1a6f14ad2a72fc3abd53cec9c197ed9d28eb019..ecbb20f42cdd33c6550416a86e94bedb207b3972 100644
 --- a/lib/providers/ec2.js
 +++ b/lib/providers/ec2.js
-@@ -22,6 +22,8 @@ repoPath="{}"
+@@ -13,6 +13,7 @@ const utils_1 = require("../utils");
+ // this script is specifically made so `poweroff` is absolutely always called
+ // each `{}` is a variable coming from `params` below
+ const linuxUserDataTemplate = `#!/bin/bash -x
++set -o pipefail
+ TASK_TOKEN="{}"
+ logGroupName="{}"
+ runnerNamePath="{}"
+@@ -22,3 +23,6 @@ repoPath="{}"
  runnerTokenPath="{}"
  labels="{}"
  registrationURL="{}"
 +export USER_DATA_EXTRA="$(echo "{}" | base64 --decode)"
-+export ALPINE_RUNNER_TAG="$(node -e "process.stdout.write((JSON.parse(process.env.USER_DATA_EXTRA).alpineRunnerTag || ''))")"
- 
- heartbeat () {
-   while true; do
-@@ -65,7 +66,7 @@ action () {
-   sudo -Hu runner /home/runner/config.sh --unattended --url "$registrationURL" --token "$runnerTokenPath" --ephemeral --work _work --labels "$labelsTemplate" $RUNNER_FLAGS --name "$runnerNamePath" || exit 1
- 
-   # Execute the run command
++export ALPINE_RUNNER_TAG="$(node -e "process.stdout.write((JSON.parse(process.env.USER_DATA_EXTRA || 'null')?.alpineRunnerTag || ''))")"
++export ALPINE_CLOUDWATCH_AGENT_LOG_SETUP="$(node -e "process.stdout.write((JSON.parse(process.env.USER_DATA_EXTRA || 'null')?.cloudWatchAgentLogSetup || ''))")"
+@@ -30,3 +34,11 @@ heartbeat () {
+   done
+ }
+ setup_logs () {
++  if [ "$ALPINE_CLOUDWATCH_AGENT_LOG_SETUP" = "ssm" ]; then
++    # PATCH(imjoshin): Alpine runner instances get their CloudWatch Agent
++    # config from a provider-specific SSM association. Avoid a second
++    # bootstrap-time fetch-config because the agent merges those files and
++    # fails when they both configure metrics.
++    return 0
++  fi
++
+@@ -68,1 +80,1 @@ action () {
 -  sudo --preserve-env=AWS_REGION -Hu runner /home/runner/run.sh || exit 2
-+  sudo --preserve-env=AWS_REGION,USER_DATA_EXTRA,ALPINE_RUNNER_TAG -Hu runner /home/runner/run.sh || exit 2
- 
-   # Retrieve the status
-   STATUS=$(grep -Phors "finish job request for job [0-9a-f\\-]+ with result: \K.*" /home/runner/_diag/ | tail -n1)
-@@ -94,6 +95,7 @@ $repoPath="{}"
++  sudo --preserve-env=AWS_REGION,USER_DATA_EXTRA,ALPINE_RUNNER_TAG,ALPINE_CLOUDWATCH_AGENT_LOG_SETUP -Hu runner /home/runner/run.sh || exit 2
+@@ -74,7 +86,7 @@ action () {
+   [ -n "$STATUS" ] && echo CDKGHA JOB DONE "$labels" "$STATUS"
+ }
+ heartbeat &
+-if setup_logs && action | tee /var/log/runner.log 2>&1; then
++if setup_logs && action 2>&1 | tee /var/log/runner.log; then
+   aws stepfunctions send-task-success --task-token "$TASK_TOKEN" --task-output '{"ok": true}'
+ else
+   aws stepfunctions send-task-failure --task-token "$TASK_TOKEN"
+@@ -94,3 +106,4 @@ $repoPath="{}"
  $runnerTokenPath="{}"
  $labels="{}"
  $registrationURL="{}"
 +$USER_DATA_EXTRA="{}"
- 
- # EC2Launch only starts ssm agent after user data is done, so we need to start it ourselves (it is disabled by default)
- Set-Service -StartupType Manual AmazonSSMAgent
-@@ -236,6 +238,8 @@ class Ec2RunnerProvider extends common_1.BaseProvider {
+@@ -236,6 +249,8 @@ class Ec2RunnerProvider extends common_1.BaseProvider {
              removalPolicy: aws_cdk_lib_1.RemovalPolicy.DESTROY,
          });
          this.logGroup.grantWrite(this);
@@ -54,7 +513,7 @@ index d1a6f14ad2a72fc3abd53cec9c197ed9d28eb019..fde524ec479f28df03a6cc828833bc40
      }
      /**
       * Generate step function task(s) to start a new runner.
-@@ -256,6 +260,7 @@ class Ec2RunnerProvider extends common_1.BaseProvider {
+@@ -256,6 +271,7 @@ class Ec2RunnerProvider extends common_1.BaseProvider {
              parameters.runnerTokenPath,
              this.labels.join(','),
              parameters.registrationUrl,
@@ -62,7 +521,7 @@ index d1a6f14ad2a72fc3abd53cec9c197ed9d28eb019..fde524ec479f28df03a6cc828833bc40
          ];
          const passUserData = new aws_cdk_lib_1.aws_stepfunctions.Pass(this, `${this.labels.join(', ')} data`, {
              parameters: {
-@@ -316,8 +321,11 @@ class Ec2RunnerProvider extends common_1.BaseProvider {
+@@ -316,10 +332,13 @@ class Ec2RunnerProvider extends common_1.BaseProvider {
                      TagSpecifications: [
                          {
                              ResourceType: 'instance',
@@ -76,11 +535,13 @@ index d1a6f14ad2a72fc3abd53cec9c197ed9d28eb019..fde524ec479f28df03a6cc828833bc40
 +                                ...this.extraTags.map(t => ({Key: t.key, Value: t.value})),
 +                            ],
                          },
+                         {
+                             ResourceType: 'volume',
 diff --git a/lib/runner.js b/lib/runner.js
-index 873389efcb92bfd53137a3a2834ac2093d7975c0..dd60e7f1588dfaf159d6a8115f9b4f46a415bb94 100644
+index fe87fd2691ca088359a1a3ab91ac16e483aee8d3..8f0f828f8c0a521c818a2ff9263c669bf51772eb 100644
 --- a/lib/runner.js
 +++ b/lib/runner.js
-@@ -99,6 +99,7 @@ class GithubRunners extends constructs_1.Construct {
+@@ -99,6 +99,7 @@ class GitHubRunners extends constructs_1.Construct {
                  return {
                      provider: p.node.path,
                      labels: p.labels,
@@ -88,24 +549,32 @@ index 873389efcb92bfd53137a3a2834ac2093d7975c0..dd60e7f1588dfaf159d6a8115f9b4f46
                  };
              }),
              requireSelfHostedLabel: this.props?.requireSelfHostedLabel ?? true,
-diff --git a/lib/webhook.d.ts b/lib/webhook.d.ts
-index 98e06d64ddd7b21ef8a6e3eb19ee64824c9465eb..115867e06c94ea399c1f49e20120e6c1b983065e 100644
---- a/lib/webhook.d.ts
-+++ b/lib/webhook.d.ts
-@@ -8,6 +8,9 @@ import { WebhookHandlerFunction } from './webhook-handler-function';
- export interface SupportedLabels {
-     readonly provider: string;
-     readonly labels: string[];
-+    // PATCH(imjoshin): Allow providers to accept dynamic per-job labels
-+    // without listing every generated label in CDK.
-+    readonly dynamicLabelPrefixes?: string[];
+diff --git a/lib/token-retriever.lambda.js b/lib/token-retriever.lambda.js
+index c799d3e808eaea49fac2ac227ded4c5032f6c1e1..5c437604d33e0915930ecec55c69902c7630faf9 100644
+--- a/lib/token-retriever.lambda.js
++++ b/lib/token-retriever.lambda.js
+@@ -11,7 +11,7 @@ class RunnerTokenError extends Error {
  }
- /**
-  * Properties for GithubWebhookHandler
+ async function handler(event) {
+     try {
+-        const { githubSecrets, octokit, } = await (0, lambda_github_1.getOctokit)(event.installationId);
++        const { githubSecrets, octokit, } = await (0, lambda_github_1.getOctokit)(event.installationId, event.owner, event.repo);
+         let token;
+         let registrationUrl;
+         if (githubSecrets.runnerLevel === 'repo' || githubSecrets.runnerLevel === undefined) {
 diff --git a/lib/webhook-handler.lambda.js b/lib/webhook-handler.lambda.js
-index d4a078cd5ada2d4dfcc29f6cd64de3915fb89a93..f50c516d50b5b0c33ff41773929c9e2f2332e6b7 100644
+index 646704b3dc9cddd13e51082ac30e18f7790a62a1..d2c6a68378ca75a30100e51d9a11f83b872f9136 100644
 --- a/lib/webhook-handler.lambda.js
 +++ b/lib/webhook-handler.lambda.js
+@@ -48,7 +48,7 @@ async function isDeploymentPending(payload) {
+         return false;
+     }
+     try {
+-        const { octokit } = await (0, lambda_github_1.getOctokit)(payload.installation?.id);
++        const { octokit } = await (0, lambda_github_1.getOctokit)(payload.installation?.id, payload.repository.owner.login, payload.repository.name);
+         const statuses = await octokit.request(statusesUrl);
+         return statuses.data[0]?.state === 'waiting';
+     }
 @@ -63,7 +63,11 @@ function matchLabelsToProvider(labels) {
      // is every label the job requires available in the runner provider?
      for (const supportedLabelSet of supportedLabels) {
@@ -119,17 +588,17 @@ index d4a078cd5ada2d4dfcc29f6cd64de3915fb89a93..f50c516d50b5b0c33ff41773929c9e2f
              return supportedLabelSet.provider;
          }
      }
-diff --git a/assets/webhook-handler.lambda/index.js b/assets/webhook-handler.lambda/index.js
-index e8ac7a183da38b466929db472c4c6ff328dfc09f..0a8a77d1fd67925cf9231e8a8fc7cd21718c5b18 100644
---- a/assets/webhook-handler.lambda/index.js
-+++ b/assets/webhook-handler.lambda/index.js
-@@ -13282,7 +13282,8 @@ function matchLabelsToProvider(labels) {
-   const supportedLabels = JSON.parse(process.env.SUPPORTED_LABELS);
-   for (const supportedLabelSet of supportedLabels) {
-     const lowerCasedSupportedLabelSet = supportedLabelSet.labels.map((label) => label.toLowerCase());
--    if (jobLabelSet.every((label) => label == "self-hosted" || lowerCasedSupportedLabelSet.includes(label))) {
-+    const lowerCasedDynamicLabelPrefixes = (supportedLabelSet.dynamicLabelPrefixes ?? []).map((labelPrefix) => labelPrefix.toLowerCase());
-+    if (jobLabelSet.every((label) => label == "self-hosted" || lowerCasedSupportedLabelSet.includes(label) || lowerCasedDynamicLabelPrefixes.some((labelPrefix) => label.startsWith(labelPrefix)))) {
-       return supportedLabelSet.provider;
-     }
-   }
+diff --git a/lib/webhook.d.ts b/lib/webhook.d.ts
+index f7bffd3fcf98d820e2dcdaa533961b84d524b689..a9a5ba2d3e6f1fb08bbfcf9f03a9200ef08c9e06 100644
+--- a/lib/webhook.d.ts
++++ b/lib/webhook.d.ts
+@@ -9,6 +9,9 @@ import { WebhookHandlerFunction } from './webhook-handler-function';
+ export interface SupportedLabels {
+     readonly provider: string;
+     readonly labels: string[];
++    // PATCH(imjoshin): Allow providers to accept dynamic per-job labels
++    // without listing every generated label in CDK.
++    readonly dynamicLabelPrefixes?: string[];
+ }
+ /**
+  * Properties for GithubWebhookHandler

@@ -165,7 +165,7 @@ paths:
                       type: integer
                       minimum: 1
                       maximum: 100
-                      default: 20
+                      default: 10
                 - name: cursor
                   in: query
                   schema:
@@ -837,6 +837,50 @@ paths:
                                         $ref: "#/components/schemas/Channel_Response"
                 default:
                     $ref: "#/components/responses/Error"
+    /channels/{id}/posts:
+        parameters:
+            - name: id
+              in: path
+              required: true
+              schema:
+                  $ref: "#/components/schemas/ChannelId"
+        get:
+            parameters:
+                - name: limit
+                  in: query
+                  schema:
+                      type: integer
+                      minimum: 1
+                      maximum: 100
+                      default: 10
+                - name: cursor
+                  in: query
+                  schema:
+                      $ref: "#/components/schemas/DateTime"
+            responses:
+                "200":
+                    content:
+                        application/json:
+                            schema:
+                                type: object
+                                required:
+                                    - spaceId
+                                    - nextCursor
+                                    - posts
+                                additionalProperties: false
+                                properties:
+                                    spaceId:
+                                        $ref: "#/components/schemas/SpaceId"
+                                    nextCursor:
+                                        oneOf:
+                                            - $ref: "#/components/schemas/DateTime"
+                                            - type: "null"
+                                    posts:
+                                        type: array
+                                        items:
+                                            $ref: "#/components/schemas/PostPreview"
+                default:
+                    $ref: "#/components/responses/Error"
     /channels/{id}/mention:
         parameters:
             - name: id
@@ -1116,6 +1160,40 @@ paths:
                                             $ref: "#/components/schemas/SearchResult"
                 default:
                     $ref: "#/components/responses/Error"
+    /sites/{id}/mention:
+        parameters:
+            - name: id
+              in: path
+              required: true
+              schema:
+                  $ref: "#/components/schemas/SiteId"
+        get:
+            responses:
+                "200":
+                    content:
+                        application/json:
+                            schema:
+                                type: object
+                                required:
+                                    - spaceId
+                                    - mention
+                                additionalProperties: false
+                                properties:
+                                    spaceId:
+                                        $ref: "#/components/schemas/SpaceId"
+                                    mention:
+                                        type: object
+                                        required:
+                                            - target
+                                            - title
+                                        additionalProperties: false
+                                        properties:
+                                            target:
+                                                $ref: "#/components/schemas/SiteMentionTarget"
+                                            title:
+                                                type: string
+                default:
+                    $ref: "#/components/responses/Error"
     /tasks:
         post:
             requestBody:
@@ -1165,6 +1243,14 @@ paths:
                                                 - Medium
                                                 - High
                                                 - Urgent
+                                        layout:
+                                            $ref: "#/components/schemas/TaskLayout"
+                                        parent:
+                                            $ref: "#/components/schemas/TaskParent"
+                                        collections:
+                                            type: array
+                                            items:
+                                                $ref: "#/components/schemas/TaskCollectionItem"
                                         content:
                                             $ref: "#/components/schemas/Content"
             responses:
@@ -1190,6 +1276,14 @@ paths:
                                 - patches
                             additionalProperties: false
                             properties:
+                                actor:
+                                    type: object
+                                    required:
+                                        - id
+                                    additionalProperties: false
+                                    properties:
+                                        id:
+                                            $ref: "#/components/schemas/AccountId"
                                 patches:
                                     type: array
                                     minItems: 1
@@ -1204,6 +1298,46 @@ paths:
             responses:
                 "200":
                     $ref: "#/components/responses/GetTask"
+                default:
+                    $ref: "#/components/responses/Error"
+    /tasks/{id}/notes:
+        parameters:
+            - name: id
+              in: path
+              required: true
+              schema:
+                  $ref: "#/components/schemas/TaskId"
+        patch:
+            requestBody:
+                required: true
+                content:
+                    application/json:
+                        schema:
+                            type: object
+                            required:
+                                - notes
+                            additionalProperties: false
+                            properties:
+                                notes:
+                                    type: object
+                                    required:
+                                        - version
+                                        - content
+                                    additionalProperties: false
+                                    properties:
+                                        version:
+                                            type: integer
+                                        content:
+                                            $ref: "#/components/schemas/Content"
+            responses:
+                "200":
+                    $ref: "#/components/responses/GetTaskNotes"
+                default:
+                    $ref: "#/components/responses/Error"
+        get:
+            responses:
+                "200":
+                    $ref: "#/components/responses/GetTaskNotes"
                 default:
                     $ref: "#/components/responses/Error"
     /tasks/{id}/mention:
@@ -1456,6 +1590,14 @@ paths:
                                 - patches
                             additionalProperties: false
                             properties:
+                                actor:
+                                    type: object
+                                    required:
+                                        - id
+                                    additionalProperties: false
+                                    properties:
+                                        id:
+                                            $ref: "#/components/schemas/AccountId"
                                 patches:
                                     type: array
                                     minItems: 1
@@ -1568,8 +1710,8 @@ paths:
                                 type: object
                                 required:
                                     - spaceId
-                                    - tasks
                                     - nextCursor
+                                    - tasks
                                 additionalProperties: false
                                 properties:
                                     spaceId:
@@ -1581,7 +1723,7 @@ paths:
                                     tasks:
                                         type: array
                                         items:
-                                            $ref: "#/components/schemas/TaskWithoutContent"
+                                            $ref: "#/components/schemas/TaskWithoutNotes"
                 default:
                     $ref: "#/components/responses/Error"
     /files/{id}:
@@ -1733,6 +1875,20 @@ components:
                                 $ref: "#/components/schemas/SpaceId"
                             task:
                                 $ref: "#/components/schemas/Task_Response"
+        GetTaskNotes:
+            content:
+                application/json:
+                    schema:
+                        type: object
+                        required:
+                            - spaceId
+                            - notes
+                        additionalProperties: false
+                        properties:
+                            spaceId:
+                                $ref: "#/components/schemas/SpaceId"
+                            notes:
+                                $ref: "#/components/schemas/TaskNotes_Response"
         GetMessage:
             content:
                 application/json:
@@ -1909,6 +2065,9 @@ components:
         PostId:
             type: string
             pattern: ^[0-9abcdefghjkmnpqrstvwxyz]{25}[0-9abcdefghjkmnpqrstvw]$
+        SiteId:
+            type: string
+            pattern: ^[0-9abcdefghjkmnpqrstvwxyz]{25}[0-9abcdefghjkmnpqrstvw]$
         SpaceId:
             type: string
             pattern: ^[0-9abcdefghjkmnpqrstvwxyz]{25}[0-9abcdefghjkmnpqrstvw]$
@@ -1918,6 +2077,9 @@ components:
         TaskCollectionId:
             type: string
             pattern: ^[0-9abcdefghjkmnpqrstvwxyz]{25}[0-9abcdefghjkmnpqrstvw]$
+        ContentKey:
+            type: string
+            minLength: 1
         TaskCollectionColor:
             type: string
             enum:
@@ -1985,6 +2147,17 @@ components:
                     const: Post
                 id:
                     $ref: "#/components/schemas/PostId"
+        SiteMentionTarget:
+            type: object
+            required:
+                - type
+                - id
+            additionalProperties: false
+            properties:
+                type:
+                    const: Site
+                id:
+                    $ref: "#/components/schemas/SiteId"
         TaskMentionTarget:
             type: object
             required:
@@ -2028,6 +2201,7 @@ components:
                 - $ref: "#/components/schemas/ChatMentionTarget"
                 - $ref: "#/components/schemas/DocumentMentionTarget"
                 - $ref: "#/components/schemas/PostMentionTarget"
+                - $ref: "#/components/schemas/SiteMentionTarget"
                 - $ref: "#/components/schemas/TaskMentionTarget"
                 - $ref: "#/components/schemas/TaskCollectionMentionTarget"
             discriminator:
@@ -2038,6 +2212,7 @@ components:
                     Chat: "#/components/schemas/ChatMentionTarget"
                     Document: "#/components/schemas/DocumentMentionTarget"
                     Post: "#/components/schemas/PostMentionTarget"
+                    Site: "#/components/schemas/SiteMentionTarget"
                     Task: "#/components/schemas/TaskMentionTarget"
                     TaskCollection: "#/components/schemas/TaskCollectionMentionTarget"
         PreviewTarget:
@@ -2046,6 +2221,7 @@ components:
                 - $ref: "#/components/schemas/ChatMentionTarget"
                 - $ref: "#/components/schemas/DocumentMentionTarget"
                 - $ref: "#/components/schemas/PostMentionTarget"
+                - $ref: "#/components/schemas/SiteMentionTarget"
                 - $ref: "#/components/schemas/TaskMentionTarget"
                 - $ref: "#/components/schemas/TaskCollectionMentionTarget"
             discriminator:
@@ -2055,6 +2231,7 @@ components:
                     Chat: "#/components/schemas/ChatMentionTarget"
                     Document: "#/components/schemas/DocumentMentionTarget"
                     Post: "#/components/schemas/PostMentionTarget"
+                    Site: "#/components/schemas/SiteMentionTarget"
                     Task: "#/components/schemas/TaskMentionTarget"
                     TaskCollection: "#/components/schemas/TaskCollectionMentionTarget"
         Content:
@@ -2107,10 +2284,28 @@ components:
             properties:
                 type:
                     const: Paragraph
+                key:
+                    $ref: "#/components/schemas/ContentKey"
                 elements:
                     type: array
                     items:
                         $ref: "#/components/schemas/ContentInlineElement"
+        ContentParagraphBlockElement_Response:
+            type: object
+            required:
+                - type
+                - key
+                - elements
+            additionalProperties: false
+            properties:
+                type:
+                    const: Paragraph
+                key:
+                    $ref: "#/components/schemas/ContentKey"
+                elements:
+                    type: array
+                    items:
+                        $ref: "#/components/schemas/ContentInlineElement_Response"
         ContentListBlockElement:
             oneOf:
                 - $ref: "#/components/schemas/ContentUnorderedListBlockElement"
@@ -2235,6 +2430,8 @@ components:
             properties:
                 type:
                     const: Heading
+                key:
+                    $ref: "#/components/schemas/ContentKey"
                 level:
                     type: integer
                     minimum: 1
@@ -2243,6 +2440,27 @@ components:
                     type: array
                     items:
                         $ref: "#/components/schemas/ContentInlineElement"
+        ContentHeadingBlockElement_Response:
+            type: object
+            required:
+                - type
+                - key
+                - level
+                - elements
+            additionalProperties: false
+            properties:
+                type:
+                    const: Heading
+                key:
+                    $ref: "#/components/schemas/ContentKey"
+                level:
+                    type: integer
+                    minimum: 1
+                    maximum: 3
+                elements:
+                    type: array
+                    items:
+                        $ref: "#/components/schemas/ContentInlineElement_Response"
         ContentDividerBlockElement:
             type: object
             required:
@@ -2387,6 +2605,8 @@ components:
                 - elements
             additionalProperties: false
             properties:
+                key:
+                    $ref: "#/components/schemas/ContentKey"
                 elements:
                     type: array
                     items:
@@ -3644,24 +3864,27 @@ components:
             required:
                 - id
                 - author
-                - contentPreview
+                - createdTime
+                - createdTimeZone
             additionalProperties: false
             properties:
                 id:
                     $ref: "#/components/schemas/PostId"
                 author:
                     $ref: "#/components/schemas/Account"
+                createdTime:
+                    $ref: "#/components/schemas/DateTime"
+                createdTimeZone:
+                    $ref: "#/components/schemas/TimeZone"
                 channel:
                     $ref: "#/components/schemas/ChannelPreview"
-                contentPreview:
-                    type: string
         Task:
             type: object
             required:
                 - id
                 - status
                 - title
-                - content
+                - notes
             additionalProperties: false
             properties:
                 id:
@@ -3690,9 +3913,17 @@ components:
                         - Medium
                         - High
                         - Urgent
-                content:
-                    $ref: "#/components/schemas/Content"
-        TaskWithoutContent:
+                layout:
+                    $ref: "#/components/schemas/TaskLayout"
+                parent:
+                    $ref: "#/components/schemas/TaskParent"
+                collections:
+                    type: array
+                    items:
+                        $ref: "#/components/schemas/TaskCollectionItem"
+                notes:
+                    $ref: "#/components/schemas/TaskNotes"
+        TaskWithoutNotes:
             type: object
             required:
                 - id
@@ -3726,6 +3957,14 @@ components:
                         - Medium
                         - High
                         - Urgent
+                layout:
+                    $ref: "#/components/schemas/TaskLayout"
+                parent:
+                    $ref: "#/components/schemas/TaskParent"
+                collections:
+                    type: array
+                    items:
+                        $ref: "#/components/schemas/TaskCollectionItem"
         TaskPreview:
             type: object
             required:
@@ -3749,6 +3988,54 @@ components:
                 date:
                     type: string
                     format: date
+        TaskNotes:
+            type: object
+            required:
+                - version
+                - content
+            additionalProperties: false
+            properties:
+                version:
+                    type: integer
+                    minimum: 0
+                content:
+                    $ref: "#/components/schemas/Content"
+        TaskLayout:
+            type: object
+            required:
+                - type
+            additionalProperties: false
+            properties:
+                type:
+                    const: Project
+        TaskParent:
+            type: object
+            required:
+                - task
+            additionalProperties: false
+            properties:
+                task:
+                    type: object
+                    required:
+                        - id
+                    additionalProperties: false
+                    properties:
+                        id:
+                            $ref: "#/components/schemas/TaskId"
+        TaskCollectionItem:
+            type: object
+            required:
+                - collection
+            additionalProperties: false
+            properties:
+                collection:
+                    type: object
+                    required:
+                        - id
+                    additionalProperties: false
+                    properties:
+                        id:
+                            $ref: "#/components/schemas/TaskCollectionId"
         TaskPatch:
             oneOf:
                 - $ref: "#/components/schemas/TaskSetTitlePatch"
@@ -3756,6 +4043,8 @@ components:
                 - $ref: "#/components/schemas/TaskSetStatusPatch"
                 - $ref: "#/components/schemas/TaskSetDueDatePatch"
                 - $ref: "#/components/schemas/TaskSetPriorityPatch"
+                - $ref: "#/components/schemas/TaskSetLayoutPatch"
+                - $ref: "#/components/schemas/TaskSetParentPatch"
                 - $ref: "#/components/schemas/TaskAddCollectionPatch"
                 - $ref: "#/components/schemas/TaskRemoveCollectionPatch"
             discriminator:
@@ -3766,6 +4055,8 @@ components:
                     SetStatus: "#/components/schemas/TaskSetStatusPatch"
                     SetDueDate: "#/components/schemas/TaskSetDueDatePatch"
                     SetPriority: "#/components/schemas/TaskSetPriorityPatch"
+                    SetLayout: "#/components/schemas/TaskSetLayoutPatch"
+                    SetParent: "#/components/schemas/TaskSetParentPatch"
                     AddCollection: "#/components/schemas/TaskAddCollectionPatch"
                     RemoveCollection: "#/components/schemas/TaskRemoveCollectionPatch"
         TaskSetTitlePatch:
@@ -3834,17 +4125,43 @@ components:
                               - High
                               - Urgent
                         - type: "null"
+        TaskSetLayoutPatch:
+            type: object
+            required:
+                - type
+                - layout
+            additionalProperties: false
+            properties:
+                type:
+                    const: SetLayout
+                layout:
+                    oneOf:
+                        - $ref: "#/components/schemas/TaskLayout"
+                        - type: "null"
+        TaskSetParentPatch:
+            type: object
+            required:
+                - type
+                - parent
+            additionalProperties: false
+            properties:
+                type:
+                    const: SetParent
+                parent:
+                    oneOf:
+                        - $ref: "#/components/schemas/TaskParent"
+                        - type: "null"
         TaskAddCollectionPatch:
             type: object
             required:
                 - type
-                - collectionId
+                - item
             additionalProperties: false
             properties:
                 type:
                     const: AddCollection
-                collectionId:
-                    $ref: "#/components/schemas/TaskCollectionId"
+                item:
+                    $ref: "#/components/schemas/TaskCollectionItem"
         TaskRemoveCollectionPatch:
             type: object
             required:
@@ -4456,6 +4773,7 @@ components:
                 - $ref: "#/components/schemas/SearchDocumentMessageResult"
                 - $ref: "#/components/schemas/SearchPostResult"
                 - $ref: "#/components/schemas/SearchPostMessageResult"
+                - $ref: "#/components/schemas/SearchSiteResult"
                 - $ref: "#/components/schemas/SearchTaskResult"
                 - $ref: "#/components/schemas/SearchTaskMessageResult"
                 - $ref: "#/components/schemas/SearchTaskCollectionResult"
@@ -4470,6 +4788,7 @@ components:
                     DocumentMessage: "#/components/schemas/SearchDocumentMessageResult"
                     Post: "#/components/schemas/SearchPostResult"
                     PostMessage: "#/components/schemas/SearchPostMessageResult"
+                    Site: "#/components/schemas/SearchSiteResult"
                     Task: "#/components/schemas/SearchTaskResult"
                     TaskMessage: "#/components/schemas/SearchTaskMessageResult"
                     TaskCollection: "#/components/schemas/SearchTaskCollectionResult"
@@ -4662,6 +4981,25 @@ components:
                     $ref: "#/components/schemas/Account"
                 parsedFilter:
                     $ref: "#/components/schemas/SearchResultParsedFilter"
+        SearchSiteResult:
+            type: object
+            required:
+                - title
+                - bodyMatch
+                - type
+                - id
+            additionalProperties: false
+            properties:
+                title:
+                    type: string
+                bodyMatch:
+                    const: null
+                type:
+                    const: Site
+                id:
+                    $ref: "#/components/schemas/SiteId"
+                parsedFilter:
+                    $ref: "#/components/schemas/SearchResultParsedFilter"
         SearchTaskResult:
             type: object
             required:
@@ -4760,6 +5098,7 @@ components:
                 - $ref: "#/components/schemas/ChatMentionTarget"
                 - $ref: "#/components/schemas/DocumentMentionTarget"
                 - $ref: "#/components/schemas/PostMentionTarget"
+                - $ref: "#/components/schemas/SiteMentionTarget"
                 - $ref: "#/components/schemas/TaskMentionTarget_Response"
                 - $ref: "#/components/schemas/TaskCollectionMentionTarget"
             discriminator:
@@ -4770,6 +5109,7 @@ components:
                     Chat: "#/components/schemas/ChatMentionTarget"
                     Document: "#/components/schemas/DocumentMentionTarget"
                     Post: "#/components/schemas/PostMentionTarget"
+                    Site: "#/components/schemas/SiteMentionTarget"
                     Task: "#/components/schemas/TaskMentionTarget_Response"
                     TaskCollection: "#/components/schemas/TaskCollectionMentionTarget"
         PreviewTarget_Response:
@@ -4778,6 +5118,7 @@ components:
                 - $ref: "#/components/schemas/ChatMentionTarget"
                 - $ref: "#/components/schemas/DocumentMentionTarget"
                 - $ref: "#/components/schemas/PostMentionTarget"
+                - $ref: "#/components/schemas/SiteMentionTarget"
                 - $ref: "#/components/schemas/TaskMentionTarget_Response"
                 - $ref: "#/components/schemas/TaskCollectionMentionTarget"
             discriminator:
@@ -4787,6 +5128,7 @@ components:
                     Chat: "#/components/schemas/ChatMentionTarget"
                     Document: "#/components/schemas/DocumentMentionTarget"
                     Post: "#/components/schemas/PostMentionTarget"
+                    Site: "#/components/schemas/SiteMentionTarget"
                     Task: "#/components/schemas/TaskMentionTarget_Response"
                     TaskCollection: "#/components/schemas/TaskCollectionMentionTarget"
         ContentBlockElement_Response:
@@ -4820,6 +5162,50 @@ components:
                     FileGallery: "#/components/schemas/ContentFileGalleryBlockElement_Response"
                     FileFloat: "#/components/schemas/ContentFileFloatBlockElement_Response"
                     Preview: "#/components/schemas/ContentPreviewBlockElement_Response"
+        ContentListBlockElementItem_Response:
+            type: object
+            required:
+                - elements
+            additionalProperties: false
+            properties:
+                elements:
+                    type: array
+                    items:
+                        $ref: "#/components/schemas/ContentParagraphBlockElement_Response"
+                nestedListElements:
+                    type: array
+                    items:
+                        $ref: "#/components/schemas/ContentListBlockElement_Response"
+        ContentCheckListBlockElementItem_Response:
+            type: object
+            required:
+                - checked
+                - elements
+            additionalProperties: false
+            properties:
+                checked:
+                    type: boolean
+                elements:
+                    type: array
+                    items:
+                        $ref: "#/components/schemas/ContentParagraphBlockElement_Response"
+                nestedListElements:
+                    type: array
+                    items:
+                        $ref: "#/components/schemas/ContentListBlockElement_Response"
+        ContentQuoteBlockElementBlockElement_Response:
+            oneOf:
+                - $ref: "#/components/schemas/ContentParagraphBlockElement_Response"
+                - $ref: "#/components/schemas/ContentUnorderedListBlockElement_Response"
+                - $ref: "#/components/schemas/ContentOrderedListBlockElement_Response"
+                - $ref: "#/components/schemas/ContentCheckListBlockElement_Response"
+            discriminator:
+                propertyName: type
+                mapping:
+                    Paragraph: "#/components/schemas/ContentParagraphBlockElement_Response"
+                    UnorderedList: "#/components/schemas/ContentUnorderedListBlockElement_Response"
+                    OrderedList: "#/components/schemas/ContentOrderedListBlockElement_Response"
+                    CheckList: "#/components/schemas/ContentCheckListBlockElement_Response"
         ContentTableBlockElementCellBlockElement_Response:
             oneOf:
                 - $ref: "#/components/schemas/ContentParagraphBlockElement_Response"
@@ -4929,37 +5315,65 @@ components:
                     type: array
                     items:
                         $ref: "#/components/schemas/ContentBlockElement_Response"
-        ContentParagraphBlockElement_Response:
+        ContentUnorderedListBlockElement_Response:
             type: object
             required:
                 - type
-                - elements
+                - items
             additionalProperties: false
             properties:
                 type:
-                    const: Paragraph
-                elements:
+                    const: UnorderedList
+                items:
                     type: array
+                    minItems: 1
                     items:
-                        $ref: "#/components/schemas/ContentInlineElement_Response"
-        ContentHeadingBlockElement_Response:
+                        $ref: "#/components/schemas/ContentListBlockElementItem_Response"
+        ContentOrderedListBlockElement_Response:
             type: object
             required:
                 - type
-                - level
-                - elements
+                - items
             additionalProperties: false
             properties:
                 type:
-                    const: Heading
-                level:
+                    const: OrderedList
+                orderStart:
                     type: integer
                     minimum: 1
-                    maximum: 3
+                items:
+                    type: array
+                    minItems: 1
+                    items:
+                        $ref: "#/components/schemas/ContentListBlockElementItem_Response"
+        ContentCheckListBlockElement_Response:
+            type: object
+            required:
+                - type
+                - items
+            additionalProperties: false
+            properties:
+                type:
+                    const: CheckList
+                items:
+                    type: array
+                    minItems: 1
+                    items:
+                        $ref: "#/components/schemas/ContentCheckListBlockElementItem_Response"
+        ContentQuoteBlockElement_Response:
+            type: object
+            required:
+                - type
+                - elements
+            additionalProperties: false
+            properties:
+                type:
+                    const: Quote
                 elements:
                     type: array
+                    minItems: 1
                     items:
-                        $ref: "#/components/schemas/ContentInlineElement_Response"
+                        $ref: "#/components/schemas/ContentQuoteBlockElementBlockElement_Response"
         ContentTableBlockElementCell_Response:
             type: object
             required:
@@ -5054,47 +5468,14 @@ components:
                     $ref: "#/components/schemas/MentionTarget_Response"
                 parent:
                     $ref: "#/components/schemas/BotWebhookNewMessageEventParent"
-        ContentListBlockElementItem_Response:
-            type: object
-            required:
-                - elements
-            additionalProperties: false
-            properties:
-                elements:
-                    type: array
-                    items:
-                        $ref: "#/components/schemas/ContentParagraphBlockElement_Response"
-                nestedListElements:
-                    type: array
-                    items:
-                        $ref: "#/components/schemas/ContentListBlockElement_Response"
-        ContentCheckListBlockElementItem_Response:
-            type: object
-            required:
-                - checked
-                - elements
-            additionalProperties: false
-            properties:
-                checked:
-                    type: boolean
-                elements:
-                    type: array
-                    items:
-                        $ref: "#/components/schemas/ContentParagraphBlockElement_Response"
-                nestedListElements:
-                    type: array
-                    items:
-                        $ref: "#/components/schemas/ContentListBlockElement_Response"
-        ContentQuoteBlockElementBlockElement_Response:
+        ContentListBlockElement_Response:
             oneOf:
-                - $ref: "#/components/schemas/ContentParagraphBlockElement_Response"
                 - $ref: "#/components/schemas/ContentUnorderedListBlockElement_Response"
                 - $ref: "#/components/schemas/ContentOrderedListBlockElement_Response"
                 - $ref: "#/components/schemas/ContentCheckListBlockElement_Response"
             discriminator:
                 propertyName: type
                 mapping:
-                    Paragraph: "#/components/schemas/ContentParagraphBlockElement_Response"
                     UnorderedList: "#/components/schemas/ContentUnorderedListBlockElement_Response"
                     OrderedList: "#/components/schemas/ContentOrderedListBlockElement_Response"
                     CheckList: "#/components/schemas/ContentCheckListBlockElement_Response"
@@ -5200,41 +5581,16 @@ components:
                     $ref: "#/components/schemas/Content_Response"
                 contentPreview:
                     type: string
-        Task_Response:
+        TaskNotes_Response:
             type: object
             required:
-                - id
-                - status
-                - title
+                - version
                 - content
             additionalProperties: false
             properties:
-                id:
-                    $ref: "#/components/schemas/TaskId"
-                creator:
-                    type: object
-                    required:
-                        - id
-                    additionalProperties: false
-                    properties:
-                        id:
-                            $ref: "#/components/schemas/AccountId"
-                status:
-                    $ref: "#/components/schemas/TaskStatus"
-                title:
-                    type: string
-                    maxLength: 512
-                assignee:
-                    $ref: "#/components/schemas/Account"
-                due:
-                    $ref: "#/components/schemas/TaskDueDate"
-                priority:
-                    type: string
-                    enum:
-                        - Low
-                        - Medium
-                        - High
-                        - Urgent
+                version:
+                    type: integer
+                    minimum: 0
                 content:
                     $ref: "#/components/schemas/Content_Response"
         MessageStreamContentPartPayload_Response:
@@ -5280,65 +5636,6 @@ components:
                 mapping:
                     NewMessage: "#/components/schemas/BotWebhookNewMessageEvent_Response"
                     NewPost: "#/components/schemas/BotWebhookNewPostEvent"
-        ContentUnorderedListBlockElement_Response:
-            type: object
-            required:
-                - type
-                - items
-            additionalProperties: false
-            properties:
-                type:
-                    const: UnorderedList
-                items:
-                    type: array
-                    minItems: 1
-                    items:
-                        $ref: "#/components/schemas/ContentListBlockElementItem_Response"
-        ContentOrderedListBlockElement_Response:
-            type: object
-            required:
-                - type
-                - items
-            additionalProperties: false
-            properties:
-                type:
-                    const: OrderedList
-                orderStart:
-                    type: integer
-                    minimum: 1
-                items:
-                    type: array
-                    minItems: 1
-                    items:
-                        $ref: "#/components/schemas/ContentListBlockElementItem_Response"
-        ContentCheckListBlockElement_Response:
-            type: object
-            required:
-                - type
-                - items
-            additionalProperties: false
-            properties:
-                type:
-                    const: CheckList
-                items:
-                    type: array
-                    minItems: 1
-                    items:
-                        $ref: "#/components/schemas/ContentCheckListBlockElementItem_Response"
-        ContentQuoteBlockElement_Response:
-            type: object
-            required:
-                - type
-                - elements
-            additionalProperties: false
-            properties:
-                type:
-                    const: Quote
-                elements:
-                    type: array
-                    minItems: 1
-                    items:
-                        $ref: "#/components/schemas/ContentQuoteBlockElementBlockElement_Response"
         ContentTableBlockElement_Response:
             type: object
             required:
@@ -5372,6 +5669,51 @@ components:
                     minItems: 1
                     items:
                         $ref: "#/components/schemas/ContentTableBlockElementRow_Response"
+        Task_Response:
+            type: object
+            required:
+                - id
+                - status
+                - title
+                - notes
+            additionalProperties: false
+            properties:
+                id:
+                    $ref: "#/components/schemas/TaskId"
+                creator:
+                    type: object
+                    required:
+                        - id
+                    additionalProperties: false
+                    properties:
+                        id:
+                            $ref: "#/components/schemas/AccountId"
+                status:
+                    $ref: "#/components/schemas/TaskStatus"
+                title:
+                    type: string
+                    maxLength: 512
+                assignee:
+                    $ref: "#/components/schemas/Account"
+                due:
+                    $ref: "#/components/schemas/TaskDueDate"
+                priority:
+                    type: string
+                    enum:
+                        - Low
+                        - Medium
+                        - High
+                        - Urgent
+                layout:
+                    $ref: "#/components/schemas/TaskLayout"
+                parent:
+                    $ref: "#/components/schemas/TaskParent"
+                collections:
+                    type: array
+                    items:
+                        $ref: "#/components/schemas/TaskCollectionItem"
+                notes:
+                    $ref: "#/components/schemas/TaskNotes_Response"
         MessageStreamPartPayload_Response:
             oneOf:
                 - $ref: "#/components/schemas/MessageStreamContentPartPayload_Response"
@@ -5394,17 +5736,6 @@ components:
                     const: ToolCall
                 call:
                     $ref: "#/components/schemas/MessageStreamToolCallPartPayloadCall_Response"
-        ContentListBlockElement_Response:
-            oneOf:
-                - $ref: "#/components/schemas/ContentUnorderedListBlockElement_Response"
-                - $ref: "#/components/schemas/ContentOrderedListBlockElement_Response"
-                - $ref: "#/components/schemas/ContentCheckListBlockElement_Response"
-            discriminator:
-                propertyName: type
-                mapping:
-                    UnorderedList: "#/components/schemas/ContentUnorderedListBlockElement_Response"
-                    OrderedList: "#/components/schemas/ContentOrderedListBlockElement_Response"
-                    CheckList: "#/components/schemas/ContentCheckListBlockElement_Response"
         MessageStreamPart_Response:
             type: object
             required:

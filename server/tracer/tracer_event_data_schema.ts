@@ -512,6 +512,8 @@ const TracerEventDataSchema = {
             audioPreviewDurationDurationMs: Schema.float,
             audioPreviewMetadataDurationMs: Schema.float,
             codePreviewContentDurationMs: Schema.float,
+            analysisDurationMs: Schema.float,
+            transcriptDurationMs: Schema.float,
             imagePreviewVideoDurationToAlternativeProcessingDurationRatio: Schema.float,
         },
         avatar: {
@@ -583,6 +585,18 @@ const TracerEventDataSchema = {
                 reasoningOutputTokens: Schema.integer,
                 totalTokens: Schema.integer,
             },
+        },
+    },
+    bedrock: {
+        model: Schema.string,
+        region: Schema.string,
+        usage: {
+            inputTokens: Schema.integer,
+            inputTokensMillicents: Schema.float,
+            outputTokens: Schema.integer,
+            outputTokensMillicents: Schema.float,
+            totalTokens: Schema.integer,
+            estimatedCostMillicents: Schema.float,
         },
     },
     agents: {

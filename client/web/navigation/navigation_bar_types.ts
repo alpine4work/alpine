@@ -50,6 +50,12 @@ export type NavigationBarShareButtonProps = {
     readonly onActivationHintHide?: () => void;
 };
 
+export type NavigationBarTitleBreadcrumb = {
+    readonly title: ReactNode;
+    readonly onPress: () => MaybePromise<void>;
+    readonly pressErrorTitle: string;
+};
+
 export type NavigationBarProps = {
     /**
      * A ref for interacting with the navigation bar when mounted.
@@ -95,6 +101,13 @@ export type NavigationBarProps = {
     readonly title?: ReactNode;
 
     /**
+     * A breadcrumb rendered above the title in the navigation bar. The navigation bar
+     * owns the breadcrumb's chrome, vertical spacing, and platform alignment; callers
+     * only provide the label and press behavior.
+     */
+    readonly titleBreadcrumb?: NavigationBarTitleBreadcrumb;
+
+    /**
      * The title only displays once the user has scrolled past this element. When
      * crossing this boundary the title animates in/out.
      */
@@ -126,10 +139,16 @@ export type NavigationBarProps = {
     readonly menuActions?: ReadonlyArray<MenuAction> | ReadonlyArray<ReadonlyArray<MenuAction>>;
 
     /**
+     * Override the icon rendered in the navigation bar's menu button. Defaults to the
+     * standard three-dot More icon.
+     */
+    readonly menuButtonIcon?: ReactNode;
+
+    /**
      * Extra content to render at the bottom of the context menu. Useful for displaying
      * metadata like "Imported from..." text.
      */
-    readonly contextMenuExtraBottom?: ReactNode;
+    readonly menuExtraBottom?: ReactNode;
 
     /**
      * Offset between the menu button and its menu. Defaults to `defaultTooltipOffset`
@@ -322,4 +341,11 @@ export type NavigationBarResult = {
      * expected to pass this to `useScrollbar()`.
      */
     scrollbarInsetTop?: ScrollbarInsetDynamic;
+
+    /**
+     * (Required) The visual height of the navigation bar before safe area is added.
+     * Virtualized scroll views should use this to reserve top content space that
+     * matches the bar.
+     */
+    effectiveNavigationBarHeight: RemLength;
 };

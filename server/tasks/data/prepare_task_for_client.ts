@@ -1,11 +1,13 @@
 import {TaskIndexDocBase} from "~/server/tasks/data/task_index_doc.js";
 import {TaskRealtimeActorInterface} from "~/server/tasks/data/task_realtime_actor_interface.js";
+import {AccessPolicy} from "~/shared/access/access_policy.js";
+import {CrdtRegister} from "~/shared/crdt/crdt_register.js";
 import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
 import {Lazy} from "~/shared/helpers/control/lazy.js";
 import {filterIterable} from "~/shared/helpers/iterable/filter_iterable.js";
 import {filterMapIterable} from "~/shared/helpers/iterable/filter_map_iterable.js";
 import {mapIterable} from "~/shared/helpers/iterable/map_iterable.js";
-import {TaskCollectionId, TaskId} from "~/shared/id/types/id_types.js";
+import {SiteId, TaskCollectionId, TaskId} from "~/shared/id/types/id_types.js";
 import {AccountModel} from "~/shared/spaces/account_model.js";
 import {TaskModel, TaskModelData} from "~/shared/tasks/model/task_model.js";
 import {TaskAssigneeWithSortableAccountRegister} from "~/shared/tasks/task_assignee.js";
@@ -43,33 +45,68 @@ export async function prepareTaskForClient(
         actor,
         isSpaceAccessAuthorized,
         isCollectionAccessAuthorized,
+        isSiteAccessAuthorized,
     }: {
         actor: TaskRealtimeActorInterface;
         isSpaceAccessAuthorized: boolean;
         isCollectionAccessAuthorized: (collectionId: TaskCollectionId) => Promise<boolean>;
+        isSiteAccessAuthorized: (siteId: SiteId) => Promise<boolean>;
     },
 ): Promise<TaskModel> {
-    // Filter out any collections our client doesn't currently have access to. When the
-    // authorization state of a task collection changes we'll backfill all tasks that
-    // include the newly authorized collection. The client will merge in these changes
-    // and now see the newly authorized collection in its various tasks.
-    //
-    // If a collection was authorized and becomes unauthorized then we don't actually
-    // remove the collections from the client's `TaskCollectionSet` CRDTs. If the
-    // client used to know that a task was part of a collection then it's not a
-    // security threat to leave evidence of this.
-    const filteredCollections = TaskCollectionSet.from(
-        filterMapIterable(
-            await runAllPromises(
-                mapIterable(task.collections.raw.collections.actualEntries(), entry =>
-                    isCollectionAccessAuthorized(entry[0]).then(isAuthorized =>
-                        isAuthorized ? entry : undefined,
+    const [filteredCollections, accessPolicy] = await runAllPromises([
+        (async () => {
+            // Filter out any collections our client doesn't currently have access to. When the
+            // authorization state of a task collection changes we'll backfill all tasks that
+            // include the newly authorized collection. The client will merge in these changes
+            // and now see the newly authorized collection in its various tasks.
+            //
+            // If a collection was authorized and becomes unauthorized then we don't actually
+            // remove the collections from the client's `TaskCollectionSet` CRDTs. If the
+            // client used to know that a task was part of a collection then it's not a
+            // security threat to leave evidence of this.
+            return TaskCollectionSet.from(
+                filterMapIterable(
+                    await runAllPromises(
+                        mapIterable(task.collections.raw.collections.actualEntries(), entry =>
+                            isCollectionAccessAuthorized(entry[0]).then(isAuthorized =>
+                                isAuthorized ? entry : undefined,
+                            ),
+                        ),
                     ),
+                    entry => entry,
                 ),
-            ),
-            entry => entry,
-        ),
-    );
+            );
+        })(),
+        (async (): Promise<CrdtRegister<AccessPolicy> | null> => {
+            // TODO(#tasks-in-private-sites): Right now, we strip the access policy if the task
+            // lives in a site that the client doesn't have access to. This makes the
+            // client-side code really convenient in the sense that we can always trust that
+            // the user has access to the site and can hold a reference to that site in the
+            // task's client store. However, there are some tradeoffs:
+            //
+            // 1. If the user gains access to the site after loading the task, they won't see
+            //    the site chrome/breadcrumb around the task until they reload the task route.
+            //    If we sent the site id in the access policy, we could technically set up a
+            //    "friend" store for the site that would force a rerender if the user a. gains
+            //    access to the site b. receives a realtime update that creates a site store in
+            //    the site registry (e.g. they receive a site mention, they get notified of the
+            //    site access when they are added, etc.)
+            // 2. We can't render a "Private site" breadcrumb. This could be nice, but isn't a
+            //    dealbreaker.
+            //
+            // In any case, this decision is _not_ a one-way door. If we want to support the
+            // above use-cases, we can do that later by always sending the access policy to the
+            // client as-is and relying on the client to cross-reference the task's
+            // `referencedSites` array to determine if the site is private.
+            if (task.accessPolicy === null) return null;
+            if (task.accessPolicy.value.type === "Local") return task.accessPolicy;
+
+            const isAuthorized = await isSiteAccessAuthorized(task.accessPolicy.value.siteId);
+            if (!isAuthorized) return null;
+
+            return task.accessPolicy;
+        })(),
+    ]);
 
     return new TaskModel({
         id: task.id,
@@ -100,6 +137,10 @@ export async function prepareTaskForClient(
         // NOTE(calebmer, 2025-01-29): To fix this we could follow a similar path to
         // collections. By emitting an `UpdateParentTask` action if a collection policy
         // attached to an unauthorized parent task makes the task authorized.
+        //
+        // Keep this behavior in sync with API parent serialization in
+        // `server/api/internal/tasks/internal/into_api_task.ts` and
+        // `server/api/internal/tasks/internal/get_api_tasks_without_content.ts`.
         parent: {
             taskId: task.parent.taskId,
             position: task.parent.rawPosition,
@@ -108,7 +149,7 @@ export async function prepareTaskForClient(
         removedChildTaskCount: task.removedChildTaskCount,
         addedClosedChildTaskCount: task.addedClosedChildTaskCount,
         removedClosedChildTaskCount: task.removedClosedChildTaskCount,
-        accessPolicy: task.accessPolicy,
+        accessPolicy,
         collections: filteredCollections,
         positionByCollectionId: TaskPositionByCollectionIdMap.from(
             filterIterable(task.collections.raw.positionById.actualEntries(), ([collectionId]) =>

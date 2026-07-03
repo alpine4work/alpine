@@ -50,6 +50,7 @@ export type AppSpaceRouteId =
     | "routes/_space.settings.$spaceId.profile"
     | "routes/_space.settings.$spaceId"
     | "routes/_space.site.$siteId._index"
+    | "routes/_space.site.$siteId.navigate"
     | "routes/_space.task-collection.$collectionId"
     | "routes/_space.task-view.new.$spaceId"
     | "routes/_space.task.$taskId._index"

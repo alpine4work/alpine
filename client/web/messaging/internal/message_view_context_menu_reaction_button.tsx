@@ -16,7 +16,7 @@ import {
     ReactionButtonBase,
 } from "~/client/web/reactions/reaction_button.js";
 import {usePlatform} from "~/client/web/remix/platform_context.js";
-import {useSpaceContextAndRequireSpaceAccess} from "~/client/web/spaces/space_context.js";
+import {useSpaceContextAndRequireSpaceAccess} from "~/client/web/spaces/context/space_context.js";
 import {colorSchemeVars} from "~/client/web/styles/styles.js";
 import {spacing} from "~/shared/design/core/spacing.js";
 import {MessageModel} from "~/shared/messaging/message_model.js";

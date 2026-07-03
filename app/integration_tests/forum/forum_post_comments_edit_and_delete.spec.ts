@@ -1,4 +1,5 @@
 import {Page, expect, test} from "@playwright/test";
+import {activateMobileButton} from "~/app/integration_tests/helpers/activate_mobile_button.js";
 import {createTestServices} from "~/app/integration_tests/helpers/create_test_services.js";
 import {updateAccountReactionCharacter} from "~/server/accounts/update_account_reaction_character.js";
 import {createTestSession} from "~/server/dynamo/test_helpers/create_test_session.js";
@@ -467,7 +468,7 @@ test("will backfill an edit in realtime when comments are reopened", async ({
     if (!isMobile) {
         await page1.getByRole("button", {name: "1 comment"}).click();
     } else {
-        await page1.getByRole("button", {name: "Go back"}).click();
+        await activateMobileButton(page1, "Go back");
     }
     await expect(page1.getByText("Test post comment content 1")).toBeHidden();
     await expect(page1.getByText("Test post comment content 2")).toBeHidden();
@@ -575,7 +576,7 @@ test("will backfill a delete in realtime when comments are reopened", async ({
     if (!isMobile) {
         await page1.getByRole("button", {name: "1 comment"}).click();
     } else {
-        await page1.getByRole("button", {name: "Go back"}).click();
+        await activateMobileButton(page1, "Go back");
     }
     await expect(page1.getByText("Test post comment content 1")).toBeHidden();
     await expect(page1.getByText("Deleted comment")).toBeHidden();

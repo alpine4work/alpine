@@ -43,6 +43,7 @@ export function getTaskGridViewExpansionStateChildrenQueries<Result>(
         gridViewExpansionState: TaskGridViewExpansionState;
         consistency?: DynamoCacheReadConsistency;
         loadQuery: (input: {
+            type: "Normalized";
             filters: TaskQueryNormalizedFilters;
             sorts: ReadonlyArray<TaskQueryNormalizedSort>;
             limit: number;
@@ -149,6 +150,7 @@ export function getTaskGridViewExpansionStateChildrenQueries<Result>(
                     if (!authorizationResult.ok) return null;
 
                     return await loadQuery({
+                        type: "Normalized",
                         filters: childrenFilters,
                         sorts: childrenSorts,
                         limit,

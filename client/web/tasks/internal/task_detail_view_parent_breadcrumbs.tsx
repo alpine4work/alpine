@@ -5,14 +5,19 @@ import {Button} from "~/client/web/design/button.js";
 import {Tooltip} from "~/client/web/design/tooltip.js";
 import {useStore} from "~/client/web/helpers/use_store.js";
 import {LockBoldFillIcon} from "~/client/web/icons/lock_bold_fill_icon.js";
+import {usePeekContext} from "~/client/web/remix/peek_context.js";
+import {useRouteLayout} from "~/client/web/remix/route_layout_context.js";
 import {useNavigate} from "~/client/web/remix/use_navigate.js";
+import {useSiteContextIfExists} from "~/client/web/sites/context/site_context.js";
 import {sprinkles} from "~/client/web/styles/styles.js";
 import {TaskClientTaskSubscription} from "~/client/web/tasks/core/task_client_task_subscription.js";
 import {TaskQueryNormalizedFiltersInitialFieldsModel} from "~/client/web/tasks/core/task_query_normalized_filters_initial_fields_model.js";
 import {isTaskClientStoreTaskEntryDeleted} from "~/client/web/tasks/internal/is_task_client_store_task_entry_deleted.js";
 import {spacing} from "~/shared/design/core/spacing.js";
 import {interleaveArray} from "~/shared/helpers/array/interleave_array.js";
+import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 import {serializeProsemirrorFragmentToHtml} from "~/shared/prosemirror/serialize_prosemirror_node_to_html.js";
+import {convertSpacePathToPeekPath} from "~/shared/remix/peek_path_helpers.js";
 import {computeStore} from "~/shared/store/compute_store.js";
 import {TaskModel} from "~/shared/tasks/model/task_model.js";
 
@@ -26,6 +31,9 @@ export function TaskDetailViewParentBreadcrumbs({
     initialFields: TaskQueryNormalizedFiltersInitialFieldsModel | null;
 }) {
     const navigate = useNavigate();
+    const routeLayout = useRouteLayout();
+    const siteContext = useSiteContextIfExists();
+    const peekContext = usePeekContext();
 
     const nodeStore = useMemo(() => {
         return computeStore(get => {
@@ -112,9 +120,6 @@ export function TaskDetailViewParentBreadcrumbs({
                 continue;
             }
 
-            // If the task has no parents then don't render breadcrumbs UI.
-            if (parentNodes.length === 0) return null;
-
             // We insert parent nodes at the end of the list but we want the top level parent
             // to appear first.
             parentNodes.reverse();
@@ -128,6 +133,57 @@ export function TaskDetailViewParentBreadcrumbs({
                     </Box>,
                 );
             }
+
+            const taskAccessPolicy = task?.getAccessPolicy();
+            // In a narrow layout, prepend the site as the top breadcrumb when the task is in a
+            // site. This merges what used to be a separate `<SiteBreadcrumbChip>` stacked
+            // above the parent-task breadcrumb into a single chain — the site reads as just
+            // another ancestor of the current task, no extra row.
+            if (
+                routeLayout === "narrow" &&
+                siteContext &&
+                taskAccessPolicy?.type === "Site" &&
+                taskAccessPolicy.siteId === siteContext.tree.site.id
+            ) {
+                const {activeState} = siteContext;
+                const site = siteContext.tree.site;
+
+                // IMPORTANT: This design also exists in `navigation_bar_content.tsx` under
+                // `NavigationBarTitleBreadcrumbButton` and `SiteBreadcrumbChip`. When updating
+                // this component, also update those components.
+                parentNodes.unshift(
+                    <Box key={`site:${site.id}`} flexShrink="1" minWidth="flex-fit" maxWidth="full">
+                        <Button
+                            variant="quietest"
+                            height="5"
+                            paddingX="1.5"
+                            pressErrorTitle="Couldn&#x2019;t open site"
+                            onPress={async () => {
+                                const path = {
+                                    pathname: `/site/${site.id}/navigate`,
+                                    search: `activeEntityId=${encodeURIComponent(assertExists(activeState.activeEntityId))}`,
+                                    hash: "",
+                                };
+                                const to = peekContext
+                                    ? (convertSpacePathToPeekPath(path) ?? path)
+                                    : path;
+                                await navigate(to, {
+                                    stopPropagation: true,
+                                    unstable_headers: {
+                                        "cyberworlds-active-site-id": site.id,
+                                    },
+                                });
+                            }}
+                        >
+                            {site.name}
+                        </Button>
+                    </Box>,
+                );
+            }
+
+            // If the task has no parents AND we didn't add a site at the top, don't render any
+            // breadcrumbs UI.
+            if (parentNodes.length === 0) return null;
 
             return (
                 <Box
@@ -150,7 +206,15 @@ export function TaskDetailViewParentBreadcrumbs({
                 </Box>
             );
         });
-    }, [initialFields?.parentTaskSubscription, navigate, task, taskSubscription]);
+    }, [
+        initialFields?.parentTaskSubscription,
+        navigate,
+        peekContext,
+        routeLayout,
+        siteContext,
+        task,
+        taskSubscription,
+    ]);
 
     return useStore(nodeStore);
 }

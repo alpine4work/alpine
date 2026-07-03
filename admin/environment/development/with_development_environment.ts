@@ -19,7 +19,6 @@ import {
     SpacesInjectionContextModule,
     TasksInjectionContextModule,
 } from "~/server/context/injection_context_module.js";
-import {ServerProcessContext} from "~/server/context/server_process_context.js";
 import {documentsInjection} from "~/server/documents/data/documents_injection.js";
 import {DynamoContextModule} from "~/server/dynamo/core/dynamo_context_module.js";
 import {TraceOnlyEmailContextModule} from "~/server/emails/trace_only_email_context_module.js";
@@ -52,6 +51,7 @@ import {NoopSlackContextModule} from "~/server/integrations/slack/noop_slack_con
 import {SlackContextModule} from "~/server/integrations/slack/slack_context_module.js";
 import {JobSender} from "~/server/jobs/core/job_sender.js";
 import {JobsContextModule} from "~/server/jobs/core/jobs_context_module.js";
+import {createLanguageModelsContextModuleForProcess} from "~/server/language_models/create_language_models_context_module_for_process.js";
 import {createServiceTokenAgent} from "~/server/node/create_service_token_agent.js";
 import {notificationsInjection} from "~/server/notifications/data/notifications_injection.js";
 import {OpensearchClient} from "~/server/opensearch/opensearch_client.js";
@@ -261,9 +261,12 @@ export async function withDevelopmentEnvironment<Value>(
             tokenAgent,
             resourceServiceUrl: `http://localhost:${resourcesDevPort}`,
         }),
+        languageModels: createLanguageModelsContextModuleForProcess({
+            awsBedrockTokenForDevelopment: env.AWS_BEDROCK_TOKEN,
+        }),
         billing: new BillingNoopDevelopmentContextModule(),
         importer: new ImporterDevelopmentContextModule({
-            getProcessContext: (): ServerProcessContext => processContext,
+            getProcessContext: () => processContext,
             escalateToImporterServiceContext: createDevelopmentEscalateToImporterServiceContext(),
         }),
         slack:

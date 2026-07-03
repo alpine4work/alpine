@@ -9,7 +9,7 @@ type HoneycombResultGroupColumn = {
     /**
      * Value of the grouping column for this result group.
      */
-    value: string;
+    value: string | null;
 };
 
 export type HoneycombResultGroup = {
@@ -24,11 +24,13 @@ export type HoneycombResultGroup = {
     result: number;
 };
 
-export type HoneycombEventPayload = {
+export type HoneycombEventPayloadBase = {
     /**
-     * Custom recipient field naming the Alpine channel to receive the alert.
+     * Custom recipient field naming the Alpine channel to receive the alert. For task
+     * payloads, this is optional and posts a preview of newly-created tasks. Use this
+     * for configured channel names like `honeycomb`.
      */
-    channel: string;
+    channel?: string;
 
     /**
      * Custom recipient field used as the header emoji for event-style alerts.
@@ -51,9 +53,9 @@ export type HoneycombEventPayload = {
     name: string;
 
     /**
-     * Custom recipient field indicating the alert should be treated as an "event".
-     * Event alerts are one-time notifications; `OK` event payloads are ignored by the
-     * source.
+     * Custom recipient field indicating the alert should be treated as an event.
+     *
+     * @deprecated Use `type: "event"` instead.
      */
     isEvent?: string;
 
@@ -142,3 +144,51 @@ export type HoneycombEventPayload = {
         isTest: boolean;
     };
 };
+
+export type HoneycombTriggerPayload = HoneycombEventPayloadBase & {
+    /**
+     * Custom recipient field controlling how the payload should be handled.
+     *
+     * - `trigger`: Post a trigger alert to a channel.
+     *
+     * Omitted for legacy trigger payloads.
+     */
+    type?: "trigger";
+};
+
+export type HoneycombEventAlertPayload = HoneycombEventPayloadBase & {
+    /**
+     * Custom recipient field controlling how the payload should be handled.
+     *
+     * - `event`: Post a one-time event alert to a channel.
+     *
+     * Omitted for legacy event payloads that still use `isEvent`.
+     */
+    type?: "event";
+};
+
+export type HoneycombTaskPayload = HoneycombEventPayloadBase & {
+    /**
+     * Custom recipient field controlling how the payload should be handled.
+     *
+     * - `task`: Create or update tasks in a task collection.
+     */
+    type: "task";
+
+    /**
+     * Custom recipient field naming the configured task collection key to receive task
+     * alerts. The key is resolved to an Alpine task collection id.
+     */
+    collection: string;
+
+    /**
+     * Optional task priority to use when creating new tasks. Matching is
+     * case-insensitive, and omitted or unknown values default to `Low`.
+     */
+    priority?: string;
+};
+
+export type HoneycombEventPayload =
+    | HoneycombTriggerPayload
+    | HoneycombEventAlertPayload
+    | HoneycombTaskPayload;

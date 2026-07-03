@@ -231,8 +231,6 @@ test("returns empty array for empty input", async () => {
     expect(results).toMatchObject([]);
 });
 
-// TODO(#sites): Once sites are generally available, add `Site` to the API
-// `PreviewTarget` schema and update this test to expect a Site preview.
 test("skips Site FileEntityId since the API PreviewTarget does not yet include Site", async () => {
     const space = await TestSpace.create(context);
     const siteId = generateId<DocumentId>();
@@ -241,7 +239,15 @@ test("skips Site FileEntityId since the API PreviewTarget does not yet include S
         `Site:${siteId}`,
     ]);
 
-    expect(results).toMatchObject([]);
+    expect(results).toMatchObject([
+        {
+            element: {
+                type: "Preview",
+                target: {type: "Site", id: siteId},
+                title: "Site",
+            },
+        },
+    ]);
 });
 
 test("splits files into rows of up to three items and annotates row widths", async () => {

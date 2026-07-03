@@ -39,6 +39,8 @@ const standardFile = new FileModel({
     contentLength: 100,
     isUploading: false,
     alternative: null,
+    analysis: null,
+    transcript: null,
     preview: {
         isProcessing: false,
         type: "Image",
@@ -55,6 +57,8 @@ const largeFile = new FileModel({
     contentLength: 100,
     isUploading: false,
     alternative: null,
+    analysis: null,
+    transcript: null,
     preview: {
         isProcessing: false,
         type: "Image",
@@ -71,6 +75,8 @@ const tallFile = new FileModel({
     contentLength: 100,
     isUploading: false,
     alternative: null,
+    analysis: null,
+    transcript: null,
     preview: {
         isProcessing: false,
         type: "Image",
@@ -88,6 +94,8 @@ const phoneScreenshotFile = new FileModel({
     contentLength: 100,
     isUploading: false,
     alternative: null,
+    analysis: null,
+    transcript: null,
     preview: {
         isProcessing: false,
         type: "Image",
@@ -105,6 +113,8 @@ const cinemaScopeFile = new FileModel({
     contentLength: 100,
     isUploading: false,
     alternative: null,
+    analysis: null,
+    transcript: null,
     preview: {
         isProcessing: false,
         type: "Image",
@@ -122,6 +132,8 @@ const cinemaScopeVerticalFile = new FileModel({
     contentLength: 100,
     isUploading: false,
     alternative: null,
+    analysis: null,
+    transcript: null,
     preview: {
         isProcessing: false,
         type: "Image",
@@ -138,6 +150,8 @@ const iconFile = new FileModel({
     contentLength: 100,
     isUploading: false,
     alternative: null,
+    analysis: null,
+    transcript: null,
     preview: {
         isProcessing: false,
         type: "Image",
@@ -154,6 +168,8 @@ const moderateVerticalFile = new FileModel({
     contentLength: 100,
     isUploading: false,
     alternative: null,
+    analysis: null,
+    transcript: null,
     preview: {
         isProcessing: false,
         type: "Image",
@@ -170,6 +186,8 @@ const moderateHorizontalFile = new FileModel({
     contentLength: 100,
     isUploading: false,
     alternative: null,
+    analysis: null,
+    transcript: null,
     preview: {
         isProcessing: false,
         type: "Image",
@@ -186,6 +204,8 @@ const extremeVerticalFile = new FileModel({
     contentLength: 100,
     isUploading: false,
     alternative: null,
+    analysis: null,
+    transcript: null,
     preview: {
         isProcessing: false,
         type: "Image",
@@ -202,6 +222,8 @@ const extremeHorizontalFile = new FileModel({
     contentLength: 100,
     isUploading: false,
     alternative: null,
+    analysis: null,
+    transcript: null,
     preview: {
         isProcessing: false,
         type: "Image",
@@ -218,6 +240,8 @@ const audioFile1 = new FileModel({
     contentLength: 100,
     isUploading: false,
     alternative: null,
+    analysis: null,
+    transcript: null,
     preview: {
         type: "Audio",
         isProcessing: false,
@@ -234,6 +258,8 @@ const audioFile2 = new FileModel({
     contentLength: 100,
     isUploading: false,
     alternative: null,
+    analysis: null,
+    transcript: null,
     preview: {
         type: "Audio",
         isProcessing: false,

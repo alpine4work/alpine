@@ -426,6 +426,8 @@ Resources:
                           Type: string
                         - Name: http__request__header__cyberworlds_active_site_id
                           Type: string
+                        - Name: http__request__header__cyberworlds_space_id
+                          Type: string
                         - Name: http__request__header__x_ratelimit_limit
                           Type: string
                         - Name: http__request__header__x_ratelimit_remaining
@@ -601,6 +603,8 @@ Resources:
                         - Name: http__response__header__cyberworlds_fixed_time_for_test
                           Type: string
                         - Name: http__response__header__cyberworlds_active_site_id
+                          Type: string
+                        - Name: http__response__header__cyberworlds_space_id
                           Type: string
                         - Name: http__response__header__x_ratelimit_limit
                           Type: string
@@ -996,6 +1000,10 @@ Resources:
                           Type: double
                         - Name: dynamodb__consumed_capacity__integrations__write_capacity_units
                           Type: double
+                        - Name: dynamodb__consumed_capacity__message_drafts__read_capacity_units
+                          Type: double
+                        - Name: dynamodb__consumed_capacity__message_drafts__write_capacity_units
+                          Type: double
                         - Name: dynamodb__consumed_capacity__notifications__read_capacity_units
                           Type: double
                         - Name: dynamodb__consumed_capacity__notifications__write_capacity_units
@@ -1168,6 +1176,8 @@ Resources:
                           Type: string
                         - Name: dynamodb__table__forum_realtime__partition__graveyard__sort_range_type
                           Type: string
+                        - Name: dynamodb__table__forum_realtime__partition__channel_posts2__sort_range_type
+                          Type: string
                         - Name: dynamodb__table__inbox__partition_type
                           Type: string
                         - Name: dynamodb__table__inbox__partition__account__sort_range_type
@@ -1181,6 +1191,10 @@ Resources:
                         - Name: dynamodb__table__integrations__partition_type
                           Type: string
                         - Name: dynamodb__table__integrations__partition__slack_space_integration__sort_range_type
+                          Type: string
+                        - Name: dynamodb__table__message_drafts__partition_type
+                          Type: string
+                        - Name: dynamodb__table__message_drafts__partition__space_account__sort_range_type
                           Type: string
                         - Name: dynamodb__table__notifications__partition_type
                           Type: string
@@ -1584,6 +1598,10 @@ Resources:
                           Type: double
                         - Name: file__processing__code_preview_content_duration_ms
                           Type: double
+                        - Name: file__processing__analysis_duration_ms
+                          Type: double
+                        - Name: file__processing__transcript_duration_ms
+                          Type: double
                         - Name: file__processing__image_preview_video_duration_to_alternative_processing_duration_ratio
                           Type: double
                         - Name: file__avatar__resize__quality
@@ -1654,6 +1672,22 @@ Resources:
                           Type: int
                         - Name: openai__responses__usage__total_tokens
                           Type: int
+                        - Name: bedrock__model
+                          Type: string
+                        - Name: bedrock__region
+                          Type: string
+                        - Name: bedrock__usage__input_tokens
+                          Type: int
+                        - Name: bedrock__usage__input_tokens_millicents
+                          Type: double
+                        - Name: bedrock__usage__output_tokens
+                          Type: int
+                        - Name: bedrock__usage__output_tokens_millicents
+                          Type: double
+                        - Name: bedrock__usage__total_tokens
+                          Type: int
+                        - Name: bedrock__usage__estimated_cost_millicents
+                          Type: double
                         - Name: agents__schedule__event__time
                           Type: string
                         - Name: agents__schedule__event__execution_time

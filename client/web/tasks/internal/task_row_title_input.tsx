@@ -49,7 +49,7 @@ import {
     getSpacingScaleWithoutListening,
     useSpacingScale,
 } from "~/client/web/remix/spacing_scale_context.js";
-import {useSpaceContext} from "~/client/web/spaces/space_context.js";
+import {useSpaceContext} from "~/client/web/spaces/context/space_context.js";
 import {
     contentStyles,
     inputPlaceholderStyles,
@@ -116,6 +116,8 @@ import {
     TaskTitleUpdateModel,
     emptyTaskTitleModel,
     emptyTaskTitleProsemirrorNode,
+    generateTaskTitleClientIdFromRealmId,
+    randomlyGenerateTaskTitleClientId,
 } from "~/shared/tasks/title/task_title.js";
 
 const taskRowViewMinHeightRem = parseRemLength(taskRowViewMinHeight);
@@ -301,6 +303,7 @@ function TaskRowTitleInput(
         query: TaskClientQuery | null;
         isQueryManuallySorted: boolean;
         task: TaskModel | null;
+        taskEntryRevertCount: number;
         onTitleChange: (titleUpdate: TaskTitleUpdateModel) => void;
         placeholder?: string;
         indentation: number;
@@ -941,6 +944,11 @@ function TaskRowTitleInput(
 
                         const {update: titleUpdate, truncatedCharacterCount} =
                             titleRef.current.replaceManyWithStepWithTruncatedCharacterCount(
+                                // Very important that we use a consistent `TaskTitleClientId` here across updates
+                                // so the Yjs adjacent item merging optimization applies!
+                                generateTaskTitleClientIdFromRealmId({
+                                    revertCount: propsRef.current.taskEntryRevertCount,
+                                }),
                                 mapIterable(transaction.steps, step => {
                                     assert(step instanceof ReplaceStep);
                                     return step;
@@ -2004,6 +2012,11 @@ function handleTaskRowTitleInputPaste(
 ) {
     event.preventDefault();
 
+    // Use a randomly generated `TaskTitleClientId` for pastes. We lose out on the Yjs
+    // adjacent item merging optimization but that's fine since pasting is not a
+    // continuous update (unlike typing in an input).
+    const titleClientId = randomlyGenerateTaskTitleClientId();
+
     const schema = new ProsemirrorSchema({
         nodes: {
             doc: contentBaseProsemirrorSchemaSpec.nodes.doc,
@@ -2117,6 +2130,7 @@ function handleTaskRowTitleInputPaste(
         loop(pastedTasks);
 
         const titleUpdate = assertExists(taskTitlePluginKey.getState(titleState)).replace(
+            titleClientId,
             titleState.selection.from,
             titleState.selection.to,
             combinedTitle,
@@ -2275,7 +2289,9 @@ function handleTaskRowTitleInputPaste(
                         taskId: pastedTaskId,
                         taskAction: {
                             type: "UpdateTitle",
-                            titleUpdate: emptyTaskTitleModel.get().replace(0, 0, taskTitle),
+                            titleUpdate: emptyTaskTitleModel
+                                .get()
+                                .replace(titleClientId, 0, 0, taskTitle),
                             withoutUndoMerge,
                         },
                     });
@@ -2308,7 +2324,7 @@ function handleTaskRowTitleInputPaste(
                     const {update: titleUpdate, truncatedCharacterCount: truncatedCharacters} =
                         assertExists(
                             taskTitlePluginKey.getState(titleState),
-                        ).replaceManyWithStepWithTruncatedCharacterCount([
+                        ).replaceManyWithStepWithTruncatedCharacterCount(titleClientId, [
                             {
                                 from: replaceFrom,
                                 to: replaceTo,

@@ -43,12 +43,13 @@ export function renderContentFileTaskCollectionEntityPreview(
     });
 
     if (fileEntity.site) {
-        renderContentFileEntitySiteBreadcrumb(
+        renderContentFileEntitySiteBreadcrumb({
             get,
             siteRegistry,
-            scaledContainerHtml,
-            fileEntity.site,
-        );
+            parent: scaledContainerHtml,
+            site: fileEntity.site,
+            platform,
+        });
     }
 
     {

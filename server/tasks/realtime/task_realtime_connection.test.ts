@@ -359,6 +359,13 @@ function expectUnauthorizedCollection() {
     return expect.objectContaining({type: "Unauthorized"});
 }
 
+function taskActionActor(session: TestSpaceSession) {
+    return {
+        accountId: session.account.id,
+        from: null,
+    };
+}
+
 test("can\u2019t load a query with no filters", async () => {
     const space = await TestSpace.create(context);
     const server = createWebSocketServer(space);
@@ -1073,6 +1080,7 @@ test("will send actions for updated tasks in the subscription\u2019s loaded rang
                 {
                     type: "UpdateTask",
                     time: expect.any(Array),
+                    actor: taskActionActor(session),
                     taskId: task1.id,
                     taskAction: {
                         type: "UpdatePriority",
@@ -1082,7 +1090,7 @@ test("will send actions for updated tasks in the subscription\u2019s loaded rang
             ],
             backfillTasks: {},
             backfillCollections: {},
-            referencedAccounts: [],
+            referencedAccounts: [await session.get()],
             referencedSites: [],
         },
     ]);
@@ -1104,6 +1112,7 @@ test("will send actions for updated tasks in the subscription\u2019s loaded rang
                 {
                     type: "UpdateTask",
                     time: expect.any(Array),
+                    actor: taskActionActor(session),
                     taskId: task3.id,
                     taskAction: {
                         type: "UpdatePriority",
@@ -1113,9 +1122,63 @@ test("will send actions for updated tasks in the subscription\u2019s loaded rang
             ],
             backfillTasks: {},
             backfillCollections: {},
-            referencedAccounts: [],
+            referencedAccounts: [await session.get()],
             referencedSites: [],
         },
+    ]);
+});
+
+test("sends task action actors in update events", async () => {
+    const space = await TestSpace.create(context);
+    const server = createWebSocketServer(space);
+    const session = await space.createSession();
+
+    const task = await TestTask.create(session);
+
+    await server.wait();
+
+    const connection = await server.connectForTest(context.action(session));
+
+    expect(
+        await testSubscribeToQuery(connection, {
+            session,
+            filters: [
+                {
+                    type: "Creator",
+                    operation: {type: "OneOf", accounts: [{type: "CurrentAccount"}]},
+                },
+            ],
+        }),
+    ).toMatchObject({
+        updateEvent: {
+            backfillTasks: {
+                [task.id]: expectAuthorizedTask(),
+            },
+        },
+    });
+
+    expect(testTakeEvents(connection)).toEqual([]);
+
+    await task.updatePriority(session, "High");
+    await server.wait();
+
+    expect(connection.takeEvents()).toEqual([
+        expect.objectContaining({
+            type: "Update",
+            actions: [
+                {
+                    type: "UpdateTask",
+                    time: expect.any(Array),
+                    actor: taskActionActor(session),
+                    taskId: task.id,
+                    taskAction: {
+                        type: "UpdatePriority",
+                        priority: "High",
+                    },
+                },
+            ],
+            referencedAccounts: [expect.objectContaining({id: session.account.id})],
+        }),
     ]);
 });
 
@@ -1196,6 +1259,7 @@ test("will send actions for removed tasks in the subscription\u2019s loaded rang
                 {
                     type: "UpdateTask",
                     time: expect.any(Array),
+                    actor: taskActionActor(session),
                     taskId: task3.id,
                     taskAction: {
                         type: "UpdatePriority",
@@ -1205,7 +1269,7 @@ test("will send actions for removed tasks in the subscription\u2019s loaded rang
             ],
             backfillTasks: {},
             backfillCollections: {},
-            referencedAccounts: [],
+            referencedAccounts: [await session.get()],
             referencedSites: [],
         },
     ]);
@@ -1222,6 +1286,7 @@ test("will send actions for removed tasks in the subscription\u2019s loaded rang
                 {
                     type: "UpdateTask",
                     time: expect.any(Array),
+                    actor: taskActionActor(session),
                     taskId: task3.id,
                     taskAction: {
                         type: "RemoveCollection",
@@ -1231,7 +1296,7 @@ test("will send actions for removed tasks in the subscription\u2019s loaded rang
             ],
             backfillTasks: {},
             backfillCollections: {},
-            referencedAccounts: [],
+            referencedAccounts: [await session.get()],
             referencedSites: [],
         },
     ]);
@@ -1340,6 +1405,7 @@ test("will backfill added tasks in the subscription\u2019s loaded range", async 
                 {
                     type: "UpdateTask",
                     time: expect.any(Array),
+                    actor: taskActionActor(session),
                     taskId: task2.id,
                     taskAction: {
                         type: "UpdatePriority",
@@ -1349,7 +1415,7 @@ test("will backfill added tasks in the subscription\u2019s loaded range", async 
             ],
             backfillTasks: {},
             backfillCollections: {},
-            referencedAccounts: [],
+            referencedAccounts: [await session.get()],
             referencedSites: [],
         },
     ]);
@@ -1605,6 +1671,7 @@ test("will send actions for updated tasks in multiple connections", async () => 
                 {
                     type: "UpdateTask",
                     time: expect.any(Array),
+                    actor: taskActionActor(session1),
                     taskId: task3.id,
                     taskAction: {
                         type: "UpdatePriority",
@@ -1614,7 +1681,7 @@ test("will send actions for updated tasks in multiple connections", async () => 
             ],
             backfillTasks: {},
             backfillCollections: {},
-            referencedAccounts: [],
+            referencedAccounts: [await session1.get()],
             referencedSites: [],
         },
     ]);
@@ -1628,6 +1695,7 @@ test("will send actions for updated tasks in multiple connections", async () => 
                 {
                     type: "UpdateTask",
                     time: expect.any(Array),
+                    actor: taskActionActor(session1),
                     taskId: task3.id,
                     taskAction: {
                         type: "UpdatePriority",
@@ -1637,7 +1705,7 @@ test("will send actions for updated tasks in multiple connections", async () => 
             ],
             backfillTasks: {},
             backfillCollections: {},
-            referencedAccounts: [],
+            referencedAccounts: [await session1.get()],
             referencedSites: [],
         },
     ]);
@@ -1651,6 +1719,7 @@ test("will send actions for updated tasks in multiple connections", async () => 
                 {
                     type: "UpdateTask",
                     time: expect.any(Array),
+                    actor: taskActionActor(session1),
                     taskId: task3.id,
                     taskAction: {
                         type: "UpdatePriority",
@@ -1660,7 +1729,7 @@ test("will send actions for updated tasks in multiple connections", async () => 
             ],
             backfillTasks: {},
             backfillCollections: {},
-            referencedAccounts: [],
+            referencedAccounts: [await session1.get()],
             referencedSites: [],
         },
     ]);
@@ -1674,6 +1743,7 @@ test("will send actions for updated tasks in multiple connections", async () => 
                 {
                     type: "UpdateTask",
                     time: expect.any(Array),
+                    actor: taskActionActor(session1),
                     taskId: task3.id,
                     taskAction: {
                         type: "UpdatePriority",
@@ -1683,7 +1753,7 @@ test("will send actions for updated tasks in multiple connections", async () => 
             ],
             backfillTasks: {},
             backfillCollections: {},
-            referencedAccounts: [],
+            referencedAccounts: [await session1.get()],
             referencedSites: [],
         },
     ]);
@@ -1700,6 +1770,7 @@ test("will send actions for updated tasks in multiple connections", async () => 
                 {
                     type: "UpdateTask",
                     time: expect.any(Array),
+                    actor: taskActionActor(session1),
                     taskId: task1.id,
                     taskAction: {
                         type: "UpdatePriority",
@@ -1709,7 +1780,7 @@ test("will send actions for updated tasks in multiple connections", async () => 
             ],
             backfillTasks: {},
             backfillCollections: {},
-            referencedAccounts: [],
+            referencedAccounts: [await session1.get()],
             referencedSites: [],
         },
     ]);
@@ -1727,6 +1798,7 @@ test("will send actions for updated tasks in multiple connections", async () => 
                 {
                     type: "UpdateTask",
                     time: expect.any(Array),
+                    actor: taskActionActor(session1),
                     taskId: task1.id,
                     taskAction: {
                         type: "UpdatePriority",
@@ -1736,7 +1808,7 @@ test("will send actions for updated tasks in multiple connections", async () => 
             ],
             backfillTasks: {},
             backfillCollections: {},
-            referencedAccounts: [],
+            referencedAccounts: [await session1.get()],
             referencedSites: [],
         },
     ]);
@@ -1755,6 +1827,7 @@ test("will send actions for updated tasks in multiple connections", async () => 
                 {
                     type: "UpdateTask",
                     time: expect.any(Array),
+                    actor: taskActionActor(session1),
                     taskId: task5.id,
                     taskAction: {
                         type: "UpdatePriority",
@@ -1764,7 +1837,7 @@ test("will send actions for updated tasks in multiple connections", async () => 
             ],
             backfillTasks: {},
             backfillCollections: {},
-            referencedAccounts: [],
+            referencedAccounts: [await session1.get()],
             referencedSites: [],
         },
     ]);
@@ -1778,6 +1851,7 @@ test("will send actions for updated tasks in multiple connections", async () => 
                 {
                     type: "UpdateTask",
                     time: expect.any(Array),
+                    actor: taskActionActor(session1),
                     taskId: task5.id,
                     taskAction: {
                         type: "UpdatePriority",
@@ -1787,7 +1861,7 @@ test("will send actions for updated tasks in multiple connections", async () => 
             ],
             backfillTasks: {},
             backfillCollections: {},
-            referencedAccounts: [],
+            referencedAccounts: [await session1.get()],
             referencedSites: [],
         },
     ]);
@@ -1801,6 +1875,7 @@ test("will send actions for updated tasks in multiple connections", async () => 
                 {
                     type: "UpdateTask",
                     time: expect.any(Array),
+                    actor: taskActionActor(session1),
                     taskId: task5.id,
                     taskAction: {
                         type: "UpdatePriority",
@@ -1810,7 +1885,7 @@ test("will send actions for updated tasks in multiple connections", async () => 
             ],
             backfillTasks: {},
             backfillCollections: {},
-            referencedAccounts: [],
+            referencedAccounts: [await session1.get()],
             referencedSites: [],
         },
     ]);
@@ -2066,6 +2141,7 @@ test("will send actions for removed/added tasks in multiple connections", async 
                 {
                     type: "UpdateTask",
                     time: expect.any(Array),
+                    actor: taskActionActor(session1),
                     taskId: task2.id,
                     taskAction: {
                         type: "RemoveCollection",
@@ -2075,7 +2151,7 @@ test("will send actions for removed/added tasks in multiple connections", async 
             ],
             backfillTasks: {},
             backfillCollections: {},
-            referencedAccounts: [],
+            referencedAccounts: [await session1.get()],
             referencedSites: [],
         },
     ]);
@@ -2089,6 +2165,7 @@ test("will send actions for removed/added tasks in multiple connections", async 
                 {
                     type: "UpdateTask",
                     time: expect.any(Array),
+                    actor: taskActionActor(session1),
                     taskId: task2.id,
                     taskAction: {
                         type: "RemoveCollection",
@@ -2098,7 +2175,7 @@ test("will send actions for removed/added tasks in multiple connections", async 
             ],
             backfillTasks: {},
             backfillCollections: {},
-            referencedAccounts: [],
+            referencedAccounts: [await session1.get()],
             referencedSites: [],
         },
     ]);
@@ -2112,6 +2189,7 @@ test("will send actions for removed/added tasks in multiple connections", async 
                 {
                     type: "UpdateTask",
                     time: expect.any(Array),
+                    actor: taskActionActor(session1),
                     taskId: task2.id,
                     taskAction: {
                         type: "RemoveCollection",
@@ -2121,7 +2199,7 @@ test("will send actions for removed/added tasks in multiple connections", async 
             ],
             backfillTasks: {},
             backfillCollections: {},
-            referencedAccounts: [],
+            referencedAccounts: [await session1.get()],
             referencedSites: [],
         },
     ]);
@@ -2135,6 +2213,7 @@ test("will send actions for removed/added tasks in multiple connections", async 
                 {
                     type: "UpdateTask",
                     time: expect.any(Array),
+                    actor: taskActionActor(session1),
                     taskId: task2.id,
                     taskAction: {
                         type: "RemoveCollection",
@@ -2144,7 +2223,7 @@ test("will send actions for removed/added tasks in multiple connections", async 
             ],
             backfillTasks: {},
             backfillCollections: {},
-            referencedAccounts: [],
+            referencedAccounts: [await session1.get()],
             referencedSites: [],
         },
     ]);
@@ -2161,6 +2240,7 @@ test("will send actions for removed/added tasks in multiple connections", async 
                 {
                     type: "UpdateTask",
                     time: expect.any(Array),
+                    actor: taskActionActor(session1),
                     taskId: task2.id,
                     taskAction: {
                         type: "UpdatePriority",
@@ -2170,7 +2250,7 @@ test("will send actions for removed/added tasks in multiple connections", async 
             ],
             backfillTasks: {},
             backfillCollections: {},
-            referencedAccounts: [],
+            referencedAccounts: [await session1.get()],
             referencedSites: [],
         },
     ]);
@@ -2188,6 +2268,7 @@ test("will send actions for removed/added tasks in multiple connections", async 
                 {
                     type: "UpdateTask",
                     time: expect.any(Array),
+                    actor: taskActionActor(session1),
                     taskId: task2.id,
                     taskAction: {
                         type: "UpdatePriority",
@@ -2197,7 +2278,7 @@ test("will send actions for removed/added tasks in multiple connections", async 
             ],
             backfillTasks: {},
             backfillCollections: {},
-            referencedAccounts: [],
+            referencedAccounts: [await session1.get()],
             referencedSites: [],
         },
     ]);
@@ -2227,6 +2308,7 @@ test("will send actions for removed/added tasks in multiple connections", async 
                 {
                     type: "UpdateTask",
                     time: expect.any(Array),
+                    actor: taskActionActor(session1),
                     taskId: task5.id,
                     taskAction: {
                         type: "AddCollection",
@@ -2237,7 +2319,7 @@ test("will send actions for removed/added tasks in multiple connections", async 
             ],
             backfillTasks: {},
             backfillCollections: {},
-            referencedAccounts: [],
+            referencedAccounts: [await session1.get()],
             referencedSites: [],
         },
     ]);
@@ -2251,6 +2333,7 @@ test("will send actions for removed/added tasks in multiple connections", async 
                 {
                     type: "UpdateTask",
                     time: expect.any(Array),
+                    actor: taskActionActor(session1),
                     taskId: task5.id,
                     taskAction: {
                         type: "AddCollection",
@@ -2261,7 +2344,7 @@ test("will send actions for removed/added tasks in multiple connections", async 
             ],
             backfillTasks: {},
             backfillCollections: {},
-            referencedAccounts: [],
+            referencedAccounts: [await session1.get()],
             referencedSites: [],
         },
     ]);
@@ -2275,6 +2358,7 @@ test("will send actions for removed/added tasks in multiple connections", async 
                 {
                     type: "UpdateTask",
                     time: expect.any(Array),
+                    actor: taskActionActor(session1),
                     taskId: task5.id,
                     taskAction: {
                         type: "AddCollection",
@@ -2285,7 +2369,7 @@ test("will send actions for removed/added tasks in multiple connections", async 
             ],
             backfillTasks: {},
             backfillCollections: {},
-            referencedAccounts: [],
+            referencedAccounts: [await session1.get()],
             referencedSites: [],
         },
     ]);
@@ -2302,6 +2386,7 @@ test("will send actions for removed/added tasks in multiple connections", async 
                 {
                     type: "UpdateTask",
                     time: expect.any(Array),
+                    actor: taskActionActor(session1),
                     taskId: task5.id,
                     taskAction: {
                         type: "UpdatePriority",
@@ -2311,7 +2396,7 @@ test("will send actions for removed/added tasks in multiple connections", async 
             ],
             backfillTasks: {},
             backfillCollections: {},
-            referencedAccounts: [],
+            referencedAccounts: [await session1.get()],
             referencedSites: [],
         },
     ]);
@@ -2325,6 +2410,7 @@ test("will send actions for removed/added tasks in multiple connections", async 
                 {
                     type: "UpdateTask",
                     time: expect.any(Array),
+                    actor: taskActionActor(session1),
                     taskId: task5.id,
                     taskAction: {
                         type: "UpdatePriority",
@@ -2334,7 +2420,7 @@ test("will send actions for removed/added tasks in multiple connections", async 
             ],
             backfillTasks: {},
             backfillCollections: {},
-            referencedAccounts: [],
+            referencedAccounts: [await session1.get()],
             referencedSites: [],
         },
     ]);
@@ -2348,6 +2434,7 @@ test("will send actions for removed/added tasks in multiple connections", async 
                 {
                     type: "UpdateTask",
                     time: expect.any(Array),
+                    actor: taskActionActor(session1),
                     taskId: task5.id,
                     taskAction: {
                         type: "UpdatePriority",
@@ -2357,7 +2444,7 @@ test("will send actions for removed/added tasks in multiple connections", async 
             ],
             backfillTasks: {},
             backfillCollections: {},
-            referencedAccounts: [],
+            referencedAccounts: [await session1.get()],
             referencedSites: [],
         },
     ]);
@@ -2371,6 +2458,7 @@ test("will send actions for removed/added tasks in multiple connections", async 
                 {
                     type: "UpdateTask",
                     time: expect.any(Array),
+                    actor: taskActionActor(session1),
                     taskId: task5.id,
                     taskAction: {
                         type: "UpdatePriority",
@@ -2380,7 +2468,7 @@ test("will send actions for removed/added tasks in multiple connections", async 
             ],
             backfillTasks: {},
             backfillCollections: {},
-            referencedAccounts: [],
+            referencedAccounts: [await session1.get()],
             referencedSites: [],
         },
     ]);
@@ -2616,6 +2704,7 @@ test("can update a referenced task in one query and remove the same referenced t
                 {
                     type: "UpdateTask",
                     time: expect.any(Array),
+                    actor: taskActionActor(creatorSession),
                     taskId: task2.id,
                     taskAction: {
                         type: "UpdateParentTaskId",
@@ -2625,6 +2714,7 @@ test("can update a referenced task in one query and remove the same referenced t
                 {
                     type: "UpdateTask",
                     time: expect.any(Array),
+                    actor: taskActionActor(creatorSession),
                     taskId: task1.id,
                     taskAction: {
                         type: "UpdatePriority",
@@ -2634,6 +2724,7 @@ test("can update a referenced task in one query and remove the same referenced t
                 {
                     type: "UpdateTask",
                     time: expect.any(Array),
+                    actor: taskActionActor(creatorSession),
                     taskId: task1.id,
                     taskAction: expect.objectContaining({
                         type: "UpdateChildrenCounts",
@@ -2642,7 +2733,7 @@ test("can update a referenced task in one query and remove the same referenced t
             ],
             backfillTasks: {},
             backfillCollections: {},
-            referencedAccounts: [],
+            referencedAccounts: [await creatorSession.get()],
             referencedSites: [],
         },
     ]);
@@ -2656,6 +2747,7 @@ test("can update a referenced task in one query and remove the same referenced t
                 {
                     type: "UpdateTask",
                     time: expect.any(Array),
+                    actor: taskActionActor(creatorSession),
                     taskId: task2.id,
                     taskAction: {
                         type: "UpdateParentTaskId",
@@ -2665,6 +2757,7 @@ test("can update a referenced task in one query and remove the same referenced t
                 {
                     type: "UpdateTask",
                     time: expect.any(Array),
+                    actor: taskActionActor(creatorSession),
                     taskId: task1.id,
                     taskAction: {
                         type: "UpdatePriority",
@@ -2674,6 +2767,7 @@ test("can update a referenced task in one query and remove the same referenced t
                 {
                     type: "UpdateTask",
                     time: expect.any(Array),
+                    actor: taskActionActor(creatorSession),
                     taskId: task1.id,
                     taskAction: expect.objectContaining({
                         type: "UpdateChildrenCounts",
@@ -2682,7 +2776,7 @@ test("can update a referenced task in one query and remove the same referenced t
             ],
             backfillTasks: {},
             backfillCollections: {},
-            referencedAccounts: [],
+            referencedAccounts: [await creatorSession.get()],
             referencedSites: [],
         },
     ]);
@@ -2979,6 +3073,7 @@ test("visible task updated out of loaded range ignored", async () => {
                 {
                     type: "UpdateTask",
                     time: expect.any(Array),
+                    actor: taskActionActor(session),
                     taskId: task4.id,
                     taskAction: {
                         type: "UpdatePriority",
@@ -2988,7 +3083,7 @@ test("visible task updated out of loaded range ignored", async () => {
             ],
             backfillTasks: {},
             backfillCollections: {},
-            referencedAccounts: [],
+            referencedAccounts: [await session.get()],
             referencedSites: [],
         },
     ]);
@@ -3138,6 +3233,7 @@ test("visible task removed out of loaded range ignored", async () => {
                 {
                     type: "UpdateTask",
                     time: expect.any(Array),
+                    actor: taskActionActor(session),
                     taskId: task4.id,
                     taskAction: {
                         type: "RemoveCollection",
@@ -3147,7 +3243,7 @@ test("visible task removed out of loaded range ignored", async () => {
             ],
             backfillTasks: {},
             backfillCollections: {},
-            referencedAccounts: [],
+            referencedAccounts: [await session.get()],
             referencedSites: [],
         },
     ]);
@@ -3317,6 +3413,7 @@ test("visible task moved into loaded range", async () => {
                 {
                     type: "UpdateTask",
                     time: expect.any(Array),
+                    actor: taskActionActor(session),
                     taskId: task4.id,
                     taskAction: {
                         type: "UpdatePriority",
@@ -3326,7 +3423,7 @@ test("visible task moved into loaded range", async () => {
             ],
             backfillTasks: {},
             backfillCollections: {},
-            referencedAccounts: [],
+            referencedAccounts: [await session.get()],
             referencedSites: [],
         },
     ]);
@@ -3481,6 +3578,7 @@ test("visible task moved out of loaded range", async () => {
                 {
                     type: "UpdateTask",
                     time: expect.any(Array),
+                    actor: taskActionActor(session),
                     taskId: task2.id,
                     taskAction: {
                         type: "UpdatePriority",
@@ -3490,7 +3588,7 @@ test("visible task moved out of loaded range", async () => {
             ],
             backfillTasks: {},
             backfillCollections: {},
-            referencedAccounts: [],
+            referencedAccounts: [await session.get()],
             referencedSites: [],
         },
     ]);
@@ -3506,6 +3604,7 @@ test("visible task moved out of loaded range", async () => {
                 {
                     type: "UpdateTask",
                     time: expect.any(Array),
+                    actor: taskActionActor(session),
                     taskId: task2.id,
                     taskAction: {
                         type: "UpdatePriority",
@@ -3515,7 +3614,7 @@ test("visible task moved out of loaded range", async () => {
             ],
             backfillTasks: {},
             backfillCollections: {},
-            referencedAccounts: [],
+            referencedAccounts: [await session.get()],
             referencedSites: [],
         },
     ]);
@@ -3629,6 +3728,7 @@ test("unsubscribe stops sending actions to connection", async () => {
                 {
                     type: "UpdateTask",
                     time: expect.any(Array),
+                    actor: taskActionActor(session),
                     taskId: task2.id,
                     taskAction: {
                         type: "UpdatePriority",
@@ -3638,7 +3738,7 @@ test("unsubscribe stops sending actions to connection", async () => {
             ],
             backfillTasks: {},
             backfillCollections: {},
-            referencedAccounts: [],
+            referencedAccounts: [await session.get()],
             referencedSites: [],
         },
     ]);
@@ -3652,6 +3752,7 @@ test("unsubscribe stops sending actions to connection", async () => {
                 {
                     type: "UpdateTask",
                     time: expect.any(Array),
+                    actor: taskActionActor(session),
                     taskId: task2.id,
                     taskAction: {
                         type: "UpdatePriority",
@@ -3661,7 +3762,7 @@ test("unsubscribe stops sending actions to connection", async () => {
             ],
             backfillTasks: {},
             backfillCollections: {},
-            referencedAccounts: [],
+            referencedAccounts: [await session.get()],
             referencedSites: [],
         },
     ]);
@@ -3682,6 +3783,7 @@ test("unsubscribe stops sending actions to connection", async () => {
                 {
                     type: "UpdateTask",
                     time: expect.any(Array),
+                    actor: taskActionActor(session),
                     taskId: task2.id,
                     taskAction: {
                         type: "UpdatePriority",
@@ -3691,7 +3793,7 @@ test("unsubscribe stops sending actions to connection", async () => {
             ],
             backfillTasks: {},
             backfillCollections: {},
-            referencedAccounts: [],
+            referencedAccounts: [await session.get()],
             referencedSites: [],
         },
     ]);
@@ -4067,6 +4169,7 @@ test("all referenced collections will be backfilled in the query when added", as
                 {
                     type: "UpdateTask",
                     time: expect.any(Array),
+                    actor: taskActionActor(session),
                     taskId: task2.id,
                     taskAction: {
                         type: "UpdatePriority",
@@ -4076,7 +4179,7 @@ test("all referenced collections will be backfilled in the query when added", as
             ],
             backfillTasks: {},
             backfillCollections: {},
-            referencedAccounts: [],
+            referencedAccounts: [await session.get()],
             referencedSites: [],
         },
     ]);
@@ -4189,6 +4292,7 @@ test("when a collection is added it will be backfilled", async () => {
                 {
                     type: "UpdateTask",
                     time: expect.any(Array),
+                    actor: taskActionActor(session),
                     taskId: task3.id,
                     taskAction: {
                         type: "AddCollection",
@@ -4199,7 +4303,7 @@ test("when a collection is added it will be backfilled", async () => {
             ],
             backfillTasks: {},
             backfillCollections: {[collection3b.id]: expectAuthorizedCollection()},
-            referencedAccounts: [],
+            referencedAccounts: [await session.get()],
             referencedSites: [],
         },
     ]);
@@ -4216,6 +4320,7 @@ test("when a collection is added it will be backfilled", async () => {
                 {
                     type: "UpdateTask",
                     time: expect.any(Array),
+                    actor: taskActionActor(session),
                     taskId: task3.id,
                     taskAction: {
                         type: "RemoveCollection",
@@ -4225,7 +4330,7 @@ test("when a collection is added it will be backfilled", async () => {
             ],
             backfillTasks: {},
             backfillCollections: {},
-            referencedAccounts: [],
+            referencedAccounts: [await session.get()],
             referencedSites: [],
         },
     ]);
@@ -4311,6 +4416,7 @@ test("if a collection is referenced then the connection will receive actions for
                 {
                     type: "UpdateCollection",
                     time: expect.any(Array),
+                    actor: taskActionActor(session),
                     collectionId: collection1.id,
                     collectionAction: {
                         type: "UpdateName",
@@ -4320,7 +4426,7 @@ test("if a collection is referenced then the connection will receive actions for
             ],
             backfillTasks: {},
             backfillCollections: {},
-            referencedAccounts: [],
+            referencedAccounts: [await session.get()],
             referencedSites: [],
         },
     ]);
@@ -4342,6 +4448,7 @@ test("if a collection is referenced then the connection will receive actions for
                 {
                     type: "UpdateTask",
                     time: expect.any(Array),
+                    actor: taskActionActor(session),
                     taskId: task1.id,
                     taskAction: {
                         type: "UpdateCollectionPosition",
@@ -4355,7 +4462,7 @@ test("if a collection is referenced then the connection will receive actions for
             ],
             backfillTasks: {},
             backfillCollections: {},
-            referencedAccounts: [],
+            referencedAccounts: [await session.get()],
             referencedSites: [],
         },
     ]);
@@ -4388,6 +4495,7 @@ test("if a collection is referenced then the connection will receive actions for
                 {
                     type: "UpdateCollection",
                     time: expect.any(Array),
+                    actor: taskActionActor(session),
                     collectionId: collection2.id,
                     collectionAction: {
                         type: "UpdateName",
@@ -4397,7 +4505,7 @@ test("if a collection is referenced then the connection will receive actions for
             ],
             backfillTasks: {},
             backfillCollections: {},
-            referencedAccounts: [],
+            referencedAccounts: [await session.get()],
             referencedSites: [],
         },
     ]);
@@ -4477,6 +4585,7 @@ test("if a collection is referenced then the all references must be removed to n
                 {
                     type: "UpdateCollection",
                     time: expect.any(Array),
+                    actor: taskActionActor(session),
                     collectionId: collection.id,
                     collectionAction: {
                         type: "UpdateName",
@@ -4486,7 +4595,7 @@ test("if a collection is referenced then the all references must be removed to n
             ],
             backfillTasks: {},
             backfillCollections: {},
-            referencedAccounts: [],
+            referencedAccounts: [await session.get()],
             referencedSites: [],
         },
     ]);
@@ -4504,6 +4613,7 @@ test("if a collection is referenced then the all references must be removed to n
                 {
                     type: "UpdateTask",
                     time: expect.any(Array),
+                    actor: taskActionActor(session),
                     taskId: task1.id,
                     taskAction: {
                         type: "RemoveCollection",
@@ -4513,7 +4623,7 @@ test("if a collection is referenced then the all references must be removed to n
             ],
             backfillTasks: {},
             backfillCollections: {},
-            referencedAccounts: [],
+            referencedAccounts: [await session.get()],
             referencedSites: [],
         },
         {
@@ -4524,6 +4634,7 @@ test("if a collection is referenced then the all references must be removed to n
                 {
                     type: "UpdateCollection",
                     time: expect.any(Array),
+                    actor: taskActionActor(session),
                     collectionId: collection.id,
                     collectionAction: {
                         type: "UpdateName",
@@ -4533,7 +4644,7 @@ test("if a collection is referenced then the all references must be removed to n
             ],
             backfillTasks: {},
             backfillCollections: {},
-            referencedAccounts: [],
+            referencedAccounts: [await session.get()],
             referencedSites: [],
         },
     ]);
@@ -4552,6 +4663,7 @@ test("if a collection is referenced then the all references must be removed to n
                 {
                     type: "UpdateTask",
                     time: expect.any(Array),
+                    actor: taskActionActor(session),
                     taskId: task3.id,
                     taskAction: {
                         type: "AddCollection",
@@ -4562,7 +4674,7 @@ test("if a collection is referenced then the all references must be removed to n
             ],
             backfillTasks: {},
             backfillCollections: {},
-            referencedAccounts: [],
+            referencedAccounts: [await session.get()],
             referencedSites: [],
         },
         {
@@ -4573,6 +4685,7 @@ test("if a collection is referenced then the all references must be removed to n
                 {
                     type: "UpdateTask",
                     time: expect.any(Array),
+                    actor: taskActionActor(session),
                     taskId: task2.id,
                     taskAction: {
                         type: "RemoveCollection",
@@ -4582,7 +4695,7 @@ test("if a collection is referenced then the all references must be removed to n
             ],
             backfillTasks: {},
             backfillCollections: {},
-            referencedAccounts: [],
+            referencedAccounts: [await session.get()],
             referencedSites: [],
         },
         {
@@ -4593,6 +4706,7 @@ test("if a collection is referenced then the all references must be removed to n
                 {
                     type: "UpdateCollection",
                     time: expect.any(Array),
+                    actor: taskActionActor(session),
                     collectionId: collection.id,
                     collectionAction: {
                         type: "UpdateName",
@@ -4602,7 +4716,7 @@ test("if a collection is referenced then the all references must be removed to n
             ],
             backfillTasks: {},
             backfillCollections: {},
-            referencedAccounts: [],
+            referencedAccounts: [await session.get()],
             referencedSites: [],
         },
     ]);
@@ -4620,6 +4734,7 @@ test("if a collection is referenced then the all references must be removed to n
                 {
                     type: "UpdateTask",
                     time: expect.any(Array),
+                    actor: taskActionActor(session),
                     taskId: task3.id,
                     taskAction: {
                         type: "RemoveCollection",
@@ -4629,7 +4744,7 @@ test("if a collection is referenced then the all references must be removed to n
             ],
             backfillTasks: {},
             backfillCollections: {},
-            referencedAccounts: [],
+            referencedAccounts: [await session.get()],
             referencedSites: [],
         },
     ]);
@@ -4716,6 +4831,7 @@ test("collections unreferenced by removing loaded task do not receive actions", 
                 {
                     type: "UpdateCollection",
                     time: expect.any(Array),
+                    actor: taskActionActor(session),
                     collectionId: collection.id,
                     collectionAction: {
                         type: "UpdateName",
@@ -4725,7 +4841,7 @@ test("collections unreferenced by removing loaded task do not receive actions", 
             ],
             backfillTasks: {},
             backfillCollections: {},
-            referencedAccounts: [],
+            referencedAccounts: [await session.get()],
             referencedSites: [],
         },
     ]);
@@ -4742,6 +4858,7 @@ test("collections unreferenced by removing loaded task do not receive actions", 
                 {
                     type: "UpdateTask",
                     time: expect.any(Array),
+                    actor: taskActionActor(session),
                     taskId: task1.id,
                     taskAction: {
                         type: "UpdatePriority",
@@ -4751,7 +4868,7 @@ test("collections unreferenced by removing loaded task do not receive actions", 
             ],
             backfillTasks: {},
             backfillCollections: {},
-            referencedAccounts: [],
+            referencedAccounts: [await session.get()],
             referencedSites: [],
         },
     ]);
@@ -4843,6 +4960,7 @@ test("collections can be referenced, unreferenced, then referenced again", async
                 {
                     type: "UpdateCollection",
                     time: expect.any(Array),
+                    actor: taskActionActor(session),
                     collectionId: collection.id,
                     collectionAction: {
                         type: "UpdateName",
@@ -4852,7 +4970,7 @@ test("collections can be referenced, unreferenced, then referenced again", async
             ],
             backfillTasks: {},
             backfillCollections: {},
-            referencedAccounts: [],
+            referencedAccounts: [await session.get()],
             referencedSites: [],
         },
     ]);
@@ -4869,6 +4987,7 @@ test("collections can be referenced, unreferenced, then referenced again", async
                 {
                     type: "UpdateTask",
                     time: expect.any(Array),
+                    actor: taskActionActor(session),
                     taskId: task1.id,
                     taskAction: {
                         type: "UpdatePriority",
@@ -4878,7 +4997,7 @@ test("collections can be referenced, unreferenced, then referenced again", async
             ],
             backfillTasks: {},
             backfillCollections: {},
-            referencedAccounts: [],
+            referencedAccounts: [await session.get()],
             referencedSites: [],
         },
     ]);
@@ -4916,6 +5035,7 @@ test("collections can be referenced, unreferenced, then referenced again", async
                 {
                     type: "UpdateCollection",
                     time: expect.any(Array),
+                    actor: taskActionActor(session),
                     collectionId: collection.id,
                     collectionAction: {
                         type: "UpdateName",
@@ -4925,7 +5045,7 @@ test("collections can be referenced, unreferenced, then referenced again", async
             ],
             backfillTasks: {},
             backfillCollections: {},
-            referencedAccounts: [],
+            referencedAccounts: [await session.get()],
             referencedSites: [],
         },
     ]);
@@ -5257,6 +5377,7 @@ test("parent tasks is backfilled when task is updated", async () => {
                 {
                     type: "UpdateTask",
                     time: expect.any(Array),
+                    actor: taskActionActor(session),
                     taskId: task1.id,
                     taskAction: {
                         type: "UpdateParentTaskId",
@@ -5283,6 +5404,7 @@ test("parent tasks is backfilled when task is updated", async () => {
                 {
                     type: "UpdateTask",
                     time: expect.any(Array),
+                    actor: taskActionActor(session),
                     taskId: task1.id,
                     taskAction: {
                         type: "UpdateParentTaskId",
@@ -5292,6 +5414,7 @@ test("parent tasks is backfilled when task is updated", async () => {
                 {
                     type: "UpdateTask",
                     time: expect.any(Array),
+                    actor: taskActionActor(session),
                     taskId: parentTask1.id,
                     taskAction: expect.objectContaining({
                         type: "UpdateChildrenCounts",
@@ -5382,6 +5505,7 @@ test("parents of loaded tasks receive update actions", async () => {
                 {
                     type: "UpdateTask",
                     time: expect.any(Array),
+                    actor: taskActionActor(session),
                     taskId: parentTask1.id,
                     taskAction: {
                         type: "UpdatePriority",
@@ -5391,7 +5515,7 @@ test("parents of loaded tasks receive update actions", async () => {
             ],
             backfillTasks: {},
             backfillCollections: {},
-            referencedAccounts: [],
+            referencedAccounts: [await session.get()],
             referencedSites: [],
         },
     ]);
@@ -5408,6 +5532,7 @@ test("parents of loaded tasks receive update actions", async () => {
                 {
                     type: "UpdateTask",
                     time: expect.any(Array),
+                    actor: taskActionActor(session),
                     taskId: task1.id,
                     taskAction: {
                         type: "UpdateParentTaskId",
@@ -5417,6 +5542,7 @@ test("parents of loaded tasks receive update actions", async () => {
                 {
                     type: "UpdateTask",
                     time: expect.any(Array),
+                    actor: taskActionActor(session),
                     taskId: parentTask1.id,
                     taskAction: expect.objectContaining({
                         type: "UpdateChildrenCounts",
@@ -5425,7 +5551,7 @@ test("parents of loaded tasks receive update actions", async () => {
             ],
             backfillTasks: {},
             backfillCollections: {},
-            referencedAccounts: [],
+            referencedAccounts: [await session.get()],
             referencedSites: [],
         },
     ]);
@@ -5447,6 +5573,7 @@ test("parents of loaded tasks receive update actions", async () => {
                 {
                     type: "UpdateTask",
                     time: expect.any(Array),
+                    actor: taskActionActor(session),
                     taskId: task2.id,
                     taskAction: {
                         type: "UpdateParentTaskId",
@@ -5473,6 +5600,7 @@ test("parents of loaded tasks receive update actions", async () => {
                 {
                     type: "UpdateTask",
                     time: expect.any(Array),
+                    actor: taskActionActor(session),
                     taskId: parentTask1.id,
                     taskAction: {
                         type: "UpdatePriority",
@@ -5482,7 +5610,7 @@ test("parents of loaded tasks receive update actions", async () => {
             ],
             backfillTasks: {},
             backfillCollections: {},
-            referencedAccounts: [],
+            referencedAccounts: [await session.get()],
             referencedSites: [],
         },
     ]);
@@ -5565,6 +5693,7 @@ test("parents of loaded tasks receive update actions until all references are re
                 {
                     type: "UpdateTask",
                     time: expect.any(Array),
+                    actor: taskActionActor(session),
                     taskId: parentTask1.id,
                     taskAction: {
                         type: "UpdatePriority",
@@ -5574,7 +5703,7 @@ test("parents of loaded tasks receive update actions until all references are re
             ],
             backfillTasks: {},
             backfillCollections: {},
-            referencedAccounts: [],
+            referencedAccounts: [await session.get()],
             referencedSites: [],
         },
     ]);
@@ -5591,6 +5720,7 @@ test("parents of loaded tasks receive update actions until all references are re
                 {
                     type: "UpdateTask",
                     time: expect.any(Array),
+                    actor: taskActionActor(session),
                     taskId: task1.id,
                     taskAction: {
                         type: "UpdateParentTaskId",
@@ -5600,6 +5730,7 @@ test("parents of loaded tasks receive update actions until all references are re
                 {
                     type: "UpdateTask",
                     time: expect.any(Array),
+                    actor: taskActionActor(session),
                     taskId: parentTask1.id,
                     taskAction: expect.objectContaining({
                         type: "UpdateChildrenCounts",
@@ -5608,7 +5739,7 @@ test("parents of loaded tasks receive update actions until all references are re
             ],
             backfillTasks: {},
             backfillCollections: {},
-            referencedAccounts: [],
+            referencedAccounts: [await session.get()],
             referencedSites: [],
         },
     ]);
@@ -5625,6 +5756,7 @@ test("parents of loaded tasks receive update actions until all references are re
                 {
                     type: "UpdateTask",
                     time: expect.any(Array),
+                    actor: taskActionActor(session),
                     taskId: parentTask1.id,
                     taskAction: {
                         type: "UpdatePriority",
@@ -5634,7 +5766,7 @@ test("parents of loaded tasks receive update actions until all references are re
             ],
             backfillTasks: {},
             backfillCollections: {},
-            referencedAccounts: [],
+            referencedAccounts: [await session.get()],
             referencedSites: [],
         },
     ]);
@@ -5651,6 +5783,7 @@ test("parents of loaded tasks receive update actions until all references are re
                 {
                     type: "UpdateTask",
                     time: expect.any(Array),
+                    actor: taskActionActor(session),
                     taskId: task2.id,
                     taskAction: {
                         type: "UpdateParentTaskId",
@@ -5660,6 +5793,7 @@ test("parents of loaded tasks receive update actions until all references are re
                 {
                     type: "UpdateTask",
                     time: expect.any(Array),
+                    actor: taskActionActor(session),
                     taskId: parentTask1.id,
                     taskAction: expect.objectContaining({
                         type: "UpdateChildrenCounts",
@@ -5668,7 +5802,7 @@ test("parents of loaded tasks receive update actions until all references are re
             ],
             backfillTasks: {},
             backfillCollections: {},
-            referencedAccounts: [],
+            referencedAccounts: [await session.get()],
             referencedSites: [],
         },
     ]);
@@ -5690,6 +5824,7 @@ test("parents of loaded tasks receive update actions until all references are re
                 {
                     type: "UpdateTask",
                     time: expect.any(Array),
+                    actor: taskActionActor(session),
                     taskId: task2.id,
                     taskAction: {
                         type: "UpdateParentTaskId",
@@ -5716,6 +5851,7 @@ test("parents of loaded tasks receive update actions until all references are re
                 {
                     type: "UpdateTask",
                     time: expect.any(Array),
+                    actor: taskActionActor(session),
                     taskId: parentTask1.id,
                     taskAction: {
                         type: "UpdatePriority",
@@ -5725,7 +5861,7 @@ test("parents of loaded tasks receive update actions until all references are re
             ],
             backfillTasks: {},
             backfillCollections: {},
-            referencedAccounts: [],
+            referencedAccounts: [await session.get()],
             referencedSites: [],
         },
     ]);
@@ -6072,6 +6208,7 @@ test("grandparent tasks are backfilled when task is updated", async () => {
                 {
                     type: "UpdateTask",
                     time: expect.any(Array),
+                    actor: taskActionActor(session),
                     taskId: task1.id,
                     taskAction: {
                         type: "UpdateParentTaskId",
@@ -6103,6 +6240,7 @@ test("grandparent tasks are backfilled when task is updated", async () => {
                 {
                     type: "UpdateTask",
                     time: expect.any(Array),
+                    actor: taskActionActor(session),
                     taskId: task1.id,
                     taskAction: {
                         type: "UpdateParentTaskId",
@@ -6112,6 +6250,7 @@ test("grandparent tasks are backfilled when task is updated", async () => {
                 {
                     type: "UpdateTask",
                     time: expect.any(Array),
+                    actor: taskActionActor(session),
                     taskId: parentTask1.id,
                     taskAction: expect.objectContaining({
                         type: "UpdateChildrenCounts",
@@ -6120,7 +6259,7 @@ test("grandparent tasks are backfilled when task is updated", async () => {
             ],
             backfillTasks: {},
             backfillCollections: {},
-            referencedAccounts: [],
+            referencedAccounts: [await session.get()],
             referencedSites: [],
         },
         {
@@ -6131,6 +6270,7 @@ test("grandparent tasks are backfilled when task is updated", async () => {
                 {
                     type: "UpdateTask",
                     time: expect.any(Array),
+                    actor: taskActionActor(session),
                     taskId: task2.id,
                     taskAction: {
                         type: "UpdateParentTaskId",
@@ -6161,6 +6301,7 @@ test("grandparent tasks are backfilled when task is updated", async () => {
                 {
                     type: "UpdateTask",
                     time: expect.any(Array),
+                    actor: taskActionActor(session),
                     taskId: task2.id,
                     taskAction: {
                         type: "UpdateParentTaskId",
@@ -6170,6 +6311,7 @@ test("grandparent tasks are backfilled when task is updated", async () => {
                 {
                     type: "UpdateTask",
                     time: expect.any(Array),
+                    actor: taskActionActor(session),
                     taskId: parentTask2.id,
                     taskAction: expect.objectContaining({
                         type: "UpdateChildrenCounts",
@@ -6196,6 +6338,7 @@ test("grandparent tasks are backfilled when task is updated", async () => {
                 {
                     type: "UpdateTask",
                     time: expect.any(Array),
+                    actor: taskActionActor(session),
                     taskId: task2.id,
                     taskAction: {
                         type: "UpdateParentTaskId",
@@ -6205,6 +6348,7 @@ test("grandparent tasks are backfilled when task is updated", async () => {
                 {
                     type: "UpdateTask",
                     time: expect.any(Array),
+                    actor: taskActionActor(session),
                     taskId: parentTask1.id,
                     taskAction: expect.objectContaining({
                         type: "UpdateChildrenCounts",
@@ -6213,6 +6357,7 @@ test("grandparent tasks are backfilled when task is updated", async () => {
                 {
                     type: "UpdateTask",
                     time: expect.any(Array),
+                    actor: taskActionActor(session),
                     taskId: parentTask2.id,
                     taskAction: expect.objectContaining({
                         type: "UpdateChildrenCounts",
@@ -6221,7 +6366,7 @@ test("grandparent tasks are backfilled when task is updated", async () => {
             ],
             backfillTasks: {},
             backfillCollections: {},
-            referencedAccounts: [],
+            referencedAccounts: [await session.get()],
             referencedSites: [],
         },
     ]);
@@ -6310,6 +6455,7 @@ test("grandparents of loaded tasks receive update actions", async () => {
                 {
                     type: "UpdateTask",
                     time: expect.any(Array),
+                    actor: taskActionActor(session),
                     taskId: parentTask3.id,
                     taskAction: {
                         type: "UpdatePriority",
@@ -6319,7 +6465,7 @@ test("grandparents of loaded tasks receive update actions", async () => {
             ],
             backfillTasks: {},
             backfillCollections: {},
-            referencedAccounts: [],
+            referencedAccounts: [await session.get()],
             referencedSites: [],
         },
     ]);
@@ -6336,6 +6482,7 @@ test("grandparents of loaded tasks receive update actions", async () => {
                 {
                     type: "UpdateTask",
                     time: expect.any(Array),
+                    actor: taskActionActor(session),
                     taskId: task1.id,
                     taskAction: {
                         type: "UpdateParentTaskId",
@@ -6345,6 +6492,7 @@ test("grandparents of loaded tasks receive update actions", async () => {
                 {
                     type: "UpdateTask",
                     time: expect.any(Array),
+                    actor: taskActionActor(session),
                     taskId: parentTask1.id,
                     taskAction: expect.objectContaining({
                         type: "UpdateChildrenCounts",
@@ -6353,7 +6501,7 @@ test("grandparents of loaded tasks receive update actions", async () => {
             ],
             backfillTasks: {},
             backfillCollections: {},
-            referencedAccounts: [],
+            referencedAccounts: [await session.get()],
             referencedSites: [],
         },
     ]);
@@ -6375,6 +6523,7 @@ test("grandparents of loaded tasks receive update actions", async () => {
                 {
                     type: "UpdateTask",
                     time: expect.any(Array),
+                    actor: taskActionActor(session),
                     taskId: task2.id,
                     taskAction: {
                         type: "UpdateParentTaskId",
@@ -6404,6 +6553,7 @@ test("grandparents of loaded tasks receive update actions", async () => {
                 {
                     type: "UpdateTask",
                     time: expect.any(Array),
+                    actor: taskActionActor(session),
                     taskId: parentTask3.id,
                     taskAction: {
                         type: "UpdatePriority",
@@ -6413,7 +6563,7 @@ test("grandparents of loaded tasks receive update actions", async () => {
             ],
             backfillTasks: {},
             backfillCollections: {},
-            referencedAccounts: [],
+            referencedAccounts: [await session.get()],
             referencedSites: [],
         },
     ]);
@@ -6503,6 +6653,7 @@ test("grandparents of loaded tasks receive update actions until all references a
                 {
                     type: "UpdateTask",
                     time: expect.any(Array),
+                    actor: taskActionActor(session),
                     taskId: parentTask3.id,
                     taskAction: {
                         type: "UpdatePriority",
@@ -6512,7 +6663,7 @@ test("grandparents of loaded tasks receive update actions until all references a
             ],
             backfillTasks: {},
             backfillCollections: {},
-            referencedAccounts: [],
+            referencedAccounts: [await session.get()],
             referencedSites: [],
         },
     ]);
@@ -6529,6 +6680,7 @@ test("grandparents of loaded tasks receive update actions until all references a
                 {
                     type: "UpdateTask",
                     time: expect.any(Array),
+                    actor: taskActionActor(session),
                     taskId: task1.id,
                     taskAction: {
                         type: "UpdateParentTaskId",
@@ -6538,6 +6690,7 @@ test("grandparents of loaded tasks receive update actions until all references a
                 {
                     type: "UpdateTask",
                     time: expect.any(Array),
+                    actor: taskActionActor(session),
                     taskId: parentTask1.id,
                     taskAction: expect.objectContaining({
                         type: "UpdateChildrenCounts",
@@ -6546,7 +6699,7 @@ test("grandparents of loaded tasks receive update actions until all references a
             ],
             backfillTasks: {},
             backfillCollections: {},
-            referencedAccounts: [],
+            referencedAccounts: [await session.get()],
             referencedSites: [],
         },
     ]);
@@ -6563,6 +6716,7 @@ test("grandparents of loaded tasks receive update actions until all references a
                 {
                     type: "UpdateTask",
                     time: expect.any(Array),
+                    actor: taskActionActor(session),
                     taskId: parentTask3.id,
                     taskAction: {
                         type: "UpdatePriority",
@@ -6572,7 +6726,7 @@ test("grandparents of loaded tasks receive update actions until all references a
             ],
             backfillTasks: {},
             backfillCollections: {},
-            referencedAccounts: [],
+            referencedAccounts: [await session.get()],
             referencedSites: [],
         },
     ]);
@@ -6589,6 +6743,7 @@ test("grandparents of loaded tasks receive update actions until all references a
                 {
                     type: "UpdateTask",
                     time: expect.any(Array),
+                    actor: taskActionActor(session),
                     taskId: task2.id,
                     taskAction: {
                         type: "UpdateParentTaskId",
@@ -6598,6 +6753,7 @@ test("grandparents of loaded tasks receive update actions until all references a
                 {
                     type: "UpdateTask",
                     time: expect.any(Array),
+                    actor: taskActionActor(session),
                     taskId: parentTask2.id,
                     taskAction: expect.objectContaining({
                         type: "UpdateChildrenCounts",
@@ -6606,7 +6762,7 @@ test("grandparents of loaded tasks receive update actions until all references a
             ],
             backfillTasks: {},
             backfillCollections: {},
-            referencedAccounts: [],
+            referencedAccounts: [await session.get()],
             referencedSites: [],
         },
     ]);
@@ -6628,6 +6784,7 @@ test("grandparents of loaded tasks receive update actions until all references a
                 {
                     type: "UpdateTask",
                     time: expect.any(Array),
+                    actor: taskActionActor(session),
                     taskId: task2.id,
                     taskAction: {
                         type: "UpdateParentTaskId",
@@ -6658,6 +6815,7 @@ test("grandparents of loaded tasks receive update actions until all references a
                 {
                     type: "UpdateTask",
                     time: expect.any(Array),
+                    actor: taskActionActor(session),
                     taskId: parentTask3.id,
                     taskAction: {
                         type: "UpdatePriority",
@@ -6667,7 +6825,7 @@ test("grandparents of loaded tasks receive update actions until all references a
             ],
             backfillTasks: {},
             backfillCollections: {},
-            referencedAccounts: [],
+            referencedAccounts: [await session.get()],
             referencedSites: [],
         },
     ]);
@@ -7048,6 +7206,7 @@ test("collections of parent tasks are backfilled when task is updated", async ()
                 {
                     type: "UpdateTask",
                     time: expect.any(Array),
+                    actor: taskActionActor(session),
                     taskId: task1.id,
                     taskAction: {
                         type: "UpdateParentTaskId",
@@ -7078,6 +7237,7 @@ test("collections of parent tasks are backfilled when task is updated", async ()
                 {
                     type: "UpdateTask",
                     time: expect.any(Array),
+                    actor: taskActionActor(session),
                     taskId: task1.id,
                     taskAction: {
                         type: "UpdateParentTaskId",
@@ -7087,6 +7247,7 @@ test("collections of parent tasks are backfilled when task is updated", async ()
                 {
                     type: "UpdateTask",
                     time: expect.any(Array),
+                    actor: taskActionActor(session),
                     taskId: parentTask1.id,
                     taskAction: expect.objectContaining({
                         type: "UpdateChildrenCounts",
@@ -7095,7 +7256,7 @@ test("collections of parent tasks are backfilled when task is updated", async ()
             ],
             backfillTasks: {},
             backfillCollections: {},
-            referencedAccounts: [],
+            referencedAccounts: [await session.get()],
             referencedSites: [],
         },
         {
@@ -7106,6 +7267,7 @@ test("collections of parent tasks are backfilled when task is updated", async ()
                 {
                     type: "UpdateTask",
                     time: expect.any(Array),
+                    actor: taskActionActor(session),
                     taskId: task2.id,
                     taskAction: {
                         type: "UpdateParentTaskId",
@@ -7133,6 +7295,7 @@ test("collections of parent tasks are backfilled when task is updated", async ()
                 {
                     type: "UpdateTask",
                     time: expect.any(Array),
+                    actor: taskActionActor(session),
                     taskId: task2.id,
                     taskAction: {
                         type: "UpdateParentTaskId",
@@ -7142,6 +7305,7 @@ test("collections of parent tasks are backfilled when task is updated", async ()
                 {
                     type: "UpdateTask",
                     time: expect.any(Array),
+                    actor: taskActionActor(session),
                     taskId: parentTask2.id,
                     taskAction: expect.objectContaining({
                         type: "UpdateChildrenCounts",
@@ -7168,6 +7332,7 @@ test("collections of parent tasks are backfilled when task is updated", async ()
                 {
                     type: "UpdateTask",
                     time: expect.any(Array),
+                    actor: taskActionActor(session),
                     taskId: task2.id,
                     taskAction: {
                         type: "UpdateParentTaskId",
@@ -7177,6 +7342,7 @@ test("collections of parent tasks are backfilled when task is updated", async ()
                 {
                     type: "UpdateTask",
                     time: expect.any(Array),
+                    actor: taskActionActor(session),
                     taskId: parentTask1.id,
                     taskAction: expect.objectContaining({
                         type: "UpdateChildrenCounts",
@@ -7185,6 +7351,7 @@ test("collections of parent tasks are backfilled when task is updated", async ()
                 {
                     type: "UpdateTask",
                     time: expect.any(Array),
+                    actor: taskActionActor(session),
                     taskId: parentTask2.id,
                     taskAction: expect.objectContaining({
                         type: "UpdateChildrenCounts",
@@ -7193,7 +7360,7 @@ test("collections of parent tasks are backfilled when task is updated", async ()
             ],
             backfillTasks: {},
             backfillCollections: {},
-            referencedAccounts: [],
+            referencedAccounts: [await session.get()],
             referencedSites: [],
         },
     ]);
@@ -7287,6 +7454,7 @@ test("collections of parents of loaded tasks receive update actions", async () =
                 {
                     type: "UpdateCollection",
                     time: expect.any(Array),
+                    actor: taskActionActor(session),
                     collectionId: collection3.id,
                     collectionAction: {
                         type: "UpdateName",
@@ -7296,7 +7464,7 @@ test("collections of parents of loaded tasks receive update actions", async () =
             ],
             backfillTasks: {},
             backfillCollections: {},
-            referencedAccounts: [],
+            referencedAccounts: [await session.get()],
             referencedSites: [],
         },
     ]);
@@ -7313,6 +7481,7 @@ test("collections of parents of loaded tasks receive update actions", async () =
                 {
                     type: "UpdateCollection",
                     time: expect.any(Array),
+                    actor: taskActionActor(session),
                     collectionId: collection2.id,
                     collectionAction: {
                         type: "UpdateName",
@@ -7322,7 +7491,7 @@ test("collections of parents of loaded tasks receive update actions", async () =
             ],
             backfillTasks: {},
             backfillCollections: {},
-            referencedAccounts: [],
+            referencedAccounts: [await session.get()],
             referencedSites: [],
         },
     ]);
@@ -7339,6 +7508,7 @@ test("collections of parents of loaded tasks receive update actions", async () =
                 {
                     type: "UpdateTask",
                     time: expect.any(Array),
+                    actor: taskActionActor(session),
                     taskId: task1.id,
                     taskAction: {
                         type: "UpdateParentTaskId",
@@ -7348,6 +7518,7 @@ test("collections of parents of loaded tasks receive update actions", async () =
                 {
                     type: "UpdateTask",
                     time: expect.any(Array),
+                    actor: taskActionActor(session),
                     taskId: parentTask1.id,
                     taskAction: expect.objectContaining({
                         type: "UpdateChildrenCounts",
@@ -7356,7 +7527,7 @@ test("collections of parents of loaded tasks receive update actions", async () =
             ],
             backfillTasks: {},
             backfillCollections: {},
-            referencedAccounts: [],
+            referencedAccounts: [await session.get()],
             referencedSites: [],
         },
     ]);
@@ -7378,6 +7549,7 @@ test("collections of parents of loaded tasks receive update actions", async () =
                 {
                     type: "UpdateTask",
                     time: expect.any(Array),
+                    actor: taskActionActor(session),
                     taskId: task2.id,
                     taskAction: {
                         type: "UpdateParentTaskId",
@@ -7404,6 +7576,7 @@ test("collections of parents of loaded tasks receive update actions", async () =
                 {
                     type: "UpdateCollection",
                     time: expect.any(Array),
+                    actor: taskActionActor(session),
                     collectionId: collection3.id,
                     collectionAction: {
                         type: "UpdateName",
@@ -7413,7 +7586,7 @@ test("collections of parents of loaded tasks receive update actions", async () =
             ],
             backfillTasks: {},
             backfillCollections: {},
-            referencedAccounts: [],
+            referencedAccounts: [await session.get()],
             referencedSites: [],
         },
     ]);
@@ -7510,6 +7683,7 @@ test("collections of parents of loaded tasks receive update actions until all re
                 {
                     type: "UpdateCollection",
                     time: expect.any(Array),
+                    actor: taskActionActor(session),
                     collectionId: collection2.id,
                     collectionAction: {
                         type: "UpdateName",
@@ -7519,7 +7693,7 @@ test("collections of parents of loaded tasks receive update actions until all re
             ],
             backfillTasks: {},
             backfillCollections: {},
-            referencedAccounts: [],
+            referencedAccounts: [await session.get()],
             referencedSites: [],
         },
     ]);
@@ -7536,6 +7710,7 @@ test("collections of parents of loaded tasks receive update actions until all re
                 {
                     type: "UpdateTask",
                     time: expect.any(Array),
+                    actor: taskActionActor(session),
                     taskId: task1.id,
                     taskAction: {
                         type: "UpdateParentTaskId",
@@ -7545,6 +7720,7 @@ test("collections of parents of loaded tasks receive update actions until all re
                 {
                     type: "UpdateTask",
                     time: expect.any(Array),
+                    actor: taskActionActor(session),
                     taskId: parentTask1.id,
                     taskAction: expect.objectContaining({
                         type: "UpdateChildrenCounts",
@@ -7553,7 +7729,7 @@ test("collections of parents of loaded tasks receive update actions until all re
             ],
             backfillTasks: {},
             backfillCollections: {},
-            referencedAccounts: [],
+            referencedAccounts: [await session.get()],
             referencedSites: [],
         },
     ]);
@@ -7570,6 +7746,7 @@ test("collections of parents of loaded tasks receive update actions until all re
                 {
                     type: "UpdateCollection",
                     time: expect.any(Array),
+                    actor: taskActionActor(session),
                     collectionId: collection2.id,
                     collectionAction: {
                         type: "UpdateName",
@@ -7579,7 +7756,7 @@ test("collections of parents of loaded tasks receive update actions until all re
             ],
             backfillTasks: {},
             backfillCollections: {},
-            referencedAccounts: [],
+            referencedAccounts: [await session.get()],
             referencedSites: [],
         },
     ]);
@@ -7596,6 +7773,7 @@ test("collections of parents of loaded tasks receive update actions until all re
                 {
                     type: "UpdateTask",
                     time: expect.any(Array),
+                    actor: taskActionActor(session),
                     taskId: task2.id,
                     taskAction: {
                         type: "UpdateParentTaskId",
@@ -7605,6 +7783,7 @@ test("collections of parents of loaded tasks receive update actions until all re
                 {
                     type: "UpdateTask",
                     time: expect.any(Array),
+                    actor: taskActionActor(session),
                     taskId: parentTask2.id,
                     taskAction: expect.objectContaining({
                         type: "UpdateChildrenCounts",
@@ -7613,7 +7792,7 @@ test("collections of parents of loaded tasks receive update actions until all re
             ],
             backfillTasks: {},
             backfillCollections: {},
-            referencedAccounts: [],
+            referencedAccounts: [await session.get()],
             referencedSites: [],
         },
     ]);
@@ -7635,6 +7814,7 @@ test("collections of parents of loaded tasks receive update actions until all re
                 {
                     type: "UpdateTask",
                     time: expect.any(Array),
+                    actor: taskActionActor(session),
                     taskId: task2.id,
                     taskAction: {
                         type: "UpdateParentTaskId",
@@ -7664,6 +7844,7 @@ test("collections of parents of loaded tasks receive update actions until all re
                 {
                     type: "UpdateCollection",
                     time: expect.any(Array),
+                    actor: taskActionActor(session),
                     collectionId: collection2.id,
                     collectionAction: {
                         type: "UpdateName",
@@ -7673,7 +7854,7 @@ test("collections of parents of loaded tasks receive update actions until all re
             ],
             backfillTasks: {},
             backfillCollections: {},
-            referencedAccounts: [],
+            referencedAccounts: [await session.get()],
             referencedSites: [],
         },
     ]);
@@ -7809,6 +7990,7 @@ test("race condition: parent task can change before previous parent task has loa
                 {
                     type: "UpdateTask",
                     time: expect.any(Array),
+                    actor: taskActionActor(session),
                     taskId: task1.id,
                     taskAction: {
                         type: "UpdateParentTaskId",
@@ -7829,6 +8011,7 @@ test("race condition: parent task can change before previous parent task has loa
                 {
                     type: "UpdateTask",
                     time: expect.any(Array),
+                    actor: taskActionActor(session),
                     taskId: task1.id,
                     taskAction: {
                         type: "UpdateParentTaskId",
@@ -7860,6 +8043,7 @@ test("race condition: parent task can change before previous parent task has loa
                 {
                     type: "UpdateTask",
                     time: expect.any(Array),
+                    actor: taskActionActor(session),
                     taskId: task3.id,
                     taskAction: {
                         type: "UpdatePriority",
@@ -7869,7 +8053,7 @@ test("race condition: parent task can change before previous parent task has loa
             ],
             backfillTasks: {},
             backfillCollections: {},
-            referencedAccounts: [],
+            referencedAccounts: [await session.get()],
             referencedSites: [],
         },
     ]);
@@ -8016,6 +8200,7 @@ test("race condition: parent task can change before previous grandparent task ha
                 {
                     type: "UpdateTask",
                     time: expect.any(Array),
+                    actor: taskActionActor(session),
                     taskId: task1.id,
                     taskAction: {
                         type: "UpdateParentTaskId",
@@ -8036,6 +8221,7 @@ test("race condition: parent task can change before previous grandparent task ha
                 {
                     type: "UpdateTask",
                     time: expect.any(Array),
+                    actor: taskActionActor(session),
                     taskId: task1.id,
                     taskAction: {
                         type: "UpdateParentTaskId",
@@ -8045,6 +8231,7 @@ test("race condition: parent task can change before previous grandparent task ha
                 {
                     type: "UpdateTask",
                     time: expect.any(Array),
+                    actor: taskActionActor(session),
                     taskId: task2.id,
                     taskAction: expect.objectContaining({
                         type: "UpdateChildrenCounts",
@@ -8075,6 +8262,7 @@ test("race condition: parent task can change before previous grandparent task ha
                 {
                     type: "UpdateTask",
                     time: expect.any(Array),
+                    actor: taskActionActor(session),
                     taskId: task3.id,
                     taskAction: {
                         type: "UpdatePriority",
@@ -8084,7 +8272,7 @@ test("race condition: parent task can change before previous grandparent task ha
             ],
             backfillTasks: {},
             backfillCollections: {},
-            referencedAccounts: [],
+            referencedAccounts: [await session.get()],
             referencedSites: [],
         },
     ]);
@@ -8197,6 +8385,7 @@ test("race condition: parent task is removed before it\u2019s loaded", async () 
                 {
                     type: "UpdateTask",
                     time: expect.any(Array),
+                    actor: taskActionActor(session),
                     taskId: task1.id,
                     taskAction: {
                         type: "UpdateParentTaskId",
@@ -8217,6 +8406,7 @@ test("race condition: parent task is removed before it\u2019s loaded", async () 
                 {
                     type: "UpdateTask",
                     time: expect.any(Array),
+                    actor: taskActionActor(session),
                     taskId: task1.id,
                     taskAction: {
                         type: "UpdateAssignee",
@@ -8226,7 +8416,7 @@ test("race condition: parent task is removed before it\u2019s loaded", async () 
             ],
             backfillTasks: {},
             backfillCollections: {},
-            referencedAccounts: [],
+            referencedAccounts: [await session.get()],
             referencedSites: [],
         },
     ]);
@@ -8344,6 +8534,7 @@ test("race condition: collection can be removed before previous collection has l
                     {
                         type: "UpdateTask",
                         time: expect.any(Array),
+                        actor: taskActionActor(session),
                         taskId: task1.id,
                         taskAction: {
                             type: "AddCollection",
@@ -8354,7 +8545,7 @@ test("race condition: collection can be removed before previous collection has l
                 ],
                 backfillTasks: {},
                 backfillCollections: {[collection.id]: expectAuthorizedCollection()},
-                referencedAccounts: [],
+                referencedAccounts: [await session.get()],
                 referencedSites: [],
             },
             {
@@ -8365,6 +8556,7 @@ test("race condition: collection can be removed before previous collection has l
                     {
                         type: "UpdateTask",
                         time: expect.any(Array),
+                        actor: taskActionActor(session),
                         taskId: task1.id,
                         taskAction: {
                             type: "RemoveCollection",
@@ -8374,7 +8566,7 @@ test("race condition: collection can be removed before previous collection has l
                 ],
                 backfillTasks: {},
                 backfillCollections: {},
-                referencedAccounts: [],
+                referencedAccounts: [await session.get()],
                 referencedSites: [],
             },
         ].sort((event1, event2) =>
@@ -8527,6 +8719,7 @@ test("race condition: parent task can change before previous collection of paren
                     {
                         type: "UpdateTask",
                         time: expect.any(Array),
+                        actor: taskActionActor(session),
                         taskId: task1.id,
                         taskAction: {
                             type: "UpdateParentTaskId",
@@ -8547,6 +8740,7 @@ test("race condition: parent task can change before previous collection of paren
                     {
                         type: "UpdateTask",
                         time: expect.any(Array),
+                        actor: taskActionActor(session),
                         taskId: task1.id,
                         taskAction: {
                             type: "UpdateParentTaskId",
@@ -8556,6 +8750,7 @@ test("race condition: parent task can change before previous collection of paren
                     {
                         type: "UpdateTask",
                         time: expect.any(Array),
+                        actor: taskActionActor(session),
                         taskId: task2.id,
                         taskAction: expect.objectContaining({
                             type: "UpdateChildrenCounts",
@@ -8564,7 +8759,7 @@ test("race condition: parent task can change before previous collection of paren
                 ],
                 backfillTasks: {},
                 backfillCollections: {},
-                referencedAccounts: [],
+                referencedAccounts: [await session.get()],
                 referencedSites: [],
             },
         ].sort(compare),
@@ -8684,6 +8879,7 @@ test("multiple subscriptions that receive the same actions only show action once
                 {
                     type: "UpdateTask",
                     time: expect.any(Array),
+                    actor: taskActionActor(session),
                     taskId: task1.id,
                     taskAction: {
                         type: "UpdatePriority",
@@ -8693,7 +8889,7 @@ test("multiple subscriptions that receive the same actions only show action once
             ],
             backfillTasks: {},
             backfillCollections: {},
-            referencedAccounts: [],
+            referencedAccounts: [await session.get()],
             referencedSites: [],
         },
     ]);
@@ -8710,6 +8906,7 @@ test("multiple subscriptions that receive the same actions only show action once
                 {
                     type: "UpdateTask",
                     time: expect.any(Array),
+                    actor: taskActionActor(session),
                     taskId: task2.id,
                     taskAction: {
                         type: "UpdatePriority",
@@ -8719,7 +8916,7 @@ test("multiple subscriptions that receive the same actions only show action once
             ],
             backfillTasks: {},
             backfillCollections: {},
-            referencedAccounts: [],
+            referencedAccounts: [await session.get()],
             referencedSites: [],
         },
     ]);
@@ -8736,6 +8933,7 @@ test("multiple subscriptions that receive the same actions only show action once
                 {
                     type: "UpdateTask",
                     time: expect.any(Array),
+                    actor: taskActionActor(session),
                     taskId: task3.id,
                     taskAction: {
                         type: "UpdatePriority",
@@ -8745,7 +8943,7 @@ test("multiple subscriptions that receive the same actions only show action once
             ],
             backfillTasks: {},
             backfillCollections: {},
-            referencedAccounts: [],
+            referencedAccounts: [await session.get()],
             referencedSites: [],
         },
     ]);
@@ -8827,6 +9025,7 @@ test("referenced task may be unauthorized", async () => {
                 {
                     type: "UpdateTask",
                     time: expect.any(Array),
+                    actor: taskActionActor(session1),
                     taskId: task1.id,
                     taskAction: {
                         type: "UpdatePriority",
@@ -8836,7 +9035,7 @@ test("referenced task may be unauthorized", async () => {
             ],
             backfillTasks: {},
             backfillCollections: {},
-            referencedAccounts: [],
+            referencedAccounts: [await session1.get()],
             referencedSites: [],
         },
     ]);
@@ -8923,6 +9122,7 @@ test("unauthorized referenced task will be authorized if later loaded", async ()
                 {
                     type: "UpdateTask",
                     time: expect.any(Array),
+                    actor: taskActionActor(session1),
                     taskId: task1.id,
                     taskAction: {
                         type: "UpdatePriority",
@@ -8932,7 +9132,7 @@ test("unauthorized referenced task will be authorized if later loaded", async ()
             ],
             backfillTasks: {},
             backfillCollections: {},
-            referencedAccounts: [],
+            referencedAccounts: [await session1.get()],
             referencedSites: [],
         },
     ]);
@@ -8970,6 +9170,7 @@ test("unauthorized referenced task will be authorized if later loaded", async ()
                 {
                     type: "UpdateTask",
                     time: expect.any(Array),
+                    actor: taskActionActor(session1),
                     taskId: parentTask1.id,
                     taskAction: {
                         type: "UpdatePriority",
@@ -8979,7 +9180,7 @@ test("unauthorized referenced task will be authorized if later loaded", async ()
             ],
             backfillTasks: {},
             backfillCollections: {},
-            referencedAccounts: [],
+            referencedAccounts: [await session1.get()],
             referencedSites: [],
         },
     ]);
@@ -8996,6 +9197,7 @@ test("unauthorized referenced task will be authorized if later loaded", async ()
                 {
                     type: "UpdateTask",
                     time: expect.any(Array),
+                    actor: taskActionActor(session1),
                     taskId: parentTask1.id,
                     taskAction: {
                         type: "RemoveCollection",
@@ -9005,7 +9207,7 @@ test("unauthorized referenced task will be authorized if later loaded", async ()
             ],
             backfillTasks: {},
             backfillCollections: {},
-            referencedAccounts: [],
+            referencedAccounts: [await session1.get()],
             referencedSites: [],
         },
     ]);
@@ -9107,6 +9309,7 @@ test("authorized referenced task may be loaded later", async () => {
                 {
                     type: "UpdateTask",
                     time: expect.any(Array),
+                    actor: taskActionActor(session1),
                     taskId: task1.id,
                     taskAction: {
                         type: "UpdatePriority",
@@ -9116,7 +9319,7 @@ test("authorized referenced task may be loaded later", async () => {
             ],
             backfillTasks: {},
             backfillCollections: {},
-            referencedAccounts: [],
+            referencedAccounts: [await session1.get()],
             referencedSites: [],
         },
     ]);
@@ -9133,6 +9336,7 @@ test("authorized referenced task may be loaded later", async () => {
                 {
                     type: "UpdateTask",
                     time: expect.any(Array),
+                    actor: taskActionActor(session1),
                     taskId: parentTask1.id,
                     taskAction: {
                         type: "UpdatePriority",
@@ -9142,7 +9346,7 @@ test("authorized referenced task may be loaded later", async () => {
             ],
             backfillTasks: {},
             backfillCollections: {},
-            referencedAccounts: [],
+            referencedAccounts: [await session1.get()],
             referencedSites: [],
         },
     ]);
@@ -9159,6 +9363,7 @@ test("authorized referenced task may be loaded later", async () => {
                 {
                     type: "UpdateTask",
                     time: expect.any(Array),
+                    actor: taskActionActor(session1),
                     taskId: parentTask1.id,
                     taskAction: {
                         type: "AddCollection",
@@ -9169,7 +9374,7 @@ test("authorized referenced task may be loaded later", async () => {
             ],
             backfillTasks: {},
             backfillCollections: {},
-            referencedAccounts: [],
+            referencedAccounts: [await session1.get()],
             referencedSites: [],
         },
     ]);
@@ -9186,6 +9391,7 @@ test("authorized referenced task may be loaded later", async () => {
                 {
                     type: "UpdateTask",
                     time: expect.any(Array),
+                    actor: taskActionActor(session1),
                     taskId: parentTask1.id,
                     taskAction: {
                         type: "UpdatePriority",
@@ -9195,7 +9401,7 @@ test("authorized referenced task may be loaded later", async () => {
             ],
             backfillTasks: {},
             backfillCollections: {},
-            referencedAccounts: [],
+            referencedAccounts: [await session1.get()],
             referencedSites: [],
         },
     ]);
@@ -9212,6 +9418,7 @@ test("authorized referenced task may be loaded later", async () => {
                 {
                     type: "UpdateTask",
                     time: expect.any(Array),
+                    actor: taskActionActor(session1),
                     taskId: parentTask1.id,
                     taskAction: {
                         type: "RemoveCollection",
@@ -9221,7 +9428,7 @@ test("authorized referenced task may be loaded later", async () => {
             ],
             backfillTasks: {},
             backfillCollections: {},
-            referencedAccounts: [],
+            referencedAccounts: [await session1.get()],
             referencedSites: [],
         },
     ]);
@@ -9307,6 +9514,7 @@ test("a loaded task may then become referenced", async () => {
                 {
                     type: "UpdateTask",
                     time: expect.any(Array),
+                    actor: taskActionActor(session1),
                     taskId: parentTask1.id,
                     taskAction: expect.objectContaining({
                         type: "UpdateChildrenCounts",
@@ -9315,6 +9523,7 @@ test("a loaded task may then become referenced", async () => {
                 {
                     type: "UpdateTask",
                     time: expect.any(Array),
+                    actor: taskActionActor(session1),
                     taskId: task1.id,
                     taskAction: {
                         type: "UpdateParentTaskId",
@@ -9324,7 +9533,7 @@ test("a loaded task may then become referenced", async () => {
             ],
             backfillTasks: {},
             backfillCollections: {},
-            referencedAccounts: [],
+            referencedAccounts: [await session1.get()],
             referencedSites: [],
         },
     ]);
@@ -9341,6 +9550,7 @@ test("a loaded task may then become referenced", async () => {
                 {
                     type: "UpdateTask",
                     time: expect.any(Array),
+                    actor: taskActionActor(session1),
                     taskId: parentTask1.id,
                     taskAction: {
                         type: "UpdatePriority",
@@ -9350,7 +9560,7 @@ test("a loaded task may then become referenced", async () => {
             ],
             backfillTasks: {},
             backfillCollections: {},
-            referencedAccounts: [],
+            referencedAccounts: [await session1.get()],
             referencedSites: [],
         },
     ]);
@@ -9367,6 +9577,7 @@ test("a loaded task may then become referenced", async () => {
                 {
                     type: "UpdateTask",
                     time: expect.any(Array),
+                    actor: taskActionActor(session1),
                     taskId: parentTask1.id,
                     taskAction: {
                         type: "RemoveCollection",
@@ -9376,7 +9587,7 @@ test("a loaded task may then become referenced", async () => {
             ],
             backfillTasks: {},
             backfillCollections: {},
-            referencedAccounts: [],
+            referencedAccounts: [await session1.get()],
             referencedSites: [],
         },
     ]);
@@ -9509,6 +9720,7 @@ test("loaded task may be loaded by two subscriptions", async () => {
                 {
                     type: "UpdateTask",
                     time: expect.any(Array),
+                    actor: taskActionActor(session1),
                     taskId: task1.id,
                     taskAction: {
                         type: "UpdatePriority",
@@ -9518,7 +9730,7 @@ test("loaded task may be loaded by two subscriptions", async () => {
             ],
             backfillTasks: {},
             backfillCollections: {},
-            referencedAccounts: [],
+            referencedAccounts: [await session1.get()],
             referencedSites: [],
         },
     ]);
@@ -9535,6 +9747,7 @@ test("loaded task may be loaded by two subscriptions", async () => {
                 {
                     type: "UpdateTask",
                     time: expect.any(Array),
+                    actor: taskActionActor(session1),
                     taskId: task3.id,
                     taskAction: {
                         type: "UpdatePriority",
@@ -9544,7 +9757,7 @@ test("loaded task may be loaded by two subscriptions", async () => {
             ],
             backfillTasks: {},
             backfillCollections: {},
-            referencedAccounts: [],
+            referencedAccounts: [await session1.get()],
             referencedSites: [],
         },
     ]);
@@ -9561,6 +9774,7 @@ test("loaded task may be loaded by two subscriptions", async () => {
                 {
                     type: "UpdateTask",
                     time: expect.any(Array),
+                    actor: taskActionActor(session1),
                     taskId: task1.id,
                     taskAction: {
                         type: "RemoveCollection",
@@ -9570,7 +9784,7 @@ test("loaded task may be loaded by two subscriptions", async () => {
             ],
             backfillTasks: {},
             backfillCollections: {},
-            referencedAccounts: [],
+            referencedAccounts: [await session1.get()],
             referencedSites: [],
         },
     ]);
@@ -9587,6 +9801,7 @@ test("loaded task may be loaded by two subscriptions", async () => {
                 {
                     type: "UpdateTask",
                     time: expect.any(Array),
+                    actor: taskActionActor(session1),
                     taskId: task3.id,
                     taskAction: {
                         type: "RemoveCollection",
@@ -9596,7 +9811,7 @@ test("loaded task may be loaded by two subscriptions", async () => {
             ],
             backfillTasks: {},
             backfillCollections: {},
-            referencedAccounts: [],
+            referencedAccounts: [await session1.get()],
             referencedSites: [],
         },
     ]);
@@ -9613,6 +9828,7 @@ test("loaded task may be loaded by two subscriptions", async () => {
                 {
                     type: "UpdateTask",
                     time: expect.any(Array),
+                    actor: taskActionActor(session1),
                     taskId: task1.id,
                     taskAction: {
                         type: "UpdatePriority",
@@ -9622,7 +9838,7 @@ test("loaded task may be loaded by two subscriptions", async () => {
             ],
             backfillTasks: {},
             backfillCollections: {},
-            referencedAccounts: [],
+            referencedAccounts: [await session1.get()],
             referencedSites: [],
         },
     ]);
@@ -9644,6 +9860,7 @@ test("loaded task may be loaded by two subscriptions", async () => {
                 {
                     type: "UpdateTask",
                     time: expect.any(Array),
+                    actor: taskActionActor(session1),
                     taskId: task1.id,
                     taskAction: {
                         type: "UpdateAssignee",
@@ -9653,7 +9870,7 @@ test("loaded task may be loaded by two subscriptions", async () => {
             ],
             backfillTasks: {},
             backfillCollections: {},
-            referencedAccounts: [],
+            referencedAccounts: [await session1.get()],
             referencedSites: [],
         },
     ]);
@@ -9675,6 +9892,7 @@ test("loaded task may be loaded by two subscriptions", async () => {
                 {
                     type: "UpdateTask",
                     time: expect.any(Array),
+                    actor: taskActionActor(session1),
                     taskId: task2.id,
                     taskAction: {
                         type: "UpdatePriority",
@@ -9684,7 +9902,7 @@ test("loaded task may be loaded by two subscriptions", async () => {
             ],
             backfillTasks: {},
             backfillCollections: {},
-            referencedAccounts: [],
+            referencedAccounts: [await session1.get()],
             referencedSites: [],
         },
     ]);
@@ -9794,6 +10012,7 @@ test("authorized referenced task may be referenced multiple times", async () => 
                 {
                     type: "UpdateTask",
                     time: expect.any(Array),
+                    actor: taskActionActor(session1),
                     taskId: task1.id,
                     taskAction: {
                         type: "UpdateParentTaskId",
@@ -9803,7 +10022,7 @@ test("authorized referenced task may be referenced multiple times", async () => 
             ],
             backfillTasks: {[parentTask1.id]: expectAuthorizedTask([collection.id])},
             backfillCollections: {[collection.id]: expectAuthorizedCollection()},
-            referencedAccounts: [await session2.get()],
+            referencedAccounts: [await session1.get(), await session2.get()],
             referencedSites: [],
         },
     ]);
@@ -9820,6 +10039,7 @@ test("authorized referenced task may be referenced multiple times", async () => 
                 {
                     type: "UpdateTask",
                     time: expect.any(Array),
+                    actor: taskActionActor(session1),
                     taskId: parentTask1.id,
                     taskAction: {
                         type: "UpdatePriority",
@@ -9829,7 +10049,7 @@ test("authorized referenced task may be referenced multiple times", async () => 
             ],
             backfillTasks: {},
             backfillCollections: {},
-            referencedAccounts: [],
+            referencedAccounts: [await session1.get()],
             referencedSites: [],
         },
     ]);
@@ -9846,6 +10066,7 @@ test("authorized referenced task may be referenced multiple times", async () => 
                 {
                     type: "UpdateTask",
                     time: expect.any(Array),
+                    actor: taskActionActor(session1),
                     taskId: task1.id,
                     taskAction: {
                         type: "UpdateParentTaskId",
@@ -9855,6 +10076,7 @@ test("authorized referenced task may be referenced multiple times", async () => 
                 {
                     type: "UpdateTask",
                     time: expect.any(Array),
+                    actor: taskActionActor(session1),
                     taskId: parentTask1.id,
                     taskAction: expect.objectContaining({
                         type: "UpdateChildrenCounts",
@@ -9863,7 +10085,7 @@ test("authorized referenced task may be referenced multiple times", async () => 
             ],
             backfillTasks: {},
             backfillCollections: {},
-            referencedAccounts: [],
+            referencedAccounts: [await session1.get()],
             referencedSites: [],
         },
     ]);
@@ -9976,6 +10198,7 @@ test("unauthorized referenced task may be referenced multiple times", async () =
                 {
                     type: "UpdateTask",
                     time: expect.any(Array),
+                    actor: taskActionActor(session2),
                     taskId: task1.id,
                     taskAction: {
                         type: "UpdateParentTaskId",
@@ -9985,7 +10208,7 @@ test("unauthorized referenced task may be referenced multiple times", async () =
             ],
             backfillTasks: {[parentTask1.id]: expectUnauthorizedTask()},
             backfillCollections: {},
-            referencedAccounts: [],
+            referencedAccounts: [await session2.get()],
             referencedSites: [],
         },
     ]);
@@ -10007,6 +10230,7 @@ test("unauthorized referenced task may be referenced multiple times", async () =
                 {
                     type: "UpdateTask",
                     time: expect.any(Array),
+                    actor: taskActionActor(session1),
                     taskId: task1.id,
                     taskAction: {
                         type: "UpdateParentTaskId",
@@ -10016,7 +10240,7 @@ test("unauthorized referenced task may be referenced multiple times", async () =
             ],
             backfillTasks: {},
             backfillCollections: {},
-            referencedAccounts: [],
+            referencedAccounts: [await session1.get()],
             referencedSites: [],
         },
     ]);
@@ -10116,6 +10340,7 @@ test("may reference unauthorized collections", async () => {
                 {
                     type: "UpdateCollection",
                     time: expect.any(Array),
+                    actor: taskActionActor(session1),
                     collectionId: collection1.id,
                     collectionAction: {
                         type: "UpdateName",
@@ -10125,7 +10350,7 @@ test("may reference unauthorized collections", async () => {
             ],
             backfillTasks: {},
             backfillCollections: {},
-            referencedAccounts: [],
+            referencedAccounts: [await session1.get()],
             referencedSites: [],
         },
     ]);
@@ -10238,6 +10463,7 @@ test("authorized referenced collection may be referenced multiple times", async 
                 {
                     type: "UpdateTask",
                     time: expect.any(Array),
+                    actor: taskActionActor(session1),
                     taskId: task1.id,
                     taskAction: {
                         type: "AddCollection",
@@ -10248,7 +10474,7 @@ test("authorized referenced collection may be referenced multiple times", async 
             ],
             backfillTasks: {},
             backfillCollections: {[collection.id]: expectAuthorizedCollection()},
-            referencedAccounts: [],
+            referencedAccounts: [await session1.get()],
             referencedSites: [],
         },
     ]);
@@ -10265,6 +10491,7 @@ test("authorized referenced collection may be referenced multiple times", async 
                 {
                     type: "UpdateCollection",
                     time: expect.any(Array),
+                    actor: taskActionActor(session1),
                     collectionId: collection.id,
                     collectionAction: {
                         type: "UpdateName",
@@ -10274,7 +10501,7 @@ test("authorized referenced collection may be referenced multiple times", async 
             ],
             backfillTasks: {},
             backfillCollections: {},
-            referencedAccounts: [],
+            referencedAccounts: [await session1.get()],
             referencedSites: [],
         },
     ]);
@@ -10291,6 +10518,7 @@ test("authorized referenced collection may be referenced multiple times", async 
                 {
                     type: "UpdateTask",
                     time: expect.any(Array),
+                    actor: taskActionActor(session1),
                     taskId: task1.id,
                     taskAction: {
                         type: "RemoveCollection",
@@ -10300,7 +10528,7 @@ test("authorized referenced collection may be referenced multiple times", async 
             ],
             backfillTasks: {},
             backfillCollections: {},
-            referencedAccounts: [],
+            referencedAccounts: [await session1.get()],
             referencedSites: [],
         },
     ]);
@@ -10534,6 +10762,7 @@ test("will reauthorize an unauthorized referenced task to authorized", async () 
                 {
                     type: "UpdateTask",
                     time: expect.any(Array),
+                    actor: taskActionActor(session2),
                     taskId: parentTask1.id,
                     taskAction: {
                         type: "UpdatePriority",
@@ -10543,7 +10772,7 @@ test("will reauthorize an unauthorized referenced task to authorized", async () 
             ],
             backfillTasks: {},
             backfillCollections: {},
-            referencedAccounts: [],
+            referencedAccounts: [await session2.get()],
             referencedSites: [],
         },
     ]);
@@ -10644,6 +10873,7 @@ test("will reauthorize an unauthorized referenced task to authorized via access 
                 {
                     type: "UpdateTask",
                     time: expect.any(Array),
+                    actor: taskActionActor(session2),
                     taskId: parentTask1.id,
                     taskAction: {
                         type: "UpdatePriority",
@@ -10653,7 +10883,7 @@ test("will reauthorize an unauthorized referenced task to authorized via access 
             ],
             backfillTasks: {},
             backfillCollections: {},
-            referencedAccounts: [],
+            referencedAccounts: [await session2.get()],
             referencedSites: [],
         },
     ]);
@@ -10765,6 +10995,7 @@ test("will reauthorize an unauthorized referenced task to authorized and the new
                 {
                     type: "UpdateTask",
                     time: expect.any(Array),
+                    actor: taskActionActor(session2),
                     taskId: parentTask1.id,
                     taskAction: {
                         type: "UpdatePriority",
@@ -10774,7 +11005,7 @@ test("will reauthorize an unauthorized referenced task to authorized and the new
             ],
             backfillTasks: {},
             backfillCollections: {},
-            referencedAccounts: [],
+            referencedAccounts: [await session2.get()],
             referencedSites: [],
         },
     ]);
@@ -10863,6 +11094,7 @@ test("will reauthorize an unauthorized referenced task to authorized and the new
                 {
                     type: "UpdateCollection",
                     time: expect.any(Array),
+                    actor: taskActionActor(session2),
                     collectionId: collection2.id,
                     collectionAction: {
                         type: "UpdateAccessPolicy",
@@ -10879,7 +11111,7 @@ test("will reauthorize an unauthorized referenced task to authorized and the new
             ],
             backfillTasks: {},
             backfillCollections: {},
-            referencedAccounts: [],
+            referencedAccounts: [await session2.get()],
             referencedSites: [],
         },
         {
@@ -10944,6 +11176,7 @@ test("will reauthorize an unauthorized referenced task to authorized and the new
                 {
                     type: "UpdateTask",
                     time: expect.any(Array),
+                    actor: taskActionActor(session2),
                     taskId: parentTask1.id,
                     taskAction: {
                         type: "UpdatePriority",
@@ -10953,7 +11186,7 @@ test("will reauthorize an unauthorized referenced task to authorized and the new
             ],
             backfillTasks: {},
             backfillCollections: {},
-            referencedAccounts: [],
+            referencedAccounts: [await session2.get()],
             referencedSites: [],
         },
     ]);
@@ -11034,6 +11267,7 @@ test("will reauthorize an authorized referenced task to unauthorized", async () 
                 {
                     type: "UpdateTask",
                     time: expect.any(Array),
+                    actor: taskActionActor(session2),
                     taskId: parentTask1.id,
                     taskAction: {
                         type: "UpdatePriority",
@@ -11043,7 +11277,7 @@ test("will reauthorize an authorized referenced task to unauthorized", async () 
             ],
             backfillTasks: {},
             backfillCollections: {},
-            referencedAccounts: [],
+            referencedAccounts: [await session2.get()],
             referencedSites: [],
         },
     ]);
@@ -11060,6 +11294,7 @@ test("will reauthorize an authorized referenced task to unauthorized", async () 
                 {
                     type: "UpdateTask",
                     time: expect.any(Array),
+                    actor: taskActionActor(session2),
                     taskId: parentTask1.id,
                     taskAction: {
                         type: "RemoveCollection",
@@ -11069,7 +11304,7 @@ test("will reauthorize an authorized referenced task to unauthorized", async () 
             ],
             backfillTasks: {},
             backfillCollections: {},
-            referencedAccounts: [],
+            referencedAccounts: [await session2.get()],
             referencedSites: [],
         },
     ]);
@@ -11086,6 +11321,7 @@ test("will reauthorize an authorized referenced task to unauthorized", async () 
                 {
                     type: "UpdateTask",
                     time: expect.any(Array),
+                    actor: taskActionActor(session2),
                     taskId: parentTask1.id,
                     taskAction: {
                         type: "UpdatePriority",
@@ -11095,7 +11331,7 @@ test("will reauthorize an authorized referenced task to unauthorized", async () 
             ],
             backfillTasks: {},
             backfillCollections: {},
-            referencedAccounts: [],
+            referencedAccounts: [await session2.get()],
             referencedSites: [],
         },
     ]);
@@ -11196,6 +11432,7 @@ test("will reauthorize an authorized referenced task to unauthorized via access 
                 {
                     type: "UpdateTask",
                     time: expect.any(Array),
+                    actor: taskActionActor(session2),
                     taskId: parentTask1.id,
                     taskAction: {
                         type: "UpdatePriority",
@@ -11205,7 +11442,7 @@ test("will reauthorize an authorized referenced task to unauthorized via access 
             ],
             backfillTasks: {},
             backfillCollections: {},
-            referencedAccounts: [],
+            referencedAccounts: [await session2.get()],
             referencedSites: [],
         },
     ]);
@@ -11222,6 +11459,7 @@ test("will reauthorize an authorized referenced task to unauthorized via access 
                 {
                     type: "UpdateTask",
                     time: expect.any(Array),
+                    actor: taskActionActor(session2),
                     taskId: parentTask1.id,
                     taskAction: {
                         type: "UpdateAccessPolicy",
@@ -11231,7 +11469,7 @@ test("will reauthorize an authorized referenced task to unauthorized via access 
             ],
             backfillTasks: {},
             backfillCollections: {},
-            referencedAccounts: [],
+            referencedAccounts: [await session2.get()],
             referencedSites: [],
         },
         {
@@ -11332,6 +11570,7 @@ test("access policy revocation does not unauthorize referenced task with collect
                 {
                     type: "UpdateTask",
                     time: expect.any(Array),
+                    actor: taskActionActor(session2),
                     taskId: parentTask1.id,
                     taskAction: {
                         type: "UpdateAccessPolicy",
@@ -11341,7 +11580,7 @@ test("access policy revocation does not unauthorize referenced task with collect
             ],
             backfillTasks: {},
             backfillCollections: {},
-            referencedAccounts: [],
+            referencedAccounts: [await session2.get()],
             referencedSites: [],
         },
     ]);
@@ -11362,6 +11601,7 @@ test("access policy revocation does not unauthorize referenced task with collect
                 {
                     type: "UpdateTask",
                     time: expect.any(Array),
+                    actor: taskActionActor(session2),
                     taskId: parentTask1.id,
                     taskAction: {
                         type: "UpdatePriority",
@@ -11371,7 +11611,7 @@ test("access policy revocation does not unauthorize referenced task with collect
             ],
             backfillTasks: {},
             backfillCollections: {},
-            referencedAccounts: [],
+            referencedAccounts: [await session2.get()],
             referencedSites: [],
         },
     ]);
@@ -11529,6 +11769,7 @@ test("reauthorize will noop if an authorized referenced task is still authorized
                 {
                     type: "UpdateTask",
                     time: expect.any(Array),
+                    actor: taskActionActor(session2),
                     taskId: parentTask1.id,
                     taskAction: {
                         type: "UpdatePriority",
@@ -11538,7 +11779,7 @@ test("reauthorize will noop if an authorized referenced task is still authorized
             ],
             backfillTasks: {},
             backfillCollections: {},
-            referencedAccounts: [],
+            referencedAccounts: [await session2.get()],
             referencedSites: [],
         },
     ]);
@@ -11559,6 +11800,7 @@ test("reauthorize will noop if an authorized referenced task is still authorized
                 {
                     type: "UpdateTask",
                     time: expect.any(Array),
+                    actor: taskActionActor(session2),
                     taskId: parentTask1.id,
                     taskAction: {
                         type: "UpdatePriority",
@@ -11568,7 +11810,7 @@ test("reauthorize will noop if an authorized referenced task is still authorized
             ],
             backfillTasks: {},
             backfillCollections: {},
-            referencedAccounts: [],
+            referencedAccounts: [await session2.get()],
             referencedSites: [],
         },
     ]);
@@ -11679,6 +11921,7 @@ test("will reauthorize an unauthorized referenced collection to authorized", asy
                 {
                     type: "UpdateCollection",
                     time: expect.any(Array),
+                    actor: taskActionActor(session2),
                     collectionId: collection2.id,
                     collectionAction: {
                         type: "UpdateName",
@@ -11688,7 +11931,7 @@ test("will reauthorize an unauthorized referenced collection to authorized", asy
             ],
             backfillTasks: {},
             backfillCollections: {},
-            referencedAccounts: [],
+            referencedAccounts: [await session2.get()],
             referencedSites: [],
         },
     ]);
@@ -11709,6 +11952,7 @@ test("will reauthorize an unauthorized referenced collection to authorized", asy
                 {
                     type: "UpdateCollection",
                     time: expect.any(Array),
+                    actor: taskActionActor(session2),
                     collectionId: collection2.id,
                     collectionAction: {
                         type: "UpdateName",
@@ -11718,7 +11962,7 @@ test("will reauthorize an unauthorized referenced collection to authorized", asy
             ],
             backfillTasks: {},
             backfillCollections: {},
-            referencedAccounts: [],
+            referencedAccounts: [await session2.get()],
             referencedSites: [],
         },
     ]);
@@ -11800,6 +12044,7 @@ test("will reauthorize an authorized referenced collection to unauthorized", asy
                 {
                     type: "UpdateCollection",
                     time: expect.any(Array),
+                    actor: taskActionActor(session2),
                     collectionId: collection2.id,
                     collectionAction: {
                         type: "UpdateName",
@@ -11809,7 +12054,7 @@ test("will reauthorize an authorized referenced collection to unauthorized", asy
             ],
             backfillTasks: {},
             backfillCollections: {},
-            referencedAccounts: [],
+            referencedAccounts: [await session2.get()],
             referencedSites: [],
         },
     ]);
@@ -11828,6 +12073,7 @@ test("will reauthorize an authorized referenced collection to unauthorized", asy
                 {
                     type: "UpdateCollection",
                     time: expect.any(Array),
+                    actor: taskActionActor(session2),
                     collectionId: collection2.id,
                     collectionAction: {
                         type: "UpdateAccessPolicy",
@@ -11845,7 +12091,7 @@ test("will reauthorize an authorized referenced collection to unauthorized", asy
             ],
             backfillTasks: {},
             backfillCollections: {},
-            referencedAccounts: [],
+            referencedAccounts: [await session2.get()],
             referencedSites: [],
         },
         {
@@ -11856,6 +12102,7 @@ test("will reauthorize an authorized referenced collection to unauthorized", asy
                 {
                     type: "UpdateCollection",
                     time: expect.any(Array),
+                    actor: taskActionActor(session2),
                     collectionId: collection2.id,
                     collectionAction: {
                         type: "UpdateAccessPolicy",
@@ -11873,7 +12120,7 @@ test("will reauthorize an authorized referenced collection to unauthorized", asy
             ],
             backfillTasks: {},
             backfillCollections: {},
-            referencedAccounts: [],
+            referencedAccounts: [await session2.get()],
             referencedSites: [],
         },
         {
@@ -11884,6 +12131,7 @@ test("will reauthorize an authorized referenced collection to unauthorized", asy
                 {
                     type: "UpdateCollection",
                     time: expect.any(Array),
+                    actor: taskActionActor(session1),
                     collectionId: collection2.id,
                     collectionAction: {
                         type: "UpdateAccessPolicy",
@@ -11900,7 +12148,7 @@ test("will reauthorize an authorized referenced collection to unauthorized", asy
             ],
             backfillTasks: {},
             backfillCollections: {},
-            referencedAccounts: [],
+            referencedAccounts: [await session1.get()],
             referencedSites: [],
         },
         {
@@ -12082,6 +12330,7 @@ test("reauthorize will noop if an authorized referenced collection is still auth
                 {
                     type: "UpdateCollection",
                     time: expect.any(Array),
+                    actor: taskActionActor(session2),
                     collectionId: collection2.id,
                     collectionAction: {
                         type: "UpdateName",
@@ -12091,7 +12340,7 @@ test("reauthorize will noop if an authorized referenced collection is still auth
             ],
             backfillTasks: {},
             backfillCollections: {},
-            referencedAccounts: [],
+            referencedAccounts: [await session2.get()],
             referencedSites: [],
         },
     ]);
@@ -12112,6 +12361,7 @@ test("reauthorize will noop if an authorized referenced collection is still auth
                 {
                     type: "UpdateCollection",
                     time: expect.any(Array),
+                    actor: taskActionActor(session2),
                     collectionId: collection2.id,
                     collectionAction: {
                         type: "UpdateName",
@@ -12121,7 +12371,7 @@ test("reauthorize will noop if an authorized referenced collection is still auth
             ],
             backfillTasks: {},
             backfillCollections: {},
-            referencedAccounts: [],
+            referencedAccounts: [await session2.get()],
             referencedSites: [],
         },
     ]);
@@ -12295,6 +12545,7 @@ test("if an unauthorized collection becomes authorized then all tasks in query t
                 {
                     type: "UpdateCollection",
                     time: expect.any(Array),
+                    actor: taskActionActor(session2),
                     collectionId: collection3.id,
                     collectionAction: {
                         type: "UpdateAccessPolicy",
@@ -12311,7 +12562,7 @@ test("if an unauthorized collection becomes authorized then all tasks in query t
             ],
             backfillTasks: {},
             backfillCollections: {},
-            referencedAccounts: [],
+            referencedAccounts: [await session2.get()],
             referencedSites: [],
         },
         {
@@ -12558,6 +12809,7 @@ test("if an unauthorized collection becomes authorized then all referenced tasks
                 {
                     type: "UpdateCollection",
                     time: expect.any(Array),
+                    actor: taskActionActor(session2),
                     collectionId: collection3.id,
                     collectionAction: {
                         type: "UpdateAccessPolicy",
@@ -12574,7 +12826,7 @@ test("if an unauthorized collection becomes authorized then all referenced tasks
             ],
             backfillTasks: {},
             backfillCollections: {},
-            referencedAccounts: [],
+            referencedAccounts: [await session2.get()],
             referencedSites: [],
         },
         {
@@ -12719,6 +12971,7 @@ test("referenced data is not evicted", async () => {
                 {
                     type: "UpdateTask",
                     time: expect.any(Array),
+                    actor: taskActionActor(session1),
                     taskId: task1.id,
                     taskAction: {
                         type: "UpdatePriority",
@@ -12728,7 +12981,7 @@ test("referenced data is not evicted", async () => {
             ],
             backfillTasks: {},
             backfillCollections: {},
-            referencedAccounts: [],
+            referencedAccounts: [await session1.get()],
             referencedSites: [],
         },
     ]);
@@ -12745,6 +12998,7 @@ test("referenced data is not evicted", async () => {
                 {
                     type: "UpdateCollection",
                     time: expect.any(Array),
+                    actor: taskActionActor(session1),
                     collectionId: collection2.id,
                     collectionAction: {
                         type: "UpdateName",
@@ -12754,7 +13008,7 @@ test("referenced data is not evicted", async () => {
             ],
             backfillTasks: {},
             backfillCollections: {},
-            referencedAccounts: [],
+            referencedAccounts: [await session1.get()],
             referencedSites: [],
         },
     ]);
@@ -13186,6 +13440,7 @@ test("can handle temporary cycle involving loaded tasks when actions are applied
         {
             type: "UpdateTask",
             time: time1,
+            actor: taskActionActor(session),
             taskId: task2.id,
             taskAction: {
                 type: "UpdateParentTaskId",
@@ -13198,6 +13453,7 @@ test("can handle temporary cycle involving loaded tasks when actions are applied
         {
             type: "UpdateTask",
             time: time2,
+            actor: taskActionActor(session),
             taskId: task3.id,
             taskAction: {
                 type: "UpdateParentTaskId",
@@ -13270,6 +13526,7 @@ test("can handle temporary cycle involving loaded tasks when actions are applied
         {
             type: "UpdateTask",
             time: time3,
+            actor: taskActionActor(session),
             taskId: task3.id,
             taskAction: {
                 type: "UpdatePriority",
@@ -13293,6 +13550,7 @@ test("can handle temporary cycle involving loaded tasks when actions are applied
                 {
                     type: "UpdateTask",
                     time: time3,
+                    actor: taskActionActor(session),
                     taskId: task3.id,
                     taskAction: {
                         type: "UpdatePriority",
@@ -13302,7 +13560,7 @@ test("can handle temporary cycle involving loaded tasks when actions are applied
             ],
             backfillTasks: {},
             backfillCollections: {},
-            referencedAccounts: [],
+            referencedAccounts: [await session.get()],
             referencedSites: [],
         },
     ]);
@@ -13316,6 +13574,7 @@ test("can handle temporary cycle involving loaded tasks when actions are applied
         {
             type: "UpdateTask",
             time: time4,
+            actor: taskActionActor(session),
             taskId: task2.id,
             taskAction: {
                 type: "UpdatePriority",
@@ -13362,6 +13621,7 @@ test("can handle temporary cycle involving loaded tasks when actions are applied
                 {
                     type: "UpdateTask",
                     time: time1,
+                    actor: taskActionActor(session),
                     taskId: task2.id,
                     taskAction: {
                         type: "UpdateParentTaskId",
@@ -13371,7 +13631,7 @@ test("can handle temporary cycle involving loaded tasks when actions are applied
             ],
             backfillTasks: {},
             backfillCollections: {},
-            referencedAccounts: [],
+            referencedAccounts: [await session.get()],
             referencedSites: [],
         },
     ]);
@@ -13398,6 +13658,7 @@ test("can handle temporary cycle involving loaded tasks when actions are applied
                 {
                     type: "UpdateTask",
                     time: expect.any(Array),
+                    actor: taskActionActor(session),
                     taskId: task2.id,
                     taskAction: expect.objectContaining({
                         type: "UpdateAssignee",
@@ -13487,6 +13748,7 @@ test("can handle temporary cycle not involving loaded tasks when actions are app
         {
             type: "UpdateTask",
             time: time1,
+            actor: taskActionActor(session),
             taskId: task1.id,
             taskAction: {
                 type: "UpdateParentTaskId",
@@ -13499,6 +13761,7 @@ test("can handle temporary cycle not involving loaded tasks when actions are app
         {
             type: "UpdateTask",
             time: time2,
+            actor: taskActionActor(session),
             taskId: task3.id,
             taskAction: {
                 type: "UpdateParentTaskId",
@@ -13573,6 +13836,7 @@ test("can handle temporary cycle not involving loaded tasks when actions are app
         {
             type: "UpdateTask",
             time: time3,
+            actor: taskActionActor(session),
             taskId: task5.id,
             taskAction: {
                 type: "UpdatePriority",
@@ -13596,6 +13860,7 @@ test("can handle temporary cycle not involving loaded tasks when actions are app
                 {
                     type: "UpdateTask",
                     time: time3,
+                    actor: taskActionActor(session),
                     taskId: task5.id,
                     taskAction: {
                         type: "UpdatePriority",
@@ -13605,7 +13870,7 @@ test("can handle temporary cycle not involving loaded tasks when actions are app
             ],
             backfillTasks: {},
             backfillCollections: {},
-            referencedAccounts: [],
+            referencedAccounts: [await session.get()],
             referencedSites: [],
         },
     ]);
@@ -13619,6 +13884,7 @@ test("can handle temporary cycle not involving loaded tasks when actions are app
         {
             type: "UpdateTask",
             time: time4,
+            actor: taskActionActor(session),
             taskId: task5.id,
             taskAction: {
                 type: "UpdatePriority",
@@ -13667,6 +13933,7 @@ test("can handle temporary cycle not involving loaded tasks when actions are app
                 {
                     type: "UpdateTask",
                     time: time1,
+                    actor: taskActionActor(session),
                     taskId: task1.id,
                     taskAction: {
                         type: "UpdateParentTaskId",
@@ -13676,7 +13943,7 @@ test("can handle temporary cycle not involving loaded tasks when actions are app
             ],
             backfillTasks: {},
             backfillCollections: {},
-            referencedAccounts: [],
+            referencedAccounts: [await session.get()],
             referencedSites: [],
         },
     ]);
@@ -13698,6 +13965,7 @@ test("can handle temporary cycle not involving loaded tasks when actions are app
                 {
                     type: "UpdateTask",
                     time: expect.any(Array),
+                    actor: taskActionActor(session),
                     taskId: task1.id,
                     taskAction: expect.objectContaining({
                         type: "UpdateAssignee",
@@ -13728,6 +13996,7 @@ test("can handle temporary cycle not involving loaded tasks when actions are app
                 {
                     type: "UpdateTask",
                     time: expect.any(Array),
+                    actor: taskActionActor(session),
                     taskId: task3.id,
                     taskAction: expect.objectContaining({
                         type: "UpdateAssignee",
@@ -13824,6 +14093,7 @@ test("can handle temporary cycle not involving loaded tasks when actions are app
         {
             type: "UpdateTask",
             time: time1,
+            actor: taskActionActor(session),
             taskId: task1.id,
             taskAction: {
                 type: "UpdateParentTaskId",
@@ -13836,6 +14106,7 @@ test("can handle temporary cycle not involving loaded tasks when actions are app
         {
             type: "UpdateTask",
             time: time2,
+            actor: taskActionActor(session),
             taskId: task1.id,
             taskAction: {
                 type: "UpdateParentTaskId",
@@ -13848,6 +14119,7 @@ test("can handle temporary cycle not involving loaded tasks when actions are app
         {
             type: "UpdateTask",
             time: time3,
+            actor: taskActionActor(session),
             taskId: task3.id,
             taskAction: {
                 type: "UpdateParentTaskId",
@@ -14016,6 +14288,7 @@ test("can handle temporary cycle not involving loaded tasks when actions are app
         {
             type: "UpdateTask",
             time: time1,
+            actor: taskActionActor(session),
             taskId: task1.id,
             taskAction: {
                 type: "UpdateParentTaskId",
@@ -14028,6 +14301,7 @@ test("can handle temporary cycle not involving loaded tasks when actions are app
         {
             type: "UpdateTask",
             time: time2,
+            actor: taskActionActor(session),
             taskId: task1.id,
             taskAction: {
                 type: "UpdateParentTaskId",
@@ -14040,6 +14314,7 @@ test("can handle temporary cycle not involving loaded tasks when actions are app
         {
             type: "UpdateTask",
             time: time3,
+            actor: taskActionActor(session),
             taskId: task3.id,
             taskAction: {
                 type: "UpdateParentTaskId",
@@ -14103,6 +14378,7 @@ test("can handle temporary cycle not involving loaded tasks when actions are app
         {
             type: "UpdateTask",
             time: time4,
+            actor: taskActionActor(session),
             taskId: task5.id,
             taskAction: {
                 type: "UpdatePriority",
@@ -14157,6 +14433,7 @@ test("can handle temporary cycle not involving loaded tasks when actions are app
                 {
                     type: "UpdateTask",
                     time: time4,
+                    actor: taskActionActor(session),
                     taskId: task5.id,
                     taskAction: {
                         type: "UpdatePriority",
@@ -14166,7 +14443,7 @@ test("can handle temporary cycle not involving loaded tasks when actions are app
             ],
             backfillTasks: {},
             backfillCollections: {},
-            referencedAccounts: [],
+            referencedAccounts: [await session.get()],
             referencedSites: [],
         },
     ]);
@@ -14223,6 +14500,7 @@ test("can subscribe to task", async () => {
                 {
                     type: "UpdateTask",
                     time: expect.any(Array),
+                    actor: taskActionActor(session),
                     taskId: task1.id,
                     taskAction: {
                         type: "UpdatePriority",
@@ -14232,7 +14510,7 @@ test("can subscribe to task", async () => {
             ],
             backfillTasks: {},
             backfillCollections: {},
-            referencedAccounts: [],
+            referencedAccounts: [await session.get()],
             referencedSites: [],
         },
     ]);
@@ -14381,6 +14659,7 @@ test("will lose access to subscribed task upon reauthorization", async () => {
                 {
                     type: "UpdateTask",
                     time: expect.any(Array),
+                    actor: taskActionActor(session1),
                     taskId: task1.id,
                     taskAction: {
                         type: "UpdatePriority",
@@ -14390,7 +14669,7 @@ test("will lose access to subscribed task upon reauthorization", async () => {
             ],
             backfillTasks: {},
             backfillCollections: {},
-            referencedAccounts: [],
+            referencedAccounts: [await session1.get()],
             referencedSites: [],
         },
     ]);
@@ -14414,6 +14693,7 @@ test("will lose access to subscribed task upon reauthorization", async () => {
                 {
                     type: "UpdateCollection",
                     time: expect.any(Array),
+                    actor: taskActionActor(session1),
                     collectionId: collection1.id,
                     collectionAction: {
                         type: "UpdateAccessPolicy",
@@ -14423,7 +14703,7 @@ test("will lose access to subscribed task upon reauthorization", async () => {
             ],
             backfillTasks: {},
             backfillCollections: {},
-            referencedAccounts: [],
+            referencedAccounts: [await session1.get()],
             referencedSites: [],
         },
         {
@@ -14485,6 +14765,7 @@ test("will lose access to subscribed task upon access policy revocation", async 
                 {
                     type: "UpdateTask",
                     time: expect.any(Array),
+                    actor: taskActionActor(session1),
                     taskId: task1.id,
                     taskAction: {
                         type: "UpdatePriority",
@@ -14494,7 +14775,7 @@ test("will lose access to subscribed task upon access policy revocation", async 
             ],
             backfillTasks: {},
             backfillCollections: {},
-            referencedAccounts: [],
+            referencedAccounts: [await session1.get()],
             referencedSites: [],
         },
     ]);
@@ -14518,6 +14799,7 @@ test("will lose access to subscribed task upon access policy revocation", async 
                 {
                     type: "UpdateTask",
                     time: expect.any(Array),
+                    actor: taskActionActor(session1),
                     taskId: task1.id,
                     taskAction: {
                         type: "UpdateAccessPolicy",
@@ -14527,7 +14809,7 @@ test("will lose access to subscribed task upon access policy revocation", async 
             ],
             backfillTasks: {},
             backfillCollections: {},
-            referencedAccounts: [],
+            referencedAccounts: [await session1.get()],
             referencedSites: [],
         },
         {
@@ -14604,6 +14886,7 @@ test("access policy revocation doesn\u2019t remove access when collection access
                 {
                     type: "UpdateTask",
                     time: expect.any(Array),
+                    actor: taskActionActor(session1),
                     taskId: task1.id,
                     taskAction: {
                         type: "UpdateAccessPolicy",
@@ -14613,7 +14896,7 @@ test("access policy revocation doesn\u2019t remove access when collection access
             ],
             backfillTasks: {},
             backfillCollections: {},
-            referencedAccounts: [],
+            referencedAccounts: [await session1.get()],
             referencedSites: [],
         },
     ]);
@@ -14630,6 +14913,7 @@ test("access policy revocation doesn\u2019t remove access when collection access
                 {
                     type: "UpdateTask",
                     time: expect.any(Array),
+                    actor: taskActionActor(session1),
                     taskId: task1.id,
                     taskAction: {
                         type: "UpdatePriority",
@@ -14639,7 +14923,7 @@ test("access policy revocation doesn\u2019t remove access when collection access
             ],
             backfillTasks: {},
             backfillCollections: {},
-            referencedAccounts: [],
+            referencedAccounts: [await session1.get()],
             referencedSites: [],
         },
     ]);
@@ -14699,6 +14983,7 @@ test("access policy revocation doesn\u2019t remove access when assignee access r
                 {
                     type: "UpdateTask",
                     time: expect.any(Array),
+                    actor: taskActionActor(session1),
                     taskId: task1.id,
                     taskAction: {
                         type: "UpdateAccessPolicy",
@@ -14708,7 +14993,7 @@ test("access policy revocation doesn\u2019t remove access when assignee access r
             ],
             backfillTasks: {},
             backfillCollections: {},
-            referencedAccounts: [],
+            referencedAccounts: [await session1.get()],
             referencedSites: [],
         },
     ]);
@@ -14725,6 +15010,7 @@ test("access policy revocation doesn\u2019t remove access when assignee access r
                 {
                     type: "UpdateTask",
                     time: expect.any(Array),
+                    actor: taskActionActor(session1),
                     taskId: task1.id,
                     taskAction: {
                         type: "UpdatePriority",
@@ -14734,7 +15020,7 @@ test("access policy revocation doesn\u2019t remove access when assignee access r
             ],
             backfillTasks: {},
             backfillCollections: {},
-            referencedAccounts: [],
+            referencedAccounts: [await session1.get()],
             referencedSites: [],
         },
     ]);
@@ -14788,6 +15074,7 @@ test("will lose access to subscribed task upon reauthorization if account remove
                 {
                     type: "UpdateTask",
                     time: expect.any(Array),
+                    actor: taskActionActor(session1),
                     taskId: task1.id,
                     taskAction: {
                         type: "UpdatePriority",
@@ -14797,7 +15084,7 @@ test("will lose access to subscribed task upon reauthorization if account remove
             ],
             backfillTasks: {},
             backfillCollections: {},
-            referencedAccounts: [],
+            referencedAccounts: [await session1.get()],
             referencedSites: [],
         },
     ]);
@@ -14906,6 +15193,7 @@ test("subscribing to task subscribes to parent tasks and collections", async () 
                 {
                     type: "UpdateTask",
                     time: expect.any(Array),
+                    actor: taskActionActor(session),
                     taskId: task2.id,
                     taskAction: {
                         type: "UpdatePriority",
@@ -14915,7 +15203,7 @@ test("subscribing to task subscribes to parent tasks and collections", async () 
             ],
             backfillTasks: {},
             backfillCollections: {},
-            referencedAccounts: [],
+            referencedAccounts: [await session.get()],
             referencedSites: [],
         },
     ]);
@@ -14937,6 +15225,7 @@ test("subscribing to task subscribes to parent tasks and collections", async () 
                 {
                     type: "UpdateTask",
                     time: expect.any(Array),
+                    actor: taskActionActor(session),
                     taskId: task4.id,
                     taskAction: {
                         type: "UpdatePriority",
@@ -14946,7 +15235,7 @@ test("subscribing to task subscribes to parent tasks and collections", async () 
             ],
             backfillTasks: {},
             backfillCollections: {},
-            referencedAccounts: [],
+            referencedAccounts: [await session.get()],
             referencedSites: [],
         },
     ]);
@@ -14963,6 +15252,7 @@ test("subscribing to task subscribes to parent tasks and collections", async () 
                 {
                     type: "UpdateCollection",
                     time: expect.any(Array),
+                    actor: taskActionActor(session),
                     collectionId: collection1.id,
                     collectionAction: {
                         type: "UpdateName",
@@ -14972,7 +15262,7 @@ test("subscribing to task subscribes to parent tasks and collections", async () 
             ],
             backfillTasks: {},
             backfillCollections: {},
-            referencedAccounts: [],
+            referencedAccounts: [await session.get()],
             referencedSites: [],
         },
     ]);
@@ -14989,6 +15279,7 @@ test("subscribing to task subscribes to parent tasks and collections", async () 
                 {
                     type: "UpdateCollection",
                     time: expect.any(Array),
+                    actor: taskActionActor(session),
                     collectionId: collection2.id,
                     collectionAction: {
                         type: "UpdateName",
@@ -14998,7 +15289,7 @@ test("subscribing to task subscribes to parent tasks and collections", async () 
             ],
             backfillTasks: {},
             backfillCollections: {},
-            referencedAccounts: [],
+            referencedAccounts: [await session.get()],
             referencedSites: [],
         },
     ]);
@@ -15015,6 +15306,7 @@ test("subscribing to task subscribes to parent tasks and collections", async () 
                 {
                     type: "UpdateCollection",
                     time: expect.any(Array),
+                    actor: taskActionActor(session),
                     collectionId: collection3.id,
                     collectionAction: {
                         type: "UpdateName",
@@ -15024,7 +15316,7 @@ test("subscribing to task subscribes to parent tasks and collections", async () 
             ],
             backfillTasks: {},
             backfillCollections: {},
-            referencedAccounts: [],
+            referencedAccounts: [await session.get()],
             referencedSites: [],
         },
     ]);
@@ -15041,6 +15333,7 @@ test("subscribing to task subscribes to parent tasks and collections", async () 
                 {
                     type: "UpdateTask",
                     time: expect.any(Array),
+                    actor: taskActionActor(session),
                     taskId: task4.id,
                     taskAction: expect.objectContaining({
                         type: "UpdateChildrenCounts",
@@ -15049,6 +15342,7 @@ test("subscribing to task subscribes to parent tasks and collections", async () 
                 {
                     type: "UpdateTask",
                     time: expect.any(Array),
+                    actor: taskActionActor(session),
                     taskId: task3.id,
                     taskAction: {
                         type: "UpdateParentTaskId",
@@ -15058,7 +15352,7 @@ test("subscribing to task subscribes to parent tasks and collections", async () 
             ],
             backfillTasks: {},
             backfillCollections: {},
-            referencedAccounts: [],
+            referencedAccounts: [await session.get()],
             referencedSites: [],
         },
     ]);
@@ -15080,6 +15374,7 @@ test("subscribing to task subscribes to parent tasks and collections", async () 
                 {
                     type: "UpdateCollection",
                     time: expect.any(Array),
+                    actor: taskActionActor(session),
                     collectionId: collection1.id,
                     collectionAction: {
                         type: "UpdateName",
@@ -15089,7 +15384,7 @@ test("subscribing to task subscribes to parent tasks and collections", async () 
             ],
             backfillTasks: {},
             backfillCollections: {},
-            referencedAccounts: [],
+            referencedAccounts: [await session.get()],
             referencedSites: [],
         },
     ]);
@@ -15106,6 +15401,7 @@ test("subscribing to task subscribes to parent tasks and collections", async () 
                 {
                     type: "UpdateCollection",
                     time: expect.any(Array),
+                    actor: taskActionActor(session),
                     collectionId: collection2.id,
                     collectionAction: {
                         type: "UpdateName",
@@ -15115,7 +15411,7 @@ test("subscribing to task subscribes to parent tasks and collections", async () 
             ],
             backfillTasks: {},
             backfillCollections: {},
-            referencedAccounts: [],
+            referencedAccounts: [await session.get()],
             referencedSites: [],
         },
     ]);
@@ -15137,6 +15433,7 @@ test("subscribing to task subscribes to parent tasks and collections", async () 
                 {
                     type: "UpdateTask",
                     time: expect.any(Array),
+                    actor: taskActionActor(session),
                     taskId: task2.id,
                     taskAction: {
                         type: "RemoveCollection",
@@ -15146,7 +15443,7 @@ test("subscribing to task subscribes to parent tasks and collections", async () 
             ],
             backfillTasks: {},
             backfillCollections: {},
-            referencedAccounts: [],
+            referencedAccounts: [await session.get()],
             referencedSites: [],
         },
     ]);
@@ -15163,6 +15460,7 @@ test("subscribing to task subscribes to parent tasks and collections", async () 
                 {
                     type: "UpdateCollection",
                     time: expect.any(Array),
+                    actor: taskActionActor(session),
                     collectionId: collection1.id,
                     collectionAction: {
                         type: "UpdateName",
@@ -15172,7 +15470,7 @@ test("subscribing to task subscribes to parent tasks and collections", async () 
             ],
             backfillTasks: {},
             backfillCollections: {},
-            referencedAccounts: [],
+            referencedAccounts: [await session.get()],
             referencedSites: [],
         },
     ]);
@@ -15199,6 +15497,7 @@ test("subscribing to task subscribes to parent tasks and collections", async () 
                 {
                     type: "UpdateTask",
                     time: expect.any(Array),
+                    actor: taskActionActor(session),
                     taskId: task3.id,
                     taskAction: {
                         type: "UpdateParentTaskId",
@@ -15228,6 +15527,7 @@ test("subscribing to task subscribes to parent tasks and collections", async () 
                 {
                     type: "UpdateTask",
                     time: expect.any(Array),
+                    actor: taskActionActor(session),
                     taskId: task4.id,
                     taskAction: {
                         type: "UpdatePriority",
@@ -15237,7 +15537,7 @@ test("subscribing to task subscribes to parent tasks and collections", async () 
             ],
             backfillTasks: {},
             backfillCollections: {},
-            referencedAccounts: [],
+            referencedAccounts: [await session.get()],
             referencedSites: [],
         },
     ]);
@@ -15254,6 +15554,7 @@ test("subscribing to task subscribes to parent tasks and collections", async () 
                 {
                     type: "UpdateCollection",
                     time: expect.any(Array),
+                    actor: taskActionActor(session),
                     collectionId: collection1.id,
                     collectionAction: {
                         type: "UpdateName",
@@ -15263,7 +15564,7 @@ test("subscribing to task subscribes to parent tasks and collections", async () 
             ],
             backfillTasks: {},
             backfillCollections: {},
-            referencedAccounts: [],
+            referencedAccounts: [await session.get()],
             referencedSites: [],
         },
     ]);
@@ -15280,6 +15581,7 @@ test("subscribing to task subscribes to parent tasks and collections", async () 
                 {
                     type: "UpdateCollection",
                     time: expect.any(Array),
+                    actor: taskActionActor(session),
                     collectionId: collection2.id,
                     collectionAction: {
                         type: "UpdateName",
@@ -15289,7 +15591,7 @@ test("subscribing to task subscribes to parent tasks and collections", async () 
             ],
             backfillTasks: {},
             backfillCollections: {},
-            referencedAccounts: [],
+            referencedAccounts: [await session.get()],
             referencedSites: [],
         },
     ]);
@@ -15306,6 +15608,7 @@ test("subscribing to task subscribes to parent tasks and collections", async () 
                 {
                     type: "UpdateCollection",
                     time: expect.any(Array),
+                    actor: taskActionActor(session),
                     collectionId: collection3.id,
                     collectionAction: {
                         type: "UpdateName",
@@ -15315,7 +15618,7 @@ test("subscribing to task subscribes to parent tasks and collections", async () 
             ],
             backfillTasks: {},
             backfillCollections: {},
-            referencedAccounts: [],
+            referencedAccounts: [await session.get()],
             referencedSites: [],
         },
     ]);
@@ -15418,6 +15721,7 @@ test("access policy revocation doesn\u2019t remove access when parent access rem
                 {
                     type: "UpdateTask",
                     time: expect.any(Array),
+                    actor: taskActionActor(session1),
                     taskId: childTask.id,
                     taskAction: {
                         type: "UpdateAccessPolicy",
@@ -15427,7 +15731,7 @@ test("access policy revocation doesn\u2019t remove access when parent access rem
             ],
             backfillTasks: {},
             backfillCollections: {},
-            referencedAccounts: [],
+            referencedAccounts: [await session1.get()],
             referencedSites: [],
         },
     ]);
@@ -15444,6 +15748,7 @@ test("access policy revocation doesn\u2019t remove access when parent access rem
                 {
                     type: "UpdateTask",
                     time: expect.any(Array),
+                    actor: taskActionActor(session1),
                     taskId: childTask.id,
                     taskAction: {
                         type: "UpdatePriority",
@@ -15453,7 +15758,7 @@ test("access policy revocation doesn\u2019t remove access when parent access rem
             ],
             backfillTasks: {},
             backfillCollections: {},
-            referencedAccounts: [],
+            referencedAccounts: [await session1.get()],
             referencedSites: [],
         },
     ]);
@@ -15515,6 +15820,7 @@ test("subscribed task will become unauthorized after unsubscribed", async () => 
                 {
                     type: "UpdateTask",
                     time: expect.any(Array),
+                    actor: taskActionActor(session1),
                     taskId: task1.id,
                     taskAction: {
                         type: "RemoveCollection",
@@ -15524,7 +15830,7 @@ test("subscribed task will become unauthorized after unsubscribed", async () => 
             ],
             backfillTasks: {},
             backfillCollections: {},
-            referencedAccounts: [],
+            referencedAccounts: [await session1.get()],
             referencedSites: [],
         },
     ]);
@@ -15616,6 +15922,7 @@ test("can subscribe to collection", async () => {
                 {
                     type: "UpdateCollection",
                     time: expect.any(Array),
+                    actor: taskActionActor(session),
                     collectionId: collection1.id,
                     collectionAction: {
                         type: "UpdateName",
@@ -15625,7 +15932,7 @@ test("can subscribe to collection", async () => {
             ],
             backfillTasks: {},
             backfillCollections: {},
-            referencedAccounts: [],
+            referencedAccounts: [await session.get()],
             referencedSites: [],
         },
     ]);
@@ -15735,6 +16042,7 @@ test("will lose access to subscribed collection upon reauthorization", async () 
                 {
                     type: "UpdateCollection",
                     time: expect.any(Array),
+                    actor: taskActionActor(session1),
                     collectionId: collection1.id,
                     collectionAction: {
                         type: "UpdateName",
@@ -15744,7 +16052,7 @@ test("will lose access to subscribed collection upon reauthorization", async () 
             ],
             backfillTasks: {},
             backfillCollections: {},
-            referencedAccounts: [],
+            referencedAccounts: [await session1.get()],
             referencedSites: [],
         },
     ]);
@@ -15765,6 +16073,7 @@ test("will lose access to subscribed collection upon reauthorization", async () 
                 {
                     type: "UpdateCollection",
                     time: expect.any(Array),
+                    actor: taskActionActor(session1),
                     collectionId: collection1.id,
                     collectionAction: {
                         type: "UpdateAccessPolicy",
@@ -15774,7 +16083,7 @@ test("will lose access to subscribed collection upon reauthorization", async () 
             ],
             backfillTasks: {},
             backfillCollections: {},
-            referencedAccounts: [],
+            referencedAccounts: [await session1.get()],
             referencedSites: [],
         },
         {
@@ -15879,6 +16188,7 @@ test("subscribed collection will become unauthorized after unsubscribed", async 
                 {
                     type: "UpdateCollection",
                     time: expect.any(Array),
+                    actor: taskActionActor(session2),
                     collectionId: collection2.id,
                     collectionAction: expect.objectContaining({
                         type: "UpdateAccessPolicy",
@@ -15887,7 +16197,7 @@ test("subscribed collection will become unauthorized after unsubscribed", async 
             ],
             backfillTasks: {},
             backfillCollections: {},
-            referencedAccounts: [],
+            referencedAccounts: [await session2.get()],
             referencedSites: [],
         },
         {
@@ -15956,6 +16266,7 @@ test("will lose access to subscribed task with own access policy upon reauthoriz
                 {
                     type: "UpdateTask",
                     time: expect.any(Array),
+                    actor: taskActionActor(session1),
                     taskId: task.id,
                     taskAction: {
                         type: "UpdateTitle",
@@ -15965,7 +16276,7 @@ test("will lose access to subscribed task with own access policy upon reauthoriz
             ],
             backfillTasks: {},
             backfillCollections: {},
-            referencedAccounts: [],
+            referencedAccounts: [await session1.get()],
             referencedSites: [],
         },
     ]);
@@ -15986,6 +16297,7 @@ test("will lose access to subscribed task with own access policy upon reauthoriz
                 {
                     type: "UpdateTask",
                     time: expect.any(Array),
+                    actor: taskActionActor(session1),
                     taskId: task.id,
                     taskAction: {
                         type: "UpdateAccessPolicy",
@@ -15995,7 +16307,7 @@ test("will lose access to subscribed task with own access policy upon reauthoriz
             ],
             backfillTasks: {},
             backfillCollections: {},
-            referencedAccounts: [],
+            referencedAccounts: [await session1.get()],
             referencedSites: [],
         },
         {
@@ -16095,6 +16407,7 @@ test("subscribed task with own access policy will become unauthorized after unsu
                 {
                     type: "UpdateTask",
                     time: expect.any(Array),
+                    actor: taskActionActor(session2),
                     taskId: task.id,
                     taskAction: expect.objectContaining({
                         type: "UpdateAccessPolicy",
@@ -16103,7 +16416,7 @@ test("subscribed task with own access policy will become unauthorized after unsu
             ],
             backfillTasks: {},
             backfillCollections: {},
-            referencedAccounts: [],
+            referencedAccounts: [await session2.get()],
             referencedSites: [],
         },
         {
@@ -16972,6 +17285,7 @@ test("race condition: extra query task ids includes task from action that happen
                 {
                     type: "UpdateTask",
                     time: expect.any(Array),
+                    actor: taskActionActor(session),
                     taskId: task2.id,
                     taskAction: {
                         type: "UpdateChildrenCounts",
@@ -16984,6 +17298,7 @@ test("race condition: extra query task ids includes task from action that happen
                 {
                     type: "UpdateTask",
                     time: expect.any(Array),
+                    actor: taskActionActor(session),
                     taskId: task2b.id,
                     taskAction: {
                         type: "UpdateParentTaskId",
@@ -16993,7 +17308,7 @@ test("race condition: extra query task ids includes task from action that happen
             ],
             backfillTasks: {},
             backfillCollections: {},
-            referencedAccounts: [],
+            referencedAccounts: [await session.get()],
             referencedSites: [],
         },
     ]);
@@ -17137,6 +17452,7 @@ test("private collections aren\u2019t visible in task in query", async () => {
                 {
                     type: "UpdateTask",
                     time: expect.any(Array),
+                    actor: taskActionActor(session2),
                     taskId: task1.id,
                     taskAction: {
                         type: "AddCollection",
@@ -17147,7 +17463,7 @@ test("private collections aren\u2019t visible in task in query", async () => {
             ],
             backfillTasks: {},
             backfillCollections: {[collection4.id]: expectAuthorizedCollection()},
-            referencedAccounts: [],
+            referencedAccounts: [await session2.get()],
             referencedSites: [],
         },
     ]);
@@ -17164,6 +17480,7 @@ test("private collections aren\u2019t visible in task in query", async () => {
                 {
                     type: "UpdateCollection",
                     time: expect.any(Array),
+                    actor: taskActionActor(session2),
                     collectionId: collection4.id,
                     collectionAction: {
                         type: "UpdateAccessPolicy",
@@ -17180,7 +17497,7 @@ test("private collections aren\u2019t visible in task in query", async () => {
             ],
             backfillTasks: {},
             backfillCollections: {},
-            referencedAccounts: [],
+            referencedAccounts: [await session2.get()],
             referencedSites: [],
         },
         {
@@ -17305,6 +17622,7 @@ test("private collections aren\u2019t visible in referenced tasks", async () => 
                 {
                     type: "UpdateTask",
                     time: expect.any(Array),
+                    actor: taskActionActor(session2),
                     taskId: task1.id,
                     taskAction: {
                         type: "AddCollection",
@@ -17315,7 +17633,7 @@ test("private collections aren\u2019t visible in referenced tasks", async () => 
             ],
             backfillTasks: {},
             backfillCollections: {[collection4.id]: expectAuthorizedCollection()},
-            referencedAccounts: [],
+            referencedAccounts: [await session2.get()],
             referencedSites: [],
         },
     ]);
@@ -17332,6 +17650,7 @@ test("private collections aren\u2019t visible in referenced tasks", async () => 
                 {
                     type: "UpdateCollection",
                     time: expect.any(Array),
+                    actor: taskActionActor(session2),
                     collectionId: collection4.id,
                     collectionAction: {
                         type: "UpdateAccessPolicy",
@@ -17348,7 +17667,7 @@ test("private collections aren\u2019t visible in referenced tasks", async () => 
             ],
             backfillTasks: {},
             backfillCollections: {},
-            referencedAccounts: [],
+            referencedAccounts: [await session2.get()],
             referencedSites: [],
         },
         {
@@ -17457,6 +17776,7 @@ test("private collections aren\u2019t visible in task subscription", async () =>
                 {
                     type: "UpdateTask",
                     time: expect.any(Array),
+                    actor: taskActionActor(session2),
                     taskId: task1.id,
                     taskAction: {
                         type: "AddCollection",
@@ -17467,7 +17787,7 @@ test("private collections aren\u2019t visible in task subscription", async () =>
             ],
             backfillTasks: {},
             backfillCollections: {[collection4.id]: expectAuthorizedCollection()},
-            referencedAccounts: [],
+            referencedAccounts: [await session2.get()],
             referencedSites: [],
         },
     ]);
@@ -17484,6 +17804,7 @@ test("private collections aren\u2019t visible in task subscription", async () =>
                 {
                     type: "UpdateCollection",
                     time: expect.any(Array),
+                    actor: taskActionActor(session2),
                     collectionId: collection4.id,
                     collectionAction: {
                         type: "UpdateAccessPolicy",
@@ -17500,7 +17821,7 @@ test("private collections aren\u2019t visible in task subscription", async () =>
             ],
             backfillTasks: {},
             backfillCollections: {},
-            referencedAccounts: [],
+            referencedAccounts: [await session2.get()],
             referencedSites: [],
         },
         {

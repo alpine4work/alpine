@@ -417,13 +417,13 @@ export async function getTaskFromIndexIfExists(
         actor: context.actor,
         // We've already authorized our system actor has access to the space.
         isSpaceAccessAuthorized: true,
-        // System actors have access to all task collections. So we don't need to evaluate
-        // the collection access policy.
+        // System actors have access to all task collections and sites. So we don't need to
+        // evaluate the collection or site access policy.
         isCollectionAccessAuthorized: async () => true,
+        isSiteAccessAuthorized: async () => true,
     };
 
     const taskModel = await prepareTaskForClient(task, prepareContext);
-
     const promiseWaiter = new PromiseWaiter();
     const loadingTaskIds = new Set<TaskId>();
     const loadingCollectionIds = new Set<TaskCollectionId>();

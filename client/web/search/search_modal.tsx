@@ -49,10 +49,6 @@ import {useSpacingScale} from "~/client/web/remix/spacing_scale_context.js";
 import {useNavigate} from "~/client/web/remix/use_navigate.js";
 import {RpcCacheContext} from "~/client/web/rpc/rpc_cache.js";
 import {forceRevalidateSearchByAffinity} from "~/client/web/search/core/force_revalidate_search_by_affinity.js";
-import {
-    getSearchEntityPath,
-    getSearchStaticEntityPath,
-} from "~/client/web/search/core/get_search_entity_path.js";
 import {SearchEntityRegistry} from "~/client/web/search/core/search_entity_registry.js";
 import {useSearchEntityRegistry} from "~/client/web/search/core/search_entity_registry_context.js";
 import {updateSearchFavoriteEntityMenuAction} from "~/client/web/search/core/use_search_favorite_affinity_entity_menu_action.js";
@@ -60,7 +56,7 @@ import {SearchInstructionalPlaceholder} from "~/client/web/search/internal/searc
 import {SearchEntityView} from "~/client/web/search/search_entity_view.js";
 import {SearchStateExecutionOutput, useSearchState} from "~/client/web/search/use_search_state.js";
 import {SearchEntityShimmer} from "~/client/web/shimmer/search_entity_shimmer.js";
-import {useSpaceContext} from "~/client/web/spaces/space_context.js";
+import {useSpaceContext} from "~/client/web/spaces/context/space_context.js";
 import {peekNarrowLayoutWidth} from "~/client/web/styles/peek_shared_styles.js";
 import {
     searchEntityHeaderFontSize,
@@ -95,6 +91,10 @@ import {
     markSearchAffinityEntityInteraction,
     unfavoriteSearchEntity,
 } from "~/shared/rpc/search_rpc_definitions.js";
+import {
+    getSearchEntityPath,
+    getSearchStaticEntityPath,
+} from "~/shared/search/path/get_search_entity_path.js";
 import {SearchEntityId, isSearchAffinityEntityId} from "~/shared/search/search_entity_id.js";
 import {
     SearchEntityModel,
@@ -924,6 +924,26 @@ function SearchModalResultList({
                                     handleDoubleClick(entityData);
                                 }}
                                 getCopyPath={entityData => {
+                                    if (entityData.type === "Site") {
+                                        // NOTE(ifitzsimmons, 2026-06-17): `getSearchEntityPath` will resolve to the path
+                                        // of the site's first entity if it has one. However, when copying a link to a site
+                                        // mention, it doesn't really make sense to copy the path to the first entity.
+                                        //
+                                        // Think about the following use case:
+                                        //
+                                        // 1. User is looking at a site mention. The site has a Test Channel as its first
+                                        //    entity.
+                                        // 2. User copies the link to the site mention.
+                                        // 3. User pastes the link into a chat message.
+                                        // 4. The chat message is rendered as a link to the Test Channel.
+                                        //
+                                        // So by simply copying and pasting the link, we've created a site effect. This
+                                        // does mean that if a user copies the link and pastes it into the URL bar, they
+                                        // will be navigated to the site root and redirected to the Test Channel. Those
+                                        // interactions will be relatively rare, so it's not a big deal.
+                                        return `/site/${entityData.site.id}`;
+                                    }
+
                                     return getSearchEntityPath({
                                         spaceId: space.id,
                                         entityData,
@@ -1035,6 +1055,26 @@ function SearchModalResultList({
                             handleDoubleClick(entityData);
                         }}
                         getCopyPath={entityData => {
+                            if (entityData.type === "Site") {
+                                // NOTE(ifitzsimmons, 2026-06-17): `getSearchEntityPath` will resolve to the path
+                                // of the site's first entity if it has one. However, when copying a link to a site
+                                // mention, it doesn't really make sense to copy the path to the first entity.
+                                //
+                                // Think about the following use case:
+                                //
+                                // 1. User is looking at a site mention. The site has a Test Channel as its first
+                                //    entity.
+                                // 2. User copies the link to the site mention.
+                                // 3. User pastes the link into a chat message.
+                                // 4. The chat message is rendered as a link to the Test Channel.
+                                //
+                                // So by simply copying and pasting the link, we've created a site effect. This
+                                // does mean that if a user copies the link and pastes it into the URL bar, they
+                                // will be navigated to the site root and redirected to the Test Channel. Those
+                                // interactions will be relatively rare, so it's not a big deal.
+                                return `/site/${entityData.site.id}`;
+                            }
+
                             return getSearchEntityPath({
                                 spaceId: space.id,
                                 entityData,

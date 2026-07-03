@@ -58,9 +58,7 @@ import {SearchEntityTitleVersion} from "~/server/search/data/index/internal/sear
 import {truncateTokens} from "~/server/search/data/index/internal/truncate_tokens.js";
 import {getSitePreview, getSitePreviewIfExists} from "~/server/sites/data/get_site_preview.js";
 import {getAccount, getAccountIfExists} from "~/server/spaces/get_account.js";
-import {getTaskCommentPayload} from "~/server/tasks/data/get_task_comment_payload.js";
 import {getTaskNotesContentWithoutReferences} from "~/server/tasks/data/get_task_notes_content_without_references.js";
-import {putTaskCommentStreamPart} from "~/server/tasks/data/put_task_comment_stream_part.js";
 import {
     getTaskCollectionFromIndex,
     getTaskCollectionFromIndexIfExists,
@@ -68,6 +66,10 @@ import {
     getTaskFromIndexIfExists,
 } from "~/server/tasks/data/task_index.js";
 import {TaskApproximateActionCountByAccountId} from "~/server/tasks/data/task_index_doc.js";
+import {
+    getTaskCommentPayload,
+    putTaskCommentStreamPart,
+} from "~/server/tasks/data/task_messaging.js";
 import {TaskStepCountByAccountId} from "~/server/tasks/data/task_step_count_by_account_id.js";
 import {AccessLevel, AccessPolicy, hasAccessLevel} from "~/shared/access/access_policy.js";
 import {AccessPolicyModel} from "~/shared/access/model/access_policy_model.js";

@@ -26,8 +26,7 @@ import {
 } from "~/client/web/remix/use_current_time_rounded_to_hour.js";
 import {useLoaderDataWithSchema} from "~/client/web/remix/use_loader_data_with_schema.js";
 import {metaTitlePostfix, useUpdateMetaTitle} from "~/client/web/remix/use_update_meta_title.js";
-import {useSiteChromeContainer} from "~/client/web/sites/use_site_chrome_container.js";
-import {useSpaceContext} from "~/client/web/spaces/space_context.js";
+import {useSpaceContext} from "~/client/web/spaces/context/space_context.js";
 import {disableTaskGridViewAnimationsForTaskIdUntilNextBrowserPaint} from "~/client/web/tasks/core/disable_task_grid_view_animations_until_next_browser_paint.js";
 import {TaskClientQuery} from "~/client/web/tasks/core/task_client_query.js";
 import {
@@ -43,14 +42,16 @@ import {normalizeTaskDetailViewQuery} from "~/client/web/tasks/normalize_task_de
 import {TaskDetailView} from "~/client/web/tasks/task_detail_view.js";
 import {taskDetailViewLoadMoreChildTasksLimit} from "~/client/web/tasks/task_detail_view_load_more_child_tasks_limit.js";
 import {TaskGridViewDndContext} from "~/client/web/tasks/task_grid_view_dnd_context.js";
+import {getMessageDraft} from "~/server/messaging/drafts/get_message_draft.js";
 import {getInboxEntry} from "~/server/notifications/data/get_inbox_entry.js";
 import {jsonWithSchema} from "~/server/remix/json_with_schema.js";
 import {LoaderArgs} from "~/server/remix/loader_context.js";
 import {isSearchFavoriteEntity} from "~/server/search/data/table/search_entity_actions.js";
+import {getSiteIfPossible} from "~/server/sites/data/get_site.js";
 import {authorizeSpaceAccessIfPossible} from "~/server/spaces/authorize_space_access.js";
 import {getAccount} from "~/server/spaces/get_account.js";
-import {getTaskNotesContentAndOptionalInitialCommentsIfExists} from "~/server/tasks/data/get_task_notes_content_and_optional_initial_comments_if_exists.js";
 import {getTaskQueryFilterReferences} from "~/server/tasks/data/get_task_query_filter_references.js";
+import {getTaskNotesContentAndOptionalInitialCommentsIfExists} from "~/server/tasks/data/task_messaging.js";
 import {ShareNotification} from "~/shared/access/share_notification.js";
 import {getOpenGraphContent} from "~/shared/content/open_graph_content.js";
 import {createRynamoItemSchema} from "~/shared/dynamo/rynamo_types.js";
@@ -72,6 +73,10 @@ import {emptySet} from "~/shared/helpers/set/empty_set.js";
 import {generateOrderKeysBetween} from "~/shared/helpers/sort/order_key.js";
 import {generateId, isId} from "~/shared/id/id.js";
 import {AccountId, BrowserId, SpaceId, TaskId} from "~/shared/id/types/id_types.js";
+import {
+    MessageDraftWithFilesSchema,
+    emptyMessageDraftWithFiles,
+} from "~/shared/messaging/message_draft_schema.js";
 import {InboxEntryModelSchema} from "~/shared/notifications/inbox_model.js";
 import {Schema} from "~/shared/schema/schema.js";
 import {AccountModel} from "~/shared/spaces/account_model.js";
@@ -106,7 +111,11 @@ import {
 } from "~/shared/tasks/task_query_sort.js";
 import {TaskRealtimeUpdateEventBackfillTask} from "~/shared/tasks/task_realtime_protocol.js";
 import {TaskRealtimeLoadQueriesOutput} from "~/shared/tasks/task_realtime_service_procedure_schemas.js";
-import {addFallbackToTaskTitle, emptyTaskTitleModel} from "~/shared/tasks/title/task_title.js";
+import {
+    addFallbackToTaskTitle,
+    emptyTaskTitleModel,
+    generateTaskTitleClientIdFromRealmId,
+} from "~/shared/tasks/title/task_title.js";
 import {
     ServerSynchronizationCheckpointSchema,
     generateServerSynchronizationCheckpoint,
@@ -128,6 +137,7 @@ const LoaderSchema = Schema.object({
     }),
     inboxEntry: createRynamoItemSchema(InboxEntryModelSchema).nullable(),
     isFavorite: Schema.boolean,
+    messageDraft: MessageDraftWithFilesSchema,
     initialFieldsAssignee: AccountModel.schema.nullable(),
     filterReferences: TaskQueryFilterReferencesSchema,
 });
@@ -177,7 +187,9 @@ export async function loader({params, context: unauthenticatedContext, request}:
         createSearchParamString !== null
             ? parseTaskCreateSearchParam(createSearchParamString)
             : null;
-    if (createSearchParam !== null) context.discovery.discoverSpaceId(createSearchParam.spaceId);
+    if (createSearchParam !== null) {
+        context.discovery.discoverSpaceId(createSearchParam.spaceId, "CreateSearchParam");
+    }
     const isCreatingTask = createSearchParamString !== null;
     const showInboxEntry = url.searchParams.get("inbox") === "show";
 
@@ -260,6 +272,7 @@ export async function loader({params, context: unauthenticatedContext, request}:
             loadQueriesOutputResult,
             inboxEntry,
             isFavorite,
+            messageDraft,
             initialFieldsAssignee,
             initialFieldsLoadQueriesOutput,
             filterReferences,
@@ -268,6 +281,13 @@ export async function loader({params, context: unauthenticatedContext, request}:
     } = await loadWithSpaceAndSiteDiscovery(context, {
         request,
         entityId: `Task:${taskId}`,
+        fetchSite: async siteId => {
+            // It's possible that the account doesn't have access to the site in the case where
+            // the account is the task assignee.
+            const result = await getSiteIfPossible(context, {siteId});
+            if (result.ok) return result.value;
+            return null;
+        },
         load1: async ({onSiteId}) => {
             return await getTaskNotesContentAndOptionalInitialCommentsIfExists(context, {
                 taskId,
@@ -283,6 +303,7 @@ export async function loader({params, context: unauthenticatedContext, request}:
                 .ok;
 
             const childrenQuery: {
+                type: "Normalized";
                 limit: number;
                 filters: TaskQueryNormalizedFilters;
                 sorts: ReadonlyArray<TaskQueryNormalizedSort>;
@@ -290,6 +311,7 @@ export async function loader({params, context: unauthenticatedContext, request}:
             } | null =
                 normalizedFiltersResult.type === "Possible"
                     ? {
+                          type: "Normalized",
                           limit: taskDetailViewLoadMoreChildTasksLimit,
                           filters: normalizedFiltersResult.normalizedFilters,
                           sorts: normalizedSorts,
@@ -321,6 +343,14 @@ export async function loader({params, context: unauthenticatedContext, request}:
                     spaceId,
                     entityId: `Task:${taskId}`,
                 }),
+                // Ghost tasks (`?create=`) don't persist comment drafts on the client, so skip
+                // loading a draft from the server.
+                !isCreatingTask && isSpaceAccessAuthorized
+                    ? getMessageDraft(context.actor.authorizeSession(), {
+                          spaceId,
+                          surface: {type: "TaskComment", taskId},
+                      })
+                    : emptyMessageDraftWithFiles,
 
                 // Load data needed for initial fields.
                 initialFields?.assigneeId
@@ -381,12 +411,15 @@ export async function loader({params, context: unauthenticatedContext, request}:
             }
             case "Site": {
                 const siteResult = loadQueriesOutput?.updateEvent.referencedSites.find(
-                    site => site.ok && site.value.id === accessPolicy.siteId,
+                    site => !site.isPrivate && site.site.id === accessPolicy.siteId,
                 );
 
-                assert(siteResult && siteResult.ok);
-                taskHasUrlGrant =
-                    assertExists(siteResult.value).initialData.accessPolicy.urlGrant !== null;
+                // TODO(#tasks-in-private-sites): Right now, if the user doesn't have access to the
+                // site then the task's access policy will be null. When we address this TODO
+                // elsewhere in `prepareTaskForClient` we'll want to remove this assertion and
+                // handle the case where the referenced site is private more elegantly.
+                assert(siteResult && !siteResult.isPrivate);
+                taskHasUrlGrant = siteResult.site.initialData.accessPolicy.urlGrant !== null;
                 break;
             }
             default:
@@ -413,6 +446,7 @@ export async function loader({params, context: unauthenticatedContext, request}:
             },
             inboxEntry,
             isFavorite,
+            messageDraft,
             initialFieldsAssignee,
             filterReferences,
         },
@@ -473,12 +507,11 @@ export default function TaskRoute() {
     const {taskId} = useParams();
     assert(taskId && isId<TaskId>(taskId));
 
-    return useSiteChromeContainer(
-        {entityId: `Task:${taskId}`},
+    return (
         <TaskRouteInner
             // Completely re-mount the route when we get new data from the server.
             key={key}
-        />,
+        />
     );
 }
 
@@ -507,6 +540,7 @@ function TaskRouteInner() {
         initialComments,
         inboxEntry,
         isFavorite: initialIsFavorite,
+        messageDraft,
         initialFieldsAssignee,
         filterReferences: initialFilterReferences,
     } = useLoaderDataWithSchema(LoaderSchema);
@@ -763,7 +797,14 @@ function TaskRouteInner() {
             layout: initialFields.layout,
             titleUpdate:
                 initialFields.title.length > 0
-                    ? emptyTaskTitleModel.get().replace(0, 0, initialFields.title)
+                    ? emptyTaskTitleModel
+                          .get()
+                          .replace(
+                              generateTaskTitleClientIdFromRealmId({revertCount: 0}),
+                              0,
+                              0,
+                              initialFields.title,
+                          )
                     : null,
             assignee:
                 initialFields.assigneeId === currentAccount?.id
@@ -1039,6 +1080,7 @@ function TaskRouteInner() {
                 affinityManager={affinityManager}
                 shouldInitiallyFocus={shouldInitiallyFocus}
                 initialComments={initialComments}
+                initialMessageDraft={messageDraft}
                 initialScrollToCommentIndex={initialScrollToCommentIndex}
                 shareActivationHint={
                     // If we're going to show the share activation hint after some editing we need to

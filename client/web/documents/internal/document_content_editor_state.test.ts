@@ -3,11 +3,11 @@
 import {Fragment, Slice} from "prosemirror-model";
 import {Selection, TextSelection, Transaction} from "prosemirror-state";
 import {ReplaceStep} from "prosemirror-transform";
+import {getCollaborativeContentEditorStatePersistedContent} from "~/client/web/content/collaborative_content_editor_state.js";
 import {ContentEditorState} from "~/client/web/content/state/content_editor_state.js";
 import {
     DocumentContentEditorAction,
     DocumentContentEditorState,
-    getDocumentContentEditorStatePersistedContent,
     getInitialDocumentContentEditorState,
     reduceDocumentContentEditorState,
     reduceDocumentContentReferences,
@@ -1415,7 +1415,7 @@ test("setting presence state to a version we don't have remembered steps for doe
     expect(state.editorState.getVersion()).toEqual(10);
     expect(state.persistedVersion).toEqual(10);
     expect(state.extra.rememberedSteps.length).toEqual(0);
-    expect(getDocumentContentEditorStatePersistedContent(state).toString()).toEqual(
+    expect(getCollaborativeContentEditorStatePersistedContent(state).toString()).toEqual(
         'doc(title, paragraph("initial"))',
     );
 
@@ -1437,7 +1437,7 @@ test("setting presence state to a version we don't have remembered steps for doe
     expect(state.editorState.getVersion()).toEqual(15);
     expect(state.persistedVersion).toEqual(10);
     expect(state.extra.rememberedSteps.length).toEqual(5);
-    expect(getDocumentContentEditorStatePersistedContent(state).toString()).toEqual(
+    expect(getCollaborativeContentEditorStatePersistedContent(state).toString()).toEqual(
         'doc(title, paragraph("initial"))',
     );
 
@@ -1451,7 +1451,7 @@ test("setting presence state to a version we don't have remembered steps for doe
     expect(state.editorState.getVersion()).toEqual(15);
     expect(state.persistedVersion).toEqual(13);
     expect(state.extra.rememberedSteps.length).toEqual(2);
-    expect(getDocumentContentEditorStatePersistedContent(state).toString()).toEqual(
+    expect(getCollaborativeContentEditorStatePersistedContent(state).toString()).toEqual(
         'doc(title, paragraph("initial content more text"))',
     );
 
@@ -1481,7 +1481,7 @@ test("setting presence state to a version we don't have remembered steps for doe
     expect(state.editorState.getVersion()).toEqual(15);
     expect(state.persistedVersion).toEqual(13);
     expect(state.extra.rememberedSteps.length).toEqual(2);
-    expect(getDocumentContentEditorStatePersistedContent(state).toString()).toEqual(
+    expect(getCollaborativeContentEditorStatePersistedContent(state).toString()).toEqual(
         'doc(title, paragraph("initial content more text"))',
     );
 });

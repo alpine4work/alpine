@@ -135,7 +135,6 @@ export class ChatRealtimeConnection {
             this._connection.startTypingInMessageInput(context, input),
         stopTypingInMessageInput: (context, input) =>
             this._connection.stopTypingInMessageInput(context, input),
-
         convertDirectChatToRoomChat: async (context, input) => {
             const {chat} = await convertDirectChatToRoomChat(context, {
                 ...input,

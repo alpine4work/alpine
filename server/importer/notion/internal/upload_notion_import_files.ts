@@ -124,7 +124,11 @@ export async function uploadNotionImportFiles(
             // Classify as heavy or light using the same routing logic as file processing.
             // Heavy files (video, audio needing transcoding, large files) are processed
             // sequentially. Light files (images, small docs) are processed in parallel.
-            const {jobType} = routeFileToProcessor({contentType, contentLength: sizeInBytes});
+            const {jobType} = routeFileToProcessor({
+                contentType,
+                contentLength: sizeInBytes,
+                spaceId,
+            });
             if (jobType === "ProcessFileHeavy") {
                 heavyFiles.push(file);
             } else {

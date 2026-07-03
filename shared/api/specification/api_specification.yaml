@@ -176,7 +176,7 @@ paths:
                       type: integer
                       minimum: 1
                       maximum: 100
-                      default: 20
+                      default: 10
                 - name: cursor
                   in: query
                   schema:
@@ -768,6 +768,46 @@ paths:
                                     channel:
                                         $ref: "#/components/schemas/Channel"
 
+    /channels/{id}/posts:
+        parameters:
+            - name: id
+              in: path
+              required: true
+              schema: {$ref: "#/components/schemas/ChannelId"}
+        get:
+            parameters:
+                - name: limit
+                  in: query
+                  schema:
+                      type: integer
+                      minimum: 1
+                      maximum: 100
+                      default: 10
+                - name: cursor
+                  in: query
+                  schema:
+                      $ref: "#/components/schemas/DateTime"
+            responses:
+                default: {$ref: "#/components/responses/Error"}
+                "200":
+                    content:
+                        application/json:
+                            schema:
+                                type: object
+                                required: [spaceId, nextCursor, posts]
+                                additionalProperties: false
+                                properties:
+                                    spaceId:
+                                        $ref: "#/components/schemas/SpaceId"
+                                    nextCursor:
+                                        oneOf:
+                                            - $ref: "#/components/schemas/DateTime"
+                                            - type: "null"
+                                    posts:
+                                        type: array
+                                        items:
+                                            $ref: "#/components/schemas/PostPreview"
+
     /channels/{id}/mention:
         parameters:
             - name: id
@@ -1027,6 +1067,36 @@ paths:
                                         items:
                                             $ref: "#/components/schemas/SearchResult"
 
+    # TODO(#site-api): Implement site API.
+    /sites/{id}/mention:
+        parameters:
+            - name: id
+              in: path
+              required: true
+              schema: {$ref: "#/components/schemas/SiteId"}
+        get:
+            responses:
+                default: {$ref: "#/components/responses/Error"}
+                "200":
+                    content:
+                        application/json:
+                            schema:
+                                type: object
+                                required: [spaceId, mention]
+                                additionalProperties: false
+                                properties:
+                                    spaceId:
+                                        $ref: "#/components/schemas/SpaceId"
+                                    mention:
+                                        type: object
+                                        required: [target, title]
+                                        additionalProperties: false
+                                        properties:
+                                            target:
+                                                $ref: "#/components/schemas/SiteMentionTarget"
+                                            title:
+                                                type: string
+
     /tasks:
         post:
             requestBody:
@@ -1068,6 +1138,14 @@ paths:
                                         priority:
                                             type: string
                                             enum: [Low, Medium, High, Urgent]
+                                        layout:
+                                            $ref: "#/components/schemas/TaskLayout"
+                                        parent:
+                                            $ref: "#/components/schemas/TaskParent"
+                                        collections:
+                                            type: array
+                                            items:
+                                                $ref: "#/components/schemas/TaskCollectionItem"
                                         content:
                                             $ref: "#/components/schemas/Content"
             responses:
@@ -1090,6 +1168,13 @@ paths:
                             required: [patches]
                             additionalProperties: false
                             properties:
+                                actor:
+                                    type: object
+                                    required: [id]
+                                    additionalProperties: false
+                                    properties:
+                                        id:
+                                            $ref: "#/components/schemas/AccountId"
                                 patches:
                                     type: array
                                     minItems: 1
@@ -1102,6 +1187,39 @@ paths:
             responses:
                 default: {$ref: "#/components/responses/Error"}
                 "200": {$ref: "#/components/responses/GetTask"}
+
+    /tasks/{id}/notes:
+        parameters:
+            - name: id
+              in: path
+              required: true
+              schema: {$ref: "#/components/schemas/TaskId"}
+        patch:
+            requestBody:
+                required: true
+                content:
+                    application/json:
+                        schema:
+                            type: object
+                            required: [notes]
+                            additionalProperties: false
+                            properties:
+                                notes:
+                                    type: object
+                                    required: [version, content]
+                                    additionalProperties: false
+                                    properties:
+                                        version:
+                                            type: integer
+                                        content:
+                                            $ref: "#/components/schemas/Content"
+            responses:
+                default: {$ref: "#/components/responses/Error"}
+                "200": {$ref: "#/components/responses/GetTaskNotes"}
+        get:
+            responses:
+                default: {$ref: "#/components/responses/Error"}
+                "200": {$ref: "#/components/responses/GetTaskNotes"}
 
     /tasks/{id}/mention:
         parameters:
@@ -1323,6 +1441,13 @@ paths:
                             required: [patches]
                             additionalProperties: false
                             properties:
+                                actor:
+                                    type: object
+                                    required: [id]
+                                    additionalProperties: false
+                                    properties:
+                                        id:
+                                            $ref: "#/components/schemas/AccountId"
                                 patches:
                                     type: array
                                     minItems: 1
@@ -1422,7 +1547,7 @@ paths:
                         application/json:
                             schema:
                                 type: object
-                                required: [spaceId, tasks, nextCursor]
+                                required: [spaceId, nextCursor, tasks]
                                 additionalProperties: false
                                 properties:
                                     spaceId:
@@ -1432,7 +1557,7 @@ paths:
                                     tasks:
                                         type: array
                                         items:
-                                            $ref: "#/components/schemas/TaskWithoutContent"
+                                            $ref: "#/components/schemas/TaskWithoutNotes"
 
     /files/{id}:
         parameters:
@@ -1569,6 +1694,19 @@ components:
                                 $ref: "#/components/schemas/SpaceId"
                             task:
                                 $ref: "#/components/schemas/Task"
+
+        GetTaskNotes:
+            content:
+                application/json:
+                    schema:
+                        type: object
+                        required: [spaceId, notes]
+                        additionalProperties: false
+                        properties:
+                            spaceId:
+                                $ref: "#/components/schemas/SpaceId"
+                            notes:
+                                $ref: "#/components/schemas/TaskNotes"
 
         GetMessage:
             content:
@@ -1775,6 +1913,10 @@ components:
             type: string
             pattern: ^{{idRegExp}}$
 
+        SiteId:
+            type: string
+            pattern: ^{{idRegExp}}$
+
         SpaceId:
             type: string
             pattern: ^{{idRegExp}}$
@@ -1786,6 +1928,10 @@ components:
         TaskCollectionId:
             type: string
             pattern: ^{{idRegExp}}$
+
+        ContentKey:
+            type: string
+            minLength: 1
 
         TaskCollectionColor:
             type: string
@@ -1849,6 +1995,26 @@ components:
                 id:
                     $ref: "#/components/schemas/PostId"
 
+        # TODO(#sites-api): We may want to add a mention response type for sites
+        # that includes the first entity id in the site. I'm still not sure how
+        # we will communicate site data via the API, so I'm only adding what's
+        # necessary for now. The mention target is necessary because the site file
+        # entity mention will exist in Alpine content, and API requests to fetch that
+        # content should still succeed.
+        # We also may NOT want to add a mention target response with the first entity
+        # id. Rerouting to the first entity in the site makes sense in the app since
+        # we render the site chrome around the entity. For the API, that "reroute"
+        # may be pretty confusing/jarring for clients.
+        SiteMentionTarget:
+            type: object
+            required: [type, id]
+            additionalProperties: false
+            properties:
+                type:
+                    const: Site
+                id:
+                    $ref: "#/components/schemas/SiteId"
+
         TaskMentionTarget:
             type: object
             required: [type, id]
@@ -1888,6 +2054,7 @@ components:
                 - $ref: "#/components/schemas/ChatMentionTarget"
                 - $ref: "#/components/schemas/DocumentMentionTarget"
                 - $ref: "#/components/schemas/PostMentionTarget"
+                - $ref: "#/components/schemas/SiteMentionTarget"
                 - $ref: "#/components/schemas/TaskMentionTarget"
                 - $ref: "#/components/schemas/TaskCollectionMentionTarget"
             discriminator:
@@ -1898,6 +2065,7 @@ components:
                     Chat: "#/components/schemas/ChatMentionTarget"
                     Document: "#/components/schemas/DocumentMentionTarget"
                     Post: "#/components/schemas/PostMentionTarget"
+                    Site: "#/components/schemas/SiteMentionTarget"
                     Task: "#/components/schemas/TaskMentionTarget"
                     TaskCollection: "#/components/schemas/TaskCollectionMentionTarget"
 
@@ -1907,6 +2075,7 @@ components:
                 - $ref: "#/components/schemas/ChatMentionTarget"
                 - $ref: "#/components/schemas/DocumentMentionTarget"
                 - $ref: "#/components/schemas/PostMentionTarget"
+                - $ref: "#/components/schemas/SiteMentionTarget"
                 - $ref: "#/components/schemas/TaskMentionTarget"
                 - $ref: "#/components/schemas/TaskCollectionMentionTarget"
             discriminator:
@@ -1916,6 +2085,7 @@ components:
                     Chat: "#/components/schemas/ChatMentionTarget"
                     Document: "#/components/schemas/DocumentMentionTarget"
                     Post: "#/components/schemas/PostMentionTarget"
+                    Site: "#/components/schemas/SiteMentionTarget"
                     Task: "#/components/schemas/TaskMentionTarget"
                     TaskCollection: "#/components/schemas/TaskCollectionMentionTarget"
 
@@ -1975,10 +2145,26 @@ components:
             properties:
                 type:
                     const: Paragraph
+                key:
+                    $ref: "#/components/schemas/ContentKey"
                 elements:
                     type: array
                     items:
                         $ref: "#/components/schemas/ContentInlineElement"
+
+        ContentParagraphBlockElement_Response:
+            type: object
+            required: [type, key, elements]
+            additionalProperties: false
+            properties:
+                type:
+                    const: Paragraph
+                key:
+                    $ref: "#/components/schemas/ContentKey"
+                elements:
+                    type: array
+                    items:
+                        $ref: "#/components/schemas/ContentInlineElement_Response"
 
         ContentListBlockElement:
             oneOf:
@@ -2105,6 +2291,8 @@ components:
             properties:
                 type:
                     const: Heading
+                key:
+                    $ref: "#/components/schemas/ContentKey"
                 level:
                     type: integer
                     minimum: 1
@@ -2113,6 +2301,24 @@ components:
                     type: array
                     items:
                         $ref: "#/components/schemas/ContentInlineElement"
+
+        ContentHeadingBlockElement_Response:
+            type: object
+            required: [type, key, level, elements]
+            additionalProperties: false
+            properties:
+                type:
+                    const: Heading
+                key:
+                    $ref: "#/components/schemas/ContentKey"
+                level:
+                    type: integer
+                    minimum: 1
+                    maximum: 3
+                elements:
+                    type: array
+                    items:
+                        $ref: "#/components/schemas/ContentInlineElement_Response"
 
         ContentDividerBlockElement:
             type: object
@@ -2215,6 +2421,8 @@ components:
             required: [elements]
             additionalProperties: false
             properties:
+                key:
+                    $ref: "#/components/schemas/ContentKey"
                 elements:
                     type: array
                     items:
@@ -3110,21 +3318,23 @@ components:
         # https://alpine.inc/s/c2pwxmpv3z7b3db19tsn6y1qfg/tasks/znbyh8f7sx5s0nb29zygvcasjw
         PostPreview:
             type: object
-            required: [id, author, contentPreview]
+            required: [id, author, createdTime, createdTimeZone]
             additionalProperties: false
             properties:
                 id:
                     $ref: "#/components/schemas/PostId"
                 author:
                     $ref: "#/components/schemas/Account"
+                createdTime:
+                    $ref: "#/components/schemas/DateTime"
+                createdTimeZone:
+                    $ref: "#/components/schemas/TimeZone"
                 channel:
                     $ref: "#/components/schemas/ChannelPreview"
-                contentPreview:
-                    type: string
 
         Task:
             type: object
-            required: [id, status, title, content]
+            required: [id, status, title, notes]
             additionalProperties: false
             properties:
                 id:
@@ -3148,10 +3358,18 @@ components:
                 priority:
                     type: string
                     enum: [Low, Medium, High, Urgent]
-                content:
-                    $ref: "#/components/schemas/Content"
+                layout:
+                    $ref: "#/components/schemas/TaskLayout"
+                parent:
+                    $ref: "#/components/schemas/TaskParent"
+                collections:
+                    type: array
+                    items:
+                        $ref: "#/components/schemas/TaskCollectionItem"
+                notes:
+                    $ref: "#/components/schemas/TaskNotes"
 
-        TaskWithoutContent:
+        TaskWithoutNotes:
             type: object
             required: [id, status, title]
             additionalProperties: false
@@ -3177,6 +3395,14 @@ components:
                 priority:
                     type: string
                     enum: [Low, Medium, High, Urgent]
+                layout:
+                    $ref: "#/components/schemas/TaskLayout"
+                parent:
+                    $ref: "#/components/schemas/TaskParent"
+                collections:
+                    type: array
+                    items:
+                        $ref: "#/components/schemas/TaskCollectionItem"
 
         TaskPreview:
             type: object
@@ -3199,6 +3425,51 @@ components:
                     type: string
                     format: date
 
+        TaskNotes:
+            type: object
+            required: [version, content]
+            additionalProperties: false
+            properties:
+                version:
+                    type: integer
+                    minimum: 0
+                content:
+                    $ref: "#/components/schemas/Content"
+
+        TaskLayout:
+            type: object
+            required: [type]
+            additionalProperties: false
+            properties:
+                type:
+                    const: Project
+
+        TaskParent:
+            type: object
+            required: [task]
+            additionalProperties: false
+            properties:
+                task:
+                    type: object
+                    required: [id]
+                    additionalProperties: false
+                    properties:
+                        id:
+                            $ref: "#/components/schemas/TaskId"
+
+        TaskCollectionItem:
+            type: object
+            required: [collection]
+            additionalProperties: false
+            properties:
+                collection:
+                    type: object
+                    required: [id]
+                    additionalProperties: false
+                    properties:
+                        id:
+                            $ref: "#/components/schemas/TaskCollectionId"
+
         TaskPatch:
             oneOf:
                 - $ref: "#/components/schemas/TaskSetTitlePatch"
@@ -3206,6 +3477,8 @@ components:
                 - $ref: "#/components/schemas/TaskSetStatusPatch"
                 - $ref: "#/components/schemas/TaskSetDueDatePatch"
                 - $ref: "#/components/schemas/TaskSetPriorityPatch"
+                - $ref: "#/components/schemas/TaskSetLayoutPatch"
+                - $ref: "#/components/schemas/TaskSetParentPatch"
                 - $ref: "#/components/schemas/TaskAddCollectionPatch"
                 - $ref: "#/components/schemas/TaskRemoveCollectionPatch"
             discriminator:
@@ -3216,6 +3489,8 @@ components:
                     SetStatus: "#/components/schemas/TaskSetStatusPatch"
                     SetDueDate: "#/components/schemas/TaskSetDueDatePatch"
                     SetPriority: "#/components/schemas/TaskSetPriorityPatch"
+                    SetLayout: "#/components/schemas/TaskSetLayoutPatch"
+                    SetParent: "#/components/schemas/TaskSetParentPatch"
                     AddCollection: "#/components/schemas/TaskAddCollectionPatch"
                     RemoveCollection: "#/components/schemas/TaskRemoveCollectionPatch"
 
@@ -3276,15 +3551,39 @@ components:
                           enum: [Low, Medium, High, Urgent]
                         - type: "null"
 
+        TaskSetLayoutPatch:
+            type: object
+            required: [type, layout]
+            additionalProperties: false
+            properties:
+                type:
+                    const: SetLayout
+                layout:
+                    oneOf:
+                        - $ref: "#/components/schemas/TaskLayout"
+                        - type: "null"
+
+        TaskSetParentPatch:
+            type: object
+            required: [type, parent]
+            additionalProperties: false
+            properties:
+                type:
+                    const: SetParent
+                parent:
+                    oneOf:
+                        - $ref: "#/components/schemas/TaskParent"
+                        - type: "null"
+
         TaskAddCollectionPatch:
             type: object
-            required: [type, collectionId]
+            required: [type, item]
             additionalProperties: false
             properties:
                 type:
                     const: AddCollection
-                collectionId:
-                    $ref: "#/components/schemas/TaskCollectionId"
+                item:
+                    $ref: "#/components/schemas/TaskCollectionItem"
 
         TaskRemoveCollectionPatch:
             type: object
@@ -3885,6 +4184,7 @@ components:
                 - $ref: "#/components/schemas/SearchDocumentMessageResult"
                 - $ref: "#/components/schemas/SearchPostResult"
                 - $ref: "#/components/schemas/SearchPostMessageResult"
+                - $ref: "#/components/schemas/SearchSiteResult"
                 - $ref: "#/components/schemas/SearchTaskResult"
                 - $ref: "#/components/schemas/SearchTaskMessageResult"
                 - $ref: "#/components/schemas/SearchTaskCollectionResult"
@@ -3899,6 +4199,7 @@ components:
                     DocumentMessage: "#/components/schemas/SearchDocumentMessageResult"
                     Post: "#/components/schemas/SearchPostResult"
                     PostMessage: "#/components/schemas/SearchPostMessageResult"
+                    Site: "#/components/schemas/SearchSiteResult"
                     Task: "#/components/schemas/SearchTaskResult"
                     TaskMessage: "#/components/schemas/SearchTaskMessageResult"
                     TaskCollection: "#/components/schemas/SearchTaskCollectionResult"
@@ -4057,6 +4358,22 @@ components:
                     minimum: 0
                 author:
                     $ref: "#/components/schemas/Account"
+                parsedFilter:
+                    $ref: "#/components/schemas/SearchResultParsedFilter"
+
+        SearchSiteResult:
+            type: object
+            required: [title, bodyMatch, type, id]
+            additionalProperties: false
+            properties:
+                title:
+                    type: string
+                bodyMatch:
+                    const: null
+                type:
+                    const: Site
+                id:
+                    $ref: "#/components/schemas/SiteId"
                 parsedFilter:
                     $ref: "#/components/schemas/SearchResultParsedFilter"
 

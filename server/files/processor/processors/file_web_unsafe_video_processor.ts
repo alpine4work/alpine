@@ -5,6 +5,7 @@ import fs from "fs/promises";
 import {join as joinPath} from "path";
 import {Readable as ReadableStream} from "stream";
 import {FileProcessorActionContext} from "~/server/files/data/file_processor_context.js";
+import {createFileProcessorAnalysisPromises} from "~/server/files/processor/processors/create_file_processor_analysis_promises.js";
 import {processFileImagePreviewPlaceholder} from "~/server/files/processor/processors/file_image_processor_base.js";
 import {FileProcessor} from "~/server/files/processor/processors/file_processor.js";
 import {
@@ -50,14 +51,23 @@ export function createFileWebUnsafeVideoProcessor(
     return {
         type: "WebUnsafeVideo",
         hasAlternative: true,
+        hasAnalysis: true,
         hasPreview: {
             type: "Image",
             hasContent: true,
             hasVideoDuration: true,
         },
+        hasTranscript: true,
         process: async (
             context,
-            {spaceId, fileId, signal, contentLength, withTemporaryDirectory},
+            {
+                spaceId,
+                fileId,
+                signal,
+                contentLength,
+                parentTemporaryDirectoryPath,
+                withTemporaryDirectory,
+            },
         ) => {
             const [temporaryDirectoryPath, inputUrl] = await runAllPromises([
                 withTemporaryDirectory(),
@@ -67,12 +77,22 @@ export function createFileWebUnsafeVideoProcessor(
                 }),
             ]);
 
-            return await processFileWebUnsafeVideo(context, inputUrl, {
-                signal,
-                contentType,
-                contentLength,
-                temporaryDirectoryPath,
-            });
+            return {
+                ...(await processFileWebUnsafeVideo(context, inputUrl, {
+                    signal,
+                    contentType,
+                    contentLength,
+                    temporaryDirectoryPath,
+                })),
+                ...createFileProcessorAnalysisPromises(context, {
+                    contentType,
+                    fileId,
+                    hasTranscript: true,
+                    parentTemporaryDirectoryPath,
+                    signal,
+                    spaceId,
+                }),
+            };
         },
     };
 }

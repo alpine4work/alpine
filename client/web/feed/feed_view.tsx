@@ -11,7 +11,7 @@ import {useNavigationBar} from "~/client/web/navigation/navigation_bar.js";
 import {useClientInfo} from "~/client/web/remix/client_info_context.js";
 import {usePlatform} from "~/client/web/remix/platform_context.js";
 import {useRouteLayout} from "~/client/web/remix/route_layout_context.js";
-import {useSpaceContext} from "~/client/web/spaces/space_context.js";
+import {useSpaceContext} from "~/client/web/spaces/context/space_context.js";
 import {
     feedViewSideBarLeftFlex,
     feedViewSideBarRightFlex,
@@ -136,7 +136,6 @@ export function FeedView({
                         limit,
                         afterCursor: feed.endCursor ?? undefined,
                     });
-
                     setFeed(feed => feed.loadMoreEntries(output));
                 }}
                 shouldBeConnectedToChannelRealtime={false}
@@ -184,7 +183,8 @@ export function FeedView({
                     sideBarLeftSize &&
                     sideBarRightSize && (
                         <Box
-                            zIndex="10"
+                            pointerEvents="none"
+                            zIndex="40"
                             position="sticky"
                             top="0"
                             width="full"

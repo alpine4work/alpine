@@ -27,12 +27,19 @@ const https = require("https");
 process.title = `node ${path.basename(__filename)}`;
 
 const keepAliveAgent = new https.Agent({keepAlive: true});
+const upstreamResponseBodySampleMaxBytes = 4096;
 let nextRequestId = 0;
 let summaryLogged = false;
 const stats = {
     totalRequests: 0,
     upstreamErrors: 0,
+    upstreamResponseAborts: 0,
+    upstreamResponseErrors: 0,
+    upstreamResponseIncompleteCloses: 0,
     clientAborts: 0,
+    clientErrors: 0,
+    downstreamErrors: 0,
+    downstreamIncompleteCloses: 0,
     unexpectedResponses: 0,
     unexpectedResponseStatusCounts: {},
 };
@@ -189,7 +196,57 @@ async function main() {
             method: req1.method,
             path: req1.url,
         };
+        let upstreamResponseBytes = 0;
+        let upstreamResponseComplete = false;
+        let upstreamStatusCode;
+        let clientAborted = false;
+        let downstreamFinished = false;
         stats.totalRequests += 1;
+
+        function requestLogDetails(details) {
+            return Object.assign(
+                {
+                    durationMs: Date.now() - startedAt,
+                    upstreamResponseBytes,
+                    upstreamStatusCode,
+                    clientAborted,
+                    downstreamFinished,
+                },
+                requestDetails,
+                details || {},
+            );
+        }
+
+        function writeInternalServerError() {
+            if (res1.headersSent || res1.writableEnded) return;
+
+            res1.writeHead(500, {"content-type": "text/plain"});
+            res1.end("500 Internal Server Error");
+        }
+
+        res1.on("finish", () => {
+            downstreamFinished = true;
+        });
+
+        res1.on("close", () => {
+            if (downstreamFinished) return;
+
+            stats.downstreamIncompleteCloses += 1;
+            log("warn", "Remote cache downstream response closed before finish", {
+                ...requestLogDetails(),
+                headersSent: res1.headersSent,
+            });
+        });
+
+        res1.on("error", error => {
+            stats.downstreamErrors += 1;
+            logError("Remote cache downstream response failed", error, requestLogDetails());
+        });
+
+        req1.on("error", error => {
+            stats.clientErrors += 1;
+            logError("Remote cache client request failed", error, requestLogDetails());
+        });
 
         try {
             if (!req1.url.startsWith("/")) throw new Error("Expected path to start with `/`");
@@ -251,16 +308,60 @@ async function main() {
 
             req2.on("error", error => {
                 stats.upstreamErrors += 1;
-                logError("Remote cache upstream request failed", error, {
-                    durationMs: Date.now() - startedAt,
-                    ...requestDetails,
-                });
+                logError("Remote cache upstream request failed", error, requestLogDetails());
 
-                res1.writeHead(500, {"content-type": "text/plain"});
-                res1.end("500 Internal Server Error");
+                writeInternalServerError();
             });
 
             req2.on("response", res2 => {
+                upstreamStatusCode = res2.statusCode;
+                let unexpectedUpstreamResponse = false;
+                const upstreamResponseBodySampleChunks = [];
+                let upstreamResponseBodySampleBytes = 0;
+
+                function appendUpstreamResponseBodySample(chunk) {
+                    if (!unexpectedUpstreamResponse) return;
+                    if (upstreamResponseBodySampleBytes >= upstreamResponseBodySampleMaxBytes) {
+                        return;
+                    }
+
+                    const chunkBuffer = Buffer.isBuffer(chunk) ? chunk : Buffer.from(String(chunk));
+                    const remainingBytes =
+                        upstreamResponseBodySampleMaxBytes - upstreamResponseBodySampleBytes;
+                    const sampleChunk =
+                        chunkBuffer.length > remainingBytes
+                            ? chunkBuffer.slice(0, remainingBytes)
+                            : chunkBuffer;
+
+                    upstreamResponseBodySampleChunks.push(sampleChunk);
+                    upstreamResponseBodySampleBytes += sampleChunk.length;
+                }
+
+                function upstreamResponseBodySample() {
+                    if (upstreamResponseBodySampleBytes === 0) return undefined;
+
+                    return Buffer.concat(
+                        upstreamResponseBodySampleChunks,
+                        upstreamResponseBodySampleBytes,
+                    ).toString("utf8");
+                }
+
+                function upstreamResponseLogDetails(details) {
+                    return Object.assign(
+                        {
+                            statusCode: res2.statusCode,
+                            s3RequestId: res2.headers["x-amz-request-id"],
+                            s3ExtendedRequestId: res2.headers["x-amz-id-2"],
+                            upstreamContentLength: res2.headers["content-length"],
+                            upstreamContentType: res2.headers["content-type"],
+                            upstreamResponseBodySample: upstreamResponseBodySample(),
+                            upstreamResponseBodySampleBytes,
+                        },
+                        requestLogDetails(),
+                        details || {},
+                    );
+                }
+
                 if (
                     res2.statusCode >= 500 ||
                     res2.statusCode === 401 ||
@@ -269,35 +370,66 @@ async function main() {
                 ) {
                     stats.unexpectedResponses += 1;
                     incrementUnexpectedResponseStatus(res2.statusCode);
-                    log("warn", "Remote cache upstream response returned unexpected status", {
-                        durationMs: Date.now() - startedAt,
-                        statusCode: res2.statusCode,
-                        s3RequestId: res2.headers["x-amz-request-id"],
-                        s3ExtendedRequestId: res2.headers["x-amz-id-2"],
-                        ...requestDetails,
-                    });
+                    unexpectedUpstreamResponse = true;
                 }
+
+                res2.on("data", chunk => {
+                    upstreamResponseBytes += chunk.length;
+                    appendUpstreamResponseBodySample(chunk);
+                });
+
+                res2.on("end", () => {
+                    upstreamResponseComplete = true;
+                    if (unexpectedUpstreamResponse) {
+                        log(
+                            "warn",
+                            "Remote cache upstream response returned unexpected status",
+                            upstreamResponseLogDetails({responseComplete: true}),
+                        );
+                    }
+                });
+
+                res2.on("aborted", () => {
+                    stats.upstreamResponseAborts += 1;
+                    log("warn", "Remote cache upstream response was aborted", {
+                        ...upstreamResponseLogDetails(),
+                    });
+                });
+
+                res2.on("error", error => {
+                    stats.upstreamResponseErrors += 1;
+                    logError("Remote cache upstream response stream failed", error, {
+                        ...upstreamResponseLogDetails(),
+                    });
+
+                    if (!res1.writableEnded) res1.destroy(error);
+                });
+
+                res2.on("close", () => {
+                    if (upstreamResponseComplete || res2.complete) return;
+
+                    stats.upstreamResponseIncompleteCloses += 1;
+                    log("warn", "Remote cache upstream response closed before completion", {
+                        ...upstreamResponseLogDetails(),
+                        responseComplete: res2.complete,
+                    });
+                });
 
                 res1.writeHead(res2.statusCode, res2.headers);
                 res2.pipe(res1, {end: true});
             });
 
             req1.on("aborted", () => {
+                clientAborted = true;
                 stats.clientAborts += 1;
-                log("warn", "Remote cache client request was aborted", {
-                    durationMs: Date.now() - startedAt,
-                    ...requestDetails,
-                });
+                log("warn", "Remote cache client request was aborted", requestLogDetails());
             });
 
             req1.pipe(req2, {end: true});
         } catch (error) {
             logError("Remote cache proxy request setup failed", error, requestDetails);
 
-            if (!res1.headersSent) {
-                res1.writeHead(500, {"content-type": "text/plain"});
-                res1.end("500 Internal Server Error");
-            }
+            writeInternalServerError();
         }
     });
 

@@ -13,6 +13,7 @@ import {initialOrderKey} from "~/shared/helpers/sort/order_key.js";
 import {generateId} from "~/shared/id/id.js";
 import {SiteTopBarId, TaskCollectionId} from "~/shared/id/types/id_types.js";
 import {TaskAction} from "~/shared/tasks/actions/task_action.js";
+import {TaskQueryDefaults} from "~/shared/tasks/task_query_defaults.js";
 
 let testTaskCollectionCount = 1;
 
@@ -189,6 +190,20 @@ export class TestTaskCollection {
                 collectionAction: {
                     type: "UpdateColor",
                     color,
+                },
+            },
+        ]);
+    }
+
+    public async updateDefaults(session: TestSpaceSession, defaults: TaskQueryDefaults) {
+        await commitTaskActionTransaction(session.action(), session.space.id, [
+            {
+                type: "UpdateCollection",
+                time: testTaskClock.now(),
+                collectionId: this.id,
+                collectionAction: {
+                    type: "UpdateDefaults",
+                    defaults,
                 },
             },
         ]);

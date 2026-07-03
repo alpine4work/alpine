@@ -14,7 +14,7 @@ import {useMergedRefs} from "~/client/web/helpers/refs/use_merged_refs.js";
 import {useNavigationBar} from "~/client/web/navigation/navigation_bar.js";
 import {NativeMobileBridge} from "~/client/web/remix/native_mobile_bridge.js";
 import {useNavigate} from "~/client/web/remix/use_navigate.js";
-import {useSpaceContextAndRequireSpaceAccess} from "~/client/web/spaces/space_context.js";
+import {useSpaceContextAndRequireSpaceAccess} from "~/client/web/spaces/context/space_context.js";
 import {
     channelCreatorGap,
     channelCreatorMarginTop,

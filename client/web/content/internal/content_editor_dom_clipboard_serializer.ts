@@ -4,11 +4,6 @@ import {getFileRegistry} from "~/client/web/content/file_registry_context.js";
 import {renderContentMentionToTextForClient} from "~/client/web/content/render_content_mention_to_text_for_client.js";
 import {layoutContentFileParent} from "~/client/web/content/state/content_file_layout.js";
 import {isHtmlElementBlockLevel} from "~/client/web/helpers/elements/is_node_block_level.js";
-import {
-    getDynamicSearchEntityPathForFileEntity,
-    getSearchDynamicEntityPath,
-    getSearchDynamicEntityPathFromEntityIdObject,
-} from "~/client/web/search/core/get_search_entity_path.js";
 import {getSearchEntityRegistry} from "~/client/web/search/core/search_entity_registry_context.js";
 import {contentStyles} from "~/client/web/styles/styles.js";
 import {fileRowBlockWidthPxForServerAndClipboard} from "~/shared/content/compute_file_row_widths.js";
@@ -32,6 +27,11 @@ import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
 import {iterableEvery} from "~/shared/helpers/iterable/iterable_every.js";
 import {isId} from "~/shared/id/id.js";
 import {FileId, SpaceId} from "~/shared/id/types/id_types.js";
+import {
+    getDynamicSearchEntityPathForFileEntity,
+    getSearchDynamicEntityPath,
+    getSearchDynamicEntityPathFromEntityIdObject,
+} from "~/shared/search/path/get_search_entity_path.js";
 import {parseSearchDynamicEntityId} from "~/shared/search/search_entity_id.js";
 
 // Augment with types for some internal methods from:

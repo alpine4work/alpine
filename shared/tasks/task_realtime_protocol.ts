@@ -95,9 +95,10 @@ export const TaskRealtimeUpdateEventSchema = Schema.object({
     defaultAuthorizationStateVersion: HybridLogicalTimeSchema,
     referencedAccounts: Schema.array(AccountModel.schema),
     referencedSites: Schema.array(
-        Schema.result(
-            Schema.object({ok: Schema.value(true), value: SitePreviewModel.schema}),
-            Schema.object({ok: Schema.value(false), error: ErrorSchema}),
+        Schema.booleanUnion(
+            "isPrivate",
+            Schema.object({isPrivate: Schema.value(true)}),
+            Schema.object({isPrivate: Schema.value(false), site: SitePreviewModel.schema}),
         ),
     ),
     originClientId: Schema.id<TaskRealtimeClientId>().nullable(),

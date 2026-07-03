@@ -1,5 +1,4 @@
-import {DotsThreeVertical} from "phosphor-react";
-import {Memo, Ref, forwardRef, useImperativeHandle, useMemo, useRef} from "react";
+import {Memo, ReactNode, Ref, forwardRef, useImperativeHandle, useMemo, useRef} from "react";
 import {useAppContext} from "~/client/web/context/app_context.js";
 import {Box} from "~/client/web/design/box.js";
 import {IconButton} from "~/client/web/design/icon_button.js";
@@ -11,13 +10,14 @@ import {useStore} from "~/client/web/helpers/use_store.js";
 import {ShareButton} from "~/client/web/navigation/share_button.js";
 import {useSiteContextIfExists} from "~/client/web/sites/context/site_context.js";
 import {applySiteAccessPolicyChange} from "~/client/web/sites/helpers/apply_site_access_policy_change.js";
-import {useSpaceContext} from "~/client/web/spaces/space_context.js";
+import {useSpaceContext} from "~/client/web/spaces/context/space_context.js";
 import {taskQueryViewCustomizationBarDesktopMarginY} from "~/client/web/styles/tasks_shared_styles.js";
 import {TaskClientCollectionSubscription} from "~/client/web/tasks/core/task_client_collection_subscription.js";
 import {
     TaskClientStore,
     TaskClientStoreSearchAffinityManager,
 } from "~/client/web/tasks/core/task_client_store.js";
+import {DotsThreeVerticalWithAsterisk} from "~/client/web/tasks/internal/dots_three_vertical_with_asterisk.js";
 import {
     TaskCollectionViewDesktopHeaderName,
     TaskCollectionViewDesktopHeaderNameRef,
@@ -55,12 +55,15 @@ function TaskCollectionViewDesktopHeader(
         accessLevel,
         defaultOrderSentence,
         menuActions,
+        menuExtraBottom,
+        hasAllDefaults,
         filters,
         filterReferences,
         onFiltersChange,
         sorts,
         onSortsChange,
         onCopyLink,
+        isSiteBreadcrumbRendered = false,
     }: {
         store: TaskClientStore;
         queryReferencesForUrlGrant: TaskQueryReferencesForUrlGrantFilterEditor | null;
@@ -74,6 +77,8 @@ function TaskCollectionViewDesktopHeader(
         accessLevel: AccessLevel | null;
         defaultOrderSentence: string;
         menuActions: ReadonlyArray<ReadonlyArray<MenuAction>>;
+        menuExtraBottom: ReactNode;
+        hasAllDefaults: boolean;
         filters: ReadonlyArray<TaskQueryFilter>;
         filterReferences: TaskQueryFilterReferences;
         onFiltersChange: (
@@ -83,6 +88,7 @@ function TaskCollectionViewDesktopHeader(
         sorts: ReadonlyArray<TaskQuerySort>;
         onSortsChange: (sorts: ReadonlyArray<TaskQuerySort>) => void;
         onCopyLink: () => MaybePromise<void>;
+        isSiteBreadcrumbRendered?: boolean;
     },
     ref: Ref<TaskCollectionViewDesktopHeaderRef>,
 ) {
@@ -149,6 +155,7 @@ function TaskCollectionViewDesktopHeader(
                     shouldInitiallyFocusEditableName={shouldInitiallyFocusEditableCollectionName}
                     collection={collection}
                     createCollection={createCollection}
+                    isSiteBreadcrumbRendered={isSiteBreadcrumbRendered}
                 />
             </Box>
             <Box
@@ -175,6 +182,7 @@ function TaskCollectionViewDesktopHeader(
                     onFiltersChange={onFiltersChange}
                     sorts={sorts}
                     onSortsChange={onSortsChange}
+                    hasAllDefaults={hasAllDefaults}
                 />
             </Box>
             <Box
@@ -236,9 +244,9 @@ function TaskCollectionViewDesktopHeader(
                         />
                     </Box>
                 )}
-                <MenuButton actions={menuActions}>
+                <MenuButton actions={menuActions} extraOverlayBottom={menuExtraBottom}>
                     <IconButton size="md" description="More" withoutTooltip>
-                        <DotsThreeVertical />
+                        <DotsThreeVerticalWithAsterisk withAsterisk={!hasAllDefaults} />
                     </IconButton>
                 </MenuButton>
             </Box>

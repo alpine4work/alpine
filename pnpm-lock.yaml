@@ -33,7 +33,7 @@ patchedDependencies:
     hash: ylo6ppuxbnnn5eh5o4zhyyzoeq
     path: admin/patches/@cloudflare__workers-types@4.20241112.0.patch
   '@cloudsnorkel/cdk-github-runners@0.14.1':
-    hash: l52tgo5nrv5i55jbcncpckfovy
+    hash: pcatt76yavw3um3qotdz5jp5m4
     path: admin/patches/@cloudsnorkel__cdk-github-runners@0.14.1.patch
   '@dnd-kit/core@6.0.8':
     hash: 7phbxv4pzfr6sphz6gpqy6mxeu
@@ -270,7 +270,7 @@ importers:
         version: 4.20241112.0(patch_hash=ylo6ppuxbnnn5eh5o4zhyyzoeq)
       '@cloudsnorkel/cdk-github-runners':
         specifier: 0.14.1
-        version: 0.14.1(patch_hash=l52tgo5nrv5i55jbcncpckfovy)(aws-cdk-lib@2.189.1(constructs@10.1.143))(constructs@10.1.143)
+        version: 0.14.1(patch_hash=pcatt76yavw3um3qotdz5jp5m4)(aws-cdk-lib@2.189.1(constructs@10.1.143))(constructs@10.1.143)
       '@codemirror/lang-sql':
         specifier: ^6.7.0
         version: 6.7.0(@codemirror/view@6.28.6)
@@ -919,6 +919,18 @@ importers:
       isbot:
         specifier: ^3.6.12
         version: 3.6.12
+      istanbul-lib-coverage:
+        specifier: 3.2.0
+        version: 3.2.0
+      istanbul-lib-instrument:
+        specifier: 6.0.0
+        version: 6.0.0(supports-color@10.2.2)
+      istanbul-lib-report:
+        specifier: 3.0.0
+        version: 3.0.0
+      istanbul-reports:
+        specifier: 3.1.5
+        version: 3.1.5
       jest:
         specifier: 29.4.0
         version: 29.4.0(@types/node@20.3.2(patch_hash=4zjoxiw4th676hgmdgid4hevxy))(supports-color@10.2.2)
@@ -11985,7 +11997,7 @@ snapshots:
 
   '@cloudflare/workers-types@4.20241112.0(patch_hash=ylo6ppuxbnnn5eh5o4zhyyzoeq)': {}
 
-  '@cloudsnorkel/cdk-github-runners@0.14.1(patch_hash=l52tgo5nrv5i55jbcncpckfovy)(aws-cdk-lib@2.189.1(constructs@10.1.143))(constructs@10.1.143)':
+  '@cloudsnorkel/cdk-github-runners@0.14.1(patch_hash=pcatt76yavw3um3qotdz5jp5m4)(aws-cdk-lib@2.189.1(constructs@10.1.143))(constructs@10.1.143)':
     dependencies:
       aws-cdk-lib: 2.189.1(constructs@10.1.143)
       constructs: 10.1.143

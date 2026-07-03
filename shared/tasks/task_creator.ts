@@ -24,3 +24,7 @@ export const TaskCreatorSchema = Schema.object({
 });
 
 export type TaskCreator = SchemaType<typeof TaskCreatorSchema>;
+
+export const TaskActorSchema = TaskCreatorSchema;
+
+export type TaskActor = TaskCreator;

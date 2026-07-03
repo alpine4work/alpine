@@ -5,7 +5,7 @@ import {useLayoutEffectWithoutServerSideWarning} from "~/client/web/helpers/life
 import {useStore} from "~/client/web/helpers/use_store.js";
 import {useClientInfo} from "~/client/web/remix/client_info_context.js";
 import {usePlatform} from "~/client/web/remix/platform_context.js";
-import {useSpaceContext} from "~/client/web/spaces/space_context.js";
+import {useSpaceContext} from "~/client/web/spaces/context/space_context.js";
 import {pointerEventsNoneNotInheritedClassName, tasksStyles} from "~/client/web/styles/styles.js";
 import {TaskClientReadonlyStore} from "~/client/web/tasks/core/task_client_store.js";
 import {TaskAssigneeInput} from "~/client/web/tasks/internal/task_assignee_input.js";

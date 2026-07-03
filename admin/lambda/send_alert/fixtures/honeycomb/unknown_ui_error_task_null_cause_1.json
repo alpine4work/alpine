@@ -1,0 +1,63 @@
+{
+    "name": "Rendered unknown UI error",
+    "channel": "honeycomb",
+    "type": "task",
+    "collection": "honeycomb",
+    "priority": "low",
+    "groupsTriggered": [
+        {
+            "group": [
+                {
+                    "key": "context.route",
+                    "value": "/s/:spaceId"
+                },
+                {
+                    "key": "exception.type",
+                    "value": "Error"
+                },
+                {
+                    "key": "exception.message",
+                    "value": "Retry with exponential backoff failed after 5 attempts"
+                },
+                {
+                    "key": "exception.cause.type",
+                    "value": null
+                },
+                {
+                    "key": "exception.cause.message",
+                    "value": null
+                }
+            ],
+            "result": 1
+        }
+    ],
+    "isEvent": "false",
+    "emoji": "",
+    "id": "C7kWixVbbXC",
+    "description": "These are unknown UI errors the user sees. They are a result of a bug and/or an error we did not handle properly.",
+    "links": {
+        "trigger": "https://ui.honeycomb.io/cyberworlds/environments/production/triggers/C7kWixVbbXC?utm_content=edit_trigger&utm_medium=Trigger&utm_source=webhook",
+        "result": "https://ui.honeycomb.io/cyberworlds/environments/production/result/sj1oq69N8YC/a/zqjK5ow1dff?utm_content=view_graph&utm_medium=Trigger&utm_source=webhook"
+    },
+    "environment": "production",
+    "threshold": {
+        "op": "greater than",
+        "value": "0"
+    },
+    "result": {
+        "groupsTriggered": [
+            {
+                "field": "exception.message",
+                "value": "Retry with exponential backoff failed after 5 attempts",
+                "count": 1
+            }
+        ]
+    },
+    "alert": {
+        "instanceId": "f0605225-407d-446b-bb70-c91c98b7d0cd",
+        "description": "production environment:\nCurrently greater than threshold value (0) for context.route: /s/:spaceId, exception.message: Retry with exponential backoff failed after 5 attempts (value 1)",
+        "status": "TRIGGERED",
+        "summary": "Triggered: Rendered unknown UI error",
+        "isTest": false
+    }
+}

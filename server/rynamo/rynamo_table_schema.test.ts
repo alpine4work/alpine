@@ -11,6 +11,7 @@ import {ProcessContextModule} from "~/shared/context/process_context_module.js";
 import {RynamoEvent} from "~/shared/dynamo/rynamo_types.js";
 import {FailedPreconditionError, InternalError} from "~/shared/error/error.js";
 import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
+import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
 import {omitObject} from "~/shared/helpers/object/omit_object.js";
 import {generateId} from "~/shared/id/id.js";
 import {Schema, SchemaType} from "~/shared/schema/schema.js";
@@ -6663,974 +6664,300 @@ test("can delete and undelete items (with `transactionDirectlyUpdateItem()`)", a
     }
 });
 
-test("can update a property that\u2019s in an index\u2019s partition key and a put event will show up in the old query\u2019s backfill", async () => {
-    import.meta.jest.useFakeTimers();
+type TestIndexKind = (typeof testIndexKinds)[number];
 
-    try {
-        const space = await TestSpace.create(context);
+const testIndexKinds = [
+    "eventual consistency join index",
+    "eventual consistency full index",
+    "strong consistency join index",
+] as const;
 
-        const TestModelSchema = Schema.object({
-            partitionKey: Schema.integer,
-            sortKey: Schema.integer,
-            attribute1: Schema.integer,
-            attribute2: Schema.integer,
-        });
+describe.each(testIndexKinds)("%s", (indexKind: TestIndexKind) => {
+    const testIndexCursorForPartition1Sort2 =
+        indexKind === "strong consistency join index"
+            ? "V--------5L----------N---------1-F-_-F--"
+            : "V--------5J0-7---------08F3--7---------1";
 
-        let eventss: Array<ReadonlyArray<RynamoEvent<SchemaType<typeof TestModelSchema>>>> = [];
+    const testIndexCursorForPartition1Sort3 =
+        indexKind === "strong consistency join index"
+            ? "V--------5X----------N---------2-F-_-F--"
+            : "V--------5V0-7---------08F3--7---------2";
 
-        const takeEventss = () => {
-            const currentEventss = eventss;
-            eventss = [];
-            return currentEventss;
-        };
+    const testIndexCursorForPartition4Sort5 =
+        indexKind === "strong consistency join index"
+            ? "V--------5T---------07---------4-F-_-F--"
+            : "V--------5R0-7---------38F3--7---------4";
 
-        const TestTable = RynamoTableSchema.new({
-            withoutCompatibilityErrorsForTest: true,
-            name: `Test_${generateId()}`,
-            partitions: [
-                {
-                    name: "Partition",
-                    partitionKeyAttributes: {
-                        testPartitionKey: DynamoKeyAttributeSchema.integer,
-                    },
-                    sortRanges: [
-                        {
-                            name: "SortRange",
-                            sortKeyAttributes: {
-                                testSortKey: DynamoKeyAttributeSchema.integer,
+    const directlyUpdateCreateItemFailedPreconditionMessage =
+        indexKind === "strong consistency join index"
+            ? "DynamoDB TransactionCanceledException: Transaction cancelled, please refer cancellation reasons for specific reasons [ConditionalCheckFailed, None]"
+            : "DynamoDB ConditionalCheckFailedException: The conditional request failed";
+
+    const directlyUpdateMovedIndexFailedPreconditionMessage =
+        indexKind === "strong consistency join index"
+            ? "DynamoDB TransactionCanceledException: Transaction cancelled, please refer cancellation reasons for specific reasons [ConditionalCheckFailed, None, None]"
+            : "DynamoDB ConditionalCheckFailedException: The conditional request failed";
+
+    const deleteItemFailedPreconditionMessage =
+        indexKind === "strong consistency join index"
+            ? "DynamoDB TransactionCanceledException: Transaction cancelled, please refer cancellation reasons for specific reasons [ConditionalCheckFailed, None, None]"
+            : "DynamoDB TransactionCanceledException: Transaction cancelled, please refer cancellation reasons for specific reasons [ConditionalCheckFailed, None]";
+
+    const transactionDirectlyUpdateCreateItemFailedPreconditionMessage =
+        indexKind === "strong consistency join index"
+            ? "DynamoDB TransactionCanceledException: Transaction cancelled, please refer cancellation reasons for specific reasons [ConditionalCheckFailed, None]"
+            : "DynamoDB TransactionCanceledException: Transaction cancelled, please refer cancellation reasons for specific reasons [ConditionalCheckFailed]";
+
+    const transactionDirectlyUpdateMovedIndexFailedPreconditionMessage =
+        indexKind === "strong consistency join index"
+            ? "DynamoDB TransactionCanceledException: Transaction cancelled, please refer cancellation reasons for specific reasons [ConditionalCheckFailed, None, None]"
+            : "DynamoDB TransactionCanceledException: Transaction cancelled, please refer cancellation reasons for specific reasons [ConditionalCheckFailed]";
+
+    const eventualConsistencyAssertionMessage = `Assertion failure: \`consistency === ${JSON.stringify("Eventual")}\``;
+
+    test("can update a property that\u2019s in an index\u2019s partition key and a put event will show up in the old query\u2019s backfill", async () => {
+        import.meta.jest.useFakeTimers();
+
+        try {
+            const space = await TestSpace.create(context);
+
+            const TestModelSchema = Schema.object({
+                partitionKey: Schema.integer,
+                sortKey: Schema.integer,
+                attribute1: Schema.integer,
+                attribute2: Schema.integer,
+            });
+
+            let eventss: Array<ReadonlyArray<RynamoEvent<SchemaType<typeof TestModelSchema>>>> = [];
+
+            const takeEventss = () => {
+                const currentEventss = eventss;
+                eventss = [];
+                return currentEventss;
+            };
+
+            const TestTable = RynamoTableSchema.new({
+                withoutCompatibilityErrorsForTest: true,
+                name: `Test_${generateId()}`,
+                partitions: [
+                    {
+                        name: "Partition",
+                        partitionKeyAttributes: {
+                            testPartitionKey: DynamoKeyAttributeSchema.integer,
+                        },
+                        sortRanges: [
+                            {
+                                name: "SortRange",
+                                sortKeyAttributes: {
+                                    testSortKey: DynamoKeyAttributeSchema.integer,
+                                },
+                                attributes: Schema.object({
+                                    attribute1: Schema.integer,
+                                    attribute2: Schema.integer,
+                                }),
                             },
-                            attributes: Schema.object({
-                                attribute1: Schema.integer,
-                                attribute2: Schema.integer,
+                        ],
+                    },
+                ],
+                modelSchema: TestModelSchema,
+                models: {
+                    Partition: {
+                        SortRange: {
+                            build: async (context, item) => ({
+                                partitionKey: item.testPartitionKey,
+                                sortKey: item.testSortKey,
+                                attribute1: item.attribute1,
+                                attribute2: item.attribute2,
                             }),
                         },
-                    ],
-                },
-            ],
-            modelSchema: TestModelSchema,
-            models: {
-                Partition: {
-                    SortRange: {
-                        build: async (context, item) => ({
-                            partitionKey: item.testPartitionKey,
-                            sortKey: item.testSortKey,
-                            attribute1: item.attribute1,
-                            attribute2: item.attribute2,
-                        }),
                     },
                 },
-            },
-            broadcastEvents: async (context, events) => {
-                eventss.push(await runAllPromises(events.map(({getEvent}) => getEvent(context))));
-            },
-        });
-
-        const TestIndex = TestTable.addExpensiveFullIndex({
-            name: "Index",
-            itemTypes: [{partitionType: "Partition", sortRangeType: "SortRange"}],
-            partitionKeyAttributes: {
-                attribute1: DynamoKeyAttributeSchema.integer,
-            },
-            sortKeyAttributes: {
-                attribute2: DynamoKeyAttributeSchema.integer,
-            },
-        });
-
-        finishInitializingDynamoTableSchemas();
-
-        await TestTable.createItem(space.systemAction(), {
-            partitionType: "Partition",
-            sortRangeType: "SortRange",
-            testPartitionKey: 1,
-            testSortKey: 2,
-            attribute1: 100,
-            attribute2: 101,
-        });
-
-        await TestTable.createItem(space.systemAction(), {
-            partitionType: "Partition",
-            sortRangeType: "SortRange",
-            testPartitionKey: 1,
-            testSortKey: 3,
-            attribute1: 102,
-            attribute2: 104,
-        });
-
-        await TestTable.createItem(space.systemAction(), {
-            partitionType: "Partition",
-            sortRangeType: "SortRange",
-            testPartitionKey: 4,
-            testSortKey: 5,
-            attribute1: 102,
-            attribute2: 103,
-        });
-
-        import.meta.jest.advanceTimersByTime(1000 * 60 * 60);
-
-        const checkpoint = generateServerSynchronizationCheckpoint();
-
-        expect(
-            await TestIndex.realtimeQuery(space.systemAction(), {
-                partitionKey: {attribute1: 100},
-                limit: "All",
-            }),
-        ).toEqual({
-            checkpoint: expect.any(Date),
-            indexName: "Index",
-            partitionKey: "V--------5F",
-            startCursorBound: null,
-            endCursorBound: null,
-            pageInfo: {
-                type: "FromStart",
-                hasNextPage: false,
-                afterCursor: null,
-            },
-            items: [
-                {
-                    cursor: "V--------5J0-7---------08F3--7---------1",
-                    key: "-7---------08F3--7---------1",
-                    version: 0,
-                    model: {
-                        partitionKey: 1,
-                        sortKey: 2,
-                        attribute1: 100,
-                        attribute2: 101,
-                    },
+                broadcastEvents: async (context, events) => {
+                    eventss.push(
+                        await runAllPromises(events.map(({getEvent}) => getEvent(context))),
+                    );
                 },
-            ],
-        });
+            });
 
-        expect(
-            await TestIndex.realtimeQuery(space.systemAction(), {
-                partitionKey: {attribute1: 102},
-                limit: "All",
-            }),
-        ).toEqual({
-            checkpoint: expect.any(Date),
-            indexName: "Index",
-            partitionKey: "V--------5N",
-            startCursorBound: null,
-            endCursorBound: null,
-            pageInfo: {
-                type: "FromStart",
-                hasNextPage: false,
-                afterCursor: null,
-            },
-            items: [
-                {
-                    cursor: "V--------5R0-7---------38F3--7---------4",
-                    key: "-7---------38F3--7---------4",
-                    version: 0,
-                    model: {
-                        partitionKey: 4,
-                        sortKey: 5,
-                        attribute1: 102,
-                        attribute2: 103,
-                    },
-                },
-                {
-                    cursor: "V--------5V0-7---------08F3--7---------2",
-                    key: "-7---------08F3--7---------2",
-                    version: 0,
-                    model: {
-                        partitionKey: 1,
-                        sortKey: 3,
-                        attribute1: 102,
-                        attribute2: 104,
-                    },
-                },
-            ],
-        });
+            let TestIndex;
 
-        expect(
-            await TestIndex.backfillRealtimeQuery(space.systemAction(), {
-                partitionKey: {attribute1: 100},
-                checkpoint,
-            }),
-        ).toEqual({
-            type: "Available",
-            checkpoint: expect.any(Date),
-            events: [],
-        });
+            switch (indexKind) {
+                case "eventual consistency join index": {
+                    TestIndex = TestTable.addEventualConsistencyIndexWithQueryJoin({
+                        name: "Index",
+                        itemTypes: [{partitionType: "Partition", sortRangeType: "SortRange"}],
+                        partitionKeyAttributes: {
+                            attribute1: DynamoKeyAttributeSchema.integer,
+                        },
+                        sortKeyAttributes: {
+                            attribute2: DynamoKeyAttributeSchema.integer,
+                        },
+                    });
+                    break;
+                }
+                case "eventual consistency full index": {
+                    TestIndex = TestTable.addExpensiveFullEventualConsistencyIndex({
+                        name: "Index",
+                        itemTypes: [{partitionType: "Partition", sortRangeType: "SortRange"}],
+                        partitionKeyAttributes: {
+                            attribute1: DynamoKeyAttributeSchema.integer,
+                        },
+                        sortKeyAttributes: {
+                            attribute2: DynamoKeyAttributeSchema.integer,
+                        },
+                    });
+                    break;
+                }
+                case "strong consistency join index": {
+                    TestIndex = TestTable.addStrongConsistencyIndexWithQueryJoin({
+                        name: "Index",
+                        itemTypes: [{partitionType: "Partition", sortRangeType: "SortRange"}],
+                        partitionKeyAttributes: {
+                            attribute1: DynamoKeyAttributeSchema.integer,
+                        },
+                        sortKeyAttributes: {
+                            attribute2: DynamoKeyAttributeSchema.integer,
+                            testPartitionKey: DynamoKeyAttributeSchema.integer,
+                            testSortKey: DynamoKeyAttributeSchema.integer,
+                        },
+                    });
+                    break;
+                }
+                default:
+                    throw exhaustive(indexKind);
+            }
 
-        expect(
-            await TestIndex.backfillRealtimeQuery(space.systemAction(), {
-                partitionKey: {attribute1: 102},
-                checkpoint,
-            }),
-        ).toEqual({
-            type: "Available",
-            checkpoint: expect.any(Date),
-            events: [],
-        });
+            finishInitializingDynamoTableSchemas();
 
-        await expect(
-            TestTable.directlyUpdateItem(
-                space.systemAction(),
-                DynamoItem.create({
-                    partitionType: "Partition",
-                    sortRangeType: "SortRange",
-                    testPartitionKey: 4,
-                    testSortKey: 5,
-                    attribute1: 100,
-                    attribute2: 103,
-                }),
-            ),
-        ).rejects.toThrow(
-            new FailedPreconditionError(
-                "DynamoDB ConditionalCheckFailedException: The conditional request failed",
-            ),
-        );
-
-        await expect(
-            TestTable.directlyUpdateItem(space.systemAction(), {
+            await TestTable.createItem(space.systemAction(), {
                 partitionType: "Partition",
                 sortRangeType: "SortRange",
-                testPartitionKey: 4,
-                testSortKey: 5,
+                testPartitionKey: 1,
+                testSortKey: 2,
                 attribute1: 100,
-                attribute2: 103,
-                // @ts-expect-error: HACK
-                oldItem: {
-                    partitionType: "Partition",
-                    sortRangeType: "SortRange",
-                    testPartitionKey: 4,
-                    testSortKey: 5,
-                    attribute1: 100,
-                    attribute2: 103,
-                },
-            }),
-        ).rejects.toThrow(
-            new FailedPreconditionError(
-                "DynamoDB ConditionalCheckFailedException: The conditional request failed",
-            ),
-        );
+                attribute2: 101,
+            });
 
-        await expect(
-            TestTable.directlyUpdateItem(space.systemAction(), {
+            await TestTable.createItem(space.systemAction(), {
                 partitionType: "Partition",
                 sortRangeType: "SortRange",
-                testPartitionKey: 4,
-                testSortKey: 5,
-                attribute1: 100,
-                attribute2: 103,
-                // @ts-expect-error: HACK
-                oldItem: {
-                    partitionType: "Partition",
-                    sortRangeType: "SortRange",
-                    testPartitionKey: 4,
-                    testSortKey: 5,
-                    attribute1: 123456789,
-                    attribute2: 103,
-                },
-            }),
-        ).rejects.toThrow(
-            new FailedPreconditionError(
-                "DynamoDB ConditionalCheckFailedException: The conditional request failed",
-            ),
-        );
+                testPartitionKey: 1,
+                testSortKey: 3,
+                attribute1: 102,
+                attribute2: 104,
+            });
 
-        await TestTable.directlyUpdateItem(space.systemAction(), {
-            partitionType: "Partition",
-            sortRangeType: "SortRange",
-            testPartitionKey: 4,
-            testSortKey: 5,
-            attribute1: 100,
-            attribute2: 103,
-            // @ts-expect-error: HACK
-            oldItem: {
+            await TestTable.createItem(space.systemAction(), {
                 partitionType: "Partition",
                 sortRangeType: "SortRange",
                 testPartitionKey: 4,
                 testSortKey: 5,
                 attribute1: 102,
                 attribute2: 103,
-            },
-        });
+            });
 
-        await ProcessContextModule.waitForTestTasks();
+            import.meta.jest.advanceTimersByTime(1000 * 60 * 60);
 
-        expect(
-            await TestIndex.realtimeQuery(space.systemAction(), {
-                partitionKey: {attribute1: 100},
-                limit: "All",
-            }),
-        ).toEqual({
-            checkpoint: expect.any(Date),
-            indexName: "Index",
-            partitionKey: "V--------5F",
-            startCursorBound: null,
-            endCursorBound: null,
-            pageInfo: {
-                type: "FromStart",
-                hasNextPage: false,
-                afterCursor: null,
-            },
-            items: [
-                {
-                    cursor: "V--------5J0-7---------08F3--7---------1",
-                    key: "-7---------08F3--7---------1",
-                    version: 0,
-                    model: {
-                        partitionKey: 1,
-                        sortKey: 2,
-                        attribute1: 100,
-                        attribute2: 101,
-                    },
+            const checkpoint = generateServerSynchronizationCheckpoint();
+
+            expect(
+                await TestIndex.realtimeQuery(space.systemAction(), {
+                    partitionKey: {attribute1: 100},
+                    limit: "All",
+                }),
+            ).toEqual({
+                checkpoint: expect.any(Date),
+                indexName: "Index",
+                partitionKey: "V--------5F",
+                startCursorBound: null,
+                endCursorBound: null,
+                pageInfo: {
+                    type: "FromStart",
+                    hasNextPage: false,
+                    afterCursor: null,
                 },
-                {
-                    cursor: "V--------5R0-7---------38F3--7---------4",
-                    key: "-7---------38F3--7---------4",
-                    version: 1,
-                    model: {
-                        partitionKey: 4,
-                        sortKey: 5,
-                        attribute1: 100,
-                        attribute2: 103,
+                items: [
+                    {
+                        cursor: testIndexCursorForPartition1Sort2,
+                        key: "-7---------08F3--7---------1",
+                        version: 0,
+                        model: {
+                            partitionKey: 1,
+                            sortKey: 2,
+                            attribute1: 100,
+                            attribute2: 101,
+                        },
                     },
-                },
-            ],
-        });
+                ],
+            });
 
-        expect(
-            await TestIndex.realtimeQuery(space.systemAction(), {
-                partitionKey: {attribute1: 102},
-                limit: "All",
-            }),
-        ).toEqual({
-            checkpoint: expect.any(Date),
-            indexName: "Index",
-            partitionKey: "V--------5N",
-            startCursorBound: null,
-            endCursorBound: null,
-            pageInfo: {
-                type: "FromStart",
-                hasNextPage: false,
-                afterCursor: null,
-            },
-            items: [
-                {
-                    cursor: "V--------5V0-7---------08F3--7---------2",
-                    key: "-7---------08F3--7---------2",
-                    version: 0,
-                    model: {
-                        partitionKey: 1,
-                        sortKey: 3,
-                        attribute1: 102,
-                        attribute2: 104,
-                    },
+            expect(
+                await TestIndex.realtimeQuery(space.systemAction(), {
+                    partitionKey: {attribute1: 102},
+                    limit: "All",
+                }),
+            ).toEqual({
+                checkpoint: expect.any(Date),
+                indexName: "Index",
+                partitionKey: "V--------5N",
+                startCursorBound: null,
+                endCursorBound: null,
+                pageInfo: {
+                    type: "FromStart",
+                    hasNextPage: false,
+                    afterCursor: null,
                 },
-            ],
-        });
-
-        expect(
-            await TestIndex.backfillRealtimeQuery(space.systemAction(), {
-                partitionKey: {attribute1: 100},
-                checkpoint,
-            }),
-        ).toEqual({
-            type: "Available",
-            checkpoint: expect.any(Date),
-            events: [
-                {
-                    type: "PutItem",
-                    item: {
+                items: [
+                    {
+                        cursor: testIndexCursorForPartition4Sort5,
                         key: "-7---------38F3--7---------4",
-                        version: 1,
+                        version: 0,
                         model: {
                             partitionKey: 4,
                             sortKey: 5,
-                            attribute1: 100,
+                            attribute1: 102,
                             attribute2: 103,
                         },
                     },
-                    indexes: new Map([
-                        [
-                            "Index",
-                            {
-                                partitionKey: "V--------5F",
-                                cursor: "V--------5R0-7---------38F3--7---------4",
-                            },
-                        ],
-                    ]),
-                },
-            ],
-        });
-
-        expect(
-            await TestIndex.backfillRealtimeQuery(space.systemAction(), {
-                partitionKey: {attribute1: 102},
-                checkpoint,
-            }),
-        ).toEqual({
-            type: "Available",
-            checkpoint: expect.any(Date),
-            events: [
-                {
-                    type: "DeleteItem",
-                    item: {
-                        key: "-7---------38F3--7---------4",
-                        version: 1,
-                    },
-                    indexes: new Set(["Index"]),
-                },
-            ],
-        });
-
-        expect(takeEventss().length).toEqual(4);
-    } finally {
-        import.meta.jest.useRealTimers();
-    }
-});
-
-test("can delete an item with a property in an index\u2019s partition key that can be updated and a delete event will show up in the old query\u2019s backfill", async () => {
-    import.meta.jest.useFakeTimers();
-
-    try {
-        const space = await TestSpace.create(context);
-
-        const TestModelSchema = Schema.object({
-            partitionKey: Schema.integer,
-            sortKey: Schema.integer,
-            attribute1: Schema.integer,
-            attribute2: Schema.integer,
-        });
-
-        let eventss: Array<ReadonlyArray<RynamoEvent<SchemaType<typeof TestModelSchema>>>> = [];
-
-        const takeEventss = () => {
-            const currentEventss = eventss;
-            eventss = [];
-            return currentEventss;
-        };
-
-        const TestTable = RynamoTableSchema.new({
-            withoutCompatibilityErrorsForTest: true,
-            features: {deleteItem: {Partition: {SortRange: true}}},
-            name: `Test_${generateId()}`,
-            partitions: [
-                {
-                    name: "Partition",
-                    partitionKeyAttributes: {
-                        testPartitionKey: DynamoKeyAttributeSchema.integer,
-                    },
-                    sortRanges: [
-                        {
-                            name: "SortRange",
-                            sortKeyAttributes: {
-                                testSortKey: DynamoKeyAttributeSchema.integer,
-                            },
-                            attributes: Schema.object({
-                                attribute1: Schema.integer,
-                                attribute2: Schema.integer,
-                            }),
+                    {
+                        cursor: testIndexCursorForPartition1Sort3,
+                        key: "-7---------08F3--7---------2",
+                        version: 0,
+                        model: {
+                            partitionKey: 1,
+                            sortKey: 3,
+                            attribute1: 102,
+                            attribute2: 104,
                         },
-                    ],
-                },
-            ],
-            modelSchema: TestModelSchema,
-            models: {
-                Partition: {
-                    SortRange: {
-                        build: async (context, item) => ({
-                            partitionKey: item.testPartitionKey,
-                            sortKey: item.testSortKey,
-                            attribute1: item.attribute1,
-                            attribute2: item.attribute2,
-                        }),
                     },
-                },
-            },
-            broadcastEvents: async (context, events) => {
-                eventss.push(await runAllPromises(events.map(({getEvent}) => getEvent(context))));
-            },
-        });
+                ],
+            });
 
-        const TestIndex = TestTable.addExpensiveFullIndex({
-            name: "Index",
-            itemTypes: [{partitionType: "Partition", sortRangeType: "SortRange"}],
-            partitionKeyAttributes: {
-                attribute1: DynamoKeyAttributeSchema.integer,
-            },
-            sortKeyAttributes: {
-                attribute2: DynamoKeyAttributeSchema.integer,
-            },
-        });
+            expect(
+                await TestIndex.backfillRealtimeQuery(space.systemAction(), {
+                    partitionKey: {attribute1: 100},
+                    checkpoint,
+                }),
+            ).toEqual({
+                type: "Available",
+                checkpoint: expect.any(Date),
+                events: [],
+            });
 
-        finishInitializingDynamoTableSchemas();
+            expect(
+                await TestIndex.backfillRealtimeQuery(space.systemAction(), {
+                    partitionKey: {attribute1: 102},
+                    checkpoint,
+                }),
+            ).toEqual({
+                type: "Available",
+                checkpoint: expect.any(Date),
+                events: [],
+            });
 
-        await TestTable.createItem(space.systemAction(), {
-            partitionType: "Partition",
-            sortRangeType: "SortRange",
-            testPartitionKey: 1,
-            testSortKey: 2,
-            attribute1: 100,
-            attribute2: 101,
-        });
-
-        await TestTable.createItem(space.systemAction(), {
-            partitionType: "Partition",
-            sortRangeType: "SortRange",
-            testPartitionKey: 1,
-            testSortKey: 3,
-            attribute1: 102,
-            attribute2: 104,
-        });
-
-        await TestTable.createItem(space.systemAction(), {
-            partitionType: "Partition",
-            sortRangeType: "SortRange",
-            testPartitionKey: 4,
-            testSortKey: 5,
-            attribute1: 102,
-            attribute2: 103,
-        });
-
-        import.meta.jest.advanceTimersByTime(1000 * 60 * 60);
-
-        const checkpoint = generateServerSynchronizationCheckpoint();
-
-        expect(
-            await TestIndex.realtimeQuery(space.systemAction(), {
-                partitionKey: {attribute1: 100},
-                limit: "All",
-            }),
-        ).toEqual({
-            checkpoint: expect.any(Date),
-            indexName: "Index",
-            partitionKey: "V--------5F",
-            startCursorBound: null,
-            endCursorBound: null,
-            pageInfo: {
-                type: "FromStart",
-                hasNextPage: false,
-                afterCursor: null,
-            },
-            items: [
-                {
-                    cursor: "V--------5J0-7---------08F3--7---------1",
-                    key: "-7---------08F3--7---------1",
-                    version: 1,
-                    model: {
-                        partitionKey: 1,
-                        sortKey: 2,
-                        attribute1: 100,
-                        attribute2: 101,
-                    },
-                },
-            ],
-        });
-
-        expect(
-            await TestIndex.realtimeQuery(space.systemAction(), {
-                partitionKey: {attribute1: 102},
-                limit: "All",
-            }),
-        ).toEqual({
-            checkpoint: expect.any(Date),
-            indexName: "Index",
-            partitionKey: "V--------5N",
-            startCursorBound: null,
-            endCursorBound: null,
-            pageInfo: {
-                type: "FromStart",
-                hasNextPage: false,
-                afterCursor: null,
-            },
-            items: [
-                {
-                    cursor: "V--------5R0-7---------38F3--7---------4",
-                    key: "-7---------38F3--7---------4",
-                    version: 1,
-                    model: {
-                        partitionKey: 4,
-                        sortKey: 5,
-                        attribute1: 102,
-                        attribute2: 103,
-                    },
-                },
-                {
-                    cursor: "V--------5V0-7---------08F3--7---------2",
-                    key: "-7---------08F3--7---------2",
-                    version: 1,
-                    model: {
-                        partitionKey: 1,
-                        sortKey: 3,
-                        attribute1: 102,
-                        attribute2: 104,
-                    },
-                },
-            ],
-        });
-
-        expect(
-            await TestIndex.backfillRealtimeQuery(space.systemAction(), {
-                partitionKey: {attribute1: 100},
-                checkpoint,
-            }),
-        ).toEqual({
-            type: "Available",
-            checkpoint: expect.any(Date),
-            events: [],
-        });
-
-        expect(
-            await TestIndex.backfillRealtimeQuery(space.systemAction(), {
-                partitionKey: {attribute1: 102},
-                checkpoint,
-            }),
-        ).toEqual({
-            type: "Available",
-            checkpoint: expect.any(Date),
-            events: [],
-        });
-
-        await expect(
-            TestTable.deleteItem(space.systemAction(), {
-                partitionType: "Partition",
-                sortRangeType: "SortRange",
-                testPartitionKey: 4,
-                testSortKey: 5,
-                attribute1: 100,
-                attribute2: 103,
-            }),
-        ).rejects.toThrow(
-            new FailedPreconditionError(
-                "DynamoDB TransactionCanceledException: Transaction cancelled, please refer cancellation reasons for specific reasons [ConditionalCheckFailed, None]",
-            ),
-        );
-
-        await expect(
-            TestTable.deleteItem(space.systemAction(), {
-                partitionType: "Partition",
-                sortRangeType: "SortRange",
-                testPartitionKey: 4,
-                testSortKey: 5,
-                attribute1: 123456789,
-                attribute2: 103,
-                updateLockVersion: 1,
-            }),
-        ).rejects.toThrow(
-            new FailedPreconditionError(
-                "DynamoDB TransactionCanceledException: Transaction cancelled, please refer cancellation reasons for specific reasons [ConditionalCheckFailed, None]",
-            ),
-        );
-
-        await TestTable.deleteItem(space.systemAction(), {
-            partitionType: "Partition",
-            sortRangeType: "SortRange",
-            testPartitionKey: 4,
-            testSortKey: 5,
-            attribute1: 102,
-            attribute2: 103,
-            updateLockVersion: 1,
-        });
-
-        await ProcessContextModule.waitForTestTasks();
-
-        expect(
-            await TestIndex.realtimeQuery(space.systemAction(), {
-                partitionKey: {attribute1: 100},
-                limit: "All",
-            }),
-        ).toEqual({
-            checkpoint: expect.any(Date),
-            indexName: "Index",
-            partitionKey: "V--------5F",
-            startCursorBound: null,
-            endCursorBound: null,
-            pageInfo: {
-                type: "FromStart",
-                hasNextPage: false,
-                afterCursor: null,
-            },
-            items: [
-                {
-                    cursor: "V--------5J0-7---------08F3--7---------1",
-                    key: "-7---------08F3--7---------1",
-                    version: 1,
-                    model: {
-                        partitionKey: 1,
-                        sortKey: 2,
-                        attribute1: 100,
-                        attribute2: 101,
-                    },
-                },
-            ],
-        });
-
-        expect(
-            await TestIndex.realtimeQuery(space.systemAction(), {
-                partitionKey: {attribute1: 102},
-                limit: "All",
-            }),
-        ).toEqual({
-            checkpoint: expect.any(Date),
-            indexName: "Index",
-            partitionKey: "V--------5N",
-            startCursorBound: null,
-            endCursorBound: null,
-            pageInfo: {
-                type: "FromStart",
-                hasNextPage: false,
-                afterCursor: null,
-            },
-            items: [
-                {
-                    cursor: "V--------5V0-7---------08F3--7---------2",
-                    key: "-7---------08F3--7---------2",
-                    version: 1,
-                    model: {
-                        partitionKey: 1,
-                        sortKey: 3,
-                        attribute1: 102,
-                        attribute2: 104,
-                    },
-                },
-            ],
-        });
-
-        expect(
-            await TestIndex.backfillRealtimeQuery(space.systemAction(), {
-                partitionKey: {attribute1: 100},
-                checkpoint,
-            }),
-        ).toEqual({
-            type: "Available",
-            checkpoint: expect.any(Date),
-            events: [],
-        });
-
-        expect(
-            await TestIndex.backfillRealtimeQuery(space.systemAction(), {
-                partitionKey: {attribute1: 102},
-                checkpoint,
-            }),
-        ).toEqual({
-            type: "Available",
-            checkpoint: expect.any(Date),
-            events: [
-                {
-                    type: "DeleteItem",
-                    item: {
-                        key: "-7---------38F3--7---------4",
-                        version: 2,
-                    },
-                    indexes: new Set(["Index"]),
-                },
-            ],
-        });
-
-        expect(takeEventss().length).toEqual(4);
-    } finally {
-        import.meta.jest.useRealTimers();
-    }
-});
-
-test("can update a property that\u2019s in an index\u2019s partition key and a put event will show up in the old query\u2019s backfill (with transactions)", async () => {
-    import.meta.jest.useFakeTimers();
-
-    try {
-        const space = await TestSpace.create(context);
-
-        const TestModelSchema = Schema.object({
-            partitionKey: Schema.integer,
-            sortKey: Schema.integer,
-            attribute1: Schema.integer,
-            attribute2: Schema.integer,
-        });
-
-        let eventss: Array<ReadonlyArray<RynamoEvent<SchemaType<typeof TestModelSchema>>>> = [];
-
-        const takeEventss = () => {
-            const currentEventss = eventss;
-            eventss = [];
-            return currentEventss;
-        };
-
-        const TestTable = RynamoTableSchema.new({
-            withoutCompatibilityErrorsForTest: true,
-            name: `Test_${generateId()}`,
-            partitions: [
-                {
-                    name: "Partition",
-                    partitionKeyAttributes: {
-                        testPartitionKey: DynamoKeyAttributeSchema.integer,
-                    },
-                    sortRanges: [
-                        {
-                            name: "SortRange",
-                            sortKeyAttributes: {
-                                testSortKey: DynamoKeyAttributeSchema.integer,
-                            },
-                            attributes: Schema.object({
-                                attribute1: Schema.integer,
-                                attribute2: Schema.integer,
-                            }),
-                        },
-                    ],
-                },
-            ],
-            modelSchema: TestModelSchema,
-            models: {
-                Partition: {
-                    SortRange: {
-                        build: async (context, item) => ({
-                            partitionKey: item.testPartitionKey,
-                            sortKey: item.testSortKey,
-                            attribute1: item.attribute1,
-                            attribute2: item.attribute2,
-                        }),
-                    },
-                },
-            },
-            broadcastEvents: async (context, events) => {
-                eventss.push(await runAllPromises(events.map(({getEvent}) => getEvent(context))));
-            },
-        });
-
-        const TestIndex = TestTable.addExpensiveFullIndex({
-            name: "Index",
-            itemTypes: [{partitionType: "Partition", sortRangeType: "SortRange"}],
-            partitionKeyAttributes: {
-                attribute1: DynamoKeyAttributeSchema.integer,
-            },
-            sortKeyAttributes: {
-                attribute2: DynamoKeyAttributeSchema.integer,
-            },
-        });
-
-        finishInitializingDynamoTableSchemas();
-
-        await TestTable.createItem(space.systemAction(), {
-            partitionType: "Partition",
-            sortRangeType: "SortRange",
-            testPartitionKey: 1,
-            testSortKey: 2,
-            attribute1: 100,
-            attribute2: 101,
-        });
-
-        await TestTable.createItem(space.systemAction(), {
-            partitionType: "Partition",
-            sortRangeType: "SortRange",
-            testPartitionKey: 1,
-            testSortKey: 3,
-            attribute1: 102,
-            attribute2: 104,
-        });
-
-        await TestTable.createItem(space.systemAction(), {
-            partitionType: "Partition",
-            sortRangeType: "SortRange",
-            testPartitionKey: 4,
-            testSortKey: 5,
-            attribute1: 102,
-            attribute2: 103,
-        });
-
-        import.meta.jest.advanceTimersByTime(1000 * 60 * 60);
-
-        const checkpoint = generateServerSynchronizationCheckpoint();
-
-        expect(
-            await TestIndex.realtimeQuery(space.systemAction(), {
-                partitionKey: {attribute1: 100},
-                limit: "All",
-            }),
-        ).toEqual({
-            checkpoint: expect.any(Date),
-            indexName: "Index",
-            partitionKey: "V--------5F",
-            startCursorBound: null,
-            endCursorBound: null,
-            pageInfo: {
-                type: "FromStart",
-                hasNextPage: false,
-                afterCursor: null,
-            },
-            items: [
-                {
-                    cursor: "V--------5J0-7---------08F3--7---------1",
-                    key: "-7---------08F3--7---------1",
-                    version: 0,
-                    model: {
-                        partitionKey: 1,
-                        sortKey: 2,
-                        attribute1: 100,
-                        attribute2: 101,
-                    },
-                },
-            ],
-        });
-
-        expect(
-            await TestIndex.realtimeQuery(space.systemAction(), {
-                partitionKey: {attribute1: 102},
-                limit: "All",
-            }),
-        ).toEqual({
-            checkpoint: expect.any(Date),
-            indexName: "Index",
-            partitionKey: "V--------5N",
-            startCursorBound: null,
-            endCursorBound: null,
-            pageInfo: {
-                type: "FromStart",
-                hasNextPage: false,
-                afterCursor: null,
-            },
-            items: [
-                {
-                    cursor: "V--------5R0-7---------38F3--7---------4",
-                    key: "-7---------38F3--7---------4",
-                    version: 0,
-                    model: {
-                        partitionKey: 4,
-                        sortKey: 5,
-                        attribute1: 102,
-                        attribute2: 103,
-                    },
-                },
-                {
-                    cursor: "V--------5V0-7---------08F3--7---------2",
-                    key: "-7---------08F3--7---------2",
-                    version: 0,
-                    model: {
-                        partitionKey: 1,
-                        sortKey: 3,
-                        attribute1: 102,
-                        attribute2: 104,
-                    },
-                },
-            ],
-        });
-
-        expect(
-            await TestIndex.backfillRealtimeQuery(space.systemAction(), {
-                partitionKey: {attribute1: 100},
-                checkpoint,
-            }),
-        ).toEqual({
-            type: "Available",
-            checkpoint: expect.any(Date),
-            events: [],
-        });
-
-        expect(
-            await TestIndex.backfillRealtimeQuery(space.systemAction(), {
-                partitionKey: {attribute1: 102},
-                checkpoint,
-            }),
-        ).toEqual({
-            type: "Available",
-            checkpoint: expect.any(Date),
-            events: [],
-        });
-
-        await expect(
-            RynamoTableSchema.executeTransaction(space.systemAction(), [
-                TestTable.transactionDirectlyUpdateItem(
+            await expect(
+                TestTable.directlyUpdateItem(
+                    space.systemAction(),
                     DynamoItem.create({
                         partitionType: "Partition",
                         sortRangeType: "SortRange",
@@ -7640,16 +6967,12 @@ test("can update a property that\u2019s in an index\u2019s partition key and a p
                         attribute2: 103,
                     }),
                 ),
-            ]),
-        ).rejects.toThrow(
-            new FailedPreconditionError(
-                "DynamoDB TransactionCanceledException: Transaction cancelled, please refer cancellation reasons for specific reasons [ConditionalCheckFailed]",
-            ),
-        );
+            ).rejects.toThrow(
+                new FailedPreconditionError(directlyUpdateCreateItemFailedPreconditionMessage),
+            );
 
-        await expect(
-            RynamoTableSchema.executeTransaction(space.systemAction(), [
-                TestTable.transactionDirectlyUpdateItem({
+            await expect(
+                TestTable.directlyUpdateItem(space.systemAction(), {
                     partitionType: "Partition",
                     sortRangeType: "SortRange",
                     testPartitionKey: 4,
@@ -7666,16 +6989,14 @@ test("can update a property that\u2019s in an index\u2019s partition key and a p
                         attribute2: 103,
                     },
                 }),
-            ]),
-        ).rejects.toThrow(
-            new FailedPreconditionError(
-                "DynamoDB TransactionCanceledException: Transaction cancelled, please refer cancellation reasons for specific reasons [ConditionalCheckFailed]",
-            ),
-        );
+            ).rejects.toThrow(
+                new FailedPreconditionError(
+                    "DynamoDB ConditionalCheckFailedException: The conditional request failed",
+                ),
+            );
 
-        await expect(
-            RynamoTableSchema.executeTransaction(space.systemAction(), [
-                TestTable.transactionDirectlyUpdateItem({
+            await expect(
+                TestTable.directlyUpdateItem(space.systemAction(), {
                     partitionType: "Partition",
                     sortRangeType: "SortRange",
                     testPartitionKey: 4,
@@ -7692,15 +7013,11 @@ test("can update a property that\u2019s in an index\u2019s partition key and a p
                         attribute2: 103,
                     },
                 }),
-            ]),
-        ).rejects.toThrow(
-            new FailedPreconditionError(
-                "DynamoDB TransactionCanceledException: Transaction cancelled, please refer cancellation reasons for specific reasons [ConditionalCheckFailed]",
-            ),
-        );
+            ).rejects.toThrow(
+                new FailedPreconditionError(directlyUpdateMovedIndexFailedPreconditionMessage),
+            );
 
-        await RynamoTableSchema.executeTransaction(space.systemAction(), [
-            TestTable.transactionDirectlyUpdateItem({
+            await TestTable.directlyUpdateItem(space.systemAction(), {
                 partitionType: "Partition",
                 sortRangeType: "SortRange",
                 testPartitionKey: 4,
@@ -7716,96 +7033,40 @@ test("can update a property that\u2019s in an index\u2019s partition key and a p
                     attribute1: 102,
                     attribute2: 103,
                 },
-            }),
-        ]);
+            });
 
-        await ProcessContextModule.waitForTestTasks();
+            await ProcessContextModule.waitForTestTasks();
 
-        expect(
-            await TestIndex.realtimeQuery(space.systemAction(), {
-                partitionKey: {attribute1: 100},
-                limit: "All",
-            }),
-        ).toEqual({
-            checkpoint: expect.any(Date),
-            indexName: "Index",
-            partitionKey: "V--------5F",
-            startCursorBound: null,
-            endCursorBound: null,
-            pageInfo: {
-                type: "FromStart",
-                hasNextPage: false,
-                afterCursor: null,
-            },
-            items: [
-                {
-                    cursor: "V--------5J0-7---------08F3--7---------1",
-                    key: "-7---------08F3--7---------1",
-                    version: 0,
-                    model: {
-                        partitionKey: 1,
-                        sortKey: 2,
-                        attribute1: 100,
-                        attribute2: 101,
-                    },
+            expect(
+                await TestIndex.realtimeQuery(space.systemAction(), {
+                    partitionKey: {attribute1: 100},
+                    limit: "All",
+                }),
+            ).toEqual({
+                checkpoint: expect.any(Date),
+                indexName: "Index",
+                partitionKey: "V--------5F",
+                startCursorBound: null,
+                endCursorBound: null,
+                pageInfo: {
+                    type: "FromStart",
+                    hasNextPage: false,
+                    afterCursor: null,
                 },
-                {
-                    cursor: "V--------5R0-7---------38F3--7---------4",
-                    key: "-7---------38F3--7---------4",
-                    version: 1,
-                    model: {
-                        partitionKey: 4,
-                        sortKey: 5,
-                        attribute1: 100,
-                        attribute2: 103,
+                items: [
+                    {
+                        cursor: testIndexCursorForPartition1Sort2,
+                        key: "-7---------08F3--7---------1",
+                        version: 0,
+                        model: {
+                            partitionKey: 1,
+                            sortKey: 2,
+                            attribute1: 100,
+                            attribute2: 101,
+                        },
                     },
-                },
-            ],
-        });
-
-        expect(
-            await TestIndex.realtimeQuery(space.systemAction(), {
-                partitionKey: {attribute1: 102},
-                limit: "All",
-            }),
-        ).toEqual({
-            checkpoint: expect.any(Date),
-            indexName: "Index",
-            partitionKey: "V--------5N",
-            startCursorBound: null,
-            endCursorBound: null,
-            pageInfo: {
-                type: "FromStart",
-                hasNextPage: false,
-                afterCursor: null,
-            },
-            items: [
-                {
-                    cursor: "V--------5V0-7---------08F3--7---------2",
-                    key: "-7---------08F3--7---------2",
-                    version: 0,
-                    model: {
-                        partitionKey: 1,
-                        sortKey: 3,
-                        attribute1: 102,
-                        attribute2: 104,
-                    },
-                },
-            ],
-        });
-
-        expect(
-            await TestIndex.backfillRealtimeQuery(space.systemAction(), {
-                partitionKey: {attribute1: 100},
-                checkpoint,
-            }),
-        ).toEqual({
-            type: "Available",
-            checkpoint: expect.any(Date),
-            events: [
-                {
-                    type: "PutItem",
-                    item: {
+                    {
+                        cursor: testIndexCursorForPartition4Sort5,
                         key: "-7---------38F3--7---------4",
                         version: 1,
                         model: {
@@ -7815,49 +7076,1322 @@ test("can update a property that\u2019s in an index\u2019s partition key and a p
                             attribute2: 103,
                         },
                     },
-                    indexes: new Map([
-                        [
-                            "Index",
+                ],
+            });
+
+            expect(
+                await TestIndex.realtimeQuery(space.systemAction(), {
+                    partitionKey: {attribute1: 102},
+                    limit: "All",
+                }),
+            ).toEqual({
+                checkpoint: expect.any(Date),
+                indexName: "Index",
+                partitionKey: "V--------5N",
+                startCursorBound: null,
+                endCursorBound: null,
+                pageInfo: {
+                    type: "FromStart",
+                    hasNextPage: false,
+                    afterCursor: null,
+                },
+                items: [
+                    {
+                        cursor: testIndexCursorForPartition1Sort3,
+                        key: "-7---------08F3--7---------2",
+                        version: 0,
+                        model: {
+                            partitionKey: 1,
+                            sortKey: 3,
+                            attribute1: 102,
+                            attribute2: 104,
+                        },
+                    },
+                ],
+            });
+
+            expect(
+                await TestIndex.backfillRealtimeQuery(space.systemAction(), {
+                    partitionKey: {attribute1: 100},
+                    checkpoint,
+                }),
+            ).toEqual({
+                type: "Available",
+                checkpoint: expect.any(Date),
+                events: [
+                    {
+                        type: "PutItem",
+                        item: {
+                            key: "-7---------38F3--7---------4",
+                            version: 1,
+                            model: {
+                                partitionKey: 4,
+                                sortKey: 5,
+                                attribute1: 100,
+                                attribute2: 103,
+                            },
+                        },
+                        indexes: new Map([
+                            [
+                                "Index",
+                                {
+                                    partitionKey: "V--------5F",
+                                    cursor: testIndexCursorForPartition4Sort5,
+                                },
+                            ],
+                        ]),
+                    },
+                ],
+            });
+
+            expect(
+                await TestIndex.backfillRealtimeQuery(space.systemAction(), {
+                    partitionKey: {attribute1: 102},
+                    checkpoint,
+                }),
+            ).toEqual({
+                type: "Available",
+                checkpoint: expect.any(Date),
+                events: [
+                    {
+                        type: "DeleteItem",
+                        item: {
+                            key: "-7---------38F3--7---------4",
+                            version: 1,
+                        },
+                        indexes: new Set(["Index"]),
+                    },
+                ],
+            });
+
+            expect(takeEventss().length).toEqual(4);
+        } finally {
+            import.meta.jest.useRealTimers();
+        }
+    });
+
+    test("can delete an item with a property in an index\u2019s partition key that can be updated and a delete event will show up in the old query\u2019s backfill", async () => {
+        import.meta.jest.useFakeTimers();
+
+        try {
+            const space = await TestSpace.create(context);
+
+            const TestModelSchema = Schema.object({
+                partitionKey: Schema.integer,
+                sortKey: Schema.integer,
+                attribute1: Schema.integer,
+                attribute2: Schema.integer,
+            });
+
+            let eventss: Array<ReadonlyArray<RynamoEvent<SchemaType<typeof TestModelSchema>>>> = [];
+
+            const takeEventss = () => {
+                const currentEventss = eventss;
+                eventss = [];
+                return currentEventss;
+            };
+
+            const TestTable = RynamoTableSchema.new({
+                withoutCompatibilityErrorsForTest: true,
+                features: {deleteItem: {Partition: {SortRange: true}}},
+                name: `Test_${generateId()}`,
+                partitions: [
+                    {
+                        name: "Partition",
+                        partitionKeyAttributes: {
+                            testPartitionKey: DynamoKeyAttributeSchema.integer,
+                        },
+                        sortRanges: [
                             {
-                                partitionKey: "V--------5F",
-                                cursor: "V--------5R0-7---------38F3--7---------4",
+                                name: "SortRange",
+                                sortKeyAttributes: {
+                                    testSortKey: DynamoKeyAttributeSchema.integer,
+                                },
+                                attributes: Schema.object({
+                                    attribute1: Schema.integer,
+                                    attribute2: Schema.integer,
+                                }),
                             },
                         ],
-                    ]),
+                    },
+                ],
+                modelSchema: TestModelSchema,
+                models: {
+                    Partition: {
+                        SortRange: {
+                            build: async (context, item) => ({
+                                partitionKey: item.testPartitionKey,
+                                sortKey: item.testSortKey,
+                                attribute1: item.attribute1,
+                                attribute2: item.attribute2,
+                            }),
+                        },
+                    },
                 },
-            ],
-        });
+                broadcastEvents: async (context, events) => {
+                    eventss.push(
+                        await runAllPromises(events.map(({getEvent}) => getEvent(context))),
+                    );
+                },
+            });
 
-        expect(
-            await TestIndex.backfillRealtimeQuery(space.systemAction(), {
-                partitionKey: {attribute1: 102},
-                checkpoint,
-            }),
-        ).toEqual({
-            type: "Available",
-            checkpoint: expect.any(Date),
-            events: [
-                {
-                    type: "DeleteItem",
-                    item: {
+            let TestIndex;
+
+            switch (indexKind) {
+                case "eventual consistency join index": {
+                    TestIndex = TestTable.addEventualConsistencyIndexWithQueryJoin({
+                        name: "Index",
+                        itemTypes: [{partitionType: "Partition", sortRangeType: "SortRange"}],
+                        partitionKeyAttributes: {
+                            attribute1: DynamoKeyAttributeSchema.integer,
+                        },
+                        sortKeyAttributes: {
+                            attribute2: DynamoKeyAttributeSchema.integer,
+                        },
+                    });
+                    break;
+                }
+                case "eventual consistency full index": {
+                    TestIndex = TestTable.addExpensiveFullEventualConsistencyIndex({
+                        name: "Index",
+                        itemTypes: [{partitionType: "Partition", sortRangeType: "SortRange"}],
+                        partitionKeyAttributes: {
+                            attribute1: DynamoKeyAttributeSchema.integer,
+                        },
+                        sortKeyAttributes: {
+                            attribute2: DynamoKeyAttributeSchema.integer,
+                        },
+                    });
+                    break;
+                }
+                case "strong consistency join index": {
+                    TestIndex = TestTable.addStrongConsistencyIndexWithQueryJoin({
+                        name: "Index",
+                        itemTypes: [{partitionType: "Partition", sortRangeType: "SortRange"}],
+                        partitionKeyAttributes: {
+                            attribute1: DynamoKeyAttributeSchema.integer,
+                        },
+                        sortKeyAttributes: {
+                            attribute2: DynamoKeyAttributeSchema.integer,
+                            testPartitionKey: DynamoKeyAttributeSchema.integer,
+                            testSortKey: DynamoKeyAttributeSchema.integer,
+                        },
+                    });
+                    break;
+                }
+                default:
+                    throw exhaustive(indexKind);
+            }
+
+            finishInitializingDynamoTableSchemas();
+
+            await TestTable.createItem(space.systemAction(), {
+                partitionType: "Partition",
+                sortRangeType: "SortRange",
+                testPartitionKey: 1,
+                testSortKey: 2,
+                attribute1: 100,
+                attribute2: 101,
+            });
+
+            await TestTable.createItem(space.systemAction(), {
+                partitionType: "Partition",
+                sortRangeType: "SortRange",
+                testPartitionKey: 1,
+                testSortKey: 3,
+                attribute1: 102,
+                attribute2: 104,
+            });
+
+            await TestTable.createItem(space.systemAction(), {
+                partitionType: "Partition",
+                sortRangeType: "SortRange",
+                testPartitionKey: 4,
+                testSortKey: 5,
+                attribute1: 102,
+                attribute2: 103,
+            });
+
+            import.meta.jest.advanceTimersByTime(1000 * 60 * 60);
+
+            const checkpoint = generateServerSynchronizationCheckpoint();
+
+            expect(
+                await TestIndex.realtimeQuery(space.systemAction(), {
+                    partitionKey: {attribute1: 100},
+                    limit: "All",
+                }),
+            ).toEqual({
+                checkpoint: expect.any(Date),
+                indexName: "Index",
+                partitionKey: "V--------5F",
+                startCursorBound: null,
+                endCursorBound: null,
+                pageInfo: {
+                    type: "FromStart",
+                    hasNextPage: false,
+                    afterCursor: null,
+                },
+                items: [
+                    {
+                        cursor: testIndexCursorForPartition1Sort2,
+                        key: "-7---------08F3--7---------1",
+                        version: 1,
+                        model: {
+                            partitionKey: 1,
+                            sortKey: 2,
+                            attribute1: 100,
+                            attribute2: 101,
+                        },
+                    },
+                ],
+            });
+
+            expect(
+                await TestIndex.realtimeQuery(space.systemAction(), {
+                    partitionKey: {attribute1: 102},
+                    limit: "All",
+                }),
+            ).toEqual({
+                checkpoint: expect.any(Date),
+                indexName: "Index",
+                partitionKey: "V--------5N",
+                startCursorBound: null,
+                endCursorBound: null,
+                pageInfo: {
+                    type: "FromStart",
+                    hasNextPage: false,
+                    afterCursor: null,
+                },
+                items: [
+                    {
+                        cursor: testIndexCursorForPartition4Sort5,
                         key: "-7---------38F3--7---------4",
                         version: 1,
+                        model: {
+                            partitionKey: 4,
+                            sortKey: 5,
+                            attribute1: 102,
+                            attribute2: 103,
+                        },
                     },
-                    indexes: new Set(["Index"]),
+                    {
+                        cursor: testIndexCursorForPartition1Sort3,
+                        key: "-7---------08F3--7---------2",
+                        version: 1,
+                        model: {
+                            partitionKey: 1,
+                            sortKey: 3,
+                            attribute1: 102,
+                            attribute2: 104,
+                        },
+                    },
+                ],
+            });
+
+            expect(
+                await TestIndex.backfillRealtimeQuery(space.systemAction(), {
+                    partitionKey: {attribute1: 100},
+                    checkpoint,
+                }),
+            ).toEqual({
+                type: "Available",
+                checkpoint: expect.any(Date),
+                events: [],
+            });
+
+            expect(
+                await TestIndex.backfillRealtimeQuery(space.systemAction(), {
+                    partitionKey: {attribute1: 102},
+                    checkpoint,
+                }),
+            ).toEqual({
+                type: "Available",
+                checkpoint: expect.any(Date),
+                events: [],
+            });
+
+            await expect(
+                TestTable.deleteItem(space.systemAction(), {
+                    partitionType: "Partition",
+                    sortRangeType: "SortRange",
+                    testPartitionKey: 4,
+                    testSortKey: 5,
+                    attribute1: 100,
+                    attribute2: 103,
+                }),
+            ).rejects.toThrow(new FailedPreconditionError(deleteItemFailedPreconditionMessage));
+
+            await expect(
+                TestTable.deleteItem(space.systemAction(), {
+                    partitionType: "Partition",
+                    sortRangeType: "SortRange",
+                    testPartitionKey: 4,
+                    testSortKey: 5,
+                    attribute1: 123456789,
+                    attribute2: 103,
+                    updateLockVersion: 1,
+                }),
+            ).rejects.toThrow(new FailedPreconditionError(deleteItemFailedPreconditionMessage));
+
+            await TestTable.deleteItem(space.systemAction(), {
+                partitionType: "Partition",
+                sortRangeType: "SortRange",
+                testPartitionKey: 4,
+                testSortKey: 5,
+                attribute1: 102,
+                attribute2: 103,
+                updateLockVersion: 1,
+            });
+
+            await ProcessContextModule.waitForTestTasks();
+
+            expect(
+                await TestIndex.realtimeQuery(space.systemAction(), {
+                    partitionKey: {attribute1: 100},
+                    limit: "All",
+                }),
+            ).toEqual({
+                checkpoint: expect.any(Date),
+                indexName: "Index",
+                partitionKey: "V--------5F",
+                startCursorBound: null,
+                endCursorBound: null,
+                pageInfo: {
+                    type: "FromStart",
+                    hasNextPage: false,
+                    afterCursor: null,
                 },
-            ],
-        });
+                items: [
+                    {
+                        cursor: testIndexCursorForPartition1Sort2,
+                        key: "-7---------08F3--7---------1",
+                        version: 1,
+                        model: {
+                            partitionKey: 1,
+                            sortKey: 2,
+                            attribute1: 100,
+                            attribute2: 101,
+                        },
+                    },
+                ],
+            });
 
-        expect(takeEventss().length).toEqual(4);
-    } finally {
-        import.meta.jest.useRealTimers();
-    }
-});
+            expect(
+                await TestIndex.realtimeQuery(space.systemAction(), {
+                    partitionKey: {attribute1: 102},
+                    limit: "All",
+                }),
+            ).toEqual({
+                checkpoint: expect.any(Date),
+                indexName: "Index",
+                partitionKey: "V--------5N",
+                startCursorBound: null,
+                endCursorBound: null,
+                pageInfo: {
+                    type: "FromStart",
+                    hasNextPage: false,
+                    afterCursor: null,
+                },
+                items: [
+                    {
+                        cursor: testIndexCursorForPartition1Sort3,
+                        key: "-7---------08F3--7---------2",
+                        version: 1,
+                        model: {
+                            partitionKey: 1,
+                            sortKey: 3,
+                            attribute1: 102,
+                            attribute2: 104,
+                        },
+                    },
+                ],
+            });
 
-test("can delete an item with a property in an index\u2019s partition key that can be updated and a delete event will show up in the old query\u2019s backfill (with transactions)", async () => {
-    import.meta.jest.useFakeTimers();
+            expect(
+                await TestIndex.backfillRealtimeQuery(space.systemAction(), {
+                    partitionKey: {attribute1: 100},
+                    checkpoint,
+                }),
+            ).toEqual({
+                type: "Available",
+                checkpoint: expect.any(Date),
+                events: [],
+            });
 
-    try {
+            expect(
+                await TestIndex.backfillRealtimeQuery(space.systemAction(), {
+                    partitionKey: {attribute1: 102},
+                    checkpoint,
+                }),
+            ).toEqual({
+                type: "Available",
+                checkpoint: expect.any(Date),
+                events: [
+                    {
+                        type: "DeleteItem",
+                        item: {
+                            key: "-7---------38F3--7---------4",
+                            version: 2,
+                        },
+                        indexes: new Set(["Index"]),
+                    },
+                ],
+            });
+
+            expect(takeEventss().length).toEqual(4);
+        } finally {
+            import.meta.jest.useRealTimers();
+        }
+    });
+
+    test("can update a property that\u2019s in an index\u2019s partition key and a put event will show up in the old query\u2019s backfill (with transactions)", async () => {
+        import.meta.jest.useFakeTimers();
+
+        try {
+            const space = await TestSpace.create(context);
+
+            const TestModelSchema = Schema.object({
+                partitionKey: Schema.integer,
+                sortKey: Schema.integer,
+                attribute1: Schema.integer,
+                attribute2: Schema.integer,
+            });
+
+            let eventss: Array<ReadonlyArray<RynamoEvent<SchemaType<typeof TestModelSchema>>>> = [];
+
+            const takeEventss = () => {
+                const currentEventss = eventss;
+                eventss = [];
+                return currentEventss;
+            };
+
+            const TestTable = RynamoTableSchema.new({
+                withoutCompatibilityErrorsForTest: true,
+                name: `Test_${generateId()}`,
+                partitions: [
+                    {
+                        name: "Partition",
+                        partitionKeyAttributes: {
+                            testPartitionKey: DynamoKeyAttributeSchema.integer,
+                        },
+                        sortRanges: [
+                            {
+                                name: "SortRange",
+                                sortKeyAttributes: {
+                                    testSortKey: DynamoKeyAttributeSchema.integer,
+                                },
+                                attributes: Schema.object({
+                                    attribute1: Schema.integer,
+                                    attribute2: Schema.integer,
+                                }),
+                            },
+                        ],
+                    },
+                ],
+                modelSchema: TestModelSchema,
+                models: {
+                    Partition: {
+                        SortRange: {
+                            build: async (context, item) => ({
+                                partitionKey: item.testPartitionKey,
+                                sortKey: item.testSortKey,
+                                attribute1: item.attribute1,
+                                attribute2: item.attribute2,
+                            }),
+                        },
+                    },
+                },
+                broadcastEvents: async (context, events) => {
+                    eventss.push(
+                        await runAllPromises(events.map(({getEvent}) => getEvent(context))),
+                    );
+                },
+            });
+
+            let TestIndex;
+
+            switch (indexKind) {
+                case "eventual consistency join index": {
+                    TestIndex = TestTable.addEventualConsistencyIndexWithQueryJoin({
+                        name: "Index",
+                        itemTypes: [{partitionType: "Partition", sortRangeType: "SortRange"}],
+                        partitionKeyAttributes: {
+                            attribute1: DynamoKeyAttributeSchema.integer,
+                        },
+                        sortKeyAttributes: {
+                            attribute2: DynamoKeyAttributeSchema.integer,
+                        },
+                    });
+                    break;
+                }
+                case "eventual consistency full index": {
+                    TestIndex = TestTable.addExpensiveFullEventualConsistencyIndex({
+                        name: "Index",
+                        itemTypes: [{partitionType: "Partition", sortRangeType: "SortRange"}],
+                        partitionKeyAttributes: {
+                            attribute1: DynamoKeyAttributeSchema.integer,
+                        },
+                        sortKeyAttributes: {
+                            attribute2: DynamoKeyAttributeSchema.integer,
+                        },
+                    });
+                    break;
+                }
+                case "strong consistency join index": {
+                    TestIndex = TestTable.addStrongConsistencyIndexWithQueryJoin({
+                        name: "Index",
+                        itemTypes: [{partitionType: "Partition", sortRangeType: "SortRange"}],
+                        partitionKeyAttributes: {
+                            attribute1: DynamoKeyAttributeSchema.integer,
+                        },
+                        sortKeyAttributes: {
+                            attribute2: DynamoKeyAttributeSchema.integer,
+                            testPartitionKey: DynamoKeyAttributeSchema.integer,
+                            testSortKey: DynamoKeyAttributeSchema.integer,
+                        },
+                    });
+                    break;
+                }
+                default:
+                    throw exhaustive(indexKind);
+            }
+
+            finishInitializingDynamoTableSchemas();
+
+            await TestTable.createItem(space.systemAction(), {
+                partitionType: "Partition",
+                sortRangeType: "SortRange",
+                testPartitionKey: 1,
+                testSortKey: 2,
+                attribute1: 100,
+                attribute2: 101,
+            });
+
+            await TestTable.createItem(space.systemAction(), {
+                partitionType: "Partition",
+                sortRangeType: "SortRange",
+                testPartitionKey: 1,
+                testSortKey: 3,
+                attribute1: 102,
+                attribute2: 104,
+            });
+
+            await TestTable.createItem(space.systemAction(), {
+                partitionType: "Partition",
+                sortRangeType: "SortRange",
+                testPartitionKey: 4,
+                testSortKey: 5,
+                attribute1: 102,
+                attribute2: 103,
+            });
+
+            import.meta.jest.advanceTimersByTime(1000 * 60 * 60);
+
+            const checkpoint = generateServerSynchronizationCheckpoint();
+
+            expect(
+                await TestIndex.realtimeQuery(space.systemAction(), {
+                    partitionKey: {attribute1: 100},
+                    limit: "All",
+                }),
+            ).toEqual({
+                checkpoint: expect.any(Date),
+                indexName: "Index",
+                partitionKey: "V--------5F",
+                startCursorBound: null,
+                endCursorBound: null,
+                pageInfo: {
+                    type: "FromStart",
+                    hasNextPage: false,
+                    afterCursor: null,
+                },
+                items: [
+                    {
+                        cursor: testIndexCursorForPartition1Sort2,
+                        key: "-7---------08F3--7---------1",
+                        version: 0,
+                        model: {
+                            partitionKey: 1,
+                            sortKey: 2,
+                            attribute1: 100,
+                            attribute2: 101,
+                        },
+                    },
+                ],
+            });
+
+            expect(
+                await TestIndex.realtimeQuery(space.systemAction(), {
+                    partitionKey: {attribute1: 102},
+                    limit: "All",
+                }),
+            ).toEqual({
+                checkpoint: expect.any(Date),
+                indexName: "Index",
+                partitionKey: "V--------5N",
+                startCursorBound: null,
+                endCursorBound: null,
+                pageInfo: {
+                    type: "FromStart",
+                    hasNextPage: false,
+                    afterCursor: null,
+                },
+                items: [
+                    {
+                        cursor: testIndexCursorForPartition4Sort5,
+                        key: "-7---------38F3--7---------4",
+                        version: 0,
+                        model: {
+                            partitionKey: 4,
+                            sortKey: 5,
+                            attribute1: 102,
+                            attribute2: 103,
+                        },
+                    },
+                    {
+                        cursor: testIndexCursorForPartition1Sort3,
+                        key: "-7---------08F3--7---------2",
+                        version: 0,
+                        model: {
+                            partitionKey: 1,
+                            sortKey: 3,
+                            attribute1: 102,
+                            attribute2: 104,
+                        },
+                    },
+                ],
+            });
+
+            expect(
+                await TestIndex.backfillRealtimeQuery(space.systemAction(), {
+                    partitionKey: {attribute1: 100},
+                    checkpoint,
+                }),
+            ).toEqual({
+                type: "Available",
+                checkpoint: expect.any(Date),
+                events: [],
+            });
+
+            expect(
+                await TestIndex.backfillRealtimeQuery(space.systemAction(), {
+                    partitionKey: {attribute1: 102},
+                    checkpoint,
+                }),
+            ).toEqual({
+                type: "Available",
+                checkpoint: expect.any(Date),
+                events: [],
+            });
+
+            await expect(
+                RynamoTableSchema.executeTransaction(space.systemAction(), [
+                    TestTable.transactionDirectlyUpdateItem(
+                        DynamoItem.create({
+                            partitionType: "Partition",
+                            sortRangeType: "SortRange",
+                            testPartitionKey: 4,
+                            testSortKey: 5,
+                            attribute1: 100,
+                            attribute2: 103,
+                        }),
+                    ),
+                ]),
+            ).rejects.toThrow(
+                new FailedPreconditionError(
+                    transactionDirectlyUpdateCreateItemFailedPreconditionMessage,
+                ),
+            );
+
+            await expect(
+                RynamoTableSchema.executeTransaction(space.systemAction(), [
+                    TestTable.transactionDirectlyUpdateItem({
+                        partitionType: "Partition",
+                        sortRangeType: "SortRange",
+                        testPartitionKey: 4,
+                        testSortKey: 5,
+                        attribute1: 100,
+                        attribute2: 103,
+                        // @ts-expect-error: HACK
+                        oldItem: {
+                            partitionType: "Partition",
+                            sortRangeType: "SortRange",
+                            testPartitionKey: 4,
+                            testSortKey: 5,
+                            attribute1: 100,
+                            attribute2: 103,
+                        },
+                    }),
+                ]),
+            ).rejects.toThrow(
+                new FailedPreconditionError(
+                    "DynamoDB TransactionCanceledException: Transaction cancelled, please refer cancellation reasons for specific reasons [ConditionalCheckFailed]",
+                ),
+            );
+
+            await expect(
+                RynamoTableSchema.executeTransaction(space.systemAction(), [
+                    TestTable.transactionDirectlyUpdateItem({
+                        partitionType: "Partition",
+                        sortRangeType: "SortRange",
+                        testPartitionKey: 4,
+                        testSortKey: 5,
+                        attribute1: 100,
+                        attribute2: 103,
+                        // @ts-expect-error: HACK
+                        oldItem: {
+                            partitionType: "Partition",
+                            sortRangeType: "SortRange",
+                            testPartitionKey: 4,
+                            testSortKey: 5,
+                            attribute1: 123456789,
+                            attribute2: 103,
+                        },
+                    }),
+                ]),
+            ).rejects.toThrow(
+                new FailedPreconditionError(
+                    transactionDirectlyUpdateMovedIndexFailedPreconditionMessage,
+                ),
+            );
+
+            await RynamoTableSchema.executeTransaction(space.systemAction(), [
+                TestTable.transactionDirectlyUpdateItem({
+                    partitionType: "Partition",
+                    sortRangeType: "SortRange",
+                    testPartitionKey: 4,
+                    testSortKey: 5,
+                    attribute1: 100,
+                    attribute2: 103,
+                    // @ts-expect-error: HACK
+                    oldItem: {
+                        partitionType: "Partition",
+                        sortRangeType: "SortRange",
+                        testPartitionKey: 4,
+                        testSortKey: 5,
+                        attribute1: 102,
+                        attribute2: 103,
+                    },
+                }),
+            ]);
+
+            await ProcessContextModule.waitForTestTasks();
+
+            expect(
+                await TestIndex.realtimeQuery(space.systemAction(), {
+                    partitionKey: {attribute1: 100},
+                    limit: "All",
+                }),
+            ).toEqual({
+                checkpoint: expect.any(Date),
+                indexName: "Index",
+                partitionKey: "V--------5F",
+                startCursorBound: null,
+                endCursorBound: null,
+                pageInfo: {
+                    type: "FromStart",
+                    hasNextPage: false,
+                    afterCursor: null,
+                },
+                items: [
+                    {
+                        cursor: testIndexCursorForPartition1Sort2,
+                        key: "-7---------08F3--7---------1",
+                        version: 0,
+                        model: {
+                            partitionKey: 1,
+                            sortKey: 2,
+                            attribute1: 100,
+                            attribute2: 101,
+                        },
+                    },
+                    {
+                        cursor: testIndexCursorForPartition4Sort5,
+                        key: "-7---------38F3--7---------4",
+                        version: 1,
+                        model: {
+                            partitionKey: 4,
+                            sortKey: 5,
+                            attribute1: 100,
+                            attribute2: 103,
+                        },
+                    },
+                ],
+            });
+
+            expect(
+                await TestIndex.realtimeQuery(space.systemAction(), {
+                    partitionKey: {attribute1: 102},
+                    limit: "All",
+                }),
+            ).toEqual({
+                checkpoint: expect.any(Date),
+                indexName: "Index",
+                partitionKey: "V--------5N",
+                startCursorBound: null,
+                endCursorBound: null,
+                pageInfo: {
+                    type: "FromStart",
+                    hasNextPage: false,
+                    afterCursor: null,
+                },
+                items: [
+                    {
+                        cursor: testIndexCursorForPartition1Sort3,
+                        key: "-7---------08F3--7---------2",
+                        version: 0,
+                        model: {
+                            partitionKey: 1,
+                            sortKey: 3,
+                            attribute1: 102,
+                            attribute2: 104,
+                        },
+                    },
+                ],
+            });
+
+            expect(
+                await TestIndex.backfillRealtimeQuery(space.systemAction(), {
+                    partitionKey: {attribute1: 100},
+                    checkpoint,
+                }),
+            ).toEqual({
+                type: "Available",
+                checkpoint: expect.any(Date),
+                events: [
+                    {
+                        type: "PutItem",
+                        item: {
+                            key: "-7---------38F3--7---------4",
+                            version: 1,
+                            model: {
+                                partitionKey: 4,
+                                sortKey: 5,
+                                attribute1: 100,
+                                attribute2: 103,
+                            },
+                        },
+                        indexes: new Map([
+                            [
+                                "Index",
+                                {
+                                    partitionKey: "V--------5F",
+                                    cursor: testIndexCursorForPartition4Sort5,
+                                },
+                            ],
+                        ]),
+                    },
+                ],
+            });
+
+            expect(
+                await TestIndex.backfillRealtimeQuery(space.systemAction(), {
+                    partitionKey: {attribute1: 102},
+                    checkpoint,
+                }),
+            ).toEqual({
+                type: "Available",
+                checkpoint: expect.any(Date),
+                events: [
+                    {
+                        type: "DeleteItem",
+                        item: {
+                            key: "-7---------38F3--7---------4",
+                            version: 1,
+                        },
+                        indexes: new Set(["Index"]),
+                    },
+                ],
+            });
+
+            expect(takeEventss().length).toEqual(4);
+        } finally {
+            import.meta.jest.useRealTimers();
+        }
+    });
+
+    test("can delete an item with a property in an index\u2019s partition key that can be updated and a delete event will show up in the old query\u2019s backfill (with transactions)", async () => {
+        import.meta.jest.useFakeTimers();
+
+        try {
+            const space = await TestSpace.create(context);
+
+            const TestModelSchema = Schema.object({
+                partitionKey: Schema.integer,
+                sortKey: Schema.integer,
+                attribute1: Schema.integer,
+                attribute2: Schema.integer,
+            });
+
+            let eventss: Array<ReadonlyArray<RynamoEvent<SchemaType<typeof TestModelSchema>>>> = [];
+
+            const takeEventss = () => {
+                const currentEventss = eventss;
+                eventss = [];
+                return currentEventss;
+            };
+
+            const TestTable = RynamoTableSchema.new({
+                withoutCompatibilityErrorsForTest: true,
+                features: {deleteItem: {Partition: {SortRange: true}}},
+                name: `Test_${generateId()}`,
+                partitions: [
+                    {
+                        name: "Partition",
+                        partitionKeyAttributes: {
+                            testPartitionKey: DynamoKeyAttributeSchema.integer,
+                        },
+                        sortRanges: [
+                            {
+                                name: "SortRange",
+                                sortKeyAttributes: {
+                                    testSortKey: DynamoKeyAttributeSchema.integer,
+                                },
+                                attributes: Schema.object({
+                                    attribute1: Schema.integer,
+                                    attribute2: Schema.integer,
+                                }),
+                            },
+                        ],
+                    },
+                ],
+                modelSchema: TestModelSchema,
+                models: {
+                    Partition: {
+                        SortRange: {
+                            build: async (context, item) => ({
+                                partitionKey: item.testPartitionKey,
+                                sortKey: item.testSortKey,
+                                attribute1: item.attribute1,
+                                attribute2: item.attribute2,
+                            }),
+                        },
+                    },
+                },
+                broadcastEvents: async (context, events) => {
+                    eventss.push(
+                        await runAllPromises(events.map(({getEvent}) => getEvent(context))),
+                    );
+                },
+            });
+
+            let TestIndex;
+
+            switch (indexKind) {
+                case "eventual consistency join index": {
+                    TestIndex = TestTable.addEventualConsistencyIndexWithQueryJoin({
+                        name: "Index",
+                        itemTypes: [{partitionType: "Partition", sortRangeType: "SortRange"}],
+                        partitionKeyAttributes: {
+                            attribute1: DynamoKeyAttributeSchema.integer,
+                        },
+                        sortKeyAttributes: {
+                            attribute2: DynamoKeyAttributeSchema.integer,
+                        },
+                    });
+                    break;
+                }
+                case "eventual consistency full index": {
+                    TestIndex = TestTable.addExpensiveFullEventualConsistencyIndex({
+                        name: "Index",
+                        itemTypes: [{partitionType: "Partition", sortRangeType: "SortRange"}],
+                        partitionKeyAttributes: {
+                            attribute1: DynamoKeyAttributeSchema.integer,
+                        },
+                        sortKeyAttributes: {
+                            attribute2: DynamoKeyAttributeSchema.integer,
+                        },
+                    });
+                    break;
+                }
+                case "strong consistency join index": {
+                    TestIndex = TestTable.addStrongConsistencyIndexWithQueryJoin({
+                        name: "Index",
+                        itemTypes: [{partitionType: "Partition", sortRangeType: "SortRange"}],
+                        partitionKeyAttributes: {
+                            attribute1: DynamoKeyAttributeSchema.integer,
+                        },
+                        sortKeyAttributes: {
+                            attribute2: DynamoKeyAttributeSchema.integer,
+                            testPartitionKey: DynamoKeyAttributeSchema.integer,
+                            testSortKey: DynamoKeyAttributeSchema.integer,
+                        },
+                    });
+                    break;
+                }
+                default:
+                    throw exhaustive(indexKind);
+            }
+
+            finishInitializingDynamoTableSchemas();
+
+            await TestTable.createItem(space.systemAction(), {
+                partitionType: "Partition",
+                sortRangeType: "SortRange",
+                testPartitionKey: 1,
+                testSortKey: 2,
+                attribute1: 100,
+                attribute2: 101,
+            });
+
+            await TestTable.createItem(space.systemAction(), {
+                partitionType: "Partition",
+                sortRangeType: "SortRange",
+                testPartitionKey: 1,
+                testSortKey: 3,
+                attribute1: 102,
+                attribute2: 104,
+            });
+
+            await TestTable.createItem(space.systemAction(), {
+                partitionType: "Partition",
+                sortRangeType: "SortRange",
+                testPartitionKey: 4,
+                testSortKey: 5,
+                attribute1: 102,
+                attribute2: 103,
+            });
+
+            import.meta.jest.advanceTimersByTime(1000 * 60 * 60);
+
+            const checkpoint = generateServerSynchronizationCheckpoint();
+
+            expect(
+                await TestIndex.realtimeQuery(space.systemAction(), {
+                    partitionKey: {attribute1: 100},
+                    limit: "All",
+                }),
+            ).toEqual({
+                checkpoint: expect.any(Date),
+                indexName: "Index",
+                partitionKey: "V--------5F",
+                startCursorBound: null,
+                endCursorBound: null,
+                pageInfo: {
+                    type: "FromStart",
+                    hasNextPage: false,
+                    afterCursor: null,
+                },
+                items: [
+                    {
+                        cursor: testIndexCursorForPartition1Sort2,
+                        key: "-7---------08F3--7---------1",
+                        version: 1,
+                        model: {
+                            partitionKey: 1,
+                            sortKey: 2,
+                            attribute1: 100,
+                            attribute2: 101,
+                        },
+                    },
+                ],
+            });
+
+            expect(
+                await TestIndex.realtimeQuery(space.systemAction(), {
+                    partitionKey: {attribute1: 102},
+                    limit: "All",
+                }),
+            ).toEqual({
+                checkpoint: expect.any(Date),
+                indexName: "Index",
+                partitionKey: "V--------5N",
+                startCursorBound: null,
+                endCursorBound: null,
+                pageInfo: {
+                    type: "FromStart",
+                    hasNextPage: false,
+                    afterCursor: null,
+                },
+                items: [
+                    {
+                        cursor: testIndexCursorForPartition4Sort5,
+                        key: "-7---------38F3--7---------4",
+                        version: 1,
+                        model: {
+                            partitionKey: 4,
+                            sortKey: 5,
+                            attribute1: 102,
+                            attribute2: 103,
+                        },
+                    },
+                    {
+                        cursor: testIndexCursorForPartition1Sort3,
+                        key: "-7---------08F3--7---------2",
+                        version: 1,
+                        model: {
+                            partitionKey: 1,
+                            sortKey: 3,
+                            attribute1: 102,
+                            attribute2: 104,
+                        },
+                    },
+                ],
+            });
+
+            expect(
+                await TestIndex.backfillRealtimeQuery(space.systemAction(), {
+                    partitionKey: {attribute1: 100},
+                    checkpoint,
+                }),
+            ).toEqual({
+                type: "Available",
+                checkpoint: expect.any(Date),
+                events: [],
+            });
+
+            expect(
+                await TestIndex.backfillRealtimeQuery(space.systemAction(), {
+                    partitionKey: {attribute1: 102},
+                    checkpoint,
+                }),
+            ).toEqual({
+                type: "Available",
+                checkpoint: expect.any(Date),
+                events: [],
+            });
+
+            await expect(
+                RynamoTableSchema.executeTransaction(space.systemAction(), [
+                    TestTable.transactionDeleteItem({
+                        partitionType: "Partition",
+                        sortRangeType: "SortRange",
+                        testPartitionKey: 4,
+                        testSortKey: 5,
+                        attribute1: 100,
+                        attribute2: 103,
+                    }),
+                ]),
+            ).rejects.toThrow(new FailedPreconditionError(deleteItemFailedPreconditionMessage));
+
+            await expect(
+                RynamoTableSchema.executeTransaction(space.systemAction(), [
+                    TestTable.transactionDeleteItem({
+                        partitionType: "Partition",
+                        sortRangeType: "SortRange",
+                        testPartitionKey: 4,
+                        testSortKey: 5,
+                        attribute1: 123456789,
+                        attribute2: 103,
+                    }),
+                ]),
+            ).rejects.toThrow(new FailedPreconditionError(deleteItemFailedPreconditionMessage));
+
+            await RynamoTableSchema.executeTransaction(space.systemAction(), [
+                TestTable.transactionDeleteItem({
+                    partitionType: "Partition",
+                    sortRangeType: "SortRange",
+                    testPartitionKey: 4,
+                    testSortKey: 5,
+                    attribute1: 102,
+                    attribute2: 103,
+                    updateLockVersion: 1,
+                }),
+            ]);
+
+            await ProcessContextModule.waitForTestTasks();
+
+            expect(
+                await TestIndex.realtimeQuery(space.systemAction(), {
+                    partitionKey: {attribute1: 100},
+                    limit: "All",
+                }),
+            ).toEqual({
+                checkpoint: expect.any(Date),
+                indexName: "Index",
+                partitionKey: "V--------5F",
+                startCursorBound: null,
+                endCursorBound: null,
+                pageInfo: {
+                    type: "FromStart",
+                    hasNextPage: false,
+                    afterCursor: null,
+                },
+                items: [
+                    {
+                        cursor: testIndexCursorForPartition1Sort2,
+                        key: "-7---------08F3--7---------1",
+                        version: 1,
+                        model: {
+                            partitionKey: 1,
+                            sortKey: 2,
+                            attribute1: 100,
+                            attribute2: 101,
+                        },
+                    },
+                ],
+            });
+
+            expect(
+                await TestIndex.realtimeQuery(space.systemAction(), {
+                    partitionKey: {attribute1: 102},
+                    limit: "All",
+                }),
+            ).toEqual({
+                checkpoint: expect.any(Date),
+                indexName: "Index",
+                partitionKey: "V--------5N",
+                startCursorBound: null,
+                endCursorBound: null,
+                pageInfo: {
+                    type: "FromStart",
+                    hasNextPage: false,
+                    afterCursor: null,
+                },
+                items: [
+                    {
+                        cursor: testIndexCursorForPartition1Sort3,
+                        key: "-7---------08F3--7---------2",
+                        version: 1,
+                        model: {
+                            partitionKey: 1,
+                            sortKey: 3,
+                            attribute1: 102,
+                            attribute2: 104,
+                        },
+                    },
+                ],
+            });
+
+            expect(
+                await TestIndex.backfillRealtimeQuery(space.systemAction(), {
+                    partitionKey: {attribute1: 100},
+                    checkpoint,
+                }),
+            ).toEqual({
+                type: "Available",
+                checkpoint: expect.any(Date),
+                events: [],
+            });
+
+            expect(
+                await TestIndex.backfillRealtimeQuery(space.systemAction(), {
+                    partitionKey: {attribute1: 102},
+                    checkpoint,
+                }),
+            ).toEqual({
+                type: "Available",
+                checkpoint: expect.any(Date),
+                events: [
+                    {
+                        type: "DeleteItem",
+                        item: {
+                            key: "-7---------38F3--7---------4",
+                            version: 2,
+                        },
+                        indexes: new Set(["Index"]),
+                    },
+                ],
+            });
+
+            expect(takeEventss().length).toEqual(4);
+        } finally {
+            import.meta.jest.useRealTimers();
+        }
+    });
+
+    test("can read with strong consistency only from a strong consistency index", async () => {
         const space = await TestSpace.create(context);
 
         const TestModelSchema = Schema.object({
@@ -7867,17 +8401,8 @@ test("can delete an item with a property in an index\u2019s partition key that c
             attribute2: Schema.integer,
         });
 
-        let eventss: Array<ReadonlyArray<RynamoEvent<SchemaType<typeof TestModelSchema>>>> = [];
-
-        const takeEventss = () => {
-            const currentEventss = eventss;
-            eventss = [];
-            return currentEventss;
-        };
-
         const TestTable = RynamoTableSchema.new({
             withoutCompatibilityErrorsForTest: true,
-            features: {deleteItem: {Partition: {SortRange: true}}},
             name: `Test_${generateId()}`,
             partitions: [
                 {
@@ -7912,21 +8437,56 @@ test("can delete an item with a property in an index\u2019s partition key that c
                     },
                 },
             },
-            broadcastEvents: async (context, events) => {
-                eventss.push(await runAllPromises(events.map(({getEvent}) => getEvent(context))));
-            },
+            broadcastEvents: async () => {},
         });
 
-        const TestIndex = TestTable.addExpensiveFullIndex({
-            name: "Index",
-            itemTypes: [{partitionType: "Partition", sortRangeType: "SortRange"}],
-            partitionKeyAttributes: {
-                attribute1: DynamoKeyAttributeSchema.integer,
-            },
-            sortKeyAttributes: {
-                attribute2: DynamoKeyAttributeSchema.integer,
-            },
-        });
+        let TestIndex;
+
+        switch (indexKind) {
+            case "eventual consistency join index": {
+                TestIndex = TestTable.addEventualConsistencyIndexWithQueryJoin({
+                    name: "Index",
+                    itemTypes: [{partitionType: "Partition", sortRangeType: "SortRange"}],
+                    partitionKeyAttributes: {
+                        attribute1: DynamoKeyAttributeSchema.integer,
+                    },
+                    sortKeyAttributes: {
+                        attribute2: DynamoKeyAttributeSchema.integer,
+                    },
+                });
+                break;
+            }
+            case "eventual consistency full index": {
+                TestIndex = TestTable.addExpensiveFullEventualConsistencyIndex({
+                    name: "Index",
+                    itemTypes: [{partitionType: "Partition", sortRangeType: "SortRange"}],
+                    partitionKeyAttributes: {
+                        attribute1: DynamoKeyAttributeSchema.integer,
+                    },
+                    sortKeyAttributes: {
+                        attribute2: DynamoKeyAttributeSchema.integer,
+                    },
+                });
+                break;
+            }
+            case "strong consistency join index": {
+                TestIndex = TestTable.addStrongConsistencyIndexWithQueryJoin({
+                    name: "Index",
+                    itemTypes: [{partitionType: "Partition", sortRangeType: "SortRange"}],
+                    partitionKeyAttributes: {
+                        attribute1: DynamoKeyAttributeSchema.integer,
+                    },
+                    sortKeyAttributes: {
+                        attribute2: DynamoKeyAttributeSchema.integer,
+                        testPartitionKey: DynamoKeyAttributeSchema.integer,
+                        testSortKey: DynamoKeyAttributeSchema.integer,
+                    },
+                });
+                break;
+            }
+            default:
+                throw exhaustive(indexKind);
+        }
 
         finishInitializingDynamoTableSchemas();
 
@@ -7939,266 +8499,71 @@ test("can delete an item with a property in an index\u2019s partition key that c
             attribute2: 101,
         });
 
-        await TestTable.createItem(space.systemAction(), {
-            partitionType: "Partition",
-            sortRangeType: "SortRange",
-            testPartitionKey: 1,
-            testSortKey: 3,
-            attribute1: 102,
-            attribute2: 104,
-        });
-
-        await TestTable.createItem(space.systemAction(), {
-            partitionType: "Partition",
-            sortRangeType: "SortRange",
-            testPartitionKey: 4,
-            testSortKey: 5,
-            attribute1: 102,
-            attribute2: 103,
-        });
-
-        import.meta.jest.advanceTimersByTime(1000 * 60 * 60);
-
-        const checkpoint = generateServerSynchronizationCheckpoint();
-
-        expect(
-            await TestIndex.realtimeQuery(space.systemAction(), {
-                partitionKey: {attribute1: 100},
-                limit: "All",
-            }),
-        ).toEqual({
-            checkpoint: expect.any(Date),
-            indexName: "Index",
-            partitionKey: "V--------5F",
-            startCursorBound: null,
-            endCursorBound: null,
-            pageInfo: {
-                type: "FromStart",
-                hasNextPage: false,
-                afterCursor: null,
-            },
-            items: [
-                {
-                    cursor: "V--------5J0-7---------08F3--7---------1",
-                    key: "-7---------08F3--7---------1",
-                    version: 1,
-                    model: {
-                        partitionKey: 1,
-                        sortKey: 2,
-                        attribute1: 100,
-                        attribute2: 101,
-                    },
+        if (indexKind === "strong consistency join index") {
+            expect(
+                await TestIndex.realtimeQuery(space.systemAction(), {
+                    partitionKey: {attribute1: 100},
+                    limit: "All",
+                    consistency: "Strong",
+                }),
+            ).toEqual({
+                checkpoint: expect.any(Date),
+                indexName: "Index",
+                partitionKey: "V--------5F",
+                startCursorBound: null,
+                endCursorBound: null,
+                pageInfo: {
+                    type: "FromStart",
+                    hasNextPage: false,
+                    afterCursor: null,
                 },
-            ],
-        });
-
-        expect(
-            await TestIndex.realtimeQuery(space.systemAction(), {
-                partitionKey: {attribute1: 102},
-                limit: "All",
-            }),
-        ).toEqual({
-            checkpoint: expect.any(Date),
-            indexName: "Index",
-            partitionKey: "V--------5N",
-            startCursorBound: null,
-            endCursorBound: null,
-            pageInfo: {
-                type: "FromStart",
-                hasNextPage: false,
-                afterCursor: null,
-            },
-            items: [
-                {
-                    cursor: "V--------5R0-7---------38F3--7---------4",
-                    key: "-7---------38F3--7---------4",
-                    version: 1,
-                    model: {
-                        partitionKey: 4,
-                        sortKey: 5,
-                        attribute1: 102,
-                        attribute2: 103,
+                items: [
+                    {
+                        cursor: testIndexCursorForPartition1Sort2,
+                        key: "-7---------08F3--7---------1",
+                        version: 0,
+                        model: {
+                            partitionKey: 1,
+                            sortKey: 2,
+                            attribute1: 100,
+                            attribute2: 101,
+                        },
                     },
-                },
+                ],
+            });
+
+            expect(
+                await TestIndex.query(space.systemAction(), {
+                    partitionKey: {attribute1: 100},
+                    limit: "All",
+                    consistency: "Strong",
+                }),
+            ).toEqual([
                 {
-                    cursor: "V--------5V0-7---------08F3--7---------2",
-                    key: "-7---------08F3--7---------2",
-                    version: 1,
-                    model: {
-                        partitionKey: 1,
-                        sortKey: 3,
-                        attribute1: 102,
-                        attribute2: 104,
-                    },
-                },
-            ],
-        });
-
-        expect(
-            await TestIndex.backfillRealtimeQuery(space.systemAction(), {
-                partitionKey: {attribute1: 100},
-                checkpoint,
-            }),
-        ).toEqual({
-            type: "Available",
-            checkpoint: expect.any(Date),
-            events: [],
-        });
-
-        expect(
-            await TestIndex.backfillRealtimeQuery(space.systemAction(), {
-                partitionKey: {attribute1: 102},
-                checkpoint,
-            }),
-        ).toEqual({
-            type: "Available",
-            checkpoint: expect.any(Date),
-            events: [],
-        });
-
-        await expect(
-            RynamoTableSchema.executeTransaction(space.systemAction(), [
-                TestTable.transactionDeleteItem({
                     partitionType: "Partition",
                     sortRangeType: "SortRange",
-                    testPartitionKey: 4,
-                    testSortKey: 5,
+                    testPartitionKey: 1,
+                    testSortKey: 2,
                     attribute1: 100,
-                    attribute2: 103,
+                    attribute2: 101,
+                },
+            ]);
+        } else {
+            await expect(
+                TestIndex.realtimeQuery(space.systemAction(), {
+                    partitionKey: {attribute1: 100},
+                    limit: "All",
+                    consistency: "Strong",
                 }),
-            ]),
-        ).rejects.toThrow(
-            new FailedPreconditionError(
-                "DynamoDB TransactionCanceledException: Transaction cancelled, please refer cancellation reasons for specific reasons [ConditionalCheckFailed, None]",
-            ),
-        );
+            ).rejects.toThrow(new InternalError(eventualConsistencyAssertionMessage));
 
-        await expect(
-            RynamoTableSchema.executeTransaction(space.systemAction(), [
-                TestTable.transactionDeleteItem({
-                    partitionType: "Partition",
-                    sortRangeType: "SortRange",
-                    testPartitionKey: 4,
-                    testSortKey: 5,
-                    attribute1: 123456789,
-                    attribute2: 103,
+            await expect(
+                TestIndex.query(space.systemAction(), {
+                    partitionKey: {attribute1: 100},
+                    limit: "All",
+                    consistency: "Strong",
                 }),
-            ]),
-        ).rejects.toThrow(
-            new FailedPreconditionError(
-                "DynamoDB TransactionCanceledException: Transaction cancelled, please refer cancellation reasons for specific reasons [ConditionalCheckFailed, None]",
-            ),
-        );
-
-        await RynamoTableSchema.executeTransaction(space.systemAction(), [
-            TestTable.transactionDeleteItem({
-                partitionType: "Partition",
-                sortRangeType: "SortRange",
-                testPartitionKey: 4,
-                testSortKey: 5,
-                attribute1: 102,
-                attribute2: 103,
-                updateLockVersion: 1,
-            }),
-        ]);
-
-        await ProcessContextModule.waitForTestTasks();
-
-        expect(
-            await TestIndex.realtimeQuery(space.systemAction(), {
-                partitionKey: {attribute1: 100},
-                limit: "All",
-            }),
-        ).toEqual({
-            checkpoint: expect.any(Date),
-            indexName: "Index",
-            partitionKey: "V--------5F",
-            startCursorBound: null,
-            endCursorBound: null,
-            pageInfo: {
-                type: "FromStart",
-                hasNextPage: false,
-                afterCursor: null,
-            },
-            items: [
-                {
-                    cursor: "V--------5J0-7---------08F3--7---------1",
-                    key: "-7---------08F3--7---------1",
-                    version: 1,
-                    model: {
-                        partitionKey: 1,
-                        sortKey: 2,
-                        attribute1: 100,
-                        attribute2: 101,
-                    },
-                },
-            ],
-        });
-
-        expect(
-            await TestIndex.realtimeQuery(space.systemAction(), {
-                partitionKey: {attribute1: 102},
-                limit: "All",
-            }),
-        ).toEqual({
-            checkpoint: expect.any(Date),
-            indexName: "Index",
-            partitionKey: "V--------5N",
-            startCursorBound: null,
-            endCursorBound: null,
-            pageInfo: {
-                type: "FromStart",
-                hasNextPage: false,
-                afterCursor: null,
-            },
-            items: [
-                {
-                    cursor: "V--------5V0-7---------08F3--7---------2",
-                    key: "-7---------08F3--7---------2",
-                    version: 1,
-                    model: {
-                        partitionKey: 1,
-                        sortKey: 3,
-                        attribute1: 102,
-                        attribute2: 104,
-                    },
-                },
-            ],
-        });
-
-        expect(
-            await TestIndex.backfillRealtimeQuery(space.systemAction(), {
-                partitionKey: {attribute1: 100},
-                checkpoint,
-            }),
-        ).toEqual({
-            type: "Available",
-            checkpoint: expect.any(Date),
-            events: [],
-        });
-
-        expect(
-            await TestIndex.backfillRealtimeQuery(space.systemAction(), {
-                partitionKey: {attribute1: 102},
-                checkpoint,
-            }),
-        ).toEqual({
-            type: "Available",
-            checkpoint: expect.any(Date),
-            events: [
-                {
-                    type: "DeleteItem",
-                    item: {
-                        key: "-7---------38F3--7---------4",
-                        version: 2,
-                    },
-                    indexes: new Set(["Index"]),
-                },
-            ],
-        });
-
-        expect(takeEventss().length).toEqual(4);
-    } finally {
-        import.meta.jest.useRealTimers();
-    }
+            ).rejects.toThrow(new InternalError(eventualConsistencyAssertionMessage));
+        }
+    });
 });

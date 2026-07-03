@@ -4,6 +4,7 @@ import {ServerActionContextModules} from "~/server/context/server_action_context
 import {isSearchFavoriteEntity} from "~/server/search/data/table/search_entity_actions.js";
 import {getSite} from "~/server/sites/data/get_site.js";
 import {Context} from "~/shared/context/context.js";
+import {RynamoQueryResult} from "~/shared/dynamo/rynamo_types.js";
 import {createAggregateError} from "~/shared/error/aggregate_error.js";
 import {createPromiseResolver} from "~/shared/helpers/async/promise_resolver.js";
 import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
@@ -13,7 +14,7 @@ import {findMapIterable} from "~/shared/helpers/iterable/find_map_iterable.js";
 import {SiteId, SpaceId} from "~/shared/id/types/id_types.js";
 import {SiteLoaderData} from "~/shared/remix/site_loader_data.js";
 import {SiteItemSearchEntityId} from "~/shared/search/site_item_search_entity_id.js";
-import {SitePreviewModel} from "~/shared/sites/site_model.js";
+import {SiteOrSiteEntryModel, SitePreviewModel} from "~/shared/sites/site_model.js";
 
 export async function loadWithSpaceAndSiteDiscovery<Data1, Data2>(
     context: Context<ServerActionContextModules & {discovery: DiscoveryContextModule}>,
@@ -22,11 +23,13 @@ export async function loadWithSpaceAndSiteDiscovery<Data1, Data2>(
         entityId,
         load1,
         load2,
+        fetchSite = siteId => getSite(context, {siteId}),
     }: {
         request: Request;
         entityId: SiteItemSearchEntityId;
         load1: (options: {onSiteId: (siteId: SiteId) => void}) => Promise<Data1>;
         load2: (options: {spaceId: SpaceId}) => Promise<Data2>;
+        fetchSite?: (siteId: SiteId) => Promise<RynamoQueryResult<SiteOrSiteEntryModel> | null>;
     },
 ): Promise<{
     data1: Data1;
@@ -34,7 +37,7 @@ export async function loadWithSpaceAndSiteDiscovery<Data1, Data2>(
     siteLoaderData: SiteLoaderData | undefined;
 }> {
     let isFinished = false;
-    let siteLoaderDataPromise: Promise<SiteLoaderData> | null = null;
+    let siteLoaderDataPromise: Promise<SiteLoaderData | null> | null = null;
 
     const spaceIdPromiseResolver = createPromiseResolver<SpaceId>();
 
@@ -44,7 +47,7 @@ export async function loadWithSpaceAndSiteDiscovery<Data1, Data2>(
 
         assert(siteLoaderDataPromise === null);
 
-        siteLoaderDataPromise = (async (): Promise<SiteLoaderData> => {
+        siteLoaderDataPromise = (async (): Promise<SiteLoaderData | null> => {
             const activeSiteId = request.headers.get("cyberworlds-active-site-id")?.trim();
 
             if (activeSiteId === siteId) {
@@ -55,13 +58,15 @@ export async function loadWithSpaceAndSiteDiscovery<Data1, Data2>(
                 };
             }
 
-            const sitePromise = getSite(context, {siteId});
+            const sitePromise = fetchSite(siteId);
 
             const [initialQueryResult, isFavorite] = await runAllPromises([
                 sitePromise,
                 Promise.race([
                     spaceIdPromiseResolver.promise,
                     sitePromise.then(site => {
+                        if (site === null) return null;
+
                         const spaceId = assertExists(
                             findMapIterable(site.items, item =>
                                 item.model instanceof SitePreviewModel
@@ -74,20 +79,24 @@ export async function loadWithSpaceAndSiteDiscovery<Data1, Data2>(
 
                         return spaceId;
                     }),
-                ]).then(spaceId =>
-                    isSearchFavoriteEntity(context, {
+                ]).then(spaceId => {
+                    if (spaceId === null) return null;
+                    return isSearchFavoriteEntity(context, {
                         spaceId,
                         entityId: `Site:${siteId}`,
-                    }),
-                ),
+                    });
+                }),
             ]);
+
+            if (initialQueryResult === null) return null;
 
             return {
                 type: "UseNewSite",
                 siteId,
                 initialQueryResult,
                 activeEntityId: entityId,
-                isFavorite,
+                // If we loaded a site, we must have loaded its favorite status.
+                isFavorite: assertExists(isFavorite),
             };
         })();
     };
@@ -111,7 +120,8 @@ export async function loadWithSpaceAndSiteDiscovery<Data1, Data2>(
         }
 
         const siteLoaderData = await siteLoaderDataPromise;
-        return {data1, data2, siteLoaderData};
+
+        return {data1, data2, siteLoaderData: siteLoaderData ?? undefined};
     } catch (error1) {
         isFinished = true;
 

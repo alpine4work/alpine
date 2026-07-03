@@ -6,6 +6,7 @@ ts_project(
     visibility = ["//server:__subpackages__"],
     deps = [
         "//:node_modules/@internationalized/date",
+        "//server/bots/test_helpers",
         "//server/dynamo/test_helpers",
         "//server/spaces/test_helpers",
         "//server/tasks/data",

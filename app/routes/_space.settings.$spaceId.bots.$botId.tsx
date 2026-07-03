@@ -28,7 +28,7 @@ import {
 } from "~/client/web/messaging/inline_editor_toolbar.js";
 import {useLoaderDataWithSchema} from "~/client/web/remix/use_loader_data_with_schema.js";
 import {useNavigate} from "~/client/web/remix/use_navigate.js";
-import {useSpaceContextAndRequireSpaceAccess} from "~/client/web/spaces/space_context.js";
+import {useSpaceContextAndRequireSpaceAccess} from "~/client/web/spaces/context/space_context.js";
 import {
     spaceBotSettingsHeadingAvatarSize,
     spaceBotSettingsHeadingGap,

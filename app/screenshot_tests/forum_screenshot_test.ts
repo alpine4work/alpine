@@ -116,6 +116,20 @@ incorporate into our brand.
         },
     );
 
+    await channel.createPost(
+        accounts.roseCompas,
+        markdown`
+Small thing: our empty states are pretty boring right now. Instead we should use the space for
+education. e.g. prompt the user to create something.
+        `,
+        {
+            // A stable `Id` here is important for `<ReactionParty>`'s `randomSeed` prop. This
+            // makes sure the reaction party on any messages is stable across renders.
+            id: unsafelyGenerateStableId<PostId>(runner.stableRandom, "emptyStatesPost"),
+            overrideCreatedTime: new Date("2025-09-24T14:18:00.000Z"),
+        },
+    );
+
     const codeBlockPost = await channel.createPost(
         accounts.masonClay,
         markdown`
@@ -143,20 +157,6 @@ without making the UI overly busy in the dense table edge case.
             // makes sure the reaction party on any messages is stable across renders.
             id: unsafelyGenerateStableId<PostId>(runner.stableRandom, "codeBlockPost"),
             overrideCreatedTime: new Date("2025-10-03T14:12:00.000Z"),
-        },
-    );
-
-    await channel.createPost(
-        accounts.roseCompas,
-        markdown`
-Small thing: our empty states are pretty boring right now. Instead we should use the space for
-education. e.g. prompt the user to create something.
-        `,
-        {
-            // A stable `Id` here is important for `<ReactionParty>`'s `randomSeed` prop. This
-            // makes sure the reaction party on any messages is stable across renders.
-            id: unsafelyGenerateStableId<PostId>(runner.stableRandom, "emptyStatesPost"),
-            overrideCreatedTime: new Date("2025-09-24T14:18:00.000Z"),
         },
     );
 
@@ -329,34 +329,13 @@ but if you\u2019ve gone to an event you\u2019ve definitely been asked to \u201Cs
         await runner.mouse.move(0, 0);
         await runner.screenshot("a8E1", "channel-peek-name-editor");
 
-        // Replace the name.
+        // Replace the name then click away. Losing focus asks for confirmation instead of
+        // saving silently.
         await runner.getByPlaceholder("Craft").fill("Lorem ipsum");
-        await runner.mouse.move(0, 0);
-        await runner.screenshot("a8E2", "channel-peek-name-editor-filled");
-
-        // Click away. Losing focus asks for confirmation instead of saving silently.
         await runner.getByTestId("PostListScrollView").first().click();
         await runner.getByText("Save channel name").waitFor();
         await runner.mouse.move(0, 0);
         await runner.screenshot("a8E3", "channel-peek-name-editor-confirm-save");
-
-        // Discard the new name so the rest of the screenshots see the original name.
-        await runner.getByRole("button", {name: "Discard name"}).click();
-        await runner.getByTestId("PeekStackOverlay").getByText("Craft").waitFor();
-
-        await runner.getByTestId("PeekStackOverlay").getByText("Craft").dblclick();
-        // Replace the name.
-        await runner
-            .getByPlaceholder("Craft")
-            .fill("Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod");
-        await runner.mouse.move(0, 0);
-        await runner.screenshot("a8E4", "channel-peek-name-editor-filled-long-name");
-
-        // Click away. Losing focus asks for confirmation instead of saving silently.
-        await runner.getByTestId("PostListScrollView").first().click();
-        await runner.getByText("Save channel name").waitFor();
-        await runner.mouse.move(0, 0);
-        await runner.screenshot("a8E5", "channel-peek-name-editor-confirm-save-long-name");
 
         // Discard the new name so the rest of the screenshots see the original name.
         await runner.getByRole("button", {name: "Discard name"}).click();
@@ -398,34 +377,13 @@ but if you\u2019ve gone to an event you\u2019ve definitely been asked to \u201Cs
         await runner.mouse.move(0, 0);
         await runner.screenshot("a9E1", "channel-peek-in-site-name-editor");
 
-        // Replace the name.
+        // Replace the name then click away. Losing focus asks for confirmation instead of
+        // saving silently.
         await runner.getByPlaceholder("Craft").fill("Lorem ipsum");
-        await runner.mouse.move(0, 0);
-        await runner.screenshot("a9E2", "channel-peek-in-site-name-editor-filled");
-
-        // Click away. Losing focus asks for confirmation instead of saving silently.
         await runner.getByTestId("PostListScrollView").first().click();
         await runner.getByText("Save channel name").waitFor();
         await runner.mouse.move(0, 0);
         await runner.screenshot("a9E3", "channel-peek-in-site-name-editor-confirm-save");
-
-        // Discard the new name so the rest of the screenshots see the original name.
-        await runner.getByRole("button", {name: "Discard name"}).click();
-        await runner.getByTestId("PeekStackOverlay").getByText("Craft").waitFor();
-
-        await runner.getByTestId("PeekStackOverlay").getByText("Craft").dblclick();
-        // Replace the name.
-        await runner
-            .getByPlaceholder("Craft")
-            .fill("Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod");
-        await runner.mouse.move(0, 0);
-        await runner.screenshot("a9E4", "channel-peek-in-site-name-editor-filled-long-name");
-
-        // Click away. Losing focus asks for confirmation instead of saving silently.
-        await runner.getByTestId("PostListScrollView").first().click();
-        await runner.getByText("Save channel name").waitFor();
-        await runner.mouse.move(0, 0);
-        await runner.screenshot("a9E5", "channel-peek-in-site-name-editor-confirm-save-long-name");
 
         // Discard the new name so the rest of the screenshots see the original name.
         await runner.getByRole("button", {name: "Discard name"}).click();

@@ -37,8 +37,8 @@ import {
 import {useNavigate} from "~/client/web/remix/use_navigate.js";
 import {useLazyLoadRpc} from "~/client/web/rpc/use_lazy_load_rpc.js";
 import {TextShimmer} from "~/client/web/shimmer/text_shimmer.js";
+import {useSpaceContext} from "~/client/web/spaces/context/space_context.js";
 import {SpaceAvatar} from "~/client/web/spaces/space_avatar.js";
-import {useSpaceContext} from "~/client/web/spaces/space_context.js";
 import {
     backgroundColorVar,
     pulseAnimationClassName,

@@ -5,19 +5,21 @@ import {useReporter} from "~/client/web/design/reporter.js";
 import {useEvents} from "~/client/web/helpers/lifecycle/use_event.js";
 import {MemoObject} from "~/client/web/helpers/types/memo_object.js";
 import {useStore} from "~/client/web/helpers/use_store.js";
+import {useSpaceContext} from "~/client/web/spaces/context/space_context.js";
 import {useAddGlobalLoadingIndicator} from "~/client/web/spaces/global_loading_indicator.js";
-import {useSpaceContext} from "~/client/web/spaces/space_context.js";
 import {
     TaskClientStoreSearchAffinityManager,
     TaskClientStoreUndoManager,
 } from "~/client/web/tasks/core/task_client_store.js";
 import {TaskClientTaskSubscription} from "~/client/web/tasks/core/task_client_task_subscription.js";
 import {
-    TaskDetailNotesContentEditorWebSocketClient,
-    TaskDetailNotesContentEditorWebSocketClientProcedures,
     TaskNotesContentEditorState,
     getInitialTaskNotesContentEditorState,
     reduceTaskNotesContentEditorState,
+} from "~/client/web/tasks/task_detail_notes_content_editor_state.js";
+import {
+    TaskDetailNotesContentEditorWebSocketClient,
+    TaskDetailNotesContentEditorWebSocketClientProcedures,
 } from "~/client/web/tasks/task_detail_notes_content_editor_web_socket_client.js";
 import {useWebSocketErrorDialog} from "~/client/web/web_socket/use_web_socket.js";
 import {AccessLevel} from "~/shared/access/access_policy.js";

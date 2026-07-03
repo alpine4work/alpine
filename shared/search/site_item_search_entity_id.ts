@@ -1,4 +1,4 @@
-// TODO(#sites):
+// TODO(#sites-not-blocking):
 // https://app.graphite.com/github/pr/cyberworlds/cyberworlds/1465/site-data-model#comment-PRRC_kwDOH2ktg86826pe
 import {InternalError, InvalidArgumentError} from "~/shared/error/error.js";
 import {assertAssignableTypes} from "~/shared/helpers/control/assert_assignable_types.js";
@@ -119,4 +119,12 @@ export function parseSiteItemSearchEntityId(
                 quote`Unrecognized \`SiteItemSearchEntityId\` type ${idType ?? ""}`,
             );
     }
+}
+
+export function parseSiteItemSearchEntityIdIfPossible(
+    id: string,
+): SiteItemSearchEntityIdObject | null {
+    if (!isSiteItemSearchEntityId(id)) return null;
+
+    return parseSiteItemSearchEntityId(id);
 }

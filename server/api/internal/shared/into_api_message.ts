@@ -4,36 +4,81 @@ import {intoApiMessageStreamPartPayload} from "~/server/api/internal/shared/into
 import {ServerBotActionContext} from "~/server/context/server_action_context.js";
 import {resolveFilesForApiResponse} from "~/server/files/data/resolve_files_for_api_response.js";
 import {MessageItem} from "~/server/messaging/helpers/process_messages_query.js";
+import {ApiContentKeyEncoder} from "~/shared/api/content/api_content_key.js";
 import {
     ApiMessageContentPayloadParentResponse,
     ApiMessagePayloadResponse,
     ApiMessageResponse,
 } from "~/shared/api/specification/types/api_specification_convenience_types.js";
+import {isContentBodyEmpty} from "~/shared/content/is_content_empty.js";
 import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
 import {serializeDateString} from "~/shared/helpers/date/date_string.js";
 import {SpaceId} from "~/shared/id/types/id_types.js";
-import {MessageContentPayloadParent, MessagePayload} from "~/shared/messaging/message_schema.js";
+import {
+    MessageContentPayload,
+    MessageContentPayloadParent,
+    MessagePayload,
+    MessageStream,
+    getMessageContentVersion,
+} from "~/shared/messaging/message_schema.js";
+import {SearchDynamicEntityId} from "~/shared/search/search_entity_id.js";
 
 export async function intoApiMessage(
     context: ServerBotActionContext,
-    spaceId: SpaceId,
-    message: MessageItem,
-    intoContentPayloadParent: (
-        parent: MessageContentPayloadParent,
-    ) => Promise<ApiMessageContentPayloadParentResponse | null>,
+    {
+        spaceId,
+        entityId,
+        message,
+        intoContentPayloadParent,
+    }: {
+        spaceId: SpaceId;
+        entityId: SearchDynamicEntityId;
+        message: MessageItem;
+        intoContentPayloadParent: (
+            parent: MessageContentPayloadParent,
+        ) => Promise<ApiMessageContentPayloadParentResponse | null>;
+    },
 ): Promise<ApiMessageResponse> {
+    const stream = message.stream;
+    let streamPartsPromise: Promise<
+        Array<Awaited<ReturnType<typeof intoApiMessageStreamPartPayload>>>
+    > | null = null;
+
+    if (stream !== null) {
+        assert(message.payload.type === "Content");
+        const contentKeyEncoder = new ApiContentKeyEncoder({
+            entityId,
+            version: getMessageContentVersion(message.payload),
+        });
+
+        const streamPartPosOffsets = getMessageStreamPartPosOffsets({
+            payload: message.payload,
+            stream,
+        });
+
+        streamPartsPromise = runAllPromises(
+            stream.parts.map((part, partIndex) =>
+                intoApiMessageStreamPartPayload(context, {
+                    spaceId,
+                    payload: part.payload,
+                    contentKeyEncoder,
+                    posOffset: streamPartPosOffsets[partIndex],
+                }),
+            ),
+        );
+    }
+
     const [author, payload, streamParts] = await runAllPromises([
         getApiAccount(context, spaceId, message.authorId, {consistency: "StrongWithinCache"}),
-        intoApiMessagePayload(context, spaceId, message.payload, intoContentPayloadParent),
-        message.stream
-            ? runAllPromises(
-                  message.stream.parts.map(part =>
-                      intoApiMessageStreamPartPayload(context, spaceId, part.payload),
-                  ),
-              )
-            : null,
+        intoApiMessagePayload(context, {
+            spaceId,
+            payload: message.payload,
+            intoContentPayloadParent,
+            entityId,
+        }),
+        streamPartsPromise,
     ]);
 
     if (!streamParts) {
@@ -48,15 +93,14 @@ export async function intoApiMessage(
 
     // Only content messages can have a stream.
     assert(payload.type === "Content");
+    assert(message.payload.type === "Content");
 
     const firstElement = payload.content.elements[0];
-    const contentElements =
-        // If the original message has empty content then ignore it.
-        payload.content.elements.length === 1 &&
-        firstElement?.type === "Paragraph" &&
-        firstElement.elements.length === 0
-            ? []
-            : [...payload.content.elements];
+    // If the original message has empty content then ignore it. It'll be replaced with
+    // the stream parts or restored below if the stream has no content.
+    const contentElements = isContentBodyEmpty(message.payload.content)
+        ? []
+        : [...payload.content.elements];
 
     for (const streamPart of streamParts) {
         switch (streamPart.type) {
@@ -89,7 +133,8 @@ export async function intoApiMessage(
     }
 
     if (contentElements.length === 0) {
-        contentElements.push({type: "Paragraph", elements: []});
+        assert(firstElement?.type === "Paragraph");
+        contentElements.push(firstElement);
     }
 
     return {
@@ -106,19 +151,35 @@ export async function intoApiMessage(
 
 async function intoApiMessagePayload(
     context: ServerBotActionContext,
-    spaceId: SpaceId,
-    payload: MessagePayload,
-    intoContentPayloadParent: (
-        parent: MessageContentPayloadParent,
-    ) => Promise<ApiMessageContentPayloadParentResponse | null>,
+    {
+        spaceId,
+        payload,
+        intoContentPayloadParent,
+        entityId,
+    }: {
+        spaceId: SpaceId;
+        payload: MessagePayload;
+        intoContentPayloadParent: (
+            parent: MessageContentPayloadParent,
+        ) => Promise<ApiMessageContentPayloadParentResponse | null>;
+        entityId: SearchDynamicEntityId;
+    },
 ): Promise<ApiMessagePayloadResponse> {
     switch (payload.type) {
         case "Deleted": {
             return {type: "Deleted"};
         }
         case "Content":
+            const contentKeyEncoder = new ApiContentKeyEncoder({
+                entityId,
+                version: getMessageContentVersion(payload),
+            });
             const [contentWithReferences, parent, files] = await runAllPromises([
-                intoApiMessageContentWithReferences(context, spaceId, payload.content),
+                intoApiMessageContentWithReferences(context, {
+                    spaceId,
+                    node: payload.content,
+                    encoder: contentKeyEncoder,
+                }),
                 payload.parent ? intoContentPayloadParent(payload.parent) : undefined,
                 resolveFilesForApiResponse(context, spaceId, payload.fileIds),
             ]);
@@ -132,4 +193,29 @@ async function intoApiMessagePayload(
         default:
             throw exhaustive(payload);
     }
+}
+
+/**
+ * Computes the top-level ProseMirror position where each stream part's content
+ * begins in the merged message content.
+ */
+function getMessageStreamPartPosOffsets({
+    payload,
+    stream,
+}: {
+    payload: MessageContentPayload;
+    stream: MessageStream;
+}): ReadonlyArray<number> {
+    const posOffsetByPartIndex: Array<number> = [];
+    let posOffset = isContentBodyEmpty(payload.content) ? 0 : payload.content.content.size;
+
+    for (const [partIndex, part] of stream.parts.entries()) {
+        posOffsetByPartIndex[partIndex] = posOffset;
+
+        if (part.payload.type === "Content") {
+            posOffset += part.payload.content.content.size;
+        }
+    }
+
+    return posOffsetByPartIndex;
 }

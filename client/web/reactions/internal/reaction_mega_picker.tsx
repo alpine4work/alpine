@@ -7,7 +7,7 @@ import {ReactionIcon} from "~/client/web/reactions/icons/reaction_icon.js";
 import {sortReactionCharactersAroundOurCharacter} from "~/client/web/reactions/internal/sort_reaction_characters_around_our_character.js";
 import {orderedReactionEmotions} from "~/client/web/reactions/ordered_reaction_characters_and_emotions.js";
 import {ReactionCharacterCarouselSelector} from "~/client/web/reactions/reaction_character_carousel_selector.js";
-import {useSpaceContextAndRequireSpaceAccess} from "~/client/web/spaces/space_context.js";
+import {useSpaceContextAndRequireSpaceAccess} from "~/client/web/spaces/context/space_context.js";
 import {colorSchemeVars} from "~/client/web/styles/styles.js";
 import {parseRemLength} from "~/shared/design/core/spacing.js";
 import {getLegacyFallbackReactionCharacterForId} from "~/shared/reactions/get_legacy_fallback_reaction_character_for_id.js";

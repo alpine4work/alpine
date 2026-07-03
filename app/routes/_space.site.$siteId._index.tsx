@@ -15,7 +15,6 @@ import {MenuButton} from "~/client/web/design/menu_button.js";
 import {writeTextToClipboard} from "~/client/web/helpers/write_text_to_clipboard.js";
 import {useNavigationBar} from "~/client/web/navigation/navigation_bar.js";
 import {metaTitlePostfix} from "~/client/web/remix/use_update_meta_title.js";
-import {getSearchDynamicEntityPathFromEntityIdObject} from "~/client/web/search/core/get_search_entity_path.js";
 import {AddExistingEntityToSiteModal} from "~/client/web/sites/add_existing_entity_to_site_modal.js";
 import {
     useCanManageSite,
@@ -25,9 +24,7 @@ import {
 } from "~/client/web/sites/context/site_context.js";
 import {applySiteAccessPolicyChange} from "~/client/web/sites/helpers/apply_site_access_policy_change.js";
 import {SiteChrome} from "~/client/web/sites/site_chrome.js";
-import {useSiteMenuActions} from "~/client/web/sites/site_menu_actions.js";
 import {useAddEntityToSiteMenuActions} from "~/client/web/sites/use_add_entity_to_site_menu_actions.js";
-import {useSpaceContext} from "~/client/web/spaces/space_context.js";
 import {jsonWithSchema} from "~/server/remix/json_with_schema.js";
 import {LoaderArgs} from "~/server/remix/loader_context.js";
 import {isSearchFavoriteEntity} from "~/server/search/data/table/search_entity_actions.js";
@@ -42,6 +39,7 @@ import {OrderKey, generateOrderKeyBetween} from "~/shared/helpers/sort/order_key
 import {convertSpacePathToPeekPath} from "~/shared/remix/peek_path_helpers.js";
 import {SiteLoaderData} from "~/shared/remix/site_loader_data.js";
 import {Schema} from "~/shared/schema/schema.js";
+import {getSearchDynamicEntityPathFromEntityIdObject} from "~/shared/search/path/get_search_entity_path.js";
 import {parseSiteItemSearchEntityId} from "~/shared/search/site_item_search_entity_id.js";
 import {SiteContainerId} from "~/shared/sites/site_entry_id.js";
 import {SitePreviewModel, SitePreviewModelData} from "~/shared/sites/site_model.js";
@@ -64,7 +62,9 @@ export async function loader({params, context: unauthenticatedContext, request}:
     }
     const createSpaceId =
         createSearchParam !== null ? deserializeSpaceIdForLoader(createSearchParam) : null;
-    if (createSpaceId !== null) context.discovery.discoverSpaceId(createSpaceId);
+    if (createSpaceId !== null) {
+        context.discovery.discoverSpaceId(createSpaceId, "CreateSearchParam");
+    }
 
     // The "create site" flow generates the `siteId` on the client and navigates here
     // with `?create={spaceId}` (mirroring the document and task-collection create
@@ -241,7 +241,7 @@ export default function SiteRoute() {
             flexDirection="column"
             marginLeft="8"
         >
-            <SiteChrome tree={tree} parentId={site.rootContainerId} withoutContextMenu={true}>
+            <SiteChrome tree={tree} parentId={site.rootContainerId}>
                 <EmptySiteContent
                     site={site}
                     canManage={canManage}
@@ -268,10 +268,8 @@ function EmptySiteContent({
     canManage: boolean;
     rootAddEntityMenuActions: MenuActions;
 }) {
-    const {space} = useSpaceContext();
     const context = useAppContext();
     const siteContext = useSiteContext();
-    const siteMenuActions = useSiteMenuActions({});
 
     const {navigationBar} = useNavigationBar({
         shareButton: {
@@ -287,11 +285,10 @@ function EmptySiteContent({
                 });
             },
             onCopyLink: async () => {
-                const url = new URL(`/s/${space.id}/sites/${site.id}`, window.location.href);
+                const url = new URL(`/site/${site.id}`, window.location.href);
                 await writeTextToClipboard(url.toString());
             },
         },
-        menuActions: siteMenuActions,
     });
 
     // TODO(#sites): The empty site in peek mode needs some work. I'm not exactly sure
@@ -324,21 +321,23 @@ function EmptySiteContent({
                     maxWidth="1/3"
                     textAlign="center"
                 >
-                    <Box fontSize="200" fontStyle="bold">
-                        Start building {site.name}
-                    </Box>
+                    {canManage && (
+                        <Box fontSize="200" fontStyle="bold">
+                            Start building {site.name}
+                        </Box>
+                    )}
                     <Box fontSize="100" color="grey-50">
                         {canManage
                             ? "Add a document, channel, task, or task collection to get started."
-                            : // TODO(#sites): Maybe add messaging to inform user that they don't have the
-                              // ability to add anything to the site, and that they should ask someone who can
-                              // share the site to give them ability to add content.
-                              "This site doesn\u2019t have any content yet."}
+                            : // TODO(#sites-redesign): Maybe add messaging to inform user that they don't have
+                              // the ability to add anything to the site, and that they should ask someone who
+                              // can share the site to give them ability to add content.
+                              "This site doesn\u2019t have any content yet and you don\u2019t have permission to add any. Contact a site administrator to get access."}
                     </Box>
                     {canManage && (
                         <Box paddingTop="2">
                             <MenuButton actions={rootAddEntityMenuActions} placement="bottom">
-                                {/* TODO(#sites): Maybe add quick buttons for each entity type? */}
+                                {/* TODO(#sites-redesign): Maybe add quick buttons for each entity type? */}
                                 <Button icon={<Plus size={14} />}>Add to site</Button>
                             </MenuButton>
                         </Box>

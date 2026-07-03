@@ -23,7 +23,7 @@ import {useLayoutEffectWithoutServerSideWarning} from "~/client/web/helpers/life
 import {useStore} from "~/client/web/helpers/use_store.js";
 import {useCanPrimaryInputHover, usePlatform} from "~/client/web/remix/platform_context.js";
 import {useIdlyPreloadRpc, useLazyLoadRpc} from "~/client/web/rpc/use_lazy_load_rpc.js";
-import {useSpaceContext} from "~/client/web/spaces/space_context.js";
+import {useSpaceContext} from "~/client/web/spaces/context/space_context.js";
 import {sprinkles} from "~/client/web/styles/styles.js";
 import {isTaskGridViewApplyingUndoStackEntry} from "~/client/web/tasks/internal/is_task_grid_view_applying_undo_stack_entry.js";
 import {

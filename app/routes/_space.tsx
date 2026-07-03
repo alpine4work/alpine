@@ -10,6 +10,8 @@ import {useAccountRegistryForSpaceId} from "~/client/web/accounts/account_regist
 import {ContentBlockWidthContextProvider} from "~/client/web/content/content_block_width.js";
 import {ContentFileViewerModal} from "~/client/web/content/content_file_viewer_modal.js";
 import {ContentFileEntityRenderersContextProvider} from "~/client/web/content/file_entity/content_file_entity_renderers_context_provider.js";
+import {useMediaDebugModeLocalStorage} from "~/client/web/content/media_debug_mode.js";
+import {MediaDebugModeContextProvider} from "~/client/web/content/media_debug_mode_context_provider.js";
 import {waitForContentFileImagePreviewContentsToLoad} from "~/client/web/content/wait_for_content_file_image_preview_contents_to_load.js";
 import {useAppContext} from "~/client/web/context/app_context.js";
 import {Box} from "~/client/web/design/box.js";
@@ -46,6 +48,8 @@ import {useLoaderDataWithSchema} from "~/client/web/remix/use_loader_data_with_s
 import {SearchModal} from "~/client/web/search/search_modal.js";
 import {useSetSearchQueryText} from "~/client/web/search/use_set_search_query_text.js";
 import {SiteProvider} from "~/client/web/sites/context/site_context.js";
+import {SiteChromeContainer} from "~/client/web/sites/site_chrome_container.js";
+import {useSpaceContext} from "~/client/web/spaces/context/space_context.js";
 import {getGlobalSavingIndicatorPromise} from "~/client/web/spaces/get_global_saving_indicator_promise.js";
 import {
     GlobalLoadingIndicatorChip,
@@ -56,7 +60,6 @@ import {GlobalLoadingIndicator} from "~/client/web/spaces/global_loading_indicat
 import {PurchasedLifetimeAccessModal} from "~/client/web/spaces/layout/purchased_lifetime_access_modal.js";
 import {SpaceLayoutSideBar} from "~/client/web/spaces/layout/space_layout_side_bar.js";
 import {SpaceLayoutWebMobileTabBar} from "~/client/web/spaces/layout/space_layout_web_mobile_tab_bar.js";
-import {useSpaceContext} from "~/client/web/spaces/space_context.js";
 import {SpaceContextProvider} from "~/client/web/spaces/space_context_provider.js";
 import {SpaceThemeColorManager} from "~/client/web/spaces/space_theme_color_manager.js";
 import {ToastGlobalSavingIndicatorMessage} from "~/client/web/spaces/toast_global_saving_indicator_message.js";
@@ -81,6 +84,7 @@ import {alpioneers} from "~/shared/accounts/known_account_ids.js";
 import {Context} from "~/shared/context/context.js";
 import {addRemLengths, spacing} from "~/shared/design/core/spacing.js";
 import {defaultThemeColor} from "~/shared/design/core/theme_colors.js";
+import {joinPrettyConjunctionList} from "~/shared/design/join_pretty_conjunction_list.js";
 import {createRynamoItemSchema} from "~/shared/dynamo/rynamo_types.js";
 import {InternalError, InvalidArgumentError, PermissionDeniedError} from "~/shared/error/error.js";
 import {
@@ -202,206 +206,140 @@ export async function loader({context: loaderContext, params, request, matches}:
         );
     }
 
-    const spaceId = params.spaceId
-        ? (() => {
-              const spaceId = deserializeSpaceIdForLoader(params.spaceId);
+    const spaceIdFromHeader = request.headers.get("cyberworlds-space-id");
 
-              // For any other code that may be waiting on `SpaceId` discovery, if the `SpaceId`
-              // is in the params then share the news.
-              loaderContext.discovery.discoverSpaceId(spaceId);
+    let spaceIdFromRequest: SpaceId | null = null;
+    let isSpaceIdFromHeader = false;
 
-              return spaceId;
-          })()
-        : // If there's no `SpaceId` in the URL then we depend on a child loader to load data
-          // which references a `SpaceId`. This child loader most promptly report the
-          // `SpaceId` through `DiscoveryContextModule`.
-          await Promise.race([
-              new Promise<SpaceId>(resolve => {
-                  const spaceId = loaderContext.discovery.getDiscoveredSpaceId();
-                  if (spaceId !== null) {
-                      resolve(spaceId);
-                      return;
-                  }
+    if (params.spaceId) {
+        spaceIdFromRequest = deserializeSpaceIdForLoader(params.spaceId);
 
-                  const handle = (spaceId: SpaceId) => {
-                      loaderContext.discovery.removeDiscoverSpaceIdListener(handle);
-                      resolve(spaceId);
-                  };
-                  loaderContext.discovery.addDiscoverSpaceIdListener(handle);
-              }),
+        // For any other code that may be waiting on `SpaceId` discovery, if the `SpaceId`
+        // is in the params then share the news.
+        loaderContext.discovery.discoverSpaceId(spaceIdFromRequest, "Pathname");
+    } else if (spaceIdFromHeader) {
+        isSpaceIdFromHeader = true;
 
-              // If all our other matches resolve without returning a `SpaceId` then throw an
-              // error! We must discover a `SpaceId` from one of our child loaders or else we
-              // can't load the space.
-              runAllPromises(
-                  spaceMatches.map(match =>
-                      match.promise.then(result => {
-                          if (result.type === "error") throw result.result;
+        // Internal navigations send the current `SpaceId` in a header which lets us start
+        // loading space data immediately.
+        spaceIdFromRequest = deserializeSpaceIdForLoader(spaceIdFromHeader);
 
-                          throw new InternalError(
-                              quote`Route ${match.route.id}\u2019s loader function resolved without discovering a \`SpaceId\`, all space routes must discover a \`SpaceId\` at some point in the loader function`,
-                          );
-                      }),
-                  ),
-              ).then(() => {
-                  // If there are any `spaceMatches` then they should have thrown above. At this
-                  // point there should be no space matches.
-                  throw new InternalError("No `spaceMatches` found");
-              }),
-          ]);
+        // For any other code that may be waiting on `SpaceId` discovery, if the `SpaceId`
+        // is in the header then share the news. Child loaders are still responsible for
+        // discovering the `SpaceId` and we verify that one of them did at the end of this
+        // loader.
+        loaderContext.discovery.discoverSpaceId(spaceIdFromRequest, "Header");
+    }
 
-    // Always use strong consistency for this endpoint. We only run this loader once
-    // when the user opens the space so the cost doesn't matter. And it's good to rule
-    // out eventual consistency issues in cases where the user is opening the space
-    // after updating space or account state (e.g. they're navigating to the space
-    // after sign up).
-    const context = (await loaderContext.actor.authenticate()).dynamo.expectStrongReadConsistency();
-    const consistency: DynamoCacheReadConsistency = "StrongWithinCache";
-
-    switch (context.actor.type) {
-        case "System": {
-            // Allowing a system actor to load our app would be very dangerous! Since system
-            // actors have read/write access to everything in the space.
-            throw new PermissionDeniedError("Can\u2019t load the application with a system actor");
-        }
-
-        case "ImpersonatedAccount": {
-            // Allowing a system actor to load our app would be dangerous! Since a system actor
-            // can pretend to be any arbitrary account in the space.
-            throw new PermissionDeniedError(
-                "Can\u2019t load the application with an impersonated account actor",
-            );
-        }
-
-        case "Bot": {
-            // Bots aren't allowed to load the app. They must use `ApiService` to interact with
-            // Alpine.
-            throw new PermissionDeniedError("Can\u2019t load the application with a bot actor");
-        }
-
-        case "Anonymous": {
-            const space = new SpaceModel({
-                id: spaceId,
-                version: -1,
-                // If you don't have space access, you're not allowed to see the space's name. Use
-                // an empty string as a placeholder.
-                name: "",
-                avatars: {darkTheme: null, lightTheme: null},
-                themeColor: defaultThemeColor,
-            });
-
-            return jsonWithSchema(
-                LoaderSchema,
-                {
-                    type: "WithoutAccess",
-                    space,
-                    currentAccountWithoutSpace: null,
-                    settings: null,
-                },
-                {propagateEventData: {context: {withoutSpaceAccess: true}}},
-            );
-        }
-
-        case "Session": {
-            const sessionContext = context as Context<
-                Replace<LoaderContextModules, {actor: SessionActorContextModule}>
-            >;
-
-            // In the case of a permission denial, we may want to expose certain space data
-            // This is currently used when an InvitePending account requests data about the
-            // space.
-            let space: SpaceModel | null = null;
-
-            try {
-                // Await on data that we absolutely need first
-                const [currentAccountAndSettings, currentSpace, inboxResult] = await runAllPromises(
-                    [
-                        getOwnAccountAndSettingsIfExists(
-                            sessionContext,
-                            spaceId,
-                            sessionContext.actor.getAccountId(),
-                            {consistency},
-                        ),
-
-                        // If we're in an `InvitePending` state, we need to return the space data for the
-                        // invite screen.
-                        getSpace(sessionContext, spaceId, {consistency, allowInvitePending: true}),
-
-                        // If `getInbox()` throws because we don't have space access, that's fine. This
-                        // might be a user with a pending invite. We want to load the inbox item here in
-                        // parallel with our other data in case we need it. If there's an error, catch the
-                        // error and throw later after we know we have space access.
-                        captureResultPromise(
-                            getInbox(context.actor.authorizeSession(), {spaceId, consistency}),
-                        ),
-                    ],
-                );
-
-                space = currentSpace;
-
-                const accountIsInvitePending =
-                    currentAccountAndSettings?.account.initialData.space.state.type ===
-                    "InvitePending";
-
-                if (accountIsInvitePending) {
-                    // Handle invite state before we throw on any permissions errors in getSpace,
-                    // getInbox, etc. If we are in any invite subtree, don't try to redirect to the
-                    // invite page.
-                    const currentPathname = new URL(request.url).pathname;
-                    const invitePathRoot = `/invite/${spaceId}`;
-
-                    if (!currentPathname.startsWith(invitePathRoot)) {
-                        const to =
-                            currentPathname !== "/"
-                                ? encodeURIComponent(currentPathname)
-                                : undefined;
-                        return redirect(`${invitePathRoot}${to ? `?to=${to}` : ""}`);
-                    }
+    // Resolves when one of our child loaders discovers a `SpaceId` through
+    // `DiscoveryContextModule`. If all of the child loaders resolve without
+    // discovering a `SpaceId` then throws a loud error since we can't load the space.
+    function waitForDiscoveredSpaceId(): Promise<SpaceId> {
+        return Promise.race([
+            new Promise<SpaceId>(resolve => {
+                // Only resolve on a loader or param discovery, never the header alone. The header
+                // discovery happens before this promise is created, so the listener below can only
+                // ever see a loader discovery emit.
+                const spaceIdFromLoader =
+                    loaderContext.discovery.getDiscoveredSpaceIdFromNonHeaderOriginIfExists();
+                if (spaceIdFromLoader !== null) {
+                    resolve(spaceIdFromLoader);
+                    return;
                 }
 
-                // It's probably safe to assert here since `getSpace()` will throw if the account
-                // doesn't have access (and doesn't have an `InvitePending` state).
-                if (!currentAccountAndSettings) {
-                    throw createAuthorizeSpaceAccessPermissionDeniedError(
-                        space.id,
-                        sessionContext.actor.getAccountId(),
+                const handle = (spaceId: SpaceId) => {
+                    loaderContext.discovery.removeDiscoverSpaceIdListener(handle);
+                    resolve(spaceId);
+                };
+                loaderContext.discovery.addDiscoverSpaceIdListener(handle);
+            }),
+
+            // If all our other matches resolve without returning a `SpaceId` then throw an
+            // error! We must discover a `SpaceId` from one of our child loaders or else we
+            // can't load the space.
+            runAllPromises(
+                spaceMatches.map(match =>
+                    match.promise.then(result => {
+                        // Always ensure that we throw loader errors from any matched route before we throw
+                        // an error about not discovering a `SpaceId`.
+                        if (result.type === "error") throw result.result;
+
+                        // Originally this function would throw the space discovery error if the result was
+                        // NOT an error. But this broke the following scenario:
+                        //
+                        // When loading the site index route, remix loads both the `site.$siteId` and
+                        // `site.$siteId._index` routes.
+                        //
+                        // - `_space.site.$siteId`: the "outlet" container for the site index and site
+                        //   navigate routes. Needed so that the site navigate route does not run the
+                        //   loader for the site index route and vice versa.
+                        // - `_space.site.$siteId._index`: the route that loads the actual site.
+                        //
+                        // What was happening was that the `site.$siteId._index` would throw a
+                        // NotFoundError, for instance, and `site.$siteId` would not throw any errors at
+                        // all (since it does no work). Because we used to throw the discovery error here
+                        // for any matched route, we would throw the "space not discovered" error for the
+                        // `site.$siteId` route. What we saw in practice is that the space discovery error
+                        // was swallowing the NotFoundError, which leads to a very different UX – instead
+                        // of telling the user that the site doesn't exist, the app would just crash
+                        return match.route.id;
+                    }),
+                ),
+            ).then(routeIds => {
+                // If there are any `spaceMatches` then they should have thrown above. At this
+                // point there should be no space matches.
+                if (routeIds.length === 0) throw new InternalError("No `spaceMatches` found");
+
+                if (routeIds.length === 1) {
+                    throw new InternalError(
+                        quote`Route ${routeIds[0]}\u2019s loader function resolved without discovering a \`SpaceId\`, all space routes must discover a \`SpaceId\` at some point in the loader function`,
                     );
                 }
 
-                const inbox = unwrapResult(inboxResult);
-
-                return jsonWithSchema(LoaderSchema, {
-                    type: "WithAccess",
-                    space,
-                    currentAccount: currentAccountAndSettings.account,
-                    settings: currentAccountAndSettings.settings,
-                    inbox,
-                });
-            } catch (error) {
-                // If we failed to load the space route because the session actor doesn't have
-                // access to the space then we still want to attempt to load the page in
-                // `WithoutAccess` mode. In case the underlying content has URL sharing turned on.
-                //
-                // In order to figure out if the error was a space authorization issue, we call
-                // `authorizeSpaceAccessIfPossible()` and rethrow the error if that succeeds. That
-                // function only returns an error result if the session actor doesn't have space
-                // access.
-                const spaceAuthorizationResult = await authorizeSpaceAccessIfPossible(
-                    context,
-                    spaceId,
+                const routeIdConjunction = joinPrettyConjunctionList(routeIds, "or");
+                throw new InternalError(
+                    quote`One of ${routeIdConjunction} loader functions resolved without discovering a \`SpaceId\`, all space routes must discover a \`SpaceId\` at some point in the loader function`,
                 );
-                if (spaceAuthorizationResult.ok) throw error;
+            }),
+        ]);
+    }
 
-                const {account, settings} = await getOwnAccountAndSettingsWithoutSpace(
-                    sessionContext,
-                    {consistency},
+    async function loadSpaceLayoutRouteData(spaceId: SpaceId) {
+        // Always use strong consistency for this endpoint. We only run this loader once
+        // when the user opens the space so the cost doesn't matter. And it's good to rule
+        // out eventual consistency issues in cases where the user is opening the space
+        // after updating space or account state (e.g. they're navigating to the space
+        // after sign up).
+        const context = (
+            await loaderContext.actor.authenticate()
+        ).dynamo.expectStrongReadConsistency();
+        const consistency: DynamoCacheReadConsistency = "StrongWithinCache";
+
+        switch (context.actor.type) {
+            case "System": {
+                // Allowing a system actor to load our app would be very dangerous! Since system
+                // actors have read/write access to everything in the space.
+                throw new PermissionDeniedError(
+                    "Can\u2019t load the application with a system actor",
                 );
+            }
 
-                // If `space` is non-`null` that means we had access to the `SpaceModel`. The most
-                // likely reason is we're an `InvitePending` account for the space. If `space` is
-                // null then use a mock space object since the user doesn't have access to space
-                // data.
-                space ??= new SpaceModel({
+            case "ImpersonatedAccount": {
+                // Allowing a system actor to load our app would be dangerous! Since a system actor
+                // can pretend to be any arbitrary account in the space.
+                throw new PermissionDeniedError(
+                    "Can\u2019t load the application with an impersonated account actor",
+                );
+            }
+
+            case "Bot": {
+                // Bots aren't allowed to load the app. They must use `ApiService` to interact with
+                // Alpine.
+                throw new PermissionDeniedError("Can\u2019t load the application with a bot actor");
+            }
+
+            case "Anonymous": {
+                const space = new SpaceModel({
                     id: spaceId,
                     version: -1,
                     // If you don't have space access, you're not allowed to see the space's name. Use
@@ -416,15 +354,154 @@ export async function loader({context: loaderContext, params, request, matches}:
                     {
                         type: "WithoutAccess",
                         space,
-                        settings,
-                        currentAccountWithoutSpace: account,
+                        currentAccountWithoutSpace: null,
+                        settings: null,
                     },
                     {propagateEventData: {context: {withoutSpaceAccess: true}}},
                 );
             }
+
+            case "Session": {
+                const sessionContext = context as Context<
+                    Replace<LoaderContextModules, {actor: SessionActorContextModule}>
+                >;
+
+                // In the case of a permission denial, we may want to expose certain space data
+                // This is currently used when an InvitePending account requests data about the
+                // space.
+                let space: SpaceModel | null = null;
+
+                try {
+                    // Await on data that we absolutely need first
+                    const [currentAccountAndSettings, currentSpace, inboxResult] =
+                        await runAllPromises([
+                            getOwnAccountAndSettingsIfExists(
+                                sessionContext,
+                                spaceId,
+                                sessionContext.actor.getAccountId(),
+                                {consistency},
+                            ),
+
+                            // If we're in an `InvitePending` state, we need to return the space data for the
+                            // invite screen.
+                            getSpace(sessionContext, spaceId, {
+                                consistency,
+                                allowInvitePending: true,
+                            }),
+
+                            // If `getInbox()` throws because we don't have space access, that's fine. This
+                            // might be a user with a pending invite. We want to load the inbox item here in
+                            // parallel with our other data in case we need it. If there's an error, catch the
+                            // error and throw later after we know we have space access.
+                            captureResultPromise(
+                                getInbox(context.actor.authorizeSession(), {spaceId, consistency}),
+                            ),
+                        ]);
+
+                    space = currentSpace;
+
+                    const accountIsInvitePending =
+                        currentAccountAndSettings?.account.initialData.space.state.type ===
+                        "InvitePending";
+
+                    if (accountIsInvitePending) {
+                        // Handle invite state before we throw on any permissions errors in getSpace,
+                        // getInbox, etc. If we are in any invite subtree, don't try to redirect to the
+                        // invite page.
+                        const currentPathname = new URL(request.url).pathname;
+                        const invitePathRoot = `/invite/${spaceId}`;
+
+                        if (!currentPathname.startsWith(invitePathRoot)) {
+                            const to =
+                                currentPathname !== "/"
+                                    ? encodeURIComponent(currentPathname)
+                                    : undefined;
+                            return redirect(`${invitePathRoot}${to ? `?to=${to}` : ""}`);
+                        }
+                    }
+
+                    // It's probably safe to assert here since `getSpace()` will throw if the account
+                    // doesn't have access (and doesn't have an `InvitePending` state).
+                    if (!currentAccountAndSettings) {
+                        throw createAuthorizeSpaceAccessPermissionDeniedError(
+                            space.id,
+                            sessionContext.actor.getAccountId(),
+                        );
+                    }
+
+                    const inbox = unwrapResult(inboxResult);
+
+                    return jsonWithSchema(LoaderSchema, {
+                        type: "WithAccess",
+                        space,
+                        currentAccount: currentAccountAndSettings.account,
+                        settings: currentAccountAndSettings.settings,
+                        inbox,
+                    });
+                } catch (error) {
+                    // If we failed to load the space route because the session actor doesn't have
+                    // access to the space then we still want to attempt to load the page in
+                    // `WithoutAccess` mode. In case the underlying content has URL sharing turned on.
+                    //
+                    // In order to figure out if the error was a space authorization issue, we call
+                    // `authorizeSpaceAccessIfPossible()` and rethrow the error if that succeeds. That
+                    // function only returns an error result if the session actor doesn't have space
+                    // access.
+                    const spaceAuthorizationResult = await authorizeSpaceAccessIfPossible(
+                        context,
+                        spaceId,
+                    );
+                    if (spaceAuthorizationResult.ok) throw error;
+
+                    const {account, settings} = await getOwnAccountAndSettingsWithoutSpace(
+                        sessionContext,
+                        {consistency},
+                    );
+
+                    // If `space` is non-`null` that means we had access to the `SpaceModel`. The most
+                    // likely reason is we're an `InvitePending` account for the space. If `space` is
+                    // null then use a mock space object since the user doesn't have access to space
+                    // data.
+                    space ??= new SpaceModel({
+                        id: spaceId,
+                        version: -1,
+                        // If you don't have space access, you're not allowed to see the space's name. Use
+                        // an empty string as a placeholder.
+                        name: "",
+                        avatars: {darkTheme: null, lightTheme: null},
+                        themeColor: defaultThemeColor,
+                    });
+
+                    return jsonWithSchema(
+                        LoaderSchema,
+                        {
+                            type: "WithoutAccess",
+                            space,
+                            settings,
+                            currentAccountWithoutSpace: account,
+                        },
+                        {propagateEventData: {context: {withoutSpaceAccess: true}}},
+                    );
+                }
+            }
+            default:
+                throw exhaustive(context.actor);
         }
-        default:
-            throw exhaustive(context.actor);
+    }
+
+    if (spaceIdFromRequest && isSpaceIdFromHeader) {
+        // Start loading the route data with the header's space id immediately. In
+        // parallel, wait for a child loader to discover the `SpaceId` so a route that
+        // forgets to discover one fails loudly.
+        const [, response] = await runAllPromises([
+            waitForDiscoveredSpaceId(),
+            loadSpaceLayoutRouteData(spaceIdFromRequest),
+        ]);
+
+        return response;
+    } else {
+        const spaceId = spaceIdFromRequest ?? (await waitForDiscoveredSpaceId());
+        return await loadSpaceLayoutRouteData(spaceId);
     }
 }
 
@@ -582,6 +659,7 @@ export default function SpaceLayoutRoute() {
         SearchDebugOptionsSchema,
         defaultSearchDebugOptionsSchema,
     );
+    const [isMediaDebugModeEnabled, setIsMediaDebugModeEnabled] = useMediaDebugModeLocalStorage();
 
     useDevConsoleTool("search", () => ({
         toggleDebugMode: () =>
@@ -598,6 +676,12 @@ export default function SpaceLayoutRoute() {
                 isDebugModeEnabled: debugOptions.isDebugModeEnabled,
                 options: standardSearchOptions,
             }),
+    }));
+
+    useDevConsoleTool("media", () => ({
+        toggleDebugMode: () => setIsMediaDebugModeEnabled(!isMediaDebugModeEnabled),
+        getDebugMode: () => isMediaDebugModeEnabled,
+        setDebugMode: (isEnabled: boolean) => setIsMediaDebugModeEnabled(isEnabled),
     }));
 
     useDevConsoleTool("files", () => ({
@@ -870,63 +954,67 @@ export default function SpaceLayoutRoute() {
             }}
         >
             <ContentFileEntityRenderersContextProvider>
-                <GlobalLoadingIndicatorContextProvider>
-                    {globalLoadingIndicator => (
-                        <SpaceContextProvider
-                            // Reset state when the space or account changes.
-                            key={`${loaderData.space.id}-${
-                                loaderData.type === "WithAccess"
-                                    ? loaderData.currentAccount.id
-                                    : loaderData.currentAccountWithoutSpace?.id
-                            }`}
-                            initialSpace={loaderData.space}
-                            currentAccount={
-                                loaderData.type === "WithAccess" ? loaderData.currentAccount : null
-                            }
-                            currentAccountWithoutSpace={
-                                loaderData.type === "WithAccess"
-                                    ? loaderData.currentAccount
-                                    : loaderData.currentAccountWithoutSpace
-                            }
-                            initialSettings={loaderData.settings}
-                            withMyAccountWebSocket={true}
-                        >
-                            <SpaceThemeColorManager />
-                            <TaskRealtimeClientContextProvider
-                                spaceId={spaceId}
-                                currentAccountId={
+                <MediaDebugModeContextProvider isEnabled={isMediaDebugModeEnabled}>
+                    <GlobalLoadingIndicatorContextProvider>
+                        {globalLoadingIndicator => (
+                            <SpaceContextProvider
+                                // Reset state when the space or account changes.
+                                key={`${loaderData.space.id}-${
                                     loaderData.type === "WithAccess"
                                         ? loaderData.currentAccount.id
-                                        : (loaderData.currentAccountWithoutSpace?.id ?? null)
+                                        : loaderData.currentAccountWithoutSpace?.id
+                                }`}
+                                initialSpace={loaderData.space}
+                                currentAccount={
+                                    loaderData.type === "WithAccess"
+                                        ? loaderData.currentAccount
+                                        : null
                                 }
+                                currentAccountWithoutSpace={
+                                    loaderData.type === "WithAccess"
+                                        ? loaderData.currentAccount
+                                        : loaderData.currentAccountWithoutSpace
+                                }
+                                initialSettings={loaderData.settings}
+                                withMyAccountWebSocket={true}
                             >
-                                <SiteProvider>
-                                    <ContextMenuContextProvider>
-                                        <PeekStackContextProvider
-                                            ref={peekStackRef}
-                                            // The peek stack component is responsible for rendering our global loading
-                                            // indicator so it can make sure the loading indicator avoids the peek stack.
-                                            globalLoadingIndicator={globalLoadingIndicator}
-                                        >
-                                            <SpaceLayoutRouteOutlet
-                                                loaderData={loaderData}
-                                                isSearchModalOpen={hasAddedSearchModal}
-                                                setSearchQueryText={setSearchQueryText}
+                                <SpaceThemeColorManager />
+                                <TaskRealtimeClientContextProvider
+                                    spaceId={spaceId}
+                                    currentAccountId={
+                                        loaderData.type === "WithAccess"
+                                            ? loaderData.currentAccount.id
+                                            : (loaderData.currentAccountWithoutSpace?.id ?? null)
+                                    }
+                                >
+                                    <SiteProvider>
+                                        <ContextMenuContextProvider>
+                                            <PeekStackContextProvider
+                                                ref={peekStackRef}
+                                                // The peek stack component is responsible for rendering our global loading
+                                                // indicator so it can make sure the loading indicator avoids the peek stack.
                                                 globalLoadingIndicator={globalLoadingIndicator}
-                                            />
-                                        </PeekStackContextProvider>
-                                        {modals}
-                                        {hasSpaceLayoutWebMobileTabBar && (
-                                            <SpaceLayoutWebMobileTabBar
-                                                initialInbox={loaderData.inbox}
-                                            />
-                                        )}
-                                    </ContextMenuContextProvider>
-                                </SiteProvider>
-                            </TaskRealtimeClientContextProvider>
-                        </SpaceContextProvider>
-                    )}
-                </GlobalLoadingIndicatorContextProvider>
+                                            >
+                                                <SpaceLayoutRouteOutlet
+                                                    loaderData={loaderData}
+                                                    isSearchModalOpen={hasAddedSearchModal}
+                                                    setSearchQueryText={setSearchQueryText}
+                                                    globalLoadingIndicator={globalLoadingIndicator}
+                                                />
+                                            </PeekStackContextProvider>
+                                            {modals}
+                                            {hasSpaceLayoutWebMobileTabBar && (
+                                                <SpaceLayoutWebMobileTabBar
+                                                    initialInbox={loaderData.inbox}
+                                                />
+                                            )}
+                                        </ContextMenuContextProvider>
+                                    </SiteProvider>
+                                </TaskRealtimeClientContextProvider>
+                            </SpaceContextProvider>
+                        )}
+                    </GlobalLoadingIndicatorContextProvider>
+                </MediaDebugModeContextProvider>
             </ContentFileEntityRenderersContextProvider>
         </GlobalKeyDownEvent>
     );
@@ -1118,9 +1206,11 @@ function SpaceLayoutRouteOutlet({
                                 paddingLeft={spaceLayoutStyles.sideBarWidth}
                                 paddingRight={spaceLayoutMargin}
                             >
-                                <LoadingIndicatorSpaceOutletContainer routeId="routes/_space">
-                                    <Outlet />
-                                </LoadingIndicatorSpaceOutletContainer>
+                                <SiteChromeContainer>
+                                    <LoadingIndicatorSpaceOutletContainer routeId="routes/_space">
+                                        <Outlet />
+                                    </LoadingIndicatorSpaceOutletContainer>
+                                </SiteChromeContainer>
                             </ContentBlockWidthContextProvider>
                         </div>
                         {globalLoadingIndicatorForMobile && (

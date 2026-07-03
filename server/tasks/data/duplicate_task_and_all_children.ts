@@ -57,6 +57,7 @@ export function duplicateTaskAndAllChildren(
     taskId: TaskId;
 }> {
     return context.dynamo.retryTransaction(async context => {
+        const currentTime = new Date();
         const taskItem = await TaskTable.getItem(context, {
             partitionType: "Task",
             sortRangeType: "EssentialAttributes",
@@ -117,6 +118,7 @@ export function duplicateTaskAndAllChildren(
                 // Reset version tracking
                 stepCountByAccountId: new TaskStepCountByAccountId(new Map()),
                 version: 0,
+                createdTime: currentTime,
             };
         };
 
@@ -139,6 +141,7 @@ export function duplicateTaskAndAllChildren(
                 collectionIds: [],
                 queries: [
                     {
+                        type: "Normalized",
                         // Only request as many as we can support (+1 to allow hitting our limit)
                         limit: maxClonedObjectCount - totalClonedObjectCount + 1,
                         filters: {
@@ -325,9 +328,3 @@ export function duplicateTaskAndAllChildren(
         };
     });
 }
-
-/**
- * The task part required for implementing `updateOurAccountName()`. Commits an
- * `UpdateAccountName` action to every space the account is in then once the
- * transaction has committed begins indexing the action.
- */

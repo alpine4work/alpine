@@ -1,5 +1,5 @@
 import {sprinkles} from "~/client/web/styles/styles.js";
-import {Spacing, spacing} from "~/shared/design/core/spacing.js";
+import {RemLength, Spacing, isRemLength, spacing} from "~/shared/design/core/spacing.js";
 
 const spacerClassName = sprinkles({flexShrink: "0", display: "block"});
 
@@ -13,6 +13,7 @@ export function Spacer({
 }: {
     space:
         | Spacing
+        | RemLength
         | `safe-area-inset-${"top" | "bottom" | "left" | "right"}`
         | {
               desktop: Spacing | `safe-area-inset-${"top" | "bottom" | "left" | "right"}`;
@@ -21,6 +22,8 @@ export function Spacer({
 }) {
     return typeof space === "object" ? (
         <span className={`${spacerClassName} ${sprinkles({width: space, height: space})}`} />
+    ) : isRemLength(space) ? (
+        <span className={spacerClassName} style={{width: space, height: space}} />
     ) : (
         <span
             className={spacerClassName}

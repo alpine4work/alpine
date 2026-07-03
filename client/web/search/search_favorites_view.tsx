@@ -50,15 +50,14 @@ import {useCurrentTimeRoundedToHour} from "~/client/web/remix/use_current_time_r
 import {useNavigate, useRootNavigate} from "~/client/web/remix/use_navigate.js";
 import {RpcCacheContext} from "~/client/web/rpc/rpc_cache.js";
 import {forceRevalidateSearchByAffinity} from "~/client/web/search/core/force_revalidate_search_by_affinity.js";
-import {getSearchEntityPath} from "~/client/web/search/core/get_search_entity_path.js";
 import {useSearchEntityModel} from "~/client/web/search/core/search_entity_registry_context.js";
 import {
     subscribeToUpdateSearchFavoriteEntityMenuAction,
     updateSearchFavoriteEntityMenuAction,
 } from "~/client/web/search/core/use_search_favorite_affinity_entity_menu_action.js";
 import {SearchAffinityEntityView} from "~/client/web/search/search_affinity_entity_view.js";
+import {useSpaceContext} from "~/client/web/spaces/context/space_context.js";
 import {useAddGlobalLoadingIndicator} from "~/client/web/spaces/global_loading_indicator.js";
-import {useSpaceContext} from "~/client/web/spaces/space_context.js";
 import {peekNarrowLayoutWidth} from "~/client/web/styles/peek_shared_styles.js";
 import {
     searchAffinityEntityViewMinHeightPx,
@@ -80,6 +79,7 @@ import {
     unfavoriteSearchEntity,
 } from "~/shared/rpc/search_rpc_definitions.js";
 import {updateSpaceAccountSettings} from "~/shared/rpc/spaces_rpc_definitions.js";
+import {getSearchEntityPath} from "~/shared/search/path/get_search_entity_path.js";
 import {SearchAffinityEntityId} from "~/shared/search/search_entity_id.js";
 import {SearchFavoriteEntityResultModel} from "~/shared/search/search_entity_result_model.js";
 import {

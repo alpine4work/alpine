@@ -22,6 +22,11 @@ import {
 } from "~/server/helpers/files_cloudflare_r2_bucket_name.js";
 import {runProcess} from "~/server/helpers/node/run_process.js";
 import {runfilesPath} from "~/server/helpers/node/runfiles_path.js";
+import {LanguageModelsNoopDevelopmentContextModule} from "~/server/language_models/language_models_noop_development_context_module.js";
+import {
+    LanguageModelsGenerateObjectOptions,
+    LanguageModelsGenerateObjectResult,
+} from "~/server/language_models/language_models_types.js";
 import {ShutdownManager} from "~/server/node/shutdown_manager.js";
 import {TestSession} from "~/server/spaces/test_helpers/test_session.js";
 import {TestSpace} from "~/server/spaces/test_helpers/test_space.js";
@@ -49,6 +54,12 @@ const jpegTestFixturePath = joinPath(
 );
 
 const testlogsPath = joinPath(assertExists(process.env.TEST_UNDECLARED_OUTPUTS_DIR));
+const testResizeFileAnalysisResult = {tags: ["resize test"]};
+const testResizeFileAnalysis = {
+    isProcessing: false,
+    ok: true,
+    result: testResizeFileAnalysisResult,
+} as const;
 
 const {shutdownManager, shutdown} = ShutdownManager.new({
     tracer: testTracer,
@@ -73,7 +84,10 @@ const context = createTestContext({
             job.type === "ProcessFileHeavy"
         ) {
             await processFile(
-                actionContext.clone({r2: new CloudflareR2ContextModule(r2Client)}),
+                actionContext.clone({
+                    r2: new CloudflareR2ContextModule(r2Client),
+                    languageModels: new TestResizeFileLanguageModelsContextModule(),
+                }),
                 span,
                 {
                     spaceId: job.spaceId,
@@ -185,6 +199,21 @@ async function uploadFileForTest(
     return getFileAsUploader(session.action(), fileId);
 }
 
+class TestResizeFileLanguageModelsContextModule extends LanguageModelsNoopDevelopmentContextModule {
+    override async generateObject<ObjectType>(
+        options: LanguageModelsGenerateObjectOptions<ObjectType>,
+    ): Promise<LanguageModelsGenerateObjectResult<ObjectType>> {
+        return {
+            object: options.schema.deserialize(testResizeFileAnalysisResult as never),
+            text: JSON.stringify(testResizeFileAnalysisResult),
+        };
+    }
+
+    override fork(): TestResizeFileLanguageModelsContextModule {
+        return new TestResizeFileLanguageModelsContextModule();
+    }
+}
+
 test("can\u2019t resize an image with a session actor", async () => {
     const space = await TestSpace.create(context);
     const session = await space.createSession();
@@ -202,6 +231,8 @@ test("can\u2019t resize an image with a session actor", async () => {
             contentLength: 33102,
             isUploading: false,
             alternative: null,
+            analysis: testResizeFileAnalysis,
+            transcript: null,
             preview: {
                 type: "Image",
                 isProcessing: false,
@@ -244,6 +275,8 @@ test("can\u2019t resize an image with a token that\u2019s not from edge service 
             contentLength: 33102,
             isUploading: false,
             alternative: null,
+            analysis: testResizeFileAnalysis,
+            transcript: null,
             preview: {
                 type: "Image",
                 isProcessing: false,
@@ -310,6 +343,8 @@ const testsByFileWebSafeImageContentType: {[Key in FileWebSafeImageContentType]:
                     contentLength: 33102,
                     isUploading: false,
                     alternative: null,
+                    analysis: testResizeFileAnalysis,
+                    transcript: null,
                     preview: {
                         type: "Image",
                         isProcessing: false,
@@ -434,6 +469,8 @@ const testsByFileWebSafeImageContentType: {[Key in FileWebSafeImageContentType]:
                     contentLength: 76547,
                     isUploading: false,
                     alternative: null,
+                    analysis: testResizeFileAnalysis,
+                    transcript: null,
                     preview: {
                         type: "Image",
                         isProcessing: false,
@@ -527,6 +564,8 @@ const testsByFileWebSafeImageContentType: {[Key in FileWebSafeImageContentType]:
                     contentLength: 103683,
                     isUploading: false,
                     alternative: null,
+                    analysis: testResizeFileAnalysis,
+                    transcript: null,
                     preview: {
                         type: "Image",
                         isProcessing: false,
@@ -624,6 +663,8 @@ const testsByFileWebSafeImageContentType: {[Key in FileWebSafeImageContentType]:
                         contentLength: 118405,
                         isUploading: false,
                         alternative: null,
+                        analysis: testResizeFileAnalysis,
+                        transcript: null,
                         preview: {
                             type: "Image",
                             isProcessing: false,
@@ -686,6 +727,8 @@ const testsByFileWebSafeImageContentType: {[Key in FileWebSafeImageContentType]:
                     contentLength: 61968,
                     isUploading: false,
                     alternative: null,
+                    analysis: testResizeFileAnalysis,
+                    transcript: null,
                     preview: {
                         type: "Image",
                         isProcessing: false,
@@ -945,6 +988,8 @@ const testsByFileWebSafeImageContentType: {[Key in FileWebSafeImageContentType]:
                     contentLength: 74432,
                     isUploading: false,
                     alternative: null,
+                    analysis: testResizeFileAnalysis,
+                    transcript: null,
                     preview: {
                         type: "Image",
                         isProcessing: false,
@@ -1068,6 +1113,8 @@ const testsByFileWebSafeImageContentType: {[Key in FileWebSafeImageContentType]:
                     contentLength: 24923,
                     isUploading: false,
                     alternative: null,
+                    analysis: testResizeFileAnalysis,
+                    transcript: null,
                     preview: {
                         type: "Image",
                         isProcessing: false,
@@ -1164,6 +1211,12 @@ const testsByFileWebSafeImageContentType: {[Key in FileWebSafeImageContentType]:
                     contentLength: 10448,
                     isUploading: false,
                     alternative: null,
+                    analysis: {
+                        isProcessing: false,
+                        ok: false,
+                        error: {type: "Unknown"},
+                    },
+                    transcript: null,
                     preview: {
                         type: "Image",
                         isProcessing: false,
@@ -1199,6 +1252,8 @@ const testsByFileWebSafeImageContentType: {[Key in FileWebSafeImageContentType]:
                     contentLength: 60260,
                     isUploading: false,
                     alternative: null,
+                    analysis: testResizeFileAnalysis,
+                    transcript: null,
                     preview: {
                         type: "Image",
                         isProcessing: false,
@@ -1322,6 +1377,8 @@ const testsByFileWebSafeImageContentType: {[Key in FileWebSafeImageContentType]:
                     contentLength: 22500,
                     isUploading: false,
                     alternative: null,
+                    analysis: testResizeFileAnalysis,
+                    transcript: null,
                     preview: {
                         type: "Image",
                         isProcessing: false,
@@ -1416,6 +1473,8 @@ const testsByFileWebSafeImageContentType: {[Key in FileWebSafeImageContentType]:
                     contentLength: 4701,
                     isUploading: false,
                     alternative: null,
+                    analysis: testResizeFileAnalysis,
+                    transcript: null,
                     preview: {
                         type: "Image",
                         isProcessing: false,
@@ -1477,6 +1536,8 @@ test("can resize a HEIC image\u2019s preview", async () => {
                 contentLength: expect.any(Number),
                 isImagePreviewContent: true,
             },
+            analysis: testResizeFileAnalysis,
+            transcript: null,
             preview: {
                 type: "Image",
                 isProcessing: false,
@@ -1620,6 +1681,8 @@ test("will crop when resizing an image beyond our vertical aspect ratio limit", 
             contentLength: 108552,
             isUploading: false,
             alternative: null,
+            analysis: testResizeFileAnalysis,
+            transcript: null,
             preview: {
                 type: "Image",
                 isProcessing: false,
@@ -1765,6 +1828,8 @@ test("will crop when resizing an image beyond our horizontal aspect ratio limit"
             contentLength: 140556,
             isUploading: false,
             alternative: null,
+            analysis: testResizeFileAnalysis,
+            transcript: null,
             preview: {
                 type: "Image",
                 isProcessing: false,

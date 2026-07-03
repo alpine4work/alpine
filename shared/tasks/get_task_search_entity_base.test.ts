@@ -26,6 +26,7 @@ import {
     TaskTitleModel,
     addFallbackToTaskTitle,
     createTaskTitleFromText,
+    randomlyGenerateTaskTitleClientId,
 } from "~/shared/tasks/title/task_title.js";
 
 function makeRawData({
@@ -79,7 +80,9 @@ function makeRawData({
         assignee: new TaskAssigneeWithSortableAccountRegister(assignee, createdTime),
         assigneeStatus: new TaskAssigneeStatusRegister(assigneeStatus, assigneeStatusVersion),
         assigneePosition: new TaskAssigneePositionRegister(null, createdTime),
-        title: new TaskTitleModel(createTaskTitleFromText(title)),
+        title: new TaskTitleModel(
+            createTaskTitleFromText(randomlyGenerateTaskTitleClientId(), title),
+        ),
         dueDate: new TaskDueDateRegister(null, createdTime),
         priority: new TaskPriorityRegister(null, createdTime),
         layout: null,

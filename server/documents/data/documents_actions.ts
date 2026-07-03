@@ -2047,11 +2047,14 @@ export async function getDocumentCommentThreadContent(
     );
 
     const fallbackContentSnippet = commentThreadItem.fallbackContentSnippet
-        ? assertDocumentWithOptionalTitleContent(
-              stripDocumentContentCommentMarks(commentThreadItem.fallbackContentSnippet.node, {
-                  exceptCommentThreadIds: new Set([commentThreadItem.commentThreadId]),
-              }),
-          )
+        ? {
+              version: commentThreadItem.fallbackContentSnippet.version,
+              node: assertDocumentWithOptionalTitleContent(
+                  stripDocumentContentCommentMarks(commentThreadItem.fallbackContentSnippet.node, {
+                      exceptCommentThreadIds: new Set([commentThreadItem.commentThreadId]),
+                  }),
+              ),
+          }
         : null;
 
     return {
@@ -3257,7 +3260,7 @@ export async function updateDocumentContent(
                                     // should also drop the `accessPolicy` attr on `doc`.
                                     node: assertDocumentWithOptionalTitleContent(
                                         DocumentWithOptionalTitleContentProsemirrorSchema.nodeFromJSON(
-                                            contentSnippet.toJSON(),
+                                            contentSnippet.node.toJSON(),
                                         ),
                                     ),
                                 },
@@ -3525,9 +3528,9 @@ export async function updateDocumentContent(
                     invertedSteps,
                     clientId,
                     createdTime: currentTime,
-                    // TODO: When the actor is a bot, resolve the human account that triggered the bot
-                    // action. Currently bot-applied steps will attribute both fields to the bot's
-                    // account.
+                    // TODO(#bot-attribution): When the actor is a bot, resolve the human account that
+                    // triggered the bot action. Currently bot-applied steps will attribute both fields
+                    // to the bot's account.
                     accountId: context.actor.getPossiblyBotAccountId(),
                     fromBotAccountId:
                         context.actor.type === "Bot" ? context.actor.getBotAccountId() : null,

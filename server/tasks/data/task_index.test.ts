@@ -125,6 +125,42 @@ test("can\u2019t update task from a different space", async () => {
     );
 });
 
+test("indexes task access policy from create action", async () => {
+    const space = await TestSpace.create(context);
+    const session1 = await space.createSession();
+    const taskId = generateId<TaskId>();
+    const time = clock.now();
+    const accessPolicy = {
+        type: "Local" as const,
+        accountGrantById: new Map(),
+        defaultGrant: {level: "Manage" as const, generation: 0},
+        urlGrant: null,
+    };
+
+    await indexTaskActionTransactionAssumingItsCommittedForTest(
+        context.systemAction(space.id),
+        space.id,
+        null,
+        [
+            {
+                type: "UpdateTask",
+                time,
+                taskId,
+                taskAction: {
+                    type: "Create",
+                    creator: {accountId: session1.account.id, from: null},
+                    creatorTimeZone: defaultTimeZone,
+                    accessPolicy,
+                },
+            },
+        ],
+    );
+
+    expect((await getTaskIndexDocIfExistsForTest(context, space.id, taskId))?.accessPolicy).toEqual(
+        {value: accessPolicy, version: time},
+    );
+});
+
 test("can\u2019t update collection from a different space", async () => {
     const space = await TestSpace.create(context);
     const otherSpace = await TestSpace.create(context);

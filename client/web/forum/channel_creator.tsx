@@ -27,7 +27,7 @@ import {
     useCurrentTimeRoundedToHour,
 } from "~/client/web/remix/use_current_time_rounded_to_hour.js";
 import {useNavigate} from "~/client/web/remix/use_navigate.js";
-import {useSpaceContextAndRequireSpaceAccess} from "~/client/web/spaces/space_context.js";
+import {useSpaceContextAndRequireSpaceAccess} from "~/client/web/spaces/context/space_context.js";
 import {
     channelCreatorDescriptionFieldMinHeightPx,
     channelCreatorDescriptionFieldPaddingX,
@@ -174,8 +174,6 @@ export function ChannelCreator({
                                 description: descriptionState.getDoc(),
                                 accessPolicy: !isPublic
                                     ? {
-                                          // TODO(#sites): We probably want to add a prop if the channel is being directly
-                                          // added to a site (create within site).
                                           type: "Local",
                                           accountGrantById: new Map([
                                               [currentAccount.id, {level: "Manage", generation: 0}],

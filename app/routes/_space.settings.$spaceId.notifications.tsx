@@ -14,7 +14,7 @@ import {useLoaderDataWithSchema} from "~/client/web/remix/use_loader_data_with_s
 import {
     useMyAccountWebSocket,
     useSpaceContextAndRequireSpaceAccess,
-} from "~/client/web/spaces/space_context.js";
+} from "~/client/web/spaces/context/space_context.js";
 import {jsonWithSchema} from "~/server/remix/json_with_schema.js";
 import {LoaderArgs} from "~/server/remix/loader_context.js";
 import {spacing} from "~/shared/design/core/spacing.js";

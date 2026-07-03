@@ -13,7 +13,7 @@ import {Spacer} from "~/client/web/design/spacer.js";
 import {getClientInfo} from "~/client/web/remix/client_info_context.js";
 import {usePlatform} from "~/client/web/remix/platform_context.js";
 import {useSpacingScale} from "~/client/web/remix/spacing_scale_context.js";
-import {useSpaceContext} from "~/client/web/spaces/space_context.js";
+import {useSpaceContext} from "~/client/web/spaces/context/space_context.js";
 import {messageInputEditorPaddingYPx} from "~/client/web/styles/messaging_shared_styles.js";
 import {colorSchemeVars, contentStyles, sprinkles} from "~/client/web/styles/styles.js";
 import {ShareNotification} from "~/shared/access/share_notification.js";

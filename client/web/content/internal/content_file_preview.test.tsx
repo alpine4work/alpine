@@ -108,6 +108,8 @@ test("will refresh signed URL when it\u2019s about to expire", async () => {
                         contentLength: 1200 ** 2,
                         isUploading: false,
                         alternative: null,
+                        analysis: null,
+                        transcript: null,
                         preview: {
                             type: "Image",
                             isProcessing: false,

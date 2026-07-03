@@ -1,11 +1,20 @@
 import {routeFileToProcessor} from "~/server/files/data/route_file_to_processor.js";
 import {FileContentType} from "~/shared/files/file_content_type.js";
+import {SpaceId} from "~/shared/id/types/id_types.js";
+import {alpineCompanyKnownSpaceId} from "~/shared/spaces/known_space_ids.js";
 
 const oneKb = 1024;
 const oneMb = 1024 * oneKb;
 const tenMb = 10 * oneMb;
+const twentyFiveMb = 25 * oneMb;
 const fiftyMb = 50 * oneMb;
 const oneHundredMb = 100 * oneMb;
+const originalNodeEnv = process.env.NODE_ENV;
+const nonInternalSpaceId = "space-id-not-internal" as SpaceId;
+
+afterEach(() => {
+    process.env.NODE_ENV = originalNodeEnv;
+});
 
 describe("routeFileToProcessor", () => {
     describe("large files rule", () => {
@@ -164,47 +173,57 @@ describe("routeFileToProcessor", () => {
     });
 
     describe("large web-safe audio rule", () => {
-        test("routes large MP3 files (>50MB) to heavy compute", () => {
+        test("routes MP3 files over 25MB to heavy compute", () => {
             const result = routeFileToProcessor({
                 contentType: "audio/mpeg",
-                contentLength: fiftyMb + oneKb,
+                contentLength: twentyFiveMb + oneKb,
             });
 
             expect(result.jobType).toEqual("ProcessFileHeavy");
-            expect(result.reason).toEqual("large_web_safe_audio_heavy");
+            expect(result.reason).toEqual("analysis_web_safe_audio_heavy");
         });
 
-        test("routes large WAV files (>50MB) to heavy compute", () => {
+        test("routes WAV files over 25MB to heavy compute", () => {
             const result = routeFileToProcessor({
                 contentType: "audio/wav",
-                contentLength: fiftyMb + oneKb,
+                contentLength: twentyFiveMb + oneKb,
             });
 
             expect(result.jobType).toEqual("ProcessFileHeavy");
-            expect(result.reason).toEqual("large_web_safe_audio_heavy");
+            expect(result.reason).toEqual("analysis_web_safe_audio_heavy");
         });
 
-        test("routes large WebM audio files (>50MB) to heavy compute", () => {
+        test("routes WebM audio files over 25MB to heavy compute", () => {
             const result = routeFileToProcessor({
                 contentType: "audio/webm",
-                contentLength: fiftyMb + oneKb,
+                contentLength: twentyFiveMb + oneKb,
             });
 
             expect(result.jobType).toEqual("ProcessFileHeavy");
-            expect(result.reason).toEqual("large_web_safe_audio_heavy");
+            expect(result.reason).toEqual("analysis_web_safe_audio_heavy");
         });
 
-        test("routes small MP3 files (<50MB) to light compute", () => {
+        test("routes MP3 files under 25MB to light compute", () => {
             const result = routeFileToProcessor({
                 contentType: "audio/mpeg",
-                contentLength: fiftyMb - oneKb,
+                contentLength: twentyFiveMb - oneKb,
             });
 
             expect(result.jobType).toEqual("ProcessFileLight");
             expect(result.reason).toEqual("default");
         });
 
-        test("routes audio files exactly at 50MB threshold to heavy compute", () => {
+        test("routes MP3 files exactly at 25MB to light compute", () => {
+            const result = routeFileToProcessor({
+                contentType: "audio/mpeg",
+                contentLength: twentyFiveMb,
+            });
+
+            expect(result.jobType).toEqual("ProcessFileLight");
+            expect(result.reason).toEqual("default");
+        });
+
+        test("routes 50MB MP3 files to heavy compute", () => {
             const result = routeFileToProcessor({
                 contentType: "audio/mpeg",
                 contentLength: fiftyMb,
@@ -212,6 +231,55 @@ describe("routeFileToProcessor", () => {
 
             expect(result.jobType).toEqual("ProcessFileHeavy");
             expect(result.reason).toEqual("large_web_safe_audio_heavy");
+        });
+
+        test("routes 100MB MP3 files to heavy compute", () => {
+            const result = routeFileToProcessor({
+                contentType: "audio/mpeg",
+                contentLength: oneHundredMb,
+            });
+
+            expect(result.jobType).toEqual("ProcessFileHeavy");
+            expect(result.reason).toEqual("large_files_always_heavy");
+        });
+
+        test("routes MP3 files over 25MB to light compute in non-internal production spaces", () => {
+            process.env.NODE_ENV = "production";
+
+            const result = routeFileToProcessor({
+                contentType: "audio/mpeg",
+                contentLength: twentyFiveMb + oneKb,
+                spaceId: nonInternalSpaceId,
+            });
+
+            expect(result.jobType).toEqual("ProcessFileLight");
+            expect(result.reason).toEqual("default");
+        });
+
+        test("routes 50MB MP3 files to heavy compute in non-internal production spaces", () => {
+            process.env.NODE_ENV = "production";
+
+            const result = routeFileToProcessor({
+                contentType: "audio/mpeg",
+                contentLength: fiftyMb,
+                spaceId: nonInternalSpaceId,
+            });
+
+            expect(result.jobType).toEqual("ProcessFileHeavy");
+            expect(result.reason).toEqual("large_web_safe_audio_heavy");
+        });
+
+        test("routes MP3 files over 25MB to heavy compute in internal production spaces", () => {
+            process.env.NODE_ENV = "production";
+
+            const result = routeFileToProcessor({
+                contentType: "audio/mpeg",
+                contentLength: twentyFiveMb + oneKb,
+                spaceId: alpineCompanyKnownSpaceId,
+            });
+
+            expect(result.jobType).toEqual("ProcessFileHeavy");
+            expect(result.reason).toEqual("analysis_web_safe_audio_heavy");
         });
     });
 

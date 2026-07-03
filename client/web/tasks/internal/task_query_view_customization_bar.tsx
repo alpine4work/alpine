@@ -55,6 +55,7 @@ function TaskQueryViewCustomizationBar(
         sorts,
         onSortsChange,
         defaultOrderSentence,
+        hasAllDefaults = true,
         initiallyFocus = null,
         excludeFilters,
     }: {
@@ -70,6 +71,7 @@ function TaskQueryViewCustomizationBar(
         sorts: ReadonlyArray<TaskQuerySort>;
         onSortsChange: (sorts: ReadonlyArray<TaskQuerySort>) => void;
         defaultOrderSentence: string;
+        hasAllDefaults?: boolean;
         initiallyFocus?: "AddFilter" | "AddSort" | null;
         /**
          * Filter types to exclude from the add filter menu.
@@ -83,7 +85,8 @@ function TaskQueryViewCustomizationBar(
     const addFilterMenuRef = useRef<OverlayTriggerButtonRef>(null);
     const sortsOverlayRef = useRef<OverlayTriggerButtonRef>(null);
 
-    const shouldCollapse = shouldCollapseWhenFiltersAreEmpty && filters.length === 0;
+    const shouldCollapse =
+        shouldCollapseWhenFiltersAreEmpty && filters.length === 0 && hasAllDefaults;
 
     const firstCollectionsFilterOperationValueTriggerButtonRef =
         useRef<OverlayTriggerButtonRef>(null);
@@ -143,7 +146,11 @@ function TaskQueryViewCustomizationBar(
                 alignItems="center"
                 gap="2"
                 minWidth="flex-fit"
-                marginLeft={shouldCollapse ? "-2" : undefined}
+                marginLeft={
+                    shouldCollapse || (filters.length === 0 && shouldCollapseWhenFiltersAreEmpty)
+                        ? "-2"
+                        : undefined
+                }
             >
                 {filters.map((filter, index) => {
                     // The first collections filter should get our ref.
@@ -197,7 +204,11 @@ function TaskQueryViewCustomizationBar(
                             </IconButton>
                         ) : (
                             <Button
-                                variant={shouldCollapse ? "quiet" : "neutral"}
+                                variant={
+                                    shouldCollapse || shouldCollapseWhenFiltersAreEmpty
+                                        ? "quiet"
+                                        : "neutral"
+                                }
                                 icon={<Plus />}
                                 height={taskQueryFilterEditorDesktopHeight}
                                 paddingX="2"

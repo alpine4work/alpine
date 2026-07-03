@@ -12,7 +12,11 @@ import {SearchAffinityEntityModel, SearchEntityModel} from "~/shared/search/sear
 import {SearchFavoriteEntityResultModel} from "~/shared/search/search_entity_result_model.js";
 import {AccountModel} from "~/shared/spaces/account_model.js";
 import {createTestAccountModel} from "~/shared/spaces/test_helpers/account_model_test_helpers.js";
-import {TaskTitleModel, createTaskTitleFromText} from "~/shared/tasks/title/task_title.js";
+import {
+    TaskTitleModel,
+    createTaskTitleFromText,
+    randomlyGenerateTaskTitleClientId,
+} from "~/shared/tasks/title/task_title.js";
 
 // Regression tests for the outer/inner discriminator collision in
 // `SearchEntityResultModelSchema`. The outer wrapper must not overwrite the inner
@@ -93,7 +97,7 @@ describe("SearchFavoriteEntityResultModel schema roundtrip", () => {
                 task: {
                     id: taskId,
                     titleSnapshot: new TaskTitleModel(
-                        createTaskTitleFromText("task"),
+                        createTaskTitleFromText(randomlyGenerateTaskTitleClientId(), "task"),
                     ).getSnapshot(),
                     displayStatus: {value: "OpenInactive", version: [0, 0]},
                 },

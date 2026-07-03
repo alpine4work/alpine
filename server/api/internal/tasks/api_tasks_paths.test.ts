@@ -1,22 +1,98 @@
 import {CalendarDate} from "@internationalized/date";
+import {ApiServiceBotActionContext} from "~/server/api/internal/shared/api_service_context.js";
 import {apiTasksPaths} from "~/server/api/internal/tasks/api_tasks_paths.js";
 import {createTestApiServer} from "~/server/api/internal/test_helpers/create_test_api_server.js";
 import {TestBot} from "~/server/bots/test_helpers/test_bot.js";
 import {createTestContext} from "~/server/dynamo/test_helpers/create_test_context.js";
 import {TestSpace} from "~/server/spaces/test_helpers/test_space.js";
+import {backfillTaskActionTransactionHistory} from "~/server/tasks/data/backfill_task_action_transaction_history.js";
+import {getTaskNotesContentSteps} from "~/server/tasks/data/get_task_notes_content_steps.js";
+import {getTaskNotesContentWithoutReferences} from "~/server/tasks/data/get_task_notes_content_without_references.js";
 import {tasksInjection} from "~/server/tasks/data/tasks_injection.js";
 import {getTaskItemForTest} from "~/server/tasks/data/test_helpers/get_task_item_for_test.js";
 import {TestTask} from "~/server/tasks/data/test_helpers/test_task.js";
 import {TestTaskCollection} from "~/server/tasks/data/test_helpers/test_task_collection.js";
+import {updateTaskNotesContent} from "~/server/tasks/data/update_task_notes_content.js";
 import {TestTaskRealtimeServer} from "~/server/tasks/realtime/test_helpers/test_task_realtime_server.js";
 import {ProcessContextModule} from "~/shared/context/process_context_module.js";
+import {InternalError} from "~/shared/error/error.js";
 import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
-import {generateId} from "~/shared/id/id.js";
+import {assertId, generateId} from "~/shared/id/id.js";
 import {TaskCollectionId, TaskId} from "~/shared/id/types/id_types.js";
+import {diffProsemirrorNodes} from "~/shared/prosemirror/diff_prosemirror_nodes.js";
+import {
+    TaskNotesCollaborationUpdateContentWithDiffRequestBodySchema,
+    TaskNotesCollaborationUpdateContentWithDiffResponseBodySchema,
+} from "~/shared/tasks/task_notes_collaboration_protocol.js";
+import {
+    TaskNotesContentProsemirrorSchema,
+    assertTaskNotesContent,
+} from "~/shared/tasks/task_notes_content_schema.js";
 
 const baseContext = createTestContext({
     shouldStartOpensearch: true,
     tasksInjection,
+    sendRequestToDurableObject: async (actualContext, request) => {
+        const match = request.url.match(
+            /^\/api\/durable-objects\/task-notes\/([^/]+)\/update-content-with-diff/,
+        );
+        if (!match) return;
+
+        const context = (actualContext as ApiServiceBotActionContext).dynamo
+            // Strong consistency isn't required since this logic is test-only. So all requests
+            // will be strong consistency implicitly.
+            .unexpectStrongReadConsistency();
+
+        const taskId = assertId<TaskId>(match[1]!);
+
+        const requestBody =
+            TaskNotesCollaborationUpdateContentWithDiffRequestBodySchema.deserialize(
+                request.body ?? null,
+            );
+
+        const taskNotes = await getTaskNotesContentWithoutReferences(context, taskId);
+
+        const invertedSteps =
+            requestBody.version < taskNotes.version
+                ? await getTaskNotesContentSteps(context, {
+                      taskId,
+                      startVersion: requestBody.version,
+                      endVersion: taskNotes.version,
+                  })
+                : [];
+
+        let oldContent = taskNotes.content;
+
+        for (let index = invertedSteps.length - 1; index >= 0; index--) {
+            const step = invertedSteps[index]!;
+            const stepResult = step.invertedStep.apply(oldContent);
+            if (!stepResult.doc) throw new InternalError(stepResult.failed!);
+            oldContent = assertTaskNotesContent(stepResult.doc);
+        }
+
+        const requestContent = assertTaskNotesContent(
+            TaskNotesContentProsemirrorSchema.nodes.doc.create(null, requestBody.content),
+        );
+
+        const steps = diffProsemirrorNodes(oldContent, requestContent);
+
+        const {newVersion} = await updateTaskNotesContent(context, {
+            spaceId: taskNotes.spaceId,
+            taskId,
+            clientVersion: requestBody.version,
+            clientSteps: steps,
+            clientId: generateId(),
+        });
+
+        const newTaskNotes = await getTaskNotesContentWithoutReferences(context, taskId);
+
+        return TaskNotesCollaborationUpdateContentWithDiffResponseBodySchema.serialize({
+            ok: true,
+            spaceId: taskNotes.spaceId,
+            newVersion,
+            newContent: newTaskNotes.content,
+        });
+    },
 });
 
 const context = TestTaskRealtimeServer.with(baseContext);
@@ -84,18 +160,21 @@ test("can read task with notes content", async () => {
             task: expect.objectContaining({
                 id: task.id,
                 title: "Task with Notes",
-                content: expect.objectContaining({
-                    elements: expect.arrayContaining([
-                        expect.objectContaining({
-                            type: "Paragraph",
-                            elements: expect.arrayContaining([
-                                expect.objectContaining({
-                                    type: "Text",
-                                    text: "These are some task notes with important details.",
-                                }),
-                            ]),
-                        }),
-                    ]),
+                notes: expect.objectContaining({
+                    version: 1,
+                    content: expect.objectContaining({
+                        elements: expect.arrayContaining([
+                            expect.objectContaining({
+                                type: "Paragraph",
+                                elements: expect.arrayContaining([
+                                    expect.objectContaining({
+                                        type: "Text",
+                                        text: "These are some task notes with important details.",
+                                    }),
+                                ]),
+                            }),
+                        ]),
+                    }),
                 }),
             }),
         }),
@@ -244,6 +323,40 @@ test("can read task with inactive status", async () => {
     });
 });
 
+test("does not return deleted task collections when reading a task", async () => {
+    const space = await TestSpace.create(context);
+    const session = await space.createSession({name: "Alice Smith", role: "Admin"});
+
+    const bot = await TestBot.createAndInstantiate(session);
+    const apiKey = await bot.createApiKey(session);
+
+    const activeCollection = await TestTaskCollection.create(session, {name: "Active"});
+    const deletedCollection = await TestTaskCollection.create(session, {name: "Deleted"});
+    const task = await TestTask.create(session, {
+        title: "Task with stale collection",
+        collections: [activeCollection, deletedCollection],
+    });
+
+    await deletedCollection.delete(session);
+    await ProcessContextModule.waitForTestTasks();
+
+    expect(
+        await server.GET(`/tasks/${task.id}`, {
+            headers: {authorization: `bearer ${apiKey}`},
+        }),
+    ).toEqual({
+        status: 200,
+        headers: expect.objectContaining({"content-type": "application/json"}),
+        body: expect.objectContaining({
+            spaceId: space.id,
+            task: expect.objectContaining({
+                id: task.id,
+                collections: [{collection: {id: activeCollection.id}}],
+            }),
+        }),
+    });
+});
+
 test("can read task with high priority", async () => {
     const space = await TestSpace.create(context);
     const session = await space.createSession({name: "Alice Smith", role: "Admin"});
@@ -352,13 +465,18 @@ test("can create an empty task", async () => {
                 creator: {id: bot.id},
                 status: {type: "Open", isActive: false},
                 title: "",
-                content: {
-                    elements: [
-                        {
-                            type: "Paragraph",
-                            elements: [],
-                        },
-                    ],
+                collections: [],
+                notes: {
+                    version: 0,
+                    content: {
+                        elements: [
+                            {
+                                type: "Paragraph",
+                                key: expect.any(String),
+                                elements: [],
+                            },
+                        ],
+                    },
                 },
             },
         },
@@ -375,6 +493,7 @@ test("can create a task with all fields", async () => {
 
     await ProcessContextModule.waitForTestTasks();
 
+    const startTime = new Date();
     const response = await server.POST("/tasks", {
         headers: {authorization: `bearer ${apiKey}`},
         body: {
@@ -411,22 +530,68 @@ test("can create a task with all fields", async () => {
                 }),
                 due: {date: "2026-12-31"},
                 priority: "High",
-                content: expect.objectContaining({
-                    elements: expect.arrayContaining([
-                        expect.objectContaining({
-                            type: "Paragraph",
-                            elements: expect.arrayContaining([
-                                expect.objectContaining({
-                                    type: "Text",
-                                    text: "Task notes here.",
-                                }),
-                            ]),
-                        }),
-                    ]),
+                notes: expect.objectContaining({
+                    version: 0,
+                    content: expect.objectContaining({
+                        elements: expect.arrayContaining([
+                            expect.objectContaining({
+                                type: "Paragraph",
+                                elements: expect.arrayContaining([
+                                    expect.objectContaining({
+                                        type: "Text",
+                                        text: "Task notes here.",
+                                    }),
+                                ]),
+                            }),
+                        ]),
+                    }),
                 }),
             }),
         }),
     });
+
+    const actor = {
+        accountId: bot.id,
+        from: {type: "Bot", accountId: bot.id},
+    };
+
+    expect(
+        await backfillTaskActionTransactionHistory(space.systemAction(), space.id, startTime),
+    ).toEqual([
+        expect.objectContaining({
+            actions: [
+                expect.objectContaining({
+                    type: "UpdateTask",
+                    taskId: response.body.task.id,
+                    taskAction: expect.objectContaining({type: "Create"}),
+                }),
+                expect.objectContaining({
+                    type: "UpdateTask",
+                    actor,
+                    taskId: response.body.task.id,
+                    taskAction: expect.objectContaining({type: "UpdateTitle"}),
+                }),
+                expect.objectContaining({
+                    type: "UpdateTask",
+                    actor,
+                    taskId: response.body.task.id,
+                    taskAction: expect.objectContaining({type: "UpdateAssignee"}),
+                }),
+                expect.objectContaining({
+                    type: "UpdateTask",
+                    actor,
+                    taskId: response.body.task.id,
+                    taskAction: expect.objectContaining({type: "UpdateDueDate"}),
+                }),
+                expect.objectContaining({
+                    type: "UpdateTask",
+                    actor,
+                    taskId: response.body.task.id,
+                    taskAction: expect.objectContaining({type: "UpdatePriority"}),
+                }),
+            ],
+        }),
+    ]);
 });
 
 test("can create a task with creator", async () => {
@@ -547,11 +712,67 @@ test("can create an active task without an assignee (auto-assigns bot)", async (
     });
 });
 
-// TODO: Add test for creating a subtask (parentTaskId) once we have a read format
-// for parent tasks. \
-// TODO: Add test for creating a task with layout once we have a read format. \
-// TODO: Add test for creating a task with collectionIds once we have a read format
-// for collection membership.
+test("can create a project task with parent task and collections", async () => {
+    const space = await TestSpace.create(context);
+    const session = await space.createSession({name: "Alice Smith", role: "Admin"});
+
+    const bot = await TestBot.createAndInstantiate(session);
+    const apiKey = await bot.createApiKey(session);
+
+    const parentTask = await TestTask.create(session, {title: "Parent task"});
+    const collections = await runAllPromises([
+        TestTaskCollection.create(session, {name: "Roadmap"}),
+        TestTaskCollection.create(session, {name: "Engineering"}),
+    ]);
+
+    await ProcessContextModule.waitForTestTasks();
+
+    const response = await server.POST("/tasks", {
+        headers: {authorization: `bearer ${apiKey}`},
+        body: {
+            spaceId: space.id,
+            task: {
+                title: "Project task",
+                layout: {type: "Project"},
+                parent: {task: {id: parentTask.id}},
+                collections: collections.map(collection => ({
+                    collection: {id: collection.id},
+                })),
+            },
+        },
+    });
+
+    expect(response).toMatchObject({
+        status: 200,
+        body: {
+            spaceId: space.id,
+            task: expect.objectContaining({
+                title: "Project task",
+                layout: {type: "Project"},
+                parent: {task: {id: parentTask.id}},
+                collections: collections.map(collection => ({
+                    collection: {id: collection.id},
+                })),
+            }),
+        },
+    });
+
+    const taskModel = await context
+        .getTaskRealtimeServer()
+        .action(session)
+        .tasks.getTaskWithoutDependencies(space.id, response.body.task.id, {
+            consistency: "StrongWithinCache",
+        });
+
+    expect(taskModel.getParent()?.taskId).toEqual(parentTask.id);
+    expect(taskModel.getLayout()).toEqual("Project");
+    expect(
+        taskModel
+            .getCollections()
+            .getArray()
+            .map(({collectionId}) => collectionId),
+    ).toEqual(collections.map(collection => collection.id));
+});
 
 // NOTE: File attachment is tested through the full API flow where the bot uploads
 // a file first via POST /files, then references it in the task content. The unit
@@ -569,9 +790,11 @@ test("can update a task title", async () => {
 
     await ProcessContextModule.waitForTestTasks();
 
+    const startTime = new Date();
     const response = await server.PATCH(`/tasks/${task.id}`, {
         headers: {authorization: `bearer ${apiKey}`},
         body: {
+            actor: {id: session.account.id},
             patches: [{type: "SetTitle", title: "Updated Title"}],
         },
     });
@@ -585,6 +808,154 @@ test("can update a task title", async () => {
             }),
         }),
     });
+
+    expect(
+        await backfillTaskActionTransactionHistory(space.systemAction(), space.id, startTime),
+    ).toEqual([
+        expect.objectContaining({
+            actions: [
+                expect.objectContaining({
+                    type: "UpdateTask",
+                    taskId: task.id,
+                    actor: {
+                        accountId: session.account.id,
+                        from: {type: "Bot", accountId: bot.id},
+                    },
+                    taskAction: expect.objectContaining({type: "UpdateTitle"}),
+                }),
+            ],
+        }),
+    ]);
+});
+
+test("returns 403 when updating a task with an actor outside the space", async () => {
+    const space = await TestSpace.create(context);
+    const otherSpace = await TestSpace.create(context);
+    const session = await space.createSession({name: "Alice Smith", role: "Admin"});
+    const otherSession = await otherSpace.createSession({name: "Mallory Example"});
+
+    const bot = await TestBot.createAndInstantiate(session);
+    const apiKey = await bot.createApiKey(session);
+
+    const task = await TestTask.create(session, {title: "Original Title"});
+
+    await ProcessContextModule.waitForTestTasks();
+
+    const response = await server.PATCH(`/tasks/${task.id}`, {
+        headers: {authorization: `bearer ${apiKey}`},
+        body: {
+            actor: {id: otherSession.account.id},
+            patches: [{type: "SetTitle", title: "Updated Title"}],
+        },
+    });
+
+    expect(response).toEqual({
+        status: 403,
+        headers: expect.objectContaining({"content-type": "application/json"}),
+        body: expect.objectContaining({
+            error: expect.objectContaining({
+                message: "API actor must be a member of the space",
+            }),
+        }),
+    });
+});
+
+test("can read task notes content", async () => {
+    const space = await TestSpace.create(context);
+    const session = await space.createSession({name: "Alice Smith", role: "Admin"});
+
+    const bot = await TestBot.createAndInstantiate(session);
+    const apiKey = await bot.createApiKey(session);
+
+    const task = await TestTask.create(session, {title: "Task with Notes"});
+    await task.typeNotes(session, "These are the task notes.");
+
+    await ProcessContextModule.waitForTestTasks();
+
+    const response = await server.GET(`/tasks/${task.id}/notes`, {
+        headers: {authorization: `bearer ${apiKey}`},
+    });
+
+    expect(response).toMatchObject({
+        status: 200,
+        body: expect.objectContaining({
+            spaceId: space.id,
+            notes: expect.objectContaining({
+                version: expect.any(Number),
+                content: expect.objectContaining({
+                    elements: expect.arrayContaining([
+                        expect.objectContaining({
+                            type: "Paragraph",
+                            elements: expect.arrayContaining([
+                                expect.objectContaining({
+                                    type: "Text",
+                                    text: "These are the task notes.",
+                                }),
+                            ]),
+                        }),
+                    ]),
+                }),
+            }),
+        }),
+    });
+});
+
+test("can update task notes content", async () => {
+    const space = await TestSpace.create(context);
+    const session = await space.createSession({name: "Alice Smith", role: "Admin"});
+
+    const bot = await TestBot.createAndInstantiate(session);
+    const apiKey = await bot.createApiKey(session);
+
+    const task = await TestTask.create(session, {title: "Task with Notes"});
+    await task.typeNotes(session, "Old notes");
+
+    await ProcessContextModule.waitForTestTasks();
+
+    const getResponse = await server.GET(`/tasks/${task.id}/notes`, {
+        headers: {authorization: `bearer ${apiKey}`},
+    });
+
+    const response = await server.PATCH(`/tasks/${task.id}/notes`, {
+        headers: {authorization: `bearer ${apiKey}`},
+        body: {
+            notes: {
+                version: getResponse.body.notes.version,
+                content: {
+                    elements: [
+                        {
+                            type: "Paragraph",
+                            elements: [{type: "Text", text: "Updated notes"}],
+                        },
+                    ],
+                },
+            },
+        },
+    });
+
+    expect(response).toMatchObject({
+        status: 200,
+        body: expect.objectContaining({
+            spaceId: space.id,
+            notes: expect.objectContaining({
+                version: expect.any(Number),
+                content: expect.objectContaining({
+                    elements: expect.arrayContaining([
+                        expect.objectContaining({
+                            type: "Paragraph",
+                            elements: expect.arrayContaining([
+                                expect.objectContaining({
+                                    type: "Text",
+                                    text: "Updated notes",
+                                }),
+                            ]),
+                        }),
+                    ]),
+                }),
+            }),
+        }),
+    });
+    expect(response.body.notes.version).toBeGreaterThan(getResponse.body.notes.version);
 });
 
 test("can update task status to closed", async () => {
@@ -628,9 +999,11 @@ test("can update multiple task fields at once", async () => {
 
     await ProcessContextModule.waitForTestTasks();
 
+    const startTime = new Date();
     const response = await server.PATCH(`/tasks/${task.id}`, {
         headers: {authorization: `bearer ${apiKey}`},
         body: {
+            actor: {id: session1.account.id},
             patches: [
                 {type: "SetTitle", title: "Updated Task"},
                 {type: "SetAssignee", assignee: session2.account.id},
@@ -654,6 +1027,44 @@ test("can update multiple task fields at once", async () => {
             }),
         }),
     });
+
+    const actor = {
+        accountId: session1.account.id,
+        from: {type: "Bot", accountId: bot.id},
+    };
+
+    expect(
+        await backfillTaskActionTransactionHistory(space.systemAction(), space.id, startTime),
+    ).toEqual([
+        expect.objectContaining({
+            actions: [
+                expect.objectContaining({
+                    type: "UpdateTask",
+                    actor,
+                    taskId: task.id,
+                    taskAction: expect.objectContaining({type: "UpdateTitle"}),
+                }),
+                expect.objectContaining({
+                    type: "UpdateTask",
+                    actor,
+                    taskId: task.id,
+                    taskAction: expect.objectContaining({type: "UpdateDueDate"}),
+                }),
+                expect.objectContaining({
+                    type: "UpdateTask",
+                    actor,
+                    taskId: task.id,
+                    taskAction: expect.objectContaining({type: "UpdatePriority"}),
+                }),
+                expect.objectContaining({
+                    type: "UpdateTask",
+                    actor,
+                    taskId: task.id,
+                    taskAction: expect.objectContaining({type: "UpdateAssignee"}),
+                }),
+            ],
+        }),
+    ]);
 });
 
 test("can clear nullable task fields with null", async () => {
@@ -697,6 +1108,85 @@ test("can clear nullable task fields with null", async () => {
     expect(response.body.task.assignee).toBeUndefined();
     expect(response.body.task.priority).toBeUndefined();
     expect(response.body.task.due).toBeUndefined();
+});
+
+test("can update task layout", async () => {
+    const space = await TestSpace.create(context);
+    const session = await space.createSession({name: "Alice Smith", role: "Admin"});
+
+    const bot = await TestBot.createAndInstantiate(session);
+    const apiKey = await bot.createApiKey(session);
+
+    const task = await TestTask.create(session, {title: "Layout Task"});
+
+    await ProcessContextModule.waitForTestTasks();
+
+    const projectResponse = await server.PATCH(`/tasks/${task.id}`, {
+        headers: {authorization: `bearer ${apiKey}`},
+        body: {
+            patches: [{type: "SetLayout", layout: {type: "Project"}}],
+        },
+    });
+
+    expect(projectResponse).toMatchObject({
+        status: 200,
+        body: {
+            task: expect.objectContaining({
+                id: task.id,
+                layout: {type: "Project"},
+            }),
+        },
+    });
+
+    const taskResponse = await server.PATCH(`/tasks/${task.id}`, {
+        headers: {authorization: `bearer ${apiKey}`},
+        body: {
+            patches: [{type: "SetLayout", layout: null}],
+        },
+    });
+
+    expect(taskResponse.status).toBe(200);
+    expect(taskResponse.body.task.layout).toBeUndefined();
+});
+
+test("can update and clear parent task", async () => {
+    const space = await TestSpace.create(context);
+    const session = await space.createSession({name: "Alice Smith", role: "Admin"});
+
+    const bot = await TestBot.createAndInstantiate(session);
+    const apiKey = await bot.createApiKey(session);
+
+    const parentTask = await TestTask.create(session, {title: "Parent task"});
+    const task = await TestTask.create(session, {title: "Child task"});
+
+    await ProcessContextModule.waitForTestTasks();
+
+    const setResponse = await server.PATCH(`/tasks/${task.id}`, {
+        headers: {authorization: `bearer ${apiKey}`},
+        body: {
+            patches: [{type: "SetParent", parent: {task: {id: parentTask.id}}}],
+        },
+    });
+
+    expect(setResponse).toMatchObject({
+        status: 200,
+        body: {
+            task: expect.objectContaining({
+                id: task.id,
+                parent: {task: {id: parentTask.id}},
+            }),
+        },
+    });
+
+    const clearResponse = await server.PATCH(`/tasks/${task.id}`, {
+        headers: {authorization: `bearer ${apiKey}`},
+        body: {
+            patches: [{type: "SetParent", parent: null}],
+        },
+    });
+
+    expect(clearResponse.status).toBe(200);
+    expect(clearResponse.body.task.parent).toBeUndefined();
 });
 
 test("patch only changes the fields that are passed", async () => {
@@ -1039,7 +1529,7 @@ test("adding collections through repeated patch requests appends them to the end
         const response = await server.PATCH(`/tasks/${task.id}`, {
             headers: {authorization: `bearer ${apiKey}`},
             body: {
-                patches: [{type: "AddCollection", collectionId: collection.id}],
+                patches: [{type: "AddCollection", item: {collection: {id: collection.id}}}],
             },
         });
 
@@ -1253,6 +1743,7 @@ test("can create a task collection", async () => {
 
     await ProcessContextModule.waitForTestTasks();
 
+    const startTime = new Date();
     const response = await server.POST("/task-collections", {
         headers: {authorization: `bearer ${apiKey}`},
         body: {
@@ -1277,6 +1768,29 @@ test("can create a task collection", async () => {
             }),
         }),
     });
+
+    expect(
+        await backfillTaskActionTransactionHistory(space.systemAction(), space.id, startTime),
+    ).toEqual([
+        expect.objectContaining({
+            actions: [
+                expect.objectContaining({
+                    type: "UpdateCollection",
+                    collectionId: response.body.collection.id,
+                    collectionAction: expect.objectContaining({type: "Create"}),
+                }),
+                expect.objectContaining({
+                    type: "UpdateCollection",
+                    actor: {
+                        accountId: bot.id,
+                        from: {type: "Bot", accountId: bot.id},
+                    },
+                    collectionId: response.body.collection.id,
+                    collectionAction: {type: "UpdateColor", color: "blue"},
+                }),
+            ],
+        }),
+    ]);
 });
 
 test("can create a task collection with creator", async () => {
@@ -1330,9 +1844,11 @@ test("can update a task collection name", async () => {
 
     await ProcessContextModule.waitForTestTasks();
 
+    const startTime = new Date();
     const response = await server.PATCH(`/task-collections/${collection.id}`, {
         headers: {authorization: `bearer ${apiKey}`},
         body: {
+            actor: {id: session.account.id},
             patches: [{type: "SetName", name: "Updated Name"}],
         },
     });
@@ -1343,6 +1859,59 @@ test("can update a task collection name", async () => {
             collection: expect.objectContaining({
                 id: collection.id,
                 name: "Updated Name",
+            }),
+        }),
+    });
+
+    expect(
+        await backfillTaskActionTransactionHistory(space.systemAction(), space.id, startTime),
+    ).toEqual([
+        expect.objectContaining({
+            actions: [
+                expect.objectContaining({
+                    type: "UpdateCollection",
+                    collectionId: collection.id,
+                    actor: {
+                        accountId: session.account.id,
+                        from: {type: "Bot", accountId: bot.id},
+                    },
+                    collectionAction: {type: "UpdateName", name: "Updated Name"},
+                }),
+            ],
+        }),
+    ]);
+});
+
+test("returns 403 when updating a task collection with an actor outside the space", async () => {
+    const space = await TestSpace.create(context);
+    const otherSpace = await TestSpace.create(context);
+    const session = await space.createSession({name: "Alice Smith", role: "Admin"});
+    const otherSession = await otherSpace.createSession({name: "Mallory Example"});
+
+    const bot = await TestBot.createAndInstantiate(session);
+    const apiKey = await bot.createApiKey(session);
+
+    const collection = await TestTaskCollection.create(session, {
+        name: "Original Name",
+        access: "Public",
+    });
+
+    await ProcessContextModule.waitForTestTasks();
+
+    const response = await server.PATCH(`/task-collections/${collection.id}`, {
+        headers: {authorization: `bearer ${apiKey}`},
+        body: {
+            actor: {id: otherSession.account.id},
+            patches: [{type: "SetName", name: "Updated Name"}],
+        },
+    });
+
+    expect(response).toEqual({
+        status: 403,
+        headers: expect.objectContaining({"content-type": "application/json"}),
+        body: expect.objectContaining({
+            error: expect.objectContaining({
+                message: "API actor must be a member of the space",
             }),
         }),
     });
@@ -1362,9 +1931,11 @@ test("can update multiple task collection fields at once", async () => {
 
     await ProcessContextModule.waitForTestTasks();
 
+    const startTime = new Date();
     const response = await server.PATCH(`/task-collections/${collection.id}`, {
         headers: {authorization: `bearer ${apiKey}`},
         body: {
+            actor: {id: session.account.id},
             patches: [
                 {type: "SetName", name: "Updated Name"},
                 {type: "SetColor", color: "Purple"},
@@ -1382,6 +1953,32 @@ test("can update multiple task collection fields at once", async () => {
             }),
         }),
     });
+
+    const actor = {
+        accountId: session.account.id,
+        from: {type: "Bot", accountId: bot.id},
+    };
+
+    expect(
+        await backfillTaskActionTransactionHistory(space.systemAction(), space.id, startTime),
+    ).toEqual([
+        expect.objectContaining({
+            actions: [
+                expect.objectContaining({
+                    type: "UpdateCollection",
+                    actor,
+                    collectionId: collection.id,
+                    collectionAction: {type: "UpdateName", name: "Updated Name"},
+                }),
+                expect.objectContaining({
+                    type: "UpdateCollection",
+                    actor,
+                    collectionId: collection.id,
+                    collectionAction: {type: "UpdateColor", color: "purple"},
+                }),
+            ],
+        }),
+    ]);
 });
 
 test("can clear task collection color with null", async () => {
@@ -1732,12 +2329,14 @@ describe("/task-collections/{id}/tasks", () => {
                         id: task1.id,
                         title: "First Task",
                         status: {type: "Open", isActive: false},
+                        collections: [{collection: {id: collection.id}}],
                     },
                     {
                         creator: {id: session.account.id},
                         id: task2.id,
                         title: "Second Task",
                         status: {type: "Open", isActive: false},
+                        collections: [{collection: {id: collection.id}}],
                     },
                 ],
                 nextCursor: null,
@@ -1839,6 +2438,7 @@ describe("/task-collections/{id}/tasks", () => {
                             date: "2025-12-31",
                         },
                         priority: "High",
+                        collections: [{collection: {id: collection.id}}],
                     },
                 ],
                 nextCursor: null,
@@ -1882,6 +2482,7 @@ describe("/task-collections/{id}/tasks", () => {
                         id: openTask.id,
                         title: "Open Task",
                         status: expect.objectContaining({type: "Open"}),
+                        collections: [{collection: {id: collection.id}}],
                     },
                 ],
                 nextCursor: null,
@@ -2084,6 +2685,48 @@ describe("/task-collections/{id}/tasks", () => {
                 spaceId: space.id,
                 tasks: [],
                 nextCursor: null,
+            }),
+        });
+    });
+
+    test("does not return deleted collection references on listed tasks", async () => {
+        const space = await TestSpace.create(context);
+        const session = await space.createSession({name: "Alice Smith", role: "Admin"});
+
+        const bot = await TestBot.createAndInstantiate(session);
+        const apiKey = await bot.createApiKey(session);
+
+        const activeCollection = await TestTaskCollection.create(session, {
+            name: "Active Collection",
+            access: "Public",
+        });
+        const deletedCollection = await TestTaskCollection.create(session, {
+            name: "Deleted Collection",
+            access: "Public",
+        });
+        const task = await TestTask.create(session, {
+            title: "Task in active and deleted collections",
+            collections: [activeCollection, deletedCollection],
+        });
+
+        await deletedCollection.delete(session);
+        await ProcessContextModule.waitForTestTasks();
+
+        const response = await server.GET(`/task-collections/${activeCollection.id}/tasks`, {
+            headers: {authorization: `bearer ${apiKey}`},
+        });
+
+        expect(response).toEqual({
+            status: 200,
+            headers: expect.objectContaining({"content-type": "application/json"}),
+            body: expect.objectContaining({
+                spaceId: space.id,
+                tasks: [
+                    expect.objectContaining({
+                        id: task.id,
+                        collections: [{collection: {id: activeCollection.id}}],
+                    }),
+                ],
             }),
         });
     });

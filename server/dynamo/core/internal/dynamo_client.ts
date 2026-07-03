@@ -15,6 +15,7 @@ import {
     DynamoClientDebugItemTypes,
     DynamoClientInternal,
 } from "~/server/dynamo/core/internal/dynamo_client_internal.js";
+import {DynamoTransactionEntryInternal} from "~/server/dynamo/core/internal/dynamo_transaction_entry_internal.js";
 import {AwsRequestSigner} from "~/server/helpers/aws_request_signer.js";
 import {BatchContextModule, ContextBatcherBase} from "~/shared/context/batch_context_module.js";
 import {Context} from "~/shared/context/context.js";
@@ -379,14 +380,24 @@ export class DynamoClient {
             retryConditionCheckError?: ((error?: unknown) => never) | null;
         },
     ): Promise<void> {
+        const actualEntries: Array<DynamoTransactionEntryInternal> = [];
+        const transactItems: Array<types.TransactWriteItem> = [];
+        const debugItemTypes: Array<DynamoClientDebugItemType> = [];
+
         // Run all before transaction callbacks even if one of them has an error.
         {
             const errors: Array<unknown> = [];
             const promises: Array<Promise<void>> = [];
 
             for (const entry of entries) {
+                assert(entry instanceof DynamoTransactionEntryInternal);
+
+                actualEntries.push(entry);
+                transactItems.push(entry.transactItem);
+                debugItemTypes.push(entry.debugItemType);
+
                 try {
-                    const maybePromise = entry._onBeforeExecuteTransaction(DynamoClient, context);
+                    const maybePromise = entry.onBeforeExecuteTransaction?.(context);
 
                     if (isPromiseLike(maybePromise)) {
                         promises.push(maybePromise);
@@ -412,13 +423,8 @@ export class DynamoClient {
         try {
             await this._client.TransactWriteItems(
                 context.tracer.getTracer(),
-                {
-                    TransactItems: entries.map(entry =>
-                        entry._getTransactItemForClient(DynamoClient),
-                    ),
-                    ClientRequestToken: clientRequestToken,
-                },
-                entries.map(entry => entry.debugItemType),
+                {TransactItems: transactItems, ClientRequestToken: clientRequestToken},
+                debugItemTypes,
             );
         } catch (error) {
             let errorCause = error;
@@ -434,7 +440,7 @@ export class DynamoClient {
                         isObject(cancellationReason) &&
                         (cancellationReason.Code === "None" ||
                             cancellationReason.Code === "TransactionConflict" ||
-                            (entries[index]?.isConditionCheckErrorRetriable &&
+                            (actualEntries[index]?.isConditionCheckErrorRetriable &&
                                 cancellationReason.Code === "ConditionalCheckFailed")),
                 )
             ) {
@@ -449,12 +455,9 @@ export class DynamoClient {
             const errors: Array<unknown> = [];
             const promises: Array<Promise<void>> = [];
 
-            for (const entry of entries) {
+            for (const entry of actualEntries) {
                 try {
-                    const maybePromise = entry._onAfterTransactionExecutedSuccessfully(
-                        DynamoClient,
-                        context,
-                    );
+                    const maybePromise = entry.onAfterTransactionExecutedSuccessfully?.(context);
 
                     if (isPromiseLike(maybePromise)) {
                         promises.push(maybePromise);
@@ -508,7 +511,7 @@ export class DynamoClient {
             | null;
         debugItemType: DynamoClientDebugItemType;
     }): DynamoTransactionEntry {
-        return DynamoTransactionEntry._newFromClient(DynamoClient, {
+        return new DynamoTransactionEntryInternal({
             transactItem: {
                 Put: {
                     TableName: tableName,
@@ -568,7 +571,7 @@ export class DynamoClient {
         onAfterTransactionExecutedSuccessfully?: ((context: DynamoContext) => void) | null;
         debugItemType: DynamoClientDebugItemType;
     }): DynamoTransactionEntry {
-        return DynamoTransactionEntry._newFromClient(DynamoClient, {
+        return new DynamoTransactionEntryInternal({
             transactItem: {
                 Delete: {
                     TableName: tableName,
@@ -628,7 +631,7 @@ export class DynamoClient {
         onAfterTransactionExecutedSuccessfully?: ((context: DynamoContext) => void) | null;
         debugItemType: DynamoClientDebugItemType;
     }): DynamoTransactionEntry {
-        return DynamoTransactionEntry._newFromClient(DynamoClient, {
+        return new DynamoTransactionEntryInternal({
             transactItem: {
                 ConditionCheck: {
                     TableName: tableName,

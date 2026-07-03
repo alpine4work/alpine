@@ -12,6 +12,7 @@ ts_project(
         "//shared/files",
         "//shared/forum",
         "//shared/id",
+        "//shared/messaging",
         "//shared/schema",
         "//shared/search",
         "//shared/tasks",

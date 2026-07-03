@@ -12,9 +12,9 @@ import {useStableValue} from "~/client/web/helpers/use_stable_value.js";
 import {useClientInfo} from "~/client/web/remix/client_info_context.js";
 import {usePlatform} from "~/client/web/remix/platform_context.js";
 import {useNavigate} from "~/client/web/remix/use_navigate.js";
+import {useSpaceContext} from "~/client/web/spaces/context/space_context.js";
 import {getWebMobileTabFromLocation} from "~/client/web/spaces/layout/web_mobile_tab.js";
 import {useRouteErrorTitle} from "~/client/web/spaces/route_metadata.js";
-import {useSpaceContext} from "~/client/web/spaces/space_context.js";
 import {
     spaceLayoutErrorRendererPaddingX,
     spaceLayoutErrorRendererPaddingY,

@@ -15,7 +15,7 @@ import {Switch} from "~/client/web/design/switch.js";
 import {SlackLogo} from "~/client/web/icons/socials/slack_logo.js";
 import {useLoaderDataWithSchema} from "~/client/web/remix/use_loader_data_with_schema.js";
 import {useRevalidator} from "~/client/web/remix/use_revalidator.js";
-import {useSpaceContextAndRequireSpaceAccess} from "~/client/web/spaces/space_context.js";
+import {useSpaceContextAndRequireSpaceAccess} from "~/client/web/spaces/context/space_context.js";
 import {
     spaceBotSettingsHeadingGap,
     spaceBotSettingsHeadingHeight,

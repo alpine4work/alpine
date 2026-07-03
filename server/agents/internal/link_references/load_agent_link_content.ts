@@ -10,6 +10,8 @@ import {loadAgentMessagesListLinkContent} from "~/server/agents/internal/link_re
 import {loadAgentPostCommentsLinkContent} from "~/server/agents/internal/link_references/load_agent_post_comments_link_content.js";
 import {loadAgentTaskCollectionLinkContent} from "~/server/agents/internal/link_references/load_agent_task_collection_link_content.js";
 import {loadAgentTaskLinkContent} from "~/server/agents/internal/link_references/load_agent_task_link_content.js";
+import {UnimplementedError} from "~/shared/error/error.js";
+import {errorDisplayMessage} from "~/shared/error/error_display_message.js";
 import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
 import {TracerBase} from "~/shared/tracer/tracer_base.js";
 
@@ -71,6 +73,12 @@ export async function loadAgentLinkContent(options: {
                 tokenLimitFactor: options.tokenLimitFactor ?? 1,
             });
             return messagesContent;
+        }
+        case "Site": {
+            // TODO(#site-api): Implement site API.
+            throw new UnimplementedError("Site API is not implemented", {
+                displayMessage: errorDisplayMessage`The Site API is not implemented yet. You can still see Site mentions, but you won\u2019t be able to request more data about the site right now.`,
+            });
         }
         default:
             throw exhaustive(link);

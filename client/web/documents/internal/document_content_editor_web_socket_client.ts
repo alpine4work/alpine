@@ -306,10 +306,6 @@ export class DocumentContentEditorWebSocketClient {
                                     // database. An error should show up in your client, then you should hit "Retry".
                                     // At which point we'll try backfilling, hit this error, then reset the client to a
                                     // good state.
-                                    //
-                                    // TODO(calebmer): This logic needs to be ported to
-                                    // `TaskDetailNotesContentEditorWebSocketClient` but task notes currently doesn't
-                                    // have remembered steps which we need to implement this.
                                     let state = this._state.getSnapshot();
                                     if (
                                         error instanceof Error &&
@@ -542,10 +538,6 @@ export class DocumentContentEditorWebSocketClient {
                                 //
                                 // We'd like to avoid resetting the user's pending steps if possible since that's
                                 // data loss.
-                                //
-                                // TODO(calebmer): This logic needs to be ported to
-                                // `TaskDetailNotesContentEditorWebSocketClient` but task notes currently doesn't
-                                // have remembered steps which we need to implement this.
                                 if (
                                     isTransientError(error) &&
                                     this._updateContentRetryErrorCount < 2

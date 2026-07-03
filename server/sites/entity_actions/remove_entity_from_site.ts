@@ -160,13 +160,9 @@ async function runRemoveEntityFromSiteByEntityType(
             const {eventsForSite} =
                 DocumentCollaborationProtocol.procedureSchemas.updateContentWithoutOptimisticBroadcast.outputSchema.deserialize(
                     await context.edge.sendRequestToDurableObject(
-                        // TODO(#sites): Switch this to `/update-content-without-optimistic-broadcast` once
-                        // durable object has been deployed.
                         `/api/durable-objects/documents/${entity.documentId}/update-content-without-optimistic-broadcast`,
                         {
                             serviceName: "DocumentCollaborationService",
-                            // TODO(#sites): Switch this to `/update-content-without-optimistic-broadcast` once
-                            // durable object has been deployed.
                             route: "/api/durable-objects/documents/:documentId/update-content-without-optimistic-broadcast",
                             body: DocumentCollaborationProtocol.procedureSchemas.updateContentWithoutOptimisticBroadcast.inputSchema.serialize(
                                 {

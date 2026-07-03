@@ -1,0 +1,48 @@
+{
+    "event": {
+        "data": {
+            "id": "PTLOCAL1",
+            "type": "incident",
+            "title": "Local API is not accepting posts",
+            "html_url": "https://example.pagerduty.com/incidents/PTLOCAL1",
+            "number": 1001,
+            "status": "triggered",
+            "urgency": "high",
+            "created_at": "2026-06-09T16:00:00Z",
+            "incident_type": {
+                "name": "major_incident"
+            },
+            "service": {
+                "html_url": "https://example.pagerduty.com/service-directory/PLOCAL",
+                "id": "PLOCAL",
+                "self": "https://api.pagerduty.com/services/PLOCAL",
+                "summary": "Alpine Local API",
+                "type": "service_reference"
+            },
+            "priority": {
+                "html_url": "https://example.pagerduty.com/priorities/P1",
+                "id": "P1",
+                "self": "https://api.pagerduty.com/priorities/P1",
+                "summary": "P1",
+                "type": "priority_reference"
+            },
+            "escalation_policy": {
+                "html_url": "https://example.pagerduty.com/escalation_policies/POLICY",
+                "id": "POLICY",
+                "self": "https://api.pagerduty.com/escalation_policies/POLICY",
+                "summary": "Local Engineering",
+                "type": "escalation_policy_reference"
+            },
+            "assignees": [
+                {
+                    "html_url": "https://example.pagerduty.com/users/PUSER",
+                    "id": "PUSER",
+                    "self": "https://api.pagerduty.com/users/PUSER",
+                    "summary": "Local Responder",
+                    "type": "user_reference"
+                }
+            ],
+            "resolve_reason": null
+        }
+    }
+}

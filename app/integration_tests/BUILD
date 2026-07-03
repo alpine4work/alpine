@@ -61,6 +61,7 @@ ts_playwright_tests(
         "//server/forum/test_helpers",
         "//server/helpers/node",
         "//server/importer/notion/test_helpers",
+        "//server/messaging/drafts",
         "//server/remix",
         "//server/sites/test_helpers",
         "//server/spaces/test_helpers",

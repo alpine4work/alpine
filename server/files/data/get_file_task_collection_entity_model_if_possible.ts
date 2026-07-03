@@ -1,8 +1,8 @@
+import {today} from "@internationalized/date";
 import {ServerActionContext} from "~/server/context/server_action_context.js";
 import {AccessPolicyRegister} from "~/shared/access/access_policy.js";
 import {ErrorBase, NotFoundError, PermissionDeniedError} from "~/shared/error/error.js";
 import {emptyArray} from "~/shared/helpers/array/empty_array.js";
-import {assertNonEmptyReadonlyArray} from "~/shared/helpers/array/non_empty_readonly_array.js";
 import {
     HybridLogicalTime,
     compareHybridLogicalTimes,
@@ -12,6 +12,7 @@ import {assert} from "~/shared/helpers/control/assert.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
 import {Result} from "~/shared/helpers/control/result.js";
+import {defaultTimeZone} from "~/shared/helpers/intl/time_zone.js";
 import {emptyMap} from "~/shared/helpers/map/empty_map.js";
 import {SpaceId, TaskCollectionId} from "~/shared/id/types/id_types.js";
 import {SitePreviewModel} from "~/shared/sites/site_model.js";
@@ -23,10 +24,9 @@ import {TaskCollectionModel} from "~/shared/tasks/model/task_collection_model.js
 import {TaskModel} from "~/shared/tasks/model/task_model.js";
 import {TaskCollectionColorRegister} from "~/shared/tasks/task_collection_color.js";
 import {
-    TaskQueryNormalizedFilters,
-    assertNonEmptyReadonlyMap,
-} from "~/shared/tasks/task_query_normalized_filters.js";
-import {TaskQueryNormalizedSort} from "~/shared/tasks/task_query_normalized_sort.js";
+    TaskQueryDefaultsRegister,
+    emptyTaskQueryDefaults,
+} from "~/shared/tasks/task_query_defaults.js";
 import {
     TaskQuerySortCursor,
     compareTaskQuerySortCursors,
@@ -72,6 +72,10 @@ export async function getFileTaskCollectionEntityModelIfPossible(
                         },
                         zeroHybridLogicalTime,
                     ),
+                    defaults: new TaskQueryDefaultsRegister(
+                        emptyTaskQueryDefaults,
+                        zeroHybridLogicalTime,
+                    ),
                 }),
                 previewTasks: emptyArray,
                 site: null,
@@ -79,36 +83,29 @@ export async function getFileTaskCollectionEntityModelIfPossible(
         };
     }
 
-    const filters: TaskQueryNormalizedFilters = {
-        displayStatusFilter: {
-            ifOpenActive: true,
-            ifOpenInactive: true,
-            ifClosed: false,
-        },
-        collectionsFilter: assertNonEmptyReadonlyArray([
-            assertNonEmptyReadonlyMap(new Map([[collectionId, false]])),
-        ]),
-    };
-
-    const sorts: ReadonlyArray<TaskQueryNormalizedSort> = [
-        {
-            type: "CollectionPosition",
-            direction: "Ascending",
-            missing: "Last",
-            collectionId,
-        },
-        {
-            type: "CreatedTime",
-            direction: "Ascending",
-            missing: "Last",
-        },
-    ];
-
     const result: Result<TaskRealtimeLoadQueriesOutput, ErrorBase> = await context.tasks
         .loadQueries(spaceId, {
             taskIds: [],
             collectionIds: [collectionId],
-            queries: [{limit: 8, filters, sorts}],
+            queries: [
+                {
+                    type: "Collection",
+                    collectionId,
+                    limit: 8,
+                    evaluationContext: {
+                        currentAccountId: context.actor.getPossiblyBotAccountIdIfExists(),
+                        // We don't know the actor's time zone so use the default time zone. Maybe we
+                        // should check if `context.loader` exists and get the time zone from client info
+                        // but then we aren't consistently loading the same time zone for all loads for an
+                        // account.
+                        //
+                        // We could also use the account's last observed time zone but this would require a
+                        // network waterall. I guess not if we push it into `TaskRealtimeService`? Maybe we
+                        // should do this someday.
+                        currentDate: today(defaultTimeZone),
+                    },
+                },
+            ],
         })
         .then(
             result => ({ok: true, value: result}),
@@ -131,6 +128,10 @@ export async function getFileTaskCollectionEntityModelIfPossible(
 
     if (!result.ok) return result;
 
+    // The filters/sorts the query actually ran with, which are the collection's
+    // default filters/sorts if it had any.
+    const {filtersResult, sorts} = assertExists(result.value.queries[0]);
+
     const tasksAndCursors: Array<{
         readonly cursor: TaskQuerySortCursor;
         readonly task: TaskModel;
@@ -140,7 +141,12 @@ export async function getFileTaskCollectionEntityModelIfPossible(
         if (backfillTask.type !== "Authorized") continue;
         const {task} = backfillTask;
 
-        if (!evaluateTaskQueryNormalizedFiltersForModel(filters, task)) continue;
+        if (
+            filtersResult.type === "Impossible" ||
+            !evaluateTaskQueryNormalizedFiltersForModel(filtersResult.normalizedFilters, task)
+        ) {
+            continue;
+        }
 
         const cursor = getTaskQueryNormalizedSortCursorForModel(sorts, task);
         tasksAndCursors.push({cursor, task});
@@ -196,11 +202,11 @@ export async function getFileTaskCollectionEntityModelIfPossible(
     if (collectionAccessPolicy?.type === "Site") {
         const referencedSite = result.value.updateEvent.referencedSites.find(
             referencedSiteResult =>
-                referencedSiteResult.ok &&
-                referencedSiteResult.value.id === collectionAccessPolicy.siteId,
+                !referencedSiteResult.isPrivate &&
+                referencedSiteResult.site.id === collectionAccessPolicy.siteId,
         );
-        assert(referencedSite?.ok);
-        site = assertExists(referencedSite.value);
+        assert(referencedSite?.isPrivate === false);
+        site = assertExists(referencedSite.site);
     }
 
     return {

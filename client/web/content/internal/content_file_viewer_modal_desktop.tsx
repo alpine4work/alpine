@@ -39,7 +39,7 @@ import {GlobalKeyDownEvent} from "~/client/web/helpers/global_key_down_event.js"
 import {useResizeObserver} from "~/client/web/helpers/use_resize_observer.js";
 import {useClientInfo} from "~/client/web/remix/client_info_context.js";
 import {useSpacingScale} from "~/client/web/remix/spacing_scale_context.js";
-import {useSpaceContext} from "~/client/web/spaces/space_context.js";
+import {useSpaceContext} from "~/client/web/spaces/context/space_context.js";
 import {
     initialSelectionColorsClassName,
     invertLightSelectionColorsClassName,

@@ -129,7 +129,7 @@ export const apiSpacesPaths: Pick<
     "/spaces/{id}/accounts/{accountId}/inbox/entries": {
         get: async (context, {pathParameters, queryParameters}) => {
             const {id: spaceId, accountId} = pathParameters;
-            const limit = Math.min(queryParameters.limit ?? 20, 100);
+            const limit = Math.min(queryParameters.limit ?? 10, 100);
 
             // Inbox list data comes from a GSI and entry models load related entities with
             // eventually consistent reads and the Dynamo context cache. The API layer normally

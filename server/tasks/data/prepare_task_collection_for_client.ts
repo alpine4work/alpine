@@ -21,5 +21,6 @@ export function prepareTaskCollectionForClient(
         name: collection.name,
         color: collection.color,
         accessPolicy: collection.accessPolicy,
+        defaults: collection.defaults,
     });
 }

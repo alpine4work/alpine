@@ -3,7 +3,7 @@ import {useAccountRegistry} from "~/client/web/accounts/account_registry_context
 import {ModalDialog} from "~/client/web/design/modal_dialog.js";
 import {InheritedAccessPolicyExplanations} from "~/client/web/navigation/inherited_access_policy_explanations.js";
 import {useRevalidateOnAccessPolicySiteChange} from "~/client/web/sites/helpers/use_revalidate_on_access_policy_site_change.js";
-import {useSpaceContext} from "~/client/web/spaces/space_context.js";
+import {useSpaceContext} from "~/client/web/spaces/context/space_context.js";
 import {
     AccessLevel,
     EffectiveAccessPolicy,
@@ -11,6 +11,7 @@ import {
     compareAccessLevel,
     getAccountAccessLevelAssumingSpaceAccess,
     hasAccessLevel,
+    isSiteRelatedAccessPolicyUpdate,
     maxAccessLevel,
     validateAccessPolicyUpdate,
 } from "~/shared/access/access_policy.js";
@@ -201,10 +202,53 @@ export function useShareState(
                 throw exhaustive(action);
         }
 
+        const shouldCheckForRemovedAccounts =
+            isSiteRelatedAccessPolicyUpdate(oldAccessPolicy, newAccessPolicy) &&
+            newAccessPolicy.type === "Site";
+
         const validationResult = validateAccessPolicyUpdate(
             currentAccount.id,
             oldAccessPolicy,
             newAccessPolicy,
+            {
+                // On the server, we have to perform database roundtrips in order to determine if
+                // an account is a member of a space, so we only check for removed accounts when
+                // adding an entity to a site. The reasoning is that if an early generation manager
+                // is removed from a space, it would make it really difficult for everyone else to
+                // add content to the site. For Local access policy updates, this does mean that
+                // accounts at lower generations can't remove the access of removed accounts, but
+                // that seems reasonable.
+                //
+                // So given the following scenario:
+                //
+                // ```
+                // old: [alice-1, bob-2 (removed), charlie-2] -> [{alice}, {bob, charlie}]
+                // new: [alice-1, charlie-3] -> [{alice}, {charlie}]
+                // ```
+                //
+                // Charlie can add the document (old access policy) to the site.
+                isAccountRemovedFromSpace: shouldCheckForRemovedAccounts
+                    ? accountId => {
+                          const account = accountRegistry
+                              .weakGetAccountStoreByIdIfExists(accountId)
+                              ?.getSnapshot();
+
+                          // NOTE(ifitzsimmons, 2026-06-05): We should have all of the space accounts in the
+                          // account registry. If we don't find one, we should bias toward being overly
+                          // permissive on the client and pretending the account is removed, which will omit
+                          // that account from validation.
+                          //
+                          // So if an account is missing in the registry and it's not actually removed:
+                          //
+                          // 1. We'll allow the access policy change to proceed optimistically.
+                          // 2. The server will handle the account properly. If it blocks the change, the
+                          //    access policy change will fail and be reverted.
+                          if (!account) return true;
+
+                          return account.space.state.type === "Removed";
+                      }
+                    : undefined,
+            },
         );
         if (!validationResult.ok) {
             let title: string;

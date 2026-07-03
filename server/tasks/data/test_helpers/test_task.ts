@@ -20,20 +20,22 @@ import {TestSpace} from "~/server/spaces/test_helpers/test_space.js";
 import {TestSpaceSession} from "~/server/spaces/test_helpers/test_space_session.js";
 import {FileTaskAuthorizer} from "~/server/tasks/data/authorization/file_task_authorizer.js";
 import {commitTaskActionTransaction} from "~/server/tasks/data/commit_task_action_transaction.js";
-import {completeTaskCommentStream} from "~/server/tasks/data/complete_task_comment_stream.js";
-import {createTaskComment} from "~/server/tasks/data/create_task_comment.js";
-import {deleteTaskComment} from "~/server/tasks/data/delete_task_comment.js";
-import {deleteTaskCommentReaction} from "~/server/tasks/data/delete_task_comment_reaction.js";
-import {getTaskComment} from "~/server/tasks/data/get_task_comment.js";
 import {TaskEssentialAttributesItem} from "~/server/tasks/data/internal/task_table.js";
-import {putTaskCommentStreamPart} from "~/server/tasks/data/put_task_comment_stream_part.js";
-import {setTaskCommentReaction} from "~/server/tasks/data/set_task_comment_reaction.js";
 import {getTaskIndexDocIfExistsForTest} from "~/server/tasks/data/task_index.js";
 import {TaskIndexActualDoc, TaskIndexDoc} from "~/server/tasks/data/task_index_doc.js";
+import {
+    completeTaskCommentStream,
+    createTaskComment,
+    deleteTaskComment,
+    deleteTaskCommentReaction,
+    getTaskComment,
+    putTaskCommentStreamPart,
+    setTaskCommentReaction,
+    updateTaskCommentContent,
+} from "~/server/tasks/data/task_messaging.js";
 import {getTaskItemForTest} from "~/server/tasks/data/test_helpers/get_task_item_for_test.js";
 import {testTaskClock} from "~/server/tasks/data/test_helpers/test_task_clock.js";
 import {TestTaskCollection} from "~/server/tasks/data/test_helpers/test_task_collection.js";
-import {updateTaskCommentContent} from "~/server/tasks/data/update_task_comment_content.js";
 import {updateTaskNotesContent} from "~/server/tasks/data/update_task_notes_content.js";
 import {BotTokenPayloadScope} from "~/server/tokens/token_payload.js";
 import {fromApiContentBlockElements} from "~/shared/api/content/from_api_content.js";
@@ -68,6 +70,7 @@ import {
     applyTaskTitleUpdate,
     createTaskTitleFromText,
     emptyTaskTitle,
+    randomlyGenerateTaskTitleClientId,
 } from "~/shared/tasks/title/task_title.js";
 
 const schema = TaskNotesContentProsemirrorSchema;
@@ -177,7 +180,7 @@ export class TestTask extends TestCommentRoomBase {
         if (titleText.length === 0) {
             titleState = new MutexValue(emptyTaskTitle.get());
         } else {
-            const title = createTaskTitleFromText(titleText);
+            const title = createTaskTitleFromText(randomlyGenerateTaskTitleClientId(), titleText);
 
             actions.push({
                 type: "UpdateTask",
@@ -306,8 +309,9 @@ export class TestTask extends TestCommentRoomBase {
             await updateTaskNotesContent(session.action(), {
                 spaceId: session.space.id,
                 taskId: id,
-                version: 0,
-                steps: [new ReplaceStep(0, 2, new Slice(fragment, 0, 0))],
+                clientVersion: 0,
+                clientSteps: [new ReplaceStep(0, 2, new Slice(fragment, 0, 0))],
+                clientId: generateId(),
             });
 
             notesState = new MutexValue({lastVersion: 1, lastUpdatePos: fragment.size - 1});
@@ -785,7 +789,12 @@ export class TestTask extends TestCommentRoomBase {
         const title = new TaskTitleModel(this._titleState.getWithoutLock());
 
         const pos = title.getText().length;
-        const titleUpdate = title.replace(pos, pos, titleUpdateText);
+        const titleUpdate = title.replace(
+            randomlyGenerateTaskTitleClientId(),
+            pos,
+            pos,
+            titleUpdateText,
+        );
 
         await this.updateTitle(session, titleUpdate.raw);
     }
@@ -811,8 +820,8 @@ export class TestTask extends TestCommentRoomBase {
             const result = await updateTaskNotesContent(session.action(), {
                 spaceId: this.space.id,
                 taskId: this.id,
-                version: stateRef.current.lastVersion,
-                steps: [
+                clientVersion: stateRef.current.lastVersion,
+                clientSteps: [
                     new ReplaceStep(
                         stateRef.current.lastUpdatePos,
                         stateRef.current.lastUpdatePos,
@@ -830,6 +839,7 @@ export class TestTask extends TestCommentRoomBase {
                           ]
                         : []),
                 ],
+                clientId: generateId(),
             });
 
             stateRef.current.lastVersion += 1 + (secondText !== undefined ? 1 : 0);
@@ -869,8 +879,9 @@ export class TestTask extends TestCommentRoomBase {
             await updateTaskNotesContent(session.action(), {
                 spaceId: this.space.id,
                 taskId: this.id,
-                version: stateRef.current.lastVersion,
-                steps,
+                clientVersion: stateRef.current.lastVersion,
+                clientSteps: steps,
+                clientId: generateId(),
             });
 
             stateRef.current.lastVersion += steps.length;

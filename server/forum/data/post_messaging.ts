@@ -1648,7 +1648,7 @@ export async function getPostAndInitialComments(
 
     // Optimization: Don't wait until the channel loads (and so we call
     // `evaluateAccessPolicy()`) to report the post's `SpaceId` as discovered.
-    context.discovery?.discoverSpaceId(postItem.spaceId);
+    context.discovery?.discoverSpaceId(postItem.spaceId, "AuthorizeAccess");
 
     const authorizationPromise = authorizeChannelAccess(context, postItem.channelId, "View");
 

@@ -29,7 +29,7 @@ import {useClientInfo} from "~/client/web/remix/client_info_context.js";
 import {usePlatform} from "~/client/web/remix/platform_context.js";
 import {useRouteLayout} from "~/client/web/remix/route_layout_context.js";
 import {useNavigate, useRootNavigate} from "~/client/web/remix/use_navigate.js";
-import {useMyAccountWebSocket, useSpaceContext} from "~/client/web/spaces/space_context.js";
+import {useMyAccountWebSocket, useSpaceContext} from "~/client/web/spaces/context/space_context.js";
 import {inboxBannerHeight} from "~/client/web/styles/inbox_shared_styles.js";
 import {contentStyles} from "~/client/web/styles/styles.js";
 import {Spacing, screenPaddingX, spacing} from "~/shared/design/core/spacing.js";

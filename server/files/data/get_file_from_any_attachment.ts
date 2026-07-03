@@ -93,7 +93,9 @@ export async function getFileFromAnyAttachment(
         contentLength: fileItem.contentLength,
         isUploading: fileItem.isUploading,
         alternative: fileItem.alternative,
+        analysis: fileItem.analysis,
         preview: fileItem.preview,
+        transcript: fileItem.transcript,
     });
 
     if (targets.length === 0) {

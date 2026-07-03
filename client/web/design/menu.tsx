@@ -365,6 +365,32 @@ const menuSizeConstants: {
     },
 };
 
+function describeMenuActionsForAssertion(nestedActions: MaybeThunk<MenuActions>) {
+    if (typeof nestedActions === "function") return "<function>";
+
+    return nestedActions.map(nestedAction => {
+        if (isReadonlyArray(nestedAction)) {
+            return nestedAction.map(describeMenuActionForAssertion);
+        }
+
+        if (nestedAction.heading !== undefined) {
+            return {
+                heading: nestedAction.heading,
+                actions: nestedAction.actions.map(describeMenuActionForAssertion),
+            };
+        }
+
+        return describeMenuActionForAssertion(nestedAction);
+    });
+}
+
+function describeMenuActionForAssertion(action: MenuAction) {
+    if (action.withCustomLayout) return {type: "custom"};
+    if (action.hasChildren) return {type: "children", key: action.key, label: action.label};
+
+    return {type: "standard", key: action.key, label: action.label};
+}
+
 /**
  * A menu offers a list of actions to a user. A menu is rendered as an overlay on
  * top of the application.
@@ -539,7 +565,12 @@ const Menu = forwardRef(function Menu(
         return {flattenedActions, hasSiblingSelectedAction};
     }, [nestedActions]);
 
-    assert(flattenedActions.length > 0);
+    if (flattenedActions.length === 0) {
+        assert(
+            false,
+            `Menu must have at least one action. Received actions: ${JSON.stringify(describeMenuActionsForAssertion(nestedActions), null, 2)}`,
+        );
+    }
 
     const menuRef = useRef<HTMLDivElement>(null);
     const {menuItemRefs, keyboardShortcutMap} = useMemo(() => {

@@ -15,6 +15,7 @@ ts_project(
         "//server/emails",
         "//server/forum/data",
         "//server/importer",
+        "//server/language_models",
         "//server/spaces",
         "//server/tokens",
         "//shared/accounts",

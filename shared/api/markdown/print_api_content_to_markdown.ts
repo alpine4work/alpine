@@ -718,13 +718,13 @@ function printSimpleApiContentTableBlockElementToMarkdownIfPossible(
                 return null;
             }
 
-            // For some reason the text `\|` in inline code breaks GFM table parsing. I haven't
-            // investigated why specifically this breaks GFM table parsing but our generative
-            // test has produced a test showing it does.
-            //
-            // Handle this edge case by switching to table HTML syntax.
             if (paragraphElement !== null) {
                 for (const inlineElement of paragraphElement.elements) {
+                    // For some reason the text `\|` in inline code breaks GFM table parsing. I haven't
+                    // investigated why specifically this breaks GFM table parsing but our generative
+                    // test has produced a test showing it does.
+                    //
+                    // Handle this edge case by switching to table HTML syntax.
                     if (
                         inlineElement.type === "Text" &&
                         inlineElement.marks?.some(mark => mark.type === "Code") &&
@@ -732,6 +732,11 @@ function printSimpleApiContentTableBlockElementToMarkdownIfPossible(
                     ) {
                         return null;
                     }
+
+                    // Don't allow hard breaks in GFM. GFM tables assume content is on a single line.
+                    // We have tried printing breaks in GFM as HTML (`<br/>`) but have observed weird
+                    // GFM quirks around surrounding `_` characters.
+                    if (inlineElement.type === "Break") return null;
                 }
             }
 
@@ -739,12 +744,10 @@ function printSimpleApiContentTableBlockElementToMarkdownIfPossible(
                 type: "tableCell",
                 children:
                     paragraphElement !== null
-                        ? printApiContentInlineElementsToMarkdown(paragraphElement.elements, {
-                              ...options,
-                              // Can't have a line break character within a table cell. So use HTML syntax for
-                              // breaks.
-                              forceBreakHtml: true,
-                          })
+                        ? printApiContentInlineElementsToMarkdown(
+                              paragraphElement.elements,
+                              options,
+                          )
                         : [],
             });
         }
@@ -1338,6 +1341,11 @@ export function printApiMentionPathToMentionLinkUrl(
             return `https://alpine.inc/doc/${target.id}?mention`;
         case "Post":
             return `https://alpine.inc/post/${target.id}?mention`;
+        case "Site":
+            // TODO(#sites-api): This differs from the App! The question that we need to answer
+            // is: "Should a Site API mention reroute the caller to the first entity in the
+            // site?". Probably not
+            return `https://alpine.inc/site/${target.id}?mention`;
         case "Task":
             return `https://alpine.inc/task/${target.id}?mention`;
         case "TaskCollection":
@@ -1356,7 +1364,6 @@ function printFileUrl(fileId: string): string {
 }
 
 function printPreviewTargetUrl(target: ApiPreviewTarget): string {
-    // TODO(#sites): Add Site to PreviewTarget.
     switch (target.type) {
         case "Channel":
             // TODO: Implement /preview endpoints that generate a PNG or similar image for each
@@ -1368,6 +1375,8 @@ function printPreviewTargetUrl(target: ApiPreviewTarget): string {
             return `https://alpine.inc/doc/${target.id}/preview`;
         case "Post":
             return `https://alpine.inc/post/${target.id}/preview`;
+        case "Site":
+            return `https://alpine.inc/site/${target.id}/preview`;
         case "Task":
             return `https://alpine.inc/task/${target.id}/preview`;
         case "TaskCollection":

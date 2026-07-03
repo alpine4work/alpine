@@ -2,6 +2,10 @@
 
 const testMatch = "**/*.test.js";
 
+const alpineJestCoverageDirectory = process.env.TEST_UNDECLARED_OUTPUTS_DIR
+    ? `${process.env.TEST_UNDECLARED_OUTPUTS_DIR}/coverage`
+    : "coverage";
+
 const baseJestConfig = {
     testMatch: [testMatch],
     snapshotResolver: require.resolve("./admin/jest/jest_snapshot_resolver.cjs"),
@@ -30,6 +34,10 @@ const baseJestConfig = {
 };
 
 module.exports = {
+    collectCoverage: true,
+    coverageDirectory: alpineJestCoverageDirectory,
+    coverageProvider: "v8",
+    coverageReporters: ["json"],
     projects: [
         {
             ...baseJestConfig,

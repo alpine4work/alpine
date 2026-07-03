@@ -15,6 +15,7 @@ import {attachFileToTargetAsBot} from "~/server/files/data/attach_file_to_target
 import {createPost} from "~/server/forum/data/create_post.js";
 import {FilePostAuthorizer} from "~/server/forum/data/file_post_authorizer.js";
 import {getChannelNameAndDescriptionContent} from "~/server/forum/data/get_channel_name_and_description_content.js";
+import {getChannelPostContents} from "~/server/forum/data/get_channel_posts.js";
 import {getPostContentWithCustomReferencesAndChannelPreview} from "~/server/forum/data/get_post_content_with_custom_references_and_channel_preview.js";
 import {
     completePostCommentStream,
@@ -25,6 +26,7 @@ import {
     pingPostCommentStream,
     putPostCommentStreamPart,
 } from "~/server/forum/data/post_messaging.js";
+import {ApiContentKeyEncoder} from "~/shared/api/content/api_content_key.js";
 import {extractFileIdsFromApiContent} from "~/shared/api/content/extract_file_ids_from_api_content.js";
 import {fromApiContent} from "~/shared/api/content/from_api_content.js";
 import {unknownFileId} from "~/shared/api/content/unknown_file_id.js";
@@ -38,7 +40,7 @@ import {
     assertPostContent,
 } from "~/shared/forum/post_content_schema.js";
 import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
-import {serializeDateString} from "~/shared/helpers/date/date_string.js";
+import {deserializeDateString, serializeDateString} from "~/shared/helpers/date/date_string.js";
 import {defaultTimeZone} from "~/shared/helpers/intl/time_zone.js";
 import {emptyMap} from "~/shared/helpers/map/empty_map.js";
 import {generateId, isId} from "~/shared/id/id.js";
@@ -63,12 +65,61 @@ export const apiForumPaths: Pick<
                     channel: {
                         id: pathParameters.id,
                         name: channel.name,
-                        description: await intoApiMessageContentWithReferences(
-                            context,
-                            channel.spaceId,
-                            channel.description,
-                        ),
+                        description: await intoApiMessageContentWithReferences(context, {
+                            spaceId: channel.spaceId,
+                            node: channel.description,
+                            encoder: new ApiContentKeyEncoder({
+                                entityId: `Channel:${pathParameters.id}`,
+                                // We don't track channel versions like we do for messages/posts
+                                version: 0,
+                            }),
+                        }),
                     },
+                },
+            };
+        },
+    },
+
+    "/channels/{id}/posts": {
+        get: async (context, {pathParameters, queryParameters}) => {
+            const postsResult = await getChannelPostContents(context, {
+                consistency: "StrongWithinCache",
+                channelId: pathParameters.id,
+                limit: queryParameters.limit ?? 10,
+                beforeCreatedTime:
+                    queryParameters.cursor !== undefined
+                        ? deserializeDateString(queryParameters.cursor)
+                        : null,
+            });
+
+            const lastPost = postsResult.posts[postsResult.posts.length - 1];
+
+            const nextCursor =
+                postsResult.hasNextPage && lastPost
+                    ? serializeDateString(lastPost.createdTime)
+                    : null;
+
+            return {
+                content: {
+                    spaceId: postsResult.spaceId,
+                    nextCursor,
+                    posts: await runAllPromises(
+                        postsResult.posts.map(async post => ({
+                            id: post.postId,
+                            author: await getApiAccount(
+                                context,
+                                postsResult.spaceId,
+                                post.authorId,
+                                {consistency: "StrongWithinCache"},
+                            ),
+                            createdTime: serializeDateString(post.createdTime),
+                            createdTimeZone: post.createdTimeZone,
+                            channel: {
+                                id: pathParameters.id,
+                                name: postsResult.channelName,
+                            },
+                        })),
+                    ),
                 },
             };
         },
@@ -102,7 +153,6 @@ export const apiForumPaths: Pick<
     "/posts": {
         post: async (context, {requestBody}) => {
             const channelId = requestBody.channelId;
-
             const postId = generateId<PostId>();
 
             const content = assertPostContent(
@@ -126,7 +176,6 @@ export const apiForumPaths: Pick<
             }
 
             const referencesContext = context.dynamo.unexpectStrongReadConsistency();
-
             const [post, author] = await runAllPromises([
                 createPost(context, {
                     id: postId,
@@ -150,6 +199,12 @@ export const apiForumPaths: Pick<
                     referencesContext.actor.getSpaceId(),
                     FilePostAuthorizer.bind({type: "Post", postId}),
                     content,
+                    {
+                        encoder: new ApiContentKeyEncoder({
+                            entityId: `Post:${postId}`,
+                            version: 0,
+                        }),
+                    },
                 );
 
             return {
@@ -191,6 +246,12 @@ export const apiForumPaths: Pick<
                             spaceId,
                             FilePostAuthorizer.bind({type: "Post", postId: pathParameters.id}),
                             post.content,
+                            {
+                                encoder: new ApiContentKeyEncoder({
+                                    entityId: `Post:${pathParameters.id}`,
+                                    version: post.contentVersion,
+                                }),
+                            },
                         ),
                     ]);
 
@@ -266,16 +327,16 @@ export const apiForumPaths: Pick<
             return {
                 content: {
                     spaceId: message.spaceId,
-                    message: await intoApiMessage(
-                        context,
-                        message.spaceId,
+                    message: await intoApiMessage(context, {
+                        spaceId: message.spaceId,
                         message,
-                        createIntoApiPostCommentContentPayloadParent(
+                        intoContentPayloadParent: createIntoApiPostCommentContentPayloadParent(
                             context,
                             message.spaceId,
                             pathParameters.id,
                         ),
-                    ),
+                        entityId: `PostComment:${pathParameters.id}-${pathParameters.index}`,
+                    }),
                 },
             };
         },
@@ -329,16 +390,17 @@ export const apiForumPaths: Pick<
                     nextCursor,
                     messages: await runAllPromises(
                         comments.map(message =>
-                            intoApiMessage(
-                                context,
+                            intoApiMessage(context, {
                                 spaceId,
                                 message,
-                                createIntoApiPostCommentContentPayloadParent(
-                                    context,
-                                    spaceId,
-                                    pathParameters.id,
-                                ),
-                            ),
+                                intoContentPayloadParent:
+                                    createIntoApiPostCommentContentPayloadParent(
+                                        context,
+                                        spaceId,
+                                        pathParameters.id,
+                                    ),
+                                entityId: `PostComment:${pathParameters.id}-${message.index}`,
+                            }),
                         ),
                     ),
                 },
@@ -429,10 +491,9 @@ export const apiForumPaths: Pick<
             return {
                 content: {
                     spaceId,
-                    message: await intoApiMessage(
-                        context,
+                    message: await intoApiMessage(context, {
                         spaceId,
-                        {
+                        message: {
                             index,
                             version: 0,
                             authorId: context.actor.getBotAccountId(),
@@ -443,12 +504,13 @@ export const apiForumPaths: Pick<
                                 ? {createdTime, completedTime: null, parts: [], lastPingTime: null}
                                 : null,
                         },
-                        createIntoApiPostCommentContentPayloadParent(
+                        intoContentPayloadParent: createIntoApiPostCommentContentPayloadParent(
                             context,
                             spaceId,
                             pathParameters.id,
                         ),
-                    ),
+                        entityId: `PostComment:${pathParameters.id}-${index}`,
+                    }),
                 },
             };
         },

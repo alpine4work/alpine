@@ -81,7 +81,7 @@ import {useNavigate, useRootNavigate} from "~/client/web/remix/use_navigate.js";
 import {useSearchFavoriteEntityMenuAction} from "~/client/web/search/core/use_search_favorite_affinity_entity_menu_action.js";
 import {useSiteContextIfExists} from "~/client/web/sites/context/site_context.js";
 import {applySiteAccessPolicyChange} from "~/client/web/sites/helpers/apply_site_access_policy_change.js";
-import {useSpaceContext} from "~/client/web/spaces/space_context.js";
+import {useSpaceContext} from "~/client/web/spaces/context/space_context.js";
 import {postContentViewCommentMargin} from "~/client/web/styles/forum_shared_styles.js";
 import {messageInputMinHeightPx} from "~/client/web/styles/messaging_shared_styles.js";
 import {contentStyles, sprinkles} from "~/client/web/styles/styles.js";
@@ -158,7 +158,7 @@ import {useTaskDetailNotesContentEditorWebSocketClient} from "~/client/web/tasks
 import {TaskUndoStackEntry} from "~/client/web/tasks/internal/use_task_undo_stack_state.js";
 import {normalizeTaskDetailViewQuery} from "~/client/web/tasks/normalize_task_detail_view_query.js";
 import {TaskChildTasksProgressWheel} from "~/client/web/tasks/task_child_tasks_progress_wheel.js";
-import {TaskNotesContentEditorState} from "~/client/web/tasks/task_detail_notes_content_editor_web_socket_client.js";
+import {TaskNotesContentEditorState} from "~/client/web/tasks/task_detail_notes_content_editor_state.js";
 import {taskDetailViewLoadMoreChildTasksLimit} from "~/client/web/tasks/task_detail_view_load_more_child_tasks_limit.js";
 import {useTaskQueryState} from "~/client/web/tasks/use_task_query_state.js";
 import {
@@ -206,6 +206,7 @@ import {mapIterable} from "~/shared/helpers/iterable/map_iterable.js";
 import {emptyMap} from "~/shared/helpers/map/empty_map.js";
 import {generateOrderKeysBetween} from "~/shared/helpers/sort/order_key.js";
 import {TaskId} from "~/shared/id/types/id_types.js";
+import {MessageDraftWithFiles} from "~/shared/messaging/message_draft_schema.js";
 import {MessageContentPayloadParent} from "~/shared/messaging/message_schema.js";
 import {RpcContextModuleBase} from "~/shared/rpc/rpc_context_module_base.js";
 import {
@@ -287,6 +288,7 @@ export function TaskDetailView({
     affinityManager,
     shouldInitiallyFocus,
     initialComments,
+    initialMessageDraft,
     initialScrollToCommentIndex,
     commitActionTransactionAndCreateIfNeeded,
     shareActivationHint,
@@ -317,6 +319,7 @@ export function TaskDetailView({
         comments: ReadonlyArray<TaskCommentModel>;
         otherReferencedComments: ReadonlyArray<TaskCommentModel>;
     };
+    initialMessageDraft: MessageDraftWithFiles;
     initialScrollToCommentIndex: number | null;
     commitActionTransactionAndCreateIfNeeded: Memo<
         (
@@ -2483,6 +2486,7 @@ export function TaskDetailView({
                 const inputNode = (
                     <TaskCommentInput
                         isGhostTask={!taskSubscription}
+                        taskId={possiblyGhostTaskId}
                         inputRef={commentInputRef}
                         procedures={procedures}
                         fileAttachmentTarget={commentsFileAttachmentTarget}
@@ -2491,8 +2495,10 @@ export function TaskDetailView({
                         commentEditing={commentEditing}
                         parent={commentInputParent}
                         onParentClear={() => setCommentInputParent(null)}
+                        onParentChange={setCommentInputParent}
                         onJumpToCommentRange={jumpToCommentRange}
                         ensureCreateTask={ensureCreateTask}
+                        messageDraft={initialMessageDraft}
                     />
                 );
 
@@ -2582,6 +2588,7 @@ export function TaskDetailView({
             store,
             taskSubscription,
             initialFields,
+            initialMessageDraft,
             hasEditAccessLevel,
             isCreatedCollectionPrivate,
             focusChildrenGridViewStart,
@@ -2694,7 +2701,7 @@ export function TaskDetailView({
                     store={store}
                     taskSubscription={taskSubscription}
                     initialFields={initialFields}
-                    isReadOnly={!hasEditAccessLevel}
+                    accessLevel={accessLevel}
                     onTitleChange={onTitleChange}
                     statusButtonRef={statusButtonRef}
                     commitActionTransaction={commitActionTransaction}
@@ -2946,7 +2953,8 @@ function TaskDetailViewMain(
     const accountRegistry = useAccountRegistry();
     const {currentAccount} = useSpaceContext();
 
-    const task = useStore(taskSubscription?.taskEntryStore ?? null)?.task ?? null;
+    const taskEntry = useStore(taskSubscription?.taskEntryStore ?? null);
+    const task = taskEntry?.task ?? null;
 
     const assigneeAccountStore = !taskSubscription
         ? initialFields.assignee !== null
@@ -3109,6 +3117,7 @@ function TaskDetailViewMain(
                                     ref={titleInputRef}
                                     isReadOnly={!hasEditAccessLevel}
                                     title={title}
+                                    taskEntryRevertCount={taskEntry?.revertCount ?? 0}
                                     onTitleChange={onTitleChange}
                                     placeholder={taskFallbackTitle}
                                 />

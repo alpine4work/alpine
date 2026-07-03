@@ -5,6 +5,7 @@ import fs from "fs/promises";
 import {join as joinPath} from "path";
 import {Readable as ReadableStream} from "stream";
 import {FileProcessorActionContext} from "~/server/files/data/file_processor_context.js";
+import {createFileProcessorAnalysisPromises} from "~/server/files/processor/processors/create_file_processor_analysis_promises.js";
 import {FileProcessor} from "~/server/files/processor/processors/file_processor.js";
 import {
     ffmpegExecutablePath,
@@ -39,10 +40,19 @@ export function createFileMp4AudioProcessor(contentType: FileMp4AudioContentType
     return {
         type: "Mp4Audio",
         hasAlternative: true,
+        hasAnalysis: true,
         hasPreview: {type: "Audio"},
+        hasTranscript: true,
         process: async (
             context,
-            {spaceId, fileId, signal, contentLength, withTemporaryDirectory},
+            {
+                spaceId,
+                fileId,
+                signal,
+                contentLength,
+                parentTemporaryDirectoryPath,
+                withTemporaryDirectory,
+            },
         ) => {
             const [temporaryDirectoryPath, inputUrl] = await runAllPromises([
                 withTemporaryDirectory(),
@@ -102,6 +112,14 @@ export function createFileMp4AudioProcessor(contentType: FileMp4AudioContentType
                     return {codecNames, relevantAtoms};
                 },
             );
+            const metadataPromises = createFileProcessorAnalysisPromises(context, {
+                contentType,
+                fileId,
+                hasTranscript: true,
+                parentTemporaryDirectoryPath,
+                signal,
+                spaceId,
+            });
 
             let hasWebSafeAudioCodec = false;
 
@@ -114,12 +132,15 @@ export function createFileMp4AudioProcessor(contentType: FileMp4AudioContentType
             // If we have a web safe audio codec then we can use the cheaper web safe processor
             // and skip an expensive transcode.
             if (!hasWebSafeAudioCodec) {
-                return processFileWebUnsafeAudio(context, inputUrl, {
-                    signal,
-                    contentType,
-                    contentLength,
-                    temporaryDirectoryPath,
-                });
+                return {
+                    ...processFileWebUnsafeAudio(context, inputUrl, {
+                        signal,
+                        contentType,
+                        contentLength,
+                        temporaryDirectoryPath,
+                    }),
+                    ...metadataPromises,
+                };
             } else if (!isDeepEqual(relevantAtoms, ["moov", "mdat"])) {
                 // (All block quotes in the following section come from [Apple's QuickTime File
                 // Format documentation][1].)
@@ -170,12 +191,15 @@ export function createFileMp4AudioProcessor(contentType: FileMp4AudioContentType
                 //
                 // [1]:
                 //     https://developer.apple.com/documentation/quicktime-file-format/quicktime_movie_files
-                return processFileMp4AudioWithMoovAtomAtStart(context, inputUrl, {
-                    signal,
-                    contentType,
-                    contentLength,
-                    temporaryDirectoryPath,
-                });
+                return {
+                    ...processFileMp4AudioWithMoovAtomAtStart(context, inputUrl, {
+                        signal,
+                        contentType,
+                        contentLength,
+                        temporaryDirectoryPath,
+                    }),
+                    ...metadataPromises,
+                };
             } else {
                 const {audioPreviewDurationPromise, audioPreviewMetadataPromise} =
                     processFileWebSafeAudio(context, inputUrl, {
@@ -188,6 +212,7 @@ export function createFileMp4AudioProcessor(contentType: FileMp4AudioContentType
                     alternativePromise: Promise.resolve(null),
                     audioPreviewDurationPromise,
                     audioPreviewMetadataPromise,
+                    ...metadataPromises,
                 };
             }
         },

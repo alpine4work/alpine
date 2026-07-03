@@ -4,11 +4,13 @@ import {ReplaceStep} from "prosemirror-transform";
 import {createAccessPolicyForContentCreatedByBot} from "~/server/access/create_access_policy_for_content_created_by_bot.js";
 import {TestBot} from "~/server/bots/test_helpers/test_bot.js";
 import {createTestContext} from "~/server/dynamo/test_helpers/create_test_context.js";
+import {getFeedCandidateEntriesForTest} from "~/server/feed/feed_actions.js";
 import {JobDescription} from "~/server/jobs/core/job_description.js";
 import {spacesInjection} from "~/server/spaces/spaces_injection.js";
 import {TestSpace} from "~/server/spaces/test_helpers/test_space.js";
 import {authorizeTaskAccess} from "~/server/tasks/data/authorization/authorize_task_access.js";
 import {authorizeTaskAccessIfPossible} from "~/server/tasks/data/authorization/authorize_task_access_if_possible.js";
+import {backfillTaskActionTransactionHistory} from "~/server/tasks/data/backfill_task_action_transaction_history.js";
 import {commitTaskActionTransaction} from "~/server/tasks/data/commit_task_action_transaction.js";
 import {commitTaskActionTransactionBeforeExecuteTestCheckpoint} from "~/server/tasks/data/commit_task_action_transaction_before_execute_test_checkpoint.js";
 import {deleteTaskAndAllChildren} from "~/server/tasks/data/delete_task_and_all_children.js";
@@ -35,13 +37,18 @@ import {defaultTimeZone} from "~/shared/helpers/intl/time_zone.js";
 import {assertOrderKey, initialOrderKey} from "~/shared/helpers/sort/order_key.js";
 import {generateId} from "~/shared/id/id.js";
 import {
+    AccountId,
+    ContentEditorClientId,
     TaskActionTransactionLeaseId,
     TaskCollectionId,
     TaskId,
 } from "~/shared/id/types/id_types.js";
 import {TaskFilterableTime} from "~/shared/tasks/task_filterable_time.js";
 import {TaskNotesContentProsemirrorSchema as schema} from "~/shared/tasks/task_notes_content_schema.js";
-import {createTaskTitleFromText} from "~/shared/tasks/title/task_title.js";
+import {
+    createTaskTitleFromText,
+    randomlyGenerateTaskTitleClientId,
+} from "~/shared/tasks/title/task_title.js";
 
 let jobs: Array<JobDescription> = [];
 
@@ -154,6 +161,58 @@ describe("commitTaskActionTransaction()", () => {
         await collection.undelete(session1);
 
         await collection.updateName(session2, "Test 2");
+    });
+
+    test("collection manager can update the collection defaults", async () => {
+        const space = await TestSpace.create(context);
+        const session = await space.createSession();
+
+        const collection = await TestTaskCollection.create(session);
+
+        await collection.updateDefaults(session, {
+            filters: [
+                {
+                    type: "DisplayStatus",
+                    operation: {type: "OneOf", displayStatuses: new Set(["OpenActive"])},
+                },
+            ],
+            sorts: [{type: "DueDate", direction: "Ascending"}],
+        });
+
+        const collectionItem = await collection.getItem();
+        expect(collectionItem.defaults.value).toEqual({
+            filters: [
+                {
+                    type: "DisplayStatus",
+                    operation: {type: "OneOf", displayStatuses: new Set(["OpenActive"])},
+                },
+            ],
+            sorts: [{type: "DueDate", direction: "Ascending"}],
+        });
+    });
+
+    test("can\u2019t update the collection defaults without collection manage access", async () => {
+        const space = await TestSpace.create(context);
+
+        const [session1, session2] = await runAllPromises([
+            space.createSession(),
+            space.createSession(),
+        ]);
+
+        const collection = await TestTaskCollection.create(session1);
+        await collection.access.grantDefault(session1, "Edit");
+
+        await expect(
+            collection.updateDefaults(session2, {
+                filters: [
+                    {
+                        type: "DisplayStatus",
+                        operation: {type: "OneOf", displayStatuses: new Set(["OpenActive"])},
+                    },
+                ],
+                sorts: [],
+            }),
+        ).rejects.toThrow("Actor doesn\u2019t have `Manage` access level");
     });
 
     test("task assignee can update the task", async () => {
@@ -1132,7 +1191,7 @@ describe("commitTaskActionTransaction()", () => {
         ).toEqual(false);
     });
 
-    test("account can remove access from itself then grant it back with lease", async () => {
+    test("app client can remove access from itself then grant it back with lease", async () => {
         const space = await TestSpace.create(context);
         const session1 = await space.createSession();
         const session2 = await space.createSession();
@@ -1154,7 +1213,7 @@ describe("commitTaskActionTransaction()", () => {
         ).toEqual(true);
 
         await commitTaskActionTransaction(
-            session1.action(),
+            context.action(session1, {serviceName: "AppClient"}),
             space.id,
             [
                 {
@@ -1216,7 +1275,7 @@ describe("commitTaskActionTransaction()", () => {
         ).toEqual(false);
 
         await commitTaskActionTransaction(
-            session1.action(),
+            context.action(session1, {serviceName: "AppClient"}),
             space.id,
             [
                 {
@@ -2511,8 +2570,12 @@ describe("commitTaskActionTransaction()", () => {
         await updateTaskNotesContent(session2.action(), {
             spaceId: space.id,
             taskId: task1.id,
-            version: 0,
-            steps: [new ReplaceStep(1, 1, textSlice("a")), new ReplaceStep(2, 2, textSlice("b"))],
+            clientVersion: 0,
+            clientSteps: [
+                new ReplaceStep(1, 1, textSlice("a")),
+                new ReplaceStep(2, 2, textSlice("b")),
+            ],
+            clientId: generateId<ContentEditorClientId>(),
         });
 
         await expect(
@@ -2915,7 +2978,242 @@ describe("commitTaskActionTransaction()", () => {
     });
 });
 
+describe("task action actor tracking", () => {
+    test("records session context actor on task actions", async () => {
+        const space = await TestSpace.create(context);
+        const session = await space.createSession({role: "Admin"});
+        const task = await TestTask.create(session);
+
+        await ProcessContextModule.waitForTestTasks();
+
+        const startTime = new Date();
+
+        await commitTaskActionTransaction(
+            context.action(session, {serviceName: "DocumentCollaborationService"}),
+            space.id,
+            [
+                {
+                    type: "UpdateTask",
+                    time: testTaskClock.now(),
+                    taskId: task.id,
+                    taskAction: {
+                        type: "UpdateTitle",
+                        titleUpdate: createTaskTitleFromText(
+                            randomlyGenerateTaskTitleClientId(),
+                            "Context actor",
+                        ),
+                    },
+                },
+            ],
+        );
+
+        expect(
+            await backfillTaskActionTransactionHistory(space.systemAction(), space.id, startTime),
+        ).toEqual([
+            expect.objectContaining({
+                actions: [
+                    expect.objectContaining({
+                        type: "UpdateTask",
+                        taskId: task.id,
+                        actor: {
+                            accountId: session.account.id,
+                            from: null,
+                        },
+                        taskAction: expect.objectContaining({type: "UpdateTitle"}),
+                    }),
+                ],
+            }),
+        ]);
+    });
+
+    test("records session context actor on task collection actions", async () => {
+        const space = await TestSpace.create(context);
+        const session = await space.createSession({role: "Admin"});
+        const collection = await TestTaskCollection.create(session, {access: "Public"});
+
+        await ProcessContextModule.waitForTestTasks();
+
+        const startTime = new Date();
+
+        await commitTaskActionTransaction(
+            context.action(session, {serviceName: "DocumentCollaborationService"}),
+            space.id,
+            [
+                {
+                    type: "UpdateCollection",
+                    time: testTaskClock.now(),
+                    collectionId: collection.id,
+                    collectionAction: {
+                        type: "UpdateName",
+                        name: "Context actor",
+                    },
+                },
+            ],
+        );
+
+        expect(
+            await backfillTaskActionTransactionHistory(space.systemAction(), space.id, startTime),
+        ).toEqual([
+            expect.objectContaining({
+                actions: [
+                    expect.objectContaining({
+                        type: "UpdateCollection",
+                        collectionId: collection.id,
+                        actor: {
+                            accountId: session.account.id,
+                            from: null,
+                        },
+                        collectionAction: {type: "UpdateName", name: "Context actor"},
+                    }),
+                ],
+            }),
+        ]);
+    });
+
+    test("records impersonated account context actor on task actions", async () => {
+        const space = await TestSpace.create(context);
+        const session = await space.createSession({role: "Admin"});
+        const task = await TestTask.create(session);
+
+        await ProcessContextModule.waitForTestTasks();
+
+        const startTime = new Date();
+
+        await commitTaskActionTransaction(space.impersonatedAction(session), space.id, [
+            {
+                type: "UpdateTask",
+                time: testTaskClock.now(),
+                taskId: task.id,
+                taskAction: {
+                    type: "UpdateTitle",
+                    titleUpdate: createTaskTitleFromText(
+                        randomlyGenerateTaskTitleClientId(),
+                        "Impersonated actor",
+                    ),
+                },
+            },
+        ]);
+
+        expect(
+            await backfillTaskActionTransactionHistory(space.systemAction(), space.id, startTime),
+        ).toEqual([
+            expect.objectContaining({
+                actions: [
+                    expect.objectContaining({
+                        type: "UpdateTask",
+                        taskId: task.id,
+                        actor: {
+                            accountId: session.account.id,
+                            from: null,
+                        },
+                        taskAction: expect.objectContaining({type: "UpdateTitle"}),
+                    }),
+                ],
+            }),
+        ]);
+    });
+});
+
 describe("bot task creation authorization", () => {
+    test("non-bot can\u2019t record task action bot provenance", async () => {
+        const space = await TestSpace.create(context);
+        const session = await space.createSession({role: "Admin"});
+        const task = await TestTask.create(session);
+
+        const clock = new HybridLogicalClock(unsynchronizedSystemClock);
+
+        await expect(
+            commitTaskActionTransaction(session.action(), space.id, [
+                {
+                    type: "UpdateTask",
+                    time: clock.now(),
+                    actor: {
+                        accountId: session.account.id,
+                        from: {type: "Bot", accountId: generateId<AccountId>()},
+                    },
+                    taskId: task.id,
+                    taskAction: {
+                        type: "UpdateTitle",
+                        titleUpdate: createTaskTitleFromText(
+                            randomlyGenerateTaskTitleClientId(),
+                            "Bot provenance",
+                        ),
+                    },
+                },
+            ]),
+        ).rejects.toThrow(
+            new PermissionDeniedError("Only bots can record task action bot provenance"),
+        );
+    });
+
+    test("bot can record task action actor provenance", async () => {
+        const space = await TestSpace.create(context);
+        const session = await space.createSession({role: "Admin"});
+        const botAccount = await TestBot.createAndInstantiate(session);
+        const botContext = botAccount.action();
+        const taskId = generateId<TaskId>();
+        const clock = new HybridLogicalClock(unsynchronizedSystemClock);
+        const accessPolicy = await createAccessPolicyForContentCreatedByBot(botContext, space.id);
+
+        await commitTaskActionTransaction(botContext, space.id, [
+            {
+                type: "UpdateTask",
+                time: clock.now(),
+                taskId,
+                taskAction: {
+                    type: "Create",
+                    creator: {
+                        accountId: session.account.id,
+                        from: {type: "Bot", accountId: botAccount.id},
+                    },
+                    creatorTimeZone: defaultTimeZone,
+                    accessPolicy,
+                },
+            },
+        ]);
+
+        await ProcessContextModule.waitForTestTasks();
+
+        const startTime = new Date();
+
+        await commitTaskActionTransaction(botContext, space.id, [
+            {
+                type: "UpdateTask",
+                time: clock.now(),
+                actor: {
+                    accountId: session.account.id,
+                    from: {type: "Bot", accountId: botAccount.id},
+                },
+                taskId,
+                taskAction: {
+                    type: "UpdateTitle",
+                    titleUpdate: createTaskTitleFromText(
+                        randomlyGenerateTaskTitleClientId(),
+                        "Bot provenance",
+                    ),
+                },
+            },
+        ]);
+
+        expect(
+            await backfillTaskActionTransactionHistory(space.systemAction(), space.id, startTime),
+        ).toEqual([
+            expect.objectContaining({
+                actions: [
+                    expect.objectContaining({
+                        type: "UpdateTask",
+                        taskId,
+                        actor: {
+                            accountId: session.account.id,
+                            from: {type: "Bot", accountId: botAccount.id},
+                        },
+                        taskAction: expect.objectContaining({type: "UpdateTitle"}),
+                    }),
+                ],
+            }),
+        ]);
+    });
+
     test("non-bot can\u2019t create a task on behalf of another account", async () => {
         const space = await TestSpace.create(context);
         const session1 = await space.createSession({role: "Admin"});
@@ -3005,6 +3303,136 @@ describe("bot task creation authorization", () => {
         ]);
     });
 
+    test("bot-created task with default access policy does not create feed entry", async () => {
+        const space = await TestSpace.create(context);
+        const session = await space.createSession({role: "Admin"});
+        const botAccount = await TestBot.createAndInstantiate(session);
+
+        jobs = [];
+
+        const taskId = generateId<TaskId>();
+        const clock = new HybridLogicalClock(unsynchronizedSystemClock);
+        const botContext = botAccount.action();
+        const accessPolicy = await createAccessPolicyForContentCreatedByBot(botContext, space.id);
+
+        await commitTaskActionTransaction(botContext, space.id, [
+            {
+                type: "UpdateTask",
+                time: clock.now(),
+                taskId,
+                taskAction: {
+                    type: "Create",
+                    creator: {
+                        accountId: botAccount.id,
+                        from: {type: "Bot", accountId: botAccount.id},
+                    },
+                    creatorTimeZone: defaultTimeZone,
+                    accessPolicy,
+                },
+            },
+        ]);
+
+        await ProcessContextModule.waitForTestTasks();
+
+        expect(await getTaskItemForTest(context, taskId)).toMatchObject({feed: null});
+        expect(jobs.filter(job => job.type === "AddFeedCandidateEntry")).toEqual([]);
+        expect(await getFeedCandidateEntriesForTest(space.systemAction(), {limit: 100})).toEqual(
+            [],
+        );
+    });
+
+    test("bot-created project task with default access policy creates feed entry", async () => {
+        const space = await TestSpace.create(context);
+        const session = await space.createSession({role: "Admin"});
+        const botAccount = await TestBot.createAndInstantiate(session);
+
+        jobs = [];
+
+        const taskId = generateId<TaskId>();
+        const clock = new HybridLogicalClock(unsynchronizedSystemClock);
+        const botContext = botAccount.action();
+        const accessPolicy = await createAccessPolicyForContentCreatedByBot(botContext, space.id);
+
+        await commitTaskActionTransaction(botContext, space.id, [
+            {
+                type: "UpdateTask",
+                time: clock.now(),
+                taskId,
+                taskAction: {
+                    type: "Create",
+                    creator: {
+                        accountId: botAccount.id,
+                        from: {type: "Bot", accountId: botAccount.id},
+                    },
+                    creatorTimeZone: defaultTimeZone,
+                    accessPolicy,
+                },
+            },
+            {
+                type: "UpdateTask",
+                time: clock.now(),
+                taskId,
+                taskAction: {
+                    type: "UpdateLayout",
+                    layout: "Project",
+                },
+            },
+        ]);
+
+        await ProcessContextModule.waitForTestTasks();
+
+        expect(await getTaskItemForTest(context, taskId)).toMatchObject({
+            feed: "AddedCandidateEntry",
+        });
+        expect(jobs.filter(job => job.type === "AddFeedCandidateEntry")).toEqual([]);
+        expect(await getFeedCandidateEntriesForTest(space.systemAction(), {limit: 100})).toEqual([
+            expect.objectContaining({
+                entry: expect.objectContaining({
+                    type: "Task",
+                    taskId,
+                    event: "UpdatedToProjectLayout",
+                }),
+            }),
+        ]);
+    });
+
+    test("bot-created task with non-default access policy records feed candidate state", async () => {
+        const space = await TestSpace.create(context);
+        const session = await space.createSession({role: "Admin"});
+        const botAccount = await TestBot.createAndInstantiate(session);
+
+        jobs = [];
+
+        const taskId = generateId<TaskId>();
+        const clock = new HybridLogicalClock(unsynchronizedSystemClock);
+        const botContext = botAccount.action();
+        const accessPolicy = {
+            ...(await createAccessPolicyForContentCreatedByBot(botContext, space.id)),
+            urlGrant: {level: "View" as const},
+        };
+
+        await commitTaskActionTransaction(botContext, space.id, [
+            {
+                type: "UpdateTask",
+                time: clock.now(),
+                taskId,
+                taskAction: {
+                    type: "Create",
+                    creator: {
+                        accountId: botAccount.id,
+                        from: {type: "Bot", accountId: botAccount.id},
+                    },
+                    creatorTimeZone: defaultTimeZone,
+                    accessPolicy,
+                },
+            },
+        ]);
+
+        expect(await getTaskItemForTest(context, taskId)).toMatchObject({
+            feed: "AddedCandidateEntry",
+        });
+    });
+
     test("bot can update a task it just created when access policy is set on create", async () => {
         const space = await TestSpace.create(context);
         const session = await space.createSession({role: "Admin"});
@@ -3037,7 +3465,10 @@ describe("bot task creation authorization", () => {
                 taskId,
                 taskAction: {
                     type: "UpdateTitle",
-                    titleUpdate: createTaskTitleFromText("Bot task"),
+                    titleUpdate: createTaskTitleFromText(
+                        randomlyGenerateTaskTitleClientId(),
+                        "Bot task",
+                    ),
                 },
             },
         ]);
@@ -3081,7 +3512,10 @@ describe("bot task creation authorization", () => {
                     taskId: task.id,
                     taskAction: {
                         type: "UpdateTitle",
-                        titleUpdate: createTaskTitleFromText("Hacked"),
+                        titleUpdate: createTaskTitleFromText(
+                            randomlyGenerateTaskTitleClientId(),
+                            "Hacked",
+                        ),
                     },
                 },
             ]),
@@ -3141,6 +3575,80 @@ describe("bot task creation authorization", () => {
 });
 
 describe("bot task collection creation authorization", () => {
+    test("non-bot can\u2019t record task collection action bot provenance", async () => {
+        const space = await TestSpace.create(context);
+        const session = await space.createSession({role: "Admin"});
+        const collection = await TestTaskCollection.create(session);
+
+        const clock = new HybridLogicalClock(unsynchronizedSystemClock);
+
+        await expect(
+            commitTaskActionTransaction(session.action(), space.id, [
+                {
+                    type: "UpdateCollection",
+                    time: clock.now(),
+                    actor: {
+                        accountId: session.account.id,
+                        from: {type: "Bot", accountId: generateId<AccountId>()},
+                    },
+                    collectionId: collection.id,
+                    collectionAction: {
+                        type: "UpdateName",
+                        name: "Bot provenance",
+                    },
+                },
+            ]),
+        ).rejects.toThrow(
+            new PermissionDeniedError("Only bots can record task collection action bot provenance"),
+        );
+    });
+
+    test("bot can record task collection action actor provenance", async () => {
+        const space = await TestSpace.create(context);
+        const session = await space.createSession({role: "Admin"});
+        const botAccount = await TestBot.createAndInstantiate(session);
+        const collection = await TestTaskCollection.create(session, {access: "Public"});
+
+        await ProcessContextModule.waitForTestTasks();
+
+        const clock = new HybridLogicalClock(unsynchronizedSystemClock);
+        const startTime = new Date();
+
+        await commitTaskActionTransaction(botAccount.action(), space.id, [
+            {
+                type: "UpdateCollection",
+                time: clock.now(),
+                actor: {
+                    accountId: session.account.id,
+                    from: {type: "Bot", accountId: botAccount.id},
+                },
+                collectionId: collection.id,
+                collectionAction: {
+                    type: "UpdateName",
+                    name: "Bot provenance",
+                },
+            },
+        ]);
+
+        expect(
+            await backfillTaskActionTransactionHistory(space.systemAction(), space.id, startTime),
+        ).toEqual([
+            expect.objectContaining({
+                actions: [
+                    expect.objectContaining({
+                        type: "UpdateCollection",
+                        collectionId: collection.id,
+                        actor: {
+                            accountId: session.account.id,
+                            from: {type: "Bot", accountId: botAccount.id},
+                        },
+                        collectionAction: {type: "UpdateName", name: "Bot provenance"},
+                    }),
+                ],
+            }),
+        ]);
+    });
+
     test("non-bot can\u2019t create a task collection on behalf of another account", async () => {
         const space = await TestSpace.create(context);
         const session1 = await space.createSession({role: "Admin"});

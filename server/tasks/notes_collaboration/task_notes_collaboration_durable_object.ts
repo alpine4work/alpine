@@ -21,28 +21,40 @@ import {
     isAccessLevel,
 } from "~/shared/access/access_policy.js";
 import {InvalidArgumentError, NotFoundError} from "~/shared/error/error.js";
+import {isSystemError} from "~/shared/error/is_system_error_code.js";
 import {emptyArray} from "~/shared/helpers/array/empty_array.js";
 import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
 import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
 import {concatIterables} from "~/shared/helpers/iterable/concat_iterables.js";
 import {flatMapIterable} from "~/shared/helpers/iterable/flat_map_iterable.js";
 import {createObjectFromKeys} from "~/shared/helpers/object/create_object_from_keys.js";
+import {generateId} from "~/shared/id/id.js";
 import {SpaceId, TaskId} from "~/shared/id/types/id_types.js";
 import {
     MessagingRealtimeBroadcastCompleteMessageStreamRequestSchema,
     MessagingRealtimeBroadcastNewMessageRequestSchema,
     MessagingRealtimeBroadcastPutMessageStreamPartRequestSchema,
 } from "~/shared/messaging/messaging_realtime_protocol.js";
-import {getTaskNotesContent} from "~/shared/rpc/tasks_rpc_definitions.js";
+import {diffProsemirrorNodes} from "~/shared/prosemirror/diff_prosemirror_nodes.js";
+import {authorizeTaskAccess, getTaskNotesContent} from "~/shared/rpc/tasks_rpc_definitions.js";
 import {Schema} from "~/shared/schema/schema.js";
-import {TaskNotesCollaborationProtocol} from "~/shared/tasks/task_notes_collaboration_protocol.js";
-import {TaskNotesContent} from "~/shared/tasks/task_notes_content_schema.js";
+import {
+    TaskNotesCollaborationProtocol,
+    TaskNotesCollaborationUpdateContentWithDiffRequestBodySchema,
+    TaskNotesCollaborationUpdateContentWithDiffResponseBodySchema,
+} from "~/shared/tasks/task_notes_collaboration_protocol.js";
+import {
+    TaskNotesContent,
+    TaskNotesContentProsemirrorSchema,
+    assertTaskNotesContent,
+} from "~/shared/tasks/task_notes_content_schema.js";
 
 type TaskNotesCollaborationDurableObjectRoute =
     | {type: "Main"; accessLevel: AccessLevel | null}
     | {type: "BroadcastNewMessage"}
     | {type: "BroadcastPutMessageStreamPart"}
     | {type: "BroadcastCompleteMessageStream"}
+    | {type: "UpdateContentWithDiff"}
     | {type: "NotFound"};
 
 class TaskNotesCollaborationDurableObject {
@@ -174,6 +186,7 @@ class TaskNotesCollaborationDurableObject {
                         accountId,
                         contentManager: this._contentManager,
                         closeWithError,
+                        killProcess: (context, error) => this._destroy(context, error),
                         sendEvent,
                         sendEventToOthers: (context, event) => {
                             sendEventToOthers(context, event);
@@ -243,6 +256,10 @@ class TaskNotesCollaborationDurableObject {
 
         if (url.pathname === "/broadcast-complete-message-stream") {
             return [url.pathname, {type: "BroadcastCompleteMessageStream"}];
+        }
+
+        if (url.pathname === "/update-content-with-diff") {
+            return [url.pathname, {type: "UpdateContentWithDiff"}];
         }
 
         return ["/*", {type: "NotFound"}];
@@ -349,6 +366,94 @@ class TaskNotesCollaborationDurableObject {
                 );
 
                 return new Response(null, {status: 200});
+            }
+            case "UpdateContentWithDiff": {
+                if (request.method !== "POST") {
+                    return new Response("405 Method Not Allowed", {
+                        status: 405,
+                        headers: {"content-type": "text/plain"},
+                    });
+                }
+
+                try {
+                    const accountContext = context.actor.authorizeAccount();
+
+                    const requestBody =
+                        TaskNotesCollaborationUpdateContentWithDiffRequestBodySchema.deserialize(
+                            await request.json(),
+                        );
+
+                    // Authorizing task access is a round-trip to AWS. Run it in parallel with
+                    // computing and applying the update to avoid an extra serial round-trip. The
+                    // `update()` call awaits `authorizationPromise` before mutating any durable object
+                    // state so an account without access can't put the durable object in a bad state.
+                    const authorizationPromise = authorizeTaskAccess(accountContext, {
+                        taskId: this.taskId,
+                        expectedAccessLevel: "Edit",
+                    });
+
+                    const [, {newVersion, newContent, persistencePromise}] = await runAllPromises([
+                        authorizationPromise,
+                        (async () => {
+                            const oldContent = await this._contentManager.getContentAtVersion(
+                                accountContext,
+                                requestBody.version,
+                            );
+
+                            const requestContent = assertTaskNotesContent(
+                                TaskNotesContentProsemirrorSchema.nodes.doc.create(
+                                    null,
+                                    requestBody.content,
+                                ),
+                            );
+
+                            const steps = diffProsemirrorNodes(oldContent, requestContent);
+
+                            return await this._contentManager.update(accountContext, null, {
+                                version: requestBody.version,
+                                steps,
+                                clientId: generateId(),
+                                validationPromise: authorizationPromise,
+                            });
+                        })(),
+                    ]);
+
+                    // Wait for the update to persist before responding so the public API keeps
+                    // read-after-write semantics.
+                    await persistencePromise;
+
+                    return new Response(
+                        JSON.stringify(
+                            TaskNotesCollaborationUpdateContentWithDiffResponseBodySchema.serialize(
+                                {
+                                    ok: true,
+                                    spaceId: this.spaceId,
+                                    newVersion,
+                                    newContent,
+                                },
+                            ),
+                        ),
+                        {
+                            status: 200,
+                            headers: {"content-type": "application/json"},
+                        },
+                    );
+                } catch (error) {
+                    return new Response(
+                        JSON.stringify(
+                            TaskNotesCollaborationUpdateContentWithDiffResponseBodySchema.serialize(
+                                {
+                                    ok: false,
+                                    error,
+                                },
+                            ),
+                        ),
+                        {
+                            status: isSystemError(error) ? 500 : 400,
+                            headers: {"content-type": "application/json"},
+                        },
+                    );
+                }
             }
             default:
                 throw exhaustive(route);

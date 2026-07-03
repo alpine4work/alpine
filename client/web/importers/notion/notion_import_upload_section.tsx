@@ -17,7 +17,7 @@ import {NotionImportTeamspaceOptions} from "~/client/web/importers/notion/notion
 import {LocalNotionImportItem} from "~/client/web/importers/notion/notion_import_types.js";
 import {usePlatform} from "~/client/web/remix/platform_context.js";
 import {useRevalidator} from "~/client/web/remix/use_revalidator.js";
-import {useSpaceContextAndRequireSpaceAccess} from "~/client/web/spaces/space_context.js";
+import {useSpaceContextAndRequireSpaceAccess} from "~/client/web/spaces/context/space_context.js";
 import {colorSchemeVars, spinAnimationClassName, sprinkles} from "~/client/web/styles/styles.js";
 import {spacing} from "~/shared/design/core/spacing.js";
 import {ErrorBase, FailedPreconditionError, UnknownError} from "~/shared/error/error.js";

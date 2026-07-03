@@ -103,12 +103,18 @@ export function renderContentFileChannelEntityPreview(
     // Header group: breadcrumb + name container. Wrapped in a no-gap column so the
     // parent's `channelViewHeaderSectionGap` flex gap doesn't contribute to the
     // breadcrumb-to-title spacing — that gap is owned by the breadcrumb's own
-    // `paddingBottom` (see `siteBreadcrumbToTitleSpacing`).
+    // `paddingBottom` (see `navigationBarBreadcrumbToTitleSpacing`).
     const headerGroupHtml = scaledContainerHtml.appendChild(new HtmlElementGenerator("div"));
     headerGroupHtml.setAttribute("class", sprinkles({display: "flex", flexDirection: "column"}));
 
     if (fileEntity.site) {
-        renderContentFileEntitySiteBreadcrumb(get, siteRegistry, headerGroupHtml, fileEntity.site);
+        renderContentFileEntitySiteBreadcrumb({
+            get,
+            siteRegistry,
+            parent: headerGroupHtml,
+            site: fileEntity.site,
+            platform,
+        });
     }
 
     {
@@ -119,7 +125,11 @@ export function renderContentFileChannelEntityPreview(
             sprinkles({
                 display: "flex",
                 justifyContent: "space-between",
-                alignItems: "center",
+                // Align the subscribe button to the bottom of the row so the bell + label sit on
+                // the same line as the channel name. `center` would put the button at the
+                // container's vertical center, which is slightly above the title baseline because
+                // the 500 font name is 2px taller than the constrained container.
+                alignItems: fileEntity.site ? "flex-end" : "center",
                 gap: "3",
                 // Make sure we don't grow beyond the subscribe button height. The 500 font size
                 // name is 2px larger than the subscribe button height.

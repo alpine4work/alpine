@@ -4,8 +4,8 @@ import {
     WorkerActionContext,
 } from "~/server/cloudflare/context/worker_action_context.js";
 import {WorkerProcessContext} from "~/server/cloudflare/context/worker_process_context.js";
+import {CollaborativeContentStepCache} from "~/server/content/collaboration/collaborative_content_step_cache.js";
 import {DocumentCollaborationEventStub} from "~/server/documents/collaboration/document_collaboration_connection.js";
-import {DocumentCollaborationStepCache} from "~/server/documents/collaboration/document_collaboration_step_cache.js";
 import {LocalAccessPolicy} from "~/shared/access/access_policy.js";
 import {CreateOrUpdateAccessPolicy} from "~/shared/access/model/create_or_update_access_policy_schema.js";
 import {ShareNotification} from "~/shared/access/share_notification.js";
@@ -64,6 +64,7 @@ import {getAccounts} from "~/shared/rpc/accounts_rpc_definitions.js";
 import {
     confirmDocumentResolvedCommentThreadIdsWithStrongReadConsistency,
     getDocumentContentReferences,
+    getDocumentContentSteps,
     updateDocumentContent,
 } from "~/shared/rpc/documents_rpc_definitions.js";
 import {SiteEntryModel, SitePreviewModel} from "~/shared/sites/site_model.js";
@@ -106,7 +107,7 @@ export type DocumentCollaborationContentManagerOptimisticCommentThread = {
 export class DocumentCollaborationContentManager {
     public readonly spaceId: SpaceId;
     public readonly id: DocumentId;
-    public readonly stepCache: DocumentCollaborationStepCache;
+    public readonly stepCache: CollaborativeContentStepCache<WorkerActionContext>;
     private readonly _sendEventToAllAndWait: (
         context: WorkerProcessContext,
         event: DocumentCollaborationEventStub,
@@ -205,7 +206,16 @@ export class DocumentCollaborationContentManager {
             content: initialContent,
         });
         this._persistedVersion = initialVersion;
-        this.stepCache = new DocumentCollaborationStepCache(id, initialVersion);
+        this.stepCache = new CollaborativeContentStepCache({
+            startVersion: initialVersion,
+            loadSteps: (context, {startVersion, endVersion}) => {
+                return getDocumentContentSteps(context, {
+                    documentId: id,
+                    startVersion,
+                    endVersion,
+                });
+            },
+        });
         this._sendEventToAllAndWait = sendEventToAllAndWait;
         this._resetAllAuthorizationTimers = resetAllAuthorizationTimers;
         this._killProcess = killProcess;
@@ -300,6 +310,13 @@ export class DocumentCollaborationContentManager {
             resolveCommentThreadIds?: ReadonlyArray<DocumentCommentThreadId>;
             unresolveCommentThreadIds?: ReadonlyArray<DocumentCommentThreadId>;
             updateOurPresenceState: {state: DocumentCollaborationPresenceState | null};
+            /**
+             * An optional promise that must resolve before we mutate any durable object state.
+             * If it rejects we throw before applying the update so the caller can run
+             * expensive validation (e.g. an authorization round-trip) in parallel with
+             * computing the update without risking putting the durable object in a bad state.
+             */
+            validationPromise?: Promise<unknown>;
         },
     ): Promise<{
         newVersion: number;
@@ -380,6 +397,11 @@ export class DocumentCollaborationContentManager {
                           selection: ContentSelectionWrapper.new(newPresenceStateSelection),
                       }
                     : null;
+
+            // Wait for any validation to pass before mutating state. We compute the update
+            // above in parallel with the validation, but if validation fails we throw here
+            // before applying the update.
+            if (update.validationPromise) await update.validationPromise;
 
             stateRef.current = {
                 version: stateRef.current.version + steps.length,

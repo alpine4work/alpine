@@ -6,13 +6,9 @@ import {useReporter} from "~/client/web/design/reporter.js";
 import {useClientInfo} from "~/client/web/remix/client_info_context.js";
 import {useRouteLayout} from "~/client/web/remix/route_layout_context.js";
 import {useNavigate} from "~/client/web/remix/use_navigate.js";
-import {
-    getSearchDynamicEntityPath,
-    getSearchDynamicEntityPathFromEntityIdObject,
-} from "~/client/web/search/core/get_search_entity_path.js";
 import {useSiteActivation, useSiteContext} from "~/client/web/sites/context/site_context.js";
 import {computeAdjacentEntityId} from "~/client/web/sites/internal/compute_adjacent_entity_id.js";
-import {useSpaceContext} from "~/client/web/spaces/space_context.js";
+import {useSpaceContext} from "~/client/web/spaces/context/space_context.js";
 import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
@@ -38,6 +34,10 @@ import {
     updateSiteName,
 } from "~/shared/rpc/sites_rpc_definitions.js";
 import {commitTaskActionTransaction} from "~/shared/rpc/tasks_rpc_definitions.js";
+import {
+    getSearchDynamicEntityPath,
+    getSearchDynamicEntityPathFromEntityIdObject,
+} from "~/shared/search/path/get_search_entity_path.js";
 import {SearchEntityModelData} from "~/shared/search/search_entity_model.js";
 import {
     SiteItemSearchEntityId,
@@ -398,11 +398,11 @@ export function useSiteMutations() {
             //
             // If (2) wins out, then the site tree in context will be updated with the removal
             // of the current entity. This would cause a flicker on the screen, because when we
-            // look for the current entity in the tree in `useSiteChromeContainer`, we don't
-            // find it. Since we don't find it, we won't render the site chrome. What the user
-            // sees is a brief paint of the current entity without the site chrome, and then
-            // they see the site pop back onto the screen for the next entity after (1)
-            // resolves and navigation completes.
+            // look for the current entity in the tree in `SiteChromeContainer`, we don't find
+            // it. Since we don't find it, we won't render the site chrome. What the user sees
+            // is a brief paint of the current entity without the site chrome, and then they
+            // see the site pop back onto the screen for the next entity after (1) resolves and
+            // navigation completes.
             //
             // To avoid this, we pause the realtime subsription, so that even if (2) wins out,
             // the event will be queued and applied to the tree after (1) resolves.

@@ -10,11 +10,10 @@ import {useNavigationBar} from "~/client/web/navigation/navigation_bar.js";
 import {usePlatform} from "~/client/web/remix/platform_context.js";
 import {useSpacingScale} from "~/client/web/remix/spacing_scale_context.js";
 import {useNavigate} from "~/client/web/remix/use_navigate.js";
-import {getSearchEntityPath} from "~/client/web/search/core/get_search_entity_path.js";
 import {useSearchEntityModel} from "~/client/web/search/core/search_entity_registry_context.js";
 import {SearchEntityView} from "~/client/web/search/search_entity_view.js";
 import {useSearchState} from "~/client/web/search/use_search_state.js";
-import {useSpaceContext} from "~/client/web/spaces/space_context.js";
+import {useSpaceContext} from "~/client/web/spaces/context/space_context.js";
 import {
     searchEntityHeaderFontSize,
     searchEntityHeaderLineHeight,
@@ -44,6 +43,7 @@ import {emptyArray} from "~/shared/helpers/array/empty_array.js";
 import {SpaceId} from "~/shared/id/types/id_types.js";
 import {RpcDefinitionOutputType} from "~/shared/rpc/rpc_definition.js";
 import {searchByAffinity} from "~/shared/rpc/search_rpc_definitions.js";
+import {getSearchEntityPath} from "~/shared/search/path/get_search_entity_path.js";
 import {
     SearchAffinityEntityResultModel,
     SearchEntityResultModel,

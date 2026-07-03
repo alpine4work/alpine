@@ -290,7 +290,14 @@ describe("validates access policy updates without default grants", () => {
         ).toEqual({ok: true});
     });
 
-    test("actor can\u2019t escalate a manage account at a greater generation in the old policy to a lower generation in the new policy (relative to the actor)", () => {
+    test("actor cant escalate a manage account at a greater generation in the old policy to a lower generation in the new policy (relative to the actor)", () => {
+        // The following is okay because the actor is moving accountId3 to the same
+        // generation as itself. This means accountId3 can remove the actor.
+        //
+        // ```
+        // old: [{accountId1}, {accountId2 (actor)}, {default}]
+        // new: [{accountId1}, {accountId2 (actor), accountId3}, {default}]
+        // ```
         expect(
             validateAccessPolicyUpdate(
                 accountId2,
@@ -299,7 +306,7 @@ describe("validates access policy updates without default grants", () => {
                     accessPolicy.accountGrantById.set(accountId3, {level: "Manage", generation: 1});
                 }),
             ),
-        ).toEqual({ok: false, reason: "Can\u2019t reorder manage grant generations"});
+        ).toEqual({ok: true});
     });
 
     test("actor can\u2019t escalate own manage generation in new policy above accounts with manage access at a lower generation in the old policy", () => {
@@ -491,6 +498,13 @@ test("validates access policy updates with default grants", () => {
         urlGrant: null,
     };
 
+    // The following is okay because the actor is moving the default grant to the same
+    // generation as itself. This means anyone in the space can remove the actor.
+    //
+    // ```
+    // old: [{accountId1}, {default}]
+    // new: [{accountId1, default}]
+    // ```
     expect(
         validateAccessPolicyUpdate(
             accountId1,
@@ -499,10 +513,7 @@ test("validates access policy updates with default grants", () => {
                 accessPolicy.defaultGrant = {level: "Manage", generation: 0};
             }),
         ),
-    ).toEqual({
-        ok: false,
-        reason: "Can\u2019t set new default grant manage generation to be less than or equal to our actor\u2019s manage generation",
-    });
+    ).toEqual({ok: true});
 
     const accessPolicy2 = produce(accessPolicy1, accessPolicy => {
         accessPolicy.defaultGrant = {level: "Manage", generation: 1};
@@ -516,18 +527,41 @@ test("validates access policy updates with default grants", () => {
         ok: true,
     });
 
+    // The following is okay because the second account is adding the default grant at
+    // a lower generation than the first account. This shouldn't happen in practice
+    // because we should make sure that the actor has manage permissions on the access
+    // policy before calling the function in the first place
+    //
+    // ```
+    // old: [{accountId1}]
+    // new: [{accountId1}, {default}]
+    // ```
     expect(validateAccessPolicyUpdate(accountId2, accessPolicy1, accessPolicy2)).toEqual({
-        ok: false,
-        reason: "Can\u2019t set new default grant manage generation to be less than or equal to our actor\u2019s manage generation",
-    });
-
-    expect(validateAccessPolicyUpdate(accountId2, accessPolicy2, accessPolicy1)).toEqual({
         ok: true,
     });
 
-    expect(validateAccessPolicyUpdate(accountId3, accessPolicy1, accessPolicy2)).toEqual({
-        ok: false,
-        reason: "Can\u2019t set new default grant manage generation to be less than or equal to our actor\u2019s manage generation",
+    // This is a little weird, because now accounts can technically add themselves to
+    // access policies where as they could not do so before. However, there is a note
+    // on the function that says that we should make sure that the actor has manage
+    // permissions on the access policy before calling the function.
+    //
+    // ```
+    // old: [{accountId1}]
+    // new: [{accountId1}, {default, accountId2}]
+    // ```
+    expect(
+        validateAccessPolicyUpdate(
+            accountId2,
+            accessPolicy1,
+            produce(accessPolicy1, accessPolicy => {
+                accessPolicy.defaultGrant = {level: "Manage", generation: 1};
+                accessPolicy.accountGrantById.set(accountId2, {level: "Manage", generation: 1});
+            }),
+        ),
+    ).toEqual({ok: true});
+
+    expect(validateAccessPolicyUpdate(accountId2, accessPolicy2, accessPolicy1)).toEqual({
+        ok: true,
     });
 
     expect(validateAccessPolicyUpdate(accountId3, accessPolicy2, accessPolicy1)).toEqual({
@@ -616,6 +650,10 @@ test("validates access policy updates with default grants", () => {
         ),
     ).toEqual({ok: true});
 
+    // ```
+    // old: [{accountId1}, {default}, {accountId2 (actor)}]
+    // new: [{accountId1}, {default}, {accountId2 (actor), accountId3}]
+    // ```
     expect(
         validateAccessPolicyUpdate(
             accountId2,
@@ -624,8 +662,15 @@ test("validates access policy updates with default grants", () => {
                 accessPolicy.defaultGrant = {level: "Manage", generation: 2};
             }),
         ),
-    ).toEqual({ok: false, reason: "Can\u2019t reorder manage grant generations"});
+    ).toEqual({ok: true});
 
+    // This feels a little odd, but the actor's manage generation is that of the
+    // default grant, so they can manage at or above the default grant generation.
+    //
+    // ```
+    // old: [{accountId1}, {default}, {accountId2}]
+    // new: [{accountId1}, {accountId2, default}]
+    // ```
     expect(
         validateAccessPolicyUpdate(
             accountId3,
@@ -634,8 +679,15 @@ test("validates access policy updates with default grants", () => {
                 accessPolicy.defaultGrant = {level: "Manage", generation: 2};
             }),
         ),
-    ).toEqual({ok: false, reason: "Can\u2019t reorder manage grant generations"});
+    ).toEqual({ok: true});
 
+    // The following is okay because the actor is the "owner" in the old policy. They
+    // are essentially giving up their manage privileges.
+    //
+    // ```
+    // old: [{accountId1 (actor)}, {default}, {accountId2}]
+    // new: [{accountId1 (actor), default}, {accountId2}]
+    // ```
     expect(
         validateAccessPolicyUpdate(
             accountId1,
@@ -644,7 +696,7 @@ test("validates access policy updates with default grants", () => {
                 accessPolicy.defaultGrant = {level: "Manage", generation: 0};
             }),
         ),
-    ).toEqual({ok: false, reason: "Can\u2019t reorder manage grant generations"});
+    ).toEqual({ok: true});
 
     expect(
         validateAccessPolicyUpdate(
@@ -719,18 +771,29 @@ test("validates access policy updates with default grants", () => {
         ok: true,
     });
 
+    // The actor is sacrificing some manage privileges
+    //
+    // ```
+    // old: [{accountId1}, {accountId2 (actor)}]
+    // new: [{accountId1}, {default}, {accountId2 (actor)}]
+    // ```
     expect(validateAccessPolicyUpdate(accountId2, accessPolicy4, accessPolicy3)).toEqual({
-        ok: false,
-        reason: "Can\u2019t set new default grant manage generation to be less than or equal to our actor\u2019s manage generation",
+        ok: true,
     });
 
     expect(validateAccessPolicyUpdate(accountId3, accessPolicy3, accessPolicy4)).toEqual({
         ok: true,
     });
 
+    // The actor is sacrificing some manage privileges
+    //
+    // ```
+    // old: [{accountId1}, {accountId2 (actor)}]
+    // new: [{accountId1}, {default}, {accountId2 (actor)}]
+    // ```
     expect(validateAccessPolicyUpdate(accountId3, accessPolicy4, accessPolicy3)).toEqual({
         ok: false,
-        reason: "Can\u2019t set new default grant manage generation to be less than or equal to our actor\u2019s manage generation",
+        reason: "Can\u2019t reorder manage grant generations",
     });
 
     expect(
@@ -779,9 +842,13 @@ test("validates access policy updates with default grants", () => {
         ),
     ).toEqual({
         ok: false,
-        reason: "Can\u2019t set new default grant manage generation to be less than or equal to our actor\u2019s manage generation",
+        reason: "Can\u2019t reorder manage grant generations",
     });
 
+    // ```
+    // old: [{accountId1}, {accountId2 (actor)}]
+    // new: [{accountId1}, {default}, {accountId2 (actor)}]
+    // ```
     expect(
         validateAccessPolicyUpdate(
             accountId2,
@@ -790,11 +857,12 @@ test("validates access policy updates with default grants", () => {
                 accessPolicy.defaultGrant = {level: "Manage", generation: 1};
             }),
         ),
-    ).toEqual({
-        ok: false,
-        reason: "Can\u2019t set new default grant manage generation to be less than or equal to our actor\u2019s manage generation",
-    });
+    ).toEqual({ok: true});
 
+    // ```
+    // old: [{accountId1}, {default}, {accountId2 (actor)}]
+    // new: [{accountId1}, {default, accountId2 (actor)}]
+    // ```
     expect(
         validateAccessPolicyUpdate(
             accountId2,
@@ -803,10 +871,7 @@ test("validates access policy updates with default grants", () => {
                 accessPolicy.defaultGrant = {level: "Manage", generation: 2};
             }),
         ),
-    ).toEqual({
-        ok: false,
-        reason: "Can\u2019t set new default grant manage generation to be less than or equal to our actor\u2019s manage generation",
-    });
+    ).toEqual({ok: true});
 
     expect(
         validateAccessPolicyUpdate(
@@ -1137,27 +1202,31 @@ describe("validateAccessPolicyUpdate senior chain validation", () => {
         urlGrant: null,
     };
 
-    test("actor can\u2019t promote manage account at higher generation to their own generation", () => {
-        // Carol (gen 2) tries to promote Dan (gen 3) to gen 2 (peer) This would set
-        // generation <= actor's generation, which is not allowed
+    test("actor can promote manage account at higher generation to their own generation", () => {
         const newPolicy = produce(basePolicyWith4Managers, policy => {
             policy.accountGrantById.set(dan, {level: "Manage", generation: 2});
         });
 
+        // ```
+        // old: [{alice}, {bob}, {carol (actor)}, {dan}]
+        // new: [{alice}, {bob}, {carol (actor), dan}]
+        // ```
         expect(validateAccessPolicyUpdate(carol, basePolicyWith4Managers, newPolicy)).toEqual({
-            ok: false,
-            reason: "Can\u2019t reorder manage grant generations",
+            ok: true,
         });
     });
 
-    test("actor can\u2019t change own generation such that there are more manage accounts at a lower generation than the actor in the new policy (de-escalate own priveleges)", () => {
+    test("actor can change own generation such that there are more manage accounts at a lower generation than the actor in the new policy (de-escalate own priveleges)", () => {
         const newPolicy = produce(basePolicyWith4Managers, policy => {
             policy.accountGrantById.set(carol, {level: "Manage", generation: 4});
         });
 
+        // ```
+        // old: [{alice}, {bob}, {carol (actor)}, {dan}]
+        // new: [{alice}, {bob}, {dan}, {carol}]
+        // ```
         expect(validateAccessPolicyUpdate(carol, basePolicyWith4Managers, newPolicy)).toEqual({
-            ok: false,
-            reason: "Can\u2019t set new account grant manage generation to be less than or equal to our actor\u2019s manage generation",
+            ok: true,
         });
     });
 
@@ -1743,7 +1812,7 @@ describe("validateAccessPolicyUpdate tie consistency", () => {
         });
     });
 
-    test("can\u2019t add generation tie to actor that didn\u2019t have one before", () => {
+    test("can add generation tie to actor that didn\u2019t have one before", () => {
         // Old: Alice(0), Bob(0) tied (both owners), Carol(1) Alice removes Bob - peers can
         // remove each other
         const oldPolicy: LocalAccessPolicy = {
@@ -1762,9 +1831,12 @@ describe("validateAccessPolicyUpdate tie consistency", () => {
             policy.accountGrantById.set(dan, {level: "Manage", generation: 2});
         });
 
+        // ```
+        // old: [{alice}, {bob}, {carol (actor)}, {dan}]
+        // new: [{alice}, {bob}, {dan}, {carol}]
+        // ```
         expect(validateAccessPolicyUpdate(carol, oldPolicy, newPolicy)).toEqual({
-            ok: false,
-            reason: "Can\u2019t reorder manage grant generations",
+            ok: true,
         });
     });
 
@@ -1825,6 +1897,180 @@ describe("validateAccessPolicyUpdate tie consistency", () => {
         expect(validateAccessPolicyUpdate(actor, oldPolicy, newPolicy)).toEqual({
             ok: false,
             reason: "Can\u2019t reorder manage grant generations",
+        });
+    });
+});
+
+describe("validateAccessPolicyUpdate with accounts removed from the space", () => {
+    // Setup: alice (gen 0), bob (gen 1), charlie (gen 2). Bob is removed from the
+    // space in most tests below, which simulates moving an entity into a site whose
+    // access policy doesn't include managers that left the space.
+    const alice = generateId<AccountId>();
+    const bob = generateId<AccountId>();
+    const charlie = generateId<AccountId>();
+
+    const oldPolicy: LocalAccessPolicy = {
+        type: "Local",
+        accountGrantById: new Map([
+            [alice, {level: "Manage", generation: 0}],
+            [bob, {level: "Manage", generation: 1}],
+            [charlie, {level: "Manage", generation: 2}],
+        ]),
+        defaultGrant: null,
+        urlGrant: null,
+    };
+
+    function isBobRemovedFromSpace(accountId: AccountId) {
+        return accountId === bob;
+    }
+
+    test("actor can drop a removed senior manager and take over their generation", () => {
+        // Charlie (gen 2) drops bob (gen 1) and takes over his generation. This would
+        // normally be an illegal escalation past bob, but bob was removed from the space.
+        const newPolicy = produce(oldPolicy, policy => {
+            policy.accountGrantById.delete(bob);
+            policy.accountGrantById.set(charlie, {level: "Manage", generation: 1});
+        });
+
+        expect(
+            validateAccessPolicyUpdate(charlie, oldPolicy, newPolicy, {
+                isAccountRemovedFromSpace: isBobRemovedFromSpace,
+            }),
+        ).toEqual({ok: true});
+    });
+
+    test("actor can\u2019t drop a senior manager who is still a member of the space", () => {
+        const newPolicy = produce(oldPolicy, policy => {
+            policy.accountGrantById.delete(bob);
+            policy.accountGrantById.set(charlie, {level: "Manage", generation: 1});
+        });
+
+        // Same change as the previous test, but the callback reports everyone as a space
+        // member, so dropping bob is an illegal revocation.
+        expect(
+            validateAccessPolicyUpdate(charlie, oldPolicy, newPolicy, {
+                isAccountRemovedFromSpace: () => false,
+            }),
+        ).toEqual({
+            ok: false,
+            reason: "Can\u2019t revoke manage access from an account with a manage generation less than our actor",
+        });
+
+        // Not providing the callback at all behaves the same way.
+        expect(validateAccessPolicyUpdate(charlie, oldPolicy, newPolicy)).toEqual({
+            ok: false,
+            reason: "Can\u2019t revoke manage access from an account with a manage generation less than our actor",
+        });
+    });
+
+    test("actor can demote a removed senior manager to a non-manage level", () => {
+        const newPolicy = produce(oldPolicy, policy => {
+            policy.accountGrantById.set(bob, {level: "Edit"});
+        });
+
+        expect(
+            validateAccessPolicyUpdate(charlie, oldPolicy, newPolicy, {
+                isAccountRemovedFromSpace: isBobRemovedFromSpace,
+            }),
+        ).toEqual({ok: true});
+    });
+
+    test("removed account with a senior manage grant in the new policy doesn\u2019t block the update", () => {
+        // Simulates moving an entity into a site whose policy includes a removed manager
+        // at a generation that ties with the actor's.
+        const oldPolicyWithoutBob: LocalAccessPolicy = {
+            type: "Local",
+            accountGrantById: new Map([[charlie, {level: "Manage", generation: 0}]]),
+            defaultGrant: null,
+            urlGrant: null,
+        };
+
+        const newPolicy = produce(oldPolicyWithoutBob, policy => {
+            policy.accountGrantById.set(bob, {level: "Manage", generation: 0});
+        });
+
+        expect(
+            validateAccessPolicyUpdate(charlie, oldPolicyWithoutBob, newPolicy, {
+                isAccountRemovedFromSpace: isBobRemovedFromSpace,
+            }),
+        ).toEqual({ok: true});
+
+        // Without space membership awareness this is an illegal promotion of bob to a
+        // generation equal to the actor's.
+        expect(validateAccessPolicyUpdate(charlie, oldPolicyWithoutBob, newPolicy)).toEqual({
+            ok: false,
+            reason: "Can\u2019t set new account grant manage generation to be less than or equal to our actor\u2019s manage generation",
+        });
+    });
+
+    test("update fails when every manager in the new policy was removed from the space", () => {
+        const oldPolicySoloCharlie: LocalAccessPolicy = {
+            type: "Local",
+            accountGrantById: new Map([[charlie, {level: "Manage", generation: 0}]]),
+            defaultGrant: null,
+            urlGrant: null,
+        };
+
+        // Charlie demotes himself and hands manage access to bob, who was removed from the
+        // space. The policy would be left without any active manager.
+        const newPolicy = produce(oldPolicySoloCharlie, policy => {
+            policy.accountGrantById.set(charlie, {level: "Edit"});
+            policy.accountGrantById.set(bob, {level: "Manage", generation: 1});
+        });
+
+        expect(
+            validateAccessPolicyUpdate(charlie, oldPolicySoloCharlie, newPolicy, {
+                isAccountRemovedFromSpace: isBobRemovedFromSpace,
+            }),
+        ).toEqual({
+            ok: false,
+            reason: "Can\u2019t update access policy so that no one has manage access",
+        });
+    });
+
+    test("removed managers are ignored when comparing manage generation groups", () => {
+        // Bob is tied with alice at gen 0 in the old policy. Once bob is removed from the
+        // space, dropping him shouldn't read as "breaking the tie".
+        const dave = generateId<AccountId>();
+        const oldPolicyWithTie: LocalAccessPolicy = {
+            type: "Local",
+            accountGrantById: new Map([
+                [alice, {level: "Manage", generation: 0}],
+                [bob, {level: "Manage", generation: 0}],
+                [dave, {level: "Manage", generation: 1}],
+                [charlie, {level: "Manage", generation: 2}],
+            ]),
+            defaultGrant: null,
+            urlGrant: null,
+        };
+
+        const newPolicy = produce(oldPolicyWithTie, policy => {
+            policy.accountGrantById.delete(bob);
+        });
+
+        expect(
+            validateAccessPolicyUpdate(charlie, oldPolicyWithTie, newPolicy, {
+                isAccountRemovedFromSpace: isBobRemovedFromSpace,
+            }),
+        ).toEqual({ok: true});
+    });
+
+    test("actor can\u2019t use a removed manager to escalate past an active senior manager", () => {
+        // Bob (gen 1) was removed from the space but alice (gen 0) is still active.
+        // Charlie can take over bob's generation but can't touch alice.
+        const newPolicy = produce(oldPolicy, policy => {
+            policy.accountGrantById.delete(alice);
+            policy.accountGrantById.delete(bob);
+            policy.accountGrantById.set(charlie, {level: "Manage", generation: 0});
+        });
+
+        expect(
+            validateAccessPolicyUpdate(charlie, oldPolicy, newPolicy, {
+                isAccountRemovedFromSpace: isBobRemovedFromSpace,
+            }),
+        ).toEqual({
+            ok: false,
+            reason: "Can\u2019t revoke manage access from an account with a manage generation less than our actor",
         });
     });
 });

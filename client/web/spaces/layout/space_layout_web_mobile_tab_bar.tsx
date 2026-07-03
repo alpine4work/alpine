@@ -14,13 +14,13 @@ import {useClientInfo} from "~/client/web/remix/client_info_context.js";
 import {usePlatform} from "~/client/web/remix/platform_context.js";
 import {useCurrentTimeRoundedToNearestTenMinutes} from "~/client/web/remix/use_current_time_rounded_to_hour.js";
 import {useNavigate} from "~/client/web/remix/use_navigate.js";
+import {useMyAccountWebSocket, useSpaceContext} from "~/client/web/spaces/context/space_context.js";
 import {inboxSubtleNotificationBadgePeaceMinutes} from "~/client/web/spaces/layout/internal/inbox_subtle_notification_badge_peace_minutes.js";
 import {
     WebMobileTab,
     WebMobileTabSchema,
     getWebMobileTabFromLocation,
 } from "~/client/web/spaces/layout/web_mobile_tab.js";
-import {useMyAccountWebSocket, useSpaceContext} from "~/client/web/spaces/space_context.js";
 import {spaceLayoutWebMobileTabBarHeight} from "~/client/web/styles/space_layout_shared_styles.js";
 import {
     backgroundColorVar,

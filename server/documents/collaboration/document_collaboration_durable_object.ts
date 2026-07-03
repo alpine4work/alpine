@@ -53,7 +53,10 @@ import {
     MessagingRealtimeBroadcastPutMessageStreamPartRequestSchema,
 } from "~/shared/messaging/messaging_realtime_protocol.js";
 import {diffProsemirrorNodes} from "~/shared/prosemirror/diff_prosemirror_nodes.js";
-import {getDocumentContentForCollaborationServiceInitialization} from "~/shared/rpc/documents_rpc_definitions.js";
+import {
+    authorizeDocumentAccess,
+    getDocumentContentForCollaborationServiceInitialization,
+} from "~/shared/rpc/documents_rpc_definitions.js";
 import {Schema} from "~/shared/schema/schema.js";
 import {SpellCheckIgnoredLintRealtimeTransactionSchema} from "~/shared/spell_check/spell_check_model.js";
 import {TracerSpan} from "~/shared/tracer/tracer_span.js";
@@ -443,29 +446,44 @@ class DocumentCollaborationDurableObject {
                             await request.json(),
                         );
 
-                    const oldContent = await this._contentManager.getContentAtVersion(
-                        accountContext,
-                        requestBody.version,
-                    );
+                    // Authorizing document access is a round-trip to AWS. Run it in parallel with
+                    // computing and applying the update to avoid an extra serial round-trip. The
+                    // `update()` call awaits `authorizationPromise` before mutating any durable object
+                    // state so an account without access can't put the durable object in a bad state.
+                    const authorizationPromise = authorizeDocumentAccess(accountContext, {
+                        documentId: this._contentManager.id,
+                        expectedAccessLevel: "Edit",
+                    });
 
-                    const requestContent = DocumentContentProsemirrorSchema.nodes.doc.create(
-                        // This method isn't currently allowed to update document attributes like
-                        // `AccessPolicy`.
-                        oldContent.attrs,
-                        requestBody.content,
-                    );
+                    const [, {newVersion, newContent, persistencePromise}] = await runAllPromises([
+                        authorizationPromise,
+                        (async () => {
+                            const oldContent = await this._contentManager.getContentAtVersion(
+                                accountContext,
+                                requestBody.version,
+                            );
 
-                    const steps = diffProsemirrorNodes(oldContent, requestContent);
+                            const requestContent =
+                                DocumentContentProsemirrorSchema.nodes.doc.create(
+                                    // This method isn't currently allowed to update document attributes like
+                                    // `AccessPolicy`.
+                                    oldContent.attrs,
+                                    requestBody.content,
+                                );
 
-                    const {newVersion, newContent, persistencePromise} =
-                        await this._contentManager.update(accountContext, null, {
-                            version: requestBody.version,
-                            steps,
-                            clientId: generateId(),
-                            createCommentThreads: [],
-                            intentionallyUpdateAccessPolicy: null,
-                            updateOurPresenceState: {state: null},
-                        });
+                            const steps = diffProsemirrorNodes(oldContent, requestContent);
+
+                            return await this._contentManager.update(accountContext, null, {
+                                version: requestBody.version,
+                                steps,
+                                clientId: generateId(),
+                                createCommentThreads: [],
+                                intentionallyUpdateAccessPolicy: null,
+                                updateOurPresenceState: {state: null},
+                                validationPromise: authorizationPromise,
+                            });
+                        })(),
+                    ]);
 
                     // Wait for our update to actually persist before responding. This endpoint is
                     // called by the API which provides read-after-write semantics to API clients.

@@ -15,6 +15,7 @@ export interface FileProcessorRoutingRule {
         readonly contentTypes?: ReadonlySet<FileContentType>;
         readonly maxFileSize?: number;
         readonly minFileSize?: number;
+        readonly requiresFileAnalysisFeature?: boolean;
     };
     readonly target: "ProcessFileLight" | "ProcessFileHeavy";
 }
@@ -25,6 +26,7 @@ export interface FileProcessorRoutingConfig {
 
 const oneMb = 1024 * 1024;
 const tenMb = 10 * oneMb;
+const twentyFiveMb = 25 * oneMb;
 const fiftyMb = 50 * oneMb;
 const oneHundredMb = 100 * oneMb;
 
@@ -85,7 +87,7 @@ export const fileProcessorRoutingConfig: FileProcessorRoutingConfig = {
             target: "ProcessFileHeavy",
         },
         {
-            // Large web-safe audio (>50MB) needs heavy compute
+            // Web-safe audio above the old preview limit needs heavy compute.
             name: "large_web_safe_audio_heavy",
             priority: 5,
             condition: {
@@ -99,9 +101,24 @@ export const fileProcessorRoutingConfig: FileProcessorRoutingConfig = {
             target: "ProcessFileHeavy",
         },
         {
+            // Metadata analysis lowers the safe web-audio light processor limit.
+            name: "analysis_web_safe_audio_heavy",
+            priority: 6,
+            condition: {
+                contentTypes: new Set(
+                    getFileAudioContentTypes().filter(contentType =>
+                        isFileWebSafeAudioContentType(contentType),
+                    ),
+                ),
+                minFileSize: twentyFiveMb + 1,
+                requiresFileAnalysisFeature: true,
+            },
+            target: "ProcessFileHeavy",
+        },
+        {
             // Large PDFs (>10MB) need heavy compute for processing
             name: "large_pdf_heavy",
-            priority: 6,
+            priority: 7,
             condition: {
                 contentTypes: new Set(["application/pdf"]),
                 minFileSize: tenMb,

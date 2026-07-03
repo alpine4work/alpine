@@ -674,7 +674,10 @@ export class TaskRealtimeQuery {
                             case "Undelete":
                             case "UpdateName":
                             case "UpdateColor":
-                            case "UpdateAccessPolicy": {
+                            case "UpdateAccessPolicy":
+                            // Default filters/sorts only affect which query new visitors start with, not which
+                            // tasks match an already-executed query.
+                            case "UpdateDefaults": {
                                 // Doesn't affect query
                                 break;
                             }

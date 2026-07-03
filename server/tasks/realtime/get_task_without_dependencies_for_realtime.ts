@@ -1,5 +1,6 @@
 import {DynamoCacheReadConsistency} from "~/server/dynamo/core/dynamo_read_consistency.js";
 import {ActorContextModule} from "~/server/helpers/actor_context_module.js";
+import {authorizeSiteAccessIfPossible} from "~/server/sites/data/authorize_site_access.js";
 import {authorizeSpaceAccessIfPossible} from "~/server/spaces/authorize_space_access.js";
 import {prepareTaskForClient} from "~/server/tasks/data/prepare_task_for_client.js";
 import {
@@ -11,7 +12,7 @@ import {BatchContextModule} from "~/shared/context/batch_context_module.js";
 import {CacheContextModule} from "~/shared/context/cache_context_module.js";
 import {Context} from "~/shared/context/context.js";
 import {TracerContextModule} from "~/shared/context/tracer_context_module.js";
-import {SpaceId, TaskCollectionId, TaskId} from "~/shared/id/types/id_types.js";
+import {SiteId, SpaceId, TaskCollectionId, TaskId} from "~/shared/id/types/id_types.js";
 import {TaskRealtimeGetTaskWithoutDependenciesOutput} from "~/shared/tasks/task_realtime_service_procedure_schemas.js";
 
 export async function getTaskWithoutDependenciesForRealtime(
@@ -68,6 +69,16 @@ export async function getTaskWithoutDependenciesForRealtime(
                     context,
                     spaceId,
                     collectionId,
+                    "View",
+                    {consistency},
+                );
+
+                return result?.ok ?? false;
+            },
+            isSiteAccessAuthorized: async (siteId: SiteId) => {
+                const result = await authorizeSiteAccessIfPossible(
+                    originalContext,
+                    siteId,
                     "View",
                     {consistency},
                 );

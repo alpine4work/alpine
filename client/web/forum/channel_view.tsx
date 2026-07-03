@@ -32,10 +32,11 @@ import {getInitialAppRenderSpacingScale} from "~/client/web/remix/spacing_scale_
 import {useNavigate} from "~/client/web/remix/use_navigate.js";
 import {useSearchEntityRegistry} from "~/client/web/search/core/search_entity_registry_context.js";
 import {useSearchFavoriteEntityMenuAction} from "~/client/web/search/core/use_search_favorite_affinity_entity_menu_action.js";
+import {useSiteNavigationBarTitleBreadcrumb} from "~/client/web/sites/breadcrumb/use_site_navigation_bar_title_breadcrumb.js";
 import {useSiteContextIfExists} from "~/client/web/sites/context/site_context.js";
 import {useSiteRegistry} from "~/client/web/sites/context/site_registry_context.js";
 import {applySiteAccessPolicyChange} from "~/client/web/sites/helpers/apply_site_access_policy_change.js";
-import {useSpaceContext} from "~/client/web/spaces/space_context.js";
+import {useSpaceContext} from "~/client/web/spaces/context/space_context.js";
 import {
     channelViewAsidePostFileMaxCount,
     postContentViewMinHeightPx,
@@ -263,11 +264,17 @@ export function ChannelView({
     };
 
     const lastPointerDownTimeRef = useRef<number | null>(null);
+    const navigationBarTitleBreadcrumb = useSiteNavigationBarTitleBreadcrumb({accessPolicy});
 
     const navigationBar = useNavigationBar({
         withoutDisappearingTitle: true,
         title: (
-            <Box display="flex" alignItems="center" gap={platform === "mobile" ? "1.5" : "2"}>
+            <Box
+                display="flex"
+                alignItems="center"
+                gap={platform === "mobile" ? "1.5" : "2"}
+                minWidth="0"
+            >
                 {!accessPolicy.defaultGrant && !accessPolicy.urlGrant && (
                     // We add a lock icon to private channels because unlike other entities we don't
                     // show the share switch in the navigation bar. Since knowing whether a channel is
@@ -325,6 +332,7 @@ export function ChannelView({
                 )}
             </Box>
         ),
+        titleBreadcrumb: navigationBarTitleBreadcrumb,
         desktopMaxWidth:
             routeLayout !== "narrow"
                 ? addRemLengths(contentStyles.contentMaxWidth, postListViewAsideMaxWidth)
@@ -486,11 +494,11 @@ export function ChannelView({
             flexDirection="column"
             overflow="hidden"
             height="full"
-            // TODO(#sites): `width="full"` here makes the People/About right-rail section
-            // placement correct when the channel is rendered inside site chrome, but throws
-            // off the channel content layout when the channel is standalone. Pick a single
-            // layout pattern that works in both — likely moving the width constraint up to
-            // whichever wrapper owns the chrome.
+            // TODO(#sites-redesign): `width="full"` here makes the People/About right-rail
+            // section placement correct when the channel is rendered inside site chrome, but
+            // throws off the channel content layout when the channel is standalone. Pick a
+            // single layout pattern that works in both — likely moving the width constraint up
+            // to whichever wrapper owns the chrome.
             width={accessPolicy.type === "Site" ? "full" : undefined}
         >
             <PostListView

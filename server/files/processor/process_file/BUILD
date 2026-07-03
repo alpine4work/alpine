@@ -4,6 +4,7 @@ load("//admin/bazel:production_transition.bzl", "production_transition")
 
 ts_project(
     name = "process_file",
+    data = ["//server/files/processor/whisper_base_en:whisper_base_en_data"],
     visibility = ["//server/files/processor:__subpackages__"],
     deps = [
         "//server/aws",

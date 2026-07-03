@@ -3,6 +3,7 @@ import {InternalError} from "~/shared/error/error.js";
 import {
     HybridLogicalTime,
     compareHybridLogicalTimes,
+    zeroHybridLogicalTime,
 } from "~/shared/helpers/clock/hybrid_logical_clock.js";
 import {SpaceId, TaskCollectionId} from "~/shared/id/types/id_types.js";
 import {HybridLogicalTimeSchema} from "~/shared/schema/helpers/hybrid_logical_time_schema.js";
@@ -17,6 +18,10 @@ import {applyTaskCollectionActionToCollectionModelData} from "~/shared/tasks/mod
 import {mergeTaskCollectionModelData} from "~/shared/tasks/model/merge_task_collection_model_data.js";
 import {TaskCollectionColorRegister} from "~/shared/tasks/task_collection_color.js";
 import {TaskCreatorSchema} from "~/shared/tasks/task_creator.js";
+import {
+    TaskQueryDefaultsRegister,
+    emptyTaskQueryDefaults,
+} from "~/shared/tasks/task_query_defaults.js";
 
 export type TaskCollectionModelData = SchemaType<typeof TaskCollectionModelDataSchema>;
 
@@ -32,6 +37,12 @@ const TaskCollectionModelDataSchema = Schema.object({
     name: LabelStringRegister.schema,
     color: TaskCollectionColorRegister.schema,
     accessPolicy: AccessPolicyRegister.schema,
+
+    // Collections created before defaults existed don't have this property so we
+    // default to an empty register which loses to any update.
+    defaults: TaskQueryDefaultsRegister.schema.default(
+        () => new TaskQueryDefaultsRegister(emptyTaskQueryDefaults, zeroHybridLogicalTime),
+    ),
 });
 
 // Doesn't use the `Model` class since `rawData` contains "raw" properties we want
@@ -68,6 +79,7 @@ export class TaskCollectionModel {
             name: new LabelStringRegister(action.name, actionTime),
             color: new TaskCollectionColorRegister(null, actionTime),
             accessPolicy: new AccessPolicyRegister(action.accessPolicy, actionTime),
+            defaults: new TaskQueryDefaultsRegister(emptyTaskQueryDefaults, actionTime),
         });
     }
 
@@ -155,6 +167,10 @@ export class TaskCollectionModel {
     public getAccessPolicy() {
         return this.rawData.accessPolicy.value;
     }
+
+    public getDefaults() {
+        return this.rawData.defaults.value;
+    }
 }
 
 function tickTaskCollectionModelData(
@@ -166,4 +182,5 @@ function tickTaskCollectionModelData(
     if (task.undeletedTime !== null) clock.tick(task.undeletedTime);
     clock.tick(task.name.version);
     clock.tick(task.accessPolicy.version);
+    clock.tick(task.defaults.version);
 }

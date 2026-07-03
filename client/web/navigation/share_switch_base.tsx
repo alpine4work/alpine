@@ -4,7 +4,7 @@ import {Box} from "~/client/web/design/box.js";
 import {FocusRing} from "~/client/web/design/focus_ring.js";
 import {Tooltip} from "~/client/web/design/tooltip.js";
 import {BuildingsIcon} from "~/client/web/icons/buildings_icon.js";
-import {useSpaceContext} from "~/client/web/spaces/space_context.js";
+import {useSpaceContext} from "~/client/web/spaces/context/space_context.js";
 import {elevation} from "~/client/web/styles/styles.js";
 import {spacing} from "~/shared/design/core/spacing.js";
 

@@ -463,6 +463,22 @@ the page so future us doesn\u2019t have to go through this debate again.
     await runner.goto(accounts.cassCade, `/doc/${document.id}`);
     await runner.screenshot("a0", "basic");
 
+    const syncDeployListItem = runner
+        .getByTestId("DocumentContentEditorMain")
+        .locator("[data-list-indent]")
+        .filter({hasText: "The sync deploy incident at the end of August"})
+        .first();
+    const syncDeployListItemBox = await syncDeployListItem.boundingBox();
+    assert(syncDeployListItemBox !== null);
+    await runner.mouse.click(
+        syncDeployListItemBox.x + 180,
+        syncDeployListItemBox.y + syncDeployListItemBox.height / 2,
+        {button: "right"},
+    );
+    await runner.getByText("Turn into check list").waitFor();
+    await runner.screenshot("a01", "list-conversion-menu");
+
+    await runner.goto(accounts.cassCade, `/doc/${document.id}`);
     await runner.getByRole("button", {name: "More"}).click();
     await runner.screenshot("a1", "more-menu");
 

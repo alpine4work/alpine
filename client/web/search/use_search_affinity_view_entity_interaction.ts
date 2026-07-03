@@ -2,7 +2,7 @@ import {useEffect} from "react";
 import {useAppContext} from "~/client/web/context/app_context.js";
 import {usePeekContext} from "~/client/web/remix/peek_context.js";
 import {useSiteActivation} from "~/client/web/sites/context/site_context.js";
-import {useSpaceContext} from "~/client/web/spaces/space_context.js";
+import {useSpaceContext} from "~/client/web/spaces/context/space_context.js";
 import {Timeout, createTimeout} from "~/shared/helpers/async/timeout.js";
 import {MonotonicClock} from "~/shared/helpers/clock/monotonic_clock.js";
 import {unsynchronizedSystemClock} from "~/shared/helpers/clock/unsynchronized_system_clock.js";

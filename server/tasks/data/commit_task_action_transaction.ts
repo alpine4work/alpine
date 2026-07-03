@@ -1,4 +1,5 @@
 import {addHours} from "date-fns";
+import {createAccessPolicyForContentCreatedByBot} from "~/server/access/create_access_policy_for_content_created_by_bot.js";
 import {intoEffectiveAccessPolicy} from "~/server/access/into_effective_access_policy.js";
 import {validateAccessPolicyUpdateForServer} from "~/server/access/validate_access_policy_update_for_server.js";
 import {RynamoTransactionEntry} from "~/server/context/rynamo_transaction_entry.js";
@@ -100,12 +101,17 @@ import {TaskParentTaskIdRegister} from "~/shared/tasks/actions/task_task_action.
 import {LabelStringRegister} from "~/shared/tasks/label_string_register.js";
 import {TaskCollectionColorRegister} from "~/shared/tasks/task_collection_color.js";
 import {TaskCollectionSet} from "~/shared/tasks/task_collection_set.js";
+import {TaskActor} from "~/shared/tasks/task_creator.js";
 import {
     createTaskCollectionNotFoundError,
     taskCollectionDeletedErrorDisplayMessage,
     taskDeletedErrorDisplayMessage,
 } from "~/shared/tasks/task_error_messages.js";
 import {TaskLayoutRegister} from "~/shared/tasks/task_layout.js";
+import {
+    TaskQueryDefaultsRegister,
+    emptyTaskQueryDefaults,
+} from "~/shared/tasks/task_query_defaults.js";
 
 /**
  * Commit a transaction of `TaskAction`s. Authorizes that each action is valid
@@ -147,10 +153,16 @@ export function commitTaskActionTransaction(
     ) => Promise<ReadonlyArray<RynamoEvent<SitePreviewModel | SiteEntryModel>>>;
 }> {
     return context.tracer.withSpan("Commit task action transaction", async (context, span) => {
+        const actionsWithContextActors = addTaskActionActorsFromContext(context, actions);
+        const optionsWithContextActors = addTaskActionTransactionOptionActorsFromContext(
+            context,
+            options,
+        );
+
         span.addData({
             tasks: {
-                actions: actions.map(getTaskActionLabel).join(","),
-                actionCount: actions.length,
+                actions: actionsWithContextActors.map(getTaskActionLabel).join(","),
+                actionCount: actionsWithContextActors.length,
             },
         });
 
@@ -166,8 +178,8 @@ export function commitTaskActionTransaction(
         }
 
         if (
-            options.updateAccessPolicyShareNotification &&
-            !actions.some(
+            optionsWithContextActors.updateAccessPolicyShareNotification &&
+            !actionsWithContextActors.some(
                 action =>
                     (action.type === "UpdateCollection" &&
                         action.collectionAction.type === "UpdateAccessPolicy") ||
@@ -181,7 +193,12 @@ export function commitTaskActionTransaction(
         }
 
         const {actionTransactionItem, extraActions, getRynamoEventsForSite} =
-            await TaskActionTransactionCommitState.commit(context, spaceId, actions, options);
+            await TaskActionTransactionCommitState.commit(
+                context,
+                spaceId,
+                actionsWithContextActors,
+                optionsWithContextActors,
+            );
 
         span.addData({
             tasks: {
@@ -211,8 +228,8 @@ export function commitTaskActionTransaction(
 
         // Send a notification for all collections updated via the `UpdateAccessPolicy`
         // action in this transaction.
-        if (options.updateAccessPolicyShareNotification) {
-            for (const action of actions) {
+        if (optionsWithContextActors.updateAccessPolicyShareNotification) {
+            for (const action of actionsWithContextActors) {
                 let entityId: FileEntityId | null = null;
 
                 if (
@@ -235,7 +252,7 @@ export function commitTaskActionTransaction(
                     spaceId,
                     actorAccountId: context.actor.getPossiblyBotAccountId(),
                     entityId,
-                    notification: options.updateAccessPolicyShareNotification,
+                    notification: optionsWithContextActors.updateAccessPolicyShareNotification,
                 });
             }
         }
@@ -259,6 +276,98 @@ export function commitTaskActionTransaction(
             getRynamoEventsForSite,
         };
     });
+}
+
+function addTaskActionTransactionOptionActorsFromContext(
+    context: ServerAccountActionContext,
+    options: {
+        clientId?: TaskRealtimeClientId | null;
+        leaseId?: TaskActionTransactionLeaseId;
+        createLeaseIfLostAccess?: {
+            id: TaskActionTransactionLeaseId;
+            actions: ReadonlyArray<TaskUpdateTaskAction>;
+        };
+        updateAccessPolicyShareNotification?: ShareNotification;
+        extraTransactionEntries?: Array<DynamoTransactionEntry>;
+        consistency?: DynamoCacheReadConsistency;
+        waitForProcessing?: boolean;
+    },
+): typeof options {
+    if (options.createLeaseIfLostAccess === undefined) return options;
+
+    return {
+        ...options,
+        createLeaseIfLostAccess: {
+            ...options.createLeaseIfLostAccess,
+            actions: addTaskActionActorsFromContext(
+                context,
+                options.createLeaseIfLostAccess.actions,
+            ),
+        },
+    };
+}
+
+function addTaskActionActorsFromContext(
+    context: ServerAccountActionContext,
+    actions: ReadonlyArray<TaskUpdateTaskAction>,
+): ReadonlyArray<TaskUpdateTaskAction>;
+function addTaskActionActorsFromContext(
+    context: ServerAccountActionContext,
+    actions: ReadonlyArray<TaskAction>,
+): ReadonlyArray<TaskAction>;
+function addTaskActionActorsFromContext(
+    context: ServerAccountActionContext,
+    actions: ReadonlyArray<TaskAction>,
+): ReadonlyArray<TaskAction> {
+    const actor = getTaskActionActorFromContext(context);
+    if (actor === null) return actions;
+
+    let didAddActor = false;
+    const actionsWithActors = actions.map(action => {
+        switch (action.type) {
+            case "UpdateTask": {
+                if (action.actor !== undefined) return action;
+                didAddActor = true;
+                return {...action, actor};
+            }
+            case "UpdateCollection": {
+                if (action.actor !== undefined) return action;
+                didAddActor = true;
+                return {...action, actor};
+            }
+            case "UpdateAccountName":
+            case "UpdateNotepadPage": {
+                return action;
+            }
+            default:
+                throw exhaustive(action);
+        }
+    });
+
+    return didAddActor ? actionsWithActors : actions;
+}
+
+type TaskActionActorFromContext = {
+    readonly accountId: AccountId;
+    readonly from: null;
+};
+
+function getTaskActionActorFromContext(
+    context: ServerAccountActionContext,
+): TaskActionActorFromContext | null {
+    switch (context.actor.type) {
+        case "Session":
+        case "ImpersonatedAccount": {
+            return {
+                accountId: context.actor.getAccountId(),
+                from: null,
+            };
+        }
+        case "Bot":
+            return null;
+        default:
+            throw exhaustive(context.actor);
+    }
 }
 
 export async function afterCommitTaskActionTransaction(
@@ -601,6 +710,7 @@ class TaskActionTransactionCommitState {
 
         const transactionEntries: Array<DynamoTransactionEntry | RynamoTransactionEntry> = [];
         const extraActions: Array<TaskAction> = [];
+        const actor = getTaskActionActorFromContext(this._context);
 
         for (const transactionEntry of this._transactionEntryByTaskId.values()) {
             switch (transactionEntry.action) {
@@ -636,6 +746,7 @@ class TaskActionTransactionCommitState {
                     type: "UpdateTask",
                     // For our extra action's time, add a tick to the max action time.
                     time: [maxActionTime[0], maxActionTime[1] + 1],
+                    ...(actor === null ? {} : {actor}),
                     taskId: transactionEntry.taskItem.taskId,
                     taskAction: {
                         type: "UpdateChildrenCounts",
@@ -1175,6 +1286,21 @@ class TaskActionTransactionCommitState {
         return intoEffectiveAccessPolicy(this._context, accessPolicy);
     }
 
+    public async isDefaultAccessPolicyForContentCreatedByBot(
+        accessPolicy: CreateOrUpdateAccessPolicy,
+    ): Promise<boolean> {
+        if (this._context.actor.type !== "Bot") return false;
+
+        const botContext = await this._context.actor.authenticate();
+        const defaultAccessPolicy = await createAccessPolicyForContentCreatedByBot(
+            botContext,
+            this._spaceId,
+            {consistency: this._consistency},
+        );
+
+        return isDeepEqual(accessPolicy, defaultAccessPolicy);
+    }
+
     public async validateAccessPolicyUpdate(
         entityId: SearchEntityId,
         oldAccessPolicy: AccessPolicy | null,
@@ -1291,6 +1417,8 @@ async function actuallyCommitTaskActionTransaction(
 
         switch (action.type) {
             case "UpdateTask": {
+                validateTaskActionActorForServer(state, action.actor, "task action");
+
                 const {taskId, taskAction} = action;
 
                 switch (taskAction.type) {
@@ -1328,6 +1456,15 @@ async function actuallyCommitTaskActionTransaction(
                               )
                             : null;
 
+                        const shouldAddFeedCandidateEntryForCreate =
+                            !!newResolvedAccessPolicy?.defaultGrant &&
+                            !(
+                                taskAction.accessPolicy &&
+                                (await state.isDefaultAccessPolicyForContentCreatedByBot(
+                                    taskAction.accessPolicy,
+                                ))
+                            );
+
                         const newTaskItem: TaskEssentialAttributesItem = {
                             partitionType: "Task",
                             sortRangeType: "EssentialAttributes",
@@ -1359,7 +1496,7 @@ async function actuallyCommitTaskActionTransaction(
                                 ? new AccessPolicyRegister(taskAction.accessPolicy, action.time)
                                 : null,
                             layout: null,
-                            feed: newResolvedAccessPolicy?.defaultGrant
+                            feed: shouldAddFeedCandidateEntryForCreate
                                 ? "AddedCandidateEntry"
                                 : null,
                             validLeaseId: null,
@@ -2265,6 +2402,8 @@ async function actuallyCommitTaskActionTransaction(
                 break;
             }
             case "UpdateCollection": {
+                validateTaskActionActorForServer(state, action.actor, "task collection action");
+
                 const {collectionId, collectionAction} = action;
 
                 switch (collectionAction.type) {
@@ -2315,6 +2454,10 @@ async function actuallyCommitTaskActionTransaction(
                             color: new TaskCollectionColorRegister(null, action.time),
                             accessPolicy: new AccessPolicyRegister(
                                 collectionAction.accessPolicy,
+                                action.time,
+                            ),
+                            defaults: new TaskQueryDefaultsRegister(
+                                emptyTaskQueryDefaults,
                                 action.time,
                             ),
                             hasAddedFeedCandidateEntry: !!newEffectiveAccessPolicy.defaultGrant,
@@ -2463,6 +2606,22 @@ async function actuallyCommitTaskActionTransaction(
                                     state.updateCollectionItem({
                                         ...collectionItem,
                                         color: newColor,
+                                    });
+                                }
+                                break;
+                            }
+                            case "UpdateDefaults": {
+                                await state.authorizeCollectionAccess(collectionId, "Manage");
+
+                                const newDefaults = collectionItem.defaults.apply({
+                                    value: collectionAction.defaults,
+                                    version: action.time,
+                                });
+
+                                if (collectionItem.defaults !== newDefaults) {
+                                    state.updateCollectionItem({
+                                        ...collectionItem,
+                                        defaults: newDefaults,
                                     });
                                 }
                                 break;
@@ -2622,4 +2781,26 @@ function registerSharedTaskFeedCandidateEntry(
             shouldAddImmediately: shouldAddTaskFeedCandidateEntryImmediately(taskItem),
         });
     });
+}
+
+function validateTaskActionActorForServer(
+    state: TaskActionTransactionCommitState,
+    actor: TaskActor | undefined,
+    label: string,
+) {
+    if (actor === undefined) return;
+
+    if (actor.accountId !== state.getActorAccountId() && state.getActorType() !== "Bot") {
+        throw new PermissionDeniedError(`Only bots can record ${label} actors on behalf of others`);
+    }
+
+    if (actor.from === null) return;
+
+    if (state.getActorType() !== "Bot") {
+        throw new PermissionDeniedError(`Only bots can record ${label} bot provenance`);
+    }
+
+    if (actor.from.accountId !== state.getActorAccountId()) {
+        throw new PermissionDeniedError(`${label} bot provenance must match the acting bot`);
+    }
 }

@@ -31,6 +31,7 @@ ts_project(
         "//client/web/navigation",
         "//client/web/remix",
         "//client/web/search/core",
+        "//client/web/sites/breadcrumb",
         "//client/web/sites/context",
         "//client/web/sites/helpers",
         "//client/web/spaces",

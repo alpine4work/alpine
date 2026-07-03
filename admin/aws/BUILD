@@ -24,6 +24,7 @@ ts_project(
         "//server/dynamo/core",
         "//server/helpers/node",
         "//server/jobs/core",
+        "//server/language_models",
         "//server/tasks/router",
         "//shared/error",
         "//shared/files",

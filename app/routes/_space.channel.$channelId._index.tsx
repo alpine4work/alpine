@@ -13,7 +13,6 @@ import {createMetaFunction} from "~/client/web/remix/create_meta_function.js";
 import {getInitialAppRenderSpacingScale} from "~/client/web/remix/spacing_scale_context.js";
 import {useLoaderDataWithSchema} from "~/client/web/remix/use_loader_data_with_schema.js";
 import {useSearchAffinityViewEntityInteraction} from "~/client/web/search/use_search_affinity_view_entity_interaction.js";
-import {useSiteChromeContainer} from "~/client/web/sites/use_site_chrome_container.js";
 import {
     channelViewAsidePostFileMaxCount,
     postContentViewMinHeightPx,
@@ -132,7 +131,7 @@ export async function loader({request, params, context: unauthenticatedContext}:
 
     if (createSearchParam !== null) {
         const {spaceId, channelName} = parseChannelCreateSearchParam(createSearchParam);
-        context.discovery.discoverSpaceId(spaceId);
+        context.discovery.discoverSpaceId(spaceId, "CreateSearchParam");
 
         try {
             const checkpoint = generateServerSynchronizationCheckpoint();
@@ -170,7 +169,7 @@ export async function loader({request, params, context: unauthenticatedContext}:
 
     const {
         data1: [channelResult, postsResult],
-        data2: [isSubscribed, isFavorite] = [false, false],
+        data2: [spaceId, isSubscribed, isFavorite] = [null, false, false],
         siteLoaderData,
     } = await loadWithSpaceAndSiteDiscovery(context, {
         request,
@@ -252,9 +251,10 @@ export async function loader({request, params, context: unauthenticatedContext}:
         load2: async ({spaceId}) => {
             // If we just created the channel then we should know the actor is subscribed but
             // the channel is not a favorite:
-            if (created) return [true, false];
+            if (created) return [spaceId, true, false];
 
             return await runAllPromises([
+                spaceId,
                 authorizeSpaceAccessIfPossible(context, spaceId).then(result => {
                     if (!result.ok) return false;
                     return isSubscribedToChannel(context.actor.authorizeSession(), channelId, {
@@ -268,6 +268,8 @@ export async function loader({request, params, context: unauthenticatedContext}:
             ]);
         },
     });
+
+    assert(spaceId);
 
     return jsonWithSchema(
         LoaderSchema,
@@ -358,7 +360,7 @@ function ChannelRouteInner() {
             : null,
     );
 
-    let node = (
+    return (
         <Box flexGrow="1" overflow="hidden" position="relative" zIndex="20" height="full">
             <ChannelView
                 // Remount when navigating to a different channel.
@@ -370,7 +372,4 @@ function ChannelRouteInner() {
             />
         </Box>
     );
-
-    node = useSiteChromeContainer({entityId: `Channel:${channelId}`}, node);
-    return node;
 }

@@ -1,4 +1,5 @@
 import {TaskIndexDoc} from "~/server/tasks/data/task_index_doc.js";
+import {AccessPolicyRegister} from "~/shared/access/access_policy.js";
 import {HybridLogicalTime} from "~/shared/helpers/clock/hybrid_logical_clock.js";
 import {initialOrderKey} from "~/shared/helpers/sort/order_key.js";
 import {AccountId} from "~/shared/id/types/id_types.js";
@@ -49,12 +50,13 @@ export function createEmptyTaskIndexDoc(
                 positionById: TaskPositionByCollectionIdMap.empty,
             },
         },
-        // Empty tasks have an access policy of null for historic reasons. When we added
-        // `accessPolicy` to tasks all existing task index docs default their
-        // `accessPolicy` to null. So the behavior of a task without an
-        // `UpdateAccessPolicy` action is as if the `accessPolicy` never existed in the
-        // first place.
-        accessPolicy: null,
+        // Tasks created without an access policy default to null for historic reasons.
+        // When we added `accessPolicy` to tasks all existing task index docs defaulted
+        // their `accessPolicy` to null. So the behavior of a task without an access policy
+        // action is as if the `accessPolicy` never existed in the first place.
+        accessPolicy: action.accessPolicy
+            ? new AccessPolicyRegister(action.accessPolicy, actionTime)
+            : null,
         status: new TaskStatusWithSortableAccountRegister({type: "Open"}, actionTime),
         assignee: new TaskAssigneeWithSortableAccountRegister(null, actionTime),
         rawAssigneeStatus: new TaskAssigneeStatusRegister({type: "Inactive"}, actionTime),

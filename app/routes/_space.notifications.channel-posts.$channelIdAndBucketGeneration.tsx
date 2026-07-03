@@ -22,9 +22,10 @@ import {createMetaFunction} from "~/client/web/remix/create_meta_function.js";
 import {usePlatform} from "~/client/web/remix/platform_context.js";
 import {useLoaderDataWithSchema} from "~/client/web/remix/use_loader_data_with_schema.js";
 import {useSearchAffinityViewEntityInteraction} from "~/client/web/search/use_search_affinity_view_entity_interaction.js";
-import {useSpaceContext} from "~/client/web/spaces/space_context.js";
+import {useSpaceContext} from "~/client/web/spaces/context/space_context.js";
 import {contentStyles} from "~/client/web/styles/styles.js";
 import {getChannel} from "~/server/forum/data/get_channel.js";
+import {getMessageDraft} from "~/server/messaging/drafts/get_message_draft.js";
 import {getInboxChannelPostsEntryPosts} from "~/server/notifications/data/get_inbox_channel_posts_entry_posts.js";
 import {jsonWithSchema} from "~/server/remix/json_with_schema.js";
 import {LoaderArgs} from "~/server/remix/loader_context.js";
@@ -41,6 +42,7 @@ import {throwError} from "~/shared/helpers/control/throw_error.js";
 import {filterIterable} from "~/shared/helpers/iterable/filter_iterable.js";
 import {isId} from "~/shared/id/id.js";
 import {ChannelId, PostId} from "~/shared/id/types/id_types.js";
+import {MessageDraftWithFilesSchema} from "~/shared/messaging/message_draft_schema.js";
 import {
     InboxChannelPostsEntryModel,
     InboxEntryModelSchema,
@@ -69,6 +71,7 @@ const LoaderSchema = Schema.object({
             otherReferencedComments: Schema.array(PostCommentModel.schema()),
         }),
     ),
+    messageDraft: MessageDraftWithFilesSchema.nullable(),
 });
 
 export async function loader({params, context: unauthenticatedContext}: LoaderArgs) {
@@ -117,6 +120,14 @@ export async function loader({params, context: unauthenticatedContext}: LoaderAr
         },
     });
 
+    const messageDraft =
+        posts.length === 1
+            ? await getMessageDraft(context, {
+                  spaceId: inboxEntry.model.spaceId,
+                  surface: {type: "PostComment", postId: posts[0]!.model.id},
+              })
+            : null;
+
     return jsonWithSchema(LoaderSchema, {
         checkpoint,
         channel,
@@ -124,6 +135,7 @@ export async function loader({params, context: unauthenticatedContext}: LoaderAr
         inboxEntry,
         posts,
         initialCommentsByPostId,
+        messageDraft,
     });
 }
 
@@ -141,6 +153,7 @@ export default function ChannelPostsRouteWrapper() {
         channel,
         posts,
         initialCommentsByPostId,
+        messageDraft,
         inboxEntry,
     } = useLoaderDataWithSchema(LoaderSchema);
 
@@ -167,6 +180,7 @@ export default function ChannelPostsRouteWrapper() {
                 initialOtherReferencedPostComments={
                     initialCommentsByPostId.get(postId)?.otherReferencedComments ?? emptyArray
                 }
+                initialMessageDraft={assertExists(messageDraft)}
                 initialScroll={null}
             />
         );

@@ -6,7 +6,7 @@ import {SpaceRouteScrollView} from "~/client/web/navigation/space_route_scroll_v
 import {usePlatform} from "~/client/web/remix/platform_context.js";
 import {useRootNavigate} from "~/client/web/remix/use_navigate.js";
 import {metaTitlePostfix} from "~/client/web/remix/use_update_meta_title.js";
-import {useSpaceContextAndRequireSpaceAccess} from "~/client/web/spaces/space_context.js";
+import {useSpaceContextAndRequireSpaceAccess} from "~/client/web/spaces/context/space_context.js";
 import {screenPaddingX} from "~/shared/design/core/spacing.js";
 
 export function meta() {

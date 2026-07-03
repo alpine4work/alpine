@@ -86,7 +86,7 @@ export function serializeTaskQuerySortsSearchParam(sorts: ReadonlyArray<TaskQuer
 
 export function deserializeTaskQuerySortsSearchParam(sorts: string): ReadonlyArray<TaskQuerySort> {
     const bytes = decodeBase64(sorts, "Rfc4648Url");
-    return deserializeTaskQuerySorts(bytes.buffer);
+    return deserializeTaskQuerySorts(bytes);
 }
 
 /**
@@ -128,10 +128,10 @@ export function serializeTaskQuerySorts(sorts: ReadonlyArray<TaskQuerySort>): Ar
 /**
  * Deserialize a list of task query sorts from binary data.
  */
-export function deserializeTaskQuerySorts(buffer: ArrayBuffer): ReadonlyArray<TaskQuerySort> {
-    const sortsLengthByte = new DataView(buffer).getUint8(0);
+export function deserializeTaskQuerySorts(bytes: Uint8Array): ReadonlyArray<TaskQuerySort> {
+    const sortsLengthByte = bytes[0];
 
-    if (!(sortsLengthByte & 0b10000000))
+    if (sortsLengthByte === undefined || !(sortsLengthByte & 0b10000000))
         throw new InvalidArgumentError("Unrecognized sorts binary encoding");
 
     const sortsLength = sortsLengthByte & 0b01111111;
@@ -139,7 +139,13 @@ export function deserializeTaskQuerySorts(buffer: ArrayBuffer): ReadonlyArray<Ta
     let byteOffset = 1;
 
     for (let i = 0; i < sortsLength; i++) {
-        const {sort, byteLength} = deserializeTaskQuerySort(new DataView(buffer, byteOffset));
+        const {sort, byteLength} = deserializeTaskQuerySort(
+            new DataView(
+                bytes.buffer,
+                bytes.byteOffset + byteOffset,
+                bytes.byteLength - byteOffset,
+            ),
+        );
         assert(getTaskQuerySortByteLength(sort) === byteLength);
         sorts.push(sort);
         byteOffset += byteLength;

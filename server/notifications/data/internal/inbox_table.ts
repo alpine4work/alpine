@@ -32,8 +32,8 @@ import {
 } from "~/server/rynamo/rynamo_table_schema.js";
 import {getAccount} from "~/server/spaces/get_account.js";
 import {impersonateAccountAsSystemContext} from "~/server/spaces/impersonate_account_as_system_context.js";
-import {getTaskCommentPayload} from "~/server/tasks/data/get_task_comment_payload.js";
 import {getTaskOwnerIfPossible} from "~/server/tasks/data/get_task_owner_if_possible.js";
+import {getTaskCommentPayload} from "~/server/tasks/data/task_messaging.js";
 import {isContentEmpty} from "~/shared/content/is_content_empty.js";
 import {
     MessageContent,
@@ -1418,7 +1418,7 @@ export const InboxTable = RynamoTableSchema.new({
  * [1]: https://docs.aws.amazon.com/amazondynamodb/latest/developerguide/GSI.html
  * [2]: https://docs.aws.amazon.com/amazondynamodb/latest/developerguide/LSI.html
  */
-export const InboxEntriesIndex = InboxTable.addExpensiveFullIndex({
+export const InboxEntriesIndex = InboxTable.addExpensiveFullEventualConsistencyIndex({
     name: "InboxEntries",
     itemTypes: inboxEntryItemTypes,
     partitionKeyAttributes: {
@@ -1463,22 +1463,24 @@ export const InboxEntriesIndex = InboxTable.addExpensiveFullIndex({
  * notification at a given time. Note that
  * `digestNotificationsNextScheduledDateTime` is in UTC time.
  */
-export const NotificationDigestEntriesIndex = InboxTable.addIndexWithoutRealtime({
-    name: "NotificationDigestEntries",
-    itemTypes: [{partitionType: "Account", sortRangeType: "InboxAttributes"}],
-    partitionKeyAttributes: {
-        digestNotificationsNextScheduledDateTime:
-            DynamoKeyAttributeSchema.ScheduleDateTime.nullable(),
+export const NotificationDigestEntriesIndex = InboxTable.addEventualConsistencyIndexWithoutRealtime(
+    {
+        name: "NotificationDigestEntries",
+        itemTypes: [{partitionType: "Account", sortRangeType: "InboxAttributes"}],
+        partitionKeyAttributes: {
+            digestNotificationsNextScheduledDateTime:
+                DynamoKeyAttributeSchema.ScheduleDateTime.nullable(),
+        },
+        sortKeyAttributes: {
+            spaceId: DynamoKeyAttributeSchema.id<SpaceId>(),
+            accountId: DynamoKeyAttributeSchema.id<AccountId>(),
+            digestNotificationsOptedOutTime: DynamoKeyAttributeSchema.date.nullable(),
+        },
+        filter: item =>
+            item.digestNotificationsNextScheduledDateTime !== null &&
+            item.digestNotificationsOptedOutTime === null,
     },
-    sortKeyAttributes: {
-        spaceId: DynamoKeyAttributeSchema.id<SpaceId>(),
-        accountId: DynamoKeyAttributeSchema.id<AccountId>(),
-        digestNotificationsOptedOutTime: DynamoKeyAttributeSchema.date.nullable(),
-    },
-    filter: item =>
-        item.digestNotificationsNextScheduledDateTime !== null &&
-        item.digestNotificationsOptedOutTime === null,
-});
+);
 
 /**
  * When you're building an `InboxEntryModel` it should be with an actor

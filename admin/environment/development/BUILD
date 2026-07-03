@@ -12,6 +12,7 @@ ts_project(
         "//server/context",
         "//server/documents/data",
         "//server/importer/development",
+        "//server/language_models",
         "//server/node",
         "//server/notifications/data",
         "//server/search/data/index",

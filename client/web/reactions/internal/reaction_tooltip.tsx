@@ -6,7 +6,7 @@ import {useElementWithRef} from "~/client/web/helpers/refs/use_element_with_ref.
 import {useStore} from "~/client/web/helpers/use_store.js";
 import {useClientInfo} from "~/client/web/remix/client_info_context.js";
 import {useLazyLoadRpc} from "~/client/web/rpc/use_lazy_load_rpc.js";
-import {useSpaceContext} from "~/client/web/spaces/space_context.js";
+import {useSpaceContext} from "~/client/web/spaces/context/space_context.js";
 import {getAccountShortNameWithoutFullNameTooltip} from "~/shared/accounts/get_account_short_name_without_full_name_tooltip.js";
 import {joinPrettyConjunctionList} from "~/shared/design/join_pretty_conjunction_list.js";
 import {emptyArray} from "~/shared/helpers/array/empty_array.js";

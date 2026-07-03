@@ -26,6 +26,7 @@ ts_project(
         "//server/helpers",
         "//server/importer",
         "//server/importer/notion",
+        "//server/language_models",
         "//server/node",
         "//server/notifications/data",
         "//server/search/data/index",

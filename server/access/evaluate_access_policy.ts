@@ -38,7 +38,7 @@ export async function evaluateAccessPolicy(
     // Inform the discovery context module about the `SpaceId` for this access policy
     // we're evaluating. In `AppService` this will start loading space data for the
     // space chrome.
-    context.discovery?.discoverSpaceId(spaceId);
+    context.discovery?.discoverSpaceId(spaceId, "AuthorizeAccess");
 
     const accessPolicy = isAccessPolicyOrResolvedAccessPolicy(rawAccessPolicy)
         ? await intoEffectiveAccessPolicy(context, rawAccessPolicy, options)

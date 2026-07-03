@@ -2,11 +2,11 @@ import {StepMap} from "prosemirror-transform";
 import {Memo, useCallback, useEffect, useMemo, useRef, useState} from "react";
 import {flushSync} from "react-dom";
 import {createAccessPolicyStoreFromReferences} from "~/client/web/access/create_access_policy_store.js";
+import {getCollaborativeContentEditorStatePersistedContent} from "~/client/web/content/collaborative_content_editor_state.js";
 import {ContentEditorState} from "~/client/web/content/state/content_editor_state.js";
 import {useAppContext} from "~/client/web/context/app_context.js";
 import {
     DocumentContentEditorState,
-    getDocumentContentEditorStatePersistedContent,
     getInitialDocumentContentEditorState,
     reduceDocumentContentEditorState,
 } from "~/client/web/documents/internal/document_content_editor_state.js";
@@ -22,8 +22,8 @@ import {useStore} from "~/client/web/helpers/use_store.js";
 import {useSearchEntityRegistry} from "~/client/web/search/core/search_entity_registry_context.js";
 import {SiteRegistry} from "~/client/web/sites/context/site_registry.js";
 import {useSiteRegistry} from "~/client/web/sites/context/site_registry_context.js";
+import {useSpaceContext} from "~/client/web/spaces/context/space_context.js";
 import {useAddGlobalLoadingIndicator} from "~/client/web/spaces/global_loading_indicator.js";
-import {useSpaceContext} from "~/client/web/spaces/space_context.js";
 import {useWebSocketErrorDialog} from "~/client/web/web_socket/use_web_socket.js";
 import {
     AccessLevel,
@@ -368,7 +368,7 @@ export function useDocumentContentEditorWebSocket(
 
     const content = state.editorState.getContent();
     const contentWithoutSendableSteps = state.editorState.getDocWithoutSendableSteps();
-    const persistedContent = getDocumentContentEditorStatePersistedContent(state);
+    const persistedContent = getCollaborativeContentEditorStatePersistedContent(state);
 
     const title = useMemo(() => getDocumentContentTitle(content.doc), [content.doc]);
     const persistedTitle = useMemo(

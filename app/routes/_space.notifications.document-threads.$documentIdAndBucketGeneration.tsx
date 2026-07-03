@@ -35,11 +35,12 @@ import {
 import {useLoaderDataWithSchema} from "~/client/web/remix/use_loader_data_with_schema.js";
 import {useRootNavigate} from "~/client/web/remix/use_navigate.js";
 import {useSearchAffinityViewEntityInteraction} from "~/client/web/search/use_search_affinity_view_entity_interaction.js";
-import {useSpaceContext} from "~/client/web/spaces/space_context.js";
+import {useSpaceContext} from "~/client/web/spaces/context/space_context.js";
 import {documentCommentThreadCountAgainstLimit} from "~/client/web/styles/document_shared_styles.js";
 import {messageViewMinHeightPx} from "~/client/web/styles/messaging_shared_styles.js";
 import {contentStyles} from "~/client/web/styles/styles.js";
 import {getVirtualizationWindowHeight} from "~/client/web/virtualized/virtualized_scroll_view_state.js";
+import {getMessageDraftsByCommentThreadId} from "~/server/messaging/drafts/get_message_drafts_by_comment_thread_id.js";
 import {getInboxDocumentNewCommentThreadsEntryCommentThreads} from "~/server/notifications/data/get_inbox_document_new_comment_threads_entry_comment_threads.js";
 import {jsonWithSchema} from "~/server/remix/json_with_schema.js";
 import {LoaderArgs} from "~/server/remix/loader_context.js";
@@ -59,6 +60,7 @@ import {filterIterable} from "~/shared/helpers/iterable/filter_iterable.js";
 import {clamp} from "~/shared/helpers/number/clamp.js";
 import {generateId, isId} from "~/shared/id/id.js";
 import {DocumentCommentThreadId, DocumentId} from "~/shared/id/types/id_types.js";
+import {MessageDraft, MessageDraftSchema} from "~/shared/messaging/message_draft_schema.js";
 import {
     InboxDocumentCommentThreadEntryModel,
     InboxDocumentNewCommentThreadsEntryModel,
@@ -88,6 +90,10 @@ const LoaderSchema = Schema.object({
             comments: Schema.array(DocumentCommentModel.schema()),
             otherReferencedComments: Schema.array(DocumentCommentModel.schema()),
         }),
+    ),
+    messageDraftByCommentThreadId: Schema.map(
+        Schema.id<DocumentCommentThreadId>(),
+        MessageDraftSchema,
     ),
 });
 
@@ -129,6 +135,12 @@ export async function loader({params, context: unauthenticatedContext}: LoaderAr
                 documentCommentThreadCountAgainstLimit[platform][spacingScale],
         });
 
+    const messageDraftByCommentThreadId = await getMessageDraftsByCommentThreadId(context, {
+        spaceId: document.spaceId,
+        documentId,
+        commentThreadIds: commentThreads.map(commentThread => commentThread.id),
+    });
+
     return jsonWithSchema(LoaderSchema, {
         key: generateId(),
         checkpoint,
@@ -137,6 +149,7 @@ export async function loader({params, context: unauthenticatedContext}: LoaderAr
         inboxEntry,
         commentThreads,
         initialCommentsByCommentThreadId,
+        messageDraftByCommentThreadId,
     });
 }
 
@@ -212,6 +225,7 @@ function DocumentNewCommentThreadsRouteInner2({
         bucketGeneration,
         commentThreads: initialCommentThreads,
         initialCommentsByCommentThreadId,
+        messageDraftByCommentThreadId,
     } = useLoaderDataWithSchema(LoaderSchema);
 
     const documentId = initialDocument.id;
@@ -249,6 +263,7 @@ function DocumentNewCommentThreadsRouteInner2({
             readonly comments: ReadonlyArray<DocumentCommentModel>;
             readonly otherReferencedComments: ReadonlyArray<DocumentCommentModel>;
             readonly optimisticComments: ReadonlyArray<never>;
+            readonly messageDraft: MessageDraft;
             readonly loadMoreCommentsRef: MutableRefObject<Promise<void> | null>;
         }>
     >(() =>
@@ -260,6 +275,7 @@ function DocumentNewCommentThreadsRouteInner2({
                 initialCommentsByCommentThreadId.get(commentThread.id)?.otherReferencedComments ??
                 [],
             optimisticComments: [],
+            messageDraft: assertExists(messageDraftByCommentThreadId.get(commentThread.id)),
             loadMoreCommentsRef: {current: null},
         })),
     );
@@ -350,6 +366,7 @@ function DocumentNewCommentThreadsRouteInner2({
                                 ...otherReferencedComments,
                             ],
                             optimisticComments: initialCommentThreadResult.optimisticComments,
+                            messageDraft: initialCommentThreadResult.messageDraft,
                             loadMoreCommentsRef: {current: null},
                         };
                     }),

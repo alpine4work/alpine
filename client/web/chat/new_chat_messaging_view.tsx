@@ -6,13 +6,14 @@ import {useAppContext} from "~/client/web/context/app_context.js";
 import {useEvent} from "~/client/web/helpers/lifecycle/use_event.js";
 import {MessagingView, MessagingViewRef} from "~/client/web/messaging/messaging_view.js";
 import {useCurrentlyViewingSearchEntityId} from "~/client/web/remix/use_currently_viewing_search_entity_id.js";
-import {useSpaceContext} from "~/client/web/spaces/space_context.js";
+import {useSpaceContext} from "~/client/web/spaces/context/space_context.js";
 import {useWebSocket} from "~/client/web/web_socket/use_web_socket.js";
 import {ChatMessageModel, ChatModel} from "~/shared/chat/chat_model.js";
 import {ChatRealtimeProtocol} from "~/shared/chat/chat_realtime_protocol.js";
 import {InternalError} from "~/shared/error/error.js";
 import {FileAttachmentTarget} from "~/shared/files/file_attachment_target.js";
 import {ChatId} from "~/shared/id/types/id_types.js";
+import {MessageDraftWithFiles} from "~/shared/messaging/message_draft_schema.js";
 import {MessagingRealtimeEvent} from "~/shared/messaging/messaging_realtime_protocol.js";
 import {
     getChatMessagesFromEnd,
@@ -28,6 +29,7 @@ function NewChatMessagingView(
     {
         initialCheckpoint,
         selectedChat,
+        messageDraft,
         onUpdateSelectedChat,
     }: {
         initialCheckpoint: ServerSynchronizationCheckpoint;
@@ -36,6 +38,7 @@ function NewChatMessagingView(
             initialMessages: ReadonlyArray<ChatMessageModel>;
             initialOtherReferencedMessages: ReadonlyArray<ChatMessageModel>;
         } | null;
+        messageDraft: MessageDraftWithFiles;
         onUpdateSelectedChat: Memo<(chat: ChatModel) => void>;
     },
     ref: Ref<MessagingViewRef<ChatId>>,
@@ -99,6 +102,11 @@ function NewChatMessagingView(
         return {type: "ChatMessages", chatId: selectedChat.chat.id};
     }, [selectedChat]);
 
+    const draftSurface = useMemo(() => {
+        if (!selectedChat) return undefined;
+        return {type: "Chat" as const, chatId: selectedChat.chat.id};
+    }, [selectedChat]);
+
     return (
         <MessagingView
             ref={ref}
@@ -152,6 +160,8 @@ function NewChatMessagingView(
             deleteMessage={procedures.deleteMessage}
             setMessageReaction={procedures.setMessageReaction}
             deleteMessageReaction={procedures.deleteMessageReaction}
+            messageDraftSurface={draftSurface}
+            messageDraft={messageDraft}
             startTypingInMessageInput={useCallback(
                 async input => {
                     // May be called when we don't have a selected chat.

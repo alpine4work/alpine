@@ -19,15 +19,16 @@ import {metaTitlePostfix, useUpdateMetaTitle} from "~/client/web/remix/use_updat
 import {markSearchAffinityLowIntentUpdateEntityInteraction} from "~/client/web/search/mark_search_affinity_low_intent_update_entity_interaction.js";
 import {useSearchAffinityViewEntityInteraction} from "~/client/web/search/use_search_affinity_view_entity_interaction.js";
 import {useSiteActivation} from "~/client/web/sites/context/site_context.js";
-import {useSiteChromeContainer} from "~/client/web/sites/use_site_chrome_container.js";
-import {useSpaceContext} from "~/client/web/spaces/space_context.js";
+import {useSpaceContext} from "~/client/web/spaces/context/space_context.js";
 import {
     getDocumentCommentThreadAndInitialComments,
     getDocumentWithOptionalCommentsIfExists,
 } from "~/server/documents/data/documents_actions.js";
+import {getMessageDraft} from "~/server/messaging/drafts/get_message_draft.js";
 import {jsonWithSchema} from "~/server/remix/json_with_schema.js";
 import {LoaderArgs} from "~/server/remix/loader_context.js";
 import {isSearchFavoriteEntity} from "~/server/search/data/table/search_entity_actions.js";
+import {authorizeSpaceAccessIfPossible} from "~/server/spaces/authorize_space_access.js";
 import {
     createEmptySpellCheckIgnoredLintsForNewEntity,
     getSpellCheckIgnoredLints,
@@ -47,6 +48,10 @@ import {unwrapResult} from "~/shared/helpers/control/capture_result.js";
 import {captureResultPromise} from "~/shared/helpers/control/capture_result_promise.js";
 import {generateId, isId} from "~/shared/id/id.js";
 import {DocumentCommentThreadId} from "~/shared/id/types/id_types.js";
+import {
+    MessageDraftWithFilesSchema,
+    emptyMessageDraftWithFiles,
+} from "~/shared/messaging/message_draft_schema.js";
 import {Schema} from "~/shared/schema/schema.js";
 import {SpellCheckIgnoredLintModel} from "~/shared/spell_check/spell_check_model.js";
 import {
@@ -62,6 +67,7 @@ const LoaderSchema = Schema.object({
         commentThread: DocumentCommentThreadModel.schema(),
         initialComments: Schema.array(DocumentCommentModel.schema()),
         initialOtherReferencedComments: Schema.array(DocumentCommentModel.schema()),
+        messageDraft: MessageDraftWithFilesSchema,
     }).nullable(),
     isFavorite: Schema.boolean,
     spellCheckIgnoredLints: createRynamoQuerySchema(SpellCheckIgnoredLintModel.schema()),
@@ -78,7 +84,7 @@ export async function loader({params, context: unauthenticatedContext, request}:
 
     const {
         data1: [[document, spellCheckIgnoredLints], commentThreadResultResult],
-        data2: isFavorite = false,
+        data2: [isFavorite, messageDraft] = [false, emptyMessageDraftWithFiles],
         siteLoaderData,
     } = await loadWithSpaceAndSiteDiscovery(context, {
         request,
@@ -106,7 +112,7 @@ export async function loader({params, context: unauthenticatedContext, request}:
                         }
 
                         const spaceId = deserializeSpaceIdForLoader(createSearchParam);
-                        context.discovery.discoverSpaceId(spaceId);
+                        context.discovery.discoverSpaceId(spaceId, "CreateSearchParam");
 
                         // We don't have a document yet, so we can't fetch spell check ignored lints.
                         spellCheckIgnoredLints = createEmptySpellCheckIgnoredLintsForNewEntity(
@@ -138,10 +144,20 @@ export async function loader({params, context: unauthenticatedContext, request}:
             ]);
         },
         load2: async ({spaceId}) => {
-            return await isSearchFavoriteEntity(context, {
-                spaceId,
-                entityId: `Document:${documentId}`,
-            });
+            const isSpaceAccessAuthorized = (await authorizeSpaceAccessIfPossible(context, spaceId))
+                .ok;
+            return await runAllPromises([
+                isSearchFavoriteEntity(context, {
+                    spaceId,
+                    entityId: `Document:${documentId}`,
+                }),
+                isSpaceAccessAuthorized && commentThreadId
+                    ? getMessageDraft(context.actor.authorizeSession(), {
+                          spaceId,
+                          surface: {type: "DocumentCommentThread", documentId, commentThreadId},
+                      })
+                    : emptyMessageDraftWithFiles,
+            ]);
         },
     });
 
@@ -156,7 +172,12 @@ export async function loader({params, context: unauthenticatedContext, request}:
         {
             key: generateId(),
             document,
-            commentThreadResult,
+            commentThreadResult: commentThreadResult
+                ? {
+                      ...commentThreadResult,
+                      messageDraft,
+                  }
+                : null,
             isFavorite,
             spellCheckIgnoredLints,
         },
@@ -320,7 +341,7 @@ function DocumentRouteInner() {
         setIsShareActivationHintVisible(false);
     }
 
-    let node = (
+    return (
         <DocumentContentEditor
             // Re-render when the document changes
             key={documentId}
@@ -384,7 +405,4 @@ function DocumentRouteInner() {
             }}
         />
     );
-
-    node = useSiteChromeContainer({entityId: `Document:${documentId}`}, node);
-    return node;
 }

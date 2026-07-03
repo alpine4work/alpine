@@ -39,7 +39,6 @@ import {cast} from "~/shared/helpers/control/cast.js";
 import {EventEmitter} from "~/shared/helpers/control/event_emitter.js";
 import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
 import {noop} from "~/shared/helpers/control/noop.js";
-import {Result} from "~/shared/helpers/control/result.js";
 import {TimeZone} from "~/shared/helpers/intl/time_zone.js";
 import {filterMapIterable} from "~/shared/helpers/iterable/filter_map_iterable.js";
 import {mapIterable} from "~/shared/helpers/iterable/map_iterable.js";
@@ -110,6 +109,7 @@ export type TaskClientStoreTaskEntry =
           readonly actions: null;
           readonly optimisticState: TaskClientStoreTaskEntryOptimisticState | null;
           readonly authorizationState: TaskAuthorizationStateRegister;
+          readonly revertCount: number;
       }
     // Task uninitialized and known authorization state:
     | {
@@ -119,6 +119,7 @@ export type TaskClientStoreTaskEntry =
               | (TaskClientStoreTaskEntryOptimisticState & {original: {task: null}})
               | null;
           readonly authorizationState: TaskAuthorizationStateRegister;
+          readonly revertCount: number;
       }
     // Task uninitialized and unknown authorization state:
     | {
@@ -128,6 +129,7 @@ export type TaskClientStoreTaskEntry =
               | (TaskClientStoreTaskEntryOptimisticState & {original: {task: null}})
               | null;
           readonly authorizationState: null;
+          readonly revertCount: number;
       };
 
 /**
@@ -1153,10 +1155,10 @@ export class TaskClientStoreInternal {
         }
 
         // Incorporate referenced sites into site registry:
-        for (const site of event.referencedSites) {
-            if (!site.ok) continue;
+        for (const siteReference of event.referencedSites) {
+            if (siteReference.isPrivate) continue;
 
-            this.siteRegistry.getAndImmediatelyUpdateSiteStore(site.value);
+            this.siteRegistry.getAndImmediatelyUpdateSiteStore(siteReference.site);
         }
 
         // Backfill tasks:
@@ -1184,6 +1186,7 @@ export class TaskClientStoreInternal {
                             taskAuthorizedState,
                             authorizationStateVersion,
                         ),
+                        revertCount: 0,
                     });
                     continue;
                 }
@@ -1251,6 +1254,7 @@ export class TaskClientStoreInternal {
                             taskAuthorizedState,
                             authorizationStateVersion,
                         ),
+                        revertCount: oldTaskEntry.revertCount,
                     });
                     continue;
                 }
@@ -1286,6 +1290,7 @@ export class TaskClientStoreInternal {
                     actions: null,
                     optimisticState: newOptimisticState,
                     authorizationState: newAuthorizationState,
+                    revertCount: oldTaskEntry.revertCount,
                 });
             } else {
                 cast<"Unauthorized">(backfillTask.type);
@@ -1303,6 +1308,7 @@ export class TaskClientStoreInternal {
                             {type: "Unauthorized", errorCode: backfillTask.errorCode},
                             authorizationStateVersion,
                         ),
+                        revertCount: 0,
                     });
                     continue;
                 }
@@ -1544,6 +1550,7 @@ export class TaskClientStoreInternal {
                                 actions: [{action, getActionReferencedSortableAccount}],
                                 optimisticState: null,
                                 authorizationState: null,
+                                revertCount: 0,
                             });
                         } else {
                             const newTask = TaskModel.createFromAction(
@@ -1565,6 +1572,7 @@ export class TaskClientStoreInternal {
                                     taskAuthorizedState,
                                     event.defaultAuthorizationStateVersion,
                                 ),
+                                revertCount: 0,
                             });
                         }
                         continue;
@@ -1637,6 +1645,7 @@ export class TaskClientStoreInternal {
                                         taskAuthorizedState,
                                         event.defaultAuthorizationStateVersion,
                                     ),
+                                revertCount: oldTaskEntry.revertCount,
                             });
                             continue;
                         }
@@ -1670,6 +1679,7 @@ export class TaskClientStoreInternal {
                               }
                             : null,
                         authorizationState: oldTaskEntry.authorizationState,
+                        revertCount: oldTaskEntry.revertCount,
                     });
                     continue;
                 }
@@ -1844,6 +1854,7 @@ export class TaskClientStoreInternal {
                           }
                         : null,
                     authorizationState: oldTaskEntry.authorizationState,
+                    revertCount: oldTaskEntry.revertCount,
                 });
             };
 
@@ -2560,14 +2571,30 @@ export class TaskClientStoreInternal {
             T & {
                 readonly actions: ReadonlyArray<TaskAction>;
                 readonly referencedAccounts: ReadonlyArray<AccountModel>;
-                readonly referencedSites: ReadonlyArray<Result<SitePreviewModel, unknown>>;
+                readonly referencedSites: ReadonlyArray<
+                    | {
+                          readonly isPrivate: true;
+                      }
+                    | {
+                          readonly isPrivate: false;
+                          readonly site: SitePreviewModel;
+                      }
+                >;
             }
         >,
     ): Promise<
         T & {
             readonly actions: ReadonlyArray<TaskAction>;
             readonly referencedAccounts: ReadonlyArray<AccountModel>;
-            readonly referencedSites: ReadonlyArray<Result<SitePreviewModel, unknown>>;
+            readonly referencedSites: ReadonlyArray<
+                | {
+                      readonly isPrivate: true;
+                  }
+                | {
+                      readonly isPrivate: false;
+                      readonly site: SitePreviewModel;
+                  }
+            >;
         }
     > {
         // We don't use `addGlobalLoadingIndicator()` with this promise because it's
@@ -2817,6 +2844,7 @@ export class TaskClientStoreInternal {
                                     ],
                                 },
                                 authorizationState: null,
+                                revertCount: 0,
                             });
                             continue;
                         } else {
@@ -2851,6 +2879,7 @@ export class TaskClientStoreInternal {
                                     // Any authorization state change from the server should override us.
                                     zeroHybridLogicalTime,
                                 ),
+                                revertCount: 0,
                             });
                             continue;
                         }
@@ -2928,6 +2957,7 @@ export class TaskClientStoreInternal {
                                     // Any authorization state change from the server should override us.
                                     zeroHybridLogicalTime,
                                 ),
+                                revertCount: oldTaskEntry.revertCount,
                             });
                             continue;
                         }
@@ -2952,6 +2982,7 @@ export class TaskClientStoreInternal {
                             ],
                         },
                         authorizationState: oldTaskEntry.authorizationState,
+                        revertCount: oldTaskEntry.revertCount,
                     });
                     continue;
                 }
@@ -3550,6 +3581,7 @@ export class TaskClientStoreInternal {
     private _revertOptimisticTaskActions(pendingActions: Iterable<TaskClientStorePendingAction>) {
         const newTaskEntryById = new Map<TaskId, TaskClientStoreTaskEntry>();
         const newCollectionEntryById = new Map<TaskCollectionId, TaskClientStoreCollectionEntry>();
+        const incrementedRevertCountForTaskIds = new Set<TaskId>();
 
         for (const {action} of pendingActions) {
             switch (action.type) {
@@ -3603,6 +3635,13 @@ export class TaskClientStoreInternal {
                         );
                     }
 
+                    let newRevertCount = oldTaskEntry.revertCount;
+
+                    if (!incrementedRevertCountForTaskIds.has(action.taskId)) {
+                        incrementedRevertCountForTaskIds.add(action.taskId);
+                        newRevertCount += 1;
+                    }
+
                     if (
                         oldTaskEntry.task !== null &&
                         oldTaskEntry.optimisticState.original.task !== null
@@ -3628,6 +3667,7 @@ export class TaskClientStoreInternal {
                                           actions: newOptimisticActions,
                                       }
                                     : null,
+                            revertCount: newRevertCount,
                         });
                         continue;
                     }
@@ -3691,6 +3731,7 @@ export class TaskClientStoreInternal {
                                           actions: newOptimisticActions,
                                       }
                                     : null,
+                            revertCount: newRevertCount,
                         });
                         continue;
                     }
@@ -3731,6 +3772,7 @@ export class TaskClientStoreInternal {
                                           actions: newOptimisticActions,
                                       }
                                     : null,
+                            revertCount: newRevertCount,
                         });
                     } else {
                         newTaskEntryById.set(action.taskId, {
@@ -3766,6 +3808,7 @@ export class TaskClientStoreInternal {
                                     // Any authorization state change from the server should override us.
                                     zeroHybridLogicalTime,
                                 ),
+                            revertCount: newRevertCount,
                         });
                     }
                     continue;
@@ -5061,6 +5104,7 @@ export class TaskClientStoreInternal {
                 actions: [],
                 optimisticState: null,
                 authorizationState: null,
+                revertCount: 0,
             };
 
             this._updateReferencedTaskStores(null, taskEntry);

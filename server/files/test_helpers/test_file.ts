@@ -36,6 +36,12 @@ const testFileImagePreviewPlaceholder = new FileImagePreviewPlaceholder([
     ],
 ]);
 
+export const testFileAnalysis = {
+    isProcessing: false,
+    ok: true,
+    result: {tags: ["test file"]},
+} as const;
+
 export async function uploadTestFile(context: TestSessionActionContext, spaceId: SpaceId) {
     const {fileId} = await startUploadingFile(context, {
         spaceId,
@@ -73,6 +79,8 @@ export async function uploadTestFile(context: TestSessionActionContext, spaceId:
         context,
         testFileImagePreviewPlaceholder,
     );
+
+    await fileUploader.finishProcessingAnalysis(context, testFileAnalysis.result);
 
     return {fileId};
 }

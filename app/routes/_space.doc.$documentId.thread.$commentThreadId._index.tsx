@@ -21,9 +21,11 @@ import {useSearchAffinityViewEntityInteraction} from "~/client/web/search/use_se
 import {documentCommentThreadCountAgainstLimit} from "~/client/web/styles/document_shared_styles.js";
 import {contentStyles} from "~/client/web/styles/styles.js";
 import {getDocumentAndCommentThreadsWithInitialComments} from "~/server/documents/data/documents_actions.js";
+import {getMessageDraft} from "~/server/messaging/drafts/get_message_draft.js";
 import {getInboxEntry} from "~/server/notifications/data/get_inbox_entry.js";
 import {jsonWithSchema} from "~/server/remix/json_with_schema.js";
 import {LoaderArgs} from "~/server/remix/loader_context.js";
+import {authorizeSpaceAccessIfPossible} from "~/server/spaces/authorize_space_access.js";
 import {getAccountShortNameWithoutFullNameTooltip} from "~/shared/accounts/get_account_short_name_without_full_name_tooltip.js";
 import {spacing} from "~/shared/design/core/spacing.js";
 import {
@@ -32,7 +34,12 @@ import {
     DocumentModel,
 } from "~/shared/documents/document_model.js";
 import {createRynamoItemSchema} from "~/shared/dynamo/rynamo_types.js";
+import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
+import {
+    MessageDraftWithFilesSchema,
+    emptyMessageDraftWithFiles,
+} from "~/shared/messaging/message_draft_schema.js";
 import {InboxEntryModelSchema} from "~/shared/notifications/inbox_model.js";
 import {Schema} from "~/shared/schema/schema.js";
 import {
@@ -43,6 +50,7 @@ import {
 const LoaderSchema = Schema.object({
     document: DocumentModel.schema(),
     commentThread: DocumentCommentThreadModel.schema(),
+    messageDraft: MessageDraftWithFilesSchema,
     initialCheckpoint: ServerSynchronizationCheckpointSchema,
     initialComments: Schema.array(DocumentCommentModel.schema()),
     initialOtherReferencedComments: Schema.array(DocumentCommentModel.schema()),
@@ -70,7 +78,7 @@ export async function loader({params, context: unauthenticatedContext, request}:
 
     const {
         data1: {document, commentThreads, initialCommentsByCommentThreadId},
-        data2: inboxEntry = null,
+        data2: [inboxEntry, messageDraft] = [null, emptyMessageDraftWithFiles],
     } = await loadWithSpaceDiscovery(context, {
         load1: async () => {
             return await getDocumentAndCommentThreadsWithInitialComments(context, {
@@ -82,12 +90,23 @@ export async function loader({params, context: unauthenticatedContext, request}:
             });
         },
         load2: async ({spaceId}) => {
-            if (url.searchParams.get("inbox") !== "show") return null;
+            const isSpaceAccessAuthorized = (await authorizeSpaceAccessIfPossible(context, spaceId))
+                .ok;
 
-            return await getInboxEntry(context, {
-                spaceId,
-                key: {type: "DocumentCommentThread", documentId, commentThreadId},
-            });
+            return await runAllPromises([
+                isSpaceAccessAuthorized && url.searchParams.get("inbox") === "show"
+                    ? getInboxEntry(context.actor.authorizeSession(), {
+                          spaceId,
+                          key: {type: "DocumentCommentThread", documentId, commentThreadId},
+                      })
+                    : null,
+                isSpaceAccessAuthorized
+                    ? getMessageDraft(context.actor.authorizeSession(), {
+                          spaceId,
+                          surface: {type: "DocumentCommentThread", documentId, commentThreadId},
+                      })
+                    : emptyMessageDraftWithFiles,
+            ]);
         },
     });
 
@@ -100,6 +119,7 @@ export async function loader({params, context: unauthenticatedContext, request}:
     return jsonWithSchema(LoaderSchema, {
         document,
         commentThread,
+        messageDraft,
         initialCheckpoint: checkpoint,
         initialComments: comments,
         initialOtherReferencedComments: otherReferencedComments,
@@ -132,6 +152,7 @@ export default function DocumentCommentThreadRoute() {
         initialComments,
         initialOtherReferencedComments,
         inboxEntry,
+        messageDraft,
     } = useLoaderDataWithSchema(LoaderSchema);
 
     const {
@@ -193,6 +214,7 @@ export default function DocumentCommentThreadRoute() {
                     comments: initialComments,
                     otherReferencedComments: initialOtherReferencedComments,
                     optimisticComments: [],
+                    messageDraft,
                 },
             ]}
             navigationBar={navigationBar}

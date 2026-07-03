@@ -69,7 +69,7 @@ import {CodeBlockIcon} from "~/client/web/icons/code_block_icon.js";
 import {QuoteBlockIcon} from "~/client/web/icons/quote_block_icon.js";
 import {VideoIcon} from "~/client/web/icons/video_icon.js";
 import {WaveformIcon} from "~/client/web/icons/waveform_icon.js";
-import {useSpaceContext} from "~/client/web/spaces/space_context.js";
+import {useSpaceContext} from "~/client/web/spaces/context/space_context.js";
 import {buttonStyles, colorSchemeVars} from "~/client/web/styles/styles.js";
 import {ContentProsemirrorSchema} from "~/shared/content/content_schema.js";
 import {

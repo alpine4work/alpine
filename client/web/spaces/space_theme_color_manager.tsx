@@ -1,6 +1,6 @@
 import {useEffect} from "react";
 import {ScriptBeforeAppInitialRender} from "~/client/web/helpers/lifecycle/script_before_initial_app_render.js";
-import {useSpaceContext} from "~/client/web/spaces/space_context.js";
+import {useSpaceContext} from "~/client/web/spaces/context/space_context.js";
 import {safe, safeAlphanumericString} from "~/shared/helpers/string/safe_string.js";
 
 /**

@@ -10,8 +10,8 @@ import {NativeMobileBridge} from "~/client/web/remix/native_mobile_bridge.js";
 import {usePlatform} from "~/client/web/remix/platform_context.js";
 import {useRootNavigate} from "~/client/web/remix/use_navigate.js";
 import {metaTitlePostfix} from "~/client/web/remix/use_update_meta_title.js";
+import {useSpaceContextAndRequireSpaceAccess} from "~/client/web/spaces/context/space_context.js";
 import {SpaceAvatar} from "~/client/web/spaces/space_avatar.js";
-import {useSpaceContextAndRequireSpaceAccess} from "~/client/web/spaces/space_context.js";
 import {screenPaddingX, spacing} from "~/shared/design/core/spacing.js";
 
 export function meta() {

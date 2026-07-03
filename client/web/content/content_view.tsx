@@ -22,6 +22,7 @@ import {ContentEditorDomParser} from "~/client/web/content/internal/content_edit
 import {contentEditorTextClipboardSerializer} from "~/client/web/content/internal/content_editor_text_clipboard_serializer.js";
 import {addContentFileEntityPreviewBehavior} from "~/client/web/content/internal/content_file_entity_preview.js";
 import {addContentFilePreviewBehavior} from "~/client/web/content/internal/content_file_preview.js";
+import {useMediaDebugModeEnabled} from "~/client/web/content/media_debug_mode.js";
 import {disableMessagingViewPointerToolbarAnimationOutUntilAfterNextAnimationFrame} from "~/client/web/content/messaging/disable_messaging_view_pointer_toolbar_animation_out_until_after_next_animation_frame.js";
 import {renderContentFragmentToHtmlGeneratorStore} from "~/client/web/content/render_content_to_html.js";
 import {runContentViewJumpAnimation} from "~/client/web/content/run_content_view_jump_animation.js";
@@ -53,10 +54,9 @@ import {useRouteLayout} from "~/client/web/remix/route_layout_context.js";
 import {useSpacingScale} from "~/client/web/remix/spacing_scale_context.js";
 import {useCurrentDate} from "~/client/web/remix/use_current_time_rounded_to_hour.js";
 import {useNavigate, useRootNavigate} from "~/client/web/remix/use_navigate.js";
-import {getDynamicSearchEntityPathForFileEntity} from "~/client/web/search/core/get_search_entity_path.js";
 import {useSearchEntityRegistry} from "~/client/web/search/core/search_entity_registry_context.js";
 import {useSiteRegistry} from "~/client/web/sites/context/site_registry_context.js";
-import {useSpaceContextIfExists} from "~/client/web/spaces/space_context.js";
+import {useSpaceContextIfExists} from "~/client/web/spaces/context/space_context.js";
 import {contentStyles, contentViewStyles, sprinkles} from "~/client/web/styles/styles.js";
 import {ContentCodeBlockIncrementalParser} from "~/shared/content/code/content_code_block_incremental_parser.js";
 import {contentCodeBlockLanguageById} from "~/shared/content/code/content_code_block_language.js";
@@ -92,6 +92,8 @@ import {DocumentCommentThreadId, FileId} from "~/shared/id/types/id_types.js";
 import {areProsemirrorNodesEqualExceptText} from "~/shared/prosemirror/are_prosemirror_nodes_equal_except_text.js";
 import {ProsemirrorHtmlSerializationDecoration} from "~/shared/prosemirror/serialize_prosemirror_node_to_html.js";
 import {Schema, SchemaSerializedValue} from "~/shared/schema/schema.js";
+import {getDynamicSearchEntityPathForFileEntity} from "~/shared/search/path/get_search_entity_path.js";
+import {parseSearchDynamicEntityId} from "~/shared/search/search_entity_id.js";
 import {AccountModel} from "~/shared/spaces/account_model.js";
 import {computeStore} from "~/shared/store/compute_store.js";
 import {ConstStore, undefinedStore} from "~/shared/store/const_store.js";
@@ -308,6 +310,7 @@ export function ContentView<Content extends ContentWithReferences>({
     const reporter = useReporter();
     const fileEntityRenderers = useContentFileEntityRenderers();
     const currentDate = useCurrentDate();
+    const isMediaDebugModeEnabled = useMediaDebugModeEnabled();
 
     // Don't get the current account when running in a unit test so we don't need to
     // render a space context when testing this component.
@@ -542,6 +545,7 @@ export function ContentView<Content extends ContentWithReferences>({
                 placeholder,
                 decorations: [decorations, codeBlockDecorations],
                 shouldHighlightComment,
+                isMediaDebugModeEnabled,
                 suppressHydrationWarning: () => {
                     suppressHydrationWarning = true;
                 },
@@ -587,6 +591,7 @@ export function ContentView<Content extends ContentWithReferences>({
         posAttributeOffset,
         placeholder,
         shouldHighlightComment,
+        isMediaDebugModeEnabled,
         context,
     ]);
 
@@ -1446,16 +1451,42 @@ export function ContentView<Content extends ContentWithReferences>({
                         onPress: async () => {
                             if (!spaceId) return;
 
-                            const url = new URL(
-                                getDynamicSearchEntityPathForFileEntity({
-                                    spaceId,
-                                    fileEntityId: mention.entityId,
-                                    fileEntityResult:
-                                        content.references.fileEntityById?.get(mention.entityId) ??
-                                        null,
-                                }),
-                                window.location.href,
-                            );
+                            let url: URL;
+                            if (!mention.entityId.startsWith("Site:")) {
+                                url = new URL(
+                                    getDynamicSearchEntityPathForFileEntity({
+                                        spaceId,
+                                        fileEntityId: mention.entityId,
+                                        fileEntityResult:
+                                            content.references.fileEntityById?.get(
+                                                mention.entityId,
+                                            ) ?? null,
+                                    }),
+                                    window.location.href,
+                                );
+                            } else {
+                                // NOTE(ifitzsimmons, 2026-06-17): `getDynamicSearchEntityPathForFileEntity` will
+                                // resolve to the path of the site's first entity if it has one. However, when
+                                // copying a link to a site mention, it doesn't really make sense to copy the path
+                                // to the first entity.
+                                //
+                                // Think about the following use case:
+                                //
+                                // 1. User is looking at a site mention. The site has a Test Channel as its first
+                                //    entity.
+                                // 2. User copies the link to the site mention.
+                                // 3. User pastes the link into a chat message.
+                                // 4. The chat message is rendered as a link to the Test Channel.
+                                //
+                                // So by simply copying and pasting the link, we've created a site effect. This
+                                // does mean that if a user copies the link and pastes it into the URL bar, they
+                                // will be navigated to the site root and redirected to the Test Channel. Those
+                                // interactions will be relatively rare, so it's not a big deal.
+                                const siteIdObject = parseSearchDynamicEntityId(mention.entityId);
+                                if (siteIdObject.type !== "Site") return;
+
+                                url = new URL(`/site/${siteIdObject.siteId}`, window.location.href);
+                            }
                             await writeTextToClipboard(url.toString());
                         },
                     },

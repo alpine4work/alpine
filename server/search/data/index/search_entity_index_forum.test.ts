@@ -47,7 +47,10 @@ import {SearchEntityModel} from "~/shared/search/search_entity_model.js";
 import {SearchEntityResultModel} from "~/shared/search/search_entity_result_model.js";
 import {standardSearchOptions} from "~/shared/search/search_options.js";
 import {AccountModel} from "~/shared/spaces/account_model.js";
-import {TaskTitleModel} from "~/shared/tasks/title/task_title.js";
+import {
+    TaskTitleModel,
+    randomlyGenerateTaskTitleClientId,
+} from "~/shared/tasks/title/task_title.js";
 import {runAllTimersAndWaitForTestTasks} from "~/shared/test_helpers/run_all_timers_and_wait_for_test_tasks.js";
 
 const {SearchEntityKeywordIndex} = getSearchEntityIndexesForTest();
@@ -2036,7 +2039,15 @@ test("post title updates if mentioned entities change", async () => {
     {
         const oldTitle = new TaskTitleModel((await task1.getIndexDoc()).title.raw);
 
-        await task1.updateTitle(session, oldTitle.replace(0, oldTitle.getText().length, "Rab").raw);
+        await task1.updateTitle(
+            session,
+            oldTitle.replace(
+                randomlyGenerateTaskTitleClientId(),
+                0,
+                oldTitle.getText().length,
+                "Rab",
+            ).raw,
+        );
     }
 
     await runAllTimersAndWaitForTestTasks();

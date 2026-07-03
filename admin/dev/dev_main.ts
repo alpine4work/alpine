@@ -587,6 +587,7 @@ async function createArtifacts() {
             bazelTarget: "//server/files/processor",
             executablePath: "server/files/processor/processor.sh",
             stdioPrefix: "flp",
+            env: {BAZEL_BINDIR: "."},
             ports: {
                 publicPort: fileProcessorDevPort,
                 privatePort: fileProcessorPrivatePort,
@@ -616,6 +617,9 @@ async function createArtifacts() {
                 `--cloudflareR2LocalDataPath=${cloudflareR2LocalDataPath}`,
                 `--temporaryDirectoryPath=${fileProcessorServiceTemporaryDirectoryPath}`,
                 `--kinesisTracerStreamName=${kinesisTracerStreamName}`,
+                ...(env.AWS_BEDROCK_TOKEN
+                    ? [`--awsBedrockTokenForDevelopment=${env.AWS_BEDROCK_TOKEN}`]
+                    : []),
                 ...(honeycombApiKey ? [`--honeycombApiKey=${honeycombApiKey}`] : []),
                 `--sqsLocalPort=${sqsLocalPort}`,
             ],

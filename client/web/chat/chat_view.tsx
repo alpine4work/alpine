@@ -19,6 +19,7 @@ import {MobileFullScreenModal} from "~/client/web/design/mobile_full_screen_moda
 import {ModalDialog} from "~/client/web/design/modal_dialog.js";
 import {
     navigationBarHeight,
+    navigationBarHeightWithTitleBreadcrumb,
     navigationBarMobileGap,
 } from "~/client/web/design/navigation_bar_helpers.js";
 import {PrettyConjunctionList} from "~/client/web/design/pretty_conjunction_list.js";
@@ -34,15 +35,17 @@ import {MessagingView, MessagingViewRef} from "~/client/web/messaging/messaging_
 import {NavigationBarContentMoreButton} from "~/client/web/navigation/navigation_bar_content.js";
 import {useNavigationState} from "~/client/web/navigation/navigation_state_context.js";
 import {usePlatform} from "~/client/web/remix/platform_context.js";
+import {useRouteLayout} from "~/client/web/remix/route_layout_context.js";
 import {useCurrentlyViewingSearchEntityId} from "~/client/web/remix/use_currently_viewing_search_entity_id.js";
 import {useNavigate} from "~/client/web/remix/use_navigate.js";
 import {useIdlyPreloadRpc} from "~/client/web/rpc/use_lazy_load_rpc.js";
 import {useSearchEntityRegistry} from "~/client/web/search/core/search_entity_registry_context.js";
 import {useSearchFavoriteEntityMenuAction} from "~/client/web/search/core/use_search_favorite_affinity_entity_menu_action.js";
+import {SiteBreadcrumbChip} from "~/client/web/sites/breadcrumb/site_breadcrumb_chip.js";
 import {useSiteContextIfExists} from "~/client/web/sites/context/site_context.js";
 import {useSiteRegistry} from "~/client/web/sites/context/site_registry_context.js";
 import {applySiteAccessPolicyChange} from "~/client/web/sites/helpers/apply_site_access_policy_change.js";
-import {useSpaceContext} from "~/client/web/spaces/space_context.js";
+import {useSpaceContext} from "~/client/web/spaces/context/space_context.js";
 import {chatViewTopBarWithInboxBannerAdjustmentY} from "~/client/web/styles/chat_shared_styles.js";
 import {postFauxInputCreateButtonInnerButtonHeight} from "~/client/web/styles/forum_shared_styles.js";
 import {
@@ -68,6 +71,7 @@ import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 import {cast} from "~/shared/helpers/control/cast.js";
 import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
 import {ChatId} from "~/shared/id/types/id_types.js";
+import {MessageDraftWithFiles} from "~/shared/messaging/message_draft_schema.js";
 import {MessagingRealtimeEvent} from "~/shared/messaging/messaging_realtime_protocol.js";
 import {
     getChatMessagesFromEnd,
@@ -93,6 +97,7 @@ type ChatRealtimeWebSocketClientProcedures = MemoObject<
 export function ChatView({
     withInboxBanner,
     chat,
+    messageDraft,
     onUpdateChat,
     initialIsSubscribed,
     initialCheckpoint,
@@ -104,6 +109,7 @@ export function ChatView({
 }: {
     withInboxBanner: boolean;
     chat: ChatModel;
+    messageDraft: MessageDraftWithFiles;
     onUpdateChat: Memo<(chat: ChatModel) => void>;
     initialIsSubscribed: boolean | null;
     initialCheckpoint: ServerSynchronizationCheckpoint;
@@ -215,6 +221,7 @@ export function ChatView({
             />
             <ChatMessagingView
                 chat={chat}
+                messageDraft={messageDraft}
                 chatAccessPolicy={chatAccessPolicy}
                 isConnected={isConnected}
                 procedures={procedures}
@@ -257,6 +264,7 @@ function ChatViewTopBar({
     const inboxContext = useInboxContext();
     const navigationState = useNavigationState();
     const siteContext = useSiteContextIfExists();
+    const routeLayout = useRouteLayout();
 
     const accessLevel = useMemo((): AccessLevel | null => {
         switch (chatAccessPolicy.type) {
@@ -380,6 +388,13 @@ function ChatViewTopBar({
         chat.definition.type === "Room" && currentAccount ? {spaceId: space.id} : null,
     );
 
+    const shouldRenderSiteBreadcrumb =
+        !!siteContext &&
+        routeLayout === "narrow" &&
+        chatAccessPolicy.type === "Room" &&
+        chatAccessPolicy.accessPolicy.type === "Site" &&
+        chatAccessPolicy.accessPolicy.siteId === siteContext.tree.site.id;
+
     return (
         <Box
             position="relative"
@@ -413,7 +428,11 @@ function ChatViewTopBar({
                 }}
             />
             <Box
-                height={navigationBarHeight}
+                style={{
+                    height: shouldRenderSiteBreadcrumb
+                        ? navigationBarHeightWithTitleBreadcrumb[platform]
+                        : spacing[navigationBarHeight],
+                }}
                 width="full"
                 maxWidth={contentStyles.contentMaxWidth}
                 display="flex"
@@ -439,159 +458,194 @@ function ChatViewTopBar({
                     </Box>
                 )}
                 <Box
+                    display="flex"
+                    flexDirection="column"
+                    alignItems={platform === "mobile" ? "center" : undefined}
+                    justifyContent="center"
                     width="full"
                     minWidth="0"
                     paddingX={screenPaddingX}
-                    display="flex"
-                    flexDirection={
-                        chat.definition.type === "Room"
-                            ? "row"
-                            : platform !== "mobile"
-                              ? "row"
-                              : "column"
+                    // Desktop peek only: chip stacks above the chat name in a column, so bottom-align
+                    // this column so the name sits at the visual bottom of the top bar (aligned with
+                    // the bottom-aligned subscribe / more menu below).
+                    alignSelf={
+                        shouldRenderSiteBreadcrumb && platform !== "mobile" ? "flex-end" : undefined
                     }
-                    justifyContent={
-                        chat.definition.type === "Room"
-                            ? platform !== "mobile"
-                                ? "flex-start"
-                                : "center"
-                            : "flex-start"
-                    }
-                    alignItems="center"
-                    gap={
-                        chat.definition.type === "Room"
-                            ? platform === "mobile"
-                                ? "1.5"
-                                : "2"
-                            : platform === "mobile"
-                              ? "1"
-                              : messageViewRailGap
+                    paddingBottom={
+                        shouldRenderSiteBreadcrumb && platform !== "mobile" ? "3" : undefined
                     }
                 >
-                    {chat.definition.type === "Direct" && (
-                        <AccountAvatarPile
-                            size={messageViewAccountAvatarSize}
-                            previewAccounts={otherChatAccounts.slice(0, 4)}
-                            accountCount={otherChatAccounts.length}
-                            getAllAccounts={() => otherChatAccounts}
-                        />
-                    )}
-                    {chatAccessPolicy.type === "Room" &&
-                        !chatAccessPolicy.accessPolicy.defaultGrant &&
-                        !chatAccessPolicy.accessPolicy.urlGrant && (
-                            // We add a lock icon to private chats because unlike other entities we don't show
-                            // the share switch in the navigation bar. Since knowing whether a chat is public
-                            // or private is important context, we include a lock to make sure you know the
-                            // chat is private before posting.
-                            <LockBoldFillIcon
-                                className={sprinkles({flexShrink: "0"})}
-                                size={spacing[platform === "mobile" ? "3" : "4"]}
+                    {shouldRenderSiteBreadcrumb && <SiteBreadcrumbChip />}
+                    <Box
+                        width="full"
+                        minWidth="0"
+                        display="flex"
+                        flexDirection={
+                            chat.definition.type === "Room"
+                                ? "row"
+                                : platform !== "mobile"
+                                  ? "row"
+                                  : "column"
+                        }
+                        // Mobile + site: 2-line iOS layout — center the chat name horizontally under the
+                        // supratitle. Desktop + site: left-align so the name reads next to the stacked
+                        // chip rather than recentered.
+                        justifyContent={
+                            shouldRenderSiteBreadcrumb
+                                ? platform === "mobile"
+                                    ? "center"
+                                    : "flex-start"
+                                : chat.definition.type === "Room"
+                                  ? platform !== "mobile"
+                                      ? "flex-start"
+                                      : "center"
+                                  : "flex-start"
+                        }
+                        alignItems="center"
+                        gap={
+                            chat.definition.type === "Room"
+                                ? platform === "mobile"
+                                    ? "1.5"
+                                    : "2"
+                                : platform === "mobile"
+                                  ? "1"
+                                  : messageViewRailGap
+                        }
+                    >
+                        {chat.definition.type === "Direct" && (
+                            <AccountAvatarPile
+                                size={messageViewAccountAvatarSize}
+                                previewAccounts={otherChatAccounts.slice(0, 4)}
+                                accountCount={otherChatAccounts.length}
+                                getAllAccounts={() => otherChatAccounts}
                             />
                         )}
-                    {isEditingRoomNameInline && chat.definition.type === "Room" ? (
-                        <RoomChatViewNameEditor
-                            initialName={chat.definition.name}
-                            onCancel={() => setIsEditingRoomNameInline(false)}
-                            onSave={async name => {
-                                const {chat} = await procedures.updateRoomChatName({name});
-                                onUpdateChat(chat);
-                                setIsEditingRoomNameInline(false);
-                            }}
-                        />
-                    ) : (
-                        <h1
-                            className={sprinkles({
-                                fontStyle:
-                                    chat.definition.type === "Room"
-                                        ? platform !== "mobile"
-                                            ? "truncate-bold"
-                                            : "truncate-semi-bold"
-                                        : platform !== "mobile"
-                                          ? "truncate-semi-bold"
-                                          : "truncate",
-                                fontSize:
-                                    chat.definition.type === "Room"
-                                        ? platform !== "mobile"
-                                            ? "400"
-                                            : "100"
-                                        : platform !== "mobile"
-                                          ? "200"
-                                          : "50",
-                                userSelect: platform !== "mobile" ? "text" : undefined,
-                            })}
-                        >
-                            {(() => {
-                                switch (chat.definition.type) {
-                                    case "Direct": {
-                                        if (otherChatAccounts.length !== 1) {
-                                            return (
-                                                <PrettyConjunctionList
-                                                    list={otherChatAccounts.map(account => (
-                                                        <AccountShortName
-                                                            key={account.id}
-                                                            account={account}
-                                                        />
-                                                    ))}
-                                                />
+                        {chatAccessPolicy.type === "Room" &&
+                            !chatAccessPolicy.accessPolicy.defaultGrant &&
+                            !chatAccessPolicy.accessPolicy.urlGrant && (
+                                // We add a lock icon to private chats because unlike other entities we don't show
+                                // the share switch in the navigation bar. Since knowing whether a chat is public
+                                // or private is important context, we include a lock to make sure you know the
+                                // chat is private before posting.
+                                <LockBoldFillIcon
+                                    className={sprinkles({flexShrink: "0"})}
+                                    size={spacing[platform === "mobile" ? "3" : "4"]}
+                                />
+                            )}
+                        {isEditingRoomNameInline && chat.definition.type === "Room" ? (
+                            <RoomChatViewNameEditor
+                                initialName={chat.definition.name}
+                                onCancel={() => setIsEditingRoomNameInline(false)}
+                                onSave={async name => {
+                                    const {chat} = await procedures.updateRoomChatName({name});
+                                    onUpdateChat(chat);
+                                    setIsEditingRoomNameInline(false);
+                                }}
+                            />
+                        ) : (
+                            <h1
+                                className={sprinkles({
+                                    fontStyle:
+                                        chat.definition.type === "Room"
+                                            ? platform !== "mobile"
+                                                ? "truncate-bold"
+                                                : "truncate-semi-bold"
+                                            : platform !== "mobile"
+                                              ? "truncate-semi-bold"
+                                              : "truncate",
+                                    fontSize:
+                                        chat.definition.type === "Room"
+                                            ? platform !== "mobile"
+                                                ? "400"
+                                                : "100"
+                                            : platform !== "mobile"
+                                              ? "200"
+                                              : "50",
+                                    userSelect: platform !== "mobile" ? "text" : undefined,
+                                })}
+                            >
+                                {(() => {
+                                    switch (chat.definition.type) {
+                                        case "Direct": {
+                                            if (otherChatAccounts.length !== 1) {
+                                                return (
+                                                    <PrettyConjunctionList
+                                                        list={otherChatAccounts.map(account => (
+                                                            <AccountShortName
+                                                                key={account.id}
+                                                                account={account}
+                                                            />
+                                                        ))}
+                                                    />
+                                                );
+                                            }
+
+                                            return platform !== "mobile" ? (
+                                                <AccountFullName account={otherChatAccounts[0]!} />
+                                            ) : (
+                                                <AccountShortName account={otherChatAccounts[0]!} />
                                             );
                                         }
+                                        case "Room": {
+                                            return (
+                                                <span
+                                                    onPointerDown={event => {
+                                                        const currentTime = Date.now();
+                                                        const lastPointerDownTime =
+                                                            lastPointerDownTimeRef.current;
+                                                        lastPointerDownTimeRef.current =
+                                                            currentTime;
 
-                                        return platform !== "mobile" ? (
-                                            <AccountFullName account={otherChatAccounts[0]!} />
-                                        ) : (
-                                            <AccountShortName account={otherChatAccounts[0]!} />
-                                        );
+                                                        if (lastPointerDownTime === null) return;
+
+                                                        if (
+                                                            currentTime - lastPointerDownTime >
+                                                            doubleClickDelayMs
+                                                        )
+                                                            return;
+
+                                                        if (
+                                                            hasAccessLevel(accessLevel, "Manage") &&
+                                                            platform !== "mobile"
+                                                        ) {
+                                                            // Disable selection from double click.
+                                                            //
+                                                            // We implement double click with `onPointerDown` instead of `onDoubleClick`
+                                                            // because `onDoubleClick` fires one pointer up but the browser performs text
+                                                            // selection on double click pointer down. So there's a small visual glitch where
+                                                            // you can see the browser selection after double click before pointer up when you
+                                                            // use `onDoubleClick`,
+                                                            event.preventDefault();
+
+                                                            setIsEditingRoomNameInline(true);
+                                                        }
+                                                    }}
+                                                >
+                                                    {chat.definition.name}
+                                                </span>
+                                            );
+                                        }
+                                        default:
+                                            throw exhaustive(chat.definition);
                                     }
-                                    case "Room": {
-                                        return (
-                                            <span
-                                                onPointerDown={event => {
-                                                    const currentTime = Date.now();
-                                                    const lastPointerDownTime =
-                                                        lastPointerDownTimeRef.current;
-                                                    lastPointerDownTimeRef.current = currentTime;
-
-                                                    if (lastPointerDownTime === null) return;
-
-                                                    if (
-                                                        currentTime - lastPointerDownTime >
-                                                        doubleClickDelayMs
-                                                    )
-                                                        return;
-
-                                                    if (
-                                                        hasAccessLevel(accessLevel, "Manage") &&
-                                                        platform !== "mobile"
-                                                    ) {
-                                                        // Disable selection from double click.
-                                                        //
-                                                        // We implement double click with `onPointerDown` instead of `onDoubleClick`
-                                                        // because `onDoubleClick` fires one pointer up but the browser performs text
-                                                        // selection on double click pointer down. So there's a small visual glitch where
-                                                        // you can see the browser selection after double click before pointer up when you
-                                                        // use `onDoubleClick`,
-                                                        event.preventDefault();
-
-                                                        setIsEditingRoomNameInline(true);
-                                                    }
-                                                }}
-                                            >
-                                                {chat.definition.name}
-                                            </span>
-                                        );
-                                    }
-                                    default:
-                                        throw exhaustive(chat.definition);
-                                }
-                            })()}
-                        </h1>
-                    )}
+                                })()}
+                            </h1>
+                        )}
+                    </Box>
                 </Box>
                 {chat.definition.type === "Room" &&
                     platform !== "mobile" &&
                     // Don't render the subscribe button if the account doesn't have space access.
                     currentAccount && (
-                        <Box flexShrink="0" paddingRight="4">
+                        <Box
+                            flexShrink="0"
+                            paddingRight="4"
+                            // The subscribe button only renders on desktop (see condition above), so when
+                            // there's a site context the chip is stacked above the chat name — bottom-align
+                            // this so the subscribe button sits on the same visual row as the name.
+                            alignSelf={shouldRenderSiteBreadcrumb ? "flex-end" : undefined}
+                            paddingBottom={shouldRenderSiteBreadcrumb ? "3" : undefined}
+                        >
                             <Tooltip
                                 placement="bottom-end"
                                 content="Get notified about new messages"
@@ -631,6 +685,14 @@ function ChatViewTopBar({
                 <Box
                     flexShrink="0"
                     paddingRight={platform === "mobile" ? navigationBarMobileGap : "5"}
+                    // Match the title column's bottom alignment when the chip stacks above the name on
+                    // desktop peek so the more menu lines up with the chat name.
+                    alignSelf={
+                        shouldRenderSiteBreadcrumb && platform !== "mobile" ? "flex-end" : undefined
+                    }
+                    paddingBottom={
+                        shouldRenderSiteBreadcrumb && platform !== "mobile" ? "3" : undefined
+                    }
                 >
                     <NavigationBarContentMoreButton
                         // Move the menu further away from the subscribe button. It's quite large and the
@@ -795,7 +857,7 @@ function ChatViewTopBar({
                                 setIsSubscribedOptimistically,
                             ],
                         )}
-                        extraBottom={null}
+                        menuExtraBottom={null}
                     />
                 </Box>
             </Box>
@@ -851,6 +913,7 @@ function AccountFullName({account}: {account: AccountModel}) {
 
 function ChatMessagingView({
     chat,
+    messageDraft,
     isConnected,
     procedures,
     subscribeToEvents,
@@ -863,6 +926,7 @@ function ChatMessagingView({
     chatAccessPolicy,
 }: {
     chat: ChatModel;
+    messageDraft?: MessageDraftWithFiles;
     isConnected: boolean;
     procedures: ChatRealtimeWebSocketClientProcedures;
     subscribeToEvents: Memo<(listener: (event: ChatRealtimeEvent) => void) => () => void>;
@@ -917,6 +981,11 @@ function ChatMessagingView({
         }
     }, [chat.id, initialScrollToMessageIndex, initiallyFocus]);
 
+    const messageDraftSurface = useMemo(
+        () => ({type: "Chat" as const, chatId: chat.id}),
+        [chat.id],
+    );
+
     return (
         <MessagingView
             ref={messagingRef}
@@ -956,6 +1025,8 @@ function ChatMessagingView({
             deleteMessageReaction={procedures.deleteMessageReaction}
             startTypingInMessageInput={procedures.startTypingInMessageInput}
             stopTypingInMessageInput={procedures.stopTypingInMessageInput}
+            messageDraftSurface={messageDraftSurface}
+            messageDraft={messageDraft}
             isConnected={isConnected}
             // There's a strange TypeScript error here that only shows up when Bazel runs
             // TypeScript where it thinks the type of `subscribeToEvents` should include

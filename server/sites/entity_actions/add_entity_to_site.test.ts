@@ -1,5 +1,5 @@
-// TODO(#sites): Create testing framework for adding/removing from sites similar to
-// the way we have "messaging" tests
+// TODO(#sites-not-blocking): Create testing framework for adding/removing from
+// sites similar to the way we have "messaging" tests
 
 import {getChatDefinition} from "~/server/chat/data/get_chat_definition.js";
 import {TestChat} from "~/server/chat/test_helpers/test_chat.js";

@@ -15,7 +15,7 @@ import {
     AllMiniLmL6V2LanguageModel,
     allMiniLmL6V2LanguageModelEmbedTextTestCounter,
 } from "~/server/language_models/all_mini_lm_l6_v2/all_mini_lm_l6_v2_language_model.js";
-import {LanguageModelContextModule} from "~/server/language_models/core/language_model_context_module.js";
+import {LanguageModelsNoopDevelopmentContextModule} from "~/server/language_models/language_models_noop_development_context_module.js";
 import {opensearchIndexEnglishWithWordDelimiterGraphAnalyzer} from "~/server/opensearch/helpers/opensearch_index_english_with_word_delimiter_graph_analyzer.js";
 import {opensearchClientExecuteOperationTestCounter} from "~/server/opensearch/opensearch_client.js";
 import {OpensearchQueryValue} from "~/server/opensearch/opensearch_query_clause.js";
@@ -71,7 +71,7 @@ import {assertOrderKey} from "~/shared/helpers/sort/order_key.js";
 import {defaultCompareStrings} from "~/shared/helpers/string/default_compare_strings.js";
 import {quote} from "~/shared/helpers/string/quote.js";
 import {generateId} from "~/shared/id/id.js";
-import {DocumentId} from "~/shared/id/types/id_types.js";
+import {ContentEditorClientId, DocumentId} from "~/shared/id/types/id_types.js";
 import {SearchDynamicEntityId} from "~/shared/search/search_entity_id.js";
 import {SearchAffinityEntityModel, SearchEntityModel} from "~/shared/search/search_entity_model.js";
 import {
@@ -90,6 +90,10 @@ let languageModel: AllMiniLmL6V2LanguageModel;
 beforeAll(async () => {
     languageModel = await AllMiniLmL6V2LanguageModel.new();
 });
+
+function createLanguageModelsContextModuleForTest(): LanguageModelsNoopDevelopmentContextModule {
+    return new LanguageModelsNoopDevelopmentContextModule({embeddingModel: languageModel});
+}
 
 const context = createTestContext({
     shouldStartOpensearch: true,
@@ -111,7 +115,7 @@ const context = createTestContext({
             case "IndexSearchEntityEmbeddingChunks": {
                 await processIndexSearchEntityEmbeddingChunksJob(
                     actionContext.clone({
-                        languageModel: new LanguageModelContextModule(languageModel),
+                        languageModels: createLanguageModelsContextModuleForTest(),
                     }),
                     job,
                     span,
@@ -1733,8 +1737,8 @@ test("search by semantics only sees entities the account has access to", async (
         await updateTaskNotesContent(task1.id === taskId ? session1.action() : session2.action(), {
             spaceId: space.id,
             taskId,
-            version: 0,
-            steps: [
+            clientVersion: 0,
+            clientSteps: [
                 new ReplaceStep(
                     1,
                     1,
@@ -1745,6 +1749,7 @@ test("search by semantics only sees entities the account has access to", async (
                     ),
                 ),
             ],
+            clientId: generateId<ContentEditorClientId>(),
         });
     }
 
@@ -1761,7 +1766,7 @@ test("search by semantics only sees entities the account has access to", async (
         searchBySemantics(
             otherSession
                 .action()
-                .clone({languageModel: new LanguageModelContextModule(languageModel)}),
+                .clone({languageModels: createLanguageModelsContextModuleForTest()}),
             {
                 spaceId: space.id,
                 queryText: "test",
@@ -1777,7 +1782,7 @@ test("search by semantics only sees entities the account has access to", async (
             await searchBySemantics(
                 otherSession
                     .action()
-                    .clone({languageModel: new LanguageModelContextModule(languageModel)}),
+                    .clone({languageModels: createLanguageModelsContextModuleForTest()}),
                 {
                     spaceId: otherSpace.id,
                     queryText: "test",
@@ -1796,7 +1801,7 @@ test("search by semantics only sees entities the account has access to", async (
             await searchBySemantics(
                 session1
                     .action()
-                    .clone({languageModel: new LanguageModelContextModule(languageModel)}),
+                    .clone({languageModels: createLanguageModelsContextModuleForTest()}),
                 {
                     spaceId: space.id,
                     queryText: "test",
@@ -1824,7 +1829,7 @@ test("search by semantics only sees entities the account has access to", async (
             await searchBySemantics(
                 session2
                     .action()
-                    .clone({languageModel: new LanguageModelContextModule(languageModel)}),
+                    .clone({languageModels: createLanguageModelsContextModuleForTest()}),
                 {
                     spaceId: space.id,
                     queryText: "test",
@@ -1890,7 +1895,7 @@ test("semantic search stops returning post and comment entities after channel is
             await searchBySemantics(
                 session
                     .action()
-                    .clone({languageModel: new LanguageModelContextModule(languageModel)}),
+                    .clone({languageModels: createLanguageModelsContextModuleForTest()}),
                 {
                     spaceId: space.id,
                     queryText: semanticPhrase,
@@ -1969,7 +1974,7 @@ test("semantic search updates document title for matches across embedding chunks
 
     const searchDocumentBySemantics = async (queryText: string) => {
         const results = await searchBySemantics(
-            session.action().clone({languageModel: new LanguageModelContextModule(languageModel)}),
+            session.action().clone({languageModels: createLanguageModelsContextModuleForTest()}),
             {
                 spaceId: space.id,
                 queryText,
@@ -2240,7 +2245,7 @@ test("search by semantics will highlight matching words", async () => {
 
     expect(
         await searchBySemantics(
-            session.action().clone({languageModel: new LanguageModelContextModule(languageModel)}),
+            session.action().clone({languageModels: createLanguageModelsContextModuleForTest()}),
             {
                 spaceId: space.id,
                 queryText: "test",
@@ -6600,7 +6605,7 @@ c2: Donec massa ante, viverra sed tellus a, euismod vulputate lorem. Donec id po
 
     expect(
         await searchBySemantics(
-            session.action().clone({languageModel: new LanguageModelContextModule(languageModel)}),
+            session.action().clone({languageModels: createLanguageModelsContextModuleForTest()}),
             {
                 spaceId: space.id,
                 queryText: "lorem ipsum",
@@ -6652,7 +6657,7 @@ c2: Donec massa ante, viverra sed tellus a, euismod vulputate lorem. Donec id po
 
     expect(
         await searchBySemantics(
-            session.action().clone({languageModel: new LanguageModelContextModule(languageModel)}),
+            session.action().clone({languageModels: createLanguageModelsContextModuleForTest()}),
             {
                 spaceId: space.id,
                 queryText: "morbi sed eros id ligula",
@@ -6717,7 +6722,7 @@ c2: Donec massa ante, viverra sed tellus a, euismod vulputate lorem. Donec id po
 
     expect(
         await searchBySemantics(
-            session.action().clone({languageModel: new LanguageModelContextModule(languageModel)}),
+            session.action().clone({languageModels: createLanguageModelsContextModuleForTest()}),
             {
                 spaceId: space.id,
                 queryText: "donec massa ante",
@@ -7000,7 +7005,7 @@ describe("bot with space-level access can access space-level content", () => {
             const results = await searchFunction(
                 botAccount
                     .action({type: "Space"})
-                    .clone({languageModel: new LanguageModelContextModule(languageModel)}),
+                    .clone({languageModels: createLanguageModelsContextModuleForTest()}),
                 {
                     spaceId: space.id,
                     queryText: "test",
@@ -7108,7 +7113,7 @@ describe("bot with account-specific grants has access to entities that every acc
                         type: "Chat",
                         chatId: chat.id,
                     })
-                    .clone({languageModel: new LanguageModelContextModule(languageModel)}),
+                    .clone({languageModels: createLanguageModelsContextModuleForTest()}),
                 {
                     spaceId: space.id,
                     queryText: "test",

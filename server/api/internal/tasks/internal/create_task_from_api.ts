@@ -5,13 +5,20 @@ import {createTaskNotesCreateTransactionEntry} from "~/server/tasks/data/create_
 import {LocalAccessPolicy} from "~/shared/access/access_policy.js";
 import {HybridLogicalClock} from "~/shared/helpers/clock/hybrid_logical_clock.js";
 import {unsynchronizedSystemClock} from "~/shared/helpers/clock/unsynchronized_system_clock.js";
+import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 import {defaultTimeZone} from "~/shared/helpers/intl/time_zone.js";
-import {AccountId, SpaceId, TaskId} from "~/shared/id/types/id_types.js";
+import {generateOrderKeysBetween} from "~/shared/helpers/sort/order_key.js";
+import {AccountId, SpaceId, TaskCollectionId, TaskId} from "~/shared/id/types/id_types.js";
 import {TaskAction} from "~/shared/tasks/actions/task_action.js";
+import {TaskActor} from "~/shared/tasks/task_creator.js";
 import {TaskFilterableTime} from "~/shared/tasks/task_filterable_time.js";
+import {TaskLayout} from "~/shared/tasks/task_layout.js";
 import {TaskNotesContent} from "~/shared/tasks/task_notes_content_schema.js";
 import {TaskPriority} from "~/shared/tasks/task_priority.js";
-import {createTaskTitleFromText} from "~/shared/tasks/title/task_title.js";
+import {
+    createTaskTitleFromText,
+    randomlyGenerateTaskTitleClientId,
+} from "~/shared/tasks/title/task_title.js";
 
 export type ApiCreatedTask = {
     id: TaskId;
@@ -21,6 +28,9 @@ export type ApiCreatedTask = {
     assigneeId?: AccountId;
     dueDate?: CalendarDate;
     priority?: TaskPriority;
+    layout: TaskLayout | null;
+    parentTaskId?: TaskId;
+    collectionIds: ReadonlyArray<TaskCollectionId>;
 };
 
 export async function createTaskFromApi(
@@ -36,6 +46,9 @@ export async function createTaskFromApi(
         status,
         dueDate,
         priority,
+        layout,
+        parentTaskId,
+        collectionIds,
     }: {
         taskId: TaskId;
         spaceId: SpaceId;
@@ -47,11 +60,18 @@ export async function createTaskFromApi(
         status?: {type: "Open"; isActive: boolean} | {type: "Closed"};
         dueDate?: CalendarDate;
         priority?: TaskPriority;
+        layout?: TaskLayout | null;
+        parentTaskId?: TaskId;
+        collectionIds?: ReadonlyArray<TaskCollectionId>;
     },
 ): Promise<ApiCreatedTask> {
     const clock = new HybridLogicalClock(unsynchronizedSystemClock);
     const botAccountId = context.actor.getBotAccountId();
     creatorId ??= botAccountId;
+    const actor: TaskActor = {
+        accountId: creatorId,
+        from: {type: "Bot", accountId: botAccountId},
+    };
     const createdTimeZone = defaultTimeZone;
 
     const effectiveAssigneeId =
@@ -60,6 +80,8 @@ export async function createTaskFromApi(
             : assigneeId;
 
     const effectiveStatus = status ?? {type: "Open", isActive: false};
+    const effectiveLayout = layout ?? null;
+    const effectiveCollectionIds = [...new Set(collectionIds ?? [])];
 
     const actions: Array<TaskAction> = [
         {
@@ -82,10 +104,11 @@ export async function createTaskFromApi(
         actions.push({
             type: "UpdateTask",
             time: clock.now(),
+            actor,
             taskId,
             taskAction: {
                 type: "UpdateTitle",
-                titleUpdate: createTaskTitleFromText(title),
+                titleUpdate: createTaskTitleFromText(randomlyGenerateTaskTitleClientId(), title),
             },
         });
     }
@@ -95,6 +118,7 @@ export async function createTaskFromApi(
         actions.push({
             type: "UpdateTask",
             time,
+            actor,
             taskId,
             taskAction: {
                 type: "UpdateAssignee",
@@ -116,6 +140,7 @@ export async function createTaskFromApi(
             actions.push({
                 type: "UpdateTask",
                 time,
+                actor,
                 taskId,
                 taskAction: {
                     type: "UpdateStatus",
@@ -137,6 +162,7 @@ export async function createTaskFromApi(
             actions.push({
                 type: "UpdateTask",
                 time: activeTime,
+                actor,
                 taskId,
                 taskAction: {
                     type: "UpdateAssigneeStatus",
@@ -156,6 +182,7 @@ export async function createTaskFromApi(
         actions.push({
             type: "UpdateTask",
             time: clock.now(),
+            actor,
             taskId,
             taskAction: {
                 type: "UpdateDueDate",
@@ -168,12 +195,55 @@ export async function createTaskFromApi(
         actions.push({
             type: "UpdateTask",
             time: clock.now(),
+            actor,
             taskId,
             taskAction: {
                 type: "UpdatePriority",
                 priority,
             },
         });
+    }
+
+    const currentTime = new Date();
+
+    if (effectiveLayout !== null) {
+        actions.push({
+            type: "UpdateTask",
+            time: clock.now(),
+            taskId,
+            taskAction: {
+                type: "UpdateLayout",
+                layout: effectiveLayout,
+            },
+        });
+    }
+
+    if (parentTaskId !== undefined) {
+        actions.push({
+            type: "UpdateTask",
+            time: clock.now(),
+            taskId,
+            taskAction: {
+                type: "UpdateParentTaskId",
+                parentTaskId,
+            },
+        });
+    }
+
+    if (effectiveCollectionIds.length > 0) {
+        const orderKeys = generateOrderKeysBetween(null, null, effectiveCollectionIds.length);
+        for (let i = 0; i < effectiveCollectionIds.length; i++) {
+            actions.push({
+                type: "UpdateTask",
+                time: clock.now(),
+                taskId,
+                taskAction: {
+                    type: "AddCollection",
+                    collectionId: assertExists(effectiveCollectionIds[i]),
+                    orderKey: assertExists(orderKeys[i]),
+                },
+            });
+        }
     }
 
     await commitTaskActionTransaction(context, spaceId, actions, {
@@ -188,6 +258,7 @@ export async function createTaskFromApi(
                       spaceId,
                       taskId,
                       content: notesContent,
+                      createdTime: currentTime,
                   }),
               ]
             : undefined,
@@ -201,5 +272,8 @@ export async function createTaskFromApi(
         assigneeId: effectiveAssigneeId,
         dueDate,
         priority,
+        layout: effectiveLayout,
+        parentTaskId,
+        collectionIds: effectiveCollectionIds,
     };
 }

@@ -15,13 +15,13 @@ import {getInitialLoadMessageCount} from "~/client/web/messaging/get_initial_loa
 import {createMetaFunction} from "~/client/web/remix/create_meta_function.js";
 import {useLoaderDataWithSchema} from "~/client/web/remix/use_loader_data_with_schema.js";
 import {useSearchAffinityViewEntityInteraction} from "~/client/web/search/use_search_affinity_view_entity_interaction.js";
-import {useSiteChromeContainer} from "~/client/web/sites/use_site_chrome_container.js";
-import {useSpaceContext} from "~/client/web/spaces/space_context.js";
+import {useSpaceContext} from "~/client/web/spaces/context/space_context.js";
 import {contentStyles} from "~/client/web/styles/styles.js";
 import {authorizeChatAccess} from "~/server/chat/data/authorize_chat_access.js";
 import {createRoomChat} from "~/server/chat/data/create_room_chat.js";
 import {getChatAndInitialMessages} from "~/server/chat/data/get_chat_and_initial_messages.js";
 import {isDynamoConditionCheckError} from "~/server/dynamo/core/is_dynamo_condition_check_error.js";
+import {getMessageDraft} from "~/server/messaging/drafts/get_message_draft.js";
 import {getInboxEntry} from "~/server/notifications/data/get_inbox_entry.js";
 import {jsonWithSchema} from "~/server/remix/json_with_schema.js";
 import {LoaderArgs} from "~/server/remix/loader_context.js";
@@ -35,6 +35,10 @@ import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {generateId} from "~/shared/id/id.js";
 import {SpaceId} from "~/shared/id/types/id_types.js";
+import {
+    MessageDraftWithFilesSchema,
+    emptyMessageDraftWithFiles,
+} from "~/shared/messaging/message_draft_schema.js";
 import {InboxEntryModelSchema} from "~/shared/notifications/inbox_model.js";
 import {Schema} from "~/shared/schema/schema.js";
 import {
@@ -51,6 +55,7 @@ const LoaderSchema = Schema.object({
     initialOtherReferencedMessages: Schema.array(ChatMessageModel.schema()),
     inboxEntry: createRynamoItemSchema(InboxEntryModelSchema).nullable(),
     isFavorite: Schema.boolean,
+    messageDraft: MessageDraftWithFilesSchema,
 });
 
 function parseChatCreateSearchParam(createSearchParam: string): {
@@ -88,13 +93,11 @@ export async function loader({context: unauthenticatedContext, request, params}:
 
     if (createSearchParam !== null) {
         const {spaceId, chatName} = parseChatCreateSearchParam(createSearchParam);
-        context.discovery.discoverSpaceId(spaceId);
+        context.discovery.discoverSpaceId(spaceId, "CreateSearchParam");
 
         try {
             const sessionContext = context.actor.authorizeSession();
 
-            // TODO(#sites): We probably want to add a search param if the chat room is being
-            // directly added to a site (create within site).
             const chat = await createRoomChat(sessionContext, {
                 spaceId,
                 chatId,
@@ -136,6 +139,7 @@ export async function loader({context: unauthenticatedContext, request, params}:
             {chat, initialIsSubscribed, initialMessages, initialOtherReferencedMessages},
             inboxEntry,
             isFavorite,
+            messageDraft,
         ],
         siteLoaderData,
     } = await loadWithSpaceAndSiteDiscovery(context, {
@@ -192,6 +196,17 @@ export async function loader({context: unauthenticatedContext, request, params}:
                         ),
                     }),
                 ),
+                chatPromiseResolver.promise.then(chat =>
+                    context.actor.type === "Session"
+                        ? getMessageDraft(context.actor.authorizeSession(), {
+                              spaceId: chat.spaceId,
+                              surface: {
+                                  type: "Chat",
+                                  chatId,
+                              },
+                          })
+                        : emptyMessageDraftWithFiles,
+                ),
             ]);
         },
         load2: async () => {},
@@ -208,6 +223,7 @@ export async function loader({context: unauthenticatedContext, request, params}:
             initialOtherReferencedMessages,
             inboxEntry,
             isFavorite,
+            messageDraft,
         },
         {siteLoaderData},
     );
@@ -294,6 +310,7 @@ function ChatRouteInner() {
         initialOtherReferencedMessages,
         inboxEntry,
         isFavorite,
+        messageDraft,
     } = useLoaderDataWithSchema(LoaderSchema);
 
     const {currentAccount} = useSpaceContext();
@@ -349,13 +366,14 @@ function ChatRouteInner() {
         getChatOrAccountSearchAffinityEntityId(currentAccount?.id, chat),
     );
 
-    let node = (
+    const node = (
         <Box flexGrow="1" width="full" height="full" overflow="hidden">
             <ChatView
                 // Remount whenever we navigate to a different chat.
                 key={chat.id}
                 withInboxBanner={!!inboxEntry}
                 chat={chat}
+                messageDraft={messageDraft}
                 onUpdateChat={handleUpdateChat}
                 initialIsSubscribed={initialIsSubscribed}
                 initialCheckpoint={checkpoint}
@@ -368,14 +386,11 @@ function ChatRouteInner() {
         </Box>
     );
 
-    node = useInboxBannerOutletContainer(
+    return useInboxBannerOutletContainer(
         {
             initialEntry: inboxEntry,
             maxWidth: contentStyles.contentMaxWidth,
         },
         node,
     );
-
-    node = useSiteChromeContainer({entityId: `Chat:${chat.id}`}, node);
-    return node;
 }

@@ -15,7 +15,7 @@ import {useNavigationBar} from "~/client/web/navigation/navigation_bar.js";
 import {ShareSwitchCreatorInput} from "~/client/web/navigation/share_switch_creator_input.js";
 import {NativeMobileBridge} from "~/client/web/remix/native_mobile_bridge.js";
 import {useNavigate} from "~/client/web/remix/use_navigate.js";
-import {useSpaceContextAndRequireSpaceAccess} from "~/client/web/spaces/space_context.js";
+import {useSpaceContextAndRequireSpaceAccess} from "~/client/web/spaces/context/space_context.js";
 import {
     channelCreatorFieldHelpMarginTop,
     channelCreatorGap,

@@ -61,7 +61,13 @@ export function SiteNameEditor({
 
     return (
         <>
-            <Box minWidth="flex-fit">
+            <Box
+                minWidth="flex-fit"
+                marginLeft="-1"
+                // When we render the site breadcrumb, we need to move the editor "down" so that we
+                // don't move the breadcrumb up.
+                marginY="-1"
+            >
                 <Box display="flex" alignItems="center" gap="2" maxWidth="full" height="9">
                     <FocusRing offset="border" isVisibleFromAnyFocus={true}>
                         <InputWithAutoGrowingWidth
@@ -69,14 +75,19 @@ export function SiteNameEditor({
                             ref={useMergedRefs(
                                 inputRef,
                                 useConfirmSaveAfterLosingFocus({
-                                    // Empty input means there's nothing to save — let losing focus quietly cancel.
+                                    // It's ok to unfocus while creating a site and nothing has been input. This will
+                                    // happen when you create a site, a peek opens, then you immediately close the
+                                    // peek.
+                                    //
+                                    // We won't auto-focus this input when create a site through search.
                                     isDisabled: name.length === 0,
 
                                     shouldConfirmSave:
-                                        // If the initial name is empty (newly-created site) the user must commit a name
-                                        // before leaving.
+                                        // If the initial name is empty, we are creating an optimistic collection and you
+                                        // must provide a name.
                                         initialName.length === 0 ||
-                                        // Otherwise only confirm when the name actually changed.
+                                        // Otherwise if you delete all of the collection name it will revert back to the
+                                        // initial name.
                                         (name.length > 0 && name !== initialName),
                                     isConfirmingSave: shouldShowConfirmSaveDialog,
                                     onCancelSave: () => void onCancel(),

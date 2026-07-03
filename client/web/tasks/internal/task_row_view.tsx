@@ -37,7 +37,7 @@ import {useClientInfo} from "~/client/web/remix/client_info_context.js";
 import {NativeMobileBridge} from "~/client/web/remix/native_mobile_bridge.js";
 import {useCanPrimaryInputHover, usePlatform} from "~/client/web/remix/platform_context.js";
 import {useNavigate} from "~/client/web/remix/use_navigate.js";
-import {useSpaceContext} from "~/client/web/spaces/space_context.js";
+import {useSpaceContext} from "~/client/web/spaces/context/space_context.js";
 import {
     colorSchemeVars,
     pointerEventsNoneNotInheritedClassName,
@@ -1834,6 +1834,7 @@ function TaskRowView(
                     query={query}
                     isQueryManuallySorted={isQueryManuallySorted}
                     task={task}
+                    taskEntryRevertCount={taskEntry?.revertCount ?? 0}
                     onTitleChange={onTitleChange}
                     placeholder={titlePlaceholder}
                     indentation={parents.length}

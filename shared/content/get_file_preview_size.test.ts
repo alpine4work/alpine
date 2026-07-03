@@ -48,6 +48,8 @@ function createFileModelData(
         isUploading: false,
         alternative: null,
         ...overrides,
+        analysis: overrides.analysis ?? null,
+        transcript: overrides.transcript ?? null,
     };
 }
 

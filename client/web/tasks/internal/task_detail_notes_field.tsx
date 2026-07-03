@@ -14,7 +14,7 @@ import {
     taskDetailViewFieldLabelFontSize,
 } from "~/client/web/styles/tasks_shared_styles.js";
 import {TaskUndoStackEntry} from "~/client/web/tasks/internal/use_task_undo_stack_state.js";
-import {TaskNotesContentEditorState} from "~/client/web/tasks/task_detail_notes_content_editor_web_socket_client.js";
+import {TaskNotesContentEditorState} from "~/client/web/tasks/task_detail_notes_content_editor_state.js";
 import {useWebSocketErrorDialog} from "~/client/web/web_socket/use_web_socket.js";
 import {screenPaddingX} from "~/shared/design/core/spacing.js";
 import {FileAttachmentTarget} from "~/shared/files/file_attachment_target.js";
