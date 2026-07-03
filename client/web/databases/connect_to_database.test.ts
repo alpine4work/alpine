@@ -3,6 +3,7 @@
 import {
     type DatabaseWorkerConnection,
     createDatabaseGroupConnection,
+    databaseUniqueWorkerKey,
 } from "~/client/web/databases/connect_to_database.js";
 import {
     type DatabaseActiveTabRealtimeConnection,
@@ -14,11 +15,9 @@ import {
     createInMemoryOpfsDirectoryHandle,
     extractOpfsPages,
 } from "~/client/web/databases/test_helpers/in_memory_opfs.js";
-import {
-    type UniqueWorkerTestEnvironment,
-    createUniqueWorkerTestEnvironment,
-    settleUniqueWorkerTest,
-} from "~/client/web/helpers/workers/unique_worker_test_env.js";
+import {installUniqueWorkerTestGlobals} from "~/client/web/helpers/workers/test_helpers/install_unique_worker_test_globals.js";
+import {settleUniqueWorkerTest} from "~/client/web/helpers/workers/test_helpers/settle_unique_worker_test.js";
+import {uniqueWorkerWebLockName} from "~/client/web/helpers/workers/unique_worker_client.js";
 import type {DatabaseExecuteActionResponse} from "~/shared/databases/database_protocol_schemas.js";
 import {diffPage} from "~/shared/databases/page_diff.js";
 import {databaseMainTableId, sqlitePageSize} from "~/shared/databases/sqlite_constants.js";
@@ -97,17 +96,19 @@ async function extractPages(
 }
 
 // ---------------------------------------------------------------------------
-// Test tab harness
+// Test environment
 // ---
 //
-// The unique worker machinery (locks, broker, ports, fake tabs) comes from
-// `unique_worker_test_env`; this harness adds the databases worker on top and
-// simulates the realtime server connection against the local OPFS state.
+// The unique worker machinery (locks, broker, ports, workers) comes from the
+// mocked globals; this harness provides the fake dedicated worker (a real
+// `DatabaseActiveTabWorker` on in-memory OPFS) and simulates the realtime server
+// connection against the local OPFS state. Each `connect()` call plays the role of
+// one tab; a leader tab crash is simulated by force-releasing the election Web
+// Lock.
 //
 // ---
 
-function createTestTab(config: {
-    env: UniqueWorkerTestEnvironment;
+function createDatabaseTestEnv(config: {
     dir: OpfsDirectoryHandle;
     databaseGroupId?: DatabaseGroupId;
     executeActionServer?: (
@@ -120,11 +121,11 @@ function createTestTab(config: {
     ) => Promise<DatabaseExecuteActionResponse>;
 }): {
     connect(): Promise<DatabaseWorkerConnection>;
-    kill(): void;
+    crashLeaderTab(): void;
     readonly worker: DatabaseActiveTabWorker;
 } {
+    const globals = installUniqueWorkerTestGlobals();
     const databaseGroupId = config.databaseGroupId ?? testDatabaseGroupId;
-    const tab = config.env.createTab();
     const workers: Array<DatabaseActiveTabWorker> = [];
 
     const createRealtimeConnection = (): DatabaseActiveTabRealtimeConnection => ({
@@ -216,15 +217,13 @@ function createTestTab(config: {
         close: () => {},
     });
 
-    const runtime = tab.createRuntime({
-        createWorker: () => {
-            const worker = new DatabaseActiveTabWorker(
-                config.dir.getDirectoryHandle("databases", {create: true}),
-                {createRealtimeConnection},
-            );
-            workers.push(worker);
-            return {handleMessage: (data, ports) => worker.host.handleMessage(data, ports)};
-        },
+    globals.setWorkerScriptFactory(() => {
+        const worker = new DatabaseActiveTabWorker(
+            config.dir.getDirectoryHandle("databases", {create: true}),
+            {createRealtimeConnection},
+        );
+        workers.push(worker);
+        return {handleMessage: (data, ports) => worker.host.handleMessage(data, ports)};
     });
 
     return {
@@ -233,11 +232,13 @@ function createTestTab(config: {
             await db.connect({
                 databaseGroupId,
                 webSocketUrl: "ws://test.invalid",
-                runtime,
             });
             return db.connection;
         },
-        kill: () => tab.kill(),
+        crashLeaderTab() {
+            globals.forceReleaseWebLock(uniqueWorkerWebLockName(databaseUniqueWorkerKey));
+        },
+        // The current leader's worker (the most recently spawned one).
         get worker() {
             return workers[workers.length - 1]!;
         },
@@ -252,33 +253,27 @@ function createTestTab(config: {
 
 describe("connectToDatabaseGroup", () => {
     test("leader can execute queries", async () => {
-        const env = createUniqueWorkerTestEnvironment();
         const dir = await createSeededTestDir();
+        const env = createDatabaseTestEnv({dir});
 
-        const tab = createTestTab({env, dir});
-        const conn = await tab.connect();
+        const conn = await env.connect();
 
         const rows = await executeSql(conn, "SELECT 1 + 1 AS result");
         expect(rows).toMatchObject([{result: 2}]);
     });
 
     test("follower queries reach leader's worker", async () => {
-        const env = createUniqueWorkerTestEnvironment();
         const dir = await createSeededTestDir();
+        const env = createDatabaseTestEnv({dir});
 
-        // Tab A — leader
-        const tabA = createTestTab({env, dir});
-        const connA = await tabA.connect();
+        const connA = await env.connect();
+        const connB = await env.connect();
 
-        // Tab B — follower
-        const tabB = createTestTab({env, dir});
-        const connB = await tabB.connect();
-
-        await tabA.worker.executeLocallyForTests(
+        await env.worker.executeLocallyForTests(
             testDatabaseGroupId,
             "CREATE TABLE t (id INTEGER PRIMARY KEY, name TEXT)",
         );
-        await tabA.worker.commitOptimisticPagesForTests(testDatabaseGroupId);
+        await env.worker.commitOptimisticPagesForTests(testDatabaseGroupId);
         await executeSql(connA, "INSERT INTO t (name) VALUES ('hello')");
 
         const rows = await executeSql(connB, "SELECT * FROM t");
@@ -286,19 +281,18 @@ describe("connectToDatabaseGroup", () => {
     });
 
     test("multiple followers query the same database", async () => {
-        const env = createUniqueWorkerTestEnvironment();
         const dir = await createSeededTestDir();
+        const env = createDatabaseTestEnv({dir});
 
-        const tabA = createTestTab({env, dir});
-        const connA = await tabA.connect();
-        const connB = await createTestTab({env, dir}).connect();
-        const connC = await createTestTab({env, dir}).connect();
+        const connA = await env.connect();
+        const connB = await env.connect();
+        const connC = await env.connect();
 
-        await tabA.worker.executeLocallyForTests(
+        await env.worker.executeLocallyForTests(
             testDatabaseGroupId,
             "CREATE TABLE items (id INTEGER PRIMARY KEY, val TEXT)",
         );
-        await tabA.worker.commitOptimisticPagesForTests(testDatabaseGroupId);
+        await env.worker.commitOptimisticPagesForTests(testDatabaseGroupId);
         await executeSql(connA, "INSERT INTO items (val) VALUES ('from-a')");
         await executeSql(connB, "INSERT INTO items (val) VALUES ('from-b')");
 
@@ -309,8 +303,8 @@ describe("connectToDatabaseGroup", () => {
 
 describe("connectToDatabaseGroup resilience", () => {
     test("follower becomes leader after leader death", async () => {
-        const env = createUniqueWorkerTestEnvironment();
         const dir = await createSeededTestDir();
+        const env = createDatabaseTestEnv({dir});
 
         // Pre-populate OPFS so data persists across leader death
         const seed = await createSeededClient(dir);
@@ -319,52 +313,20 @@ describe("connectToDatabaseGroup resilience", () => {
         seed.executeLocallyForTests("INSERT INTO t (id) VALUES (42)");
         seed.commitOptimisticPagesForTests();
 
-        // Tab A — leader
-        const tabA = createTestTab({env, dir});
-        await tabA.connect();
+        await env.connect();
+        const connB = await env.connect();
 
-        // Tab B — follower
-        const tabB = createTestTab({env, dir});
-        const connB = await tabB.connect();
-
-        // Leader dies — its Web Locks release and the follower promotes.
-        tabA.kill();
+        // Leader dies — its Web Lock releases and the follower promotes.
+        env.crashLeaderTab();
         await settleUniqueWorkerTest();
 
         const rows = await executeSql(connB, "SELECT * FROM t");
         expect(rows).toMatchObject([{id: 42}]);
     });
 
-    test("graceful handoff when the leader tab closes", async () => {
-        const env = createUniqueWorkerTestEnvironment();
-        const dir = await createSeededTestDir();
-
-        // Pre-populate OPFS so data persists across leader change
-        const seed = await createSeededClient(dir);
-        seed.executeLocallyForTests("CREATE TABLE t (id INTEGER PRIMARY KEY, val TEXT)");
-        seed.commitOptimisticPagesForTests();
-        seed.executeLocallyForTests("INSERT INTO t (val) VALUES ('hello')");
-        seed.commitOptimisticPagesForTests();
-
-        // Tab A — leader
-        const tabA = createTestTab({env, dir});
-        await tabA.connect();
-
-        // Tab B — follower
-        const tabB = createTestTab({env, dir});
-        const connB = await tabB.connect();
-
-        tabA.kill();
-        await settleUniqueWorkerTest();
-
-        // Follower takes over — queries should succeed
-        const rows = await executeSql(connB, "SELECT * FROM t");
-        expect(rows).toMatchObject([{id: 1, val: "hello"}]);
-    });
-
     test("queries after leader death resolve on the new leader", async () => {
-        const env = createUniqueWorkerTestEnvironment();
         const dir = await createSeededTestDir();
+        const env = createDatabaseTestEnv({dir});
 
         // Pre-populate OPFS so data persists across leader death
         const seed = await createSeededClient(dir);
@@ -375,16 +337,13 @@ describe("connectToDatabaseGroup resilience", () => {
         seed.executeLocallyForTests("INSERT INTO t (id) VALUES (2)");
         seed.commitOptimisticPagesForTests();
 
-        const tabA = createTestTab({env, dir});
-        await tabA.connect();
-
-        const tabB = createTestTab({env, dir});
-        const connB = await tabB.connect();
+        await env.connect();
+        const connB = await env.connect();
 
         // Kill leader and let the follower promote. (Calls in flight _during_ the failover
         // window reject rather than being replayed — that behavior is covered in
         // unique_worker_client.test.ts.)
-        tabA.kill();
+        env.crashLeaderTab();
         await settleUniqueWorkerTest();
 
         const [rows1, rows2] = await Promise.all([
@@ -397,8 +356,8 @@ describe("connectToDatabaseGroup resilience", () => {
     });
 
     test("leader closing connection (navigation) lets followers recover", async () => {
-        const env = createUniqueWorkerTestEnvironment();
         const dir = await createSeededTestDir();
+        const env = createDatabaseTestEnv({dir});
 
         // Pre-populate OPFS so data persists across leader change
         const seed = await createSeededClient(dir);
@@ -407,13 +366,8 @@ describe("connectToDatabaseGroup resilience", () => {
         seed.executeLocallyForTests("INSERT INTO t (val) VALUES ('nav')");
         seed.commitOptimisticPagesForTests();
 
-        // Tab A — leader
-        const tabA = createTestTab({env, dir});
-        const connA = await tabA.connect();
-
-        // Tab B — follower
-        const tabB = createTestTab({env, dir});
-        const connB = await tabB.connect();
+        const connA = await env.connect();
+        const connB = await env.connect();
 
         // Leader's component unmounts (page navigation) — conn.close() is called but the
         // tab stays alive. The Web Lock releases and the follower promotes.
@@ -425,8 +379,8 @@ describe("connectToDatabaseGroup resilience", () => {
     });
 
     test("multiple followers handle leader death", async () => {
-        const env = createUniqueWorkerTestEnvironment();
         const dir = await createSeededTestDir();
+        const env = createDatabaseTestEnv({dir});
 
         // Pre-populate OPFS so data persists across leader death
         const seed = await createSeededClient(dir);
@@ -435,14 +389,12 @@ describe("connectToDatabaseGroup resilience", () => {
         seed.executeLocallyForTests("INSERT INTO t (val) VALUES ('data')");
         seed.commitOptimisticPagesForTests();
 
-        // Tab A — leader, Tabs B and C — followers
-        const tabA = createTestTab({env, dir});
-        await tabA.connect();
-        const connB = await createTestTab({env, dir}).connect();
-        const connC = await createTestTab({env, dir}).connect();
+        await env.connect();
+        const connB = await env.connect();
+        const connC = await env.connect();
 
         // Kill leader — one follower becomes leader, the other reconnects to it.
-        tabA.kill();
+        env.crashLeaderTab();
         await settleUniqueWorkerTest();
 
         const [rowsB, rowsC] = await Promise.all([
@@ -457,12 +409,9 @@ describe("connectToDatabaseGroup resilience", () => {
 
 describe("connectToDatabaseGroup mutations", () => {
     test("leader can execute mutations optimistically", async () => {
-        const env = createUniqueWorkerTestEnvironment();
         const dir = await createSeededTestDir();
-
         let capturedMutationId: DatabaseMutationId | null = null;
-        const tab = createTestTab({
-            env,
+        const env = createDatabaseTestEnv({
             dir,
             executeActionServer: (_action, options) => {
                 capturedMutationId = options.mutationId;
@@ -471,14 +420,14 @@ describe("connectToDatabaseGroup mutations", () => {
                 return new Promise(() => {});
             },
         });
-        const conn = await tab.connect();
+        const conn = await env.connect();
 
         // Create table first, then mutate
-        await tab.worker.executeLocallyForTests(
+        await env.worker.executeLocallyForTests(
             testDatabaseGroupId,
             "CREATE TABLE t (id INTEGER PRIMARY KEY, title TEXT)",
         );
-        await tab.worker.commitOptimisticPagesForTests(testDatabaseGroupId);
+        await env.worker.commitOptimisticPagesForTests(testDatabaseGroupId);
         const rows = await executeSql(conn, "INSERT INTO t (title) VALUES ('hello') RETURNING *");
 
         // Result comes from local optimistic execution
@@ -490,13 +439,9 @@ describe("connectToDatabaseGroup mutations", () => {
     });
 
     test("follower mutations route through leader worker's realtime connection", async () => {
-        const env = createUniqueWorkerTestEnvironment();
         const dir = await createSeededTestDir();
-
-        // Tab A — leader
         let capturedAction: {name: string; input: unknown} | null = null;
-        const tabA = createTestTab({
-            env,
+        const env = createDatabaseTestEnv({
             dir,
             executeActionServer: async action => {
                 capturedAction = action;
@@ -506,24 +451,23 @@ describe("connectToDatabaseGroup mutations", () => {
                 } as DatabaseExecuteActionResponse;
             },
         });
-        await tabA.connect();
+        await env.connect();
 
         // Create table via leader
-        await tabA.worker.executeLocallyForTests(
+        await env.worker.executeLocallyForTests(
             testDatabaseGroupId,
             "CREATE TABLE t (id INTEGER PRIMARY KEY, done INTEGER DEFAULT 0)",
         );
-        await tabA.worker.commitOptimisticPagesForTests(testDatabaseGroupId);
-        await tabA.worker.executeLocallyForTests(
+        await env.worker.commitOptimisticPagesForTests(testDatabaseGroupId);
+        await env.worker.executeLocallyForTests(
             testDatabaseGroupId,
             "INSERT INTO t (id) VALUES (1)",
         );
-        await tabA.worker.commitOptimisticPagesForTests(testDatabaseGroupId);
+        await env.worker.commitOptimisticPagesForTests(testDatabaseGroupId);
 
-        // Tab B — follower. Its calls are proxied to the leader worker, so it does not get
-        // a separate server route.
-        const tabB = createTestTab({env, dir});
-        const connB = await tabB.connect();
+        // Follower tab. Its calls are proxied to the leader worker, so it does not get a
+        // separate server route.
+        const connB = await env.connect();
 
         await executeSql(connB, "UPDATE t SET done = 1");
 
@@ -536,11 +480,9 @@ describe("connectToDatabaseGroup mutations", () => {
     });
 
     test("mutation errors propagate to caller", async () => {
-        const env = createUniqueWorkerTestEnvironment();
         const dir = await createSeededTestDir();
-
-        const tab = createTestTab({env, dir});
-        const conn = await tab.connect();
+        const env = createDatabaseTestEnv({dir});
+        const conn = await env.connect();
 
         // No table exists — local execution fails
         await expect(executeSql(conn, "INSERT INTO nonexistent VALUES (1)")).rejects.toThrow();
@@ -549,17 +491,15 @@ describe("connectToDatabaseGroup mutations", () => {
 
 describe("Reactive actions", () => {
     test("registerReactiveAction returns initial result", async () => {
-        const env = createUniqueWorkerTestEnvironment();
         const dir = await createSeededTestDir();
+        const env = createDatabaseTestEnv({dir});
+        const conn = await env.connect();
 
-        const tab = createTestTab({env, dir});
-        const conn = await tab.connect();
-
-        await tab.worker.executeLocallyForTests(
+        await env.worker.executeLocallyForTests(
             testDatabaseGroupId,
             "CREATE TABLE t (id INTEGER PRIMARY KEY, val TEXT)",
         );
-        await tab.worker.commitOptimisticPagesForTests(testDatabaseGroupId);
+        await env.worker.commitOptimisticPagesForTests(testDatabaseGroupId);
         await executeSql(conn, "INSERT INTO t (val) VALUES ('hello')");
 
         const id = generateId<DatabaseReactiveActionId>();
@@ -573,17 +513,15 @@ describe("Reactive actions", () => {
     });
 
     test("reactive action re-executes when overlapping pages are written", async () => {
-        const env = createUniqueWorkerTestEnvironment();
         const dir = await createSeededTestDir();
+        const env = createDatabaseTestEnv({dir});
+        const conn = await env.connect();
 
-        const tab = createTestTab({env, dir});
-        const conn = await tab.connect();
-
-        await tab.worker.executeLocallyForTests(
+        await env.worker.executeLocallyForTests(
             testDatabaseGroupId,
             "CREATE TABLE t (id INTEGER PRIMARY KEY, val TEXT)",
         );
-        await tab.worker.commitOptimisticPagesForTests(testDatabaseGroupId);
+        await env.worker.commitOptimisticPagesForTests(testDatabaseGroupId);
         await executeSql(conn, "INSERT INTO t (val) VALUES ('v1')");
 
         // Use watchAction so the store snapshot reflects re-executions
@@ -626,34 +564,32 @@ describe("Reactive actions", () => {
     });
 
     test("reactive action does NOT re-execute when non-overlapping pages are written", async () => {
-        const env = createUniqueWorkerTestEnvironment();
         const dir = await createSeededTestDir();
-
-        const tab = createTestTab({env, dir});
-        const conn = await tab.connect();
+        const env = createDatabaseTestEnv({dir});
+        const conn = await env.connect();
 
         // All setup writes go to the base store via executeLocallyForTests so we control
         // the page change set we then ship as a realtime event.
-        await tab.worker.executeLocallyForTests(
+        await env.worker.executeLocallyForTests(
             testDatabaseGroupId,
             "CREATE TABLE t1 (id INTEGER PRIMARY KEY, val TEXT)",
         );
-        await tab.worker.commitOptimisticPagesForTests(testDatabaseGroupId);
-        await tab.worker.executeLocallyForTests(
+        await env.worker.commitOptimisticPagesForTests(testDatabaseGroupId);
+        await env.worker.executeLocallyForTests(
             testDatabaseGroupId,
             "CREATE TABLE t2 (id INTEGER PRIMARY KEY, val TEXT)",
         );
-        await tab.worker.commitOptimisticPagesForTests(testDatabaseGroupId);
-        await tab.worker.executeLocallyForTests(
+        await env.worker.commitOptimisticPagesForTests(testDatabaseGroupId);
+        await env.worker.executeLocallyForTests(
             testDatabaseGroupId,
             "INSERT INTO t1 (val) VALUES ('a')",
         );
-        await tab.worker.commitOptimisticPagesForTests(testDatabaseGroupId);
-        await tab.worker.executeLocallyForTests(
+        await env.worker.commitOptimisticPagesForTests(testDatabaseGroupId);
+        await env.worker.executeLocallyForTests(
             testDatabaseGroupId,
             "INSERT INTO t2 (val) VALUES ('b')",
         );
-        await tab.worker.commitOptimisticPagesForTests(testDatabaseGroupId);
+        await env.worker.commitOptimisticPagesForTests(testDatabaseGroupId);
 
         // Watch only t1.
         const handle = await conn.watchAction("readonlyRawSql", {sql: "SELECT * FROM t1"});
@@ -669,11 +605,11 @@ describe("Reactive actions", () => {
 
         // Mutate t2 via the base store, then take diff between before/after snapshots.
         const pagesBefore = await extractPages(dir);
-        await tab.worker.executeLocallyForTests(
+        await env.worker.executeLocallyForTests(
             testDatabaseGroupId,
             "INSERT INTO t2 (val) VALUES ('c')",
         );
-        await tab.worker.commitOptimisticPagesForTests(testDatabaseGroupId);
+        await env.worker.commitOptimisticPagesForTests(testDatabaseGroupId);
         const pagesAfter = await extractPages(dir);
 
         // Drop page 0 — SQLite touches its file-change counter on every write, and that's
@@ -710,17 +646,15 @@ describe("Reactive actions", () => {
     });
 
     test("unregisterReactiveAction stops re-execution", async () => {
-        const env = createUniqueWorkerTestEnvironment();
         const dir = await createSeededTestDir();
+        const env = createDatabaseTestEnv({dir});
+        const conn = await env.connect();
 
-        const tab = createTestTab({env, dir});
-        const conn = await tab.connect();
-
-        await tab.worker.executeLocallyForTests(
+        await env.worker.executeLocallyForTests(
             testDatabaseGroupId,
             "CREATE TABLE t (id INTEGER PRIMARY KEY, val TEXT)",
         );
-        await tab.worker.commitOptimisticPagesForTests(testDatabaseGroupId);
+        await env.worker.commitOptimisticPagesForTests(testDatabaseGroupId);
         await executeSql(conn, "INSERT INTO t (val) VALUES ('v1')");
 
         const handle = await conn.watchAction("readonlyRawSql", {sql: "SELECT * FROM t"});
@@ -758,17 +692,15 @@ describe("Reactive actions", () => {
 
 describe("watchAction", () => {
     test("returns store with initial data", async () => {
-        const env = createUniqueWorkerTestEnvironment();
         const dir = await createSeededTestDir();
+        const env = createDatabaseTestEnv({dir});
+        const conn = await env.connect();
 
-        const tab = createTestTab({env, dir});
-        const conn = await tab.connect();
-
-        await tab.worker.executeLocallyForTests(
+        await env.worker.executeLocallyForTests(
             testDatabaseGroupId,
             "CREATE TABLE t (id INTEGER PRIMARY KEY, val TEXT)",
         );
-        await tab.worker.commitOptimisticPagesForTests(testDatabaseGroupId);
+        await env.worker.commitOptimisticPagesForTests(testDatabaseGroupId);
         await executeSql(conn, "INSERT INTO t (val) VALUES ('hello')");
 
         const handle = await conn.watchAction("readonlyRawSql", {sql: "SELECT * FROM t"});
@@ -780,8 +712,8 @@ describe("watchAction", () => {
     });
 
     test("store updates when pages change", async () => {
-        const env = createUniqueWorkerTestEnvironment();
         const dir = await createSeededTestDir();
+        const env = createDatabaseTestEnv({dir});
 
         // Pre-populate OPFS so data is in the base store (no optimistic queue to replay on
         // writePageDiffsFromRealtime).
@@ -791,8 +723,7 @@ describe("watchAction", () => {
         seed.executeLocallyForTests("INSERT INTO t (val) VALUES ('v1')");
         seed.commitOptimisticPagesForTests();
 
-        const tab = createTestTab({env, dir});
-        const conn = await tab.connect();
+        const conn = await env.connect();
 
         const handle = await conn.watchAction("readonlyRawSql", {
             sql: "SELECT * FROM t ORDER BY id",
@@ -850,27 +781,22 @@ describe("watchAction", () => {
     });
 
     test("watches re-register after leader death", async () => {
-        const env = createUniqueWorkerTestEnvironment();
         const dir = await createSeededTestDir();
+        const env = createDatabaseTestEnv({dir});
 
-        // Tab A — leader
-        const tabA = createTestTab({env, dir});
-        await tabA.connect();
+        await env.connect();
+        const connB = await env.connect();
 
-        // Tab B — follower
-        const tabB = createTestTab({env, dir});
-        const connB = await tabB.connect();
-
-        await tabA.worker.executeLocallyForTests(
+        await env.worker.executeLocallyForTests(
             testDatabaseGroupId,
             "CREATE TABLE t (id INTEGER PRIMARY KEY, val TEXT)",
         );
-        await tabA.worker.commitOptimisticPagesForTests(testDatabaseGroupId);
-        await tabA.worker.executeLocallyForTests(
+        await env.worker.commitOptimisticPagesForTests(testDatabaseGroupId);
+        await env.worker.executeLocallyForTests(
             testDatabaseGroupId,
             "INSERT INTO t (val) VALUES ('hello')",
         );
-        await tabA.worker.commitOptimisticPagesForTests(testDatabaseGroupId);
+        await env.worker.commitOptimisticPagesForTests(testDatabaseGroupId);
 
         // Watch from follower
         const handle = await connB.watchAction("readonlyRawSql", {sql: "SELECT * FROM t"});
@@ -878,9 +804,9 @@ describe("watchAction", () => {
         const initial = handle.store.getSnapshot();
         expect(initial).toMatchObject({ok: true, value: {rows: [{id: 1, val: "hello"}]}});
 
-        // Kill leader — follower promotes and re-registers its watches with the new worker
-        // via the reconnect hook.
-        tabA.kill();
+        // Kill leader — the follower promotes and re-registers its watches with the new
+        // worker via the reconnect hook.
+        env.crashLeaderTab();
         await new Promise(resolve => setTimeout(resolve, 200));
 
         // Watch should still work — verify by checking the store has data (re-registration

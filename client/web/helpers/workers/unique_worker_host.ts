@@ -4,20 +4,6 @@ import {WebWorkerRpcMethodDefinitions} from "~/client/web/helpers/workers/web_wo
 import {SchemaType} from "~/shared/schema/schema.js";
 
 /**
- * A connection port as seen by the host. Mirrors the subset of `MessagePort` the
- * host uses; tests substitute fakes. `onclose` fires when the browser reports the
- * other side closed (a recent addition to `MessagePort` — treat it as a
- * best-effort signal, not guaranteed on every browser).
- */
-export interface UniqueWorkerHostPort {
-    postMessage(data: unknown): void;
-    onmessage: ((event: {data: unknown}) => void) | null;
-    onclose: (() => void) | null;
-    start(): void;
-    close(): void;
-}
-
-/**
  * Handlers for tab → worker calls. Unlike plain {@link WebWorkerRpc} handlers,
  * these also receive the connection the call arrived on, so worker-side state can
  * be scoped per tab and results can be pushed back to the right tab.
@@ -95,7 +81,7 @@ export class UniqueWorkerHost<
      * Process one message posted to the worker. Only `connect-port` messages (with
      * their transferred port) are meaningful; everything else is ignored.
      */
-    handleMessage(data: unknown, ports: ReadonlyArray<UniqueWorkerHostPort>): void {
+    handleMessage(data: unknown, ports: ReadonlyArray<MessagePort>): void {
         const message = readUniqueWorkerMessage(data);
         if (message === null || message.type !== "unique-worker:connect-port") return;
         const port = ports[0];
@@ -107,14 +93,11 @@ export class UniqueWorkerHost<
     listen(): void {
         globalThis.addEventListener("message", event => {
             const messageEvent = event as MessageEvent;
-            this.handleMessage(
-                messageEvent.data,
-                [...messageEvent.ports].map(adaptUniqueWorkerHostMessagePort),
-            );
+            this.handleMessage(messageEvent.data, [...messageEvent.ports]);
         });
     }
 
-    private connectPort(port: UniqueWorkerHostPort): void {
+    private connectPort(port: MessagePort): void {
         const rpc: WebWorkerRpc<TabDef, WorkerDef> = new WebWorkerRpc({
             callMethods: this.options.tabMethods,
             handleMethods: this.options.workerMethods,
@@ -141,7 +124,10 @@ export class UniqueWorkerHost<
             }
             rpc.handleMessage(event.data);
         };
-        port.onclose = disconnect;
+        // `close` fires when the other side's context is destroyed. Not supported by every
+        // browser yet; where it's missing, crashed tabs are cleaned up only by their own
+        // `close-port` message (i.e. never), which just leaks the connection entry.
+        port.addEventListener("close", disconnect);
         port.start();
 
         this.connectionsMutable.push(connection);
@@ -159,26 +145,4 @@ export class UniqueWorkerHost<
         }
         return handlers as WebWorkerRpcHandlers<WorkerDef>;
     }
-}
-
-function adaptUniqueWorkerHostMessagePort(port: MessagePort): UniqueWorkerHostPort {
-    const adapted: UniqueWorkerHostPort = {
-        postMessage(data) {
-            port.postMessage(data);
-        },
-        onmessage: null,
-        onclose: null,
-        start() {
-            port.start();
-        },
-        close() {
-            port.close();
-        },
-    };
-    port.onmessage = event => adapted.onmessage?.({data: event.data});
-    // `close` fires when the other side's context is destroyed. Not supported by every
-    // browser yet; where it's missing, crashed tabs are cleaned up only by their own
-    // `close-port` message (i.e. never), which just leaks the connection entry.
-    port.addEventListener("close", () => adapted.onclose?.());
-    return adapted;
 }

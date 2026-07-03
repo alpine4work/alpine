@@ -3,34 +3,13 @@ import {
     readUniqueWorkerMessage,
 } from "~/client/web/helpers/workers/unique_worker_message.js";
 
-/**
- * A tab's port as seen by the broker. Mirrors the subset of `MessagePort` the
- * broker uses; tests substitute fakes.
- */
-export interface UniqueWorkerBrokerPort {
-    postMessage(data: unknown, transfer?: ReadonlyArray<unknown>): void;
-    onmessage: ((event: {data: unknown; ports: ReadonlyArray<unknown>}) => void) | null;
-    start(): void;
-    close(): void;
-}
-
-export interface UniqueWorkerBrokerOptions {
-    /**
-     * Watch for a tab going away. `clientLockName` is a Web Lock the tab holds
-     * exclusively for its whole lifetime; call `onGone` once the lock becomes
-     * available (i.e. the tab died or navigated away). The browser implementation
-     * requests the lock in `shared` mode and fires `onGone` when granted.
-     */
-    watchClientGone(clientLockName: string, onGone: () => void): void;
-}
-
 export interface UniqueWorkerBroker {
-    /** Wire up a newly connected tab port (a SharedWorker `connect` event). */
-    handleConnect(port: UniqueWorkerBrokerPort): void;
+    /** Wire up a newly connected client port (a SharedWorker `connect` event). */
+    handleConnect(port: MessagePort): void;
 }
 
 interface UniqueWorkerBrokerClient {
-    readonly port: UniqueWorkerBrokerPort;
+    readonly port: MessagePort;
     helloReceived: boolean;
 }
 
@@ -38,17 +17,21 @@ interface UniqueWorkerBrokerClient {
  * Creates the broker that runs inside the `unique_worker_broker.ts` SharedWorker.
  *
  * The broker is deliberately dumb about the connections it relays: it tracks the
- * current leader tab per key, relays follower MessagePorts to that leader, and
+ * current leader client per key, relays follower MessagePorts to that leader, and
  * queues connect requests that arrive while no leader is registered. The queue is
  * what lets clients avoid retry loops — a follower's connect request simply waits
  * here until a leader shows up.
+ *
+ * Clients are detected as gone via the Web Lock each of them holds for its
+ * lifetime (sent in the hello message): a `shared`-mode request for that lock is
+ * granted the moment the client goes away.
  */
-export function createUniqueWorkerBroker(options: UniqueWorkerBrokerOptions): UniqueWorkerBroker {
+export function createUniqueWorkerBroker(): UniqueWorkerBroker {
     const clients = new Set<UniqueWorkerBrokerClient>();
     const leaderByKey = new Map<string, UniqueWorkerBrokerClient>();
     const pendingConnectsByKey = new Map<
         string,
-        Array<{port: unknown; from: UniqueWorkerBrokerClient}>
+        Array<{port: MessagePort; from: UniqueWorkerBrokerClient}>
     >();
 
     function broadcast(message: UniqueWorkerMessage, except: UniqueWorkerBrokerClient | null) {
@@ -59,13 +42,37 @@ export function createUniqueWorkerBroker(options: UniqueWorkerBrokerOptions): Un
         }
     }
 
-    function forwardConnect(leader: UniqueWorkerBrokerClient, key: string, port: unknown) {
+    function forwardConnect(leader: UniqueWorkerBrokerClient, key: string, port: MessagePort) {
         leader.port.postMessage({type: "unique-worker:connect-request", key}, [port]);
+    }
+
+    // Remove (and close) queued connects matching the filter, returning the rest.
+    function dropPendingConnects(
+        key: string,
+        shouldDrop: (item: {port: MessagePort; from: UniqueWorkerBrokerClient}) => boolean,
+    ) {
+        const pending = pendingConnectsByKey.get(key);
+        if (pending === undefined) return;
+        const remaining = pending.filter(item => {
+            if (!shouldDrop(item)) return true;
+            item.port.close();
+            return false;
+        });
+        if (remaining.length === 0) {
+            pendingConnectsByKey.delete(key);
+        } else if (remaining.length !== pending.length) {
+            pendingConnectsByKey.set(key, remaining);
+        }
     }
 
     function handleRegisterLeader(client: UniqueWorkerBrokerClient, key: string) {
         const previousLeader = leaderByKey.get(key);
         leaderByKey.set(key, client);
+
+        // The new leader's own queued connect (from before it won the election) is
+        // obsolete — it would only wire the leader's dead follower channel into its own
+        // worker.
+        dropPendingConnects(key, item => item.from === client);
 
         // If we replaced a leader whose death we hadn't detected yet, its followers are
         // still attached to a dead worker — tell them to reconnect. (When the previous
@@ -85,19 +92,26 @@ export function createUniqueWorkerBroker(options: UniqueWorkerBrokerOptions): Un
     }
 
     function handleUnregisterLeader(client: UniqueWorkerBrokerClient, key: string) {
-        // Guard against a stale unregister arriving after another tab already registered
-        // as the new leader.
+        // Guard against a stale unregister arriving after another client already
+        // registered as the new leader.
         if (leaderByKey.get(key) !== client) return;
         leaderByKey.delete(key);
         broadcast({type: "unique-worker:leader-lost", key}, client);
     }
 
-    function handleConnectRequest(client: UniqueWorkerBrokerClient, key: string, port: unknown) {
+    function handleConnectRequest(
+        client: UniqueWorkerBrokerClient,
+        key: string,
+        port: MessagePort,
+    ) {
         const leader = leaderByKey.get(key);
         if (leader !== undefined) {
             forwardConnect(leader, key, port);
             return;
         }
+        // A client retrying (after leader-lost) supersedes its own earlier request;
+        // keeping both would wire a dead channel into the next leader.
+        dropPendingConnects(key, item => item.from === client);
         let pending = pendingConnectsByKey.get(key);
         if (pending === undefined) {
             pending = [];
@@ -116,13 +130,8 @@ export function createUniqueWorkerBroker(options: UniqueWorkerBrokerOptions): Un
             }
         }
 
-        for (const [key, pending] of pendingConnectsByKey) {
-            const remaining = pending.filter(item => item.from !== client);
-            if (remaining.length === 0) {
-                pendingConnectsByKey.delete(key);
-            } else if (remaining.length !== pending.length) {
-                pendingConnectsByKey.set(key, remaining);
-            }
+        for (const key of [...pendingConnectsByKey.keys()]) {
+            dropPendingConnects(key, item => item.from === client);
         }
 
         client.port.close();
@@ -131,7 +140,7 @@ export function createUniqueWorkerBroker(options: UniqueWorkerBrokerOptions): Un
     function handleMessage(
         client: UniqueWorkerBrokerClient,
         data: unknown,
-        ports: ReadonlyArray<unknown>,
+        ports: ReadonlyArray<MessagePort>,
     ) {
         const message = readUniqueWorkerMessage(data);
         if (message === null) return;
@@ -140,12 +149,16 @@ export function createUniqueWorkerBroker(options: UniqueWorkerBrokerOptions): Un
             if (client.helloReceived) return;
             client.helloReceived = true;
             clients.add(client);
-            options.watchClientGone(message.clientLockName, () => handleClientGone(client));
+            // The client holds this lock exclusively for its lifetime; a shared request is
+            // granted the moment the client goes away.
+            void navigator.locks.request(message.clientLockName, {mode: "shared"}, async () => {
+                handleClientGone(client);
+            });
             return;
         }
 
-        // Ignore everything else until the tab has introduced itself — without the hello
-        // we have no liveness signal and would leak state for dead tabs.
+        // Ignore everything else until the client has introduced itself — without the
+        // hello we have no liveness signal and would leak state for dead tabs.
         if (!client.helloReceived) return;
 
         switch (message.type) {

@@ -1,18 +1,22 @@
-import {UniqueWorkerClient} from "~/client/web/helpers/workers/unique_worker_client.js";
-import {UniqueWorkerHost} from "~/client/web/helpers/workers/unique_worker_host.js";
 import {
-    UniqueWorkerTestEnvironment,
-    UniqueWorkerTestWorker,
-    createUniqueWorkerTestEnvironment,
-    settleUniqueWorkerTest,
-} from "~/client/web/helpers/workers/unique_worker_test_env.js";
+    UniqueWorkerTestWorkerScript,
+    installUniqueWorkerTestGlobals,
+} from "~/client/web/helpers/workers/test_helpers/install_unique_worker_test_globals.js";
+import {settleUniqueWorkerTest} from "~/client/web/helpers/workers/test_helpers/settle_unique_worker_test.js";
+import {
+    UniqueWorkerClient,
+    uniqueWorkerWebLockName,
+} from "~/client/web/helpers/workers/unique_worker_client.js";
+import {UniqueWorkerHost} from "~/client/web/helpers/workers/unique_worker_host.js";
 import {defineWebWorkerRpcMethods} from "~/client/web/helpers/workers/web_worker_rpc_method.js";
 import {UnknownError} from "~/shared/error/error.js";
 import {Schema} from "~/shared/schema/schema.js";
 
 // These tests run the full multi-tab dance — client, real broker logic, and real
-// host — on top of the fake environment, so every scenario covers the whole system
-// rather than the client in isolation.
+// host — on top of the mocked browser globals, so every scenario covers the whole
+// system rather than the client in isolation. Each simulated "tab" is simply a
+// separate client; a leader tab crash is simulated by force-releasing the election
+// Web Lock, exactly what a real browser does when a tab dies.
 
 const testWorkerMethods = defineWebWorkerRpcMethods({
     echo: {
@@ -34,75 +38,91 @@ const testTabMethods = defineWebWorkerRpcMethods({
 
 type TestHost = UniqueWorkerHost<typeof testWorkerMethods, typeof testTabMethods>;
 
-function createTestWorker(tag: string, hosts: Array<TestHost>): UniqueWorkerTestWorker {
-    const host: TestHost = new UniqueWorkerHost({
-        workerMethods: testWorkerMethods,
-        tabMethods: testTabMethods,
-        handlers: {
-            echo: async (input, connection) => {
-                void connection.call("notify", {value: `echoed:${input.value}`});
-                return {value: input.value, servedBy: tag};
-            },
-            hang: () => new Promise(() => {}),
-        },
-    });
-    hosts.push(host);
-    return {handleMessage: (data, ports) => host.handleMessage(data, ports)};
-}
+const testKey = "test-worker";
 
-function createTestClient(
-    env: UniqueWorkerTestEnvironment,
-    name: string,
-    options: {
-        onReconnect?: () => Promise<void> | void;
-        onFailed?: (error: Error) => void;
-        createWorker?: () => UniqueWorkerTestWorker;
-        /** Delays every spawned worker's startup until the promise resolves. */
-        workerGate?: Promise<void>;
-    } = {},
-) {
-    const tab = env.createTab();
-    const hosts: Array<TestHost> = [];
-    const notifications: Array<string> = [];
-    let workerCount = 0;
+function createTestHarness() {
+    const globals = installUniqueWorkerTestGlobals();
+    const hostsByTag = new Map<string, TestHost>();
+    const workerGates = new Map<string, Promise<void>>();
+    const workerScriptOverrides = new Map<string, UniqueWorkerTestWorkerScript>();
 
-    function createDefaultWorker(): UniqueWorkerTestWorker {
-        const worker = createTestWorker(`${name}-worker-${workerCount++}`, hosts);
-        const gate = options.workerGate;
-        if (gate === undefined) return worker;
-        return {
-            handleMessage(data, ports) {
-                void gate.then(() => worker.handleMessage(data, ports));
+    function createWorkerScript(tag: string): UniqueWorkerTestWorkerScript {
+        const host: TestHost = new UniqueWorkerHost({
+            workerMethods: testWorkerMethods,
+            tabMethods: testTabMethods,
+            handlers: {
+                echo: async (input, connection) => {
+                    void connection.call("notify", {value: `echoed:${input.value}`});
+                    return {value: input.value, servedBy: tag};
+                },
+                hang: () => new Promise(() => {}),
             },
-        };
+        });
+        hostsByTag.set(tag, host);
+        return {handleMessage: (data, ports) => host.handleMessage(data, ports)};
     }
 
-    const runtime = tab.createRuntime({
-        createWorker: options.createWorker ?? createDefaultWorker,
-    });
-
-    const client = new UniqueWorkerClient({
-        key: "test-worker",
-        runtime,
-        workerMethods: testWorkerMethods,
-        tabMethods: testTabMethods,
-        handlers: {
-            notify: async input => {
-                notifications.push(input.value);
-                return {};
+    globals.setWorkerScriptFactory(url => {
+        const tag = url.replace("test-worker://", "");
+        const clientName = tag.split("-worker-")[0]!;
+        const override = workerScriptOverrides.get(clientName);
+        if (override !== undefined) return override;
+        const script = createWorkerScript(tag);
+        const gate = workerGates.get(clientName);
+        if (gate === undefined) return script;
+        return {
+            handleMessage(data, ports) {
+                void gate.then(() => script.handleMessage(data, ports));
             },
-        },
-        onReconnect: options.onReconnect,
-        onFailed: options.onFailed,
+        };
     });
 
-    return {tab, client, hosts, notifications};
+    function createClient(
+        name: string,
+        options: {
+            onReconnect?: () => Promise<void> | void;
+            onFailed?: (error: Error) => void;
+            /** Delays this client's spawned workers until the promise resolves. */
+            workerGate?: Promise<void>;
+            /** Replaces this client's worker script entirely. */
+            workerScript?: UniqueWorkerTestWorkerScript;
+            key?: string;
+        } = {},
+    ) {
+        if (options.workerGate !== undefined) workerGates.set(name, options.workerGate);
+        if (options.workerScript !== undefined) {
+            workerScriptOverrides.set(name, options.workerScript);
+        }
+        const notifications: Array<string> = [];
+        let workerCount = 0;
+        const client = new UniqueWorkerClient({
+            key: options.key ?? testKey,
+            createWorker: () => new Worker(`test-worker://${name}-worker-${workerCount++}`),
+            workerMethods: testWorkerMethods,
+            tabMethods: testTabMethods,
+            handlers: {
+                notify: async input => {
+                    notifications.push(input.value);
+                    return {};
+                },
+            },
+            onReconnect: options.onReconnect,
+            onFailed: options.onFailed,
+        });
+        return {client, notifications};
+    }
+
+    return {
+        createClient,
+        hostsByTag,
+        crashLeaderTab: () => globals.forceReleaseWebLock(uniqueWorkerWebLockName(testKey)),
+    };
 }
 
 describe("UniqueWorkerClient", () => {
     test("a single tab becomes leader and calls its own worker", async () => {
-        const env = createUniqueWorkerTestEnvironment();
-        const tabA = createTestClient(env, "a");
+        const harness = createTestHarness();
+        const tabA = harness.createClient("a");
 
         await tabA.client.whenConnected();
 
@@ -114,9 +134,9 @@ describe("UniqueWorkerClient", () => {
     });
 
     test("a second tab attaches as follower and reaches the leader\u2019s worker", async () => {
-        const env = createUniqueWorkerTestEnvironment();
-        const tabA = createTestClient(env, "a");
-        const tabB = createTestClient(env, "b");
+        const harness = createTestHarness();
+        const tabA = harness.createClient("a");
+        const tabB = harness.createClient("b");
         await tabA.client.whenConnected();
         await tabB.client.whenConnected();
 
@@ -127,8 +147,8 @@ describe("UniqueWorkerClient", () => {
     });
 
     test("calls made before the connection is up are queued and flushed", async () => {
-        const env = createUniqueWorkerTestEnvironment();
-        const tabA = createTestClient(env, "a");
+        const harness = createTestHarness();
+        const tabA = harness.createClient("a");
 
         const result = await tabA.client.call("echo", {value: "early"});
 
@@ -136,9 +156,9 @@ describe("UniqueWorkerClient", () => {
     });
 
     test("worker-to-tab pushes reach the calling tab\u2019s handlers", async () => {
-        const env = createUniqueWorkerTestEnvironment();
-        createTestClient(env, "a");
-        const tabB = createTestClient(env, "b");
+        const harness = createTestHarness();
+        harness.createClient("a");
+        const tabB = harness.createClient("b");
 
         await tabB.client.call("echo", {value: "ping"});
         await settleUniqueWorkerTest();
@@ -147,44 +167,35 @@ describe("UniqueWorkerClient", () => {
     });
 
     test("a follower connect queues at the broker until the leader is ready", async () => {
-        const env = createUniqueWorkerTestEnvironment();
-        const hosts: Array<TestHost> = [];
+        const harness = createTestHarness();
         let releaseWorker!: () => void;
-        const gate = new Promise<void>(resolve => {
+        const workerGate = new Promise<void>(resolve => {
             releaseWorker = resolve;
         });
 
         // Tab A wins the election but its worker only comes up once the gate opens; tab
         // B's connect request must wait at the broker meanwhile.
-        const tabA = createTestClient(env, "a", {
-            createWorker: () => {
-                const worker = createTestWorker("a-slow-worker", hosts);
-                return {
-                    handleMessage(data, ports) {
-                        void gate.then(() => worker.handleMessage(data, ports));
-                    },
-                };
-            },
-        });
-        const tabB = createTestClient(env, "b");
+        const tabA = harness.createClient("a", {workerGate});
+        const tabB = harness.createClient("b");
         const pendingCall = tabB.client.call("echo", {value: "queued"});
         await settleUniqueWorkerTest();
         expect(tabB.client.status).toBe("connecting-follower");
 
         releaseWorker();
 
-        expect(await pendingCall).toMatchObject({servedBy: "a-slow-worker"});
+        expect(await pendingCall).toMatchObject({servedBy: "a-worker-0"});
         expect(tabA.client.status).toBe("leader");
         expect(tabB.client.status).toBe("follower");
     });
 
     test("when the leader tab dies its follower promotes and spawns a new worker", async () => {
-        const env = createUniqueWorkerTestEnvironment();
-        const tabA = createTestClient(env, "a");
-        const tabB = createTestClient(env, "b");
+        const harness = createTestHarness();
+        const tabA = harness.createClient("a");
+        const tabB = harness.createClient("b");
+        await tabA.client.whenConnected();
         await tabB.client.whenConnected();
 
-        tabA.tab.kill();
+        harness.crashLeaderTab();
         await settleUniqueWorkerTest();
 
         expect(tabB.client.status).toBe("leader");
@@ -194,17 +205,18 @@ describe("UniqueWorkerClient", () => {
     });
 
     test("with two followers, the non-promoted one reconnects to the new leader", async () => {
-        const env = createUniqueWorkerTestEnvironment();
-        const tabA = createTestClient(env, "a");
-        const tabB = createTestClient(env, "b");
-        const tabC = createTestClient(env, "c");
+        const harness = createTestHarness();
+        const tabA = harness.createClient("a");
+        const tabB = harness.createClient("b");
+        const tabC = harness.createClient("c");
+        await tabA.client.whenConnected();
         await tabB.client.whenConnected();
         await tabC.client.whenConnected();
 
-        tabA.tab.kill();
+        harness.crashLeaderTab();
         await settleUniqueWorkerTest();
 
-        // B waited on the failover lock first, so it promotes; C follows it.
+        // B waited on the election lock first, so it promotes; C follows it.
         expect(tabB.client.status).toBe("leader");
         expect(tabC.client.status).toBe("follower");
         expect(await tabC.client.call("echo", {value: "hi"})).toMatchObject({
@@ -213,19 +225,20 @@ describe("UniqueWorkerClient", () => {
     });
 
     test("in-flight calls reject on leader death; calls made during failover flush after", async () => {
-        const env = createUniqueWorkerTestEnvironment();
+        const harness = createTestHarness();
         let releaseWorker!: () => void;
         const workerGate = new Promise<void>(resolve => {
             releaseWorker = resolve;
         });
-        const tabA = createTestClient(env, "a");
+        const tabA = harness.createClient("a");
         // B's own worker starts gated, so after A dies B sits in "starting-leader" until
         // we open the gate.
-        const tabB = createTestClient(env, "b", {workerGate});
+        const tabB = harness.createClient("b", {workerGate});
+        await tabA.client.whenConnected();
         await tabB.client.whenConnected();
         const inflight = tabB.client.call("hang", {});
 
-        tabA.tab.kill();
+        harness.crashLeaderTab();
         await expect(inflight).rejects.toThrow("Unique worker leader changed");
 
         // B noticed the death and is promoting; new calls queue until its worker is up,
@@ -237,9 +250,10 @@ describe("UniqueWorkerClient", () => {
     });
 
     test("graceful close of the leader client hands leadership to a follower", async () => {
-        const env = createUniqueWorkerTestEnvironment();
-        const tabA = createTestClient(env, "a");
-        const tabB = createTestClient(env, "b");
+        const harness = createTestHarness();
+        const tabA = harness.createClient("a");
+        const tabB = harness.createClient("b");
+        await tabA.client.whenConnected();
         await tabB.client.whenConnected();
 
         tabA.client.close();
@@ -253,29 +267,31 @@ describe("UniqueWorkerClient", () => {
     });
 
     test("a follower closing gracefully removes its connection from the host", async () => {
-        const env = createUniqueWorkerTestEnvironment();
-        const tabA = createTestClient(env, "a");
-        const tabB = createTestClient(env, "b");
+        const harness = createTestHarness();
+        const tabA = harness.createClient("a");
+        const tabB = harness.createClient("b");
+        await tabA.client.whenConnected();
         await tabB.client.whenConnected();
         await settleUniqueWorkerTest();
-        expect(tabA.hosts[0]!.connections).toHaveLength(2);
+        const host = harness.hostsByTag.get("a-worker-0")!;
+        expect(host.connections).toHaveLength(2);
 
         tabB.client.close();
         await settleUniqueWorkerTest();
 
-        expect(tabA.hosts[0]!.connections).toHaveLength(1);
+        expect(host.connections).toHaveLength(1);
     });
 
     test("onReconnect runs after reconnecting, before queued calls flush", async () => {
-        const env = createUniqueWorkerTestEnvironment();
+        const harness = createTestHarness();
         const events: Array<string> = [];
         let releaseWorker!: () => void;
         const workerGate = new Promise<void>(resolve => {
             releaseWorker = resolve;
         });
-        const tabA = createTestClient(env, "a");
-        const tabB = createTestClient(env, "b", {workerGate});
-        const tabC = createTestClient(env, "c", {
+        const tabA = harness.createClient("a");
+        const tabB = harness.createClient("b", {workerGate});
+        const tabC = harness.createClient("c", {
             onReconnect: async () => {
                 events.push("hook-start");
                 await Promise.resolve();
@@ -285,9 +301,9 @@ describe("UniqueWorkerClient", () => {
         await tabB.client.whenConnected();
         await tabC.client.whenConnected();
 
-        tabA.tab.kill();
-        // Let C notice the leader is gone (it moves to "connecting-follower" while B's
-        // replacement worker is still gated), then queue a call.
+        // The leader closes gracefully; C hears leader-lost right away and waits as
+        // "connecting-follower" while B's replacement worker is still gated.
+        tabA.client.close();
         await settleUniqueWorkerTest();
         expect(tabC.client.status).toBe("connecting-follower");
         const queued = tabC.client.call("echo", {value: "x"}).then(() => {
@@ -300,9 +316,9 @@ describe("UniqueWorkerClient", () => {
     });
 
     test("onReconnect does not run on initial connection", async () => {
-        const env = createUniqueWorkerTestEnvironment();
+        const harness = createTestHarness();
         let reconnects = 0;
-        const tabA = createTestClient(env, "a", {
+        const tabA = harness.createClient("a", {
             onReconnect: () => {
                 reconnects++;
             },
@@ -314,15 +330,15 @@ describe("UniqueWorkerClient", () => {
     });
 
     test("worker startup failure fails the client and frees the lock for other tabs", async () => {
-        const env = createUniqueWorkerTestEnvironment();
+        const harness = createTestHarness();
         const failures: Array<Error> = [];
-        const tabA = createTestClient(env, "a", {
+        const tabA = harness.createClient("a", {
             onFailed: error => failures.push(error),
-            createWorker: () => ({
+            workerScript: {
                 handleMessage: () => {
                     throw new UnknownError("worker exploded on startup");
                 },
-            }),
+            },
         });
 
         await expect(tabA.client.whenConnected()).rejects.toThrow("worker exploded on startup");
@@ -333,44 +349,37 @@ describe("UniqueWorkerClient", () => {
         );
 
         // The lock was released, so a fresh tab can lead.
-        const tabB = createTestClient(env, "b");
+        const tabB = harness.createClient("b");
         await tabB.client.whenConnected();
         expect(tabB.client.status).toBe("leader");
     });
 
-    test("closing while still electing rejects queued calls and holds no lock", async () => {
-        const env = createUniqueWorkerTestEnvironment();
-        const tabA = createTestClient(env, "a");
+    test("closing while still connecting rejects queued calls and abandons the election", async () => {
+        const harness = createTestHarness();
+        const tabA = harness.createClient("a");
         const pending = tabA.client.call("echo", {value: "x"});
 
+        expect(tabA.client.status).toBe("connecting-follower");
         tabA.client.close();
 
         await expect(pending).rejects.toThrow("Unique worker client closed");
         await settleUniqueWorkerTest();
 
-        const tabB = createTestClient(env, "b");
+        const tabB = harness.createClient("b");
         await tabB.client.whenConnected();
         expect(tabB.client.status).toBe("leader");
     });
 
     test("two clients for different keys coexist independently", async () => {
-        const env = createUniqueWorkerTestEnvironment();
-        const tab = env.createTab();
-        const hosts: Array<TestHost> = [];
+        const harness = createTestHarness();
+        const first = harness.createClient("one", {key: "key-one"});
+        const second = harness.createClient("two", {key: "key-two"});
 
-        function createClient(key: string, tag: string) {
-            return new UniqueWorkerClient({
-                key,
-                runtime: tab.createRuntime({createWorker: () => createTestWorker(tag, hosts)}),
-                workerMethods: testWorkerMethods,
-                tabMethods: testTabMethods,
-                handlers: {notify: async () => ({})},
-            });
-        }
-        const first = createClient("key-one", "worker-one");
-        const second = createClient("key-two", "worker-two");
-
-        expect(await first.call("echo", {value: "1"})).toMatchObject({servedBy: "worker-one"});
-        expect(await second.call("echo", {value: "2"})).toMatchObject({servedBy: "worker-two"});
+        expect(await first.client.call("echo", {value: "1"})).toMatchObject({
+            servedBy: "one-worker-0",
+        });
+        expect(await second.client.call("echo", {value: "2"})).toMatchObject({
+            servedBy: "two-worker-0",
+        });
     });
 });

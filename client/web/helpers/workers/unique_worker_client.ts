@@ -1,7 +1,13 @@
 import {readUniqueWorkerMessage} from "~/client/web/helpers/workers/unique_worker_message.js";
 import {WebWorkerRpc, WebWorkerRpcHandlers} from "~/client/web/helpers/workers/web_worker_rpc.js";
 import {WebWorkerRpcMethodDefinitions} from "~/client/web/helpers/workers/web_worker_rpc_method.js";
-import {CancelledError, ErrorBase, InternalError, UnavailableError} from "~/shared/error/error.js";
+import {
+    CancelledError,
+    ErrorBase,
+    InternalError,
+    UnavailableError,
+    UnknownError,
+} from "~/shared/error/error.js";
 import {PromiseResolver, createPromiseResolver} from "~/shared/helpers/async/promise_resolver.js";
 import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
 import {SchemaType} from "~/shared/schema/schema.js";
@@ -23,77 +29,22 @@ import {SchemaType} from "~/shared/schema/schema.js";
 //
 // Coordination uses exactly two mechanisms:
 //
-// - A Web Lock per key elects the leader tab. The browser releases locks when a
-//   tab dies, so failover is crash-safe by construction: one waiting follower is
-//   granted the lock and promotes itself.
+// - A Web Lock per key elects the leader tab. Every client requests the lock and
+//   simultaneously asks the broker for a follower connection; whichever happens
+//   first decides the role. The browser releases locks when a tab dies, so
+//   failover is crash-safe by construction: one waiting follower is granted the
+//   lock and promotes itself.
 // - The broker relays ports and broadcasts `leader-lost`. Connect requests that
 //   arrive while no leader is registered queue inside the broker until one
 //   registers, so clients never poll or retry on a timer.
+//
+// Tests run this class against `test_helpers/install_unique_worker_test_globals`,
+// which replaces `navigator.locks`, `MessageChannel`, `Worker`, and `SharedWorker`
+// with in-process fakes (the broker fake runs the real broker logic).
 
-/**
- * The tab side of a connection port. Mirrors the subset of `MessagePort` the
- * client uses; tests substitute fakes.
- */
-export interface UniqueWorkerRpcPort {
-    postMessage(data: unknown): void;
-    onmessage: ((event: {data: unknown}) => void) | null;
-    start(): void;
-    close(): void;
-}
-
-/** The dedicated worker as seen by the leader tab. Mirrors `Worker`. */
-export interface UniqueWorkerHandle {
-    postMessage(data: unknown, transfer: ReadonlyArray<unknown>): void;
-    onerror: ((error: Error) => void) | null;
-    terminate(): void;
-}
-
-/** Releases a held Web Lock. */
-export interface UniqueWorkerLockHold {
-    release(): void;
-}
-
-/**
- * This tab's connection to the broker SharedWorker. One connection is shared by
- * all `UniqueWorkerClient` instances in the tab.
- */
-export interface UniqueWorkerBrokerTabConnection {
-    registerLeader(key: string): void;
-    unregisterLeader(key: string): void;
-    /** Ask the broker to relay `transferPort` to the leader for `key`. */
-    connect(key: string, transferPort: unknown): void;
-    /** Returns an unsubscribe function. */
-    subscribe(
-        key: string,
-        subscriber: {
-            onLeaderLost(): void;
-            /**
-             * A follower's port arrived for relaying into our dedicated worker. Delivered to
-             * every subscriber for the key; non-leaders ignore it.
-             */
-            onConnectRequest(transferPort: unknown): void;
-        },
-    ): () => void;
-}
-
-/**
- * Browser APIs the client depends on, kept small so tests can run the full
- * multi-tab dance with fakes. `createUniqueWorkerBrowserRuntime` provides the real
- * implementation.
- */
-export interface UniqueWorkerTabRuntime {
-    /** Resolves `null` if the lock is currently held elsewhere. */
-    tryAcquireLock(name: string): Promise<UniqueWorkerLockHold | null>;
-    /** Waits for the lock. Resolves `null` if `signal` aborts first. */
-    waitForLock(name: string, signal: AbortSignal): Promise<UniqueWorkerLockHold | null>;
-    broker: UniqueWorkerBrokerTabConnection;
-    createWorker(): UniqueWorkerHandle;
-    /**
-     * A `MessageChannel`: `rpcPort` stays in this tab, `transferPort` is opaque and
-     * gets transferred (to our own worker, or through the broker to the leader's
-     * worker).
-     */
-    createMessageChannel(): {rpcPort: UniqueWorkerRpcPort; transferPort: unknown};
+/** Name of the Web Lock that elects the leader for `key`. */
+export function uniqueWorkerWebLockName(key: string): string {
+    return `unique-worker:${key}`;
 }
 
 export interface UniqueWorkerClientOptions<
@@ -106,7 +57,12 @@ export interface UniqueWorkerClientOptions<
      * one worker implementation.
      */
     key: string;
-    runtime: UniqueWorkerTabRuntime;
+    /**
+     * Creates the dedicated worker; called if this client becomes the leader. Write it
+     * as `() => new Worker(new URL("./x.js", import.meta.url), {type: "module"})` so
+     * the bundler recognizes the worker script and bundles it.
+     */
+    createWorker(): Worker;
     /** Methods this tab can call on the worker. */
     workerMethods: WorkerDef;
     /** Methods the worker can call on this tab. */
@@ -133,18 +89,21 @@ export interface UniqueWorkerClientOptions<
 }
 
 export type UniqueWorkerClientStatus =
-    | "electing"
-    | "starting-leader"
-    | "leader"
     | "connecting-follower"
     | "follower"
+    | "starting-leader"
+    | "leader"
     | "closed"
     | "failed";
+
+interface UniqueWorkerLockHold {
+    release(): void;
+}
 
 // A handshake in progress: we created a channel and are waiting for the worker to
 // send `ready` on it. Compared by identity to ignore stale handshakes.
 interface UniqueWorkerClientAttempt {
-    readonly rpcPort: UniqueWorkerRpcPort;
+    readonly rpcPort: MessagePort;
 }
 
 interface UniqueWorkerClientConnection<
@@ -152,7 +111,7 @@ interface UniqueWorkerClientConnection<
     TabDef extends WebWorkerRpcMethodDefinitions,
 > {
     readonly rpc: WebWorkerRpc<WorkerDef, TabDef>;
-    readonly rpcPort: UniqueWorkerRpcPort;
+    readonly rpcPort: MessagePort;
     // Rejection callbacks for calls in flight on this connection, so they can be
     // failed fast when the connection dies instead of hanging forever.
     readonly inflightRejects: Set<(error: Error) => void>;
@@ -162,27 +121,27 @@ type UniqueWorkerClientState<
     WorkerDef extends WebWorkerRpcMethodDefinitions,
     TabDef extends WebWorkerRpcMethodDefinitions,
 > =
-    // Initial `tryAcquireLock` is in flight.
-    | {readonly type: "electing"}
+    // A connect request is with the broker (possibly queued there until a leader
+    // registers) and we await `ready` on our end of the channel. Also the initial
+    // state — every client starts as a would-be follower while waiting on the election
+    // lock.
+    | {readonly type: "connecting-follower"; readonly attempt: UniqueWorkerClientAttempt}
+    | {
+          readonly type: "follower";
+          readonly connection: UniqueWorkerClientConnection<WorkerDef, TabDef>;
+      }
     // We hold the lock; our worker is spawned and we await its `ready`.
     | {
           readonly type: "starting-leader";
           readonly attempt: UniqueWorkerClientAttempt;
-          readonly worker: UniqueWorkerHandle;
+          readonly worker: Worker;
           readonly lockHold: UniqueWorkerLockHold;
       }
     | {
           readonly type: "leader";
           readonly connection: UniqueWorkerClientConnection<WorkerDef, TabDef>;
-          readonly worker: UniqueWorkerHandle;
+          readonly worker: Worker;
           readonly lockHold: UniqueWorkerLockHold;
-      }
-    // A connect request is with the broker (possibly queued there until a leader
-    // registers) and we await `ready` on our end of the channel.
-    | {readonly type: "connecting-follower"; readonly attempt: UniqueWorkerClientAttempt}
-    | {
-          readonly type: "follower";
-          readonly connection: UniqueWorkerClientConnection<WorkerDef, TabDef>;
       }
     | {readonly type: "closed"}
     | {readonly type: "failed"; readonly error: Error};
@@ -208,26 +167,51 @@ export class UniqueWorkerClient<
     WorkerDef extends WebWorkerRpcMethodDefinitions,
     TabDef extends WebWorkerRpcMethodDefinitions,
 > {
-    private state: UniqueWorkerClientState<WorkerDef, TabDef> = {type: "electing"};
+    private state!: UniqueWorkerClientState<WorkerDef, TabDef>;
     private readonly callQueue: Array<UniqueWorkerClientQueuedCall> = [];
     private readonly firstConnection: PromiseResolver<void> = createPromiseResolver();
-    private readonly failoverAbort = new AbortController();
-    private readonly unsubscribeFromBroker: () => void;
-    private failoverWaitStarted = false;
+    private readonly shutdownAbort = new AbortController();
+    private readonly brokerPort: MessagePort;
+    // Outgoing broker messages queue behind the hello (see the constructor).
+    private readonly helloSent: PromiseResolver<void> = createPromiseResolver();
+    private clientLockHold: UniqueWorkerLockHold | null = null;
     private everConnected = false;
 
     constructor(private readonly options: UniqueWorkerClientOptions<WorkerDef, TabDef>) {
         // Calling `whenConnected` is optional, so its rejection on close/failure must not
         // surface as an unhandled rejection.
         void this.firstConnection.promise.catch(() => {});
-        this.unsubscribeFromBroker = options.runtime.broker.subscribe(options.key, {
-            onLeaderLost: () => this.handleLeaderLost(),
-            onConnectRequest: transferPort => this.handleConnectRequest(transferPort),
-        });
-        void options.runtime.tryAcquireLock(this.lockName()).then(
-            lockHold => this.handleElectionResult(lockHold),
-            error => this.fail(ErrorBase.from(error)),
+
+        // Connect to the broker. Each client has its own SharedWorker port; the browser
+        // shares the underlying worker.
+        const sharedWorker = new SharedWorker(
+            new URL("./unique_worker_broker.js", import.meta.url),
+            {type: "module", name: "unique-worker-broker"},
         );
+        this.brokerPort = sharedWorker.port;
+        this.brokerPort.onmessage = event => this.handleBrokerMessage(event);
+        this.brokerPort.start();
+
+        // Hold a lock for this client's lifetime; the broker watches it to detect us going
+        // away. The hello must only be sent once the lock is actually held — otherwise the
+        // broker could observe the lock as free and consider us dead immediately — so all
+        // other outgoing messages queue behind it.
+        const clientLockName = `unique-worker-client:${Math.random().toString(36).slice(2)}`;
+        this.holdWebLock(clientLockName, hold => {
+            this.clientLockHold = hold;
+            this.brokerPort.postMessage({type: "unique-worker:hello", clientLockName});
+            this.helloSent.resolve();
+        });
+
+        // Request the election lock. First grant — now or after the current leader goes
+        // away — makes this client the leader.
+        this.holdWebLock(uniqueWorkerWebLockName(options.key), hold =>
+            this.handleLockAcquired(hold),
+        );
+
+        // Meanwhile, ask for a follower connection. If we win the election first, the
+        // broker drops this request when we register as leader.
+        this.becomeConnectingFollower();
     }
 
     /** Current state, exposed for tests and debugging. */
@@ -249,9 +233,8 @@ export class UniqueWorkerClient<
     ): Promise<SchemaType<WorkerDef[K]["outputSchema"]>> {
         const state = this.state;
         switch (state.type) {
-            case "electing":
-            case "starting-leader":
             case "connecting-follower":
+            case "starting-leader":
                 return new Promise((resolve, reject) => {
                     this.callQueue.push({method, input, resolve, reject});
                 });
@@ -270,19 +253,6 @@ export class UniqueWorkerClient<
     close(): void {
         const state = this.state;
         switch (state.type) {
-            case "electing":
-                break;
-            case "starting-leader":
-                state.worker.terminate();
-                state.lockHold.release();
-                state.attempt.rpcPort.close();
-                break;
-            case "leader":
-                this.options.runtime.broker.unregisterLeader(this.options.key);
-                state.worker.terminate();
-                state.lockHold.release();
-                state.connection.rpcPort.close();
-                break;
             case "connecting-follower":
                 state.attempt.rpcPort.close();
                 break;
@@ -292,6 +262,20 @@ export class UniqueWorkerClient<
                 state.connection.rpcPort.postMessage({type: "unique-worker:close-port"});
                 state.connection.rpcPort.close();
                 break;
+            case "starting-leader":
+                state.worker.terminate();
+                state.lockHold.release();
+                state.attempt.rpcPort.close();
+                break;
+            case "leader":
+                this.brokerPort.postMessage({
+                    type: "unique-worker:unregister-leader",
+                    key: this.options.key,
+                });
+                state.worker.terminate();
+                state.lockHold.release();
+                state.connection.rpcPort.close();
+                break;
             case "closed":
             case "failed":
                 return;
@@ -299,14 +283,11 @@ export class UniqueWorkerClient<
                 throw exhaustive(state);
         }
 
-        const connection = stateConnection(state);
+        const connection = stateUniqueWorkerConnection(state);
         this.state = {type: "closed"};
-        this.failoverAbort.abort();
-        this.unsubscribeFromBroker();
         const error = new CancelledError("Unique worker client closed");
-        this.rejectQueuedCalls(error);
-        if (connection !== null) rejectInflightCalls(connection, error);
-        this.firstConnection.reject(error);
+        this.shutdown(error);
+        if (connection !== null) rejectUniqueWorkerInflightCalls(connection, error);
     }
 
     // -- State transitions ----------------------------------------------------
@@ -315,57 +296,31 @@ export class UniqueWorkerClient<
     // state, replaces it, and kicks off any follow-up async work whose completion
     // re-enters through another `handle*` method.
 
-    private handleElectionResult(lockHold: UniqueWorkerLockHold | null): void {
+    private handleLockAcquired(lockHold: UniqueWorkerLockHold): void {
         const state = this.state;
         switch (state.type) {
-            case "electing":
-                if (lockHold !== null) {
-                    this.becomeStartingLeader(lockHold);
-                } else {
-                    this.startFailoverWait();
-                    this.becomeConnectingFollower();
-                }
-                break;
-            case "closed":
-            case "failed":
-                // Closed or failed while the lock request was in flight.
-                lockHold?.release();
-                break;
-            case "starting-leader":
-            case "leader":
             case "connecting-follower":
+                state.attempt.rpcPort.close();
+                this.becomeStartingLeader(lockHold);
+                break;
             case "follower":
-                throw impossibleUniqueWorkerEvent("election result", state.type);
-            default:
-                throw exhaustive(state);
-        }
-    }
-
-    private handleFailoverLockAcquired(lockHold: UniqueWorkerLockHold): void {
-        const state = this.state;
-        switch (state.type) {
-            case "follower":
-                // The previous leader died and we won the failover race.
-                rejectInflightCalls(
+                // The previous leader went away and we won the failover race.
+                rejectUniqueWorkerInflightCalls(
                     state.connection,
                     new UnavailableError("Unique worker leader changed"),
                 );
                 state.connection.rpcPort.close();
                 this.becomeStartingLeader(lockHold);
                 break;
-            case "connecting-follower":
-                state.attempt.rpcPort.close();
-                this.becomeStartingLeader(lockHold);
-                break;
             case "closed":
             case "failed":
+                // Closed or failed while the lock request was still queued.
                 lockHold.release();
                 break;
-            case "electing":
             case "starting-leader":
             case "leader":
-                // The failover wait only exists while we're a follower.
-                throw impossibleUniqueWorkerEvent("failover lock acquired", state.type);
+                // We already hold the lock; there is no second request.
+                throw impossibleUniqueWorkerEvent("lock acquired", state.type);
             default:
                 throw exhaustive(state);
         }
@@ -388,7 +343,10 @@ export class UniqueWorkerClient<
                 };
                 // Register only now that the worker is ready, so ports the broker relays (or has
                 // queued) never reach a half-started worker.
-                this.options.runtime.broker.registerLeader(this.options.key);
+                this.sendToBroker({
+                    type: "unique-worker:register-leader",
+                    key: this.options.key,
+                });
                 void this.finishConnecting();
                 break;
             }
@@ -402,7 +360,6 @@ export class UniqueWorkerClient<
                 void this.finishConnecting();
                 break;
             }
-            case "electing":
             case "leader":
             case "follower":
             case "closed":
@@ -419,7 +376,7 @@ export class UniqueWorkerClient<
         const state = this.state;
         switch (state.type) {
             case "follower":
-                rejectInflightCalls(
+                rejectUniqueWorkerInflightCalls(
                     state.connection,
                     new UnavailableError("Unique worker leader changed"),
                 );
@@ -428,18 +385,17 @@ export class UniqueWorkerClient<
                 break;
             case "connecting-follower":
                 // Our pending connect may have been relayed to the dying leader and lost; retry
-                // with a fresh channel. If it is still queued at the broker, the old channel is
-                // simply abandoned.
+                // with a fresh channel. If it is still queued at the broker, the new request
+                // replaces it there.
                 state.attempt.rpcPort.close();
                 this.becomeConnectingFollower();
                 break;
-            case "electing":
             case "starting-leader":
             case "leader":
+                // We are the (new) leader; this is news about the leader we replaced.
+                break;
             case "closed":
             case "failed":
-                // Not connected through the lost leader — nothing to do. As the (new) leader we
-                // may hear about the leader we just replaced.
                 break;
             default:
                 throw exhaustive(state);
@@ -458,7 +414,6 @@ export class UniqueWorkerClient<
                 // Uncaught errors don't kill a running worker, so stay connected.
                 this.options.onWorkerError?.(error);
                 break;
-            case "electing":
             case "connecting-follower":
             case "follower":
             case "closed":
@@ -470,21 +425,21 @@ export class UniqueWorkerClient<
         }
     }
 
-    private handleConnectRequest(transferPort: unknown): void {
+    private handleConnectRequest(transferPort: MessagePort): void {
         const state = this.state;
         switch (state.type) {
             case "leader":
                 state.worker.postMessage({type: "unique-worker:connect-port"}, [transferPort]);
                 break;
-            case "electing":
-            case "starting-leader":
             case "connecting-follower":
             case "follower":
+            case "starting-leader":
             case "closed":
             case "failed":
                 // The broker only relays connect requests to the registered leader; anything else
                 // is a stale delivery. Drop it — the follower will retry when it hears
                 // `leader-lost`.
+                transferPort.close();
                 break;
             default:
                 throw exhaustive(state);
@@ -494,9 +449,9 @@ export class UniqueWorkerClient<
     // -- Transition helpers -----------------------------------------------------
 
     private becomeStartingLeader(lockHold: UniqueWorkerLockHold): void {
-        let worker: UniqueWorkerHandle;
+        let worker: Worker;
         try {
-            worker = this.options.runtime.createWorker();
+            worker = this.options.createWorker();
         } catch (error) {
             // e.g. worker creation blocked by CSP. The lock isn't attached to any state yet,
             // so release it here before failing.
@@ -504,31 +459,26 @@ export class UniqueWorkerClient<
             this.fail(ErrorBase.from(error));
             return;
         }
-        worker.onerror = error => this.handleWorkerError(error);
-        const {rpcPort, transferPort} = this.options.runtime.createMessageChannel();
-        const attempt: UniqueWorkerClientAttempt = {rpcPort};
+        worker.onerror = event => {
+            this.handleWorkerError(
+                event.error instanceof Error
+                    ? event.error
+                    : new UnknownError(event.message || "Unique worker error"),
+            );
+        };
+        const channel = new MessageChannel();
+        const attempt: UniqueWorkerClientAttempt = {rpcPort: channel.port1};
         this.state = {type: "starting-leader", attempt, worker, lockHold};
         this.listenForReady(attempt);
-        worker.postMessage({type: "unique-worker:connect-port"}, [transferPort]);
+        worker.postMessage({type: "unique-worker:connect-port"}, [channel.port2]);
     }
 
     private becomeConnectingFollower(): void {
-        const {rpcPort, transferPort} = this.options.runtime.createMessageChannel();
-        const attempt: UniqueWorkerClientAttempt = {rpcPort};
+        const channel = new MessageChannel();
+        const attempt: UniqueWorkerClientAttempt = {rpcPort: channel.port1};
         this.state = {type: "connecting-follower", attempt};
         this.listenForReady(attempt);
-        this.options.runtime.broker.connect(this.options.key, transferPort);
-    }
-
-    private startFailoverWait(): void {
-        if (this.failoverWaitStarted) return;
-        this.failoverWaitStarted = true;
-        void this.options.runtime.waitForLock(this.lockName(), this.failoverAbort.signal).then(
-            lockHold => {
-                if (lockHold !== null) this.handleFailoverLockAcquired(lockHold);
-            },
-            error => this.fail(ErrorBase.from(error)),
-        );
+        this.sendToBroker({type: "unique-worker:connect", key: this.options.key}, [channel.port2]);
     }
 
     private listenForReady(attempt: UniqueWorkerClientAttempt): void {
@@ -542,7 +492,7 @@ export class UniqueWorkerClient<
     }
 
     private createConnection(
-        rpcPort: UniqueWorkerRpcPort,
+        rpcPort: MessagePort,
     ): UniqueWorkerClientConnection<WorkerDef, TabDef> {
         const rpc: WebWorkerRpc<WorkerDef, TabDef> = new WebWorkerRpc({
             callMethods: this.options.workerMethods,
@@ -586,47 +536,99 @@ export class UniqueWorkerClient<
             case "closed":
             case "failed":
                 return;
-            case "starting-leader":
-                state.worker.terminate();
-                state.lockHold.release();
-                state.attempt.rpcPort.close();
-                break;
-            case "leader":
-                this.options.runtime.broker.unregisterLeader(this.options.key);
-                state.worker.terminate();
-                state.lockHold.release();
-                state.connection.rpcPort.close();
-                break;
             case "connecting-follower":
                 state.attempt.rpcPort.close();
                 break;
             case "follower":
                 state.connection.rpcPort.close();
                 break;
-            case "electing":
+            case "starting-leader":
+                state.worker.terminate();
+                state.lockHold.release();
+                state.attempt.rpcPort.close();
+                break;
+            case "leader":
+                this.brokerPort.postMessage({
+                    type: "unique-worker:unregister-leader",
+                    key: this.options.key,
+                });
+                state.worker.terminate();
+                state.lockHold.release();
+                state.connection.rpcPort.close();
                 break;
             default:
                 throw exhaustive(state);
         }
 
-        const connection = stateConnection(state);
+        const connection = stateUniqueWorkerConnection(state);
         this.state = {type: "failed", error};
-        this.failoverAbort.abort();
-        this.unsubscribeFromBroker();
-        this.rejectQueuedCalls(error);
-        if (connection !== null) rejectInflightCalls(connection, error);
-        this.firstConnection.reject(error);
+        this.shutdown(error);
+        if (connection !== null) rejectUniqueWorkerInflightCalls(connection, error);
         this.options.onFailed?.(error);
     }
 
-    private rejectQueuedCalls(error: Error): void {
+    /** Cleanup shared by `close` and `fail`, run after the state is replaced. */
+    private shutdown(error: Error): void {
+        // Aborts our still-queued lock requests. A request granted after this point
+        // re-enters `handleLockAcquired`, which releases it immediately.
+        this.shutdownAbort.abort();
+        // Releasing the client lifetime lock tells the broker to drop all state for this
+        // client.
+        this.clientLockHold?.release();
+        this.clientLockHold = null;
+        this.brokerPort.close();
         for (const queued of this.callQueue.splice(0)) {
             queued.reject(error);
         }
+        this.firstConnection.reject(error);
     }
 
-    private lockName(): string {
-        return `unique-worker:${this.options.key}`;
+    // -- Browser plumbing -------------------------------------------------------
+
+    private handleBrokerMessage(event: MessageEvent): void {
+        const message = readUniqueWorkerMessage(event.data);
+        if (message === null) return;
+        switch (message.type) {
+            case "unique-worker:leader-lost":
+                if (message.key === this.options.key) this.handleLeaderLost();
+                break;
+            case "unique-worker:connect-request": {
+                const transferPort = event.ports[0];
+                if (message.key === this.options.key && transferPort !== undefined) {
+                    this.handleConnectRequest(transferPort);
+                }
+                break;
+            }
+            default:
+                // Other protocol messages never target a client.
+                break;
+        }
+    }
+
+    // `.then` callbacks on the same settled promise run in registration order, so
+    // queuing behind the hello preserves message order.
+    private sendToBroker(data: unknown, transfer: Array<Transferable> = []): void {
+        void this.helloSent.promise.then(() => {
+            this.brokerPort.postMessage(data, transfer);
+        });
+    }
+
+    /**
+     * Requests a Web Lock and holds it until the returned hold is released. The
+     * request is dropped if `shutdownAbort` fires first; `onGranted` decides what to
+     * do when the lock arrives.
+     */
+    private holdWebLock(name: string, onGranted: (hold: UniqueWorkerLockHold) => void): void {
+        const hold = createPromiseResolver<void>();
+        navigator.locks
+            .request(name, {mode: "exclusive", signal: this.shutdownAbort.signal}, async () => {
+                onGranted({release: () => hold.resolve()});
+                await hold.promise;
+            })
+            .catch((error: unknown) => {
+                if (error instanceof DOMException && error.name === "AbortError") return;
+                this.fail(ErrorBase.from(error));
+            });
     }
 }
 
@@ -650,7 +652,7 @@ function callOnUniqueWorkerConnection<
     });
 }
 
-function rejectInflightCalls<
+function rejectUniqueWorkerInflightCalls<
     WorkerDef extends WebWorkerRpcMethodDefinitions,
     TabDef extends WebWorkerRpcMethodDefinitions,
 >(connection: UniqueWorkerClientConnection<WorkerDef, TabDef>, error: Error): void {
@@ -659,7 +661,7 @@ function rejectInflightCalls<
     }
 }
 
-function stateConnection<
+function stateUniqueWorkerConnection<
     WorkerDef extends WebWorkerRpcMethodDefinitions,
     TabDef extends WebWorkerRpcMethodDefinitions,
 >(

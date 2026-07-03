@@ -2,11 +2,7 @@ import {
     tabToWorkerDatabaseRpcMethods,
     workerToTabDatabaseRpcMethods,
 } from "~/client/web/databases/database_worker_rpc_methods.js";
-import {createUniqueWorkerBrowserRuntime} from "~/client/web/helpers/workers/create_unique_worker_browser_runtime.js";
-import {
-    UniqueWorkerClient,
-    type UniqueWorkerTabRuntime,
-} from "~/client/web/helpers/workers/unique_worker_client.js";
+import {UniqueWorkerClient} from "~/client/web/helpers/workers/unique_worker_client.js";
 import type {
     DatabaseActionInput,
     DatabaseActionName,
@@ -58,16 +54,18 @@ export interface DatabaseWorkerConnection {
     close(): void;
 }
 
+/**
+ * The unique worker key shared by all database-group connections. One dedicated
+ * worker per origin serves every database group. Exported for tests, which
+ * simulate a leader tab crash by force-releasing this key's Web Lock.
+ */
+export const databaseUniqueWorkerKey = "alpine-databases";
+
 type ConnectOptions = {
     databaseGroupId: DatabaseGroupId;
     webSocketUrl: string;
     initialPages?: DatabasePages;
     reportError?(message: string): void;
-    /**
-     * Test seam: replaces the browser runtime (Web Locks, broker SharedWorker, real
-     * dedicated workers) with a fake environment.
-     */
-    runtime?: UniqueWorkerTabRuntime;
 };
 
 /**
@@ -171,15 +169,9 @@ async function connectToDatabaseGroup(options: ConnectOptions): Promise<Database
         typeof tabToWorkerDatabaseRpcMethods,
         typeof workerToTabDatabaseRpcMethods
     > = new UniqueWorkerClient({
-        key: "alpine-databases",
-        runtime:
-            options.runtime ??
-            createUniqueWorkerBrowserRuntime({
-                createWorker: () =>
-                    new Worker(new URL("./database_worker.js", import.meta.url), {
-                        type: "module",
-                    }),
-            }),
+        key: databaseUniqueWorkerKey,
+        createWorker: () =>
+            new Worker(new URL("./database_worker.js", import.meta.url), {type: "module"}),
         workerMethods: tabToWorkerDatabaseRpcMethods,
         tabMethods: workerToTabDatabaseRpcMethods,
         handlers: {

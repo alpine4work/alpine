@@ -4,6 +4,7 @@ ts_project(
     name = "databases",
     test_deps = [
         "//client/web/databases/test_helpers",
+        "//client/web/helpers/workers/test_helpers",
     ],
     visibility = [
         "//app:__subpackages__",

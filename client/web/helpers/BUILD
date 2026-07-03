@@ -2,6 +2,9 @@ load("//admin/typescript:typescript.bzl", "ts_project")
 
 ts_project(
     name = "helpers",
+    test_deps = [
+        "//client/web/helpers/workers/test_helpers",
+    ],
     visibility = [
         "//app:__subpackages__",
         "//client/web:__subpackages__",

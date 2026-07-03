@@ -1,52 +1,55 @@
 import {createUniqueWorkerBroker} from "~/client/web/helpers/workers/create_unique_worker_broker.js";
-import {
-    createUniqueWorkerTestPortPair,
-    settleUniqueWorkerTest,
-} from "~/client/web/helpers/workers/unique_worker_test_env.js";
+import {installUniqueWorkerTestGlobals} from "~/client/web/helpers/workers/test_helpers/install_unique_worker_test_globals.js";
+import {settleUniqueWorkerTest} from "~/client/web/helpers/workers/test_helpers/settle_unique_worker_test.js";
 
 // Message-level tests for the broker. Full multi-tab behavior is covered by
-// `unique_worker_client.test.ts`; these pin down the broker's own contract.
+// `unique_worker_client.test.ts`; these pin down the broker's own contract. The
+// mocked globals provide `navigator.locks` (client liveness) and `MessageChannel`.
 
 function createTestBroker() {
-    const gones = new Map<string, () => void>();
-    const broker = createUniqueWorkerBroker({
-        watchClientGone(clientLockName, onGone) {
-            gones.set(clientLockName, onGone);
-        },
-    });
+    installUniqueWorkerTestGlobals();
+    const broker = createUniqueWorkerBroker();
 
     let nextTab = 0;
-    function connectTab() {
-        const [tabPort, brokerPort] = createUniqueWorkerTestPortPair();
-        const received: Array<{data: unknown; ports: ReadonlyArray<unknown>}> = [];
-        tabPort.onmessage = event => {
-            received.push(event as {data: unknown; ports: ReadonlyArray<unknown>});
+    async function connectTab() {
+        const {port1, port2} = new MessageChannel();
+        const received: Array<MessageEvent> = [];
+        port1.onmessage = event => {
+            received.push(event);
         };
-        broker.handleConnect(brokerPort);
+        broker.handleConnect(port2);
+
+        // Hold this tab's lifetime lock (like a real tab), then say hello. The broker
+        // watches the lock; releasing it simulates the tab dying.
         const clientLockName = `client-${nextTab++}`;
-        tabPort.postMessage({type: "unique-worker:hello", clientLockName});
-        return {
-            port: tabPort,
-            received,
-            die: () => gones.get(clientLockName)!(),
-        };
+        const die = await new Promise<() => void>(resolve => {
+            void navigator.locks.request(
+                clientLockName,
+                () =>
+                    new Promise<void>(release => {
+                        resolve(release);
+                    }),
+            );
+        });
+        port1.postMessage({type: "unique-worker:hello", clientLockName});
+        await settleUniqueWorkerTest();
+        return {port: port1, received, die};
     }
 
-    return {connectTab};
+    return {broker, connectTab};
 }
 
-function receivedTypes(received: Array<{data: unknown}>): Array<string> {
+function receivedTypes(received: Array<MessageEvent>): Array<string> {
     return received.map(event => (event.data as {type: string}).type);
 }
 
 describe("createUniqueWorkerBroker", () => {
     test("queues connects until a leader registers, then forwards them all", async () => {
         const broker = createTestBroker();
-        const leader = broker.connectTab();
-        const follower = broker.connectTab();
-        await settleUniqueWorkerTest();
+        const leader = await broker.connectTab();
+        const follower = await broker.connectTab();
 
-        const [followerPort] = createUniqueWorkerTestPortPair();
+        const {port2: followerPort} = new MessageChannel();
         follower.port.postMessage({type: "unique-worker:connect", key: "k"}, [followerPort]);
         await settleUniqueWorkerTest();
         expect(leader.received).toHaveLength(0);
@@ -54,19 +57,18 @@ describe("createUniqueWorkerBroker", () => {
         leader.port.postMessage({type: "unique-worker:register-leader", key: "k"});
         await settleUniqueWorkerTest();
 
-        expect(leader.received).toMatchObject([
-            {data: {type: "unique-worker:connect-request", key: "k"}, ports: [followerPort]},
-        ]);
+        expect(receivedTypes(leader.received)).toEqual(["unique-worker:connect-request"]);
+        expect(leader.received[0]!.ports).toEqual([followerPort]);
     });
 
     test("forwards connects directly once a leader is registered", async () => {
         const broker = createTestBroker();
-        const leader = broker.connectTab();
-        const follower = broker.connectTab();
+        const leader = await broker.connectTab();
+        const follower = await broker.connectTab();
         leader.port.postMessage({type: "unique-worker:register-leader", key: "k"});
         await settleUniqueWorkerTest();
 
-        const [followerPort] = createUniqueWorkerTestPortPair();
+        const {port2: followerPort} = new MessageChannel();
         follower.port.postMessage({type: "unique-worker:connect", key: "k"}, [followerPort]);
         await settleUniqueWorkerTest();
 
@@ -75,8 +77,8 @@ describe("createUniqueWorkerBroker", () => {
 
     test("unregister broadcasts leader-lost to everyone except the leaving leader", async () => {
         const broker = createTestBroker();
-        const leader = broker.connectTab();
-        const follower = broker.connectTab();
+        const leader = await broker.connectTab();
+        const follower = await broker.connectTab();
         leader.port.postMessage({type: "unique-worker:register-leader", key: "k"});
         await settleUniqueWorkerTest();
 
@@ -89,8 +91,8 @@ describe("createUniqueWorkerBroker", () => {
 
     test("client death clears its leadership and broadcasts leader-lost", async () => {
         const broker = createTestBroker();
-        const leader = broker.connectTab();
-        const follower = broker.connectTab();
+        const leader = await broker.connectTab();
+        const follower = await broker.connectTab();
         leader.port.postMessage({type: "unique-worker:register-leader", key: "k"});
         await settleUniqueWorkerTest();
 
@@ -102,9 +104,9 @@ describe("createUniqueWorkerBroker", () => {
 
     test("registering over a stale leader notifies its followers to reconnect", async () => {
         const broker = createTestBroker();
-        const staleLeader = broker.connectTab();
-        const follower = broker.connectTab();
-        const newLeader = broker.connectTab();
+        const staleLeader = await broker.connectTab();
+        const follower = await broker.connectTab();
+        const newLeader = await broker.connectTab();
         staleLeader.port.postMessage({type: "unique-worker:register-leader", key: "k"});
         await settleUniqueWorkerTest();
 
@@ -119,15 +121,15 @@ describe("createUniqueWorkerBroker", () => {
 
     test("a stale unregister from a replaced leader does not unseat the new leader", async () => {
         const broker = createTestBroker();
-        const oldLeader = broker.connectTab();
-        const newLeader = broker.connectTab();
-        const follower = broker.connectTab();
+        const oldLeader = await broker.connectTab();
+        const newLeader = await broker.connectTab();
+        const follower = await broker.connectTab();
         oldLeader.port.postMessage({type: "unique-worker:register-leader", key: "k"});
         newLeader.port.postMessage({type: "unique-worker:register-leader", key: "k"});
         await settleUniqueWorkerTest();
 
         oldLeader.port.postMessage({type: "unique-worker:unregister-leader", key: "k"});
-        const [followerPort] = createUniqueWorkerTestPortPair();
+        const {port2: followerPort} = new MessageChannel();
         follower.port.postMessage({type: "unique-worker:connect", key: "k"}, [followerPort]);
         await settleUniqueWorkerTest();
 
@@ -136,16 +138,49 @@ describe("createUniqueWorkerBroker", () => {
         expect(receivedTypes(newLeader.received)).toEqual(["unique-worker:connect-request"]);
     });
 
-    test("pending connects from a dead client are dropped", async () => {
+    test("registering drops the new leader\u2019s own queued connect", async () => {
         const broker = createTestBroker();
-        const follower = broker.connectTab();
-        const lateLeader = broker.connectTab();
+        const tab = await broker.connectTab();
+        const {port2: ownPort} = new MessageChannel();
+        tab.port.postMessage({type: "unique-worker:connect", key: "k"}, [ownPort]);
         await settleUniqueWorkerTest();
 
-        const [followerPort] = createUniqueWorkerTestPortPair();
+        tab.port.postMessage({type: "unique-worker:register-leader", key: "k"});
+        await settleUniqueWorkerTest();
+
+        // The tab's own pre-election connect is not relayed back into its own worker.
+        expect(tab.received).toHaveLength(0);
+    });
+
+    test("a client\u2019s new connect supersedes its earlier queued connect", async () => {
+        const broker = createTestBroker();
+        const follower = await broker.connectTab();
+        const lateLeader = await broker.connectTab();
+
+        const {port2: staleConnectPort} = new MessageChannel();
+        follower.port.postMessage({type: "unique-worker:connect", key: "k"}, [staleConnectPort]);
+        const {port2: freshConnectPort} = new MessageChannel();
+        follower.port.postMessage({type: "unique-worker:connect", key: "k"}, [freshConnectPort]);
+        await settleUniqueWorkerTest();
+
+        lateLeader.port.postMessage({type: "unique-worker:register-leader", key: "k"});
+        await settleUniqueWorkerTest();
+
+        expect(receivedTypes(lateLeader.received)).toEqual(["unique-worker:connect-request"]);
+        expect(lateLeader.received[0]!.ports).toEqual([freshConnectPort]);
+    });
+
+    test("pending connects from a dead client are dropped", async () => {
+        const broker = createTestBroker();
+        const follower = await broker.connectTab();
+        const lateLeader = await broker.connectTab();
+
+        const {port2: followerPort} = new MessageChannel();
         follower.port.postMessage({type: "unique-worker:connect", key: "k"}, [followerPort]);
         await settleUniqueWorkerTest();
+        // Let the broker detect the death (lock release) before a leader shows up.
         follower.die();
+        await settleUniqueWorkerTest();
         lateLeader.port.postMessage({type: "unique-worker:register-leader", key: "k"});
         await settleUniqueWorkerTest();
 
@@ -153,23 +188,25 @@ describe("createUniqueWorkerBroker", () => {
     });
 
     test("messages before hello are ignored", async () => {
-        const gones = new Map<string, () => void>();
-        const broker = createUniqueWorkerBroker({
-            watchClientGone(clientLockName, onGone) {
-                gones.set(clientLockName, onGone);
-            },
-        });
-        const [tabPort, brokerPort] = createUniqueWorkerTestPortPair();
-        broker.handleConnect(brokerPort);
-
-        tabPort.postMessage({type: "unique-worker:register-leader", key: "k"});
+        const broker = createTestBroker();
+        const {port1: prematurePort, port2: brokerSide} = new MessageChannel();
+        broker.broker.handleConnect(brokerSide);
+        prematurePort.onmessage = () => {};
+        prematurePort.postMessage({type: "unique-worker:register-leader", key: "k"});
         await settleUniqueWorkerTest();
 
-        // No hello was sent, so the broker must not have registered leadership: a hello'd
-        // tab registering afterwards must win the key unchallenged.
-        tabPort.postMessage({type: "unique-worker:hello", clientLockName: "late"});
-        tabPort.postMessage({type: "unique-worker:register-leader", key: "k"});
+        // The pre-hello register must not have taken: a proper tab's connect still queues
+        // (nothing is forwarded to the premature port), and a proper leader registration
+        // then receives it.
+        const follower = await broker.connectTab();
+        const leader = await broker.connectTab();
+        const {port2: followerPort} = new MessageChannel();
+        follower.port.postMessage({type: "unique-worker:connect", key: "k"}, [followerPort]);
         await settleUniqueWorkerTest();
-        expect(gones.has("late")).toBe(true);
+
+        leader.port.postMessage({type: "unique-worker:register-leader", key: "k"});
+        await settleUniqueWorkerTest();
+
+        expect(receivedTypes(leader.received)).toEqual(["unique-worker:connect-request"]);
     });
 });
