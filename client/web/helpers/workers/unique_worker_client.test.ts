@@ -1,3 +1,4 @@
+import {uniqueWorkerBrokerGenerationLockName} from "~/client/web/helpers/workers/create_unique_worker_broker.js";
 import {
     UniqueWorkerTestWorkerScript,
     installUniqueWorkerTestMocks,
@@ -82,6 +83,7 @@ function createTestHarness() {
         options: {
             onReconnect?: () => Promise<void> | void;
             onFailed?: (error: Error) => void;
+            onOutdated?: () => void;
             /** Delays this client's spawned workers until the promise resolves. */
             workerGate?: Promise<void>;
             /** Replaces this client's worker script entirely. */
@@ -108,6 +110,7 @@ function createTestHarness() {
             },
             onReconnect: options.onReconnect,
             onFailed: options.onFailed,
+            onOutdated: options.onOutdated,
         });
         return {client, notifications};
     }
@@ -368,6 +371,25 @@ describe("UniqueWorkerClient", () => {
         const tabB = harness.createClient("b");
         await tabB.client.whenConnected();
         expect(tabB.client.status).toBe("leader");
+    });
+
+    test("clients hear onOutdated when a newer app version\u2019s broker takes over", async () => {
+        const harness = createTestHarness();
+        const outdatedTabs: Array<string> = [];
+        const tabA = harness.createClient("a", {onOutdated: () => outdatedTabs.push("a")});
+        const tabB = harness.createClient("b", {onOutdated: () => outdatedTabs.push("b")});
+        await tabA.client.whenConnected();
+        await tabB.client.whenConnected();
+
+        // A broker from a newer bundle version steals the generation lock.
+        void navigator.locks.request(
+            uniqueWorkerBrokerGenerationLockName,
+            {steal: true},
+            () => new Promise(() => {}),
+        );
+        await settleUniqueWorkerTest();
+
+        expect(outdatedTabs.sort()).toEqual(["a", "b"]);
     });
 
     test("two clients for different keys coexist independently", async () => {

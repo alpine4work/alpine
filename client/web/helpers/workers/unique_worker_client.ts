@@ -86,6 +86,13 @@ export interface UniqueWorkerClientOptions<
      * successfully. These don't kill the worker, so the client stays connected.
      */
     onWorkerError?(error: Error): void;
+    /**
+     * Called when a newer app version has started elsewhere (its broker stole the
+     * generation lock from ours). This tab is running stale code and should reload
+     * soon — until it does, its calls keep queuing against a leader that will never
+     * serve them. May be called more than once.
+     */
+    onOutdated?(): void;
 }
 
 export type UniqueWorkerClientStatus =
@@ -183,10 +190,15 @@ export class UniqueWorkerClient<
         void this.firstConnection.promise.catch(() => {});
 
         // Connect to the broker. Each client has its own SharedWorker port; the browser
-        // shares the underlying worker.
+        // shares the underlying worker per script URL. The URL is content-hashed by the
+        // bundler, so each deployed app version gets its own broker — cross-version
+        // handoff happens via the generation lock (see `create_unique_worker_broker.ts`),
+        // never by attaching to another version's broker.
         const sharedWorker = new SharedWorker(
             new URL("./unique_worker_broker.js", import.meta.url),
-            {type: "module", name: "unique-worker-broker"},
+            {
+                type: "module",
+            },
         );
         this.brokerPort = sharedWorker.port;
         this.brokerPort.onmessage = event => this.handleBrokerMessage(event);
@@ -599,6 +611,9 @@ export class UniqueWorkerClient<
                 }
                 break;
             }
+            case "unique-worker:outdated":
+                this.options.onOutdated?.();
+                break;
             default:
                 // Other protocol messages never target a client.
                 break;

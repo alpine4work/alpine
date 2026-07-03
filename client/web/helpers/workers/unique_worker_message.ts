@@ -7,7 +7,7 @@
  * - Tab → broker (SharedWorker port): `hello`, `register-leader`,
  *   `unregister-leader`, `connect` (carries a transferred MessagePort).
  * - Broker → tab: `connect-request` (to the leader, carries a transferred
- *   MessagePort) and `leader-lost` (broadcast).
+ *   MessagePort), `leader-lost` (broadcast), and `outdated` (broadcast).
  * - Leader tab → dedicated worker: `connect-port` (carries a transferred
  *   MessagePort).
  * - Dedicated worker ↔ tab (over the connection port): `ready` from the worker,
@@ -57,6 +57,13 @@ export type UniqueWorkerMessage =
            */
           readonly type: "unique-worker:leader-lost";
           readonly key: string;
+      }
+    | {
+          /**
+           * Broker → all tabs: a broker from a newer app version took over (it stole the
+           * generation Web Lock). This tab is running stale code and should reload.
+           */
+          readonly type: "unique-worker:outdated";
       }
     | {
           /**

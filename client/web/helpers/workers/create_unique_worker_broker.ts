@@ -8,6 +8,13 @@ export interface UniqueWorkerBroker {
     handleConnect(port: MessagePort): void;
 }
 
+/**
+ * Web Lock identifying the current app-version generation. Each broker steals it
+ * on startup; the previous holder (the previous version's broker) learns it has
+ * been superseded from the steal and tells its tabs to reload.
+ */
+export const uniqueWorkerBrokerGenerationLockName = "unique-worker:broker-generation";
+
 interface UniqueWorkerBrokerClient {
     readonly port: MessagePort;
     helloReceived: boolean;
@@ -25,6 +32,14 @@ interface UniqueWorkerBrokerClient {
  * Clients are detected as gone via the Web Lock each of them holds for its
  * lifetime (sent in the hello message): a `shared`-mode request for that lock is
  * granted the moment the client goes away.
+ *
+ * The broker script URL is content-hashed, so each deployed app version gets its
+ * own broker instance (SharedWorkers are keyed by URL). On startup the broker
+ * steals the generation Web Lock; when that lock is later stolen from _us_, a
+ * newer version's broker has started, and we tell all our (stale) tabs to reload.
+ * The election locks are version-independent, so at most one dedicated worker
+ * exists across versions; a newer tab simply queues on the lock until the old tabs
+ * reload and release it.
  */
 export function createUniqueWorkerBroker(): UniqueWorkerBroker {
     const clients = new Set<UniqueWorkerBrokerClient>();
@@ -33,6 +48,22 @@ export function createUniqueWorkerBroker(): UniqueWorkerBroker {
         string,
         Array<{port: MessagePort; from: UniqueWorkerBrokerClient}>
     >();
+    let outdated = false;
+
+    navigator.locks
+        .request(
+            uniqueWorkerBrokerGenerationLockName,
+            {steal: true},
+            () => new Promise<never>(() => {}),
+        )
+        .catch((error: unknown) => {
+            // The steal rejects the previous holder's request with AbortError — receiving one
+            // means a newer version's broker took over.
+            if (error instanceof DOMException && error.name === "AbortError") {
+                outdated = true;
+                broadcast({type: "unique-worker:outdated"}, null);
+            }
+        });
 
     function broadcast(message: UniqueWorkerMessage, except: UniqueWorkerBrokerClient | null) {
         for (const client of clients) {
@@ -149,6 +180,11 @@ export function createUniqueWorkerBroker(): UniqueWorkerBroker {
             if (client.helloReceived) return;
             client.helloReceived = true;
             clients.add(client);
+            // A tab that connects to an already-superseded broker (e.g. restored from the
+            // back/forward cache) is stale too — tell it right away.
+            if (outdated) {
+                client.port.postMessage({type: "unique-worker:outdated"});
+            }
             // The client holds this lock exclusively for its lifetime; a shared request is
             // granted the moment the client goes away.
             void navigator.locks.request(message.clientLockName, {mode: "shared"}, async () => {

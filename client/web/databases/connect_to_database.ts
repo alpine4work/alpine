@@ -213,6 +213,7 @@ async function connectToDatabaseGroup(options: ConnectOptions): Promise<Database
             }
         },
         onFailed: error => options.reportError?.(error.message),
+        onOutdated: reloadForNewAlpineVersion,
     });
 
     const call = ((method, input) =>
@@ -265,4 +266,20 @@ async function connectToDatabaseGroup(options: ConnectOptions): Promise<Database
         watchAction: (name, input) => watchAction({name, input} as DatabaseActionObject),
         close: () => client.close(),
     };
+}
+
+/**
+ * A newer Alpine version started in another tab; this tab is running stale code
+ * and its database calls would hang against a leader that no longer serves it.
+ * Reload to pick up the new bundle.
+ */
+function reloadForNewAlpineVersion(): void {
+    // Guard against reload loops in case a stale bundle keeps being served (e.g.
+    // aggressively cached HTML): at most one outdated-triggered reload per tab per 10
+    // seconds.
+    const guardKey = "alpine-databases-outdated-reload";
+    const lastReload = Number(window.sessionStorage.getItem(guardKey) ?? 0);
+    if (Date.now() - lastReload < 10_000) return;
+    window.sessionStorage.setItem(guardKey, String(Date.now()));
+    window.location.reload();
 }

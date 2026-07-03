@@ -1,4 +1,7 @@
-import {createUniqueWorkerBroker} from "~/client/web/helpers/workers/create_unique_worker_broker.js";
+import {
+    createUniqueWorkerBroker,
+    uniqueWorkerBrokerGenerationLockName,
+} from "~/client/web/helpers/workers/create_unique_worker_broker.js";
 import {installUniqueWorkerTestMocks} from "~/client/web/helpers/workers/test_helpers/install_unique_worker_test_mocks.js";
 import {settleUniqueWorkerTest} from "~/client/web/helpers/workers/test_helpers/settle_unique_worker_test.js";
 
@@ -185,6 +188,37 @@ describe("createUniqueWorkerBroker", () => {
         await settleUniqueWorkerTest();
 
         expect(lateLeader.received).toHaveLength(0);
+    });
+
+    test("losing the generation lock to a newer broker tells all clients they are outdated", async () => {
+        const broker = createTestBroker();
+        const tabA = await broker.connectTab();
+        const tabB = await broker.connectTab();
+
+        // A broker from a newer app version starts and steals the generation lock.
+        void navigator.locks.request(
+            uniqueWorkerBrokerGenerationLockName,
+            {steal: true},
+            () => new Promise(() => {}),
+        );
+        await settleUniqueWorkerTest();
+
+        expect(receivedTypes(tabA.received)).toEqual(["unique-worker:outdated"]);
+        expect(receivedTypes(tabB.received)).toEqual(["unique-worker:outdated"]);
+    });
+
+    test("clients connecting to an already-superseded broker are told immediately", async () => {
+        const broker = createTestBroker();
+        void navigator.locks.request(
+            uniqueWorkerBrokerGenerationLockName,
+            {steal: true},
+            () => new Promise(() => {}),
+        );
+        await settleUniqueWorkerTest();
+
+        const lateTab = await broker.connectTab();
+
+        expect(receivedTypes(lateTab.received)).toEqual(["unique-worker:outdated"]);
     });
 
     test("messages before hello are ignored", async () => {

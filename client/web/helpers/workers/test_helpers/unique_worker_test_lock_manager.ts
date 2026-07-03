@@ -1,10 +1,12 @@
 // Test-only in-memory `navigator.locks` replacement. Implements the subset the
 // unique worker system uses: exclusive/shared modes, FIFO granting, abort signals,
-// and — for simulating tab death — force-releasing held locks.
+// `steal`, and — for simulating tab death — force-releasing held locks.
 
 interface UniqueWorkerTestLockHolder {
     readonly mode: "exclusive" | "shared";
     released: boolean;
+    // Rejects the holder's original `request()` promise; used by `steal`.
+    rejectRequest(error: Error): void;
 }
 
 interface UniqueWorkerTestLockWaiter {
@@ -46,7 +48,11 @@ export class UniqueWorkerTestLockManager {
                 removed: false,
                 grant: () => {
                     waiter.removed = true;
-                    const holder: UniqueWorkerTestLockHolder = {mode, released: false};
+                    const holder: UniqueWorkerTestLockHolder = {
+                        mode,
+                        released: false,
+                        rejectRequest: reject,
+                    };
                     state.holders.push(holder);
                     const release = () => {
                         if (holder.released) return;
@@ -65,6 +71,18 @@ export class UniqueWorkerTestLockManager {
                     });
                 },
             };
+            if (options.steal) {
+                // A steal releases current holders (rejecting their `request()` promises with
+                // AbortError) and is granted immediately, jumping the queue — like the real API.
+                for (const holder of [...state.holders]) {
+                    holder.released = true;
+                    holder.rejectRequest(uniqueWorkerTestAbortError());
+                }
+                state.holders.length = 0;
+                waiter.grant();
+                return;
+            }
+
             state.queue.push(waiter);
             signal?.addEventListener("abort", () => {
                 // Aborting after the grant is ignored, like the real API.
