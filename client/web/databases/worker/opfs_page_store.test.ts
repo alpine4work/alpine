@@ -1,6 +1,6 @@
+import {createInMemoryOpfsDirectoryHandle} from "~/client/web/databases/test_helpers/in_memory_opfs.js";
 import type {OpfsDirectoryHandle} from "~/client/web/databases/worker/opfs.js";
 import {OpfsPageStore} from "~/client/web/databases/worker/opfs_page_store.js";
-import {createInMemoryOpfsDirectoryHandle} from "~/client/web/databases/test_helpers/in_memory_opfs.js";
 import {sqlitePageSize} from "~/shared/databases/sqlite_constants.js";
 
 function makePage(byte: number): Uint8Array {

@@ -1,5 +1,3 @@
-/* eslint-disable cyberworlds/string-quotes -- SQL literals */
-
 import sqlite3InitModule from "~/external/sqlite/ext/wasm/jswasm/sqlite3.mjs";
 import {databaseCheckboxFieldProvider} from "~/shared/databases/fields/database_checkbox_field.js";
 import {sql} from "~/shared/databases/sql.js";
@@ -64,7 +62,7 @@ describe("databaseCheckboxFieldProvider", () => {
     });
 
     describe("formatString", () => {
-        test("true → 'true', false → 'false'", () => {
+        test("true formats to true and false formats to false", () => {
             expect(databaseCheckboxFieldProvider.valueToString(true)).toBe("true");
             expect(databaseCheckboxFieldProvider.valueToString(false)).toBe("false");
         });

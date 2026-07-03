@@ -1,5 +1,3 @@
-/* eslint-disable cyberworlds/string-quotes -- SQL literals */
-
 import type {
     DatabaseReactiveActionHandle,
     DatabaseReactiveActionResult,
@@ -18,6 +16,7 @@ import type {
     DatabaseActionOutput,
 } from "~/shared/databases/database_actions.js";
 import type {DatabasePages} from "~/shared/databases/database_protocol_schemas.js";
+import {SqlQuery, sql} from "~/shared/databases/sql.js";
 import {databaseViewTargetRowsPerPage} from "~/shared/databases/sqlite_constants.js";
 import {runMainMigrations} from "~/shared/databases/sqlite_migrations.js";
 import {InternalError} from "~/shared/error/error.js";
@@ -44,7 +43,7 @@ const testClientConn = makeDatabaseClientConnection();
  */
 function createTestConnection(client: DatabaseClient): {
     conn: DatabaseWorkerConnection;
-    mutate: (sql: string) => Promise<void>;
+    mutate: (query: SqlQuery) => Promise<void>;
 } {
     let watchIdCounter = 0;
 
@@ -109,8 +108,8 @@ function createTestConnection(client: DatabaseClient): {
 
     return {
         conn,
-        async mutate(sql: string) {
-            await client.executeAction(testClientConn, {name: "rawSql", input: {sql}});
+        async mutate(query: SqlQuery) {
+            await client.executeAction(testClientConn, {name: "rawSql", input: {sql: query.query}});
         },
     };
 }
@@ -162,7 +161,7 @@ async function setupTestDatabase(): Promise<{
     conn: DatabaseWorkerConnection;
     viewId: string;
     tableName: string;
-    mutate: (sql: string) => Promise<void>;
+    mutate: (query: SqlQuery) => Promise<void>;
 }> {
     const dir = createInMemoryOpfsDirectoryHandle();
     const client = await DatabaseClient.create(dir);
@@ -188,8 +187,15 @@ async function insertRows(
     tableName: string,
     n: number,
 ): Promise<void> {
-    const values = Array.from({length: n}, (_, i) => `('Task ${i}')`).join(", ");
-    await conn.executeAction("rawSql", {sql: `INSERT INTO ${tableName} (name) VALUES ${values}`});
+    const values = Array.from({length: n}, (_, i) => sql`(${"Task " + i})`);
+    await conn.executeAction("rawSql", {
+        sql: sql`
+            INSERT INTO
+                ${sql.identifier(tableName)} (name)
+            VALUES
+                ${sql.join(values, ", ")}
+        `.query,
+    });
 }
 
 function getTreeItemCount(query: DatabaseQuery): number {
@@ -365,7 +371,12 @@ describe("DatabaseQuery reactive updates", () => {
 
         expect(getTreeItemCount(query)).toBe(3);
 
-        await mutate(`INSERT INTO ${tableName} (name) VALUES ('New task')`);
+        await mutate(sql`
+            INSERT INTO
+                ${sql.identifier(tableName)} (name)
+            VALUES
+                (${"New task"})
+        `);
         await flush();
 
         expect(getTreeItemCount(query)).toBe(4);
@@ -387,7 +398,11 @@ describe("DatabaseQuery reactive updates", () => {
         const items = getTreeItems(query);
         const targetId = items[0]!.getId();
 
-        await mutate(`DELETE FROM ${tableName} WHERE _id = '${targetId}'`);
+        await mutate(sql`
+            DELETE FROM ${sql.identifier(tableName)}
+            WHERE
+                _id = ${targetId}
+        `);
         await flush();
 
         expect(getTreeItemCount(query)).toBe(4);
@@ -405,7 +420,7 @@ describe("DatabaseQuery reactive updates", () => {
 
         expect(getTreeItemCount(query)).toBe(2);
 
-        await mutate(`DELETE FROM ${tableName}`);
+        await mutate(sql`DELETE FROM ${sql.identifier(tableName)}`);
         await flush();
 
         expect(getTreeItemCount(query)).toBe(0);
@@ -565,23 +580,39 @@ function makeId(time: number): DatabaseRowId {
 }
 
 async function insertRowsWithIds(
-    mutate: (sql: string) => Promise<void>,
+    mutate: (query: SqlQuery) => Promise<void>,
     tableName: string,
     times: ReadonlyArray<number>,
 ): Promise<void> {
     if (times.length === 0) return;
-    const values = times.map(t => `('${makeId(t)}', 'Row ${t}')`).join(", ");
-    await mutate(`INSERT INTO ${tableName} (_id, name) VALUES ${values}`);
+    const values = times.map(
+        t => sql`
+            (
+                ${makeId(t)},
+                ${`Row ${t}`}
+            )
+        `,
+    );
+    await mutate(sql`
+        INSERT INTO
+            ${sql.identifier(tableName)} (_id, name)
+        VALUES
+            ${sql.join(values, ", ")}
+    `);
 }
 
 async function deleteRowsWithIds(
-    mutate: (sql: string) => Promise<void>,
+    mutate: (query: SqlQuery) => Promise<void>,
     tableName: string,
     times: ReadonlyArray<number>,
 ): Promise<void> {
     if (times.length === 0) return;
-    const ids = times.map(t => `'${makeId(t)}'`).join(", ");
-    await mutate(`DELETE FROM ${tableName} WHERE _id IN (${ids})`);
+    const ids = times.map(t => sql`${makeId(t)}`);
+    await mutate(sql`
+        DELETE FROM ${sql.identifier(tableName)}
+        WHERE
+            _id IN (${sql.join(ids, ", ")})
+    `);
 }
 
 /**

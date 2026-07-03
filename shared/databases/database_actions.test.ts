@@ -1,5 +1,3 @@
-/* eslint-disable cyberworlds/string-quotes -- SQL literals */
-
 import sqlite3InitModule, {Database} from "~/external/sqlite/ext/wasm/jswasm/sqlite3.mjs";
 import {
     type DatabaseActionContext,
@@ -601,7 +599,14 @@ describe("rawSql", () => {
         `.exec(db);
 
         const {rows} = run(db, "rawSql", {
-            sql: `SELECT name FROM ${sql.tableRef(tableId, tableName).query} ORDER BY name`,
+            sql: sql`
+                SELECT
+                    name
+                FROM
+                    ${sql.tableRef(tableId, tableName)}
+                ORDER BY
+                    name
+            `.query,
         });
 
         expect(rows).toMatchObject([{name: "a"}, {name: "b"}]);
@@ -613,7 +618,12 @@ describe("rawSql", () => {
         const {tableId, tableName} = run(db, "createTable", {name: "T"});
 
         run(db, "rawSql", {
-            sql: `INSERT INTO ${sql.tableRef(tableId, tableName).query} (name) VALUES ('inserted')`,
+            sql: sql`
+                INSERT INTO
+                    ${sql.tableRef(tableId, tableName)} (name)
+                VALUES
+                    ('inserted')
+            `.query,
         });
 
         const rows = sql`
@@ -639,7 +649,12 @@ describe("readonlyRawSql", () => {
         `.exec(db);
 
         const {rows} = run(db, "readonlyRawSql", {
-            sql: `SELECT name FROM ${sql.tableRef(tableId, tableName).query}`,
+            sql: sql`
+                SELECT
+                    name
+                FROM
+                    ${sql.tableRef(tableId, tableName)}
+            `.query,
         });
 
         expect(rows).toMatchObject([{name: "hello"}]);
@@ -651,7 +666,12 @@ describe("readonlyRawSql", () => {
         const {tableId, tableName} = run(db, "createTable", {name: "T"});
 
         const {rows} = run(db, "readonlyRawSql", {
-            sql: `SELECT * FROM ${sql.tableRef(tableId, tableName).query}`,
+            sql: sql`
+                SELECT
+                    *
+                FROM
+                    ${sql.tableRef(tableId, tableName)}
+            `.query,
         });
 
         expect(rows).toEqual([]);
@@ -1415,7 +1435,7 @@ describe("getViewRowsPage", () => {
         expect(endOnly.rows.map(r => r[0])).toEqual([ids[0], ids[1]]);
     });
 
-    test("checkbox values are deserialized via the field provider's sqlValueSchema", async () => {
+    test("checkbox values are deserialized via the field provider sqlValueSchema", async () => {
         const db = await createDb();
         const {tableId, viewId, tableName} = run(db, "createTable", {name: "T"});
         const {fieldId} = addFieldAndGetId(db, tableId, viewId, "Done", "checkbox");

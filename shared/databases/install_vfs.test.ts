@@ -1,7 +1,6 @@
-/* eslint-disable cyberworlds/string-quotes -- SQL literals */
-
 import sqlite3InitModule from "~/external/sqlite/ext/wasm/jswasm/sqlite3.mjs";
 import {installVfs} from "~/shared/databases/install_vfs.js";
+import {sql} from "~/shared/databases/sql.js";
 import {VfsTempFile} from "~/shared/databases/vfs_temp_file.js";
 import {InternalError} from "~/shared/error/error.js";
 
@@ -37,11 +36,23 @@ describe("installVfs", () => {
         });
 
         const db = new sqlite3.oo1.DB("/test.db", "ct", name);
-        db.exec("CREATE TABLE t (id INTEGER PRIMARY KEY, val TEXT)");
+        db.exec(sql`CREATE TABLE t (id INTEGER PRIMARY KEY, val TEXT)`.query);
 
-        db.exec("INSERT INTO t VALUES (1, 'hello')");
+        db.exec(sql`
+            INSERT INTO
+                t
+            VALUES
+                (1, 'hello')
+        `.query);
 
-        expect(db.selectArray("SELECT val FROM t")).toEqual(["hello"]);
+        expect(
+            db.selectArray(sql`
+                SELECT
+                    val
+                FROM
+                    t
+            `.query),
+        ).toEqual(["hello"]);
         db.close();
     });
 
@@ -108,7 +119,7 @@ describe("installVfs", () => {
 
             // Now make writes throw. CREATE TABLE triggers xWrite.
             shouldThrow = true;
-            expect(() => db.exec("CREATE TABLE t (id INTEGER)")).toThrow();
+            expect(() => db.exec(sql`CREATE TABLE t (id INTEGER)`.query)).toThrow();
             expect(vfs.takeError()).toBe(testError);
 
             db.close();
@@ -141,7 +152,7 @@ describe("installVfs", () => {
             const db = new sqlite3.oo1.DB("/test-clear.db", "ct", name);
 
             shouldThrow = true;
-            expect(() => db.exec("CREATE TABLE t (id INTEGER)")).toThrow();
+            expect(() => db.exec(sql`CREATE TABLE t (id INTEGER)`.query)).toThrow();
 
             expect(vfs.takeError()).toBeInstanceOf(Error);
             expect(vfs.takeError()).toBeNull();
@@ -182,7 +193,7 @@ describe("installVfs", () => {
             const db = new sqlite3.oo1.DB("/test-first.db", "ct", name);
 
             shouldThrow = true;
-            expect(() => db.exec("CREATE TABLE t (id INTEGER)")).toThrow();
+            expect(() => db.exec(sql`CREATE TABLE t (id INTEGER)`.query)).toThrow();
 
             expect(vfs.takeError()).toBe(firstError);
             db.close();
@@ -206,7 +217,12 @@ describe("installVfs", () => {
 
             const db = new sqlite3.oo1.DB("/test-access.db", "ct", name);
             // SQLite checks for hot journals when acquiring a shared lock for the first read.
-            db.exec("SELECT * FROM sqlite_schema");
+            db.exec(sql`
+                SELECT
+                    *
+                FROM
+                    sqlite_schema
+            `.query);
             expect(accessedFiles.length).toBeGreaterThan(0);
             db.close();
         });
@@ -226,7 +242,7 @@ describe("installVfs", () => {
 
             const db = new sqlite3.oo1.DB("/test-delete.db", "ct", name);
             // A write transaction creates and then deletes the journal file on commit.
-            db.exec("CREATE TABLE t (id INTEGER)");
+            db.exec(sql`CREATE TABLE t (id INTEGER)`.query);
             expect(deletedFiles.length).toBeGreaterThan(0);
             db.close();
         });

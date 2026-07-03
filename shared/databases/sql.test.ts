@@ -1,5 +1,3 @@
-/* eslint-disable cyberworlds/string-quotes -- SQL literals */
-
 import sqlite3InitModule from "~/external/sqlite/ext/wasm/jswasm/sqlite3.mjs";
 import type {Database} from "~/external/sqlite/ext/wasm/jswasm/sqlite3.mjs";
 import {SqlQuery, sql} from "~/shared/databases/sql.js";
@@ -7,16 +5,32 @@ import type {DatabaseTableId} from "~/shared/id/types/id_types.js";
 import {JsonStringifiableUint8Array, Schema} from "~/shared/schema/schema.js";
 
 const sqlite3Promise = sqlite3InitModule();
+const sqliteDoubleQuote = String.fromCharCode(34);
 
 let db: Database;
 
 beforeEach(async () => {
     const sqlite3 = await sqlite3Promise;
     db = new sqlite3.oo1.DB(":memory:", "ct");
-    db.exec("CREATE TABLE t(id INTEGER PRIMARY KEY, name TEXT, score INTEGER)");
-    db.exec("INSERT INTO t VALUES(1, 'alice', 10)");
-    db.exec("INSERT INTO t VALUES(2, 'bob', 20)");
-    db.exec("INSERT INTO t VALUES(3, 'carol', 30)");
+    db.exec(sql`CREATE TABLE t (id INTEGER PRIMARY KEY, name TEXT, score INTEGER)`.query);
+    db.exec(sql`
+        INSERT INTO
+            t
+        VALUES
+            (1, 'alice', 10)
+    `.query);
+    db.exec(sql`
+        INSERT INTO
+            t
+        VALUES
+            (2, 'bob', 20)
+    `.query);
+    db.exec(sql`
+        INSERT INTO
+            t
+        VALUES
+            (3, 'carol', 30)
+    `.query);
 });
 
 afterEach(() => {
@@ -117,7 +131,9 @@ describe("sql tagged template", () => {
             WHERE
                 id = ${1}
         `;
-        expect(structure(q.query)).toBe('SELECT * FROM "t" WHERE id = ?');
+        expect(structure(q.query)).toBe(
+            `SELECT * FROM ${sqliteDoubleQuote}t${sqliteDoubleQuote} WHERE id = ?`,
+        );
         expect(q.bind).toEqual([1]);
     });
 
@@ -147,29 +163,37 @@ describe("sql.raw", () => {
 describe("sql.identifier", () => {
     test("quotes a simple name", () => {
         const q = sql.identifier("my_table");
-        expect(q.query).toBe('"my_table"');
+        expect(q.query).toBe(`${sqliteDoubleQuote}my_table${sqliteDoubleQuote}`);
     });
 
     test("escapes double quotes", () => {
-        const q = sql.identifier('my "table"');
-        expect(q.query).toBe('"my ""table"""');
+        const q = sql.identifier(["my ", "table"].join(sqliteDoubleQuote));
+        expect(q.query).toBe(
+            `${sqliteDoubleQuote}my ${sqliteDoubleQuote}${sqliteDoubleQuote}table${sqliteDoubleQuote}${sqliteDoubleQuote}${sqliteDoubleQuote}`,
+        );
     });
 
     test("qualifies multiple names", () => {
         const q = sql.identifier("table_alias", "column_name");
-        expect(q.query).toBe('"table_alias"."column_name"');
+        expect(q.query).toBe(
+            `${sqliteDoubleQuote}table_alias${sqliteDoubleQuote}.${sqliteDoubleQuote}column_name${sqliteDoubleQuote}`,
+        );
     });
 });
 
 describe("sql.tableRef", () => {
-    test("qualifies a name with the table's prefixed schema", () => {
+    test("qualifies a name with the table prefixed schema", () => {
         const q = sql.tableRef("abc123" as DatabaseTableId, "my_table");
-        expect(q.query).toBe('"_alpine_schema_abc123"."my_table"');
+        expect(q.query).toBe(
+            `${sqliteDoubleQuote}_alpine_schema_abc123${sqliteDoubleQuote}.${sqliteDoubleQuote}my_table${sqliteDoubleQuote}`,
+        );
     });
 
     test("escapes double quotes in the name", () => {
-        const q = sql.tableRef("abc123" as DatabaseTableId, 'c "d"');
-        expect(q.query).toBe('"_alpine_schema_abc123"."c ""d"""');
+        const q = sql.tableRef("abc123" as DatabaseTableId, ["c ", "d"].join(sqliteDoubleQuote));
+        expect(q.query).toBe(
+            `${sqliteDoubleQuote}_alpine_schema_abc123${sqliteDoubleQuote}.${sqliteDoubleQuote}c ${sqliteDoubleQuote}${sqliteDoubleQuote}d${sqliteDoubleQuote}${sqliteDoubleQuote}${sqliteDoubleQuote}`,
+        );
     });
 });
 
@@ -238,7 +262,7 @@ describe("selectAll", () => {
 });
 
 describe("selectValues", () => {
-    test("returns each row's single column as an array", () => {
+    test("returns each row single column as an array", () => {
         const names = sql`
             SELECT
                 name

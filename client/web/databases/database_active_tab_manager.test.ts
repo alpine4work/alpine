@@ -1,5 +1,3 @@
-/* eslint-disable cyberworlds/string-quotes -- SQL literals */
-
 import {
     type ActiveTabBroadcastChannel,
     type ActiveTabLockManager,
@@ -21,7 +19,7 @@ import {DatabaseClient} from "~/client/web/databases/worker/database_client.js";
 import type {OpfsDirectoryHandle} from "~/client/web/databases/worker/opfs.js";
 import type {DatabaseExecuteActionResponse} from "~/shared/databases/database_protocol_schemas.js";
 import {diffPage} from "~/shared/databases/page_diff.js";
-import {sql} from "~/shared/databases/sql.js";
+import {SqlQuery, sql} from "~/shared/databases/sql.js";
 import {databaseMainTableId, sqlitePageSize} from "~/shared/databases/sqlite_constants.js";
 import {runMainMigrations} from "~/shared/databases/sqlite_migrations.js";
 import {generateId} from "~/shared/id/id.js";
@@ -72,9 +70,9 @@ async function createSeededTestDir(
 
 async function executeSql(
     conn: DatabaseWorkerConnection,
-    sql: string,
+    query: SqlQuery,
 ): Promise<Array<Record<string, unknown>>> {
-    const result = await conn.executeAction("rawSql", {sql});
+    const result = await conn.executeAction("rawSql", {sql: query.query});
     return result.rows as Array<Record<string, unknown>>;
 }
 
@@ -477,11 +475,17 @@ describe("DatabaseActiveTabManager", () => {
         const {manager} = createTestTab({locks, sw, bc, clientId: "tab-a", dir});
         const conn = await manager.connect();
 
-        const rows = await executeSql(conn, "SELECT 1 + 1 AS result");
+        const rows = await executeSql(
+            conn,
+            sql`
+                SELECT
+                    1 + 1 AS result
+            `,
+        );
         expect(rows).toMatchObject([{result: 2}]);
     });
 
-    test("follower queries reach leader's worker", async () => {
+    test("follower queries reach leader worker", async () => {
         const locks = new MockLockManager();
         const sw = new MockServiceWorkerBridge();
         const bc = new MockBroadcastChannelBus();
@@ -500,9 +504,25 @@ describe("DatabaseActiveTabManager", () => {
             sql`CREATE TABLE t (id INTEGER PRIMARY KEY, name TEXT)`,
         );
         await tabA.worker.commitOptimisticPagesForTests(testDatabaseGroupId);
-        await executeSql(connA, "INSERT INTO t (name) VALUES ('hello')");
+        await executeSql(
+            connA,
+            sql`
+                INSERT INTO
+                    t (name)
+                VALUES
+                    ('hello')
+            `,
+        );
 
-        const rows = await executeSql(connB, "SELECT * FROM t");
+        const rows = await executeSql(
+            connB,
+            sql`
+                SELECT
+                    *
+                FROM
+                    t
+            `,
+        );
         expect(rows).toMatchObject([{id: 1, name: "hello"}]);
     });
 
@@ -524,10 +544,36 @@ describe("DatabaseActiveTabManager", () => {
             sql`CREATE TABLE items (id INTEGER PRIMARY KEY, val TEXT)`,
         );
         await tabA.worker.commitOptimisticPagesForTests(testDatabaseGroupId);
-        await executeSql(connA, "INSERT INTO items (val) VALUES ('from-a')");
-        await executeSql(connB, "INSERT INTO items (val) VALUES ('from-b')");
+        await executeSql(
+            connA,
+            sql`
+                INSERT INTO
+                    items (val)
+                VALUES
+                    ('from-a')
+            `,
+        );
+        await executeSql(
+            connB,
+            sql`
+                INSERT INTO
+                    items (val)
+                VALUES
+                    ('from-b')
+            `,
+        );
 
-        const rows = await executeSql(connC, "SELECT val FROM items ORDER BY id");
+        const rows = await executeSql(
+            connC,
+            sql`
+                SELECT
+                    val
+                FROM
+                    items
+                ORDER BY
+                    id
+            `,
+        );
         expect(rows).toMatchObject([{val: "from-a"}, {val: "from-b"}]);
     });
 });
@@ -564,7 +610,15 @@ describe("DatabaseActiveTabManager resilience", () => {
 
         // Follower's connection should still work (it becomes the new leader via
         // lock-wait). The call is queued until promotion completes.
-        const rows = await executeSql(connB, "SELECT * FROM t");
+        const rows = await executeSql(
+            connB,
+            sql`
+                SELECT
+                    *
+                FROM
+                    t
+            `,
+        );
         expect(rows).toMatchObject([{id: 42}]);
     });
 
@@ -601,7 +655,15 @@ describe("DatabaseActiveTabManager resilience", () => {
         locks.release("alpine-db");
 
         // Follower takes over — queries should succeed
-        const rows = await executeSql(connB, "SELECT * FROM t");
+        const rows = await executeSql(
+            connB,
+            sql`
+                SELECT
+                    *
+                FROM
+                    t
+            `,
+        );
         expect(rows).toMatchObject([{id: 1, val: "hello"}]);
     });
 
@@ -642,8 +704,28 @@ describe("DatabaseActiveTabManager resilience", () => {
         // Submit multiple queries before reconnection settles — they should all be queued
         // and eventually resolve.
         const [rows1, rows2] = await Promise.all([
-            executeSql(connB, "SELECT * FROM t WHERE id = 1"),
-            executeSql(connB, "SELECT * FROM t WHERE id = 2"),
+            executeSql(
+                connB,
+                sql`
+                    SELECT
+                        *
+                    FROM
+                        t
+                    WHERE
+                        id = 1
+                `,
+            ),
+            executeSql(
+                connB,
+                sql`
+                    SELECT
+                        *
+                    FROM
+                        t
+                    WHERE
+                        id = 2
+                `,
+            ),
         ]);
 
         expect(rows1).toMatchObject([{id: 1}]);
@@ -682,7 +764,15 @@ describe("DatabaseActiveTabManager resilience", () => {
 
         // Follower should recover: lock is released by closeConnection(), lock-wait fires,
         // follower promotes to leader.
-        const rows = await executeSql(connB, "SELECT * FROM t");
+        const rows = await executeSql(
+            connB,
+            sql`
+                SELECT
+                    *
+                FROM
+                    t
+            `,
+        );
         expect(rows).toMatchObject([{id: 1, val: "nav"}]);
     });
 
@@ -717,8 +807,24 @@ describe("DatabaseActiveTabManager resilience", () => {
         // Both followers should recover — one becomes leader, the other reconnects as
         // follower to it.
         const [rowsB, rowsC] = await Promise.all([
-            executeSql(connB, "SELECT * FROM t"),
-            executeSql(connC, "SELECT * FROM t"),
+            executeSql(
+                connB,
+                sql`
+                    SELECT
+                        *
+                    FROM
+                        t
+                `,
+            ),
+            executeSql(
+                connC,
+                sql`
+                    SELECT
+                        *
+                    FROM
+                        t
+                `,
+            ),
         ]);
 
         expect(rowsB).toMatchObject([{id: 1, val: "data"}]);
@@ -755,7 +861,17 @@ describe("DatabaseActiveTabManager mutations", () => {
             sql`CREATE TABLE t (id INTEGER PRIMARY KEY, title TEXT)`,
         );
         await tab.worker.commitOptimisticPagesForTests(testDatabaseGroupId);
-        const rows = await executeSql(conn, "INSERT INTO t (title) VALUES ('hello') RETURNING *");
+        const rows = await executeSql(
+            conn,
+            sql`
+                INSERT INTO
+                    t (title)
+                VALUES
+                    ('hello')
+                RETURNING
+                    *
+            `,
+        );
 
         // Result comes from local optimistic execution
         expect(rows).toMatchObject([{id: 1, title: "hello"}]);
@@ -765,7 +881,7 @@ describe("DatabaseActiveTabManager mutations", () => {
         expect(capturedMutationId).not.toBeNull();
     });
 
-    test("follower mutations route through follower's executeActionServer", async () => {
+    test("follower mutations route through follower executeActionServer", async () => {
         const locks = new MockLockManager();
         const sw = new MockServiceWorkerBridge();
         const bc = new MockBroadcastChannelBus();
@@ -787,7 +903,15 @@ describe("DatabaseActiveTabManager mutations", () => {
             sql`CREATE TABLE t (id INTEGER PRIMARY KEY, done INTEGER DEFAULT 0)`,
         );
         await tabA.worker.commitOptimisticPagesForTests(testDatabaseGroupId);
-        await executeSql(connA, "INSERT INTO t (id) VALUES (1)");
+        await executeSql(
+            connA,
+            sql`
+                INSERT INTO
+                    t (id)
+                VALUES
+                    (1)
+            `,
+        );
 
         // Tab B — follower with working executeActionServer
         let capturedAction: {name: string; input: unknown} | null = null;
@@ -807,13 +931,26 @@ describe("DatabaseActiveTabManager mutations", () => {
         });
         const connB = await managerB.connect();
 
-        await executeSql(connB, "UPDATE t SET done = 1");
+        await executeSql(
+            connB,
+            sql`
+                UPDATE t
+                SET
+                    done = 1
+            `,
+        );
 
         // Background server call routes through follower's executeActionServer
         await new Promise(resolve => setTimeout(resolve, 0));
         expect(capturedAction).toMatchObject({
             name: "rawSql",
-            input: {sql: "UPDATE t SET done = 1"},
+            input: {
+                sql: sql`
+                    UPDATE t
+                    SET
+                        done = 1
+                `.query,
+            },
         });
     });
 
@@ -833,7 +970,17 @@ describe("DatabaseActiveTabManager mutations", () => {
         const conn = await manager.connect();
 
         // No table exists — local execution fails
-        await expect(executeSql(conn, "INSERT INTO nonexistent VALUES (1)")).rejects.toThrow();
+        await expect(
+            executeSql(
+                conn,
+                sql`
+                    INSERT INTO
+                        nonexistent
+                    VALUES
+                        (1)
+                `,
+            ),
+        ).rejects.toThrow();
     });
 });
 
@@ -852,12 +999,30 @@ describe("Reactive actions", () => {
             sql`CREATE TABLE t (id INTEGER PRIMARY KEY, val TEXT)`,
         );
         await tab.worker.commitOptimisticPagesForTests(testDatabaseGroupId);
-        await executeSql(conn, "INSERT INTO t (val) VALUES ('hello')");
+        await executeSql(
+            conn,
+            sql`
+                INSERT INTO
+                    t (val)
+                VALUES
+                    ('hello')
+            `,
+        );
 
         const id = generateId<DatabaseReactiveActionId>();
         const result = await conn.call("registerReactiveAction", {
             id,
-            action: {name: "readonlyRawSql" as const, input: {sql: "SELECT * FROM t"}},
+            action: {
+                name: "readonlyRawSql" as const,
+                input: {
+                    sql: sql`
+                        SELECT
+                            *
+                        FROM
+                            t
+                    `.query,
+                },
+            },
         });
 
         expect(result.error).toBeNull();
@@ -878,12 +1043,27 @@ describe("Reactive actions", () => {
             sql`CREATE TABLE t (id INTEGER PRIMARY KEY, val TEXT)`,
         );
         await tab.worker.commitOptimisticPagesForTests(testDatabaseGroupId);
-        await executeSql(conn, "INSERT INTO t (val) VALUES ('v1')");
+        await executeSql(
+            conn,
+            sql`
+                INSERT INTO
+                    t (val)
+                VALUES
+                    ('v1')
+            `,
+        );
 
         // Use watchAction so the store snapshot reflects re-executions
         // (registerReactiveAction directly is fire-and-forget; nothing observable
         // downstream).
-        const handle = await conn.watchAction("readonlyRawSql", {sql: "SELECT * FROM t"});
+        const handle = await conn.watchAction("readonlyRawSql", {
+            sql: sql`
+                SELECT
+                    *
+                FROM
+                    t
+            `.query,
+        });
         expect(handle.store.getSnapshot()).toMatchObject({
             ok: true,
             value: {rows: [{id: 1, val: "v1"}]},
@@ -891,7 +1071,15 @@ describe("Reactive actions", () => {
 
         // Insert another row — this writes pages that overlap with the reactive action's
         // read-set.
-        await executeSql(conn, "INSERT INTO t (val) VALUES ('v2')");
+        await executeSql(
+            conn,
+            sql`
+                INSERT INTO
+                    t (val)
+                VALUES
+                    ('v2')
+            `,
+        );
 
         // Realtime confirmation with newer versions; empty diffs because OPFS already has
         // the content.
@@ -962,7 +1150,14 @@ describe("Reactive actions", () => {
         await tab.worker.commitOptimisticPagesForTests(testDatabaseGroupId);
 
         // Watch only t1.
-        const handle = await conn.watchAction("readonlyRawSql", {sql: "SELECT * FROM t1"});
+        const handle = await conn.watchAction("readonlyRawSql", {
+            sql: sql`
+                SELECT
+                    *
+                FROM
+                    t1
+            `.query,
+        });
         const initial = handle.store.getSnapshot();
         expect(initial).toMatchObject({ok: true, value: {rows: [{id: 1, val: "a"}]}});
 
@@ -1034,9 +1229,24 @@ describe("Reactive actions", () => {
             sql`CREATE TABLE t (id INTEGER PRIMARY KEY, val TEXT)`,
         );
         await tab.worker.commitOptimisticPagesForTests(testDatabaseGroupId);
-        await executeSql(conn, "INSERT INTO t (val) VALUES ('v1')");
+        await executeSql(
+            conn,
+            sql`
+                INSERT INTO
+                    t (val)
+                VALUES
+                    ('v1')
+            `,
+        );
 
-        const handle = await conn.watchAction("readonlyRawSql", {sql: "SELECT * FROM t"});
+        const handle = await conn.watchAction("readonlyRawSql", {
+            sql: sql`
+                SELECT
+                    *
+                FROM
+                    t
+            `.query,
+        });
         const initial = handle.store.getSnapshot();
         expect(initial).toMatchObject({ok: true, value: {rows: [{id: 1, val: "v1"}]}});
 
@@ -1049,7 +1259,15 @@ describe("Reactive actions", () => {
         // Unregister, then write pages that would normally invalidate the watch.
         handle.unwatch();
 
-        await executeSql(conn, "INSERT INTO t (val) VALUES ('v2')");
+        await executeSql(
+            conn,
+            sql`
+                INSERT INTO
+                    t (val)
+                VALUES
+                    ('v2')
+            `,
+        );
         const pages = await extractPages(dir);
         const diffs = new Map(
             pages.map(({pageIndex, version}) => [pageIndex, {version: version + 1, diff: []}]),
@@ -1084,9 +1302,24 @@ describe("watchAction", () => {
             sql`CREATE TABLE t (id INTEGER PRIMARY KEY, val TEXT)`,
         );
         await tab.worker.commitOptimisticPagesForTests(testDatabaseGroupId);
-        await executeSql(conn, "INSERT INTO t (val) VALUES ('hello')");
+        await executeSql(
+            conn,
+            sql`
+                INSERT INTO
+                    t (val)
+                VALUES
+                    ('hello')
+            `,
+        );
 
-        const handle = await conn.watchAction("readonlyRawSql", {sql: "SELECT * FROM t"});
+        const handle = await conn.watchAction("readonlyRawSql", {
+            sql: sql`
+                SELECT
+                    *
+                FROM
+                    t
+            `.query,
+        });
 
         const snapshot = handle.store.getSnapshot();
         expect(snapshot).toMatchObject({ok: true, value: {rows: [{id: 1, val: "hello"}]}});
@@ -1212,7 +1445,14 @@ describe("watchAction", () => {
         await tabA.worker.commitOptimisticPagesForTests(testDatabaseGroupId);
 
         // Watch from follower
-        const handle = await connB.watchAction("readonlyRawSql", {sql: "SELECT * FROM t"});
+        const handle = await connB.watchAction("readonlyRawSql", {
+            sql: sql`
+                SELECT
+                    *
+                FROM
+                    t
+            `.query,
+        });
 
         const initial = handle.store.getSnapshot();
         expect(initial).toMatchObject({ok: true, value: {rows: [{id: 1, val: "hello"}]}});
