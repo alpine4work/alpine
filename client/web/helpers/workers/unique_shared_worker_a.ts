@@ -4,7 +4,7 @@ import {
     sendSharedUniqueWorkerConnectMessage,
     sendSharedUniqueWorkerRegisterLeaderMessage,
     sendSharedUniqueWorkerUnregisterLeaderMessage,
-} from "~/client/web/helpers/workers/shared_unique_worker_message_port_broker.js";
+} from "~/client/web/helpers/workers/shared_unique_worker_message_port_broker_a.js";
 import {WebWorkerRpc, WebWorkerRpcHandlers} from "~/client/web/helpers/workers/web_worker_rpc.js";
 import {WebWorkerRpcMethodDefinitions} from "~/client/web/helpers/workers/web_worker_rpc_method.js";
 import {

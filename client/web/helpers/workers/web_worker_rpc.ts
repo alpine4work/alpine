@@ -15,6 +15,7 @@ import {ObjectSchema, SchemaSerializedValue, SchemaType} from "~/shared/schema/s
 export type WebWorkerRpcHandlers<Def extends WebWorkerRpcMethodDefinitions> = {
     readonly [K in keyof Def]: (
         input: SchemaType<Def[K]["inputSchema"]>,
+        transfer?: ReadonlyArray<Transferable>,
     ) => Promise<SchemaType<Def[K]["outputSchema"]>>;
 };
 
@@ -44,7 +45,7 @@ export class WebWorkerRpc<
         string,
         {inputSchema: ObjectSchema<any>; outputSchema: ObjectSchema<any>}
     >;
-    private readonly send: (message: unknown) => void;
+    private readonly send: (message: unknown, transfer?: ReadonlyArray<Transferable>) => void;
     private readonly pending = new Map<
         number,
         {
@@ -59,7 +60,7 @@ export class WebWorkerRpc<
         callMethods: CallDef;
         handleMethods: HandleDef;
         handlers: WebWorkerRpcHandlers<HandleDef>;
-        send: (message: unknown) => void;
+        send: (message: unknown, transfer?: ReadonlyArray<Transferable>) => void;
     }) {
         this.send = config.send;
 
@@ -95,6 +96,7 @@ export class WebWorkerRpc<
     call<K extends string & keyof CallDef>(
         method: K,
         input: SchemaType<CallDef[K]["inputSchema"]>,
+        transfer?: ReadonlyArray<Transferable>,
     ): Promise<SchemaType<CallDef[K]["outputSchema"]>> {
         const schemas = this.callMethodSchemas.get(method);
         assert(schemas !== undefined, `Unknown call method: ${method}`);
@@ -108,7 +110,7 @@ export class WebWorkerRpc<
                 reject,
                 outputSchema: schemas.outputSchema,
             });
-            this.sendMessage({type: "request", callId, method, input: serializedInput});
+            this.sendMessage({type: "request", callId, method, input: serializedInput}, transfer);
         });
     }
 
@@ -137,8 +139,11 @@ export class WebWorkerRpc<
         }
     }
 
-    private sendMessage(message: WebWorkerRpcMessage): void {
-        this.send(webWorkerRpcMessageSchema.serialize(message));
+    private sendMessage(
+        message: WebWorkerRpcMessage,
+        transfer?: ReadonlyArray<Transferable>,
+    ): void {
+        this.send(webWorkerRpcMessageSchema.serialize(message), transfer);
     }
 
     private handleRequest(message: {

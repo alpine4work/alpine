@@ -1,6 +1,6 @@
 /// <reference lib="webworker" />
 
-import {installSharedUniqueWorkerMessagePortBroker} from "~/client/web/helpers/workers/shared_unique_worker_message_port_broker.js";
+import {installSharedUniqueWorkerMessagePortBroker} from "~/client/web/helpers/workers/shared_unique_worker_message_port_broker_a.js";
 import {serializeWebPushSubscription} from "~/client/web/notifications/serialize_web_push_subscription.js";
 import {getWebPushStore} from "~/client/web/notifications/web_push_store.js";
 import {InternalError} from "~/shared/error/error.js";
