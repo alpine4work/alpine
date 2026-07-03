@@ -109,9 +109,34 @@ function createTestConnection(client: DatabaseClient): {
     return {
         conn,
         async mutate(query: SqlQuery) {
-            await client.executeAction(testClientConn, {name: "rawSql", input: {sql: query.query}});
+            await client.executeAction(testClientConn, {
+                name: "rawSql",
+                input: rawSqlInputForTest(query),
+            });
         },
     };
+}
+
+function rawSqlInputForTest(query: SqlQuery): {sql: string} {
+    let bindIndex = 0;
+    const quote = String.fromCharCode(39);
+    const sqlWithLiterals = query.query.replaceAll("?", () => {
+        const value = query.bind[bindIndex++];
+        if (value === null) return "NULL";
+        if (typeof value === "number" || typeof value === "bigint") return String(value);
+        if (typeof value === "string") {
+            return quote + value.split(quote).join(quote + quote) + quote;
+        }
+        if (value instanceof Uint8Array) {
+            const hex = [...value].map(byte => byte.toString(16).padStart(2, "0")).join("");
+            return `x${quote}${hex}${quote}`;
+        }
+        throw new InternalError(`unsupported rawSql test bind: ${String(value)}`);
+    });
+    if (bindIndex !== query.bind.length) {
+        throw new InternalError("rawSql test query did not consume all binds");
+    }
+    return {sql: sqlWithLiterals};
 }
 
 // ---------------------------------------------------------------------------
@@ -189,12 +214,12 @@ async function insertRows(
 ): Promise<void> {
     const values = Array.from({length: n}, (_, i) => sql`(${"Task " + i})`);
     await conn.executeAction("rawSql", {
-        sql: sql`
+        ...rawSqlInputForTest(sql`
             INSERT INTO
                 ${sql.identifier(tableName)} (name)
             VALUES
                 ${sql.join(values, ", ")}
-        `.query,
+        `),
     });
 }
 

@@ -37,7 +37,7 @@ export const mainSqliteMigrations: ReadonlyArray<SqliteMigration> = [
 
         CREATE TABLE _alpine_views (
             id TEXT PRIMARY KEY,
-            table_id TEXT NOT NULL REFERENCES _alpine_tables (id),
+            table_id TEXT NOT NULL REFERENCES _alpine_tables (id) DEFERRABLE INITIALLY DEFERRED,
             CHECK (is_id (id)),
             CHECK (is_id (table_id))
         ) STRICT,
@@ -86,8 +86,8 @@ export function tableSqliteMigrations(tableId: DatabaseTableId): ReadonlyArray<S
             WITHOUT ROWID;
 
             CREATE TABLE ${schema}._alpine_view_fields (
-                view_id TEXT NOT NULL REFERENCES _alpine_views (id),
-                field_id TEXT NOT NULL REFERENCES _alpine_fields (id),
+                view_id TEXT NOT NULL REFERENCES _alpine_views (id) DEFERRABLE INITIALLY DEFERRED,
+                field_id TEXT NOT NULL REFERENCES _alpine_fields (id) DEFERRABLE INITIALLY DEFERRED,
                 position TEXT NOT NULL,
                 width INTEGER NOT NULL,
                 is_visible INTEGER NOT NULL DEFAULT 1,
@@ -104,7 +104,7 @@ export function tableSqliteMigrations(tableId: DatabaseTableId): ReadonlyArray<S
                 id TEXT PRIMARY KEY,
                 name TEXT NOT NULL,
                 table_name TEXT NOT NULL,
-                name_field_id TEXT NOT NULL REFERENCES _alpine_fields (id),
+                name_field_id TEXT NOT NULL REFERENCES _alpine_fields (id) DEFERRABLE INITIALLY DEFERRED,
                 CHECK (id = ${sqlStringLiteral(tableId)})
             ) STRICT,
             WITHOUT ROWID;

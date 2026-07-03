@@ -22,6 +22,7 @@ import {diffPage} from "~/shared/databases/page_diff.js";
 import {SqlQuery, sql} from "~/shared/databases/sql.js";
 import {databaseMainTableId, sqlitePageSize} from "~/shared/databases/sqlite_constants.js";
 import {runMainMigrations} from "~/shared/databases/sqlite_migrations.js";
+import {InternalError} from "~/shared/error/error.js";
 import {generateId} from "~/shared/id/id.js";
 import type {
     DatabaseGroupId,
@@ -72,8 +73,30 @@ async function executeSql(
     conn: DatabaseWorkerConnection,
     query: SqlQuery,
 ): Promise<Array<Record<string, unknown>>> {
-    const result = await conn.executeAction("rawSql", {sql: query.query});
+    const result = await conn.executeAction("rawSql", rawSqlInputForTest(query));
     return result.rows as Array<Record<string, unknown>>;
+}
+
+function rawSqlInputForTest(query: SqlQuery): {sql: string} {
+    let bindIndex = 0;
+    const quote = String.fromCharCode(39);
+    const sqlWithLiterals = query.query.replaceAll("?", () => {
+        const value = query.bind[bindIndex++];
+        if (value === null) return "NULL";
+        if (typeof value === "number" || typeof value === "bigint") return String(value);
+        if (typeof value === "string") {
+            return quote + value.split(quote).join(quote + quote) + quote;
+        }
+        if (value instanceof Uint8Array) {
+            const hex = [...value].map(byte => byte.toString(16).padStart(2, "0")).join("");
+            return `x${quote}${hex}${quote}`;
+        }
+        throw new InternalError(`unsupported rawSql test bind: ${String(value)}`);
+    });
+    if (bindIndex !== query.bind.length) {
+        throw new InternalError("rawSql test query did not consume all binds");
+    }
+    return {sql: sqlWithLiterals};
 }
 
 // ---------------------------------------------------------------------------
@@ -931,26 +954,18 @@ describe("DatabaseActiveTabManager mutations", () => {
         });
         const connB = await managerB.connect();
 
-        await executeSql(
-            connB,
-            sql`
-                UPDATE t
-                SET
-                    done = 1
-            `,
-        );
+        const updateSql = sql`
+            UPDATE t
+            SET
+                done = 1
+        `;
+        await executeSql(connB, updateSql);
 
         // Background server call routes through follower's executeActionServer
         await new Promise(resolve => setTimeout(resolve, 0));
         expect(capturedAction).toMatchObject({
             name: "rawSql",
-            input: {
-                sql: sql`
-                    UPDATE t
-                    SET
-                        done = 1
-                `.query,
-            },
+            input: rawSqlInputForTest(updateSql),
         });
     });
 

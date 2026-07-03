@@ -57,6 +57,7 @@ function defineDatabaseAction<Input, Output>(def: {
     input: ObjectSchema<Input>;
     output: ObjectSchema<Output>;
     writeLevel: SqliteWriteLevel;
+    transactionMode?: "automatic" | "manual";
     /**
      * When `true`, the client skips optimistic local execution and routes the action
      * straight to the server. Use for actions whose `run()` is non-deterministic in a
@@ -69,10 +70,18 @@ function defineDatabaseAction<Input, Output>(def: {
     input: ObjectSchema<Input>;
     output: ObjectSchema<Output>;
     writeLevel: SqliteWriteLevel;
+    transactionMode: "automatic" | "manual";
     serverOnly: boolean;
     run: (ctx: DatabaseActionContext, input: Input) => Output;
 } {
-    return {serverOnly: false, ...def};
+    return {serverOnly: false, transactionMode: "automatic", ...def};
+}
+
+function executeDatabaseActionTransaction<T>(db: SqliteDatabase, fn: () => T): T {
+    sql`BEGIN`.exec(db);
+    const result = fn();
+    sql`COMMIT`.exec(db);
+    return result;
 }
 
 export function executeDatabaseAction<N extends DatabaseActionName>(
@@ -88,7 +97,11 @@ export function executeDatabaseAction<N extends DatabaseActionName>(
     try {
         // eslint-disable-next-line no-console
         console.group(`[executeDatabaseAction] ${actionObject.name}`);
-        return action.run(ctx, actionObject.input as any) as DatabaseActionOutput<N>;
+        const run = () => action.run(ctx, actionObject.input as any) as DatabaseActionOutput<N>;
+        if (action.writeLevel === "none" || action.transactionMode === "manual") {
+            return run();
+        }
+        return executeDatabaseActionTransaction(ctx.db, run);
     } finally {
         // eslint-disable-next-line no-console
         console.groupEnd();
@@ -124,6 +137,7 @@ export const databaseActions = {
             viewId: Schema.id<DatabaseViewId>(),
         }),
         writeLevel: "schema+data",
+        transactionMode: "manual",
         serverOnly: true,
         run({db, server, model}, {name}) {
             assert(server !== null, "createTable is server-only");
@@ -134,7 +148,9 @@ export const databaseActions = {
             server.attach(tableId);
             runTableMigrations(db, tableId);
 
-            const {table, defaultView} = model.createTable(tableId, name);
+            const {table, defaultView} = executeDatabaseActionTransaction(db, () =>
+                model.createTable(tableId, name),
+            );
 
             return {tableId: table.id, tableName: table.tableName, viewId: defaultView.id};
         },
@@ -411,6 +427,7 @@ export const databaseActions = {
             targetFieldId: Schema.id<DatabaseFieldId>(),
         }),
         writeLevel: "schema+data",
+        transactionMode: "manual",
         serverOnly: true,
         run({db, model, server}, {sourceTableId, sourceFieldName, targetTableId, cardinality}) {
             assert(server !== null, "createRelationField is server-only");
@@ -424,25 +441,31 @@ export const databaseActions = {
             server.attach(joinTableId);
             runJoinTableMigrations(db, joinTableId);
 
-            const sourceField = sourceTable.createField(sourceFieldId, sourceFieldName, {
-                type: "relation",
-                joinTableId,
-                side: "source",
-                cardinality,
-                linkedTableId: targetTable.id,
-            });
-            sourceTable.appendFieldToAllViews(sourceField);
+            const {sourceField, targetField, joinTable} = executeDatabaseActionTransaction(
+                db,
+                () => {
+                    const sourceField = sourceTable.createField(sourceFieldId, sourceFieldName, {
+                        type: "relation",
+                        joinTableId,
+                        side: "source",
+                        cardinality,
+                        linkedTableId: targetTable.id,
+                    });
+                    sourceTable.appendFieldToAllViews(sourceField);
 
-            const targetField = targetTable.createField(targetFieldId, sourceTable.name, {
-                type: "relation",
-                joinTableId,
-                side: "target",
-                cardinality: "many",
-                linkedTableId: sourceTable.id,
-            });
-            targetTable.appendFieldToAllViews(targetField);
+                    const targetField = targetTable.createField(targetFieldId, sourceTable.name, {
+                        type: "relation",
+                        joinTableId,
+                        side: "target",
+                        cardinality: "many",
+                        linkedTableId: sourceTable.id,
+                    });
+                    targetTable.appendFieldToAllViews(targetField);
 
-            const joinTable = model.createJoinTable(sourceField, targetField);
+                    const joinTable = model.createJoinTable(sourceField, targetField);
+                    return {sourceField, targetField, joinTable};
+                },
+            );
 
             return {
                 joinTableId: joinTable.id,

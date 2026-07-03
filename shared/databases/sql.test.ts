@@ -169,7 +169,7 @@ describe("sql.identifier", () => {
     test("escapes double quotes", () => {
         const q = sql.identifier(["my ", "table"].join(sqliteDoubleQuote));
         expect(q.query).toBe(
-            `${sqliteDoubleQuote}my ${sqliteDoubleQuote}${sqliteDoubleQuote}table${sqliteDoubleQuote}${sqliteDoubleQuote}${sqliteDoubleQuote}`,
+            `${sqliteDoubleQuote}my ${sqliteDoubleQuote}${sqliteDoubleQuote}table${sqliteDoubleQuote}`,
         );
     });
 
@@ -192,7 +192,7 @@ describe("sql.tableRef", () => {
     test("escapes double quotes in the name", () => {
         const q = sql.tableRef("abc123" as DatabaseTableId, ["c ", "d"].join(sqliteDoubleQuote));
         expect(q.query).toBe(
-            `${sqliteDoubleQuote}_alpine_schema_abc123${sqliteDoubleQuote}.${sqliteDoubleQuote}c ${sqliteDoubleQuote}${sqliteDoubleQuote}d${sqliteDoubleQuote}${sqliteDoubleQuote}${sqliteDoubleQuote}`,
+            `${sqliteDoubleQuote}_alpine_schema_abc123${sqliteDoubleQuote}.${sqliteDoubleQuote}c ${sqliteDoubleQuote}${sqliteDoubleQuote}d${sqliteDoubleQuote}`,
         );
     });
 });
