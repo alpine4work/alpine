@@ -779,8 +779,6 @@ export class DatabaseJoinTableModel extends DatabaseSchemaScopedBaseModel {
         return sql.identifier(this.targetPositionColumnName);
     }
 
-    getSource() {}
-
     ensureTableNameIsUpToDate() {
         const sourceName = this.root.getTable(this.sourceTableId).getField(this.sourceFieldId).name;
         const targetName = this.root.getTable(this.targetTableId).getField(this.targetFieldId).name;

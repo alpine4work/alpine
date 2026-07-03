@@ -41,7 +41,6 @@ export class DatabaseNumberFieldProvider extends ColumnBackedDatabaseFieldProvid
 
     valueToString(value: number | null, config: DatabaseNumberFieldConfig): string {
         if (value == null) return "";
-        if (value == null) return "";
         return config.decimalPlaces == null ? String(value) : value.toFixed(config.decimalPlaces);
     }
 }

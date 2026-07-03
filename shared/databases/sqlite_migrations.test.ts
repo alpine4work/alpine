@@ -34,7 +34,7 @@ function attachTableDb(db: SqliteDatabase, tableId: DatabaseTableId): void {
     );
 }
 
-async function readSqliteSchema(db: Database, tableId: DatabaseTableId | null): string {
+async function readSqliteSchema(db: Database, tableId: DatabaseTableId | null): Promise<string> {
     const sqliteSchema =
         tableId == null ? sql.identifier("sqlite_schema") : sql.tableRef(tableId, "sqlite_schema");
     const rows = sql`

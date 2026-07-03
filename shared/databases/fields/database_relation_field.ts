@@ -7,6 +7,7 @@ import type {
 import {SqlJsonSchema} from "~/shared/databases/model/sqlite_schema.js";
 import {type SqlQuery, sql} from "~/shared/databases/sql.js";
 import {assert} from "~/shared/helpers/control/assert.js";
+import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
 import {Result} from "~/shared/helpers/control/result.js";
 import type {DatabaseRowId, DatabaseTableId} from "~/shared/id/types/id_types.js";
 import {Schema, type SchemaType} from "~/shared/schema/schema.js";
@@ -113,7 +114,7 @@ export class DatabaseRelationFieldProvider extends DatabaseFieldProviderBase<
     resolveRelation(field: DatabaseFieldModelOfType<"relation">) {
         const joinTable = field.root.getJoinTable(field.config.joinTableId);
 
-        let linkedTableId: DatabaseTableId;
+        let linkedTableId!: DatabaseTableId;
         switch (field.config.side) {
             case "source":
                 assert(
@@ -131,6 +132,8 @@ export class DatabaseRelationFieldProvider extends DatabaseFieldProviderBase<
                 assert(joinTable.targetFieldId === field.id, "relation target field mismatch");
                 linkedTableId = joinTable.sourceTableId;
                 break;
+            default:
+                exhaustive(field.config.side);
         }
         assert(field.config.linkedTableId === linkedTableId, "relation linked table mismatch");
 

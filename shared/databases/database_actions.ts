@@ -1,6 +1,7 @@
 import {
     DatabaseFieldConfigSchema,
     getDatabaseFieldProvider,
+    getUnknownDatabaseFieldProvider,
 } from "~/shared/databases/fields/all_database_field_providers.js";
 import {ColumnBackedDatabaseFieldProvider} from "~/shared/databases/fields/base/database_field_provider_base.js";
 import {DatabaseModel} from "~/shared/databases/model/database_model.js";
@@ -580,7 +581,7 @@ export const databaseActions = {
 
             const linkedTable = model.getTable(relation.linkedTableId);
             const linkedNameField = linkedTable.getNameField();
-            const linkedNameProvider = getDatabaseFieldProvider<void>(linkedNameField.config.type);
+            const linkedNameProvider = getUnknownDatabaseFieldProvider(linkedNameField.config.type);
             const linkedNameColumn = linkedNameProvider.selectColumn(
                 linkedNameField,
                 sql.identifier("linked_row"),
@@ -635,7 +636,7 @@ export const databaseActions = {
                 field.config.type === config.type,
                 `cannot change field type from ${field.config.type} to ${config.type}`,
             );
-            const provider = getDatabaseFieldProvider<void>(field.config.type);
+            const provider = getUnknownDatabaseFieldProvider(field.config.type);
             provider.assertConfigChangeValid?.(field.config, config);
 
             field.updateConfig(config);

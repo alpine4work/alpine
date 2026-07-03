@@ -35,12 +35,17 @@ const databaseFieldProviderMap = new Map<DatabaseFieldType, DatabaseFieldProvide
     allDatabaseFieldProviders.map(provider => [provider.type, provider]),
 );
 
-export function getDatabaseFieldProvider<Type extends DatabaseFieldType | void = void>(
-    type: Type extends DatabaseFieldType ? Type : DatabaseFieldType,
-): Type extends DatabaseFieldType ? DatabaseFieldProvider<Type> : UnknownDatabaseFieldProvider {
+export function getUnknownDatabaseFieldProvider(
+    type: DatabaseFieldType,
+): UnknownDatabaseFieldProvider {
     const provider = databaseFieldProviderMap.get(type);
     assert(provider != null, `unknown field type: ${type}`);
-    return provider as any;
+    return provider as UnknownDatabaseFieldProvider;
+}
+export function getDatabaseFieldProvider<Type extends DatabaseFieldType>(
+    type: Type,
+): DatabaseFieldProvider<Type> {
+    return getUnknownDatabaseFieldProvider(type) as DatabaseFieldProvider<Type>;
 }
 
 const configSchemas = Object.fromEntries(
