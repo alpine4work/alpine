@@ -11,7 +11,7 @@ let db: Database;
 
 beforeEach(async () => {
     const sqlite3 = await sqlite3Promise;
-    db = new sqlite3.oo1.DB(":memory:", "ct");
+    db = new sqlite3.oo1.DB(":memory:", "c");
     db.exec(sql`CREATE TABLE t (id INTEGER PRIMARY KEY, name TEXT, score INTEGER)`.query);
     db.exec(sql`
         INSERT INTO

@@ -19,7 +19,7 @@ import {
     type DatabaseGridViewField,
     type DatabaseGridViewFieldWithEditing,
     useGridViewFields,
-} from "~/client/web/databases/grid_view/use_grid_view_fields.js";
+} from "~/client/web/databases/use_grid_view_fields.js";
 import {Box} from "~/client/web/design/box.js";
 import {Overlay} from "~/client/web/design/overlay.js";
 import {GlobalKeyDownEvent} from "~/client/web/helpers/global_key_down_event.js";

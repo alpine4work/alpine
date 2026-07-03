@@ -1,8 +1,6 @@
+import {getDatabaseFieldProvider} from "~/shared/databases/fields/all_database_field_providers.js";
 import {DatabaseFieldProviderBase} from "~/shared/databases/fields/base/database_field_provider_base.js";
-import type {
-    DatabaseFieldModel,
-    DatabaseFieldModelOfType,
-} from "~/shared/databases/model/database_field_model.js";
+import type {DatabaseFieldModelOfType} from "~/shared/databases/model/database_field_model.js";
 import {SqlJsonSchema} from "~/shared/databases/model/sqlite_schema.js";
 import {type SqlQuery, sql} from "~/shared/databases/sql.js";
 import {assert} from "~/shared/helpers/control/assert.js";
@@ -35,17 +33,17 @@ export class DatabaseRelationFieldProvider extends DatabaseFieldProviderBase<
 > {
     static readonly instance = new DatabaseRelationFieldProvider();
 
-    readonly type = "relation";
-    readonly valueSchema = DatabaseRelationFieldValueSchema;
+    override readonly type = "relation";
+    override readonly configSchema = DatabaseRelationFieldConfigSchema;
+    override readonly valueSchema = DatabaseRelationFieldValueSchema;
     override readonly sqlValueSchema = SqlJsonSchema(DatabaseRelationFieldValueSchema);
-    readonly configSchema = DatabaseRelationFieldConfigSchema;
 
-    parseValueString(): Result<DatabaseRelationFieldValue, void> {
+    override parseValueString(): Result<DatabaseRelationFieldValue, void> {
         // TODO(alex): implement this
         return {ok: false, error: undefined};
     }
 
-    valueToString(value: DatabaseRelationFieldValue) {
+    override valueToString(value: DatabaseRelationFieldValue) {
         return value.map(link => link.name ?? "Untitled").join(", ");
     }
 
@@ -57,7 +55,9 @@ export class DatabaseRelationFieldProvider extends DatabaseFieldProviderBase<
         const joinRow = sql.identifier(`_join_${field.id}`);
         const linkedRow = sql.identifier(`_linked_${field.id}`);
 
-        const linkedNameColumnSql = selectLinkedNameColumn(linkedNameField, linkedRow);
+        const linkedNameColumnSql = getDatabaseFieldProvider(
+            linkedNameField.config.type,
+        ).selectColumn(linkedNameField, linkedRow);
 
         return sql`
             (
@@ -76,6 +76,40 @@ export class DatabaseRelationFieldProvider extends DatabaseFieldProviderBase<
                             ),
                             jsonb ('[]')
                         )
+                    )
+                FROM
+                    ${relation.joinTable.tableRef} AS ${joinRow}
+                    JOIN ${linkedTable.tableRef} ${linkedRow} ON ${linkedRow}._id = ${joinRow}.${relation
+                .their.rowIdColumn}
+                WHERE
+                    ${joinRow}.${relation.our.rowIdColumn} = ${dataRow}._id
+            )
+        `;
+    }
+
+    _selectColumnAsString(field: DatabaseFieldModelOfType<"relation">, dataRow: SqlQuery) {
+        const relation = this.resolveRelation(field);
+        const linkedTable = field.root.getTable(relation.linkedTableId);
+        const linkedNameField = linkedTable.getNameField();
+
+        const joinRow = sql.identifier(`_join_${field.id}`);
+        const linkedRow = sql.identifier(`_linked_${field.id}`);
+
+        const linkedNameColumnSql = getDatabaseFieldProvider(
+            linkedNameField.config.type,
+        ).selectColumn(linkedNameField, linkedRow);
+
+        return sql`
+            (
+                SELECT
+                    COALESCE(
+                        GROUP_CONCAT(
+                            COALESCE(${linkedNameColumnSql}, 'Untitled'),
+                            ', '
+                            ORDER BY
+                                ${joinRow}.${relation.our.positionColumn}
+                        ),
+                        ''
                     )
                 FROM
                     ${relation.joinTable.tableRef} AS ${joinRow}
@@ -157,36 +191,3 @@ export class DatabaseRelationFieldProvider extends DatabaseFieldProviderBase<
 
 export const databaseRelationFieldProvider: DatabaseRelationFieldProvider =
     DatabaseRelationFieldProvider.instance;
-
-function selectLinkedNameColumn(field: DatabaseFieldModel, dataRow: SqlQuery) {
-    switch (field.config.type) {
-        case "checkbox": {
-            const value = sql`${dataRow}.${field.column()}`;
-            return sql`
-                CASE ${value}
-                    WHEN 1 THEN 'true'
-                    ELSE 'false'
-                END
-            `;
-        }
-        case "number": {
-            const value = sql`${dataRow}.${field.column()}`;
-            if (field.config.decimalPlaces == null) {
-                return sql`CAST(${value} AS TEXT)`;
-            }
-            return sql`
-                CASE
-                    WHEN ${value} IS NULL THEN ''
-                    ELSE PRINTF(
-                        ${`%.${field.config.decimalPlaces}f`},
-                        ${value}
-                    )
-                END
-            `;
-        }
-        case "plainText":
-            return sql`${dataRow}.${field.column()}`;
-        default:
-            assert(false, `unsupported relation name field type: ${field.config.type}`);
-    }
-}

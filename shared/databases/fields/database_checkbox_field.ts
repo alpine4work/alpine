@@ -1,4 +1,8 @@
 import {ColumnBackedDatabaseFieldProvider} from "~/shared/databases/fields/base/database_field_provider_base.js";
+import {
+    DatabaseFieldModel,
+    DatabaseFieldModelOfType,
+} from "~/shared/databases/model/database_field_model.js";
 import {SqlBooleanSchema} from "~/shared/databases/model/sqlite_schema.js";
 import {type SqlQuery, sql} from "~/shared/databases/sql.js";
 import {Result} from "~/shared/helpers/control/result.js";
@@ -17,15 +21,15 @@ export class DatabaseCheckboxFieldProvider extends ColumnBackedDatabaseFieldProv
 > {
     static readonly instance = new DatabaseCheckboxFieldProvider();
 
-    readonly type = "checkbox";
-    readonly valueSchema = DatabaseCheckboxFieldValueSchema;
-    readonly configSchema = DatabaseCheckboxFieldConfigSchema;
+    override readonly type = "checkbox";
+    override readonly valueSchema = DatabaseCheckboxFieldValueSchema;
+    override readonly configSchema = DatabaseCheckboxFieldConfigSchema;
     override readonly sqlValueSchema = SqlBooleanSchema;
-    readonly sqliteType = "INTEGER";
-    readonly nullable = false;
-    readonly defaultValue = sql`0`;
+    override readonly sqliteType = "INTEGER";
+    override readonly nullable = false;
+    override readonly defaultValue = sql`0`;
 
-    generateCheckConstraint(columnName: SqlQuery) {
+    override generateCheckConstraint(columnName: SqlQuery) {
         return sql`
             CHECK (
                 TYPEOF(${columnName}) = 'integer'
@@ -33,13 +37,22 @@ export class DatabaseCheckboxFieldProvider extends ColumnBackedDatabaseFieldProv
         `;
     }
 
-    parseValueString(input: string): Result<boolean, void> {
+    override parseValueString(input: string): Result<boolean, void> {
         const normalized = input.trim().toLowerCase();
         return {ok: true, value: !checkboxFalseStrings.has(normalized)};
     }
 
-    valueToString(value: boolean): string {
+    override valueToString(value: boolean): string {
         return value ? "true" : "false";
+    }
+
+    override _selectColumnAsString(field: DatabaseFieldModelOfType<"checkbox">, dataRow: SqlQuery) {
+        return sql`
+            CASE ${this.selectColumn(field, dataRow)}
+                WHEN 1 THEN 'true'
+                ELSE 'false'
+            END
+        `;
     }
 }
 

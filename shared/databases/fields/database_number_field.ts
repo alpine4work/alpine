@@ -1,4 +1,5 @@
 import {ColumnBackedDatabaseFieldProvider} from "~/shared/databases/fields/base/database_field_provider_base.js";
+import {DatabaseFieldModelOfType} from "~/shared/databases/model/database_field_model.js";
 import {type SqlQuery, sql} from "~/shared/databases/sql.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 import type {Result} from "~/shared/helpers/control/result.js";
@@ -42,6 +43,22 @@ export class DatabaseNumberFieldProvider extends ColumnBackedDatabaseFieldProvid
     valueToString(value: number | null, config: DatabaseNumberFieldConfig): string {
         if (value == null) return "";
         return config.decimalPlaces == null ? String(value) : value.toFixed(config.decimalPlaces);
+    }
+
+    override _selectColumnAsString(field: DatabaseFieldModelOfType<"number">, dataRow: SqlQuery) {
+        const column = this.selectColumn(field, dataRow);
+        if (field.config.decimalPlaces == null) {
+            return sql`CAST(${column} AS TEXT)`;
+        }
+        return sql`
+            CASE
+                WHEN ${column} IS NULL THEN ''
+                ELSE PRINTF(
+                    ${`%.${field.config.decimalPlaces}f`},
+                    ${column}
+                )
+            END
+        `;
     }
 }
 

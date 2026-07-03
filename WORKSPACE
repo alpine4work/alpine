@@ -716,7 +716,7 @@ http_archive(
 
 http_file(
     name = "sqlite_dts",
-    integrity = "sha256-o4RoN7nanENHIdBVMhQgYTM8409WN41ExINWxzMdlI0=",
+    integrity = "sha256-554F019OiSYMFr9MAnjVcNDHD8PlruTBD4eY8GBhBoU=",
     url = "https://raw.githubusercontent.com/sqlite/sqlite-wasm/f783d4d7e666da8197088c79d830e387d6c31586/src/index.d.ts",
 )
 

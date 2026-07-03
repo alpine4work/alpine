@@ -33,6 +33,15 @@ export abstract class DatabaseFieldProviderBase<
         dataRow: SqlQuery,
     ): SqlQuery;
 
+    selectColumnAsString(field: DatabaseFieldModel, dataRow: SqlQuery): SqlQuery {
+        assert(field.isType(this.type));
+        return this._selectColumn(field, dataRow);
+    }
+    protected abstract _selectColumnAsString(
+        field: DatabaseFieldModelOfType<Type>,
+        dataRow: SqlQuery,
+    ): SqlQuery;
+
     assertConfigChangeValid?(existingConfig: Config, nextConfig: Config): void;
 
     renameFieldInSchema(oldField: DatabaseFieldModel, newField: DatabaseFieldModel) {
