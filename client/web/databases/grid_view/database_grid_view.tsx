@@ -1,58 +1,38 @@
-import {useHover} from "@react-aria/interactions";
-import {type Icon as PhosphorIcon, Plus} from "phosphor-react";
+import {Plus} from "phosphor-react";
 import {
     type Dispatch,
     type Memo,
-    type Ref,
-    forwardRef,
     startTransition,
     useEffect,
     useMemo,
     useOptimistic,
     useReducer,
     useRef,
-    useState,
 } from "react";
-import {mergeProps} from "react-aria";
-
 import {useDatabaseConnection} from "~/client/web/databases/database_connection_context.js";
-import {DatabaseFieldVisibilityMenu} from "~/client/web/databases/database_field_visibility_menu.js";
 import type {DatabaseQuery} from "~/client/web/databases/database_query.js";
 import type {DatabaseQueryRow} from "~/client/web/databases/database_query_row.js";
-import {
-    databaseFieldComponentProviders,
-    getDatabaseFieldComponentProvider,
-} from "~/client/web/databases/fields/database_field_component_providers.js";
+import {getDatabaseFieldComponentProvider} from "~/client/web/databases/fields/database_field_component_providers.js";
+import {gridRowHeight} from "~/client/web/databases/grid_view/database_grid_view_constants.js";
+import {DatabaseGridViewHeaderRow} from "~/client/web/databases/grid_view/database_grid_view_header_row.js";
 import {
     type DatabaseGridViewField,
     type DatabaseGridViewFieldWithEditing,
     useGridViewFields,
 } from "~/client/web/databases/use_grid_view_fields.js";
 import {Box} from "~/client/web/design/box.js";
-import {IconButton} from "~/client/web/design/icon_button.js";
-import {MenuButton} from "~/client/web/design/menu_button.js";
 import {Overlay} from "~/client/web/design/overlay.js";
-import {OverlayTriggerButton} from "~/client/web/design/overlay_trigger_button.js";
-import {TextInputWithoutLabel} from "~/client/web/design/text_input.js";
 import {GlobalKeyDownEvent} from "~/client/web/helpers/global_key_down_event.js";
 import {useEvent} from "~/client/web/helpers/lifecycle/use_event.js";
-import {useMergedRefs} from "~/client/web/helpers/refs/use_merged_refs.js";
 import {useStore} from "~/client/web/helpers/use_store.js";
-import {sprinkles} from "~/client/web/styles/styles.js";
 import {
     VirtualizedScrollView,
     VirtualizedScrollViewItem,
     type VirtualizedScrollViewRef,
 } from "~/client/web/virtualized/virtualized_scroll_view.js";
-import type {
-    DatabaseCellValue,
-    DatabaseFieldConfig,
-    DatabaseFieldType,
-} from "~/shared/databases/fields/database_field_providers.js";
-import type {Spacing} from "~/shared/design/core/spacing.js";
+import type {DatabaseFieldValue} from "~/shared/databases/fields/all_database_field_providers.js";
 import {spacing} from "~/shared/design/core/spacing.js";
 import {remPxBySpacingScale} from "~/shared/design/core/spacing_scale.js";
-import type {OrderKey} from "~/shared/helpers/sort/order_key.js";
 import {generateChronologicalId} from "~/shared/id/chronological_id.js";
 import type {
     DatabaseFieldId,
@@ -60,10 +40,7 @@ import type {
     DatabaseTableId,
     DatabaseViewId,
 } from "~/shared/id/types/id_types.js";
-import {maxLabelStringLength} from "~/shared/schema/helpers/label_string_schema.js";
 import type {SchemaSerializedValue} from "~/shared/schema/schema.js";
-
-const gridRowHeight: Spacing = "8"; // 2rem = 32px at desktop scale
 
 // -- Selection state ----------------------------------------------------------
 
@@ -531,458 +508,6 @@ function DatabaseGridViewLoadMoreSentinel({query}: {query: DatabaseQuery}) {
     );
 }
 
-// -- Header row ---------------------------------------------------------------
-
-function DatabaseGridViewHeaderRow({
-    fields,
-    hiddenFields,
-    onStartAddingField,
-    startResizingField,
-    resizingState,
-    onRenameField,
-    onUpdateFieldVisibility,
-    onUpdateFieldConfig,
-}: {
-    fields: ReadonlyArray<DatabaseGridViewFieldWithEditing>;
-    hiddenFields: ReadonlyArray<DatabaseGridViewField>;
-    onStartAddingField: () => void;
-    startResizingField: (
-        fieldId: DatabaseFieldId,
-        event: React.PointerEvent,
-    ) => {
-        onMove: (event: PointerEvent) => void;
-        onRelease: (event: PointerEvent) => void;
-        onCancel: () => void;
-    };
-    resizingState: {readonly fieldId: DatabaseFieldId} | null;
-    onRenameField: (fieldId: DatabaseFieldId, name: string) => void;
-    onUpdateFieldVisibility: (
-        fieldId: DatabaseFieldId,
-        position: OrderKey,
-        isHidden: boolean,
-    ) => void;
-    onUpdateFieldConfig: (fieldId: DatabaseFieldId, config: DatabaseFieldConfig) => void;
-}) {
-    return (
-        <Box display="flex" height={gridRowHeight}>
-            {fields.map(field => (
-                <DatabaseGridViewHeaderCell
-                    key={field.id}
-                    field={field}
-                    startResizingField={startResizingField}
-                    isResizingThisField={resizingState?.fieldId === field.id}
-                    onRenameField={onRenameField}
-                    onUpdateFieldConfig={onUpdateFieldConfig}
-                />
-            ))}
-            <Box
-                display="flex"
-                alignItems="center"
-                flexShrink="0"
-                backgroundColor="grey-0"
-                paddingX="1"
-                gap="0.5"
-            >
-                <IconButton
-                    description="Add field"
-                    size="sm"
-                    variant="quiet-above-grey-5-background"
-                    onPress={onStartAddingField}
-                >
-                    <Plus />
-                </IconButton>
-                <DatabaseFieldVisibilityMenu
-                    shownFields={fields}
-                    hiddenFields={hiddenFields}
-                    onUpdateFieldVisibility={onUpdateFieldVisibility}
-                />
-            </Box>
-            <Box backgroundColor="grey-0" flexGrow="1" />
-        </Box>
-    );
-}
-
-function DatabaseGridViewHeaderCell({
-    field,
-    startResizingField,
-    isResizingThisField,
-    onRenameField,
-    onUpdateFieldConfig,
-}: {
-    field: DatabaseGridViewFieldWithEditing;
-    startResizingField: (
-        fieldId: DatabaseFieldId,
-        event: React.PointerEvent,
-    ) => {
-        onMove: (event: PointerEvent) => void;
-        onRelease: (event: PointerEvent) => void;
-        onCancel: () => void;
-    };
-    isResizingThisField: boolean;
-    onRenameField: (fieldId: DatabaseFieldId, name: string) => void;
-    onUpdateFieldConfig: (fieldId: DatabaseFieldId, config: DatabaseFieldConfig) => void;
-}) {
-    const inputRef = useRef<HTMLInputElement>(null);
-    const editing = field.editing;
-
-    useEffect(() => {
-        if (editing != null) {
-            const input = inputRef.current;
-            if (input) {
-                input.focus();
-                input.select();
-            }
-        }
-    }, [editing != null]); // eslint-disable-line react-hooks/exhaustive-deps
-
-    return (
-        <Box backgroundColor="grey-0" position="relative" style={field.columnStyle}>
-            {editing ? (
-                <Overlay
-                    isVisible={true}
-                    placement="bottom-start"
-                    fallbackPlacements={["bottom-end"]}
-                    preventOverflow={false}
-                    overlay={
-                        <DatabaseGridViewFieldTypePicker
-                            onSelect={type => editing.commitWithType(type)}
-                        />
-                    }
-                >
-                    <input
-                        ref={inputRef}
-                        value={field.name}
-                        maxLength={maxLabelStringLength}
-                        onChange={e => editing.updateName(e.currentTarget.value)}
-                        onBlur={() => editing.commit()}
-                        onKeyDown={e => {
-                            if (e.key === "Enter") {
-                                e.preventDefault();
-                                editing.commit();
-                            } else if (e.key === "Escape") {
-                                e.preventDefault();
-                                editing.cancel();
-                            }
-                            e.stopPropagation();
-                        }}
-                        className={sprinkles({
-                            width: "full",
-                            padding: "2",
-                            fontSize: "75",
-                            color: "grey-80",
-                        })}
-                    />
-                </Overlay>
-            ) : (
-                <DatabaseGridViewHeaderEditor
-                    field={field}
-                    onRenameField={onRenameField}
-                    onUpdateFieldConfig={onUpdateFieldConfig}
-                />
-            )}
-            <DatabaseGridViewResizeHandle
-                fieldId={field.id}
-                startResizingField={startResizingField}
-                isResizingThisField={isResizingThisField}
-            />
-        </Box>
-    );
-}
-
-// -- Field header editor (rename + config menu) ------------------------------
-
-function DatabaseGridViewHeaderEditor({
-    field,
-    onRenameField,
-    onUpdateFieldConfig,
-}: {
-    field: DatabaseGridViewFieldWithEditing;
-    onRenameField: (fieldId: DatabaseFieldId, name: string) => void;
-    onUpdateFieldConfig: (fieldId: DatabaseFieldId, config: DatabaseFieldConfig) => void;
-}) {
-    const provider = getDatabaseFieldComponentProvider(field.config.type);
-    const Icon = provider.Icon;
-    const inputRef = useRef<HTMLInputElement>(null);
-    const [draftName, setDraftName] = useState(field.name);
-
-    useEffect(() => {
-        setDraftName(field.name);
-    }, [field.name]);
-
-    const commitRename = useEvent(() => {
-        const trimmed = (inputRef.current?.value ?? draftName).trim();
-        if (trimmed === "" || trimmed === field.name) return;
-        onRenameField(field.id, trimmed);
-    });
-
-    const configActions =
-        provider.getConfigMenuActions?.({
-            config: field.config,
-            onCommit: config => onUpdateFieldConfig(field.id, config),
-        }) ?? [];
-
-    const renameInput = (
-        <DatabaseGridViewHeaderRenameInput
-            inputRef={inputRef}
-            value={draftName}
-            onChange={setDraftName}
-            onEnter={commitRename}
-            onEscape={() => setDraftName(field.name)}
-            paddingBottom={configActions.length > 0 ? "1" : "1.5"}
-        />
-    );
-
-    const trigger = (
-        <Box
-            role="button"
-            tabIndex={0}
-            cursor="pointer"
-            display="flex"
-            alignItems="center"
-            color="grey-80"
-            fontSize="75"
-            fontStyle="truncate-semi-bold"
-            padding="2"
-            textAlign="left"
-            gap="1"
-            style={{userSelect: "none"}}
-        >
-            <Box color="grey-50" display="flex" alignItems="center">
-                <Icon size={14} />
-            </Box>
-            <Box fontStyle="truncate-semi-bold">{field.name}</Box>
-        </Box>
-    );
-
-    if (configActions.length === 0) {
-        return (
-            <OverlayTriggerButton
-                withoutButtonElementRequirement
-                placement="bottom-start"
-                aria-haspopup="dialog"
-                onClose={commitRename}
-                overlay={<DatabaseGridViewHeaderEditorRenameOverlay renameInput={renameInput} />}
-            >
-                {trigger}
-            </OverlayTriggerButton>
-        );
-    }
-
-    return (
-        <MenuButton
-            withoutButtonElementRequirement
-            placement="bottom-start"
-            actions={configActions}
-            onClose={commitRename}
-            extraOverlayTop={renameInput}
-        >
-            {trigger}
-        </MenuButton>
-    );
-}
-
-const DatabaseGridViewHeaderEditorRenameOverlay = forwardRef(
-    function DatabaseGridViewHeaderEditorRenameOverlay(
-        {renameInput}: {renameInput: React.ReactNode},
-        ref: Ref<HTMLDivElement>,
-    ) {
-        return (
-            <Box
-                ref={ref}
-                backgroundColor="grey-0"
-                borderRadius="1.5"
-                boxShadow="elevation-20"
-                style={{minWidth: 200}}
-            >
-                {renameInput}
-            </Box>
-        );
-    },
-);
-
-function DatabaseGridViewHeaderRenameInput({
-    inputRef,
-    value,
-    onChange,
-    onEnter,
-    onEscape,
-    paddingBottom,
-}: {
-    inputRef: Ref<HTMLInputElement>;
-    value: string;
-    onChange: (value: string) => void;
-    onEnter: () => void;
-    onEscape: () => void;
-    paddingBottom: "1" | "1.5";
-}) {
-    const internalRef = useRef<HTMLInputElement>(null);
-    const mergedRef = useMergedRefs(inputRef, internalRef);
-
-    useEffect(() => {
-        const input = internalRef.current;
-        if (input) {
-            input.focus();
-            input.select();
-        }
-    }, []);
-
-    return (
-        <Box paddingX="1.5" paddingTop="1.5" paddingBottom={paddingBottom}>
-            <TextInputWithoutLabel
-                ref={mergedRef}
-                aria-label="Field name"
-                value={value}
-                maxLength={maxLabelStringLength}
-                onChange={onChange}
-                onEnter={onEnter}
-                onEscape={onEscape}
-            />
-        </Box>
-    );
-}
-
-// -- Field type picker --------------------------------------------------------
-
-function DatabaseGridViewFieldTypePicker({
-    ref,
-    onSelect,
-}: {
-    ref?: React.Ref<HTMLElement>;
-    onSelect: (type: DatabaseFieldType) => void;
-}) {
-    return (
-        <Box
-            ref={ref as React.Ref<HTMLDivElement>}
-            backgroundColor="grey-0"
-            borderRadius="1.5"
-            boxShadow="elevation-20"
-            padding="1"
-            style={{minWidth: 120}}
-        >
-            {databaseFieldComponentProviders.map(provider => (
-                <DatabaseGridViewFieldTypePickerOption
-                    key={provider.type}
-                    type={provider.type}
-                    label={provider.label}
-                    Icon={provider.Icon}
-                    onSelect={onSelect}
-                />
-            ))}
-        </Box>
-    );
-}
-
-function DatabaseGridViewFieldTypePickerOption({
-    type,
-    label,
-    Icon,
-    onSelect,
-}: {
-    type: DatabaseFieldType;
-    label: string;
-    Icon: PhosphorIcon;
-    onSelect: (type: DatabaseFieldType) => void;
-}) {
-    const {hoverProps, isHovered} = useHover({});
-    return (
-        <Box
-            {...hoverProps}
-            display="flex"
-            alignItems="center"
-            gap="1.5"
-            padding="1.5"
-            borderRadius="1"
-            fontSize="75"
-            color="grey-100"
-            cursor="pointer"
-            backgroundColor={isHovered ? "grey-5" : undefined}
-            onMouseDown={e => {
-                e.preventDefault();
-                onSelect(type);
-            }}
-        >
-            <Icon size={14} />
-            {label}
-        </Box>
-    );
-}
-
-// -- Resize handle ------------------------------------------------------------
-
-function DatabaseGridViewResizeHandle({
-    fieldId,
-    startResizingField,
-    isResizingThisField,
-}: {
-    fieldId: DatabaseFieldId;
-    startResizingField: (
-        fieldId: DatabaseFieldId,
-        event: React.PointerEvent,
-    ) => {
-        onMove: (event: PointerEvent) => void;
-        onRelease: (event: PointerEvent) => void;
-        onCancel: () => void;
-    };
-    isResizingThisField: boolean;
-}) {
-    const {hoverProps, isHovered} = useHover({});
-
-    const [resizeHandlers, setResizeHandlers] = useState<{
-        onMove: (event: PointerEvent) => void;
-        onRelease: (event: PointerEvent) => void;
-        onCancel: () => void;
-    } | null>(null);
-
-    const isResizing = resizeHandlers != null;
-    const showBar = isHovered || isResizing || isResizingThisField;
-
-    return (
-        <Box
-            position="absolute"
-            top="0"
-            bottom="0"
-            right="-2"
-            width="4"
-            cursor="col-resize"
-            zIndex="10"
-            touchAction="none"
-            {...mergeProps(hoverProps, {
-                onPointerDown(event: React.PointerEvent) {
-                    const handlers = startResizingField(fieldId, event);
-                    setResizeHandlers(handlers);
-                    event.currentTarget.setPointerCapture(event.pointerId);
-                },
-                onPointerMove(event: React.PointerEvent) {
-                    resizeHandlers?.onMove(event.nativeEvent);
-                },
-                onPointerUp(event: React.PointerEvent) {
-                    resizeHandlers?.onRelease(event.nativeEvent);
-                    setResizeHandlers(null);
-                },
-                onPointerCancel() {
-                    resizeHandlers?.onCancel();
-                    setResizeHandlers(null);
-                },
-                onLostPointerCapture() {
-                    resizeHandlers?.onCancel();
-                    setResizeHandlers(null);
-                },
-            })}
-        >
-            <Box
-                position="absolute"
-                top="0"
-                bottom="0"
-                backgroundColor={showBar ? "theme-40-const" : "transparent"}
-                style={{
-                    left: 7,
-                    width: 2,
-                }}
-            />
-        </Box>
-    );
-}
-
 // -- Data row -----------------------------------------------------------------
 
 function DatabaseGridViewDataRow({
@@ -1096,8 +621,11 @@ function DatabaseGridViewCell({
 
     const editorOverlay = EditorOverlay ? (
         <EditorOverlay
+            tableId={tableId}
+            fieldId={field.id}
+            rowId={rowId}
             config={field.config}
-            initialValue={optimisticValue as DatabaseCellValue}
+            initialValue={optimisticValue as DatabaseFieldValue}
             initialEditString={initialEditValue}
             commitValue={commitValue}
             onClose={() => dispatch({type: "blur"})}
@@ -1118,6 +646,8 @@ function DatabaseGridViewCell({
             overlay={editorOverlay}
         >
             <Box
+                data-testid="DatabaseGridViewCell"
+                data-field-name={field.name}
                 border="transparent"
                 style={{
                     ...field.columnStyle,
@@ -1128,8 +658,9 @@ function DatabaseGridViewCell({
             >
                 <provider.GridViewCellContent
                     ref={cellRef}
+                    fieldName={field.name}
                     config={field.config}
-                    value={optimisticValue as DatabaseCellValue}
+                    value={optimisticValue as DatabaseFieldValue}
                     commitValue={commitValue}
                     onCellClick={() => dispatch({type: "click", rowId, fieldId: field.id})}
                 />

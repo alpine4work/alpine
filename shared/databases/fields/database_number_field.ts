@@ -1,33 +1,74 @@
-import {defineDatabaseFieldProvider} from "~/shared/databases/fields/database_field_provider.js";
-import {sql} from "~/shared/databases/sql.js";
+import {ColumnBackedDatabaseFieldProvider} from "~/shared/databases/fields/base/database_field_provider_base.js";
+import {DatabaseFieldModelOfType} from "~/shared/databases/model/database_field_model.js";
+import {type SqlQuery, sql} from "~/shared/databases/sql.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 import type {Result} from "~/shared/helpers/control/result.js";
-import {Schema} from "~/shared/schema/schema.js";
+import {Schema, type SchemaType} from "~/shared/schema/schema.js";
 
-export const databaseNumberFieldProvider = defineDatabaseFieldProvider({
-    type: "number",
-    valueSchema: Schema.float.nullable(),
-    configSchema: Schema.object({
-        type: Schema.value("number"),
-        decimalPlaces: Schema.integer.nullable(),
-    }),
-    sqliteType: "REAL",
-    nullable: true,
-    defaultValue: "NULL",
-    generateCheckConstraint: columnName => sql`
-        CHECK (
-            TYPEOF(${sql.identifier(columnName)}) IN ('real', 'integer', 'null')
-        )
-    `,
-    toSqlValue: value => value,
-    fromSqlValue: sqlValue => sqlValue,
-    getDefaultConfig: () => ({type: "number", decimalPlaces: null}),
-    parseString: input => parseNumberString(input),
-    formatString: (value, config) => {
+export const DatabaseNumberFieldConfigSchema = Schema.object({
+    type: Schema.value("number"),
+    decimalPlaces: Schema.integer.min(0).max(10).nullable(),
+});
+export type DatabaseNumberFieldConfig = SchemaType<typeof DatabaseNumberFieldConfigSchema>;
+
+export const DatabaseNumberFieldValueSchema = Schema.float.nullable();
+export type DatabaseNumberFieldValue = SchemaType<typeof DatabaseNumberFieldValueSchema>;
+
+export class DatabaseNumberFieldProvider extends ColumnBackedDatabaseFieldProvider<
+    "number",
+    DatabaseNumberFieldValue,
+    DatabaseNumberFieldConfig
+> {
+    static readonly instance = new DatabaseNumberFieldProvider();
+
+    readonly type = "number";
+    readonly valueSchema = DatabaseNumberFieldValueSchema;
+    readonly configSchema = DatabaseNumberFieldConfigSchema;
+    readonly sqliteType = "REAL";
+    readonly nullable = true;
+    readonly defaultValue = sql`NULL`;
+
+    generateCheckConstraint(columnName: SqlQuery): SqlQuery {
+        return sql`
+            CHECK (
+                TYPEOF(${columnName}) IN ('real', 'integer', 'null')
+            )
+        `;
+    }
+
+    parseValueString(input: string): Result<number | null, void> {
+        return parseNumberString(input);
+    }
+
+    valueToString(value: number | null, config: DatabaseNumberFieldConfig): string {
         if (value == null) return "";
         return config.decimalPlaces == null ? String(value) : value.toFixed(config.decimalPlaces);
-    },
-});
+    }
+
+    override _selectColumnAsString(field: DatabaseFieldModelOfType<"number">, dataRow: SqlQuery) {
+        const column = this.selectColumn(field, dataRow);
+        if (field.config.decimalPlaces == null) {
+            return sql`
+                CASE
+                    WHEN ${column} IS NULL THEN ''
+                    ELSE CAST(${column} AS TEXT)
+                END
+            `;
+        }
+        return sql`
+            CASE
+                WHEN ${column} IS NULL THEN ''
+                ELSE PRINTF(
+                    ${`%.${field.config.decimalPlaces}f`},
+                    ${column}
+                )
+            END
+        `;
+    }
+}
+
+export const databaseNumberFieldProvider: DatabaseNumberFieldProvider =
+    DatabaseNumberFieldProvider.instance;
 
 // -- parseString --------------------------------------------------------------
 

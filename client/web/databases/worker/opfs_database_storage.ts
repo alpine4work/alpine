@@ -1,5 +1,5 @@
-import type {OpfsDirectoryHandle} from "~/client/web/databases/opfs.js";
-import {OpfsPageStore} from "~/client/web/databases/opfs_page_store.js";
+import type {OpfsDirectoryHandle} from "~/client/web/databases/worker/opfs.js";
+import {OpfsPageStore} from "~/client/web/databases/worker/opfs_page_store.js";
 import type {ReadonlyDatabaseStorage} from "~/shared/databases/database.js";
 import {PageMissingError} from "~/shared/databases/page_missing_error.js";
 import {sqlitePageSize} from "~/shared/databases/sqlite_constants.js";

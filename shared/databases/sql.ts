@@ -1,4 +1,5 @@
-import type {BindableValue, Database} from "~/external/sqlite/ext/wasm/jswasm/sqlite3.mjs";
+import type {BindableValue} from "~/external/sqlite/ext/wasm/jswasm/sqlite3.mjs";
+import {SqliteDatabase} from "~/shared/databases/sqlite.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import type {DatabaseTableId} from "~/shared/id/types/id_types.js";
 import {
@@ -42,7 +43,7 @@ class SqlQuery {
      * through the prepared statement column-by-column.
      */
     selectAll<Config extends ObjectSchemaConfigBase>(
-        db: Database,
+        db: SqliteDatabase,
         config: Config,
     ): Array<ObjectSchemaConfigType<Config>> {
         const stmt = db.prepare(this.query);
@@ -83,7 +84,7 @@ class SqlQuery {
 
     /** Execute and return exactly one row (asserts). */
     selectOne<Config extends ObjectSchemaConfigBase>(
-        db: Database,
+        db: SqliteDatabase,
         config: Config,
     ): ObjectSchemaConfigType<Config> {
         const rows = this.selectAll(db, config);
@@ -95,7 +96,7 @@ class SqlQuery {
      * Execute and return at most one row. Returns `null` when zero rows match.
      */
     selectOneOrNone<Config extends ObjectSchemaConfigBase>(
-        db: Database,
+        db: SqliteDatabase,
         config: Config,
     ): ObjectSchemaConfigType<Config> | null {
         const rows = this.selectAll(db, config);
@@ -107,7 +108,7 @@ class SqlQuery {
      * Execute and return a single scalar value. Asserts exactly one row with one
      * column.
      */
-    selectValue<Value>(db: Database, schema: Schema<Value>): Value {
+    selectValue<Value>(db: SqliteDatabase, schema: Schema<Value>): Value {
         const stmt = db.prepare(this.query);
         try {
             if (this.bind.length > 0) stmt.bind(this.bind as Array<BindableValue>);
@@ -122,10 +123,29 @@ class SqlQuery {
     }
 
     /**
+     * Execute and return a single scalar value if it exists. Asserts one or no rows
+     * with one column.
+     */
+    selectValueIfExists<Value>(db: SqliteDatabase, schema: Schema<Value>): Value | null {
+        const stmt = db.prepare(this.query);
+        try {
+            if (this.bind.length > 0) stmt.bind(this.bind as Array<BindableValue>);
+            assert(stmt.columnCount === 1, `Expected 1 column, got ${stmt.columnCount}`);
+            const hasRow = stmt.step();
+            if (!hasRow) return null;
+            const value = schema.deserialize(stmt.get(0) as SchemaSerializedValue);
+            assert(!stmt.step(), "Expected 1 or 0 rows, got more");
+            return value;
+        } finally {
+            stmt.finalize();
+        }
+    }
+
+    /**
      * Execute and return every row's single column as an array of values, deserialized
      * through `schema`. Asserts the query selects exactly one column.
      */
-    selectValues<Value>(db: Database, schema: Schema<Value>): Array<Value> {
+    selectValues<Value>(db: SqliteDatabase, schema: Schema<Value>): Array<Value> {
         const stmt = db.prepare(this.query);
         try {
             if (this.bind.length > 0) stmt.bind(this.bind as Array<BindableValue>);
@@ -144,7 +164,7 @@ class SqlQuery {
      * Execute and return all rows as untyped objects. Use when the result schema is
      * not known statically (e.g. user-provided SQL).
      */
-    selectAllUnknown(db: Database): Array<Record<string, unknown>> {
+    selectAllUnknown(db: SqliteDatabase): Array<Record<string, unknown>> {
         const stmt = db.prepare(this.query);
         try {
             if (this.bind.length > 0) stmt.bind(this.bind as Array<BindableValue>);
@@ -166,7 +186,10 @@ class SqlQuery {
      * corresponding schema (stepping through the prepared statement column-by-column,
      * like {@link selectAll}).
      */
-    selectAllArrays(db: Database, schemas: ReadonlyArray<Schema<unknown>>): Array<Array<unknown>> {
+    selectAllArrays(
+        db: SqliteDatabase,
+        schemas: ReadonlyArray<Schema<unknown>>,
+    ): Array<Array<unknown>> {
         const stmt = db.prepare(this.query);
         try {
             if (this.bind.length > 0) stmt.bind(this.bind as Array<BindableValue>);
@@ -185,7 +208,7 @@ class SqlQuery {
     }
 
     /** Execute without returning results (INSERT/UPDATE/DELETE/DDL). */
-    exec(db: Database): void {
+    exec(db: SqliteDatabase): void {
         db.exec(this.query, {bind: this.bind as Array<BindableValue>});
     }
 }
@@ -239,11 +262,31 @@ sql.raw = (text: string): SqlQuery => new SqlQuery(text);
 
 /**
  * Create a quoted SQL identifier. Double-quotes are escaped per the SQL standard
- * (`"` → `""`). Returns a {@link SqlQuery} that can be interpolated into a tagged
- * template.
+ * (`"` → `""`). Multiple names are joined as a qualified identifier. Returns a
+ * {@link SqlQuery} that can be interpolated into a tagged template.
  */
-// eslint-disable-next-line cyberworlds/string-quotes -- SQL identifier quoting
-sql.identifier = (name: string): SqlQuery => new SqlQuery(`"${name.replace(/"/g, '""')}"`);
+sql.identifier = (name: string, ...moreNames: Array<string>): SqlQuery =>
+    sql.raw(
+        [name, ...moreNames]
+            // eslint-disable-next-line cyberworlds/string-quotes -- SQL identifier quoting
+            .map(identifierName => `"${identifierName.replace(/"/g, '""')}"`)
+            .join("."),
+    );
+
+/**
+ * Join an array of {@link SqlQuery}s with a separator.
+ */
+sql.join = (queries: Array<SqlQuery>, separator: string): SqlQuery => {
+    const texts = [];
+    const bindings = [];
+
+    for (const query of queries) {
+        texts.push(query.query);
+        bindings.push(...query.bind);
+    }
+
+    return new SqlQuery(texts.join(separator), bindings);
+};
 
 /**
  * Prefix for the SQLite schema name of a table's `ATTACH`-ed per-db file.
@@ -269,9 +312,9 @@ export function databaseTableSchemaName(tableId: DatabaseTableId): string {
  * for referencing a table (or index) in a {@link DatabaseTableId}'s `ATTACH`-ed
  * per-db file. Both parts are quoted and escaped via {@link sql.identifier}.
  */
-sql.tableRef = (schema: DatabaseTableId, name: string): SqlQuery =>
-    new SqlQuery(
-        `${sql.identifier(databaseTableSchemaName(schema)).query}.${sql.identifier(name).query}`,
-    );
+sql.tableRef = (schema: DatabaseTableId, name?: string): SqlQuery =>
+    name
+        ? sql.identifier(databaseTableSchemaName(schema), name)
+        : sql.identifier(databaseTableSchemaName(schema));
 
 export {sql, SqlQuery};

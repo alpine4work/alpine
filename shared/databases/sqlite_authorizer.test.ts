@@ -1,11 +1,10 @@
-/* eslint-disable cyberworlds/string-quotes -- SQL literals */
-
 import sqlite3InitModule from "~/external/sqlite/ext/wasm/jswasm/sqlite3.mjs";
 import type {
     Database,
     Sqlite3Static,
     WasmPointer,
 } from "~/external/sqlite/ext/wasm/jswasm/sqlite3.mjs";
+import {SqlQuery, sql} from "~/shared/databases/sql.js";
 import {
     type SqliteWriteLevel,
     isSqliteActionAllowed,
@@ -44,8 +43,13 @@ beforeEach(() => {
     // Seed schema with the authorizer disabled so setup doesn't depend on what we're
     // about to test.
     writeLevel = null;
-    db.exec("CREATE TABLE items (id INTEGER PRIMARY KEY, name TEXT)");
-    db.exec("INSERT INTO items VALUES (1, 'a')");
+    db.exec(sql`CREATE TABLE items (id INTEGER PRIMARY KEY, name TEXT)`.query);
+    db.exec(sql`
+        INSERT INTO
+            items
+        VALUES
+            (1, 'a')
+    `.query);
 });
 
 afterEach(() => {
@@ -53,10 +57,10 @@ afterEach(() => {
     db.close();
 });
 
-function run(sql: string, level: SqliteWriteLevel): void {
+function run(query: SqlQuery, level: SqliteWriteLevel): void {
     writeLevel = level;
     try {
-        db.exec(sql);
+        db.exec(query.query);
     } finally {
         writeLevel = null;
     }
@@ -69,70 +73,93 @@ function run(sql: string, level: SqliteWriteLevel): void {
 // `isSqliteActionAllowed` or in the action-code mapping shows up as a failure.
 const matrix: ReadonlyArray<{
     name: string;
-    sql: string;
+    query: SqlQuery;
     none: "allow" | "reject";
     data: "allow" | "reject";
     schemaData: "allow" | "reject";
 }> = [
     {
         name: "SELECT",
-        sql: "SELECT * FROM items",
+        query: sql`
+            SELECT
+                *
+            FROM
+                items
+        `,
         none: "allow",
         data: "allow",
         schemaData: "allow",
     },
     {
         name: "INSERT",
-        sql: "INSERT INTO items VALUES (2, 'b')",
+        query: sql`
+            INSERT INTO
+                items
+            VALUES
+                (2, 'b')
+        `,
         none: "reject",
         data: "allow",
         schemaData: "allow",
     },
     {
         name: "UPDATE",
-        sql: "UPDATE items SET name = 'x' WHERE id = 1",
+        query: sql`
+            UPDATE items
+            SET
+                name = 'x'
+            WHERE
+                id = 1
+        `,
         none: "reject",
         data: "allow",
         schemaData: "allow",
     },
     {
         name: "DELETE",
-        sql: "DELETE FROM items WHERE id = 1",
+        query: sql`
+            DELETE FROM items
+            WHERE
+                id = 1
+        `,
         none: "reject",
         data: "allow",
         schemaData: "allow",
     },
     {
         name: "CREATE TABLE",
-        sql: "CREATE TABLE other (id INTEGER)",
+        query: sql`CREATE TABLE other (id INTEGER)`,
         none: "reject",
         data: "reject",
         schemaData: "allow",
     },
     {
         name: "DROP TABLE",
-        sql: "DROP TABLE items",
+        query: sql`DROP TABLE items`,
         none: "reject",
         data: "reject",
         schemaData: "allow",
     },
     {
         name: "ALTER TABLE",
-        sql: "ALTER TABLE items ADD COLUMN extra TEXT",
+        query: sql`
+            ALTER TABLE items
+            ADD COLUMN extra TEXT
+        `,
         none: "reject",
         data: "reject",
         schemaData: "allow",
     },
     {
         name: "CREATE INDEX",
-        sql: "CREATE INDEX idx_name ON items (name)",
+        query: sql`CREATE INDEX idx_name ON items (name)`,
         none: "reject",
         data: "reject",
         schemaData: "allow",
     },
     {
         name: "PRAGMA",
-        sql: "PRAGMA table_list",
+        query: sql`PRAGMA table_list`,
         none: "reject",
         data: "reject",
         schemaData: "allow",
@@ -146,9 +173,9 @@ describe("authorizer matrix (real SQLite)", () => {
                 level === "none" ? row.none : level === "data" ? row.data : row.schemaData;
             test(`${row.name} is ${expectation}ed at writeLevel=${level}`, () => {
                 if (expectation === "allow") {
-                    expect(() => run(row.sql, level)).not.toThrow();
+                    expect(() => run(row.query, level)).not.toThrow();
                 } else {
-                    expect(() => run(row.sql, level)).toThrow();
+                    expect(() => run(row.query, level)).toThrow();
                 }
             });
         }
@@ -159,11 +186,29 @@ describe("authorizer matrix (real SQLite)", () => {
 
 describe("authorizer interaction", () => {
     test("rejected statement leaves the database queryable", () => {
-        expect(() => run("INSERT INTO items VALUES (2, 'b')", "none")).toThrow();
-        const rows = db.exec("SELECT id FROM items", {
-            returnValue: "resultRows",
-            rowMode: "array",
-        });
+        expect(() =>
+            run(
+                sql`
+                    INSERT INTO
+                        items
+                    VALUES
+                        (2, 'b')
+                `,
+                "none",
+            ),
+        ).toThrow();
+        const rows = db.exec(
+            sql`
+                SELECT
+                    id
+                FROM
+                    items
+            `.query,
+            {
+                returnValue: "resultRows",
+                rowMode: "array",
+            },
+        );
         expect(rows).toEqual([[1]]);
     });
 
@@ -172,20 +217,63 @@ describe("authorizer interaction", () => {
         // the seed in beforeEach already, but pin it directly so a regression here
         // surfaces clearly.
         writeLevel = null;
-        expect(() => db.exec("CREATE TABLE x (id INTEGER)")).not.toThrow();
-        expect(() => db.exec("INSERT INTO x VALUES (1)")).not.toThrow();
-        expect(() => db.exec("PRAGMA table_list")).not.toThrow();
+        expect(() => db.exec(sql`CREATE TABLE x (id INTEGER)`.query)).not.toThrow();
+        expect(() =>
+            db.exec(sql`
+                INSERT INTO
+                    x
+                VALUES
+                    (1)
+            `.query),
+        ).not.toThrow();
+        expect(() => db.exec(sql`PRAGMA table_list`.query)).not.toThrow();
     });
 
     test("transitioning writeLevel between statements is honored", () => {
-        run("INSERT INTO items VALUES (2, 'b')", "data");
-        expect(() => run("INSERT INTO items VALUES (3, 'c')", "none")).toThrow();
-        run("INSERT INTO items VALUES (4, 'd')", "data");
+        run(
+            sql`
+                INSERT INTO
+                    items
+                VALUES
+                    (2, 'b')
+            `,
+            "data",
+        );
+        expect(() =>
+            run(
+                sql`
+                    INSERT INTO
+                        items
+                    VALUES
+                        (3, 'c')
+                `,
+                "none",
+            ),
+        ).toThrow();
+        run(
+            sql`
+                INSERT INTO
+                    items
+                VALUES
+                    (4, 'd')
+            `,
+            "data",
+        );
 
-        const rows = db.exec("SELECT id FROM items ORDER BY id", {
-            returnValue: "resultRows",
-            rowMode: "array",
-        });
+        const rows = db.exec(
+            sql`
+                SELECT
+                    id
+                FROM
+                    items
+                ORDER BY
+                    id
+            `.query,
+            {
+                returnValue: "resultRows",
+                rowMode: "array",
+            },
+        );
         expect(rows).toEqual([[1], [2], [4]]);
     });
 

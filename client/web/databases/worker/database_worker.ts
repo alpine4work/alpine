@@ -1,5 +1,7 @@
+import "~/client/web/databases/worker/sqlite3_wasm_init_worker.js";
+
 import {DatabaseActiveTabWorker} from "~/client/web/databases/database_active_tab_manager.js";
-import type {OpfsDirectoryHandle} from "~/client/web/databases/opfs.js";
+import type {OpfsDirectoryHandle} from "~/client/web/databases/worker/opfs.js";
 
 const workerSelf = globalThis as unknown as {
     postMessage(message: unknown): void;

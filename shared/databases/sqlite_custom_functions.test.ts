@@ -1,5 +1,3 @@
-/* eslint-disable cyberworlds/string-quotes -- SQL literals */
-
 import sqlite3InitModule from "~/external/sqlite/ext/wasm/jswasm/sqlite3.mjs";
 import type {Database} from "~/external/sqlite/ext/wasm/jswasm/sqlite3.mjs";
 import {sql} from "~/shared/databases/sql.js";
@@ -43,7 +41,7 @@ describe("generate_order_key", () => {
         expect(isOrderKey(row[0]!.value as string)).toBe(true);
     });
 
-    test("('a0', NULL) returns a key > 'a0'", async () => {
+    test("lower bound only returns a greater key", async () => {
         const db = await createDb();
         const row = sql`
             SELECT
@@ -53,7 +51,7 @@ describe("generate_order_key", () => {
         expect((row[0]!.value as string) > "a0").toBe(true);
     });
 
-    test("(NULL, 'a0') returns a key < 'a0'", async () => {
+    test("upper bound only returns a smaller key", async () => {
         const db = await createDb();
         const row = sql`
             SELECT
@@ -63,7 +61,7 @@ describe("generate_order_key", () => {
         expect((row[0]!.value as string) < "a0").toBe(true);
     });
 
-    test("('a0', 'a2') returns a key between them", async () => {
+    test("lower and upper bounds return a key between them", async () => {
         const db = await createDb();
         const row = sql`
             SELECT

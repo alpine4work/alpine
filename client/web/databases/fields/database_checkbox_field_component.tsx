@@ -27,7 +27,7 @@ export const databaseCheckboxFieldComponentProvider = defineDatabaseFieldCompone
             return (
                 <Box
                     ref={ref as React.Ref<HTMLDivElement>}
-                    tabIndex={0}
+                    tabIndex={-1}
                     display="flex"
                     alignItems="center"
                     justifyContent="center"

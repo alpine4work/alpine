@@ -21,7 +21,7 @@ function DatabasePlainTextGridViewCellContent({
     return (
         <Box
             ref={ref as React.Ref<HTMLDivElement>}
-            tabIndex={0}
+            tabIndex={-1}
             height="full"
             display="flex"
             alignItems="center"

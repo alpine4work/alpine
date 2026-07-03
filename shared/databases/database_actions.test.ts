@@ -1,20 +1,23 @@
-/* eslint-disable cyberworlds/string-quotes -- SQL literals */
-
-import sqlite3InitModule from "~/external/sqlite/ext/wasm/jswasm/sqlite3.mjs";
-import type {Database} from "~/external/sqlite/ext/wasm/jswasm/sqlite3.mjs";
+import sqlite3InitModule, {Database} from "~/external/sqlite/ext/wasm/jswasm/sqlite3.mjs";
 import {
     type DatabaseActionContext,
     type DatabaseActionInput,
     type DatabaseActionName,
     type DatabaseActionOutput,
-    databaseActions,
+    executeDatabaseAction,
 } from "~/shared/databases/database_actions.js";
-import {DatabaseFieldConfigSqlSchema} from "~/shared/databases/fields/database_field_providers.js";
+import {
+    type DatabaseFieldConfig,
+    DatabaseFieldConfigSqlSchema,
+} from "~/shared/databases/fields/all_database_field_providers.js";
+import {DatabaseModel} from "~/shared/databases/model/database_root_model.js";
 import {databaseTableSchemaName, sql} from "~/shared/databases/sql.js";
+import {SqliteDatabase} from "~/shared/databases/sqlite.js";
 import {databaseViewDefaultColumnWidth} from "~/shared/databases/sqlite_constants.js";
 import {registerSqliteCustomFunctions} from "~/shared/databases/sqlite_custom_functions.js";
 import {runMainMigrations} from "~/shared/databases/sqlite_migrations.js";
-import type {OrderKey} from "~/shared/helpers/sort/order_key.js";
+import {assert} from "~/shared/helpers/control/assert.js";
+import {type OrderKey, generateOrderKeyBetween} from "~/shared/helpers/sort/order_key.js";
 import {generateChronologicalId} from "~/shared/id/chronological_id.js";
 import {isId} from "~/shared/id/id.js";
 import type {
@@ -28,7 +31,7 @@ import {Schema} from "~/shared/schema/schema.js";
 const sqlite3Promise = sqlite3InitModule();
 let dbCounter = 0;
 
-async function createDb(): Promise<Database> {
+async function createDb(): Promise<SqliteDatabase> {
     const sqlite3 = await sqlite3Promise;
     const db = new sqlite3.oo1.DB(`/test-actions-${dbCounter++}.sqlite3`, "ct");
     registerSqliteCustomFunctions(sqlite3, db);
@@ -36,21 +39,24 @@ async function createDb(): Promise<Database> {
     return db;
 }
 
+function attachTableDb(db: SqliteDatabase, tableId: DatabaseTableId): void {
+    sql` ATTACH DATABASE ':memory:' AS ${sql.identifier(databaseTableSchemaName(tableId))} `.exec(
+        db,
+    );
+}
+
 /**
  * Action context for the raw test handle. There's no VFS here, so a table's per-db
  * file is simulated with an in-memory attached database under the table id's
  * schema.
  */
-function makeCtx(db: Database): DatabaseActionContext {
+function makeCtx(db: SqliteDatabase): DatabaseActionContext {
     return {
         db,
+        model: new DatabaseModel(db),
         server: {
             attach(tableId) {
-                sql`
-                    ATTACH DATABASE ':memory:' AS ${sql.identifier(
-                        databaseTableSchemaName(tableId),
-                    )}
-                `.exec(db);
+                attachTableDb(db, tableId);
             },
         },
     };
@@ -62,7 +68,7 @@ function run<N extends DatabaseActionName>(
     name: N,
     input: DatabaseActionInput<N>,
 ): DatabaseActionOutput<N> {
-    return databaseActions[name].run(makeCtx(db), input as never) as DatabaseActionOutput<N>;
+    return executeDatabaseAction<N>({name, input} as any, makeCtx(db));
 }
 
 describe("createTable", () => {
@@ -73,14 +79,14 @@ describe("createTable", () => {
         expect(isId(tableId)).toBe(true);
         expect(tableName).toBe("tasks");
 
-        // The public main database holds only the id — no name.
+        // The public main database holds only ids and storage kind — no name.
         const tables = sql`
             SELECT
                 *
             FROM
                 _alpine_tables
         `.selectAllUnknown(db);
-        expect(tables).toEqual([{id: tableId}]);
+        expect(tables).toEqual([{id: tableId, kind: "table"}]);
         db.close();
     });
 
@@ -94,28 +100,42 @@ describe("createTable", () => {
             FROM
                 ${sql.tableRef(tableId, "_alpine_table")}
         `.selectAllUnknown(db);
-        expect(row).toMatchObject([{id: tableId, name: "Tasks", table_name: "tasks"}]);
+        expect(row).toMatchObject([
+            {id: tableId, name: "Tasks", table_name: "tasks", name_field_id: expect.any(String)},
+        ]);
         db.close();
     });
 
-    test("stores the initial Name field in its per-db file", async () => {
+    test("stores the initial Name field as the record-name field", async () => {
         const db = await createDb();
         const {tableId} = run(db, "createTable", {name: "Tasks"});
 
         const fields = sql`
             SELECT
-                *
+                id,
+                name,
+                column_name,
+                JSON(config) AS config
             FROM
                 ${sql.tableRef(tableId, "_alpine_fields")}
         `.selectAllUnknown(db);
+        const table = sql`
+            SELECT
+                name_field_id
+            FROM
+                ${sql.tableRef(tableId, "_alpine_table")}
+        `.selectOne(db, {
+            nameFieldId: Schema.id<DatabaseFieldId>().originalPropertyKey("name_field_id"),
+        });
+
         expect(fields).toMatchObject([
             {
-                table_id: tableId,
                 name: "Name",
                 column_name: "name",
                 config: DatabaseFieldConfigSqlSchema.serialize({type: "plainText"}),
             },
         ]);
+        expect(table.nameFieldId).toBe(fields[0]!.id);
         db.close();
     });
 
@@ -234,13 +254,11 @@ describe("createTable", () => {
         const {tableId, tableName} = run(db, "createTable", {name: "T"});
 
         expect(() => {
-            // `sql.raw` for the blob literal: the sql template JSON-encodes bound objects, so
-            // a blob value can't go through a `?` parameter.
             sql`
                 INSERT INTO
                     ${sql.tableRef(tableId, tableName)} (name)
                 VALUES
-                    (${sql.raw("x'00'")})
+                    (x'00')
             `.exec(db);
         }).toThrow("CHECK");
     });
@@ -254,18 +272,16 @@ describe("createTable", () => {
         `.selectAllUnknown(db);
 
         const nameCol = colInfo.find(c => c.name === "name");
-        expect(nameCol!.type).toMatch(/^TEXT_alpine_[0-9a-z]{26}$/);
+        expect(nameCol!.type).toMatch(/^TEXT_alpine_[0-9a-z]{26}_[0-9a-z]{26}$/);
     });
 
-    test("duplicate names each land in their own file (no cross-table dedup)", async () => {
+    test("duplicate table names get unique SQL identifiers", async () => {
         const db = await createDb();
         const first = run(db, "createTable", {name: "Tasks"});
         const second = run(db, "createTable", {name: "Tasks"});
 
-        // Each table owns its own per-db file, so the SQLite identifier only needs to be
-        // unique within that file — no "\_2" suffix across tables.
         expect(first.tableName).toBe("tasks");
-        expect(second.tableName).toBe("tasks");
+        expect(second.tableName).toBe("tasks_2");
     });
 
     test("index exists on _created_at", async () => {
@@ -289,11 +305,9 @@ describe("createTable", () => {
                 *
             FROM
                 ${sql.tableRef(tableId, "_alpine_views")}
-            WHERE
-                table_id = ${tableId}
         `.selectAllUnknown(db);
 
-        expect(views).toMatchObject([{id: viewId, table_id: tableId, name: "Grid view"}]);
+        expect(views).toMatchObject([{id: viewId, name: "Grid view"}]);
         db.close();
     });
 
@@ -364,7 +378,7 @@ describe("getViewSchema", () => {
             viewId,
             fieldId: secondFieldId,
             position: "a1" as OrderKey,
-            isHidden: true,
+            isVisible: false,
         });
 
         const result = run(db, "getViewSchema", {tableOrViewId: viewId});
@@ -390,7 +404,7 @@ describe("updateFieldViewVisibility", () => {
             viewId,
             fieldId,
             position: "a1" as OrderKey,
-            isHidden: true,
+            isVisible: false,
         });
 
         const row = sql`
@@ -402,7 +416,7 @@ describe("updateFieldViewVisibility", () => {
                 view_id = ${viewId}
                 AND field_id = ${fieldId}
         `.selectAllUnknown(db);
-        expect(row).toMatchObject([{position: "a1", hidden: 1}]);
+        expect(row).toMatchObject([{position: "a1", is_visible: 0}]);
         db.close();
     });
 
@@ -416,14 +430,14 @@ describe("updateFieldViewVisibility", () => {
             viewId,
             fieldId,
             position: "a1" as OrderKey,
-            isHidden: true,
+            isVisible: false,
         });
         run(db, "updateFieldViewVisibility", {
             tableId,
             viewId,
             fieldId,
             position: "a2" as OrderKey,
-            isHidden: false,
+            isVisible: true,
         });
 
         const row = sql`
@@ -435,22 +449,141 @@ describe("updateFieldViewVisibility", () => {
                 view_id = ${viewId}
                 AND field_id = ${fieldId}
         `.selectAllUnknown(db);
-        expect(row).toMatchObject([{position: "a2", hidden: 0}]);
+        expect(row).toMatchObject([{position: "a2", is_visible: 1}]);
         db.close();
     });
 });
 
 /** Helper: creates a field via the action and returns its id. */
 function addFieldAndGetId(
-    db: Database,
+    db: SqliteDatabase,
     tableId: DatabaseTableId,
     viewId: DatabaseViewId,
     name: string,
-    type: "plainText" | "checkbox" = "plainText",
+    type: "plainText" | "checkbox" | "number" = "plainText",
 ) {
     const fieldId = generateChronologicalId<DatabaseFieldId>();
-    run(db, "createField", {fieldId, tableId, viewId, name, type});
+    run(db, "createField", {fieldId, tableId, name, config: getDefaultFieldConfig(type)});
     return {fieldId};
+}
+
+function getDefaultFieldConfig(type: "plainText" | "checkbox" | "number") {
+    switch (type) {
+        case "checkbox":
+            return {type: "checkbox" as const};
+        case "number":
+            return {type: "number" as const, decimalPlaces: null};
+        case "plainText":
+            return {type: "plainText" as const};
+    }
+}
+
+function createRowAndGetId(db: SqliteDatabase, tableId: DatabaseTableId): DatabaseRowId {
+    const rowId = generateChronologicalId<DatabaseRowId>();
+    run(db, "createRow", {tableId, rowId});
+    return rowId;
+}
+
+function readNameFieldId(db: SqliteDatabase, tableId: DatabaseTableId): DatabaseFieldId {
+    return sql`
+        SELECT
+            name_field_id
+        FROM
+            ${sql.tableRef(tableId, "_alpine_table")}
+    `.selectValue(db, Schema.id<DatabaseFieldId>());
+}
+
+/**
+ * Helper: inserts relation metadata without implementing createRelationField.
+ */
+function addRelationFieldMetadata(
+    db: SqliteDatabase,
+    tableId: DatabaseTableId,
+    viewId: DatabaseViewId,
+    name = "Links",
+) {
+    const fieldId = generateChronologicalId<DatabaseFieldId>();
+    const joinTableId = generateChronologicalId<DatabaseTableId>();
+    const config = {
+        type: "relation" as const,
+        joinTableId,
+        side: "source" as const,
+        cardinality: "many" as const,
+        linkedTableId: tableId,
+    };
+    const maxPosition = sql`
+        SELECT
+            MAX(position)
+        FROM
+            ${sql.tableRef(tableId, "_alpine_view_fields")}
+        WHERE
+            view_id = ${viewId}
+    `.selectValue(db, Schema.string.nullable());
+    const position = generateOrderKeyBetween(maxPosition as OrderKey | null, null);
+    sql`
+        INSERT INTO
+            ${sql.tableRef(tableId, "_alpine_fields")} (id, name, column_name, config)
+        VALUES
+            (
+                ${fieldId},
+                ${name},
+                ${"links"},
+                jsonb (${DatabaseFieldConfigSqlSchema.serialize(config)})
+            )
+    `.exec(db);
+    sql`
+        INSERT INTO
+            ${sql.tableRef(tableId, "_alpine_view_fields")} (view_id, field_id, position, width)
+        VALUES
+            (
+                ${viewId},
+                ${fieldId},
+                ${position},
+                ${databaseViewDefaultColumnWidth}
+            )
+    `.exec(db);
+    return {fieldId, config};
+}
+
+function readFieldById(
+    db: SqliteDatabase,
+    tableId: DatabaseTableId,
+    fieldId: DatabaseFieldId,
+): {id: DatabaseFieldId; name: string; config: DatabaseFieldConfig} {
+    return sql`
+        SELECT
+            id,
+            name,
+            JSON(config) AS config
+        FROM
+            ${sql.tableRef(tableId, "_alpine_fields")}
+        WHERE
+            id = ${fieldId}
+    `.selectOne(db, {
+        id: Schema.id<DatabaseFieldId>(),
+        name: Schema.string,
+        config: DatabaseFieldConfigSqlSchema,
+    });
+}
+
+function readLinks(
+    db: SqliteDatabase,
+    joinTableId: DatabaseTableId,
+): Array<{sourceRowId: DatabaseRowId; targetRowId: DatabaseRowId}> {
+    const joinTable = new DatabaseModel(db).getJoinTable(joinTableId);
+    return sql`
+        SELECT
+            ${joinTable.sourceRowIdColumn()} AS source_row_id,
+            ${joinTable.targetRowIdColumn()} AS target_row_id
+        FROM
+            ${joinTable.tableRef}
+        ORDER BY
+            ${joinTable.sourceRowIdColumn()},
+            ${joinTable.targetRowIdColumn()}
+    `.selectAll(db, {
+        sourceRowId: Schema.id<DatabaseRowId>().originalPropertyKey("source_row_id"),
+        targetRowId: Schema.id<DatabaseRowId>().originalPropertyKey("target_row_id"),
+    });
 }
 
 describe("rawSql", () => {
@@ -466,7 +599,14 @@ describe("rawSql", () => {
         `.exec(db);
 
         const {rows} = run(db, "rawSql", {
-            sql: `SELECT name FROM ${sql.tableRef(tableId, tableName).query} ORDER BY name`,
+            sql: sql`
+                SELECT
+                    name
+                FROM
+                    ${sql.tableRef(tableId, tableName)}
+                ORDER BY
+                    name
+            `.query,
         });
 
         expect(rows).toMatchObject([{name: "a"}, {name: "b"}]);
@@ -478,7 +618,12 @@ describe("rawSql", () => {
         const {tableId, tableName} = run(db, "createTable", {name: "T"});
 
         run(db, "rawSql", {
-            sql: `INSERT INTO ${sql.tableRef(tableId, tableName).query} (name) VALUES ('inserted')`,
+            sql: sql`
+                INSERT INTO
+                    ${sql.tableRef(tableId, tableName)} (name)
+                VALUES
+                    ('inserted')
+            `.query,
         });
 
         const rows = sql`
@@ -504,7 +649,12 @@ describe("readonlyRawSql", () => {
         `.exec(db);
 
         const {rows} = run(db, "readonlyRawSql", {
-            sql: `SELECT name FROM ${sql.tableRef(tableId, tableName).query}`,
+            sql: sql`
+                SELECT
+                    name
+                FROM
+                    ${sql.tableRef(tableId, tableName)}
+            `.query,
         });
 
         expect(rows).toMatchObject([{name: "hello"}]);
@@ -516,7 +666,12 @@ describe("readonlyRawSql", () => {
         const {tableId, tableName} = run(db, "createTable", {name: "T"});
 
         const {rows} = run(db, "readonlyRawSql", {
-            sql: `SELECT * FROM ${sql.tableRef(tableId, tableName).query}`,
+            sql: sql`
+                SELECT
+                    *
+                FROM
+                    ${sql.tableRef(tableId, tableName)}
+            `.query,
         });
 
         expect(rows).toEqual([]);
@@ -542,6 +697,509 @@ describe("listTableIds", () => {
         const {tableIds} = run(db, "listTableIds", {});
 
         expect(tableIds).toEqual([]);
+        db.close();
+    });
+
+    test("filters out join table ids", async () => {
+        const db = await createDb();
+        const table = run(db, "createTable", {name: "Tasks"});
+        const joinTableId = generateChronologicalId<DatabaseTableId>();
+
+        sql`
+            INSERT INTO
+                _alpine_tables (id, kind)
+            VALUES
+                (${joinTableId}, 'join')
+        `.exec(db);
+
+        const {tableIds} = run(db, "listTableIds", {});
+
+        expect(tableIds).toEqual([table.tableId]);
+        db.close();
+    });
+});
+
+describe("listTables", () => {
+    test("returns user table ids and display names in id order", async () => {
+        const db = await createDb();
+        const first = run(db, "createTable", {name: "Tasks"});
+        const second = run(db, "createTable", {name: "Projects"});
+        const relation = run(db, "createRelationField", {
+            sourceTableId: first.tableId,
+            sourceFieldName: "Project",
+            targetTableId: second.tableId,
+            cardinality: "many",
+        });
+
+        const {tables} = run(db, "listTables", {});
+
+        expect(tables).toEqual([
+            {id: first.tableId, name: "Tasks"},
+            {id: second.tableId, name: "Projects"},
+        ]);
+        expect(tables.map(table => table.id)).not.toContain(relation.joinTableId);
+        db.close();
+    });
+});
+
+describe("createRelationField", () => {
+    test("creates the join table row, source field, and symmetric target field", async () => {
+        const db = await createDb();
+        const source = run(db, "createTable", {name: "Tasks"});
+        const target = run(db, "createTable", {name: "Projects"});
+        const sourceSecondViewId = generateChronologicalId<DatabaseViewId>();
+        sql`
+            INSERT INTO
+                ${sql.tableRef(source.tableId, "_alpine_views")} (id, name)
+            VALUES
+                (${sourceSecondViewId}, 'Other view')
+        `.exec(db);
+        const targetSecondViewId = generateChronologicalId<DatabaseViewId>();
+        sql`
+            INSERT INTO
+                ${sql.tableRef(target.tableId, "_alpine_views")} (id, name)
+            VALUES
+                (${targetSecondViewId}, 'Other view')
+        `.exec(db);
+
+        const result = run(db, "createRelationField", {
+            sourceTableId: source.tableId,
+            sourceFieldName: "Project",
+            targetTableId: target.tableId,
+            cardinality: "one",
+        });
+
+        const registryRow = sql`
+            SELECT
+                *
+            FROM
+                _alpine_tables
+            WHERE
+                id = ${result.joinTableId}
+        `.selectAllUnknown(db)[0];
+        const joinRow = sql`
+            SELECT
+                *
+            FROM
+                ${sql.tableRef(result.joinTableId, "_alpine_join_table")}
+        `.selectAllUnknown(db)[0];
+        const sourceField = readFieldById(db, source.tableId, result.sourceFieldId);
+        const targetField = readFieldById(db, target.tableId, result.targetFieldId);
+        const joinTableColumns = sql`
+            PRAGMA ${sql.tableRef(result.joinTableId, "table_info")} (${sql.identifier(
+                joinRow!.table_name as string,
+            )})
+        `
+            .selectAllUnknown(db)
+            .map(column => column.name);
+        const sourceViewFieldIds = sql`
+            SELECT
+                field_id
+            FROM
+                ${sql.tableRef(source.tableId, "_alpine_view_fields")}
+            WHERE
+                field_id = ${result.sourceFieldId}
+            ORDER BY
+                view_id
+        `
+            .selectAll(db, {
+                fieldId: Schema.id<DatabaseFieldId>().originalPropertyKey("field_id"),
+            })
+            .map(viewField => viewField.fieldId);
+        const targetViewFieldIds = sql`
+            SELECT
+                field_id
+            FROM
+                ${sql.tableRef(target.tableId, "_alpine_view_fields")}
+            WHERE
+                field_id = ${result.targetFieldId}
+            ORDER BY
+                view_id
+        `
+            .selectAll(db, {
+                fieldId: Schema.id<DatabaseFieldId>().originalPropertyKey("field_id"),
+            })
+            .map(viewField => viewField.fieldId);
+
+        expect({
+            registryRow,
+            joinRow,
+            sourceField,
+            targetField,
+            joinTableColumns,
+            sourceViewFieldIds,
+            targetViewFieldIds,
+        }).toMatchObject({
+            registryRow: {id: result.joinTableId, kind: "join"},
+            joinRow: {
+                id: result.joinTableId,
+                table_name: "project_tasks",
+                source_table_id: source.tableId,
+                source_field_id: result.sourceFieldId,
+                target_table_id: target.tableId,
+                target_field_id: result.targetFieldId,
+                source_row_id_column_name: "tasks_id",
+                source_position_column_name: "tasks_position",
+                target_row_id_column_name: "projects_id",
+                target_position_column_name: "projects_position",
+            },
+            sourceField: {
+                name: "Project",
+                config: {
+                    type: "relation",
+                    joinTableId: result.joinTableId,
+                    side: "source",
+                    cardinality: "one",
+                    linkedTableId: target.tableId,
+                },
+            },
+            targetField: {
+                name: "Tasks",
+                config: {
+                    type: "relation",
+                    joinTableId: result.joinTableId,
+                    side: "target",
+                    cardinality: "many",
+                    linkedTableId: source.tableId,
+                },
+            },
+            joinTableColumns: ["tasks_id", "projects_id", "tasks_position", "projects_position"],
+            sourceViewFieldIds: [result.sourceFieldId, result.sourceFieldId],
+            targetViewFieldIds: [result.targetFieldId, result.targetFieldId],
+        });
+        db.close();
+    });
+
+    test("allows duplicated symmetric field display names", async () => {
+        const db = await createDb();
+        const source = run(db, "createTable", {name: "Name"});
+        const target = run(db, "createTable", {name: "Projects"});
+
+        const result = run(db, "createRelationField", {
+            sourceTableId: source.tableId,
+            sourceFieldName: "Project",
+            targetTableId: target.tableId,
+            cardinality: "many",
+        });
+
+        const targetField = readFieldById(db, target.tableId, result.targetFieldId);
+        expect(targetField.name).toBe("Name");
+        db.close();
+    });
+
+    test("supports self-links", async () => {
+        const db = await createDb();
+        const table = run(db, "createTable", {name: "Tasks"});
+
+        const result = run(db, "createRelationField", {
+            sourceTableId: table.tableId,
+            sourceFieldName: "Related",
+            targetTableId: table.tableId,
+            cardinality: "many",
+        });
+
+        const fields = sql`
+            SELECT
+                id,
+                name,
+                JSON(config) AS config
+            FROM
+                ${sql.tableRef(table.tableId, "_alpine_fields")}
+            WHERE
+                id IN (
+                    ${result.sourceFieldId},
+                    ${result.targetFieldId}
+                )
+            ORDER BY
+                name
+        `.selectAll(db, {
+            id: Schema.id<DatabaseFieldId>(),
+            name: Schema.string,
+            config: DatabaseFieldConfigSqlSchema,
+        });
+        expect(fields).toMatchObject([
+            {id: result.sourceFieldId, name: "Related", config: {side: "source"}},
+            {id: result.targetFieldId, name: "Tasks", config: {side: "target"}},
+        ]);
+        db.close();
+    });
+});
+
+describe("addLink", () => {
+    test("inserts a link row and ignores duplicate adds", async () => {
+        const db = await createDb();
+        const source = run(db, "createTable", {name: "Tasks"});
+        const target = run(db, "createTable", {name: "Projects"});
+        const relation = run(db, "createRelationField", {
+            sourceTableId: source.tableId,
+            sourceFieldName: "Project",
+            targetTableId: target.tableId,
+            cardinality: "many",
+        });
+        const sourceRowId = createRowAndGetId(db, source.tableId);
+        const targetRowId = createRowAndGetId(db, target.tableId);
+
+        run(db, "addLink", {
+            tableId: source.tableId,
+            fieldId: relation.sourceFieldId,
+            rowId: sourceRowId,
+            linkedRowId: targetRowId,
+        });
+        run(db, "addLink", {
+            tableId: source.tableId,
+            fieldId: relation.sourceFieldId,
+            rowId: sourceRowId,
+            linkedRowId: targetRowId,
+        });
+
+        expect(readLinks(db, relation.joinTableId)).toEqual([{sourceRowId, targetRowId}]);
+        db.close();
+    });
+
+    test("replaces other links for one-cardinality fields", async () => {
+        const db = await createDb();
+        const source = run(db, "createTable", {name: "Tasks"});
+        const target = run(db, "createTable", {name: "Projects"});
+        const relation = run(db, "createRelationField", {
+            sourceTableId: source.tableId,
+            sourceFieldName: "Project",
+            targetTableId: target.tableId,
+            cardinality: "one",
+        });
+        const sourceRowId = createRowAndGetId(db, source.tableId);
+        const firstTargetRowId = createRowAndGetId(db, target.tableId);
+        const secondTargetRowId = createRowAndGetId(db, target.tableId);
+
+        run(db, "addLink", {
+            tableId: source.tableId,
+            fieldId: relation.sourceFieldId,
+            rowId: sourceRowId,
+            linkedRowId: firstTargetRowId,
+        });
+        run(db, "addLink", {
+            tableId: source.tableId,
+            fieldId: relation.sourceFieldId,
+            rowId: sourceRowId,
+            linkedRowId: secondTargetRowId,
+        });
+        run(db, "addLink", {
+            tableId: source.tableId,
+            fieldId: relation.sourceFieldId,
+            rowId: sourceRowId,
+            linkedRowId: secondTargetRowId,
+        });
+
+        expect(readLinks(db, relation.joinTableId)).toEqual([
+            {sourceRowId, targetRowId: secondTargetRowId},
+        ]);
+        db.close();
+    });
+
+    test("maps symmetric target fields back to source and target columns", async () => {
+        const db = await createDb();
+        const source = run(db, "createTable", {name: "Tasks"});
+        const target = run(db, "createTable", {name: "Projects"});
+        const relation = run(db, "createRelationField", {
+            sourceTableId: source.tableId,
+            sourceFieldName: "Project",
+            targetTableId: target.tableId,
+            cardinality: "many",
+        });
+        const sourceRowId = createRowAndGetId(db, source.tableId);
+        const targetRowId = createRowAndGetId(db, target.tableId);
+
+        run(db, "addLink", {
+            tableId: target.tableId,
+            fieldId: relation.targetFieldId,
+            rowId: targetRowId,
+            linkedRowId: sourceRowId,
+        });
+
+        expect(readLinks(db, relation.joinTableId)).toEqual([{sourceRowId, targetRowId}]);
+        db.close();
+    });
+
+    test("validates the linked row before replacing an existing one-cardinality link", async () => {
+        const db = await createDb();
+        const source = run(db, "createTable", {name: "Tasks"});
+        const target = run(db, "createTable", {name: "Projects"});
+        const relation = run(db, "createRelationField", {
+            sourceTableId: source.tableId,
+            sourceFieldName: "Project",
+            targetTableId: target.tableId,
+            cardinality: "one",
+        });
+        const sourceRowId = createRowAndGetId(db, source.tableId);
+        const targetRowId = createRowAndGetId(db, target.tableId);
+        const missingTargetRowId = generateChronologicalId<DatabaseRowId>();
+
+        run(db, "addLink", {
+            tableId: source.tableId,
+            fieldId: relation.sourceFieldId,
+            rowId: sourceRowId,
+            linkedRowId: targetRowId,
+        });
+
+        expect(() =>
+            run(db, "addLink", {
+                tableId: source.tableId,
+                fieldId: relation.sourceFieldId,
+                rowId: sourceRowId,
+                linkedRowId: missingTargetRowId,
+            }),
+        ).toThrow("linked row not found");
+        expect(readLinks(db, relation.joinTableId)).toEqual([{sourceRowId, targetRowId}]);
+        db.close();
+    });
+});
+
+describe("removeLink", () => {
+    test("deletes one matching link and ignores missing links", async () => {
+        const db = await createDb();
+        const source = run(db, "createTable", {name: "Tasks"});
+        const target = run(db, "createTable", {name: "Projects"});
+        const relation = run(db, "createRelationField", {
+            sourceTableId: source.tableId,
+            sourceFieldName: "Project",
+            targetTableId: target.tableId,
+            cardinality: "many",
+        });
+        const sourceRowId = createRowAndGetId(db, source.tableId);
+        const firstTargetRowId = createRowAndGetId(db, target.tableId);
+        const secondTargetRowId = createRowAndGetId(db, target.tableId);
+
+        run(db, "addLink", {
+            tableId: source.tableId,
+            fieldId: relation.sourceFieldId,
+            rowId: sourceRowId,
+            linkedRowId: firstTargetRowId,
+        });
+        run(db, "addLink", {
+            tableId: source.tableId,
+            fieldId: relation.sourceFieldId,
+            rowId: sourceRowId,
+            linkedRowId: secondTargetRowId,
+        });
+
+        run(db, "removeLink", {
+            tableId: source.tableId,
+            fieldId: relation.sourceFieldId,
+            rowId: sourceRowId,
+            linkedRowId: firstTargetRowId,
+        });
+        run(db, "removeLink", {
+            tableId: source.tableId,
+            fieldId: relation.sourceFieldId,
+            rowId: sourceRowId,
+            linkedRowId: firstTargetRowId,
+        });
+
+        expect(readLinks(db, relation.joinTableId)).toEqual([
+            {sourceRowId, targetRowId: secondTargetRowId},
+        ]);
+        db.close();
+    });
+
+    test("removes self-links through the target-side field", async () => {
+        const db = await createDb();
+        const table = run(db, "createTable", {name: "Tasks"});
+        const relation = run(db, "createRelationField", {
+            sourceTableId: table.tableId,
+            sourceFieldName: "Related",
+            targetTableId: table.tableId,
+            cardinality: "many",
+        });
+        const sourceRowId = createRowAndGetId(db, table.tableId);
+        const targetRowId = createRowAndGetId(db, table.tableId);
+
+        run(db, "addLink", {
+            tableId: table.tableId,
+            fieldId: relation.sourceFieldId,
+            rowId: sourceRowId,
+            linkedRowId: targetRowId,
+        });
+        run(db, "removeLink", {
+            tableId: table.tableId,
+            fieldId: relation.targetFieldId,
+            rowId: targetRowId,
+            linkedRowId: sourceRowId,
+        });
+
+        expect(readLinks(db, relation.joinTableId)).toEqual([]);
+        db.close();
+    });
+});
+
+describe("listLinkableRows", () => {
+    test("returns linked-table rows excluding rows already linked to the edited row", async () => {
+        const db = await createDb();
+        const source = run(db, "createTable", {name: "Tasks"});
+        const target = run(db, "createTable", {name: "Projects"});
+        const relation = run(db, "createRelationField", {
+            sourceTableId: source.tableId,
+            sourceFieldName: "Project",
+            targetTableId: target.tableId,
+            cardinality: "many",
+        });
+        const sourceRowId = createRowAndGetId(db, source.tableId);
+        const firstTargetRowId = createRowAndGetId(db, target.tableId);
+        const secondTargetRowId = createRowAndGetId(db, target.tableId);
+        const targetNameFieldId = readNameFieldId(db, target.tableId);
+        run(db, "updateCellValue", {
+            tableId: target.tableId,
+            fieldId: targetNameFieldId,
+            rowId: firstTargetRowId,
+            value: "Alpha",
+        });
+        run(db, "updateCellValue", {
+            tableId: target.tableId,
+            fieldId: targetNameFieldId,
+            rowId: secondTargetRowId,
+            value: "Beta",
+        });
+        run(db, "addLink", {
+            tableId: source.tableId,
+            fieldId: relation.sourceFieldId,
+            rowId: sourceRowId,
+            linkedRowId: firstTargetRowId,
+        });
+
+        const {rows} = run(db, "listLinkableRows", {
+            tableId: source.tableId,
+            fieldId: relation.sourceFieldId,
+            rowId: sourceRowId,
+        });
+
+        expect(rows).toEqual([{id: secondTargetRowId, name: "Beta"}]);
+        db.close();
+    });
+
+    test("maps target-side fields back to source-table candidates", async () => {
+        const db = await createDb();
+        const source = run(db, "createTable", {name: "Tasks"});
+        const target = run(db, "createTable", {name: "Projects"});
+        const relation = run(db, "createRelationField", {
+            sourceTableId: source.tableId,
+            sourceFieldName: "Project",
+            targetTableId: target.tableId,
+            cardinality: "many",
+        });
+        const sourceRowId = createRowAndGetId(db, source.tableId);
+        const targetRowId = createRowAndGetId(db, target.tableId);
+        run(db, "updateCellValue", {
+            tableId: source.tableId,
+            fieldId: readNameFieldId(db, source.tableId),
+            rowId: sourceRowId,
+            value: "Write tests",
+        });
+
+        const {rows} = run(db, "listLinkableRows", {
+            tableId: target.tableId,
+            fieldId: relation.targetFieldId,
+            rowId: targetRowId,
+        });
+
+        expect(rows).toEqual([{id: sourceRowId, name: "Write tests"}]);
         db.close();
     });
 });
@@ -596,16 +1254,14 @@ describe("renameTable", () => {
         db.close();
     });
 
-    test("rename within its own file does not add a dedup suffix", async () => {
+    test("rename deduplicates against other tables", async () => {
         const db = await createDb();
-        // A separate table named "Tasks" lives in its own file, so it does not collide
-        // with this rename.
         run(db, "createTable", {name: "Tasks"});
         const {tableId} = run(db, "createTable", {name: "Projects"});
 
         const {tableName} = run(db, "renameTable", {tableId, name: "Tasks"});
 
-        expect(tableName).toBe("tasks");
+        expect(tableName).toBe("tasks_2");
         db.close();
     });
 });
@@ -779,7 +1435,7 @@ describe("getViewRowsPage", () => {
         expect(endOnly.rows.map(r => r[0])).toEqual([ids[0], ids[1]]);
     });
 
-    test("checkbox values are deserialized via the field provider's sqlValueSchema", async () => {
+    test("checkbox values are deserialized via the field provider sqlValueSchema", async () => {
         const db = await createDb();
         const {tableId, viewId, tableName} = run(db, "createTable", {name: "T"});
         const {fieldId} = addFieldAndGetId(db, tableId, viewId, "Done", "checkbox");
@@ -801,6 +1457,209 @@ describe("getViewRowsPage", () => {
         const checkboxIndex = fieldIndexes.get(fieldId)!;
         expect(rows[0]![checkboxIndex]).toBe(true);
     });
+
+    test("projects relation fields as ordered arrays and empty cells as empty arrays", async () => {
+        const db = await createDb();
+        const source = run(db, "createTable", {name: "Tasks"});
+        const target = run(db, "createTable", {name: "Projects"});
+        const relation = run(db, "createRelationField", {
+            sourceTableId: source.tableId,
+            sourceFieldName: "Project",
+            targetTableId: target.tableId,
+            cardinality: "many",
+        });
+        const firstSourceRowId = createRowAndGetId(db, source.tableId);
+        const secondSourceRowId = createRowAndGetId(db, source.tableId);
+        const firstTargetRowId = createRowAndGetId(db, target.tableId);
+        const secondTargetRowId = createRowAndGetId(db, target.tableId);
+        const targetNameFieldId = readNameFieldId(db, target.tableId);
+        run(db, "updateCellValue", {
+            tableId: target.tableId,
+            fieldId: targetNameFieldId,
+            rowId: firstTargetRowId,
+            value: "Alpha",
+        });
+        run(db, "updateCellValue", {
+            tableId: target.tableId,
+            fieldId: targetNameFieldId,
+            rowId: secondTargetRowId,
+            value: "Beta",
+        });
+        run(db, "addLink", {
+            tableId: source.tableId,
+            fieldId: relation.sourceFieldId,
+            rowId: firstSourceRowId,
+            linkedRowId: firstTargetRowId,
+        });
+        run(db, "addLink", {
+            tableId: source.tableId,
+            fieldId: relation.sourceFieldId,
+            rowId: firstSourceRowId,
+            linkedRowId: secondTargetRowId,
+        });
+
+        const {fieldIndexes, rows} = run(db, "getViewRowsPage", {
+            tableOrViewId: source.viewId,
+            afterCursor: null,
+            endCursor: null,
+        });
+
+        const relationIndex = fieldIndexes.get(relation.sourceFieldId)!;
+        expect(rows.map(row => ({id: row[0], links: row[relationIndex]}))).toEqual([
+            {
+                id: firstSourceRowId,
+                links: [
+                    {id: firstTargetRowId, name: "Alpha"},
+                    {id: secondTargetRowId, name: "Beta"},
+                ],
+            },
+            {id: secondSourceRowId, links: []},
+        ]);
+        db.close();
+    });
+
+    test("formats relation names through the linked table name-field provider", async () => {
+        const db = await createDb();
+        const source = run(db, "createTable", {name: "Tasks"});
+        const target = run(db, "createTable", {name: "Projects"});
+        const {fieldId: scoreFieldId} = addFieldAndGetId(
+            db,
+            target.tableId,
+            target.viewId,
+            "Score",
+            "number",
+        );
+        sql`
+            UPDATE ${sql.tableRef(target.tableId, "_alpine_table")}
+            SET
+                name_field_id = ${scoreFieldId}
+        `.exec(db);
+        sql`
+            UPDATE ${sql.tableRef(target.tableId, "_alpine_fields")}
+            SET
+                config = jsonb (${DatabaseFieldConfigSqlSchema.serialize({
+                type: "number",
+                decimalPlaces: 2,
+            })})
+            WHERE
+                id = ${scoreFieldId}
+        `.exec(db);
+        const relation = run(db, "createRelationField", {
+            sourceTableId: source.tableId,
+            sourceFieldName: "Project",
+            targetTableId: target.tableId,
+            cardinality: "many",
+        });
+        const sourceRowId = createRowAndGetId(db, source.tableId);
+        const targetRowId = createRowAndGetId(db, target.tableId);
+        run(db, "updateCellValue", {
+            tableId: target.tableId,
+            fieldId: scoreFieldId,
+            rowId: targetRowId,
+            value: 3.14159,
+        });
+        run(db, "addLink", {
+            tableId: source.tableId,
+            fieldId: relation.sourceFieldId,
+            rowId: sourceRowId,
+            linkedRowId: targetRowId,
+        });
+
+        const {fieldIndexes, rows} = run(db, "getViewRowsPage", {
+            tableOrViewId: source.viewId,
+            afterCursor: null,
+            endCursor: null,
+        });
+
+        expect(rows[0]![fieldIndexes.get(relation.sourceFieldId)!]).toEqual([
+            {id: targetRowId, name: "3.14"},
+        ]);
+        db.close();
+    });
+
+    test("keeps cursor slicing unchanged when projecting relation fields", async () => {
+        const db = await createDb();
+        const source = run(db, "createTable", {name: "Tasks"});
+        const target = run(db, "createTable", {name: "Projects"});
+        run(db, "createRelationField", {
+            sourceTableId: source.tableId,
+            sourceFieldName: "Project",
+            targetTableId: target.tableId,
+            cardinality: "many",
+        });
+        const ids = [
+            createRowAndGetId(db, source.tableId),
+            createRowAndGetId(db, source.tableId),
+            createRowAndGetId(db, source.tableId),
+        ];
+
+        const {rows} = run(db, "getViewRowsPage", {
+            tableOrViewId: source.viewId,
+            afterCursor: ids[0]!,
+            endCursor: ids[1]!,
+        });
+
+        expect(rows.map(row => row[0])).toEqual([ids[1]]);
+        db.close();
+    });
+
+    test("projects both directions of a self-link relation", async () => {
+        const db = await createDb();
+        const table = run(db, "createTable", {name: "Tasks"});
+        const relation = run(db, "createRelationField", {
+            sourceTableId: table.tableId,
+            sourceFieldName: "Related",
+            targetTableId: table.tableId,
+            cardinality: "many",
+        });
+        const sourceRowId = createRowAndGetId(db, table.tableId);
+        const targetRowId = createRowAndGetId(db, table.tableId);
+        const nameFieldId = readNameFieldId(db, table.tableId);
+        run(db, "updateCellValue", {
+            tableId: table.tableId,
+            fieldId: nameFieldId,
+            rowId: sourceRowId,
+            value: "Parent",
+        });
+        run(db, "updateCellValue", {
+            tableId: table.tableId,
+            fieldId: nameFieldId,
+            rowId: targetRowId,
+            value: "Child",
+        });
+        run(db, "addLink", {
+            tableId: table.tableId,
+            fieldId: relation.sourceFieldId,
+            rowId: sourceRowId,
+            linkedRowId: targetRowId,
+        });
+
+        const {fieldIndexes, rows} = run(db, "getViewRowsPage", {
+            tableOrViewId: table.viewId,
+            afterCursor: null,
+            endCursor: null,
+        });
+
+        expect(
+            rows.map(row => ({
+                id: row[0],
+                sourceLinks: row[fieldIndexes.get(relation.sourceFieldId)!],
+                targetLinks: row[fieldIndexes.get(relation.targetFieldId)!],
+            })),
+        ).toEqual([
+            {
+                id: sourceRowId,
+                sourceLinks: [{id: targetRowId, name: "Child"}],
+                targetLinks: [],
+            },
+            {
+                id: targetRowId,
+                sourceLinks: [],
+                targetLinks: [{id: sourceRowId, name: "Parent"}],
+            },
+        ]);
+        db.close();
+    });
 });
 
 describe("updateCellValue", () => {
@@ -812,8 +1671,6 @@ describe("updateCellValue", () => {
                 id
             FROM
                 ${sql.tableRef(tableId, "_alpine_fields")}
-            WHERE
-                table_id = ${tableId}
         `.selectOne(db, {
             fieldId: Schema.id<DatabaseFieldId>().originalPropertyKey("id"),
         });
@@ -840,6 +1697,130 @@ describe("updateCellValue", () => {
             endCursor: null,
         });
         expect(rows[0]![fieldIndexes.get(nameFieldId)!]).toBe("updated");
+        db.close();
+    });
+
+    test("rejects virtual fields", async () => {
+        const db = await createDb();
+        const {tableId, viewId, tableName} = run(db, "createTable", {name: "T"});
+        const {fieldId} = addRelationFieldMetadata(db, tableId, viewId);
+        const rowId = generateChronologicalId<DatabaseRowId>();
+        sql`
+            INSERT INTO
+                ${sql.tableRef(tableId, tableName)} (_id)
+            VALUES
+                (${rowId})
+        `.exec(db);
+
+        expect(() => {
+            run(db, "updateCellValue", {
+                tableId,
+                fieldId,
+                rowId,
+                value: [],
+            });
+        }).toThrow("cannot update virtual field");
+        db.close();
+    });
+});
+
+describe("createField", () => {
+    test("adds the field to all views in the table", async () => {
+        const db = await createDb();
+        const {tableId, viewId} = run(db, "createTable", {name: "T"});
+        const secondViewId = generateChronologicalId<DatabaseViewId>();
+        sql`
+            INSERT INTO
+                ${sql.tableRef(tableId, "_alpine_views")} (id, name)
+            VALUES
+                (${secondViewId}, 'Second view')
+        `.exec(db);
+        const fieldId = generateChronologicalId<DatabaseFieldId>();
+
+        run(db, "createField", {
+            fieldId,
+            tableId,
+            name: "Status",
+            config: {type: "plainText"},
+        });
+
+        const viewFields = sql`
+            SELECT
+                view_id,
+                field_id,
+                width,
+                is_visible
+            FROM
+                ${sql.tableRef(tableId, "_alpine_view_fields")}
+            WHERE
+                field_id = ${fieldId}
+            ORDER BY
+                view_id
+        `.selectAllUnknown(db);
+        expect(viewFields).toMatchObject([
+            {
+                view_id: viewId,
+                field_id: fieldId,
+                width: databaseViewDefaultColumnWidth,
+                is_visible: 1,
+            },
+            {
+                view_id: secondViewId,
+                field_id: fieldId,
+                width: databaseViewDefaultColumnWidth,
+                is_visible: 1,
+            },
+        ]);
+        db.close();
+    });
+
+    test("rejects relation fields", async () => {
+        const db = await createDb();
+        const {tableId} = run(db, "createTable", {name: "T"});
+        const fieldId = generateChronologicalId<DatabaseFieldId>();
+
+        expect(() => {
+            run(db, "createField", {
+                fieldId,
+                tableId,
+                name: "Links",
+                config: {
+                    type: "relation",
+                    joinTableId: generateChronologicalId<DatabaseTableId>(),
+                    side: "source",
+                    cardinality: "many",
+                    linkedTableId: tableId,
+                },
+            });
+        }).toThrow("use createRelationField");
+        db.close();
+    });
+});
+
+describe("updateFieldConfig", () => {
+    test("rejects relation linkedTableId changes", async () => {
+        const db = await createDb();
+        const source = run(db, "createTable", {name: "Tasks"});
+        const target = run(db, "createTable", {name: "Projects"});
+        const relation = run(db, "createRelationField", {
+            sourceTableId: source.tableId,
+            sourceFieldName: "Project",
+            targetTableId: target.tableId,
+            cardinality: "many",
+        });
+        const config = readFieldById(db, source.tableId, relation.sourceFieldId).config;
+        assert(config.type === "relation", "expected relation config");
+
+        expect(() => {
+            run(db, "updateFieldConfig", {
+                tableId: source.tableId,
+                fieldId: relation.sourceFieldId,
+                config: {
+                    ...config,
+                    linkedTableId: generateChronologicalId<DatabaseTableId>(),
+                },
+            });
+        }).toThrow("cannot update relation field linkedTableId");
         db.close();
     });
 });
@@ -960,6 +1941,48 @@ describe("renameField", () => {
                 id = ${fieldId}
         `.selectOne(db, {columnName: Schema.string.originalPropertyKey("column_name")});
         expect(meta.columnName).toBe("status");
+        db.close();
+    });
+
+    test("renames relation field metadata and keeps the join table name in sync", async () => {
+        const db = await createDb();
+        const source = run(db, "createTable", {name: "Tasks"});
+        const target = run(db, "createTable", {name: "Projects"});
+        const relation = run(db, "createRelationField", {
+            sourceTableId: source.tableId,
+            sourceFieldName: "Project",
+            targetTableId: target.tableId,
+            cardinality: "many",
+        });
+
+        run(db, "renameField", {
+            tableId: source.tableId,
+            fieldId: relation.sourceFieldId,
+            name: "Partners",
+        });
+
+        const meta = sql`
+            SELECT
+                name,
+                column_name
+            FROM
+                ${sql.tableRef(source.tableId, "_alpine_fields")}
+            WHERE
+                id = ${relation.sourceFieldId}
+        `.selectOne(db, {
+            name: Schema.string,
+            columnName: Schema.string.originalPropertyKey("column_name"),
+        });
+        const joinTableName = sql`
+            SELECT
+                table_name
+            FROM
+                ${sql.tableRef(relation.joinTableId, "_alpine_join_table")}
+        `.selectValue(db, Schema.string);
+        expect({meta, joinTableName}).toMatchObject({
+            meta: {name: "Partners", columnName: "partners"},
+            joinTableName: "partners_tasks",
+        });
         db.close();
     });
 });

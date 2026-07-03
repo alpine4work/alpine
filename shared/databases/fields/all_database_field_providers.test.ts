@@ -1,36 +1,21 @@
 import {
     DatabaseFieldConfigSchema,
     DatabaseFieldConfigSqlSchema,
-    DatabaseFieldTypeSchema,
-    databaseFieldProviders,
     getDatabaseFieldProvider,
-} from "~/shared/databases/fields/database_field_providers.js";
+} from "~/shared/databases/fields/all_database_field_providers.js";
+import {generateChronologicalId} from "~/shared/id/chronological_id.js";
+import type {DatabaseTableId} from "~/shared/id/types/id_types.js";
 
 describe("databaseFieldProviders registry", () => {
-    test("registers plainText, checkbox, and number", () => {
-        expect([...databaseFieldProviders.keys()].sort()).toEqual([
-            "checkbox",
-            "number",
-            "plainText",
-        ]);
-    });
-
     test("getDatabaseFieldProvider returns the matching provider", () => {
         expect(getDatabaseFieldProvider("plainText").type).toBe("plainText");
         expect(getDatabaseFieldProvider("checkbox").type).toBe("checkbox");
         expect(getDatabaseFieldProvider("number").type).toBe("number");
+        expect(getDatabaseFieldProvider("relation").type).toBe("relation");
     });
 
     test("getDatabaseFieldProvider asserts on unknown type", () => {
         expect(() => getDatabaseFieldProvider("bogus" as never)).toThrow("unknown field type");
-    });
-});
-
-describe("DatabaseFieldTypeSchema", () => {
-    test("accepts each registered discriminant", () => {
-        expect(DatabaseFieldTypeSchema.deserialize("plainText")).toBe("plainText");
-        expect(DatabaseFieldTypeSchema.deserialize("checkbox")).toBe("checkbox");
-        expect(DatabaseFieldTypeSchema.deserialize("number")).toBe("number");
     });
 });
 
@@ -63,16 +48,26 @@ describe("DatabaseFieldConfigSqlSchema", () => {
             ),
         ).toEqual(checkbox);
     });
+
+    test("round-trips relation configs", () => {
+        const config = {
+            type: "relation" as const,
+            joinTableId: generateChronologicalId<DatabaseTableId>(),
+            side: "source" as const,
+            cardinality: "many" as const,
+            linkedTableId: generateChronologicalId<DatabaseTableId>(),
+        };
+        const deserialized = DatabaseFieldConfigSqlSchema.deserialize(
+            DatabaseFieldConfigSqlSchema.serialize(config),
+        );
+        expect(deserialized).toEqual(config);
+    });
 });
 
-describe("each provider\u2019s getDefaultConfig is valid against DatabaseFieldConfigSchema", () => {
-    for (const provider of databaseFieldProviders.values()) {
-        test(`provider type ${provider.type}`, () => {
-            const config = provider.getDefaultConfig();
-            // Round-trip through the union schema.
-            const serialized = DatabaseFieldConfigSchema.serialize(config);
-            const deserialized = DatabaseFieldConfigSchema.deserialize(serialized);
-            expect(deserialized).toEqual(config);
-        });
-    }
+describe("DatabaseFieldConfigSchema", () => {
+    test("accepts concrete field configs", () => {
+        const config = {type: "checkbox" as const};
+        const serialized = DatabaseFieldConfigSchema.serialize(config);
+        expect(DatabaseFieldConfigSchema.deserialize(serialized)).toEqual(config);
+    });
 });

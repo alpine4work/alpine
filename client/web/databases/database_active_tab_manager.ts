@@ -1,12 +1,12 @@
 import {
     DatabaseClient,
     type DatabaseClientConnection,
-} from "~/client/web/databases/database_client.js";
+} from "~/client/web/databases/worker/database_client.js";
 import {
     tabToWorkerDatabaseRpcMethods,
     workerToTabDatabaseRpcMethods,
-} from "~/client/web/databases/database_worker_rpc_methods.js";
-import type {OpfsDirectoryHandle} from "~/client/web/databases/opfs.js";
+} from "~/client/web/databases/worker/database_worker_rpc_methods.js";
+import type {OpfsDirectoryHandle} from "~/client/web/databases/worker/opfs.js";
 import {WebWorkerRpc} from "~/client/web/helpers/workers/web_worker_rpc.js";
 import type {
     DatabaseActionInput,
@@ -22,6 +22,7 @@ import type {
     DatabasePageVersionsByIndex,
     DatabasePages,
 } from "~/shared/databases/database_protocol_schemas.js";
+import type {SqliteMigration} from "~/shared/databases/sqlite_migrations.js";
 import {CancelledError} from "~/shared/error/error.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import type {Result} from "~/shared/helpers/control/result.js";
@@ -393,10 +394,13 @@ export class DatabaseActiveTabWorker {
      * overlay; pair with {@link commitOptimisticPagesForTests} to materialize them on
      * disk. Use for test schema setup only.
      */
-    async executeLocallyForTests(databaseGroupId: DatabaseGroupId, sql: string): Promise<void> {
+    async executeLocallyForTests(
+        databaseGroupId: DatabaseGroupId,
+        migration: SqliteMigration,
+    ): Promise<void> {
         assert(import.meta.jest, "executeLocallyForTests is test-only");
         const client = await this.getOrCreateClientForTests(databaseGroupId);
-        client.executeLocallyForTests(sql);
+        client.executeLocallyForTests(migration);
     }
 
     /**

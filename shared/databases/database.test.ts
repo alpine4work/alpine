@@ -1,5 +1,3 @@
-/* eslint-disable cyberworlds/string-quotes -- SQL literals */
-
 import {Database, type ReadonlyDatabaseStorage} from "~/shared/databases/database.js";
 import {type SqlQuery, sql} from "~/shared/databases/sql.js";
 import {databaseMainTableId, sqlitePageSize} from "~/shared/databases/sqlite_constants.js";
@@ -324,7 +322,7 @@ describe("Database — createTrackedExecution", () => {
 
         const execution = database.createTrackedExecution(
             () =>
-                database.executeAction({
+                database.executeAction<"readonlyRawSql">({
                     name: "readonlyRawSql",
                     input: {sql: "SELECT COUNT(*) AS count FROM items"},
                 }).result.rows[0] as {count: number},
@@ -640,7 +638,7 @@ describe("Database — unattached per-db file detection", () => {
         ).toThrow(TableNotAttachedError);
     });
 
-    test("the 'unknown database' DDL error shape also becomes TableNotAttachedError", async () => {
+    test("the unknown database DDL error shape also becomes TableNotAttachedError", async () => {
         const {database} = await createDatabaseWithSchema(sql`CREATE TABLE items (x INTEGER)`);
         const tableId = generateChronologicalId<DatabaseTableId>();
 
@@ -840,7 +838,7 @@ describe("Database — error handling", () => {
                 `,
                 {allowWrites: "none"},
             );
-            return (result.rows[0] as Record<string, unknown>)["1"];
+            return (result.rows[0] as {"1": number})["1"];
         });
 
         expect(
@@ -1991,7 +1989,7 @@ describe("Database — page tracking", () => {
         expect(pages!.size).toBeGreaterThan(0);
     });
 
-    test("readPages and writtenPages from a previous call don't leak into the next", async () => {
+    test("readPages and writtenPages from a previous call do not leak into the next", async () => {
         const {database, storage} = await createDatabaseWithSchema(
             sql`CREATE TABLE a (id INTEGER PRIMARY KEY)`,
             sql`CREATE TABLE b (id INTEGER PRIMARY KEY)`,
@@ -2044,7 +2042,17 @@ describe("Database — executeAction", () => {
 
         const {result} = database.executeAction<"rawSql">({
             name: "rawSql",
-            input: {sql: "SELECT id, name FROM items ORDER BY id"},
+            input: {
+                sql: sql`
+                    SELECT
+                        id,
+                        name
+                    FROM
+                        items
+                    ORDER BY
+                        id
+                `.query,
+            },
         });
 
         expect(result.rows).toEqual([
@@ -2059,7 +2067,7 @@ describe("Database — executeAction", () => {
         expect(() =>
             database.executeAction({
                 name: "rawSql",
-                input: {sql: "CREATE TABLE bad (id INTEGER)"},
+                input: {sql: sql`CREATE TABLE bad (id INTEGER)`.query},
             }),
         ).toThrow();
     });
@@ -2072,7 +2080,14 @@ describe("Database — executeAction", () => {
         expect(() =>
             database.executeAction({
                 name: "readonlyRawSql",
-                input: {sql: "INSERT INTO items VALUES (1)"},
+                input: {
+                    sql: sql`
+                        INSERT INTO
+                            items
+                        VALUES
+                            (1)
+                    `.query,
+                },
             }),
         ).toThrow();
     });
@@ -2090,7 +2105,14 @@ describe("Database — executeAction", () => {
 
         const {readPages} = database.executeAction({
             name: "readonlyRawSql",
-            input: {sql: "SELECT * FROM items"},
+            input: {
+                sql: sql`
+                    SELECT
+                        *
+                    FROM
+                        items
+                `.query,
+            },
         });
 
         expect(readPages.get(databaseMainTableId)?.size ?? 0).toBeGreaterThan(0);
@@ -2098,7 +2120,7 @@ describe("Database — executeAction", () => {
 });
 
 describe("Database — independence between instances", () => {
-    test("two databases on independent storages don't share state", async () => {
+    test("two databases on independent storages do not share state", async () => {
         const {database: db1} = await createDatabaseWithSchema(
             sql`CREATE TABLE t (id INTEGER PRIMARY KEY, v TEXT)`,
             sql`

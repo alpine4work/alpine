@@ -279,6 +279,7 @@ remix_bin.remix(
         "//:node_modules/vite",
         "//:remix_config_files",
         "//app/static",
+        "@sqlite",
     ],
     outs = [
         "build/server/app_service_main.js",

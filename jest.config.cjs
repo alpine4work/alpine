@@ -18,6 +18,10 @@ const baseJestConfig = {
     // files (built by Bazel).
     transform: {},
     moduleNameMapper: {
+        // SWC rewrites `~/external/sqlite/...` imports to relative
+        // `../external/sqlite/...` paths, but Bazel mounts `@sqlite` at the runfiles root
+        // as `sqlite/...`.
+        "^(?:\\.\\./)+external/sqlite/(.*)$": "<rootDir>/../sqlite/$1",
         // The `uuid` package used by giphy ships an ESM-only browser build which
         // `jest-environment-jsdom` resolves by default, causing a `SyntaxError`. Map it to
         // a simple CJS mock instead.

@@ -1,8 +1,4 @@
-import type {
-    Sqlite3Static,
-    Database as SqliteDatabase,
-    WasmPointer,
-} from "~/external/sqlite/ext/wasm/jswasm/sqlite3.mjs";
+import type {Sqlite3Static, WasmPointer} from "~/external/sqlite/ext/wasm/jswasm/sqlite3.mjs";
 import sqlite3InitModule from "~/external/sqlite/ext/wasm/jswasm/sqlite3.mjs";
 import {
     type DatabaseActionContext,
@@ -11,17 +7,19 @@ import {
     type DatabaseActionOutput,
     type DatabaseActionServerContext,
     databaseActions,
+    executeDatabaseAction,
 } from "~/shared/databases/database_actions.js";
 import type {ReadonlyDatabasePageSet} from "~/shared/databases/database_protocol_schemas.js";
 import type {InstalledVfs, VfsFile} from "~/shared/databases/install_vfs.js";
 import {installVfs} from "~/shared/databases/install_vfs.js";
+import {DatabaseModel} from "~/shared/databases/model/database_root_model.js";
 import {
     type SqlQuery,
     databaseTableSchemaName,
     databaseTableSchemaNamePrefix,
     sql,
 } from "~/shared/databases/sql.js";
-import {trySqlite3WasmLoader} from "~/shared/databases/sqlite3_wasm_loader.js";
+import {SqliteDatabase, trySqlite3WasmLoader} from "~/shared/databases/sqlite.js";
 import {
     type InternalSqliteWriteLevel,
     type SqliteWriteLevel,
@@ -312,9 +310,13 @@ export class Database {
         actionObject: DatabaseActionObject<N>,
     ): DatabaseExecuteActionResult<N> {
         const action = databaseActions[actionObject.name];
-        const ctx: DatabaseActionContext = {db: this.db, server: this.serverContext};
+        const ctx: DatabaseActionContext = {
+            db: this.db,
+            server: this.serverContext,
+            model: new DatabaseModel(this.db),
+        };
         const {result, readPages, writtenPages} = this.execute(
-            () => action.run(ctx, actionObject.input as never),
+            () => executeDatabaseAction(actionObject, ctx),
             {allowWrites: action.writeLevel},
         );
         return {result: result as DatabaseActionOutput<N>, readPages, writtenPages};

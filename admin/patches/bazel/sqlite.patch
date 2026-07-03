@@ -1,25 +1,30 @@
 diff --git a/ext/wasm/GNUmakefile b/ext/wasm/GNUmakefile
 --- a/ext/wasm/GNUmakefile
 +++ b/ext/wasm/GNUmakefile
-@@ -248,8 +248,13 @@
- #
- # This is intended to be used in makefile targets which generate an
- # Emscripten module and where $@ is the module's .js/.mjs file.
-+#
-+# NOTE(calebmer): The `$(if)` we've patched in is due to an unfortunate
-+# incompatibility between MacOS `sed` and GNU `sed`. MacOS `sed` requires an
-+# argument after `-i` (even if it's an empty string) which tells MacOS where to
-+# write a backup of the old file.
- b.strip-js-emcc-bindings = \
--  sed -i -e '/^.*= \(_sqlite3\|_fiddle\)[^=]*=.*createExportWrapper/d' \
-+  sed -i $(if $(filter Darwin,$(shell uname -s)),'') -e '/^.*= \(_sqlite3\|_fiddle\)[^=]*=.*createExportWrapper/d' \
-   -e '/^var \(_sqlite3\|_fiddle\)[^=]*=.*makeInvalidEarlyAccess/d' $@ || exit; \
-   echo '$(1) $(emo.garbage) (Probably) /createExportWrapper()/d and /makeInvalidEarlyAccess()/d'
-
+@@ -289,7 +289,7 @@ c-pp.D.64bit = -Dbits64
+ ifeq (1,1)
+ define b.strip-js-emcc-bindings
+ echo "$(1) $(emo.garbage) Stripping export wrappers."; \
+-sed -i -e '/var _sqlite3.*makeInvalidEarly.*;/d' \
++sed -i $(if $(filter Darwin,$(shell uname -s)),'') -e '/var _sqlite3.*makeInvalidEarly.*;/d' \
+ -e '/assert.*sqlite3.*missing.*;/d' \
+ -e '/_sqlite.*createExportWrapper.*;/d' $@
+ endef
+diff --git a/ext/wasm/api/EXPORTED_FUNCTIONS.c-pp b/ext/wasm/api/EXPORTED_FUNCTIONS.c-pp
+--- a/ext/wasm/api/EXPORTED_FUNCTIONS.c-pp
++++ b/ext/wasm/api/EXPORTED_FUNCTIONS.c-pp
+@@ -80,6 +80,7 @@ _sqlite3_next_stmt
+ _sqlite3_open
+ _sqlite3_open_v2
+ _sqlite3_overload_function
++_sqlite3_page_access_hook
+ _sqlite3_prepare_v2
+ _sqlite3_prepare_v3
+ _sqlite3_randomness
 diff --git a/ext/wasm/api/pre-js.c-pp.js b/ext/wasm/api/pre-js.c-pp.js
 --- a/ext/wasm/api/pre-js.c-pp.js
 +++ b/ext/wasm/api/pre-js.c-pp.js
-@@ -25,6 +25,12 @@
+@@ -50,6 +50,12 @@
    delete globalThis.sqlite3InitModuleState;
    sIMS.debugModule('pre-js.js sqlite3InitModuleState =',sIMS);
  
@@ -32,227 +37,92 @@ diff --git a/ext/wasm/api/pre-js.c-pp.js b/ext/wasm/api/pre-js.c-pp.js
    /**
       This custom locateFile() tries to figure out where to load `path`
       from. The intent is to provide a way for foo/bar/X.js loaded from a
-@@ -72,44 +78,47 @@
- //#endif target:es6-module
-   }.bind(sIMS);
- 
--//#if Module.instantiateWasm
--//#if not wasmfs
--  /**
--     Override Module.instantiateWasm().
--
--     A custom Module.instantiateWasm() does not work in WASMFS builds:
--
--     https://github.com/emscripten-core/emscripten/issues/17951
--
--     In such builds we must disable this.
--  */
--  Module['instantiateWasm'] = function callee(imports,onSuccess){
--    const sims = this;
--    const uri = Module.locateFile(
--      sims.wasmFilename, (
--        ('undefined'===typeof scriptDirectory/*var defined by Emscripten glue*/)
--          ? "" : scriptDirectory)
--    );
--    sims.debugModule("instantiateWasm() uri =", uri, "sIMS =",this);
--    const wfetch = ()=>fetch(uri, {credentials: 'same-origin'});
--    const finalThen = (arg)=>{
--      arg.imports = imports;
--      sims.instantiateWasm = arg /* used by sqlite3-api-prologue.c-pp.js */;
--      onSuccess(arg.instance, arg.module);
--    };
--    const loadWasm = WebAssembly.instantiateStreaming
--          ? async ()=>
--          WebAssembly
--          .instantiateStreaming(wfetch(), imports)
--          .then(finalThen)
--          : async ()=>// Safari < v15
--          wfetch()
--          .then(response => response.arrayBuffer())
--          .then(bytes => WebAssembly.instantiate(bytes, imports))
--          .then(finalThen)
--    return loadWasm();
--  }.bind(sIMS);
--//#endif not wasmfs
--//#endif Module.instantiateWasm
-+  /* If the caller passed instantiateWasm via sqlite3InitModule(),
-+  ** it is already set on Module. Only install the fallback loader
-+  ** when none was provided. */
-+  if(!Module.instantiateWasm){
-+    Module['instantiateWasm'] = function callee(imports,onSuccess){
-+      const sims = this;
-+      const finalThen = (arg)=>{
-+        arg.imports = imports;
-+        sims.instantiateWasm = arg;
-+        onSuccess(arg.instance, arg.module);
-+      };
-+      const uri = Module.locateFile(
-+        sims.wasmFilename, (
-+          ('undefined'===typeof scriptDirectory)
-+            ? "" : scriptDirectory)
-+      );
-+      sims.debugModule("instantiateWasm() uri =", uri, "sIMS =",this);
-+      /* Node.js: load WASM from the filesystem. */
-+      if(typeof process!=='undefined' && process.versions && process.versions.node){
-+        return (async ()=>{
-+          const {readFileSync} = await import('node:fs');
-+          const {fileURLToPath} = await import('node:url');
-+          const filePath = uri.startsWith('file://') ? fileURLToPath(uri) : uri;
-+          const bytes = readFileSync(filePath);
-+          return WebAssembly.instantiate(bytes, imports).then(finalThen);
-+        })();
-+      }
-+      /* Browser: use fetch */
-+      const wfetch = ()=>fetch(uri, {credentials: 'same-origin'});
-+      const loadWasm = WebAssembly.instantiateStreaming
-+            ? async ()=>
-+            WebAssembly
-+            .instantiateStreaming(wfetch(), imports)
-+            .then(finalThen)
-+            : async ()=>
-+            wfetch()
-+            .then(response => response.arrayBuffer())
-+            .then(bytes => WebAssembly.instantiate(bytes, imports))
-+            .then(finalThen)
-+      return loadWasm();
-+    }.bind(sIMS);
-+  }
- })(Module);
- /* END FILE: api/pre-js.js. */
-
-
-diff --git a/src/pager.h b/src/pager.h
---- a/src/pager.h
-+++ b/src/pager.h
-@@ -144,6 +144,7 @@
- 
- /* Functions used to configure a Pager object. */
- void sqlite3PagerSetBusyHandler(Pager*, int(*)(void *), void *);
-+void *sqlite3PagerSetPageAccessHook(Pager*, void(*)(void*, int, int), void*);
- int sqlite3PagerSetPagesize(Pager*, u32*, int);
- Pgno sqlite3PagerMaxPageCount(Pager*, Pgno);
- void sqlite3PagerSetCachesize(Pager*, int);
-
-diff --git a/src/pager.c b/src/pager.c
---- a/src/pager.c
-+++ b/src/pager.c
-@@ -688,6 +688,8 @@
-   char *zJournal;             /* Name of the journal file */
-   int (*xBusyHandler)(void*); /* Function to call when busy */
-   void *pBusyHandlerArg;      /* Context argument for xBusyHandler */
-+  void (*xPageAccess)(void*,int,int); /* Page access hook callback */
-+  void *pPageAccessArg;       /* First arg to xPageAccess */
-   u32 aStat[4];               /* Total cache hits, misses, writes, spills */
- #ifdef SQLITE_TEST
-   int nRead;                  /* Database pages read */
-@@ -3730,6 +3732,23 @@
-   assert( ((int(*)(void *))(ap[0]))==xBusyHandler );
-   assert( ap[1]==pBusyHandlerArg );
-   sqlite3OsFileControlHint(pPager->fd, SQLITE_FCNTL_BUSYHANDLER, (void *)ap);
-+}
-+
-+/*
-+** Set a callback that is invoked whenever a database page is read
-+** or written. The callback receives the user argument, the page
-+** number, and a flags value (1 for read, 2 for write). Returns the
-+** previous user argument.
-+*/
-+void *sqlite3PagerSetPageAccessHook(
-+  Pager *pPager,
-+  void (*xCallback)(void*, int, int),
-+  void *pArg
-+){
-+  void *pOld = pPager->pPageAccessArg;
-+  pPager->xPageAccess = xCallback;
-+  pPager->pPageAccessArg = pArg;
-+  return pOld;
- }
- 
- /*
-@@ -5737,7 +5756,14 @@
-   return rc;
- #else
-   /* Normal, high-speed version of sqlite3PagerGet() */
--  return pPager->xGet(pPager, pgno, ppPage, flags);
-+  {
-+    int rc = pPager->xGet(pPager, pgno, ppPage, flags);
-+    if( rc==SQLITE_OK && pPager->xPageAccess ){
-+      pPager->xPageAccess(pPager->pPageAccessArg, (int)pgno,
-+                          1/*SQLITE_PAGE_READ*/);
+@@ -136,6 +142,18 @@
+       sims.instantiateWasm = arg /* used by sqlite3-api-prologue.c-pp.js */;
+       onSuccess(arg.instance, arg.module);
+     };
++    /* Node.js: load the WASM from the filesystem. fetch() cannot read
++    ** file:// URLs under Node, which is how jest instantiates the
++    ** browser-targeted sqlite3.mjs during tests. */
++    if(typeof process!=='undefined' && process.versions && process.versions.node){
++      return (async ()=>{
++        const {readFileSync} = await import('node:fs');
++        const {fileURLToPath} = await import('node:url');
++        const filePath = uri.startsWith('file://') ? fileURLToPath(uri) : uri;
++        const bytes = readFileSync(filePath);
++        return WebAssembly.instantiate(bytes, imports).then(finalThen);
++      })();
 +    }
-+    return rc;
-+  }
- #endif
- }
- 
-@@ -6107,7 +6133,11 @@
-   ** PGHDR_WRITEABLE bit that indicates that the page can be safely modified.
-   */
-   pPg->flags |= PGHDR_WRITEABLE;
-- 
-+  if( pPager->xPageAccess ){
-+    pPager->xPageAccess(pPager->pPageAccessArg, (int)pPg->pgno,
-+                        2/*SQLITE_PAGE_WRITE*/);
-+  }
+     const loadWasm = WebAssembly.instantiateStreaming
+           ? async ()=>
+           WebAssembly
+diff --git a/ext/wasm/api/sqlite3-api-glue.c-pp.js b/ext/wasm/api/sqlite3-api-glue.c-pp.js
+--- a/ext/wasm/api/sqlite3-api-glue.c-pp.js
++++ b/ext/wasm/api/sqlite3-api-glue.c-pp.js
+@@ -205,6 +205,15 @@ globalThis.sqlite3ApiBootstrap.initializers.push(function(sqlite3){
+       ["sqlite3_next_stmt", "sqlite3_stmt*", ["sqlite3*","sqlite3_stmt*"]],
+       ["sqlite3_open", "int", "string", "*"],
+       ["sqlite3_open_v2", "int", "string", "*", "int", "string"],
++      ["sqlite3_page_access_hook", "*", [
++        "sqlite3*",
++        new wasm.xWrap.FuncPtrAdapter({
++          name: 'sqlite3_page_access_hook::callback',
++          signature: 'v(pii)',
++          contextKey: (argv)=>argv[0/* sqlite3* */]
++        }),
++        '*'
++      ]],
+       /* sqlite3_prepare_v2() and sqlite3_prepare_v3() are handled
+          separately due to us requiring two different sets of semantics
+          for those, depending on how their SQL argument is provided. */
+@@ -1127,6 +1136,7 @@ globalThis.sqlite3ApiBootstrap.initializers.push(function(sqlite3){
+       /* pairs of [funcName, itsArityInC] */
+       ['sqlite3_busy_handler',3],
+       ['sqlite3_commit_hook',3],
++      ['sqlite3_page_access_hook',3],
+       ['sqlite3_preupdate_hook',3],
+       ['sqlite3_progress_handler',4],
+       ['sqlite3_rollback_hook',3],
+diff --git a/ext/wasm/api/sqlite3-api-oo1.c-pp.js b/ext/wasm/api/sqlite3-api-oo1.c-pp.js
+--- a/ext/wasm/api/sqlite3-api-oo1.c-pp.js
++++ b/ext/wasm/api/sqlite3-api-oo1.c-pp.js
+@@ -1618,6 +1618,29 @@ globalThis.sqlite3ApiBootstrap.initializers.push(function(sqlite3){
+     checkRc: function(resultCode){
+       return checkSqlite3Rc(this, resultCode);
+     },
 +
-   /* If the statement journal is open and the page is not in it,
-   ** then write the page into the statement journal.
-   */
-
-diff --git a/src/sqlite.h.in b/src/sqlite.h.in
---- a/src/sqlite.h.in
-+++ b/src/sqlite.h.in
-@@ -7170,6 +7170,38 @@
- void *sqlite3_update_hook(
-   sqlite3*,
-   void(*)(void *,int ,char const *,char const *,sqlite3_int64),
-+  void*
-+);
-+
-+/*
-+** CAPI3REF: Page Access Notification Callback
-+** METHOD: sqlite3
-+**
-+** ^The sqlite3_page_access_hook() interface registers a callback
-+** function with the [database connection] identified by the first
-+** argument to be invoked whenever a database page is read or written
-+** in the main database.
-+**
-+** ^The second argument is a pointer to the callback function. The
-+** callback receives three arguments: a copy of the third argument to
-+** sqlite3_page_access_hook(), the page number, and a flags value.
-+** The flags value is SQLITE_PAGE_READ (1) when a page is read and
-+** SQLITE_PAGE_WRITE (2) when a page is first made writable in a
-+** transaction.
-+**
-+** ^The page access hook is disabled by invoking
-+** sqlite3_page_access_hook() with a NULL pointer as the second
-+** parameter.
-+**
-+** ^sqlite3_page_access_hook(D,C,P) returns the P argument from
-+** the previous call on the same [database connection] D, or NULL
-+** for the first call on D.
-+*/
-+#define SQLITE_PAGE_READ  1
-+#define SQLITE_PAGE_WRITE 2
-+void *sqlite3_page_access_hook(
-+  sqlite3*,
-+  void(*)(void*, int, int),
-   void*
- );
++    /**
++       Registers a callback that is invoked whenever a database page
++       is read or written, on every database currently attached to
++       this connection (main, temp, and any ATTACH-ed schemas). The
++       callback receives the firing schema's name (e.g. "main",
++       "temp", or the AS-name from an ATTACH), the 1-based page
++       number, and a flags value: 1 for a page read, 2 for a page
++       write. Pass a falsy value to disable the hook. Returns this
++       object. Note: pagers created by ATTACH after this call do
++       NOT inherit the hook; re-call pageAccessHook() after each
++       ATTACH.
++    */
++    pageAccessHook: function(callback){
++      if( callback && !(callback instanceof Function) ){
++        toss3("Expected a function or falsy value.");
++      }
++      const wrapped = callback ? function(zSchemaPtr, pgno, flags){
++        callback(zSchemaPtr ? wasm.cstrToJs(zSchemaPtr) : '', pgno, flags);
++      } : 0;
++      capi.sqlite3_page_access_hook(this.pointer, wrapped, 0);
++      return this;
++    },
+   }/*DB.prototype*/;
  
-
+   /**
 diff --git a/src/main.c b/src/main.c
 --- a/src/main.c
 +++ b/src/main.c
-@@ -2368,6 +2368,46 @@
-   pRet = db->pUpdateArg;
-   db->xUpdateCallback = xCallback;
-   db->pUpdateArg = pArg;
-+  sqlite3_mutex_leave(db->mutex);
-+  return pRet;
-+}
-+
+@@ -2394,6 +2394,46 @@ void *sqlite3_update_hook(
+   return pRet;
+ }
+ 
 +/*
 +** Register a callback to be invoked each time a database page is
 +** read or written, on every database currently attached to the
@@ -289,80 +159,128 @@ diff --git a/src/main.c b/src/main.c
 +      );
 +    }
 +  }
-   sqlite3_mutex_leave(db->mutex);
-   return pRet;
- }
-
-diff --git a/ext/wasm/api/EXPORTED_FUNCTIONS.sqlite3-core b/ext/wasm/api/EXPORTED_FUNCTIONS.sqlite3-core
---- a/ext/wasm/api/EXPORTED_FUNCTIONS.sqlite3-core
-+++ b/ext/wasm/api/EXPORTED_FUNCTIONS.sqlite3-core
-@@ -78,6 +78,7 @@
- _sqlite3_open
- _sqlite3_open_v2
- _sqlite3_overload_function
-+_sqlite3_page_access_hook
- _sqlite3_prepare_v2
- _sqlite3_prepare_v3
- _sqlite3_randomness
-
-diff --git a/ext/wasm/api/sqlite3-api-glue.c-pp.js b/ext/wasm/api/sqlite3-api-glue.c-pp.js
---- a/ext/wasm/api/sqlite3-api-glue.c-pp.js
-+++ b/ext/wasm/api/sqlite3-api-glue.c-pp.js
-@@ -198,6 +198,15 @@
-       ["sqlite3_malloc", "*","int"],
-       ["sqlite3_open", "int", "string", "*"],
-       ["sqlite3_open_v2", "int", "string", "*", "int", "string"],
-+      ["sqlite3_page_access_hook", "*", [
-+        "sqlite3*",
-+        new wasm.xWrap.FuncPtrAdapter({
-+          name: 'sqlite3_page_access_hook::callback',
-+          signature: 'v(pii)',
-+          contextKey: (argv)=>argv[0/* sqlite3* */]
-+        }),
-+        '*'
-+      ]],
-       /* sqlite3_prepare_v2() and sqlite3_prepare_v3() are handled
-          separately due to us requiring two different sets of semantics
-          for those, depending on how their SQL argument is provided. */
-@@ -1122,6 +1131,7 @@
-       /* pairs of [funcName, itsArityInC] */
-       ['sqlite3_busy_handler',3],
-       ['sqlite3_commit_hook',3],
-+      ['sqlite3_page_access_hook',3],
-       ['sqlite3_preupdate_hook',3],
-       ['sqlite3_progress_handler',4],
-       ['sqlite3_rollback_hook',3],
-
-diff --git a/ext/wasm/api/sqlite3-api-oo1.c-pp.js b/ext/wasm/api/sqlite3-api-oo1.c-pp.js
---- a/ext/wasm/api/sqlite3-api-oo1.c-pp.js
-+++ b/ext/wasm/api/sqlite3-api-oo1.c-pp.js
-@@ -1489,5 +1489,28 @@
-     */
-     checkRc: function(resultCode){
-       return checkSqlite3Rc(this, resultCode);
-+    },
++  sqlite3_mutex_leave(db->mutex);
++  return pRet;
++}
 +
-+    /**
-+       Registers a callback that is invoked whenever a database page
-+       is read or written, on every database currently attached to
-+       this connection (main, temp, and any ATTACH-ed schemas). The
-+       callback receives the firing schema's name (e.g. "main",
-+       "temp", or the AS-name from an ATTACH), the 1-based page
-+       number, and a flags value: 1 for a page read, 2 for a page
-+       write. Pass a falsy value to disable the hook. Returns this
-+       object. Note: pagers created by ATTACH after this call do
-+       NOT inherit the hook; re-call pageAccessHook() after each
-+       ATTACH.
-+    */
-+    pageAccessHook: function(callback){
-+      if( callback && !(callback instanceof Function) ){
-+        toss3("Expected a function or falsy value.");
-+      }
-+      const wrapped = callback ? function(zSchemaPtr, pgno, flags){
-+        callback(zSchemaPtr ? wasm.cstrToJs(zSchemaPtr) : '', pgno, flags);
-+      } : 0;
-+      capi.sqlite3_page_access_hook(this.pointer, wrapped, 0);
-+      return this;
-     },
-   }/*DB.prototype*/;
-
+ /*
+ ** Register a callback to be invoked each time a transaction is rolled
+ ** back by this database connection.
+diff --git a/src/pager.c b/src/pager.c
+--- a/src/pager.c
++++ b/src/pager.c
+@@ -688,6 +688,8 @@ struct Pager {
+   char *zJournal;             /* Name of the journal file */
+   int (*xBusyHandler)(void*); /* Function to call when busy */
+   void *pBusyHandlerArg;      /* Context argument for xBusyHandler */
++  void (*xPageAccess)(void*,int,int); /* Page access hook callback */
++  void *pPageAccessArg;       /* First arg to xPageAccess */
+   u32 aStat[4];               /* Total cache hits, misses, writes, spills */
+ #ifdef SQLITE_TEST
+   int nRead;                  /* Database pages read */
+@@ -3780,6 +3782,23 @@ void sqlite3PagerSetBusyHandler(
+   sqlite3OsFileControlHint(pPager->fd, SQLITE_FCNTL_BUSYHANDLER, (void *)ap);
+ }
+ 
++/*
++** Set a callback that is invoked whenever a database page is read
++** or written. The callback receives the user argument, the page
++** number, and a flags value (1 for read, 2 for write). Returns the
++** previous user argument.
++*/
++void *sqlite3PagerSetPageAccessHook(
++  Pager *pPager,
++  void (*xCallback)(void*, int, int),
++  void *pArg
++){
++  void *pOld = pPager->pPageAccessArg;
++  pPager->xPageAccess = xCallback;
++  pPager->pPageAccessArg = pArg;
++  return pOld;
++}
++
+ /*
+ ** Change the page size used by the Pager object. The new page size
+ ** is passed in *pPageSize.
+@@ -5787,7 +5806,14 @@ int sqlite3PagerGet(
+   return rc;
+ #else
+   /* Normal, high-speed version of sqlite3PagerGet() */
+-  return pPager->xGet(pPager, pgno, ppPage, flags);
++  {
++    int rc = pPager->xGet(pPager, pgno, ppPage, flags);
++    if( rc==SQLITE_OK && pPager->xPageAccess ){
++      pPager->xPageAccess(pPager->pPageAccessArg, (int)pgno,
++                          1/*SQLITE_PAGE_READ*/);
++    }
++    return rc;
++  }
+ #endif
+ }
+ 
+@@ -6157,7 +6183,11 @@ static int pager_write(PgHdr *pPg){
+   ** PGHDR_WRITEABLE bit that indicates that the page can be safely modified.
+   */
+   pPg->flags |= PGHDR_WRITEABLE;
+- 
++  if( pPager->xPageAccess ){
++    pPager->xPageAccess(pPager->pPageAccessArg, (int)pPg->pgno,
++                        2/*SQLITE_PAGE_WRITE*/);
++  }
++
+   /* If the statement journal is open and the page is not in it,
+   ** then write the page into the statement journal.
+   */
+diff --git a/src/pager.h b/src/pager.h
+--- a/src/pager.h
++++ b/src/pager.h
+@@ -144,6 +144,7 @@ int sqlite3PagerReadFileheader(Pager*, int, unsigned char*);
+ 
+ /* Functions used to configure a Pager object. */
+ void sqlite3PagerSetBusyHandler(Pager*, int(*)(void *), void *);
++void *sqlite3PagerSetPageAccessHook(Pager*, void(*)(void*, int, int), void*);
+ int sqlite3PagerSetPagesize(Pager*, u32*, int);
+ Pgno sqlite3PagerMaxPageCount(Pager*, Pgno);
+ void sqlite3PagerSetCachesize(Pager*, int);
+diff --git a/src/sqlite.h.in b/src/sqlite.h.in
+--- a/src/sqlite.h.in
++++ b/src/sqlite.h.in
+@@ -7287,6 +7287,38 @@ void *sqlite3_update_hook(
+   void*
+ );
+ 
++/*
++** CAPI3REF: Page Access Notification Callback
++** METHOD: sqlite3
++**
++** ^The sqlite3_page_access_hook() interface registers a callback
++** function with the [database connection] identified by the first
++** argument to be invoked whenever a database page is read or written
++** in the main database.
++**
++** ^The second argument is a pointer to the callback function. The
++** callback receives three arguments: a copy of the third argument to
++** sqlite3_page_access_hook(), the page number, and a flags value.
++** The flags value is SQLITE_PAGE_READ (1) when a page is read and
++** SQLITE_PAGE_WRITE (2) when a page is first made writable in a
++** transaction.
++**
++** ^The page access hook is disabled by invoking
++** sqlite3_page_access_hook() with a NULL pointer as the second
++** parameter.
++**
++** ^sqlite3_page_access_hook(D,C,P) returns the P argument from
++** the previous call on the same [database connection] D, or NULL
++** for the first call on D.
++*/
++#define SQLITE_PAGE_READ  1
++#define SQLITE_PAGE_WRITE 2
++void *sqlite3_page_access_hook(
++  sqlite3*,
++  void(*)(void*, int, int),
++  void*
++);
++
+ /*
+ ** CAPI3REF: Enable Or Disable Shared Pager Cache
+ **

@@ -21,7 +21,7 @@ function DatabaseNumberGridViewCellContent({
     return (
         <Box
             ref={ref as React.Ref<HTMLDivElement>}
-            tabIndex={0}
+            tabIndex={-1}
             height="full"
             display="flex"
             alignItems="center"
@@ -31,14 +31,13 @@ function DatabaseNumberGridViewCellContent({
             color="grey-100"
             onClick={onCellClick}
         >
-            {databaseNumberFieldProvider.formatString(value, config)}
+            {databaseNumberFieldProvider.valueToString(value, config)}
         </Box>
     );
 }
 
 function DatabaseNumberGridViewCellEditorOverlay({
     ref,
-    config,
     initialValue,
     initialEditString,
     commitValue,
@@ -61,7 +60,7 @@ function DatabaseNumberGridViewCellEditorOverlay({
     }, []);
 
     const tryCommit = (raw: string) => {
-        const parsed = databaseNumberFieldProvider.parseString(raw, config);
+        const parsed = databaseNumberFieldProvider.parseValueString(raw);
         if (parsed.ok) commitValue(parsed.value);
     };
 

@@ -536,7 +536,7 @@ describe("per-browser page tracking", () => {
         expect(tracker.filterReadPages(browserId, pages).size).toBe(0);
     });
 
-    test("transformEvent filters pages to only those the client might have", async () => {
+    test("transformEvent forwards pages even when tracker does not know them", async () => {
         const doStorage = new DatabaseDurableObjectStorage(storage.sql);
         writePagesFor(
             doStorage,
@@ -564,7 +564,6 @@ describe("per-browser page tracking", () => {
             ]),
         );
 
-        // Simulate a realtime event touching pages 0, 1, 3
         const eventStub = {
             type: "PagesChanged" as const,
             pageDiffs: new Map([
@@ -585,10 +584,8 @@ describe("per-browser page tracking", () => {
         const event = await conn.transformEvent(null as any, eventStub);
         assert(event.type === "PagesChanged", "expected PagesChanged event");
 
-        // Page 0: confirmed → included Page 1: confirmed → included Page 2: pending (sent
-        // as updatedPages) but not in event → N/A Page 3: not tracked → excluded
         const main = event.pageDiffs.get(databaseMainTableId);
-        expect([...(main?.diffs.keys() ?? [])]).toEqual([0, 1]);
+        expect([...(main?.diffs.keys() ?? [])]).toEqual([0, 1, 3]);
     });
 
     test("transformEvent includes pending pages", async () => {
@@ -640,13 +637,12 @@ describe("per-browser page tracking", () => {
         expect([...(main?.diffs.keys() ?? [])]).toEqual([0, 1]);
     });
 
-    test("transformEvent omits tables with no forwardable pages", async () => {
+    test("transformEvent forwards tables when tracker has no pages", async () => {
         const doStorage = new DatabaseDurableObjectStorage(storage.sql);
         const tracker = new BrowserPageTracker();
         const browserId = generateId<BrowserId>();
         const conn = createTrackedConnection(doStorage, tracker, browserId);
 
-        // No ensureCacheIsUpToDate — tracker has no pages
         const eventStub = {
             type: "PagesChanged" as const,
             pageDiffs: new Map([
@@ -666,9 +662,8 @@ describe("per-browser page tracking", () => {
         const event = await conn.transformEvent(null as any, eventStub);
         assert(event.type === "PagesChanged", "expected PagesChanged event");
 
-        // Every diff was filtered out, so the table entry is dropped entirely rather than
-        // forwarded as an empty entry that would trigger a wasted client sync().
-        expect(event.pageDiffs.has(databaseMainTableId)).toBe(false);
+        const main = event.pageDiffs.get(databaseMainTableId);
+        expect([...(main?.diffs.keys() ?? [])]).toEqual([0, 1]);
     });
 
     test("ensureCacheIsUpToDate replaces page set on each call", async () => {

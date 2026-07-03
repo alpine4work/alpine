@@ -9,7 +9,7 @@
         "baseUrl": "admin/typescript/base",
         "paths": {
             "~/*": ["../../../*"],
-            "~/external/*": ["../../../../*"]
+            "~/external/*": ["../../../external/*"]
         },
         "parser": {
             "syntax": "typescript"

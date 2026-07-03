@@ -1,4 +1,4 @@
-import {useEffect, useRef, useState} from "react";
+import {type Memo, useEffect, useRef, useState} from "react";
 import type {DatabaseReactiveActionHandle} from "~/client/web/databases/connect_to_database.js";
 import {useDatabaseConnection} from "~/client/web/databases/database_connection_context.js";
 import {useStore} from "~/client/web/helpers/use_store.js";
@@ -22,7 +22,7 @@ import type {Result} from "~/shared/helpers/control/result.js";
  */
 export function useReactiveDatabaseAction<N extends DatabaseActionName>(options: {
     name: N;
-    input: DatabaseActionInput<N> | null;
+    input: Memo<DatabaseActionInput<N>> | null;
     initialData?: LoaderDatabaseActionResult | null;
 }): Result<DatabaseActionOutput<N>, string> | null {
     const {name, input, initialData} = options;

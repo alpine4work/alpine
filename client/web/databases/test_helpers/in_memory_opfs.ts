@@ -2,7 +2,7 @@ import type {
     OpfsDirectoryHandle,
     OpfsFileHandle,
     OpfsSyncAccessHandle,
-} from "~/client/web/databases/opfs.js";
+} from "~/client/web/databases/worker/opfs.js";
 import {databaseMainTableId, sqlitePageSize} from "~/shared/databases/sqlite_constants.js";
 
 /**

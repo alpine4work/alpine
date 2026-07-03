@@ -4,6 +4,8 @@ ts_project(
     name = "databases",
     visibility = ["//visibility:public"],
     deps = [
+        "//:node_modules/prettier",
+        "//:node_modules/prettier-plugin-sql",
         "@sqlite",
         "//admin/external_types:sqlite",
         "//shared/dynamo",

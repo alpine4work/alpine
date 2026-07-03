@@ -1,5 +1,7 @@
 import {assert} from "~/shared/helpers/control/assert.js";
 
+export type {Database as SqliteDatabase} from "~/external/sqlite/ext/wasm/jswasm/sqlite3.mjs";
+
 /**
  * Callback that loads and instantiates the sqlite3 WASM binary. Matches the
  * Emscripten `Module.instantiateWasm` signature.
