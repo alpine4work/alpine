@@ -121,8 +121,8 @@ describe("WebWorkerRpc", () => {
             // Create two RPC instances that forward messages to each other, simulating a
             // main-thread <-> worker connection.
             const channel: {
-                a?: WebWorkerRpc<typeof testMethods>;
-                b?: WebWorkerRpc<typeof testMethods>;
+                a?: WebWorkerRpc<typeof testMethods, typeof testMethods>;
+                b?: WebWorkerRpc<typeof testMethods, typeof testMethods>;
             } = {};
 
             channel.a = new WebWorkerRpc({

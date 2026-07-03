@@ -1,6 +1,5 @@
 /// <reference lib="webworker" />
 
-import {installSharedUniqueWorkerMessagePortBroker} from "~/client/web/helpers/workers/shared_unique_worker_message_port_broker_a.js";
 import {serializeWebPushSubscription} from "~/client/web/notifications/serialize_web_push_subscription.js";
 import {getWebPushStore} from "~/client/web/notifications/web_push_store.js";
 import {InternalError} from "~/shared/error/error.js";
@@ -14,36 +13,6 @@ import {TracerEvent} from "~/shared/tracer/tracer_event.js";
 import {TracerRoot} from "~/shared/tracer/tracer_root.js";
 
 declare const self: ServiceWorkerGlobalScope;
-
-installSharedUniqueWorkerMessagePortBroker({scope: self});
-
-// --- Database coordination: MessagePort relay ---
-//
-// The leader tab registers its clientId. Follower tabs send a MessagePort which we
-// relay to the leader so followers can talk directly to the leader's worker.
-//
-// This is an inline copy of `DatabaseActiveTabServiceWorker` to avoid pulling
-// `client/web/databases` (and its heavy SQLite deps) into the service worker
-// bundle.
-
-let dbLeaderClientId: string | null = null;
-
-self.addEventListener("message", (event: ExtendableMessageEvent) => {
-    const data = event.data;
-    if (data?.type === "db-register-leader") {
-        dbLeaderClientId = (event.source as Client).id;
-    } else if (data?.type === "db-connect") {
-        const port = event.ports[0];
-        if (dbLeaderClientId === null || !port) return;
-        event.waitUntil(
-            self.clients.get(dbLeaderClientId).then(client => {
-                if (client) {
-                    client.postMessage({type: "db-port"}, [port]);
-                }
-            }),
-        );
-    }
-});
 
 // Install event - fired when the service worker is first installed
 self.addEventListener("install", (event: ExtendableEvent) => {
@@ -161,8 +130,7 @@ self.addEventListener("fetch", (event: FetchEvent) => {
         // re-synced state.
         //
         // This is inlined rather than importing `client/web/databases` to keep the heavy
-        // SQLite deps out of the service worker bundle, matching the database coordination
-        // relay above.
+        // SQLite deps out of the service worker bundle.
         const clearDatabasesStorage = async () => {
             // Wait for the sign out request to finish successfully.
             await event.handled;

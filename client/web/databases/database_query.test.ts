@@ -4,7 +4,7 @@ import type {
     DatabaseReactiveActionHandle,
     DatabaseReactiveActionResult,
     DatabaseWorkerConnection,
-} from "~/client/web/databases/database_active_tab_manager.js";
+} from "~/client/web/databases/connect_to_database.js";
 import {DatabaseClient} from "~/client/web/databases/database_client.js";
 import {DatabaseQuery} from "~/client/web/databases/database_query.js";
 import type {DatabaseQueryRow} from "~/client/web/databases/database_query_row.js";
