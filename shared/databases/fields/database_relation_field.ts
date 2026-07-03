@@ -1,4 +1,3 @@
-import {getDatabaseFieldProvider} from "~/shared/databases/fields/all_database_field_providers.js";
 import {DatabaseFieldProviderBase} from "~/shared/databases/fields/base/database_field_provider_base.js";
 import type {
     DatabaseFieldModel,
@@ -160,16 +159,18 @@ export const databaseRelationFieldProvider: DatabaseRelationFieldProvider =
     DatabaseRelationFieldProvider.instance;
 
 function selectLinkedNameColumn(field: DatabaseFieldModel, dataRow: SqlQuery) {
-    const value = getDatabaseFieldProvider(field.config.type).selectColumn(field, dataRow);
     switch (field.config.type) {
-        case "checkbox":
+        case "checkbox": {
+            const value = sql`${dataRow}.${field.column()}`;
             return sql`
                 CASE ${value}
                     WHEN 1 THEN 'true'
                     ELSE 'false'
                 END
             `;
-        case "number":
+        }
+        case "number": {
+            const value = sql`${dataRow}.${field.column()}`;
             if (field.config.decimalPlaces == null) {
                 return sql`CAST(${value} AS TEXT)`;
             }
@@ -182,8 +183,9 @@ function selectLinkedNameColumn(field: DatabaseFieldModel, dataRow: SqlQuery) {
                     )
                 END
             `;
+        }
         case "plainText":
-            return value;
+            return sql`${dataRow}.${field.column()}`;
         default:
             assert(false, `unsupported relation name field type: ${field.config.type}`);
     }
