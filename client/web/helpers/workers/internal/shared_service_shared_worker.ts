@@ -1,25 +1,31 @@
-/** @type {Map<string, MessagePort>} */ const mapClientIdToPort = new Map();
+const mapClientIdToPort = new Map<string, MessagePort>();
 
-globalThis.addEventListener("connect", event => {
-    // The first message from a client associates the clientId with the port.
-    const workerPort = event.ports[0];
+globalThis.addEventListener("connect", (event: Event) => {
+    const workerPort = (event as MessageEvent).ports[0]!;
     workerPort.addEventListener(
         "message",
-        event => {
-            mapClientIdToPort.set(event.data.clientId, workerPort);
+        (connectEvent: MessageEvent<{clientId: string}>) => {
+            const {clientId} = connectEvent.data;
+            mapClientIdToPort.set(clientId, workerPort);
 
             // Remove the entry when the client goes away, which we detect when the lock on its
             // name becomes available.
-            navigator.locks.request(event.data.clientId, {mode: "shared"}, () => {
-                mapClientIdToPort.get(event.data.clientId)?.close();
-                mapClientIdToPort.delete(event.data.clientId);
+            navigator.locks.request(clientId, {mode: "shared"}, () => {
+                mapClientIdToPort.get(clientId)?.close();
+                mapClientIdToPort.delete(clientId);
             });
 
             // Subsequent messages will be forwarded.
-            workerPort.addEventListener("message", event => {
-                const port = mapClientIdToPort.get(event.data.clientId);
-                port.postMessage(event.data, event.ports);
-            });
+            workerPort.addEventListener(
+                "message",
+                (forwardEvent: MessageEvent<{clientId: string}>) => {
+                    const port = mapClientIdToPort.get(forwardEvent.data.clientId);
+                    port?.postMessage(
+                        forwardEvent.data,
+                        forwardEvent.ports as unknown as Array<Transferable>,
+                    );
+                },
+            );
         },
         {once: true},
     );
