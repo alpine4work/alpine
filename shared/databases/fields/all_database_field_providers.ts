@@ -5,18 +5,24 @@ import {databasePlainTextFieldProvider} from "~/shared/databases/fields/database
 import {databaseRelationFieldProvider} from "~/shared/databases/fields/database_relation_field.js";
 import {SqlJsonSchema} from "~/shared/databases/model/sqlite_schema.js";
 import {assert} from "~/shared/helpers/control/assert.js";
+import {Lazy} from "~/shared/helpers/control/lazy.js";
 import {Schema, SchemaType} from "~/shared/schema/schema.js";
 
-const allDatabaseFieldProviders = [
-    databaseCheckboxFieldProvider,
-    databaseNumberFieldProvider,
-    databasePlainTextFieldProvider,
-    databaseRelationFieldProvider,
-] as const;
+const allDatabaseFieldProviders = new Lazy(
+    () =>
+        [
+            databaseCheckboxFieldProvider,
+            databaseNumberFieldProvider,
+            databasePlainTextFieldProvider,
+            databaseRelationFieldProvider,
+        ] as const,
+);
 
-export type DatabaseFieldType = (typeof allDatabaseFieldProviders)[number]["type"];
+type AllDatabaseFieldProviders = ReturnType<(typeof allDatabaseFieldProviders)["get"]>;
+
+export type DatabaseFieldType = AllDatabaseFieldProviders[number]["type"];
 export type DatabaseFieldProvider<Type extends DatabaseFieldType = DatabaseFieldType> = Extract<
-    (typeof allDatabaseFieldProviders)[number],
+    AllDatabaseFieldProviders[number],
     {type: Type}
 >;
 export type DatabaseFieldConfig<Type extends DatabaseFieldType = DatabaseFieldType> = SchemaType<

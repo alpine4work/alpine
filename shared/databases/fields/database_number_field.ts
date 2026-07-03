@@ -48,7 +48,12 @@ export class DatabaseNumberFieldProvider extends ColumnBackedDatabaseFieldProvid
     override _selectColumnAsString(field: DatabaseFieldModelOfType<"number">, dataRow: SqlQuery) {
         const column = this.selectColumn(field, dataRow);
         if (field.config.decimalPlaces == null) {
-            return sql`CAST(${column} AS TEXT)`;
+            return sql`
+                CASE
+                    WHEN ${column} IS NULL THEN ''
+                    ELSE CAST(${column} AS TEXT)
+                END
+            `;
         }
         return sql`
             CASE

@@ -35,7 +35,7 @@ export abstract class DatabaseFieldProviderBase<
 
     selectColumnAsString(field: DatabaseFieldModel, dataRow: SqlQuery): SqlQuery {
         assert(field.isType(this.type));
-        return this._selectColumn(field, dataRow);
+        return this._selectColumnAsString(field, dataRow);
     }
     protected abstract _selectColumnAsString(
         field: DatabaseFieldModelOfType<Type>,
