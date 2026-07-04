@@ -11,6 +11,7 @@ import {
     AccountId,
     ChannelId,
     ChatId,
+    DatabaseTableId,
     DocumentCommentThreadId,
     DocumentId,
     PostId,
@@ -107,6 +108,13 @@ const searchEntityUpdateSchemaDescription = {
             documentId: Schema.id<DocumentId>(),
             commentThreadId: Schema.id<DocumentCommentThreadId>(),
             commentIndex: Schema.integer,
+        }),
+        updatableTraits: [],
+    },
+    DatabaseTable: {
+        schema: Schema.object({
+            type: Schema.value("DatabaseTable"),
+            tableId: Schema.id<DatabaseTableId>(),
         }),
         updatableTraits: [],
     },

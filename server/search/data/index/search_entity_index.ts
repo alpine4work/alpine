@@ -2,6 +2,7 @@ import murmurhash from "murmurhash";
 import {Node} from "prosemirror-model";
 import {evaluateAccessPolicy} from "~/server/access/evaluate_access_policy.js";
 import {getBotAccessPolicy} from "~/server/access/get_bot_access_policy.js";
+import {intoEffectiveAccessPolicy} from "~/server/access/into_effective_access_policy.js";
 import {authorizeInternalAccess} from "~/server/accounts/authorize_internal_access.js";
 import {getChatDefinitionIfPossible} from "~/server/chat/data/get_chat_definition.js";
 import {getChatSearchEntityContributorIds} from "~/server/chat/data/get_chat_search_entity_contributor_ids.js";
@@ -75,6 +76,7 @@ import {printSearchNaturalLanguageFilter} from "~/server/search/data/index/inter
 import {
     SearchEntityEmbeddingChunkIndexDoc,
     SearchEntityEmbeddingChunkIndexDocType,
+    SearchEntityIndexAccessPolicy,
     SearchEntityIndexActivenessType,
     SearchEntityIndexActivenessTypeIntegerMapping,
     SearchEntityIndexDefaultGrantType,
@@ -128,9 +130,11 @@ import {getTaskCollectionSearchResultBodyTextSnippetIfPossible} from "~/server/t
 import {getTaskCollectionSearchResultIfPossible} from "~/server/tasks/data/get_task_collection_search_result_if_possible.js";
 import {BotTokenPayloadScope} from "~/server/tokens/token_payload.js";
 import {
+    type AccessPolicy,
     AccessPolicyAccountGrantWithoutGeneration,
     AccessPolicyDefaultGrantWithoutGeneration,
     AccessPolicyUrlGrant,
+    type EffectiveAccessPolicy,
 } from "~/shared/access/access_policy.js";
 import {missingAccountName} from "~/shared/accounts/missing_account_name.js";
 import {getContentReferencedIdsForNode} from "~/shared/content/content_referenced_ids.js";
@@ -188,7 +192,13 @@ import {TestCounter} from "~/shared/helpers/test/test_counter.js";
 import {JsonScalarValue, JsonValue} from "~/shared/helpers/types/json_value.js";
 import {Replace} from "~/shared/helpers/types/replace.js";
 import {assertId, isId} from "~/shared/id/id.js";
-import {AccountId, ChannelId, SpaceId, TaskCollectionId} from "~/shared/id/types/id_types.js";
+import {
+    AccountId,
+    ChannelId,
+    DatabaseTableId,
+    SpaceId,
+    TaskCollectionId,
+} from "~/shared/id/types/id_types.js";
 import {OpensearchSearchHitExplanation} from "~/shared/opensearch/opensearch_search_hit_explanation.js";
 import {isDeepEqualWithSchema} from "~/shared/schema/helpers/is_deep_equal_with_schema.js";
 import {getSearchEntityNoun} from "~/shared/search/get_search_entity_noun.js";
@@ -476,6 +486,85 @@ export function refreshSearchEntityKeywordIndexForTest(
     return context.opensearch.refresh(SearchEntityKeywordIndex);
 }
 
+export async function indexDatabaseTableSearchEntity(
+    context: ServerActionContext,
+    {
+        spaceId,
+        tableId,
+        name,
+        tableName,
+        accessPolicy,
+        isDeleted,
+    }: {
+        spaceId: SpaceId;
+        tableId: DatabaseTableId;
+        name: string | null;
+        tableName: string | null;
+        accessPolicy: AccessPolicy;
+        isDeleted: boolean;
+    },
+): Promise<void> {
+    const id: SearchEntityIdForKeywordIndex = `DatabaseTable:${tableId}`;
+
+    if (isDeleted) {
+        await context.opensearch.bulk([
+            new OpensearchDeleteDocCommand(SearchEntityKeywordIndex, spaceId, id),
+        ]);
+        return;
+    }
+
+    const existing = await context.opensearch.getDocWithoutSourceIfExists(
+        SearchEntityKeywordIndex,
+        spaceId,
+        id,
+        {storedFields: []},
+    );
+    const now = new Date();
+    const effectiveAccessPolicy = await intoEffectiveAccessPolicy(context, accessPolicy, {
+        consistency: "StrongWithinCache",
+    });
+
+    await context.opensearch.indexDocIfVersion(SearchEntityKeywordIndex, spaceId, {
+        id,
+        version: existing?.version ?? null,
+        spaceId,
+        type: "DatabaseTable",
+        createdTime: null,
+        lastUpdatedTime: now,
+        lastReadStartTime: now,
+        dueDate: null,
+        hasEmbeddingChunks: false,
+        accessPolicy: intoSearchEntityIndexAccessPolicy(effectiveAccessPolicy),
+        dependencyIds: [],
+        title: name,
+        titleVersion: null,
+        body: null,
+        tags: tableName === null ? [] : [tableName],
+        media: null,
+        creatorId: null,
+        majorContributorIds: [],
+        anyContributorIds: [],
+        assigneeId: null,
+        openness: null,
+        activeness: null,
+        priority: null,
+    });
+}
+
+function intoSearchEntityIndexAccessPolicy(
+    accessPolicy: EffectiveAccessPolicy,
+): SearchEntityIndexAccessPolicy {
+    const defaultGrantType: SearchEntityIndexDefaultGrantType | null =
+        accessPolicy.defaultGrant !== null ? "Space" : null;
+
+    return {
+        accountGrantAccountIds:
+            defaultGrantType !== null ? emptySet : new Set(accessPolicy.accountGrantById.keys()),
+        defaultGrantType,
+        urlGrantLevel: accessPolicy.urlGrant?.level ?? null,
+    };
+}
+
 /*
  * After parsing queries, some values need to be mapped to their opensearch
  * enums. This function does that conversion, or just returns the raw values
@@ -557,6 +646,7 @@ function alwaysEmbedSearchEntityType(type: SearchDynamicEntityIdObject["type"]):
         case "Account":
         case "Document":
         case "DocumentComment":
+        case "DatabaseTable":
         case "Post":
         case "PostComment":
         case "ChatMessage":
@@ -2468,6 +2558,11 @@ function spotCheckSearchEntityAccess(
             // accounts in the space and so we don't need a spot check.
             mentionEntityId = null;
             break;
+        case "DatabaseTable":
+            // Database tables are materialized from the Dynamo access policy directly and
+            // aren't mention entities, so there isn't an existing fallback spot-check path.
+            mentionEntityId = null;
+            break;
         case "Document":
         case "Channel":
         case "Chat":
@@ -2657,6 +2752,15 @@ async function prepareSearchEntityDataForResult(
                 channel: {
                     id: idObject.channelId,
                     version,
+                },
+            };
+        }
+        case "DatabaseTable": {
+            return {
+                type: "DatabaseTable",
+                title,
+                table: {
+                    id: idObject.tableId,
                 },
             };
         }

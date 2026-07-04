@@ -5,6 +5,7 @@ import type {
     DatabaseFieldId,
     DatabaseGroupId,
     DatabaseTableId,
+    SpaceId,
 } from "~/shared/id/types/id_types.js";
 import {Schema} from "~/shared/schema/schema.js";
 
@@ -24,6 +25,7 @@ export const DatabaseTablesTable = DynamoTableSchema.new({
                     },
                     attributes: Schema.object({
                         name: Schema.string.nullable(),
+                        spaceId: Schema.id<SpaceId>().nullable(),
                         tableName: Schema.string.nullable(),
                         nameFieldId: Schema.id<DatabaseFieldId>().nullable(),
                         isDeleted: Schema.boolean,

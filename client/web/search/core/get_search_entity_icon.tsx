@@ -51,6 +51,9 @@ export function getSearchEntityIcon(entityData: SearchEntityModelDataWithAccount
         case "TaskCollection": {
             return <TaskCollectionBrandIcon />;
         }
+        case "DatabaseTable": {
+            return <TaskCollectionBrandIcon />;
+        }
         case "TaskComment": {
             return <TaskCommentBrandIcon />;
         }

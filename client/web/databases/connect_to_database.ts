@@ -14,7 +14,11 @@ import type {DatabasePages} from "~/shared/databases/database_protocol_schemas.j
 import {CancelledError} from "~/shared/error/error.js";
 import type {Result} from "~/shared/helpers/control/result.js";
 import {generateId} from "~/shared/id/id.js";
-import type {DatabaseGroupId, DatabaseReactiveActionId} from "~/shared/id/types/id_types.js";
+import type {
+    DatabaseGroupId,
+    DatabaseReactiveActionId,
+    SpaceId,
+} from "~/shared/id/types/id_types.js";
 import type {SchemaType} from "~/shared/schema/schema.js";
 import type {Store} from "~/shared/store/store.js";
 import {ValueStore} from "~/shared/store/value_store.js";
@@ -63,6 +67,7 @@ export const databaseUniqueWorkerKey = "alpine-databases";
 
 type ConnectOptions = {
     databaseGroupId: DatabaseGroupId;
+    spaceId: SpaceId;
     webSocketUrl: string;
     initialPages?: DatabasePages;
     reportError?(message: string): void;
@@ -199,6 +204,7 @@ async function connectToDatabaseGroup(options: ConnectOptions): Promise<Database
             // leader's): re-establish the group connection and re-register every watch before
             // queued calls flush.
             await call("connectDatabaseGroup", {
+                spaceId: options.spaceId,
                 pages: new Map(),
                 webSocketUrl: options.webSocketUrl,
             });
@@ -251,6 +257,7 @@ async function connectToDatabaseGroup(options: ConnectOptions): Promise<Database
 
     await client.whenConnected();
     await call("connectDatabaseGroup", {
+        spaceId: options.spaceId,
         pages: options.initialPages ?? new Map(),
         webSocketUrl: options.webSocketUrl,
     });

@@ -18,6 +18,8 @@ export function getSearchEntityNoun(type: SearchDynamicEntityType): string {
             return "chat";
         case "ChatMessage":
             return "chat message";
+        case "DatabaseTable":
+            return "database table";
         case "Task":
             return "task";
         case "TaskCollection":

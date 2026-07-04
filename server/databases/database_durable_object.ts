@@ -26,7 +26,7 @@ import {DatabaseActionObjectSchema} from "~/shared/databases/database_actions.js
 import {DatabaseRealtimeProtocol} from "~/shared/databases/database_realtime_protocol.js";
 import {InvalidArgumentError, NotFoundError} from "~/shared/error/error.js";
 import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
-import type {BrowserId, DatabaseGroupId} from "~/shared/id/types/id_types.js";
+import type {BrowserId, DatabaseGroupId, SpaceId} from "~/shared/id/types/id_types.js";
 import {SchemaSerializedValue} from "~/shared/schema/schema.js";
 
 type DatabaseGroupDurableObjectRoute = "Main" | "Action" | "NotFound";
@@ -103,11 +103,13 @@ class DatabaseGroupDurableObject {
             if (browserId === null) {
                 throw new InvalidArgumentError("Missing browserId query parameter");
             }
+            const spaceId = searchParams.get("spaceId") as SpaceId | null;
             return new DatabaseDurableObjectConnection({
                 server: this._server,
                 processContext: this._processContext,
                 storage,
                 durableObjectStorage: this._durableObjectStorage,
+                spaceId,
                 drainReplicationOutboxIfPossible: context =>
                     this._drainReplicationOutboxIfPossible(context),
                 sendEventToAll: (context, event) => {
@@ -150,11 +152,13 @@ class DatabaseGroupDurableObject {
         const actionObject = DatabaseActionObjectSchema.deserialize(
             (await request.json()) as SchemaSerializedValue,
         );
+        const spaceId = new URL(request.url).searchParams.get("spaceId") as SpaceId | null;
 
         const {result, readPages} = this._storage.transactionSync(() => {
             const actionResult = this._server.executeAction(actionObject);
             enqueueDatabaseTableReplication(this._storage.sql, {
                 storageVersion: actionResult.writeVersion,
+                spaceId,
                 tableIds: actionResult.changedTables,
             });
             return actionResult;

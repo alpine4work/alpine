@@ -70,6 +70,9 @@ export function getSearchDynamicEntityPath(
             _routeLayout,
         );
     }
+    if (entityData.type === "DatabaseTable") {
+        return `/databases/${spaceId}/${entityData.table.id}`;
+    }
 
     return getSearchDynamicEntityPathFromEntityIdObject(
         spaceId,
@@ -99,13 +102,19 @@ export function getSearchDynamicEntityPathFromEntityIdObject(
         // search may be more useful.
         return `/chat/with/${entityId.accountId}/${spaceId}?focus`;
     }
+    if (entityId.type === "DatabaseTable") {
+        return `/databases/${spaceId}/${entityId.tableId}`;
+    }
 
     return getSearchDynamicEntityPathFromEntityIdObjectWithoutAccount(entityId, _routeLayout);
 }
 
 export function getSearchDynamicEntityPathFromEntityIdObjectWithoutAccount(
     entityId:
-        | Exclude<SearchDynamicEntityIdObject, {type: "Site"} | {type: "Account"}>
+        | Exclude<
+              SearchDynamicEntityIdObject,
+              {type: "Site"} | {type: "Account"} | {type: "DatabaseTable"}
+          >
         | {
               type: "Site";
               siteId: SiteId;
@@ -359,6 +368,9 @@ function intoSearchDynamicEntityIdObject(
         }
         case "Document": {
             return {type: "Document", documentId: entity.document.id} as const;
+        }
+        case "DatabaseTable": {
+            return {type: "DatabaseTable", tableId: entity.table.id} as const;
         }
         case "Post": {
             return {type: "Post", postId: entity.post.id};

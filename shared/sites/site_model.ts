@@ -187,6 +187,7 @@ export function isSiteEntrySearchEntityModelData(
         case "TaskCollection":
             return true;
         case "Post":
+        case "DatabaseTable":
         case "Static":
         case "Site":
         case "ChatMessage":

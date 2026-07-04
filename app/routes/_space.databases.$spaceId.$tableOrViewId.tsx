@@ -33,10 +33,17 @@ export async function loader({request, params, context: unauthenticatedContext}:
     const tableOrViewId = params.tableOrViewId!;
 
     // Fetch schema first — needed for the redirect check.
-    const schemaResult = await fetchDatabaseGroupAction(context, databaseGroupId, {
-        name: "getViewSchema",
-        input: {tableOrViewId},
-    });
+    const schemaResult = await fetchDatabaseGroupAction(
+        context,
+        databaseGroupId,
+        {
+            name: "getViewSchema",
+            input: {tableOrViewId},
+        },
+        {
+            spaceId,
+        },
+    );
 
     // If the user navigated with a table ID, redirect to the resolved view ID for a
     // canonical URL. Uses a relative redirect so peek routes work correctly.
@@ -47,19 +54,33 @@ export async function loader({request, params, context: unauthenticatedContext}:
     }
 
     // Discover the cursor for the first page then fetch the page rows.
-    const cursorResult = await fetchDatabaseGroupAction(context, databaseGroupId, {
-        name: "getViewRowsPageCursor",
-        input: {tableOrViewId, afterCursor: null, limit: databaseViewTargetRowsPerPage},
-    });
-
-    const pageResult = await fetchDatabaseGroupAction(context, databaseGroupId, {
-        name: "getViewRowsPage",
-        input: {
-            tableOrViewId,
-            afterCursor: null,
-            endCursor: cursorResult.result.endCursor,
+    const cursorResult = await fetchDatabaseGroupAction(
+        context,
+        databaseGroupId,
+        {
+            name: "getViewRowsPageCursor",
+            input: {tableOrViewId, afterCursor: null, limit: databaseViewTargetRowsPerPage},
         },
-    });
+        {
+            spaceId,
+        },
+    );
+
+    const pageResult = await fetchDatabaseGroupAction(
+        context,
+        databaseGroupId,
+        {
+            name: "getViewRowsPage",
+            input: {
+                tableOrViewId,
+                afterCursor: null,
+                endCursor: cursorResult.result.endCursor,
+            },
+        },
+        {
+            spaceId,
+        },
+    );
 
     return jsonWithSchema(LoaderSchema, {
         schema: {

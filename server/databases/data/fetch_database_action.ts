@@ -8,7 +8,7 @@ import {
     type DatabaseActionOutput,
 } from "~/shared/databases/database_actions.js";
 import {assert} from "~/shared/helpers/control/assert.js";
-import type {DatabaseGroupId, DatabaseTableId} from "~/shared/id/types/id_types.js";
+import type {DatabaseGroupId, DatabaseTableId, SpaceId} from "~/shared/id/types/id_types.js";
 import type {SchemaSerializedValue} from "~/shared/schema/schema.js";
 
 /**
@@ -20,6 +20,7 @@ export async function fetchDatabaseGroupAction<N extends DatabaseActionName>(
     context: ServerActionContext,
     databaseGroupId: DatabaseGroupId,
     actionObject: {name: N; input: DatabaseActionInput<N>},
+    options?: {spaceId?: SpaceId},
 ): Promise<{
     result: DatabaseActionOutput<N>;
     readPages: ReadonlyMap<
@@ -28,8 +29,11 @@ export async function fetchDatabaseGroupAction<N extends DatabaseActionName>(
     >;
 }> {
     const body = DatabaseActionObjectSchema.serialize(actionObject as DatabaseActionObject);
+    const searchParams = new URLSearchParams();
+    if (options?.spaceId !== undefined) searchParams.set("spaceId", options.spaceId);
+    const search = searchParams.size === 0 ? "" : `?${searchParams}`;
     const response = await context.edge.sendRequestToDurableObject(
-        `/api/durable-objects/database-groups/${databaseGroupId}/action`,
+        `/api/durable-objects/database-groups/${databaseGroupId}/action${search}`,
         {
             serviceName: "DatabaseGroupService",
             route: "/api/durable-objects/database-groups/:databaseGroupId/action",

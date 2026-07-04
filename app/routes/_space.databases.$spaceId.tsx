@@ -17,10 +17,11 @@ import {LoaderArgs} from "~/server/remix/loader_context.js";
 import {getDatabaseGroupIdForSpace} from "~/server/spaces/get_database_group_id_for_space.js";
 import {DatabasePagesSchema} from "~/shared/databases/database_protocol_schemas.js";
 import {InternalError} from "~/shared/error/error.js";
-import type {DatabaseGroupId} from "~/shared/id/types/id_types.js";
+import type {DatabaseGroupId, SpaceId} from "~/shared/id/types/id_types.js";
 import {Schema} from "~/shared/schema/schema.js";
 
 const LoaderSchema = Schema.object({
+    spaceId: Schema.id<SpaceId>(),
     databaseGroupId: Schema.id<DatabaseGroupId>(),
     pages: DatabasePagesSchema,
 });
@@ -32,19 +33,27 @@ export async function loader({params, context: unauthenticatedContext}: LoaderAr
     const spaceId = deserializeSpaceIdForLoader(params.spaceId);
     const databaseGroupId = await getDatabaseGroupIdForSpace(context, spaceId);
 
-    const {readPages} = await fetchDatabaseGroupAction(context, databaseGroupId, {
-        name: "listTableIds",
-        input: {},
-    });
+    const {readPages} = await fetchDatabaseGroupAction(
+        context,
+        databaseGroupId,
+        {
+            name: "listTableIds",
+            input: {},
+        },
+        {
+            spaceId,
+        },
+    );
 
     return jsonWithSchema(LoaderSchema, {
+        spaceId,
         databaseGroupId,
         pages: readPages,
     });
 }
 
 export default function DatabaseGroupLayoutRoute() {
-    const {databaseGroupId, pages} = useLoaderDataWithSchema(LoaderSchema);
+    const {spaceId, databaseGroupId, pages} = useLoaderDataWithSchema(LoaderSchema);
     const params = useParams();
     const browserId = useBrowserId();
     const navigate = useNavigate();
@@ -54,11 +63,12 @@ export default function DatabaseGroupLayoutRoute() {
     const conn = db.connection;
     const initialPagesRef = useRef(pages);
 
-    const wsUrl = `/api/durable-objects/database-groups/${databaseGroupId}?browserId=${browserId}`;
+    const wsUrl = `/api/durable-objects/database-groups/${databaseGroupId}?browserId=${browserId}&spaceId=${spaceId}`;
 
     const connectDatabase = useEvent(() => {
         db.connect({
             databaseGroupId,
+            spaceId,
             webSocketUrl: wsUrl,
             initialPages: initialPagesRef.current,
             reportError: message => {
