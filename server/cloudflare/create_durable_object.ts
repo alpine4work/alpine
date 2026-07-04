@@ -137,7 +137,12 @@ export function createDurableObject<
         fetch(request: Request): Promise<Response>;
         alarm?(): Promise<void>;
     };
-    test(context: WorkerProcessContext): {
+    test(
+        context: WorkerProcessContext,
+        testOptions?: {
+            createStorageForTest?: (idName: string) => DurableObjectStorage;
+        },
+    ): {
         fetchForTest: (
             context: WorkerActionContext,
             idName: string,

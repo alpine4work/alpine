@@ -7,7 +7,7 @@ import type {DatabaseClientConnection} from "~/client/web/databases/worker/datab
  * - `executeActionServer`: never resolves (preserves optimistic mutations in the
  *   queue).
  * - `ensureCacheIsUpToDate`: resolves to an empty cache.
- * - `acknowledgePages`, `reportError`: no-ops.
+ * - `acknowledgePages`, `reportError`, `close`: no-ops.
  */
 export function makeDatabaseClientConnection(
     overrides: Partial<DatabaseClientConnection> = {},
@@ -17,6 +17,7 @@ export function makeDatabaseClientConnection(
         ensureCacheIsUpToDate: () => Promise.resolve({tables: new Map()}),
         acknowledgePages: () => {},
         reportError: () => {},
+        close: () => {},
         ...overrides,
     };
 }

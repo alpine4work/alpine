@@ -1,6 +1,6 @@
 import {
-    defineWebWorkerRpcMethods,
     WebWorkerRpcMethodTypes,
+    defineWebWorkerRpcMethods,
 } from "~/client/web/helpers/workers/web_worker_rpc_method.js";
 import {
     DatabaseActionObjectSchema,
@@ -15,7 +15,7 @@ import type {
     DatabaseMutationId,
     DatabaseReactiveActionId,
 } from "~/shared/id/types/id_types.js";
-import {Schema, SchemaType} from "~/shared/schema/schema.js";
+import {Schema} from "~/shared/schema/schema.js";
 
 /** Methods the tab can call on the worker. */
 export const tabToWorkerDatabaseRpcMethods = defineWebWorkerRpcMethods({

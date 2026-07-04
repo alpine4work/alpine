@@ -9,6 +9,7 @@ import {
 import type {OpfsDirectoryHandle} from "~/client/web/databases/worker/opfs.js";
 import {
     WebSocketClient,
+    type WebSocketClientCreateSocket,
     type WebSocketClientState,
 } from "~/client/web/web_socket/web_socket_client.js";
 import {Context} from "~/shared/context/context.js";
@@ -25,14 +26,15 @@ import {assert} from "~/shared/helpers/control/assert.js";
 import type {DatabaseGroupId, DatabaseReactiveActionId} from "~/shared/id/types/id_types.js";
 import {TracerRoot} from "~/shared/tracer/tracer_root.js";
 
-export interface DatabaseActiveTabRealtimeConnectionOptions {
+interface DatabaseConnectionManagerRealtimeConnectionOptions {
     databaseGroupId: DatabaseGroupId;
     webSocketUrl: string;
     handleEvent: (event: DatabaseRealtimeEvent) => void;
     reportError: (error: unknown) => void;
+    createSocket?: WebSocketClientCreateSocket;
 }
 
-export interface DatabaseActiveTabWorkerConnection {
+export interface DatabaseConnectionManagerTabConnection {
     readonly reactiveActionUpdated: (
         input: WorkerToTabDatabaseRpcMethods["reactiveActionUpdated"]["input"],
     ) => Promise<void>;
@@ -44,7 +46,7 @@ export interface DatabaseActiveTabWorkerConnection {
     ) => Promise<void>;
 }
 
-interface DatabaseActiveTabWorkerDatabaseGroupState {
+interface DatabaseConnectionManagerDatabaseGroupState {
     clientPromise?: Promise<DatabaseClient>;
     realtimeConnectionOptions?: {readonly webSocketUrl: string};
     realtimeConnection?: DatabaseClientConnection;
@@ -62,22 +64,20 @@ interface DatabaseActiveTabWorkerDatabaseGroupState {
 export class DatabaseConnectionManager {
     private readonly databaseGroups = new Map<
         DatabaseGroupId,
-        DatabaseActiveTabWorkerDatabaseGroupState
+        DatabaseConnectionManagerDatabaseGroupState
     >();
     private readonly actionToDatabase = new Map<DatabaseReactiveActionId, DatabaseGroupId>();
     private readonly actionConnections = new Map<
         DatabaseReactiveActionId,
-        DatabaseActiveTabWorkerConnection
+        DatabaseConnectionManagerTabConnection
     >();
 
     constructor(
         private readonly dir: OpfsDirectoryHandle | Promise<OpfsDirectoryHandle>,
-        private readonly getConnections: () => ReadonlyArray<DatabaseActiveTabWorkerConnection>,
+        private readonly getConnections: () => ReadonlyArray<DatabaseConnectionManagerTabConnection>,
         private readonly deps: {
-            createRealtimeConnection(
-                options: DatabaseActiveTabRealtimeConnectionOptions,
-            ): DatabaseClientConnection;
-        } = {createRealtimeConnection: createDatabaseActiveTabRealtimeConnection},
+            readonly createSocket?: WebSocketClientCreateSocket;
+        } = {},
     ) {}
 
     connectDatabaseGroup(input: TabToWorkerDatabaseRpcMethods["connectDatabaseGroup"]["input"]) {
@@ -128,7 +128,7 @@ export class DatabaseConnectionManager {
 
     async registerReactiveAction(
         input: TabToWorkerDatabaseRpcMethods["registerReactiveAction"]["input"],
-        connection: DatabaseActiveTabWorkerConnection,
+        connection: DatabaseConnectionManagerTabConnection,
     ) {
         const client = await this.getOrCreateClient(input.databaseGroupId);
         this.actionToDatabase.set(input.id, input.databaseGroupId);
@@ -184,7 +184,7 @@ export class DatabaseConnectionManager {
         client.unregisterReactiveAction(id);
     }
 
-    disconnectClient(connection: DatabaseActiveTabWorkerConnection) {
+    disconnectClient(connection: DatabaseConnectionManagerTabConnection) {
         // Drop reactive actions registered by the disconnected tab so the client stops
         // re-executing queries nobody is watching.
         for (const [id, actionConnection] of this.actionConnections) {
@@ -199,7 +199,7 @@ export class DatabaseConnectionManager {
 
     private getOrCreateDatabaseGroupState(
         databaseGroupId: DatabaseGroupId,
-    ): DatabaseActiveTabWorkerDatabaseGroupState {
+    ): DatabaseConnectionManagerDatabaseGroupState {
         let state = this.databaseGroups.get(databaseGroupId);
         if (state === undefined) {
             state = {};
@@ -266,11 +266,14 @@ export class DatabaseConnectionManager {
                 `Database group ${databaseGroupId} was used before connectDatabaseGroup`,
             );
 
-            connection = this.deps.createRealtimeConnection({
+            connection = createDatabaseConnectionManagerRealtimeConnection({
                 databaseGroupId,
                 webSocketUrl: options.webSocketUrl,
                 handleEvent: event => this.handleRealtimeEvent(databaseGroupId, event),
                 reportError: error => this.reportError(error),
+                ...(this.deps.createSocket === undefined
+                    ? {}
+                    : {createSocket: this.deps.createSocket}),
             });
             state.realtimeConnection = connection;
         }
@@ -344,8 +347,8 @@ export class DatabaseConnectionManager {
     }
 }
 
-function createDatabaseActiveTabRealtimeConnection(
-    options: DatabaseActiveTabRealtimeConnectionOptions,
+function createDatabaseConnectionManagerRealtimeConnection(
+    options: DatabaseConnectionManagerRealtimeConnectionOptions,
 ): DatabaseClientConnection {
     const tracer = TracerRoot.new({
         serviceName: "AppClient",
@@ -362,6 +365,7 @@ function createDatabaseActiveTabRealtimeConnection(
         "DatabaseGroupService",
         DatabaseRealtimeProtocol,
         options.webSocketUrl,
+        options.createSocket === undefined ? {} : {createSocket: options.createSocket},
     );
 
     const unsubscribeFromEvents = client.subscribeToEvents(options.handleEvent);

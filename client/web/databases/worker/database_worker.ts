@@ -1,8 +1,8 @@
 import "~/client/web/databases/worker/sqlite3_wasm_init_worker.js";
 
 import {
-    DatabaseActiveTabWorkerConnection,
     DatabaseConnectionManager,
+    DatabaseConnectionManagerTabConnection,
 } from "~/client/web/databases/worker/database_connection_manager.js";
 import {
     WorkerToTabDatabaseRpcMethods,
@@ -29,8 +29,8 @@ type RealConnection = UniqueWorkerHostConnection<
     typeof workerToTabDatabaseRpcMethods
 >;
 
-const connections = new WeakMap<RealConnection, DatabaseActiveTabWorkerConnection>();
-function wrapConnection(connection: RealConnection): DatabaseActiveTabWorkerConnection {
+const connections = new WeakMap<RealConnection, DatabaseConnectionManagerTabConnection>();
+function wrapConnection(connection: RealConnection): DatabaseConnectionManagerTabConnection {
     return getOrSetDefaultMapValue(connections, connection, () => ({
         reactiveActionUpdated: async (
             input: WorkerToTabDatabaseRpcMethods["reactiveActionUpdated"]["input"],

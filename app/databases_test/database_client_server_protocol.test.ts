@@ -14,6 +14,7 @@ import type {
     DatabaseActionObject,
     DatabaseActionOutput,
 } from "~/shared/databases/database_actions.js";
+import {type DatabaseRealtimeEvent} from "~/shared/databases/database_realtime_protocol.js";
 import {InternalError} from "~/shared/error/error.js";
 import {generateId} from "~/shared/id/id.js";
 import type {BrowserId, DatabaseGroupId} from "~/shared/id/types/id_types.js";
@@ -42,12 +43,12 @@ describe("database client/server protocol", () => {
         try {
             await client.ensureCacheIsUpToDate(connection);
 
-            const createTableResult = await executeAction(client, connection, {
+            const createTableResult = await executeAction<"createTable">(client, connection, {
                 name: "createTable",
                 input: {name: "Projects"},
             });
 
-            const tableRowsResult = await executeAction(client, connection, {
+            const tableRowsResult = await executeAction<"readonlyRawSql">(client, connection, {
                 name: "readonlyRawSql",
                 input: {
                     sql: `
@@ -96,12 +97,12 @@ describe("database client/server protocol", () => {
             ).rejects.toThrow("simulated websocket disconnect");
 
             await connection.reconnect();
-            const createTableResult = await executeAction(client, connection, {
+            const createTableResult = await executeAction<"createTable">(client, connection, {
                 name: "createTable",
                 input: {name: "Projects"},
             });
 
-            const tableRowsResult = await executeAction(client, connection, {
+            const tableRowsResult = await executeAction<"readonlyRawSql">(client, connection, {
                 name: "readonlyRawSql",
                 input: {
                     sql: `
@@ -128,18 +129,17 @@ describe("database client/server protocol", () => {
     });
 });
 
-async function createServerHarness(): Promise<{
+type DatabaseServerHarness = {
     serverConnection: DatabaseServerConnection;
     createServerConnection(): Promise<DatabaseServerConnection>;
-    onPagesChanged: (event: {
-        pageDiffs: Parameters<DatabaseClient["writePageDiffsFromRealtime"]>[0];
-        mutationId: Parameters<DatabaseClient["writePageDiffsFromRealtime"]>[1];
-    }) => void;
-}> {
+    onPagesChanged: (event: DatabaseRealtimeEvent) => void;
+};
+
+async function createServerHarness(): Promise<DatabaseServerHarness> {
     const databaseGroupId = generateId<DatabaseGroupId>();
     const browserId = generateId<BrowserId>();
     let serverConnection: DatabaseServerConnection | null = null;
-    const harness = {
+    const harness: DatabaseServerHarness = {
         get serverConnection() {
             if (serverConnection === null) {
                 throw new InternalError("Database server connection has not been initialized");
@@ -238,6 +238,9 @@ function createClientConnection(
             void serverConnection.procedures.acknowledgePages({pageIndexes});
         },
         reportError: options.reportError,
+        close() {
+            serverConnection.close();
+        },
     };
 }
 

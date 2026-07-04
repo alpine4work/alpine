@@ -670,11 +670,10 @@ export class DatabaseClient {
         // Attach any table the server just told us about (e.g. a table this client
         // created) before touching the buffer. `ensureTableAttached` can await (it creates
         // the OPFS store), and there must be no `await` between `discardBuffer()` and
-        // `applyServerPages()` below: a concurrent RPC handler (RPC handlers aren't
-        // serialized, see DatabaseActiveTabWorker) could re-dirty the buffer in that
-        // window and trip `assertBufferIsEmpty`. Attaching here is safe while the
-        // optimistic buffer is still live — attach only adds the new table's empty page
-        // store, never writes.
+        // `applyServerPages()` below: worker RPC handlers aren't serialized, so a
+        // concurrent handler could re-dirty the buffer in that window and trip
+        // `assertBufferIsEmpty`. Attaching here is safe while the optimistic buffer is
+        // still live — attach only adds the new table's empty page store, never writes.
         if (serverResult.readPages !== null) {
             for (const tableId of serverResult.readPages.keys()) {
                 await this.ensureTableAttached(tableId);

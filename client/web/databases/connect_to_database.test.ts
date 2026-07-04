@@ -4,30 +4,53 @@ import {
     databaseUniqueWorkerKey,
 } from "~/client/web/databases/connect_to_database.js";
 import {
-    type DatabaseActiveTabRealtimeConnection,
-    DatabaseConnectionManager,
-} from "~/client/web/databases/worker/database_connection_manager.js";
-import {
     createInMemoryOpfsDirectoryHandle,
     extractOpfsPages,
 } from "~/client/web/databases/test_helpers/in_memory_opfs.js";
 import {DatabaseClient} from "~/client/web/databases/worker/database_client.js";
+import {
+    DatabaseConnectionManager,
+    type DatabaseConnectionManagerTabConnection,
+} from "~/client/web/databases/worker/database_connection_manager.js";
+import {
+    WorkerToTabDatabaseRpcMethods,
+    tabToWorkerDatabaseRpcMethods,
+    workerToTabDatabaseRpcMethods,
+} from "~/client/web/databases/worker/database_worker_rpc_methods.js";
 import type {OpfsDirectoryHandle} from "~/client/web/databases/worker/opfs.js";
 import {installUniqueWorkerTestMocks} from "~/client/web/helpers/workers/test_helpers/install_unique_worker_test_mocks.js";
 import {settleUniqueWorkerTest} from "~/client/web/helpers/workers/test_helpers/settle_unique_worker_test.js";
 import {uniqueWorkerWebLockName} from "~/client/web/helpers/workers/unique_worker_client.js";
-import type {DatabaseExecuteActionResponse} from "~/shared/databases/database_protocol_schemas.js";
+import {
+    UniqueWorkerHost,
+    UniqueWorkerHostConnection,
+} from "~/client/web/helpers/workers/unique_worker_host.js";
+import type {WebSocketClientCreateSocket} from "~/client/web/web_socket/web_socket_client.js";
+import type {
+    DatabaseExecuteActionResponse,
+    DatabasePageVersionsByIndex,
+} from "~/shared/databases/database_protocol_schemas.js";
+import {DatabaseRealtimeProtocol} from "~/shared/databases/database_realtime_protocol.js";
 import {diffPage} from "~/shared/databases/page_diff.js";
 import {SqlQuery, sql} from "~/shared/databases/sql.js";
 import {databaseMainTableId, sqlitePageSize} from "~/shared/databases/sqlite_constants.js";
 import {runMainMigrations} from "~/shared/databases/sqlite_migrations.js";
 import {InternalError} from "~/shared/error/error.js";
+import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
+import {assert} from "~/shared/helpers/control/assert.js";
+import {getOrSetDefaultMapValue} from "~/shared/helpers/map/get_or_set_default_map_value.js";
 import {generateId} from "~/shared/id/id.js";
 import type {
     DatabaseGroupId,
     DatabaseMutationId,
     DatabaseReactiveActionId,
 } from "~/shared/id/types/id_types.js";
+import {generateServerSynchronizationCheckpointForTest} from "~/shared/web_socket/server_synchronization_checkpoint.js";
+import {
+    type WebSocketMessageFromServer,
+    createWebSocketMessageFromClientSchema,
+    createWebSocketMessageFromServerSchema,
+} from "~/shared/web_socket/web_socket_schema.js";
 
 const testDatabaseGroupId = generateId<DatabaseGroupId>();
 
@@ -100,9 +123,8 @@ function rawSqlInputForTest(query: SqlQuery): {sql: string} {
 
 // ---------------------------------------------------------------------------
 // OPFS page extraction helper — descends into the
-// per-database-group subdirectory structure that the
-// active-tab worker creates, then delegates to the
-// shared OPFS helper.
+// per-database-group subdirectory structure that the connection manager creates,
+// then delegates to the shared OPFS helper.
 // ---
 //
 // ---
@@ -123,12 +145,101 @@ async function extractPages(
 //
 // The unique worker machinery (locks, broker, ports, workers) comes from the
 // mocked globals; this harness provides the fake dedicated worker (a real
-// `DatabaseActiveTabWorker` on in-memory OPFS) and simulates the realtime server
-// connection against the local OPFS state. Each `connect()` call plays the role of
-// one tab; a leader tab crash is simulated by force-releasing the election Web
-// Lock.
+// `UniqueWorkerHost` plus `DatabaseConnectionManager` on in-memory OPFS) and
+// simulates the realtime server socket against the local OPFS state. Each
+// `connect()` call plays the role of one tab; a leader tab crash is simulated by
+// force-releasing the election Web Lock.
 //
 // ---
+
+type RealConnection = UniqueWorkerHostConnection<
+    typeof tabToWorkerDatabaseRpcMethods,
+    typeof workerToTabDatabaseRpcMethods
+>;
+
+function createDatabaseWorkerScript({
+    dir,
+    createSocket,
+    onCreateManager,
+}: {
+    dir: OpfsDirectoryHandle;
+    createSocket: WebSocketClientCreateSocket;
+    onCreateManager(manager: DatabaseConnectionManager): void;
+}) {
+    const connections = new WeakMap<RealConnection, DatabaseConnectionManagerTabConnection>();
+    function wrapConnection(connection: RealConnection): DatabaseConnectionManagerTabConnection {
+        return getOrSetDefaultMapValue(connections, connection, () => ({
+            reactiveActionUpdated: async (
+                input: WorkerToTabDatabaseRpcMethods["reactiveActionUpdated"]["input"],
+            ) => {
+                await connection.call("reactiveActionUpdated", input);
+            },
+            reactiveActionError: async (
+                input: WorkerToTabDatabaseRpcMethods["reactiveActionError"]["input"],
+            ) => {
+                await connection.call("reactiveActionError", input);
+            },
+            reportError: async (input: WorkerToTabDatabaseRpcMethods["reportError"]["input"]) => {
+                await connection.call("reportError", input);
+            },
+        }));
+    }
+
+    const managerRef: {current?: DatabaseConnectionManager} = {};
+    function getManager(): DatabaseConnectionManager {
+        assert(managerRef.current !== undefined);
+        return managerRef.current;
+    }
+
+    const host = new UniqueWorkerHost({
+        workerMethods: tabToWorkerDatabaseRpcMethods,
+        tabMethods: workerToTabDatabaseRpcMethods,
+        handlers: {
+            connectDatabaseGroup: async input => {
+                getManager().connectDatabaseGroup(input);
+                return {};
+            },
+            writeInitialPages: async input => {
+                getManager().writeInitialPages(input);
+                return {};
+            },
+            executeAction: async input => {
+                return await getManager().executeAction(input);
+            },
+            writePageDiffsFromRealtime: async input => {
+                await getManager().writePageDiffsFromRealtime(input);
+                return {};
+            },
+            registerReactiveAction: async (input, connection) => {
+                return await getManager().registerReactiveAction(input, wrapConnection(connection));
+            },
+            unregisterReactiveAction: async input => {
+                await getManager().unregisterReactiveAction(input);
+                return {};
+            },
+        },
+        onDisconnect: connection => {
+            getManager().disconnectClient(wrapConnection(connection));
+        },
+    });
+
+    managerRef.current = new DatabaseConnectionManager(
+        dir.getDirectoryHandle("databases", {create: true}),
+        () => host.connections.map(wrapConnection),
+        {createSocket},
+    );
+    onCreateManager(managerRef.current);
+    return {
+        handleMessage(data: unknown, ports: ReadonlyArray<MessagePort>) {
+            host.handleMessage(data, ports);
+        },
+    };
+}
+
+const databaseRealtimeMessageFromClientSchema =
+    createWebSocketMessageFromClientSchema(DatabaseRealtimeProtocol);
+const databaseRealtimeMessageFromServerSchema =
+    createWebSocketMessageFromServerSchema(DatabaseRealtimeProtocol);
 
 function createDatabaseTestEnv(config: {
     dir: OpfsDirectoryHandle;
@@ -150,102 +261,204 @@ function createDatabaseTestEnv(config: {
     const databaseGroupId = config.databaseGroupId ?? testDatabaseGroupId;
     const workers: Array<DatabaseConnectionManager> = [];
 
-    const createRealtimeConnection = (): DatabaseActiveTabRealtimeConnection => ({
-        executeActionServer:
-            config.executeActionServer ??
-            (() => {
-                // Return a never-resolving promise so optimistic pages are preserved during tests.
-                return new Promise(() => {});
-            }),
-        ensureCacheIsUpToDate: async pageVersionsByTable => {
-            const clientVersions =
-                pageVersionsByTable.get(databaseMainTableId) ?? new Map<number, number>();
+    const executeActionServer =
+        config.executeActionServer ??
+        (() => {
+            // Return a never-resolving promise so optimistic pages are preserved during tests.
+            return new Promise<DatabaseExecuteActionResponse>(() => {});
+        });
 
-            const empty = {
-                tables: new Map([
-                    [
-                        databaseMainTableId,
-                        {
-                            updatedPages: new Map<number, {version: number; data: Uint8Array}>(),
-                            stalePageIndexes: [] as Array<number>,
-                            fileSizeInPages: 0,
-                        },
-                    ],
-                ]),
-            };
+    async function ensureCacheIsUpToDate(pageVersionsByTable: DatabasePageVersionsByIndex) {
+        const clientVersions =
+            pageVersionsByTable.get(databaseMainTableId) ?? new Map<number, number>();
 
-            // Read the local OPFS index to compare against client versions, simulating a
-            // server that agrees with the local cache.
-            try {
-                const dbsDir = await config.dir.getDirectoryHandle("databases");
-                const groupDir = await dbsDir.getDirectoryHandle(databaseGroupId);
-                const dataDir = await groupDir.getDirectoryHandle(databaseMainTableId);
-                const indexFile = await dataDir.getFileHandle("index.json");
-                const indexHandle = await indexFile.createSyncAccessHandle();
-                const size = indexHandle.getSize();
-                if (size > 0) {
-                    const raw = new Uint8Array(size);
-                    indexHandle.read(raw, {at: 0});
-                    const entries = JSON.parse(new TextDecoder().decode(raw)) as Array<
-                        [number, {slot: number; version: number}]
-                    >;
-                    const serverVersions = new Map<number, number>();
-                    for (const [pageIndex, {version}] of entries) {
-                        serverVersions.set(pageIndex, version);
-                    }
+        const empty = {
+            tables: new Map([
+                [
+                    databaseMainTableId,
+                    {
+                        updatedPages: new Map<number, {version: number; data: Uint8Array}>(),
+                        stalePageIndexes: [] as Array<number>,
+                        fileSizeInPages: 0,
+                    },
+                ],
+            ]),
+        };
 
-                    // Test page counts are tiny — always return inline data for stale pages.
-                    const pagesHandle = await (
-                        await dataDir.getFileHandle("pages.bin")
-                    ).createSyncAccessHandle();
-                    const slotMap = new Map<number, number>();
-                    for (const [pageIndex, {slot}] of entries) {
-                        slotMap.set(pageIndex, slot);
-                    }
-
-                    const updatedPages = new Map<number, {version: number; data: Uint8Array}>();
-                    const stalePageIndexes: Array<number> = [];
-                    for (const [pageIndex, clientVersion] of clientVersions) {
-                        const serverVersion = serverVersions.get(pageIndex) ?? 0;
-                        if (serverVersion === clientVersion) continue;
-                        const slot = slotMap.get(pageIndex);
-                        if (slot !== undefined) {
-                            const data = new Uint8Array(sqlitePageSize);
-                            pagesHandle.read(data, {at: slot * sqlitePageSize});
-                            updatedPages.set(pageIndex, {
-                                version: serverVersion,
-                                data,
-                            });
-                        } else {
-                            stalePageIndexes.push(pageIndex);
-                        }
-                    }
-                    return {
-                        tables: new Map([
-                            [
-                                databaseMainTableId,
-                                {updatedPages, stalePageIndexes, fileSizeInPages: 0},
-                            ],
-                        ]),
-                    };
+        // Read the local OPFS index to compare against client versions, simulating a
+        // server that agrees with the local cache.
+        try {
+            const dbsDir = await config.dir.getDirectoryHandle("databases");
+            const groupDir = await dbsDir.getDirectoryHandle(databaseGroupId);
+            const dataDir = await groupDir.getDirectoryHandle(databaseMainTableId);
+            const indexFile = await dataDir.getFileHandle("index.json");
+            const indexHandle = await indexFile.createSyncAccessHandle();
+            const size = indexHandle.getSize();
+            if (size > 0) {
+                const raw = new Uint8Array(size);
+                indexHandle.read(raw, {at: 0});
+                const entries = JSON.parse(new TextDecoder().decode(raw)) as Array<
+                    [number, {slot: number; version: number}]
+                >;
+                const serverVersions = new Map<number, number>();
+                for (const [pageIndex, {version}] of entries) {
+                    serverVersions.set(pageIndex, version);
                 }
-            } catch {
-                // No index yet
+
+                // Test page counts are tiny — always return inline data for stale pages.
+                const pagesHandle = await (
+                    await dataDir.getFileHandle("pages.bin")
+                ).createSyncAccessHandle();
+                const slotMap = new Map<number, number>();
+                for (const [pageIndex, {slot}] of entries) {
+                    slotMap.set(pageIndex, slot);
+                }
+
+                const updatedPages = new Map<number, {version: number; data: Uint8Array}>();
+                const stalePageIndexes: Array<number> = [];
+                for (const [pageIndex, clientVersion] of clientVersions) {
+                    const serverVersion = serverVersions.get(pageIndex) ?? 0;
+                    if (serverVersion === clientVersion) continue;
+                    const slot = slotMap.get(pageIndex);
+                    if (slot !== undefined) {
+                        const data = new Uint8Array(sqlitePageSize);
+                        pagesHandle.read(data, {at: slot * sqlitePageSize});
+                        updatedPages.set(pageIndex, {
+                            version: serverVersion,
+                            data,
+                        });
+                    } else {
+                        stalePageIndexes.push(pageIndex);
+                    }
+                }
+                return {
+                    tables: new Map([
+                        [databaseMainTableId, {updatedPages, stalePageIndexes, fileSizeInPages: 0}],
+                    ]),
+                };
             }
-            return empty;
-        },
-        acknowledgePages: () => {},
-        reportError: () => {},
-        close: () => {},
-    });
+        } catch {
+            // No index yet
+        }
+        return empty;
+    }
+
+    const createSocket: WebSocketClientCreateSocket = () => {
+        const listeners = new Map<string, Array<(event: Event) => void>>();
+        let closed = false;
+
+        function emit(type: string, event: Event) {
+            for (const listener of listeners.get(type) ?? []) {
+                listener(event);
+            }
+        }
+
+        function emitServerMessage(
+            message: WebSocketMessageFromServer<typeof DatabaseRealtimeProtocol>,
+        ) {
+            const data = JSON.stringify(databaseRealtimeMessageFromServerSchema.serialize(message));
+            emit("message", {data} as MessageEvent);
+        }
+
+        async function handleMessage(data: string) {
+            const message = databaseRealtimeMessageFromClientSchema.deserialize(JSON.parse(data));
+            switch (message.type) {
+                case "ProcedureRequest": {
+                    const input = message.input;
+                    switch (input.type) {
+                        case "executeAction": {
+                            const response = await executeActionServer(input.action, {
+                                mutationId: input.mutationId,
+                                returnResult: input.returnResult,
+                                returnPages: input.returnPages,
+                            });
+                            emitServerMessage({
+                                type: "ProcedureResponse",
+                                requestId: message.requestId,
+                                result: {
+                                    ok: true,
+                                    output: {type: "executeAction", ...response},
+                                },
+                            });
+                            break;
+                        }
+                        case "ensureCacheIsUpToDate": {
+                            const response = await ensureCacheIsUpToDate(input.pageVersionsByIndex);
+                            emitServerMessage({
+                                type: "ProcedureResponse",
+                                requestId: message.requestId,
+                                result: {
+                                    ok: true,
+                                    output: {type: "ensureCacheIsUpToDate", ...response},
+                                },
+                            });
+                            break;
+                        }
+                        case "acknowledgePages": {
+                            emitServerMessage({
+                                type: "ProcedureResponse",
+                                requestId: message.requestId,
+                                result: {
+                                    ok: true,
+                                    output: {type: "acknowledgePages"},
+                                },
+                            });
+                            break;
+                        }
+                        default:
+                            throw input;
+                    }
+                    break;
+                }
+                case "Ping": {
+                    emitServerMessage({
+                        type: "Pong",
+                        checkpoint: generateServerSynchronizationCheckpointForTest(),
+                    });
+                    break;
+                }
+                case "SoftCloseWhileWaitingForProcedureResponses": {
+                    emitServerMessage({type: "SoftCloseWhileWaitingForProcedureResponses"});
+                    break;
+                }
+                default:
+                    throw message;
+            }
+        }
+
+        queueMicrotask(() => {
+            if (!closed) emit("open", new Event("open"));
+        });
+
+        return {
+            addEventListener(type: string, listener: (event: Event) => void) {
+                const typeListeners = listeners.get(type) ?? [];
+                typeListeners.push(listener);
+                listeners.set(type, typeListeners);
+            },
+            send(data: string) {
+                void handleMessage(data);
+            },
+            close() {
+                if (closed) return;
+                closed = true;
+                emit("close", {
+                    code: 1000,
+                    reason: "",
+                    wasClean: true,
+                } as CloseEvent);
+            },
+        } as WebSocket;
+    };
 
     mocks.setWorkerScriptFactory(() => {
-        const worker = new DatabaseConnectionManager(
-            config.dir.getDirectoryHandle("databases", {create: true}),
-            {createRealtimeConnection},
-        );
-        workers.push(worker);
-        return {handleMessage: (data, ports) => worker.host.handleMessage(data, ports)};
+        return createDatabaseWorkerScript({
+            dir: config.dir,
+            createSocket,
+            onCreateManager: worker => {
+                workers.push(worker);
+            },
+        });
     });
 
     return {
@@ -439,7 +652,7 @@ describe("connectToDatabaseGroup resilience", () => {
         env.crashLeaderTab();
         await settleUniqueWorkerTest();
 
-        const [rows1, rows2] = await Promise.all([
+        const [rows1, rows2] = await runAllPromises([
             executeSql(
                 connB,
                 sql`
@@ -528,7 +741,7 @@ describe("connectToDatabaseGroup resilience", () => {
         env.crashLeaderTab();
         await settleUniqueWorkerTest();
 
-        const [rowsB, rowsC] = await Promise.all([
+        const [rowsB, rowsC] = await runAllPromises([
             executeSql(
                 connB,
                 sql`
