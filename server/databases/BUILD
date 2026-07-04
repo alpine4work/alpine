@@ -2,7 +2,10 @@ load("//admin/typescript:typescript.bzl", "ts_project")
 
 ts_project(
     name = "databases",
-    visibility = ["//server:__subpackages__"],
+    visibility = [
+        "//app/databases_test:__pkg__",
+        "//server:__subpackages__",
+    ],
     test_deps = [
         "//:node_modules/@miniflare/durable-objects",
         "//:node_modules/@miniflare/storage-memory",
