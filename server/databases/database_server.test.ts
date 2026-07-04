@@ -3,6 +3,7 @@ import type {DatabaseServerStorage} from "~/server/databases/database_server_sto
 import {type SqlQuery, sql} from "~/shared/databases/sql.js";
 import {databaseMainTableId, sqlitePageSize} from "~/shared/databases/sqlite_constants.js";
 import {InternalError} from "~/shared/error/error.js";
+import {generateChronologicalId} from "~/shared/id/chronological_id.js";
 import type {DatabaseTableId} from "~/shared/id/types/id_types.js";
 import {Schema} from "~/shared/schema/schema.js";
 
@@ -983,6 +984,7 @@ describe("DatabaseServer — per-table storage", () => {
         const relation = server1.executeAction<"createRelationField">({
             name: "createRelationField",
             input: {
+                joinTableId: generateChronologicalId<DatabaseTableId>(),
                 sourceTableId: source.tableId,
                 sourceFieldName: "Project",
                 targetTableId: target.tableId,

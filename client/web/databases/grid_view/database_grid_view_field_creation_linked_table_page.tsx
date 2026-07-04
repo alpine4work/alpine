@@ -1,3 +1,4 @@
+import {isFocusVisible} from "@react-aria/interactions";
 import classNames from "classnames";
 import {CaretLeft} from "phosphor-react";
 import {type Ref, useEffect, useImperativeHandle, useMemo, useRef, useState} from "react";
@@ -13,14 +14,18 @@ import {DatabaseGridViewFieldCreationPageRef} from "~/client/web/databases/grid_
 import {DatabaseGridViewNewField} from "~/client/web/databases/use_grid_view_fields.js";
 import {useReactiveDatabaseAction} from "~/client/web/databases/use_reactive_database_action.js";
 import {Box} from "~/client/web/design/box.js";
+import {FocusRing} from "~/client/web/design/focus_ring.js";
 import {IconButton} from "~/client/web/design/icon_button.js";
 import {useScrollbar} from "~/client/web/design/scrollbar.js";
 import {Switch} from "~/client/web/design/switch.js";
 import {textInputClassName} from "~/client/web/design/text_input.js";
 import {useEvent} from "~/client/web/helpers/lifecycle/use_event.js";
+import {useLayoutEffectWithoutServerSideWarning} from "~/client/web/helpers/lifecycle/use_layout_effect_without_server_side_warning.js";
 import {useMergedRefs} from "~/client/web/helpers/refs/use_merged_refs.js";
 import {sprinkles} from "~/client/web/styles/styles.js";
 import {type DatabaseActionOutput} from "~/shared/databases/database_actions.js";
+import {generateChronologicalId} from "~/shared/id/chronological_id.js";
+import type {DatabaseTableId} from "~/shared/id/types/id_types.js";
 
 type DatabaseGridViewLinkedTable = DatabaseActionOutput<"listTables">["tables"][number];
 
@@ -64,10 +69,17 @@ export function DatabaseGridViewFieldCreationLinkedTablePage({
     );
 
     const commitTable = useEvent((table: DatabaseGridViewLinkedTable) => {
-        // An empty name defaults to the linked table's name.
+        // An empty name defaults to the linked table's name. The symmetric field on the
+        // target side is created by the server, so this side is always the source.
         onCommit({
             name: name.trim() || table.name,
-            config: {type: "relation", linkedTableId: table.id, cardinality},
+            config: {
+                type: "relation",
+                joinTableId: generateChronologicalId<DatabaseTableId>(),
+                side: "source",
+                cardinality,
+                linkedTableId: table.id,
+            },
         });
     });
 
@@ -251,12 +263,12 @@ function DatabaseGridViewLinkedTableListBox({
                 ref={useMergedRefs(scrollRef, useScrollbar())}
                 className={sprinkles({
                     position: "relative",
+                    maxHeight: "48",
                     paddingX: "1",
                     paddingBottom: "1",
                     overflowX: "hidden",
                     overflowY: "auto",
                 })}
-                style={{maxHeight: 160}}
             >
                 <ul {...patchedListBoxProps} ref={listBoxRef}>
                     {isLoading || tablesLoadFailed ? (
@@ -294,7 +306,7 @@ function DatabaseGridViewLinkedTableOption({
     comboBoxState: ComboBoxState<DatabaseGridViewLinkedTable>;
 }) {
     const optionRef = useRef<HTMLLIElement>(null);
-    const {optionProps, isFocused, isHovered} = useOption(
+    const {optionProps, isFocused, isPressed, isHovered} = useOption(
         {
             key: item.key,
             // Disable react-aria's press-on-trigger-then-drag-to-select behavior; see
@@ -307,22 +319,31 @@ function DatabaseGridViewLinkedTableOption({
         optionRef,
     );
 
+    // Only show the focus ring when the option was focused through the keyboard, not
+    // when hovering moved the combobox's virtual focus.
+    const [wasFocusVisibleWhenFocused, setWasFocusVisibleWhenFocused] = useState(false);
+    useLayoutEffectWithoutServerSideWarning(() => {
+        if (isFocused) setWasFocusVisibleWhenFocused(isFocusVisible());
+    }, [isFocused]);
+
     return (
-        <li
-            {...optionProps}
-            ref={optionRef}
-            className={sprinkles({
-                display: "flex",
-                alignItems: "center",
-                padding: "1.5",
-                borderRadius: "1",
-                fontSize: "75",
-                color: "grey-100",
-                cursor: "pointer",
-                backgroundColor: isFocused ? "theme-10" : isHovered ? "grey-5" : undefined,
-            })}
-        >
-            {item.rendered}
-        </li>
+        <FocusRing offset="inset" isVisible={isFocused && wasFocusVisibleWhenFocused}>
+            <li
+                {...optionProps}
+                ref={optionRef}
+                className={sprinkles({
+                    display: "flex",
+                    alignItems: "center",
+                    padding: "1.5",
+                    borderRadius: "1",
+                    fontSize: "75",
+                    color: "grey-100",
+                    cursor: "pointer",
+                    backgroundColor: isPressed ? "grey-10" : isHovered ? "grey-5" : undefined,
+                })}
+            >
+                {item.rendered}
+            </li>
+        </FocusRing>
     );
 }

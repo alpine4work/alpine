@@ -424,6 +424,7 @@ export const databaseActions = {
 
     createRelationField: defineDatabaseAction({
         input: Schema.object({
+            joinTableId: Schema.id<DatabaseTableId>(),
             sourceTableId: Schema.id<DatabaseTableId>(),
             sourceFieldName: LabelStringSchema,
             targetTableId: Schema.id<DatabaseTableId>(),
@@ -437,12 +438,14 @@ export const databaseActions = {
         writeLevel: "schema+data",
         transactionMode: "manual",
         serverOnly: true,
-        run({db, model, server}, {sourceTableId, sourceFieldName, targetTableId, cardinality}) {
+        run(
+            {db, model, server},
+            {joinTableId, sourceTableId, sourceFieldName, targetTableId, cardinality},
+        ) {
             assert(server !== null, "createRelationField is server-only");
             const sourceTable = model.getTable(sourceTableId);
             const targetTable = model.getTable(targetTableId);
 
-            const joinTableId = generateChronologicalId<DatabaseTableId>();
             const sourceFieldId = generateChronologicalId<DatabaseFieldId>();
             const targetFieldId = generateChronologicalId<DatabaseFieldId>();
 

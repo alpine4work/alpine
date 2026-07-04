@@ -4,10 +4,7 @@ import {startTransition, useMemo, useOptimistic, useState} from "react";
 import {useDatabaseConnection} from "~/client/web/databases/database_connection_context.js";
 import {useEvent} from "~/client/web/helpers/lifecycle/use_event.js";
 import {useSpacingScale} from "~/client/web/remix/spacing_scale_context.js";
-import {
-    type DatabaseFieldConfig,
-    type DatabaseFieldType,
-} from "~/shared/databases/fields/all_database_field_providers.js";
+import {type DatabaseFieldConfig} from "~/shared/databases/fields/all_database_field_providers.js";
 import {databaseViewDefaultColumnWidth} from "~/shared/databases/sqlite_constants.js";
 import {remPxBySpacingScale} from "~/shared/design/core/spacing_scale.js";
 import {type OrderKey, generateOrderKeyBetween} from "~/shared/helpers/sort/order_key.js";
@@ -32,25 +29,14 @@ export type DatabaseGridViewColumn = DatabaseGridViewField & {
 };
 
 /**
- * The description of a new field committed from the field creation UI.
+ * The description of a new field committed from the field creation UI. For
+ * relation fields the creation UI generates the `joinTableId` and always uses
+ * `side: "source"` (the symmetric target field is created by the server).
  */
 export type DatabaseGridViewNewField = {
     readonly name: string;
-    readonly config: DatabaseGridViewNewFieldConfig;
+    readonly config: DatabaseFieldConfig;
 };
-
-/**
- * The config for a new field. Relation fields use a slimmer shape than {@link
- * DatabaseFieldConfig} because the rest of a relation config (join table id, side)
- * only exists once the server creates the join table.
- */
-export type DatabaseGridViewNewFieldConfig =
-    | DatabaseFieldConfig<Exclude<DatabaseFieldType, "relation">>
-    | {
-          readonly type: "relation";
-          readonly linkedTableId: DatabaseTableId;
-          readonly cardinality: "one" | "many";
-      };
 
 type DatabaseGridViewFieldOptimisticAction =
     | {type: "create"; field: DatabaseGridViewField}
@@ -173,6 +159,7 @@ export function useGridViewFields({
         if (config.type === "relation") {
             startTransition(async () => {
                 await conn.executeAction("createRelationField", {
+                    joinTableId: config.joinTableId,
                     sourceTableId: tableId,
                     sourceFieldName: name,
                     targetTableId: config.linkedTableId,

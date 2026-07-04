@@ -112,7 +112,7 @@ function DatabaseGridViewFieldCreationPopover({
             backgroundColor="grey-0"
             borderRadius="1.5"
             boxShadow="elevation-20"
-            style={{minWidth: 200}}
+            minWidth="48"
         >
             {children}
         </Box>
