@@ -63,11 +63,67 @@ describe("database client/server protocol", () => {
             serverHarness.server.close();
         }
     });
+
+    test("client can resume server actions after a simulated websocket reconnect", async () => {
+        const serverHarness = await createServerHarness();
+        const client = await DatabaseClient.create(createInMemoryOpfsDirectoryHandle());
+        const reportedErrors: Array<unknown> = [];
+        serverHarness.onPagesChanged = event => {
+            client.writePageDiffsFromRealtime(event.pageDiffs, event.mutationId);
+        };
+        const connection = createReconnectableClientConnection(serverHarness, {
+            reportError: error => reportedErrors.push(error),
+        });
+
+        try {
+            await client.ensureCacheIsUpToDate(connection);
+
+            connection.disconnect();
+            await expect(
+                executeAction(client, connection, {
+                    name: "createTable",
+                    input: {name: "Projects"},
+                }),
+            ).rejects.toThrow("simulated websocket disconnect");
+
+            connection.reconnect();
+            const createTableResult = await executeAction(client, connection, {
+                name: "createTable",
+                input: {name: "Projects"},
+            });
+
+            const tableRowsResult = await executeAction(client, connection, {
+                name: "readonlyRawSql",
+                input: {
+                    sql: `
+                        SELECT
+                            id,
+                            kind
+                        FROM
+                            _alpine_tables
+                    `,
+                },
+            });
+
+            expect(tableRowsResult.rows).toEqual([
+                {
+                    id: createTableResult.tableId,
+                    kind: "table",
+                },
+            ]);
+            expect(reportedErrors).toEqual([]);
+        } finally {
+            client.close();
+            connection.close();
+            serverHarness.server.close();
+        }
+    });
 });
 
 async function createServerHarness(): Promise<{
     server: DatabaseServer;
     serverConnection: DatabaseDurableObjectConnection;
+    createServerConnection(): DatabaseDurableObjectConnection;
     onPagesChanged: (event: {
         pageDiffs: Parameters<DatabaseClient["writePageDiffsFromRealtime"]>[0];
         mutationId: Parameters<DatabaseClient["writePageDiffsFromRealtime"]>[1];
@@ -76,6 +132,8 @@ async function createServerHarness(): Promise<{
     const storage = new DurableObjectStorage(new MemoryStorage());
     const durableObjectStorage = new DatabaseDurableObjectStorage(storage.sql);
     const server = await DatabaseServer.create(durableObjectStorage);
+    const browserId = generateId<BrowserId>();
+    const browserPageTracker = new BrowserPageTracker();
     let serverConnection: DatabaseDurableObjectConnection | null = null;
     const harness = {
         server,
@@ -85,23 +143,88 @@ async function createServerHarness(): Promise<{
             }
             return serverConnection;
         },
+        createServerConnection() {
+            const connection = new DatabaseDurableObjectConnection({
+                server,
+                storage,
+                durableObjectStorage,
+                processContext: null as any,
+                sendEventToAll: (_context, event) => {
+                    harness.onPagesChanged(event);
+                },
+                browserId,
+                connectionId: generateId<WebSocketConnectionId>(),
+                browserPageTracker,
+            });
+            serverConnection = connection;
+            return connection;
+        },
         onPagesChanged: () => {},
     };
 
-    serverConnection = new DatabaseDurableObjectConnection({
-        server,
-        storage,
-        durableObjectStorage,
-        processContext: null as any,
-        sendEventToAll: (_context, event) => {
-            harness.onPagesChanged(event);
-        },
-        browserId: generateId<BrowserId>(),
-        connectionId: generateId<WebSocketConnectionId>(),
-        browserPageTracker: new BrowserPageTracker(),
-    });
+    harness.createServerConnection();
 
     return harness;
+}
+
+function createReconnectableClientConnection(
+    serverHarness: Awaited<ReturnType<typeof createServerHarness>>,
+    options: {reportError(error: unknown): void},
+): DatabaseClientConnection & {
+    disconnect(): void;
+    reconnect(): void;
+    close(): void;
+} {
+    let isConnected = true;
+    let serverConnection = serverHarness.serverConnection;
+
+    function getServerConnection(): DatabaseDurableObjectConnection {
+        if (!isConnected) {
+            throw new InternalError("simulated websocket disconnect");
+        }
+        return serverConnection;
+    }
+
+    return {
+        async executeActionServer(action, executeOptions) {
+            return await getServerConnection().procedures.executeAction(
+                null as any,
+                {
+                    action,
+                    mutationId: executeOptions.mutationId,
+                    returnResult: executeOptions.returnResult ?? true,
+                    returnPages: executeOptions.returnPages ?? true,
+                },
+                null as any,
+            );
+        },
+        async ensureCacheIsUpToDate(pageVersionsByIndex) {
+            return await getServerConnection().procedures.ensureCacheIsUpToDate(
+                null as any,
+                {pageVersionsByIndex},
+                null as any,
+            );
+        },
+        acknowledgePages(pageIndexes) {
+            void getServerConnection().procedures.acknowledgePages(
+                null as any,
+                {pageIndexes},
+                null as any,
+            );
+        },
+        reportError: options.reportError,
+        disconnect() {
+            isConnected = false;
+            serverConnection.handleClose();
+        },
+        reconnect() {
+            serverConnection = serverHarness.createServerConnection();
+            isConnected = true;
+        },
+        close() {
+            serverConnection.handleClose();
+        },
+    };
 }
 
 function createClientConnection(
