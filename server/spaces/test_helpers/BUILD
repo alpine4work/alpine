@@ -4,6 +4,7 @@ ts_project(
     name = "test_helpers",
     visibility = [
         "//admin:__subpackages__",
+        "//app/databases_test:__pkg__",
         "//app/integration_tests:__subpackages__",
         "//app/routes_test:__pkg__",
         "//app/screenshot_tests:__subpackages__",

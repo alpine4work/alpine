@@ -3,6 +3,7 @@ load("//admin/typescript:typescript.bzl", "ts_project")
 ts_project(
     name = "databases",
     test_deps = [
+        "//:node_modules/@jest/globals",
         "//client/web/databases/test_helpers",
     ],
     visibility = [

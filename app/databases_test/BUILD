@@ -13,9 +13,8 @@ ts_project(
         "//client/web/databases/test_helpers",
         "//server/cloudflare/test_helpers",
         "//server/databases",
-        "//server/dynamo/test_helpers",
+        "//server/spaces/test_helpers",
         "//shared/databases",
-        "//shared/error",
         "//shared/id",
     ],
 )
