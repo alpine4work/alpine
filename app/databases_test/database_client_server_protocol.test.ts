@@ -10,8 +10,8 @@ import {DatabaseGroupDurableObject} from "~/server/databases/database_durable_ob
 import {createTestSession} from "~/server/dynamo/test_helpers/create_test_session.js";
 import {createTestSpace} from "~/server/dynamo/test_helpers/create_test_space.js";
 import type {
+    DatabaseActionInput,
     DatabaseActionName,
-    DatabaseActionObject,
     DatabaseActionOutput,
 } from "~/shared/databases/database_actions.js";
 import {type DatabaseRealtimeEvent} from "~/shared/databases/database_realtime_protocol.js";
@@ -43,7 +43,7 @@ describe("database client/server protocol", () => {
         try {
             await client.ensureCacheIsUpToDate(connection);
 
-            const createTableResult = await executeAction<"createTable">(client, connection, {
+            const createTableResult = await executeAction(client, connection, {
                 name: "createTable",
                 input: {name: "Projects"},
             });
@@ -168,7 +168,7 @@ async function createServerHarness(): Promise<DatabaseServerHarness> {
 
 function createReconnectableClientConnection(
     serverHarness: Awaited<ReturnType<typeof createServerHarness>>,
-    options: {reportError(error: unknown): void},
+    options: {reportError: (error: unknown) => void},
 ): DatabaseClientConnection & {
     disconnect(): void;
     reconnect(): Promise<void>;
@@ -218,7 +218,7 @@ function createReconnectableClientConnection(
 
 function createClientConnection(
     serverConnection: DatabaseServerConnection,
-    options: {reportError(error: unknown): void},
+    options: {reportError: (error: unknown) => void},
 ): DatabaseClientConnection {
     return {
         async executeActionServer(action, executeOptions) {
@@ -244,14 +244,15 @@ function createClientConnection(
     };
 }
 
-async function executeAction<Name extends DatabaseActionName>(
+async function executeAction<const Name extends DatabaseActionName>(
     client: DatabaseClient,
     connection: DatabaseClientConnection,
-    action: DatabaseActionObject<Name>,
+    name: Name,
+    input: DatabaseActionInput<Name>,
 ): Promise<DatabaseActionOutput<Name>> {
-    const result = await client.executeAction(connection, action);
+    const result = await client.executeAction(connection, {name, input} as any);
     if (result === undefined) {
         throw new InternalError("Database action unexpectedly returned no result");
     }
-    return result;
+    return result as any;
 }
