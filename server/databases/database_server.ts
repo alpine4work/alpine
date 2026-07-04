@@ -78,7 +78,7 @@ export class DatabaseServer {
         const database = await Database.create(storage, {server: true});
         const server = new DatabaseServer(database, storage);
         server._bootstrap();
-        database.installServerTableChangeCapture(tableId => {
+        database._installServerTableChangeCapture(tableId => {
             server.changedTables.add(tableId);
         });
         return server;

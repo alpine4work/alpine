@@ -2,7 +2,7 @@ import type {ServerActionContext} from "~/server/context/server_action_context.j
 import {fetchDatabaseGroupAction} from "~/server/databases/data/fetch_database_action.js";
 import {DatabaseTablesTable} from "~/server/databases/data/internal/database_tables_table.js";
 import type {ReplicateDatabaseTableChangesJobDescription} from "~/server/jobs/core/job_description.js";
-import {indexDatabaseTableSearchEntity} from "~/server/search/data/index/search_entity_index.js";
+import {indexDatabaseTableSearchEntity} from "~/server/search/data/index/index_database_table_search_entity.js";
 import type {LocalAccessPolicy} from "~/shared/access/access_policy.js";
 import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
 import {emptyMap} from "~/shared/helpers/map/empty_map.js";
@@ -38,10 +38,10 @@ export async function replicateDatabaseTableChanges(
         databaseGroupId: DatabaseGroupId;
         spaceId: SpaceId;
         storageVersion: number;
-        tableIds: ReadonlyArray<DatabaseTableId>;
+        tableIds: ReadonlySet<DatabaseTableId>;
     },
 ): Promise<void> {
-    const uniqueTableIds = [...new Set(tableIds)];
+    const uniqueTableIds = [...tableIds];
     await runAllPromises(
         uniqueTableIds.map(tableId =>
             replicateDatabaseTableChange(context, {

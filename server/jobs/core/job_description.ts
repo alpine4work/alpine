@@ -224,7 +224,7 @@ const ReplicateDatabaseTableChangesJobDescriptionSchema = Schema.object({
     spaceId: Schema.id<SpaceId>(),
     databaseGroupId: Schema.id<DatabaseGroupId>(),
     storageVersion: Schema.integer,
-    tableIds: Schema.array(Schema.id<DatabaseTableId>()),
+    tableIds: Schema.set(Schema.id<DatabaseTableId>()),
 });
 
 export const JobDescriptionSchema = Schema.union({

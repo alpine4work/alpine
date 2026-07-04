@@ -9,7 +9,7 @@ export const enqueueDatabaseTableReplicationJob = defineRpc({
         databaseGroupId: Schema.id<DatabaseGroupId>(),
         spaceId: Schema.id<SpaceId>(),
         storageVersion: Schema.integer,
-        tableIds: Schema.array(Schema.id<DatabaseTableId>()),
+        tableIds: Schema.set(Schema.id<DatabaseTableId>()),
     },
     output: {
         ok: Schema.value(true),

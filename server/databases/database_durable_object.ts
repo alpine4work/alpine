@@ -202,7 +202,7 @@ class DatabaseGroupDurableObject {
             databaseGroupId: this._databaseGroupId,
             spaceId,
             storageVersion,
-            tableIds: [...tableIds].sort(),
+            tableIds,
         });
     }
 }

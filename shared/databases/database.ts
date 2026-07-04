@@ -42,7 +42,6 @@ import {captureResult, unwrapResult} from "~/shared/helpers/control/capture_resu
 import type {Result} from "~/shared/helpers/control/result.js";
 import {getOrSetDefaultMapValue} from "~/shared/helpers/map/get_or_set_default_map_value.js";
 import type {DatabaseTableId} from "~/shared/id/types/id_types.js";
-import {Schema} from "~/shared/schema/schema.js";
 
 const vfsNamePrefix = "alpine-database";
 let vfsCounter = 0;
@@ -330,7 +329,7 @@ export class Database {
      * learn which table metadata should be replicated after an action commits; clients
      * never install them and they are never persisted into database files.
      */
-    installServerTableChangeCapture(recordTableChanged: (tableId: DatabaseTableId) => void): void {
+    _installServerTableChangeCapture(recordTableChanged: (tableId: DatabaseTableId) => void): void {
         assert(this.serverContext !== null, "table change capture is server-only");
 
         this.db.createFunction("alpine_record_table_changed", {
@@ -365,37 +364,16 @@ export class Database {
 
         sql`
             CREATE TEMP TRIGGER IF NOT EXISTS _alpine_table_change_main_update AFTER
-            UPDATE ON main._alpine_tables WHEN NEW.kind = 'table'
-            OR OLD.kind = 'table' BEGIN
+            UPDATE ON main._alpine_tables WHEN NEW.kind = 'table' BEGIN
             SELECT
-                alpine_record_table_changed (
-                    CASE
-                        WHEN NEW.kind = 'table' THEN NEW.id
-                        ELSE OLD.id
-                    END
-                );
+                alpine_record_table_changed (NEW.id);
 
             END
         `.exec(this.db);
 
-        sql`
-            CREATE TEMP TRIGGER IF NOT EXISTS _alpine_table_change_main_delete AFTER DELETE ON main._alpine_tables WHEN OLD.kind = 'table' BEGIN
-            SELECT
-                alpine_record_table_changed (OLD.id);
+        const model = new DatabaseModel(this.db);
 
-            END
-        `.exec(this.db);
-
-        const tableIds = sql`
-            SELECT
-                id
-            FROM
-                _alpine_tables
-            WHERE
-                kind = 'table'
-        `.selectValues(this.db, Schema.id<DatabaseTableId>());
-
-        for (const tableId of tableIds) {
+        for (const tableId of model.getTableIds("table")) {
             if (!this.tables.has(tableId)) continue;
             const schema = sql.identifier(databaseTableSchemaName(tableId));
             const triggerNamePrefix = `_${tableId}`;
@@ -415,15 +393,6 @@ export class Database {
                 UPDATE ON ${schema}._alpine_table BEGIN
                 SELECT
                     alpine_record_table_changed (NEW.id);
-
-                END
-            `.exec(this.db);
-            sql`
-                CREATE TEMP TRIGGER IF NOT EXISTS ${sql.identifier(
-                    `${triggerNamePrefix}_alpine_table_change_delete`,
-                )} AFTER DELETE ON ${schema}._alpine_table BEGIN
-                SELECT
-                    alpine_record_table_changed (OLD.id);
 
                 END
             `.exec(this.db);

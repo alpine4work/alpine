@@ -5,7 +5,7 @@ export default implementRpcs(definitions, {
     enqueueDatabaseTableReplicationJob: {
         visibility: ["DatabaseGroupService"],
         async execute(context, input) {
-            if (input.tableIds.length > 0) {
+            if (input.tableIds.size > 0) {
                 await context.jobs.sendAndWait({
                     type: "ReplicateDatabaseTableChanges",
                     ...input,
