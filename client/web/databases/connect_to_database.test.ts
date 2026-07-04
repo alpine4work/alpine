@@ -10,6 +10,7 @@ import {
 import {DatabaseClient} from "~/client/web/databases/worker/database_client.js";
 import {
     DatabaseConnectionManager,
+    type DatabaseConnectionManagerSocket,
     type DatabaseConnectionManagerTabConnection,
 } from "~/client/web/databases/worker/database_connection_manager.js";
 import {
@@ -25,12 +26,10 @@ import {
     UniqueWorkerHost,
     UniqueWorkerHostConnection,
 } from "~/client/web/helpers/workers/unique_worker_host.js";
-import type {WebSocketClientCreateSocket} from "~/client/web/web_socket/web_socket_client.js";
 import type {
     DatabaseExecuteActionResponse,
     DatabasePageVersionsByIndex,
 } from "~/shared/databases/database_protocol_schemas.js";
-import {DatabaseRealtimeProtocol} from "~/shared/databases/database_realtime_protocol.js";
 import {diffPage} from "~/shared/databases/page_diff.js";
 import {SqlQuery, sql} from "~/shared/databases/sql.js";
 import {databaseMainTableId, sqlitePageSize} from "~/shared/databases/sqlite_constants.js";
@@ -45,12 +44,6 @@ import type {
     DatabaseMutationId,
     DatabaseReactiveActionId,
 } from "~/shared/id/types/id_types.js";
-import {generateServerSynchronizationCheckpointForTest} from "~/shared/web_socket/server_synchronization_checkpoint.js";
-import {
-    type WebSocketMessageFromServer,
-    createWebSocketMessageFromClientSchema,
-    createWebSocketMessageFromServerSchema,
-} from "~/shared/web_socket/web_socket_schema.js";
 
 const testDatabaseGroupId = generateId<DatabaseGroupId>();
 
@@ -163,7 +156,7 @@ function createDatabaseWorkerScript({
     onCreateManager,
 }: {
     dir: OpfsDirectoryHandle;
-    createSocket: WebSocketClientCreateSocket;
+    createSocket: () => DatabaseConnectionManagerSocket;
     onCreateManager(manager: DatabaseConnectionManager): void;
 }) {
     const connections = new WeakMap<RealConnection, DatabaseConnectionManagerTabConnection>();
@@ -235,11 +228,6 @@ function createDatabaseWorkerScript({
         },
     };
 }
-
-const databaseRealtimeMessageFromClientSchema =
-    createWebSocketMessageFromClientSchema(DatabaseRealtimeProtocol);
-const databaseRealtimeMessageFromServerSchema =
-    createWebSocketMessageFromServerSchema(DatabaseRealtimeProtocol);
 
 function createDatabaseTestEnv(config: {
     dir: OpfsDirectoryHandle;
@@ -343,112 +331,52 @@ function createDatabaseTestEnv(config: {
         return empty;
     }
 
-    const createSocket: WebSocketClientCreateSocket = () => {
-        const listeners = new Map<string, Array<(event: Event) => void>>();
-        let closed = false;
-
-        function emit(type: string, event: Event) {
-            for (const listener of listeners.get(type) ?? []) {
-                listener(event);
-            }
-        }
-
-        function emitServerMessage(
-            message: WebSocketMessageFromServer<typeof DatabaseRealtimeProtocol>,
-        ) {
-            const data = JSON.stringify(databaseRealtimeMessageFromServerSchema.serialize(message));
-            emit("message", {data} as MessageEvent);
-        }
-
-        async function handleMessage(data: string) {
-            const message = databaseRealtimeMessageFromClientSchema.deserialize(JSON.parse(data));
-            switch (message.type) {
-                case "ProcedureRequest": {
-                    const input = message.input;
-                    switch (input.type) {
-                        case "executeAction": {
-                            const response = await executeActionServer(input.action, {
-                                mutationId: input.mutationId,
-                                returnResult: input.returnResult,
-                                returnPages: input.returnPages,
-                            });
-                            emitServerMessage({
-                                type: "ProcedureResponse",
-                                requestId: message.requestId,
-                                result: {
-                                    ok: true,
-                                    output: {type: "executeAction", ...response},
-                                },
-                            });
-                            break;
-                        }
-                        case "ensureCacheIsUpToDate": {
-                            const response = await ensureCacheIsUpToDate(input.pageVersionsByIndex);
-                            emitServerMessage({
-                                type: "ProcedureResponse",
-                                requestId: message.requestId,
-                                result: {
-                                    ok: true,
-                                    output: {type: "ensureCacheIsUpToDate", ...response},
-                                },
-                            });
-                            break;
-                        }
-                        case "acknowledgePages": {
-                            emitServerMessage({
-                                type: "ProcedureResponse",
-                                requestId: message.requestId,
-                                result: {
-                                    ok: true,
-                                    output: {type: "acknowledgePages"},
-                                },
-                            });
-                            break;
-                        }
-                        default:
-                            throw input;
-                    }
-                    break;
-                }
-                case "Ping": {
-                    emitServerMessage({
-                        type: "Pong",
-                        checkpoint: generateServerSynchronizationCheckpointForTest(),
-                    });
-                    break;
-                }
-                case "SoftCloseWhileWaitingForProcedureResponses": {
-                    emitServerMessage({type: "SoftCloseWhileWaitingForProcedureResponses"});
-                    break;
-                }
-                default:
-                    throw message;
-            }
-        }
-
-        queueMicrotask(() => {
-            if (!closed) emit("open", new Event("open"));
-        });
-
+    const createSocket = (): DatabaseConnectionManagerSocket => {
+        let disconnected = true;
         return {
-            addEventListener(type: string, listener: (event: Event) => void) {
-                const typeListeners = listeners.get(type) ?? [];
-                typeListeners.push(listener);
-                listeners.set(type, typeListeners);
+            procedures: {
+                executeAction: async input => {
+                    return await executeActionServer(input.action, {
+                        mutationId: input.mutationId,
+                        returnResult: input.returnResult,
+                        returnPages: input.returnPages,
+                    });
+                },
+                ensureCacheIsUpToDate: async input => {
+                    return await ensureCacheIsUpToDate(input.pageVersionsByIndex);
+                },
+                acknowledgePages: async () => {
+                    return {};
+                },
             },
-            send(data: string) {
-                void handleMessage(data);
+            state: {
+                getSnapshot: () =>
+                    disconnected
+                        ? {
+                              hasError: false,
+                              isConnecting: false,
+                              isConnected: false,
+                              isDisconnected: true,
+                          }
+                        : {
+                              hasError: false,
+                              isConnecting: false,
+                              isConnected: true,
+                              isDisconnected: false,
+                          },
+                subscribe: () => () => {},
             },
-            close() {
-                if (closed) return;
-                closed = true;
-                emit("close", {
-                    code: 1000,
-                    reason: "",
-                    wasClean: true,
-                } as CloseEvent);
+            subscribeToEvents: () => () => {},
+            connect() {
+                disconnected = false;
             },
-        } as WebSocket;
+            reconnect() {
+                disconnected = false;
+            },
+            async disconnect() {
+                disconnected = true;
+            },
+        };
     };
 
     mocks.setWorkerScriptFactory(() => {

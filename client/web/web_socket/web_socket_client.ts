@@ -1,7 +1,4 @@
-import {
-    WebSocketClientConnection,
-    type WebSocketClientCreateSocket,
-} from "~/client/web/web_socket/web_socket_client_connection.js";
+import {WebSocketClientConnection} from "~/client/web/web_socket/web_socket_client_connection.js";
 import type {Context} from "~/shared/context/context.js";
 import type {TracerContextModule} from "~/shared/context/tracer_context_module.js";
 import {InternalError} from "~/shared/error/error.js";
@@ -116,12 +113,6 @@ export type WebSocketClientProcedures<
     ) => Promise<Procedures[Name]["output"]>;
 };
 
-export interface WebSocketClientOptions {
-    readonly createSocket?: WebSocketClientCreateSocket;
-}
-
-export type {WebSocketClientCreateSocket};
-
 /**
  * A helper for communicating over WebSockets. See `WebSocketServer` for the server
  * side of this helper.
@@ -144,7 +135,6 @@ export class WebSocketClient<Protocol extends WebSocketProtocolBase> {
     private readonly _serviceName: TracerServiceName;
     private readonly _protocol: Protocol;
     private readonly _url: string;
-    private readonly _createSocket: WebSocketClientCreateSocket | undefined;
 
     private readonly _state = new ValueStore<WebSocketClientInternalState<Protocol>>({
         type: "Disconnected",
@@ -160,13 +150,11 @@ export class WebSocketClient<Protocol extends WebSocketProtocolBase> {
         serviceName: TracerServiceName,
         protocol: Protocol,
         url: string,
-        options: WebSocketClientOptions = {},
     ) {
         this._getContext = getContext;
         this._serviceName = serviceName;
         this._protocol = protocol;
         this._url = url;
-        this._createSocket = options.createSocket;
 
         this.procedures = mapObjectValues(
             this._protocol.procedureSchemas,
@@ -251,7 +239,6 @@ export class WebSocketClient<Protocol extends WebSocketProtocolBase> {
                 this._serviceName,
                 this._protocol,
                 this._url,
-                this._createSocket,
             );
 
             let wasDisconnected = false;

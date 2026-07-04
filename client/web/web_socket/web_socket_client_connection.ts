@@ -45,12 +45,6 @@ type WebsocketClientConnectionState =
 
 type WebSocketClientConnectionContext = Context<{tracer: TracerContextModule}>;
 
-export type WebSocketClientCreateSocket = (url: string) => WebSocket;
-
-function createWebSocketClientSocket(url: string): WebSocket {
-    return new WebSocket(url);
-}
-
 function resolveWebSocketUrl(url: string) {
     // If this is an absolute URL, add our current domain's origin. This will only work
     // in browser-like environments.
@@ -111,7 +105,6 @@ export class WebSocketClientConnection<Protocol extends WebSocketProtocolBase> {
         serviceName: TracerServiceName,
         protocol: Protocol,
         url: string,
-        createSocket: WebSocketClientCreateSocket = createWebSocketClientSocket,
     ) {
         this._getContext = getContext;
         this._serviceName = serviceName;
@@ -120,7 +113,7 @@ export class WebSocketClientConnection<Protocol extends WebSocketProtocolBase> {
 
         this._state = {type: "Connecting", pendingSerializedMessages: []};
 
-        this._socket = createSocket(resolveWebSocketUrl(url));
+        this._socket = new WebSocket(resolveWebSocketUrl(url));
 
         let pingTimeout: Timeout | undefined;
         let pongPromiseResolver: PromiseResolver<void> | undefined;

@@ -43,22 +43,18 @@ describe("database client/server protocol", () => {
         try {
             await client.ensureCacheIsUpToDate(connection);
 
-            const createTableResult = await executeAction(client, connection, {
-                name: "createTable",
-                input: {name: "Projects"},
+            const createTableResult = await executeAction(client, connection, "createTable", {
+                name: "Projects",
             });
 
-            const tableRowsResult = await executeAction<"readonlyRawSql">(client, connection, {
-                name: "readonlyRawSql",
-                input: {
-                    sql: `
+            const tableRowsResult = await executeAction(client, connection, "readonlyRawSql", {
+                sql: `
                         SELECT
                             id,
                             kind
                         FROM
                             _alpine_tables
                     `,
-                },
             });
 
             expect(tableRowsResult.rows).toEqual([
@@ -90,29 +86,24 @@ describe("database client/server protocol", () => {
 
             connection.disconnect();
             await expect(
-                executeAction(client, connection, {
-                    name: "createTable",
-                    input: {name: "Projects"},
+                executeAction(client, connection, "createTable", {
+                    name: "Projects",
                 }),
             ).rejects.toThrow("simulated websocket disconnect");
 
             await connection.reconnect();
-            const createTableResult = await executeAction<"createTable">(client, connection, {
-                name: "createTable",
-                input: {name: "Projects"},
+            const createTableResult = await executeAction(client, connection, "createTable", {
+                name: "Projects",
             });
 
-            const tableRowsResult = await executeAction<"readonlyRawSql">(client, connection, {
-                name: "readonlyRawSql",
-                input: {
-                    sql: `
+            const tableRowsResult = await executeAction(client, connection, "readonlyRawSql", {
+                sql: `
                         SELECT
                             id,
                             kind
                         FROM
                             _alpine_tables
                     `,
-                },
             });
 
             expect(tableRowsResult.rows).toEqual([

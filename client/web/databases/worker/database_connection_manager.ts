@@ -9,7 +9,7 @@ import {
 import type {OpfsDirectoryHandle} from "~/client/web/databases/worker/opfs.js";
 import {
     WebSocketClient,
-    type WebSocketClientCreateSocket,
+    type WebSocketClientProcedures,
     type WebSocketClientState,
 } from "~/client/web/web_socket/web_socket_client.js";
 import {Context} from "~/shared/context/context.js";
@@ -25,13 +25,29 @@ import {unsynchronizedSystemClock} from "~/shared/helpers/clock/unsynchronized_s
 import {assert} from "~/shared/helpers/control/assert.js";
 import type {DatabaseGroupId, DatabaseReactiveActionId} from "~/shared/id/types/id_types.js";
 import {TracerRoot} from "~/shared/tracer/tracer_root.js";
+import type {WebSocketProtocolProceduresType} from "~/shared/web_socket/web_socket_protocol.js";
 
-interface DatabaseConnectionManagerRealtimeConnectionOptions {
-    databaseGroupId: DatabaseGroupId;
+type DatabaseConnectionManagerContext = Context<{tracer: TracerContextModule}>;
+
+interface DatabaseConnectionManagerCreateSocketOptions {
     webSocketUrl: string;
-    handleEvent: (event: DatabaseRealtimeEvent) => void;
-    reportError: (error: unknown) => void;
-    createSocket?: WebSocketClientCreateSocket;
+    context: DatabaseConnectionManagerContext;
+}
+
+interface DatabaseConnectionManagerSocketState {
+    getSnapshot(): WebSocketClientState;
+    subscribe(listener: () => void): () => void;
+}
+
+export interface DatabaseConnectionManagerSocket {
+    readonly procedures: WebSocketClientProcedures<
+        WebSocketProtocolProceduresType<typeof DatabaseRealtimeProtocol>
+    >;
+    readonly state: DatabaseConnectionManagerSocketState;
+    subscribeToEvents(handler: (event: DatabaseRealtimeEvent) => void): () => void;
+    connect(): void;
+    reconnect(): void;
+    disconnect(): Promise<void>;
 }
 
 export interface DatabaseConnectionManagerTabConnection {
@@ -76,8 +92,10 @@ export class DatabaseConnectionManager {
         private readonly dir: OpfsDirectoryHandle | Promise<OpfsDirectoryHandle>,
         private readonly getConnections: () => ReadonlyArray<DatabaseConnectionManagerTabConnection>,
         private readonly deps: {
-            readonly createSocket?: WebSocketClientCreateSocket;
-        } = {},
+            readonly createSocket: (
+                options: DatabaseConnectionManagerCreateSocketOptions,
+            ) => DatabaseConnectionManagerSocket;
+        } = {createSocket: createDatabaseConnectionManagerSocket},
     ) {}
 
     connectDatabaseGroup(input: TabToWorkerDatabaseRpcMethods["connectDatabaseGroup"]["input"]) {
@@ -266,15 +284,75 @@ export class DatabaseConnectionManager {
                 `Database group ${databaseGroupId} was used before connectDatabaseGroup`,
             );
 
-            connection = createDatabaseConnectionManagerRealtimeConnection({
-                databaseGroupId,
-                webSocketUrl: options.webSocketUrl,
-                handleEvent: event => this.handleRealtimeEvent(databaseGroupId, event),
-                reportError: error => this.reportError(error),
-                ...(this.deps.createSocket === undefined
-                    ? {}
-                    : {createSocket: this.deps.createSocket}),
+            const tracer = TracerRoot.new({
+                serviceName: "AppClient",
+                jsHost: "Web",
+                untrusted: true,
+                clock: unsynchronizedSystemClock,
+                sendEvent: () => {},
             });
+            const context = Context.new({
+                tracer: new TracerContextModule(tracer),
+            });
+            const client = this.deps.createSocket({
+                webSocketUrl: options.webSocketUrl,
+                context,
+            });
+
+            const unsubscribeFromEvents = client.subscribeToEvents(event =>
+                this.handleRealtimeEvent(databaseGroupId, event),
+            );
+            let reconnectTimeout: ReturnType<typeof setTimeout> | null = null;
+            let lastReportedState: WebSocketClientState | null = null;
+            let closed = false;
+
+            function scheduleReconnect() {
+                if (closed || reconnectTimeout !== null) return;
+                reconnectTimeout = setTimeout(() => {
+                    reconnectTimeout = null;
+                    if (!closed) client.reconnect();
+                }, 2500);
+            }
+
+            const unsubscribeFromState = client.state.subscribe(() => {
+                const state = client.state.getSnapshot();
+                if (!state.hasError) return;
+                if (state !== lastReportedState) {
+                    this.reportError(state.error);
+                    lastReportedState = state;
+                }
+                scheduleReconnect();
+            });
+
+            client.connect();
+
+            connection = {
+                executeActionServer: (action, executeOptions) =>
+                    client.procedures.executeAction({
+                        action,
+                        mutationId: executeOptions.mutationId,
+                        returnResult: executeOptions.returnResult ?? true,
+                        returnPages: executeOptions.returnPages ?? true,
+                    }),
+                ensureCacheIsUpToDate: pageVersionsByIndex =>
+                    client.procedures.ensureCacheIsUpToDate({pageVersionsByIndex}),
+                acknowledgePages: pageIndexes => {
+                    void client.procedures.acknowledgePages({pageIndexes});
+                },
+                reportError: error => this.reportError(error),
+                close() {
+                    closed = true;
+                    if (reconnectTimeout !== null) {
+                        clearTimeout(reconnectTimeout);
+                        reconnectTimeout = null;
+                    }
+                    unsubscribeFromEvents();
+                    unsubscribeFromState();
+                    if (!client.state.getSnapshot().isDisconnected) {
+                        void client.disconnect();
+                    }
+                },
+            };
             state.realtimeConnection = connection;
         }
         return connection;
@@ -347,77 +425,14 @@ export class DatabaseConnectionManager {
     }
 }
 
-function createDatabaseConnectionManagerRealtimeConnection(
-    options: DatabaseConnectionManagerRealtimeConnectionOptions,
-): DatabaseClientConnection {
-    const tracer = TracerRoot.new({
-        serviceName: "AppClient",
-        jsHost: "Web",
-        untrusted: true,
-        clock: unsynchronizedSystemClock,
-        sendEvent: () => {},
-    });
-    const context = Context.new({
-        tracer: new TracerContextModule(tracer),
-    });
-    const client = new WebSocketClient(
+function createDatabaseConnectionManagerSocket({
+    context,
+    webSocketUrl,
+}: DatabaseConnectionManagerCreateSocketOptions): DatabaseConnectionManagerSocket {
+    return new WebSocketClient(
         () => context,
         "DatabaseGroupService",
         DatabaseRealtimeProtocol,
-        options.webSocketUrl,
-        options.createSocket === undefined ? {} : {createSocket: options.createSocket},
+        webSocketUrl,
     );
-
-    const unsubscribeFromEvents = client.subscribeToEvents(options.handleEvent);
-    let reconnectTimeout: ReturnType<typeof setTimeout> | null = null;
-    let lastReportedState: WebSocketClientState | null = null;
-    let closed = false;
-
-    function scheduleReconnect() {
-        if (closed || reconnectTimeout !== null) return;
-        reconnectTimeout = setTimeout(() => {
-            reconnectTimeout = null;
-            if (!closed) client.reconnect();
-        }, 2500);
-    }
-
-    const unsubscribeFromState = client.state.subscribe(() => {
-        const state = client.state.getSnapshot();
-        if (!state.hasError) return;
-        if (state !== lastReportedState) {
-            options.reportError(state.error);
-            lastReportedState = state;
-        }
-        scheduleReconnect();
-    });
-
-    client.connect();
-
-    return {
-        executeActionServer: (action, executeOptions) =>
-            client.procedures.executeAction({
-                action,
-                mutationId: executeOptions.mutationId,
-                returnResult: executeOptions.returnResult ?? true,
-                returnPages: executeOptions.returnPages ?? true,
-            }),
-        ensureCacheIsUpToDate: pageVersionsByIndex =>
-            client.procedures.ensureCacheIsUpToDate({pageVersionsByIndex}),
-        acknowledgePages: pageIndexes => {
-            void client.procedures.acknowledgePages({pageIndexes});
-        },
-        reportError: options.reportError,
-        close() {
-            closed = true;
-            if (reconnectTimeout !== null) {
-                clearTimeout(reconnectTimeout);
-                reconnectTimeout = null;
-            }
-            unsubscribeFromEvents();
-            unsubscribeFromState();
-            if (!client.state.getSnapshot().isDisconnected) {
-                void client.disconnect();
-            }
-        },
-    };
 }
