@@ -7,7 +7,7 @@ export const replicateDatabaseTableChanges = defineRpc({
     isIdempotent: true,
     input: {
         databaseGroupId: Schema.id<DatabaseGroupId>(),
-        spaceId: Schema.id<SpaceId>().nullable(),
+        spaceId: Schema.id<SpaceId>(),
         storageVersion: Schema.integer,
         tableIds: Schema.array(Schema.id<DatabaseTableId>()),
     },

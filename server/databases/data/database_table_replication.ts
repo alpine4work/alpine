@@ -28,7 +28,7 @@ export async function replicateDatabaseTableChanges(
         tableIds,
     }: {
         databaseGroupId: DatabaseGroupId;
-        spaceId: SpaceId | null;
+        spaceId: SpaceId;
         storageVersion: number;
         tableIds: ReadonlyArray<DatabaseTableId>;
     },
@@ -55,20 +55,15 @@ async function replicateDatabaseTableChange(
         tableId,
     }: {
         databaseGroupId: DatabaseGroupId;
-        spaceId: SpaceId | null;
+        spaceId: SpaceId;
         storageVersion: number;
         tableId: DatabaseTableId;
     },
 ): Promise<void> {
-    const {result} = await fetchDatabaseGroupAction(
-        context,
-        databaseGroupId,
-        {
-            name: "getTableMetadata",
-            input: {tableId},
-        },
-        spaceId === null ? undefined : {spaceId},
-    );
+    const {result} = await fetchDatabaseGroupAction(context, spaceId, databaseGroupId, {
+        name: "getTableMetadata",
+        input: {tableId},
+    });
 
     const table = result.table;
     const updatedItem = await updateDatabaseTableDynamoItem(context, {
@@ -78,8 +73,6 @@ async function replicateDatabaseTableChange(
         tableId,
         table,
     });
-
-    if (spaceId === null) return;
 
     await indexDatabaseTableSearchEntity(context, {
         spaceId,
@@ -101,7 +94,7 @@ async function updateDatabaseTableDynamoItem(
         table,
     }: {
         databaseGroupId: DatabaseGroupId;
-        spaceId: SpaceId | null;
+        spaceId: SpaceId;
         storageVersion: number;
         tableId: DatabaseTableId;
         table: DatabaseTableMetadata | null;

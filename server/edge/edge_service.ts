@@ -81,7 +81,12 @@ type EdgeServiceRoute =
     | {type: "MyAccountService"; accountId: string; pathname: string}
     | {type: "TaskNotesCollaborationService"; taskId: string; pathname: string}
     | {type: "SiteRealtimeService"; siteId: string; pathname: string}
-    | {type: "DatabaseGroupService"; databaseGroupId: string; pathname: string}
+    | {
+          type: "DatabaseGroupService";
+          spaceId: SpaceId;
+          databaseGroupId: string;
+          pathname: string;
+      }
     | {type: "TaskRealtimeService"; spaceId: SpaceId}
     | {type: "LoadTaskQueries"; spaceId: SpaceId}
     | {type: "UploadFile"; spaceId: SpaceId}
@@ -379,15 +384,17 @@ async function handleFetch(
                 break;
             }
             case "database-groups": {
-                const databaseGroupId = pathSegments[1];
-                if (databaseGroupId === undefined) break;
+                const spaceId = pathSegments[1];
+                const databaseGroupId = pathSegments[2];
+                if (spaceId === undefined || databaseGroupId === undefined) break;
+                if (!isId<SpaceId>(spaceId)) break;
 
-                const pathname = `/${pathSegments.slice(2).join("/")}`;
+                const pathname = `/${pathSegments.slice(3).join("/")}`;
 
-                routeString = `/api/durable-objects/database-groups/:databaseGroupId${
+                routeString = `/api/durable-objects/database-groups/:spaceId/:databaseGroupId${
                     pathname !== "/" ? "/*" : ""
                 }`;
-                route = {type: "DatabaseGroupService", databaseGroupId, pathname};
+                route = {type: "DatabaseGroupService", spaceId, databaseGroupId, pathname};
                 break;
             }
             default: {
@@ -695,12 +702,18 @@ async function actuallyHandleFetch(
             }
 
             case "DatabaseGroupService": {
+                const databaseGroupRequestUrl = new URL(request.url);
+                databaseGroupRequestUrl.searchParams.set("spaceId", route.spaceId);
+                const databaseGroupRequest = new Request(
+                    databaseGroupRequestUrl.toString(),
+                    request,
+                );
                 return await fetchFromDurableObjectStub({
                     durableObjectNamespace: env.DatabaseGroupDurableObjectNamespace,
                     serviceName: "DatabaseGroupService",
                     tokenAgent,
                     cookieNameSuffix: env.COOKIE_NAME_SUFFIX,
-                    request,
+                    request: databaseGroupRequest,
                     pathname: route.pathname,
                     idName: route.databaseGroupId,
                     span,

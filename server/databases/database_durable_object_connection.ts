@@ -39,7 +39,7 @@ export class DatabaseDurableObjectConnection {
     private readonly _server: DatabaseServer;
     private readonly _storage: DurableObjectStorage;
     private readonly _durableObjectStorage: DatabaseDurableObjectStorage;
-    private readonly _spaceId: SpaceId | null;
+    private readonly _spaceId: SpaceId;
     private readonly _drainReplicationOutboxIfPossible: (
         context: WorkerSessionActionContext,
     ) => Promise<void>;
@@ -67,7 +67,7 @@ export class DatabaseDurableObjectConnection {
         server: DatabaseServer;
         storage: DurableObjectStorage;
         durableObjectStorage: DatabaseDurableObjectStorage;
-        spaceId: SpaceId | null;
+        spaceId: SpaceId;
         drainReplicationOutboxIfPossible: (context: WorkerSessionActionContext) => Promise<void>;
         processContext: WorkerProcessContext;
         sendEventToAll: (context: WorkerProcessContext, event: DatabaseRealtimeEventStub) => void;

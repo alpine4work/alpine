@@ -29,7 +29,7 @@ export function enqueueDatabaseTableReplication(
         tableIds,
     }: {
         storageVersion: number;
-        spaceId: SpaceId | null;
+        spaceId: SpaceId;
         tableIds: ReadonlySet<DatabaseTableId>;
     },
 ): void {
@@ -63,10 +63,17 @@ export async function drainDatabaseTableReplicationOutbox(
          ORDER BY storage_version
          LIMIT 10`,
     )) {
+        if (row.space_id === null) {
+            sql.exec(
+                "DELETE FROM database_table_replication_outbox WHERE storage_version = ?",
+                row.storage_version,
+            );
+            continue;
+        }
         const tableIds = JSON.parse(row.table_ids) as Array<DatabaseTableId>;
         await replicateDatabaseTableChanges(context, {
             databaseGroupId,
-            spaceId: row.space_id as SpaceId | null,
+            spaceId: row.space_id as SpaceId,
             storageVersion: row.storage_version,
             tableIds,
         });

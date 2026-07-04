@@ -104,6 +104,9 @@ class DatabaseGroupDurableObject {
                 throw new InvalidArgumentError("Missing browserId query parameter");
             }
             const spaceId = searchParams.get("spaceId") as SpaceId | null;
+            if (spaceId === null) {
+                throw new InvalidArgumentError("Missing spaceId query parameter");
+            }
             return new DatabaseDurableObjectConnection({
                 server: this._server,
                 processContext: this._processContext,
@@ -153,6 +156,9 @@ class DatabaseGroupDurableObject {
             (await request.json()) as SchemaSerializedValue,
         );
         const spaceId = new URL(request.url).searchParams.get("spaceId") as SpaceId | null;
+        if (spaceId === null) {
+            throw new InvalidArgumentError("Missing spaceId query parameter");
+        }
 
         const {result, readPages} = this._storage.transactionSync(() => {
             const actionResult = this._server.executeAction(actionObject);
