@@ -5,6 +5,7 @@ ts_project(
     testonly = True,
     visibility = [
         "//app/integration_tests:__pkg__",
+        "//app/databases_test:__pkg__",
         "//app/routes_test:__pkg__",
         "//app/screenshot_tests:__pkg__",
         "//server:__subpackages__",

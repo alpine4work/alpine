@@ -154,8 +154,11 @@ class DatabaseGroupDurableObject {
         );
     }
 
-    public connectForTest(context: WorkerSessionActionContext) {
-        return this._webSocketServer.connectForTest(context);
+    public connectForTest(
+        context: WorkerSessionActionContext,
+        options?: {searchParams?: URLSearchParams},
+    ) {
+        return this._webSocketServer.connectForTest(context, options);
     }
 }
 

@@ -436,7 +436,12 @@ export function createDurableObject<
          * `connectForTest()` on the returned object with the same `idName` you will get
          * the same underlying durable object instance.
          */
-        public static test(processContext: WorkerProcessContext): {
+        public static test(
+            processContext: WorkerProcessContext,
+            testOptions: {
+                createStorageForTest?: (idName: string) => DurableObjectStorage;
+            } = {},
+        ): {
             fetchForTest: (
                 context: WorkerActionContext,
                 idName: string,
@@ -475,7 +480,9 @@ export function createDurableObject<
                             initializeActionContext: actionContext,
                             idName,
                             destroy: () => objectByIdName.delete(idName),
-                            storage: undefined as unknown as DurableObjectStorage,
+                            storage:
+                                testOptions.createStorageForTest?.(idName) ??
+                                (undefined as unknown as DurableObjectStorage),
                         }),
                     );
 
@@ -495,7 +502,9 @@ export function createDurableObject<
                             initializeActionContext: actionContext,
                             idName,
                             destroy: () => objectByIdName.delete(idName),
-                            storage: undefined as unknown as DurableObjectStorage,
+                            storage:
+                                testOptions.createStorageForTest?.(idName) ??
+                                (undefined as unknown as DurableObjectStorage),
                         }),
                     );
 

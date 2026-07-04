@@ -3,7 +3,10 @@ load("//admin/typescript:typescript.bzl", "ts_project")
 ts_project(
     name = "test_helpers",
     testonly = True,
-    visibility = ["//server:__subpackages__"],
+    visibility = [
+        "//app/databases_test:__pkg__",
+        "//server:__subpackages__",
+    ],
     deps = [
         "//server/cloudflare",
         "//server/context",

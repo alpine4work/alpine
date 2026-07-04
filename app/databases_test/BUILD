@@ -11,7 +11,9 @@ ts_project(
     deps = [
         "//client/web/databases",
         "//client/web/databases/test_helpers",
+        "//server/cloudflare/test_helpers",
         "//server/databases",
+        "//server/dynamo/test_helpers",
         "//shared/databases",
         "//shared/error",
         "//shared/id",

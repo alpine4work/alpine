@@ -47,6 +47,7 @@ module.exports = {
                 ...baseJestConfig.testPathIgnorePatterns,
                 "<rootDir>/server/",
                 "<rootDir>/admin/",
+                "<rootDir>/app/databases_test/",
                 "<rootDir>/app/routes_test/",
             ],
             setupFilesAfterEnv: [
@@ -61,6 +62,7 @@ module.exports = {
             testMatch: [
                 `<rootDir>/server/${testMatch}`,
                 `<rootDir>/admin/${testMatch}`,
+                `<rootDir>/app/databases_test/${testMatch}`,
                 `<rootDir>/app/routes_test/${testMatch}`,
             ],
             setupFilesAfterEnv: [
