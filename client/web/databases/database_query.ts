@@ -45,6 +45,7 @@ export class DatabaseQuery {
     private conn: DatabaseWorkerConnection | null = null;
     private _disposed = false;
     private _nextPageId = 0;
+    private readonly _hasInitialPage: boolean;
     private _initialPageId: number | null = null;
     private _rebalanceScheduled = false;
 
@@ -68,6 +69,7 @@ export class DatabaseQuery {
         this._mergeThreshold = Math.floor(0.5 * this._targetRowsPerPage);
         this._scheduleRebalance = options._scheduleRebalance ?? defaultScheduleRebalance;
         this.treeStore = new ValueStore(newEmptyTree());
+        this._hasInitialPage = options.initialPage !== undefined;
         this._initialEndCursor = options.initialPage?.endCursor ?? null;
         this.isLoadingMoreStore = new ValueStore(false);
 
@@ -109,13 +111,16 @@ export class DatabaseQuery {
             void this.conn.call("writeInitialPages", {pages: options.readPages});
         }
 
-        // Start watching the first page reactively. When we have initial data, reuse the
-        // constructor's pageId so the watch's onUpdate updates the existing tree node
-        // in-place. When the initial page was empty we still need the watch so newly
-        // created rows appear without a remount.
-        const reusePageId = this._initialPageId;
-        this._initialPageId = null;
-        void this.startWatch(null, this._initialEndCursor, reusePageId ?? undefined);
+        // If an initial page was provided, start watching the first page reactively.
+        // Reuse the constructor's pageId so the watch's onUpdate updates the existing
+        // tree node in-place. When the initial page had no rows there's no node to
+        // reuse, but we still need the watch so newly created rows appear without a
+        // remount. Without an initial page the caller drives `loadInitialPage()`.
+        if (this._hasInitialPage) {
+            const reusePageId = this._initialPageId;
+            this._initialPageId = null;
+            void this.startWatch(null, this._initialEndCursor, reusePageId ?? undefined);
+        }
     }
 
     /**
