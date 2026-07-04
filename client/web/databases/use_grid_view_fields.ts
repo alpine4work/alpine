@@ -2,7 +2,7 @@ import type React from "react";
 import {startTransition, useMemo, useOptimistic, useState} from "react";
 
 import {useDatabaseConnection} from "~/client/web/databases/database_connection_context.js";
-import {useEvent, useEvents} from "~/client/web/helpers/lifecycle/use_event.js";
+import {useEvent} from "~/client/web/helpers/lifecycle/use_event.js";
 import {useSpacingScale} from "~/client/web/remix/spacing_scale_context.js";
 import {
     type DatabaseFieldConfig,
@@ -10,7 +10,6 @@ import {
 } from "~/shared/databases/fields/all_database_field_providers.js";
 import {databaseViewDefaultColumnWidth} from "~/shared/databases/sqlite_constants.js";
 import {remPxBySpacingScale} from "~/shared/design/core/spacing_scale.js";
-import {assert} from "~/shared/helpers/control/assert.js";
 import {type OrderKey, generateOrderKeyBetween} from "~/shared/helpers/sort/order_key.js";
 import {generateChronologicalId} from "~/shared/id/chronological_id.js";
 import type {DatabaseFieldId, DatabaseTableId, DatabaseViewId} from "~/shared/id/types/id_types.js";
@@ -24,30 +23,29 @@ export type DatabaseGridViewField = {
     readonly hidden: boolean;
 };
 
-export type DatabaseGridViewRelationFieldEditingOptions = {
-    readonly linkedTableId: DatabaseTableId;
-    readonly cardinality: "one" | "many";
-    readonly updateLinkedTableId: (value: DatabaseTableId) => void;
-    readonly updateCardinality: (value: "one" | "many") => void;
-};
-
-export type DatabaseGridViewFieldEditing = {
-    readonly fieldType: DatabaseFieldType;
-    readonly relationOptions: DatabaseGridViewRelationFieldEditingOptions | null;
-    readonly updateName: (value: string) => void;
-    readonly updateType: (value: DatabaseFieldType) => void;
-    readonly commit: () => void;
-    readonly commitWithType: (type: DatabaseFieldType) => void;
-    readonly cancel: () => void;
-};
-
-export type DatabaseGridViewFieldWithEditing = DatabaseGridViewField & {
+/**
+ * A visible grid column: a field plus the CSS needed to render its cells at the
+ * field's stored width.
+ */
+export type DatabaseGridViewColumn = DatabaseGridViewField & {
     readonly columnStyle: React.CSSProperties;
-    readonly editing: DatabaseGridViewFieldEditing | null;
-    // `columnName` is set to "**pending**" for fields that are being added
-    // optimistically and don't yet have a server-assigned SQL column name.
-    readonly columnName: string;
 };
+
+/**
+ * The description of a new field committed from the field creation UI. Relation
+ * fields carry the linked table and cardinality picked by the user.
+ */
+export type DatabaseGridViewNewField =
+    | {
+          readonly type: Exclude<DatabaseFieldType, "relation">;
+          readonly name: string;
+      }
+    | {
+          readonly type: "relation";
+          readonly name: string;
+          readonly linkedTableId: DatabaseTableId;
+          readonly cardinality: "one" | "many";
+      };
 
 type DatabaseGridViewFieldOptimisticAction =
     | {type: "create"; field: DatabaseGridViewField}
@@ -64,22 +62,16 @@ type ResizingState = {
     readonly pointerId: number;
 } | null;
 
-type EditingState = {
-    readonly type: "adding";
-    readonly id: DatabaseFieldId;
-    readonly value: string;
-    readonly fieldType: DatabaseFieldType;
-    readonly relationOptions: {
-        readonly linkedTableId: DatabaseTableId;
-        readonly cardinality: "one" | "many";
-    } | null;
-} | null;
-
 /**
- * Manages the field array for a grid view, including optimistic updates and inline
- * editing state for both adding new fields and renaming existing ones. Operates on
- * a single `fields` array where each field carries a `hidden` flag; derives the
+ * Manages the field array for a grid view, including optimistic updates. Operates
+ * on a single `fields` array where each field carries a `hidden` flag; derives the
  * visible grid columns and the hidden-fields list from it.
+ *
+ * While a field is being added, `addingFieldId` identifies a placeholder column
+ * appended after the last visible field. All the intermediate creation state
+ * (draft name, picked type, relation options) lives in the field creation UI
+ * component; it reports back here through `commitAddingField` which applies the
+ * optimistic update and persists the new field.
  */
 export function useGridViewFields({
     tableId,
@@ -90,11 +82,14 @@ export function useGridViewFields({
     viewId: DatabaseViewId;
     fields: ReadonlyArray<DatabaseGridViewField>;
 }): {
-    fields: ReadonlyArray<DatabaseGridViewFieldWithEditing>;
+    fields: ReadonlyArray<DatabaseGridViewColumn>;
     hiddenFields: ReadonlyArray<DatabaseGridViewField>;
     fieldIndexById: ReadonlyMap<DatabaseFieldId, number>;
     contentMinWidth: number;
+    addingFieldId: DatabaseFieldId | null;
     startAddingField: () => void;
+    commitAddingField: (newField: DatabaseGridViewNewField) => void;
+    cancelAddingField: () => void;
     startResizingField: (
         fieldId: DatabaseFieldId,
         event: React.PointerEvent,
@@ -157,162 +152,58 @@ export function useGridViewFields({
     );
     const hiddenFields = useMemo(() => optimisticFields.filter(f => f.hidden), [optimisticFields]);
 
-    const [editingState, setEditingState] = useState<EditingState>(null);
+    const [addingFieldId, setAddingFieldId] = useState<DatabaseFieldId | null>(null);
 
-    const commitNonRelationField = useEvent(
-        ({
-            fieldId,
-            fieldType,
-            name,
-        }: {
-            fieldId: DatabaseFieldId;
-            fieldType: Exclude<DatabaseFieldType, "relation">;
-            name: string;
-        }) => {
-            const lastVisible = visibleFields[visibleFields.length - 1];
-            const addPosition = generateOrderKeyBetween(lastVisible?.position ?? null, null);
-            startTransition(async () => {
-                applyOptimisticField({
-                    type: "create",
-                    field: {
-                        id: fieldId,
-                        name,
-                        config: getDefaultFieldConfig(fieldType),
-                        position: addPosition,
-                        width: databaseViewDefaultColumnWidth,
-                        hidden: false,
-                    },
-                });
-                await conn.executeAction("createField", {
-                    fieldId,
-                    tableId,
-                    name,
-                    config: getDefaultFieldConfig(fieldType),
-                });
-            });
-        },
-    );
+    const startAddingField = useEvent(() => {
+        setAddingFieldId(generateChronologicalId<DatabaseFieldId>());
+    });
 
-    const commitEditing = useEvent(() => {
-        if (editingState == null) return;
-        const trimmed = editingState.value.trim();
-        if (trimmed === "") {
-            setEditingState(null);
-            return;
-        }
-        const addingId = editingState.id;
-        const addingFieldType = editingState.fieldType;
-        const relationOptions = editingState.relationOptions;
-        setEditingState(null);
-        if (addingFieldType === "relation") {
-            assert(relationOptions !== null, "relation field options are required");
+    const cancelAddingField = useEvent(() => setAddingFieldId(null));
+
+    const commitAddingField = useEvent((newField: DatabaseGridViewNewField) => {
+        if (addingFieldId == null) return;
+        const fieldId = addingFieldId;
+        setAddingFieldId(null);
+
+        if (newField.type === "relation") {
             startTransition(async () => {
                 await conn.executeAction("createRelationField", {
                     sourceTableId: tableId,
-                    sourceFieldName: trimmed,
-                    targetTableId: relationOptions.linkedTableId,
-                    cardinality: relationOptions.cardinality,
+                    sourceFieldName: newField.name,
+                    targetTableId: newField.linkedTableId,
+                    cardinality: newField.cardinality,
                 });
             });
             return;
         }
 
-        commitNonRelationField({fieldId: addingId, fieldType: addingFieldType, name: trimmed});
-    });
-
-    const updateEditingName = useEvent((value: string) => {
-        if (editingState == null) return;
-        setEditingState({...editingState, value});
-    });
-
-    const updateEditingType = useEvent((fieldType: DatabaseFieldType) => {
-        if (editingState == null) return;
-        setEditingState({
-            ...editingState,
-            fieldType,
-            relationOptions:
-                fieldType === "relation"
-                    ? (editingState.relationOptions ?? {
-                          linkedTableId: tableId,
-                          cardinality: "many",
-                      })
-                    : null,
-        });
-    });
-
-    const updateEditingRelationLinkedTableId = useEvent((linkedTableId: DatabaseTableId) => {
-        if (editingState == null) return;
-        assert(editingState.relationOptions !== null, "relation field options are required");
-        setEditingState({
-            ...editingState,
-            relationOptions: {...editingState.relationOptions, linkedTableId},
-        });
-    });
-
-    const updateEditingRelationCardinality = useEvent((cardinality: "one" | "many") => {
-        if (editingState == null) return;
-        assert(editingState.relationOptions !== null, "relation field options are required");
-        setEditingState({
-            ...editingState,
-            relationOptions: {...editingState.relationOptions, cardinality},
-        });
-    });
-
-    const commitWithType = useEvent((fieldType: DatabaseFieldType) => {
-        if (editingState == null || editingState.type !== "adding") return;
-        if (fieldType === "relation") {
-            setEditingState({
-                ...editingState,
-                fieldType,
-                relationOptions: editingState.relationOptions ?? {
-                    linkedTableId: tableId,
-                    cardinality: "many",
+        const lastVisible = visibleFields[visibleFields.length - 1];
+        const addPosition = generateOrderKeyBetween(lastVisible?.position ?? null, null);
+        const config = getDefaultFieldConfig(newField.type);
+        startTransition(async () => {
+            applyOptimisticField({
+                type: "create",
+                field: {
+                    id: fieldId,
+                    name: newField.name,
+                    config,
+                    position: addPosition,
+                    width: databaseViewDefaultColumnWidth,
+                    hidden: false,
                 },
             });
-            return;
-        }
-        const trimmed = editingState.value.trim();
-        if (trimmed === "") {
-            setEditingState(null);
-            return;
-        }
-        const addingId = editingState.id;
-        setEditingState(null);
-        commitNonRelationField({fieldId: addingId, fieldType, name: trimmed});
+            await conn.executeAction("createField", {
+                fieldId,
+                tableId,
+                name: newField.name,
+                config,
+            });
+        });
     });
-
-    const cancelEditing = useEvent(() => setEditingState(null));
-
-    const editingEvents = useEvents({
-        updateName: updateEditingName,
-        updateType: updateEditingType,
-        commit: commitEditing,
-        commitWithType,
-        cancel: cancelEditing,
-    });
-    const relationEditingEvents = useEvents({
-        updateLinkedTableId: updateEditingRelationLinkedTableId,
-        updateCardinality: updateEditingRelationCardinality,
-    });
-    const editing: DatabaseGridViewFieldEditing = useMemo(
-        () => ({
-            fieldType: editingState?.fieldType ?? "plainText",
-            relationOptions:
-                editingState?.relationOptions == null
-                    ? null
-                    : {
-                          linkedTableId: editingState.relationOptions.linkedTableId,
-                          cardinality: editingState.relationOptions.cardinality,
-                          ...relationEditingEvents,
-                      },
-            ...editingEvents,
-        }),
-        [editingState, relationEditingEvents, editingEvents],
-    );
 
     const [resizingState, setResizingState] = useState<ResizingState>(null);
 
-    const baseFields: ReadonlyArray<DatabaseGridViewFieldWithEditing> = useMemo(
+    const baseFields: ReadonlyArray<DatabaseGridViewColumn> = useMemo(
         () =>
             visibleFields.map(field => {
                 const widthRem = `${field.width / remPxBySpacingScale.small}rem`;
@@ -322,12 +213,12 @@ export function useGridViewFields({
                     maxWidth: widthRem,
                     marginRight: -1,
                 };
-                return {...field, columnName: field.id, columnStyle, editing: null};
+                return {...field, columnStyle};
             }),
         [visibleFields],
     );
 
-    const resizedFields: ReadonlyArray<DatabaseGridViewFieldWithEditing> = useMemo(() => {
+    const resizedFields: ReadonlyArray<DatabaseGridViewColumn> = useMemo(() => {
         if (resizingState == null) return baseFields;
         return baseFields.map(field => {
             if (field.id !== resizingState.fieldId) return field;
@@ -345,17 +236,19 @@ export function useGridViewFields({
         });
     }, [baseFields, resizingState]);
 
-    const outputFields: ReadonlyArray<DatabaseGridViewFieldWithEditing> = useMemo(() => {
-        if (editingState == null) return resizedFields;
+    // While a field is being added, append a placeholder column after the last visible
+    // field. The placeholder renders empty plain text cells; the header cell for it
+    // renders the field creation UI.
+    const outputFields: ReadonlyArray<DatabaseGridViewColumn> = useMemo(() => {
+        if (addingFieldId == null) return resizedFields;
         const widthRem = `${databaseViewDefaultColumnWidth / remPxBySpacingScale.small}rem`;
         const lastField = resizedFields[resizedFields.length - 1];
         return [
             ...resizedFields,
             {
-                id: editingState.id,
-                name: editingState.value,
-                columnName: "__pending__",
-                config: getPendingFieldConfig(editingState, tableId),
+                id: addingFieldId,
+                name: "",
+                config: {type: "plainText"},
                 position: generateOrderKeyBetween(lastField?.position ?? null, null),
                 width: databaseViewDefaultColumnWidth,
                 hidden: false,
@@ -365,10 +258,9 @@ export function useGridViewFields({
                     maxWidth: widthRem,
                     marginRight: -1,
                 },
-                editing,
             },
         ];
-    }, [resizedFields, editingState, editing, tableId]);
+    }, [resizedFields, addingFieldId]);
 
     const fieldIndexById = useMemo(() => {
         const map = new Map<DatabaseFieldId, number>();
@@ -377,16 +269,6 @@ export function useGridViewFields({
         }
         return map;
     }, [outputFields]);
-
-    const startAddingField = useEvent(() => {
-        setEditingState({
-            type: "adding",
-            id: generateChronologicalId<DatabaseFieldId>(),
-            value: "",
-            fieldType: "plainText",
-            relationOptions: null,
-        });
-    });
 
     const startResizingField = useEvent((fieldId: DatabaseFieldId, event: React.PointerEvent) => {
         const field = visibleFields.find(f => f.id === fieldId);
@@ -485,28 +367,15 @@ export function useGridViewFields({
         hiddenFields,
         fieldIndexById,
         contentMinWidth,
+        addingFieldId,
         startAddingField,
+        commitAddingField,
+        cancelAddingField,
         startResizingField,
         resizingState,
         renameField,
         updateFieldVisibility,
         updateFieldConfig,
-    };
-}
-
-function getPendingFieldConfig(
-    editingState: Exclude<EditingState, null>,
-    tableId: DatabaseTableId,
-): DatabaseFieldConfig {
-    if (editingState.fieldType !== "relation") {
-        return getDefaultFieldConfig(editingState.fieldType);
-    }
-    return {
-        type: "relation",
-        joinTableId: pendingRelationJoinTableId(editingState.id),
-        side: "source",
-        cardinality: editingState.relationOptions?.cardinality ?? "many",
-        linkedTableId: editingState.relationOptions?.linkedTableId ?? tableId,
     };
 }
 
@@ -519,12 +388,4 @@ function getDefaultFieldConfig(type: Exclude<DatabaseFieldType, "relation">): Da
         case "plainText":
             return {type: "plainText"};
     }
-}
-
-function pendingRelationJoinTableId(fieldId: DatabaseFieldId): DatabaseTableId {
-    // Pending relation fields need a config shape before the server creates the real
-    // join table. The placeholder is never persisted; it only lets the optimistic
-    // virtual cell renderer receive a complete relation config while the field picker
-    // is open.
-    return fieldId as unknown as DatabaseTableId;
 }

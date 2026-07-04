@@ -49,10 +49,15 @@ async function createDatabaseWithRow(
 
     const newRowButton = page.getByText("New row", {exact: true});
     await expect(newRowButton).toBeVisible();
-    await newRowButton.click();
+
+    // Reload before writing: on the page reached through the create navigation the
+    // database worker replica may not have received the new table yet, and writes
+    // issued before it catches up are rejected.
     await page.reload();
 
-    await databaseGridViewCell(page, "Name").click();
+    // Clicking "New row" creates the row and immediately opens the first cell's
+    // editor.
+    await newRowButton.click();
     await fillOpenCellEditor(page, rowName);
     await expect(page.getByText(rowName, {exact: true})).toBeVisible();
 
@@ -62,14 +67,11 @@ async function createDatabaseWithRow(
 async function createRelationField(page: Page, fieldName: string, linkedTableName: string) {
     await page.getByLabel("Add field").click();
 
-    const fieldNameInput = page.locator("input").last();
-    await fieldNameInput.fill(fieldName);
-    await page.getByText("Linked record", {exact: true}).click();
+    await page.getByLabel("Field name").fill(fieldName);
+    await page.getByRole("option", {name: "Linked record"}).click();
 
-    const linkedTableButton = page.getByRole("button", {name: `Link to table ${linkedTableName}`});
-    await expect(linkedTableButton).toBeVisible();
-    await linkedTableButton.dispatchEvent("mousedown");
-    await fieldNameInput.press("Enter");
+    // Selecting a table on the linked table screen creates the field immediately.
+    await page.getByRole("option", {name: linkedTableName, exact: true}).click();
 
     await expect(page.getByRole("button", {name: fieldName, exact: true})).toBeVisible();
 }

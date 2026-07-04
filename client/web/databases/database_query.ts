@@ -109,14 +109,13 @@ export class DatabaseQuery {
             void this.conn.call("writeInitialPages", {pages: options.readPages});
         }
 
-        // If we have initial data, start watching the first page reactively. Reuse the
+        // Start watching the first page reactively. When we have initial data, reuse the
         // constructor's pageId so the watch's onUpdate updates the existing tree node
-        // in-place.
-        if (this.treeStore.getSnapshot().getNodeCount() > 0) {
-            const reusePageId = this._initialPageId;
-            this._initialPageId = null;
-            void this.startWatch(null, this._initialEndCursor, reusePageId ?? undefined);
-        }
+        // in-place. When the initial page was empty we still need the watch so newly
+        // created rows appear without a remount.
+        const reusePageId = this._initialPageId;
+        this._initialPageId = null;
+        void this.startWatch(null, this._initialEndCursor, reusePageId ?? undefined);
     }
 
     /**

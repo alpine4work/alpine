@@ -601,6 +601,32 @@ export class DatabaseClient {
     }
 
     /**
+     * Write loader-provided pages into the local stores after the client is already
+     * running, opening per-table stores on demand for tables that haven't been seen
+     * yet. Unlike {@link seedPages} this may run while optimistic mutations are
+     * buffered, so it drops the buffer, writes the newer pages, replays the optimistic
+     * queue, and schedules invalidation for affected reactive actions.
+     */
+    async writeLoaderPages(pages: DatabasePages): Promise<void> {
+        this.database.discardBuffer();
+        let anyWritten = false;
+        for (const [tableId, tablePages] of pages) {
+            const store = await this.openStore(tableId);
+            for (const [pageIndex, {version, data}] of tablePages) {
+                if (store.writePageIfNewer(pageIndex, version, data)) {
+                    this.addPageToInvalidate(tableId, pageIndex);
+                    anyWritten = true;
+                }
+            }
+            store.sync();
+        }
+        if (anyWritten) {
+            this.scheduleInvalidation();
+        }
+        this.replayOptimisticQueue();
+    }
+
+    /**
      * Open `tableId`'s per-db page store, registering it on the storage if it isn't
      * already. Deduped so concurrent callers share one async `storage.create` (which
      * yields).

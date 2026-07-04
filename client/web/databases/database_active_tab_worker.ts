@@ -95,10 +95,10 @@ export class DatabaseActiveTabWorker {
                     };
                     if (input.pages.size > 0) {
                         if (state.clientPromise !== undefined) {
-                            // eslint-disable-next-line no-console
-                            console.warn(
-                                "connectDatabaseGroup called with pages after database client was already created",
-                            );
+                            // The client already booted, so it won't consume `state.initialPages` anymore.
+                            // Apply the pages directly.
+                            const client = await state.clientPromise;
+                            await client.writeLoaderPages(input.pages);
                         } else {
                             state.initialPages = input.pages;
                         }
@@ -109,12 +109,14 @@ export class DatabaseActiveTabWorker {
                 writeInitialPages: async input => {
                     const state = this.getOrCreateDatabaseGroupState(input.databaseGroupId);
                     if (state.clientPromise !== undefined) {
-                        // eslint-disable-next-line no-console
-                        console.warn(
-                            "writeInitialPages called after database client was already created",
-                        );
+                        // The client already booted, so it won't consume `state.initialPages` anymore.
+                        // Apply the pages directly — they may contain tables (e.g. a freshly created one)
+                        // the replica hasn't received over realtime yet.
+                        const client = await state.clientPromise;
+                        await client.writeLoaderPages(input.pages);
+                    } else {
+                        state.initialPages = input.pages;
                     }
-                    state.initialPages = input.pages;
                     return {};
                 },
                 executeAction: async input => {

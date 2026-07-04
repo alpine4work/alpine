@@ -79,7 +79,15 @@ function defineDatabaseAction<Input, Output>(def: {
 
 function executeDatabaseActionTransaction<T>(db: SqliteDatabase, fn: () => T): T {
     sql`BEGIN`.exec(db);
-    const result = fn();
+    let result;
+    try {
+        result = fn();
+    } catch (error) {
+        // Roll back so a failed action doesn't leave the transaction open, which would
+        // make every subsequent action fail on its `BEGIN`.
+        sql`ROLLBACK`.exec(db);
+        throw error;
+    }
     sql`COMMIT`.exec(db);
     return result;
 }
