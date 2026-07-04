@@ -1,6 +1,7 @@
 import type {ServerActionContext} from "~/server/context/server_action_context.js";
 import {fetchDatabaseGroupAction} from "~/server/databases/data/fetch_database_action.js";
 import {DatabaseTablesTable} from "~/server/databases/data/internal/database_tables_table.js";
+import type {ReplicateDatabaseTableChangesJobDescription} from "~/server/jobs/core/job_description.js";
 import {indexDatabaseTableSearchEntity} from "~/server/search/data/index/search_entity_index.js";
 import type {LocalAccessPolicy} from "~/shared/access/access_policy.js";
 import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
@@ -18,6 +19,13 @@ const defaultDatabaseTableAccessPolicy: LocalAccessPolicy = {
     defaultGrant: null,
     urlGrant: null,
 };
+
+export async function processReplicateDatabaseTableChangesJob(
+    context: ServerActionContext,
+    job: ReplicateDatabaseTableChangesJobDescription,
+): Promise<void> {
+    await replicateDatabaseTableChanges(context, job);
+}
 
 export async function replicateDatabaseTableChanges(
     context: ServerActionContext,

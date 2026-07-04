@@ -2,8 +2,8 @@ import {DatabaseGroupId, DatabaseTableId, SpaceId} from "~/shared/id/types/id_ty
 import {defineRpc} from "~/shared/rpc/internal/define_rpc.js";
 import {Schema} from "~/shared/schema/schema.js";
 
-export const replicateDatabaseTableChanges = defineRpc({
-    name: "replicateDatabaseTableChanges",
+export const enqueueDatabaseTableReplicationJob = defineRpc({
+    name: "enqueueDatabaseTableReplicationJob",
     isIdempotent: true,
     input: {
         databaseGroupId: Schema.id<DatabaseGroupId>(),

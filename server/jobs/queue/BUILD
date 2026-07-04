@@ -14,6 +14,7 @@ ts_project(
         "//server/bots",
         "//server/bots/with_spaces",
         "//server/content/context_module",
+        "//server/databases/data",
         "//server/deploy/data",
         "//server/emails",
         "//server/feed",

@@ -31,7 +31,6 @@ ts_project(
         "//server/chat/data",
         "//server/cloudflare/r2",
         "//server/content",
-        "//server/databases/data",
         "//server/content/context_module",
         "//server/context",
         "//server/documents/data",

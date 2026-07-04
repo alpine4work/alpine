@@ -5,8 +5,10 @@ import {
 import {WorkerProcessContext} from "~/server/cloudflare/context/worker_process_context.js";
 import {BrowserPageTracker} from "~/server/databases/browser_page_tracker.js";
 import {DatabaseDurableObjectStorage} from "~/server/databases/database_durable_object_storage.js";
-import {DatabaseServer} from "~/server/databases/database_server.js";
-import {enqueueDatabaseTableReplication} from "~/server/databases/database_table_replication_outbox.js";
+import {
+    DatabaseServer,
+    type DatabaseServerChangedTables,
+} from "~/server/databases/database_server.js";
 import {WebSocketConnectionProcedures} from "~/server/web_socket/web_socket_server.js";
 import type {
     DatabasePageDiffs,
@@ -38,8 +40,9 @@ export class DatabaseDurableObjectConnection {
     private readonly _server: DatabaseServer;
     private readonly _storage: DurableObjectStorage;
     private readonly _durableObjectStorage: DatabaseDurableObjectStorage;
-    private readonly _drainReplicationOutboxIfPossible: (
+    private readonly _enqueueReplicationJob: (
         context: WorkerSessionActionContext,
+        options: {storageVersion: number; tableIds: DatabaseServerChangedTables},
     ) => Promise<void>;
     private readonly _sendEventToAll: (
         context: WorkerProcessContext,
@@ -54,7 +57,7 @@ export class DatabaseDurableObjectConnection {
         server,
         storage,
         durableObjectStorage,
-        drainReplicationOutboxIfPossible,
+        enqueueReplicationJob,
         processContext,
         sendEventToAll,
         browserId,
@@ -64,7 +67,10 @@ export class DatabaseDurableObjectConnection {
         server: DatabaseServer;
         storage: DurableObjectStorage;
         durableObjectStorage: DatabaseDurableObjectStorage;
-        drainReplicationOutboxIfPossible: (context: WorkerSessionActionContext) => Promise<void>;
+        enqueueReplicationJob: (
+            context: WorkerSessionActionContext,
+            options: {storageVersion: number; tableIds: DatabaseServerChangedTables},
+        ) => Promise<void>;
         processContext: WorkerProcessContext;
         sendEventToAll: (context: WorkerProcessContext, event: DatabaseRealtimeEventStub) => void;
         browserId: BrowserId;
@@ -74,7 +80,7 @@ export class DatabaseDurableObjectConnection {
         this._server = server;
         this._storage = storage;
         this._durableObjectStorage = durableObjectStorage;
-        this._drainReplicationOutboxIfPossible = drainReplicationOutboxIfPossible;
+        this._enqueueReplicationJob = enqueueReplicationJob;
         this._processContext = processContext;
         this._sendEventToAll = sendEventToAll;
         this._browserId = browserId;
@@ -88,12 +94,12 @@ export class DatabaseDurableObjectConnection {
         typeof DatabaseRealtimeProtocol
     > = {
         executeAction: async (context, input) => {
+            let changedTables: DatabaseServerChangedTables = new Set();
+            let writeVersion = 0;
             const response = this._storage.transactionSync(() => {
                 const result = this._server.executeAction(input.action);
-                enqueueDatabaseTableReplication(this._storage.sql, {
-                    storageVersion: result.writeVersion,
-                    tableIds: result.changedTables,
-                });
+                changedTables = result.changedTables;
+                writeVersion = result.writeVersion;
 
                 const pageDiffs = new Map<DatabaseTableId, DatabaseTablePageDiffs>();
                 for (const [tableId, {pages, fileSizeInPages}] of result.changedPages) {
@@ -138,7 +144,10 @@ export class DatabaseDurableObjectConnection {
                 };
             });
 
-            await this._drainReplicationOutboxIfPossible(context);
+            await this._enqueueReplicationJob(context, {
+                storageVersion: writeVersion,
+                tableIds: changedTables,
+            });
             return response;
         },
         ensureCacheIsUpToDate: async (_context, input) => {

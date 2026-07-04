@@ -1,5 +1,6 @@
 import {processCallBotWebhookJob} from "~/server/bots/process_call_bot_webhook_job.js";
 import {processSendShareNotificationJob} from "~/server/chat/data/chat_messaging.js";
+import {processReplicateDatabaseTableChangesJob} from "~/server/databases/data/database_table_replication.js";
 import {
     processAddFeedAccountCandidateEntryJob,
     processAddFeedCandidateEntryJob,
@@ -82,6 +83,10 @@ export async function processJob(
         }
         case "SendNotificationToSlackIntegration": {
             await processSendNotificationToSlackIntegrationJob(context, job);
+            return;
+        }
+        case "ReplicateDatabaseTableChanges": {
+            await processReplicateDatabaseTableChangesJob(context, job);
             return;
         }
         default:

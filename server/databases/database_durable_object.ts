@@ -14,12 +14,10 @@ import {
     DatabaseRealtimeEventStub,
 } from "~/server/databases/database_durable_object_connection.js";
 import {DatabaseDurableObjectStorage} from "~/server/databases/database_durable_object_storage.js";
-import {DatabaseServer} from "~/server/databases/database_server.js";
 import {
-    drainDatabaseTableReplicationOutbox,
-    enqueueDatabaseTableReplication,
-    initializeDatabaseTableReplicationOutbox,
-} from "~/server/databases/database_table_replication_outbox.js";
+    DatabaseServer,
+    type DatabaseServerChangedTables,
+} from "~/server/databases/database_server.js";
 import {WebSocketServer} from "~/server/web_socket/web_socket_server.js";
 import {DatabaseActionFetchResponseSchema} from "~/shared/databases/database_action_fetch_schema.js";
 import {DatabaseActionObjectSchema} from "~/shared/databases/database_actions.js";
@@ -27,6 +25,7 @@ import {DatabaseRealtimeProtocol} from "~/shared/databases/database_realtime_pro
 import {InvalidArgumentError, NotFoundError} from "~/shared/error/error.js";
 import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
 import type {BrowserId, DatabaseGroupId, SpaceId} from "~/shared/id/types/id_types.js";
+import {enqueueDatabaseTableReplicationJob} from "~/shared/rpc/database_replication_rpc_definitions.js";
 import {SchemaSerializedValue} from "~/shared/schema/schema.js";
 
 type DatabaseGroupDurableObjectRoute = "Main" | "Action" | "NotFound";
@@ -40,7 +39,6 @@ class DatabaseGroupDurableObject {
     private readonly _databaseGroupId: DatabaseGroupId;
     private readonly _processContext: WorkerProcessContext;
     private readonly _browserPageTracker = new BrowserPageTracker();
-    private _isDrainingReplicationOutbox = false;
 
     private readonly _webSocketServer: WebSocketServer<
         WorkerProcessContextModules,
@@ -62,7 +60,6 @@ class DatabaseGroupDurableObject {
         storage: DurableObjectStorage;
     }): Promise<DatabaseGroupDurableObject> {
         const durableObjectStorage = new DatabaseDurableObjectStorage(storage.sql);
-        initializeDatabaseTableReplicationOutbox(storage.sql);
         const server = await DatabaseServer.create(durableObjectStorage);
         return new DatabaseGroupDurableObject({
             databaseGroupId: idName as DatabaseGroupId,
@@ -112,8 +109,8 @@ class DatabaseGroupDurableObject {
                 processContext: this._processContext,
                 storage,
                 durableObjectStorage: this._durableObjectStorage,
-                drainReplicationOutboxIfPossible: context =>
-                    this._drainReplicationOutboxIfPossible(context, spaceId),
+                enqueueReplicationJob: (context, options) =>
+                    this._enqueueReplicationJob(context, {spaceId, ...options}),
                 sendEventToAll: (context, event) => {
                     this._webSocketServer.sendEventToAll(context, event);
                 },
@@ -159,22 +156,21 @@ class DatabaseGroupDurableObject {
             throw new InvalidArgumentError("Missing spaceId query parameter");
         }
 
-        const {result, readPages} = this._storage.transactionSync(() => {
-            const actionResult = this._server.executeAction(actionObject);
-            enqueueDatabaseTableReplication(this._storage.sql, {
-                storageVersion: actionResult.writeVersion,
-                tableIds: actionResult.changedTables,
-            });
-            return actionResult;
-        });
+        const actionResult = this._storage.transactionSync(() =>
+            this._server.executeAction(actionObject),
+        );
 
-        await this._drainReplicationOutboxIfPossible(context, spaceId);
+        await this._enqueueReplicationJob(context, {
+            spaceId,
+            storageVersion: actionResult.writeVersion,
+            tableIds: actionResult.changedTables,
+        });
 
         return new Response(
             JSON.stringify(
                 DatabaseActionFetchResponseSchema.serialize({
-                    result: {name: actionObject.name, output: result} as any,
-                    readPages,
+                    result: {name: actionObject.name, output: actionResult.result} as any,
+                    readPages: actionResult.readPages,
                 }),
             ),
             {
@@ -188,25 +184,26 @@ class DatabaseGroupDurableObject {
         return this._webSocketServer.connectForTest(context);
     }
 
-    private async _drainReplicationOutboxIfPossible(
+    private async _enqueueReplicationJob(
         context: WorkerActionContext | WorkerSessionActionContext,
-        spaceId: SpaceId,
+        {
+            spaceId,
+            storageVersion,
+            tableIds,
+        }: {
+            spaceId: SpaceId;
+            storageVersion: number;
+            tableIds: DatabaseServerChangedTables;
+        },
     ): Promise<void> {
-        if (this._isDrainingReplicationOutbox) return;
-        this._isDrainingReplicationOutbox = true;
-        try {
-            await drainDatabaseTableReplicationOutbox(
-                context,
-                this._storage.sql,
-                spaceId,
-                this._databaseGroupId,
-            );
-        } catch (error) {
-            context.tracer.logException("Drain database table replication outbox", error);
-            // The outbox row stays durable and will be retried by a later action.
-        } finally {
-            this._isDrainingReplicationOutbox = false;
-        }
+        if (storageVersion === 0 || tableIds.size === 0) return;
+
+        await enqueueDatabaseTableReplicationJob(context, {
+            databaseGroupId: this._databaseGroupId,
+            spaceId,
+            storageVersion,
+            tableIds: [...tableIds].sort(),
+        });
     }
 }
 
