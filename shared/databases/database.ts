@@ -42,6 +42,7 @@ import {captureResult, unwrapResult} from "~/shared/helpers/control/capture_resu
 import type {Result} from "~/shared/helpers/control/result.js";
 import {getOrSetDefaultMapValue} from "~/shared/helpers/map/get_or_set_default_map_value.js";
 import type {DatabaseTableId} from "~/shared/id/types/id_types.js";
+import {Schema} from "~/shared/schema/schema.js";
 
 const vfsNamePrefix = "alpine-database";
 let vfsCounter = 0;
@@ -320,6 +321,113 @@ export class Database {
             {allowWrites: action.writeLevel},
         );
         return {result: result as DatabaseActionOutput<N>, readPages, writtenPages};
+    }
+
+    /**
+     * Install server-only temp triggers that report user table metadata changes.
+     *
+     * The triggers are intentionally connection-local. The durable object uses them to
+     * learn which table metadata should be replicated after an action commits; clients
+     * never install them and they are never persisted into database files.
+     */
+    installServerTableChangeCapture(recordTableChanged: (tableId: DatabaseTableId) => void): void {
+        assert(this.serverContext !== null, "table change capture is server-only");
+
+        this.db.createFunction("alpine_record_table_changed", {
+            xFunc: (_ctxPtr: number, tableId: unknown) => {
+                assert(typeof tableId === "string", "table id must be a string");
+                recordTableChanged(tableId as DatabaseTableId);
+                return 0;
+            },
+            arity: 1,
+        });
+
+        this.refreshServerTableChangeTriggers();
+    }
+
+    /**
+     * Recreate table-change temp triggers after schema changes.
+     *
+     * A newly-created table is captured by the main `_alpine_tables` trigger during
+     * the action that creates it. This method makes future updates to that table's
+     * `_alpine_table` singleton row observable too.
+     */
+    refreshServerTableChangeTriggers(): void {
+        if (this.serverContext === null) return;
+
+        sql`
+            CREATE TEMP TRIGGER IF NOT EXISTS _alpine_table_change_main_insert AFTER INSERT ON main._alpine_tables WHEN NEW.kind = 'table' BEGIN
+            SELECT
+                alpine_record_table_changed (NEW.id);
+
+            END
+        `.exec(this.db);
+
+        sql`
+            CREATE TEMP TRIGGER IF NOT EXISTS _alpine_table_change_main_update AFTER
+            UPDATE ON main._alpine_tables WHEN NEW.kind = 'table'
+            OR OLD.kind = 'table' BEGIN
+            SELECT
+                alpine_record_table_changed (
+                    CASE
+                        WHEN NEW.kind = 'table' THEN NEW.id
+                        ELSE OLD.id
+                    END
+                );
+
+            END
+        `.exec(this.db);
+
+        sql`
+            CREATE TEMP TRIGGER IF NOT EXISTS _alpine_table_change_main_delete AFTER DELETE ON main._alpine_tables WHEN OLD.kind = 'table' BEGIN
+            SELECT
+                alpine_record_table_changed (OLD.id);
+
+            END
+        `.exec(this.db);
+
+        const tableIds = sql`
+            SELECT
+                id
+            FROM
+                _alpine_tables
+            WHERE
+                kind = 'table'
+        `.selectValues(this.db, Schema.id<DatabaseTableId>());
+
+        for (const tableId of tableIds) {
+            if (!this.tables.has(tableId)) continue;
+            const schema = sql.identifier(databaseTableSchemaName(tableId));
+            const triggerNamePrefix = `_${tableId}`;
+            sql`
+                CREATE TEMP TRIGGER IF NOT EXISTS ${sql.identifier(
+                    `${triggerNamePrefix}_alpine_table_change_insert`,
+                )} AFTER INSERT ON ${schema}._alpine_table BEGIN
+                SELECT
+                    alpine_record_table_changed (NEW.id);
+
+                END
+            `.exec(this.db);
+            sql`
+                CREATE TEMP TRIGGER IF NOT EXISTS ${sql.identifier(
+                    `${triggerNamePrefix}_alpine_table_change_update`,
+                )} AFTER
+                UPDATE ON ${schema}._alpine_table BEGIN
+                SELECT
+                    alpine_record_table_changed (NEW.id);
+
+                END
+            `.exec(this.db);
+            sql`
+                CREATE TEMP TRIGGER IF NOT EXISTS ${sql.identifier(
+                    `${triggerNamePrefix}_alpine_table_change_delete`,
+                )} AFTER DELETE ON ${schema}._alpine_table BEGIN
+                SELECT
+                    alpine_record_table_changed (OLD.id);
+
+                END
+            `.exec(this.db);
+        }
     }
 
     /**

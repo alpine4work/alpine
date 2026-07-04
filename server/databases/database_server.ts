@@ -43,10 +43,14 @@ export type DatabaseServerReadPages = Map<
 
 export type DatabaseServerChangedPages = Map<DatabaseTableId, DatabaseServerTableChangedPages>;
 
+export type DatabaseServerChangedTables = ReadonlySet<DatabaseTableId>;
+
 export interface DatabaseServerResult {
     rows: Array<Record<string, unknown>>;
     readPages: DatabaseServerReadPages;
     changedPages: DatabaseServerChangedPages;
+    changedTables: DatabaseServerChangedTables;
+    writeVersion: number;
 }
 
 /**
@@ -63,6 +67,7 @@ export interface DatabaseServerResult {
 export class DatabaseServer {
     private readonly database: Database;
     private readonly storage: DatabaseServerStorage;
+    private readonly changedTables = new Set<DatabaseTableId>();
 
     private constructor(database: Database, storage: DatabaseServerStorage) {
         this.database = database;
@@ -73,15 +78,20 @@ export class DatabaseServer {
         const database = await Database.create(storage, {server: true});
         const server = new DatabaseServer(database, storage);
         server._bootstrap();
+        database.installServerTableChangeCapture(tableId => {
+            server.changedTables.add(tableId);
+        });
         return server;
     }
 
     execute(query: SqlQuery, options: {allowWrites: SqliteWriteLevel}): DatabaseServerResult {
-        const {result, readPages, changedPages} = this._runAndPersist(() => {
-            const {rows, readPages} = this.database.executeSql(query, options);
-            return {result: rows, readPages};
-        });
-        return {rows: result, readPages, changedPages};
+        const {result, readPages, changedPages, changedTables, writeVersion} = this._runAndPersist(
+            () => {
+                const {rows, readPages} = this.database.executeSql(query, options);
+                return {result: rows, readPages};
+            },
+        );
+        return {rows: result, readPages, changedPages, changedTables, writeVersion};
     }
 
     executeAction<N extends DatabaseActionName>(
@@ -90,6 +100,8 @@ export class DatabaseServer {
         result: DatabaseActionOutput<N>;
         readPages: DatabaseServerReadPages;
         changedPages: DatabaseServerChangedPages;
+        changedTables: DatabaseServerChangedTables;
+        writeVersion: number;
     } {
         return this._runAndPersist(() => this.database.executeAction(actionObject));
     }
@@ -167,14 +179,20 @@ export class DatabaseServer {
         result: T;
         readPages: DatabaseServerReadPages;
         changedPages: DatabaseServerChangedPages;
+        changedTables: DatabaseServerChangedTables;
+        writeVersion: number;
     } {
         // The error path below clears the buffer to recover from a partial write; assert
         // up front that we're not silently throwing away pre-existing buffered writes
         // belonging to a prior (forgotten) drain.
         this.database.assertBufferIsEmpty("_runAndPersist");
+        this.changedTables.clear();
         try {
             const {result, readPages} = run();
-            return this._persistAndBuildResult(result, readPages);
+            const changedTables = new Set(this.changedTables);
+            const persisted = this._persistAndBuildResult(result, readPages);
+            this.database.refreshServerTableChangeTriggers();
+            return {...persisted, changedTables};
         } catch (error) {
             // Drop any partial buffered writes — whether the tracked execute or the drain
             // failed — so storage and SQLite's pager cache stay in sync and the next execute
@@ -182,6 +200,8 @@ export class DatabaseServer {
             // already committed.
             this.database.discardBuffer();
             throw error;
+        } finally {
+            this.changedTables.clear();
         }
     }
 
@@ -192,6 +212,7 @@ export class DatabaseServer {
         result: T;
         readPages: DatabaseServerReadPages;
         changedPages: DatabaseServerChangedPages;
+        writeVersion: number;
     } {
         const buffered = this.database.getBufferedWrites();
 
@@ -288,7 +309,7 @@ export class DatabaseServer {
             }
         }
 
-        return {result, readPages, changedPages};
+        return {result, readPages, changedPages, writeVersion: postWriteVersion};
     }
 
     /**

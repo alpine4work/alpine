@@ -10,8 +10,10 @@ ts_project(
     deps = [
         "//server/context",
         "//server/dynamo/core",
+        "//server/opensearch",
         "//server/search/data/table",
         "//server/spaces",
+        "//shared/access",
         "//shared/databases",
         "//shared/dynamo",
         "//shared/error",

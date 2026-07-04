@@ -3,7 +3,8 @@ import type {DatabaseServerStorage} from "~/server/databases/database_server_sto
 import {type SqlQuery, sql} from "~/shared/databases/sql.js";
 import {databaseMainTableId, sqlitePageSize} from "~/shared/databases/sqlite_constants.js";
 import {InternalError} from "~/shared/error/error.js";
-import type {DatabaseTableId} from "~/shared/id/types/id_types.js";
+import {generateChronologicalId} from "~/shared/id/chronological_id.js";
+import type {DatabaseRowId, DatabaseTableId} from "~/shared/id/types/id_types.js";
 import {Schema} from "~/shared/schema/schema.js";
 
 interface InMemoryTable {
@@ -858,6 +859,35 @@ describe("DatabaseServer", () => {
                     input: {sql: "CREATE TABLE bad (id INTEGER)"},
                 }),
             ).toThrow();
+        });
+    });
+
+    describe("executeAction — changed tables", () => {
+        test("captures table metadata changes without capturing row changes", async () => {
+            const server = await createServerWithSchema();
+
+            const created = server.executeAction<"createTable">({
+                name: "createTable",
+                input: {name: "Tasks"},
+            });
+            const tableId = created.result.tableId;
+
+            expect(created.changedTables).toEqual(new Set([tableId]));
+
+            const renamed = server.executeAction<"renameTable">({
+                name: "renameTable",
+                input: {tableId, name: "Projects"},
+            });
+
+            expect(renamed.changedTables).toEqual(new Set([tableId]));
+
+            const rowId = generateChronologicalId<DatabaseRowId>();
+            const rowCreated = server.executeAction<"createRow">({
+                name: "createRow",
+                input: {tableId, rowId},
+            });
+
+            expect(rowCreated.changedTables).toEqual(new Set());
         });
     });
 

@@ -205,6 +205,33 @@ export const databaseActions = {
         },
     }),
 
+    getTableMetadata: defineDatabaseAction({
+        input: Schema.object({
+            tableId: Schema.id<DatabaseTableId>(),
+        }),
+        output: Schema.object({
+            table: Schema.object({
+                id: Schema.id<DatabaseTableId>(),
+                name: Schema.string,
+                tableName: Schema.string,
+                nameFieldId: Schema.id<DatabaseFieldId>(),
+            }).nullable(),
+        }),
+        writeLevel: "none",
+        run({model}, {tableId}) {
+            const table = model.getTableIfExists(tableId);
+            if (table === null) return {table: null};
+            return {
+                table: {
+                    id: table.id,
+                    name: table.name,
+                    tableName: table.tableName,
+                    nameFieldId: table.nameFieldId,
+                },
+            };
+        },
+    }),
+
     getViewSchema: defineDatabaseAction({
         input: Schema.object({tableOrViewId: Schema.string}),
         output: Schema.object({
