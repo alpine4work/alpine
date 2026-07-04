@@ -112,9 +112,8 @@ class DatabaseGroupDurableObject {
                 processContext: this._processContext,
                 storage,
                 durableObjectStorage: this._durableObjectStorage,
-                spaceId,
                 drainReplicationOutboxIfPossible: context =>
-                    this._drainReplicationOutboxIfPossible(context),
+                    this._drainReplicationOutboxIfPossible(context, spaceId),
                 sendEventToAll: (context, event) => {
                     this._webSocketServer.sendEventToAll(context, event);
                 },
@@ -164,13 +163,12 @@ class DatabaseGroupDurableObject {
             const actionResult = this._server.executeAction(actionObject);
             enqueueDatabaseTableReplication(this._storage.sql, {
                 storageVersion: actionResult.writeVersion,
-                spaceId,
                 tableIds: actionResult.changedTables,
             });
             return actionResult;
         });
 
-        await this._drainReplicationOutboxIfPossible(context);
+        await this._drainReplicationOutboxIfPossible(context, spaceId);
 
         return new Response(
             JSON.stringify(
@@ -192,6 +190,7 @@ class DatabaseGroupDurableObject {
 
     private async _drainReplicationOutboxIfPossible(
         context: WorkerActionContext | WorkerSessionActionContext,
+        spaceId: SpaceId,
     ): Promise<void> {
         if (this._isDrainingReplicationOutbox) return;
         this._isDrainingReplicationOutbox = true;
@@ -199,9 +198,11 @@ class DatabaseGroupDurableObject {
             await drainDatabaseTableReplicationOutbox(
                 context,
                 this._storage.sql,
+                spaceId,
                 this._databaseGroupId,
             );
-        } catch {
+        } catch (error) {
+            context.tracer.logException("Drain database table replication outbox", error);
             // The outbox row stays durable and will be retried by a later action.
         } finally {
             this._isDrainingReplicationOutbox = false;

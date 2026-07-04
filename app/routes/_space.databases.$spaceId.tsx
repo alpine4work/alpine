@@ -56,9 +56,7 @@ export default function DatabaseGroupLayoutRoute() {
     const conn = db.connection;
     const initialPagesRef = useRef(pages);
 
-    const wsUrl =
-        `/api/durable-objects/database-groups/${spaceId}/${databaseGroupId}` +
-        `?browserId=${browserId}`;
+    const wsUrl = `/api/durable-objects/database-groups/${spaceId}/${databaseGroupId}?browserId=${browserId}`;
 
     const connectDatabase = useEvent(() => {
         db.connect({

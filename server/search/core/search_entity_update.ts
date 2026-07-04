@@ -116,7 +116,7 @@ const searchEntityUpdateSchemaDescription = {
             type: Schema.value("DatabaseTable"),
             tableId: Schema.id<DatabaseTableId>(),
         }),
-        updatableTraits: [],
+        updatableTraits: ["Name"],
     },
     Channel: {
         schema: Schema.object({

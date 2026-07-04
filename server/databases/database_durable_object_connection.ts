@@ -25,7 +25,6 @@ import type {
     BrowserId,
     DatabaseMutationId,
     DatabaseTableId,
-    SpaceId,
     WebSocketConnectionId,
 } from "~/shared/id/types/id_types.js";
 
@@ -39,7 +38,6 @@ export class DatabaseDurableObjectConnection {
     private readonly _server: DatabaseServer;
     private readonly _storage: DurableObjectStorage;
     private readonly _durableObjectStorage: DatabaseDurableObjectStorage;
-    private readonly _spaceId: SpaceId;
     private readonly _drainReplicationOutboxIfPossible: (
         context: WorkerSessionActionContext,
     ) => Promise<void>;
@@ -56,7 +54,6 @@ export class DatabaseDurableObjectConnection {
         server,
         storage,
         durableObjectStorage,
-        spaceId,
         drainReplicationOutboxIfPossible,
         processContext,
         sendEventToAll,
@@ -67,7 +64,6 @@ export class DatabaseDurableObjectConnection {
         server: DatabaseServer;
         storage: DurableObjectStorage;
         durableObjectStorage: DatabaseDurableObjectStorage;
-        spaceId: SpaceId;
         drainReplicationOutboxIfPossible: (context: WorkerSessionActionContext) => Promise<void>;
         processContext: WorkerProcessContext;
         sendEventToAll: (context: WorkerProcessContext, event: DatabaseRealtimeEventStub) => void;
@@ -78,7 +74,6 @@ export class DatabaseDurableObjectConnection {
         this._server = server;
         this._storage = storage;
         this._durableObjectStorage = durableObjectStorage;
-        this._spaceId = spaceId;
         this._drainReplicationOutboxIfPossible = drainReplicationOutboxIfPossible;
         this._processContext = processContext;
         this._sendEventToAll = sendEventToAll;
@@ -97,7 +92,6 @@ export class DatabaseDurableObjectConnection {
                 const result = this._server.executeAction(input.action);
                 enqueueDatabaseTableReplication(this._storage.sql, {
                     storageVersion: result.writeVersion,
-                    spaceId: this._spaceId,
                     tableIds: result.changedTables,
                 });
 
