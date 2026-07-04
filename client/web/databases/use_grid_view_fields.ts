@@ -32,17 +32,22 @@ export type DatabaseGridViewColumn = DatabaseGridViewField & {
 };
 
 /**
- * The description of a new field committed from the field creation UI. Relation
- * fields carry the linked table and cardinality picked by the user.
+ * The description of a new field committed from the field creation UI.
  */
-export type DatabaseGridViewNewField =
-    | {
-          readonly type: Exclude<DatabaseFieldType, "relation">;
-          readonly name: string;
-      }
+export type DatabaseGridViewNewField = {
+    readonly name: string;
+    readonly config: DatabaseGridViewNewFieldConfig;
+};
+
+/**
+ * The config for a new field. Relation fields use a slimmer shape than {@link
+ * DatabaseFieldConfig} because the rest of a relation config (join table id, side)
+ * only exists once the server creates the join table.
+ */
+export type DatabaseGridViewNewFieldConfig =
+    | DatabaseFieldConfig<Exclude<DatabaseFieldType, "relation">>
     | {
           readonly type: "relation";
-          readonly name: string;
           readonly linkedTableId: DatabaseTableId;
           readonly cardinality: "one" | "many";
       };
@@ -160,18 +165,18 @@ export function useGridViewFields({
 
     const cancelAddingField = useEvent(() => setAddingFieldId(null));
 
-    const commitAddingField = useEvent((newField: DatabaseGridViewNewField) => {
+    const commitAddingField = useEvent(({name, config}: DatabaseGridViewNewField) => {
         if (addingFieldId == null) return;
         const fieldId = addingFieldId;
         setAddingFieldId(null);
 
-        if (newField.type === "relation") {
+        if (config.type === "relation") {
             startTransition(async () => {
                 await conn.executeAction("createRelationField", {
                     sourceTableId: tableId,
-                    sourceFieldName: newField.name,
-                    targetTableId: newField.linkedTableId,
-                    cardinality: newField.cardinality,
+                    sourceFieldName: name,
+                    targetTableId: config.linkedTableId,
+                    cardinality: config.cardinality,
                 });
             });
             return;
@@ -179,25 +184,19 @@ export function useGridViewFields({
 
         const lastVisible = visibleFields[visibleFields.length - 1];
         const addPosition = generateOrderKeyBetween(lastVisible?.position ?? null, null);
-        const config = getDefaultFieldConfig(newField.type);
         startTransition(async () => {
             applyOptimisticField({
                 type: "create",
                 field: {
                     id: fieldId,
-                    name: newField.name,
+                    name,
                     config,
                     position: addPosition,
                     width: databaseViewDefaultColumnWidth,
                     hidden: false,
                 },
             });
-            await conn.executeAction("createField", {
-                fieldId,
-                tableId,
-                name: newField.name,
-                config,
-            });
+            await conn.executeAction("createField", {fieldId, tableId, name, config});
         });
     });
 
@@ -377,15 +376,4 @@ export function useGridViewFields({
         updateFieldVisibility,
         updateFieldConfig,
     };
-}
-
-function getDefaultFieldConfig(type: Exclude<DatabaseFieldType, "relation">): DatabaseFieldConfig {
-    switch (type) {
-        case "checkbox":
-            return {type: "checkbox"};
-        case "number":
-            return {type: "number", decimalPlaces: null};
-        case "plainText":
-            return {type: "plainText"};
-    }
 }

@@ -111,11 +111,11 @@ export class DatabaseQuery {
             void this.conn.call("writeInitialPages", {pages: options.readPages});
         }
 
-        // If an initial page was provided, start watching the first page reactively.
-        // Reuse the constructor's pageId so the watch's onUpdate updates the existing
-        // tree node in-place. When the initial page had no rows there's no node to
-        // reuse, but we still need the watch so newly created rows appear without a
-        // remount. Without an initial page the caller drives `loadInitialPage()`.
+        // If an initial page was provided, start watching the first page reactively. Reuse
+        // the constructor's pageId so the watch's onUpdate updates the existing tree node
+        // in-place. When the initial page had no rows there's no node to reuse, but we
+        // still need the watch so newly created rows appear without a remount. Without an
+        // initial page the caller drives `loadInitialPage()`.
         if (this._hasInitialPage) {
             const reusePageId = this._initialPageId;
             this._initialPageId = null;
