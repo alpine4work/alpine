@@ -61,6 +61,7 @@ export interface DatabaseClientConnection {
     ): Promise<DatabaseEnsureCacheIsUpToDateResult>;
     acknowledgePages(pageIndexes: DatabasePageIndexes): void;
     reportError(error: unknown): void;
+    close(): void;
 }
 
 /**

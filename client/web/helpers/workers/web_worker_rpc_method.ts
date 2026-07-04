@@ -3,6 +3,7 @@ import {
     ObjectSchemaConfigBase,
     ObjectSchemaConfigType,
     Schema,
+    SchemaType,
 } from "~/shared/schema/schema.js";
 
 /**
@@ -13,6 +14,13 @@ export type WebWorkerRpcMethodDefinitions = {
     readonly [name: string]: {
         readonly inputSchema: ObjectSchema<any>;
         readonly outputSchema: ObjectSchema<any>;
+    };
+};
+
+export type WebWorkerRpcMethodTypes<Defs extends WebWorkerRpcMethodDefinitions> = {
+    [K in keyof Defs]: {
+        input: SchemaType<Defs[K]["inputSchema"]>;
+        output: SchemaType<Defs[K]["outputSchema"]>;
     };
 };
 

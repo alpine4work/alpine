@@ -1,4 +1,7 @@
-import {defineWebWorkerRpcMethods} from "~/client/web/helpers/workers/web_worker_rpc_method.js";
+import {
+    defineWebWorkerRpcMethods,
+    WebWorkerRpcMethodTypes,
+} from "~/client/web/helpers/workers/web_worker_rpc_method.js";
 import {
     DatabaseActionObjectSchema,
     DatabaseActionResultSchema,
@@ -12,7 +15,7 @@ import type {
     DatabaseMutationId,
     DatabaseReactiveActionId,
 } from "~/shared/id/types/id_types.js";
-import {Schema} from "~/shared/schema/schema.js";
+import {Schema, SchemaType} from "~/shared/schema/schema.js";
 
 /** Methods the tab can call on the worker. */
 export const tabToWorkerDatabaseRpcMethods = defineWebWorkerRpcMethods({
@@ -63,6 +66,10 @@ export const tabToWorkerDatabaseRpcMethods = defineWebWorkerRpcMethods({
     },
 });
 
+export type TabToWorkerDatabaseRpcMethods = WebWorkerRpcMethodTypes<
+    typeof tabToWorkerDatabaseRpcMethods
+>;
+
 /** Methods the worker can call on the tab. */
 export const workerToTabDatabaseRpcMethods = defineWebWorkerRpcMethods({
     reportError: {
@@ -84,3 +91,7 @@ export const workerToTabDatabaseRpcMethods = defineWebWorkerRpcMethods({
         output: {},
     },
 });
+
+export type WorkerToTabDatabaseRpcMethods = WebWorkerRpcMethodTypes<
+    typeof workerToTabDatabaseRpcMethods
+>;

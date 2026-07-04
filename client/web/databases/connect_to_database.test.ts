@@ -5,8 +5,8 @@ import {
 } from "~/client/web/databases/connect_to_database.js";
 import {
     type DatabaseActiveTabRealtimeConnection,
-    DatabaseActiveTabWorker,
-} from "~/client/web/databases/database_active_tab_worker.js";
+    DatabaseConnectionManager,
+} from "~/client/web/databases/worker/database_connection_manager.js";
 import {
     createInMemoryOpfsDirectoryHandle,
     extractOpfsPages,
@@ -144,11 +144,11 @@ function createDatabaseTestEnv(config: {
 }): {
     connect(): Promise<DatabaseWorkerConnection>;
     crashLeaderTab(): void;
-    readonly worker: DatabaseActiveTabWorker;
+    readonly worker: DatabaseConnectionManager;
 } {
     const mocks = installUniqueWorkerTestMocks();
     const databaseGroupId = config.databaseGroupId ?? testDatabaseGroupId;
-    const workers: Array<DatabaseActiveTabWorker> = [];
+    const workers: Array<DatabaseConnectionManager> = [];
 
     const createRealtimeConnection = (): DatabaseActiveTabRealtimeConnection => ({
         executeActionServer:
@@ -240,7 +240,7 @@ function createDatabaseTestEnv(config: {
     });
 
     mocks.setWorkerScriptFactory(() => {
-        const worker = new DatabaseActiveTabWorker(
+        const worker = new DatabaseConnectionManager(
             config.dir.getDirectoryHandle("databases", {create: true}),
             {createRealtimeConnection},
         );
