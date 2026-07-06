@@ -4,6 +4,7 @@ import {type SqlQuery, sql} from "~/shared/databases/sql.js";
 import {databaseMainTableId, sqlitePageSize} from "~/shared/databases/sqlite_constants.js";
 import {InternalError} from "~/shared/error/error.js";
 import {generateChronologicalId} from "~/shared/id/chronological_id.js";
+import {generateId} from "~/shared/id/id.js";
 import type {DatabaseGroupId, DatabaseRowId, DatabaseTableId} from "~/shared/id/types/id_types.js";
 import {Schema} from "~/shared/schema/schema.js";
 
@@ -73,7 +74,7 @@ class InMemoryStorage implements DatabaseServerStorage {
 // Servers created during a test are tracked here and closed in `afterEach` so
 // individual tests don't have to call `server.close()` themselves.
 const openServers: Array<DatabaseServer> = [];
-const testDatabaseGroupId = generateChronologicalId<DatabaseGroupId>();
+const testDatabaseGroupId = generateId<DatabaseGroupId>();
 const testContext = {
     process: {
         waitUntil: () => {},

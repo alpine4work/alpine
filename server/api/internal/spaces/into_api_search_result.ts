@@ -200,6 +200,9 @@ function actuallyIntoApiSearchResult({
                 id: entity.site.id,
             };
         }
+        case "DatabaseTable": {
+            return null;
+        }
         default:
             throw exhaustive(entity);
     }

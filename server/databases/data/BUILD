@@ -11,6 +11,7 @@ ts_project(
         "//server/context",
         "//server/dynamo/core",
         "//server/jobs/core",
+        "//server/rynamo",
         "//server/search/data/index",
         "//server/search/data/table",
         "//server/spaces",

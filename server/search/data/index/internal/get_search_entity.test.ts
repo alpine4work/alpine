@@ -15,8 +15,9 @@ import {TestSite} from "~/server/sites/test_helpers/test_site.js";
 import {TestSpace} from "~/server/spaces/test_helpers/test_space.js";
 import {noop} from "~/shared/helpers/control/noop.js";
 import {defaultCompareStrings} from "~/shared/helpers/string/default_compare_strings.js";
+import {generateChronologicalId} from "~/shared/id/chronological_id.js";
 import {generateId} from "~/shared/id/id.js";
-import {AccountId} from "~/shared/id/types/id_types.js";
+import {AccountId, DatabaseTableId} from "~/shared/id/types/id_types.js";
 import {SearchDynamicEntityIdObject} from "~/shared/search/search_entity_id.js";
 
 const context = createTestContext({
@@ -221,6 +222,21 @@ const testCasesBySearchEntityType: {[Key in SearchDynamicEntityIdObject["type"]]
                     dueDate: null,
                 },
             });
+        });
+    },
+    DatabaseTable: () => {
+        test("throws for database table search entity", async () => {
+            const space = await TestSpace.create(context);
+            const tokenizer = await CohereEmbedEnglishV3LanguageTokenizer.get();
+            const databaseTableId = generateChronologicalId<DatabaseTableId>();
+
+            await expect(
+                getSearchEntity(
+                    space.systemAction(),
+                    {type: "DatabaseTable", tableId: databaseTableId},
+                    {tokenizer, registerAdditionalWrite: noop},
+                ),
+            ).rejects.toThrow("Database tables are indexed by ReplicateDatabaseTableChanges jobs");
         });
     },
     Channel: () => {

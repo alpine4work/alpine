@@ -8,6 +8,7 @@ ts_project(
         "//:node_modules/prettier-plugin-sql",
         "@sqlite",
         "//admin/external_types:sqlite",
+        "//shared/access",
         "//shared/dynamo",
         "//shared/error",
         "//shared/helpers",
