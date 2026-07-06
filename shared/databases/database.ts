@@ -178,6 +178,8 @@ export class Database {
     private currentReadSet: Map<DatabaseTableId, Set<number>> | null = null;
     private currentWriteSet: Map<DatabaseTableId, Set<number>> | null = null;
     private readonly trackedExecutions = new Set<DatabaseTrackedExecutionImpl<any>>();
+    private hasServerMainTableChangeTriggers = false;
+    private readonly serverTableChangeTriggerTableIds = new Set<DatabaseTableId>();
     /**
      * Server-only action capabilities, or `null` on the client. Lets server-only
      * schema actions (e.g. createTable) attach their own per-table file mid-execute;
@@ -354,27 +356,31 @@ export class Database {
     refreshServerTableChangeTriggers(): void {
         if (this.serverContext === null) return;
 
-        sql`
-            CREATE TEMP TRIGGER IF NOT EXISTS _alpine_table_change_main_insert AFTER INSERT ON main._alpine_tables WHEN NEW.kind = 'table' BEGIN
-            SELECT
-                alpine_record_table_changed (NEW.id);
+        if (!this.hasServerMainTableChangeTriggers) {
+            sql`
+                CREATE TEMP TRIGGER IF NOT EXISTS _alpine_table_change_main_insert AFTER INSERT ON main._alpine_tables WHEN NEW.kind = 'table' BEGIN
+                SELECT
+                    alpine_record_table_changed (NEW.id);
 
-            END
-        `.exec(this.db);
+                END
+            `.exec(this.db);
 
-        sql`
-            CREATE TEMP TRIGGER IF NOT EXISTS _alpine_table_change_main_update AFTER
-            UPDATE ON main._alpine_tables WHEN NEW.kind = 'table' BEGIN
-            SELECT
-                alpine_record_table_changed (NEW.id);
+            sql`
+                CREATE TEMP TRIGGER IF NOT EXISTS _alpine_table_change_main_update AFTER
+                UPDATE ON main._alpine_tables WHEN NEW.kind = 'table' BEGIN
+                SELECT
+                    alpine_record_table_changed (NEW.id);
 
-            END
-        `.exec(this.db);
+                END
+            `.exec(this.db);
+            this.hasServerMainTableChangeTriggers = true;
+        }
 
         const model = new DatabaseModel(this.db);
 
         for (const tableId of model.getTableIds("table")) {
             if (!this.tables.has(tableId)) continue;
+            if (this.serverTableChangeTriggerTableIds.has(tableId)) continue;
             const schema = sql.identifier(databaseTableSchemaName(tableId));
             const triggerNamePrefix = `_${tableId}`;
             sql`
@@ -396,6 +402,7 @@ export class Database {
 
                 END
             `.exec(this.db);
+            this.serverTableChangeTriggerTableIds.add(tableId);
         }
     }
 
