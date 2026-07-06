@@ -7,6 +7,7 @@ import {DatabaseGridView} from "~/client/web/databases/grid_view/database_grid_v
 import {useReactiveDatabaseAction} from "~/client/web/databases/use_reactive_database_action.js";
 import {Box} from "~/client/web/design/box.js";
 import {useLoaderDataWithSchema} from "~/client/web/remix/use_loader_data_with_schema.js";
+import {useSearchAffinityViewEntityInteraction} from "~/client/web/search/use_search_affinity_view_entity_interaction.js";
 import {sprinkles} from "~/client/web/styles/styles.js";
 import {fetchDatabaseGroupAction} from "~/server/databases/data/fetch_database_action.js";
 import {jsonWithSchema} from "~/server/remix/json_with_schema.js";
@@ -94,6 +95,9 @@ export default function DatabaseViewRoute() {
         input,
         initialData: loaderData.schema,
     });
+    useSearchAffinityViewEntityInteraction(
+        schemaResult?.ok ? `DatabaseTable:${schemaResult.value.tableId}` : null,
+    );
 
     const conn = useDatabaseConnection();
     const query = useDatabaseQuery(conn, tableOrViewId, loaderData.firstPage);

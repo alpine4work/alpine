@@ -49,12 +49,12 @@ type SearchEntityIdAxes = {
             | `Document:${DocumentId}`
             | `Channel:${ChannelId}`
             | `Chat:${ChatId}`
+            | `DatabaseTable:${DatabaseTableId}`
             | `Task:${TaskId}`
             | `TaskCollection:${TaskCollectionId}`
             | `Site:${SiteId}`;
         NotAffinity:
             | `DocumentComment:${DocumentId}-${DocumentCommentThreadId}-${number}`
-            | `DatabaseTable:${DatabaseTableId}`
             | `Post:${PostId}`
             | `PostComment:${PostId}-${number}`
             | `ChatMessage:${ChatId}-${number}`
@@ -350,7 +350,11 @@ export const SearchMentionEntityIdSchema = SearchEntityIdSchema.transform<Search
 assertAssignableTypes<SearchMentionEntityId, SearchEntityId>();
 assertEqualTypes<
     SearchMentionEntityId,
-    Exclude<SearchAffinityEntityId, `Account:${AccountId}` | "TaskPersonal"> | `Post:${PostId}`
+    | Exclude<
+          SearchAffinityEntityId,
+          `Account:${AccountId}` | `DatabaseTable:${DatabaseTableId}` | "TaskPersonal"
+      >
+    | `Post:${PostId}`
 >();
 
 /**
@@ -490,6 +494,7 @@ const searchAffinityEntityIdTestMap: GetSearchEntityIdTestMapType<SearchAffinity
     Document: true,
     Channel: true,
     Chat: true,
+    DatabaseTable: true,
     Task: true,
     TaskCollection: true,
     TaskPersonal: true,

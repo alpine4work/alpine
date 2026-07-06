@@ -182,6 +182,60 @@ test("database table search result respects its access policy", async () => {
     });
 });
 
+test("database table search result can appear by affinity", async () => {
+    const space = await TestSpace.create(context);
+    const creator = await space.createSession();
+    const other = await space.createSession();
+    const tableId = generateChronologicalId<DatabaseTableId>();
+
+    await indexDatabaseTableSearchEntity(creator.action(), {
+        spaceId: space.id,
+        tableId,
+        name: "Roadmap Grid",
+        accessPolicy: {
+            type: "Local",
+            accountGrantById: new Map([[creator.account.id, {level: "Manage", generation: 0}]]),
+            defaultGrant: null,
+            urlGrant: null,
+        },
+        isDeleted: false,
+    });
+    await context.opensearch.refresh(SearchEntityKeywordIndex);
+
+    await runAllPromises([
+        markSearchAffinityEntityInteraction(creator.action(), {
+            spaceId: space.id,
+            entityId: `DatabaseTable:${tableId}`,
+            interaction: {type: "HighIntentUpdate"},
+            siteId: null,
+        }),
+        markSearchAffinityEntityInteraction(other.action(), {
+            spaceId: space.id,
+            entityId: `DatabaseTable:${tableId}`,
+            interaction: {type: "HighIntentUpdate"},
+            siteId: null,
+        }),
+    ]);
+
+    expect({
+        creator: (await searchByAffinity(creator.action(), space.id)).results,
+        other: (await searchByAffinity(other.action(), space.id)).results,
+    }).toEqual({
+        creator: [
+            new SearchAffinityEntityResultModel({
+                score: expect.closeTo(3),
+                favoriteOrderKey: null,
+                model: SearchAffinityEntityModel.new({
+                    type: "DatabaseTable",
+                    title: "Roadmap Grid",
+                    table: {id: tableId},
+                }),
+            }),
+        ],
+        other: [],
+    });
+});
+
 test("can index and reindex a document", async () => {
     const space = await TestSpace.create(context);
     const session = await space.createSession();
