@@ -682,6 +682,106 @@ describe("optimistic mutations", () => {
     });
 });
 
+describe("ensureCacheIsUpToDate", () => {
+    // A cache-validation response can race a newer realtime diff: the diff mismatches
+    // its base (tombstoning the page at the diff's version), and the validation
+    // response — snapshotted before the diff was broadcast — then offers the page at
+    // an older version, which the tombstone rightly rejects. The client must not
+    // acknowledge a page it rejected: a lying ack marks the page "confirmed" in the
+    // server's per-browser tracker, which then filters it out of every future
+    // `executeAction` response — so the cache can never heal and every read of that
+    // page falls back to the server forever.
+    test.failing("does not acknowledge pages a tombstone rejected", async () => {
+        const serverDir = createInMemoryOpfsDirectoryHandle();
+        const server = await DatabaseClient.create(serverDir);
+        server.executeLocallyForTests(sql`CREATE TABLE t (id INTEGER PRIMARY KEY, data TEXT)`);
+        server.commitOptimisticPagesForTests();
+        const {fileSizeInPages, pages} = await extractOpfsPages(serverDir);
+
+        const localDir = createInMemoryOpfsDirectoryHandle();
+        await prepopulateOpfsPages(localDir, fileSizeInPages, pages);
+        const local = await DatabaseClient.create(localDir);
+
+        const page = pages[pages.length - 1]!;
+        let resolveValidation: (result: {
+            tables: Map<
+                DatabaseTableId,
+                {
+                    updatedPages: Map<number, {version: number; data: Uint8Array}>;
+                    stalePageIndexes: Array<number>;
+                    fileSizeInPages: number;
+                }
+            >;
+        }) => void;
+        const validationGate = new Promise<{
+            tables: Map<
+                DatabaseTableId,
+                {
+                    updatedPages: Map<number, {version: number; data: Uint8Array}>;
+                    stalePageIndexes: Array<number>;
+                    fileSizeInPages: number;
+                }
+            >;
+        }>(resolve => {
+            resolveValidation = resolve;
+        });
+        const acknowledged: Array<ReadonlyMap<DatabaseTableId, ReadonlyArray<number>>> = [];
+        const conn = makeDatabaseClientConnection({
+            ensureCacheIsUpToDate: () => validationGate,
+            acknowledgePages(pageIndexes) {
+                acknowledged.push(pageIndexes);
+            },
+        });
+
+        const validation = local.ensureCacheIsUpToDate(conn);
+
+        // While the validation response is in flight, a diff for the page arrives whose
+        // base the client never saw — the page is dropped and tombstoned at the diff's
+        // version.
+        local.writePageDiffsFromRealtime(
+            new Map([
+                [
+                    databaseMainTableId,
+                    {
+                        diffs: new Map([
+                            [
+                                page.pageIndex,
+                                {
+                                    previousVersion: page.version + 1,
+                                    version: page.version + 2,
+                                    diff: [],
+                                },
+                            ],
+                        ]),
+                        fileSizeInPages,
+                    },
+                ],
+            ]),
+            generateId<DatabaseMutationId>(),
+        );
+
+        // The validation response offers the page at a version below the tombstone; the
+        // write is rejected, so the page must not be acknowledged.
+        resolveValidation!({
+            tables: new Map([
+                [
+                    databaseMainTableId,
+                    {
+                        updatedPages: new Map([
+                            [page.pageIndex, {version: page.version + 1, data: page.data}],
+                        ]),
+                        stalePageIndexes: [],
+                        fileSizeInPages,
+                    },
+                ],
+            ]),
+        });
+        await validation;
+
+        expect(acknowledged).toEqual([]);
+    });
+});
+
 describe("server fallback", () => {
     test("missing page triggers server fallback", async () => {
         // Create a "server" DB with enough data to span multiple pages (4096 bytes each).

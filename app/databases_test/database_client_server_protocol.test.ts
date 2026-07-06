@@ -11,12 +11,13 @@ import {createTestWorkerContext} from "~/server/cloudflare/test_helpers/create_t
 import {DatabaseGroupDurableObject} from "~/server/databases/database_durable_object.js";
 import {DatabaseDurableObjectStorage} from "~/server/databases/database_durable_object_storage.js";
 import {TestSpace} from "~/server/spaces/test_helpers/test_space.js";
-import type {
-    DatabaseActionInput,
-    DatabaseActionName,
-    DatabaseActionObject,
-    DatabaseActionOutput,
-    DatabaseActionResult,
+import {
+    type DatabaseActionInput,
+    type DatabaseActionName,
+    type DatabaseActionObject,
+    DatabaseActionObjectSchema,
+    type DatabaseActionOutput,
+    type DatabaseActionResult,
 } from "~/shared/databases/database_actions.js";
 import type {DatabasePages} from "~/shared/databases/database_protocol_schemas.js";
 import {sql} from "~/shared/databases/sql.js";
@@ -149,6 +150,36 @@ test("a warmed client executes an optimistic mutation confirmed over realtime", 
     });
 });
 
+// SQLite clears a `DELETE` with no `WHERE` clause by truncating the table's btree
+// instead of rewriting row pages, which could fool the client's write detection
+// ("no written pages means pure read") into never sending the mutation. It
+// doesn't: the truncating transaction still rewrites the header page, so the
+// action is classified as a mutation, reaches the server, and the truncate
+// replicates to peers via `fileSizeInPages`. This test pins that.
+test("a DELETE without a WHERE clause replicates to the server and peers", async () => {
+    const databaseGroupId = generateId<DatabaseGroupId>();
+    const table = await createTableOnServer(databaseGroupId);
+    const writer = await createWarmClient(databaseGroupId, table);
+    const reader = await createWarmClient(databaseGroupId, table);
+
+    const rowId = generateChronologicalId<DatabaseRowId>();
+    await executeAction(writer, "createRow", {tableId: table.tableId, rowId});
+    await settle();
+
+    await executeAction(writer, "rawSql", {
+        sql: sql`DELETE FROM ${sql.tableRef(table.tableId, table.tableName)}`.query,
+    });
+    await settle();
+
+    expect({
+        writerRowIds: await selectRowIds(writer, table),
+        readerRowIds: await selectRowIds(reader, table),
+    }).toEqual({
+        writerRowIds: [],
+        readerRowIds: [],
+    });
+});
+
 test("a fresh client reads another client\u2019s table through the server fallback", async () => {
     const databaseGroupId = generateId<DatabaseGroupId>();
     const table = await createTableOnServer(databaseGroupId);
@@ -235,6 +266,89 @@ test("a client that missed realtime events while disconnected serves fresh reads
     await settle();
 
     expect(await selectRowIds(reader, table)).toEqual([rowId]);
+});
+
+// The reconnect revalidation must cover schema changes too: the per-db file's
+// sqlite_schema pages changed while the socket was down, and after they land the
+// reader's next prepare must re-parse the schema rather than serve the stale copy.
+test("a schema change made while disconnected is visible after reconnecting", async () => {
+    const databaseGroupId = generateId<DatabaseGroupId>();
+    const table = await createTableOnServer(databaseGroupId);
+    const writer = await createWarmClient(databaseGroupId, table);
+    const reader = await createWarmClient(databaseGroupId, table);
+
+    const rowId = generateChronologicalId<DatabaseRowId>();
+    await executeAction(writer, "createRow", {tableId: table.tableId, rowId});
+    await settle();
+
+    reader.goOffline();
+    const fieldId = generateChronologicalId<DatabaseFieldId>();
+    await executeAction(writer, "createField", {
+        fieldId,
+        tableId: table.tableId,
+        name: "Notes",
+        config: {type: "plainText"},
+    });
+    await executeAction(writer, "updateCellValue", {
+        tableId: table.tableId,
+        fieldId,
+        rowId,
+        value: "hello",
+    });
+    await settle();
+    reader.goOnline();
+    await settle();
+
+    const {fields} = await executeAction(writer, "getViewSchema", {
+        tableOrViewId: table.tableId,
+    });
+    const columnName = fields.find(field => field.id === fieldId)!.columnName;
+    const {rows} = await executeAction(reader, "readonlyRawSql", {
+        sql: sql`
+            SELECT
+                _id,
+                ${sql.identifier(columnName)} AS value
+            FROM
+                ${sql.tableRef(table.tableId, table.tableName)}
+        `.query,
+    });
+
+    expect({rows, executeActionCalls: reader.executeActionCalls}).toEqual({
+        rows: [{_id: rowId, value: "hello"}],
+        executeActionCalls: [],
+    });
+});
+
+// Reconnect revalidation re-executes reactive actions whose pages changed while
+// the socket was down, so watchers converge without any local interaction.
+test("a reactive action catches up on writes missed while disconnected", async () => {
+    const databaseGroupId = generateId<DatabaseGroupId>();
+    const table = await createTableOnServer(databaseGroupId);
+    const writer = await createWarmClient(databaseGroupId, table);
+    const watcher = await createWarmClient(databaseGroupId, table);
+
+    await watcher.manager.registerReactiveAction(
+        {
+            databaseGroupId,
+            id: generateId<DatabaseReactiveActionId>(),
+            action: {
+                name: "readonlyRawSql",
+                input: {sql: selectRowIdsQuery(table)},
+            },
+        },
+        watcher.tabConnection,
+    );
+
+    watcher.goOffline();
+    const rowId = generateChronologicalId<DatabaseRowId>();
+    await executeAction(writer, "createRow", {tableId: table.tableId, rowId});
+    await settle();
+    watcher.goOnline();
+    await settle();
+
+    expect(watcher.reactiveUpdates).toEqual([
+        {name: "readonlyRawSql", output: {rows: [{_id: rowId}]}},
+    ]);
 });
 
 // A schema change (`createField` runs `ALTER TABLE ... ADD COLUMN` on the per-db
@@ -469,6 +583,49 @@ test("a restarted client revalidates cached per-table files at cold open", async
     const restarted = await restartClient(stale, databaseGroupId);
 
     expect(await selectRowIds(restarted, table)).toEqual([rowId]);
+});
+
+// ---------------------------------------------------------------------------
+// Known client/server desync issues
+// ---
+//
+// Each test below asserts the _desired_ behavior and is marked `test.failing`
+// because the current protocol implementation gets it wrong. Remove the `.failing`
+// marker as each issue is fixed.
+//
+// ---
+
+// The durable object's HTTP `/action` route executes mutations without
+// broadcasting `PagesChanged`, so realtime subscribers never hear about them:
+// connected clients keep serving the pre-mutation state until some unrelated
+// mutation happens to touch the same pages (whose diff then mismatches and forces
+// a re-fetch). Anything that writes through the route — a loader, a server-side
+// agent — silently desyncs every open client.
+test.failing("a mutation through the HTTP action route reaches realtime subscribers", async () => {
+    const databaseGroupId = generateId<DatabaseGroupId>();
+    const table = await createTableOnServer(databaseGroupId);
+    const reader = await createWarmClient(databaseGroupId, table);
+
+    const space = await TestSpace.create(context);
+    const session = await space.createSession();
+    const rowId = generateChronologicalId<DatabaseRowId>();
+    const response = await durableObjectTest.fetchForTest(
+        context.action(session),
+        databaseGroupId,
+        new Request("https://databases.test.invalid/action", {
+            method: "POST",
+            body: JSON.stringify(
+                DatabaseActionObjectSchema.serialize({
+                    name: "createRow",
+                    input: {tableId: table.tableId, rowId},
+                }),
+            ),
+        }),
+    );
+    assert(response.status === 200, `action route returned ${response.status}`);
+    await settle();
+
+    expect(await selectRowIds(reader, table)).toEqual([rowId]);
 });
 
 // ---------------------------------------------------------------------------
