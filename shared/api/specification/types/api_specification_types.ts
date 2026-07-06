@@ -4319,6 +4319,109 @@ export namespace ApiSpecification {
                 readonly type: "Years";
                 readonly years: number;
             };
+            readonly TaskSort:
+                | components["schemas"]["TaskStatusSort"]
+                | components["schemas"]["TaskPrioritySort"]
+                | components["schemas"]["TaskLayoutSort"]
+                | components["schemas"]["TaskAssigneeSort"]
+                | components["schemas"]["TaskCreatorSort"]
+                | components["schemas"]["TaskAssignerSort"]
+                | components["schemas"]["TaskDueSort"]
+                | components["schemas"]["TaskCreatedTimeSort"]
+                | components["schemas"]["TaskAssignedTimeSort"]
+                | components["schemas"]["TaskClosedTimeSort"]
+                | components["schemas"]["TaskActivatedTimeSort"];
+            /** @enum {string} */
+            readonly TaskSortDirection: "Ascending" | "Descending";
+            /** @enum {string} */
+            readonly TaskSortMissing: "First" | "Last";
+            readonly TaskStatusSort: {
+                /**
+                 * @description discriminator enum property added by openapi-typescript @enum
+                 * {string}
+                 */
+                readonly type: "Status";
+                readonly direction: components["schemas"]["TaskSortDirection"];
+            };
+            readonly TaskPrioritySort: {
+                /**
+                 * @description discriminator enum property added by openapi-typescript @enum
+                 * {string}
+                 */
+                readonly type: "Priority";
+                readonly direction: components["schemas"]["TaskSortDirection"];
+            };
+            readonly TaskLayoutSort: {
+                /**
+                 * @description discriminator enum property added by openapi-typescript @enum
+                 * {string}
+                 */
+                readonly type: "Layout";
+                readonly missing: components["schemas"]["TaskSortMissing"];
+            };
+            readonly TaskAssigneeSort: {
+                /**
+                 * @description discriminator enum property added by openapi-typescript @enum
+                 * {string}
+                 */
+                readonly type: "Assignee";
+                readonly missing: components["schemas"]["TaskSortMissing"];
+            };
+            readonly TaskCreatorSort: {
+                /**
+                 * @description discriminator enum property added by openapi-typescript @enum
+                 * {string}
+                 */
+                readonly type: "Creator";
+            };
+            readonly TaskAssignerSort: {
+                /**
+                 * @description discriminator enum property added by openapi-typescript @enum
+                 * {string}
+                 */
+                readonly type: "Assigner";
+                readonly missing: components["schemas"]["TaskSortMissing"];
+            };
+            readonly TaskDueSort: {
+                /**
+                 * @description discriminator enum property added by openapi-typescript @enum
+                 * {string}
+                 */
+                readonly type: "Due";
+                readonly direction: components["schemas"]["TaskSortDirection"];
+            };
+            readonly TaskCreatedTimeSort: {
+                /**
+                 * @description discriminator enum property added by openapi-typescript @enum
+                 * {string}
+                 */
+                readonly type: "CreatedTime";
+                readonly direction: components["schemas"]["TaskSortDirection"];
+            };
+            readonly TaskAssignedTimeSort: {
+                /**
+                 * @description discriminator enum property added by openapi-typescript @enum
+                 * {string}
+                 */
+                readonly type: "AssignedTime";
+                readonly direction: components["schemas"]["TaskSortDirection"];
+            };
+            readonly TaskClosedTimeSort: {
+                /**
+                 * @description discriminator enum property added by openapi-typescript @enum
+                 * {string}
+                 */
+                readonly type: "ClosedTime";
+                readonly direction: components["schemas"]["TaskSortDirection"];
+            };
+            readonly TaskActivatedTimeSort: {
+                /**
+                 * @description discriminator enum property added by openapi-typescript @enum
+                 * {string}
+                 */
+                readonly type: "ActivatedTime";
+                readonly direction: components["schemas"]["TaskSortDirection"];
+            };
             readonly Message: {
                 readonly index: number;
                 readonly author: components["schemas"]["Account"];

@@ -5421,8 +5421,6 @@ components:
                     const: Days
                 days:
                     type: integer
-                    minimum: 0
-                    maximum: 4294967295
         TaskDateFilterOperationWeeksDuration:
             type: object
             required:
@@ -5434,8 +5432,6 @@ components:
                     const: Weeks
                 weeks:
                     type: integer
-                    minimum: 0
-                    maximum: 4294967295
         TaskDateFilterOperationMonthsDuration:
             type: object
             required:
@@ -5447,8 +5443,6 @@ components:
                     const: Months
                 months:
                     type: integer
-                    minimum: 0
-                    maximum: 4294967295
         TaskDateFilterOperationYearsDuration:
             type: object
             required:
@@ -5460,8 +5454,161 @@ components:
                     const: Years
                 years:
                     type: integer
-                    minimum: 0
-                    maximum: 4294967295
+        TaskSort:
+            oneOf:
+                - $ref: "#/components/schemas/TaskStatusSort"
+                - $ref: "#/components/schemas/TaskPrioritySort"
+                - $ref: "#/components/schemas/TaskLayoutSort"
+                - $ref: "#/components/schemas/TaskAssigneeSort"
+                - $ref: "#/components/schemas/TaskCreatorSort"
+                - $ref: "#/components/schemas/TaskAssignerSort"
+                - $ref: "#/components/schemas/TaskDueSort"
+                - $ref: "#/components/schemas/TaskCreatedTimeSort"
+                - $ref: "#/components/schemas/TaskAssignedTimeSort"
+                - $ref: "#/components/schemas/TaskClosedTimeSort"
+                - $ref: "#/components/schemas/TaskActivatedTimeSort"
+            discriminator:
+                propertyName: type
+                mapping:
+                    Status: "#/components/schemas/TaskStatusSort"
+                    Priority: "#/components/schemas/TaskPrioritySort"
+                    Layout: "#/components/schemas/TaskLayoutSort"
+                    Assignee: "#/components/schemas/TaskAssigneeSort"
+                    Creator: "#/components/schemas/TaskCreatorSort"
+                    Assigner: "#/components/schemas/TaskAssignerSort"
+                    Due: "#/components/schemas/TaskDueSort"
+                    CreatedTime: "#/components/schemas/TaskCreatedTimeSort"
+                    AssignedTime: "#/components/schemas/TaskAssignedTimeSort"
+                    ClosedTime: "#/components/schemas/TaskClosedTimeSort"
+                    ActivatedTime: "#/components/schemas/TaskActivatedTimeSort"
+        TaskSortDirection:
+            type: string
+            enum:
+                - Ascending
+                - Descending
+        TaskSortMissing:
+            type: string
+            enum:
+                - First
+                - Last
+        TaskStatusSort:
+            type: object
+            required:
+                - type
+                - direction
+            additionalProperties: false
+            properties:
+                type:
+                    const: Status
+                direction:
+                    $ref: "#/components/schemas/TaskSortDirection"
+        TaskPrioritySort:
+            type: object
+            required:
+                - type
+                - direction
+            additionalProperties: false
+            properties:
+                type:
+                    const: Priority
+                direction:
+                    $ref: "#/components/schemas/TaskSortDirection"
+        TaskLayoutSort:
+            type: object
+            required:
+                - type
+                - missing
+            additionalProperties: false
+            properties:
+                type:
+                    const: Layout
+                missing:
+                    $ref: "#/components/schemas/TaskSortMissing"
+        TaskAssigneeSort:
+            type: object
+            required:
+                - type
+                - missing
+            additionalProperties: false
+            properties:
+                type:
+                    const: Assignee
+                missing:
+                    $ref: "#/components/schemas/TaskSortMissing"
+        TaskCreatorSort:
+            type: object
+            required:
+                - type
+            additionalProperties: false
+            properties:
+                type:
+                    const: Creator
+        TaskAssignerSort:
+            type: object
+            required:
+                - type
+                - missing
+            additionalProperties: false
+            properties:
+                type:
+                    const: Assigner
+                missing:
+                    $ref: "#/components/schemas/TaskSortMissing"
+        TaskDueSort:
+            type: object
+            required:
+                - type
+                - direction
+            additionalProperties: false
+            properties:
+                type:
+                    const: Due
+                direction:
+                    $ref: "#/components/schemas/TaskSortDirection"
+        TaskCreatedTimeSort:
+            type: object
+            required:
+                - type
+                - direction
+            additionalProperties: false
+            properties:
+                type:
+                    const: CreatedTime
+                direction:
+                    $ref: "#/components/schemas/TaskSortDirection"
+        TaskAssignedTimeSort:
+            type: object
+            required:
+                - type
+                - direction
+            additionalProperties: false
+            properties:
+                type:
+                    const: AssignedTime
+                direction:
+                    $ref: "#/components/schemas/TaskSortDirection"
+        TaskClosedTimeSort:
+            type: object
+            required:
+                - type
+                - direction
+            additionalProperties: false
+            properties:
+                type:
+                    const: ClosedTime
+                direction:
+                    $ref: "#/components/schemas/TaskSortDirection"
+        TaskActivatedTimeSort:
+            type: object
+            required:
+                - type
+                - direction
+            additionalProperties: false
+            properties:
+                type:
+                    const: ActivatedTime
+                direction:
+                    $ref: "#/components/schemas/TaskSortDirection"
         Message:
             type: object
             required:

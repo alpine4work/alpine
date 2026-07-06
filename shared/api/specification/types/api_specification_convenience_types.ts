@@ -381,6 +381,8 @@ export type ApiTaskCollection = ApiSpecification.components["schemas"]["TaskColl
 
 export type ApiTaskFilter = ApiSpecification.components["schemas"]["TaskFilter"];
 
+export type ApiTaskSort = ApiSpecification.components["schemas"]["TaskSort"];
+
 export type ApiTaskAccountFilterOperation =
     ApiSpecification.components["schemas"]["TaskAccountFilterOperation"];
 
