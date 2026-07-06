@@ -59,6 +59,10 @@ export function createInMemoryOpfsDirectoryHandle(): OpfsDirectoryHandle {
     const dirs = new Map<string, OpfsDirectoryHandle>();
     const files = new Map<string, OpfsSyncAccessHandle>();
     return {
+        async *keys() {
+            yield* dirs.keys();
+            yield* files.keys();
+        },
         async removeEntry(name: string) {
             dirs.delete(name);
             files.delete(name);

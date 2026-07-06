@@ -1502,6 +1502,10 @@ function createExclusiveOpfsDirectoryHandle(): OpfsDirectoryHandle {
     const dirs = new Map<string, OpfsDirectoryHandle>();
     const files = new Map<string, {buffer: Uint8Array; open: boolean}>();
     return {
+        async *keys() {
+            yield* dirs.keys();
+            yield* files.keys();
+        },
         async removeEntry(name: string) {
             dirs.delete(name);
             files.delete(name);

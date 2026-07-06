@@ -586,11 +586,12 @@ export class Database {
                 }
                 throw stashed;
             }
-            // A query against a table whose per-db file isn't attached (e.g. a table this
-            // client learned about mid-session but hasn't attached yet) fails at statement
+            // A query against a table whose per-db file isn't attached (a table this client
+            // holds no pages for — every known table is attached up front) fails at statement
             // preparation with "no such table" / "unknown database" — before any page read.
             // Recover the tableId from the error text and rethrow as TableNotAttachedError so
-            // the client can attach the file on demand and retry.
+            // the client falls back to the server, whose response supplies the table's pages
+            // and attaches it.
             //
             // Client-only: the canonical server attaches every per-db file it touches, so the
             // same error there is a genuine bug and must surface as-is. Bail too when the

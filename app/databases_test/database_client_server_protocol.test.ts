@@ -376,6 +376,28 @@ test("a restarted client revalidates the main registry at cold open", async () =
     expect([...tableIds].sort()).toEqual([table.tableId, secondTable.tableId].sort());
 });
 
+// Guards the store-enumeration at cold open: `DatabaseClient.create` opens a page
+// store for every table cached in the group's OPFS directory, so
+// `ensureCacheIsUpToDate` validates all of them — not just the tables named in the
+// loader's seed pages — and attaches them with fresh data.
+test("a restarted client revalidates cached per-table files at cold open", async () => {
+    const databaseGroupId = generateId<DatabaseGroupId>();
+    const table = await createTableOnServer(databaseGroupId);
+    const writer = await createWarmClient(databaseGroupId, table);
+    const stale = await createWarmClient(databaseGroupId, table);
+    stale.close();
+
+    // While the browser is gone, another client adds a row (a per-table file change,
+    // invisible to a validation that only covered the main table).
+    const rowId = generateChronologicalId<DatabaseRowId>();
+    await executeAction(writer, "createRow", {tableId: table.tableId, rowId});
+    await settle();
+
+    const restarted = await restartClient(stale, databaseGroupId);
+
+    expect(await selectRowIds(restarted, table)).toEqual([rowId]);
+});
+
 // ---------------------------------------------------------------------------
 // Known client/server desync issues
 // ---
@@ -458,28 +480,6 @@ test.failing(
         expect(await selectRowIds(reader, table)).toEqual([rowId]);
     },
 );
-
-// Cold-open cache validation only covers page stores that are open when the client
-// starts — just the main table, since per-table stores open lazily on first
-// attach. Data cached for other tables is served stale without ever being
-// validated against the server.
-test.failing("a restarted client revalidates cached per-table files at cold open", async () => {
-    const databaseGroupId = generateId<DatabaseGroupId>();
-    const table = await createTableOnServer(databaseGroupId);
-    const writer = await createWarmClient(databaseGroupId, table);
-    const stale = await createWarmClient(databaseGroupId, table);
-    stale.close();
-
-    // While the browser is gone, another client adds a row (a per-table file change,
-    // invisible to a main-only cache validation).
-    const rowId = generateChronologicalId<DatabaseRowId>();
-    await executeAction(writer, "createRow", {tableId: table.tableId, rowId});
-    await settle();
-
-    const restarted = await restartClient(stale, databaseGroupId);
-
-    expect(await selectRowIds(restarted, table)).toEqual([rowId]);
-});
 
 // ---------------------------------------------------------------------------
 // Test client harness
@@ -661,11 +661,8 @@ function extractServerPages(
 /**
  * Create a client that can read and write `table` fully locally, by seeding its
  * OPFS cache with loader pages the way a production tab starts. Cold-open cache
- * validation brings any stale seeded pages up to date, and the trailing read
- * attaches the table and proves the client operates locally (no server calls).
- *
- * Seeding is required because a live client can't assemble a usable copy of a
- * table over the wire alone — see the "known desync issues" tests below.
+ * validation brings any stale seeded pages up to date and attaches the table; the
+ * trailing read proves the client operates locally (no server calls).
  */
 async function createWarmClient(
     databaseGroupId: DatabaseGroupId,
