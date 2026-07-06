@@ -209,7 +209,6 @@ export class DatabaseServer {
         // belonging to a prior (forgotten) drain.
         this.database.assertBufferIsEmpty("_runAndPersist");
         this.changedTables.clear();
-        let replication: {storageVersion: number; tableIds: Set<DatabaseTableId>} | null = null;
         let persisted: {
             result: T;
             readPages: DatabaseServerReadPages;
@@ -222,10 +221,6 @@ export class DatabaseServer {
                 const {result, readPages} = run();
                 const changedTables = new Set(this.changedTables);
                 const persistedResult = this._persistAndBuildResult(result, readPages);
-                replication = {
-                    storageVersion: persistedResult.writeVersion,
-                    tableIds: changedTables,
-                };
                 this.database.refreshServerTableChangeTriggers();
                 return {...persistedResult, changedTables};
             });
@@ -239,9 +234,10 @@ export class DatabaseServer {
         } finally {
             this.changedTables.clear();
         }
-        if (replication !== null) {
-            this.scheduleReplication(context, replication);
-        }
+        this.scheduleReplication(context, {
+            storageVersion: persisted.writeVersion,
+            tableIds: persisted.changedTables,
+        });
         return persisted;
     }
 
