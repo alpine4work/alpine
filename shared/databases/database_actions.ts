@@ -1,3 +1,5 @@
+import {AccessPolicySchema} from "~/shared/access/access_policy.js";
+import {databaseTableAccessPolicyForCreator} from "~/shared/databases/database_table_access_policy.js";
 import {
     DatabaseFieldConfigSchema,
     getDatabaseFieldProvider,
@@ -13,6 +15,7 @@ import {runJoinTableMigrations, runTableMigrations} from "~/shared/databases/sql
 import {assert} from "~/shared/helpers/control/assert.js";
 import {generateChronologicalId} from "~/shared/id/chronological_id.js";
 import type {
+    AccountId,
     DatabaseFieldId,
     DatabaseRowId,
     DatabaseTableId,
@@ -33,6 +36,7 @@ export interface DatabaseActionServerContext {
      * databaseActions.createTable}.
      */
     attach(tableId: DatabaseTableId): void;
+    getCurrentAccountId(): AccountId | null;
 }
 
 /** Context handed to a database action's `run()`. */
@@ -142,6 +146,8 @@ export const databaseActions = {
         run({db, server, model}, {name}) {
             assert(server !== null, "createTable is server-only");
             const tableId = generateChronologicalId<DatabaseTableId>();
+            const creatorAccountId = server.getCurrentAccountId();
+            assert(creatorAccountId !== null, "createTable requires an account actor");
 
             // Attach + migrate the new per-db file before writing any of the table's data or
             // metadata into it. `attach` is a no-op if already attached.
@@ -149,7 +155,11 @@ export const databaseActions = {
             runTableMigrations(db, tableId);
 
             const {table, defaultView} = executeDatabaseActionTransaction(db, () =>
-                model.createTable(tableId, name),
+                model.createTable(
+                    tableId,
+                    name,
+                    databaseTableAccessPolicyForCreator(creatorAccountId),
+                ),
             );
 
             return {tableId: table.id, tableName: table.tableName, viewId: defaultView.id};
@@ -215,6 +225,7 @@ export const databaseActions = {
                 name: Schema.string,
                 tableName: Schema.string,
                 nameFieldId: Schema.id<DatabaseFieldId>(),
+                accessPolicy: AccessPolicySchema,
             }).nullable(),
         }),
         writeLevel: "none",
@@ -227,6 +238,7 @@ export const databaseActions = {
                     name: table.name,
                     tableName: table.tableName,
                     nameFieldId: table.nameFieldId,
+                    accessPolicy: table.accessPolicy,
                 },
             };
         },

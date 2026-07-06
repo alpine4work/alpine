@@ -1,4 +1,5 @@
 import {formatUniqueSqlName} from "~/shared/databases/internal/format_unique_sql_name.js";
+import type {AccessPolicy} from "~/shared/access/access_policy.js";
 import type {DatabaseFieldModel} from "~/shared/databases/model/database_field_model.js";
 import {DatabaseJoinTableModel} from "~/shared/databases/model/database_join_table_model.js";
 import {
@@ -57,7 +58,8 @@ export class DatabaseModel {
                 id,
                 name,
                 table_name,
-                name_field_id
+                name_field_id,
+                JSON(access_policy) AS access_policy
             FROM
                 ${sql.tableRef(tableId, "_alpine_table")}
         `.selectOne(this.db, DatabaseTableRow);
@@ -91,7 +93,7 @@ export class DatabaseModel {
         return formatUniqueSqlName(name, existingTableNames);
     }
 
-    createTable(tableId: DatabaseTableId, name: string) {
+    createTable(tableId: DatabaseTableId, name: string, accessPolicy: AccessPolicy) {
         const defaultViewId = generateChronologicalId<DatabaseViewId>();
         const nameFieldId = generateChronologicalId<DatabaseFieldId>();
 
@@ -105,13 +107,17 @@ export class DatabaseModel {
         `.exec(this.db);
         sql`
             INSERT INTO
-                ${sql.tableRef(tableId, "_alpine_table")} (id, name, table_name, name_field_id)
+                ${sql.tableRef(
+                    tableId,
+                    "_alpine_table",
+                )} (id, name, table_name, name_field_id, access_policy)
             VALUES
                 (
                     ${tableId},
                     ${name},
                     ${tableName},
-                    ${nameFieldId}
+                    ${nameFieldId},
+                    ${DatabaseTableRow.accessPolicy.serialize(accessPolicy)}
                 )
         `.exec(this.db);
 
