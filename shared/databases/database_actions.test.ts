@@ -4,6 +4,7 @@ import {
     type DatabaseActionInput,
     type DatabaseActionName,
     type DatabaseActionOutput,
+    createDatabaseActionContext,
     executeDatabaseAction,
 } from "~/shared/databases/database_actions.js";
 import {
@@ -51,15 +52,11 @@ function attachTableDb(db: SqliteDatabase, tableId: DatabaseTableId): void {
  * schema.
  */
 function makeCtx(db: SqliteDatabase): DatabaseActionContext {
-    return {
-        db,
-        model: new DatabaseModel(db),
-        server: {
-            attach(tableId) {
-                attachTableDb(db, tableId);
-            },
+    return createDatabaseActionContext(db, {
+        attach(tableId) {
+            attachTableDb(db, tableId);
         },
-    };
+    });
 }
 
 /** Run an action with a freshly-built context. */
@@ -725,6 +722,7 @@ describe("listTables", () => {
         const first = run(db, "createTable", {name: "Tasks"});
         const second = run(db, "createTable", {name: "Projects"});
         const relation = run(db, "createRelationField", {
+            joinTableId: generateChronologicalId<DatabaseTableId>(),
             sourceTableId: first.tableId,
             sourceFieldName: "Project",
             targetTableId: second.tableId,
@@ -763,6 +761,7 @@ describe("createRelationField", () => {
         `.exec(db);
 
         const result = run(db, "createRelationField", {
+            joinTableId: generateChronologicalId<DatabaseTableId>(),
             sourceTableId: source.tableId,
             sourceFieldName: "Project",
             targetTableId: target.tableId,
@@ -876,6 +875,7 @@ describe("createRelationField", () => {
         const target = run(db, "createTable", {name: "Projects"});
 
         const result = run(db, "createRelationField", {
+            joinTableId: generateChronologicalId<DatabaseTableId>(),
             sourceTableId: source.tableId,
             sourceFieldName: "Project",
             targetTableId: target.tableId,
@@ -892,6 +892,7 @@ describe("createRelationField", () => {
         const table = run(db, "createTable", {name: "Tasks"});
 
         const result = run(db, "createRelationField", {
+            joinTableId: generateChronologicalId<DatabaseTableId>(),
             sourceTableId: table.tableId,
             sourceFieldName: "Related",
             targetTableId: table.tableId,
@@ -931,6 +932,7 @@ describe("addLink", () => {
         const source = run(db, "createTable", {name: "Tasks"});
         const target = run(db, "createTable", {name: "Projects"});
         const relation = run(db, "createRelationField", {
+            joinTableId: generateChronologicalId<DatabaseTableId>(),
             sourceTableId: source.tableId,
             sourceFieldName: "Project",
             targetTableId: target.tableId,
@@ -961,6 +963,7 @@ describe("addLink", () => {
         const source = run(db, "createTable", {name: "Tasks"});
         const target = run(db, "createTable", {name: "Projects"});
         const relation = run(db, "createRelationField", {
+            joinTableId: generateChronologicalId<DatabaseTableId>(),
             sourceTableId: source.tableId,
             sourceFieldName: "Project",
             targetTableId: target.tableId,
@@ -1000,6 +1003,7 @@ describe("addLink", () => {
         const source = run(db, "createTable", {name: "Tasks"});
         const target = run(db, "createTable", {name: "Projects"});
         const relation = run(db, "createRelationField", {
+            joinTableId: generateChronologicalId<DatabaseTableId>(),
             sourceTableId: source.tableId,
             sourceFieldName: "Project",
             targetTableId: target.tableId,
@@ -1024,6 +1028,7 @@ describe("addLink", () => {
         const source = run(db, "createTable", {name: "Tasks"});
         const target = run(db, "createTable", {name: "Projects"});
         const relation = run(db, "createRelationField", {
+            joinTableId: generateChronologicalId<DatabaseTableId>(),
             sourceTableId: source.tableId,
             sourceFieldName: "Project",
             targetTableId: target.tableId,
@@ -1059,6 +1064,7 @@ describe("removeLink", () => {
         const source = run(db, "createTable", {name: "Tasks"});
         const target = run(db, "createTable", {name: "Projects"});
         const relation = run(db, "createRelationField", {
+            joinTableId: generateChronologicalId<DatabaseTableId>(),
             sourceTableId: source.tableId,
             sourceFieldName: "Project",
             targetTableId: target.tableId,
@@ -1104,6 +1110,7 @@ describe("removeLink", () => {
         const db = await createDb();
         const table = run(db, "createTable", {name: "Tasks"});
         const relation = run(db, "createRelationField", {
+            joinTableId: generateChronologicalId<DatabaseTableId>(),
             sourceTableId: table.tableId,
             sourceFieldName: "Related",
             targetTableId: table.tableId,
@@ -1136,6 +1143,7 @@ describe("listLinkableRows", () => {
         const source = run(db, "createTable", {name: "Tasks"});
         const target = run(db, "createTable", {name: "Projects"});
         const relation = run(db, "createRelationField", {
+            joinTableId: generateChronologicalId<DatabaseTableId>(),
             sourceTableId: source.tableId,
             sourceFieldName: "Project",
             targetTableId: target.tableId,
@@ -1179,6 +1187,7 @@ describe("listLinkableRows", () => {
         const source = run(db, "createTable", {name: "Tasks"});
         const target = run(db, "createTable", {name: "Projects"});
         const relation = run(db, "createRelationField", {
+            joinTableId: generateChronologicalId<DatabaseTableId>(),
             sourceTableId: source.tableId,
             sourceFieldName: "Project",
             targetTableId: target.tableId,
@@ -1463,6 +1472,7 @@ describe("getViewRowsPage", () => {
         const source = run(db, "createTable", {name: "Tasks"});
         const target = run(db, "createTable", {name: "Projects"});
         const relation = run(db, "createRelationField", {
+            joinTableId: generateChronologicalId<DatabaseTableId>(),
             sourceTableId: source.tableId,
             sourceFieldName: "Project",
             targetTableId: target.tableId,
@@ -1545,6 +1555,7 @@ describe("getViewRowsPage", () => {
                 id = ${scoreFieldId}
         `.exec(db);
         const relation = run(db, "createRelationField", {
+            joinTableId: generateChronologicalId<DatabaseTableId>(),
             sourceTableId: source.tableId,
             sourceFieldName: "Project",
             targetTableId: target.tableId,
@@ -1582,6 +1593,7 @@ describe("getViewRowsPage", () => {
         const source = run(db, "createTable", {name: "Tasks"});
         const target = run(db, "createTable", {name: "Projects"});
         run(db, "createRelationField", {
+            joinTableId: generateChronologicalId<DatabaseTableId>(),
             sourceTableId: source.tableId,
             sourceFieldName: "Project",
             targetTableId: target.tableId,
@@ -1607,6 +1619,7 @@ describe("getViewRowsPage", () => {
         const db = await createDb();
         const table = run(db, "createTable", {name: "Tasks"});
         const relation = run(db, "createRelationField", {
+            joinTableId: generateChronologicalId<DatabaseTableId>(),
             sourceTableId: table.tableId,
             sourceFieldName: "Related",
             targetTableId: table.tableId,
@@ -1803,6 +1816,7 @@ describe("updateFieldConfig", () => {
         const source = run(db, "createTable", {name: "Tasks"});
         const target = run(db, "createTable", {name: "Projects"});
         const relation = run(db, "createRelationField", {
+            joinTableId: generateChronologicalId<DatabaseTableId>(),
             sourceTableId: source.tableId,
             sourceFieldName: "Project",
             targetTableId: target.tableId,
@@ -1949,6 +1963,7 @@ describe("renameField", () => {
         const source = run(db, "createTable", {name: "Tasks"});
         const target = run(db, "createTable", {name: "Projects"});
         const relation = run(db, "createRelationField", {
+            joinTableId: generateChronologicalId<DatabaseTableId>(),
             sourceTableId: source.tableId,
             sourceFieldName: "Project",
             targetTableId: target.tableId,

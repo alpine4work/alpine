@@ -41,7 +41,10 @@ export function installTracing(db: Database): void {
 
     const originalPrepare = db.prepare.bind(db);
     (db as any).prepare = (sql: any): PreparedStatement => {
+        const prepareStartedAt = now();
         const stmt = originalPrepare(sql as string);
+        const prepareDuration = now() - prepareStartedAt;
+        let hasLoggedPrepare = false;
         const sqlText = sqlTextOf(sql);
 
         // A prepared statement runs lazily across a "run": timing starts at the first
@@ -51,7 +54,12 @@ export function installTracing(db: Database): void {
         let startedAt: number | null = null;
         function endRun(): void {
             if (startedAt === null) return;
-            logStatement(sqlText, now() - startedAt);
+            logStatement(
+                sqlText,
+                now() - startedAt,
+                hasLoggedPrepare ? undefined : prepareDuration,
+            );
+            hasLoggedPrepare = true;
             startedAt = null;
         }
 
@@ -102,12 +110,18 @@ export function installTracing(db: Database): void {
 }
 
 /** Log a single traced statement with its wall-clock duration. */
-function logStatement(sqlText: string | undefined, durationMs: number): void {
+function logStatement(
+    sqlText: string | undefined,
+    durationMs: number,
+    prepareDurationMs?: number,
+): void {
     // Collapse the multi-line, indented SQL our tagged template produces onto a single
     // line so each statement is one log line.
     const oneLine = sqlText?.trim().replace(/\s+/g, " ");
+    const prepareNote =
+        prepareDurationMs != null ? ` (+ prepare: ${prepareDurationMs.toFixed(2)}ms)` : "";
     // eslint-disable-next-line no-console
-    console.log(`[sqlite] ${durationMs.toFixed(2)}ms ${oneLine || "(unknown)"}`);
+    console.log(`[sqlite] ${durationMs.toFixed(2)}ms${prepareNote} ${oneLine || "(unknown)"}`);
 }
 
 /**

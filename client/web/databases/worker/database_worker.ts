@@ -53,11 +53,11 @@ const host = new UniqueWorkerHost({
     tabMethods: workerToTabDatabaseRpcMethods,
     handlers: {
         connectDatabaseGroup: async input => {
-            clientManager.connectDatabaseGroup(input);
+            await clientManager.connectDatabaseGroup(input);
             return {};
         },
         writeInitialPages: async input => {
-            clientManager.writeInitialPages(input);
+            await clientManager.writeInitialPages(input);
             return {};
         },
         executeAction: async input => {

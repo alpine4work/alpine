@@ -303,10 +303,12 @@ test("server-side action errors reject the caller", async () => {
     const databaseGroupId = generateId<DatabaseGroupId>();
     const client = await createTestClient(databaseGroupId);
 
-    // createRelationField is server-only; referencing a table that doesn't exist makes
-    // the server throw, and the error surfaces to the calling client.
+    // createRelationField calls ctx.server(), which throws on the client and routes
+    // the action to the server; referencing a table that doesn't exist makes the
+    // server throw, and the error surfaces to the calling client.
     await expect(
         executeAction(client, "createRelationField", {
+            joinTableId: generateChronologicalId<DatabaseTableId>(),
             sourceTableId: generateChronologicalId<DatabaseTableId>(),
             sourceFieldName: "Link",
             targetTableId: generateChronologicalId<DatabaseTableId>(),

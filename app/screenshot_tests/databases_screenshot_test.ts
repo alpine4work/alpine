@@ -1,0 +1,110 @@
+import {TestActualContext} from "~/admin/environment/test/unit/with_unit_test_environment.js";
+import {ScreenshotTestRunner} from "~/app/screenshot_tests/helpers/run_screenshot_test.js";
+
+const databasesScreenshotTime = new Date("2025-10-07T13:00:00-04:00");
+
+export async function run(context: TestActualContext, runner: ScreenshotTestRunner) {
+    const {space, accounts} = await runner.createDemoSpace(context);
+    const cass = accounts.cassCade;
+
+    // Sign in and set the page up (fixed clock, viewport, reduced motion) on a neutral
+    // route. The databases routes keep the shared database worker's script request
+    // open, so `runner.goto`'s network-idle wait would time out on them — navigate
+    // within this page instead.
+    await runner.goto(cass, `/dev/empty/${space.id}`, {fixedTime: databasesScreenshotTime});
+
+    // Cass sets up Cliff's sales pipeline as linked databases. Create the linked
+    // tables first so they show up in the field creation UI's table list, then the
+    // "Deals" table we take all the screenshots on.
+    await createDatabase(runner, space.id, "Customers");
+    await createDatabase(runner, space.id, "Contacts");
+    await createDatabase(runner, space.id, "Case studies");
+    await createDatabase(runner, space.id, "Deals");
+
+    // Reload before writing rows: on the page reached through the create navigation
+    // the database worker replica may not have received the new table yet, and writes
+    // issued before it catches up are rejected.
+    await gotoDatabasesPath(runner, runner.page.url());
+    await runner.getByText("New row", {exact: true}).waitFor();
+
+    await createDatabaseRow(runner, "Acme Corp expansion");
+    await createDatabaseRow(runner, "Inbound from the case study");
+    await createDatabaseRow(runner, "Warm referral pilot");
+
+    await runner.mouse.move(0, 0);
+    await runner.screenshot("a0", "grid");
+
+    // Open the field creation popover: field name input in the header with the field
+    // type list below it. "Text" starts highlighted and doubles as the default name
+    // shown in the input placeholder.
+    await runner.getByLabel("Add field").click();
+    await runner.getByRole("option", {name: "Text"}).waitFor();
+    await runner.mouse.move(0, 0);
+    await runner.screenshot("a1", "field-creation");
+
+    // Type a name and move the highlighted type down to "Number" with the arrow keys.
+    // Focus stays on the name input the whole time.
+    await runner.getByLabel("Field name").fill("Deal size");
+    await runner.page.keyboard.press("ArrowDown");
+    await runner.page.keyboard.press("ArrowDown");
+    await runner.screenshot("a2", "field-creation-keyboard-selection");
+
+    // Enter creates the field with the highlighted type ("Number").
+    await runner.page.keyboard.press("Enter");
+    await runner.getByRole("button", {name: "Deal size"}).waitFor();
+    await runner.mouse.move(0, 0);
+    await runner.screenshot("a3", "field-created-number");
+
+    // Relation fields get a second screen: a linked table picker with a filter input,
+    // the scrollable table list, and the cardinality toggle at the bottom.
+    await runner.getByLabel("Add field").click();
+    await runner.getByRole("option", {name: "Linked record"}).click();
+    await runner.getByRole("option", {name: "Customers"}).waitFor();
+    await runner.mouse.move(0, 0);
+    await runner.screenshot("a4", "field-creation-linked-record");
+
+    await runner.getByLabel("Filter tables").fill("cust");
+    await runner.getByRole("option", {name: "Contacts"}).waitFor({state: "detached"});
+    await runner.screenshot("a5", "field-creation-linked-record-filtered");
+
+    // Enter creates the relation field. The name input was left empty so the field
+    // defaults to the linked table's name.
+    await runner.page.keyboard.press("Enter");
+    await runner.getByRole("button", {name: "Customers"}).waitFor();
+    await runner.mouse.move(0, 0);
+    await runner.screenshot("a6", "field-created-linked-record");
+}
+
+/**
+ * Navigate the current page to a databases route without waiting for network idle,
+ * then wait for the app to be ready and suppress hints like `runner.goto()` does.
+ */
+async function gotoDatabasesPath(runner: ScreenshotTestRunner, pathOrUrl: string) {
+    await runner.page.goto(new URL(pathOrUrl, runner.page.url()).toString());
+    // eslint-disable-next-line cyberworlds/string-quotes
+    await runner.page.waitForFunction("typeof dev !== 'undefined' && dev.ready");
+    await runner.page.evaluate("dev.hints && dev.hints.toggleSuppression()");
+}
+
+/**
+ * Creates a database through the UI and lands on its grid view.
+ */
+async function createDatabase(runner: ScreenshotTestRunner, spaceId: string, name: string) {
+    await gotoDatabasesPath(runner, `/databases/${spaceId}/new?focus=name`);
+    await runner.getByLabel("Name").fill(name);
+    await runner.getByTestId("NavigationBar").getByRole("button", {name: "Create"}).click();
+    await runner.getByText("New row", {exact: true}).waitFor();
+}
+
+/**
+ * Creates a row through the UI. Clicking "New row" creates the row and immediately
+ * opens the first cell's editor, so fill it and close with escape.
+ */
+async function createDatabaseRow(runner: ScreenshotTestRunner, name: string) {
+    await runner.getByText("New row", {exact: true}).click();
+    const editor = runner.page.locator("textarea").last();
+    await editor.waitFor();
+    await editor.fill(name);
+    await editor.press("Escape");
+    await runner.getByText(name, {exact: true}).waitFor();
+}

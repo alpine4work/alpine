@@ -275,7 +275,7 @@ describe("execute — mutations", () => {
         expect(capturedMutationId).not.toBeNull();
     });
 
-    test("falls back to server on PageMissingError", async () => {
+    test("falls back to server when a page is missing from the local store", async () => {
         const serverDir = createInMemoryOpfsDirectoryHandle();
         const server = await DatabaseClient.create(serverDir);
         server.executeLocallyForTests(sql`CREATE TABLE t (id INTEGER PRIMARY KEY, data TEXT)`);

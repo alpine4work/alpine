@@ -16,8 +16,8 @@ import {getDatabaseFieldComponentProvider} from "~/client/web/databases/fields/d
 import {gridRowHeight} from "~/client/web/databases/grid_view/database_grid_view_constants.js";
 import {DatabaseGridViewHeaderRow} from "~/client/web/databases/grid_view/database_grid_view_header_row.js";
 import {
+    type DatabaseGridViewColumn,
     type DatabaseGridViewField,
-    type DatabaseGridViewFieldWithEditing,
     useGridViewFields,
 } from "~/client/web/databases/use_grid_view_fields.js";
 import {Box} from "~/client/web/design/box.js";
@@ -263,7 +263,10 @@ export function DatabaseGridView({
                                         <DatabaseGridViewHeaderRow
                                             fields={gridFields.fields}
                                             hiddenFields={gridFields.hiddenFields}
+                                            addingFieldId={gridFields.addingFieldId}
                                             onStartAddingField={gridFields.startAddingField}
+                                            onCommitAddingField={gridFields.commitAddingField}
+                                            onCancelAddingField={gridFields.cancelAddingField}
                                             startResizingField={gridFields.startResizingField}
                                             resizingState={gridFields.resizingState}
                                             onRenameField={gridFields.renameField}
@@ -367,7 +370,10 @@ export function DatabaseGridView({
             tableId,
             gridFields.fields,
             gridFields.hiddenFields,
+            gridFields.addingFieldId,
             gridFields.startAddingField,
+            gridFields.commitAddingField,
+            gridFields.cancelAddingField,
             gridFields.startResizingField,
             gridFields.resizingState,
             gridFields.renameField,
@@ -434,7 +440,7 @@ function DatabaseGridViewSelectionOverlay({
     scrollViewRef,
 }: {
     selection: DatabaseGridViewSelection;
-    fields: ReadonlyArray<DatabaseGridViewFieldWithEditing>;
+    fields: ReadonlyArray<DatabaseGridViewColumn>;
     fieldIndexById: ReadonlyMap<DatabaseFieldId, number>;
     rowCount: number;
     scrollViewRef: React.RefObject<VirtualizedScrollViewRef | null>;
@@ -522,7 +528,7 @@ function DatabaseGridViewDataRow({
     onCreateRow,
 }: {
     tableId: DatabaseTableId;
-    fields: ReadonlyArray<DatabaseGridViewFieldWithEditing>;
+    fields: ReadonlyArray<DatabaseGridViewColumn>;
     row: DatabaseQueryRow;
     rowId: DatabaseRowId;
     isLastRow: boolean;
@@ -584,7 +590,7 @@ function DatabaseGridViewCell({
     onCreateRow,
 }: {
     tableId: DatabaseTableId;
-    field: DatabaseGridViewFieldWithEditing;
+    field: DatabaseGridViewColumn;
     value: unknown;
     rowId: DatabaseRowId;
     isSelected: boolean;

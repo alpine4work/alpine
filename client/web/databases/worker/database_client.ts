@@ -2,6 +2,7 @@ import type {OpfsDirectoryHandle} from "~/client/web/databases/worker/opfs.js";
 import {OpfsDatabaseStorage} from "~/client/web/databases/worker/opfs_database_storage.js";
 import type {OpfsPageStore} from "~/client/web/databases/worker/opfs_page_store.js";
 import {Database, type DatabaseTrackedExecution} from "~/shared/databases/database.js";
+import {DatabaseActionRequiresServerError} from "~/shared/databases/database_action_requires_server_error.js";
 import {
     type DatabaseActionName,
     type DatabaseActionObject,
@@ -23,7 +24,6 @@ import {
     diffPage,
     shouldIgnorePageInvalidation,
 } from "~/shared/databases/page_diff.js";
-import {PageMissingError} from "~/shared/databases/page_missing_error.js";
 import {databaseMainTableId} from "~/shared/databases/sqlite_constants.js";
 import {type SqliteMigration} from "~/shared/databases/sqlite_migrations.js";
 import {TableNotAttachedError} from "~/shared/databases/table_not_attached_error.js";
@@ -208,23 +208,16 @@ export class DatabaseClient {
      *
      * Falls back to the server when the local store is missing pages or the action
      * references a table this client doesn't know about (every known table is attached
-     * up front — see {@link attachKnownTables}). Actions defined with
-     * `serverOnly: true` skip the local optimistic path entirely and go straight to
-     * the server.
+     * up front — see {@link attachKnownTables}). Actions that call `ctx.server()` for
+     * server-only work (e.g. allocating an ID via `generateChronologicalId()`) throw
+     * {@link DatabaseActionRequiresServerError} on the client, which routes them
+     * straight to the server the same way.
      */
     async executeAction<N extends DatabaseActionName>(
         conn: DatabaseClientConnection,
         actionObject: DatabaseActionObject<N>,
     ): Promise<DatabaseActionOutput<N>> {
         const mutationId = generateId<DatabaseMutationId>();
-
-        // Server-only actions (e.g. createTable) never run optimistically: they mint ids
-        // and attach new per-table files server-side, so the client just routes them
-        // straight to the server and applies the resulting pages (attaching any new
-        // table).
-        if (databaseActions[actionObject.name].serverOnly) {
-            return await this.executeActionViaServer(conn, actionObject, mutationId);
-        }
 
         let output: DatabaseActionOutput<N>;
         let writtenPages: ReadonlyDatabasePageSet;
@@ -614,6 +607,32 @@ export class DatabaseClient {
     }
 
     /**
+     * Write loader-provided pages into the local stores after the client is already
+     * running, opening per-table stores on demand for tables that haven't been seen
+     * yet. Unlike {@link seedPages} this may run while optimistic mutations are
+     * buffered, so it drops the buffer, writes the newer pages, replays the optimistic
+     * queue, and schedules invalidation for affected reactive actions.
+     */
+    async writeLoaderPages(pages: DatabasePages): Promise<void> {
+        this.database.discardBuffer();
+        let anyWritten = false;
+        for (const [tableId, tablePages] of pages) {
+            const store = await this.openStore(tableId);
+            for (const [pageIndex, {version, data}] of tablePages) {
+                if (store.writePageIfNewer(pageIndex, version, data)) {
+                    this.addPageToInvalidate(tableId, pageIndex);
+                    anyWritten = true;
+                }
+            }
+            store.sync();
+        }
+        if (anyWritten) {
+            this.scheduleInvalidation();
+        }
+        this.replayOptimisticQueue();
+    }
+
+    /**
      * Open `tableId`'s per-db page store, registering it on the storage if it isn't
      * already. Deduped so concurrent callers share one async `storage.create` (which
      * yields).
@@ -758,11 +777,15 @@ export class DatabaseClient {
 
 /**
  * Whether a local execution error means "route this action to the server": the
- * store is missing a cached page, or the action references a table this client
- * holds no pages for (so it was never attached — see {@link
- * DatabaseClient.ensureCacheIsUpToDate}). The server response supplies the missing
- * pages, attaching any new table, so later executions run locally.
+ * store is missing a cached page, the action references a table this client holds
+ * no pages for (so it was never attached — see {@link
+ * DatabaseClient.ensureCacheIsUpToDate}), or the action explicitly requires the
+ * server (e.g. it calls `ctx.server()` for server-only work). The server response
+ * supplies any missing pages, attaching any new table, so later executions run
+ * locally.
  */
 function isServerFallbackError(error: unknown): boolean {
-    return error instanceof PageMissingError || error instanceof TableNotAttachedError;
+    return (
+        error instanceof DatabaseActionRequiresServerError || error instanceof TableNotAttachedError
+    );
 }

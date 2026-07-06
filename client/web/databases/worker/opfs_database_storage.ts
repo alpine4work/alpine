@@ -1,7 +1,7 @@
 import type {OpfsDirectoryHandle} from "~/client/web/databases/worker/opfs.js";
 import {OpfsPageStore} from "~/client/web/databases/worker/opfs_page_store.js";
 import type {ReadonlyDatabaseStorage} from "~/shared/databases/database.js";
-import {PageMissingError} from "~/shared/databases/page_missing_error.js";
+import {DatabaseActionRequiresServerError} from "~/shared/databases/database_action_requires_server_error.js";
 import {sqlitePageSize} from "~/shared/databases/sqlite_constants.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import type {DatabaseTableId} from "~/shared/id/types/id_types.js";
@@ -12,8 +12,8 @@ import type {DatabaseTableId} from "~/shared/id/types/id_types.js";
  * Database} reads through.
  *
  * Pages requested within the table's known file size but not present locally throw
- * {@link PageMissingError} so the client can fall back to the server. Pages past
- * the end of the file return `null` (zero-fill / EOF).
+ * {@link DatabaseActionRequiresServerError} so the client can fall back to the
+ * server. Pages past the end of the file return `null` (zero-fill / EOF).
  */
 export class OpfsDatabaseStorage implements ReadonlyDatabaseStorage {
     private readonly groupDir: OpfsDirectoryHandle;
@@ -68,7 +68,7 @@ export class OpfsDatabaseStorage implements ReadonlyDatabaseStorage {
         // signal a miss so the client falls back to the server.
         const fileSize = store.getFileSize();
         if (index * sqlitePageSize < fileSize) {
-            throw new PageMissingError(index);
+            throw new DatabaseActionRequiresServerError("page missing from local store");
         }
         return null;
     }
