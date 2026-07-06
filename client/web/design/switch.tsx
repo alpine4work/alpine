@@ -114,6 +114,7 @@ export function Switch({
                 height={touchSlop.sizeWithSlop}
                 maxWidth="full"
                 marginY={`-${touchSlop.slop}`}
+                paddingY={touchSlop.slop}
                 // `inline-flex` so the element width is the width of our contents instead of the
                 // width of the parent. Our width is visible when a `<FocusRing>` is rendered.
                 display="inline-flex"

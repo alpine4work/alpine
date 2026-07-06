@@ -4,6 +4,7 @@ import {
     type DatabaseActionInput,
     type DatabaseActionName,
     type DatabaseActionOutput,
+    createDatabaseActionContext,
     executeDatabaseAction,
 } from "~/shared/databases/database_actions.js";
 import {
@@ -51,15 +52,11 @@ function attachTableDb(db: SqliteDatabase, tableId: DatabaseTableId): void {
  * schema.
  */
 function makeCtx(db: SqliteDatabase): DatabaseActionContext {
-    return {
-        db,
-        model: new DatabaseModel(db),
-        server: {
-            attach(tableId) {
-                attachTableDb(db, tableId);
-            },
+    return createDatabaseActionContext(db, {
+        attach(tableId) {
+            attachTableDb(db, tableId);
         },
-    };
+    });
 }
 
 /** Run an action with a freshly-built context. */

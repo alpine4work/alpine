@@ -1,6 +1,6 @@
 import {createInMemoryOpfsDirectoryHandle} from "~/client/web/databases/test_helpers/in_memory_opfs.js";
 import {OpfsDatabaseStorage} from "~/client/web/databases/worker/opfs_database_storage.js";
-import {PageMissingError} from "~/shared/databases/page_missing_error.js";
+import {DatabaseActionRequiresServerError} from "~/shared/databases/database_action_requires_server_error.js";
 import {sqlitePageSize} from "~/shared/databases/sqlite_constants.js";
 import type {DatabaseTableId} from "~/shared/id/types/id_types.js";
 
@@ -67,7 +67,7 @@ describe("OpfsDatabaseStorage.readPage", () => {
         const store = await storage.create(tableA);
         store.setServerFileSizeInPages(10);
 
-        expect(() => storage.readPage(tableA, 3)).toThrow(PageMissingError);
+        expect(() => storage.readPage(tableA, 3)).toThrow(DatabaseActionRequiresServerError);
     });
 
     test("asserts when the table is unknown", async () => {

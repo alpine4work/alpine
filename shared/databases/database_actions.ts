@@ -1,3 +1,4 @@
+import {DatabaseActionRequiresServerError} from "~/shared/databases/database_action_requires_server_error.js";
 import {
     DatabaseFieldConfigSchema,
     getDatabaseFieldProvider,
@@ -23,8 +24,8 @@ import {OrderKeySchema} from "~/shared/schema/helpers/order_key_schema.js";
 import {type ObjectSchema, Schema, type SchemaType} from "~/shared/schema/schema.js";
 
 /**
- * Server-only capabilities. Present on the server, `null` on the client — so
- * client-side actions can't attach per-table files.
+ * Server-only capabilities. Accessing these on the client causes the action to
+ * fall back to the server.
  */
 export interface DatabaseActionServerContext {
     /**
@@ -39,10 +40,30 @@ export interface DatabaseActionServerContext {
 export interface DatabaseActionContext {
     /** The SQLite handle the action runs against. */
     db: SqliteDatabase;
-    /** Server-only capabilities, or `null` on the client. */
-    server: DatabaseActionServerContext | null;
+    /**
+     * Server-only capabilities. Calling this on the client will throw a {@link
+     * DatabaseActionRequiresServerError}, causing the action to be executed on the
+     * server instead.
+     */
+    server: () => DatabaseActionServerContext;
     /** The database schema */
     model: DatabaseModel;
+}
+
+export function createDatabaseActionContext(
+    db: SqliteDatabase,
+    server: DatabaseActionServerContext | null,
+): DatabaseActionContext {
+    return {
+        db,
+        server: () => {
+            if (server === null) {
+                throw new DatabaseActionRequiresServerError("action is server-only");
+            }
+            return server;
+        },
+        model: new DatabaseModel(db),
+    };
 }
 
 /**
@@ -58,13 +79,6 @@ function defineDatabaseAction<Input, Output>(def: {
     output: ObjectSchema<Output>;
     writeLevel: SqliteWriteLevel;
     transactionMode?: "automatic" | "manual";
-    /**
-     * When `true`, the client skips optimistic local execution and routes the action
-     * straight to the server. Use for actions whose `run()` is non-deterministic in a
-     * way that would diverge between client and server — e.g. allocating IDs via
-     * `generateChronologicalId()` — making optimistic execution unsafe.
-     */
-    serverOnly?: boolean;
     run: (ctx: DatabaseActionContext, input: Input) => any;
 }): {
     input: ObjectSchema<Input>;
@@ -92,16 +106,20 @@ function executeDatabaseActionTransaction<T>(db: SqliteDatabase, fn: () => T): T
     return result;
 }
 
+function now() {
+    if (typeof performance === "undefined") {
+        return Date.now();
+    }
+    return performance.now();
+}
+
 export function executeDatabaseAction<N extends DatabaseActionName>(
     actionObject: DatabaseActionObject<N>,
     ctx: DatabaseActionContext,
 ): DatabaseActionOutput<N> {
     const action = databaseActions[actionObject.name];
 
-    if (action.serverOnly) {
-        assert(ctx.server !== null, "action is server-only");
-    }
-
+    const start = now();
     try {
         // eslint-disable-next-line no-console
         console.group(`[executeDatabaseAction] ${actionObject.name}`);
@@ -110,7 +128,20 @@ export function executeDatabaseAction<N extends DatabaseActionName>(
             return run();
         }
         return executeDatabaseActionTransaction(ctx.db, run);
+    } catch (error) {
+        if (error instanceof DatabaseActionRequiresServerError) {
+            // eslint-disable-next-line no-console
+            console.log(`[executeDatabaseAction] Falling back to server: ${error.reason}`);
+        } else {
+            // eslint-disable-next-line no-console
+            console.log(
+                `[executeDatabaseAction] Error: ${String((error as any).message ?? error)}`,
+            );
+        }
+        throw error;
     } finally {
+        // eslint-disable-next-line no-console
+        console.log(`[executeDatabaseAction] Time: ${(now() - start).toFixed(2)}ms`);
         // eslint-disable-next-line no-console
         console.groupEnd();
     }
@@ -146,14 +177,12 @@ export const databaseActions = {
         }),
         writeLevel: "schema+data",
         transactionMode: "manual",
-        serverOnly: true,
         run({db, server, model}, {name}) {
-            assert(server !== null, "createTable is server-only");
             const tableId = generateChronologicalId<DatabaseTableId>();
 
             // Attach + migrate the new per-db file before writing any of the table's data or
             // metadata into it. `attach` is a no-op if already attached.
-            server.attach(tableId);
+            server().attach(tableId);
             runTableMigrations(db, tableId);
 
             const {table, defaultView} = executeDatabaseActionTransaction(db, () =>
@@ -437,19 +466,17 @@ export const databaseActions = {
         }),
         writeLevel: "schema+data",
         transactionMode: "manual",
-        serverOnly: true,
         run(
             {db, model, server},
             {joinTableId, sourceTableId, sourceFieldName, targetTableId, cardinality},
         ) {
-            assert(server !== null, "createRelationField is server-only");
             const sourceTable = model.getTable(sourceTableId);
             const targetTable = model.getTable(targetTableId);
 
             const sourceFieldId = generateChronologicalId<DatabaseFieldId>();
             const targetFieldId = generateChronologicalId<DatabaseFieldId>();
 
-            server.attach(joinTableId);
+            server().attach(joinTableId);
             runJoinTableMigrations(db, joinTableId);
 
             const {sourceField, targetField, joinTable} = executeDatabaseActionTransaction(

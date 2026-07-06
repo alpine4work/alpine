@@ -6,6 +6,7 @@ import {
     type DatabaseExecuteActionResult,
     type DatabaseTrackedExecution,
 } from "~/shared/databases/database.js";
+import {DatabaseActionRequiresServerError} from "~/shared/databases/database_action_requires_server_error.js";
 import {
     type DatabaseActionName,
     type DatabaseActionObject,
@@ -27,7 +28,6 @@ import {
     diffPage,
     shouldIgnorePageInvalidation,
 } from "~/shared/databases/page_diff.js";
-import {PageMissingError} from "~/shared/databases/page_missing_error.js";
 import {databaseMainTableId} from "~/shared/databases/sqlite_constants.js";
 import {type SqliteMigration} from "~/shared/databases/sqlite_migrations.js";
 import {TableNotAttachedError} from "~/shared/databases/table_not_attached_error.js";
@@ -188,14 +188,6 @@ export class DatabaseClient {
     ): Promise<DatabaseActionOutput<N>> {
         const mutationId = generateId<DatabaseMutationId>();
 
-        // Server-only actions (e.g. createTable) never run optimistically: they mint ids
-        // and attach new per-table files server-side, so the client just routes them
-        // straight to the server and applies the resulting pages (attaching any new
-        // table).
-        if (databaseActions[actionObject.name].serverOnly) {
-            return await this.executeActionViaServer(conn, actionObject, mutationId);
-        }
-
         let output: DatabaseActionOutput<N>;
         let writtenPages: ReadonlyDatabasePageSet;
         try {
@@ -203,7 +195,7 @@ export class DatabaseClient {
             output = executed.result;
             writtenPages = executed.writtenPages;
         } catch (error) {
-            if (error instanceof PageMissingError) {
+            if (error instanceof DatabaseActionRequiresServerError) {
                 return await this.executeActionViaServer(conn, actionObject, mutationId);
             }
             throw error;
@@ -259,7 +251,7 @@ export class DatabaseClient {
             assert(writtenPages.size === 0, "executeActionWithTracking does not support writes");
             return {output: result, readPages};
         } catch (error) {
-            if (!(error instanceof PageMissingError)) throw error;
+            if (!(error instanceof DatabaseActionRequiresServerError)) throw error;
             await this.executeActionViaServer(
                 conn,
                 actionObject,
@@ -281,8 +273,8 @@ export class DatabaseClient {
     /**
      * Run an action against the local database, attaching any referenced per-db file
      * we have cached locally and retrying. A table whose pages aren't cached surfaces
-     * as {@link PageMissingError} so callers fall back to the server, which attaches
-     * and populates it.
+     * as {@link DatabaseActionRequiresServerError} so callers fall back to the server,
+     * which attaches and populates it.
      *
      * Assumes a failed attempt left no buffered writes: every action targets a single
      * per-db file and references it before writing, so an unattached table throws
@@ -300,7 +292,7 @@ export class DatabaseClient {
                     // We hold none of this table's pages locally, so we can't attach it (ATTACH reads
                     // the header page). Signal a page miss so the caller routes to the server, which
                     // attaches and populates the table.
-                    throw new PageMissingError(0, error.tableId);
+                    throw new DatabaseActionRequiresServerError("table not available locally");
                 }
             }
         }

@@ -1,18 +1,17 @@
 import type {Sqlite3Static, WasmPointer} from "~/external/sqlite/ext/wasm/jswasm/sqlite3.mjs";
 import sqlite3InitModule from "~/external/sqlite/ext/wasm/jswasm/sqlite3.mjs";
 import {
-    type DatabaseActionContext,
     type DatabaseActionName,
     type DatabaseActionObject,
     type DatabaseActionOutput,
     type DatabaseActionServerContext,
+    createDatabaseActionContext,
     databaseActions,
     executeDatabaseAction,
 } from "~/shared/databases/database_actions.js";
 import type {ReadonlyDatabasePageSet} from "~/shared/databases/database_protocol_schemas.js";
 import type {InstalledVfs, VfsFile} from "~/shared/databases/install_vfs.js";
 import {installVfs} from "~/shared/databases/install_vfs.js";
-import {DatabaseModel} from "~/shared/databases/model/database_root_model.js";
 import {
     type SqlQuery,
     databaseTableSchemaName,
@@ -310,11 +309,7 @@ export class Database {
         actionObject: DatabaseActionObject<N>,
     ): DatabaseExecuteActionResult<N> {
         const action = databaseActions[actionObject.name];
-        const ctx: DatabaseActionContext = {
-            db: this.db,
-            server: this.serverContext,
-            model: new DatabaseModel(this.db),
-        };
+        const ctx = createDatabaseActionContext(this.db, this.serverContext);
         const {result, readPages, writtenPages} = this.execute(
             () => executeDatabaseAction(actionObject, ctx),
             {allowWrites: action.writeLevel},

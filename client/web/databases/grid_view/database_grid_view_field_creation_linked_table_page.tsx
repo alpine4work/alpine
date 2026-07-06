@@ -161,7 +161,7 @@ export function DatabaseGridViewFieldCreationLinkedTablePage({
 
     return (
         <>
-            <Box display="flex" alignItems="center" gap="1" padding="1">
+            <Box display="flex" alignItems="center" gap="1" paddingX="1" paddingY="1.5">
                 <IconButton
                     description="Back to field types"
                     size="sm"
@@ -338,7 +338,6 @@ function DatabaseGridViewLinkedTableOption({
                     borderRadius: "1",
                     fontSize: "75",
                     color: "grey-100",
-                    cursor: "pointer",
                     backgroundColor: isPressed ? "grey-10" : isHovered ? "grey-5" : undefined,
                 })}
             >
