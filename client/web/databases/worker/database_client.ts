@@ -635,10 +635,21 @@ export class DatabaseClient {
      * queue, and schedules invalidation for affected reactive actions.
      */
     async writeLoaderPages(pages: DatabasePages): Promise<void> {
+        // Open every store before touching the buffer. `openStore` can await, and there
+        // must be no `await` between `discardBuffer()` and `replayOptimisticQueue()`
+        // below: worker RPC handlers aren't serialized, so an optimistic action arriving
+        // in that window would execute against a discarded-but-not-replayed state and then
+        // be applied a second time by the replay. Opening a store is safe while the
+        // optimistic buffer is still live — it performs no reads or writes.
+        const stores = new Map<DatabaseTableId, OpfsPageStore>();
+        for (const tableId of pages.keys()) {
+            stores.set(tableId, await this.openStore(tableId));
+        }
+
         this.database.discardBuffer();
         let anyWritten = false;
         for (const [tableId, tablePages] of pages) {
-            const store = await this.openStore(tableId);
+            const store = stores.get(tableId)!;
             for (const [pageIndex, {version, data}] of tablePages) {
                 if (store.writePageIfNewer(pageIndex, version, data)) {
                     this.addPageToInvalidate(tableId, pageIndex);
