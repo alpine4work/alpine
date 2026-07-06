@@ -116,23 +116,18 @@ class DatabaseGroupDurableObject {
         request: Request,
         route: DatabaseGroupDurableObjectRoute,
     ): Promise<Response> {
-        try {
-            switch (route) {
-                case "Main":
-                    return await this._webSocketServer.upgrade(
-                        context.actor.authorizeSession(),
-                        request,
-                    );
-                case "Action":
-                    return await this._handleAction(request);
-                case "NotFound":
-                    throw new NotFoundError("Route not found");
-                default:
-                    throw exhaustive(route);
-            }
-        } catch (error) {
-            console.log(`[DatabaseGroupDurableObject.fetch]`, error);
-            throw error;
+        switch (route) {
+            case "Main":
+                return await this._webSocketServer.upgrade(
+                    context.actor.authorizeSession(),
+                    request,
+                );
+            case "Action":
+                return await this._handleAction(request);
+            case "NotFound":
+                throw new NotFoundError("Route not found");
+            default:
+                throw exhaustive(route);
         }
     }
 

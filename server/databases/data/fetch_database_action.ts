@@ -27,26 +27,21 @@ export async function fetchDatabaseGroupAction<N extends DatabaseActionName>(
         ReadonlyMap<number, {version: number; data: Uint8Array}>
     >;
 }> {
-    try {
-        const body = DatabaseActionObjectSchema.serialize(actionObject as DatabaseActionObject);
-        const response = await context.edge.sendRequestToDurableObject(
-            `/api/durable-objects/database-groups/${databaseGroupId}/action`,
-            {
-                serviceName: "DatabaseGroupService",
-                route: "/api/durable-objects/database-groups/:databaseGroupId/action",
-                body,
-            },
-        );
-        const {result, readPages} = DatabaseActionFetchResponseSchema.deserialize(
-            response as SchemaSerializedValue,
-        );
-        assert(result.name === actionObject.name);
-        return {
-            result: result.output as DatabaseActionOutput<N>,
-            readPages,
-        };
-    } catch (error) {
-        console.log(`[fetchDatabaseGroupAction]`, error);
-        throw error;
-    }
+    const body = DatabaseActionObjectSchema.serialize(actionObject as DatabaseActionObject);
+    const response = await context.edge.sendRequestToDurableObject(
+        `/api/durable-objects/database-groups/${databaseGroupId}/action`,
+        {
+            serviceName: "DatabaseGroupService",
+            route: "/api/durable-objects/database-groups/:databaseGroupId/action",
+            body,
+        },
+    );
+    const {result, readPages} = DatabaseActionFetchResponseSchema.deserialize(
+        response as SchemaSerializedValue,
+    );
+    assert(result.name === actionObject.name);
+    return {
+        result: result.output as DatabaseActionOutput<N>,
+        readPages,
+    };
 }
