@@ -360,6 +360,49 @@ test("does not return deleted task collections when reading a task", async () =>
     });
 });
 
+test("does not return private task collections when reading a task", async () => {
+    const space = await TestSpace.create(context);
+    const session1 = await space.createSession({name: "Alice Smith", role: "Admin"});
+    const session2 = await space.createSession({name: "Bob Johnson", role: "Admin"});
+
+    const bot = await TestBot.createAndInstantiate(session1);
+    const apiKey = await bot.createApiKey(session1);
+
+    const publicCollection = await TestTaskCollection.create(session2, {
+        name: "Public Collection",
+        access: "Public",
+    });
+    const privateCollection = await TestTaskCollection.create(session2, {
+        name: "Private Collection",
+        access: "Private",
+    });
+    const task = await TestTask.create(session2, {
+        title: "Task with mixed collection access",
+        collections: [publicCollection, privateCollection],
+    });
+
+    await ProcessContextModule.waitForTestTasks();
+
+    expect(
+        await server.GET(`/tasks/${task.id}`, {
+            headers: {authorization: `bearer ${apiKey}`},
+        }),
+    ).toEqual({
+        status: 200,
+        headers: expect.objectContaining({"content-type": "application/json"}),
+        body: expect.objectContaining({
+            spaceId: space.id,
+            task: expect.objectContaining({
+                id: task.id,
+                title: "Task with mixed collection access",
+                collections: [
+                    {collection: {id: publicCollection.id, name: "Public Collection"}},
+                ],
+            }),
+        }),
+    });
+});
+
 test("can read task with high priority", async () => {
     const space = await TestSpace.create(context);
     const session = await space.createSession({name: "Alice Smith", role: "Admin"});
@@ -1204,6 +1247,52 @@ test("can update and clear parent task", async () => {
 
     expect(clearResponse.status).toBe(200);
     expect(clearResponse.body.task.parent).toBeUndefined();
+});
+
+test("returns a private parent placeholder when reading a task", async () => {
+    const space = await TestSpace.create(context);
+    const session1 = await space.createSession({name: "Alice Smith", role: "Admin"});
+    const session2 = await space.createSession({name: "Bob Johnson", role: "Admin"});
+
+    const bot = await TestBot.createAndInstantiate(session1);
+    const apiKey = await bot.createApiKey(session1);
+
+    const collection = await TestTaskCollection.create(session2, {
+        name: "Public Collection",
+        access: "Public",
+    });
+    const parentTask = await TestTask.create(session2, {title: "Private Parent"});
+    const childTask = await TestTask.create(session2, {
+        title: "Child Task",
+        parent: parentTask,
+        collections: [collection],
+    });
+
+    await ProcessContextModule.waitForTestTasks();
+
+    expect(
+        await server.GET(`/tasks/${childTask.id}`, {
+            headers: {authorization: `bearer ${apiKey}`},
+        }),
+    ).toEqual({
+        status: 200,
+        headers: expect.objectContaining({"content-type": "application/json"}),
+        body: expect.objectContaining({
+            spaceId: space.id,
+            task: expect.objectContaining({
+                id: childTask.id,
+                title: "Child Task",
+                parent: {
+                    task: {
+                        id: parentTask.id,
+                        title: "Private task",
+                        status: {type: "Closed"},
+                    },
+                },
+                collections: [{collection: {id: collection.id, name: "Public Collection"}}],
+            }),
+        }),
+    });
 });
 
 test("patch only changes the fields that are passed", async () => {
@@ -2288,6 +2377,14 @@ describe("/task-collections/{id}/tasks", () => {
         return response.body.tasks[index]!.cursor;
     }
 
+    function getTaskCollectionTaskCursors(response: TaskCollectionTasksResponse): Array<string> {
+        return response.body.tasks.map(({cursor}) => cursor);
+    }
+
+    function getTestTaskIds(tasks: ReadonlyArray<TestTask>): Array<TaskId> {
+        return tasks.map(task => task.id);
+    }
+
     test("returns 403 response if actor is not authorized to access collection", async () => {
         const space = await TestSpace.create(context);
         const session1 = await space.createSession({name: "Alice Smith", role: "Admin"});
@@ -2485,6 +2582,134 @@ describe("/task-collections/{id}/tasks", () => {
         });
     });
 
+    test("does not return private collection references on listed tasks", async () => {
+        const space = await TestSpace.create(context);
+        const session1 = await space.createSession({name: "Alice Smith", role: "Admin"});
+        const session2 = await space.createSession({name: "Bob Johnson", role: "Admin"});
+
+        const bot = await TestBot.createAndInstantiate(session1);
+        const apiKey = await bot.createApiKey(session1);
+
+        const mainCollection = await TestTaskCollection.create(session2, {
+            name: "Main Collection",
+            access: "Public",
+        });
+        const publicCollection = await TestTaskCollection.create(session2, {
+            name: "Public Collection",
+            access: "Public",
+        });
+        const privateCollection = await TestTaskCollection.create(session2, {
+            name: "Private Collection",
+            access: "Private",
+        });
+        const task = await TestTask.create(session2, {
+            title: "Task with mixed collection references",
+            collections: [mainCollection, publicCollection, privateCollection],
+        });
+
+        await ProcessContextModule.waitForTestTasks();
+
+        const response = await server.GET(`/task-collections/${mainCollection.id}/tasks`, {
+            headers: {authorization: `bearer ${apiKey}`},
+        });
+
+        expect(response).toEqual({
+            status: 200,
+            headers: expect.objectContaining({"content-type": "application/json"}),
+            body: expect.objectContaining({
+                spaceId: space.id,
+                collection: {
+                    id: mainCollection.id,
+                    creator: {id: session2.account.id},
+                    name: "Main Collection",
+                },
+                tasks: [
+                    {
+                        cursor: expect.any(String),
+                        task: expect.objectContaining({
+                            id: task.id,
+                            title: "Task with mixed collection references",
+                            collections: [
+                                {
+                                    collection: {
+                                        id: mainCollection.id,
+                                        name: "Main Collection",
+                                    },
+                                },
+                                {
+                                    collection: {
+                                        id: publicCollection.id,
+                                        name: "Public Collection",
+                                    },
+                                },
+                            ],
+                        }),
+                    },
+                ],
+                nextCursor: null,
+            }),
+        });
+    });
+
+    test("returns a private parent placeholder on listed tasks", async () => {
+        const space = await TestSpace.create(context);
+        const session1 = await space.createSession({name: "Alice Smith", role: "Admin"});
+        const session2 = await space.createSession({name: "Bob Johnson", role: "Admin"});
+
+        const bot = await TestBot.createAndInstantiate(session1);
+        const apiKey = await bot.createApiKey(session1);
+
+        const collection = await TestTaskCollection.create(session2, {
+            name: "Public Collection",
+            access: "Public",
+        });
+        const parentTask = await TestTask.create(session2, {title: "Private Parent"});
+        const childTask = await TestTask.create(session2, {
+            title: "Child Task",
+            parent: parentTask,
+            collections: [collection],
+        });
+
+        await ProcessContextModule.waitForTestTasks();
+
+        const response = await server.GET(`/task-collections/${collection.id}/tasks`, {
+            headers: {authorization: `bearer ${apiKey}`},
+        });
+
+        expect(response).toEqual({
+            status: 200,
+            headers: expect.objectContaining({"content-type": "application/json"}),
+            body: expect.objectContaining({
+                spaceId: space.id,
+                collection: {
+                    id: collection.id,
+                    creator: {id: session2.account.id},
+                    name: "Public Collection",
+                },
+                tasks: [
+                    {
+                        cursor: expect.any(String),
+                        task: expect.objectContaining({
+                            id: childTask.id,
+                            title: "Child Task",
+                            parent: {
+                                task: {
+                                    id: parentTask.id,
+                                    title: "Private task",
+                                    status: {type: "Closed"},
+                                },
+                            },
+                            collections: [
+                                {collection: {id: collection.id, name: "Public Collection"}},
+                            ],
+                        }),
+                    },
+                ],
+                nextCursor: null,
+            }),
+        });
+    });
+
     test("applies the collection default filters and sorts", async () => {
         const space = await TestSpace.create(context);
         const session1 = await space.createSession({name: "Alice Smith", role: "Admin"});
@@ -2631,6 +2856,242 @@ describe("/task-collections/{id}/tasks", () => {
         expect(thirdPageResponse.status).toBe(200);
         expect(thirdPageResponse.body.nextCursor).toBeNull();
         expect(getTaskCollectionTaskIds(thirdPageResponse)).toEqual([tasks[5]!.id, tasks[6]!.id]);
+    });
+
+    test("paginates ten tasks across multiple pages", async () => {
+        const space = await TestSpace.create(context);
+        const session = await space.createSession({name: "Alice Smith", role: "Admin"});
+
+        const bot = await TestBot.createAndInstantiate(session);
+        const apiKey = await bot.createApiKey(session);
+
+        const collection = await TestTaskCollection.create(session, {
+            name: "Ten Task Collection",
+            access: "Public",
+        });
+        const tasks = await runAllPromises(
+            Array.from({length: 10}, (_, i) =>
+                TestTask.create(session, {title: `Task ${i + 1}`}),
+            ),
+        );
+
+        for (const task of tasks) {
+            await task.addCollection(session, collection);
+        }
+
+        await ProcessContextModule.waitForTestTasks();
+
+        const firstPageResponse = await server.GET(
+            `/task-collections/${collection.id}/tasks?limit=4`,
+            {
+                headers: {authorization: `bearer ${apiKey}`},
+            },
+        );
+        expect(firstPageResponse.status).toBe(200);
+        expect(getTaskCollectionTaskIds(firstPageResponse)).toEqual(
+            getTestTaskIds(tasks.slice(0, 4)),
+        );
+
+        const secondPageResponse = await server.GET(
+            `/task-collections/${collection.id}/tasks?limit=4&cursor=${getTaskCollectionNextCursor(firstPageResponse)}`,
+            {
+                headers: {authorization: `bearer ${apiKey}`},
+            },
+        );
+        expect(secondPageResponse.status).toBe(200);
+        expect(getTaskCollectionTaskIds(secondPageResponse)).toEqual(
+            getTestTaskIds(tasks.slice(4, 8)),
+        );
+
+        const thirdPageResponse = await server.GET(
+            `/task-collections/${collection.id}/tasks?limit=4&cursor=${getTaskCollectionNextCursor(secondPageResponse)}`,
+            {
+                headers: {authorization: `bearer ${apiKey}`},
+            },
+        );
+        expect(thirdPageResponse.status).toBe(200);
+        expect(thirdPageResponse.body.nextCursor).toBeNull();
+        expect(getTaskCollectionTaskIds(thirdPageResponse)).toEqual(
+            getTestTaskIds(tasks.slice(8)),
+        );
+    });
+
+    test("returns null cursor when limit exactly matches collection size", async () => {
+        const space = await TestSpace.create(context);
+        const session = await space.createSession({name: "Alice Smith", role: "Admin"});
+
+        const bot = await TestBot.createAndInstantiate(session);
+        const apiKey = await bot.createApiKey(session);
+
+        const collection = await TestTaskCollection.create(session, {
+            name: "Exact Limit Collection",
+            access: "Public",
+        });
+        const tasks = await runAllPromises(
+            Array.from({length: 4}, (_, i) => TestTask.create(session, {title: `Task ${i + 1}`})),
+        );
+
+        for (const task of tasks) {
+            await task.addCollection(session, collection);
+        }
+
+        await ProcessContextModule.waitForTestTasks();
+
+        const response = await server.GET(`/task-collections/${collection.id}/tasks?limit=4`, {
+            headers: {authorization: `bearer ${apiKey}`},
+        });
+
+        expect(response.status).toBe(200);
+        expect(response.body.nextCursor).toBeNull();
+        expect(getTaskCollectionTaskIds(response)).toEqual(getTestTaskIds(tasks));
+    });
+
+    test("returns an underfilled page when limit is larger than collection size", async () => {
+        const space = await TestSpace.create(context);
+        const session = await space.createSession({name: "Alice Smith", role: "Admin"});
+
+        const bot = await TestBot.createAndInstantiate(session);
+        const apiKey = await bot.createApiKey(session);
+
+        const collection = await TestTaskCollection.create(session, {
+            name: "Underfilled Collection",
+            access: "Public",
+        });
+        const tasks = await runAllPromises(
+            Array.from({length: 4}, (_, i) => TestTask.create(session, {title: `Task ${i + 1}`})),
+        );
+
+        for (const task of tasks) {
+            await task.addCollection(session, collection);
+        }
+
+        await ProcessContextModule.waitForTestTasks();
+
+        const response = await server.GET(`/task-collections/${collection.id}/tasks?limit=10`, {
+            headers: {authorization: `bearer ${apiKey}`},
+        });
+
+        expect(response.status).toBe(200);
+        expect(response.body.nextCursor).toBeNull();
+        expect(getTaskCollectionTaskIds(response)).toEqual(getTestTaskIds(tasks));
+    });
+
+    test("returns an underfilled final page after a cursor", async () => {
+        const space = await TestSpace.create(context);
+        const session = await space.createSession({name: "Alice Smith", role: "Admin"});
+
+        const bot = await TestBot.createAndInstantiate(session);
+        const apiKey = await bot.createApiKey(session);
+
+        const collection = await TestTaskCollection.create(session, {
+            name: "Underfilled Final Page Collection",
+            access: "Public",
+        });
+        const tasks = await runAllPromises(
+            Array.from({length: 7}, (_, i) => TestTask.create(session, {title: `Task ${i + 1}`})),
+        );
+
+        for (const task of tasks) {
+            await task.addCollection(session, collection);
+        }
+
+        await ProcessContextModule.waitForTestTasks();
+
+        const firstPageResponse = await server.GET(
+            `/task-collections/${collection.id}/tasks?limit=3`,
+            {
+                headers: {authorization: `bearer ${apiKey}`},
+            },
+        );
+        expect(firstPageResponse.status).toBe(200);
+        expect(getTaskCollectionTaskIds(firstPageResponse)).toEqual(
+            getTestTaskIds(tasks.slice(0, 3)),
+        );
+
+        const secondPageResponse = await server.GET(
+            `/task-collections/${collection.id}/tasks?limit=10&cursor=${getTaskCollectionNextCursor(firstPageResponse)}`,
+            {
+                headers: {authorization: `bearer ${apiKey}`},
+            },
+        );
+        expect(secondPageResponse.status).toBe(200);
+        expect(secondPageResponse.body.nextCursor).toBeNull();
+        expect(getTaskCollectionTaskIds(secondPageResponse)).toEqual(
+            getTestTaskIds(tasks.slice(3)),
+        );
+    });
+
+    test("repeats cached pagination with the same cursors and tasks", async () => {
+        const space = await TestSpace.create(context);
+        const session = await space.createSession({name: "Alice Smith", role: "Admin"});
+
+        const bot = await TestBot.createAndInstantiate(session);
+        const apiKey = await bot.createApiKey(session);
+
+        const collection = await TestTaskCollection.create(session, {
+            name: "Cached Pagination Collection",
+            access: "Public",
+        });
+        const tasks = await runAllPromises(
+            Array.from({length: 8}, (_, i) => TestTask.create(session, {title: `Task ${i + 1}`})),
+        );
+
+        for (const task of tasks) {
+            await task.addCollection(session, collection);
+        }
+
+        await ProcessContextModule.waitForTestTasks();
+
+        const firstPageResponse = await server.GET(
+            `/task-collections/${collection.id}/tasks?limit=3`,
+            {
+                headers: {authorization: `bearer ${apiKey}`},
+            },
+        );
+        expect(firstPageResponse.status).toBe(200);
+        expect(getTaskCollectionTaskIds(firstPageResponse)).toEqual(
+            getTestTaskIds(tasks.slice(0, 3)),
+        );
+
+        const secondPagePath =
+            `/task-collections/${collection.id}/tasks?limit=3` +
+            `&cursor=${getTaskCollectionNextCursor(firstPageResponse)}`;
+        const secondPageResponse = await server.GET(secondPagePath, {
+            headers: {authorization: `bearer ${apiKey}`},
+        });
+        expect(secondPageResponse.status).toBe(200);
+        expect(getTaskCollectionTaskIds(secondPageResponse)).toEqual(
+            getTestTaskIds(tasks.slice(3, 6)),
+        );
+
+        const repeatedFirstPageResponse = await server.GET(
+            `/task-collections/${collection.id}/tasks?limit=3`,
+            {
+                headers: {authorization: `bearer ${apiKey}`},
+            },
+        );
+        expect(repeatedFirstPageResponse.status).toBe(200);
+        expect(getTaskCollectionTaskIds(repeatedFirstPageResponse)).toEqual(
+            getTaskCollectionTaskIds(firstPageResponse),
+        );
+        expect(getTaskCollectionTaskCursors(repeatedFirstPageResponse)).toEqual(
+            getTaskCollectionTaskCursors(firstPageResponse),
+        );
+        expect(repeatedFirstPageResponse.body.nextCursor).toEqual(firstPageResponse.body.nextCursor);
+
+        const repeatedSecondPageResponse = await server.GET(secondPagePath, {
+            headers: {authorization: `bearer ${apiKey}`},
+        });
+        expect(repeatedSecondPageResponse.status).toBe(200);
+        expect(getTaskCollectionTaskIds(repeatedSecondPageResponse)).toEqual(
+            getTaskCollectionTaskIds(secondPageResponse),
+        );
+        expect(getTaskCollectionTaskCursors(repeatedSecondPageResponse)).toEqual(
+            getTaskCollectionTaskCursors(secondPageResponse),
+        );
+        expect(repeatedSecondPageResponse.body.nextCursor).toEqual(
+            secondPageResponse.body.nextCursor,
+        );
     });
 
     test("returns null cursor when all tasks are returned", async () => {
@@ -2879,6 +3340,72 @@ describe("/task-collections/{id}/tasks", () => {
                 headers: {authorization: `bearer ${apiKey}`},
             },
         );
+
+        const secondPageResponse = await server.GET(
+            `/task-collections/${collection.id}/tasks?limit=1&cursor=${getTaskCollectionNextCursor(firstPageResponse)}`,
+            {
+                headers: {authorization: `bearer ${apiKey}`},
+            },
+        );
+
+        expect(secondPageResponse).toEqual({
+            status: 200,
+            headers: expect.objectContaining({"content-type": "application/json"}),
+            body: expect.objectContaining({
+                tasks: [
+                    {
+                        cursor: expect.any(String),
+                        task: expect.objectContaining({
+                            id: childTask.id,
+                            parent: {
+                                task: {
+                                    id: parentTask.id,
+                                    title: "Parent Task",
+                                    status: {type: "Open", isActive: false},
+                                },
+                            },
+                        }),
+                    },
+                ],
+                nextCursor: null,
+            }),
+        });
+    });
+
+    test("includes a parent reference when the parent task is above but not equal to afterCursor", async () => {
+        const space = await TestSpace.create(context);
+        const session = await space.createSession({name: "Alice Smith", role: "Admin"});
+
+        const bot = await TestBot.createAndInstantiate(session);
+        const apiKey = await bot.createApiKey(session);
+
+        const collection = await TestTaskCollection.create(session, {
+            name: "Parent Above Non-Cursor Collection",
+            access: "Public",
+        });
+        const parentTask = await TestTask.create(session, {title: "Parent Task"});
+        const cursorTask = await TestTask.create(session, {title: "Cursor Task"});
+        const childTask = await TestTask.create(session, {
+            title: "Child Task",
+            parent: parentTask,
+        });
+
+        await parentTask.addCollection(session, collection);
+        await cursorTask.addCollection(session, collection);
+        await childTask.addCollection(session, collection);
+        await ProcessContextModule.waitForTestTasks();
+
+        const firstPageResponse = await server.GET(
+            `/task-collections/${collection.id}/tasks?limit=2`,
+            {
+                headers: {authorization: `bearer ${apiKey}`},
+            },
+        );
+        expect(firstPageResponse.status).toBe(200);
+        expect(getTaskCollectionTaskIds(firstPageResponse)).toEqual([
+            parentTask.id,
+            cursorTask.id,
+        ]);
 
         const secondPageResponse = await server.GET(
             `/task-collections/${collection.id}/tasks?limit=1&cursor=${getTaskCollectionNextCursor(firstPageResponse)}`,
