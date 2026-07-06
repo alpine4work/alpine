@@ -15,6 +15,7 @@ ts_project(
         "//server/databases",
         "//server/spaces/test_helpers",
         "//shared/databases",
+        "//shared/helpers",
         "//shared/id",
     ],
 )
