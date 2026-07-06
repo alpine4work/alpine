@@ -77,36 +77,25 @@ export type DatabaseServerActionResult<N extends DatabaseActionName> = {
 export class DatabaseServer {
     private readonly database: Database;
     private readonly storage: DatabaseServerStorage;
-    private readonly databaseGroupId: DatabaseGroupId | null;
-    private readonly transactionSync: <T>(fn: () => T) => T;
+    private readonly databaseGroupId: DatabaseGroupId;
     private readonly changedTables = new Set<DatabaseTableId>();
 
     private constructor(
         database: Database,
         storage: DatabaseServerStorage,
-        {
-            databaseGroupId,
-            transactionSync,
-        }: {
-            databaseGroupId?: DatabaseGroupId;
-            transactionSync?: <T>(fn: () => T) => T;
-        } = {},
+        databaseGroupId: DatabaseGroupId,
     ) {
         this.database = database;
         this.storage = storage;
-        this.databaseGroupId = databaseGroupId ?? null;
-        this.transactionSync = transactionSync ?? (fn => fn());
+        this.databaseGroupId = databaseGroupId;
     }
 
     static async create(
         storage: DatabaseServerStorage,
-        options: {
-            databaseGroupId?: DatabaseGroupId;
-            transactionSync?: <T>(fn: () => T) => T;
-        } = {},
+        databaseGroupId: DatabaseGroupId,
     ): Promise<DatabaseServer> {
         const database = await Database.create(storage, {server: true});
-        const server = new DatabaseServer(database, storage, options);
+        const server = new DatabaseServer(database, storage, databaseGroupId);
         server._bootstrap();
         database._installServerTableChangeCapture(tableId => {
             server.changedTables.add(tableId);
@@ -220,15 +209,20 @@ export class DatabaseServer {
         // belonging to a prior (forgotten) drain.
         this.database.assertBufferIsEmpty("_runAndPersist");
         this.changedTables.clear();
-        const replication: {
-            value: {storageVersion: number; tableIds: Set<DatabaseTableId>} | null;
-        } = {value: null};
+        let replication: {storageVersion: number; tableIds: Set<DatabaseTableId>} | null = null;
+        let persisted: {
+            result: T;
+            readPages: DatabaseServerReadPages;
+            changedPages: DatabaseServerChangedPages;
+            changedTables: DatabaseServerChangedTables;
+            writeVersion: number;
+        };
         try {
-            return this.transactionSync(() => {
+            persisted = this.storage.transactionSync(() => {
                 const {result, readPages} = run();
                 const changedTables = new Set(this.changedTables);
                 const persistedResult = this._persistAndBuildResult(result, readPages);
-                replication.value = {
+                replication = {
                     storageVersion: persistedResult.writeVersion,
                     tableIds: changedTables,
                 };
@@ -244,10 +238,11 @@ export class DatabaseServer {
             throw error;
         } finally {
             this.changedTables.clear();
-            if (replication.value !== null) {
-                this.scheduleReplication(context, replication.value);
-            }
         }
+        if (replication !== null) {
+            this.scheduleReplication(context, replication);
+        }
+        return persisted;
     }
 
     private scheduleReplication(
@@ -260,7 +255,7 @@ export class DatabaseServer {
             tableIds: DatabaseServerChangedTables;
         },
     ): void {
-        if (this.databaseGroupId === null || storageVersion === 0 || tableIds.size === 0) return;
+        if (storageVersion === 0 || tableIds.size === 0) return;
 
         context.process.waitUntil(
             enqueueDatabaseTableReplicationJob(context, {

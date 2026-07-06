@@ -14,6 +14,8 @@ import type {DatabaseTableId} from "~/shared/id/types/id_types.js";
  * many independent SQLite databases.
  */
 export interface DatabaseServerStorage extends ReadonlyDatabaseStorage {
+    transactionSync<T>(fn: () => T): T;
+
     /**
      * Apply a batch of buffered writes atomically.
      *

@@ -28,8 +28,8 @@ beforeEach(() => {
 
 function createConnection(doStorage: DatabaseDurableObjectStorage) {
     return new DatabaseDurableObjectConnection({
+        server: null as any,
         durableObjectStorage: doStorage,
-        executeAction: null as any,
         processContext: null as any,
         sendEventToAll: () => {},
         browserId: generateId<BrowserId>(),
@@ -75,7 +75,7 @@ function makePage(marker: number): Uint8Array {
 
 describe("ensureCacheIsUpToDate", () => {
     test("returns empty when all pages are up to date", async () => {
-        const doStorage = new DatabaseDurableObjectStorage(storage.sql);
+        const doStorage = new DatabaseDurableObjectStorage(storage);
         writePagesFor(doStorage, databaseMainTableId, new Map([[0, makePage(0xaa)]]));
         const ts = doStorage.readPage(databaseMainTableId, 0)!.version;
         const conn = createConnection(doStorage);
@@ -87,7 +87,7 @@ describe("ensureCacheIsUpToDate", () => {
     });
 
     test("returns updated pages when few are stale", async () => {
-        const doStorage = new DatabaseDurableObjectStorage(storage.sql);
+        const doStorage = new DatabaseDurableObjectStorage(storage);
         writePagesFor(
             doStorage,
             databaseMainTableId,
@@ -115,7 +115,7 @@ describe("ensureCacheIsUpToDate", () => {
     });
 
     test("returns stale indexes for pages not on server", async () => {
-        const doStorage = new DatabaseDurableObjectStorage(storage.sql);
+        const doStorage = new DatabaseDurableObjectStorage(storage);
         writePagesFor(doStorage, databaseMainTableId, new Map([[0, makePage(0xaa)]]));
         const version0 = doStorage.readPage(databaseMainTableId, 0)!.version;
         const conn = createConnection(doStorage);
@@ -134,7 +134,7 @@ describe("ensureCacheIsUpToDate", () => {
     });
 
     test("mixes updated pages and stale indexes", async () => {
-        const doStorage = new DatabaseDurableObjectStorage(storage.sql);
+        const doStorage = new DatabaseDurableObjectStorage(storage);
         writePagesFor(doStorage, databaseMainTableId, new Map([[0, makePage(0xaa)]]));
         const conn = createConnection(doStorage);
 
@@ -153,7 +153,7 @@ describe("ensureCacheIsUpToDate", () => {
     });
 
     test("falls back to all stale indexes when over limit", async () => {
-        const doStorage = new DatabaseDurableObjectStorage(storage.sql);
+        const doStorage = new DatabaseDurableObjectStorage(storage);
 
         // Write exactly cacheUpdateStalePageLimit pages
         const pages = new Map<number, Uint8Array>();
@@ -179,7 +179,7 @@ describe("ensureCacheIsUpToDate", () => {
     });
 
     test("under limit returns all as updated pages", async () => {
-        const doStorage = new DatabaseDurableObjectStorage(storage.sql);
+        const doStorage = new DatabaseDurableObjectStorage(storage);
 
         const count = cacheUpdateStalePageLimit - 1;
         const pages = new Map<number, Uint8Array>();
@@ -202,7 +202,7 @@ describe("ensureCacheIsUpToDate", () => {
     });
 
     test("returns stale indexes for tombstoned pages", async () => {
-        const doStorage = new DatabaseDurableObjectStorage(storage.sql);
+        const doStorage = new DatabaseDurableObjectStorage(storage);
         writePagesFor(
             doStorage,
             databaseMainTableId,
@@ -232,7 +232,7 @@ describe("ensureCacheIsUpToDate", () => {
     });
 
     test("over limit with trailing pages puts everything in stale indexes", async () => {
-        const doStorage = new DatabaseDurableObjectStorage(storage.sql);
+        const doStorage = new DatabaseDurableObjectStorage(storage);
 
         // Write one more than the limit
         const count = cacheUpdateStalePageLimit + 1;
@@ -271,8 +271,8 @@ function createTrackedConnection(
 ) {
     const connectionId = generateId<WebSocketConnectionId>();
     return new DatabaseDurableObjectConnection({
+        server: null as any,
         durableObjectStorage: doStorage,
-        executeAction: null as any,
         processContext: null as any,
         sendEventToAll: () => {},
         browserId,
@@ -283,7 +283,7 @@ function createTrackedConnection(
 
 describe("per-browser page tracking", () => {
     test("acknowledgePages ignores pages for tables the server never sent", async () => {
-        const doStorage = new DatabaseDurableObjectStorage(storage.sql);
+        const doStorage = new DatabaseDurableObjectStorage(storage);
         const tracker = new BrowserPageTracker();
         const browserId = generateId<BrowserId>();
         const conn = createTrackedConnection(doStorage, tracker, browserId);
@@ -302,7 +302,7 @@ describe("per-browser page tracking", () => {
     });
 
     test("acknowledgePages ignores page indexes the server never sent", async () => {
-        const doStorage = new DatabaseDurableObjectStorage(storage.sql);
+        const doStorage = new DatabaseDurableObjectStorage(storage);
         const tracker = new BrowserPageTracker();
         const browserId = generateId<BrowserId>();
         const conn = createTrackedConnection(doStorage, tracker, browserId);
@@ -317,7 +317,7 @@ describe("per-browser page tracking", () => {
     });
 
     test("ensureCacheIsUpToDate sets matching pages as confirmed in tracker", async () => {
-        const doStorage = new DatabaseDurableObjectStorage(storage.sql);
+        const doStorage = new DatabaseDurableObjectStorage(storage);
         writePagesFor(
             doStorage,
             databaseMainTableId,
@@ -362,7 +362,7 @@ describe("per-browser page tracking", () => {
     });
 
     test("ensureCacheIsUpToDate marks updatedPages as pending in tracker", async () => {
-        const doStorage = new DatabaseDurableObjectStorage(storage.sql);
+        const doStorage = new DatabaseDurableObjectStorage(storage);
         writePagesFor(
             doStorage,
             databaseMainTableId,
@@ -404,7 +404,7 @@ describe("per-browser page tracking", () => {
     });
 
     test("acknowledgePages confirms pages in tracker", async () => {
-        const doStorage = new DatabaseDurableObjectStorage(storage.sql);
+        const doStorage = new DatabaseDurableObjectStorage(storage);
         const tracker = new BrowserPageTracker();
         const browserId = generateId<BrowserId>();
         const conn = createTrackedConnection(doStorage, tracker, browserId);
@@ -431,7 +431,7 @@ describe("per-browser page tracking", () => {
     });
 
     test("ensureCacheIsUpToDate confirms pages for every client table, not just the main table", async () => {
-        const doStorage = new DatabaseDurableObjectStorage(storage.sql);
+        const doStorage = new DatabaseDurableObjectStorage(storage);
         const attachedTableId = generateChronologicalId<DatabaseTableId>();
         writePagesFor(doStorage, databaseMainTableId, new Map([[0, makePage(0xaa)]]));
         writePagesFor(doStorage, attachedTableId, new Map([[0, makePage(0xbb)]]));
@@ -465,7 +465,7 @@ describe("per-browser page tracking", () => {
     });
 
     test("handleClose unregisters connection from tracker", () => {
-        const doStorage = new DatabaseDurableObjectStorage(storage.sql);
+        const doStorage = new DatabaseDurableObjectStorage(storage);
         const tracker = new BrowserPageTracker();
         const browserId = generateId<BrowserId>();
         const conn = createTrackedConnection(doStorage, tracker, browserId);
@@ -482,7 +482,7 @@ describe("per-browser page tracking", () => {
     });
 
     test("two connections from same browser share page set", async () => {
-        const doStorage = new DatabaseDurableObjectStorage(storage.sql);
+        const doStorage = new DatabaseDurableObjectStorage(storage);
         const tracker = new BrowserPageTracker();
         const browserId = generateId<BrowserId>();
         const conn1 = createTrackedConnection(doStorage, tracker, browserId);
@@ -512,7 +512,7 @@ describe("per-browser page tracking", () => {
     });
 
     test("closing one of two connections preserves page set", () => {
-        const doStorage = new DatabaseDurableObjectStorage(storage.sql);
+        const doStorage = new DatabaseDurableObjectStorage(storage);
         const tracker = new BrowserPageTracker();
         const browserId = generateId<BrowserId>();
         const conn1 = createTrackedConnection(doStorage, tracker, browserId);
@@ -535,7 +535,7 @@ describe("per-browser page tracking", () => {
     });
 
     test("transformEvent forwards pages even when tracker does not know them", async () => {
-        const doStorage = new DatabaseDurableObjectStorage(storage.sql);
+        const doStorage = new DatabaseDurableObjectStorage(storage);
         writePagesFor(
             doStorage,
             databaseMainTableId,
@@ -587,7 +587,7 @@ describe("per-browser page tracking", () => {
     });
 
     test("transformEvent includes pending pages", async () => {
-        const doStorage = new DatabaseDurableObjectStorage(storage.sql);
+        const doStorage = new DatabaseDurableObjectStorage(storage);
         writePagesFor(
             doStorage,
             databaseMainTableId,
@@ -636,7 +636,7 @@ describe("per-browser page tracking", () => {
     });
 
     test("transformEvent forwards tables when tracker has no pages", async () => {
-        const doStorage = new DatabaseDurableObjectStorage(storage.sql);
+        const doStorage = new DatabaseDurableObjectStorage(storage);
         const tracker = new BrowserPageTracker();
         const browserId = generateId<BrowserId>();
         const conn = createTrackedConnection(doStorage, tracker, browserId);
@@ -665,7 +665,7 @@ describe("per-browser page tracking", () => {
     });
 
     test("ensureCacheIsUpToDate replaces page set on each call", async () => {
-        const doStorage = new DatabaseDurableObjectStorage(storage.sql);
+        const doStorage = new DatabaseDurableObjectStorage(storage);
         writePagesFor(
             doStorage,
             databaseMainTableId,

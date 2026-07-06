@@ -5,12 +5,8 @@ import {
 import {WorkerProcessContext} from "~/server/cloudflare/context/worker_process_context.js";
 import {BrowserPageTracker} from "~/server/databases/browser_page_tracker.js";
 import {DatabaseDurableObjectStorage} from "~/server/databases/database_durable_object_storage.js";
-import {type DatabaseServerActionResult} from "~/server/databases/database_server.js";
+import {DatabaseServer} from "~/server/databases/database_server.js";
 import {WebSocketConnectionProcedures} from "~/server/web_socket/web_socket_server.js";
-import {
-    type DatabaseActionName,
-    type DatabaseActionObject,
-} from "~/shared/databases/database_actions.js";
 import type {
     DatabasePageDiffs,
     DatabaseTablePageDiffs,
@@ -38,12 +34,8 @@ export type DatabaseRealtimeEventStub = {
 };
 
 export class DatabaseDurableObjectConnection {
+    private readonly _server: DatabaseServer;
     private readonly _durableObjectStorage: DatabaseDurableObjectStorage;
-    private readonly _executeAction: <N extends DatabaseActionName, T>(
-        context: WorkerSessionActionContext,
-        actionObject: DatabaseActionObject<N>,
-        handleResult: (result: DatabaseServerActionResult<N>) => T,
-    ) => T;
     private readonly _sendEventToAll: (
         context: WorkerProcessContext,
         event: DatabaseRealtimeEventStub,
@@ -54,28 +46,24 @@ export class DatabaseDurableObjectConnection {
     private readonly _browserPageTracker: BrowserPageTracker;
 
     constructor({
+        server,
         durableObjectStorage,
-        executeAction,
         processContext,
         sendEventToAll,
         browserId,
         connectionId,
         browserPageTracker,
     }: {
+        server: DatabaseServer;
         durableObjectStorage: DatabaseDurableObjectStorage;
-        executeAction: <N extends DatabaseActionName, T>(
-            context: WorkerSessionActionContext,
-            actionObject: DatabaseActionObject<N>,
-            handleResult: (result: DatabaseServerActionResult<N>) => T,
-        ) => T;
         processContext: WorkerProcessContext;
         sendEventToAll: (context: WorkerProcessContext, event: DatabaseRealtimeEventStub) => void;
         browserId: BrowserId;
         connectionId: WebSocketConnectionId;
         browserPageTracker: BrowserPageTracker;
     }) {
+        this._server = server;
         this._durableObjectStorage = durableObjectStorage;
-        this._executeAction = executeAction;
         this._processContext = processContext;
         this._sendEventToAll = sendEventToAll;
         this._browserId = browserId;
@@ -89,49 +77,48 @@ export class DatabaseDurableObjectConnection {
         typeof DatabaseRealtimeProtocol
     > = {
         executeAction: async (context, input) => {
-            return this._executeAction(context, input.action, result => {
-                const pageDiffs = new Map<DatabaseTableId, DatabaseTablePageDiffs>();
-                for (const [tableId, {pages, fileSizeInPages}] of result.changedPages) {
-                    // `getBufferedWrites` only emits a table entry when it has at least one buffered
-                    // page, so a changed-pages entry always carries pages.
-                    assert(pages.size > 0, `changedPages entry for ${tableId} has no pages`);
-                    const tableReadPages = result.readPages.get(tableId);
-                    const diffs = new Map<number, {version: number; diff: PageDiff}>();
-                    for (const [pageIndex, {before, after}] of pages) {
-                        diffs.set(pageIndex, {
-                            version: tableReadPages!.get(pageIndex)!.version,
-                            diff: diffPage(before, after),
-                        });
-                    }
-                    pageDiffs.set(tableId, {diffs, fileSizeInPages});
-                }
-                if (pageDiffs.size > 0) {
-                    this._sendEventToAll(this._processContext, {
-                        type: "PagesChanged",
-                        pageDiffs,
-                        mutationId: input.mutationId,
+            const result = this._server.executeAction(context, input.action);
+            const pageDiffs = new Map<DatabaseTableId, DatabaseTablePageDiffs>();
+            for (const [tableId, {pages, fileSizeInPages}] of result.changedPages) {
+                // `getBufferedWrites` only emits a table entry when it has at least one buffered
+                // page, so a changed-pages entry always carries pages.
+                assert(pages.size > 0, `changedPages entry for ${tableId} has no pages`);
+                const tableReadPages = result.readPages.get(tableId);
+                const diffs = new Map<number, {version: number; diff: PageDiff}>();
+                for (const [pageIndex, {before, after}] of pages) {
+                    diffs.set(pageIndex, {
+                        version: tableReadPages!.get(pageIndex)!.version,
+                        diff: diffPage(before, after),
                     });
                 }
+                pageDiffs.set(tableId, {diffs, fileSizeInPages});
+            }
+            if (pageDiffs.size > 0) {
+                this._sendEventToAll(this._processContext, {
+                    type: "PagesChanged",
+                    pageDiffs,
+                    mutationId: input.mutationId,
+                });
+            }
 
-                const filteredReadPages = input.returnPages
-                    ? this._browserPageTracker.filterReadPages(this._browserId, result.readPages)
-                    : null;
+            const filteredReadPages = input.returnPages
+                ? this._browserPageTracker.filterReadPages(this._browserId, result.readPages)
+                : null;
 
-                if (filteredReadPages !== null && filteredReadPages.size > 0) {
-                    const pendingByTable = new Map<DatabaseTableId, Iterable<number>>();
-                    for (const [tableId, tablePages] of filteredReadPages) {
-                        pendingByTable.set(tableId, tablePages.keys());
-                    }
-                    this._browserPageTracker.addPendingPages(this._browserId, pendingByTable);
+            if (filteredReadPages !== null && filteredReadPages.size > 0) {
+                const pendingByTable = new Map<DatabaseTableId, Iterable<number>>();
+                for (const [tableId, tablePages] of filteredReadPages) {
+                    pendingByTable.set(tableId, tablePages.keys());
                 }
+                this._browserPageTracker.addPendingPages(this._browserId, pendingByTable);
+            }
 
-                return {
-                    result: input.returnResult
-                        ? ({name: input.action.name, output: result.result} as any)
-                        : null,
-                    readPages: filteredReadPages,
-                };
-            });
+            return {
+                result: input.returnResult
+                    ? ({name: input.action.name, output: result.result} as any)
+                    : null,
+                readPages: filteredReadPages,
+            };
         },
         ensureCacheIsUpToDate: async (_context, input) => {
             // Mutable builder for the readonly `DatabaseEnsureCacheIsUpToDateResult["tables"]`

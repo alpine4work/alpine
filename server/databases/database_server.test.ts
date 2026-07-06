@@ -4,7 +4,7 @@ import {type SqlQuery, sql} from "~/shared/databases/sql.js";
 import {databaseMainTableId, sqlitePageSize} from "~/shared/databases/sqlite_constants.js";
 import {InternalError} from "~/shared/error/error.js";
 import {generateChronologicalId} from "~/shared/id/chronological_id.js";
-import type {DatabaseRowId, DatabaseTableId} from "~/shared/id/types/id_types.js";
+import type {DatabaseGroupId, DatabaseRowId, DatabaseTableId} from "~/shared/id/types/id_types.js";
 import {Schema} from "~/shared/schema/schema.js";
 
 interface InMemoryTable {
@@ -15,6 +15,10 @@ interface InMemoryTable {
 class InMemoryStorage implements DatabaseServerStorage {
     private tables = new Map<DatabaseTableId, InMemoryTable>();
     private lastWriteVersion = 0;
+
+    transactionSync<T>(fn: () => T): T {
+        return fn();
+    }
 
     private getTable(databaseTableId: DatabaseTableId): InMemoryTable {
         let table = this.tables.get(databaseTableId);
@@ -69,7 +73,15 @@ class InMemoryStorage implements DatabaseServerStorage {
 // Servers created during a test are tracked here and closed in `afterEach` so
 // individual tests don't have to call `server.close()` themselves.
 const openServers: Array<DatabaseServer> = [];
-const testContext = null as any;
+const testDatabaseGroupId = generateChronologicalId<DatabaseGroupId>();
+const testContext = {
+    process: {
+        waitUntil: () => {},
+    },
+    rpc: {
+        execute: async () => ({ok: true as const}),
+    },
+} as any;
 
 afterEach(() => {
     while (openServers.length > 0) {
@@ -84,7 +96,7 @@ afterEach(() => {
 });
 
 async function createServerWithSchema(...statements: Array<SqlQuery>): Promise<DatabaseServer> {
-    const server = await DatabaseServer.create(new InMemoryStorage());
+    const server = await DatabaseServer.create(new InMemoryStorage(), testDatabaseGroupId);
     openServers.push(server);
     const db = server.unsafeGetDbForTests();
     for (const stmt of statements) {
@@ -102,6 +114,10 @@ describe("DatabaseServer — storage failure recovery", () => {
     class FlakyStorage implements DatabaseServerStorage {
         private readonly inner = new InMemoryStorage();
         failNextWritePages = false;
+
+        transactionSync<T>(fn: () => T): T {
+            return this.inner.transactionSync(fn);
+        }
 
         readPage(
             databaseTableId: DatabaseTableId,
@@ -128,7 +144,7 @@ describe("DatabaseServer — storage failure recovery", () => {
 
     test("a failed buffer drain does not wedge later executes", async () => {
         const storage = new FlakyStorage();
-        const server = await DatabaseServer.create(storage);
+        const server = await DatabaseServer.create(storage, testDatabaseGroupId);
         openServers.push(server);
         server.execute(testContext, sql`CREATE TABLE items (id INTEGER PRIMARY KEY)`, {
             allowWrites: "schema+data",
@@ -170,14 +186,14 @@ describe("DatabaseServer — storage failure recovery", () => {
 describe("DatabaseServer", () => {
     test("execute runs inside configured transactionSync", async () => {
         const calls: Array<string> = [];
-        const server = await DatabaseServer.create(new InMemoryStorage(), {
-            transactionSync: fn => {
-                calls.push("before");
-                const result = fn();
-                calls.push("after");
-                return result;
-            },
-        });
+        const storage = new InMemoryStorage();
+        storage.transactionSync = fn => {
+            calls.push("before");
+            const result = fn();
+            calls.push("after");
+            return result;
+        };
+        const server = await DatabaseServer.create(storage, testDatabaseGroupId);
         openServers.push(server);
 
         server.execute(
@@ -586,7 +602,7 @@ describe("DatabaseServer", () => {
     describe("storage integration", () => {
         test("writes go through to storage", async () => {
             const storage = new InMemoryStorage();
-            const server = await DatabaseServer.create(storage);
+            const server = await DatabaseServer.create(storage, testDatabaseGroupId);
             openServers.push(server);
             const db = server.unsafeGetDbForTests();
 
@@ -605,7 +621,7 @@ describe("DatabaseServer", () => {
 
         test("page data from execute matches what storage has", async () => {
             const storage = new InMemoryStorage();
-            const server = await DatabaseServer.create(storage);
+            const server = await DatabaseServer.create(storage, testDatabaseGroupId);
             openServers.push(server);
             const db = server.unsafeGetDbForTests();
 
@@ -731,7 +747,7 @@ describe("DatabaseServer", () => {
 
         test("before snapshot matches pre-mutation storage state", async () => {
             const storage = new InMemoryStorage();
-            const server = await DatabaseServer.create(storage);
+            const server = await DatabaseServer.create(storage, testDatabaseGroupId);
             openServers.push(server);
             const db = server.unsafeGetDbForTests();
             sql`CREATE TABLE items (id INTEGER PRIMARY KEY)`.exec(db);
@@ -768,7 +784,7 @@ describe("DatabaseServer", () => {
 
         test("after snapshot matches post-mutation storage state", async () => {
             const storage = new InMemoryStorage();
-            const server = await DatabaseServer.create(storage);
+            const server = await DatabaseServer.create(storage, testDatabaseGroupId);
             openServers.push(server);
             const db = server.unsafeGetDbForTests();
             sql`CREATE TABLE items (id INTEGER PRIMARY KEY)`.exec(db);
@@ -855,7 +871,7 @@ describe("DatabaseServer", () => {
         // shrink.
         test("VACUUM that shrinks the file drains without error", async () => {
             const storage = new InMemoryStorage();
-            const server = await DatabaseServer.create(storage);
+            const server = await DatabaseServer.create(storage, testDatabaseGroupId);
             openServers.push(server);
             const db = server.unsafeGetDbForTests();
             sql`CREATE TABLE items (id INTEGER PRIMARY KEY, BLOB TEXT NOT NULL)`.exec(db);
@@ -992,7 +1008,7 @@ describe("DatabaseServer", () => {
 
 describe("DatabaseServer — per-table storage", () => {
     test("a fresh group has no tables", async () => {
-        const server = await DatabaseServer.create(new InMemoryStorage());
+        const server = await DatabaseServer.create(new InMemoryStorage(), testDatabaseGroupId);
         openServers.push(server);
 
         const tables = sql`
@@ -1005,7 +1021,7 @@ describe("DatabaseServer — per-table storage", () => {
     });
 
     test("createTable stores public main metadata plus its own per-db file", async () => {
-        const server = await DatabaseServer.create(new InMemoryStorage());
+        const server = await DatabaseServer.create(new InMemoryStorage(), testDatabaseGroupId);
         openServers.push(server);
         const {result} = server.executeAction<"createTable">(testContext, {
             name: "createTable",
@@ -1034,7 +1050,7 @@ describe("DatabaseServer — per-table storage", () => {
 
     test("re-attaches and serves an existing table after reopening", async () => {
         const storage = new InMemoryStorage();
-        const server1 = await DatabaseServer.create(storage);
+        const server1 = await DatabaseServer.create(storage, testDatabaseGroupId);
         const {result} = server1.executeAction<"createTable">(testContext, {
             name: "createTable",
             input: {name: "Tasks"},
@@ -1043,7 +1059,7 @@ describe("DatabaseServer — per-table storage", () => {
 
         // Reopen on the same storage; bootstrap should attach and migrate the existing
         // table so it stays queryable.
-        const server2 = await DatabaseServer.create(storage);
+        const server2 = await DatabaseServer.create(storage, testDatabaseGroupId);
         openServers.push(server2);
         const name = sql`
             SELECT
@@ -1056,7 +1072,7 @@ describe("DatabaseServer — per-table storage", () => {
 
     test("re-attaches and serves an existing relation join table after reopening", async () => {
         const storage = new InMemoryStorage();
-        const server1 = await DatabaseServer.create(storage);
+        const server1 = await DatabaseServer.create(storage, testDatabaseGroupId);
         const source = server1.executeAction<"createTable">(testContext, {
             name: "createTable",
             input: {name: "Tasks"},
@@ -1076,7 +1092,7 @@ describe("DatabaseServer — per-table storage", () => {
         }).result;
         server1.close();
 
-        const server2 = await DatabaseServer.create(storage);
+        const server2 = await DatabaseServer.create(storage, testDatabaseGroupId);
         openServers.push(server2);
         const joinTableId = sql`
             SELECT

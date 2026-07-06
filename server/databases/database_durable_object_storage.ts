@@ -26,13 +26,15 @@ import type {DatabaseTableId} from "~/shared/id/types/id_types.js";
  * value.
  */
 export class DatabaseDurableObjectStorage implements DatabaseServerStorage {
+    private readonly storage: DurableObjectStorage;
     private readonly sql: SqlStorage;
     private readonly sqliteIds = new Map<DatabaseTableId, number>();
     private readonly fileSizes = new Map<DatabaseTableId, number>();
     private lastWriteVersion: number | undefined;
 
-    constructor(sql: SqlStorage) {
-        this.sql = sql;
+    constructor(storage: DurableObjectStorage) {
+        this.storage = storage;
+        this.sql = storage.sql;
         this.sql.exec(
             `CREATE TABLE IF NOT EXISTS database_table_ids (
                 sqlite_id INTEGER PRIMARY KEY,
@@ -48,6 +50,10 @@ export class DatabaseDurableObjectStorage implements DatabaseServerStorage {
                 PRIMARY KEY (sqlite_id, page_index, version)
             ) WITHOUT ROWID`,
         );
+    }
+
+    transactionSync<T>(fn: () => T): T {
+        return this.storage.transactionSync(fn);
     }
 
     readPage(

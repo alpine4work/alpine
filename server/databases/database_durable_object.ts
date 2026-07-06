@@ -14,17 +14,10 @@ import {
     DatabaseRealtimeEventStub,
 } from "~/server/databases/database_durable_object_connection.js";
 import {DatabaseDurableObjectStorage} from "~/server/databases/database_durable_object_storage.js";
-import {
-    DatabaseServer,
-    type DatabaseServerActionResult,
-} from "~/server/databases/database_server.js";
+import {DatabaseServer} from "~/server/databases/database_server.js";
 import {WebSocketServer} from "~/server/web_socket/web_socket_server.js";
 import {DatabaseActionFetchResponseSchema} from "~/shared/databases/database_action_fetch_schema.js";
-import {
-    type DatabaseActionName,
-    type DatabaseActionObject,
-    DatabaseActionObjectSchema,
-} from "~/shared/databases/database_actions.js";
+import {DatabaseActionObjectSchema} from "~/shared/databases/database_actions.js";
 import {DatabaseRealtimeProtocol} from "~/shared/databases/database_realtime_protocol.js";
 import {InvalidArgumentError, NotFoundError} from "~/shared/error/error.js";
 import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
@@ -60,12 +53,9 @@ class DatabaseGroupDurableObject {
         destroy: () => void;
         storage: DurableObjectStorage;
     }): Promise<DatabaseGroupDurableObject> {
-        const durableObjectStorage = new DatabaseDurableObjectStorage(storage.sql);
+        const durableObjectStorage = new DatabaseDurableObjectStorage(storage);
         const databaseGroupId = idName as DatabaseGroupId;
-        const server = await DatabaseServer.create(durableObjectStorage, {
-            databaseGroupId,
-            transactionSync: fn => storage.transactionSync(fn),
-        });
+        const server = await DatabaseServer.create(durableObjectStorage, databaseGroupId);
         return new DatabaseGroupDurableObject({
             processContext,
             server,
@@ -100,8 +90,7 @@ class DatabaseGroupDurableObject {
             return new DatabaseDurableObjectConnection({
                 processContext: this._processContext,
                 durableObjectStorage: this._durableObjectStorage,
-                executeAction: (context, actionObject, handleResult) =>
-                    handleResult(this._server.executeAction(context, actionObject)),
+                server: this._server,
                 sendEventToAll: (context, event) => {
                     this._webSocketServer.sendEventToAll(context, event);
                 },
@@ -143,35 +132,23 @@ class DatabaseGroupDurableObject {
             (await request.json()) as SchemaSerializedValue,
         );
 
-        return await this._executeAction(
-            context,
-            actionObject,
-            actionResult =>
-                new Response(
-                    JSON.stringify(
-                        DatabaseActionFetchResponseSchema.serialize({
-                            result: {name: actionObject.name, output: actionResult.result} as any,
-                            readPages: actionResult.readPages,
-                        }),
-                    ),
-                    {
-                        status: 200,
-                        headers: {"content-type": "application/json"},
-                    },
-                ),
+        const actionResult = this._server.executeAction(context, actionObject);
+        return new Response(
+            JSON.stringify(
+                DatabaseActionFetchResponseSchema.serialize({
+                    result: {name: actionObject.name, output: actionResult.result} as any,
+                    readPages: actionResult.readPages,
+                }),
+            ),
+            {
+                status: 200,
+                headers: {"content-type": "application/json"},
+            },
         );
     }
 
     public connectForTest(context: WorkerSessionActionContext) {
         return this._webSocketServer.connectForTest(context);
-    }
-
-    private async _executeAction<N extends DatabaseActionName, T>(
-        context: WorkerActionContext | WorkerSessionActionContext,
-        actionObject: DatabaseActionObject<N>,
-        handleResult: (result: DatabaseServerActionResult<N>) => T,
-    ): Promise<T> {
-        return handleResult(this._server.executeAction(context, actionObject));
     }
 }
 
