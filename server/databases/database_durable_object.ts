@@ -110,7 +110,7 @@ class DatabaseGroupDurableObject {
                 processContext: this._processContext,
                 durableObjectStorage: this._durableObjectStorage,
                 executeAction: (context, actionObject, handleResult) =>
-                    this._executeAction(context, actionObject, handleResult),
+                    this._executeActionWithReplication(context, actionObject, handleResult),
                 sendEventToAll: (context, event) => {
                     this._webSocketServer.sendEventToAll(context, event);
                 },
@@ -152,7 +152,7 @@ class DatabaseGroupDurableObject {
             (await request.json()) as SchemaSerializedValue,
         );
 
-        return await this._executeAction(
+        return await this._executeActionWithReplication(
             context,
             actionObject,
             actionResult =>
@@ -175,7 +175,7 @@ class DatabaseGroupDurableObject {
         return this._webSocketServer.connectForTest(context);
     }
 
-    private async _executeAction<N extends DatabaseActionName, T>(
+    private async _executeActionWithReplication<N extends DatabaseActionName, T>(
         context: WorkerActionContext | WorkerSessionActionContext,
         actionObject: DatabaseActionObject<N>,
         handleResult: (result: DatabaseServerActionResult<N>) => T,

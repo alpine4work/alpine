@@ -5,12 +5,11 @@ import {
 import {WorkerProcessContext} from "~/server/cloudflare/context/worker_process_context.js";
 import {BrowserPageTracker} from "~/server/databases/browser_page_tracker.js";
 import {DatabaseDurableObjectStorage} from "~/server/databases/database_durable_object_storage.js";
-import {type DatabaseServerActionResult} from "~/server/databases/database_server.js";
-import {WebSocketConnectionProcedures} from "~/server/web_socket/web_socket_server.js";
 import {
-    type DatabaseActionName,
-    type DatabaseActionObject,
-} from "~/shared/databases/database_actions.js";
+    DatabaseServer,
+    type DatabaseServerChangedTables,
+} from "~/server/databases/database_server.js";
+import {WebSocketConnectionProcedures} from "~/server/web_socket/web_socket_server.js";
 import type {
     DatabasePageDiffs,
     DatabaseTablePageDiffs,
@@ -38,12 +37,13 @@ export type DatabaseRealtimeEventStub = {
 };
 
 export class DatabaseDurableObjectConnection {
+    private readonly _server: DatabaseServer;
+    private readonly _storage: DurableObjectStorage;
     private readonly _durableObjectStorage: DatabaseDurableObjectStorage;
-    private readonly _executeAction: <N extends DatabaseActionName, T>(
+    private readonly _enqueueReplicationJob: (
         context: WorkerSessionActionContext,
-        actionObject: DatabaseActionObject<N>,
-        handleResult: (result: DatabaseServerActionResult<N>) => T,
-    ) => Promise<T>;
+        options: {storageVersion: number; tableIds: DatabaseServerChangedTables},
+    ) => Promise<void>;
     private readonly _sendEventToAll: (
         context: WorkerProcessContext,
         event: DatabaseRealtimeEventStub,
@@ -54,28 +54,33 @@ export class DatabaseDurableObjectConnection {
     private readonly _browserPageTracker: BrowserPageTracker;
 
     constructor({
+        server,
+        storage,
         durableObjectStorage,
-        executeAction,
+        enqueueReplicationJob,
         processContext,
         sendEventToAll,
         browserId,
         connectionId,
         browserPageTracker,
     }: {
+        server: DatabaseServer;
+        storage: DurableObjectStorage;
         durableObjectStorage: DatabaseDurableObjectStorage;
-        executeAction: <N extends DatabaseActionName, T>(
+        enqueueReplicationJob: (
             context: WorkerSessionActionContext,
-            actionObject: DatabaseActionObject<N>,
-            handleResult: (result: DatabaseServerActionResult<N>) => T,
-        ) => Promise<T>;
+            options: {storageVersion: number; tableIds: DatabaseServerChangedTables},
+        ) => Promise<void>;
         processContext: WorkerProcessContext;
         sendEventToAll: (context: WorkerProcessContext, event: DatabaseRealtimeEventStub) => void;
         browserId: BrowserId;
         connectionId: WebSocketConnectionId;
         browserPageTracker: BrowserPageTracker;
     }) {
+        this._server = server;
+        this._storage = storage;
         this._durableObjectStorage = durableObjectStorage;
-        this._executeAction = executeAction;
+        this._enqueueReplicationJob = enqueueReplicationJob;
         this._processContext = processContext;
         this._sendEventToAll = sendEventToAll;
         this._browserId = browserId;
@@ -89,7 +94,13 @@ export class DatabaseDurableObjectConnection {
         typeof DatabaseRealtimeProtocol
     > = {
         executeAction: async (context, input) => {
-            return await this._executeAction(context, input.action, result => {
+            let changedTables: DatabaseServerChangedTables = new Set();
+            let writeVersion = 0;
+            const response = this._storage.transactionSync(() => {
+                const result = this._server.executeAction(input.action);
+                changedTables = result.changedTables;
+                writeVersion = result.writeVersion;
+
                 const pageDiffs = new Map<DatabaseTableId, DatabaseTablePageDiffs>();
                 for (const [tableId, {pages, fileSizeInPages}] of result.changedPages) {
                     // `getBufferedWrites` only emits a table entry when it has at least one buffered
@@ -132,6 +143,12 @@ export class DatabaseDurableObjectConnection {
                     readPages: filteredReadPages,
                 };
             });
+
+            await this._enqueueReplicationJob(context, {
+                storageVersion: writeVersion,
+                tableIds: changedTables,
+            });
+            return response;
         },
         ensureCacheIsUpToDate: async (_context, input) => {
             // Mutable builder for the readonly `DatabaseEnsureCacheIsUpToDateResult["tables"]`
