@@ -4,21 +4,19 @@ import {
 } from "~/server/cloudflare/context/worker_action_context.js";
 import {WorkerProcessContext} from "~/server/cloudflare/context/worker_process_context.js";
 import {BrowserPageTracker} from "~/server/databases/browser_page_tracker.js";
+import {buildDatabasePageDiffs} from "~/server/databases/build_database_page_diffs.js";
 import {DatabaseDurableObjectStorage} from "~/server/databases/database_durable_object_storage.js";
 import {DatabaseServer} from "~/server/databases/database_server.js";
 import {WebSocketConnectionProcedures} from "~/server/web_socket/web_socket_server.js";
 import type {
     DatabasePageDiffs,
-    DatabaseTablePageDiffs,
     DatabaseTablePages,
 } from "~/shared/databases/database_protocol_schemas.js";
 import {
     DatabaseRealtimeEvent,
     DatabaseRealtimeProtocol,
 } from "~/shared/databases/database_realtime_protocol.js";
-import {type PageDiff, diffPage} from "~/shared/databases/page_diff.js";
 import {cacheUpdateStalePageLimit, sqlitePageSize} from "~/shared/databases/sqlite_constants.js";
-import {assert} from "~/shared/helpers/control/assert.js";
 import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
 import type {
     BrowserId,
@@ -86,25 +84,7 @@ export class DatabaseDurableObjectConnection {
         executeAction: async (context, input) => {
             const result = this._server.executeAction(context, input.action);
 
-            const pageDiffs = new Map<DatabaseTableId, DatabaseTablePageDiffs>();
-            for (const [tableId, {pages, fileSizeInPages}] of result.changedPages) {
-                // `getBufferedWrites` only emits a table entry when it has at least one buffered
-                // page, so a changed-pages entry always carries pages.
-                assert(pages.size > 0, `changedPages entry for ${tableId} has no pages`);
-                const tableReadPages = result.readPages.get(tableId);
-                const diffs = new Map<
-                    number,
-                    {previousVersion: number; version: number; diff: PageDiff}
-                >();
-                for (const [pageIndex, {before, after, beforeVersion}] of pages) {
-                    diffs.set(pageIndex, {
-                        previousVersion: beforeVersion,
-                        version: tableReadPages!.get(pageIndex)!.version,
-                        diff: diffPage(before, after),
-                    });
-                }
-                pageDiffs.set(tableId, {diffs, fileSizeInPages});
-            }
+            const pageDiffs = buildDatabasePageDiffs(result.changedPages, result.readPages);
             if (pageDiffs.size > 0) {
                 this._sendEventToAll(this._processContext, {
                     type: "PagesChanged",

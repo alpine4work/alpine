@@ -754,7 +754,7 @@ describe("ensureCacheIsUpToDate", () => {
     // server's per-browser tracker, which then filters it out of every future
     // `executeAction` response — so the cache can never heal and every read of that
     // page falls back to the server forever.
-    test.failing("does not acknowledge pages a tombstone rejected", async () => {
+    test("does not acknowledge pages a tombstone rejected", async () => {
         const serverDir = createInMemoryOpfsDirectoryHandle();
         const server = await DatabaseClient.create(serverDir);
         server.executeLocallyForTests(sql`CREATE TABLE t (id INTEGER PRIMARY KEY, data TEXT)`);

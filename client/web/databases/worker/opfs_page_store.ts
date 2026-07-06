@@ -125,6 +125,14 @@ export class OpfsPageStore {
     }
 
     /**
+     * Whether a durable copy of the page exists locally. False for pages dropped by
+     * {@link tombstonePages} until a write at or above the tombstone's version lands.
+     */
+    hasPage(pageIndex: number): boolean {
+        return this.index.has(pageIndex);
+    }
+
+    /**
      * Current logical file size in bytes. Uses the server-reported size when known so
      * SQLite sees the full database even when only a subset of pages are cached
      * locally; otherwise falls back to the highest page index actually present.
