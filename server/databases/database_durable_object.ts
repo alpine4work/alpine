@@ -17,7 +17,6 @@ import {DatabaseDurableObjectStorage} from "~/server/databases/database_durable_
 import {
     DatabaseServer,
     type DatabaseServerActionResult,
-    type DatabaseServerChangedTables,
 } from "~/server/databases/database_server.js";
 import {WebSocketServer} from "~/server/web_socket/web_socket_server.js";
 import {DatabaseActionFetchResponseSchema} from "~/shared/databases/database_action_fetch_schema.js";
@@ -28,10 +27,8 @@ import {
 } from "~/shared/databases/database_actions.js";
 import {DatabaseRealtimeProtocol} from "~/shared/databases/database_realtime_protocol.js";
 import {InvalidArgumentError, NotFoundError} from "~/shared/error/error.js";
-import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
 import type {BrowserId, DatabaseGroupId} from "~/shared/id/types/id_types.js";
-import {enqueueDatabaseTableReplicationJob} from "~/shared/rpc/database_replication_rpc_definitions.js";
 import {SchemaSerializedValue} from "~/shared/schema/schema.js";
 
 type DatabaseGroupDurableObjectRoute = "Main" | "Action" | "NotFound";
@@ -40,9 +37,7 @@ class DatabaseGroupDurableObject {
     public static readonly serviceName = "DatabaseGroupService";
 
     private readonly _server: DatabaseServer;
-    private readonly _storage: DurableObjectStorage;
     private readonly _durableObjectStorage: DatabaseDurableObjectStorage;
-    private readonly _databaseGroupId: DatabaseGroupId;
     private readonly _processContext: WorkerProcessContext;
     private readonly _browserPageTracker = new BrowserPageTracker();
 
@@ -66,12 +61,14 @@ class DatabaseGroupDurableObject {
         storage: DurableObjectStorage;
     }): Promise<DatabaseGroupDurableObject> {
         const durableObjectStorage = new DatabaseDurableObjectStorage(storage.sql);
-        const server = await DatabaseServer.create(durableObjectStorage);
+        const databaseGroupId = idName as DatabaseGroupId;
+        const server = await DatabaseServer.create(durableObjectStorage, {
+            databaseGroupId,
+            transactionSync: fn => storage.transactionSync(fn),
+        });
         return new DatabaseGroupDurableObject({
-            databaseGroupId: idName as DatabaseGroupId,
             processContext,
             server,
-            storage,
             durableObjectStorage,
         });
     }
@@ -79,21 +76,15 @@ class DatabaseGroupDurableObject {
     private constructor({
         processContext,
         server,
-        storage,
         durableObjectStorage,
-        databaseGroupId,
     }: {
-        databaseGroupId: DatabaseGroupId;
         processContext: WorkerProcessContext;
         server: DatabaseServer;
-        storage: DurableObjectStorage;
         durableObjectStorage: DatabaseDurableObjectStorage;
     }) {
         this._processContext = processContext;
         this._server = server;
-        this._storage = storage;
         this._durableObjectStorage = durableObjectStorage;
-        this._databaseGroupId = databaseGroupId;
 
         this._webSocketServer = new WebSocketServer<
             WorkerProcessContextModules,
@@ -110,7 +101,7 @@ class DatabaseGroupDurableObject {
                 processContext: this._processContext,
                 durableObjectStorage: this._durableObjectStorage,
                 executeAction: (context, actionObject, handleResult) =>
-                    this._executeActionWithReplication(context, actionObject, handleResult),
+                    handleResult(this._server.executeAction(context, actionObject)),
                 sendEventToAll: (context, event) => {
                     this._webSocketServer.sendEventToAll(context, event);
                 },
@@ -152,7 +143,7 @@ class DatabaseGroupDurableObject {
             (await request.json()) as SchemaSerializedValue,
         );
 
-        return await this._executeActionWithReplication(
+        return await this._executeAction(
             context,
             actionObject,
             actionResult =>
@@ -175,44 +166,12 @@ class DatabaseGroupDurableObject {
         return this._webSocketServer.connectForTest(context);
     }
 
-    private async _executeActionWithReplication<N extends DatabaseActionName, T>(
+    private async _executeAction<N extends DatabaseActionName, T>(
         context: WorkerActionContext | WorkerSessionActionContext,
         actionObject: DatabaseActionObject<N>,
         handleResult: (result: DatabaseServerActionResult<N>) => T,
     ): Promise<T> {
-        let actionResult: DatabaseServerActionResult<N> | null = null;
-        const response = this._storage.transactionSync(() => {
-            const persistedActionResult = this._server.executeAction(actionObject);
-            actionResult = persistedActionResult;
-            return handleResult(persistedActionResult);
-        });
-        const persistedActionResult = assertExists<DatabaseServerActionResult<N>>(actionResult);
-
-        await this._enqueueReplicationJob(context, {
-            storageVersion: persistedActionResult.writeVersion,
-            tableIds: persistedActionResult.changedTables,
-        });
-
-        return response;
-    }
-
-    private async _enqueueReplicationJob(
-        context: WorkerActionContext | WorkerSessionActionContext,
-        {
-            storageVersion,
-            tableIds,
-        }: {
-            storageVersion: number;
-            tableIds: DatabaseServerChangedTables;
-        },
-    ): Promise<void> {
-        if (storageVersion === 0 || tableIds.size === 0) return;
-
-        await enqueueDatabaseTableReplicationJob(context, {
-            databaseGroupId: this._databaseGroupId,
-            storageVersion,
-            tableIds,
-        });
+        return handleResult(this._server.executeAction(context, actionObject));
     }
 }
 

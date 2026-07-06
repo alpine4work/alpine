@@ -69,6 +69,7 @@ class InMemoryStorage implements DatabaseServerStorage {
 // Servers created during a test are tracked here and closed in `afterEach` so
 // individual tests don't have to call `server.close()` themselves.
 const openServers: Array<DatabaseServer> = [];
+const testContext = null as any;
 
 afterEach(() => {
     while (openServers.length > 0) {
@@ -129,7 +130,7 @@ describe("DatabaseServer — storage failure recovery", () => {
         const storage = new FlakyStorage();
         const server = await DatabaseServer.create(storage);
         openServers.push(server);
-        server.execute(sql`CREATE TABLE items (id INTEGER PRIMARY KEY)`, {
+        server.execute(testContext, sql`CREATE TABLE items (id INTEGER PRIMARY KEY)`, {
             allowWrites: "schema+data",
         });
 
@@ -138,6 +139,7 @@ describe("DatabaseServer — storage failure recovery", () => {
         storage.failNextWritePages = true;
         expect(() =>
             server.execute(
+                testContext,
                 sql`
                     INSERT INTO
                         items
@@ -152,6 +154,7 @@ describe("DatabaseServer — storage failure recovery", () => {
         // succeed, not throw "\_runAndPersist requires an empty buffer".
         expect(() =>
             server.execute(
+                testContext,
                 sql`
                     INSERT INTO
                         items
@@ -165,6 +168,30 @@ describe("DatabaseServer — storage failure recovery", () => {
 });
 
 describe("DatabaseServer", () => {
+    test("execute runs inside configured transactionSync", async () => {
+        const calls: Array<string> = [];
+        const server = await DatabaseServer.create(new InMemoryStorage(), {
+            transactionSync: fn => {
+                calls.push("before");
+                const result = fn();
+                calls.push("after");
+                return result;
+            },
+        });
+        openServers.push(server);
+
+        server.execute(
+            testContext,
+            sql`
+                SELECT
+                    1 AS value
+            `,
+            {allowWrites: "none"},
+        );
+
+        expect(calls).toEqual(["before", "after"]);
+    });
+
     // Pass-through smoke: rows from a SELECT come back as objects. Exhaustive SQL
     // feature coverage lives in SQLite's own test suite; we only verify the wiring.
     test("execute passes SELECT rows through", async () => {
@@ -180,6 +207,7 @@ describe("DatabaseServer", () => {
         );
 
         const result = server.execute(
+            testContext,
             sql`
                 SELECT
                     id,
@@ -213,6 +241,7 @@ describe("DatabaseServer", () => {
             );
 
             const result = server.execute(
+                testContext,
                 sql`
                     SELECT
                         *
@@ -238,6 +267,7 @@ describe("DatabaseServer", () => {
             );
 
             const result = server.execute(
+                testContext,
                 sql`
                     SELECT
                         *
@@ -264,6 +294,7 @@ describe("DatabaseServer", () => {
             );
 
             const result = server.execute(
+                testContext,
                 sql`
                     SELECT
                         *
@@ -330,6 +361,7 @@ describe("DatabaseServer", () => {
 
             for (const {name, rootpage} of schema) {
                 const result = server.execute(
+                    testContext,
                     sql`
                         SELECT
                             *
@@ -362,6 +394,7 @@ describe("DatabaseServer", () => {
             );
 
             const result1 = server.execute(
+                testContext,
                 sql`
                     SELECT
                         *
@@ -371,6 +404,7 @@ describe("DatabaseServer", () => {
                 {allowWrites: "none"},
             );
             const result2 = server.execute(
+                testContext,
                 sql`
                     SELECT
                         *
@@ -407,6 +441,7 @@ describe("DatabaseServer", () => {
             );
 
             const before = server.execute(
+                testContext,
                 sql`
                     SELECT
                         COUNT(*) AS cnt
@@ -429,6 +464,7 @@ describe("DatabaseServer", () => {
             server.commitBufferForTests();
 
             const after = server.execute(
+                testContext,
                 sql`
                     SELECT
                         COUNT(*) AS cnt
@@ -456,6 +492,7 @@ describe("DatabaseServer", () => {
             // Authorizer rejection.
             expect(() =>
                 server.execute(
+                    testContext,
                     sql`
                         INSERT INTO
                             items
@@ -468,6 +505,7 @@ describe("DatabaseServer", () => {
             // Reference to non-existent table.
             expect(() =>
                 server.execute(
+                    testContext,
                     sql`
                         SELECT
                             *
@@ -480,6 +518,7 @@ describe("DatabaseServer", () => {
             // Constraint violation under writes.
             expect(() =>
                 server.execute(
+                    testContext,
                     sql`
                         INSERT INTO
                             items
@@ -493,6 +532,7 @@ describe("DatabaseServer", () => {
             // After all of the above, the server should still serve queries and accept new
             // writes.
             const after = server.execute(
+                testContext,
                 sql`
                     SELECT
                         *
@@ -503,6 +543,7 @@ describe("DatabaseServer", () => {
             );
             expect(after.rows).toEqual([{id: 1}]);
             server.execute(
+                testContext,
                 sql`
                     INSERT INTO
                         items
@@ -512,6 +553,7 @@ describe("DatabaseServer", () => {
                 {allowWrites: "data"},
             );
             const final = server.execute(
+                testContext,
                 sql`
                     SELECT
                         *
@@ -532,8 +574,12 @@ describe("DatabaseServer", () => {
         test("invalid SQL throws regardless of writeLevel", async () => {
             const server = await createServerWithSchema();
 
-            expect(() => server.execute(sql`NOT VALID SQL`, {allowWrites: "none"})).toThrow();
-            expect(() => server.execute(sql`NOT VALID SQL`, {allowWrites: "data"})).toThrow();
+            expect(() =>
+                server.execute(testContext, sql`NOT VALID SQL`, {allowWrites: "none"}),
+            ).toThrow();
+            expect(() =>
+                server.execute(testContext, sql`NOT VALID SQL`, {allowWrites: "data"}),
+            ).toThrow();
         });
     });
 
@@ -573,6 +619,7 @@ describe("DatabaseServer", () => {
             server.commitBufferForTests();
 
             const result = server.execute(
+                testContext,
                 sql`
                     SELECT
                         *
@@ -596,6 +643,7 @@ describe("DatabaseServer", () => {
             `);
 
             const result = server.execute(
+                testContext,
                 sql`
                     INSERT INTO
                         items
@@ -619,6 +667,7 @@ describe("DatabaseServer", () => {
             `);
 
             const result = server.execute(
+                testContext,
                 sql`
                     INSERT INTO
                         items
@@ -642,6 +691,7 @@ describe("DatabaseServer", () => {
             `);
 
             const result = server.execute(
+                testContext,
                 sql`
                     INSERT INTO
                         items
@@ -663,6 +713,7 @@ describe("DatabaseServer", () => {
             `);
 
             const result = server.execute(
+                testContext,
                 sql`
                     INSERT INTO
                         items
@@ -699,6 +750,7 @@ describe("DatabaseServer", () => {
             }
 
             const result = server.execute(
+                testContext,
                 sql`
                     INSERT INTO
                         items
@@ -729,6 +781,7 @@ describe("DatabaseServer", () => {
             server.commitBufferForTests();
 
             const result = server.execute(
+                testContext,
                 sql`
                     INSERT INTO
                         items
@@ -751,6 +804,7 @@ describe("DatabaseServer", () => {
             `);
 
             const result = server.execute(
+                testContext,
                 sql`
                     INSERT INTO
                         items
@@ -777,6 +831,7 @@ describe("DatabaseServer", () => {
             `);
 
             const result = server.execute(
+                testContext,
                 sql`
                     INSERT INTO
                         items
@@ -818,7 +873,7 @@ describe("DatabaseServer", () => {
             server.commitBufferForTests();
             const sizeBefore = storage.getFileSize(databaseMainTableId);
 
-            server.execute(sql`VACUUM`, {allowWrites: "schema+data"});
+            server.execute(testContext, sql`VACUUM`, {allowWrites: "schema+data"});
 
             expect(storage.getFileSize(databaseMainTableId)).toBeLessThan(sizeBefore);
         });
@@ -838,7 +893,7 @@ describe("DatabaseServer", () => {
                 `,
             );
 
-            const {result} = server.executeAction<"rawSql">({
+            const {result} = server.executeAction<"rawSql">(testContext, {
                 name: "rawSql",
                 input: {sql: "SELECT id, name FROM items ORDER BY id"},
             });
@@ -854,7 +909,7 @@ describe("DatabaseServer", () => {
 
             // DDL should be rejected because rawSql writeLevel is "data"
             expect(() =>
-                server.executeAction({
+                server.executeAction(testContext, {
                     name: "rawSql",
                     input: {sql: "CREATE TABLE bad (id INTEGER)"},
                 }),
@@ -866,7 +921,7 @@ describe("DatabaseServer", () => {
         test("captures table metadata changes without capturing row changes", async () => {
             const server = await createServerWithSchema();
 
-            const created = server.executeAction<"createTable">({
+            const created = server.executeAction<"createTable">(testContext, {
                 name: "createTable",
                 input: {name: "Tasks"},
             });
@@ -874,7 +929,7 @@ describe("DatabaseServer", () => {
 
             expect(created.changedTables).toEqual(new Set([tableId]));
 
-            const renamed = server.executeAction<"renameTable">({
+            const renamed = server.executeAction<"renameTable">(testContext, {
                 name: "renameTable",
                 input: {tableId, name: "Projects"},
             });
@@ -882,7 +937,7 @@ describe("DatabaseServer", () => {
             expect(renamed.changedTables).toEqual(new Set([tableId]));
 
             const rowId = generateChronologicalId<DatabaseRowId>();
-            const rowCreated = server.executeAction<"createRow">({
+            const rowCreated = server.executeAction<"createRow">(testContext, {
                 name: "createRow",
                 input: {tableId, rowId},
             });
@@ -952,7 +1007,7 @@ describe("DatabaseServer — per-table storage", () => {
     test("createTable stores public main metadata plus its own per-db file", async () => {
         const server = await DatabaseServer.create(new InMemoryStorage());
         openServers.push(server);
-        const {result} = server.executeAction<"createTable">({
+        const {result} = server.executeAction<"createTable">(testContext, {
             name: "createTable",
             input: {name: "Tasks"},
         });
@@ -980,7 +1035,7 @@ describe("DatabaseServer — per-table storage", () => {
     test("re-attaches and serves an existing table after reopening", async () => {
         const storage = new InMemoryStorage();
         const server1 = await DatabaseServer.create(storage);
-        const {result} = server1.executeAction<"createTable">({
+        const {result} = server1.executeAction<"createTable">(testContext, {
             name: "createTable",
             input: {name: "Tasks"},
         });
@@ -1002,15 +1057,15 @@ describe("DatabaseServer — per-table storage", () => {
     test("re-attaches and serves an existing relation join table after reopening", async () => {
         const storage = new InMemoryStorage();
         const server1 = await DatabaseServer.create(storage);
-        const source = server1.executeAction<"createTable">({
+        const source = server1.executeAction<"createTable">(testContext, {
             name: "createTable",
             input: {name: "Tasks"},
         }).result;
-        const target = server1.executeAction<"createTable">({
+        const target = server1.executeAction<"createTable">(testContext, {
             name: "createTable",
             input: {name: "Projects"},
         }).result;
-        const relation = server1.executeAction<"createRelationField">({
+        const relation = server1.executeAction<"createRelationField">(testContext, {
             name: "createRelationField",
             input: {
                 sourceTableId: source.tableId,

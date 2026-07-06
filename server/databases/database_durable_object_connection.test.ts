@@ -28,10 +28,8 @@ beforeEach(() => {
 
 function createConnection(doStorage: DatabaseDurableObjectStorage) {
     return new DatabaseDurableObjectConnection({
-        server: null as any,
-        storage: null as any,
         durableObjectStorage: doStorage,
-        enqueueReplicationJob: async () => {},
+        executeAction: null as any,
         processContext: null as any,
         sendEventToAll: () => {},
         browserId: generateId<BrowserId>(),
@@ -273,10 +271,8 @@ function createTrackedConnection(
 ) {
     const connectionId = generateId<WebSocketConnectionId>();
     return new DatabaseDurableObjectConnection({
-        server: null as any,
-        storage: null as any,
         durableObjectStorage: doStorage,
-        enqueueReplicationJob: async () => {},
+        executeAction: null as any,
         processContext: null as any,
         sendEventToAll: () => {},
         browserId,
