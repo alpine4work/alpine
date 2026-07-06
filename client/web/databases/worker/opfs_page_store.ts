@@ -53,6 +53,12 @@ const dirtyMarker = new Uint8Array([1]);
  */
 export class OpfsPageStore {
     private readonly index = new Map<number, {slot: number; version: number}>();
+    /**
+     * Pages dropped by {@link tombstonePages}, mapped to the version that was known to
+     * exist when they were dropped. In-memory only: after a restart the page is simply
+     * absent and cold-open validation re-fetches it.
+     */
+    private readonly tombstones = new Map<number, number>();
     private readonly pagesHandle: OpfsSyncAccessHandle;
     private readonly indexHandle: OpfsSyncAccessHandle;
     private readonly dirtyHandle: OpfsSyncAccessHandle;
@@ -131,8 +137,10 @@ export class OpfsPageStore {
     }
 
     /**
-     * Write a page if `version` is strictly newer than the local copy. Returns `true`
-     * if the local copy was replaced.
+     * Write a page if `version` is strictly newer than the local copy — or, for a page
+     * dropped by {@link tombstonePages}, at least as new as the version the tombstone
+     * recorded (receiving the full page at that version is exactly the cure). Returns
+     * `true` if the local copy was replaced.
      *
      * Does _not_ update the cached file size — callers pair page writes with {@link
      * setServerFileSizeInPages} using the protocol's `fileSizeInPages` field.
@@ -142,6 +150,11 @@ export class OpfsPageStore {
         if (existing !== undefined && existing.version >= version) {
             return false;
         }
+        const tombstoneVersion = this.tombstones.get(pageIndex);
+        if (tombstoneVersion !== undefined && version < tombstoneVersion) {
+            return false;
+        }
+        this.tombstones.delete(pageIndex);
         this.writeSlot(pageIndex, version, data);
         return true;
     }
@@ -158,6 +171,31 @@ export class OpfsPageStore {
         for (const pageIndex of pageIndexes) {
             this.index.delete(pageIndex);
         }
+        this.recomputeMaxPageIndex();
+    }
+
+    /**
+     * Drop pages because a newer version (the map value) is known to exist but its
+     * data couldn't be obtained — e.g. a realtime diff whose base didn't match the
+     * cached page. Unlike {@link deletePages}, the version is remembered (in memory
+     * only) so a late-arriving write below it — say, an `ensureCacheIsUpToDate`
+     * response snapshotted before the diff was broadcast — can't resurrect the page at
+     * a stale version; see {@link writePageIfNewer}. The page reads as missing until a
+     * write at or above the recorded version lands (typically the server fallback
+     * triggered by the next read).
+     */
+    tombstonePages(pages: ReadonlyMap<number, number>): void {
+        for (const [pageIndex, version] of pages) {
+            this.index.delete(pageIndex);
+            const existing = this.tombstones.get(pageIndex);
+            if (existing === undefined || existing < version) {
+                this.tombstones.set(pageIndex, version);
+            }
+        }
+        this.recomputeMaxPageIndex();
+    }
+
+    private recomputeMaxPageIndex(): void {
         this.maxPageIndex = -1;
         for (const pageIndex of this.index.keys()) {
             if (pageIndex > this.maxPageIndex) {

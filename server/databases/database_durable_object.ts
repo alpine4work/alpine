@@ -85,24 +85,31 @@ class DatabaseGroupDurableObject {
             typeof DatabaseRealtimeProtocol,
             DatabaseRealtimeEventStub,
             DatabaseDurableObjectConnection
-        >(this._processContext, DatabaseRealtimeProtocol, ({connectionId, searchParams}) => {
-            const browserId = searchParams.get("browserId") as BrowserId | null;
-            if (browserId === null) {
-                throw new InvalidArgumentError("Missing browserId query parameter");
-            }
-            return new DatabaseDurableObjectConnection({
-                server: this._server,
-                processContext: this._processContext,
-                storage,
-                durableObjectStorage: this._durableObjectStorage,
-                sendEventToAll: (context, event) => {
-                    this._webSocketServer.sendEventToAll(context, event);
-                },
-                browserId,
-                connectionId,
-                browserPageTracker: this._browserPageTracker,
-            });
-        });
+        >(
+            this._processContext,
+            DatabaseRealtimeProtocol,
+            ({connectionId, searchParams, sendEvent}) => {
+                const browserId = searchParams.get("browserId") as BrowserId | null;
+                if (browserId === null) {
+                    throw new InvalidArgumentError("Missing browserId query parameter");
+                }
+                return new DatabaseDurableObjectConnection({
+                    server: this._server,
+                    processContext: this._processContext,
+                    storage,
+                    durableObjectStorage: this._durableObjectStorage,
+                    sendEventToAll: (context, event) => {
+                        this._webSocketServer.sendEventToAll(context, event);
+                    },
+                    sendEventToSelf: (context, event) => {
+                        void sendEvent(context, event);
+                    },
+                    browserId,
+                    connectionId,
+                    browserPageTracker: this._browserPageTracker,
+                });
+            },
+        );
     }
 
     public static parseRoute(url: URL): [string, DatabaseGroupDurableObjectRoute] {

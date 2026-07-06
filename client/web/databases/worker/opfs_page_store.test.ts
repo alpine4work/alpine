@@ -99,6 +99,46 @@ describe("OpfsPageStore.deletePages", () => {
         // source of truth.
         expect(store.getFileSize()).toBe(10 * sqlitePageSize);
     });
+
+    test("a deleted page accepts a rewrite at any version", async () => {
+        const {store} = await makeStore();
+        store.writePageIfNewer(0, 5, makePage(0xaa));
+        store.deletePages(new Set([0]));
+        // Plain deletion carries no version knowledge, so even an older write lands.
+        expect(store.writePageIfNewer(0, 3, makePage(0xbb))).toBe(true);
+    });
+});
+
+describe("OpfsPageStore.tombstonePages", () => {
+    test("removes the page from the index", async () => {
+        const {store} = await makeStore();
+        store.writePageIfNewer(0, 1, makePage(0xaa));
+        store.tombstonePages(new Map([[0, 3]]));
+        expect(store.readPage(0)).toBeNull();
+    });
+
+    test("rejects a write below the tombstoned version", async () => {
+        const {store} = await makeStore();
+        store.writePageIfNewer(0, 1, makePage(0xaa));
+        // A version-3 diff couldn't apply; a late version-2 snapshot (e.g. an in-flight
+        // ensureCacheIsUpToDate response) must not resurrect the page.
+        store.tombstonePages(new Map([[0, 3]]));
+        expect(store.writePageIfNewer(0, 2, makePage(0xbb))).toBe(false);
+    });
+
+    test("accepts a write at the tombstoned version and clears the tombstone", async () => {
+        const {store} = await makeStore();
+        store.writePageIfNewer(0, 1, makePage(0xaa));
+        store.tombstonePages(new Map([[0, 3]]));
+        // Receiving the full page at the version the tombstone recorded is the cure.
+        expect({
+            written: store.writePageIfNewer(0, 3, makePage(0xbb)),
+            page: store.readPage(0),
+        }).toEqual({
+            written: true,
+            page: {data: makePage(0xbb), version: 3},
+        });
+    });
 });
 
 describe("OpfsPageStore.getFileSize", () => {

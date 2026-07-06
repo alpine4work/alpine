@@ -41,6 +41,10 @@ export class DatabaseDurableObjectConnection {
         context: WorkerProcessContext,
         event: DatabaseRealtimeEventStub,
     ) => void;
+    private readonly _sendEventToSelf: (
+        context: WorkerProcessContext,
+        event: DatabaseRealtimeEventStub,
+    ) => void;
     private readonly _processContext: WorkerProcessContext;
     private readonly _browserId: BrowserId;
     private readonly _connectionId: WebSocketConnectionId;
@@ -52,6 +56,7 @@ export class DatabaseDurableObjectConnection {
         durableObjectStorage,
         processContext,
         sendEventToAll,
+        sendEventToSelf,
         browserId,
         connectionId,
         browserPageTracker,
@@ -61,6 +66,7 @@ export class DatabaseDurableObjectConnection {
         durableObjectStorage: DatabaseDurableObjectStorage;
         processContext: WorkerProcessContext;
         sendEventToAll: (context: WorkerProcessContext, event: DatabaseRealtimeEventStub) => void;
+        sendEventToSelf: (context: WorkerProcessContext, event: DatabaseRealtimeEventStub) => void;
         browserId: BrowserId;
         connectionId: WebSocketConnectionId;
         browserPageTracker: BrowserPageTracker;
@@ -70,6 +76,7 @@ export class DatabaseDurableObjectConnection {
         this._durableObjectStorage = durableObjectStorage;
         this._processContext = processContext;
         this._sendEventToAll = sendEventToAll;
+        this._sendEventToSelf = sendEventToSelf;
         this._browserId = browserId;
         this._connectionId = connectionId;
         this._browserPageTracker = browserPageTracker;
@@ -107,6 +114,19 @@ export class DatabaseDurableObjectConnection {
                     this._sendEventToAll(this._processContext, {
                         type: "PagesChanged",
                         pageDiffs,
+                        mutationId: input.mutationId,
+                    });
+                } else if (!input.returnPages) {
+                    // `returnPages: false` marks the fire-and-forget send of an optimistic mutation,
+                    // which relies on a realtime event to confirm (and dequeue) it — and this event
+                    // must arrive before the procedure response. A mutation that ends up writing
+                    // nothing (e.g. deleting a row another client already deleted) broadcasts no
+                    // diffs, so confirm it to the originator explicitly with an empty event.
+                    // Foreground calls (`returnPages: true`) consume the response directly and need no
+                    // confirmation.
+                    this._sendEventToSelf(this._processContext, {
+                        type: "PagesChanged",
+                        pageDiffs: new Map(),
                         mutationId: input.mutationId,
                     });
                 }

@@ -320,8 +320,20 @@ export class DatabaseConnectionManager {
                 }, 2500);
             }
 
+            let wasConnected = false;
+            let hasEverConnected = false;
             const unsubscribeFromState = client.state.subscribe(() => {
                 const state = client.state.getSnapshot();
+
+                // Realtime events broadcast while the socket was down are gone for good, so after
+                // every REconnect (not the initial connect — the cold open validates separately)
+                // the cache must be revalidated before local reads can be trusted again.
+                if (state.isConnected && !wasConnected && hasEverConnected) {
+                    this.revalidateCacheAfterReconnect(databaseGroupId);
+                }
+                wasConnected = state.isConnected;
+                if (state.isConnected) hasEverConnected = true;
+
                 if (!state.hasError) return;
                 if (state !== lastReportedState) {
                     this.reportError(state.error);
@@ -362,6 +374,20 @@ export class DatabaseConnectionManager {
             state.realtimeConnection = connection;
         }
         return connection;
+    }
+
+    // Kick off a post-reconnect cache revalidation for the group's client, if one
+    // exists. Fire-and-forget: a failure is reported and the next reconnect (or socket
+    // error → reconnect cycle) retries.
+    private revalidateCacheAfterReconnect(databaseGroupId: DatabaseGroupId): void {
+        const state = this.databaseGroups.get(databaseGroupId);
+        const clientPromise = state?.clientPromise;
+        if (state === undefined || clientPromise === undefined) return;
+        clientPromise
+            .then(client =>
+                client.ensureCacheIsUpToDate(this.getOrCreateRealtimeConnection(databaseGroupId)),
+            )
+            .catch(error => this.reportError(error));
     }
 
     private handleRealtimeEvent(databaseGroupId: DatabaseGroupId, event: DatabaseRealtimeEvent) {

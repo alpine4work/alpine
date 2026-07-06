@@ -135,13 +135,14 @@ export class DatabaseClient {
      * Once every store is validated, attaches all known tables (see {@link
      * attachKnownTables}) so subsequent actions run locally without any on-demand
      * attach step.
+     *
+     * Safe to call on a live database, not just at cold open: pending optimistic
+     * writes and SQLite's pager cache are dropped before the validated pages land, the
+     * optimistic queue is replayed on top of the fresh cache, and overlapping reactive
+     * actions re-execute. The realtime layer relies on this after a reconnect, since
+     * events broadcast while the socket was down are gone for good.
      */
     async ensureCacheIsUpToDate(conn: DatabaseClientConnection): Promise<void> {
-        // Called once at startup before any executeAction, so the buffer must be empty and
-        // SQLite's pager cache holds no user pages — meaning we can write straight to
-        // durable storage without invalidating the cache.
-        this.database.assertBufferIsEmpty("ensureCacheIsUpToDate");
-
         const pageVersionsByIndex = new Map<DatabaseTableId, Map<number, number>>();
         for (const [tableId, store] of this.storage) {
             const tableVersions = new Map<number, number>();
@@ -153,6 +154,13 @@ export class DatabaseClient {
 
         const {tables} = await conn.ensureCacheIsUpToDate(pageVersionsByIndex);
 
+        // From here through `replayOptimisticQueue()` runs synchronously — no `await` — so
+        // a concurrent handler can't re-dirty the buffer between the discard and the
+        // replay. Dropping the buffer also drops SQLite's pager cache, so the pages
+        // written below are observed on the next read.
+        this.database.discardBuffer();
+
+        let anyChanged = false;
         const acknowledgedPageIndexes = new Map<DatabaseTableId, Array<number>>();
         for (const [tableId, {updatedPages, stalePageIndexes, fileSizeInPages}] of tables) {
             const store = this.storage.get(tableId);
@@ -162,13 +170,20 @@ export class DatabaseClient {
             );
 
             for (const [pageIndex, {version, data}] of updatedPages) {
-                store.writePageIfNewer(pageIndex, version, data);
+                if (store.writePageIfNewer(pageIndex, version, data)) {
+                    this.addPageToInvalidate(tableId, pageIndex);
+                    anyChanged = true;
+                }
             }
             if (updatedPages.size > 0) {
                 acknowledgedPageIndexes.set(tableId, [...updatedPages.keys()]);
             }
             if (stalePageIndexes.length > 0) {
                 store.deletePages(new Set(stalePageIndexes));
+                for (const pageIndex of stalePageIndexes) {
+                    this.addPageToInvalidate(tableId, pageIndex);
+                }
+                anyChanged = true;
             }
             store.setServerFileSizeInPages(fileSizeInPages);
             store.sync();
@@ -179,13 +194,17 @@ export class DatabaseClient {
         }
 
         this.attachKnownTables();
+        this.replayOptimisticQueue();
+        if (anyChanged) {
+            this.scheduleInvalidation();
+        }
     }
 
     /**
-     * Attach every open per-table store whose header page is cached. Runs after
-     * cold-open cache validation — attaching before validation would let SQLite parse
-     * a schema from pages about to be replaced, and (under `locking_mode = EXCLUSIVE`)
-     * attaching a store with no header would permanently cache an empty schema.
+     * Attach every open per-table store whose header page is cached. Runs after cache
+     * validation — attaching before validation would let SQLite parse a schema from
+     * pages about to be replaced, and (under `locking_mode = EXCLUSIVE`) attaching a
+     * store with no header would permanently cache an empty schema.
      *
      * A cached table whose header page was discarded as stale stays unattached; its
      * first action falls back to the server, whose response re-populates and attaches
@@ -450,7 +469,7 @@ export class DatabaseClient {
         for (const [tableId, tableDiffs] of pageDiffs) {
             const store = this.storage.get(tableId);
             if (store === undefined) continue;
-            const pagesToDelete = new Set<number>();
+            const pagesToTombstone = new Map<number, number>();
             for (const [pageIndex, {previousVersion, version, diff}] of tableDiffs.diffs) {
                 const base = store.readPage(pageIndex);
                 if (base === null) continue;
@@ -461,8 +480,10 @@ export class DatabaseClient {
                     // The diff was computed against a version this client never saw (an intervening
                     // update was missed, e.g. across a reconnect). Applying it here would fabricate a
                     // page state that never existed on the server, so drop the page instead — the next
-                    // read misses and re-fetches it.
-                    pagesToDelete.add(pageIndex);
+                    // read misses and re-fetches it. The tombstone remembers `version` so a
+                    // late-arriving older write (e.g. an in-flight `ensureCacheIsUpToDate` response
+                    // snapshotted before this diff) can't resurrect the stale page.
+                    pagesToTombstone.set(pageIndex, version);
                     this.addPageToInvalidate(tableId, pageIndex);
                     anyWritten = true;
                     continue;
@@ -475,8 +496,8 @@ export class DatabaseClient {
                     }
                 }
             }
-            if (pagesToDelete.size > 0) {
-                store.deletePages(pagesToDelete);
+            if (pagesToTombstone.size > 0) {
+                store.tombstonePages(pagesToTombstone);
             }
             store.setServerFileSizeInPages(tableDiffs.fileSizeInPages);
             store.sync();

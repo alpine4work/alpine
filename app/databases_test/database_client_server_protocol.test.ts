@@ -217,6 +217,26 @@ test("a page diff computed against a missed update is dropped and re-fetched, no
     expect(await selectRowIds(reader, table)).toEqual(await selectRowIds(writer, table));
 });
 
+// Realtime events broadcast while the socket is down are gone for good, so on
+// reconnect the manager revalidates the whole cache (`ensureCacheIsUpToDate` runs
+// again) before local reads can be trusted — without it, reads would serve the
+// pre-disconnect state indefinitely.
+test("a client that missed realtime events while disconnected serves fresh reads after reconnecting", async () => {
+    const databaseGroupId = generateId<DatabaseGroupId>();
+    const table = await createTableOnServer(databaseGroupId);
+    const writer = await createWarmClient(databaseGroupId, table);
+    const reader = await createWarmClient(databaseGroupId, table);
+
+    reader.goOffline();
+    const rowId = generateChronologicalId<DatabaseRowId>();
+    await executeAction(writer, "createRow", {tableId: table.tableId, rowId});
+    await settle();
+    reader.goOnline();
+    await settle();
+
+    expect(await selectRowIds(reader, table)).toEqual([rowId]);
+});
+
 // A schema change (`createField` runs `ALTER TABLE ... ADD COLUMN` on the per-db
 // file) reaches a peer whose SQLite connection already has the table attached: the
 // realtime diff rewrites the file's sqlite_schema pages and bumps the schema
@@ -352,6 +372,57 @@ test("concurrent conflicting inserts converge with the loser reporting the const
     });
 });
 
+// When two clients race conflicting mutations, the loser's mutation can become a
+// no-op on the server (e.g. deleting an already-deleted row) that writes no pages
+// and so broadcasts no `PagesChanged` event. The server still confirms the
+// mutation to its originator with an empty event, so the loser's optimistic queue
+// drains without a spurious "mutation not confirmed" error and both sides converge
+// cleanly.
+test("a mutation that no-ops on the server is confirmed without errors", async () => {
+    const databaseGroupId = generateId<DatabaseGroupId>();
+    const table = await createTableOnServer(databaseGroupId);
+    const clientA = await createWarmClient(databaseGroupId, table);
+    const clientB = await createWarmClient(databaseGroupId, table);
+
+    const rowId = generateChronologicalId<DatabaseRowId>();
+    await executeAction(clientA, "createRow", {tableId: table.tableId, rowId});
+    await settle();
+
+    // Both clients optimistically delete the table's only row before either learns of
+    // the other's delete. The second delete to reach the server matches no rows. The
+    // subquery targets the row without a bound parameter (`.query` drops bindings) and
+    // keeps SQLite off the truncate-optimized DELETE path, which bypasses page writes
+    // entirely.
+    const tableRef = sql.tableRef(table.tableId, table.tableName);
+    const deleteSql = sql`
+        DELETE FROM ${tableRef}
+        WHERE
+            _id IN (
+                SELECT
+                    MIN(_id)
+                FROM
+                    ${tableRef}
+            )
+    `.query;
+    const deleteA = executeAction(clientA, "rawSql", {sql: deleteSql});
+    const deleteB = executeAction(clientB, "rawSql", {sql: deleteSql});
+    await deleteA;
+    await deleteB;
+    await settle();
+
+    expect({
+        rowIdsA: await selectRowIds(clientA, table),
+        rowIdsB: await selectRowIds(clientB, table),
+        reportedErrorsA: clientA.reportedErrors,
+        reportedErrorsB: clientB.reportedErrors,
+    }).toEqual({
+        rowIdsA: [],
+        rowIdsB: [],
+        reportedErrorsA: [],
+        reportedErrorsB: [],
+    });
+});
+
 // ---------------------------------------------------------------------------
 // Restart recovery
 // ---
@@ -401,89 +472,6 @@ test("a restarted client revalidates cached per-table files at cold open", async
 });
 
 // ---------------------------------------------------------------------------
-// Known client/server desync issues
-// ---
-//
-// Each test below asserts the _desired_ behavior and is marked `test.failing`
-// because the current protocol implementation gets it wrong. Remove the `.failing`
-// marker as each issue is fixed.
-//
-// ---
-
-// When two clients race conflicting mutations, the loser's mutation can become a
-// no-op on the server (e.g. deleting an already-deleted row). The server writes no
-// pages for it and therefore broadcasts no `PagesChanged` event, so the loser's
-// optimistic mutation is never confirmed and the client reports a spurious
-// "mutation not confirmed via realtime before server responded" error even though
-// both sides converged correctly.
-test.failing("a mutation that no-ops on the server is confirmed without errors", async () => {
-    const databaseGroupId = generateId<DatabaseGroupId>();
-    const table = await createTableOnServer(databaseGroupId);
-    const clientA = await createWarmClient(databaseGroupId, table);
-    const clientB = await createWarmClient(databaseGroupId, table);
-
-    const rowId = generateChronologicalId<DatabaseRowId>();
-    await executeAction(clientA, "createRow", {tableId: table.tableId, rowId});
-    await settle();
-
-    // Both clients optimistically delete the table's only row before either learns of
-    // the other's delete. The second delete to reach the server matches no rows. The
-    // subquery targets the row without a bound parameter (`.query` drops bindings) and
-    // keeps SQLite off the truncate-optimized DELETE path, which bypasses page writes
-    // entirely.
-    const tableRef = sql.tableRef(table.tableId, table.tableName);
-    const deleteSql = sql`
-        DELETE FROM ${tableRef}
-        WHERE
-            _id IN (
-                SELECT
-                    MIN(_id)
-                FROM
-                    ${tableRef}
-            )
-    `.query;
-    const deleteA = executeAction(clientA, "rawSql", {sql: deleteSql});
-    const deleteB = executeAction(clientB, "rawSql", {sql: deleteSql});
-    await deleteA;
-    await deleteB;
-    await settle();
-
-    expect({
-        rowIdsA: await selectRowIds(clientA, table),
-        rowIdsB: await selectRowIds(clientB, table),
-        reportedErrorsA: clientA.reportedErrors,
-        reportedErrorsB: clientB.reportedErrors,
-    }).toEqual({
-        rowIdsA: [],
-        rowIdsB: [],
-        reportedErrorsA: [],
-        reportedErrorsB: [],
-    });
-});
-
-// Realtime events missed while the socket is down are never replayed: the client
-// reconnects without revalidating its cache (`ensureCacheIsUpToDate` only runs at
-// cold open), so local reads keep serving the pre-disconnect state indefinitely.
-test.failing(
-    "a client that missed realtime events while disconnected serves fresh reads after reconnecting",
-    async () => {
-        const databaseGroupId = generateId<DatabaseGroupId>();
-        const table = await createTableOnServer(databaseGroupId);
-        const writer = await createWarmClient(databaseGroupId, table);
-        const reader = await createWarmClient(databaseGroupId, table);
-
-        reader.goOffline();
-        const rowId = generateChronologicalId<DatabaseRowId>();
-        await executeAction(writer, "createRow", {tableId: table.tableId, rowId});
-        await settle();
-        reader.goOnline();
-        await settle();
-
-        expect(await selectRowIds(reader, table)).toEqual([rowId]);
-    },
-);
-
-// ---------------------------------------------------------------------------
 // Test client harness
 // ---
 //
@@ -508,9 +496,15 @@ interface TestDatabaseClient {
     readonly dir: OpfsDirectoryHandle;
     readonly browserId: BrowserId;
     readonly databaseGroupId: DatabaseGroupId;
-    /** Stop delivering realtime events to this client, as if its socket dropped. */
+    /**
+     * Drop the socket: realtime events stop being delivered and the connection state
+     * flips to disconnected.
+     */
     goOffline(): void;
-    /** Resume delivering realtime events, as if the socket reconnected. */
+    /**
+     * Reconnect the socket: events resume and the connection state flips back to
+     * connected (events broadcast while offline stay lost, as in production).
+     */
     goOnline(): void;
     /** Close the server connection, as if the browser went away. */
     close(): void;
@@ -553,6 +547,14 @@ async function createTestClient(
     );
 
     let online = true;
+    const stateListeners = new Set<() => void>();
+    const setOnline = (next: boolean) => {
+        if (online === next) return;
+        online = next;
+        for (const listener of stateListeners) {
+            listener();
+        }
+    };
     const executeActionCalls: Array<TestDatabaseClientExecuteActionCall> = [];
     const reportedErrors: Array<string> = [];
     const reactiveUpdates: Array<DatabaseActionResult> = [];
@@ -569,6 +571,7 @@ async function createTestClient(
         createSocket: () =>
             createSocketForServerConnection(serverConnection, {
                 isOnline: () => online,
+                stateListeners,
                 executeActionCalls,
             }),
     });
@@ -588,10 +591,10 @@ async function createTestClient(
         browserId,
         databaseGroupId,
         goOffline: () => {
-            online = false;
+            setOnline(false);
         },
         goOnline: () => {
-            online = true;
+            setOnline(true);
         },
         close: () => {
             serverConnection.close();
@@ -684,8 +687,7 @@ async function createWarmClient(
  * DatabaseConnectionManager} expects from its `createSocket` dependency. Both
  * sides expose the same procedures mapped type over `DatabaseRealtimeProtocol`, so
  * calls pass through to the durable object. The test connection is already
- * connected, so `connect()` and `reconnect()` are no-ops and the state is a
- * constant "connected" snapshot.
+ * connected, so `connect()` and `reconnect()` are no-ops.
  *
  * `executeAction` responses are held for one macrotask: over a production
  * WebSocket the server sends the `PagesChanged` event before the procedure
@@ -693,14 +695,17 @@ async function createWarmClient(
  * through detached async tasks. The delay preserves the production
  * event-before-response ordering that optimistic confirmation relies on.
  *
- * `isOnline` gates event delivery: while it returns false, realtime events are
- * dropped — modelling a dropped socket whose missed events are never replayed
- * after `reconnect()`.
+ * `isOnline` gates event delivery and drives the reported connection state: while
+ * it returns false, realtime events are dropped and the state reads as
+ * disconnected — modelling a dropped socket. `stateListeners` fire on each
+ * online/offline flip so the manager observes the reconnect transition (and
+ * revalidates its cache) the way it would from a real `WebSocketClient`.
  */
 function createSocketForServerConnection(
     serverConnection: DatabaseServerConnection,
     options: {
         isOnline: () => boolean;
+        stateListeners: Set<() => void>;
         executeActionCalls: Array<TestDatabaseClientExecuteActionCall>;
     },
 ): DatabaseConnectionManagerSocket {
@@ -718,19 +723,39 @@ function createSocketForServerConnection(
             },
         },
         state: {
-            getSnapshot: () => ({
-                hasError: false,
-                isConnecting: false,
-                isConnected: true,
-                isDisconnected: false,
-            }),
-            subscribe: () => () => {},
+            getSnapshot: () =>
+                options.isOnline()
+                    ? {
+                          hasError: false,
+                          isConnecting: false,
+                          isConnected: true,
+                          isDisconnected: false,
+                      }
+                    : {
+                          hasError: false,
+                          isConnecting: false,
+                          isConnected: false,
+                          isDisconnected: true,
+                      },
+            subscribe: listener => {
+                options.stateListeners.add(listener);
+                return () => {
+                    options.stateListeners.delete(listener);
+                };
+            },
         },
         subscribeToEvents: handler =>
             serverConnection.subscribeToEvents(event => {
                 if (options.isOnline()) handler(event);
             }),
-        connect() {},
+        connect() {
+            // A real `WebSocketClient` notifies state subscribers when the initial connection
+            // is established; mirror that so the manager can tell later reconnects apart from
+            // this first connect.
+            for (const listener of options.stateListeners) {
+                listener();
+            }
+        },
         reconnect() {},
         async disconnect() {
             serverConnection.close();
