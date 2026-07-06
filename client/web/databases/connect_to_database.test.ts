@@ -27,11 +27,9 @@ import type {
     DatabaseGroupId,
     DatabaseMutationId,
     DatabaseReactiveActionId,
-    SpaceId,
 } from "~/shared/id/types/id_types.js";
 
 const testDatabaseGroupId = generateId<DatabaseGroupId>();
-const testSpaceId = generateId<SpaceId>();
 
 /**
  * Creates a {@link DatabaseClient} seeded into the per-database OPFS subdirectory
@@ -255,7 +253,6 @@ function createDatabaseTestEnv(config: {
             const db = createDatabaseGroupConnection();
             await db.connect({
                 databaseGroupId,
-                spaceId: testSpaceId,
                 webSocketUrl: "ws://test.invalid",
             });
             return db.connection;

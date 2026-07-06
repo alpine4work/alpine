@@ -26,11 +26,7 @@ import {
 import type {SqliteMigration} from "~/shared/databases/sqlite_migrations.js";
 import {unsynchronizedSystemClock} from "~/shared/helpers/clock/unsynchronized_system_clock.js";
 import {assert} from "~/shared/helpers/control/assert.js";
-import type {
-    DatabaseGroupId,
-    DatabaseReactiveActionId,
-    SpaceId,
-} from "~/shared/id/types/id_types.js";
+import type {DatabaseGroupId, DatabaseReactiveActionId} from "~/shared/id/types/id_types.js";
 import {TracerRoot} from "~/shared/tracer/tracer_root.js";
 
 export interface DatabaseActiveTabRealtimeConnection extends DatabaseClientConnection {
@@ -39,7 +35,6 @@ export interface DatabaseActiveTabRealtimeConnection extends DatabaseClientConne
 
 export interface DatabaseActiveTabRealtimeConnectionOptions {
     databaseGroupId: DatabaseGroupId;
-    spaceId: SpaceId;
     webSocketUrl: string;
     handleEvent(event: DatabaseRealtimeEvent): void;
     reportError(error: unknown): void;
@@ -52,7 +47,7 @@ type DatabaseActiveTabWorkerConnection = UniqueWorkerHostConnection<
 
 interface DatabaseActiveTabWorkerDatabaseGroupState {
     clientPromise?: Promise<DatabaseClient>;
-    realtimeConnectionOptions?: {readonly spaceId: SpaceId; readonly webSocketUrl: string};
+    realtimeConnectionOptions?: {readonly webSocketUrl: string};
     realtimeConnection?: DatabaseActiveTabRealtimeConnection;
     initialPages?: DatabasePages;
 }
@@ -96,7 +91,6 @@ export class DatabaseActiveTabWorker {
                 connectDatabaseGroup: async input => {
                     const state = this.getOrCreateDatabaseGroupState(input.databaseGroupId);
                     state.realtimeConnectionOptions = {
-                        spaceId: input.spaceId,
                         webSocketUrl: input.webSocketUrl,
                     };
                     if (input.pages.size > 0) {
@@ -275,7 +269,6 @@ export class DatabaseActiveTabWorker {
                 state.realtimeConnectionOptions ??
                 (import.meta.jest
                     ? {
-                          spaceId: databaseGroupId as unknown as SpaceId,
                           webSocketUrl: "ws://test.invalid",
                       }
                     : undefined);
@@ -286,7 +279,6 @@ export class DatabaseActiveTabWorker {
 
             connection = this.deps.createRealtimeConnection({
                 databaseGroupId,
-                spaceId: options.spaceId,
                 webSocketUrl: options.webSocketUrl,
                 handleEvent: event => this.handleRealtimeEvent(databaseGroupId, event),
                 reportError: error => this.reportError(error),

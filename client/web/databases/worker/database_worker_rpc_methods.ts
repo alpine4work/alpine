@@ -11,7 +11,6 @@ import type {
     DatabaseGroupId,
     DatabaseMutationId,
     DatabaseReactiveActionId,
-    SpaceId,
 } from "~/shared/id/types/id_types.js";
 import {Schema} from "~/shared/schema/schema.js";
 
@@ -20,7 +19,6 @@ export const tabToWorkerDatabaseRpcMethods = defineWebWorkerRpcMethods({
     connectDatabaseGroup: {
         input: {
             databaseGroupId: Schema.id<DatabaseGroupId>(),
-            spaceId: Schema.id<SpaceId>(),
             pages: DatabasePagesSchema,
             webSocketUrl: Schema.string,
         },

@@ -16,6 +16,7 @@ import {
 } from "~/server/lambda/helpers/lambda_action_context.js";
 import {withLambdaTimeout} from "~/server/lambda/helpers/with_lambda_timeout.js";
 import {createServiceTokenAgent} from "~/server/node/create_service_token_agent.js";
+import {getSpaceIdForDatabaseGroupId} from "~/server/spaces/get_database_group_id_for_space.js";
 import {TokenAgent} from "~/server/tokens/token_agent.js";
 import {TokenServiceName} from "~/server/tokens/token_service_name.js";
 import {HoneycombDataset} from "~/server/tracer/tracer_client.js";
@@ -24,6 +25,7 @@ import {PromiseWaiter} from "~/shared/helpers/async/promise_waiter.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 import {quote} from "~/shared/helpers/string/quote.js";
+import type {SpaceId} from "~/shared/id/types/id_types.js";
 import {Schema} from "~/shared/schema/schema.js";
 import {TracerSpan} from "~/shared/tracer/tracer_span.js";
 
@@ -47,6 +49,19 @@ const kinesisTracerStreamName =
 export type LambdaSystemActionContext = Context<
     LambdaActionContextModules & {actor: SystemActorContextModule}
 >;
+
+async function getSpaceIdForJobDescription(
+    context: LambdaActionContext,
+    job: JobDescription,
+): Promise<SpaceId> {
+    switch (job.type) {
+        case "ReplicateDatabaseTableChanges":
+            return await getSpaceIdForDatabaseGroupId(context, job.databaseGroupId);
+        default:
+            return getJobDescriptionSpaceId(job);
+    }
+}
+
 export function createLambdaJobQueueConsumerHandler<TJobDescription extends JobDescription>({
     processJob,
     serviceName,
@@ -227,7 +242,7 @@ async function _processJob<TJobDescription extends JobDescription>(
             },
         });
 
-        const spaceId = getJobDescriptionSpaceId(messageBody.job);
+        const spaceId = await getSpaceIdForJobDescription(actionContext, messageBody.job);
 
         span.addPropagatedData({context: {spaceId}});
 

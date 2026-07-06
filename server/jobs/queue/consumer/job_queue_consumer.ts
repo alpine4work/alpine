@@ -15,6 +15,7 @@ import {
 } from "~/server/jobs/core/job_queue_name.js";
 import {JobQueueMessageBody, JobQueueMessageBodySchema} from "~/server/jobs/core/job_sender.js";
 import {MaintenanceJobDescription} from "~/server/jobs/core/maintenance_job_description.js";
+import {getSpaceIdForDatabaseGroupId} from "~/server/spaces/get_database_group_id_for_space.js";
 import {BatchContextModule} from "~/shared/context/batch_context_module.js";
 import {CacheContextModule} from "~/shared/context/cache_context_module.js";
 import {Context} from "~/shared/context/context.js";
@@ -32,11 +33,24 @@ import {quote} from "~/shared/helpers/string/quote.js";
 import {isTestNodeEnvOrAdminScenariosScript} from "~/shared/helpers/test/is_test_node_env_or_admin_scenarios_script.js";
 import {TestCounter} from "~/shared/helpers/test/test_counter.js";
 import {Replace} from "~/shared/helpers/types/replace.js";
+import type {SpaceId} from "~/shared/id/types/id_types.js";
 import {TracerSpan} from "~/shared/tracer/tracer_span.js";
 
 export const receiveMessageTestCounter = new TestCounter<void>();
 export const deleteMessageBatchTestCounter = new TestCounter<void>();
 export const changeMessageVisibilityBatchTestCounter = new TestCounter<void>();
+
+async function getSpaceIdForJobDescription(
+    context: Parameters<typeof getSpaceIdForDatabaseGroupId>[0],
+    job: JobDescription,
+): Promise<SpaceId> {
+    switch (job.type) {
+        case "ReplicateDatabaseTableChanges":
+            return await getSpaceIdForDatabaseGroupId(context, job.databaseGroupId);
+        default:
+            return getJobDescriptionSpaceId(job);
+    }
+}
 
 /**
  * We use SQS long polling to receive messages. AWS recommends long polling and
@@ -847,7 +861,10 @@ export class JobQueueConsumer<
             });
 
             if (messageBody.type === "Regular") {
-                const spaceId = getJobDescriptionSpaceId(messageBody.job);
+                const spaceId = await getSpaceIdForJobDescription(
+                    this._processContext,
+                    messageBody.job,
+                );
 
                 span.addPropagatedData({context: {spaceId}});
 

@@ -383,24 +383,11 @@ async function handleFetch(
                 break;
             }
             case "database-groups": {
-                let databaseGroupId = pathSegments[1];
-                let pathname = `/${pathSegments.slice(2).join("/")}`;
+                const databaseGroupId = pathSegments[1];
+                const pathname = `/${pathSegments.slice(2).join("/")}`;
                 routeString = `/api/durable-objects/database-groups/:databaseGroupId${
                     pathname !== "/" ? "/*" : ""
                 }`;
-
-                const maybeSpaceId = pathSegments[1];
-                if (
-                    maybeSpaceId !== undefined &&
-                    pathSegments[2] !== undefined &&
-                    isId<SpaceId>(maybeSpaceId)
-                ) {
-                    databaseGroupId = pathSegments[2];
-                    pathname = `/${pathSegments.slice(3).join("/")}`;
-                    routeString = `/api/durable-objects/database-groups/:spaceId/:databaseGroupId${
-                        pathname !== "/" ? "/*" : ""
-                    }`;
-                }
 
                 if (databaseGroupId === undefined) break;
 

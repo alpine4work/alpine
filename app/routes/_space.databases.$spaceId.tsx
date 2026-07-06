@@ -11,7 +11,6 @@ import {useBrowserId} from "~/client/web/remix/client_info_context.js";
 import {createMetaFunction} from "~/client/web/remix/create_meta_function.js";
 import {useLoaderDataWithSchema} from "~/client/web/remix/use_loader_data_with_schema.js";
 import {useNavigate} from "~/client/web/remix/use_navigate.js";
-import {useSpaceContext} from "~/client/web/spaces/context/space_context.js";
 import {fetchDatabaseGroupAction} from "~/server/databases/data/fetch_database_action.js";
 import {jsonWithSchema} from "~/server/remix/json_with_schema.js";
 import {LoaderArgs} from "~/server/remix/loader_context.js";
@@ -46,7 +45,6 @@ export async function loader({params, context: unauthenticatedContext}: LoaderAr
 
 export default function DatabaseGroupLayoutRoute() {
     const {databaseGroupId, pages} = useLoaderDataWithSchema(LoaderSchema);
-    const {space} = useSpaceContext();
     const params = useParams();
     const browserId = useBrowserId();
     const navigate = useNavigate();
@@ -61,7 +59,6 @@ export default function DatabaseGroupLayoutRoute() {
     const connectDatabase = useEvent(() => {
         db.connect({
             databaseGroupId,
-            spaceId: space.id,
             webSocketUrl: wsUrl,
             initialPages: initialPagesRef.current,
             reportError: message => {
