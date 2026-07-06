@@ -476,6 +476,7 @@ export class DatabaseClient {
         for (const [tableId, tableDiffs] of pageDiffs) {
             const store = this.storage.get(tableId);
             if (store === undefined) continue;
+            const pagesToDelete = new Set<number>();
             for (const [pageIndex, {previousVersion, version, diff}] of tableDiffs.diffs) {
                 const base = store.readPage(pageIndex);
                 if (base === null) continue;
@@ -487,7 +488,7 @@ export class DatabaseClient {
                     // update was missed, e.g. across a reconnect). Applying it here would fabricate a
                     // page state that never existed on the server, so drop the page instead — the next
                     // read misses and re-fetches it.
-                    store.deletePages(new Set([pageIndex]));
+                    pagesToDelete.add(pageIndex);
                     this.addPageToInvalidate(tableId, pageIndex);
                     anyWritten = true;
                     continue;
@@ -499,6 +500,9 @@ export class DatabaseClient {
                         anyWritten = true;
                     }
                 }
+            }
+            if (pagesToDelete.size > 0) {
+                store.deletePages(pagesToDelete);
             }
             store.setServerFileSizeInPages(tableDiffs.fileSizeInPages);
             store.sync();
