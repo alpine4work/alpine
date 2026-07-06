@@ -5,18 +5,11 @@ import {DynamoItem} from "~/server/dynamo/core/dynamo_table_schema.js";
 import type {ReplicateDatabaseTableChangesJobDescription} from "~/server/jobs/core/job_description.js";
 import {indexDatabaseTableSearchEntity} from "~/server/search/data/index/index_database_table_search_entity.js";
 import {getSpaceIdForDatabaseGroupId} from "~/server/spaces/get_database_group_id_for_space.js";
-import type {LocalAccessPolicy} from "~/shared/access/access_policy.js";
+import type {AccessPolicy} from "~/shared/access/access_policy.js";
+import {emptyDatabaseTableAccessPolicy} from "~/shared/databases/database_table_access_policy.js";
 import type {DatabaseTableMetadataModel} from "~/shared/databases/database_table_metadata_model.js";
 import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
-import {emptyMap} from "~/shared/helpers/map/empty_map.js";
 import type {DatabaseGroupId, DatabaseTableId, SpaceId} from "~/shared/id/types/id_types.js";
-
-const defaultDatabaseTableAccessPolicy: LocalAccessPolicy = {
-    type: "Local",
-    accountGrantById: emptyMap,
-    defaultGrant: null,
-    urlGrant: null,
-};
 
 export async function processReplicateDatabaseTableChangesJob(
     context: ServerActionContext,
@@ -113,7 +106,8 @@ async function updateDatabaseTableMetadataItem(
                 spaceId,
                 name: table?.name ?? null,
                 isDeleted: table === null,
-                accessPolicy: item?.accessPolicy ?? defaultDatabaseTableAccessPolicy,
+                accessPolicy:
+                    table?.accessPolicy ?? item?.accessPolicy ?? emptyDatabaseTableAccessPolicy,
             }),
     );
     return (await getEvent(context)).item.model;
@@ -122,4 +116,5 @@ async function updateDatabaseTableMetadataItem(
 type DatabaseTableMetadata = {
     readonly id: DatabaseTableId;
     readonly name: string;
+    readonly accessPolicy: AccessPolicy;
 };

@@ -122,7 +122,11 @@ export class DatabaseServer {
         context: WorkerActionContext,
         actionObject: DatabaseActionObject<N>,
     ): DatabaseServerActionResult<N> {
-        return this._runAndPersist(context, () => this.database.executeAction(actionObject));
+        return this._runAndPersist(context, () =>
+            this.database.executeAction(actionObject, {
+                currentAccountId: context.actor.getPossiblyBotAccountIdIfExists(),
+            }),
+        );
     }
 
     createTrackedExecution<Value>(fn: () => Value): DatabaseTrackedExecution<Value> {

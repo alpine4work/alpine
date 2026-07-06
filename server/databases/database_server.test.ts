@@ -5,7 +5,12 @@ import {databaseMainTableId, sqlitePageSize} from "~/shared/databases/sqlite_con
 import {InternalError} from "~/shared/error/error.js";
 import {generateChronologicalId} from "~/shared/id/chronological_id.js";
 import {generateId} from "~/shared/id/id.js";
-import type {DatabaseGroupId, DatabaseRowId, DatabaseTableId} from "~/shared/id/types/id_types.js";
+import type {
+    AccountId,
+    DatabaseGroupId,
+    DatabaseRowId,
+    DatabaseTableId,
+} from "~/shared/id/types/id_types.js";
 import {Schema} from "~/shared/schema/schema.js";
 
 interface InMemoryTable {
@@ -75,12 +80,16 @@ class InMemoryStorage implements DatabaseServerStorage {
 // individual tests don't have to call `server.close()` themselves.
 const openServers: Array<DatabaseServer> = [];
 const testDatabaseGroupId = generateId<DatabaseGroupId>();
+const testAccountId = generateId<AccountId>();
 const testContext = {
     process: {
         waitUntil: () => {},
     },
     rpc: {
         execute: async () => ({ok: true as const}),
+    },
+    actor: {
+        getPossiblyBotAccountIdIfExists: () => testAccountId,
     },
 } as any;
 

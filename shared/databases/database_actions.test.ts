@@ -1,4 +1,5 @@
 import sqlite3InitModule, {Database} from "~/external/sqlite/ext/wasm/jswasm/sqlite3.mjs";
+import {AccessPolicySchema} from "~/shared/access/access_policy.js";
 import {
     type DatabaseActionContext,
     type DatabaseActionInput,
@@ -6,6 +7,7 @@ import {
     type DatabaseActionOutput,
     executeDatabaseAction,
 } from "~/shared/databases/database_actions.js";
+import {databaseTableAccessPolicyForCreator} from "~/shared/databases/database_table_access_policy.js";
 import {
     type DatabaseFieldConfig,
     DatabaseFieldConfigSqlSchema,
@@ -19,8 +21,9 @@ import {runMainMigrations} from "~/shared/databases/sqlite_migrations.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {type OrderKey, generateOrderKeyBetween} from "~/shared/helpers/sort/order_key.js";
 import {generateChronologicalId} from "~/shared/id/chronological_id.js";
-import {isId} from "~/shared/id/id.js";
+import {generateId, isId} from "~/shared/id/id.js";
 import type {
+    AccountId,
     DatabaseFieldId,
     DatabaseRowId,
     DatabaseTableId,
@@ -30,6 +33,7 @@ import {Schema} from "~/shared/schema/schema.js";
 
 const sqlite3Promise = sqlite3InitModule();
 let dbCounter = 0;
+const testAccountId = generateId<AccountId>();
 
 async function createDb(): Promise<SqliteDatabase> {
     const sqlite3 = await sqlite3Promise;
@@ -57,6 +61,9 @@ function makeCtx(db: SqliteDatabase): DatabaseActionContext {
         server: {
             attach(tableId) {
                 attachTableDb(db, tableId);
+            },
+            getCurrentAccountId() {
+                return testAccountId;
             },
         },
     };
@@ -103,6 +110,30 @@ describe("createTable", () => {
         expect(row).toMatchObject([
             {id: tableId, name: "Tasks", table_name: "tasks", name_field_id: expect.any(String)},
         ]);
+        db.close();
+    });
+
+    test("stores creator access policy as JSONB in its per-db file", async () => {
+        const db = await createDb();
+        const {tableId} = run(db, "createTable", {name: "Tasks"});
+
+        const row = sql`
+            SELECT
+                TYPEOF(access_policy) AS storage_type,
+                JSON(access_policy) AS access_policy
+            FROM
+                ${sql.tableRef(tableId, "_alpine_table")}
+        `.selectOne(db, {
+            storageType: Schema.string.originalPropertyKey("storage_type"),
+            accessPolicy: Schema.string.originalPropertyKey("access_policy"),
+        });
+
+        expect(row).toEqual({
+            storageType: "blob",
+            accessPolicy: JSON.stringify(
+                AccessPolicySchema.serialize(databaseTableAccessPolicyForCreator(testAccountId)),
+            ),
+        });
         db.close();
     });
 

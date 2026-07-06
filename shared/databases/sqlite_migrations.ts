@@ -116,9 +116,38 @@ export function tableSqliteMigrations(tableId: DatabaseTableId): ReadonlyArray<S
             WITHOUT ROWID;
         `,
         sql`
-            ALTER TABLE ${schema}._alpine_table
-            ADD COLUMN access_policy TEXT NOT NULL DEFAULT ${emptyAccessPolicy}
-            CHECK (JSON_VALID(access_policy));
+            CREATE TABLE ${schema}._alpine_table_new (
+                id TEXT PRIMARY KEY,
+                name TEXT NOT NULL,
+                table_name TEXT NOT NULL,
+                name_field_id TEXT NOT NULL REFERENCES _alpine_fields (id) DEFERRABLE INITIALLY DEFERRED,
+                access_policy BLOB NOT NULL,
+                CHECK (id = ${sqlStringLiteral(tableId)}),
+                CHECK (JSON_VALID(access_policy, 8))
+            ) STRICT,
+            WITHOUT ROWID;
+
+            INSERT INTO
+                ${schema}._alpine_table_new (
+                    id,
+                    name,
+                    table_name,
+                    name_field_id,
+                    access_policy
+                )
+            SELECT
+                id,
+                name,
+                table_name,
+                name_field_id,
+                jsonb (${emptyAccessPolicy})
+            FROM
+                ${schema}._alpine_table;
+
+            DROP TABLE ${schema}._alpine_table;
+
+            ALTER TABLE ${schema}._alpine_table_new
+            RENAME TO _alpine_table;
         `,
     ];
 }
