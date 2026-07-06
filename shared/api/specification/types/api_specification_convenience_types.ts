@@ -379,6 +379,11 @@ export type ApiTaskDue = ApiSpecification.components["schemas"]["TaskDue"];
 
 export type ApiTaskCollection = ApiSpecification.components["schemas"]["TaskCollection"];
 
+export type ApiTaskCollectionResponse =
+    ApiSpecification.components["schemas"]["TaskCollection_Response"];
+
+export type ApiTaskQueryDefaults = ApiSpecification.components["schemas"]["TaskQueryDefaults"];
+
 export type ApiTaskFilter = ApiSpecification.components["schemas"]["TaskFilter"];
 
 export type ApiTaskSort = ApiSpecification.components["schemas"]["TaskSort"];

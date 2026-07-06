@@ -4122,6 +4122,27 @@ components:
                 color:
                     $ref: "#/components/schemas/TaskCollectionColor"
 
+        TaskCollection_Response:
+            type: object
+            required: [id, name, defaults]
+            additionalProperties: false
+            properties:
+                id:
+                    $ref: "#/components/schemas/TaskCollectionId"
+                creator:
+                    type: object
+                    required: [id]
+                    additionalProperties: false
+                    properties:
+                        id:
+                            $ref: "#/components/schemas/AccountId"
+                name:
+                    $ref: "#/components/schemas/LabelString"
+                color:
+                    $ref: "#/components/schemas/TaskCollectionColor"
+                defaults:
+                    $ref: "#/components/schemas/TaskQueryDefaults"
+
         TaskCollectionTask:
             type: object
             required: [cursor, task]
@@ -4132,6 +4153,35 @@ components:
                 task:
                     $ref: "#/components/schemas/TaskWithoutNotes"
 
+        TaskQueryDefaults:
+            type: object
+            required: []
+            additionalProperties: false
+            properties:
+                filters:
+                    type: array
+                    items:
+                        $ref: "#/components/schemas/TaskFilter"
+                sorts:
+                    type: array
+                    items:
+                        $ref: "#/components/schemas/TaskSort"
+
+        TaskQueryDefaults_Response:
+            type: object
+            required: [filters, sorts]
+            additionalProperties: false
+            properties:
+                filters:
+                    type: array
+                    items:
+                        $ref: "#/components/schemas/TaskFilter"
+                sorts:
+                    type: array
+                    items:
+                        $ref: "#/components/schemas/TaskSort"
+
+        # NOCOMMIT: Rename to `TaskQueryFilter`? And all types below.
         TaskFilter:
             oneOf:
                 - $ref: "#/components/schemas/TaskStatusFilter"
@@ -4789,6 +4839,7 @@ components:
                 years:
                     type: integer
 
+        # NOCOMMIT: Rename to `TaskQuerySort`? And all types below.
         TaskSort:
             oneOf:
                 - $ref: "#/components/schemas/TaskStatusSort"

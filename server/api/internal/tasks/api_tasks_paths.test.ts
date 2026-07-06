@@ -395,9 +395,7 @@ test("does not return private task collections when reading a task", async () =>
             task: expect.objectContaining({
                 id: task.id,
                 title: "Task with mixed collection access",
-                collections: [
-                    {collection: {id: publicCollection.id, name: "Public Collection"}},
-                ],
+                collections: [{collection: {id: publicCollection.id, name: "Public Collection"}}],
             }),
         }),
     });
@@ -2141,6 +2139,61 @@ test("can read task collection information", async () => {
                 id: collection.id,
                 creator: {id: session.account.id},
                 name: "My Project Tasks",
+                defaults: {filters: [], sorts: []},
+            },
+        },
+    });
+});
+
+test("can read task collection default filters and sorts", async () => {
+    const space = await TestSpace.create(context);
+    const session = await space.createSession({name: "Alice Smith", role: "Admin"});
+
+    const bot = await TestBot.createAndInstantiate(session);
+    const apiKey = await bot.createApiKey(session);
+
+    const collection = await TestTaskCollection.create(session, {
+        name: "Prioritized Tasks",
+        access: "Public",
+    });
+
+    await collection.updateDefaults(session, {
+        filters: [
+            {
+                type: "Priority",
+                operation: {type: "OneOf", priorities: new Set(["High", "Urgent"])},
+            },
+        ],
+        sorts: [{type: "DueDate", direction: "Ascending"}],
+    });
+
+    await ProcessContextModule.waitForTestTasks();
+
+    expect(
+        await server.GET(`/task-collections/${collection.id}`, {
+            headers: {authorization: `bearer ${apiKey}`},
+        }),
+    ).toEqual({
+        status: 200,
+        headers: expect.objectContaining({"content-type": "application/json"}),
+        body: {
+            spaceId: space.id,
+            collection: {
+                id: collection.id,
+                creator: {id: session.account.id},
+                name: "Prioritized Tasks",
+                defaults: {
+                    filters: [
+                        {
+                            type: "Priority",
+                            operation: {
+                                type: "OneOf",
+                                priorities: [{type: "High"}, {type: "Urgent"}],
+                            },
+                        },
+                    ],
+                    sorts: [{type: "Due", direction: "Ascending"}],
+                },
             },
         },
     });
@@ -2622,6 +2675,7 @@ describe("/task-collections/{id}/tasks", () => {
                     id: mainCollection.id,
                     creator: {id: session2.account.id},
                     name: "Main Collection",
+                    defaults: {filters: [], sorts: []},
                 },
                 tasks: [
                     {
@@ -2685,6 +2739,7 @@ describe("/task-collections/{id}/tasks", () => {
                     id: collection.id,
                     creator: {id: session2.account.id},
                     name: "Public Collection",
+                    defaults: {filters: [], sorts: []},
                 },
                 tasks: [
                     {
@@ -2758,6 +2813,18 @@ describe("/task-collections/{id}/tasks", () => {
         });
 
         expect(response.status).toBe(200);
+        expect(response.body.collection.defaults).toEqual({
+            filters: [
+                {
+                    type: "Priority",
+                    operation: {
+                        type: "OneOf",
+                        priorities: [{type: "High"}, {type: "Urgent"}],
+                    },
+                },
+            ],
+            sorts: [{type: "Priority", direction: "Descending"}],
+        });
         expect(getTaskCollectionTaskIds(response)).toEqual([urgentTask.id, highTask.id]);
     });
 
@@ -2870,9 +2937,7 @@ describe("/task-collections/{id}/tasks", () => {
             access: "Public",
         });
         const tasks = await runAllPromises(
-            Array.from({length: 10}, (_, i) =>
-                TestTask.create(session, {title: `Task ${i + 1}`}),
-            ),
+            Array.from({length: 10}, (_, i) => TestTask.create(session, {title: `Task ${i + 1}`})),
         );
 
         for (const task of tasks) {
@@ -2911,9 +2976,7 @@ describe("/task-collections/{id}/tasks", () => {
         );
         expect(thirdPageResponse.status).toBe(200);
         expect(thirdPageResponse.body.nextCursor).toBeNull();
-        expect(getTaskCollectionTaskIds(thirdPageResponse)).toEqual(
-            getTestTaskIds(tasks.slice(8)),
-        );
+        expect(getTaskCollectionTaskIds(thirdPageResponse)).toEqual(getTestTaskIds(tasks.slice(8)));
     });
 
     test("returns null cursor when limit exactly matches collection size", async () => {
@@ -3077,7 +3140,9 @@ describe("/task-collections/{id}/tasks", () => {
         expect(getTaskCollectionTaskCursors(repeatedFirstPageResponse)).toEqual(
             getTaskCollectionTaskCursors(firstPageResponse),
         );
-        expect(repeatedFirstPageResponse.body.nextCursor).toEqual(firstPageResponse.body.nextCursor);
+        expect(repeatedFirstPageResponse.body.nextCursor).toEqual(
+            firstPageResponse.body.nextCursor,
+        );
 
         const repeatedSecondPageResponse = await server.GET(secondPagePath, {
             headers: {authorization: `bearer ${apiKey}`},
@@ -3402,10 +3467,7 @@ describe("/task-collections/{id}/tasks", () => {
             },
         );
         expect(firstPageResponse.status).toBe(200);
-        expect(getTaskCollectionTaskIds(firstPageResponse)).toEqual([
-            parentTask.id,
-            cursorTask.id,
-        ]);
+        expect(getTaskCollectionTaskIds(firstPageResponse)).toEqual([parentTask.id, cursorTask.id]);
 
         const secondPageResponse = await server.GET(
             `/task-collections/${collection.id}/tasks?limit=1&cursor=${getTaskCollectionNextCursor(firstPageResponse)}`,

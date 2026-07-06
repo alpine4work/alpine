@@ -2258,7 +2258,7 @@ export namespace ApiSpecification {
                         content: {
                             readonly "application/json": {
                                 readonly spaceId: components["schemas"]["SpaceId"];
-                                readonly collection: components["schemas"]["TaskCollection"];
+                                readonly collection: components["schemas"]["TaskCollection_Response"];
                             };
                         };
                     };
@@ -2298,7 +2298,7 @@ export namespace ApiSpecification {
                         content: {
                             readonly "application/json": {
                                 readonly spaceId: components["schemas"]["SpaceId"];
-                                readonly collection: components["schemas"]["TaskCollection"];
+                                readonly collection: components["schemas"]["TaskCollection_Response"];
                             };
                         };
                     };
@@ -2337,7 +2337,7 @@ export namespace ApiSpecification {
                         content: {
                             readonly "application/json": {
                                 readonly spaceId: components["schemas"]["SpaceId"];
-                                readonly collection: components["schemas"]["TaskCollection"];
+                                readonly collection: components["schemas"]["TaskCollection_Response"];
                             };
                         };
                     };
@@ -2419,7 +2419,7 @@ export namespace ApiSpecification {
                         content: {
                             readonly "application/json": {
                                 readonly spaceId: components["schemas"]["SpaceId"];
-                                readonly collection: components["schemas"]["TaskCollection"];
+                                readonly collection: components["schemas"]["TaskCollection_Response"];
                                 readonly nextCursor: components["schemas"]["TaskCursor"] | null;
                                 readonly tasks: readonly components["schemas"]["TaskCollectionTask_Response"][];
                             };
@@ -3901,10 +3901,28 @@ export namespace ApiSpecification {
                 };
                 readonly name: components["schemas"]["LabelString"];
                 readonly color?: components["schemas"]["TaskCollectionColor"];
+                readonly defaults?: components["schemas"]["TaskQueryDefaults"];
+            };
+            readonly TaskCollection_Response: {
+                readonly id: components["schemas"]["TaskCollectionId"];
+                readonly creator?: {
+                    readonly id: components["schemas"]["AccountId"];
+                };
+                readonly name: components["schemas"]["LabelString"];
+                readonly color?: components["schemas"]["TaskCollectionColor"];
+                readonly defaults: components["schemas"]["TaskQueryDefaults_Response"];
             };
             readonly TaskCollectionTask: {
                 readonly cursor: components["schemas"]["TaskCursor"];
                 readonly task: components["schemas"]["TaskWithoutNotes"];
+            };
+            readonly TaskQueryDefaults: {
+                readonly filters?: readonly components["schemas"]["TaskFilter"][];
+                readonly sorts?: readonly components["schemas"]["TaskSort"][];
+            };
+            readonly TaskQueryDefaults_Response: {
+                readonly filters: readonly components["schemas"]["TaskFilter"][];
+                readonly sorts: readonly components["schemas"]["TaskSort"][];
             };
             readonly TaskFilter:
                 | components["schemas"]["TaskStatusFilter"]

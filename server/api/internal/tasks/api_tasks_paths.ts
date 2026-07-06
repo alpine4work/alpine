@@ -36,7 +36,6 @@ import {extractFileIdsFromApiContent} from "~/shared/api/content/closed_source/e
 import {fromApiContent} from "~/shared/api/content/closed_source/from_api_content.js";
 import {fromApiThemeColor} from "~/shared/api/content/closed_source/from_api_theme_color.js";
 import {intoApiTaskStatus} from "~/shared/api/content/closed_source/into_api_task_status.js";
-import {intoApiThemeColor} from "~/shared/api/content/closed_source/into_api_theme_color.js";
 import {
     MessageContentProsemirrorSchema,
     assertMessageContent,
@@ -632,6 +631,7 @@ export const apiTasksPaths: Pick<
                         },
                         name: collection.name,
                         color: collection.color ?? undefined,
+                        defaults: {filters: [], sorts: []},
                     },
                 },
             };
@@ -651,13 +651,7 @@ export const apiTasksPaths: Pick<
             return {
                 content: {
                     spaceId,
-                    collection: {
-                        id: collection.id,
-                        name: collection.getName(),
-                        color: collection.getColor()
-                            ? intoApiThemeColor(collection.getColor()!)
-                            : undefined,
-                    },
+                    collection: intoApiTaskCollection(collection),
                 },
             };
         },
@@ -838,7 +832,6 @@ export const apiTasksPaths: Pick<
                     })),
                 },
             };
-
         },
     },
 };
