@@ -16,11 +16,15 @@ import type {
     DatabaseActionOutput,
 } from "~/shared/databases/database_actions.js";
 import type {DatabasePages} from "~/shared/databases/database_protocol_schemas.js";
+import {databaseTableAccessPolicyForCreator} from "~/shared/databases/database_table_access_policy.js";
 import {SqlQuery, sql} from "~/shared/databases/sql.js";
 import {databaseViewTargetRowsPerPage} from "~/shared/databases/sqlite_constants.js";
 import {runMainMigrations} from "~/shared/databases/sqlite_migrations.js";
 import {InternalError} from "~/shared/error/error.js";
-import {unsafelyConstructChronologicalId} from "~/shared/id/chronological_id.js";
+import {
+    generateChronologicalId,
+    unsafelyConstructChronologicalId,
+} from "~/shared/id/chronological_id.js";
 import {generateId} from "~/shared/id/id.js";
 import type {
     AccountId,
@@ -170,9 +174,17 @@ async function buildSchemaSeed(
         {server: true},
     );
     fake.execute(db => runMainMigrations(db), {allowWrites: "schema+data"});
+    const creatorId = generateId<AccountId>();
     const {result} = fake.executeAction<"createTable">(
-        {name: "createTable", input: {name}},
-        {currentAccountId: generateId<AccountId>()},
+        {
+            name: "createTable",
+            input: {
+                tableId: generateChronologicalId<DatabaseTableId>(),
+                name,
+                accessPolicy: databaseTableAccessPolicyForCreator(creatorId),
+            },
+        },
+        {currentAccountId: creatorId},
     );
 
     const buffered = fake.getBufferedWrites();

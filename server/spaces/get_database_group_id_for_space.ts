@@ -49,6 +49,31 @@ export async function getDatabaseGroupIdForSpace(
     return updatedItem.databaseGroupId;
 }
 
+export async function getExistingDatabaseGroupIdForSpace(
+    context: ServerActionContext,
+    spaceId: SpaceId,
+): Promise<DatabaseGroupId> {
+    const item = (await SpacesTable.getItemIfExists(
+        context,
+        {
+            partitionType: "Space",
+            sortRangeType: "Attributes",
+            spaceId,
+        },
+        {consistency: "Strong"},
+    )) as SpaceItem | null;
+
+    if (item === null) {
+        throw new NotFoundError(`Space ${spaceId} not found`);
+    }
+
+    if (item.databaseGroupId === undefined) {
+        throw new NotFoundError(`Database group for space ${spaceId} not found`);
+    }
+
+    return item.databaseGroupId;
+}
+
 export async function getSpaceIdForDatabaseGroupId(
     context: ServerActionContext,
     databaseGroupId: DatabaseGroupId,

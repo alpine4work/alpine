@@ -75,10 +75,18 @@ function run<N extends DatabaseActionName>(
     return executeDatabaseAction<N>({name, input} as any, makeCtx(db));
 }
 
+function createTableForTest(db: Database, name: string): DatabaseActionOutput<"createTable"> {
+    return run(db, "createTable", {
+        tableId: generateChronologicalId<DatabaseTableId>(),
+        name,
+        accessPolicy: databaseTableAccessPolicyForCreator(testAccountId),
+    });
+}
+
 describe("createTable", () => {
     test("registers an id-only row in the main database", async () => {
         const db = await createDb();
-        const {tableId, tableName} = run(db, "createTable", {name: "Tasks"});
+        const {tableId, tableName} = createTableForTest(db, "Tasks");
 
         expect(isId(tableId)).toBe(true);
         expect(tableName).toBe("tasks");
@@ -96,7 +104,7 @@ describe("createTable", () => {
 
     test("stores the table name and identifier in its per-db file", async () => {
         const db = await createDb();
-        const {tableId} = run(db, "createTable", {name: "Tasks"});
+        const {tableId} = createTableForTest(db, "Tasks");
 
         const row = sql`
             SELECT
@@ -112,7 +120,7 @@ describe("createTable", () => {
 
     test("stores creator access policy as JSONB in its per-db file", async () => {
         const db = await createDb();
-        const {tableId} = run(db, "createTable", {name: "Tasks"});
+        const {tableId} = createTableForTest(db, "Tasks");
 
         const row = sql`
             SELECT
@@ -136,7 +144,7 @@ describe("createTable", () => {
 
     test("stores the initial Name field as the record-name field", async () => {
         const db = await createDb();
-        const {tableId} = run(db, "createTable", {name: "Tasks"});
+        const {tableId} = createTableForTest(db, "Tasks");
 
         const fields = sql`
             SELECT
@@ -169,7 +177,7 @@ describe("createTable", () => {
 
     test("creates a queryable table with system columns", async () => {
         const db = await createDb();
-        const {tableId, tableName} = run(db, "createTable", {name: "Tasks"});
+        const {tableId, tableName} = createTableForTest(db, "Tasks");
 
         sql`
             INSERT INTO
@@ -191,7 +199,7 @@ describe("createTable", () => {
 
     test("_id auto-generates a ChronologicalId", async () => {
         const db = await createDb();
-        const {tableId, tableName} = run(db, "createTable", {name: "T"});
+        const {tableId, tableName} = createTableForTest(db, "T");
 
         sql`
             INSERT INTO
@@ -222,7 +230,7 @@ describe("createTable", () => {
 
     test("_created_at auto-populates with datetime", async () => {
         const db = await createDb();
-        const {tableId, tableName} = run(db, "createTable", {name: "T"});
+        const {tableId, tableName} = createTableForTest(db, "T");
 
         sql`
             INSERT INTO
@@ -245,7 +253,7 @@ describe("createTable", () => {
 
     test("_created_at CHECK rejects unparseable values", async () => {
         const db = await createDb();
-        const {tableId, tableName} = run(db, "createTable", {name: "T"});
+        const {tableId, tableName} = createTableForTest(db, "T");
 
         expect(() => {
             sql`
@@ -259,7 +267,7 @@ describe("createTable", () => {
 
     test("name column defaults to empty string", async () => {
         const db = await createDb();
-        const {tableId, tableName} = run(db, "createTable", {name: "T"});
+        const {tableId, tableName} = createTableForTest(db, "T");
 
         sql`
             INSERT INTO
@@ -279,7 +287,7 @@ describe("createTable", () => {
 
     test("name column CHECK rejects blobs", async () => {
         const db = await createDb();
-        const {tableId, tableName} = run(db, "createTable", {name: "T"});
+        const {tableId, tableName} = createTableForTest(db, "T");
 
         expect(() => {
             sql`
@@ -293,7 +301,7 @@ describe("createTable", () => {
 
     test("column type is encoded in type name", async () => {
         const db = await createDb();
-        const {tableId, tableName} = run(db, "createTable", {name: "T"});
+        const {tableId, tableName} = createTableForTest(db, "T");
 
         const colInfo = sql`
             PRAGMA ${sql.tableRef(tableId, "table_info")} (${sql.identifier(tableName)})
@@ -305,8 +313,8 @@ describe("createTable", () => {
 
     test("duplicate table names get unique SQL identifiers", async () => {
         const db = await createDb();
-        const first = run(db, "createTable", {name: "Tasks"});
-        const second = run(db, "createTable", {name: "Tasks"});
+        const first = createTableForTest(db, "Tasks");
+        const second = createTableForTest(db, "Tasks");
 
         expect(first.tableName).toBe("tasks");
         expect(second.tableName).toBe("tasks_2");
@@ -314,7 +322,7 @@ describe("createTable", () => {
 
     test("index exists on _created_at", async () => {
         const db = await createDb();
-        const {tableId, tableName} = run(db, "createTable", {name: "T"});
+        const {tableId, tableName} = createTableForTest(db, "T");
 
         const indexes = sql`
             PRAGMA ${sql.tableRef(tableId, "index_list")} (${sql.identifier(tableName)})
@@ -326,7 +334,7 @@ describe("createTable", () => {
 
     test("creates a default view in the per-db file", async () => {
         const db = await createDb();
-        const {tableId, viewId} = run(db, "createTable", {name: "Tasks"});
+        const {tableId, viewId} = createTableForTest(db, "Tasks");
 
         const views = sql`
             SELECT
@@ -341,7 +349,7 @@ describe("createTable", () => {
 
     test("records the view in the main routing index", async () => {
         const db = await createDb();
-        const {tableId, viewId} = run(db, "createTable", {name: "Tasks"});
+        const {tableId, viewId} = createTableForTest(db, "Tasks");
 
         const views = sql`
             SELECT
@@ -357,7 +365,7 @@ describe("createTable", () => {
 
     test("returns viewId", async () => {
         const db = await createDb();
-        const {viewId} = run(db, "createTable", {name: "Tasks"});
+        const {viewId} = createTableForTest(db, "Tasks");
 
         expect(isId(viewId)).toBe(true);
         db.close();
@@ -365,7 +373,7 @@ describe("createTable", () => {
 
     test("default view contains the Name field", async () => {
         const db = await createDb();
-        const {tableId, viewId} = run(db, "createTable", {name: "Tasks"});
+        const {tableId, viewId} = createTableForTest(db, "Tasks");
 
         const viewFields = sql`
             SELECT
@@ -387,7 +395,7 @@ describe("createTable", () => {
 describe("getViewSchema", () => {
     test("returns position and hidden in field output", async () => {
         const db = await createDb();
-        const {viewId} = run(db, "createTable", {name: "T"});
+        const {viewId} = createTableForTest(db, "T");
         const result = run(db, "getViewSchema", {tableOrViewId: viewId});
 
         expect(result.fields).toHaveLength(1);
@@ -398,7 +406,7 @@ describe("getViewSchema", () => {
 
     test("hidden field is included with hidden=true", async () => {
         const db = await createDb();
-        const {tableId, viewId} = run(db, "createTable", {name: "T"});
+        const {tableId, viewId} = createTableForTest(db, "T");
 
         const {fieldId: secondFieldId} = addFieldAndGetId(db, tableId, viewId, "Status");
         run(db, "updateFieldViewVisibility", {
@@ -424,7 +432,7 @@ describe("getViewSchema", () => {
 describe("updateFieldViewVisibility", () => {
     test("updates position and hidden flag", async () => {
         const db = await createDb();
-        const {tableId, viewId} = run(db, "createTable", {name: "T"});
+        const {tableId, viewId} = createTableForTest(db, "T");
         const {fieldId} = addFieldAndGetId(db, tableId, viewId, "Status");
 
         run(db, "updateFieldViewVisibility", {
@@ -450,7 +458,7 @@ describe("updateFieldViewVisibility", () => {
 
     test("can toggle back to visible", async () => {
         const db = await createDb();
-        const {tableId, viewId} = run(db, "createTable", {name: "T"});
+        const {tableId, viewId} = createTableForTest(db, "T");
         const {fieldId} = addFieldAndGetId(db, tableId, viewId, "Status");
 
         run(db, "updateFieldViewVisibility", {
@@ -617,7 +625,7 @@ function readLinks(
 describe("rawSql", () => {
     test("SELECT passes rows through", async () => {
         const db = await createDb();
-        const {tableId, tableName} = run(db, "createTable", {name: "T"});
+        const {tableId, tableName} = createTableForTest(db, "T");
         sql`
             INSERT INTO
                 ${sql.tableRef(tableId, tableName)} (name)
@@ -643,7 +651,7 @@ describe("rawSql", () => {
 
     test("INSERT goes through (writeLevel: data)", async () => {
         const db = await createDb();
-        const {tableId, tableName} = run(db, "createTable", {name: "T"});
+        const {tableId, tableName} = createTableForTest(db, "T");
 
         run(db, "rawSql", {
             sql: sql`
@@ -668,7 +676,7 @@ describe("rawSql", () => {
 describe("readonlyRawSql", () => {
     test("SELECT passes rows through", async () => {
         const db = await createDb();
-        const {tableId, tableName} = run(db, "createTable", {name: "T"});
+        const {tableId, tableName} = createTableForTest(db, "T");
         sql`
             INSERT INTO
                 ${sql.tableRef(tableId, tableName)} (name)
@@ -691,7 +699,7 @@ describe("readonlyRawSql", () => {
 
     test("returns empty array for empty result set", async () => {
         const db = await createDb();
-        const {tableId, tableName} = run(db, "createTable", {name: "T"});
+        const {tableId, tableName} = createTableForTest(db, "T");
 
         const {rows} = run(db, "readonlyRawSql", {
             sql: sql`
@@ -710,8 +718,8 @@ describe("readonlyRawSql", () => {
 describe("listTableIds", () => {
     test("returns table ids in id order", async () => {
         const db = await createDb();
-        const first = run(db, "createTable", {name: "Tasks"});
-        const second = run(db, "createTable", {name: "Projects"});
+        const first = createTableForTest(db, "Tasks");
+        const second = createTableForTest(db, "Projects");
 
         const {tableIds} = run(db, "listTableIds", {});
 
@@ -730,7 +738,7 @@ describe("listTableIds", () => {
 
     test("filters out join table ids", async () => {
         const db = await createDb();
-        const table = run(db, "createTable", {name: "Tasks"});
+        const table = createTableForTest(db, "Tasks");
         const joinTableId = generateChronologicalId<DatabaseTableId>();
 
         sql`
@@ -750,8 +758,8 @@ describe("listTableIds", () => {
 describe("listTables", () => {
     test("returns user table ids and display names in id order", async () => {
         const db = await createDb();
-        const first = run(db, "createTable", {name: "Tasks"});
-        const second = run(db, "createTable", {name: "Projects"});
+        const first = createTableForTest(db, "Tasks");
+        const second = createTableForTest(db, "Projects");
         const relation = run(db, "createRelationField", {
             joinTableId: generateChronologicalId<DatabaseTableId>(),
             sourceTableId: first.tableId,
@@ -774,8 +782,8 @@ describe("listTables", () => {
 describe("createRelationField", () => {
     test("creates the join table row, source field, and symmetric target field", async () => {
         const db = await createDb();
-        const source = run(db, "createTable", {name: "Tasks"});
-        const target = run(db, "createTable", {name: "Projects"});
+        const source = createTableForTest(db, "Tasks");
+        const target = createTableForTest(db, "Projects");
         const sourceSecondViewId = generateChronologicalId<DatabaseViewId>();
         sql`
             INSERT INTO
@@ -902,8 +910,8 @@ describe("createRelationField", () => {
 
     test("allows duplicated symmetric field display names", async () => {
         const db = await createDb();
-        const source = run(db, "createTable", {name: "Name"});
-        const target = run(db, "createTable", {name: "Projects"});
+        const source = createTableForTest(db, "Name");
+        const target = createTableForTest(db, "Projects");
 
         const result = run(db, "createRelationField", {
             joinTableId: generateChronologicalId<DatabaseTableId>(),
@@ -920,7 +928,7 @@ describe("createRelationField", () => {
 
     test("supports self-links", async () => {
         const db = await createDb();
-        const table = run(db, "createTable", {name: "Tasks"});
+        const table = createTableForTest(db, "Tasks");
 
         const result = run(db, "createRelationField", {
             joinTableId: generateChronologicalId<DatabaseTableId>(),
@@ -960,8 +968,8 @@ describe("createRelationField", () => {
 describe("addLink", () => {
     test("inserts a link row and ignores duplicate adds", async () => {
         const db = await createDb();
-        const source = run(db, "createTable", {name: "Tasks"});
-        const target = run(db, "createTable", {name: "Projects"});
+        const source = createTableForTest(db, "Tasks");
+        const target = createTableForTest(db, "Projects");
         const relation = run(db, "createRelationField", {
             joinTableId: generateChronologicalId<DatabaseTableId>(),
             sourceTableId: source.tableId,
@@ -991,8 +999,8 @@ describe("addLink", () => {
 
     test("replaces other links for one-cardinality fields", async () => {
         const db = await createDb();
-        const source = run(db, "createTable", {name: "Tasks"});
-        const target = run(db, "createTable", {name: "Projects"});
+        const source = createTableForTest(db, "Tasks");
+        const target = createTableForTest(db, "Projects");
         const relation = run(db, "createRelationField", {
             joinTableId: generateChronologicalId<DatabaseTableId>(),
             sourceTableId: source.tableId,
@@ -1031,8 +1039,8 @@ describe("addLink", () => {
 
     test("maps symmetric target fields back to source and target columns", async () => {
         const db = await createDb();
-        const source = run(db, "createTable", {name: "Tasks"});
-        const target = run(db, "createTable", {name: "Projects"});
+        const source = createTableForTest(db, "Tasks");
+        const target = createTableForTest(db, "Projects");
         const relation = run(db, "createRelationField", {
             joinTableId: generateChronologicalId<DatabaseTableId>(),
             sourceTableId: source.tableId,
@@ -1056,8 +1064,8 @@ describe("addLink", () => {
 
     test("validates the linked row before replacing an existing one-cardinality link", async () => {
         const db = await createDb();
-        const source = run(db, "createTable", {name: "Tasks"});
-        const target = run(db, "createTable", {name: "Projects"});
+        const source = createTableForTest(db, "Tasks");
+        const target = createTableForTest(db, "Projects");
         const relation = run(db, "createRelationField", {
             joinTableId: generateChronologicalId<DatabaseTableId>(),
             sourceTableId: source.tableId,
@@ -1092,8 +1100,8 @@ describe("addLink", () => {
 describe("removeLink", () => {
     test("deletes one matching link and ignores missing links", async () => {
         const db = await createDb();
-        const source = run(db, "createTable", {name: "Tasks"});
-        const target = run(db, "createTable", {name: "Projects"});
+        const source = createTableForTest(db, "Tasks");
+        const target = createTableForTest(db, "Projects");
         const relation = run(db, "createRelationField", {
             joinTableId: generateChronologicalId<DatabaseTableId>(),
             sourceTableId: source.tableId,
@@ -1139,7 +1147,7 @@ describe("removeLink", () => {
 
     test("removes self-links through the target-side field", async () => {
         const db = await createDb();
-        const table = run(db, "createTable", {name: "Tasks"});
+        const table = createTableForTest(db, "Tasks");
         const relation = run(db, "createRelationField", {
             joinTableId: generateChronologicalId<DatabaseTableId>(),
             sourceTableId: table.tableId,
@@ -1171,8 +1179,8 @@ describe("removeLink", () => {
 describe("listLinkableRows", () => {
     test("returns linked-table rows excluding rows already linked to the edited row", async () => {
         const db = await createDb();
-        const source = run(db, "createTable", {name: "Tasks"});
-        const target = run(db, "createTable", {name: "Projects"});
+        const source = createTableForTest(db, "Tasks");
+        const target = createTableForTest(db, "Projects");
         const relation = run(db, "createRelationField", {
             joinTableId: generateChronologicalId<DatabaseTableId>(),
             sourceTableId: source.tableId,
@@ -1215,8 +1223,8 @@ describe("listLinkableRows", () => {
 
     test("maps target-side fields back to source-table candidates", async () => {
         const db = await createDb();
-        const source = run(db, "createTable", {name: "Tasks"});
-        const target = run(db, "createTable", {name: "Projects"});
+        const source = createTableForTest(db, "Tasks");
+        const target = createTableForTest(db, "Projects");
         const relation = run(db, "createRelationField", {
             joinTableId: generateChronologicalId<DatabaseTableId>(),
             sourceTableId: source.tableId,
@@ -1247,7 +1255,7 @@ describe("listLinkableRows", () => {
 describe("renameTable", () => {
     test("relabels without changing tableName when slug is unchanged", async () => {
         const db = await createDb();
-        const {tableId, tableName: original} = run(db, "createTable", {name: "Tasks"});
+        const {tableId, tableName: original} = createTableForTest(db, "Tasks");
 
         // "Tasks" and "Tasks!" both slugify to "tasks", so the SQL table name should not
         // change — only the label.
@@ -1267,7 +1275,7 @@ describe("renameTable", () => {
 
     test("renames the SQL table when the slug changes and keeps the index", async () => {
         const db = await createDb();
-        const {tableId} = run(db, "createTable", {name: "Tasks"});
+        const {tableId} = createTableForTest(db, "Tasks");
         sql`
             INSERT INTO
                 ${sql.tableRef(tableId, "tasks")} (name)
@@ -1296,8 +1304,8 @@ describe("renameTable", () => {
 
     test("rename deduplicates against other tables", async () => {
         const db = await createDb();
-        run(db, "createTable", {name: "Tasks"});
-        const {tableId} = run(db, "createTable", {name: "Projects"});
+        createTableForTest(db, "Tasks");
+        const {tableId} = createTableForTest(db, "Projects");
 
         const {tableName} = run(db, "renameTable", {tableId, name: "Tasks"});
 
@@ -1309,7 +1317,7 @@ describe("renameTable", () => {
 describe("getViewRowsPageCursor", () => {
     test("returns null endCursor when fewer rows than limit exist", async () => {
         const db = await createDb();
-        const {tableId, viewId, tableName} = run(db, "createTable", {name: "T"});
+        const {tableId, viewId, tableName} = createTableForTest(db, "T");
         sql`
             INSERT INTO
                 ${sql.tableRef(tableId, tableName)} (name)
@@ -1329,7 +1337,7 @@ describe("getViewRowsPageCursor", () => {
 
     test("returns endCursor when row count equals limit", async () => {
         const db = await createDb();
-        const {tableId, viewId, tableName} = run(db, "createTable", {name: "T"});
+        const {tableId, viewId, tableName} = createTableForTest(db, "T");
         const ids: Array<string> = [];
         for (let i = 0; i < 3; i++) {
             const id = generateChronologicalId<DatabaseRowId>();
@@ -1357,7 +1365,7 @@ describe("getViewRowsPageCursor", () => {
 
     test("after-cursor pagination skips earlier rows", async () => {
         const db = await createDb();
-        const {tableId, viewId, tableName} = run(db, "createTable", {name: "T"});
+        const {tableId, viewId, tableName} = createTableForTest(db, "T");
         const ids: Array<DatabaseRowId> = [];
         for (let i = 0; i < 5; i++) {
             const id = generateChronologicalId<DatabaseRowId>();
@@ -1384,7 +1392,7 @@ describe("getViewRowsPageCursor", () => {
 describe("getViewRowsPage", () => {
     test("returns rows in id order with _id at position 0 and view fields at positions 1..n", async () => {
         const db = await createDb();
-        const {tableId, viewId, tableName} = run(db, "createTable", {name: "T"});
+        const {tableId, viewId, tableName} = createTableForTest(db, "T");
         const id1 = generateChronologicalId<DatabaseRowId>();
         const id2 = generateChronologicalId<DatabaseRowId>();
         sql`
@@ -1423,7 +1431,7 @@ describe("getViewRowsPage", () => {
 
     test("filters by both afterCursor and endCursor when both are set", async () => {
         const db = await createDb();
-        const {tableId, viewId, tableName} = run(db, "createTable", {name: "T"});
+        const {tableId, viewId, tableName} = createTableForTest(db, "T");
         const ids: Array<DatabaseRowId> = [];
         for (let i = 0; i < 4; i++) {
             const id = generateChronologicalId<DatabaseRowId>();
@@ -1447,7 +1455,7 @@ describe("getViewRowsPage", () => {
 
     test("after-only and end-only cursor branches return the expected slices", async () => {
         const db = await createDb();
-        const {tableId, viewId, tableName} = run(db, "createTable", {name: "T"});
+        const {tableId, viewId, tableName} = createTableForTest(db, "T");
         const ids: Array<DatabaseRowId> = [];
         for (let i = 0; i < 3; i++) {
             const id = generateChronologicalId<DatabaseRowId>();
@@ -1477,7 +1485,7 @@ describe("getViewRowsPage", () => {
 
     test("checkbox values are deserialized via the field provider sqlValueSchema", async () => {
         const db = await createDb();
-        const {tableId, viewId, tableName} = run(db, "createTable", {name: "T"});
+        const {tableId, viewId, tableName} = createTableForTest(db, "T");
         const {fieldId} = addFieldAndGetId(db, tableId, viewId, "Done", "checkbox");
         const rowId = generateChronologicalId<DatabaseRowId>();
         sql`
@@ -1500,8 +1508,8 @@ describe("getViewRowsPage", () => {
 
     test("projects relation fields as ordered arrays and empty cells as empty arrays", async () => {
         const db = await createDb();
-        const source = run(db, "createTable", {name: "Tasks"});
-        const target = run(db, "createTable", {name: "Projects"});
+        const source = createTableForTest(db, "Tasks");
+        const target = createTableForTest(db, "Projects");
         const relation = run(db, "createRelationField", {
             joinTableId: generateChronologicalId<DatabaseTableId>(),
             sourceTableId: source.tableId,
@@ -1561,8 +1569,8 @@ describe("getViewRowsPage", () => {
 
     test("formats relation names through the linked table name-field provider", async () => {
         const db = await createDb();
-        const source = run(db, "createTable", {name: "Tasks"});
-        const target = run(db, "createTable", {name: "Projects"});
+        const source = createTableForTest(db, "Tasks");
+        const target = createTableForTest(db, "Projects");
         const {fieldId: scoreFieldId} = addFieldAndGetId(
             db,
             target.tableId,
@@ -1621,8 +1629,8 @@ describe("getViewRowsPage", () => {
 
     test("keeps cursor slicing unchanged when projecting relation fields", async () => {
         const db = await createDb();
-        const source = run(db, "createTable", {name: "Tasks"});
-        const target = run(db, "createTable", {name: "Projects"});
+        const source = createTableForTest(db, "Tasks");
+        const target = createTableForTest(db, "Projects");
         run(db, "createRelationField", {
             joinTableId: generateChronologicalId<DatabaseTableId>(),
             sourceTableId: source.tableId,
@@ -1648,7 +1656,7 @@ describe("getViewRowsPage", () => {
 
     test("projects both directions of a self-link relation", async () => {
         const db = await createDb();
-        const table = run(db, "createTable", {name: "Tasks"});
+        const table = createTableForTest(db, "Tasks");
         const relation = run(db, "createRelationField", {
             joinTableId: generateChronologicalId<DatabaseTableId>(),
             sourceTableId: table.tableId,
@@ -1709,7 +1717,7 @@ describe("getViewRowsPage", () => {
 describe("updateCellValue", () => {
     test("writes the value to the table after serializing through the provider", async () => {
         const db = await createDb();
-        const {tableId, viewId, tableName} = run(db, "createTable", {name: "T"});
+        const {tableId, viewId, tableName} = createTableForTest(db, "T");
         const {fieldId: nameFieldId} = sql`
             SELECT
                 id
@@ -1746,7 +1754,7 @@ describe("updateCellValue", () => {
 
     test("rejects virtual fields", async () => {
         const db = await createDb();
-        const {tableId, viewId, tableName} = run(db, "createTable", {name: "T"});
+        const {tableId, viewId, tableName} = createTableForTest(db, "T");
         const {fieldId} = addRelationFieldMetadata(db, tableId, viewId);
         const rowId = generateChronologicalId<DatabaseRowId>();
         sql`
@@ -1771,7 +1779,7 @@ describe("updateCellValue", () => {
 describe("createField", () => {
     test("adds the field to all views in the table", async () => {
         const db = await createDb();
-        const {tableId, viewId} = run(db, "createTable", {name: "T"});
+        const {tableId, viewId} = createTableForTest(db, "T");
         const secondViewId = generateChronologicalId<DatabaseViewId>();
         sql`
             INSERT INTO
@@ -1820,7 +1828,7 @@ describe("createField", () => {
 
     test("rejects relation fields", async () => {
         const db = await createDb();
-        const {tableId} = run(db, "createTable", {name: "T"});
+        const {tableId} = createTableForTest(db, "T");
         const fieldId = generateChronologicalId<DatabaseFieldId>();
 
         expect(() => {
@@ -1844,8 +1852,8 @@ describe("createField", () => {
 describe("updateFieldConfig", () => {
     test("rejects relation linkedTableId changes", async () => {
         const db = await createDb();
-        const source = run(db, "createTable", {name: "Tasks"});
-        const target = run(db, "createTable", {name: "Projects"});
+        const source = createTableForTest(db, "Tasks");
+        const target = createTableForTest(db, "Projects");
         const relation = run(db, "createRelationField", {
             joinTableId: generateChronologicalId<DatabaseTableId>(),
             sourceTableId: source.tableId,
@@ -1873,7 +1881,7 @@ describe("updateFieldConfig", () => {
 describe("createRow", () => {
     test("inserts a row with the given _id and uses column defaults for the rest", async () => {
         const db = await createDb();
-        const {tableId, tableName} = run(db, "createTable", {name: "T"});
+        const {tableId, tableName} = createTableForTest(db, "T");
         const rowId = generateChronologicalId<DatabaseRowId>();
 
         run(db, "createRow", {tableId, rowId});
@@ -1893,7 +1901,7 @@ describe("createRow", () => {
 describe("resizeField", () => {
     test("updates only the width of the targeted view+field row", async () => {
         const db = await createDb();
-        const {tableId, viewId} = run(db, "createTable", {name: "T"});
+        const {tableId, viewId} = createTableForTest(db, "T");
         const {fieldId} = addFieldAndGetId(db, tableId, viewId, "Status");
 
         run(db, "resizeField", {tableId, viewId, fieldId, width: 321});
@@ -1915,7 +1923,7 @@ describe("resizeField", () => {
 describe("renameField", () => {
     test("renames both the metadata row and the underlying SQL column", async () => {
         const db = await createDb();
-        const {tableId, viewId, tableName} = run(db, "createTable", {name: "T"});
+        const {tableId, viewId, tableName} = createTableForTest(db, "T");
         const {fieldId} = addFieldAndGetId(db, tableId, viewId, "Status");
 
         run(db, "renameField", {tableId, fieldId, name: "Priority"});
@@ -1947,7 +1955,7 @@ describe("renameField", () => {
 
     test("dedups against existing column names but excludes the field being renamed", async () => {
         const db = await createDb();
-        const {tableId, viewId} = run(db, "createTable", {name: "T"});
+        const {tableId, viewId} = createTableForTest(db, "T");
         const {fieldId: statusId} = addFieldAndGetId(db, tableId, viewId, "Status");
         addFieldAndGetId(db, tableId, viewId, "Priority");
 
@@ -1969,7 +1977,7 @@ describe("renameField", () => {
 
     test("can rename to a label whose slug equals the existing column (idempotent)", async () => {
         const db = await createDb();
-        const {tableId, viewId} = run(db, "createTable", {name: "T"});
+        const {tableId, viewId} = createTableForTest(db, "T");
         const {fieldId} = addFieldAndGetId(db, tableId, viewId, "Status");
 
         // The existing field's column is "status"; renaming to "Status!" still slugifies
@@ -1991,8 +1999,8 @@ describe("renameField", () => {
 
     test("renames relation field metadata and keeps the join table name in sync", async () => {
         const db = await createDb();
-        const source = run(db, "createTable", {name: "Tasks"});
-        const target = run(db, "createTable", {name: "Projects"});
+        const source = createTableForTest(db, "Tasks");
+        const target = createTableForTest(db, "Projects");
         const relation = run(db, "createRelationField", {
             joinTableId: generateChronologicalId<DatabaseTableId>(),
             sourceTableId: source.tableId,

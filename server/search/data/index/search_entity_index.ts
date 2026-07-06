@@ -18,7 +18,6 @@ import {
     ServerSystemActionContext,
     ServerSystemActionContextModules,
 } from "~/server/context/server_action_context.js";
-import {getDatabaseTableMetadataForSearchIndex} from "~/server/databases/data/database_table_metadata.js";
 import {getDocumentPreviewIfPossible} from "~/server/documents/data/documents_actions.js";
 import {DynamoCacheReadConsistency} from "~/server/dynamo/core/dynamo_read_consistency.js";
 import {getChannelIfPossible} from "~/server/forum/data/get_channel.js";
@@ -57,7 +56,6 @@ import {
 } from "~/server/search/core/index_search_entity_job_description.js";
 import {SearchEntityDependencyId} from "~/server/search/core/search_entity_dependency_id.js";
 import {getSearchEntityDependencyIdsAffectedByUpdate} from "~/server/search/core/search_entity_update.js";
-import {indexDatabaseTableSearchEntity} from "~/server/search/data/index/index_database_table_search_entity.js";
 import {
     SearchEntityEmbeddingChunk,
     getSearchEntity,
@@ -671,24 +669,6 @@ export async function processIndexSearchEntityJob(
         const readStartTime = new Date();
         const additionalWriteActions: Array<(context: ServerSystemActionContext) => Promise<void>> =
             [];
-
-        if (job.update.type === "DatabaseTable") {
-            const table = await getDatabaseTableMetadataForSearchIndex(
-                context.dynamo.expectStrongReadConsistency(),
-                {
-                    spaceId: job.spaceId,
-                    tableId: job.update.tableId,
-                },
-            );
-            await indexDatabaseTableSearchEntity(context, {
-                spaceId: job.spaceId,
-                tableId: job.update.tableId,
-                name: table.name,
-                accessPolicy: table.accessPolicy,
-                isDeleted: table.isDeleted,
-            });
-            return;
-        }
 
         const {dependencyIds, entity} = await getSearchEntity(context, job.update, {
             tokenizer,

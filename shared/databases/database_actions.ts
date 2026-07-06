@@ -1,9 +1,6 @@
 import {AccessPolicySchema} from "~/shared/access/access_policy.js";
 import {DatabaseActionRequiresServerError} from "~/shared/databases/database_action_requires_server_error.js";
-import {
-    DatabaseTableAccessPolicySqlSchema,
-    databaseTableAccessPolicyForCreator,
-} from "~/shared/databases/database_table_access_policy.js";
+import {DatabaseTableAccessPolicySqlSchema} from "~/shared/databases/database_table_access_policy.js";
 import {
     DatabaseFieldConfigSchema,
     getDatabaseFieldProvider,
@@ -28,6 +25,7 @@ import type {
 import {LabelStringSchema} from "~/shared/schema/helpers/label_string_schema.js";
 import {OrderKeySchema} from "~/shared/schema/helpers/order_key_schema.js";
 import {type ObjectSchema, Schema, type SchemaType} from "~/shared/schema/schema.js";
+import type {TracerServiceName} from "~/shared/tracer/tracer_root.js";
 
 /**
  * Server-only capabilities. Accessing these on the client causes the action to
@@ -86,16 +84,23 @@ function defineDatabaseAction<Input, Output>(def: {
     output: ObjectSchema<Output>;
     writeLevel: SqliteWriteLevel;
     transactionMode?: "automatic" | "manual";
+    visibility?: ReadonlyArray<TracerServiceName>;
     run: (ctx: DatabaseActionContext, input: Input) => any;
 }): {
     input: ObjectSchema<Input>;
     output: ObjectSchema<Output>;
     writeLevel: SqliteWriteLevel;
     transactionMode: "automatic" | "manual";
+    visibility: ReadonlyArray<TracerServiceName> | undefined;
     serverOnly: boolean;
     run: (ctx: DatabaseActionContext, input: Input) => Output;
 } {
-    return {serverOnly: false, transactionMode: "automatic", ...def};
+    return {
+        serverOnly: false,
+        transactionMode: "automatic",
+        visibility: undefined,
+        ...def,
+    };
 }
 
 function executeDatabaseActionTransaction<T>(db: SqliteDatabase, fn: () => T): T {
@@ -177,9 +182,9 @@ export const databaseActions = {
 
     createTable: defineDatabaseAction({
         input: Schema.object({
-            tableId: Schema.id<DatabaseTableId>().optional(),
+            tableId: Schema.id<DatabaseTableId>(),
             name: LabelStringSchema,
-            accessPolicy: AccessPolicySchema.optional(),
+            accessPolicy: AccessPolicySchema,
         }),
         output: Schema.object({
             tableId: Schema.id<DatabaseTableId>(),
@@ -188,14 +193,8 @@ export const databaseActions = {
         }),
         writeLevel: "schema+data",
         transactionMode: "manual",
-        run({db, server, model}, {tableId: inputTableId, name, accessPolicy}) {
-            const tableId = inputTableId ?? generateChronologicalId<DatabaseTableId>();
-            if (accessPolicy === undefined) {
-                const creatorAccountId = server().getCurrentAccountId();
-                assert(creatorAccountId !== null, "createTable requires an account actor");
-                accessPolicy = databaseTableAccessPolicyForCreator(creatorAccountId);
-            }
-
+        visibility: ["DatabaseGroupService", "Test"],
+        run({db, server, model}, {tableId, name, accessPolicy}) {
             // Attach + migrate the new per-db file before writing any of the table's data or
             // metadata into it. `attach` is a no-op if already attached.
             server().attach(tableId);
@@ -221,18 +220,8 @@ export const databaseActions = {
         }),
         writeLevel: "schema+data",
         transactionMode: "manual",
-        run({db, server, model}, {tableId, name, accessPolicy}) {
-            server().attach(tableId);
-            runTableMigrations(db, tableId);
-
-            const hasTable = model.getTableIds("table").includes(tableId);
-            if (!hasTable) {
-                const {table, defaultView} = executeDatabaseActionTransaction(db, () =>
-                    model.createTable(tableId, name, accessPolicy),
-                );
-                return {tableName: table.tableName, viewId: defaultView.id};
-            }
-
+        visibility: ["DatabaseGroupService", "Test"],
+        run({db, model}, {tableId, name, accessPolicy}) {
             const {table, viewId} = executeDatabaseActionTransaction(db, () => {
                 const table = model.getTable(tableId).updateName(name);
                 sql`

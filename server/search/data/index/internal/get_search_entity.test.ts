@@ -17,7 +17,7 @@ import {noop} from "~/shared/helpers/control/noop.js";
 import {defaultCompareStrings} from "~/shared/helpers/string/default_compare_strings.js";
 import {generateChronologicalId} from "~/shared/id/chronological_id.js";
 import {generateId} from "~/shared/id/id.js";
-import {AccountId, DatabaseTableId} from "~/shared/id/types/id_types.js";
+import {AccountId, DatabaseGroupId, DatabaseTableId} from "~/shared/id/types/id_types.js";
 import {SearchDynamicEntityIdObject} from "~/shared/search/search_entity_id.js";
 
 const context = createTestContext({
@@ -225,8 +225,10 @@ const testCasesBySearchEntityType: {[Key in SearchDynamicEntityIdObject["type"]]
         });
     },
     DatabaseTable: () => {
-        test("throws for database table search entity", async () => {
-            const space = await TestSpace.create(context);
+        test("throws when database table metadata is missing", async () => {
+            const space = await TestSpace.create(context, {
+                databaseGroupId: generateId<DatabaseGroupId>(),
+            });
             const tokenizer = await CohereEmbedEnglishV3LanguageTokenizer.get();
             const databaseTableId = generateChronologicalId<DatabaseTableId>();
 
@@ -236,7 +238,7 @@ const testCasesBySearchEntityType: {[Key in SearchDynamicEntityIdObject["type"]]
                     {type: "DatabaseTable", tableId: databaseTableId},
                     {tokenizer, registerAdditionalWrite: noop},
                 ),
-            ).rejects.toThrow("Database tables are indexed by IndexSearchEntity jobs");
+            ).rejects.toThrow(`Database table ${databaseTableId} not found`);
         });
     },
     Channel: () => {

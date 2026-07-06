@@ -7,17 +7,15 @@ import {
 } from "~/server/databases/data/internal/database_tables_table.js";
 import {DynamoItem} from "~/server/dynamo/core/dynamo_table_schema.js";
 import {authorizeSpaceAccess} from "~/server/spaces/authorize_space_access.js";
-import {getDatabaseGroupIdForSpace} from "~/server/spaces/get_database_group_id_for_space.js";
+import {
+    getDatabaseGroupIdForSpace,
+    getExistingDatabaseGroupIdForSpace,
+} from "~/server/spaces/get_database_group_id_for_space.js";
 import {type AccessPolicy, AccessPolicySchema} from "~/shared/access/access_policy.js";
 import {databaseTableAccessPolicyForCreator} from "~/shared/databases/database_table_access_policy.js";
 import {NotFoundError} from "~/shared/error/error.js";
 import {generateChronologicalId} from "~/shared/id/chronological_id.js";
-import type {
-    DatabaseGroupId,
-    DatabaseTableId,
-    DatabaseViewId,
-    SpaceId,
-} from "~/shared/id/types/id_types.js";
+import type {DatabaseTableId, DatabaseViewId, SpaceId} from "~/shared/id/types/id_types.js";
 
 export async function createDatabaseTable(
     context: ServerActionContext,
@@ -74,27 +72,23 @@ export async function getDatabaseTableMetadataForSearchIndex(
     accessPolicy: AccessPolicy;
     isDeleted: boolean;
 }> {
-    const databaseGroupId = await getDatabaseGroupIdForSpace(context, spaceId);
-    const item = (await DatabaseTablesTable.getItemIfExists(context, {
-        partitionType: "DatabaseGroup",
-        sortRangeType: "Table",
-        databaseGroupId,
-        tableId,
-    })) as DatabaseTableItem | null;
+    const databaseGroupId = await getExistingDatabaseGroupIdForSpace(context, spaceId);
+    const item = (await DatabaseTablesTable.getItemIfExists(
+        context,
+        {
+            partitionType: "DatabaseGroup",
+            sortRangeType: "Table",
+            databaseGroupId,
+            tableId,
+        },
+        {consistency: "Strong"},
+    )) as DatabaseTableItem | null;
 
     if (item === null) {
         throw new NotFoundError(`Database table ${tableId} not found`);
     }
 
     const accessPolicy = await resolveDatabaseTableAccessPolicy(context, item.accessPolicy);
-    if (!item.isDeleted && item.name !== null) {
-        await syncDatabaseTableMetadataToDurableObject(context, {
-            databaseGroupId,
-            tableId,
-            name: item.name,
-            accessPolicy,
-        });
-    }
 
     return {
         name: item.name,
@@ -103,20 +97,21 @@ export async function getDatabaseTableMetadataForSearchIndex(
     };
 }
 
-async function syncDatabaseTableMetadataToDurableObject(
+export async function syncDatabaseTableMetadataToDurableObject(
     context: ServerActionContext,
     {
-        databaseGroupId,
+        spaceId,
         tableId,
         name,
         accessPolicy,
     }: {
-        databaseGroupId: DatabaseGroupId;
+        spaceId: SpaceId;
         tableId: DatabaseTableId;
         name: string;
         accessPolicy: AccessPolicy;
     },
 ): Promise<void> {
+    const databaseGroupId = await getExistingDatabaseGroupIdForSpace(context, spaceId);
     await fetchDatabaseGroupAction(context, databaseGroupId, {
         name: "syncTableMetadata",
         input: {tableId, name, accessPolicy},

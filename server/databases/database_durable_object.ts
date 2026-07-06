@@ -21,7 +21,7 @@ import {DatabaseActionObjectSchema} from "~/shared/databases/database_actions.js
 import {DatabaseRealtimeProtocol} from "~/shared/databases/database_realtime_protocol.js";
 import {InvalidArgumentError, NotFoundError} from "~/shared/error/error.js";
 import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
-import type {BrowserId, DatabaseGroupId} from "~/shared/id/types/id_types.js";
+import type {BrowserId} from "~/shared/id/types/id_types.js";
 import {SchemaSerializedValue} from "~/shared/schema/schema.js";
 
 type DatabaseGroupDurableObjectRoute = "Main" | "Action" | "NotFound";
@@ -44,7 +44,6 @@ class DatabaseGroupDurableObject {
 
     public static async initialize({
         processContext,
-        idName,
         storage,
     }: {
         processContext: WorkerProcessContext;
@@ -54,8 +53,7 @@ class DatabaseGroupDurableObject {
         storage: DurableObjectStorage;
     }): Promise<DatabaseGroupDurableObject> {
         const durableObjectStorage = new DatabaseDurableObjectStorage(storage);
-        const databaseGroupId = idName as DatabaseGroupId;
-        const server = await DatabaseServer.create(durableObjectStorage, databaseGroupId);
+        const server = await DatabaseServer.create(durableObjectStorage);
         return new DatabaseGroupDurableObject({
             processContext,
             server,

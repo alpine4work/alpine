@@ -20,12 +20,14 @@ import {
     type DatabaseActionResult,
 } from "~/shared/databases/database_actions.js";
 import type {DatabasePages} from "~/shared/databases/database_protocol_schemas.js";
+import {databaseTableAccessPolicyForCreator} from "~/shared/databases/database_table_access_policy.js";
 import {sql} from "~/shared/databases/sql.js";
 import {databaseMainTableId, sqlitePageSize} from "~/shared/databases/sqlite_constants.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {generateChronologicalId} from "~/shared/id/chronological_id.js";
 import {generateId} from "~/shared/id/id.js";
 import type {
+    AccountId,
     BrowserId,
     DatabaseFieldId,
     DatabaseGroupId,
@@ -49,6 +51,14 @@ const durableObjectTest = DatabaseGroupDurableObject.test(context, {
 
 type DatabaseServerConnection = Awaited<ReturnType<typeof durableObjectTest.connectForTest>>;
 
+function createTableInputForTest(name: string) {
+    return {
+        tableId: generateChronologicalId<DatabaseTableId>(),
+        name,
+        accessPolicy: databaseTableAccessPolicyForCreator(generateId<AccountId>()),
+    };
+}
+
 // ---------------------------------------------------------------------------
 // Basic round trips
 // ---
@@ -59,7 +69,11 @@ test("client executes actions against the database server", async () => {
     const databaseGroupId = generateId<DatabaseGroupId>();
     const client = await createTestClient(databaseGroupId);
 
-    const createTableResult = await executeAction(client, "createTable", {name: "Projects"});
+    const createTableResult = await executeAction(
+        client,
+        "createTable",
+        createTableInputForTest("Projects"),
+    );
     const tableRowsResult = await executeAction(client, "readonlyRawSql", {
         sql: `
             SELECT
@@ -90,7 +104,7 @@ test("a client can immediately use a table it just created", async () => {
     const databaseGroupId = generateId<DatabaseGroupId>();
     const client = await createTestClient(databaseGroupId);
 
-    const table = await executeAction(client, "createTable", {name: "Projects"});
+    const table = await executeAction(client, "createTable", createTableInputForTest("Projects"));
     const rowId = generateChronologicalId<DatabaseRowId>();
     await executeAction(client, "createRow", {tableId: table.tableId, rowId});
     await settle();
@@ -553,7 +567,7 @@ test("a restarted client revalidates the main registry at cold open", async () =
     // While the browser is gone, another client registers a second table (a main
     // registry change).
     const other = await createTestClient(databaseGroupId);
-    const secondTable = await executeAction(other, "createTable", {name: "Tasks"});
+    const secondTable = await executeAction(other, "createTable", createTableInputForTest("Tasks"));
     await settle();
 
     // On restart, `ensureCacheIsUpToDate` refreshes the stale main pages, so the
@@ -797,7 +811,11 @@ async function restartClient(
  */
 async function createTableOnServer(databaseGroupId: DatabaseGroupId): Promise<TestDatabaseTable> {
     const client = await createTestClient(databaseGroupId);
-    const {tableId, tableName} = await executeAction(client, "createTable", {name: "Projects"});
+    const {tableId, tableName} = await executeAction(
+        client,
+        "createTable",
+        createTableInputForTest("Projects"),
+    );
     await settle();
     const seedPages = extractServerPages(databaseGroupId, [databaseMainTableId, tableId]);
     client.close();

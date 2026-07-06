@@ -17,6 +17,10 @@ import {
     ServerSystemActionContext,
 } from "~/server/context/server_action_context.js";
 import {
+    getDatabaseTableMetadataForSearchIndex,
+    syncDatabaseTableMetadataToDurableObject,
+} from "~/server/databases/data/database_table_metadata.js";
+import {
     DocumentStepCountByAccountId,
     getDocumentCommentPayload,
     getDocumentContent,
@@ -131,11 +135,13 @@ import {
     AccountId,
     ChannelId,
     ChatId,
+    DatabaseTableId,
     DocumentCommentThreadId,
     DocumentId,
     FileId,
     PostId,
     SiteId,
+    SpaceId,
     TaskCollectionId,
     TaskId,
 } from "~/shared/id/types/id_types.js";
@@ -363,6 +369,14 @@ class SearchEntityReadState {
 
     public getDependencyIds(): ReadonlySet<SearchEntityDependencyId> {
         return this._dependencyIds;
+    }
+
+    public get context(): ServerSystemActionContext {
+        return this._context;
+    }
+
+    public getSpaceId(): SpaceId {
+        return this._context.actor.getSpaceId();
     }
 
     /**
@@ -1097,6 +1111,34 @@ function getSearchEntityIndexAccessPolicy(
     };
 }
 
+function getSearchEntityIndexAccessPolicyFromLocalAccessPolicy(
+    accessPolicy: AccessPolicy,
+): SearchEntityIndexAccessPolicy {
+    switch (accessPolicy.type) {
+        case "Local": {
+            const defaultGrantType: SearchEntityIndexDefaultGrantType | null =
+                accessPolicy.defaultGrant !== null ? "Space" : null;
+            let accountGrantAccountIds = new Set(accessPolicy.accountGrantById.keys());
+
+            if (defaultGrantType !== null) {
+                accountGrantAccountIds = new Set();
+            }
+
+            return {
+                accountGrantAccountIds,
+                defaultGrantType,
+                urlGrantLevel: accessPolicy.urlGrant?.level ?? null,
+            };
+        }
+        case "Site":
+            throw new InternalError(
+                "Database table access policy must be resolved before indexing",
+            );
+        default:
+            throw exhaustive(accessPolicy);
+    }
+}
+
 export function isSearchEntityIndexAccessPolicySubset(
     supersetAccessPolicy: SearchEntityIndexAccessPolicy,
     subsetAccessPolicy: SearchEntityIndexAccessPolicy,
@@ -1448,7 +1490,7 @@ async function actuallyGetSearchEntity(
         case "DocumentComment":
             return await getDocumentCommentSearchEntity(state, idObject);
         case "DatabaseTable":
-            throw new NotFoundError("Database tables are indexed by IndexSearchEntity jobs");
+            return await getDatabaseTableSearchEntity(state, idObject.tableId);
         case "Channel":
             return await getChannelSearchEntity(state, idObject.channelId);
         case "Post":
@@ -1499,6 +1541,48 @@ async function getAccountSearchEntity(
 
         // Doesn't make sense that an account would create itself. So mark an account has
         // having no creator.
+        creatorId: null,
+        contributorIds: emptyMap,
+        dueDate: null,
+        assigneeId: null,
+        priority: null,
+        openness: null,
+        activeness: null,
+    };
+}
+
+async function getDatabaseTableSearchEntity(
+    state: SearchEntityReadState,
+    tableId: DatabaseTableId,
+): Promise<SearchEntity> {
+    const spaceId = state.getSpaceId();
+    const table = await getDatabaseTableMetadataForSearchIndex(state.context, {spaceId, tableId});
+    const id: SearchDynamicEntityId = `DatabaseTable:${tableId}`;
+
+    if (table.isDeleted || table.name === null) {
+        return {...searchDeletedMessageEntity, id};
+    }
+
+    const {name, accessPolicy} = table;
+    state.registerAdditionalWrite(context =>
+        syncDatabaseTableMetadataToDurableObject(context, {
+            spaceId,
+            tableId,
+            name,
+            accessPolicy,
+        }),
+    );
+
+    return {
+        id,
+        accessPolicy: getSearchEntityIndexAccessPolicyFromLocalAccessPolicy(accessPolicy),
+        createdTime: null,
+        title: name,
+        titleVersion: null,
+        body: null,
+        tags: emptyArray,
+        media: null,
+        embeddingChunks: emptyArray,
         creatorId: null,
         contributorIds: emptyMap,
         dueDate: null,
