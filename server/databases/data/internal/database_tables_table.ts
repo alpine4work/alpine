@@ -2,6 +2,7 @@ import {DynamoKeyAttributeSchema} from "~/server/dynamo/core/dynamo_key_attribut
 import {RynamoTableItemType, RynamoTableSchema} from "~/server/rynamo/rynamo_table_schema.js";
 import {AccessPolicySchema} from "~/shared/access/access_policy.js";
 import {DatabaseTableMetadataModel} from "~/shared/databases/database_table_metadata_model.js";
+import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 import type {DatabaseGroupId, DatabaseTableId, SpaceId} from "~/shared/id/types/id_types.js";
 import {Schema} from "~/shared/schema/schema.js";
 
@@ -21,9 +22,8 @@ export const DatabaseTablesTable = RynamoTableSchema.new({
                     },
                     attributes: Schema.object({
                         name: Schema.string.nullable(),
-                        spaceId: Schema.id<SpaceId>(),
+                        spaceId: Schema.id<SpaceId>().nullable(),
                         isDeleted: Schema.boolean,
-                        lastReplicatedStorageVersion: Schema.integer,
                         accessPolicy: AccessPolicySchema,
                     }),
                 },
@@ -38,10 +38,9 @@ export const DatabaseTablesTable = RynamoTableSchema.new({
                     new DatabaseTableMetadataModel({
                         databaseGroupId: item.databaseGroupId,
                         tableId: item.tableId,
-                        spaceId: item.spaceId,
+                        spaceId: assertExists(item.spaceId),
                         name: item.name,
                         isDeleted: item.isDeleted,
-                        lastReplicatedStorageVersion: item.lastReplicatedStorageVersion,
                         accessPolicy: item.accessPolicy,
                         version: item.updateLockVersion ?? 0,
                     }),

@@ -235,7 +235,6 @@ export class DatabaseServer {
             this.changedTables.clear();
         }
         this.scheduleReplication(context, {
-            storageVersion: persisted.writeVersion,
             tableIds: persisted.changedTables,
         });
         return persisted;
@@ -244,19 +243,16 @@ export class DatabaseServer {
     private scheduleReplication(
         context: WorkerActionContext,
         {
-            storageVersion,
             tableIds,
         }: {
-            storageVersion: number;
             tableIds: DatabaseServerChangedTables;
         },
     ): void {
-        if (storageVersion === 0 || tableIds.size === 0) return;
+        if (tableIds.size === 0) return;
 
         context.process.waitUntil(
             enqueueDatabaseTableReplicationJob(context, {
                 databaseGroupId: this.databaseGroupId,
-                storageVersion,
                 tableIds,
             }),
         );

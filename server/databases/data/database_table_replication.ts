@@ -29,11 +29,9 @@ export async function replicateDatabaseTableChanges(
     context: ServerActionContext,
     {
         databaseGroupId,
-        storageVersion,
         tableIds,
     }: {
         databaseGroupId: DatabaseGroupId;
-        storageVersion: number;
         tableIds: ReadonlySet<DatabaseTableId>;
     },
 ): Promise<void> {
@@ -44,7 +42,6 @@ export async function replicateDatabaseTableChanges(
             replicateDatabaseTableChange(context, {
                 databaseGroupId,
                 spaceId,
-                storageVersion,
                 tableId,
             }),
         ),
@@ -56,12 +53,10 @@ async function replicateDatabaseTableChange(
     {
         databaseGroupId,
         spaceId,
-        storageVersion,
         tableId,
     }: {
         databaseGroupId: DatabaseGroupId;
         spaceId: SpaceId;
-        storageVersion: number;
         tableId: DatabaseTableId;
     },
 ): Promise<void> {
@@ -74,7 +69,6 @@ async function replicateDatabaseTableChange(
     const tableMetadata = await updateDatabaseTableMetadataItem(context, {
         databaseGroupId,
         spaceId,
-        storageVersion,
         tableId,
         table,
     });
@@ -93,13 +87,11 @@ async function updateDatabaseTableMetadataItem(
     {
         databaseGroupId,
         spaceId,
-        storageVersion,
         tableId,
         table,
     }: {
         databaseGroupId: DatabaseGroupId;
         spaceId: SpaceId;
-        storageVersion: number;
         tableId: DatabaseTableId;
         table: DatabaseTableMetadata | null;
     },
@@ -121,10 +113,6 @@ async function updateDatabaseTableMetadataItem(
                 spaceId,
                 name: table?.name ?? null,
                 isDeleted: table === null,
-                lastReplicatedStorageVersion: Math.max(
-                    item?.lastReplicatedStorageVersion ?? 0,
-                    storageVersion,
-                ),
                 accessPolicy: item?.accessPolicy ?? defaultDatabaseTableAccessPolicy,
             }),
     );

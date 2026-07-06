@@ -10,7 +10,6 @@ export class DatabaseTableMetadataModel extends Model(
         spaceId: Schema.id<SpaceId>(),
         name: Schema.string.nullable(),
         isDeleted: Schema.boolean,
-        lastReplicatedStorageVersion: Schema.integer,
         accessPolicy: AccessPolicySchema,
         version: Schema.integer,
     }),

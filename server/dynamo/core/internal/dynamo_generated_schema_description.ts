@@ -3598,12 +3598,6 @@ export const dynamoGeneratedSchemaDescription: {
                                         },
                                         "optional": false
                                     },
-                                    "lastReplicatedStorageVersion": {
-                                        "valueSchema": {
-                                            "type": "Integer"
-                                        },
-                                        "optional": false
-                                    },
                                     "accessPolicy": {
                                         "valueSchema": {
                                             "type": "Reference",
@@ -3611,6 +3605,135 @@ export const dynamoGeneratedSchemaDescription: {
                                         },
                                         "optional": false
                                     },
+                                    "updateLockVersion": {
+                                        "valueSchema": {
+                                            "type": "Integer"
+                                        },
+                                        "optional": true
+                                    }
+                                }
+                            },
+                            "childSortRangeByType": {}
+                        }
+                    }
+                },
+                "Realtime": {
+                    "id": 1,
+                    "partitionKeyAttributeByKey": {
+                        "realtimeKey": {
+                            "type": "LabelString"
+                        }
+                    },
+                    "sortRangeByType": {
+                        "Events": {
+                            "id": 0,
+                            "orderKey": "a0",
+                            "sortKeyAttributeByKey": {
+                                "eventTime": {
+                                    "type": "Date"
+                                }
+                            },
+                            "attributesSchema": {
+                                "type": "Object",
+                                "propertySchemaByKey": {
+                                    "events": {
+                                        "valueSchema": {
+                                            "type": "Array",
+                                            "itemSchema": {
+                                                "type": "Union",
+                                                "typeKey": "type",
+                                                "variantSchemaByTypeValue": {
+                                                    "PutItem": {
+                                                        "type": "Object",
+                                                        "propertySchemaByKey": {
+                                                            "type": {
+                                                                "valueSchema": {
+                                                                    "type": "Value",
+                                                                    "value": "PutItem"
+                                                                },
+                                                                "optional": false
+                                                            },
+                                                            "key": {
+                                                                "valueSchema": {
+                                                                    "type": "String"
+                                                                },
+                                                                "optional": false
+                                                            },
+                                                            "version": {
+                                                                "valueSchema": {
+                                                                    "type": "Integer"
+                                                                },
+                                                                "optional": false
+                                                            }
+                                                        }
+                                                    },
+                                                    "DeleteItem": {
+                                                        "type": "Object",
+                                                        "propertySchemaByKey": {
+                                                            "type": {
+                                                                "valueSchema": {
+                                                                    "type": "Value",
+                                                                    "value": "DeleteItem"
+                                                                },
+                                                                "optional": false
+                                                            },
+                                                            "key": {
+                                                                "valueSchema": {
+                                                                    "type": "String"
+                                                                },
+                                                                "optional": false
+                                                            },
+                                                            "version": {
+                                                                "valueSchema": {
+                                                                    "type": "Integer"
+                                                                },
+                                                                "optional": false
+                                                            }
+                                                        }
+                                                    }
+                                                }
+                                            },
+                                            "referenceId": "164d0749"
+                                        },
+                                        "optional": false
+                                    },
+                                    "updateLockVersion": {
+                                        "valueSchema": {
+                                            "type": "Integer"
+                                        },
+                                        "optional": true
+                                    },
+                                    "expirationTime": {
+                                        "valueSchema": {
+                                            "type": "Integer"
+                                        },
+                                        "optional": false
+                                    }
+                                }
+                            },
+                            "childSortRangeByType": {}
+                        }
+                    }
+                },
+                "Graveyard": {
+                    "id": 2,
+                    "partitionKeyAttributeByKey": {
+                        "deletedPartitionKey": {
+                            "type": "LabelString"
+                        }
+                    },
+                    "sortRangeByType": {
+                        "Gravestone": {
+                            "id": 0,
+                            "orderKey": "a0",
+                            "sortKeyAttributeByKey": {
+                                "deletedSortKey": {
+                                    "type": "LabelString"
+                                }
+                            },
+                            "attributesSchema": {
+                                "type": "Object",
+                                "propertySchemaByKey": {
                                     "updateLockVersion": {
                                         "valueSchema": {
                                             "type": "Integer"
@@ -10594,62 +10717,8 @@ export const dynamoGeneratedSchemaDescription: {
                                 "propertySchemaByKey": {
                                     "events": {
                                         "valueSchema": {
-                                            "type": "Array",
-                                            "itemSchema": {
-                                                "type": "Union",
-                                                "typeKey": "type",
-                                                "variantSchemaByTypeValue": {
-                                                    "PutItem": {
-                                                        "type": "Object",
-                                                        "propertySchemaByKey": {
-                                                            "type": {
-                                                                "valueSchema": {
-                                                                    "type": "Value",
-                                                                    "value": "PutItem"
-                                                                },
-                                                                "optional": false
-                                                            },
-                                                            "key": {
-                                                                "valueSchema": {
-                                                                    "type": "String"
-                                                                },
-                                                                "optional": false
-                                                            },
-                                                            "version": {
-                                                                "valueSchema": {
-                                                                    "type": "Integer"
-                                                                },
-                                                                "optional": false
-                                                            }
-                                                        }
-                                                    },
-                                                    "DeleteItem": {
-                                                        "type": "Object",
-                                                        "propertySchemaByKey": {
-                                                            "type": {
-                                                                "valueSchema": {
-                                                                    "type": "Value",
-                                                                    "value": "DeleteItem"
-                                                                },
-                                                                "optional": false
-                                                            },
-                                                            "key": {
-                                                                "valueSchema": {
-                                                                    "type": "String"
-                                                                },
-                                                                "optional": false
-                                                            },
-                                                            "version": {
-                                                                "valueSchema": {
-                                                                    "type": "Integer"
-                                                                },
-                                                                "optional": false
-                                                            }
-                                                        }
-                                                    }
-                                                }
-                                            },
-                                            "referenceId": "9171272b"
+                                            "type": "Reference",
+                                            "reuseReferenceId": "164d0749"
                                         },
                                         "optional": false
                                     },
@@ -11563,7 +11632,7 @@ export const dynamoGeneratedSchemaDescription: {
                                     "events": {
                                         "valueSchema": {
                                             "type": "Reference",
-                                            "reuseReferenceId": "9171272b"
+                                            "reuseReferenceId": "164d0749"
                                         },
                                         "optional": false
                                     },
@@ -13774,7 +13843,7 @@ export const dynamoGeneratedSchemaDescription: {
                                     "events": {
                                         "valueSchema": {
                                             "type": "Reference",
-                                            "reuseReferenceId": "9171272b"
+                                            "reuseReferenceId": "164d0749"
                                         },
                                         "optional": false
                                     },
@@ -14550,7 +14619,7 @@ export const dynamoGeneratedSchemaDescription: {
                                     "events": {
                                         "valueSchema": {
                                             "type": "Reference",
-                                            "reuseReferenceId": "9171272b"
+                                            "reuseReferenceId": "164d0749"
                                         },
                                         "optional": false
                                     },

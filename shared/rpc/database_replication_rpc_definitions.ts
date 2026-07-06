@@ -7,7 +7,6 @@ export const enqueueDatabaseTableReplicationJob = defineRpc({
     isIdempotent: true,
     input: {
         databaseGroupId: Schema.id<DatabaseGroupId>(),
-        storageVersion: Schema.integer,
         tableIds: Schema.set(Schema.id<DatabaseTableId>()),
     },
     output: {

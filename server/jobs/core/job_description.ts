@@ -223,7 +223,6 @@ const ReplicateDatabaseTableChangesJobDescriptionSchema = Schema.object({
     type: Schema.value("ReplicateDatabaseTableChanges"),
     spaceId: Schema.id<SpaceId>(),
     databaseGroupId: Schema.id<DatabaseGroupId>(),
-    storageVersion: Schema.integer,
     tableIds: Schema.set(Schema.id<DatabaseTableId>()),
 });
 
