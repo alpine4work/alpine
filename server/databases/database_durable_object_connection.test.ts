@@ -571,9 +571,9 @@ describe("per-browser page tracking", () => {
                     databaseMainTableId,
                     {
                         diffs: new Map([
-                            [0, {version: 1, diff: []}],
-                            [1, {version: 1, diff: []}],
-                            [3, {version: 1, diff: []}],
+                            [0, {previousVersion: 0, version: 1, diff: []}],
+                            [1, {previousVersion: 0, version: 1, diff: []}],
+                            [3, {previousVersion: 0, version: 1, diff: []}],
                         ]),
                         fileSizeInPages: 4,
                     },
@@ -620,8 +620,8 @@ describe("per-browser page tracking", () => {
                     databaseMainTableId,
                     {
                         diffs: new Map([
-                            [0, {version: 1, diff: []}],
-                            [1, {version: 1, diff: []}],
+                            [0, {previousVersion: 0, version: 1, diff: []}],
+                            [1, {previousVersion: 0, version: 1, diff: []}],
                         ]),
                         fileSizeInPages: 2,
                     },
@@ -650,8 +650,8 @@ describe("per-browser page tracking", () => {
                     databaseMainTableId,
                     {
                         diffs: new Map([
-                            [0, {version: 1, diff: []}],
-                            [1, {version: 1, diff: []}],
+                            [0, {previousVersion: 0, version: 1, diff: []}],
+                            [1, {previousVersion: 0, version: 1, diff: []}],
                         ]),
                         fileSizeInPages: 2,
                     },

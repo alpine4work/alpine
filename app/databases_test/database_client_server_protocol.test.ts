@@ -79,6 +79,54 @@ test("client executes actions against the database server", async () => {
     });
 });
 
+// Guards the ATTACH ordering in `executeActionViaServer`: the new table's pages
+// are applied to the local store _before_ the per-db file is attached. Attaching
+// first would make SQLite parse — and, under `locking_mode = EXCLUSIVE`,
+// permanently cache — an empty schema, failing every later local reference to the
+// table with "no such table".
+test("a client can immediately use a table it just created", async () => {
+    const databaseGroupId = generateId<DatabaseGroupId>();
+    const client = await createTestClient(databaseGroupId);
+
+    const table = await executeAction(client, "createTable", {name: "Projects"});
+    const rowId = generateChronologicalId<DatabaseRowId>();
+    await executeAction(client, "createRow", {tableId: table.tableId, rowId});
+    await settle();
+
+    expect({
+        rowIds: await selectRowIds(client, table),
+        reportedErrors: client.reportedErrors,
+    }).toEqual({
+        rowIds: [rowId],
+        reportedErrors: [],
+    });
+});
+
+// The reader-side counterpart of the ATTACH-ordering guard above: the first read
+// of an unknown table falls back to the server, whose response must carry enough
+// to attach the table from cache (its pages, always including page 0, plus the
+// canonical file size — a sparse cache serving a header-derived size reads as
+// corrupt). Every subsequent read is then served locally.
+test("a client keeps reading a table it first fetched from the server", async () => {
+    const databaseGroupId = generateId<DatabaseGroupId>();
+    const table = await createTableOnServer(databaseGroupId);
+    const reader = await createTestClient(databaseGroupId);
+
+    const firstRead = await selectRowIds(reader, table);
+    const secondRead = await selectRowIds(reader, table);
+
+    expect({
+        firstRead,
+        secondRead,
+        executeActionCalls: reader.executeActionCalls,
+    }).toEqual({
+        firstRead: [],
+        secondRead: [],
+        // Only the first read hit the server; the second was served locally.
+        executeActionCalls: [{name: "readonlyRawSql", returnResult: true}],
+    });
+});
+
 test("a warmed client executes an optimistic mutation confirmed over realtime", async () => {
     const databaseGroupId = generateId<DatabaseGroupId>();
     const table = await createTableOnServer(databaseGroupId);
@@ -136,6 +184,37 @@ test("realtime page diffs keep a warmed client\u2019s local reads fresh", async 
         rowIds: [rowId],
         executeActionCalls: [],
     });
+});
+
+// Every page diff carries the version of the base it was computed against
+// (`previousVersion`); a diff whose base the client never saw — here because the
+// event carrying it was missed while disconnected — must not be applied on top of
+// the stale cached page (that would merge two page states into one that never
+// existed on the server). The client drops the page instead and re-fetches it from
+// the server on the next read.
+test("a page diff computed against a missed update is dropped and re-fetched, not applied", async () => {
+    const databaseGroupId = generateId<DatabaseGroupId>();
+    const table = await createTableOnServer(databaseGroupId);
+    const writer = await createWarmClient(databaseGroupId, table);
+    const reader = await createWarmClient(databaseGroupId, table);
+
+    const rowId1 = generateChronologicalId<DatabaseRowId>();
+    await executeAction(writer, "createRow", {tableId: table.tableId, rowId: rowId1});
+    await settle();
+
+    // The reader misses the diff for row 2, then applies the diff for row 3 — computed
+    // against a base page containing rows 1 and 2 — onto its stale base containing
+    // only row 1.
+    reader.goOffline();
+    const rowId2 = generateChronologicalId<DatabaseRowId>();
+    await executeAction(writer, "createRow", {tableId: table.tableId, rowId: rowId2});
+    await settle();
+    reader.goOnline();
+    const rowId3 = generateChronologicalId<DatabaseRowId>();
+    await executeAction(writer, "createRow", {tableId: table.tableId, rowId: rowId3});
+    await settle();
+
+    expect(await selectRowIds(reader, table)).toEqual(await selectRowIds(writer, table));
 });
 
 // A schema change (`createField` runs `ALTER TABLE ... ADD COLUMN` on the per-db
@@ -307,45 +386,6 @@ test("a restarted client revalidates the main registry at cold open", async () =
 //
 // ---
 
-// The client ATTACHes a new table's per-db file before the server's pages for it
-// are applied (`executeActionViaServer` attaches, then writes pages). SQLite
-// caches the then-empty schema and — because connections run with
-// `locking_mode = EXCLUSIVE` — never re-reads it, so every later local reference
-// to the table fails with "no such table" even though its pages are in OPFS. A
-// worker restart (fresh SQLite connection) works around it.
-test.failing("a client can immediately use a table it just created", async () => {
-    const databaseGroupId = generateId<DatabaseGroupId>();
-    const client = await createTestClient(databaseGroupId);
-
-    const table = await executeAction(client, "createTable", {name: "Projects"});
-    const rowId = generateChronologicalId<DatabaseRowId>();
-    await executeAction(client, "createRow", {tableId: table.tableId, rowId});
-    await settle();
-
-    expect({
-        rowIds: await selectRowIds(client, table),
-        reportedErrors: client.reportedErrors,
-    }).toEqual({
-        rowIds: [rowId],
-        reportedErrors: [],
-    });
-});
-
-// Same root cause as above, hit from the reader side: the first read of an unknown
-// table succeeds (the server executes it and returns pages), but that fallback
-// attaches the table while its local store is still empty. The cached empty schema
-// makes every subsequent local read of the same table fail.
-test.failing("a client can keep reading a table it first fetched from the server", async () => {
-    const databaseGroupId = generateId<DatabaseGroupId>();
-    const table = await createTableOnServer(databaseGroupId);
-    const reader = await createTestClient(databaseGroupId);
-
-    const firstRead = await selectRowIds(reader, table);
-    const secondRead = await selectRowIds(reader, table);
-
-    expect({firstRead, secondRead}).toEqual({firstRead: [], secondRead: []});
-});
-
 // When two clients race conflicting mutations, the loser's mutation can become a
 // no-op on the server (e.g. deleting an already-deleted row). The server writes no
 // pages for it and therefore broadcasts no `PagesChanged` event, so the loser's
@@ -416,39 +456,6 @@ test.failing(
         await settle();
 
         expect(await selectRowIds(reader, table)).toEqual([rowId]);
-    },
-);
-
-// Worse than the stale read above: page diffs are applied with only a
-// newer-version check, not a check that the diff's base matches the locally cached
-// page. After missing an event, the next diff for the same page is applied on top
-// of the stale base, silently merging two page states into one that never existed
-// on the server — corrupting the local database.
-test.failing(
-    "a page diff arriving after missed events does not corrupt the client\u2019s cache",
-    async () => {
-        const databaseGroupId = generateId<DatabaseGroupId>();
-        const table = await createTableOnServer(databaseGroupId);
-        const writer = await createWarmClient(databaseGroupId, table);
-        const reader = await createWarmClient(databaseGroupId, table);
-
-        const rowId1 = generateChronologicalId<DatabaseRowId>();
-        await executeAction(writer, "createRow", {tableId: table.tableId, rowId: rowId1});
-        await settle();
-
-        // The reader misses the diff for row 2, then applies the diff for row 3 — computed
-        // against a base page containing rows 1 and 2 — onto its stale base containing
-        // only row 1.
-        reader.goOffline();
-        const rowId2 = generateChronologicalId<DatabaseRowId>();
-        await executeAction(writer, "createRow", {tableId: table.tableId, rowId: rowId2});
-        await settle();
-        reader.goOnline();
-        const rowId3 = generateChronologicalId<DatabaseRowId>();
-        await executeAction(writer, "createRow", {tableId: table.tableId, rowId: rowId3});
-        await settle();
-
-        expect(await selectRowIds(reader, table)).toEqual(await selectRowIds(writer, table));
     },
 );
 

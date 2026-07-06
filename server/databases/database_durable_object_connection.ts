@@ -90,9 +90,13 @@ export class DatabaseDurableObjectConnection {
                     // page, so a changed-pages entry always carries pages.
                     assert(pages.size > 0, `changedPages entry for ${tableId} has no pages`);
                     const tableReadPages = result.readPages.get(tableId);
-                    const diffs = new Map<number, {version: number; diff: PageDiff}>();
-                    for (const [pageIndex, {before, after}] of pages) {
+                    const diffs = new Map<
+                        number,
+                        {previousVersion: number; version: number; diff: PageDiff}
+                    >();
+                    for (const [pageIndex, {before, after, beforeVersion}] of pages) {
                         diffs.set(pageIndex, {
+                            previousVersion: beforeVersion,
                             version: tableReadPages!.get(pageIndex)!.version,
                             diff: diffPage(before, after),
                         });
@@ -119,11 +123,26 @@ export class DatabaseDurableObjectConnection {
                     this._browserPageTracker.addPendingPages(this._browserId, pendingByTable);
                 }
 
+                // Report the canonical file size for every table whose pages we return, so the
+                // client's sparse cache can serve the correct file size (SQLite treats a file
+                // shorter than its header claims as corrupt).
+                let fileSizesInPages: Map<DatabaseTableId, number> | null = null;
+                if (filteredReadPages !== null) {
+                    fileSizesInPages = new Map();
+                    for (const tableId of filteredReadPages.keys()) {
+                        fileSizesInPages.set(
+                            tableId,
+                            this._durableObjectStorage.getFileSize(tableId) / sqlitePageSize,
+                        );
+                    }
+                }
+
                 return {
                     result: input.returnResult
                         ? ({name: input.action.name, output: result.result} as any)
                         : null,
                     readPages: filteredReadPages,
+                    fileSizesInPages,
                 };
             });
         },

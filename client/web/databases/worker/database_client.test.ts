@@ -246,6 +246,7 @@ describe("execute — mutations", () => {
                 return {
                     result: {name: "rawSql", output: {rows: []}},
                     readPages: new Map(),
+                    fileSizesInPages: null,
                 };
             },
         });
@@ -302,6 +303,7 @@ describe("execute — mutations", () => {
                 return {
                     result: {name: "rawSql", output: {rows: [{inserted: true}]}},
                     readPages: new Map(),
+                    fileSizesInPages: null,
                 };
             },
         });
@@ -332,6 +334,7 @@ describe("execute — mutations", () => {
                 return {
                     result: {name: "rawSql", output: {rows: [{ok: 1}]}},
                     readPages: new Map(),
+                    fileSizesInPages: null,
                 };
             },
         });
@@ -369,6 +372,7 @@ describe("execute — mutations", () => {
                 return {
                     result: {name: "rawSql", output: {rows: []}},
                     readPages: new Map(),
+                    fileSizesInPages: null,
                 };
             },
         });
@@ -651,6 +655,7 @@ describe("optimistic mutations", () => {
                 return {
                     result: {name: "rawSql", output: {rows: []}},
                     readPages: new Map(),
+                    fileSizesInPages: null,
                 };
             },
             reportError(error) {
@@ -714,6 +719,7 @@ describe("server fallback", () => {
                 return {
                     result: {name: action.name, output: {rows}} as DatabaseActionResult,
                     readPages: new Map([[databaseMainTableId, pagesToMap(allPages)]]),
+                    fileSizesInPages: new Map([[databaseMainTableId, fileSizeInPages]]),
                 };
             },
         });
@@ -766,6 +772,7 @@ describe("server fallback", () => {
                 return {
                     result: {name: action.name, output: {rows}} as DatabaseActionResult,
                     readPages: new Map([[databaseMainTableId, pagesToMap(allPages)]]),
+                    fileSizesInPages: new Map([[databaseMainTableId, fileSizeInPages]]),
                 };
             },
         });
@@ -968,6 +975,7 @@ describe("executeActionWithTracking", () => {
                 return {
                     result: {name: "readonlyRawSql", output: {rows: []}},
                     readPages: new Map(),
+                    fileSizesInPages: null,
                 };
             },
         });
@@ -1031,6 +1039,7 @@ describe("executeActionWithTracking", () => {
                 return {
                     result: {name: action.name, output: {rows}} as DatabaseActionResult,
                     readPages: new Map([[databaseMainTableId, pagesToMap(allPages)]]),
+                    fileSizesInPages: new Map([[databaseMainTableId, fileSizeInPages]]),
                 };
             },
         });
@@ -1251,7 +1260,10 @@ describe("registerReactiveAction", () => {
         // OPFS already has the current content.
         const {pages} = await extractOpfsPages(dir);
         const newerPageDiffs = new Map(
-            pages.map(({pageIndex, version}) => [pageIndex, {version: version + 1, diff: []}]),
+            pages.map(({pageIndex, version}) => [
+                pageIndex,
+                {previousVersion: version, version: version + 1, diff: []},
+            ]),
         );
         client.writePageDiffsFromRealtime(
             new Map([[databaseMainTableId, {diffs: newerPageDiffs, fileSizeInPages: 0}]]),
@@ -1339,7 +1351,10 @@ describe("registerReactiveAction", () => {
                     const before = pagesBefore.find(b => b.pageIndex === after.pageIndex);
                     return before === undefined || before.version !== after.version;
                 })
-                .map(({pageIndex, version}) => [pageIndex, {version: version + 1, diff: []}]),
+                .map(({pageIndex, version}) => [
+                    pageIndex,
+                    {previousVersion: version, version: version + 1, diff: []},
+                ]),
         );
 
         client.writePageDiffsFromRealtime(
@@ -1397,7 +1412,10 @@ describe("registerReactiveAction", () => {
         // write overlaps.
         const {pages} = await extractOpfsPages(dir);
         const newerPageDiffs = new Map(
-            pages.map(({pageIndex, version}) => [pageIndex, {version: version + 1, diff: []}]),
+            pages.map(({pageIndex, version}) => [
+                pageIndex,
+                {previousVersion: version, version: version + 1, diff: []},
+            ]),
         );
         client.writePageDiffsFromRealtime(
             new Map([[databaseMainTableId, {diffs: newerPageDiffs, fileSizeInPages: 0}]]),
@@ -1451,7 +1469,10 @@ describe("registerReactiveAction", () => {
         // Write pages — should not trigger notification
         const {pages} = await extractOpfsPages(dir);
         const newerPageDiffs = new Map(
-            pages.map(({pageIndex, version}) => [pageIndex, {version: version + 1, diff: []}]),
+            pages.map(({pageIndex, version}) => [
+                pageIndex,
+                {previousVersion: version, version: version + 1, diff: []},
+            ]),
         );
         client.writePageDiffsFromRealtime(
             new Map([[databaseMainTableId, {diffs: newerPageDiffs, fileSizeInPages: 0}]]),

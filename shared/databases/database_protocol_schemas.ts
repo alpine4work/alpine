@@ -66,6 +66,11 @@ export type DatabasePages = SchemaType<typeof DatabasePagesSchema>;
  * version at which the canonical server produced them. Mirrors {@link
  * DatabaseTablePagesSchema} for realtime updates.
  *
+ * `previousVersion` is the version of the page the diff was computed against (0
+ * for a page that didn't exist before). A client must only apply the diff to a
+ * base at exactly that version — applying it to any other base fabricates a page
+ * state that never existed on the server.
+ *
  * `fileSizeInPages` is the canonical SQLite file size after applying these diffs —
  * sent alongside the diffs so the client can truncate / extend its OPFS store
  * atomically with the page writes.
@@ -74,6 +79,7 @@ export const DatabaseTablePageDiffsSchema = Schema.object({
     diffs: Schema.map(
         Schema.integer,
         Schema.object({
+            previousVersion: Schema.integer,
             version: Schema.integer,
             diff: pageDiffSchema,
         }),
@@ -170,10 +176,16 @@ export const DatabaseExecuteActionInputConfig = {
  * Output config for {@link DatabaseExecuteActionInputConfig}: the action result
  * and any pages the server read while computing it. Both are nullable so the
  * server can honor the caller's `returnResult` / `returnPages` flags.
+ *
+ * `fileSizesInPages` carries the canonical SQLite file size for every table in
+ * `readPages` (null exactly when `readPages` is null). The client needs it to
+ * serve a correct file size from a sparse page cache — without it, SQLite sees a
+ * file shorter than the header claims and reports corruption.
  */
 export const DatabaseExecuteActionOutputConfig = {
     result: DatabaseActionResultSchema.nullable(),
     readPages: DatabasePagesSchema.nullable(),
+    fileSizesInPages: Schema.map(Schema.id<DatabaseTableId>(), Schema.integer).nullable(),
 };
 
 export type DatabaseExecuteActionResponse = ObjectSchemaConfigType<

@@ -23,6 +23,12 @@ import {Schema} from "~/shared/schema/schema.js";
 export interface DatabaseServerPageChange {
     before: Uint8Array;
     after: Uint8Array;
+    /**
+     * Version of the stored page the change was computed against; 0 when the page
+     * didn't exist before this batch. Carried into realtime diffs as `previousVersion`
+     * so clients can verify their base before applying.
+     */
+    beforeVersion: number;
 }
 
 /**
@@ -222,6 +228,7 @@ export class DatabaseServer {
                     pages.set(pageIndex, {
                         before: new Uint8Array(before),
                         after: new Uint8Array(after),
+                        beforeVersion: stored !== null ? stored.version : 0,
                     });
                 }
                 // `fileSizesInPages` already reflects the post-drain logical size (Database folds
@@ -285,6 +292,22 @@ export class DatabaseServer {
                         version: postWriteVersion,
                     });
                 }
+            }
+        }
+
+        // Always include page 0 for every table in the result, mirroring
+        // `ensureCacheIsUpToDate`. SQLite usually serves the header/schema page from its
+        // pager cache (and skips schema-cookie reads entirely in exclusive locking mode),
+        // so the tracked read set rarely contains it — but a client can't ATTACH a table
+        // it fetched over the wire without the header page.
+        for (const [tableId, tableMap] of readPages) {
+            if (tableMap.has(0)) continue;
+            const page0 = this.storage.readPage(tableId, 0);
+            if (page0 !== null) {
+                tableMap.set(0, {
+                    data: new Uint8Array(page0.data),
+                    version: page0.version,
+                });
             }
         }
 

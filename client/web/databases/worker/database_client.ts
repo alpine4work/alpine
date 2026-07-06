@@ -450,10 +450,12 @@ export class DatabaseClient {
 
     /**
      * Write page diffs received from realtime events into the local OPFS stores,
-     * skipping pages already at a newer version. If the `mutationId` matches a queued
-     * optimistic mutation, removes it from the queue and replays the remaining
-     * mutations. Automatically schedules invalidation for any reactive queries whose
-     * read-set overlaps the written pages.
+     * skipping pages already at a newer version and deleting pages whose cached
+     * version doesn't match the diff's `previousVersion` (the base it was computed
+     * against) so they're re-fetched instead of corrupted. If the `mutationId` matches
+     * a queued optimistic mutation, removes it from the queue and replays the
+     * remaining mutations. Automatically schedules invalidation for any reactive
+     * queries whose read-set overlaps the written pages.
      */
     writePageDiffsFromRealtime(pageDiffs: DatabasePageDiffs, mutationId: DatabaseMutationId): void {
         const headIndex = this.optimisticQueue.findIndex(m => m.mutationId === mutationId);
@@ -474,9 +476,22 @@ export class DatabaseClient {
         for (const [tableId, tableDiffs] of pageDiffs) {
             const store = this.storage.get(tableId);
             if (store === undefined) continue;
-            for (const [pageIndex, {version, diff}] of tableDiffs.diffs) {
+            for (const [pageIndex, {previousVersion, version, diff}] of tableDiffs.diffs) {
                 const base = store.readPage(pageIndex);
                 if (base === null) continue;
+                // Already at (or past) this diff's result — e.g. the full page arrived in an
+                // earlier `executeAction` response.
+                if (base.version >= version) continue;
+                if (base.version !== previousVersion) {
+                    // The diff was computed against a version this client never saw (an intervening
+                    // update was missed, e.g. across a reconnect). Applying it here would fabricate a
+                    // page state that never existed on the server, so drop the page instead — the next
+                    // read misses and re-fetches it.
+                    store.deletePages(new Set([pageIndex]));
+                    this.addPageToInvalidate(tableId, pageIndex);
+                    anyWritten = true;
+                    continue;
+                }
                 const full = applyPageDiff(base.data, diff);
                 if (store.writePageIfNewer(pageIndex, version, full)) {
                     if (!shouldIgnorePageInvalidation(pageIndex, diff)) {
@@ -495,7 +510,10 @@ export class DatabaseClient {
         this.replayOptimisticQueue();
     }
 
-    private applyServerPages(readPages: DatabasePages): void {
+    private applyServerPages(
+        readPages: DatabasePages,
+        fileSizesInPages: ReadonlyMap<DatabaseTableId, number> | null,
+    ): void {
         // Caller is expected to have cleared the buffer (executeActionViaServer calls
         // discardBuffer before us) so storage mutations don't conflict with stale buffered
         // writes.
@@ -512,6 +530,13 @@ export class DatabaseClient {
                     this.addPageToInvalidate(tableId, pageIndex);
                     anyWritten = true;
                 }
+            }
+            // The response's pages may be a sparse subset of the table file, so the store must
+            // serve the canonical file size rather than deriving one from the highest cached
+            // page index (SQLite treats a file shorter than its header claims as corrupt).
+            const fileSizeInPages = fileSizesInPages?.get(tableId);
+            if (fileSizeInPages !== undefined) {
+                store.setServerFileSizeInPages(fileSizeInPages);
             }
             store.sync();
         }
@@ -618,32 +643,6 @@ export class DatabaseClient {
         );
     }
 
-    /**
-     * Ensure `tableId`'s per-db file has a local page store and is attached to the
-     * SQLite connection. No-op if it is already attached. Used by the server-fallback
-     * path, which supplies the table's pages, so it attaches unconditionally (unlike
-     * {@link tryAttachCachedTable}, which only attaches when the header page is
-     * already cached).
-     */
-    private readonly attachingTables = new Map<DatabaseTableId, Promise<void>>();
-
-    private ensureTableAttached(tableId: DatabaseTableId): Promise<void> {
-        if (this.database.isAttached(tableId)) return Promise.resolve();
-        // Dedupe concurrent attaches of the same table: `openStore` yields, so without
-        // this two callers could both pass the `isAttached` check and the second `attach`
-        // would throw "already attached".
-        return getOrSetDefaultMapValue(this.attachingTables, tableId, () =>
-            (async () => {
-                await this.openStore(tableId);
-                if (!this.database.isAttached(tableId)) {
-                    this.database.attach(tableId);
-                }
-            })().finally(() => {
-                this.attachingTables.delete(tableId);
-            }),
-        );
-    }
-
     private async executeActionViaServer<N extends DatabaseActionName>(
         conn: DatabaseClientConnection,
         actionObject: DatabaseActionObject<N>,
@@ -667,16 +666,21 @@ export class DatabaseClient {
             returnResult,
         });
 
-        // Attach any table the server just told us about (e.g. a table this client
-        // created) before touching the buffer. `ensureTableAttached` can await (it creates
+        // Open a page store for any table the server just told us about (e.g. a table this
+        // client created) before touching the buffer. `openStore` can await (it creates
         // the OPFS store), and there must be no `await` between `discardBuffer()` and
-        // `applyServerPages()` below: worker RPC handlers aren't serialized, so a
+        // `replayOptimisticQueue()` below: worker RPC handlers aren't serialized, so a
         // concurrent handler could re-dirty the buffer in that window and trip
-        // `assertBufferIsEmpty`. Attaching here is safe while the optimistic buffer is
-        // still live — attach only adds the new table's empty page store, never writes.
+        // `assertBufferIsEmpty`. Opening a store is safe while the optimistic buffer is
+        // still live — it performs no reads or writes.
+        //
+        // The ATTACH itself is deferred until after `applyServerPages()`: attaching while
+        // the local store is still empty makes SQLite parse (and, under
+        // `locking_mode = EXCLUSIVE`, permanently cache) an empty schema, breaking every
+        // later local reference to the table.
         if (serverResult.readPages !== null) {
             for (const tableId of serverResult.readPages.keys()) {
-                await this.ensureTableAttached(tableId);
+                await this.openStore(tableId);
             }
         }
 
@@ -686,7 +690,7 @@ export class DatabaseClient {
         // `await` — so the buffer can't be re-dirtied underneath us.
         this.database.discardBuffer();
         if (serverResult.readPages !== null) {
-            this.applyServerPages(serverResult.readPages);
+            this.applyServerPages(serverResult.readPages, serverResult.fileSizesInPages);
             const acknowledged = new Map<DatabaseTableId, Array<number>>();
             for (const [tableId, tablePages] of serverResult.readPages) {
                 if (tablePages.size > 0) {
@@ -695,6 +699,19 @@ export class DatabaseClient {
             }
             if (acknowledged.size > 0) {
                 conn.acknowledgePages(acknowledged);
+            }
+
+            // Attach new tables now that their pages are on disk, so SQLite parses the real
+            // schema. `attach` is synchronous, keeping the no-await window intact. Skip a
+            // table whose header page still isn't cached (the server response didn't cover
+            // it): attaching would poison the schema cache, while leaving it unattached just
+            // routes its next action through the server again.
+            for (const tableId of serverResult.readPages.keys()) {
+                if (this.database.isAttached(tableId)) continue;
+                const store = this.storage.get(tableId);
+                if (store !== undefined && store.readPage(0) !== null) {
+                    this.database.attach(tableId);
+                }
             }
         }
         this.replayOptimisticQueue();
