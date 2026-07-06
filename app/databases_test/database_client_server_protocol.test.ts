@@ -34,14 +34,15 @@ import type {
     DatabaseTableId,
 } from "~/shared/id/types/id_types.js";
 
-type DatabaseSqlStorage = ConstructorParameters<typeof DatabaseDurableObjectStorage>[0];
+type DatabaseDurableStorage = ConstructorParameters<typeof DatabaseDurableObjectStorage>[0];
 
 const context = createTestWorkerContext();
-const durableObjectSqlStorages = new Map<string, DatabaseSqlStorage>();
+const durableObjectStorages = new Map<string, DatabaseDurableStorage>();
+const testSpacesByDatabaseGroupId = new Map<DatabaseGroupId, TestSpace>();
 const durableObjectTest = DatabaseGroupDurableObject.test(context, {
     createStorageForTest: idName => {
         const storage = new DurableObjectStorage(new MemoryStorage());
-        durableObjectSqlStorages.set(idName, (storage as unknown as {sql: DatabaseSqlStorage}).sql);
+        durableObjectStorages.set(idName, storage);
         return storage;
     },
 });
@@ -693,7 +694,7 @@ async function createTestClient(
     databaseGroupId: DatabaseGroupId,
     options: {browserId?: BrowserId; dir?: OpfsDirectoryHandle; pages?: DatabasePages} = {},
 ): Promise<TestDatabaseClient> {
-    const space = await TestSpace.create(context);
+    const space = await getOrCreateTestSpaceForDatabaseGroupId(databaseGroupId);
     const session = await space.createSession();
     const browserId = options.browserId ?? generateId<BrowserId>();
     const dir = options.dir ?? createInMemoryOpfsDirectoryHandle();
@@ -759,6 +760,18 @@ async function createTestClient(
     };
 }
 
+async function getOrCreateTestSpaceForDatabaseGroupId(
+    databaseGroupId: DatabaseGroupId,
+): Promise<TestSpace> {
+    const existing = testSpacesByDatabaseGroupId.get(databaseGroupId);
+    if (existing !== undefined) {
+        return existing;
+    }
+    const space = await TestSpace.create(context, {databaseGroupId});
+    testSpacesByDatabaseGroupId.set(databaseGroupId, space);
+    return space;
+}
+
 /**
  * Model a browser restart: close the client's server connection and stand up a
  * fresh manager (fresh SQLite connection, fresh cold-open cache validation) on the
@@ -801,9 +814,12 @@ function extractServerPages(
     databaseGroupId: DatabaseGroupId,
     tableIds: ReadonlyArray<DatabaseTableId>,
 ): DatabasePages {
-    const sqlStorage = durableObjectSqlStorages.get(databaseGroupId);
-    assert(sqlStorage !== undefined, `no durable object storage for group ${databaseGroupId}`);
-    const storage = new DatabaseDurableObjectStorage(sqlStorage);
+    const durableObjectStorage = durableObjectStorages.get(databaseGroupId);
+    assert(
+        durableObjectStorage !== undefined,
+        `no durable object storage for group ${databaseGroupId}`,
+    );
+    const storage = new DatabaseDurableObjectStorage(durableObjectStorage);
 
     const pages = new Map<DatabaseTableId, Map<number, {version: number; data: Uint8Array}>>();
     for (const tableId of tableIds) {

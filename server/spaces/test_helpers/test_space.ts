@@ -20,7 +20,7 @@ import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 import {Tuple} from "~/shared/helpers/types/tuple.js";
 import {generateId} from "~/shared/id/id.js";
-import {AccountId, SpaceId} from "~/shared/id/types/id_types.js";
+import {AccountId, DatabaseGroupId, SpaceId} from "~/shared/id/types/id_types.js";
 import {ReactionCharacter} from "~/shared/reactions/reaction.js";
 import {SpaceRole} from "~/shared/spaces/space_model.js";
 
@@ -65,14 +65,17 @@ export class TestSpace {
         {
             id = generateId<SpaceId>(),
             name = `Test Space ${testSpaceCount++}`,
+            databaseGroupId,
         }: {
             id?: SpaceId;
             name?: string;
+            databaseGroupId?: DatabaseGroupId;
         } = {},
     ) {
         await createSpaceForTest(context, {
             id,
             name,
+            databaseGroupId,
         });
 
         const space = new TestSpace(context, id);

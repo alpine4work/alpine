@@ -968,6 +968,10 @@ Resources:
                           Type: double
                         - Name: dynamodb__consumed_capacity__chat__write_capacity_units
                           Type: double
+                        - Name: dynamodb__consumed_capacity__database_tables__read_capacity_units
+                          Type: double
+                        - Name: dynamodb__consumed_capacity__database_tables__write_capacity_units
+                          Type: double
                         - Name: dynamodb__consumed_capacity__deploy__read_capacity_units
                           Type: double
                         - Name: dynamodb__consumed_capacity__deploy__write_capacity_units
@@ -1132,6 +1136,14 @@ Resources:
                           Type: string
                         - Name: dynamodb__table__chat__partition__chat__sort_range_type
                           Type: string
+                        - Name: dynamodb__table__database_tables__partition_type
+                          Type: string
+                        - Name: dynamodb__table__database_tables__partition__database_group__sort_range_type
+                          Type: string
+                        - Name: dynamodb__table__database_tables__partition__realtime__sort_range_type
+                          Type: string
+                        - Name: dynamodb__table__database_tables__partition__graveyard__sort_range_type
+                          Type: string
                         - Name: dynamodb__table__deploy__partition_type
                           Type: string
                         - Name: dynamodb__table__deploy__partition__deploy__sort_range_type
@@ -1229,6 +1241,8 @@ Resources:
                         - Name: dynamodb__table__spaces__partition__space__sort_range_type
                           Type: string
                         - Name: dynamodb__table__spaces__partition__auto_add_accounts_from_email_domain__sort_range_type
+                          Type: string
+                        - Name: dynamodb__table__spaces__partition__database_group__sort_range_type
                           Type: string
                         - Name: dynamodb__table__spaces__partition__account__sort_range_type
                           Type: string

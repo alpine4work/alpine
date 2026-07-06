@@ -21,7 +21,13 @@ import {databaseViewTargetRowsPerPage} from "~/shared/databases/sqlite_constants
 import {runMainMigrations} from "~/shared/databases/sqlite_migrations.js";
 import {InternalError} from "~/shared/error/error.js";
 import {unsafelyConstructChronologicalId} from "~/shared/id/chronological_id.js";
-import type {DatabaseFieldId, DatabaseRowId, DatabaseTableId} from "~/shared/id/types/id_types.js";
+import {generateId} from "~/shared/id/id.js";
+import type {
+    AccountId,
+    DatabaseFieldId,
+    DatabaseRowId,
+    DatabaseTableId,
+} from "~/shared/id/types/id_types.js";
 import {ValueStore} from "~/shared/store/value_store.js";
 
 // ---------------------------------------------------------------------------
@@ -164,7 +170,10 @@ async function buildSchemaSeed(
         {server: true},
     );
     fake.execute(db => runMainMigrations(db), {allowWrites: "schema+data"});
-    const {result} = fake.executeAction<"createTable">({name: "createTable", input: {name}});
+    const {result} = fake.executeAction<"createTable">(
+        {name: "createTable", input: {name}},
+        {currentAccountId: generateId<AccountId>()},
+    );
 
     const buffered = fake.getBufferedWrites();
     const seedPages = new Map<DatabaseTableId, Map<number, {version: number; data: Uint8Array}>>();
