@@ -1111,25 +1111,12 @@ function getSearchEntityIndexAccessPolicy(
     };
 }
 
-function getSearchEntityIndexAccessPolicyFromLocalAccessPolicy(
+function getSearchEntityIndexAccessPolicyFromResolvedAccessPolicy(
     accessPolicy: AccessPolicy,
 ): SearchEntityIndexAccessPolicy {
     switch (accessPolicy.type) {
-        case "Local": {
-            const defaultGrantType: SearchEntityIndexDefaultGrantType | null =
-                accessPolicy.defaultGrant !== null ? "Space" : null;
-            let accountGrantAccountIds = new Set(accessPolicy.accountGrantById.keys());
-
-            if (defaultGrantType !== null) {
-                accountGrantAccountIds = new Set();
-            }
-
-            return {
-                accountGrantAccountIds,
-                defaultGrantType,
-                urlGrantLevel: accessPolicy.urlGrant?.level ?? null,
-            };
-        }
+        case "Local":
+            return getSearchEntityIndexAccessPolicy(new AccessPolicyModel(accessPolicy));
         case "Site":
             throw new InternalError(
                 "Database table access policy must be resolved before indexing",
@@ -1575,7 +1562,7 @@ async function getDatabaseTableSearchEntity(
 
     return {
         id,
-        accessPolicy: getSearchEntityIndexAccessPolicyFromLocalAccessPolicy(accessPolicy),
+        accessPolicy: getSearchEntityIndexAccessPolicyFromResolvedAccessPolicy(accessPolicy),
         createdTime: null,
         title: name,
         titleVersion: null,

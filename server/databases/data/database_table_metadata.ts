@@ -1,10 +1,7 @@
 import {intoEffectiveAccessPolicy} from "~/server/access/into_effective_access_policy.js";
 import type {ServerActionContext} from "~/server/context/server_action_context.js";
 import {fetchDatabaseGroupAction} from "~/server/databases/data/fetch_database_action.js";
-import {
-    DatabaseTableItem,
-    DatabaseTablesTable,
-} from "~/server/databases/data/internal/database_tables_table.js";
+import {DatabaseTablesTable} from "~/server/databases/data/internal/database_tables_table.js";
 import {DynamoItem} from "~/server/dynamo/core/dynamo_table_schema.js";
 import {authorizeSpaceAccess} from "~/server/spaces/authorize_space_access.js";
 import {
@@ -13,6 +10,7 @@ import {
 } from "~/server/spaces/get_database_group_id_for_space.js";
 import {type AccessPolicy, AccessPolicySchema} from "~/shared/access/access_policy.js";
 import {databaseTableAccessPolicyForCreator} from "~/shared/databases/database_table_access_policy.js";
+import {DatabaseTableMetadataModel} from "~/shared/databases/database_table_metadata_model.js";
 import {NotFoundError} from "~/shared/error/error.js";
 import {generateChronologicalId} from "~/shared/id/chronological_id.js";
 import type {DatabaseTableId, DatabaseViewId, SpaceId} from "~/shared/id/types/id_types.js";
@@ -67,13 +65,9 @@ export async function createDatabaseTable(
 export async function getDatabaseTableMetadataForSearchIndex(
     context: ServerActionContext,
     {spaceId, tableId}: {spaceId: SpaceId; tableId: DatabaseTableId},
-): Promise<{
-    name: string | null;
-    accessPolicy: AccessPolicy;
-    isDeleted: boolean;
-}> {
+): Promise<DatabaseTableMetadataModel> {
     const databaseGroupId = await getExistingDatabaseGroupIdForSpace(context, spaceId);
-    const item = (await DatabaseTablesTable.getItemIfExists(
+    const item = await DatabaseTablesTable.getRealtimeItemIfExists(
         context,
         {
             partitionType: "DatabaseGroup",
@@ -82,19 +76,15 @@ export async function getDatabaseTableMetadataForSearchIndex(
             tableId,
         },
         {consistency: "Strong"},
-    )) as DatabaseTableItem | null;
+    );
 
     if (item === null) {
         throw new NotFoundError(`Database table ${tableId} not found`);
     }
 
-    const accessPolicy = await resolveDatabaseTableAccessPolicy(context, item.accessPolicy);
+    const accessPolicy = await resolveDatabaseTableAccessPolicy(context, item.model.accessPolicy);
 
-    return {
-        name: item.name,
-        accessPolicy,
-        isDeleted: item.isDeleted,
-    };
+    return item.model.clone({accessPolicy});
 }
 
 export async function syncDatabaseTableMetadataToDurableObject(
