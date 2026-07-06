@@ -6,7 +6,6 @@ import {
 } from "~/server/search/core/index_search_entity_job_description.js";
 import {ShareNotificationSchema} from "~/shared/access/share_notification.js";
 import {ApiBotWebhookEvent} from "~/shared/api/specification/types/api_specification_convenience_types.js";
-import {InternalError} from "~/shared/error/error.js";
 import {FeedEntrySchema} from "~/shared/feed/feed_entry_schema.js";
 import {FileContentTypeSchema} from "~/shared/files/file_content_type.js";
 import {FileEntityIdSchema} from "~/shared/files/file_entity_id.js";
@@ -63,19 +62,16 @@ import {Schema, SchemaType} from "~/shared/schema/schema.js";
  */
 export type JobDescription = SchemaType<typeof JobDescriptionSchema>;
 
-// Most job descriptions should have a `SpaceId` property.
+// All job descriptions should have a `SpaceId` property.
 //
 // `NotificationEvent`'s `spaceId` is nested for historical reasons.
 assertAssignableTypes<
-    Exclude<JobDescription, ReplicateDatabaseTableChangesJobDescription>,
+    JobDescription,
     {spaceId: SpaceId} | {type: "NotificationEvent"; event: {spaceId: SpaceId}}
 >();
 
 export function getJobDescriptionSpaceId(job: JobDescription): SpaceId {
     if (job.type === "NotificationEvent") return job.event.spaceId;
-    if (job.type === "ReplicateDatabaseTableChanges") {
-        throw new InternalError("ReplicateDatabaseTableChanges spaceId is resolved asynchronously");
-    }
     return job.spaceId;
 }
 
@@ -225,6 +221,7 @@ export type ReplicateDatabaseTableChangesJobDescription = SchemaType<
 
 const ReplicateDatabaseTableChangesJobDescriptionSchema = Schema.object({
     type: Schema.value("ReplicateDatabaseTableChanges"),
+    spaceId: Schema.id<SpaceId>(),
     databaseGroupId: Schema.id<DatabaseGroupId>(),
     storageVersion: Schema.integer,
     tableIds: Schema.set(Schema.id<DatabaseTableId>()),

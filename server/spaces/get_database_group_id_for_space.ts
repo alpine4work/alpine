@@ -1,12 +1,9 @@
 import {ServerActionContext} from "~/server/context/server_action_context.js";
-import {DynamoContext} from "~/server/dynamo/core/dynamo_context.js";
 import {
     SpaceDatabaseGroupItem,
     SpaceItem,
     SpacesTable,
 } from "~/server/spaces/internal/spaces_table.js";
-import {Context} from "~/shared/context/context.js";
-import {TracerContextModule} from "~/shared/context/tracer_context_module.js";
 import {NotFoundError} from "~/shared/error/error.js";
 import {generateId} from "~/shared/id/id.js";
 import type {DatabaseGroupId, SpaceId} from "~/shared/id/types/id_types.js";
@@ -53,10 +50,10 @@ export async function getDatabaseGroupIdForSpace(
 }
 
 export async function getSpaceIdForDatabaseGroupId(
-    context: Context<{tracer: TracerContextModule}>,
+    context: ServerActionContext,
     databaseGroupId: DatabaseGroupId,
 ): Promise<SpaceId> {
-    const item = (await SpacesTable.getItemIfExists(context as DynamoContext, {
+    const item = (await SpacesTable.getItemIfExists(context, {
         partitionType: "DatabaseGroup",
         sortRangeType: "Space",
         databaseGroupId,
