@@ -8,12 +8,11 @@ ts_project(
         "//server:__subpackages__",
     ],
     deps = [
+        "//server/access",
         "//server/context",
         "//server/dynamo/core",
         "//server/jobs/core",
         "//server/rynamo",
-        "//server/search/data/index",
-        "//server/search/data/table",
         "//server/spaces",
         "//shared/access",
         "//shared/databases",

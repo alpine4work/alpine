@@ -1448,9 +1448,7 @@ async function actuallyGetSearchEntity(
         case "DocumentComment":
             return await getDocumentCommentSearchEntity(state, idObject);
         case "DatabaseTable":
-            throw new NotFoundError(
-                "Database tables are indexed by ReplicateDatabaseTableChanges jobs",
-            );
+            throw new NotFoundError("Database tables are indexed by IndexSearchEntity jobs");
         case "Channel":
             return await getChannelSearchEntity(state, idObject.channelId);
         case "Post":

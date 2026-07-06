@@ -1,6 +1,9 @@
 import {AccessPolicySchema} from "~/shared/access/access_policy.js";
 import {DatabaseActionRequiresServerError} from "~/shared/databases/database_action_requires_server_error.js";
-import {databaseTableAccessPolicyForCreator} from "~/shared/databases/database_table_access_policy.js";
+import {
+    DatabaseTableAccessPolicySqlSchema,
+    databaseTableAccessPolicyForCreator,
+} from "~/shared/databases/database_table_access_policy.js";
 import {
     DatabaseFieldConfigSchema,
     getDatabaseFieldProvider,
@@ -173,7 +176,11 @@ export const databaseActions = {
     }),
 
     createTable: defineDatabaseAction({
-        input: Schema.object({name: LabelStringSchema}),
+        input: Schema.object({
+            tableId: Schema.id<DatabaseTableId>().optional(),
+            name: LabelStringSchema,
+            accessPolicy: AccessPolicySchema.optional(),
+        }),
         output: Schema.object({
             tableId: Schema.id<DatabaseTableId>(),
             tableName: Schema.string,
@@ -181,10 +188,13 @@ export const databaseActions = {
         }),
         writeLevel: "schema+data",
         transactionMode: "manual",
-        run({db, server, model}, {name}) {
-            const tableId = generateChronologicalId<DatabaseTableId>();
-            const creatorAccountId = server().getCurrentAccountId();
-            assert(creatorAccountId !== null, "createTable requires an account actor");
+        run({db, server, model}, {tableId: inputTableId, name, accessPolicy}) {
+            const tableId = inputTableId ?? generateChronologicalId<DatabaseTableId>();
+            if (accessPolicy === undefined) {
+                const creatorAccountId = server().getCurrentAccountId();
+                assert(creatorAccountId !== null, "createTable requires an account actor");
+                accessPolicy = databaseTableAccessPolicyForCreator(creatorAccountId);
+            }
 
             // Attach + migrate the new per-db file before writing any of the table's data or
             // metadata into it. `attach` is a no-op if already attached.
@@ -192,14 +202,51 @@ export const databaseActions = {
             runTableMigrations(db, tableId);
 
             const {table, defaultView} = executeDatabaseActionTransaction(db, () =>
-                model.createTable(
-                    tableId,
-                    name,
-                    databaseTableAccessPolicyForCreator(creatorAccountId),
-                ),
+                model.createTable(tableId, name, accessPolicy),
             );
 
             return {tableId: table.id, tableName: table.tableName, viewId: defaultView.id};
+        },
+    }),
+
+    syncTableMetadata: defineDatabaseAction({
+        input: Schema.object({
+            tableId: Schema.id<DatabaseTableId>(),
+            name: LabelStringSchema,
+            accessPolicy: AccessPolicySchema,
+        }),
+        output: Schema.object({
+            tableName: Schema.string,
+            viewId: Schema.id<DatabaseViewId>(),
+        }),
+        writeLevel: "schema+data",
+        transactionMode: "manual",
+        run({db, server, model}, {tableId, name, accessPolicy}) {
+            server().attach(tableId);
+            runTableMigrations(db, tableId);
+
+            const hasTable = model.getTableIds("table").includes(tableId);
+            if (!hasTable) {
+                const {table, defaultView} = executeDatabaseActionTransaction(db, () =>
+                    model.createTable(tableId, name, accessPolicy),
+                );
+                return {tableName: table.tableName, viewId: defaultView.id};
+            }
+
+            const {table, viewId} = executeDatabaseActionTransaction(db, () => {
+                const table = model.getTable(tableId).updateName(name);
+                sql`
+                    UPDATE ${table.schema}._alpine_table
+                    SET
+                        access_policy = jsonb (${DatabaseTableAccessPolicySqlSchema.serialize(
+                        accessPolicy,
+                    )})
+                    WHERE
+                        id = ${tableId}
+                `.exec(db);
+                return {table: model.getTable(tableId), viewId: table.getFirstView().id};
+            });
+            return {tableName: table.tableName, viewId};
         },
     }),
 

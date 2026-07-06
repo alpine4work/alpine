@@ -15,8 +15,6 @@ import {
     BotId,
     BotWebhookEventId,
     BrowserId,
-    DatabaseGroupId,
-    DatabaseTableId,
     FileId,
     SpaceId,
 } from "~/shared/id/types/id_types.js";
@@ -215,17 +213,6 @@ export type SendPendingSubtleNotificationsForInboxJobDescription = SchemaType<
     typeof SendPendingSubtleNotificationsForInboxJobDescriptionSchema
 >;
 
-export type ReplicateDatabaseTableChangesJobDescription = SchemaType<
-    typeof ReplicateDatabaseTableChangesJobDescriptionSchema
->;
-
-const ReplicateDatabaseTableChangesJobDescriptionSchema = Schema.object({
-    type: Schema.value("ReplicateDatabaseTableChanges"),
-    spaceId: Schema.id<SpaceId>(),
-    databaseGroupId: Schema.id<DatabaseGroupId>(),
-    tableIds: Schema.set(Schema.id<DatabaseTableId>()),
-});
-
 export const JobDescriptionSchema = Schema.union({
     Test: TestJobDescriptionSchema,
     IndexSearchEntity: IndexSearchEntityJobDescriptionSchema,
@@ -244,5 +231,4 @@ export const JobDescriptionSchema = Schema.union({
     SendPendingSubtleNotificationsForInbox:
         SendPendingSubtleNotificationsForInboxJobDescriptionSchema,
     SendNotificationToSlackIntegration: SendNotificationToSlackIntegrationJobDescriptionSchema,
-    ReplicateDatabaseTableChanges: ReplicateDatabaseTableChangesJobDescriptionSchema,
 });

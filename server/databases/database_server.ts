@@ -16,10 +16,10 @@ import {
     runMainMigrations,
     runTableMigrations,
 } from "~/shared/databases/sqlite_migrations.js";
+import {PermissionDeniedError} from "~/shared/error/error.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
 import type {DatabaseGroupId, DatabaseTableId} from "~/shared/id/types/id_types.js";
-import {enqueueDatabaseTableReplicationJob} from "~/shared/rpc/database_replication_rpc_definitions.js";
 import {Schema} from "~/shared/schema/schema.js";
 
 export interface DatabaseServerPageChange {
@@ -83,25 +83,20 @@ export type DatabaseServerActionResult<N extends DatabaseActionName> = {
 export class DatabaseServer {
     private readonly database: Database;
     private readonly storage: DatabaseServerStorage;
-    private readonly databaseGroupId: DatabaseGroupId;
     private readonly changedTables = new Set<DatabaseTableId>();
 
-    private constructor(
-        database: Database,
-        storage: DatabaseServerStorage,
-        databaseGroupId: DatabaseGroupId,
-    ) {
+    private constructor(database: Database, storage: DatabaseServerStorage) {
         this.database = database;
         this.storage = storage;
-        this.databaseGroupId = databaseGroupId;
     }
 
     static async create(
         storage: DatabaseServerStorage,
         databaseGroupId: DatabaseGroupId,
     ): Promise<DatabaseServer> {
+        void databaseGroupId;
         const database = await Database.create(storage, {server: true});
-        const server = new DatabaseServer(database, storage, databaseGroupId);
+        const server = new DatabaseServer(database, storage);
         server._bootstrap();
         database._installServerTableChangeCapture(tableId => {
             server.changedTables.add(tableId);
@@ -128,6 +123,14 @@ export class DatabaseServer {
         context: WorkerActionContext,
         actionObject: DatabaseActionObject<N>,
     ): DatabaseServerActionResult<N> {
+        if (
+            context.actor.serviceName === "AppClient" &&
+            (actionObject.name === "createTable" || actionObject.name === "syncTableMetadata")
+        ) {
+            throw new PermissionDeniedError(
+                `Database action ${actionObject.name} must be executed internally`,
+            );
+        }
         return this._runAndPersist(context, () =>
             this.database.executeAction(actionObject, {
                 currentAccountId: context.actor.getPossiblyBotAccountIdIfExists(),
@@ -244,28 +247,7 @@ export class DatabaseServer {
         } finally {
             this.changedTables.clear();
         }
-        this.scheduleReplication(context, {
-            tableIds: persisted.changedTables,
-        });
         return persisted;
-    }
-
-    private scheduleReplication(
-        context: WorkerActionContext,
-        {
-            tableIds,
-        }: {
-            tableIds: DatabaseServerChangedTables;
-        },
-    ): void {
-        if (tableIds.size === 0) return;
-
-        context.process.waitUntil(
-            enqueueDatabaseTableReplicationJob(context, {
-                databaseGroupId: this.databaseGroupId,
-                tableIds,
-            }),
-        );
     }
 
     private _persistAndBuildResult<T>(

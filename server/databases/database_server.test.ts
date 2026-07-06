@@ -1,5 +1,6 @@
 import {DatabaseServer} from "~/server/databases/database_server.js";
 import type {DatabaseServerStorage} from "~/server/databases/database_server_storage.js";
+import {databaseTableAccessPolicyForCreator} from "~/shared/databases/database_table_access_policy.js";
 import {type SqlQuery, sql} from "~/shared/databases/sql.js";
 import {databaseMainTableId, sqlitePageSize} from "~/shared/databases/sqlite_constants.js";
 import {InternalError} from "~/shared/error/error.js";
@@ -940,6 +941,34 @@ describe("DatabaseServer", () => {
                     input: {sql: "CREATE TABLE bad (id INTEGER)"},
                 }),
             ).toThrow();
+        });
+    });
+
+    describe("executeAction — internal actions", () => {
+        test("rejects client-only table metadata action requests", async () => {
+            const server = await createServerWithSchema();
+            const tableId = generateChronologicalId<DatabaseTableId>();
+            const appClientContext = {
+                ...testContext,
+                actor: {...testContext.actor, serviceName: "AppClient"},
+            };
+
+            expect(() =>
+                server.executeAction(appClientContext, {
+                    name: "createTable",
+                    input: {name: "Tasks"},
+                }),
+            ).toThrow("Database action createTable must be executed internally");
+            expect(() =>
+                server.executeAction(appClientContext, {
+                    name: "syncTableMetadata",
+                    input: {
+                        tableId,
+                        name: "Tasks",
+                        accessPolicy: databaseTableAccessPolicyForCreator(testAccountId),
+                    },
+                }),
+            ).toThrow("Database action syncTableMetadata must be executed internally");
         });
     });
 

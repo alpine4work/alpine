@@ -236,7 +236,7 @@ const testCasesBySearchEntityType: {[Key in SearchDynamicEntityIdObject["type"]]
                     {type: "DatabaseTable", tableId: databaseTableId},
                     {tokenizer, registerAdditionalWrite: noop},
                 ),
-            ).rejects.toThrow("Database tables are indexed by ReplicateDatabaseTableChanges jobs");
+            ).rejects.toThrow("Database tables are indexed by IndexSearchEntity jobs");
         });
     },
     Channel: () => {

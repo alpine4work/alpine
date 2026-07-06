@@ -85,6 +85,7 @@ ts_project(
         "//server/chat/data",
         "//server/content",
         "//server/context",
+        "//server/databases/data",
         "//server/documents/data",
         "//server/files/data",
         "//server/forum/data",

@@ -33,6 +33,7 @@ ts_project(
         "//server/content",
         "//server/content/context_module",
         "//server/context",
+        "//server/databases/data",
         "//server/documents/data",
         "//server/emails",
         "//server/feed",
