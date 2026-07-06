@@ -3638,6 +3638,10 @@ components:
                         title:
                             type: string
 
+        # =========================================================================== #
+        #                                    Tasks                                    #
+        # =========================================================================== #
+
         TaskCursor:
             type: string
 
@@ -4127,6 +4131,660 @@ components:
                     $ref: "#/components/schemas/TaskCursor"
                 task:
                     $ref: "#/components/schemas/TaskWithoutNotes"
+
+        TaskFilter:
+            oneOf:
+                - $ref: "#/components/schemas/TaskStatusFilter"
+                - $ref: "#/components/schemas/TaskCollectionsFilter"
+                - $ref: "#/components/schemas/TaskPriorityFilter"
+                - $ref: "#/components/schemas/TaskLayoutFilter"
+                - $ref: "#/components/schemas/TaskTitleFilter"
+                - $ref: "#/components/schemas/TaskAssigneeFilter"
+                - $ref: "#/components/schemas/TaskCreatorFilter"
+                - $ref: "#/components/schemas/TaskAssignerFilter"
+                - $ref: "#/components/schemas/TaskDueFilter"
+                - $ref: "#/components/schemas/TaskCreatedDateFilter"
+                - $ref: "#/components/schemas/TaskAssignedDateFilter"
+                - $ref: "#/components/schemas/TaskClosedDateFilter"
+                - $ref: "#/components/schemas/TaskActivatedDateFilter"
+            discriminator:
+                propertyName: type
+                mapping:
+                    Status: "#/components/schemas/TaskStatusFilter"
+                    Collections: "#/components/schemas/TaskCollectionsFilter"
+                    Priority: "#/components/schemas/TaskPriorityFilter"
+                    Layout: "#/components/schemas/TaskLayoutFilter"
+                    Title: "#/components/schemas/TaskTitleFilter"
+                    Assignee: "#/components/schemas/TaskAssigneeFilter"
+                    Creator: "#/components/schemas/TaskCreatorFilter"
+                    Assigner: "#/components/schemas/TaskAssignerFilter"
+                    Due: "#/components/schemas/TaskDueFilter"
+                    CreatedDate: "#/components/schemas/TaskCreatedDateFilter"
+                    AssignedDate: "#/components/schemas/TaskAssignedDateFilter"
+                    ClosedDate: "#/components/schemas/TaskClosedDateFilter"
+                    ActivatedDate: "#/components/schemas/TaskActivatedDateFilter"
+
+        TaskStatusFilter:
+            type: object
+            required: [type, operation]
+            additionalProperties: false
+            properties:
+                type:
+                    const: Status
+                operation:
+                    $ref: "#/components/schemas/TaskStatusFilterOperation"
+
+        TaskStatusFilterOperation:
+            oneOf:
+                - $ref: "#/components/schemas/TaskStatusFilterOneOfOperation"
+                - $ref: "#/components/schemas/TaskStatusFilterNoneOfOperation"
+            discriminator:
+                propertyName: type
+                mapping:
+                    OneOf: "#/components/schemas/TaskStatusFilterOneOfOperation"
+                    NoneOf: "#/components/schemas/TaskStatusFilterNoneOfOperation"
+
+        TaskStatusFilterOneOfOperation:
+            type: object
+            required: [type, statuses]
+            additionalProperties: false
+            properties:
+                type:
+                    const: OneOf
+                statuses:
+                    type: array
+                    items:
+                        $ref: "#/components/schemas/TaskStatus"
+
+        TaskStatusFilterNoneOfOperation:
+            type: object
+            required: [type, statuses]
+            additionalProperties: false
+            properties:
+                type:
+                    const: NoneOf
+                statuses:
+                    type: array
+                    items:
+                        $ref: "#/components/schemas/TaskStatus"
+
+        TaskCollectionsFilter:
+            type: object
+            required: [type, operation]
+            additionalProperties: false
+            properties:
+                type:
+                    const: Collections
+                operation:
+                    $ref: "#/components/schemas/TaskCollectionsFilterOperation"
+
+        TaskCollectionsFilterOperation:
+            oneOf:
+                - $ref: "#/components/schemas/TaskCollectionsFilterIncludesOneOfOperation"
+                - $ref: "#/components/schemas/TaskCollectionsFilterIncludesAllOfOperation"
+                - $ref: "#/components/schemas/TaskCollectionsFilterExcludesAllOfOperation"
+                - $ref: "#/components/schemas/TaskCollectionsFilterIsEmptyOperation"
+            discriminator:
+                propertyName: type
+                mapping:
+                    IncludesOneOf: "#/components/schemas/TaskCollectionsFilterIncludesOneOfOperation"
+                    IncludesAllOf: "#/components/schemas/TaskCollectionsFilterIncludesAllOfOperation"
+                    ExcludesAllOf: "#/components/schemas/TaskCollectionsFilterExcludesAllOfOperation"
+                    IsEmpty: "#/components/schemas/TaskCollectionsFilterIsEmptyOperation"
+
+        TaskCollectionsFilterCollection:
+            type: object
+            required: [id]
+            additionalProperties: false
+            properties:
+                id:
+                    $ref: "#/components/schemas/TaskCollectionId"
+
+        TaskCollectionsFilterIncludesOneOfOperation:
+            type: object
+            required: [type, collections]
+            additionalProperties: false
+            properties:
+                type:
+                    const: IncludesOneOf
+                collections:
+                    type: array
+                    items:
+                        $ref: "#/components/schemas/TaskCollectionsFilterCollection"
+
+        TaskCollectionsFilterIncludesAllOfOperation:
+            type: object
+            required: [type, collections]
+            additionalProperties: false
+            properties:
+                type:
+                    const: IncludesAllOf
+                collections:
+                    type: array
+                    items:
+                        $ref: "#/components/schemas/TaskCollectionsFilterCollection"
+
+        TaskCollectionsFilterExcludesAllOfOperation:
+            type: object
+            required: [type, collections]
+            additionalProperties: false
+            properties:
+                type:
+                    const: ExcludesAllOf
+                collections:
+                    type: array
+                    items:
+                        $ref: "#/components/schemas/TaskCollectionsFilterCollection"
+
+        TaskCollectionsFilterIsEmptyOperation:
+            type: object
+            required: [type]
+            additionalProperties: false
+            properties:
+                type:
+                    const: IsEmpty
+
+        TaskPriorityFilter:
+            type: object
+            required: [type, operation]
+            additionalProperties: false
+            properties:
+                type:
+                    const: Priority
+                operation:
+                    $ref: "#/components/schemas/TaskPriorityFilterOperation"
+
+        TaskPriorityFilterOperation:
+            oneOf:
+                - $ref: "#/components/schemas/TaskPriorityFilterOneOfOperation"
+                - $ref: "#/components/schemas/TaskPriorityFilterNoneOfOperation"
+            discriminator:
+                propertyName: type
+                mapping:
+                    OneOf: "#/components/schemas/TaskPriorityFilterOneOfOperation"
+                    NoneOf: "#/components/schemas/TaskPriorityFilterNoneOfOperation"
+
+        TaskPriorityFilterOneOfOperation:
+            type: object
+            required: [type, priorities]
+            additionalProperties: false
+            properties:
+                type:
+                    const: OneOf
+                priorities:
+                    type: array
+                    items:
+                        oneOf:
+                            - $ref: "#/components/schemas/TaskPriority"
+                            - type: "null"
+
+        TaskPriorityFilterNoneOfOperation:
+            type: object
+            required: [type, priorities]
+            additionalProperties: false
+            properties:
+                type:
+                    const: NoneOf
+                priorities:
+                    type: array
+                    items:
+                        oneOf:
+                            - $ref: "#/components/schemas/TaskPriority"
+                            - type: "null"
+
+        TaskLayoutFilter:
+            type: object
+            required: [type, operation]
+            additionalProperties: false
+            properties:
+                type:
+                    const: Layout
+                operation:
+                    $ref: "#/components/schemas/TaskLayoutFilterOperation"
+
+        TaskLayoutFilterOperation:
+            oneOf:
+                - $ref: "#/components/schemas/TaskLayoutFilterOneOfOperation"
+                - $ref: "#/components/schemas/TaskLayoutFilterNoneOfOperation"
+            discriminator:
+                propertyName: type
+                mapping:
+                    OneOf: "#/components/schemas/TaskLayoutFilterOneOfOperation"
+                    NoneOf: "#/components/schemas/TaskLayoutFilterNoneOfOperation"
+
+        TaskLayoutFilterOneOfOperation:
+            type: object
+            required: [type, layouts]
+            additionalProperties: false
+            properties:
+                type:
+                    const: OneOf
+                layouts:
+                    type: array
+                    items:
+                        $ref: "#/components/schemas/TaskLayout"
+
+        TaskLayoutFilterNoneOfOperation:
+            type: object
+            required: [type, layouts]
+            additionalProperties: false
+            properties:
+                type:
+                    const: NoneOf
+                layouts:
+                    type: array
+                    items:
+                        $ref: "#/components/schemas/TaskLayout"
+
+        TaskTitleFilter:
+            type: object
+            required: [type, operation]
+            additionalProperties: false
+            properties:
+                type:
+                    const: Title
+                operation:
+                    $ref: "#/components/schemas/TaskTitleFilterOperation"
+
+        TaskTitleFilterOperation:
+            oneOf:
+                - $ref: "#/components/schemas/TaskTitleFilterIncludesOperation"
+                - $ref: "#/components/schemas/TaskTitleFilterExcludesOperation"
+            discriminator:
+                propertyName: type
+                mapping:
+                    Includes: "#/components/schemas/TaskTitleFilterIncludesOperation"
+                    Excludes: "#/components/schemas/TaskTitleFilterExcludesOperation"
+
+        TaskTitleFilterIncludesOperation:
+            type: object
+            required: [type, titleQuery]
+            additionalProperties: false
+            properties:
+                type:
+                    const: Includes
+                titleQuery:
+                    type: string
+
+        TaskTitleFilterExcludesOperation:
+            type: object
+            required: [type, titleQuery]
+            additionalProperties: false
+            properties:
+                type:
+                    const: Excludes
+                titleQuery:
+                    type: string
+
+        TaskAssigneeFilter:
+            type: object
+            required: [type, operation]
+            additionalProperties: false
+            properties:
+                type:
+                    const: Assignee
+                operation:
+                    $ref: "#/components/schemas/TaskAccountFilterOperation"
+
+        TaskCreatorFilter:
+            type: object
+            required: [type, operation]
+            additionalProperties: false
+            properties:
+                type:
+                    const: Creator
+                operation:
+                    $ref: "#/components/schemas/TaskCreatorFilterOperation"
+
+        TaskAssignerFilter:
+            type: object
+            required: [type, operation]
+            additionalProperties: false
+            properties:
+                type:
+                    const: Assigner
+                operation:
+                    $ref: "#/components/schemas/TaskAccountFilterOperation"
+
+        TaskAccountFilterOperation:
+            oneOf:
+                - $ref: "#/components/schemas/TaskAccountFilterOneOfOperation"
+                - $ref: "#/components/schemas/TaskAccountFilterNoneOfOperation"
+            discriminator:
+                propertyName: type
+                mapping:
+                    OneOf: "#/components/schemas/TaskAccountFilterOneOfOperation"
+                    NoneOf: "#/components/schemas/TaskAccountFilterNoneOfOperation"
+
+        TaskAccountFilterOneOfOperation:
+            type: object
+            required: [type, accounts]
+            additionalProperties: false
+            properties:
+                type:
+                    const: OneOf
+                accounts:
+                    type: array
+                    items:
+                        $ref: "#/components/schemas/TaskAccountFilterOperationAccount"
+
+        TaskAccountFilterNoneOfOperation:
+            type: object
+            required: [type, accounts]
+            additionalProperties: false
+            properties:
+                type:
+                    const: NoneOf
+                accounts:
+                    type: array
+                    items:
+                        $ref: "#/components/schemas/TaskAccountFilterOperationAccount"
+
+        TaskAccountFilterOperationAccount:
+            oneOf:
+                - $ref: "#/components/schemas/TaskAccountFilterOperationAccountItem"
+                - $ref: "#/components/schemas/TaskAccountFilterOperationCurrentAccount"
+                - $ref: "#/components/schemas/TaskAccountFilterOperationMissingAccount"
+            discriminator:
+                propertyName: type
+                mapping:
+                    Account: "#/components/schemas/TaskAccountFilterOperationAccountItem"
+                    CurrentAccount: "#/components/schemas/TaskAccountFilterOperationCurrentAccount"
+                    MissingAccount: "#/components/schemas/TaskAccountFilterOperationMissingAccount"
+
+        TaskAccountFilterOperationAccountItem:
+            type: object
+            required: [type, account]
+            additionalProperties: false
+            properties:
+                type:
+                    const: Account
+                account:
+                    type: object
+                    required: [id]
+                    additionalProperties: false
+                    properties:
+                        id:
+                            $ref: "#/components/schemas/AccountId"
+
+        TaskAccountFilterOperationCurrentAccount:
+            type: object
+            required: [type]
+            additionalProperties: false
+            properties:
+                type:
+                    const: CurrentAccount
+
+        TaskAccountFilterOperationMissingAccount:
+            type: object
+            required: [type]
+            additionalProperties: false
+            properties:
+                type:
+                    const: MissingAccount
+
+        TaskCreatorFilterOperation:
+            oneOf:
+                - $ref: "#/components/schemas/TaskCreatorFilterOneOfOperation"
+                - $ref: "#/components/schemas/TaskCreatorFilterNoneOfOperation"
+            discriminator:
+                propertyName: type
+                mapping:
+                    OneOf: "#/components/schemas/TaskCreatorFilterOneOfOperation"
+                    NoneOf: "#/components/schemas/TaskCreatorFilterNoneOfOperation"
+
+        TaskCreatorFilterOneOfOperation:
+            type: object
+            required: [type, accounts]
+            additionalProperties: false
+            properties:
+                type:
+                    const: OneOf
+                accounts:
+                    type: array
+                    items:
+                        $ref: "#/components/schemas/TaskCreatorFilterOperationAccount"
+
+        TaskCreatorFilterNoneOfOperation:
+            type: object
+            required: [type, accounts]
+            additionalProperties: false
+            properties:
+                type:
+                    const: NoneOf
+                accounts:
+                    type: array
+                    items:
+                        $ref: "#/components/schemas/TaskCreatorFilterOperationAccount"
+
+        TaskCreatorFilterOperationAccount:
+            oneOf:
+                - $ref: "#/components/schemas/TaskAccountFilterOperationAccountItem"
+                - $ref: "#/components/schemas/TaskAccountFilterOperationCurrentAccount"
+            discriminator:
+                propertyName: type
+                mapping:
+                    Account: "#/components/schemas/TaskAccountFilterOperationAccountItem"
+                    CurrentAccount: "#/components/schemas/TaskAccountFilterOperationCurrentAccount"
+
+        TaskDueFilter:
+            type: object
+            required: [type, operation]
+            additionalProperties: false
+            properties:
+                type:
+                    const: Due
+                operation:
+                    $ref: "#/components/schemas/TaskDueFilterOperation"
+
+        TaskDueFilterOperation:
+            oneOf:
+                - $ref: "#/components/schemas/TaskDueFilterOverdueOperation"
+                - $ref: "#/components/schemas/TaskDueFilterIsEmptyOperation"
+                - $ref: "#/components/schemas/TaskDateFilterLessThanOperation"
+                - $ref: "#/components/schemas/TaskDateFilterGreaterThanOperation"
+            discriminator:
+                propertyName: type
+                mapping:
+                    Overdue: "#/components/schemas/TaskDueFilterOverdueOperation"
+                    IsEmpty: "#/components/schemas/TaskDueFilterIsEmptyOperation"
+                    LessThan: "#/components/schemas/TaskDateFilterLessThanOperation"
+                    GreaterThan: "#/components/schemas/TaskDateFilterGreaterThanOperation"
+
+        TaskDueFilterOverdueOperation:
+            type: object
+            required: [type]
+            additionalProperties: false
+            properties:
+                type:
+                    const: Overdue
+
+        TaskDueFilterIsEmptyOperation:
+            type: object
+            required: [type]
+            additionalProperties: false
+            properties:
+                type:
+                    const: IsEmpty
+
+        TaskCreatedDateFilter:
+            type: object
+            required: [type, operation]
+            additionalProperties: false
+            properties:
+                type:
+                    const: CreatedDate
+                operation:
+                    $ref: "#/components/schemas/TaskDateFilterOperation"
+
+        TaskAssignedDateFilter:
+            type: object
+            required: [type, operation]
+            additionalProperties: false
+            properties:
+                type:
+                    const: AssignedDate
+                operation:
+                    $ref: "#/components/schemas/TaskDateFilterOperation"
+
+        TaskClosedDateFilter:
+            type: object
+            required: [type, operation]
+            additionalProperties: false
+            properties:
+                type:
+                    const: ClosedDate
+                operation:
+                    $ref: "#/components/schemas/TaskDateFilterOperation"
+
+        TaskActivatedDateFilter:
+            type: object
+            required: [type, operation]
+            additionalProperties: false
+            properties:
+                type:
+                    const: ActivatedDate
+                operation:
+                    $ref: "#/components/schemas/TaskDateFilterOperation"
+
+        TaskDateFilterOperation:
+            oneOf:
+                - $ref: "#/components/schemas/TaskDateFilterLessThanOperation"
+                - $ref: "#/components/schemas/TaskDateFilterGreaterThanOperation"
+            discriminator:
+                propertyName: type
+                mapping:
+                    LessThan: "#/components/schemas/TaskDateFilterLessThanOperation"
+                    GreaterThan: "#/components/schemas/TaskDateFilterGreaterThanOperation"
+
+        TaskDateFilterLessThanOperation:
+            type: object
+            required: [type, date]
+            additionalProperties: false
+            properties:
+                type:
+                    const: LessThan
+                date:
+                    $ref: "#/components/schemas/TaskDateFilterOperationDate"
+
+        TaskDateFilterGreaterThanOperation:
+            type: object
+            required: [type, date]
+            additionalProperties: false
+            properties:
+                type:
+                    const: GreaterThan
+                date:
+                    $ref: "#/components/schemas/TaskDateFilterOperationDate"
+
+        TaskDateFilterOperationDate:
+            oneOf:
+                - $ref: "#/components/schemas/TaskDateFilterOperationAbsoluteDate"
+                - $ref: "#/components/schemas/TaskDateFilterOperationRelativeTodayDate"
+                - $ref: "#/components/schemas/TaskDateFilterOperationRelativeAfterTodayDate"
+                - $ref: "#/components/schemas/TaskDateFilterOperationRelativeBeforeTodayDate"
+            discriminator:
+                propertyName: type
+                mapping:
+                    Absolute: "#/components/schemas/TaskDateFilterOperationAbsoluteDate"
+                    RelativeToday: "#/components/schemas/TaskDateFilterOperationRelativeTodayDate"
+                    RelativeAfterToday: "#/components/schemas/TaskDateFilterOperationRelativeAfterTodayDate"
+                    RelativeBeforeToday: "#/components/schemas/TaskDateFilterOperationRelativeBeforeTodayDate"
+
+        TaskDateFilterOperationAbsoluteDate:
+            type: object
+            required: [type, date]
+            additionalProperties: false
+            properties:
+                type:
+                    const: Absolute
+                date:
+                    oneOf:
+                        - type: string
+                          format: date
+                        - type: "null"
+
+        TaskDateFilterOperationRelativeTodayDate:
+            type: object
+            required: [type]
+            additionalProperties: false
+            properties:
+                type:
+                    const: RelativeToday
+
+        TaskDateFilterOperationRelativeAfterTodayDate:
+            type: object
+            required: [type, duration]
+            additionalProperties: false
+            properties:
+                type:
+                    const: RelativeAfterToday
+                duration:
+                    $ref: "#/components/schemas/TaskDateFilterOperationDuration"
+
+        TaskDateFilterOperationRelativeBeforeTodayDate:
+            type: object
+            required: [type, duration]
+            additionalProperties: false
+            properties:
+                type:
+                    const: RelativeBeforeToday
+                duration:
+                    $ref: "#/components/schemas/TaskDateFilterOperationDuration"
+
+        TaskDateFilterOperationDuration:
+            oneOf:
+                - $ref: "#/components/schemas/TaskDateFilterOperationDaysDuration"
+                - $ref: "#/components/schemas/TaskDateFilterOperationWeeksDuration"
+                - $ref: "#/components/schemas/TaskDateFilterOperationMonthsDuration"
+                - $ref: "#/components/schemas/TaskDateFilterOperationYearsDuration"
+            discriminator:
+                propertyName: type
+                mapping:
+                    Days: "#/components/schemas/TaskDateFilterOperationDaysDuration"
+                    Weeks: "#/components/schemas/TaskDateFilterOperationWeeksDuration"
+                    Months: "#/components/schemas/TaskDateFilterOperationMonthsDuration"
+                    Years: "#/components/schemas/TaskDateFilterOperationYearsDuration"
+
+        TaskDateFilterOperationDaysDuration:
+            type: object
+            required: [type, days]
+            additionalProperties: false
+            properties:
+                type:
+                    const: Days
+                days:
+                    type: integer
+
+        TaskDateFilterOperationWeeksDuration:
+            type: object
+            required: [type, weeks]
+            additionalProperties: false
+            properties:
+                type:
+                    const: Weeks
+                weeks:
+                    type: integer
+
+        TaskDateFilterOperationMonthsDuration:
+            type: object
+            required: [type, months]
+            additionalProperties: false
+            properties:
+                type:
+                    const: Months
+                months:
+                    type: integer
+
+        TaskDateFilterOperationYearsDuration:
+            type: object
+            required: [type, years]
+            additionalProperties: false
+            properties:
+                type:
+                    const: Years
+                years:
+                    type: integer
 
         # =========================================================================== #
         #                                  Messages                                   #

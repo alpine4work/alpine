@@ -379,6 +379,23 @@ export type ApiTaskDue = ApiSpecification.components["schemas"]["TaskDue"];
 
 export type ApiTaskCollection = ApiSpecification.components["schemas"]["TaskCollection"];
 
+export type ApiTaskFilter = ApiSpecification.components["schemas"]["TaskFilter"];
+
+export type ApiTaskAccountFilterOperation =
+    ApiSpecification.components["schemas"]["TaskAccountFilterOperation"];
+
+export type ApiTaskCreatorFilterOperation =
+    ApiSpecification.components["schemas"]["TaskCreatorFilterOperation"];
+
+export type ApiTaskDateFilterOperation =
+    ApiSpecification.components["schemas"]["TaskDateFilterOperation"];
+
+export type ApiTaskDateFilterOperationDate =
+    ApiSpecification.components["schemas"]["TaskDateFilterOperationDate"];
+
+export type ApiTaskDateFilterOperationDuration =
+    ApiSpecification.components["schemas"]["TaskDateFilterOperationDuration"];
+
 export type ApiTaskPatch = ApiSpecification.components["schemas"]["TaskPatch"];
 
 export type ApiMessageStreamToolCallPartCreateCallReference =
