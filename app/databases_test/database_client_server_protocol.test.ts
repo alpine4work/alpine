@@ -26,6 +26,7 @@ import {generateChronologicalId} from "~/shared/id/chronological_id.js";
 import {generateId} from "~/shared/id/id.js";
 import type {
     BrowserId,
+    DatabaseFieldId,
     DatabaseGroupId,
     DatabaseReactiveActionId,
     DatabaseRowId,
@@ -133,6 +134,61 @@ test("realtime page diffs keep a warmed client\u2019s local reads fresh", async 
         executeActionCalls: reader.executeActionCalls,
     }).toEqual({
         rowIds: [rowId],
+        executeActionCalls: [],
+    });
+});
+
+// A schema change (`createField` runs `ALTER TABLE ... ADD COLUMN` on the per-db
+// file) reaches a peer whose SQLite connection already has the table attached: the
+// realtime diff rewrites the file's sqlite_schema pages and bumps the schema
+// cookie, and the peer's next prepare re-reads the schema instead of serving its
+// stale parsed copy. This guards the populated-table counterpart of the
+// empty-at-attach staleness covered in the "known desync issues" tests below:
+// under `locking_mode = EXCLUSIVE` only a table attached while its local store was
+// empty gets stuck on a stale schema; a table attached with pages present must
+// keep tracking schema changes.
+test("a schema change from another client is visible to an attached peer", async () => {
+    const databaseGroupId = generateId<DatabaseGroupId>();
+    const table = await createTableOnServer(databaseGroupId);
+    const writer = await createWarmClient(databaseGroupId, table);
+    const reader = await createWarmClient(databaseGroupId, table);
+
+    const rowId = generateChronologicalId<DatabaseRowId>();
+    await executeAction(writer, "createRow", {tableId: table.tableId, rowId});
+    const fieldId = generateChronologicalId<DatabaseFieldId>();
+    await executeAction(writer, "createField", {
+        fieldId,
+        tableId: table.tableId,
+        name: "Notes",
+        config: {type: "plainText"},
+    });
+    await executeAction(writer, "updateCellValue", {
+        tableId: table.tableId,
+        fieldId,
+        rowId,
+        value: "hello",
+    });
+    await settle();
+
+    // Read the new column through the reader's SQLite connection. A stale parsed
+    // schema fails the prepare with "no such column" rather than falling back to the
+    // server (only missing pages trigger the fallback).
+    const {fields} = await executeAction(writer, "getViewSchema", {
+        tableOrViewId: table.tableId,
+    });
+    const columnName = fields.find(field => field.id === fieldId)!.columnName;
+    const {rows} = await executeAction(reader, "readonlyRawSql", {
+        sql: sql`
+            SELECT
+                _id,
+                ${sql.identifier(columnName)} AS value
+            FROM
+                ${sql.tableRef(table.tableId, table.tableName)}
+        `.query,
+    });
+
+    expect({rows, executeActionCalls: reader.executeActionCalls}).toEqual({
+        rows: [{_id: rowId, value: "hello"}],
         executeActionCalls: [],
     });
 });
