@@ -19,14 +19,12 @@ export async function indexDatabaseTableSearchEntity(
         spaceId,
         tableId,
         name,
-        tableName,
         accessPolicy,
         isDeleted,
     }: {
         spaceId: SpaceId;
         tableId: DatabaseTableId;
         name: string | null;
-        tableName: string | null;
         accessPolicy: AccessPolicy;
         isDeleted: boolean;
     },
@@ -66,7 +64,7 @@ export async function indexDatabaseTableSearchEntity(
         title: name,
         titleVersion: null,
         body: null,
-        tags: tableName === null ? [] : [tableName],
+        tags: [],
         media: null,
         creatorId: null,
         majorContributorIds: [],

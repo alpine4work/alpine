@@ -8,7 +8,7 @@ import {
     type DatabaseActionOutput,
 } from "~/shared/databases/database_actions.js";
 import {assert} from "~/shared/helpers/control/assert.js";
-import type {DatabaseGroupId, DatabaseTableId, SpaceId} from "~/shared/id/types/id_types.js";
+import type {DatabaseGroupId, DatabaseTableId} from "~/shared/id/types/id_types.js";
 import type {SchemaSerializedValue} from "~/shared/schema/schema.js";
 
 /**
@@ -18,7 +18,6 @@ import type {SchemaSerializedValue} from "~/shared/schema/schema.js";
  */
 export async function fetchDatabaseGroupAction<N extends DatabaseActionName>(
     context: ServerActionContext,
-    spaceId: SpaceId,
     databaseGroupId: DatabaseGroupId,
     actionObject: {name: N; input: DatabaseActionInput<N>},
 ): Promise<{
@@ -30,10 +29,10 @@ export async function fetchDatabaseGroupAction<N extends DatabaseActionName>(
 }> {
     const body = DatabaseActionObjectSchema.serialize(actionObject as DatabaseActionObject);
     const response = await context.edge.sendRequestToDurableObject(
-        `/api/durable-objects/database-groups/${spaceId}/${databaseGroupId}/action`,
+        `/api/durable-objects/database-groups/${databaseGroupId}/action`,
         {
             serviceName: "DatabaseGroupService",
-            route: "/api/durable-objects/database-groups/:spaceId/:databaseGroupId/action",
+            route: "/api/durable-objects/database-groups/:databaseGroupId/action",
             body,
         },
     );

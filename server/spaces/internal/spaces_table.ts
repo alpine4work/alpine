@@ -320,6 +320,28 @@ export const SpacesTable = DynamoTableSchema.new({
         },
 
         /**
+         * Reverse lookup for a workspace's database group.
+         *
+         * This is manually maintained instead of using a DynamoDB index so callers can
+         * resolve a `databaseGroupId` to its owning `SpaceId` with strong consistency.
+         */
+        {
+            name: "DatabaseGroup",
+            partitionKeyAttributes: {
+                databaseGroupId: DynamoKeyAttributeSchema.id<DatabaseGroupId>(),
+            },
+            sortRanges: [
+                {
+                    name: "Space",
+                    sortKeyAttributes: {},
+                    attributes: Schema.object({
+                        spaceId: Schema.id<SpaceId>(),
+                    }),
+                },
+            ],
+        },
+
+        /**
          * The spaces all of our accounts are members of. This is an item we have to
          * manually maintain instead of a DynamoDB index so we can read an account's spaces
          * with strong read consistency or have transaction conditional checks on an
@@ -374,6 +396,11 @@ export const SpacesTable = DynamoTableSchema.new({
 });
 
 export type SpaceAttributesItem = DynamoTableItemType<typeof SpacesTable, "Space", "Attributes">;
+export type SpaceDatabaseGroupItem = DynamoTableItemType<
+    typeof SpacesTable,
+    "DatabaseGroup",
+    "Space"
+>;
 export type SpaceAvatarDarkThemeItem = DynamoTableItemType<
     typeof SpacesTable,
     "Space",

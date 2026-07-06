@@ -33,7 +33,7 @@ export async function loader({request, params, context: unauthenticatedContext}:
     const tableOrViewId = params.tableOrViewId!;
 
     // Fetch schema first — needed for the redirect check.
-    const schemaResult = await fetchDatabaseGroupAction(context, spaceId, databaseGroupId, {
+    const schemaResult = await fetchDatabaseGroupAction(context, databaseGroupId, {
         name: "getViewSchema",
         input: {tableOrViewId},
     });
@@ -47,12 +47,12 @@ export async function loader({request, params, context: unauthenticatedContext}:
     }
 
     // Discover the cursor for the first page then fetch the page rows.
-    const cursorResult = await fetchDatabaseGroupAction(context, spaceId, databaseGroupId, {
+    const cursorResult = await fetchDatabaseGroupAction(context, databaseGroupId, {
         name: "getViewRowsPageCursor",
         input: {tableOrViewId, afterCursor: null, limit: databaseViewTargetRowsPerPage},
     });
 
-    const pageResult = await fetchDatabaseGroupAction(context, spaceId, databaseGroupId, {
+    const pageResult = await fetchDatabaseGroupAction(context, databaseGroupId, {
         name: "getViewRowsPage",
         input: {
             tableOrViewId,

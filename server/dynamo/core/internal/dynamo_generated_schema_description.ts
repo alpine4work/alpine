@@ -3552,6 +3552,80 @@ export const dynamoGeneratedSchemaDescription: {
                 }
             ]
         },
+        "DatabaseTables": {
+            "name": "DatabaseTables",
+            "partitionByType": {
+                "DatabaseGroup": {
+                    "id": 0,
+                    "partitionKeyAttributeByKey": {
+                        "databaseGroupId": {
+                            "type": "Id"
+                        }
+                    },
+                    "sortRangeByType": {
+                        "Table": {
+                            "id": 0,
+                            "orderKey": "a0",
+                            "sortKeyAttributeByKey": {
+                                "tableId": {
+                                    "type": "Id"
+                                }
+                            },
+                            "attributesSchema": {
+                                "type": "Object",
+                                "propertySchemaByKey": {
+                                    "name": {
+                                        "valueSchema": {
+                                            "type": "Nullable",
+                                            "schema": {
+                                                "type": "String"
+                                            }
+                                        },
+                                        "optional": false
+                                    },
+                                    "spaceId": {
+                                        "valueSchema": {
+                                            "type": "Nullable",
+                                            "schema": {
+                                                "type": "Id"
+                                            }
+                                        },
+                                        "optional": false
+                                    },
+                                    "isDeleted": {
+                                        "valueSchema": {
+                                            "type": "Boolean"
+                                        },
+                                        "optional": false
+                                    },
+                                    "lastReplicatedStorageVersion": {
+                                        "valueSchema": {
+                                            "type": "Integer"
+                                        },
+                                        "optional": false
+                                    },
+                                    "accessPolicy": {
+                                        "valueSchema": {
+                                            "type": "Reference",
+                                            "reuseReferenceId": "4cf12cf0"
+                                        },
+                                        "optional": false
+                                    },
+                                    "updateLockVersion": {
+                                        "valueSchema": {
+                                            "type": "Integer"
+                                        },
+                                        "optional": true
+                                    }
+                                }
+                            },
+                            "childSortRangeByType": {}
+                        }
+                    }
+                }
+            },
+            "indexes": []
+        },
         "Deploy": {
             "name": "Deploy",
             "partitionByType": {
@@ -14278,6 +14352,39 @@ export const dynamoGeneratedSchemaDescription: {
                                     "isEnabled": {
                                         "valueSchema": {
                                             "type": "Boolean"
+                                        },
+                                        "optional": false
+                                    },
+                                    "updateLockVersion": {
+                                        "valueSchema": {
+                                            "type": "Integer"
+                                        },
+                                        "optional": true
+                                    }
+                                }
+                            },
+                            "childSortRangeByType": {}
+                        }
+                    }
+                },
+                "DatabaseGroup": {
+                    "id": 4,
+                    "partitionKeyAttributeByKey": {
+                        "databaseGroupId": {
+                            "type": "Id"
+                        }
+                    },
+                    "sortRangeByType": {
+                        "Space": {
+                            "id": 0,
+                            "orderKey": "a0",
+                            "sortKeyAttributeByKey": {},
+                            "attributesSchema": {
+                                "type": "Object",
+                                "propertySchemaByKey": {
+                                    "spaceId": {
+                                        "valueSchema": {
+                                            "type": "Id"
                                         },
                                         "optional": false
                                     },

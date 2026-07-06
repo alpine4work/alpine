@@ -6,12 +6,7 @@ import {indexDatabaseTableSearchEntity} from "~/server/search/data/index/index_d
 import type {LocalAccessPolicy} from "~/shared/access/access_policy.js";
 import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
 import {emptyMap} from "~/shared/helpers/map/empty_map.js";
-import type {
-    DatabaseFieldId,
-    DatabaseGroupId,
-    DatabaseTableId,
-    SpaceId,
-} from "~/shared/id/types/id_types.js";
+import type {DatabaseGroupId, DatabaseTableId, SpaceId} from "~/shared/id/types/id_types.js";
 
 const defaultDatabaseTableAccessPolicy: LocalAccessPolicy = {
     type: "Local",
@@ -68,7 +63,7 @@ async function replicateDatabaseTableChange(
         tableId: DatabaseTableId;
     },
 ): Promise<void> {
-    const {result} = await fetchDatabaseGroupAction(context, spaceId, databaseGroupId, {
+    const {result} = await fetchDatabaseGroupAction(context, databaseGroupId, {
         name: "getTableMetadata",
         input: {tableId},
     });
@@ -86,7 +81,6 @@ async function replicateDatabaseTableChange(
         spaceId,
         tableId,
         name: updatedItem.name,
-        tableName: updatedItem.tableName,
         accessPolicy: updatedItem.accessPolicy,
         isDeleted: updatedItem.isDeleted,
     });
@@ -124,8 +118,6 @@ async function updateDatabaseTableDynamoItem(
             tableId,
             spaceId,
             name: table?.name ?? null,
-            tableName: table?.tableName ?? null,
-            nameFieldId: table?.nameFieldId ?? null,
             isDeleted: table === null,
             lastReplicatedStorageVersion: Math.max(
                 item?.lastReplicatedStorageVersion ?? 0,
@@ -139,6 +131,4 @@ async function updateDatabaseTableDynamoItem(
 type DatabaseTableMetadata = {
     readonly id: DatabaseTableId;
     readonly name: string;
-    readonly tableName: string;
-    readonly nameFieldId: DatabaseFieldId;
 };

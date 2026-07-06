@@ -53,6 +53,14 @@ export interface DatabaseServerResult {
     writeVersion: number;
 }
 
+export type DatabaseServerActionResult<N extends DatabaseActionName> = {
+    result: DatabaseActionOutput<N>;
+    readPages: DatabaseServerReadPages;
+    changedPages: DatabaseServerChangedPages;
+    changedTables: DatabaseServerChangedTables;
+    writeVersion: number;
+};
+
 /**
  * Canonical SQLite database backed by a {@link DatabaseServerStorage}
  * implementation.
@@ -96,13 +104,7 @@ export class DatabaseServer {
 
     executeAction<N extends DatabaseActionName>(
         actionObject: DatabaseActionObject<N>,
-    ): {
-        result: DatabaseActionOutput<N>;
-        readPages: DatabaseServerReadPages;
-        changedPages: DatabaseServerChangedPages;
-        changedTables: DatabaseServerChangedTables;
-        writeVersion: number;
-    } {
+    ): DatabaseServerActionResult<N> {
         return this._runAndPersist(() => this.database.executeAction(actionObject));
     }
 

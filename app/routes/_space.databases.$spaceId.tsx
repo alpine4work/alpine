@@ -33,7 +33,7 @@ export async function loader({params, context: unauthenticatedContext}: LoaderAr
     const spaceId = deserializeSpaceIdForLoader(params.spaceId);
     const databaseGroupId = await getDatabaseGroupIdForSpace(context, spaceId);
 
-    const {readPages} = await fetchDatabaseGroupAction(context, spaceId, databaseGroupId, {
+    const {readPages} = await fetchDatabaseGroupAction(context, databaseGroupId, {
         name: "listTableIds",
         input: {},
     });
@@ -56,7 +56,7 @@ export default function DatabaseGroupLayoutRoute() {
     const conn = db.connection;
     const initialPagesRef = useRef(pages);
 
-    const wsUrl = `/api/durable-objects/database-groups/${spaceId}/${databaseGroupId}?browserId=${browserId}`;
+    const wsUrl = `/api/durable-objects/database-groups/${databaseGroupId}?browserId=${browserId}`;
 
     const connectDatabase = useEvent(() => {
         db.connect({

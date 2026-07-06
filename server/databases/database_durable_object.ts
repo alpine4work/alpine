@@ -16,15 +16,21 @@ import {
 import {DatabaseDurableObjectStorage} from "~/server/databases/database_durable_object_storage.js";
 import {
     DatabaseServer,
+    type DatabaseServerActionResult,
     type DatabaseServerChangedTables,
 } from "~/server/databases/database_server.js";
 import {WebSocketServer} from "~/server/web_socket/web_socket_server.js";
 import {DatabaseActionFetchResponseSchema} from "~/shared/databases/database_action_fetch_schema.js";
-import {DatabaseActionObjectSchema} from "~/shared/databases/database_actions.js";
+import {
+    type DatabaseActionName,
+    type DatabaseActionObject,
+    DatabaseActionObjectSchema,
+} from "~/shared/databases/database_actions.js";
 import {DatabaseRealtimeProtocol} from "~/shared/databases/database_realtime_protocol.js";
 import {InvalidArgumentError, NotFoundError} from "~/shared/error/error.js";
+import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
-import type {BrowserId, DatabaseGroupId, SpaceId} from "~/shared/id/types/id_types.js";
+import type {BrowserId, DatabaseGroupId} from "~/shared/id/types/id_types.js";
 import {enqueueDatabaseTableReplicationJob} from "~/shared/rpc/database_replication_rpc_definitions.js";
 import {SchemaSerializedValue} from "~/shared/schema/schema.js";
 
@@ -100,17 +106,11 @@ class DatabaseGroupDurableObject {
             if (browserId === null) {
                 throw new InvalidArgumentError("Missing browserId query parameter");
             }
-            const spaceId = searchParams.get("spaceId") as SpaceId | null;
-            if (spaceId === null) {
-                throw new InvalidArgumentError("Missing spaceId query parameter");
-            }
             return new DatabaseDurableObjectConnection({
-                server: this._server,
                 processContext: this._processContext,
-                storage,
                 durableObjectStorage: this._durableObjectStorage,
-                enqueueReplicationJob: (context, options) =>
-                    this._enqueueReplicationJob(context, {spaceId, ...options}),
+                executeAction: (context, actionObject, handleResult) =>
+                    this._executeAction(context, actionObject, handleResult),
                 sendEventToAll: (context, event) => {
                     this._webSocketServer.sendEventToAll(context, event);
                 },
@@ -151,32 +151,23 @@ class DatabaseGroupDurableObject {
         const actionObject = DatabaseActionObjectSchema.deserialize(
             (await request.json()) as SchemaSerializedValue,
         );
-        const spaceId = new URL(request.url).searchParams.get("spaceId") as SpaceId | null;
-        if (spaceId === null) {
-            throw new InvalidArgumentError("Missing spaceId query parameter");
-        }
 
-        const actionResult = this._storage.transactionSync(() =>
-            this._server.executeAction(actionObject),
-        );
-
-        await this._enqueueReplicationJob(context, {
-            spaceId,
-            storageVersion: actionResult.writeVersion,
-            tableIds: actionResult.changedTables,
-        });
-
-        return new Response(
-            JSON.stringify(
-                DatabaseActionFetchResponseSchema.serialize({
-                    result: {name: actionObject.name, output: actionResult.result} as any,
-                    readPages: actionResult.readPages,
-                }),
-            ),
-            {
-                status: 200,
-                headers: {"content-type": "application/json"},
-            },
+        return await this._executeAction(
+            context,
+            actionObject,
+            actionResult =>
+                new Response(
+                    JSON.stringify(
+                        DatabaseActionFetchResponseSchema.serialize({
+                            result: {name: actionObject.name, output: actionResult.result} as any,
+                            readPages: actionResult.readPages,
+                        }),
+                    ),
+                    {
+                        status: 200,
+                        headers: {"content-type": "application/json"},
+                    },
+                ),
         );
     }
 
@@ -184,14 +175,33 @@ class DatabaseGroupDurableObject {
         return this._webSocketServer.connectForTest(context);
     }
 
+    private async _executeAction<N extends DatabaseActionName, T>(
+        context: WorkerActionContext | WorkerSessionActionContext,
+        actionObject: DatabaseActionObject<N>,
+        handleResult: (result: DatabaseServerActionResult<N>) => T,
+    ): Promise<T> {
+        let actionResult: DatabaseServerActionResult<N> | null = null;
+        const response = this._storage.transactionSync(() => {
+            const persistedActionResult = this._server.executeAction(actionObject);
+            actionResult = persistedActionResult;
+            return handleResult(persistedActionResult);
+        });
+        const persistedActionResult = assertExists<DatabaseServerActionResult<N>>(actionResult);
+
+        await this._enqueueReplicationJob(context, {
+            storageVersion: persistedActionResult.writeVersion,
+            tableIds: persistedActionResult.changedTables,
+        });
+
+        return response;
+    }
+
     private async _enqueueReplicationJob(
         context: WorkerActionContext | WorkerSessionActionContext,
         {
-            spaceId,
             storageVersion,
             tableIds,
         }: {
-            spaceId: SpaceId;
             storageVersion: number;
             tableIds: DatabaseServerChangedTables;
         },
@@ -200,7 +210,6 @@ class DatabaseGroupDurableObject {
 
         await enqueueDatabaseTableReplicationJob(context, {
             databaseGroupId: this._databaseGroupId,
-            spaceId,
             storageVersion,
             tableIds,
         });
