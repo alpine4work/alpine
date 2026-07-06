@@ -1,4 +1,5 @@
 import type {Database as SqliteDatabase} from "~/external/sqlite/ext/wasm/jswasm/sqlite3.mjs";
+import type {WorkerActionContext} from "~/server/cloudflare/context/worker_action_context.js";
 import type {DatabaseServerStorage} from "~/server/databases/database_server_storage.js";
 import {Database, type DatabaseTrackedExecution} from "~/shared/databases/database.js";
 import type {
@@ -17,7 +18,8 @@ import {
 } from "~/shared/databases/sqlite_migrations.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
-import type {DatabaseTableId} from "~/shared/id/types/id_types.js";
+import type {DatabaseGroupId, DatabaseTableId} from "~/shared/id/types/id_types.js";
+import {enqueueDatabaseTableReplicationJob} from "~/shared/rpc/database_replication_rpc_definitions.js";
 import {Schema} from "~/shared/schema/schema.js";
 
 export interface DatabaseServerPageChange {
@@ -49,11 +51,23 @@ export type DatabaseServerReadPages = Map<
 
 export type DatabaseServerChangedPages = Map<DatabaseTableId, DatabaseServerTableChangedPages>;
 
+export type DatabaseServerChangedTables = ReadonlySet<DatabaseTableId>;
+
 export interface DatabaseServerResult {
     rows: Array<Record<string, unknown>>;
     readPages: DatabaseServerReadPages;
     changedPages: DatabaseServerChangedPages;
+    changedTables: DatabaseServerChangedTables;
+    writeVersion: number;
 }
+
+export type DatabaseServerActionResult<N extends DatabaseActionName> = {
+    result: DatabaseActionOutput<N>;
+    readPages: DatabaseServerReadPages;
+    changedPages: DatabaseServerChangedPages;
+    changedTables: DatabaseServerChangedTables;
+    writeVersion: number;
+};
 
 /**
  * Canonical SQLite database backed by a {@link DatabaseServerStorage}
@@ -69,35 +83,56 @@ export interface DatabaseServerResult {
 export class DatabaseServer {
     private readonly database: Database;
     private readonly storage: DatabaseServerStorage;
+    private readonly databaseGroupId: DatabaseGroupId;
+    private readonly changedTables = new Set<DatabaseTableId>();
 
-    private constructor(database: Database, storage: DatabaseServerStorage) {
+    private constructor(
+        database: Database,
+        storage: DatabaseServerStorage,
+        databaseGroupId: DatabaseGroupId,
+    ) {
         this.database = database;
         this.storage = storage;
+        this.databaseGroupId = databaseGroupId;
     }
 
-    static async create(storage: DatabaseServerStorage): Promise<DatabaseServer> {
+    static async create(
+        storage: DatabaseServerStorage,
+        databaseGroupId: DatabaseGroupId,
+    ): Promise<DatabaseServer> {
         const database = await Database.create(storage, {server: true});
-        const server = new DatabaseServer(database, storage);
+        const server = new DatabaseServer(database, storage, databaseGroupId);
         server._bootstrap();
+        database._installServerTableChangeCapture(tableId => {
+            server.changedTables.add(tableId);
+        });
         return server;
     }
 
-    execute(query: SqlQuery, options: {allowWrites: SqliteWriteLevel}): DatabaseServerResult {
-        const {result, readPages, changedPages} = this._runAndPersist(() => {
-            const {rows, readPages} = this.database.executeSql(query, options);
-            return {result: rows, readPages};
-        });
-        return {rows: result, readPages, changedPages};
+    execute(
+        context: WorkerActionContext,
+        query: SqlQuery,
+        options: {allowWrites: SqliteWriteLevel},
+    ): DatabaseServerResult {
+        const {result, readPages, changedPages, changedTables, writeVersion} = this._runAndPersist(
+            context,
+            () => {
+                const {rows, readPages} = this.database.executeSql(query, options);
+                return {result: rows, readPages};
+            },
+        );
+        return {rows: result, readPages, changedPages, changedTables, writeVersion};
     }
 
     executeAction<N extends DatabaseActionName>(
+        context: WorkerActionContext,
         actionObject: DatabaseActionObject<N>,
-    ): {
-        result: DatabaseActionOutput<N>;
-        readPages: DatabaseServerReadPages;
-        changedPages: DatabaseServerChangedPages;
-    } {
-        return this._runAndPersist(() => this.database.executeAction(actionObject));
+    ): DatabaseServerActionResult<N> {
+        return this._runAndPersist(context, () =>
+            this.database.executeAction(actionObject, {
+                currentAccountId: context.actor.getPossiblyBotAccountIdIfExists(),
+            }),
+        );
     }
 
     createTrackedExecution<Value>(fn: () => Value): DatabaseTrackedExecution<Value> {
@@ -169,18 +204,36 @@ export class DatabaseServer {
         this._persistBuffer();
     }
 
-    private _runAndPersist<T>(run: () => {result: T; readPages: ReadonlyDatabasePageSet}): {
+    private _runAndPersist<T>(
+        context: WorkerActionContext,
+        run: () => {result: T; readPages: ReadonlyDatabasePageSet},
+    ): {
         result: T;
         readPages: DatabaseServerReadPages;
         changedPages: DatabaseServerChangedPages;
+        changedTables: DatabaseServerChangedTables;
+        writeVersion: number;
     } {
         // The error path below clears the buffer to recover from a partial write; assert
         // up front that we're not silently throwing away pre-existing buffered writes
         // belonging to a prior (forgotten) drain.
         this.database.assertBufferIsEmpty("_runAndPersist");
+        this.changedTables.clear();
+        let persisted: {
+            result: T;
+            readPages: DatabaseServerReadPages;
+            changedPages: DatabaseServerChangedPages;
+            changedTables: DatabaseServerChangedTables;
+            writeVersion: number;
+        };
         try {
-            const {result, readPages} = run();
-            return this._persistAndBuildResult(result, readPages);
+            persisted = this.storage.transactionSync(() => {
+                const {result, readPages} = run();
+                const changedTables = new Set(this.changedTables);
+                const persistedResult = this._persistAndBuildResult(result, readPages);
+                this.database.refreshServerTableChangeTriggers();
+                return {...persistedResult, changedTables};
+            });
         } catch (error) {
             // Drop any partial buffered writes — whether the tracked execute or the drain
             // failed — so storage and SQLite's pager cache stay in sync and the next execute
@@ -188,7 +241,31 @@ export class DatabaseServer {
             // already committed.
             this.database.discardBuffer();
             throw error;
+        } finally {
+            this.changedTables.clear();
         }
+        this.scheduleReplication(context, {
+            tableIds: persisted.changedTables,
+        });
+        return persisted;
+    }
+
+    private scheduleReplication(
+        context: WorkerActionContext,
+        {
+            tableIds,
+        }: {
+            tableIds: DatabaseServerChangedTables;
+        },
+    ): void {
+        if (tableIds.size === 0) return;
+
+        context.process.waitUntil(
+            enqueueDatabaseTableReplicationJob(context, {
+                databaseGroupId: this.databaseGroupId,
+                tableIds,
+            }),
+        );
     }
 
     private _persistAndBuildResult<T>(
@@ -198,6 +275,7 @@ export class DatabaseServer {
         result: T;
         readPages: DatabaseServerReadPages;
         changedPages: DatabaseServerChangedPages;
+        writeVersion: number;
     } {
         const buffered = this.database.getBufferedWrites();
 
@@ -311,7 +389,7 @@ export class DatabaseServer {
             }
         }
 
-        return {result, readPages, changedPages};
+        return {result, readPages, changedPages, writeVersion: postWriteVersion};
     }
 
     /**

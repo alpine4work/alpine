@@ -21,7 +21,7 @@ import {DatabaseActionObjectSchema} from "~/shared/databases/database_actions.js
 import {DatabaseRealtimeProtocol} from "~/shared/databases/database_realtime_protocol.js";
 import {InvalidArgumentError, NotFoundError} from "~/shared/error/error.js";
 import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
-import type {BrowserId} from "~/shared/id/types/id_types.js";
+import type {BrowserId, DatabaseGroupId} from "~/shared/id/types/id_types.js";
 import {SchemaSerializedValue} from "~/shared/schema/schema.js";
 
 type DatabaseGroupDurableObjectRoute = "Main" | "Action" | "NotFound";
@@ -30,7 +30,6 @@ class DatabaseGroupDurableObject {
     public static readonly serviceName = "DatabaseGroupService";
 
     private readonly _server: DatabaseServer;
-    private readonly _storage: DurableObjectStorage;
     private readonly _durableObjectStorage: DatabaseDurableObjectStorage;
     private readonly _processContext: WorkerProcessContext;
     private readonly _browserPageTracker = new BrowserPageTracker();
@@ -45,6 +44,7 @@ class DatabaseGroupDurableObject {
 
     public static async initialize({
         processContext,
+        idName,
         storage,
     }: {
         processContext: WorkerProcessContext;
@@ -53,12 +53,12 @@ class DatabaseGroupDurableObject {
         destroy: () => void;
         storage: DurableObjectStorage;
     }): Promise<DatabaseGroupDurableObject> {
-        const durableObjectStorage = new DatabaseDurableObjectStorage(storage.sql);
-        const server = await DatabaseServer.create(durableObjectStorage);
+        const durableObjectStorage = new DatabaseDurableObjectStorage(storage);
+        const databaseGroupId = idName as DatabaseGroupId;
+        const server = await DatabaseServer.create(durableObjectStorage, databaseGroupId);
         return new DatabaseGroupDurableObject({
             processContext,
             server,
-            storage,
             durableObjectStorage,
         });
     }
@@ -66,17 +66,14 @@ class DatabaseGroupDurableObject {
     private constructor({
         processContext,
         server,
-        storage,
         durableObjectStorage,
     }: {
         processContext: WorkerProcessContext;
         server: DatabaseServer;
-        storage: DurableObjectStorage;
         durableObjectStorage: DatabaseDurableObjectStorage;
     }) {
         this._processContext = processContext;
         this._server = server;
-        this._storage = storage;
         this._durableObjectStorage = durableObjectStorage;
 
         this._webSocketServer = new WebSocketServer<
@@ -94,10 +91,9 @@ class DatabaseGroupDurableObject {
                     throw new InvalidArgumentError("Missing browserId query parameter");
                 }
                 return new DatabaseDurableObjectConnection({
-                    server: this._server,
                     processContext: this._processContext,
-                    storage,
                     durableObjectStorage: this._durableObjectStorage,
+                    server: this._server,
                     sendEventToAll: (context, event) => {
                         this._webSocketServer.sendEventToAll(context, event);
                     },
@@ -130,7 +126,7 @@ class DatabaseGroupDurableObject {
                     request,
                 );
             case "Action":
-                return await this._handleAction(request);
+                return await this._handleAction(context, request);
             case "NotFound":
                 throw new NotFoundError("Route not found");
             default:
@@ -138,20 +134,17 @@ class DatabaseGroupDurableObject {
         }
     }
 
-    private async _handleAction(request: Request): Promise<Response> {
+    private async _handleAction(context: WorkerActionContext, request: Request): Promise<Response> {
         const actionObject = DatabaseActionObjectSchema.deserialize(
             (await request.json()) as SchemaSerializedValue,
         );
 
-        const {result, readPages} = this._storage.transactionSync(() =>
-            this._server.executeAction(actionObject),
-        );
-
+        const actionResult = this._server.executeAction(context, actionObject);
         return new Response(
             JSON.stringify(
                 DatabaseActionFetchResponseSchema.serialize({
-                    result: {name: actionObject.name, output: result} as any,
-                    readPages,
+                    result: {name: actionObject.name, output: actionResult.result} as any,
+                    readPages: actionResult.readPages,
                 }),
             ),
             {

@@ -18,6 +18,7 @@ ts_project(
         "//shared/error",
         "//shared/feed",
         "//shared/helpers",
+        "//shared/id",
         "//shared/notifications",
         "//shared/schema",
         "//shared/tracer",

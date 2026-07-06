@@ -35,7 +35,6 @@ export type DatabaseRealtimeEventStub = {
 
 export class DatabaseDurableObjectConnection {
     private readonly _server: DatabaseServer;
-    private readonly _storage: DurableObjectStorage;
     private readonly _durableObjectStorage: DatabaseDurableObjectStorage;
     private readonly _sendEventToAll: (
         context: WorkerProcessContext,
@@ -52,7 +51,6 @@ export class DatabaseDurableObjectConnection {
 
     constructor({
         server,
-        storage,
         durableObjectStorage,
         processContext,
         sendEventToAll,
@@ -62,7 +60,6 @@ export class DatabaseDurableObjectConnection {
         browserPageTracker,
     }: {
         server: DatabaseServer;
-        storage: DurableObjectStorage;
         durableObjectStorage: DatabaseDurableObjectStorage;
         processContext: WorkerProcessContext;
         sendEventToAll: (context: WorkerProcessContext, event: DatabaseRealtimeEventStub) => void;
@@ -72,7 +69,6 @@ export class DatabaseDurableObjectConnection {
         browserPageTracker: BrowserPageTracker;
     }) {
         this._server = server;
-        this._storage = storage;
         this._durableObjectStorage = durableObjectStorage;
         this._processContext = processContext;
         this._sendEventToAll = sendEventToAll;
@@ -87,84 +83,82 @@ export class DatabaseDurableObjectConnection {
         WorkerSessionActionContextModules,
         typeof DatabaseRealtimeProtocol
     > = {
-        executeAction: async (_context, input) => {
-            return this._storage.transactionSync(() => {
-                const result = this._server.executeAction(input.action);
+        executeAction: async (context, input) => {
+            const result = this._server.executeAction(context, input.action);
 
-                const pageDiffs = new Map<DatabaseTableId, DatabaseTablePageDiffs>();
-                for (const [tableId, {pages, fileSizeInPages}] of result.changedPages) {
-                    // `getBufferedWrites` only emits a table entry when it has at least one buffered
-                    // page, so a changed-pages entry always carries pages.
-                    assert(pages.size > 0, `changedPages entry for ${tableId} has no pages`);
-                    const tableReadPages = result.readPages.get(tableId);
-                    const diffs = new Map<
-                        number,
-                        {previousVersion: number; version: number; diff: PageDiff}
-                    >();
-                    for (const [pageIndex, {before, after, beforeVersion}] of pages) {
-                        diffs.set(pageIndex, {
-                            previousVersion: beforeVersion,
-                            version: tableReadPages!.get(pageIndex)!.version,
-                            diff: diffPage(before, after),
-                        });
-                    }
-                    pageDiffs.set(tableId, {diffs, fileSizeInPages});
-                }
-                if (pageDiffs.size > 0) {
-                    this._sendEventToAll(this._processContext, {
-                        type: "PagesChanged",
-                        pageDiffs,
-                        mutationId: input.mutationId,
-                    });
-                } else if (!input.returnPages) {
-                    // `returnPages: false` marks the fire-and-forget send of an optimistic mutation,
-                    // which relies on a realtime event to confirm (and dequeue) it — and this event
-                    // must arrive before the procedure response. A mutation that ends up writing
-                    // nothing (e.g. deleting a row another client already deleted) broadcasts no
-                    // diffs, so confirm it to the originator explicitly with an empty event.
-                    // Foreground calls (`returnPages: true`) consume the response directly and need no
-                    // confirmation.
-                    this._sendEventToSelf(this._processContext, {
-                        type: "PagesChanged",
-                        pageDiffs: new Map(),
-                        mutationId: input.mutationId,
+            const pageDiffs = new Map<DatabaseTableId, DatabaseTablePageDiffs>();
+            for (const [tableId, {pages, fileSizeInPages}] of result.changedPages) {
+                // `getBufferedWrites` only emits a table entry when it has at least one buffered
+                // page, so a changed-pages entry always carries pages.
+                assert(pages.size > 0, `changedPages entry for ${tableId} has no pages`);
+                const tableReadPages = result.readPages.get(tableId);
+                const diffs = new Map<
+                    number,
+                    {previousVersion: number; version: number; diff: PageDiff}
+                >();
+                for (const [pageIndex, {before, after, beforeVersion}] of pages) {
+                    diffs.set(pageIndex, {
+                        previousVersion: beforeVersion,
+                        version: tableReadPages!.get(pageIndex)!.version,
+                        diff: diffPage(before, after),
                     });
                 }
+                pageDiffs.set(tableId, {diffs, fileSizeInPages});
+            }
+            if (pageDiffs.size > 0) {
+                this._sendEventToAll(this._processContext, {
+                    type: "PagesChanged",
+                    pageDiffs,
+                    mutationId: input.mutationId,
+                });
+            } else if (!input.returnPages) {
+                // `returnPages: false` marks the fire-and-forget send of an optimistic mutation,
+                // which relies on a realtime event to confirm (and dequeue) it — and this event
+                // must arrive before the procedure response. A mutation that ends up writing
+                // nothing (e.g. deleting a row another client already deleted) broadcasts no
+                // diffs, so confirm it to the originator explicitly with an empty event.
+                // Foreground calls (`returnPages: true`) consume the response directly and need no
+                // confirmation.
+                this._sendEventToSelf(this._processContext, {
+                    type: "PagesChanged",
+                    pageDiffs: new Map(),
+                    mutationId: input.mutationId,
+                });
+            }
 
-                const filteredReadPages = input.returnPages
-                    ? this._browserPageTracker.filterReadPages(this._browserId, result.readPages)
-                    : null;
+            const filteredReadPages = input.returnPages
+                ? this._browserPageTracker.filterReadPages(this._browserId, result.readPages)
+                : null;
 
-                if (filteredReadPages !== null && filteredReadPages.size > 0) {
-                    const pendingByTable = new Map<DatabaseTableId, Iterable<number>>();
-                    for (const [tableId, tablePages] of filteredReadPages) {
-                        pendingByTable.set(tableId, tablePages.keys());
-                    }
-                    this._browserPageTracker.addPendingPages(this._browserId, pendingByTable);
+            if (filteredReadPages !== null && filteredReadPages.size > 0) {
+                const pendingByTable = new Map<DatabaseTableId, Iterable<number>>();
+                for (const [tableId, tablePages] of filteredReadPages) {
+                    pendingByTable.set(tableId, tablePages.keys());
                 }
+                this._browserPageTracker.addPendingPages(this._browserId, pendingByTable);
+            }
 
-                // Report the canonical file size for every table whose pages we return, so the
-                // client's sparse cache can serve the correct file size (SQLite treats a file
-                // shorter than its header claims as corrupt).
-                let fileSizesInPages: Map<DatabaseTableId, number> | null = null;
-                if (filteredReadPages !== null) {
-                    fileSizesInPages = new Map();
-                    for (const tableId of filteredReadPages.keys()) {
-                        fileSizesInPages.set(
-                            tableId,
-                            this._durableObjectStorage.getFileSize(tableId) / sqlitePageSize,
-                        );
-                    }
+            // Report the canonical file size for every table whose pages we return, so the
+            // client's sparse cache can serve the correct file size (SQLite treats a file
+            // shorter than its header claims as corrupt).
+            let fileSizesInPages: Map<DatabaseTableId, number> | null = null;
+            if (filteredReadPages !== null) {
+                fileSizesInPages = new Map();
+                for (const tableId of filteredReadPages.keys()) {
+                    fileSizesInPages.set(
+                        tableId,
+                        this._durableObjectStorage.getFileSize(tableId) / sqlitePageSize,
+                    );
                 }
+            }
 
-                return {
-                    result: input.returnResult
-                        ? ({name: input.action.name, output: result.result} as any)
-                        : null,
-                    readPages: filteredReadPages,
-                    fileSizesInPages,
-                };
-            });
+            return {
+                result: input.returnResult
+                    ? ({name: input.action.name, output: result.result} as any)
+                    : null,
+                readPages: filteredReadPages,
+                fileSizesInPages,
+            };
         },
         ensureCacheIsUpToDate: async (_context, input) => {
             // Mutable builder for the readonly `DatabaseEnsureCacheIsUpToDateResult["tables"]`

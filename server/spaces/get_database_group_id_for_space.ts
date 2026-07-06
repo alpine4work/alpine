@@ -1,5 +1,9 @@
 import {ServerActionContext} from "~/server/context/server_action_context.js";
-import {SpaceItem, SpacesTable} from "~/server/spaces/internal/spaces_table.js";
+import {
+    SpaceDatabaseGroupItem,
+    SpaceItem,
+    SpacesTable,
+} from "~/server/spaces/internal/spaces_table.js";
 import {NotFoundError} from "~/shared/error/error.js";
 import {generateId} from "~/shared/id/id.js";
 import type {DatabaseGroupId, SpaceId} from "~/shared/id/types/id_types.js";
@@ -34,5 +38,29 @@ export async function getDatabaseGroupIdForSpace(
     if (updatedItem === null || updatedItem.databaseGroupId === undefined) {
         throw new NotFoundError(`Space ${spaceId} not found`);
     }
+
+    await SpacesTable.createOrReplaceItem(context, {
+        partitionType: "DatabaseGroup",
+        sortRangeType: "Space",
+        databaseGroupId: updatedItem.databaseGroupId,
+        spaceId,
+    });
+
     return updatedItem.databaseGroupId;
+}
+
+export async function getSpaceIdForDatabaseGroupId(
+    context: ServerActionContext,
+    databaseGroupId: DatabaseGroupId,
+): Promise<SpaceId> {
+    const item = (await SpacesTable.getItemIfExists(context, {
+        partitionType: "DatabaseGroup",
+        sortRangeType: "Space",
+        databaseGroupId,
+    })) as SpaceDatabaseGroupItem | null;
+
+    if (item === null) {
+        throw new NotFoundError(`Database group ${databaseGroupId} not found`);
+    }
+    return item.spaceId;
 }

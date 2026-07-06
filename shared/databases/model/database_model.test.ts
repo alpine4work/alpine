@@ -1,4 +1,5 @@
 import sqlite3InitModule from "~/external/sqlite/ext/wasm/jswasm/sqlite3.mjs";
+import {emptyDatabaseTableAccessPolicy} from "~/shared/databases/database_table_access_policy.js";
 import type {DatabaseFieldModel} from "~/shared/databases/model/database_field_model.js";
 import {DatabaseModel} from "~/shared/databases/model/database_root_model.js";
 import {databaseTableSchemaName, sql} from "~/shared/databases/sql.js";
@@ -38,7 +39,7 @@ function attachTableDb(db: SqliteDatabase, tableId: DatabaseTableId): void {
 function createTable(model: DatabaseModel, tableId: DatabaseTableId, name: string) {
     attachTableDb(model.db, tableId);
     runTableMigrations(model.db, tableId);
-    return model.createTable(tableId, name);
+    return model.createTable(tableId, name, emptyDatabaseTableAccessPolicy);
 }
 
 function createRelation(model: DatabaseModel) {

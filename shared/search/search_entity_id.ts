@@ -12,6 +12,7 @@ import {
     AccountId,
     ChannelId,
     ChatId,
+    DatabaseTableId,
     DocumentCommentThreadId,
     DocumentId,
     PostId,
@@ -48,6 +49,7 @@ type SearchEntityIdAxes = {
             | `Document:${DocumentId}`
             | `Channel:${ChannelId}`
             | `Chat:${ChatId}`
+            | `DatabaseTable:${DatabaseTableId}`
             | `Task:${TaskId}`
             | `TaskCollection:${TaskCollectionId}`
             | `Site:${SiteId}`;
@@ -134,6 +136,7 @@ const searchEntityIdTestMap: GetSearchEntityIdActualTestMapType<SearchEntityId> 
     Chat: isId,
     Task: isId,
     TaskCollection: isId,
+    DatabaseTable: isId,
     DocumentComment: isIdAndIdAndMessageIndex,
     Post: isId,
     Site: isId,
@@ -185,6 +188,7 @@ const searchDynamicEntityIdTestMap: GetSearchEntityIdTestMapType<SearchDynamicEn
     Channel: true,
     Chat: true,
     ChatMessage: true,
+    DatabaseTable: true,
     Task: true,
     TaskCollection: true,
     TaskComment: true,
@@ -346,7 +350,11 @@ export const SearchMentionEntityIdSchema = SearchEntityIdSchema.transform<Search
 assertAssignableTypes<SearchMentionEntityId, SearchEntityId>();
 assertEqualTypes<
     SearchMentionEntityId,
-    Exclude<SearchAffinityEntityId, `Account:${AccountId}` | "TaskPersonal"> | `Post:${PostId}`
+    | Exclude<
+          SearchAffinityEntityId,
+          `Account:${AccountId}` | `DatabaseTable:${DatabaseTableId}` | "TaskPersonal"
+      >
+    | `Post:${PostId}`
 >();
 
 /**
@@ -368,6 +376,7 @@ export type SearchDynamicEntityIdObject =
     | {readonly type: "PostComment"; readonly postId: PostId; readonly commentIndex: number}
     | {readonly type: "Chat"; readonly chatId: ChatId}
     | {readonly type: "ChatMessage"; readonly chatId: ChatId; readonly messageIndex: number}
+    | {readonly type: "DatabaseTable"; readonly tableId: DatabaseTableId}
     | {readonly type: "Task"; readonly taskId: TaskId}
     | {readonly type: "TaskCollection"; readonly collectionId: TaskCollectionId}
     | {readonly type: "TaskComment"; readonly taskId: TaskId; readonly commentIndex: number}
@@ -420,6 +429,8 @@ export function parseSearchDynamicEntityId(id: SearchDynamicEntityId): SearchDyn
                 chatId: idPayloadParts[0] as ChatId,
                 messageIndex: parseInt(idPayloadParts[1]!, 10),
             };
+        case "DatabaseTable":
+            return {type: "DatabaseTable", tableId: idPayloadParts[0] as DatabaseTableId};
         case "Task":
             return {type: "Task", taskId: idPayloadParts[0] as TaskId};
         case "TaskCollection":
@@ -463,6 +474,8 @@ export function printSearchDynamicEntityId(
             return `Chat:${idObject.chatId}`;
         case "ChatMessage":
             return `ChatMessage:${idObject.chatId}-${idObject.messageIndex}`;
+        case "DatabaseTable":
+            return `DatabaseTable:${idObject.tableId}`;
         case "Task":
             return `Task:${idObject.taskId}`;
         case "TaskCollection":
@@ -481,6 +494,7 @@ const searchAffinityEntityIdTestMap: GetSearchEntityIdTestMapType<SearchAffinity
     Document: true,
     Channel: true,
     Chat: true,
+    DatabaseTable: true,
     Task: true,
     TaskCollection: true,
     TaskPersonal: true,

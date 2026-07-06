@@ -1,4 +1,6 @@
+import {AccessPolicySchema} from "~/shared/access/access_policy.js";
 import {DatabaseActionRequiresServerError} from "~/shared/databases/database_action_requires_server_error.js";
+import {databaseTableAccessPolicyForCreator} from "~/shared/databases/database_table_access_policy.js";
 import {
     DatabaseFieldConfigSchema,
     getDatabaseFieldProvider,
@@ -14,6 +16,7 @@ import {runJoinTableMigrations, runTableMigrations} from "~/shared/databases/sql
 import {assert} from "~/shared/helpers/control/assert.js";
 import {generateChronologicalId} from "~/shared/id/chronological_id.js";
 import type {
+    AccountId,
     DatabaseFieldId,
     DatabaseRowId,
     DatabaseTableId,
@@ -34,6 +37,7 @@ export interface DatabaseActionServerContext {
      * databaseActions.createTable}.
      */
     attach(tableId: DatabaseTableId): void;
+    getCurrentAccountId(): AccountId | null;
 }
 
 /** Context handed to a database action's `run()`. */
@@ -179,6 +183,8 @@ export const databaseActions = {
         transactionMode: "manual",
         run({db, server, model}, {name}) {
             const tableId = generateChronologicalId<DatabaseTableId>();
+            const creatorAccountId = server().getCurrentAccountId();
+            assert(creatorAccountId !== null, "createTable requires an account actor");
 
             // Attach + migrate the new per-db file before writing any of the table's data or
             // metadata into it. `attach` is a no-op if already attached.
@@ -186,7 +192,11 @@ export const databaseActions = {
             runTableMigrations(db, tableId);
 
             const {table, defaultView} = executeDatabaseActionTransaction(db, () =>
-                model.createTable(tableId, name),
+                model.createTable(
+                    tableId,
+                    name,
+                    databaseTableAccessPolicyForCreator(creatorAccountId),
+                ),
             );
 
             return {tableId: table.id, tableName: table.tableName, viewId: defaultView.id};
@@ -238,6 +248,35 @@ export const databaseActions = {
                     id: tableId,
                     name: model.getTable(tableId).name,
                 })),
+            };
+        },
+    }),
+
+    getTableMetadata: defineDatabaseAction({
+        input: Schema.object({
+            tableId: Schema.id<DatabaseTableId>(),
+        }),
+        output: Schema.object({
+            table: Schema.object({
+                id: Schema.id<DatabaseTableId>(),
+                name: Schema.string,
+                tableName: Schema.string,
+                nameFieldId: Schema.id<DatabaseFieldId>(),
+                accessPolicy: AccessPolicySchema,
+            }).nullable(),
+        }),
+        writeLevel: "none",
+        run({model}, {tableId}) {
+            const table = model.getTableIfExists(tableId);
+            if (table === null) return {table: null};
+            return {
+                table: {
+                    id: table.id,
+                    name: table.name,
+                    tableName: table.tableName,
+                    nameFieldId: table.nameFieldId,
+                    accessPolicy: table.accessPolicy,
+                },
             };
         },
     }),

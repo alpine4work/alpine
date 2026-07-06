@@ -17,9 +17,11 @@ ts_project(
         "//server/context",
         "//server/helpers",
         "//server/jobs/core",
+        "//server/spaces",
         "//shared/context",
         "//shared/error",
         "//shared/helpers",
+        "//shared/id",
         "//shared/tracer",
     ],
 )

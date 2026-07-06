@@ -13,6 +13,7 @@ export function getAuthorFromSearchEntityIfExists(
             return null;
         case "Channel":
         case "Chat":
+        case "DatabaseTable":
         case "Document":
         case "Site":
         case "Static":

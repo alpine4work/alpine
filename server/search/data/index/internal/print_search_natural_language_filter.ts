@@ -143,6 +143,8 @@ function printEntityTypes(entityTypes: ReadonlyArray<SearchDynamicEntityIdObject
                 return "documents";
             case "DocumentComment":
                 return "document comments";
+            case "DatabaseTable":
+                return "databases";
             case "Post":
                 return "posts";
             case "PostComment":

@@ -12,6 +12,7 @@ import {
 import type {ReadonlyDatabasePageSet} from "~/shared/databases/database_protocol_schemas.js";
 import type {InstalledVfs, VfsFile} from "~/shared/databases/install_vfs.js";
 import {installVfs} from "~/shared/databases/install_vfs.js";
+import {DatabaseModel} from "~/shared/databases/model/database_root_model.js";
 import {
     type SqlQuery,
     databaseTableSchemaName,
@@ -40,7 +41,7 @@ import {assert} from "~/shared/helpers/control/assert.js";
 import {captureResult, unwrapResult} from "~/shared/helpers/control/capture_result.js";
 import type {Result} from "~/shared/helpers/control/result.js";
 import {getOrSetDefaultMapValue} from "~/shared/helpers/map/get_or_set_default_map_value.js";
-import type {DatabaseTableId} from "~/shared/id/types/id_types.js";
+import type {AccountId, DatabaseTableId} from "~/shared/id/types/id_types.js";
 
 const vfsNamePrefix = "alpine-database";
 let vfsCounter = 0;
@@ -177,6 +178,9 @@ export class Database {
     private currentReadSet: Map<DatabaseTableId, Set<number>> | null = null;
     private currentWriteSet: Map<DatabaseTableId, Set<number>> | null = null;
     private readonly trackedExecutions = new Set<DatabaseTrackedExecutionImpl<any>>();
+    private hasServerMainTableChangeTriggers = false;
+    private readonly serverTableChangeTriggerTableIds = new Set<DatabaseTableId>();
+    private currentActionAccountId: AccountId | null = null;
     /**
      * Server-only action capabilities, or `null` on the client. Lets server-only
      * schema actions (e.g. createTable) attach their own per-table file mid-execute;
@@ -190,7 +194,12 @@ export class Database {
         isServer: boolean,
     ) {
         this.storage = storage;
-        this.serverContext = isServer ? {attach: tableId => this.attachIfNeeded(tableId)} : null;
+        this.serverContext = isServer
+            ? {
+                  attach: tableId => this.attachIfNeeded(tableId),
+                  getCurrentAccountId: () => this.currentActionAccountId,
+              }
+            : null;
         this.tables.set(databaseMainTableId, new DatabaseTableState());
         // SQLite reserves the schema name "main" for `aDb[0]`, so the connection's main
         // table is always reachable under that name.
@@ -307,14 +316,103 @@ export class Database {
      */
     executeAction<N extends DatabaseActionName>(
         actionObject: DatabaseActionObject<N>,
+        options?: {currentAccountId?: AccountId | null},
     ): DatabaseExecuteActionResult<N> {
-        const action = databaseActions[actionObject.name];
-        const ctx = createDatabaseActionContext(this.db, this.serverContext);
-        const {result, readPages, writtenPages} = this.execute(
-            () => executeDatabaseAction(actionObject, ctx),
-            {allowWrites: action.writeLevel},
-        );
-        return {result: result as DatabaseActionOutput<N>, readPages, writtenPages};
+        const previousActionAccountId = this.currentActionAccountId;
+        this.currentActionAccountId = options?.currentAccountId ?? null;
+        try {
+            const action = databaseActions[actionObject.name];
+            const ctx = createDatabaseActionContext(this.db, this.serverContext);
+            const {result, readPages, writtenPages} = this.execute(
+                () => executeDatabaseAction(actionObject, ctx),
+                {allowWrites: action.writeLevel},
+            );
+            return {result: result as DatabaseActionOutput<N>, readPages, writtenPages};
+        } finally {
+            this.currentActionAccountId = previousActionAccountId;
+        }
+    }
+
+    /**
+     * Install server-only temp triggers that report user table metadata changes.
+     *
+     * The triggers are intentionally connection-local. The durable object uses them to
+     * learn which table metadata should be replicated after an action commits; clients
+     * never install them and they are never persisted into database files.
+     */
+    _installServerTableChangeCapture(recordTableChanged: (tableId: DatabaseTableId) => void): void {
+        assert(this.serverContext !== null, "table change capture is server-only");
+
+        this.db.createFunction("alpine_record_table_changed", {
+            xFunc: (_ctxPtr: number, tableId: unknown) => {
+                assert(typeof tableId === "string", "table id must be a string");
+                recordTableChanged(tableId as DatabaseTableId);
+                return 0;
+            },
+            arity: 1,
+        });
+
+        this.refreshServerTableChangeTriggers();
+    }
+
+    /**
+     * Recreate table-change temp triggers after schema changes.
+     *
+     * A newly-created table is captured by the main `_alpine_tables` trigger during
+     * the action that creates it. This method makes future updates to that table's
+     * `_alpine_table` singleton row observable too.
+     */
+    refreshServerTableChangeTriggers(): void {
+        if (this.serverContext === null) return;
+
+        if (!this.hasServerMainTableChangeTriggers) {
+            sql`
+                CREATE TEMP TRIGGER IF NOT EXISTS _alpine_table_change_main_insert AFTER INSERT ON main._alpine_tables WHEN NEW.kind = 'table' BEGIN
+                SELECT
+                    alpine_record_table_changed (NEW.id);
+
+                END
+            `.exec(this.db);
+
+            sql`
+                CREATE TEMP TRIGGER IF NOT EXISTS _alpine_table_change_main_update AFTER
+                UPDATE ON main._alpine_tables WHEN NEW.kind = 'table' BEGIN
+                SELECT
+                    alpine_record_table_changed (NEW.id);
+
+                END
+            `.exec(this.db);
+            this.hasServerMainTableChangeTriggers = true;
+        }
+
+        const model = new DatabaseModel(this.db);
+
+        for (const tableId of model.getTableIds("table")) {
+            if (!this.tables.has(tableId)) continue;
+            if (this.serverTableChangeTriggerTableIds.has(tableId)) continue;
+            const schema = sql.identifier(databaseTableSchemaName(tableId));
+            const triggerNamePrefix = `_${tableId}`;
+            sql`
+                CREATE TEMP TRIGGER IF NOT EXISTS ${sql.identifier(
+                    `${triggerNamePrefix}_alpine_table_change_insert`,
+                )} AFTER INSERT ON ${schema}._alpine_table BEGIN
+                SELECT
+                    alpine_record_table_changed (NEW.id);
+
+                END
+            `.exec(this.db);
+            sql`
+                CREATE TEMP TRIGGER IF NOT EXISTS ${sql.identifier(
+                    `${triggerNamePrefix}_alpine_table_change_update`,
+                )} AFTER
+                UPDATE ON ${schema}._alpine_table BEGIN
+                SELECT
+                    alpine_record_table_changed (NEW.id);
+
+                END
+            `.exec(this.db);
+            this.serverTableChangeTriggerTableIds.add(tableId);
+        }
     }
 
     /**

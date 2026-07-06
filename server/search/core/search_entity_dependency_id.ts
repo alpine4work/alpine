@@ -4,6 +4,7 @@ import {
     AccountId,
     ChannelId,
     ChatId,
+    DatabaseTableId,
     DocumentId,
     PostId,
     SiteId,
@@ -46,6 +47,7 @@ export type SearchEntityDependencyId =
     | `Channel:${ChannelId}:Authorization`
     | `Channel:${ChannelId}:Preview`
     | `Post:${PostId}:Title`
+    | `DatabaseTable:${DatabaseTableId}:Name`
     | `Chat:${ChatId}`
     | `Chat:${ChatId}:Definition`
     | `Task:${TaskId}:Authorization`

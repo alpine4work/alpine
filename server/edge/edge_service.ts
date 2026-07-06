@@ -81,7 +81,11 @@ type EdgeServiceRoute =
     | {type: "MyAccountService"; accountId: string; pathname: string}
     | {type: "TaskNotesCollaborationService"; taskId: string; pathname: string}
     | {type: "SiteRealtimeService"; siteId: string; pathname: string}
-    | {type: "DatabaseGroupService"; databaseGroupId: string; pathname: string}
+    | {
+          type: "DatabaseGroupService";
+          databaseGroupId: string;
+          pathname: string;
+      }
     | {type: "TaskRealtimeService"; spaceId: SpaceId}
     | {type: "LoadTaskQueries"; spaceId: SpaceId}
     | {type: "UploadFile"; spaceId: SpaceId}
@@ -380,13 +384,13 @@ async function handleFetch(
             }
             case "database-groups": {
                 const databaseGroupId = pathSegments[1];
-                if (databaseGroupId === undefined) break;
-
                 const pathname = `/${pathSegments.slice(2).join("/")}`;
-
                 routeString = `/api/durable-objects/database-groups/:databaseGroupId${
                     pathname !== "/" ? "/*" : ""
                 }`;
+
+                if (databaseGroupId === undefined) break;
+
                 route = {type: "DatabaseGroupService", databaseGroupId, pathname};
                 break;
             }

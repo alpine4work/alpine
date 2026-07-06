@@ -16,7 +16,7 @@ beforeEach(() => {
 
 describe("DatabaseDurableObjectStorage", () => {
     test("construct, write pages, read them back", () => {
-        const doStorage = new DatabaseDurableObjectStorage(storage.sql);
+        const doStorage = new DatabaseDurableObjectStorage(storage);
 
         const page = new Uint8Array(sqlitePageSize);
         page[0] = 0xab;
@@ -33,13 +33,13 @@ describe("DatabaseDurableObjectStorage", () => {
     });
 
     test("readPage returns null for unwritten index", () => {
-        const doStorage = new DatabaseDurableObjectStorage(storage.sql);
+        const doStorage = new DatabaseDurableObjectStorage(storage);
 
         expect(doStorage.readPage(databaseMainTableId, 99)).toBeNull();
     });
 
     test("getFileSize reflects written pages", () => {
-        const doStorage = new DatabaseDurableObjectStorage(storage.sql);
+        const doStorage = new DatabaseDurableObjectStorage(storage);
 
         expect(doStorage.getFileSize(databaseMainTableId)).toBe(0);
 
@@ -56,7 +56,7 @@ describe("DatabaseDurableObjectStorage", () => {
     });
 
     test("truncate makes pages at or beyond the threshold disappear", () => {
-        const doStorage = new DatabaseDurableObjectStorage(storage.sql);
+        const doStorage = new DatabaseDurableObjectStorage(storage);
 
         writePagesFor(
             doStorage,
@@ -80,7 +80,7 @@ describe("DatabaseDurableObjectStorage", () => {
     });
 
     test("readPage returns null after truncate", () => {
-        const doStorage = new DatabaseDurableObjectStorage(storage.sql);
+        const doStorage = new DatabaseDurableObjectStorage(storage);
 
         writePagesFor(
             doStorage,
@@ -93,7 +93,7 @@ describe("DatabaseDurableObjectStorage", () => {
     });
 
     test("getFileSize is correct after truncate", () => {
-        const doStorage = new DatabaseDurableObjectStorage(storage.sql);
+        const doStorage = new DatabaseDurableObjectStorage(storage);
 
         writePagesFor(
             doStorage,
@@ -111,7 +111,7 @@ describe("DatabaseDurableObjectStorage", () => {
     });
 
     test("writePages after truncate correctly extends file size", () => {
-        const doStorage = new DatabaseDurableObjectStorage(storage.sql);
+        const doStorage = new DatabaseDurableObjectStorage(storage);
 
         writePagesFor(
             doStorage,
@@ -136,7 +136,7 @@ describe("DatabaseDurableObjectStorage", () => {
     test("writePages and truncate in the same call share a single version", () => {
         // Pin the contract that one writePages call produces exactly one version,
         // regardless of whether it carries pages, truncates, or both.
-        const doStorage = new DatabaseDurableObjectStorage(storage.sql);
+        const doStorage = new DatabaseDurableObjectStorage(storage);
 
         writePagesFor(
             doStorage,
@@ -155,7 +155,7 @@ describe("DatabaseDurableObjectStorage", () => {
     });
 
     test("writePages returns the version it stamped onto the rows", () => {
-        const doStorage = new DatabaseDurableObjectStorage(storage.sql);
+        const doStorage = new DatabaseDurableObjectStorage(storage);
 
         const returned = writePagesFor(
             doStorage,
@@ -168,7 +168,7 @@ describe("DatabaseDurableObjectStorage", () => {
     });
 
     test("consecutive writes have strictly increasing versions", () => {
-        const doStorage = new DatabaseDurableObjectStorage(storage.sql);
+        const doStorage = new DatabaseDurableObjectStorage(storage);
 
         const versions: Array<number> = [];
         for (let i = 0; i < 50; i++) {
@@ -187,7 +187,7 @@ describe("DatabaseDurableObjectStorage", () => {
     });
 
     test("truncate version is strictly greater than prior writePages version", () => {
-        const doStorage = new DatabaseDurableObjectStorage(storage.sql);
+        const doStorage = new DatabaseDurableObjectStorage(storage);
 
         const writeVersion = writePagesFor(
             doStorage,
@@ -202,7 +202,7 @@ describe("DatabaseDurableObjectStorage", () => {
     });
 
     test("readPage returns the latest version when a page is rewritten", () => {
-        const doStorage = new DatabaseDurableObjectStorage(storage.sql);
+        const doStorage = new DatabaseDurableObjectStorage(storage);
 
         const first = new Uint8Array(sqlitePageSize);
         first[0] = 0x11;
@@ -220,14 +220,14 @@ describe("DatabaseDurableObjectStorage", () => {
         // Seed the underlying storage via one instance, then construct a fresh instance
         // over the same SqlStorage (simulating a Durable Object restart). The next write
         // must produce a version strictly greater than the previously-persisted one.
-        const first = new DatabaseDurableObjectStorage(storage.sql);
+        const first = new DatabaseDurableObjectStorage(storage);
         const seedVersion = writePagesFor(
             first,
             databaseMainTableId,
             new Map([[0, new Uint8Array(sqlitePageSize)]]),
         );
 
-        const reloaded = new DatabaseDurableObjectStorage(storage.sql);
+        const reloaded = new DatabaseDurableObjectStorage(storage);
         const nextVersion = writePagesFor(
             reloaded,
             databaseMainTableId,
@@ -238,7 +238,7 @@ describe("DatabaseDurableObjectStorage", () => {
     });
 
     test("getFileSize ignores tombstones in the interior of the file", () => {
-        const doStorage = new DatabaseDurableObjectStorage(storage.sql);
+        const doStorage = new DatabaseDurableObjectStorage(storage);
 
         // Write three pages, then tombstone the middle page by writing a tombstone row
         // directly so we can probe the size query without going through truncate (which
@@ -256,7 +256,7 @@ describe("DatabaseDurableObjectStorage", () => {
         // Force a fresh `getFileSize` query (don't trust the fileSizes cache) by
         // constructing a new instance over the same backing storage. Then write a
         // tombstone for page 1 directly.
-        const reloaded = new DatabaseDurableObjectStorage(storage.sql);
+        const reloaded = new DatabaseDurableObjectStorage(storage);
         const sqliteIdRow = storage.sql
             .exec(
                 "SELECT sqlite_id FROM database_table_ids WHERE database_table_id = ?",
@@ -278,7 +278,7 @@ describe("DatabaseDurableObjectStorage", () => {
     });
 
     test("pages from different tables are isolated", () => {
-        const doStorage = new DatabaseDurableObjectStorage(storage.sql);
+        const doStorage = new DatabaseDurableObjectStorage(storage);
         const tableA = generateChronologicalId<DatabaseTableId>();
         const tableB = generateChronologicalId<DatabaseTableId>();
 
@@ -295,7 +295,7 @@ describe("DatabaseDurableObjectStorage", () => {
     });
 
     test("file size is tracked per table", () => {
-        const doStorage = new DatabaseDurableObjectStorage(storage.sql);
+        const doStorage = new DatabaseDurableObjectStorage(storage);
         const tableA = generateChronologicalId<DatabaseTableId>();
         const tableB = generateChronologicalId<DatabaseTableId>();
 
@@ -314,7 +314,7 @@ describe("DatabaseDurableObjectStorage", () => {
     });
 
     test("versions are global across tables", () => {
-        const doStorage = new DatabaseDurableObjectStorage(storage.sql);
+        const doStorage = new DatabaseDurableObjectStorage(storage);
         const tableA = generateChronologicalId<DatabaseTableId>();
         const tableB = generateChronologicalId<DatabaseTableId>();
 
@@ -328,7 +328,7 @@ describe("DatabaseDurableObjectStorage", () => {
     });
 
     test("multi-table writePages stamps every page with the same version", () => {
-        const doStorage = new DatabaseDurableObjectStorage(storage.sql);
+        const doStorage = new DatabaseDurableObjectStorage(storage);
         const tableA = generateChronologicalId<DatabaseTableId>();
         const tableB = generateChronologicalId<DatabaseTableId>();
 
@@ -345,7 +345,7 @@ describe("DatabaseDurableObjectStorage", () => {
     });
 
     test("readPage on unknown table returns null without registering an id", () => {
-        const doStorage = new DatabaseDurableObjectStorage(storage.sql);
+        const doStorage = new DatabaseDurableObjectStorage(storage);
         const unknown = generateChronologicalId<DatabaseTableId>();
 
         expect(doStorage.readPage(unknown, 0)).toBeNull();

@@ -1,4 +1,7 @@
 import {type Database} from "~/external/sqlite/ext/wasm/jswasm/sqlite3.mjs";
+import {AccessPolicySchema} from "~/shared/access/access_policy.js";
+import {emptyDatabaseTableAccessPolicy} from "~/shared/databases/database_table_access_policy.js";
+import {SqlJsonSchema} from "~/shared/databases/model/sqlite_schema.js";
 import {SqlQuery, databaseTableSchemaName, sql} from "~/shared/databases/sql.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import type {DatabaseTableId} from "~/shared/id/types/id_types.js";
@@ -65,6 +68,9 @@ export type TableSqliteMigration = (db: Database, tableId: DatabaseTableId) => v
  */
 export function tableSqliteMigrations(tableId: DatabaseTableId): ReadonlyArray<SqliteMigration> {
     const schema = sql.identifier(databaseTableSchemaName(tableId));
+    const emptyAccessPolicy = SqlJsonSchema(AccessPolicySchema).serialize(
+        emptyDatabaseTableAccessPolicy,
+    );
     return [
         sql`
             CREATE TABLE ${schema}._alpine_fields (
@@ -108,6 +114,40 @@ export function tableSqliteMigrations(tableId: DatabaseTableId): ReadonlyArray<S
                 CHECK (id = ${sqlStringLiteral(tableId)})
             ) STRICT,
             WITHOUT ROWID;
+        `,
+        sql`
+            CREATE TABLE ${schema}._alpine_table_new (
+                id TEXT PRIMARY KEY,
+                name TEXT NOT NULL,
+                table_name TEXT NOT NULL,
+                name_field_id TEXT NOT NULL REFERENCES _alpine_fields (id) DEFERRABLE INITIALLY DEFERRED,
+                access_policy BLOB NOT NULL,
+                CHECK (id = ${sqlStringLiteral(tableId)}),
+                CHECK (JSON_VALID(access_policy, 8))
+            ) STRICT,
+            WITHOUT ROWID;
+
+            INSERT INTO
+                ${schema}._alpine_table_new (
+                    id,
+                    name,
+                    table_name,
+                    name_field_id,
+                    access_policy
+                )
+            SELECT
+                id,
+                name,
+                table_name,
+                name_field_id,
+                jsonb (${emptyAccessPolicy})
+            FROM
+                ${schema}._alpine_table;
+
+            DROP TABLE ${schema}._alpine_table;
+
+            ALTER TABLE ${schema}._alpine_table_new
+            RENAME TO _alpine_table;
         `,
     ];
 }

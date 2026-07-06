@@ -1,8 +1,10 @@
 import {assertOrderKey} from "~/shared/helpers/sort/order_key.js";
+import {generateChronologicalId} from "~/shared/id/chronological_id.js";
 import {generateId} from "~/shared/id/id.js";
 import {
     ChannelId,
     ChatId,
+    DatabaseTableId,
     DocumentId,
     SiteId,
     TaskCollectionId,
@@ -51,6 +53,20 @@ describe("SearchFavoriteEntityResultModel schema roundtrip", () => {
         );
         expect(result.model).toBeInstanceOf(SearchEntityModel);
         expect(result.model.getSearchEntityId()).toBe(`Document:${documentId}`);
+    });
+
+    test("DatabaseTable", () => {
+        const tableId = generateChronologicalId<DatabaseTableId>();
+        const result = roundtrip(
+            SearchAffinityEntityModel.new({
+                type: "DatabaseTable",
+                title: "database",
+                table: {
+                    id: tableId,
+                },
+            }),
+        );
+        expect(result.model.getSearchEntityId()).toBe(`DatabaseTable:${tableId}`);
     });
 
     test("Channel", () => {

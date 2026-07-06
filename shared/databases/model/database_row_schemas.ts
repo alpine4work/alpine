@@ -1,3 +1,4 @@
+import {DatabaseTableAccessPolicySqlSchema} from "~/shared/databases/database_table_access_policy.js";
 import {DatabaseFieldConfigSqlSchema} from "~/shared/databases/fields/all_database_field_providers.js";
 import {SqlBooleanSchema} from "~/shared/databases/model/sqlite_schema.js";
 import {DatabaseFieldId, DatabaseTableId, DatabaseViewId} from "~/shared/id/types/id_types.js";
@@ -11,6 +12,7 @@ export const DatabaseTableRow = {
     name: Schema.string,
     tableName: Schema.string.originalPropertyKey("table_name"),
     nameFieldId: Schema.id<DatabaseFieldId>().originalPropertyKey("name_field_id"),
+    accessPolicy: DatabaseTableAccessPolicySqlSchema.originalPropertyKey("access_policy"),
 };
 export type DatabaseTableRow = ObjectSchemaConfigType<typeof DatabaseTableRow>;
 

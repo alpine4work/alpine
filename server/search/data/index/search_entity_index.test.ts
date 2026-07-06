@@ -19,6 +19,7 @@ import {LanguageModelsNoopDevelopmentContextModule} from "~/server/language_mode
 import {opensearchIndexEnglishWithWordDelimiterGraphAnalyzer} from "~/server/opensearch/helpers/opensearch_index_english_with_word_delimiter_graph_analyzer.js";
 import {opensearchClientExecuteOperationTestCounter} from "~/server/opensearch/opensearch_client.js";
 import {OpensearchQueryValue} from "~/server/opensearch/opensearch_query_clause.js";
+import {indexDatabaseTableSearchEntity} from "~/server/search/data/index/index_database_table_search_entity.js";
 import {getDocumentSearchEntityTestCheckpoint} from "~/server/search/data/index/internal/get_search_entity.js";
 import {
     getSearchEntityIfPossible,
@@ -70,8 +71,9 @@ import {getObjectEntriesWithKeyofType} from "~/shared/helpers/object/get_object_
 import {assertOrderKey} from "~/shared/helpers/sort/order_key.js";
 import {defaultCompareStrings} from "~/shared/helpers/string/default_compare_strings.js";
 import {quote} from "~/shared/helpers/string/quote.js";
+import {generateChronologicalId} from "~/shared/id/chronological_id.js";
 import {generateId} from "~/shared/id/id.js";
-import {ContentEditorClientId, DocumentId} from "~/shared/id/types/id_types.js";
+import {ContentEditorClientId, DatabaseTableId, DocumentId} from "~/shared/id/types/id_types.js";
 import {SearchDynamicEntityId} from "~/shared/search/search_entity_id.js";
 import {SearchAffinityEntityModel, SearchEntityModel} from "~/shared/search/search_entity_model.js";
 import {
@@ -141,6 +143,97 @@ afterEach(() => {
     const hadNoTimers = import.meta.jest.getTimerCount() === 0;
     import.meta.jest.clearAllTimers();
     assert(hadNoTimers, "Expected all timers to be cleaned up by the end of each test");
+});
+
+test("database table search result respects its access policy", async () => {
+    const space = await TestSpace.create(context);
+    const creator = await space.createSession();
+    const other = await space.createSession();
+    const tableId = generateChronologicalId<DatabaseTableId>();
+
+    await indexDatabaseTableSearchEntity(creator.action(), {
+        spaceId: space.id,
+        tableId,
+        name: "Roadmap Grid",
+        accessPolicy: {
+            type: "Local",
+            accountGrantById: new Map([[creator.account.id, {level: "Manage", generation: 0}]]),
+            defaultGrant: null,
+            urlGrant: null,
+        },
+        isDeleted: false,
+    });
+    await context.opensearch.refresh(SearchEntityKeywordIndex);
+
+    const input = {
+        spaceId: space.id,
+        queryText: "Roadmap",
+        limit: 10,
+        timeZone: defaultTimeZone,
+        currentTime: new Date(),
+    };
+
+    expect({
+        creator: (await searchByKeywords(creator.action(), input)).map(result => result.id),
+        other: (await searchByKeywords(other.action(), input)).map(result => result.id),
+    }).toEqual({
+        creator: [`DatabaseTable:${tableId}`],
+        other: [],
+    });
+});
+
+test("database table search result can appear by affinity", async () => {
+    const space = await TestSpace.create(context);
+    const creator = await space.createSession();
+    const other = await space.createSession();
+    const tableId = generateChronologicalId<DatabaseTableId>();
+
+    await indexDatabaseTableSearchEntity(creator.action(), {
+        spaceId: space.id,
+        tableId,
+        name: "Roadmap Grid",
+        accessPolicy: {
+            type: "Local",
+            accountGrantById: new Map([[creator.account.id, {level: "Manage", generation: 0}]]),
+            defaultGrant: null,
+            urlGrant: null,
+        },
+        isDeleted: false,
+    });
+    await context.opensearch.refresh(SearchEntityKeywordIndex);
+
+    await runAllPromises([
+        markSearchAffinityEntityInteraction(creator.action(), {
+            spaceId: space.id,
+            entityId: `DatabaseTable:${tableId}`,
+            interaction: {type: "HighIntentUpdate"},
+            siteId: null,
+        }),
+        markSearchAffinityEntityInteraction(other.action(), {
+            spaceId: space.id,
+            entityId: `DatabaseTable:${tableId}`,
+            interaction: {type: "HighIntentUpdate"},
+            siteId: null,
+        }),
+    ]);
+
+    expect({
+        creator: (await searchByAffinity(creator.action(), space.id)).results,
+        other: (await searchByAffinity(other.action(), space.id)).results,
+    }).toEqual({
+        creator: [
+            new SearchAffinityEntityResultModel({
+                score: expect.closeTo(3),
+                favoriteOrderKey: null,
+                model: SearchAffinityEntityModel.new({
+                    type: "DatabaseTable",
+                    title: "Roadmap Grid",
+                    table: {id: tableId},
+                }),
+            }),
+        ],
+        other: [],
+    });
 });
 
 test("can index and reindex a document", async () => {

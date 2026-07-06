@@ -47,6 +47,7 @@ const kinesisTracerStreamName =
 export type LambdaSystemActionContext = Context<
     LambdaActionContextModules & {actor: SystemActorContextModule}
 >;
+
 export function createLambdaJobQueueConsumerHandler<TJobDescription extends JobDescription>({
     processJob,
     serviceName,

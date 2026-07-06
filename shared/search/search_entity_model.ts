@@ -10,6 +10,7 @@ import {
     AccountId,
     ChannelId,
     ChatId,
+    DatabaseTableId,
     DocumentCommentThreadId,
     DocumentId,
     PostId,
@@ -96,6 +97,15 @@ export const SearchDocumentEntityModelDataSchema = SearchEntityModelBaseDataSche
     }),
 );
 
+export const SearchDatabaseTableEntityModelDataSchema = SearchEntityModelBaseDataSchema.merge(
+    Schema.object({
+        type: Schema.value("DatabaseTable"),
+        table: Schema.object({
+            id: Schema.id<DatabaseTableId>(),
+        }),
+    }),
+);
+
 export const SearchTaskEntityModelDataSchema = SearchEntityModelBaseDataSchema.merge(
     Schema.object({
         type: Schema.value("Task"),
@@ -160,6 +170,7 @@ const SearchAffinityEntityModelDataUnionSchema = {
     ),
     Channel: SearchChannelEntityModelDataSchema,
     Chat: SearchChatEntityModelDataSchema,
+    DatabaseTable: SearchDatabaseTableEntityModelDataSchema,
     Document: SearchDocumentEntityModelDataSchema,
     Task: SearchTaskEntityModelDataSchema,
     TaskCollection: SearchTaskCollectionEntityModelDataSchema,
@@ -358,6 +369,8 @@ export function printSearchEntityModelId(data: SearchEntityModelData): SearchEnt
             return `Chat:${data.chat.id}`;
         case "Document":
             return `Document:${data.document.id}`;
+        case "DatabaseTable":
+            return `DatabaseTable:${data.table.id}`;
         case "Post":
             return `Post:${data.post.id}`;
         case "Task":
@@ -426,6 +439,12 @@ export function mergeSearchEntityData(
             ) {
                 return oldEntity;
             }
+
+            return newEntity;
+        }
+        case "DatabaseTable": {
+            assert(newEntity.type === oldEntity.type);
+            if (oldEntity.title === newEntity.title) return oldEntity;
 
             return newEntity;
         }
