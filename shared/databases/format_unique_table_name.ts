@@ -1,4 +1,5 @@
 import {slugifySqlName} from "~/shared/databases/internal/slugify_sql_name.js";
+import type {DatabaseModel} from "~/shared/databases/model/database_root_model.js";
 import type {DatabaseTableId} from "~/shared/id/types/id_types.js";
 
 /**
@@ -9,29 +10,25 @@ import type {DatabaseTableId} from "~/shared/id/types/id_types.js";
  * attach limit). Pass `excludeTableId` when renaming so a rename to a slug variant
  * of the table's current name resolves to that same name.
  *
- * Lives in the action layer: `hashWithPrivateSalt` is
- * `DatabaseActionServerContext`'s method of the same name, so calling this on the
- * client throws `DatabaseActionRequiresServerError`, routing the action to the
- * server — only the group's durable object holds the salt. The resolved name and
- * hash are then passed into the model together, keeping them consistent by
+ * Server-only: hashing uses `model.ctx.server()`'s private-salt hasher, so calling
+ * this on the client throws `DatabaseActionRequiresServerError`, routing the
+ * action to the server — only the group's durable object holds the salt. The
+ * resolved name and hash are returned together, keeping them consistent by
  * construction.
  */
 export function formatUniqueTableName({
     model,
-    hashWithPrivateSalt,
     name,
     excludeTableId,
 }: {
-    model: {
-        isTableNameHashTaken(tableNameHash: string, excludeTableId?: DatabaseTableId): boolean;
-    };
-    hashWithPrivateSalt: (value: string) => string;
+    model: DatabaseModel;
     name: string;
     excludeTableId?: DatabaseTableId;
 }): {tableName: string; tableNameHash: string} {
+    const server = model.ctx.server();
     const slug = slugifySqlName(name);
     const resolve = (candidate: string) => {
-        const tableNameHash = hashWithPrivateSalt(candidate);
+        const tableNameHash = server.hashWithPrivateSalt(candidate);
         if (model.isTableNameHashTaken(tableNameHash, excludeTableId)) return null;
         return {tableName: candidate, tableNameHash};
     };

@@ -1,7 +1,7 @@
 import sqlite3InitModule, {Database} from "~/external/sqlite/ext/wasm/jswasm/sqlite3.mjs";
 import {AccessPolicySchema} from "~/shared/access/access_policy.js";
+import type {DatabaseActionContext} from "~/shared/databases/database_action_context.js";
 import {
-    type DatabaseActionContext,
     type DatabaseActionInput,
     type DatabaseActionName,
     type DatabaseActionOutput,

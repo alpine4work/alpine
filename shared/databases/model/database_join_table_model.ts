@@ -59,13 +59,12 @@ export class DatabaseJoinTableModel extends DatabaseSchemaScopedBaseModel {
         return sql.identifier(this.targetPositionColumnName);
     }
 
-    ensureTableNameIsUpToDate(hashWithPrivateSalt: (value: string) => string) {
+    ensureTableNameIsUpToDate() {
         const sourceName = this.root.getTable(this.sourceTableId).getField(this.sourceFieldId).name;
         const targetName = this.root.getTable(this.targetTableId).getField(this.targetFieldId).name;
 
         const {tableName: joinTableName, tableNameHash} = formatUniqueTableName({
             model: this.root,
-            hashWithPrivateSalt,
             name: `${sourceName} ${targetName}`,
             excludeTableId: this.id,
         });

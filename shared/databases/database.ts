@@ -1,10 +1,10 @@
 import type {Sqlite3Static, WasmPointer} from "~/external/sqlite/ext/wasm/jswasm/sqlite3.mjs";
 import sqlite3InitModule from "~/external/sqlite/ext/wasm/jswasm/sqlite3.mjs";
+import type {DatabaseActionServerContext} from "~/shared/databases/database_action_context.js";
 import {
     type DatabaseActionName,
     type DatabaseActionObject,
     type DatabaseActionOutput,
-    type DatabaseActionServerContext,
     createDatabaseActionContext,
     databaseActions,
     executeDatabaseAction,

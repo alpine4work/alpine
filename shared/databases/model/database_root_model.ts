@@ -1,4 +1,9 @@
 import type {AccessPolicy} from "~/shared/access/access_policy.js";
+import type {
+    DatabaseActionContext,
+    DatabaseActionServerContext,
+} from "~/shared/databases/database_action_context.js";
+import {DatabaseActionRequiresServerError} from "~/shared/databases/database_action_requires_server_error.js";
 import {DatabaseTableAccessPolicySqlSchema} from "~/shared/databases/database_table_access_policy.js";
 import {formatUniqueSqlName} from "~/shared/databases/internal/format_unique_sql_name.js";
 import type {DatabaseFieldModel} from "~/shared/databases/model/database_field_model.js";
@@ -19,7 +24,32 @@ import {DatabaseFieldId, DatabaseTableId, DatabaseViewId} from "~/shared/id/type
 import {Schema} from "~/shared/schema/schema.js";
 
 export class DatabaseModel {
-    constructor(readonly db: SqliteDatabase) {}
+    /**
+     * The action context this model runs in — `ctx.model` is this model, and
+     * `ctx.server()` exposes server-only capabilities (the salted name hasher,
+     * attach). On the client `ctx.server()` throws
+     * `DatabaseActionRequiresServerError`, routing the calling action to the server.
+     * Omit `server` for read-only constructions (e.g. change-trigger refresh) that
+     * never touch server-only paths.
+     */
+    readonly ctx: DatabaseActionContext;
+
+    constructor(db: SqliteDatabase, server: DatabaseActionServerContext | null = null) {
+        this.ctx = {
+            db,
+            server: () => {
+                if (server === null) {
+                    throw new DatabaseActionRequiresServerError("action is server-only");
+                }
+                return server;
+            },
+            model: this,
+        };
+    }
+
+    get db(): SqliteDatabase {
+        return this.ctx.db;
+    }
 
     getTableIds(kind: DatabaseTableKind | "all") {
         const whereClause =

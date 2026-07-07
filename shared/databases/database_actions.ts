@@ -1,4 +1,8 @@
 import {AccessPolicySchema} from "~/shared/access/access_policy.js";
+import type {
+    DatabaseActionContext,
+    DatabaseActionServerContext,
+} from "~/shared/databases/database_action_context.js";
 import {DatabaseActionRequiresServerError} from "~/shared/databases/database_action_requires_server_error.js";
 import {databaseTableAccessPolicyForCreator} from "~/shared/databases/database_table_access_policy.js";
 import {
@@ -27,56 +31,11 @@ import {LabelStringSchema} from "~/shared/schema/helpers/label_string_schema.js"
 import {OrderKeySchema} from "~/shared/schema/helpers/order_key_schema.js";
 import {type ObjectSchema, Schema, type SchemaType} from "~/shared/schema/schema.js";
 
-/**
- * Server-only capabilities. Accessing these on the client causes the action to
- * fall back to the server.
- */
-export interface DatabaseActionServerContext {
-    /**
-     * Attach a per-table database file (no-op if already attached) so the action can
-     * create or write to it. Used by server-only schema actions like {@link
-     * databaseActions.createTable}.
-     */
-    attach(tableId: DatabaseTableId): void;
-    getCurrentAccountId(): AccountId | null;
-    /**
-     * HMAC of `value` keyed by the database group's private salt (see
-     * `hashWithPrivateSalt` in `shared/databases`). Server-only because the salt never
-     * leaves the group's durable object. Maintains the registry's `table_name_hash`
-     * uniqueness index without disclosing table names to group members who lack access
-     * to the table.
-     */
-    hashWithPrivateSalt(value: string): string;
-}
-
-/** Context handed to a database action's `run()`. */
-export interface DatabaseActionContext {
-    /** The SQLite handle the action runs against. */
-    db: SqliteDatabase;
-    /**
-     * Server-only capabilities. Calling this on the client will throw a {@link
-     * DatabaseActionRequiresServerError}, causing the action to be executed on the
-     * server instead.
-     */
-    server: () => DatabaseActionServerContext;
-    /** The database schema */
-    model: DatabaseModel;
-}
-
 export function createDatabaseActionContext(
     db: SqliteDatabase,
     server: DatabaseActionServerContext | null,
 ): DatabaseActionContext {
-    return {
-        db,
-        server: () => {
-            if (server === null) {
-                throw new DatabaseActionRequiresServerError("action is server-only");
-            }
-            return server;
-        },
-        model: new DatabaseModel(db),
-    };
+    return new DatabaseModel(db, server).ctx;
 }
 
 /**
@@ -195,13 +154,9 @@ export const databaseActions = {
             const creatorAccountId = server().getCurrentAccountId();
             assert(creatorAccountId !== null, "createTable requires an account actor");
 
-            // Resolve the unique SQLite table name (and its salted registry hash) before the
-            // migration runner registers the new table.
-            const {tableName, tableNameHash} = formatUniqueTableName({
-                model,
-                hashWithPrivateSalt: value => server().hashWithPrivateSalt(value),
-                name,
-            });
+            // Resolve the unique SQLite table name (and its salted registry hash) before
+            // registering the new table.
+            const {tableName, tableNameHash} = formatUniqueTableName({model, name});
 
             // Register the table (at schema_version 0), then attach + migrate its per-db file
             // before writing any of the table's data or metadata into it. `attach` is a no-op
@@ -231,11 +186,10 @@ export const databaseActions = {
             tableName: Schema.string,
         }),
         writeLevel: "schema+data",
-        run({model, server}, {tableId, name}) {
+        run({model}, {tableId, name}) {
             const table = model.getTable(tableId);
             const {tableName, tableNameHash} = formatUniqueTableName({
                 model,
-                hashWithPrivateSalt: value => server().hashWithPrivateSalt(value),
                 name,
                 excludeTableId: tableId,
             });
@@ -545,7 +499,6 @@ export const databaseActions = {
             // registered so the uniqueness probe doesn't see its own row.
             const {tableName: joinTableName, tableNameHash} = formatUniqueTableName({
                 model,
-                hashWithPrivateSalt: value => server().hashWithPrivateSalt(value),
                 name: `${sourceFieldName} ${sourceTable.name}`,
             });
 
@@ -827,12 +780,10 @@ export const databaseActions = {
         }),
         output: Schema.object({}),
         writeLevel: "schema+data",
-        run({model, server}, {tableId, fieldId, name}) {
+        run({model}, {tableId, fieldId, name}) {
             const table = model.getTable(tableId);
             const existingField = table.getField(fieldId);
-            // The hasher is only invoked when the rename cascades into a join-table rename
-            // (relation fields), so plain-field renames stay client-runnable.
-            existingField.updateName(name, value => server().hashWithPrivateSalt(value));
+            existingField.updateName(name);
 
             return {};
         },

@@ -44,25 +44,14 @@ export abstract class DatabaseFieldProviderBase<
 
     assertConfigChangeValid?(existingConfig: Config, nextConfig: Config): void;
 
-    /**
-     * `hashWithPrivateSalt` supports providers whose rename cascades into a table
-     * rename (relation fields rename their join table) — resolving the new table name
-     * probes the registry's salted hash index. Providers that don't rename tables
-     * ignore it, so plain column renames stay runnable on the client.
-     */
-    renameFieldInSchema(
-        oldField: DatabaseFieldModel,
-        newField: DatabaseFieldModel,
-        hashWithPrivateSalt: (value: string) => string,
-    ) {
+    renameFieldInSchema(oldField: DatabaseFieldModel, newField: DatabaseFieldModel) {
         assert(oldField.isType(this.type));
         assert(newField.isType(this.type));
-        this._renameFieldInSchema(oldField, newField, hashWithPrivateSalt);
+        this._renameFieldInSchema(oldField, newField);
     }
     protected abstract _renameFieldInSchema(
         oldField: DatabaseFieldModelOfType<Type>,
         newField: DatabaseFieldModelOfType<Type>,
-        hashWithPrivateSalt: (value: string) => string,
     ): void;
 }
 
