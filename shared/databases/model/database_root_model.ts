@@ -1,7 +1,6 @@
 import type {AccessPolicy} from "~/shared/access/access_policy.js";
 import {DatabaseTableAccessPolicySqlSchema} from "~/shared/databases/database_table_access_policy.js";
 import {formatUniqueSqlName} from "~/shared/databases/internal/format_unique_sql_name.js";
-import {slugifySqlName} from "~/shared/databases/internal/slugify_sql_name.js";
 import type {DatabaseFieldModel} from "~/shared/databases/model/database_field_model.js";
 import {DatabaseJoinTableModel} from "~/shared/databases/model/database_join_table_model.js";
 import {
@@ -20,18 +19,7 @@ import {DatabaseFieldId, DatabaseTableId, DatabaseViewId} from "~/shared/id/type
 import {Schema} from "~/shared/schema/schema.js";
 
 export class DatabaseModel {
-    /**
-     * `hashWithPrivateSalt` (normally `DatabaseActionServerContext`'s method of the
-     * same name) keys the registry's `table_name_hash` uniqueness index. Optional
-     * because read-only constructions (e.g. change-trigger refresh) never touch
-     * table names; on the client the injected closure throws
-     * `DatabaseActionRequiresServerError`, routing the calling action to the
-     * server — only the group's durable object holds the salt.
-     */
-    constructor(
-        readonly db: SqliteDatabase,
-        private readonly hashWithPrivateSalt?: (value: string) => string,
-    ) {}
+    constructor(readonly db: SqliteDatabase) {}
 
     getTableIds(kind: DatabaseTableKind | "all") {
         const whereClause =
@@ -84,81 +72,58 @@ export class DatabaseModel {
     }
 
     /**
-     * Resolve a unique SQLite table name for `name` by probing the registry's
-     * salted `table_name_hash` index — no per-table file is read, so this stays
-     * O(candidates) regardless of how many tables the group has (reading every
-     * file would churn the attach LRU once the group outgrows SQLite's attach
-     * limit). Pass `excludeTableId` when renaming so a rename to a slug variant
-     * of the table's current name resolves to that same name.
-     *
-     * Server-only in effect: hashing needs the group's private salt, and rows
-     * whose hash is `NULL` (awaiting the bootstrap backfill) are invisible to the
-     * probe — sound because the backfill completes before any action runs.
+     * Whether any registered table's salted `table_name_hash` equals
+     * `tableNameHash`. Backs `formatUniqueTableName`'s uniqueness probe; pass
+     * `excludeTableId` when renaming so the table's own row doesn't count. Rows
+     * with a `NULL` hash (a table mid-creation, before its name is chosen) are
+     * invisible by design.
      */
-    formatUniqueTableName(name: string, excludeTableId?: DatabaseTableId) {
-        const hashWithPrivateSalt = this.hashWithPrivateSalt;
-        assert(
-            hashWithPrivateSalt !== undefined,
-            "formatUniqueTableName requires a private-salt hasher",
-        );
-
-        const slug = slugifySqlName(name);
+    isTableNameHashTaken(tableNameHash: string, excludeTableId?: DatabaseTableId) {
         const excludeClause =
             excludeTableId === undefined
                 ? sql``
                 : sql`
                       AND id != ${excludeTableId}
                   `;
-        const isTaken = (candidate: string) =>
+        return (
             sql`
                 SELECT
                     1
                 FROM
                     _alpine_tables
                 WHERE
-                    table_name_hash = ${hashWithPrivateSalt(candidate)} ${excludeClause}
-            `.selectValueIfExists(this.db, SqlBooleanSchema) !== null;
-
-        if (!isTaken(slug)) return slug;
-        for (let i = 2; ; i++) {
-            const candidate = `${slug}_${i}`;
-            if (!isTaken(candidate)) return candidate;
-        }
+                    table_name_hash = ${tableNameHash} ${excludeClause}
+            `.selectValueIfExists(this.db, SqlBooleanSchema) !== null
+        );
     }
 
     /**
-     * Record `tableName`'s salted hash in `tableId`'s registry row, keeping the
+     * Record a table's salted name hash in its registry row, keeping the
      * uniqueness index in the same buffer batch as the rename or creation that
      * set the name. Call from every site that writes a `table_name`.
      */
-    writeTableNameHash(tableId: DatabaseTableId, tableName: string) {
-        const hashWithPrivateSalt = this.hashWithPrivateSalt;
-        assert(
-            hashWithPrivateSalt !== undefined,
-            "writeTableNameHash requires a private-salt hasher",
-        );
+    writeTableNameHash(tableId: DatabaseTableId, tableNameHash: string) {
         sql`
             UPDATE _alpine_tables
             SET
-                table_name_hash = ${hashWithPrivateSalt(tableName)}
+                table_name_hash = ${tableNameHash}
             WHERE
                 id = ${tableId}
         `.exec(this.db);
     }
 
     /**
-     * `tableName` must be resolved via {@link formatUniqueTableName} _before_ the
-     * table's migrations run: the migration runner registers the table in main's
-     * `_alpine_tables`, and formatUniqueTableName reads every registered table's
-     * metadata — which doesn't exist yet for the table being created.
+     * `tableName` and `tableNameHash` are resolved by the calling action via
+     * `formatUniqueTableName`.
      */
     createTable(
         tableId: DatabaseTableId,
         {
             name,
             tableName,
+            tableNameHash,
             accessPolicy,
-        }: {name: string; tableName: string; accessPolicy: AccessPolicy},
+        }: {name: string; tableName: string; tableNameHash: string; accessPolicy: AccessPolicy},
     ) {
         const defaultViewId = generateChronologicalId<DatabaseViewId>();
         const nameFieldId = generateChronologicalId<DatabaseFieldId>();
@@ -167,7 +132,7 @@ export class DatabaseModel {
         // runs; the migration runner registered the table in main's `_alpine_tables` as
         // part of that. The runner leaves `table_name_hash` NULL — only now is the
         // name known.
-        this.writeTableNameHash(tableId, tableName);
+        this.writeTableNameHash(tableId, tableNameHash);
         sql`
             INSERT INTO
                 ${sql.tableRef(tableId, "_alpine_table")} (
@@ -229,7 +194,15 @@ export class DatabaseModel {
         return new DatabaseJoinTableModel(this, row);
     }
 
-    createJoinTable(source: DatabaseFieldModel, target: DatabaseFieldModel) {
+    /**
+     * `tableName` and `tableNameHash` are resolved by the calling action via
+     * `formatUniqueTableName`.
+     */
+    createJoinTable(
+        source: DatabaseFieldModel,
+        target: DatabaseFieldModel,
+        {tableName: joinTableName, tableNameHash}: {tableName: string; tableNameHash: string},
+    ) {
         assert(source.config.type === "relation", "source field is not a relation field");
         assert(target.config.type === "relation", "target field is not a relation field");
         assert(source.config.joinTableId === target.config.joinTableId, "join table mismatch");
@@ -238,11 +211,10 @@ export class DatabaseModel {
 
         const joinTableId = source.config.joinTableId;
         const schema = sql.identifier(databaseTableSchemaName(joinTableId));
-        const joinTableName = this.formatUniqueTableName(`${source.name} ${target.name}`);
 
         // Like createTable: the migration runner already registered the join table in
         // main's `_alpine_tables` with a NULL `table_name_hash`.
-        this.writeTableNameHash(joinTableId, joinTableName);
+        this.writeTableNameHash(joinTableId, tableNameHash);
 
         const sourceColumnNames = this.formatJoinTableColumnNames(source.table, target.table);
 

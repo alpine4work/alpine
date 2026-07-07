@@ -8,7 +8,6 @@ import type {
     DatabaseActionOutput,
 } from "~/shared/databases/database_actions.js";
 import type {ReadonlyDatabasePageSet} from "~/shared/databases/database_protocol_schemas.js";
-import {hashWithPrivateSalt} from "~/shared/databases/hash_with_private_salt.js";
 import {type SqlQuery, sql} from "~/shared/databases/sql.js";
 import type {SqliteWriteLevel} from "~/shared/databases/sqlite_authorizer.js";
 import {sqlitePageSize} from "~/shared/databases/sqlite_constants.js";
@@ -88,19 +87,15 @@ export class DatabaseServer {
     private readonly storage: DatabaseServerStorage;
     private readonly databaseGroupId: DatabaseGroupId;
     private readonly changedTables = new Set<DatabaseTableId>();
-    /** Salted name hasher for the bootstrap `table_name_hash` backfill. */
-    private readonly hashTableName: (tableName: string) => string;
 
     private constructor(
         database: Database,
         storage: DatabaseServerStorage,
         databaseGroupId: DatabaseGroupId,
-        privateSalt: Uint8Array,
     ) {
         this.database = database;
         this.storage = storage;
         this.databaseGroupId = databaseGroupId;
-        this.hashTableName = tableName => hashWithPrivateSalt(privateSalt, tableName);
     }
 
     /**
@@ -113,7 +108,7 @@ export class DatabaseServer {
         privateSalt: Uint8Array,
     ): Promise<DatabaseServer> {
         const database = await Database.create(storage, {server: {privateSalt}});
-        const server = new DatabaseServer(database, storage, databaseGroupId, privateSalt);
+        const server = new DatabaseServer(database, storage, databaseGroupId);
         server._bootstrap();
         database._installServerTableChangeCapture(tableId => {
             server.changedTables.add(tableId);
@@ -187,74 +182,49 @@ export class DatabaseServer {
                     SELECT
                         id,
                         kind,
-                        schema_version,
-                        table_name_hash
+                        schema_version
                     FROM
                         _alpine_tables
                 `.selectAll(db, {
                     id: Schema.id<DatabaseTableId>(),
                     kind: Schema.enum(["table", "join"]),
                     schemaVersion: Schema.integer.originalPropertyKey("schema_version"),
-                    tableNameHash: Schema.string.nullable().originalPropertyKey("table_name_hash"),
                 });
             },
             {allowWrites: "schema+data"},
         );
         this._persistBuffer();
 
-        // Repair stale per-table files, one execute + persist per table. The registry
-        // mirrors each file's migration state (schema_version) and salted name hash
-        // (table_name_hash), so a table needing neither is skipped without ever
-        // attaching it — bootstrap costs O(stale tables), and cold starts after a
-        // no-migration deploy attach nothing. Actions assume both mirrors are
-        // complete (attach-on-miss requires migration-current files; the
-        // name-uniqueness probe can't see NULL hashes), so this sweep must finish
-        // before any action runs. Persisting per table keeps repaired files' buffered
-        // writes drained — Database only evicts tables with an empty buffer, and for
-        // groups with more stale tables than the attach threshold the sweep relies on
-        // that LRU eviction to stay under SQLite's limit.
+        // Migrate stale per-table files, one execute + persist per table. The
+        // registry's schema_version mirrors each file's user_version, so a current
+        // table is skipped without ever attaching it — bootstrap costs O(stale
+        // tables), and cold starts after a no-migration deploy attach nothing.
+        // Attach-on-miss assumes every registered file is migration-current, so this
+        // sweep must finish before any action runs. Persisting per table keeps
+        // migrated files' buffered writes drained — Database only evicts tables with
+        // an empty buffer, and for groups with more stale tables than the attach
+        // threshold the sweep relies on that LRU eviction to stay under SQLite's
+        // limit.
         for (const table of tables) {
             const migrationCount =
                 table.kind === "table"
                     ? tableSqliteMigrations(table.id).length
                     : joinTableSqliteMigrations(table.id).length;
-            const needsMigrations = table.schemaVersion !== migrationCount;
-            const needsTableNameHash = table.tableNameHash === null;
-            if (!needsMigrations && !needsTableNameHash) continue;
+            if (table.schemaVersion === migrationCount) continue;
+            // The migration runner also repairs the registry's schema_version mirror,
+            // in the same buffer batch as the migrations themselves.
             this.database.execute(
                 db => {
                     this.database.attachIfNeeded(table.id);
-                    if (needsMigrations) {
-                        // The migration runner also repairs the registry's schema_version mirror, in
-                        // the same buffer batch as the migrations themselves.
-                        switch (table.kind) {
-                            case "table":
-                                runTableMigrations(db, table.id);
-                                break;
-                            case "join":
-                                runJoinTableMigrations(db, table.id);
-                                break;
-                            default:
-                                throw exhaustive(table.kind);
-                        }
-                    }
-                    if (needsTableNameHash) {
-                        const tableName = sql`
-                            SELECT
-                                table_name
-                            FROM
-                                ${sql.tableRef(
-                                    table.id,
-                                    table.kind === "table" ? "_alpine_table" : "_alpine_join_table",
-                                )}
-                        `.selectValue(db, Schema.string);
-                        sql`
-                            UPDATE _alpine_tables
-                            SET
-                                table_name_hash = ${this.hashTableName(tableName)}
-                            WHERE
-                                id = ${table.id}
-                        `.exec(db);
+                    switch (table.kind) {
+                        case "table":
+                            runTableMigrations(db, table.id);
+                            break;
+                        case "join":
+                            runJoinTableMigrations(db, table.id);
+                            break;
+                        default:
+                            throw exhaustive(table.kind);
                     }
                 },
                 {allowWrites: "schema+data"},

@@ -139,9 +139,10 @@ export class DatabaseRelationFieldProvider extends DatabaseFieldProviderBase<
     override _renameFieldInSchema(
         oldField: DatabaseFieldModelOfType<"relation">,
         newField: DatabaseFieldModelOfType<"relation">,
+        hashWithPrivateSalt: (value: string) => string,
     ) {
         const relation = this.resolveRelation(newField);
-        relation.joinTable.ensureTableNameIsUpToDate();
+        relation.joinTable.ensureTableNameIsUpToDate(hashWithPrivateSalt);
     }
 
     resolveRelation(field: DatabaseFieldModelOfType<"relation">) {

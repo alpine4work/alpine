@@ -27,47 +27,6 @@ exports[`sqlite migrations main migration up to 1 1`] = `
 CREATE TABLE _alpine_tables (
     id TEXT PRIMARY KEY,
     kind TEXT NOT NULL,
-    CHECK (is_id (id)),
-    CHECK (kind IN ('table', 'join'))
-) STRICT,
-WITHOUT ROWID
-
-// table _alpine_views _alpine_views
-CREATE TABLE _alpine_views (
-    id TEXT PRIMARY KEY,
-    table_id TEXT NOT NULL REFERENCES _alpine_tables (id) DEFERRABLE INITIALLY DEFERRED,
-    CHECK (is_id (id)),
-    CHECK (is_id (table_id))
-) STRICT,
-WITHOUT ROWID"
-`;
-
-exports[`sqlite migrations main migration up to 2 1`] = `
-"// table _alpine_tables _alpine_tables
-CREATE TABLE _alpine_tables (
-    id TEXT PRIMARY KEY,
-    kind TEXT NOT NULL,
-    schema_version INTEGER NOT NULL DEFAULT 0,
-    CHECK (is_id (id)),
-    CHECK (kind IN ('table', 'join'))
-) STRICT,
-WITHOUT ROWID
-
-// table _alpine_views _alpine_views
-CREATE TABLE _alpine_views (
-    id TEXT PRIMARY KEY,
-    table_id TEXT NOT NULL REFERENCES _alpine_tables (id) DEFERRABLE INITIALLY DEFERRED,
-    CHECK (is_id (id)),
-    CHECK (is_id (table_id))
-) STRICT,
-WITHOUT ROWID"
-`;
-
-exports[`sqlite migrations main migration up to 3 1`] = `
-"// table _alpine_tables _alpine_tables
-CREATE TABLE _alpine_tables (
-    id TEXT PRIMARY KEY,
-    kind TEXT NOT NULL,
     schema_version INTEGER NOT NULL DEFAULT 0,
     table_name_hash TEXT,
     CHECK (is_id (id)),

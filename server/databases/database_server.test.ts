@@ -1111,41 +1111,6 @@ describe("DatabaseServer — per-table storage", () => {
         expect(attachedSchemaNames).not.toContain(databaseTableSchemaName(result.tableId));
     });
 
-    test("bootstrap backfills a NULL registry table_name_hash", async () => {
-        const storage = new InMemoryStorage();
-        const server1 = await DatabaseServer.create(storage, testDatabaseGroupId, testPrivateSalt);
-        const {result} = server1.executeAction<"createTable">(testContext, {
-            name: "createTable",
-            input: {name: "Tasks"},
-        });
-        // NULL the hash — the state every pre-existing table is in right after the
-        // table_name_hash column migration.
-        sql`
-            UPDATE _alpine_tables
-            SET
-                table_name_hash = NULL
-            WHERE
-                id = ${result.tableId}
-        `.exec(server1.unsafeGetDbForTests());
-        server1.commitBufferForTests();
-        server1.close();
-
-        // Bootstrap must attach the table, read its name from the per-table file,
-        // and restore the salted hash so name-uniqueness probes can see it.
-        const server2 = await DatabaseServer.create(storage, testDatabaseGroupId, testPrivateSalt);
-        openServers.push(server2);
-        const tableNameHash = sql`
-            SELECT
-                table_name_hash
-            FROM
-                _alpine_tables
-            WHERE
-                id = ${result.tableId}
-        `.selectValue(server2.unsafeGetDbForTests(), Schema.string);
-
-        expect(tableNameHash).toBe(hashWithPrivateSalt(testPrivateSalt, "tasks"));
-    });
-
     test("bootstrap migrates a table whose registry schema_version is stale", async () => {
         const storage = new InMemoryStorage();
         const server1 = await DatabaseServer.create(storage, testDatabaseGroupId, testPrivateSalt);

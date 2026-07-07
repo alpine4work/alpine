@@ -34,10 +34,15 @@ function sqlStringLiteral(value: string): SqlQuery {
  * tableSqliteMigrations}.
  */
 export const mainSqliteMigrations: ReadonlyArray<SqliteMigration> = [
+    // `table_name_hash` is nullable because the migration runner registers a new
+    // table before its name is chosen; the creating action fills the hash in the
+    // same buffer batch.
     sql`
         CREATE TABLE _alpine_tables (
             id TEXT PRIMARY KEY,
             kind TEXT NOT NULL,
+            schema_version INTEGER NOT NULL DEFAULT 0,
+            table_name_hash TEXT,
             CHECK (is_id (id)),
             CHECK (kind IN ('table', 'join'))
         ) STRICT,
@@ -50,21 +55,6 @@ export const mainSqliteMigrations: ReadonlyArray<SqliteMigration> = [
             CHECK (is_id (table_id))
         ) STRICT,
         WITHOUT ROWID;
-    `,
-    // The DEFAULT 0 backfill marks every pre-existing table stale, so the first
-    // bootstrap after this migration attaches each one once, verifies its migrations,
-    // and records the real version.
-    sql`
-        ALTER TABLE _alpine_tables
-        ADD COLUMN schema_version INTEGER NOT NULL DEFAULT 0
-    `,
-    // HMAC of the table's SQLite `table_name` keyed by the group's private salt
-    // (see `hashWithPrivateSalt`), so table-name uniqueness can be checked against
-    // the always-attached registry instead of reading every per-table file. `NULL`
-    // marks a pre-existing table for the server-bootstrap backfill sweep.
-    sql`
-        ALTER TABLE _alpine_tables
-        ADD COLUMN table_name_hash TEXT
     `,
 ];
 

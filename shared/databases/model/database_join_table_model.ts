@@ -1,3 +1,4 @@
+import {formatUniqueTableName} from "~/shared/databases/format_unique_table_name.js";
 import type {DatabaseModel} from "~/shared/databases/model/database_root_model.js";
 import {DatabaseJoinTableRow} from "~/shared/databases/model/database_row_schemas.js";
 import {DatabaseSchemaScopedBaseModel} from "~/shared/databases/model/database_schema_scoped_base_model.js";
@@ -58,14 +59,16 @@ export class DatabaseJoinTableModel extends DatabaseSchemaScopedBaseModel {
         return sql.identifier(this.targetPositionColumnName);
     }
 
-    ensureTableNameIsUpToDate() {
+    ensureTableNameIsUpToDate(hashWithPrivateSalt: (value: string) => string) {
         const sourceName = this.root.getTable(this.sourceTableId).getField(this.sourceFieldId).name;
         const targetName = this.root.getTable(this.targetTableId).getField(this.targetFieldId).name;
 
-        const joinTableName = this.root.formatUniqueTableName(
-            `${sourceName} ${targetName}`,
-            this.id,
-        );
+        const {tableName: joinTableName, tableNameHash} = formatUniqueTableName({
+            model: this.root,
+            hashWithPrivateSalt,
+            name: `${sourceName} ${targetName}`,
+            excludeTableId: this.id,
+        });
 
         if (joinTableName === this.tableName) return;
 
@@ -81,7 +84,7 @@ export class DatabaseJoinTableModel extends DatabaseSchemaScopedBaseModel {
             WHERE
                 id = ${this.id}
         `.exec(this.db);
-        this.root.writeTableNameHash(this.id, joinTableName);
+        this.root.writeTableNameHash(this.id, tableNameHash);
     }
 
     ensureColumnNamesAreUpToDate() {

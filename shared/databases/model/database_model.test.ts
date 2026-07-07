@@ -1,5 +1,6 @@
 import sqlite3InitModule from "~/external/sqlite/ext/wasm/jswasm/sqlite3.mjs";
 import {emptyDatabaseTableAccessPolicy} from "~/shared/databases/database_table_access_policy.js";
+import {formatUniqueTableName} from "~/shared/databases/format_unique_table_name.js";
 import {hashWithPrivateSalt} from "~/shared/databases/hash_with_private_salt.js";
 import type {DatabaseFieldModel} from "~/shared/databases/model/database_field_model.js";
 import {DatabaseModel} from "~/shared/databases/model/database_root_model.js";
@@ -44,15 +45,36 @@ function attachTableDb(db: SqliteDatabase, tableId: DatabaseTableId): void {
 
 function createTable(model: DatabaseModel, tableId: DatabaseTableId, name: string) {
     // Resolve the name before the migration runner registers the table — see
-    // `DatabaseModel.createTable`.
-    const tableName = model.formatUniqueTableName(name);
+    // `formatUniqueTableName`.
+    const {tableName, tableNameHash} = formatUniqueTableName({
+        model,
+        hashWithPrivateSalt: testHashWithPrivateSalt,
+        name,
+    });
     attachTableDb(model.db, tableId);
     runTableMigrations(model.db, tableId);
     return model.createTable(tableId, {
         name,
         tableName,
+        tableNameHash,
         accessPolicy: emptyDatabaseTableAccessPolicy,
     });
+}
+
+function createJoinTableWithUniqueName(
+    model: DatabaseModel,
+    sourceField: DatabaseFieldModel,
+    targetField: DatabaseFieldModel,
+) {
+    return model.createJoinTable(
+        sourceField,
+        targetField,
+        formatUniqueTableName({
+            model,
+            hashWithPrivateSalt: testHashWithPrivateSalt,
+            name: `${sourceField.name} ${targetField.name}`,
+        }),
+    );
 }
 
 function createRelation(model: DatabaseModel) {
@@ -78,7 +100,7 @@ function createRelation(model: DatabaseModel) {
         cardinality: "many",
         linkedTableId: source.id,
     });
-    const joinRow = model.createJoinTable(sourceField, targetField);
+    const joinRow = createJoinTableWithUniqueName(model, sourceField, targetField);
     const joinTable = model.getJoinTable(joinRow.id);
 
     return {source, target, sourceField, targetField, joinTable};
@@ -93,7 +115,7 @@ function readColumnNames(db: SqliteDatabase, tableId: DatabaseTableId, tableName
 describe("DatabaseModel", () => {
     test("createTable creates a default view containing the Name field", async () => {
         const db = await createDb();
-        const model = new DatabaseModel(db, testHashWithPrivateSalt);
+        const model = new DatabaseModel(db);
         const tableId = generateChronologicalId<DatabaseTableId>();
 
         const {table, nameField, defaultView} = createTable(model, tableId, "Tasks");
@@ -116,7 +138,7 @@ describe("DatabaseModel", () => {
 
     test("appendFieldToAllViews adds a field to every table view", async () => {
         const db = await createDb();
-        const model = new DatabaseModel(db, testHashWithPrivateSalt);
+        const model = new DatabaseModel(db);
         const tableId = generateChronologicalId<DatabaseTableId>();
         const {table} = createTable(model, tableId, "Tasks");
         const secondViewId = generateChronologicalId<DatabaseViewId>();
@@ -149,7 +171,7 @@ describe("DatabaseModel", () => {
 
     test("createJoinTable creates metadata and a custom data-table schema", async () => {
         const db = await createDb();
-        const model = new DatabaseModel(db, testHashWithPrivateSalt);
+        const model = new DatabaseModel(db);
 
         const {joinTable} = createRelation(model);
 
@@ -171,7 +193,7 @@ describe("DatabaseModel", () => {
 
     test("createJoinTable disambiguates self-relation columns", async () => {
         const db = await createDb();
-        const model = new DatabaseModel(db, testHashWithPrivateSalt);
+        const model = new DatabaseModel(db);
         const tableId = generateChronologicalId<DatabaseTableId>();
         const joinTableId = generateChronologicalId<DatabaseTableId>();
         const table = createTable(model, tableId, "Tasks").table;
@@ -197,7 +219,7 @@ describe("DatabaseModel", () => {
             linkedTableId: table.id,
         });
 
-        const joinTable = model.createJoinTable(sourceField, targetField);
+        const joinTable = createJoinTableWithUniqueName(model, sourceField, targetField);
 
         expect(readColumnNames(db, joinTable.id, joinTable.tableName)).toEqual([
             "tasks_id",
@@ -210,7 +232,7 @@ describe("DatabaseModel", () => {
 
     test("renaming a related table keeps join table columns and data in sync", async () => {
         const db = await createDb();
-        const model = new DatabaseModel(db, testHashWithPrivateSalt);
+        const model = new DatabaseModel(db);
         const {target, joinTable} = createRelation(model);
         const sourceRowId = generateChronologicalId<DatabaseRowId>();
         const targetRowId = generateChronologicalId<DatabaseRowId>();
@@ -232,7 +254,15 @@ describe("DatabaseModel", () => {
                 )
         `.exec(db);
 
-        target.updateName("Milestones");
+        target.updateName(
+            "Milestones",
+            formatUniqueTableName({
+                model,
+                hashWithPrivateSalt: testHashWithPrivateSalt,
+                name: "Milestones",
+                excludeTableId: target.id,
+            }),
+        );
 
         const updatedJoinTable = model.getJoinTable(joinTable.id);
         const row = sql`
@@ -259,10 +289,10 @@ describe("DatabaseModel", () => {
 
     test("renaming a relation field keeps the join table name in sync", async () => {
         const db = await createDb();
-        const model = new DatabaseModel(db, testHashWithPrivateSalt);
+        const model = new DatabaseModel(db);
         const {sourceField, joinTable} = createRelation(model);
 
-        (sourceField as DatabaseFieldModel).updateName("Owner");
+        (sourceField as DatabaseFieldModel).updateName("Owner", testHashWithPrivateSalt);
 
         const updatedJoinTable = model.getJoinTable(joinTable.id);
         expect({

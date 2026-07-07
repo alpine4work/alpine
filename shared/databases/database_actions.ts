@@ -7,6 +7,7 @@ import {
     getUnknownDatabaseFieldProvider,
 } from "~/shared/databases/fields/all_database_field_providers.js";
 import {ColumnBackedDatabaseFieldProvider} from "~/shared/databases/fields/base/database_field_provider_base.js";
+import {formatUniqueTableName} from "~/shared/databases/format_unique_table_name.js";
 import {DatabaseModel} from "~/shared/databases/model/database_root_model.js";
 import {SqlBooleanSchema} from "~/shared/databases/model/sqlite_schema.js";
 import {type SqlQuery, sql} from "~/shared/databases/sql.js";
@@ -66,20 +67,15 @@ export function createDatabaseActionContext(
     db: SqliteDatabase,
     server: DatabaseActionServerContext | null,
 ): DatabaseActionContext {
-    const requireServer = () => {
-        if (server === null) {
-            throw new DatabaseActionRequiresServerError("action is server-only");
-        }
-        return server;
-    };
     return {
         db,
-        server: requireServer,
-        // The model's name hasher defers the server() check to first use, so shared
-        // model code stays callable on the client until it actually needs the salt —
-        // at which point the thrown DatabaseActionRequiresServerError routes the
-        // action to the server.
-        model: new DatabaseModel(db, value => requireServer().hashWithPrivateSalt(value)),
+        server: () => {
+            if (server === null) {
+                throw new DatabaseActionRequiresServerError("action is server-only");
+            }
+            return server;
+        },
+        model: new DatabaseModel(db),
     };
 }
 
@@ -199,9 +195,13 @@ export const databaseActions = {
             const creatorAccountId = server().getCurrentAccountId();
             assert(creatorAccountId !== null, "createTable requires an account actor");
 
-            // Resolve the unique SQLite table name before the migration runner registers the
-            // new table — see `DatabaseModel.createTable`.
-            const tableName = model.formatUniqueTableName(name);
+            // Resolve the unique SQLite table name (and its salted registry hash)
+            // before the migration runner registers the new table.
+            const {tableName, tableNameHash} = formatUniqueTableName({
+                model,
+                hashWithPrivateSalt: value => server().hashWithPrivateSalt(value),
+                name,
+            });
 
             // Attach + migrate the new per-db file before writing any of the table's data or
             // metadata into it. `attach` is a no-op if already attached.
@@ -212,6 +212,7 @@ export const databaseActions = {
                 model.createTable(tableId, {
                     name,
                     tableName,
+                    tableNameHash,
                     accessPolicy: databaseTableAccessPolicyForCreator(creatorAccountId),
                 }),
             );
@@ -229,9 +230,15 @@ export const databaseActions = {
             tableName: Schema.string,
         }),
         writeLevel: "schema+data",
-        run({model}, {tableId, name}) {
+        run({model, server}, {tableId, name}) {
             const table = model.getTable(tableId);
-            const updated = table.updateName(name);
+            const {tableName, tableNameHash} = formatUniqueTableName({
+                model,
+                hashWithPrivateSalt: value => server().hashWithPrivateSalt(value),
+                name,
+                excludeTableId: tableId,
+            });
+            const updated = table.updateName(name, {tableName, tableNameHash});
 
             return {tableName: updated.tableName};
         },
@@ -556,7 +563,15 @@ export const databaseActions = {
                     });
                     targetTable.appendFieldToAllViews(targetField);
 
-                    const joinTable = model.createJoinTable(sourceField, targetField);
+                    const joinTable = model.createJoinTable(
+                        sourceField,
+                        targetField,
+                        formatUniqueTableName({
+                            model,
+                            hashWithPrivateSalt: value => server().hashWithPrivateSalt(value),
+                            name: `${sourceField.name} ${targetField.name}`,
+                        }),
+                    );
                     return {sourceField, targetField, joinTable};
                 },
             );
@@ -807,10 +822,12 @@ export const databaseActions = {
         }),
         output: Schema.object({}),
         writeLevel: "schema+data",
-        run({model}, {tableId, fieldId, name}) {
+        run({model, server}, {tableId, fieldId, name}) {
             const table = model.getTable(tableId);
             const existingField = table.getField(fieldId);
-            existingField.updateName(name);
+            // The hasher is only invoked when the rename cascades into a join-table
+            // rename (relation fields), so plain-field renames stay client-runnable.
+            existingField.updateName(name, value => server().hashWithPrivateSalt(value));
 
             return {};
         },

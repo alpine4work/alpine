@@ -5,8 +5,8 @@ import {assert} from "~/shared/helpers/control/assert.js";
  * separated, never starting with `_`, a digit, or the reserved `sqlite_` prefix.
  *
  * Deduplication against existing names is the caller's job — see
- * `formatUniqueSqlName` (in-memory set) and `DatabaseModel.formatUniqueTableName`
- * (registry hash probe).
+ * `formatUniqueSqlName` (in-memory set) and `formatUniqueTableName` (registry
+ * hash probe).
  */
 export function slugifySqlName(name: string): string {
     let slug = name
