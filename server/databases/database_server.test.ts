@@ -1,7 +1,8 @@
 import {DatabaseServer} from "~/server/databases/database_server.js";
 import type {DatabaseServerStorage} from "~/server/databases/database_server_storage.js";
-import {type SqlQuery, sql} from "~/shared/databases/sql.js";
+import {type SqlQuery, databaseTableSchemaName, sql} from "~/shared/databases/sql.js";
 import {databaseMainTableId, sqlitePageSize} from "~/shared/databases/sqlite_constants.js";
+import {tableSqliteMigrations} from "~/shared/databases/sqlite_migrations.js";
 import {InternalError} from "~/shared/error/error.js";
 import {generateChronologicalId} from "~/shared/id/chronological_id.js";
 import {generateId} from "~/shared/id/id.js";
@@ -1046,7 +1047,13 @@ describe("DatabaseServer — per-table storage", () => {
             FROM
                 _alpine_tables
         `.selectAllUnknown(db);
-        expect(tables).toEqual([{id: result.tableId, kind: "table"}]);
+        expect(tables).toEqual([
+            {
+                id: result.tableId,
+                kind: "table",
+                schema_version: tableSqliteMigrations(result.tableId).length,
+            },
+        ]);
 
         // The display name lives in the table's own per-db file.
         const name = sql`
@@ -1067,8 +1074,8 @@ describe("DatabaseServer — per-table storage", () => {
         });
         server1.close();
 
-        // Reopen on the same storage; bootstrap should attach and migrate the existing
-        // table so it stays queryable.
+        // Reopen on the same storage; the table must stay queryable (bootstrap skips
+        // migration-current files, so this exercises attach-on-miss).
         const server2 = await DatabaseServer.create(storage, testDatabaseGroupId);
         openServers.push(server2);
         const name = sql`
@@ -1078,6 +1085,73 @@ describe("DatabaseServer — per-table storage", () => {
                 ${sql.tableRef(result.tableId, "_alpine_table")}
         `.selectValue(server2.unsafeGetDbForTests(), Schema.string);
         expect(name).toBe("Tasks");
+    });
+
+    test("bootstrap skips attaching migration-current tables", async () => {
+        const storage = new InMemoryStorage();
+        const server1 = await DatabaseServer.create(storage, testDatabaseGroupId);
+        const {result} = server1.executeAction<"createTable">(testContext, {
+            name: "createTable",
+            input: {name: "Tasks"},
+        });
+        server1.close();
+
+        // The registry's schema_version says the file is current, so bootstrap never
+        // attaches it — cold starts cost O(stale tables), not O(tables).
+        const server2 = await DatabaseServer.create(storage, testDatabaseGroupId);
+        openServers.push(server2);
+        const attachedSchemaNames = sql`PRAGMA database_list`
+            .selectAllUnknown(server2.unsafeGetDbForTests())
+            .map(row => row.name);
+
+        expect(attachedSchemaNames).not.toContain(databaseTableSchemaName(result.tableId));
+    });
+
+    test("bootstrap migrates a table whose registry schema_version is stale", async () => {
+        const storage = new InMemoryStorage();
+        const server1 = await DatabaseServer.create(storage, testDatabaseGroupId);
+        const {result} = server1.executeAction<"createTable">(testContext, {
+            name: "createTable",
+            input: {name: "Tasks"},
+        });
+        // Zero the registry mirror — the state every pre-existing table is in right after
+        // the ALTER TABLE backfill migration.
+        sql`
+            UPDATE _alpine_tables
+            SET
+                schema_version = 0
+            WHERE
+                id = ${result.tableId}
+        `.exec(server1.unsafeGetDbForTests());
+        server1.commitBufferForTests();
+        server1.close();
+
+        // Bootstrap must attach the "stale" table, run its (no-op) migrations, and repair
+        // the registry mirror so the next cold start skips it again.
+        const server2 = await DatabaseServer.create(storage, testDatabaseGroupId);
+        openServers.push(server2);
+        const db = server2.unsafeGetDbForTests();
+        const attachedSchemaNames = sql`PRAGMA database_list`
+            .selectAllUnknown(db)
+            .map(row => row.name);
+        const registryVersion = sql`
+            SELECT
+                schema_version
+            FROM
+                _alpine_tables
+            WHERE
+                id = ${result.tableId}
+        `.selectValue(db, Schema.integer);
+
+        expect({
+            attachedAfterBootstrap: attachedSchemaNames.includes(
+                databaseTableSchemaName(result.tableId),
+            ),
+            registryVersion,
+        }).toEqual({
+            attachedAfterBootstrap: true,
+            registryVersion: tableSqliteMigrations(result.tableId).length,
+        });
     });
 
     test("re-attaches and serves an existing relation join table after reopening", async () => {

@@ -12,9 +12,11 @@ import {type SqlQuery, sql} from "~/shared/databases/sql.js";
 import type {SqliteWriteLevel} from "~/shared/databases/sqlite_authorizer.js";
 import {sqlitePageSize} from "~/shared/databases/sqlite_constants.js";
 import {
+    joinTableSqliteMigrations,
     runJoinTableMigrations,
     runMainMigrations,
     runTableMigrations,
+    tableSqliteMigrations,
 } from "~/shared/databases/sqlite_migrations.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
@@ -174,26 +176,35 @@ export class DatabaseServer {
                 return sql`
                     SELECT
                         id,
-                        kind
+                        kind,
+                        schema_version
                     FROM
                         _alpine_tables
                 `.selectAll(db, {
                     id: Schema.id<DatabaseTableId>(),
                     kind: Schema.enum(["table", "join"]),
+                    schemaVersion: Schema.integer.originalPropertyKey("schema_version"),
                 });
             },
             {allowWrites: "schema+data"},
         );
         this._persistBuffer();
 
-        // Migrate every existing per-table file, one execute + persist per table.
-        // Attach-on-miss assumes every registered file is migration-current, so this sweep
-        // must finish before any action runs. Persisting per table keeps migrated files'
-        // buffered writes drained — Database only evicts tables with an empty buffer, and
-        // for groups with more tables than the attach threshold the sweep relies on that
-        // LRU eviction to stay under SQLite's limit. A table whose migrations are already
-        // current buffers nothing, so its persist is a no-op.
+        // Migrate stale per-table files, one execute + persist per table. The registry's
+        // schema_version mirrors each file's user_version, so a current table is skipped
+        // without ever attaching it — bootstrap costs O(stale tables), and cold starts
+        // after a no-migration deploy attach nothing. Attach-on-miss assumes every
+        // registered file is migration-current, so this sweep must finish before any
+        // action runs. Persisting per table keeps migrated files' buffered writes drained
+        // — Database only evicts tables with an empty buffer, and for groups with more
+        // stale tables than the attach threshold the sweep relies on that LRU eviction to
+        // stay under SQLite's limit.
         for (const table of tables) {
+            const migrationCount =
+                table.kind === "table"
+                    ? tableSqliteMigrations(table.id).length
+                    : joinTableSqliteMigrations(table.id).length;
+            if (table.schemaVersion === migrationCount) continue;
             this.database.execute(
                 db => {
                     this.database.attachIfNeeded(table.id);
@@ -207,6 +218,15 @@ export class DatabaseServer {
                         default:
                             throw exhaustive(table.kind);
                     }
+                    // Same buffer batch as the migrations themselves, so the registry mirror and the
+                    // file's user_version persist atomically.
+                    sql`
+                        UPDATE _alpine_tables
+                        SET
+                            schema_version = ${migrationCount}
+                        WHERE
+                            id = ${table.id}
+                    `.exec(db);
                 },
                 {allowWrites: "schema+data"},
             );

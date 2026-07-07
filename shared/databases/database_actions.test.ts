@@ -18,7 +18,11 @@ import {databaseTableSchemaName, sql} from "~/shared/databases/sql.js";
 import {SqliteDatabase} from "~/shared/databases/sqlite.js";
 import {databaseViewDefaultColumnWidth} from "~/shared/databases/sqlite_constants.js";
 import {registerSqliteCustomFunctions} from "~/shared/databases/sqlite_custom_functions.js";
-import {runMainMigrations} from "~/shared/databases/sqlite_migrations.js";
+import {
+    joinTableSqliteMigrations,
+    runMainMigrations,
+    tableSqliteMigrations,
+} from "~/shared/databases/sqlite_migrations.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {type OrderKey, generateOrderKeyBetween} from "~/shared/helpers/sort/order_key.js";
 import {generateChronologicalId} from "~/shared/id/chronological_id.js";
@@ -90,7 +94,9 @@ describe("createTable", () => {
             FROM
                 _alpine_tables
         `.selectAllUnknown(db);
-        expect(tables).toEqual([{id: tableId, kind: "table"}]);
+        expect(tables).toEqual([
+            {id: tableId, kind: "table", schema_version: tableSqliteMigrations(tableId).length},
+        ]);
         db.close();
     });
 
@@ -860,7 +866,11 @@ describe("createRelationField", () => {
             sourceViewFieldIds,
             targetViewFieldIds,
         }).toMatchObject({
-            registryRow: {id: result.joinTableId, kind: "join"},
+            registryRow: {
+                id: result.joinTableId,
+                kind: "join",
+                schema_version: joinTableSqliteMigrations(result.joinTableId).length,
+            },
             joinRow: {
                 id: result.joinTableId,
                 table_name: "project_tasks",

@@ -17,10 +17,12 @@ function sqlStringLiteral(value: string): SqlQuery {
 /**
  * Ordered migrations for the **main** database — the one SQLite opens as schema
  * `main`. It is treated as public and holds **no real information**, only opaque
- * IDs:
+ * IDs and migration bookkeeping:
  *
- * - `_alpine_tables(id, kind)` — registry of every table id; drives cold-open
- *   attach of per-table databases.
+ * - `_alpine_tables(id, kind, schema_version)` — registry of every table id.
+ *   `schema_version` mirrors the per-table file's `user_version` (the number of
+ *   applied per-table migrations) so server bootstrap can tell which files need
+ *   migrating without attaching the current ones.
  * - `_alpine_views(id, table_id)` — view→table routing index so a bare view id
  *   from a URL resolves to its owning table without attaching every table.
  *
@@ -45,6 +47,13 @@ export const mainSqliteMigrations: ReadonlyArray<SqliteMigration> = [
             CHECK (is_id (table_id))
         ) STRICT,
         WITHOUT ROWID;
+    `,
+    // The DEFAULT 0 backfill marks every pre-existing table stale, so the first
+    // bootstrap after this migration attaches each one once, verifies its migrations,
+    // and records the real version.
+    sql`
+        ALTER TABLE _alpine_tables
+        ADD COLUMN schema_version INTEGER NOT NULL DEFAULT 0
     `,
 ];
 

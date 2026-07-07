@@ -12,6 +12,10 @@ import {DatabaseTableModel} from "~/shared/databases/model/database_table_model.
 import {SqlBooleanSchema} from "~/shared/databases/model/sqlite_schema.js";
 import {databaseTableSchemaName, sql} from "~/shared/databases/sql.js";
 import {SqliteDatabase} from "~/shared/databases/sqlite.js";
+import {
+    joinTableSqliteMigrations,
+    tableSqliteMigrations,
+} from "~/shared/databases/sqlite_migrations.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 import {generateChronologicalId} from "~/shared/id/chronological_id.js";
@@ -100,11 +104,17 @@ export class DatabaseModel {
 
         const tableName = this.formatUniqueTableName(name);
 
+        // The caller (the createTable action) migrated the table's per-db file before this
+        // insert, so the registry's schema_version starts current.
         sql`
             INSERT INTO
-                _alpine_tables (id, kind)
+                _alpine_tables (id, kind, schema_version)
             VALUES
-                (${tableId}, 'table')
+                (
+                    ${tableId},
+                    'table',
+                    ${tableSqliteMigrations(tableId).length}
+                )
         `.exec(this.db);
         sql`
             INSERT INTO
@@ -178,11 +188,16 @@ export class DatabaseModel {
         const schema = sql.identifier(databaseTableSchemaName(joinTableId));
         const joinTableName = this.formatUniqueTableName(`${source.name} ${target.name}`);
 
+        // Like createTable: the join-table file was migrated before this insert.
         sql`
             INSERT INTO
-                _alpine_tables (id, kind)
+                _alpine_tables (id, kind, schema_version)
             VALUES
-                (${joinTableId}, 'join')
+                (
+                    ${joinTableId},
+                    'join',
+                    ${joinTableSqliteMigrations(joinTableId).length}
+                )
         `.exec(this.db);
 
         const sourceColumnNames = this.formatJoinTableColumnNames(source.table, target.table);

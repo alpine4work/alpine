@@ -20,11 +20,12 @@ import {Schema} from "~/shared/schema/schema.js";
 const sqlite3Promise = sqlite3InitModule();
 let dbCounter = 0;
 
+// Deliberately does NOT run main migrations: the `main migration up to N` tests
+// below apply them incrementally themselves.
 async function createDb(): Promise<SqliteDatabase> {
     const sqlite3 = await sqlite3Promise;
     const db = new sqlite3.oo1.DB(`/test-migrations-${dbCounter++}.sqlite3`, "ct");
     registerSqliteCustomFunctions(sqlite3, db);
-    runMainMigrations(db);
     return db;
 }
 
