@@ -948,32 +948,7 @@ describe("DatabaseServer", () => {
     });
 
     describe("executeAction — internal actions", () => {
-        test("rejects client-only table metadata action requests", async () => {
-            const server = await createServerWithSchema();
-            const tableId = generateChronologicalId<DatabaseTableId>();
-            const appClientContext = {
-                ...testContext,
-                actor: {...testContext.actor, serviceName: "AppClient"},
-            };
-
-            expect(() =>
-                server.executeAction(appClientContext, {
-                    name: "createTable",
-                    input: createTableInputForTest("Tasks"),
-                }),
-            ).toThrow("Database action createTable is internal-only");
-            expect(() =>
-                server.executeAction(appClientContext, {
-                    name: "syncTableMetadata",
-                    input: {
-                        tableId,
-                        name: "Tasks",
-                        accessPolicy: databaseTableAccessPolicyForCreator(testAccountId),
-                    },
-                }),
-            ).toThrow("Database action syncTableMetadata is internal-only");
-        });
-
+        // The allowlisted first-party backend services may run internal schema actions.
         for (const serviceName of ["AppService", "JobQueueService"] as const) {
             test(`allows the internal ${serviceName} to run internal actions`, async () => {
                 const server = await createServerWithSchema();
@@ -991,6 +966,54 @@ describe("DatabaseServer", () => {
                 expect(result.tableId).toBe(input.tableId);
             });
         }
+
+        // Everyone else is rejected: `AppClient` (a public session actor), `EdgeService`
+        // (how a public request is re-signed when forwarded through the edge), another
+        // backend service that has no business mutating schema (`ApiService`), and the
+        // durable object's own service name (`DatabaseGroupService`) — proving it is not a
+        // privilege-escalation path even though it holds the durable object's key.
+        for (const serviceName of [
+            "AppClient",
+            "EdgeService",
+            "ApiService",
+            "DatabaseGroupService",
+        ] as const) {
+            test(`rejects the non-allowlisted ${serviceName} from running internal actions`, async () => {
+                const server = await createServerWithSchema();
+                const deniedContext = {
+                    ...testContext,
+                    actor: {...testContext.actor, serviceName},
+                };
+
+                expect(() =>
+                    server.executeAction(deniedContext, {
+                        name: "createTable",
+                        input: createTableInputForTest("Tasks"),
+                    }),
+                ).toThrow("Database action createTable is internal-only");
+            });
+        }
+
+        // The gate keys off the action's `internalOnly` flag, not the action name: a
+        // rejected service can't reach any internal action, `syncTableMetadata` included.
+        test("rejects a non-allowlisted service from every internal action", async () => {
+            const server = await createServerWithSchema();
+            const deniedContext = {
+                ...testContext,
+                actor: {...testContext.actor, serviceName: "AppClient"},
+            };
+
+            expect(() =>
+                server.executeAction(deniedContext, {
+                    name: "syncTableMetadata",
+                    input: {
+                        tableId: generateChronologicalId<DatabaseTableId>(),
+                        name: "Tasks",
+                        accessPolicy: databaseTableAccessPolicyForCreator(testAccountId),
+                    },
+                }),
+            ).toThrow("Database action syncTableMetadata is internal-only");
+        });
     });
 
     describe("executeAction — changed tables", () => {

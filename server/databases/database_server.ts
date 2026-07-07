@@ -25,26 +25,34 @@ import type {DatabaseTableId} from "~/shared/id/types/id_types.js";
 import {Schema} from "~/shared/schema/schema.js";
 
 /**
- * Backend services allowed to execute `internalOnly` database actions (schema
- * mutations like `createTable`/`syncTableMetadata`) through the durable object's
- * action transport.
+ * First-party backend services allowed to execute `internalOnly` database actions
+ * (schema mutations like `createTable`/`syncTableMetadata`).
  *
- * The durable object's action route is reachable through the public edge, but a
- * public client only ever arrives as a session actor (`AppClient`) or, over the
- * WebSocket transport, as `EdgeService` — none of which are listed here, so they
- * cannot run internal actions. Only first-party backend services that legitimately
- * originate an internal action belong in this set; keep it minimal.
+ * `context.actor.serviceName` is the JWT _issuer_ — the service that signed the
+ * request with its own private key (see `createDurableObjectActorContextModule`),
+ * not the audience or the originating account. A public client cannot forge it: a
+ * browser request forwarded through the edge is re-signed by the edge and arrives
+ * as `EdgeService`, and a session/account actor carries its own non-backend
+ * service name. So the only entries that belong here are backend services that
+ * legitimately _originate_ an internal action.
+ *
+ * Keep this set as small as the call graph allows: an action reaching the durable
+ * object from an unlisted service fails loudly with a `PermissionDeniedError`
+ * naming the action (easy to diagnose and add), whereas a spurious entry silently
+ * widens the schema-mutation surface. Notably this excludes `DatabaseGroupService`
+ * (the durable object's own service name): nothing self-issues an internal action,
+ * and listing it would grant internal-action rights to any token signed by the
+ * durable object's key.
  */
 const internalDatabaseActionServiceNames: ReadonlySet<ActorServiceName> = new Set([
     // Database RPCs and route loaders, e.g. `createDatabaseTable` running
     // `createTable`.
     "AppService",
-    // Search indexing syncs table metadata into the durable object via
-    // `syncTableMetadata`.
+    // The `IndexSearchEntity` job syncs table metadata via `syncTableMetadata`.
     "JobQueueService",
-    // The database group durable object executing an internal action against itself.
-    "DatabaseGroupService",
-    // The test harness.
+    // Unit tests execute actions directly with a `Test` actor. No production token can
+    // be issued as `Test` (it is not a signing service), so this is unreachable
+    // outside tests.
     "Test",
 ]);
 
