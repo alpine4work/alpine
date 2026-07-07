@@ -830,13 +830,13 @@ describe("per-browser page tracking", () => {
         const context = {
             rpc: {
                 execute: async () => {
-                    throw new PermissionDeniedError("Actor doesn’t have access to the space");
+                    throw new PermissionDeniedError("Actor doesn\u2019t have access to the space");
                 },
             },
         };
 
         await expect(conn.authorize(context as any)).rejects.toThrow(
-            "Actor doesn’t have access to the space",
+            "Actor doesn\u2019t have access to the space",
         );
     });
 

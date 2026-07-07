@@ -95,7 +95,7 @@ test("client executes actions against the database server", async () => {
     });
 });
 
-test("a connection from an account outside the group's space is refused", async () => {
+test("a connection from an account outside the group\u2019s space is refused", async () => {
     const databaseGroupId = generateId<DatabaseGroupId>();
     await getOrCreateTestSpaceForDatabaseGroupId(databaseGroupId);
     const otherSpace = await TestSpace.create(context);
