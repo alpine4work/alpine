@@ -121,10 +121,10 @@ function normalizeApiTaskFilter<Filter extends ApiTaskFilter>(filter: Filter): F
             };
         }
         case "Due":
-        case "CreatedDate":
-        case "AssignedDate":
-        case "ClosedDate":
-        case "ActivatedDate": {
+        case "CreatedTime":
+        case "AssignedTime":
+        case "ClosedTime":
+        case "ActivatedTime": {
             return filter;
         }
         default:

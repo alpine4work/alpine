@@ -55,6 +55,14 @@ export interface AgentWebSessionStorage {
     /**
      * Map of paths (e.g. `/document/tech-spec`) to the underlying resource that path
      * represents (e.g. a `DocumentId`).
+     *
+     * Keys must be normalized with `normalizeAgentWebPageStoredLinkPathname()`.
+     * Account pathnames are printed as `/human/` or `/bot/` for the agent but they're
+     * keyed under a single `/account/` namespace so that account pathnames stay unique
+     * no matter how we label them. If we keyed by the printed paths directly then a
+     * human named "Caleb" and a bot named "Caleb" would both get the pathname slug
+     * `caleb` (as `/human/caleb` and `/bot/caleb`) and short account references like
+     * `assignee=caleb` in task filters would be ambiguous.
      */
     readonly pageStoredLinkByPathname: AgentWebSessionStorageCollection<
         string,
@@ -65,6 +73,10 @@ export interface AgentWebSessionStorage {
      * The latest path (e.g. `/document/tech-spec`) for a given page key. If you try
      * reading a pathname for this key that's not the latest pathname then we throw an
      * error.
+     *
+     * Values are the agent-visible pathnames (e.g. `/human/caleb`), not the normalized
+     * `pageStoredLinkByPathname` keys (e.g. `/account/caleb`), since this collection
+     * doesn't need unique pathnames.
      */
     readonly latestPageStoredLinkPathnameByKey: AgentWebSessionStorageCollection<
         AgentWebPageStoredLinkKey,
@@ -175,6 +187,18 @@ export interface AgentWebSessionStorage {
      * claim a lock on the path to avoid weird race conditions.
      */
     readonly readResponseMutexByPath: Map<string, Mutex>;
+}
+
+/**
+ * Normalizes an agent web pathname into the key format for
+ * `pageStoredLinkByPathname`. Account pathnames labeled `/human/` or `/bot/` (and
+ * already normalized `/account/` pathnames) all map to the same `/account/` key.
+ * Every other pathname is already normalized.
+ */
+export function normalizeAgentWebPageStoredLinkPathname(pathname: string): string {
+    const match = pathname.match(/^\/(?:human|bot)\/(.*)$/);
+    if (match === null) return pathname;
+    return `/account/${match[1]!}`;
 }
 
 /**

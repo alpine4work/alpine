@@ -8,13 +8,13 @@ import {
     ApiTaskAccountFilterOperationAccount,
     ApiTaskAccountFilterOperationAccountResponse,
     ApiTaskCollectionPreviewResponse,
-    ApiTaskDateFilterOperationDate,
-    ApiTaskDateFilterOperationDuration,
     ApiTaskFilter,
     ApiTaskFilterResponse,
     ApiTaskLayout,
     ApiTaskPriority,
     ApiTaskStatus,
+    ApiTaskTimeFilterOperationDuration,
+    ApiTaskTimeFilterOperationTime,
 } from "~/shared/api/specification/types/api_specification_convenience_types.js";
 import {InternalError, InvalidArgumentError} from "~/shared/error/error.js";
 import {errorDisplayMessage} from "~/shared/error/error_display_message.js";
@@ -249,16 +249,16 @@ async function printAgentWebTaskFilter(
                     throw exhaustive(operation);
             }
         }
-        case "CreatedDate": {
+        case "CreatedTime": {
             return printAgentWebTaskFilterDateOperation("created", filter.operation);
         }
-        case "AssignedDate": {
+        case "AssignedTime": {
             return printAgentWebTaskFilterDateOperation("assigned", filter.operation);
         }
-        case "ClosedDate": {
+        case "ClosedTime": {
             return printAgentWebTaskFilterDateOperation("closed", filter.operation);
         }
-        case "ActivatedDate": {
+        case "ActivatedTime": {
             return printAgentWebTaskFilterDateOperation("activated", filter.operation);
         }
         default:
@@ -435,48 +435,48 @@ async function printAgentWebTaskFilterAccount(
 
 function printAgentWebTaskFilterDateOperation(
     filterKey: string,
-    operation: {type: "LessThan" | "GreaterThan"; date: ApiTaskDateFilterOperationDate},
+    operation: {type: "LessThan" | "GreaterThan"; time: ApiTaskTimeFilterOperationTime},
 ): string {
     const operator = {
         LessThan: "before",
         GreaterThan: "after",
     }[operation.type];
 
-    return `${filterKey}[${operator}]=${printAgentWebTaskFilterDate(operation.date)}`;
+    return `${filterKey}[${operator}]=${printAgentWebTaskFilterTime(operation.time)}`;
 }
 
-function printAgentWebTaskFilterDate(date: ApiTaskDateFilterOperationDate): string {
-    switch (date.type) {
-        case "Absolute": {
+function printAgentWebTaskFilterTime(time: ApiTaskTimeFilterOperationTime): string {
+    switch (time.type) {
+        case "AbsoluteDate": {
             // A `null` absolute date is a filter whose date hasn't been chosen yet in the task
             // filter editor UI. It prints as an empty value (e.g. `due[before]=`) so agents
             // editing other filters don't destroy a half-configured filter.
-            if (date.date === null) {
+            if (time.date === null) {
                 return "";
             }
 
             // Absolute dates from the API are validated as ISO 8601 dates by the API
             // specification but we double check since we're inserting the date into a string
             // with carefully controlled escaping.
-            assert(/^\d{4}-\d{2}-\d{2}$/.test(date.date));
+            assert(/^\d{4}-\d{2}-\d{2}$/.test(time.date));
 
-            return date.date;
+            return time.date;
         }
         case "RelativeToday": {
             return "today";
         }
         case "RelativeAfterToday": {
-            return `today+${printAgentWebTaskFilterDateDuration(date.duration)}`;
+            return `today+${printAgentWebTaskFilterDateDuration(time.duration)}`;
         }
         case "RelativeBeforeToday": {
-            return `today-${printAgentWebTaskFilterDateDuration(date.duration)}`;
+            return `today-${printAgentWebTaskFilterDateDuration(time.duration)}`;
         }
         default:
-            throw exhaustive(date);
+            throw exhaustive(time);
     }
 }
 
-function printAgentWebTaskFilterDateDuration(duration: ApiTaskDateFilterOperationDuration): string {
+function printAgentWebTaskFilterDateDuration(duration: ApiTaskTimeFilterOperationDuration): string {
     switch (duration.type) {
         case "Days":
             return printAgentWebTaskFilterDateDurationCount(duration.days, "d");
@@ -734,7 +734,7 @@ async function parseAgentWebTaskFilterSearchParam(
                 type: "Due",
                 operation: {
                     type: operator === "before" ? "LessThan" : "GreaterThan",
-                    date: parseAgentWebTaskFilterDate(key, value),
+                    time: parseAgentWebTaskFilterTime(key, value),
                 },
             };
         }
@@ -751,18 +751,18 @@ async function parseAgentWebTaskFilterSearchParam(
 
             const filterType =
                 filterKey === "created"
-                    ? "CreatedDate"
+                    ? "CreatedTime"
                     : filterKey === "assigned"
-                      ? "AssignedDate"
+                      ? "AssignedTime"
                       : filterKey === "closed"
-                        ? "ClosedDate"
-                        : "ActivatedDate";
+                        ? "ClosedTime"
+                        : "ActivatedTime";
 
             return {
                 type: filterType,
                 operation: {
                     type: operator === "before" ? "LessThan" : "GreaterThan",
-                    date: parseAgentWebTaskFilterDate(key, value),
+                    time: parseAgentWebTaskFilterTime(key, value),
                 },
             };
         }
@@ -939,14 +939,14 @@ async function parseAgentWebTaskFilterAccount(
     return {type: "Account", account: {id: pageLinkResult.pageLink.id}};
 }
 
-function parseAgentWebTaskFilterDate(
+function parseAgentWebTaskFilterTime(
     key: string,
     dateString: string,
-): ApiTaskDateFilterOperationDate {
+): ApiTaskTimeFilterOperationTime {
     // An empty date (e.g. `due[before]=`) is a filter whose date hasn't been chosen
     // yet in the task filter editor UI. It matches all tasks.
     if (dateString.length === 0) {
-        return {type: "Absolute", date: null};
+        return {type: "AbsoluteDate", date: null};
     }
 
     if (dateString === "today") {
@@ -985,7 +985,7 @@ function parseAgentWebTaskFilterDate(
             });
         }
 
-        return {type: "Absolute", date: dateString};
+        return {type: "AbsoluteDate", date: dateString};
     }
 
     throw new InvalidArgumentError("Unexpected task filter date", {
@@ -996,7 +996,7 @@ function parseAgentWebTaskFilterDate(
 function createAgentWebTaskFilterDateDuration(
     unit: string,
     count: number,
-): ApiTaskDateFilterOperationDuration {
+): ApiTaskTimeFilterOperationDuration {
     switch (unit) {
         case "d":
             return {type: "Days", days: count};

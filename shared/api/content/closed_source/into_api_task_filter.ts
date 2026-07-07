@@ -3,13 +3,13 @@ import {intoApiTaskStatus} from "~/shared/api/content/closed_source/into_api_tas
 import {
     ApiTaskAccountFilterOperation,
     ApiTaskCreatorFilterOperation,
-    ApiTaskDateFilterOperation,
-    ApiTaskDateFilterOperationDate,
-    ApiTaskDateFilterOperationDuration,
     ApiTaskFilter,
     ApiTaskLayout,
     ApiTaskPriority,
     ApiTaskStatus,
+    ApiTaskTimeFilterOperation,
+    ApiTaskTimeFilterOperationDuration,
+    ApiTaskTimeFilterOperationTime,
 } from "~/shared/api/specification/types/api_specification_convenience_types.js";
 import {InvalidArgumentError} from "~/shared/error/error.js";
 import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
@@ -96,31 +96,31 @@ export function intoApiFilter(filter: TaskQueryFilter): ApiTaskFilter {
                 operation:
                     filter.operation.type === "Overdue" || filter.operation.type === "IsEmpty"
                         ? filter.operation
-                        : intoApiTaskDateFilterOperation(filter.operation),
+                        : intoApiTaskTimeFilterOperation(filter.operation),
             };
         }
         case "CreatedDate": {
             return {
-                type: "CreatedDate",
-                operation: intoApiTaskDateFilterOperation(filter.operation),
+                type: "CreatedTime",
+                operation: intoApiTaskTimeFilterOperation(filter.operation),
             };
         }
         case "AssignedDate": {
             return {
-                type: "AssignedDate",
-                operation: intoApiTaskDateFilterOperation(filter.operation),
+                type: "AssignedTime",
+                operation: intoApiTaskTimeFilterOperation(filter.operation),
             };
         }
         case "ClosedDate": {
             return {
-                type: "ClosedDate",
-                operation: intoApiTaskDateFilterOperation(filter.operation),
+                type: "ClosedTime",
+                operation: intoApiTaskTimeFilterOperation(filter.operation),
             };
         }
         case "ActivatedDate": {
             return {
-                type: "ActivatedDate",
-                operation: intoApiTaskDateFilterOperation(filter.operation),
+                type: "ActivatedTime",
+                operation: intoApiTaskTimeFilterOperation(filter.operation),
             };
         }
         default:
@@ -192,40 +192,40 @@ function intoApiTaskCreatorFilterOperation(
     };
 }
 
-function intoApiTaskDateFilterOperation(
+function intoApiTaskTimeFilterOperation(
     operation: TaskQueryFilterDateOperation,
-): ApiTaskDateFilterOperation {
+): ApiTaskTimeFilterOperation {
     switch (operation.type) {
         case "LessThan":
         case "GreaterThan":
-            return {type: operation.type, date: intoApiTaskDateFilterOperationDate(operation.date)};
+            return {type: operation.type, time: intoApiTaskTimeFilterOperationTime(operation.date)};
         default:
             throw exhaustive(operation);
     }
 }
 
-function intoApiTaskDateFilterOperationDate(
+function intoApiTaskTimeFilterOperationTime(
     date: TaskQueryFilterDateOperationDate,
-): ApiTaskDateFilterOperationDate {
+): ApiTaskTimeFilterOperationTime {
     switch (date.type) {
         case "Absolute":
-            return {type: "Absolute", date: date.date?.toString() ?? null};
+            return {type: "AbsoluteDate", date: date.date?.toString() ?? null};
         case "RelativeToday":
             return {type: "RelativeToday"};
         case "RelativeAfterToday":
         case "RelativeBeforeToday":
             return {
                 type: date.type,
-                duration: intoApiTaskDateFilterOperationDuration(date.duration),
+                duration: intoApiTaskTimeFilterOperationDuration(date.duration),
             };
         default:
             throw exhaustive(date);
     }
 }
 
-function intoApiTaskDateFilterOperationDuration(
+function intoApiTaskTimeFilterOperationDuration(
     duration: TaskQueryFilterDateOperationDuration,
-): ApiTaskDateFilterOperationDuration {
+): ApiTaskTimeFilterOperationDuration {
     switch (duration.type) {
         case "Days":
             return {type: "Days", days: duration.count};
@@ -310,31 +310,31 @@ export function fromApiFilter(filter: ApiTaskFilter): TaskQueryFilter {
                 operation:
                     filter.operation.type === "Overdue" || filter.operation.type === "IsEmpty"
                         ? filter.operation
-                        : fromApiTaskDateFilterOperation(filter.operation),
+                        : fromApiTaskTimeFilterOperation(filter.operation),
             };
         }
-        case "CreatedDate": {
+        case "CreatedTime": {
             return {
                 type: "CreatedDate",
-                operation: fromApiTaskDateFilterOperation(filter.operation),
+                operation: fromApiTaskTimeFilterOperation(filter.operation),
             };
         }
-        case "AssignedDate": {
+        case "AssignedTime": {
             return {
                 type: "AssignedDate",
-                operation: fromApiTaskDateFilterOperation(filter.operation),
+                operation: fromApiTaskTimeFilterOperation(filter.operation),
             };
         }
-        case "ClosedDate": {
+        case "ClosedTime": {
             return {
                 type: "ClosedDate",
-                operation: fromApiTaskDateFilterOperation(filter.operation),
+                operation: fromApiTaskTimeFilterOperation(filter.operation),
             };
         }
-        case "ActivatedDate": {
+        case "ActivatedTime": {
             return {
                 type: "ActivatedDate",
-                operation: fromApiTaskDateFilterOperation(filter.operation),
+                operation: fromApiTaskTimeFilterOperation(filter.operation),
             };
         }
         default:
@@ -403,39 +403,39 @@ function fromApiTaskCreatorFilterOperation(
     };
 }
 
-function fromApiTaskDateFilterOperation(
-    operation: ApiTaskDateFilterOperation,
+function fromApiTaskTimeFilterOperation(
+    operation: ApiTaskTimeFilterOperation,
 ): TaskQueryFilterDateOperation {
     switch (operation.type) {
         case "LessThan":
         case "GreaterThan":
-            return {type: operation.type, date: fromApiTaskDateFilterOperationDate(operation.date)};
+            return {type: operation.type, date: fromApiTaskTimeFilterOperationTime(operation.time)};
         default:
             throw exhaustive(operation);
     }
 }
 
-function fromApiTaskDateFilterOperationDate(
-    date: ApiTaskDateFilterOperationDate,
+function fromApiTaskTimeFilterOperationTime(
+    time: ApiTaskTimeFilterOperationTime,
 ): TaskQueryFilterDateOperationDate {
-    switch (date.type) {
-        case "Absolute":
-            return {type: "Absolute", date: date.date === null ? null : parseDate(date.date)};
+    switch (time.type) {
+        case "AbsoluteDate":
+            return {type: "Absolute", date: time.date === null ? null : parseDate(time.date)};
         case "RelativeToday":
             return {type: "RelativeToday"};
         case "RelativeAfterToday":
         case "RelativeBeforeToday":
             return {
-                type: date.type,
-                duration: fromApiTaskDateFilterOperationDuration(date.duration),
+                type: time.type,
+                duration: fromApiTaskTimeFilterOperationDuration(time.duration),
             };
         default:
-            throw exhaustive(date);
+            throw exhaustive(time);
     }
 }
 
-function fromApiTaskDateFilterOperationDuration(
-    duration: ApiTaskDateFilterOperationDuration,
+function fromApiTaskTimeFilterOperationDuration(
+    duration: ApiTaskTimeFilterOperationDuration,
 ): TaskQueryFilterDateOperationDuration {
     switch (duration.type) {
         case "Days":

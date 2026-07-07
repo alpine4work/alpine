@@ -839,7 +839,7 @@ test("prints a due before an absolute date filter", async () => {
         [
             {
                 type: "Due",
-                operation: {type: "LessThan", date: {type: "Absolute", date: "2026-07-12"}},
+                operation: {type: "LessThan", time: {type: "AbsoluteDate", date: "2026-07-12"}},
             },
         ],
         "due[before]=2026-07-12",
@@ -851,7 +851,7 @@ test("prints a due after an absolute date filter", async () => {
         [
             {
                 type: "Due",
-                operation: {type: "GreaterThan", date: {type: "Absolute", date: "2026-07-12"}},
+                operation: {type: "GreaterThan", time: {type: "AbsoluteDate", date: "2026-07-12"}},
             },
         ],
         "due[after]=2026-07-12",
@@ -860,7 +860,7 @@ test("prints a due after an absolute date filter", async () => {
 
 test("prints a due before today filter", async () => {
     await expectTaskFilterFormat(
-        [{type: "Due", operation: {type: "LessThan", date: {type: "RelativeToday"}}}],
+        [{type: "Due", operation: {type: "LessThan", time: {type: "RelativeToday"}}}],
         "due[before]=today",
     );
 });
@@ -872,7 +872,7 @@ test("prints a due after a relative days filter", async () => {
                 type: "Due",
                 operation: {
                     type: "GreaterThan",
-                    date: {type: "RelativeAfterToday", duration: {type: "Days", days: 3}},
+                    time: {type: "RelativeAfterToday", duration: {type: "Days", days: 3}},
                 },
             },
         ],
@@ -887,7 +887,7 @@ test("prints a due before a relative weeks filter", async () => {
                 type: "Due",
                 operation: {
                     type: "LessThan",
-                    date: {type: "RelativeAfterToday", duration: {type: "Weeks", weeks: 2}},
+                    time: {type: "RelativeAfterToday", duration: {type: "Weeks", weeks: 2}},
                 },
             },
         ],
@@ -902,7 +902,7 @@ test("prints a due after a relative months in the past filter", async () => {
                 type: "Due",
                 operation: {
                     type: "GreaterThan",
-                    date: {type: "RelativeBeforeToday", duration: {type: "Months", months: 6}},
+                    time: {type: "RelativeBeforeToday", duration: {type: "Months", months: 6}},
                 },
             },
         ],
@@ -917,7 +917,7 @@ test("prints a due before a relative years in the past filter", async () => {
                 type: "Due",
                 operation: {
                     type: "LessThan",
-                    date: {type: "RelativeBeforeToday", duration: {type: "Years", years: 1}},
+                    time: {type: "RelativeBeforeToday", duration: {type: "Years", years: 1}},
                 },
             },
         ],
@@ -930,11 +930,11 @@ test("prints a due date range with two filters", async () => {
         [
             {
                 type: "Due",
-                operation: {type: "GreaterThan", date: {type: "Absolute", date: "2026-07-01"}},
+                operation: {type: "GreaterThan", time: {type: "AbsoluteDate", date: "2026-07-01"}},
             },
             {
                 type: "Due",
-                operation: {type: "LessThan", date: {type: "Absolute", date: "2026-08-01"}},
+                operation: {type: "LessThan", time: {type: "AbsoluteDate", date: "2026-08-01"}},
             },
         ],
         "due[after]=2026-07-01&due[before]=2026-08-01",
@@ -943,7 +943,7 @@ test("prints a due date range with two filters", async () => {
 
 test("prints a due date filter whose date hasn\u2019t been chosen yet", async () => {
     await expectTaskFilterFormat(
-        [{type: "Due", operation: {type: "LessThan", date: {type: "Absolute", date: null}}}],
+        [{type: "Due", operation: {type: "LessThan", time: {type: "AbsoluteDate", date: null}}}],
         "due[before]=",
     );
 });
@@ -952,8 +952,8 @@ test("prints a created date filter", async () => {
     await expectTaskFilterFormat(
         [
             {
-                type: "CreatedDate",
-                operation: {type: "GreaterThan", date: {type: "Absolute", date: "2026-01-01"}},
+                type: "CreatedTime",
+                operation: {type: "GreaterThan", time: {type: "AbsoluteDate", date: "2026-01-01"}},
             },
         ],
         "created[after]=2026-01-01",
@@ -964,10 +964,10 @@ test("prints an assigned date filter", async () => {
     await expectTaskFilterFormat(
         [
             {
-                type: "AssignedDate",
+                type: "AssignedTime",
                 operation: {
                     type: "LessThan",
-                    date: {type: "RelativeBeforeToday", duration: {type: "Weeks", weeks: 1}},
+                    time: {type: "RelativeBeforeToday", duration: {type: "Weeks", weeks: 1}},
                 },
             },
         ],
@@ -979,10 +979,10 @@ test("prints a closed date filter", async () => {
     await expectTaskFilterFormat(
         [
             {
-                type: "ClosedDate",
+                type: "ClosedTime",
                 operation: {
                     type: "GreaterThan",
-                    date: {type: "RelativeBeforeToday", duration: {type: "Days", days: 3}},
+                    time: {type: "RelativeBeforeToday", duration: {type: "Days", days: 3}},
                 },
             },
         ],
@@ -994,8 +994,8 @@ test("prints an activated date filter", async () => {
     await expectTaskFilterFormat(
         [
             {
-                type: "ActivatedDate",
-                operation: {type: "LessThan", date: {type: "Absolute", date: "2026-06-30"}},
+                type: "ActivatedTime",
+                operation: {type: "LessThan", time: {type: "AbsoluteDate", date: "2026-06-30"}},
             },
         ],
         "activated[before]=2026-06-30",
@@ -1017,7 +1017,7 @@ test("prints a combined set of filters", async () => {
                 type: "Due",
                 operation: {
                     type: "LessThan",
-                    date: {type: "RelativeAfterToday", duration: {type: "Weeks", weeks: 1}},
+                    time: {type: "RelativeAfterToday", duration: {type: "Weeks", weeks: 1}},
                 },
             },
         ],
@@ -1097,7 +1097,7 @@ test("normalization leaves distinct filters unchanged", () => {
     const filters: ReadonlyArray<ApiTaskFilterResponse> = [
         {type: "Title", operation: {type: "Includes", titleQuery: "launch"}},
         {type: "Due", operation: {type: "Overdue"}},
-        {type: "Due", operation: {type: "LessThan", date: {type: "Absolute", date: null}}},
+        {type: "Due", operation: {type: "LessThan", time: {type: "AbsoluteDate", date: null}}},
         {
             type: "Priority",
             operation: {type: "OneOf", priorities: [{type: "High"}, null]},
@@ -1115,7 +1115,7 @@ test("parses search params through agent web path normalization", async () => {
             type: "Due",
             operation: {
                 type: "LessThan",
-                date: {type: "RelativeAfterToday", duration: {type: "Days", days: 3}},
+                time: {type: "RelativeAfterToday", duration: {type: "Days", days: 3}},
             },
         },
     ]);
@@ -1129,7 +1129,7 @@ test("parses a percent-encoded plus in a relative date", async () => {
             type: "Due",
             operation: {
                 type: "GreaterThan",
-                date: {type: "RelativeAfterToday", duration: {type: "Weeks", weeks: 2}},
+                time: {type: "RelativeAfterToday", duration: {type: "Weeks", weeks: 2}},
             },
         },
     ]);
@@ -1141,7 +1141,7 @@ test("parses percent-encoded square brackets in a filter key", async () => {
     ).toEqual([
         {
             type: "Due",
-            operation: {type: "LessThan", date: {type: "Absolute", date: "2026-07-12"}},
+            operation: {type: "LessThan", time: {type: "AbsoluteDate", date: "2026-07-12"}},
         },
     ]);
 });

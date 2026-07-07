@@ -2,7 +2,10 @@ import escapeHtml from "escape-html";
 import {Tokenizer as HtmlTokenizer} from "htmlparser2";
 import {BlockContent, DefinitionContent, Html, Root, RootContent} from "mdast";
 import {printAgentWebPageStoredLinkLabel} from "~/server/agents/web/agent_web_page_stored_link.js";
-import {AgentWebSessionStorage} from "~/server/agents/web/agent_web_session_storage.js";
+import {
+    AgentWebSessionStorage,
+    normalizeAgentWebPageStoredLinkPathname,
+} from "~/server/agents/web/agent_web_session_storage.js";
 import {createAgentWebPageLinkApiMentionReferenceIfPossible} from "~/server/agents/web/create_agent_web_page_link_api_mention_reference_if_possible.js";
 import {createAgentWebPageLinkApiPreviewReferenceIfPossible} from "~/server/agents/web/create_agent_web_page_link_api_preview_reference_if_possible.js";
 import {normalizeAgentWebPath} from "~/server/agents/web/internal/normalize_agent_web_path.js";
@@ -795,7 +798,9 @@ async function traverseMarkdownHtmlNode(
                     string: (async () => {
                         const {pathname} = normalizeAgentWebPath(url);
 
-                        const pageLink = await storage.pageStoredLinkByPathname.get(pathname);
+                        const pageLink = await storage.pageStoredLinkByPathname.get(
+                            normalizeAgentWebPageStoredLinkPathname(pathname),
+                        );
                         if (!pageLink) return url;
 
                         if (pageLink.type === "File") {

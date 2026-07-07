@@ -112,6 +112,10 @@ function actuallyPrintAgentWebPageStoredLinkPathname(
 
     switch (link.type) {
         case "Account": {
+            // Account pathnames are labeled `/human/` or `/bot/` for the agent but they're
+            // stored under a single `/account/` namespace so that a human and a bot with the
+            // same name can't share a pathname, see
+            // `normalizeAgentWebPageStoredLinkPathname()`.
             if (link.bot) {
                 return `/bot/${slugify(link.title)}${dedupe}`;
             } else {

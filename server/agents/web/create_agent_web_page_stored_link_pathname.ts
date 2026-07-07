@@ -3,7 +3,10 @@ import {
     printAgentWebPageStoredLinkPathname,
 } from "~/server/agents/web/agent_web_page_stored_link.js";
 import {printAgentWebPageStoredLinkKey} from "~/server/agents/web/agent_web_page_stored_link_key.js";
-import {AgentWebSessionStorage} from "~/server/agents/web/agent_web_session_storage.js";
+import {
+    AgentWebSessionStorage,
+    normalizeAgentWebPageStoredLinkPathname,
+} from "~/server/agents/web/agent_web_session_storage.js";
 import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
 import {isDeepEqual} from "~/shared/helpers/control/is_deep_equal.js";
 
@@ -37,8 +40,14 @@ export function createAgentWebPageStoredLinkPathname(
         let dedupeNumber = 1;
         let pageLinkPathname = printAgentWebPageStoredLinkPathname(pageLink, dedupeNumber);
 
+        // We check pathname collisions against the normalized storage key so account
+        // pathnames with different labels still collide: if `/human/caleb` exists then a
+        // bot named "Caleb" dedupes to `/bot/caleb-2` since both normalize to
+        // `/account/caleb`.
         const [initialActualPageLink, latestPageLinkPathname] = await runAllPromises([
-            storage.pageStoredLinkByPathname.get(pageLinkPathname),
+            storage.pageStoredLinkByPathname.get(
+                normalizeAgentWebPageStoredLinkPathname(pageLinkPathname),
+            ),
             storage.latestPageStoredLinkPathnameByKey.get(pageLinkKey),
         ]);
 
@@ -50,11 +59,16 @@ export function createAgentWebPageStoredLinkPathname(
         ) {
             dedupeNumber++;
             pageLinkPathname = printAgentWebPageStoredLinkPathname(pageLink, dedupeNumber);
-            actualPageLink = await storage.pageStoredLinkByPathname.get(pageLinkPathname);
+            actualPageLink = await storage.pageStoredLinkByPathname.get(
+                normalizeAgentWebPageStoredLinkPathname(pageLinkPathname),
+            );
         }
 
         if (actualPageLink === undefined || !isDeepEqual(actualPageLink, pageLink)) {
-            await storage.pageStoredLinkByPathname.put(pageLinkPathname, pageLink);
+            await storage.pageStoredLinkByPathname.put(
+                normalizeAgentWebPageStoredLinkPathname(pageLinkPathname),
+                pageLink,
+            );
         }
 
         // We write in sequence instead of in parallel because if we load

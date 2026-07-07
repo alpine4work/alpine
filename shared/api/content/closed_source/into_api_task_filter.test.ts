@@ -86,7 +86,7 @@ test("serializes due filter to the public API shape", () => {
             type: "Due",
             operation: {
                 type: "GreaterThan",
-                date: {
+                time: {
                     type: "RelativeAfterToday",
                     duration: {type: "Months", months: 3},
                 },

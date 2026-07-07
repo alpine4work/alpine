@@ -1,7 +1,10 @@
 import {AgentWebPageLink} from "~/server/agents/web/agent_web_page_link.js";
 import {AgentWebPageStoredLink} from "~/server/agents/web/agent_web_page_stored_link.js";
 import {printAgentWebPageStoredLinkKey} from "~/server/agents/web/agent_web_page_stored_link_key.js";
-import {AgentWebSessionStorage} from "~/server/agents/web/agent_web_session_storage.js";
+import {
+    AgentWebSessionStorage,
+    normalizeAgentWebPageStoredLinkPathname,
+} from "~/server/agents/web/agent_web_session_storage.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 
@@ -89,7 +92,9 @@ async function getAgentWebPageStoredLinkByPathname(
     storage: AgentWebSessionStorage,
     pathname: string,
 ): Promise<{pageLink: AgentWebPageStoredLink; latestPathname: string} | null> {
-    let pageLink = await storage.pageStoredLinkByPathname.get(pathname);
+    let pageLink = await storage.pageStoredLinkByPathname.get(
+        normalizeAgentWebPageStoredLinkPathname(pathname),
+    );
     if (!pageLink) return null;
 
     const pageLinkKey = printAgentWebPageStoredLinkKey(pageLink);
@@ -101,9 +106,15 @@ async function getAgentWebPageStoredLinkByPathname(
         pathname;
 
     // If a path change occurred, then "redirect" and use the latest pathname when
-    // parsing the link. Instead of using a dead pathname.
+    // parsing the link. Instead of using a dead pathname. This also redirects an
+    // account pathname with the wrong label (e.g. `/human/melvin` for a bot) to the
+    // correctly labeled pathname (e.g. `/bot/melvin`).
     if (latestPathname !== pathname) {
-        pageLink = assertExists(await storage.pageStoredLinkByPathname.get(latestPathname));
+        pageLink = assertExists(
+            await storage.pageStoredLinkByPathname.get(
+                normalizeAgentWebPageStoredLinkPathname(latestPathname),
+            ),
+        );
         return {pageLink, latestPathname};
     }
 
