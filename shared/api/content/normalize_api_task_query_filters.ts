@@ -1,43 +1,43 @@
 import {
-    ApiTaskAccountFilterOperation,
-    ApiTaskFilter,
+    ApiTaskQueryAccountFilterOperation,
+    ApiTaskQueryFilter,
 } from "~/shared/api/specification/types/api_specification_convenience_types.js";
 import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
 
 /**
  * Normalizes a list of API task filters into the canonical form printed by
- * `printAgentWebTaskFilters()` and returned by `parseAgentWebTaskFilters()`.
+ * `printAgentWebTaskQueryFilters()` and returned by `parseAgentWebTaskQueryFilters()`.
  * Normalizing never changes which tasks a list of filters matches.
  *
  * Repeated values in a single filter are deduped keeping the first occurrence
  * (e.g. a status filter with `[Open, Open, Closed]` becomes `[Open, Closed]`).
- * This mirrors `fromApiFilter()` which collects these values into sets when
+ * This mirrors `fromApiTaskQueryFilter()` which collects these values into sets when
  * converting to the canonical `TaskQueryFilter` representation.
  *
  * This gives the agent web task filter format an exact round-trip property for any
  * list of API task filters:
  *
  * ```ts
- * parseAgentWebTaskFilters(
+ * parseAgentWebTaskQueryFilters(
  *     storage,
- *     new URLSearchParams(await printAgentWebTaskFilters(storage, filters)),
- * ) === normalizeApiTaskFilters(filters);
+ *     new URLSearchParams(await printAgentWebTaskQueryFilters(storage, filters)),
+ * ) === normalizeApiTaskQueryFilters(filters);
  * ```
  */
-export function normalizeApiTaskFilters<Filter extends ApiTaskFilter>(
+export function normalizeApiTaskQueryFilters<Filter extends ApiTaskQueryFilter>(
     filters: ReadonlyArray<Filter>,
 ): ReadonlyArray<Filter> {
-    return filters.map(normalizeApiTaskFilter);
+    return filters.map(normalizeApiTaskQueryFilter);
 }
 
-function normalizeApiTaskFilter<Filter extends ApiTaskFilter>(filter: Filter): Filter {
+function normalizeApiTaskQueryFilter<Filter extends ApiTaskQueryFilter>(filter: Filter): Filter {
     switch (filter.type) {
         case "Status": {
             return {
                 ...filter,
                 operation: {
                     ...filter.operation,
-                    statuses: dedupeApiTaskFilterValues(filter.operation.statuses, status =>
+                    statuses: dedupeApiTaskQueryFilterValues(filter.operation.statuses, status =>
                         status.type === "Open" ? `Open:${status.isActive}` : "Closed",
                     ),
                 },
@@ -51,7 +51,7 @@ function normalizeApiTaskFilter<Filter extends ApiTaskFilter>(filter: Filter): F
                 ...filter,
                 operation: {
                     ...filter.operation,
-                    collections: dedupeApiTaskFilterValues(
+                    collections: dedupeApiTaskQueryFilterValues(
                         operation.collections,
                         collection => collection.id,
                     ),
@@ -63,8 +63,9 @@ function normalizeApiTaskFilter<Filter extends ApiTaskFilter>(filter: Filter): F
                 ...filter,
                 operation: {
                     ...filter.operation,
-                    priorities: dedupeApiTaskFilterValues(filter.operation.priorities, priority =>
-                        priority === null ? "None" : priority.type,
+                    priorities: dedupeApiTaskQueryFilterValues(
+                        filter.operation.priorities,
+                        priority => (priority === null ? "None" : priority.type),
                     ),
                 },
             };
@@ -74,7 +75,7 @@ function normalizeApiTaskFilter<Filter extends ApiTaskFilter>(filter: Filter): F
                 ...filter,
                 operation: {
                     ...filter.operation,
-                    layouts: dedupeApiTaskFilterValues(
+                    layouts: dedupeApiTaskQueryFilterValues(
                         filter.operation.layouts,
                         layout => layout.type,
                     ),
@@ -89,9 +90,9 @@ function normalizeApiTaskFilter<Filter extends ApiTaskFilter>(filter: Filter): F
                 ...filter,
                 operation: {
                     ...filter.operation,
-                    accounts: dedupeApiTaskFilterValues(
+                    accounts: dedupeApiTaskQueryFilterValues(
                         filter.operation.accounts,
-                        printApiTaskFilterAccountDedupeKey,
+                        printApiTaskQueryFilterAccountDedupeKey,
                     ),
                 },
             };
@@ -101,9 +102,9 @@ function normalizeApiTaskFilter<Filter extends ApiTaskFilter>(filter: Filter): F
                 ...filter,
                 operation: {
                     ...filter.operation,
-                    accounts: dedupeApiTaskFilterValues(
+                    accounts: dedupeApiTaskQueryFilterValues(
                         filter.operation.accounts,
-                        printApiTaskFilterAccountDedupeKey,
+                        printApiTaskQueryFilterAccountDedupeKey,
                     ),
                 },
             };
@@ -113,9 +114,9 @@ function normalizeApiTaskFilter<Filter extends ApiTaskFilter>(filter: Filter): F
                 ...filter,
                 operation: {
                     ...filter.operation,
-                    accounts: dedupeApiTaskFilterValues(
+                    accounts: dedupeApiTaskQueryFilterValues(
                         filter.operation.accounts,
-                        printApiTaskFilterAccountDedupeKey,
+                        printApiTaskQueryFilterAccountDedupeKey,
                     ),
                 },
             };
@@ -132,7 +133,7 @@ function normalizeApiTaskFilter<Filter extends ApiTaskFilter>(filter: Filter): F
     }
 }
 
-function dedupeApiTaskFilterValues<Value>(
+function dedupeApiTaskQueryFilterValues<Value>(
     values: ReadonlyArray<Value>,
     printValueDedupeKey: (value: Value) => string,
 ): ReadonlyArray<Value> {
@@ -149,8 +150,8 @@ function dedupeApiTaskFilterValues<Value>(
     return dedupedValues;
 }
 
-function printApiTaskFilterAccountDedupeKey(
-    account: ApiTaskAccountFilterOperation["accounts"][number],
+function printApiTaskQueryFilterAccountDedupeKey(
+    account: ApiTaskQueryAccountFilterOperation["accounts"][number],
 ): string {
     return account.type === "Account" ? `Account:${account.account.id}` : account.type;
 }

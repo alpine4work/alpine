@@ -1,17 +1,17 @@
 import fc from "fast-check";
 import {
-    parseAgentWebTaskFilters,
-    printAgentWebTaskFilters,
-} from "~/server/agents/web/agent_web_task_filters.js";
+    parseAgentWebTaskQueryFilters,
+    printAgentWebTaskQueryFilters,
+} from "~/server/agents/web/agent_web_task_query_filters.js";
 import {normalizeAgentWebPath} from "~/server/agents/web/internal/normalize_agent_web_path.js";
 import {createAgentWebSessionStorageForTest} from "~/server/agents/web/test_helpers/create_agent_web_session_storage_for_test.js";
 import {
-    fromApiFilter,
-    intoApiFilter,
-} from "~/shared/api/content/closed_source/into_api_task_filter.js";
+    fromApiTaskQueryFilter,
+    intoApiTaskQueryFilter,
+} from "~/shared/api/content/closed_source/into_api_task_query_filter.js";
 import {
-    ApiTaskFilter,
-    ApiTaskFilterResponse,
+    ApiTaskQueryFilter,
+    ApiTaskQueryFilterResponse,
 } from "~/shared/api/specification/types/api_specification_convenience_types.js";
 import {serializeDateString} from "~/shared/helpers/date/date_string.js";
 import {Id, generateId} from "~/shared/id/id.js";
@@ -28,9 +28,11 @@ const storage = createAgentWebSessionStorageForTest(generateId<SpaceId>());
 test("all possible task query filters round trip through agent web search params", async () => {
     await fc.assert(
         fc.asyncProperty(TaskQueryFiltersArbitrary, async taskQueryFilters => {
-            const apiFilters = taskQueryFilters.map(intoApiFilter).map(hydrateApiTaskFilterForTest);
+            const apiFilters = taskQueryFilters
+                .map(intoApiTaskQueryFilter)
+                .map(hydrateApiTaskQueryFilterForTest);
 
-            const searchParamsString = await printAgentWebTaskFilters(storage, apiFilters);
+            const searchParamsString = await printAgentWebTaskQueryFilters(storage, apiFilters);
 
             // Run the printed search params through the same path normalization the agent web
             // `read` tool uses so we know a real read preserves every filter.
@@ -38,9 +40,9 @@ test("all possible task query filters round trip through agent web search params
                 `/task-collection/all?${searchParamsString}`,
             );
 
-            const parsedApiFilters = await parseAgentWebTaskFilters(storage, searchParams);
+            const parsedApiFilters = await parseAgentWebTaskQueryFilters(storage, searchParams);
 
-            expect(parsedApiFilters.map(fromApiFilter)).toEqual(taskQueryFilters);
+            expect(parsedApiFilters.map(fromApiTaskQueryFilter)).toEqual(taskQueryFilters);
         }),
         {
             // Run until we reach our 15s timeout.
@@ -61,10 +63,10 @@ function createNameFromIdForTest(id: Id): string {
 }
 
 /**
- * `printAgentWebTaskFilters()` takes task filter responses with hydrated account
+ * `printAgentWebTaskQueryFilters()` takes task filter responses with hydrated account
  * and task collection data which it uses to create agent web links on demand.
  */
-function hydrateApiTaskFilterForTest(filter: ApiTaskFilter): ApiTaskFilterResponse {
+function hydrateApiTaskQueryFilterForTest(filter: ApiTaskQueryFilter): ApiTaskQueryFilterResponse {
     switch (filter.type) {
         case "Collections": {
             const {operation} = filter;

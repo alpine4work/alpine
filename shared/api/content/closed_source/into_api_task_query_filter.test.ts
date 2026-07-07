@@ -1,8 +1,8 @@
 import {
-    fromApiFilter,
-    intoApiFilter,
-} from "~/shared/api/content/closed_source/into_api_task_filter.js";
-import {ApiTaskFilter} from "~/shared/api/specification/types/api_specification_convenience_types.js";
+    fromApiTaskQueryFilter,
+    intoApiTaskQueryFilter,
+} from "~/shared/api/content/closed_source/into_api_task_query_filter.js";
+import {ApiTaskQueryFilter} from "~/shared/api/specification/types/api_specification_convenience_types.js";
 import {cast} from "~/shared/helpers/control/cast.js";
 import {generateId} from "~/shared/id/id.js";
 import {TaskCollectionId} from "~/shared/id/types/id_types.js";
@@ -15,8 +15,8 @@ test("serializes status filter to the public API shape", () => {
         operation: {type: "OneOf", displayStatuses: new Set(["OpenInactive", "Closed"])},
     };
 
-    expect(intoApiFilter(filter)).toEqual(
-        cast<ApiTaskFilter>({
+    expect(intoApiTaskQueryFilter(filter)).toEqual(
+        cast<ApiTaskQueryFilter>({
             type: "Status",
             operation: {
                 type: "OneOf",
@@ -33,8 +33,8 @@ test("serializes collections filter to the public API shape", () => {
         operation: {type: "IncludesOneOf", collectionIds: new Set([collectionId])},
     };
 
-    expect(intoApiFilter(filter)).toEqual(
-        cast<ApiTaskFilter>({
+    expect(intoApiTaskQueryFilter(filter)).toEqual(
+        cast<ApiTaskQueryFilter>({
             type: "Collections",
             operation: {type: "IncludesOneOf", collections: [{id: collectionId}]},
         }),
@@ -47,8 +47,8 @@ test("serializes priority filter to the public API shape", () => {
         operation: {type: "NoneOf", priorities: new Set(["High", null])},
     };
 
-    expect(intoApiFilter(filter)).toEqual(
-        cast<ApiTaskFilter>({
+    expect(intoApiTaskQueryFilter(filter)).toEqual(
+        cast<ApiTaskQueryFilter>({
             type: "Priority",
             operation: {type: "NoneOf", priorities: [{type: "High"}, null]},
         }),
@@ -61,8 +61,8 @@ test("serializes layout filter to the public API shape", () => {
         operation: {type: "OneOf", layouts: ["Project"]},
     };
 
-    expect(intoApiFilter(filter)).toEqual(
-        cast<ApiTaskFilter>({
+    expect(intoApiTaskQueryFilter(filter)).toEqual(
+        cast<ApiTaskQueryFilter>({
             type: "Layout",
             operation: {type: "OneOf", layouts: [{type: "Project"}]},
         }),
@@ -81,8 +81,8 @@ test("serializes due filter to the public API shape", () => {
         },
     };
 
-    expect(intoApiFilter(filter)).toEqual(
-        cast<ApiTaskFilter>({
+    expect(intoApiTaskQueryFilter(filter)).toEqual(
+        cast<ApiTaskQueryFilter>({
             type: "Due",
             operation: {
                 type: "GreaterThan",
@@ -96,7 +96,7 @@ test("serializes due filter to the public API shape", () => {
 });
 
 test("normalizes repeated status filter API values", () => {
-    const filter: ApiTaskFilter = {
+    const filter: ApiTaskQueryFilter = {
         type: "Status",
         operation: {
             type: "OneOf",
@@ -108,7 +108,7 @@ test("normalizes repeated status filter API values", () => {
         },
     };
 
-    expect(fromApiFilter(filter)).toEqual({
+    expect(fromApiTaskQueryFilter(filter)).toEqual({
         type: "DisplayStatus",
         operation: {
             type: "OneOf",
@@ -118,7 +118,7 @@ test("normalizes repeated status filter API values", () => {
 });
 
 test("normalizes repeated layout filter API values", () => {
-    const filter: ApiTaskFilter = {
+    const filter: ApiTaskQueryFilter = {
         type: "Layout",
         operation: {
             type: "OneOf",
@@ -126,7 +126,7 @@ test("normalizes repeated layout filter API values", () => {
         },
     };
 
-    expect(fromApiFilter(filter)).toEqual({
+    expect(fromApiTaskQueryFilter(filter)).toEqual({
         type: "Layout",
         operation: {
             type: "OneOf",
@@ -136,5 +136,7 @@ test("normalizes repeated layout filter API values", () => {
 });
 
 test.each(taskQueryFilterTestCases)("round trip: $name", ({filters}) => {
-    expect(filters.map(filter => fromApiFilter(intoApiFilter(filter)))).toEqual(filters);
+    expect(filters.map(filter => fromApiTaskQueryFilter(intoApiTaskQueryFilter(filter)))).toEqual(
+        filters,
+    );
 });

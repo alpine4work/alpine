@@ -392,200 +392,215 @@ export type ApiTaskQueryDefaults = ApiSpecification.components["schemas"]["TaskQ
 export type ApiTaskQueryDefaultsResponse =
     ApiSpecification.components["schemas"]["TaskQueryDefaults_Response"];
 
-export type ApiTaskFilter = ApiSpecification.components["schemas"]["TaskFilter"];
+export type ApiTaskQueryFilter = ApiSpecification.components["schemas"]["TaskQueryFilter"];
 
-export type ApiTaskStatusFilter = ApiSpecification.components["schemas"]["TaskStatusFilter"];
+export type ApiTaskQueryStatusFilter =
+    ApiSpecification.components["schemas"]["TaskQueryStatusFilter"];
 
-export type ApiTaskStatusFilterOperation =
-    ApiSpecification.components["schemas"]["TaskStatusFilterOperation"];
+export type ApiTaskQueryStatusFilterOperation =
+    ApiSpecification.components["schemas"]["TaskQueryStatusFilterOperation"];
 
-export type ApiTaskStatusFilterOneOfOperation =
-    ApiSpecification.components["schemas"]["TaskStatusFilterOneOfOperation"];
+export type ApiTaskQueryStatusFilterOneOfOperation =
+    ApiSpecification.components["schemas"]["TaskQueryStatusFilterOneOfOperation"];
 
-export type ApiTaskStatusFilterNoneOfOperation =
-    ApiSpecification.components["schemas"]["TaskStatusFilterNoneOfOperation"];
+export type ApiTaskQueryStatusFilterNoneOfOperation =
+    ApiSpecification.components["schemas"]["TaskQueryStatusFilterNoneOfOperation"];
 
-export type ApiTaskCollectionsFilter =
-    ApiSpecification.components["schemas"]["TaskCollectionsFilter"];
+export type ApiTaskQueryCollectionsFilter =
+    ApiSpecification.components["schemas"]["TaskQueryCollectionsFilter"];
 
-export type ApiTaskCollectionsFilterOperation =
-    ApiSpecification.components["schemas"]["TaskCollectionsFilterOperation"];
+export type ApiTaskQueryCollectionsFilterOperation =
+    ApiSpecification.components["schemas"]["TaskQueryCollectionsFilterOperation"];
 
-export type ApiTaskCollectionsFilterIncludesOneOfOperation =
-    ApiSpecification.components["schemas"]["TaskCollectionsFilterIncludesOneOfOperation"];
+export type ApiTaskQueryCollectionsFilterIncludesOneOfOperation =
+    ApiSpecification.components["schemas"]["TaskQueryCollectionsFilterIncludesOneOfOperation"];
 
-export type ApiTaskCollectionsFilterIncludesAllOfOperation =
-    ApiSpecification.components["schemas"]["TaskCollectionsFilterIncludesAllOfOperation"];
+export type ApiTaskQueryCollectionsFilterIncludesAllOfOperation =
+    ApiSpecification.components["schemas"]["TaskQueryCollectionsFilterIncludesAllOfOperation"];
 
-export type ApiTaskCollectionsFilterExcludesAllOfOperation =
-    ApiSpecification.components["schemas"]["TaskCollectionsFilterExcludesAllOfOperation"];
+export type ApiTaskQueryCollectionsFilterExcludesAllOfOperation =
+    ApiSpecification.components["schemas"]["TaskQueryCollectionsFilterExcludesAllOfOperation"];
 
-export type ApiTaskCollectionsFilterIsEmptyOperation =
-    ApiSpecification.components["schemas"]["TaskCollectionsFilterIsEmptyOperation"];
+export type ApiTaskQueryCollectionsFilterIsEmptyOperation =
+    ApiSpecification.components["schemas"]["TaskQueryCollectionsFilterIsEmptyOperation"];
 
-export type ApiTaskPriorityFilter = ApiSpecification.components["schemas"]["TaskPriorityFilter"];
+export type ApiTaskQueryPriorityFilter =
+    ApiSpecification.components["schemas"]["TaskQueryPriorityFilter"];
 
-export type ApiTaskPriorityFilterOperation =
-    ApiSpecification.components["schemas"]["TaskPriorityFilterOperation"];
+export type ApiTaskQueryPriorityFilterOperation =
+    ApiSpecification.components["schemas"]["TaskQueryPriorityFilterOperation"];
 
-export type ApiTaskPriorityFilterOneOfOperation =
-    ApiSpecification.components["schemas"]["TaskPriorityFilterOneOfOperation"];
+export type ApiTaskQueryPriorityFilterOneOfOperation =
+    ApiSpecification.components["schemas"]["TaskQueryPriorityFilterOneOfOperation"];
 
-export type ApiTaskPriorityFilterNoneOfOperation =
-    ApiSpecification.components["schemas"]["TaskPriorityFilterNoneOfOperation"];
+export type ApiTaskQueryPriorityFilterNoneOfOperation =
+    ApiSpecification.components["schemas"]["TaskQueryPriorityFilterNoneOfOperation"];
 
-export type ApiTaskLayoutFilter = ApiSpecification.components["schemas"]["TaskLayoutFilter"];
+export type ApiTaskQueryLayoutFilter =
+    ApiSpecification.components["schemas"]["TaskQueryLayoutFilter"];
 
-export type ApiTaskLayoutFilterOperation =
-    ApiSpecification.components["schemas"]["TaskLayoutFilterOperation"];
+export type ApiTaskQueryLayoutFilterOperation =
+    ApiSpecification.components["schemas"]["TaskQueryLayoutFilterOperation"];
 
-export type ApiTaskLayoutFilterOneOfOperation =
-    ApiSpecification.components["schemas"]["TaskLayoutFilterOneOfOperation"];
+export type ApiTaskQueryLayoutFilterOneOfOperation =
+    ApiSpecification.components["schemas"]["TaskQueryLayoutFilterOneOfOperation"];
 
-export type ApiTaskLayoutFilterNoneOfOperation =
-    ApiSpecification.components["schemas"]["TaskLayoutFilterNoneOfOperation"];
+export type ApiTaskQueryLayoutFilterNoneOfOperation =
+    ApiSpecification.components["schemas"]["TaskQueryLayoutFilterNoneOfOperation"];
 
-export type ApiTaskTitleFilter = ApiSpecification.components["schemas"]["TaskTitleFilter"];
+export type ApiTaskQueryTitleFilter =
+    ApiSpecification.components["schemas"]["TaskQueryTitleFilter"];
 
-export type ApiTaskTitleFilterOperation =
-    ApiSpecification.components["schemas"]["TaskTitleFilterOperation"];
+export type ApiTaskQueryTitleFilterOperation =
+    ApiSpecification.components["schemas"]["TaskQueryTitleFilterOperation"];
 
-export type ApiTaskTitleFilterIncludesOperation =
-    ApiSpecification.components["schemas"]["TaskTitleFilterIncludesOperation"];
+export type ApiTaskQueryTitleFilterIncludesOperation =
+    ApiSpecification.components["schemas"]["TaskQueryTitleFilterIncludesOperation"];
 
-export type ApiTaskTitleFilterExcludesOperation =
-    ApiSpecification.components["schemas"]["TaskTitleFilterExcludesOperation"];
+export type ApiTaskQueryTitleFilterExcludesOperation =
+    ApiSpecification.components["schemas"]["TaskQueryTitleFilterExcludesOperation"];
 
-export type ApiTaskAssigneeFilter = ApiSpecification.components["schemas"]["TaskAssigneeFilter"];
+export type ApiTaskQueryAssigneeFilter =
+    ApiSpecification.components["schemas"]["TaskQueryAssigneeFilter"];
 
-export type ApiTaskCreatorFilter = ApiSpecification.components["schemas"]["TaskCreatorFilter"];
+export type ApiTaskQueryCreatorFilter =
+    ApiSpecification.components["schemas"]["TaskQueryCreatorFilter"];
 
-export type ApiTaskAssignerFilter = ApiSpecification.components["schemas"]["TaskAssignerFilter"];
+export type ApiTaskQueryAssignerFilter =
+    ApiSpecification.components["schemas"]["TaskQueryAssignerFilter"];
 
-export type ApiTaskAccountFilterOperation =
-    ApiSpecification.components["schemas"]["TaskAccountFilterOperation"];
+export type ApiTaskQueryAccountFilterOperation =
+    ApiSpecification.components["schemas"]["TaskQueryAccountFilterOperation"];
 
-export type ApiTaskAccountFilterOneOfOperation =
-    ApiSpecification.components["schemas"]["TaskAccountFilterOneOfOperation"];
+export type ApiTaskQueryAccountFilterOneOfOperation =
+    ApiSpecification.components["schemas"]["TaskQueryAccountFilterOneOfOperation"];
 
-export type ApiTaskAccountFilterNoneOfOperation =
-    ApiSpecification.components["schemas"]["TaskAccountFilterNoneOfOperation"];
+export type ApiTaskQueryAccountFilterNoneOfOperation =
+    ApiSpecification.components["schemas"]["TaskQueryAccountFilterNoneOfOperation"];
 
-export type ApiTaskAccountFilterOperationAccount =
-    ApiSpecification.components["schemas"]["TaskAccountFilterOperationAccount"];
+export type ApiTaskQueryAccountFilterOperationAccount =
+    ApiSpecification.components["schemas"]["TaskQueryAccountFilterOperationAccount"];
 
-export type ApiTaskAccountFilterOperationAccountItem =
-    ApiSpecification.components["schemas"]["TaskAccountFilterOperationAccountItem"];
+export type ApiTaskQueryAccountFilterOperationAccountItem =
+    ApiSpecification.components["schemas"]["TaskQueryAccountFilterOperationAccountItem"];
 
-export type ApiTaskAccountFilterOperationCurrentAccount =
-    ApiSpecification.components["schemas"]["TaskAccountFilterOperationCurrentAccount"];
+export type ApiTaskQueryAccountFilterOperationCurrentAccount =
+    ApiSpecification.components["schemas"]["TaskQueryAccountFilterOperationCurrentAccount"];
 
-export type ApiTaskAccountFilterOperationMissingAccount =
-    ApiSpecification.components["schemas"]["TaskAccountFilterOperationMissingAccount"];
+export type ApiTaskQueryAccountFilterOperationMissingAccount =
+    ApiSpecification.components["schemas"]["TaskQueryAccountFilterOperationMissingAccount"];
 
-export type ApiTaskCreatorFilterOperation =
-    ApiSpecification.components["schemas"]["TaskCreatorFilterOperation"];
+export type ApiTaskQueryCreatorFilterOperation =
+    ApiSpecification.components["schemas"]["TaskQueryCreatorFilterOperation"];
 
-export type ApiTaskCreatorFilterOneOfOperation =
-    ApiSpecification.components["schemas"]["TaskCreatorFilterOneOfOperation"];
+export type ApiTaskQueryCreatorFilterOneOfOperation =
+    ApiSpecification.components["schemas"]["TaskQueryCreatorFilterOneOfOperation"];
 
-export type ApiTaskCreatorFilterNoneOfOperation =
-    ApiSpecification.components["schemas"]["TaskCreatorFilterNoneOfOperation"];
+export type ApiTaskQueryCreatorFilterNoneOfOperation =
+    ApiSpecification.components["schemas"]["TaskQueryCreatorFilterNoneOfOperation"];
 
-export type ApiTaskCreatorFilterOperationAccount =
-    ApiSpecification.components["schemas"]["TaskCreatorFilterOperationAccount"];
+export type ApiTaskQueryCreatorFilterOperationAccount =
+    ApiSpecification.components["schemas"]["TaskQueryCreatorFilterOperationAccount"];
 
-export type ApiTaskDueFilter = ApiSpecification.components["schemas"]["TaskDueFilter"];
+export type ApiTaskQueryDueFilter = ApiSpecification.components["schemas"]["TaskQueryDueFilter"];
 
-export type ApiTaskDueFilterOperation =
-    ApiSpecification.components["schemas"]["TaskDueFilterOperation"];
+export type ApiTaskQueryDueFilterOperation =
+    ApiSpecification.components["schemas"]["TaskQueryDueFilterOperation"];
 
-export type ApiTaskDueFilterOverdueOperation =
-    ApiSpecification.components["schemas"]["TaskDueFilterOverdueOperation"];
+export type ApiTaskQueryDueFilterOverdueOperation =
+    ApiSpecification.components["schemas"]["TaskQueryDueFilterOverdueOperation"];
 
-export type ApiTaskDueFilterIsEmptyOperation =
-    ApiSpecification.components["schemas"]["TaskDueFilterIsEmptyOperation"];
+export type ApiTaskQueryDueFilterIsEmptyOperation =
+    ApiSpecification.components["schemas"]["TaskQueryDueFilterIsEmptyOperation"];
 
-export type ApiTaskCreatedTimeFilter =
-    ApiSpecification.components["schemas"]["TaskCreatedTimeFilter"];
+export type ApiTaskQueryCreatedTimeFilter =
+    ApiSpecification.components["schemas"]["TaskQueryCreatedTimeFilter"];
 
-export type ApiTaskAssignedTimeFilter =
-    ApiSpecification.components["schemas"]["TaskAssignedTimeFilter"];
+export type ApiTaskQueryAssignedTimeFilter =
+    ApiSpecification.components["schemas"]["TaskQueryAssignedTimeFilter"];
 
-export type ApiTaskClosedTimeFilter =
-    ApiSpecification.components["schemas"]["TaskClosedTimeFilter"];
+export type ApiTaskQueryClosedTimeFilter =
+    ApiSpecification.components["schemas"]["TaskQueryClosedTimeFilter"];
 
-export type ApiTaskActivatedTimeFilter =
-    ApiSpecification.components["schemas"]["TaskActivatedTimeFilter"];
+export type ApiTaskQueryActivatedTimeFilter =
+    ApiSpecification.components["schemas"]["TaskQueryActivatedTimeFilter"];
 
-export type ApiTaskTimeFilterOperation =
-    ApiSpecification.components["schemas"]["TaskTimeFilterOperation"];
+export type ApiTaskQueryTimeFilterOperation =
+    ApiSpecification.components["schemas"]["TaskQueryTimeFilterOperation"];
 
-export type ApiTaskTimeFilterLessThanOperation =
-    ApiSpecification.components["schemas"]["TaskTimeFilterLessThanOperation"];
+export type ApiTaskQueryTimeFilterLessThanOperation =
+    ApiSpecification.components["schemas"]["TaskQueryTimeFilterLessThanOperation"];
 
-export type ApiTaskTimeFilterGreaterThanOperation =
-    ApiSpecification.components["schemas"]["TaskTimeFilterGreaterThanOperation"];
+export type ApiTaskQueryTimeFilterGreaterThanOperation =
+    ApiSpecification.components["schemas"]["TaskQueryTimeFilterGreaterThanOperation"];
 
-export type ApiTaskTimeFilterOperationTime =
-    ApiSpecification.components["schemas"]["TaskTimeFilterOperationTime"];
+export type ApiTaskQueryTimeFilterOperationTime =
+    ApiSpecification.components["schemas"]["TaskQueryTimeFilterOperationTime"];
 
-export type ApiTaskTimeFilterOperationAbsoluteDateTime =
-    ApiSpecification.components["schemas"]["TaskTimeFilterOperationAbsoluteDateTime"];
+export type ApiTaskQueryTimeFilterOperationAbsoluteDateTime =
+    ApiSpecification.components["schemas"]["TaskQueryTimeFilterOperationAbsoluteDateTime"];
 
-export type ApiTaskTimeFilterOperationRelativeTodayTime =
-    ApiSpecification.components["schemas"]["TaskTimeFilterOperationRelativeTodayTime"];
+export type ApiTaskQueryTimeFilterOperationRelativeTodayTime =
+    ApiSpecification.components["schemas"]["TaskQueryTimeFilterOperationRelativeTodayTime"];
 
-export type ApiTaskTimeFilterOperationRelativeAfterTodayTime =
-    ApiSpecification.components["schemas"]["TaskTimeFilterOperationRelativeAfterTodayTime"];
+export type ApiTaskQueryTimeFilterOperationRelativeAfterTodayTime =
+    ApiSpecification.components["schemas"]["TaskQueryTimeFilterOperationRelativeAfterTodayTime"];
 
-export type ApiTaskTimeFilterOperationRelativeBeforeTodayTime =
-    ApiSpecification.components["schemas"]["TaskTimeFilterOperationRelativeBeforeTodayTime"];
+export type ApiTaskQueryTimeFilterOperationRelativeBeforeTodayTime =
+    ApiSpecification.components["schemas"]["TaskQueryTimeFilterOperationRelativeBeforeTodayTime"];
 
-export type ApiTaskTimeFilterOperationDuration =
-    ApiSpecification.components["schemas"]["TaskTimeFilterOperationDuration"];
+export type ApiTaskQueryTimeFilterOperationDuration =
+    ApiSpecification.components["schemas"]["TaskQueryTimeFilterOperationDuration"];
 
-export type ApiTaskTimeFilterOperationDaysDuration =
-    ApiSpecification.components["schemas"]["TaskTimeFilterOperationDaysDuration"];
+export type ApiTaskQueryTimeFilterOperationDaysDuration =
+    ApiSpecification.components["schemas"]["TaskQueryTimeFilterOperationDaysDuration"];
 
-export type ApiTaskTimeFilterOperationWeeksDuration =
-    ApiSpecification.components["schemas"]["TaskTimeFilterOperationWeeksDuration"];
+export type ApiTaskQueryTimeFilterOperationWeeksDuration =
+    ApiSpecification.components["schemas"]["TaskQueryTimeFilterOperationWeeksDuration"];
 
-export type ApiTaskTimeFilterOperationMonthsDuration =
-    ApiSpecification.components["schemas"]["TaskTimeFilterOperationMonthsDuration"];
+export type ApiTaskQueryTimeFilterOperationMonthsDuration =
+    ApiSpecification.components["schemas"]["TaskQueryTimeFilterOperationMonthsDuration"];
 
-export type ApiTaskTimeFilterOperationYearsDuration =
-    ApiSpecification.components["schemas"]["TaskTimeFilterOperationYearsDuration"];
+export type ApiTaskQueryTimeFilterOperationYearsDuration =
+    ApiSpecification.components["schemas"]["TaskQueryTimeFilterOperationYearsDuration"];
 
-export type ApiTaskSort = ApiSpecification.components["schemas"]["TaskSort"];
+export type ApiTaskQuerySort = ApiSpecification.components["schemas"]["TaskQuerySort"];
 
-export type ApiTaskSortDirection = ApiSpecification.components["schemas"]["TaskSortDirection"];
+export type ApiTaskQuerySortDirection =
+    ApiSpecification.components["schemas"]["TaskQuerySortDirection"];
 
-export type ApiTaskSortMissing = ApiSpecification.components["schemas"]["TaskSortMissing"];
+export type ApiTaskQuerySortMissing =
+    ApiSpecification.components["schemas"]["TaskQuerySortMissing"];
 
-export type ApiTaskStatusSort = ApiSpecification.components["schemas"]["TaskStatusSort"];
+export type ApiTaskQueryStatusSort = ApiSpecification.components["schemas"]["TaskQueryStatusSort"];
 
-export type ApiTaskPrioritySort = ApiSpecification.components["schemas"]["TaskPrioritySort"];
+export type ApiTaskQueryPrioritySort =
+    ApiSpecification.components["schemas"]["TaskQueryPrioritySort"];
 
-export type ApiTaskLayoutSort = ApiSpecification.components["schemas"]["TaskLayoutSort"];
+export type ApiTaskQueryLayoutSort = ApiSpecification.components["schemas"]["TaskQueryLayoutSort"];
 
-export type ApiTaskAssigneeSort = ApiSpecification.components["schemas"]["TaskAssigneeSort"];
+export type ApiTaskQueryAssigneeSort =
+    ApiSpecification.components["schemas"]["TaskQueryAssigneeSort"];
 
-export type ApiTaskCreatorSort = ApiSpecification.components["schemas"]["TaskCreatorSort"];
+export type ApiTaskQueryCreatorSort =
+    ApiSpecification.components["schemas"]["TaskQueryCreatorSort"];
 
-export type ApiTaskAssignerSort = ApiSpecification.components["schemas"]["TaskAssignerSort"];
+export type ApiTaskQueryAssignerSort =
+    ApiSpecification.components["schemas"]["TaskQueryAssignerSort"];
 
-export type ApiTaskDueSort = ApiSpecification.components["schemas"]["TaskDueSort"];
+export type ApiTaskQueryDueSort = ApiSpecification.components["schemas"]["TaskQueryDueSort"];
 
-export type ApiTaskCreatedTimeSort = ApiSpecification.components["schemas"]["TaskCreatedTimeSort"];
+export type ApiTaskQueryCreatedTimeSort =
+    ApiSpecification.components["schemas"]["TaskQueryCreatedTimeSort"];
 
-export type ApiTaskAssignedTimeSort =
-    ApiSpecification.components["schemas"]["TaskAssignedTimeSort"];
+export type ApiTaskQueryAssignedTimeSort =
+    ApiSpecification.components["schemas"]["TaskQueryAssignedTimeSort"];
 
-export type ApiTaskClosedTimeSort = ApiSpecification.components["schemas"]["TaskClosedTimeSort"];
+export type ApiTaskQueryClosedTimeSort =
+    ApiSpecification.components["schemas"]["TaskQueryClosedTimeSort"];
 
-export type ApiTaskActivatedTimeSort =
-    ApiSpecification.components["schemas"]["TaskActivatedTimeSort"];
+export type ApiTaskQueryActivatedTimeSort =
+    ApiSpecification.components["schemas"]["TaskQueryActivatedTimeSort"];
 
 export type ApiMessage = ApiSpecification.components["schemas"]["Message"];
 
@@ -844,14 +859,14 @@ export type ApiContentQuoteBlockElementBlockElementResponse =
 export type ApiContentFileGalleryBlockElementRowResponse =
     ApiSpecification.components["schemas"]["ContentFileGalleryBlockElementRow_Response"];
 
-export type ApiTaskCollectionsFilterIncludesOneOfOperationResponse =
-    ApiSpecification.components["schemas"]["TaskCollectionsFilterIncludesOneOfOperation_Response"];
+export type ApiTaskQueryCollectionsFilterIncludesOneOfOperationResponse =
+    ApiSpecification.components["schemas"]["TaskQueryCollectionsFilterIncludesOneOfOperation_Response"];
 
-export type ApiTaskCollectionsFilterIncludesAllOfOperationResponse =
-    ApiSpecification.components["schemas"]["TaskCollectionsFilterIncludesAllOfOperation_Response"];
+export type ApiTaskQueryCollectionsFilterIncludesAllOfOperationResponse =
+    ApiSpecification.components["schemas"]["TaskQueryCollectionsFilterIncludesAllOfOperation_Response"];
 
-export type ApiTaskCollectionsFilterExcludesAllOfOperationResponse =
-    ApiSpecification.components["schemas"]["TaskCollectionsFilterExcludesAllOfOperation_Response"];
+export type ApiTaskQueryCollectionsFilterExcludesAllOfOperationResponse =
+    ApiSpecification.components["schemas"]["TaskQueryCollectionsFilterExcludesAllOfOperation_Response"];
 
 export type ApiMessageStreamToolCallPartCreateCallReferenceResponse =
     ApiSpecification.components["schemas"]["MessageStreamToolCallPartCreateCallReference_Response"];
@@ -859,8 +874,8 @@ export type ApiMessageStreamToolCallPartCreateCallReferenceResponse =
 export type ApiContentTableBlockElementCellBlockElementResponse =
     ApiSpecification.components["schemas"]["ContentTableBlockElementCellBlockElement_Response"];
 
-export type ApiTaskAccountFilterOperationAccountItemResponse =
-    ApiSpecification.components["schemas"]["TaskAccountFilterOperationAccountItem_Response"];
+export type ApiTaskQueryAccountFilterOperationAccountItemResponse =
+    ApiSpecification.components["schemas"]["TaskQueryAccountFilterOperationAccountItem_Response"];
 
 export type ApiContentBlockElementResponseWithoutKeys =
     ApiSpecification.components["schemas"]["ContentBlockElement_Response_WithoutKeys"];
@@ -930,8 +945,8 @@ export type ApiContentQuoteBlockElementResponse =
 export type ApiContentFileGalleryBlockElementResponse =
     ApiSpecification.components["schemas"]["ContentFileGalleryBlockElement_Response"];
 
-export type ApiTaskCollectionsFilterOperationResponse =
-    ApiSpecification.components["schemas"]["TaskCollectionsFilterOperation_Response"];
+export type ApiTaskQueryCollectionsFilterOperationResponse =
+    ApiSpecification.components["schemas"]["TaskQueryCollectionsFilterOperation_Response"];
 
 export type ApiMessageStreamToolCallPartPayloadReadCallResponse =
     ApiSpecification.components["schemas"]["MessageStreamToolCallPartPayloadReadCall_Response"];
@@ -942,11 +957,11 @@ export type ApiMessageStreamToolCallPartPayloadCreateCallResponse =
 export type ApiContentTableBlockElementCellResponse =
     ApiSpecification.components["schemas"]["ContentTableBlockElementCell_Response"];
 
-export type ApiTaskAccountFilterOperationAccountResponse =
-    ApiSpecification.components["schemas"]["TaskAccountFilterOperationAccount_Response"];
+export type ApiTaskQueryAccountFilterOperationAccountResponse =
+    ApiSpecification.components["schemas"]["TaskQueryAccountFilterOperationAccount_Response"];
 
-export type ApiTaskCreatorFilterOperationAccountResponse =
-    ApiSpecification.components["schemas"]["TaskCreatorFilterOperationAccount_Response"];
+export type ApiTaskQueryCreatorFilterOperationAccountResponse =
+    ApiSpecification.components["schemas"]["TaskQueryCreatorFilterOperationAccount_Response"];
 
 export type ApiContentResponseWithoutKeys =
     ApiSpecification.components["schemas"]["Content_Response_WithoutKeys"];
@@ -987,8 +1002,8 @@ export type ApiMessageStreamContentPartPayloadResponse =
 export type ApiMessageStreamReasoningPartPayloadResponse =
     ApiSpecification.components["schemas"]["MessageStreamReasoningPartPayload_Response"];
 
-export type ApiTaskCollectionsFilterResponse =
-    ApiSpecification.components["schemas"]["TaskCollectionsFilter_Response"];
+export type ApiTaskQueryCollectionsFilterResponse =
+    ApiSpecification.components["schemas"]["TaskQueryCollectionsFilter_Response"];
 
 export type ApiMessageStreamToolCallPartPayloadCallResponse =
     ApiSpecification.components["schemas"]["MessageStreamToolCallPartPayloadCall_Response"];
@@ -996,17 +1011,17 @@ export type ApiMessageStreamToolCallPartPayloadCallResponse =
 export type ApiContentTableBlockElementRowResponse =
     ApiSpecification.components["schemas"]["ContentTableBlockElementRow_Response"];
 
-export type ApiTaskAccountFilterOneOfOperationResponse =
-    ApiSpecification.components["schemas"]["TaskAccountFilterOneOfOperation_Response"];
+export type ApiTaskQueryAccountFilterOneOfOperationResponse =
+    ApiSpecification.components["schemas"]["TaskQueryAccountFilterOneOfOperation_Response"];
 
-export type ApiTaskAccountFilterNoneOfOperationResponse =
-    ApiSpecification.components["schemas"]["TaskAccountFilterNoneOfOperation_Response"];
+export type ApiTaskQueryAccountFilterNoneOfOperationResponse =
+    ApiSpecification.components["schemas"]["TaskQueryAccountFilterNoneOfOperation_Response"];
 
-export type ApiTaskCreatorFilterOneOfOperationResponse =
-    ApiSpecification.components["schemas"]["TaskCreatorFilterOneOfOperation_Response"];
+export type ApiTaskQueryCreatorFilterOneOfOperationResponse =
+    ApiSpecification.components["schemas"]["TaskQueryCreatorFilterOneOfOperation_Response"];
 
-export type ApiTaskCreatorFilterNoneOfOperationResponse =
-    ApiSpecification.components["schemas"]["TaskCreatorFilterNoneOfOperation_Response"];
+export type ApiTaskQueryCreatorFilterNoneOfOperationResponse =
+    ApiSpecification.components["schemas"]["TaskQueryCreatorFilterNoneOfOperation_Response"];
 
 export type ApiContentListBlockElementResponse =
     ApiSpecification.components["schemas"]["ContentListBlockElement_Response"];
@@ -1023,7 +1038,8 @@ export type ApiContentListBlockElementResponseWithoutKeys =
 export type ApiMessageStreamPartPayloadResponse =
     ApiSpecification.components["schemas"]["MessageStreamPartPayload_Response"];
 
-export type ApiTaskFilterResponse = ApiSpecification.components["schemas"]["TaskFilter_Response"];
+export type ApiTaskQueryFilterResponse =
+    ApiSpecification.components["schemas"]["TaskQueryFilter_Response"];
 
 export type ApiMessageStreamToolCallPartPayloadResponse =
     ApiSpecification.components["schemas"]["MessageStreamToolCallPartPayload_Response"];
@@ -1031,23 +1047,23 @@ export type ApiMessageStreamToolCallPartPayloadResponse =
 export type ApiContentTableBlockElementResponse =
     ApiSpecification.components["schemas"]["ContentTableBlockElement_Response"];
 
-export type ApiTaskAccountFilterOperationResponse =
-    ApiSpecification.components["schemas"]["TaskAccountFilterOperation_Response"];
+export type ApiTaskQueryAccountFilterOperationResponse =
+    ApiSpecification.components["schemas"]["TaskQueryAccountFilterOperation_Response"];
 
-export type ApiTaskCreatorFilterOperationResponse =
-    ApiSpecification.components["schemas"]["TaskCreatorFilterOperation_Response"];
+export type ApiTaskQueryCreatorFilterOperationResponse =
+    ApiSpecification.components["schemas"]["TaskQueryCreatorFilterOperation_Response"];
 
 export type ApiContentTableBlockElementResponseWithoutKeys =
     ApiSpecification.components["schemas"]["ContentTableBlockElement_Response_WithoutKeys"];
 
-export type ApiTaskAssigneeFilterResponse =
-    ApiSpecification.components["schemas"]["TaskAssigneeFilter_Response"];
+export type ApiTaskQueryAssigneeFilterResponse =
+    ApiSpecification.components["schemas"]["TaskQueryAssigneeFilter_Response"];
 
-export type ApiTaskCreatorFilterResponse =
-    ApiSpecification.components["schemas"]["TaskCreatorFilter_Response"];
+export type ApiTaskQueryCreatorFilterResponse =
+    ApiSpecification.components["schemas"]["TaskQueryCreatorFilter_Response"];
 
-export type ApiTaskAssignerFilterResponse =
-    ApiSpecification.components["schemas"]["TaskAssignerFilter_Response"];
+export type ApiTaskQueryAssignerFilterResponse =
+    ApiSpecification.components["schemas"]["TaskQueryAssignerFilter_Response"];
 
 export type ApiErrorResponse = ApiSpecification.components["responses"]["Error"];
 

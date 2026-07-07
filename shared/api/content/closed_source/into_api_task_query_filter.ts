@@ -1,15 +1,15 @@
 import {parseDate} from "@internationalized/date";
 import {intoApiTaskStatus} from "~/shared/api/content/closed_source/into_api_task_status.js";
 import {
-    ApiTaskAccountFilterOperation,
-    ApiTaskCreatorFilterOperation,
-    ApiTaskFilter,
+    ApiTaskQueryAccountFilterOperation,
+    ApiTaskQueryCreatorFilterOperation,
+    ApiTaskQueryFilter,
     ApiTaskLayout,
     ApiTaskPriority,
     ApiTaskStatus,
-    ApiTaskTimeFilterOperation,
-    ApiTaskTimeFilterOperationDuration,
-    ApiTaskTimeFilterOperationTime,
+    ApiTaskQueryTimeFilterOperation,
+    ApiTaskQueryTimeFilterOperationDuration,
+    ApiTaskQueryTimeFilterOperationTime,
 } from "~/shared/api/specification/types/api_specification_convenience_types.js";
 import {InvalidArgumentError} from "~/shared/error/error.js";
 import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
@@ -25,7 +25,7 @@ import {
     TaskQueryFilterDateOperationDuration,
 } from "~/shared/tasks/task_query_filter.js";
 
-export function intoApiFilter(filter: TaskQueryFilter): ApiTaskFilter {
+export function intoApiTaskQueryFilter(filter: TaskQueryFilter): ApiTaskQueryFilter {
     switch (filter.type) {
         case "DisplayStatus": {
             return {
@@ -75,19 +75,19 @@ export function intoApiFilter(filter: TaskQueryFilter): ApiTaskFilter {
         case "Assignee": {
             return {
                 type: "Assignee",
-                operation: intoApiTaskAccountFilterOperation(filter.operation),
+                operation: intoApiTaskQueryAccountFilterOperation(filter.operation),
             };
         }
         case "Creator": {
             return {
                 type: "Creator",
-                operation: intoApiTaskCreatorFilterOperation(filter.operation),
+                operation: intoApiTaskQueryCreatorFilterOperation(filter.operation),
             };
         }
         case "Assigner": {
             return {
                 type: "Assigner",
-                operation: intoApiTaskAccountFilterOperation(filter.operation),
+                operation: intoApiTaskQueryAccountFilterOperation(filter.operation),
             };
         }
         case "DueDate": {
@@ -96,31 +96,31 @@ export function intoApiFilter(filter: TaskQueryFilter): ApiTaskFilter {
                 operation:
                     filter.operation.type === "Overdue" || filter.operation.type === "IsEmpty"
                         ? filter.operation
-                        : intoApiTaskTimeFilterOperation(filter.operation),
+                        : intoApiTaskQueryTimeFilterOperation(filter.operation),
             };
         }
         case "CreatedDate": {
             return {
                 type: "CreatedTime",
-                operation: intoApiTaskTimeFilterOperation(filter.operation),
+                operation: intoApiTaskQueryTimeFilterOperation(filter.operation),
             };
         }
         case "AssignedDate": {
             return {
                 type: "AssignedTime",
-                operation: intoApiTaskTimeFilterOperation(filter.operation),
+                operation: intoApiTaskQueryTimeFilterOperation(filter.operation),
             };
         }
         case "ClosedDate": {
             return {
                 type: "ClosedTime",
-                operation: intoApiTaskTimeFilterOperation(filter.operation),
+                operation: intoApiTaskQueryTimeFilterOperation(filter.operation),
             };
         }
         case "ActivatedDate": {
             return {
                 type: "ActivatedTime",
-                operation: intoApiTaskTimeFilterOperation(filter.operation),
+                operation: intoApiTaskQueryTimeFilterOperation(filter.operation),
             };
         }
         default:
@@ -154,9 +154,9 @@ function intoApiTaskLayout(layout: TaskLayout): ApiTaskLayout {
     }
 }
 
-function intoApiTaskAccountFilterOperation(
+function intoApiTaskQueryAccountFilterOperation(
     operation: TaskQueryFilterAccountOperation,
-): ApiTaskAccountFilterOperation {
+): ApiTaskQueryAccountFilterOperation {
     return {
         type: operation.type,
         accounts: operation.accounts.map(account => {
@@ -174,9 +174,9 @@ function intoApiTaskAccountFilterOperation(
     };
 }
 
-function intoApiTaskCreatorFilterOperation(
+function intoApiTaskQueryCreatorFilterOperation(
     operation: TaskQueryFilterCreatorAccountOperation,
-): ApiTaskCreatorFilterOperation {
+): ApiTaskQueryCreatorFilterOperation {
     return {
         type: operation.type,
         accounts: operation.accounts.map(account => {
@@ -192,21 +192,24 @@ function intoApiTaskCreatorFilterOperation(
     };
 }
 
-function intoApiTaskTimeFilterOperation(
+function intoApiTaskQueryTimeFilterOperation(
     operation: TaskQueryFilterDateOperation,
-): ApiTaskTimeFilterOperation {
+): ApiTaskQueryTimeFilterOperation {
     switch (operation.type) {
         case "LessThan":
         case "GreaterThan":
-            return {type: operation.type, time: intoApiTaskTimeFilterOperationTime(operation.date)};
+            return {
+                type: operation.type,
+                time: intoApiTaskQueryTimeFilterOperationTime(operation.date),
+            };
         default:
             throw exhaustive(operation);
     }
 }
 
-function intoApiTaskTimeFilterOperationTime(
+function intoApiTaskQueryTimeFilterOperationTime(
     date: TaskQueryFilterDateOperationDate,
-): ApiTaskTimeFilterOperationTime {
+): ApiTaskQueryTimeFilterOperationTime {
     switch (date.type) {
         case "Absolute":
             return {type: "AbsoluteDate", date: date.date?.toString() ?? null};
@@ -216,16 +219,16 @@ function intoApiTaskTimeFilterOperationTime(
         case "RelativeBeforeToday":
             return {
                 type: date.type,
-                duration: intoApiTaskTimeFilterOperationDuration(date.duration),
+                duration: intoApiTaskQueryTimeFilterOperationDuration(date.duration),
             };
         default:
             throw exhaustive(date);
     }
 }
 
-function intoApiTaskTimeFilterOperationDuration(
+function intoApiTaskQueryTimeFilterOperationDuration(
     duration: TaskQueryFilterDateOperationDuration,
-): ApiTaskTimeFilterOperationDuration {
+): ApiTaskQueryTimeFilterOperationDuration {
     switch (duration.type) {
         case "Days":
             return {type: "Days", days: duration.count};
@@ -240,7 +243,7 @@ function intoApiTaskTimeFilterOperationDuration(
     }
 }
 
-export function fromApiFilter(filter: ApiTaskFilter): TaskQueryFilter {
+export function fromApiTaskQueryFilter(filter: ApiTaskQueryFilter): TaskQueryFilter {
     switch (filter.type) {
         case "Status": {
             return {
@@ -279,7 +282,7 @@ export function fromApiFilter(filter: ApiTaskFilter): TaskQueryFilter {
                 type: "Layout",
                 operation: {
                     type: filter.operation.type,
-                    layouts: fromApiTaskLayoutFilterLayouts(filter.operation.layouts),
+                    layouts: fromApiTaskQueryLayoutFilterLayouts(filter.operation.layouts),
                 },
             };
         }
@@ -289,19 +292,19 @@ export function fromApiFilter(filter: ApiTaskFilter): TaskQueryFilter {
         case "Assignee": {
             return {
                 type: "Assignee",
-                operation: fromApiTaskAccountFilterOperation(filter.operation),
+                operation: fromApiTaskQueryAccountFilterOperation(filter.operation),
             };
         }
         case "Creator": {
             return {
                 type: "Creator",
-                operation: fromApiTaskCreatorFilterOperation(filter.operation),
+                operation: fromApiTaskQueryCreatorFilterOperation(filter.operation),
             };
         }
         case "Assigner": {
             return {
                 type: "Assigner",
-                operation: fromApiTaskAccountFilterOperation(filter.operation),
+                operation: fromApiTaskQueryAccountFilterOperation(filter.operation),
             };
         }
         case "Due": {
@@ -310,31 +313,31 @@ export function fromApiFilter(filter: ApiTaskFilter): TaskQueryFilter {
                 operation:
                     filter.operation.type === "Overdue" || filter.operation.type === "IsEmpty"
                         ? filter.operation
-                        : fromApiTaskTimeFilterOperation(filter.operation),
+                        : fromApiTaskQueryTimeFilterOperation(filter.operation),
             };
         }
         case "CreatedTime": {
             return {
                 type: "CreatedDate",
-                operation: fromApiTaskTimeFilterOperation(filter.operation),
+                operation: fromApiTaskQueryTimeFilterOperation(filter.operation),
             };
         }
         case "AssignedTime": {
             return {
                 type: "AssignedDate",
-                operation: fromApiTaskTimeFilterOperation(filter.operation),
+                operation: fromApiTaskQueryTimeFilterOperation(filter.operation),
             };
         }
         case "ClosedTime": {
             return {
                 type: "ClosedDate",
-                operation: fromApiTaskTimeFilterOperation(filter.operation),
+                operation: fromApiTaskQueryTimeFilterOperation(filter.operation),
             };
         }
         case "ActivatedTime": {
             return {
                 type: "ActivatedDate",
-                operation: fromApiTaskTimeFilterOperation(filter.operation),
+                operation: fromApiTaskQueryTimeFilterOperation(filter.operation),
             };
         }
         default:
@@ -365,8 +368,8 @@ function fromApiTaskLayout(layout: ApiTaskLayout): TaskLayout {
     }
 }
 
-function fromApiTaskAccountFilterOperation(
-    operation: ApiTaskAccountFilterOperation,
+function fromApiTaskQueryAccountFilterOperation(
+    operation: ApiTaskQueryAccountFilterOperation,
 ): TaskQueryFilterAccountOperation {
     return {
         type: operation.type,
@@ -385,8 +388,8 @@ function fromApiTaskAccountFilterOperation(
     };
 }
 
-function fromApiTaskCreatorFilterOperation(
-    operation: ApiTaskCreatorFilterOperation,
+function fromApiTaskQueryCreatorFilterOperation(
+    operation: ApiTaskQueryCreatorFilterOperation,
 ): TaskQueryFilterCreatorAccountOperation {
     return {
         type: operation.type,
@@ -403,20 +406,23 @@ function fromApiTaskCreatorFilterOperation(
     };
 }
 
-function fromApiTaskTimeFilterOperation(
-    operation: ApiTaskTimeFilterOperation,
+function fromApiTaskQueryTimeFilterOperation(
+    operation: ApiTaskQueryTimeFilterOperation,
 ): TaskQueryFilterDateOperation {
     switch (operation.type) {
         case "LessThan":
         case "GreaterThan":
-            return {type: operation.type, date: fromApiTaskTimeFilterOperationTime(operation.time)};
+            return {
+                type: operation.type,
+                date: fromApiTaskQueryTimeFilterOperationTime(operation.time),
+            };
         default:
             throw exhaustive(operation);
     }
 }
 
-function fromApiTaskTimeFilterOperationTime(
-    time: ApiTaskTimeFilterOperationTime,
+function fromApiTaskQueryTimeFilterOperationTime(
+    time: ApiTaskQueryTimeFilterOperationTime,
 ): TaskQueryFilterDateOperationDate {
     switch (time.type) {
         case "AbsoluteDate":
@@ -427,15 +433,15 @@ function fromApiTaskTimeFilterOperationTime(
         case "RelativeBeforeToday":
             return {
                 type: time.type,
-                duration: fromApiTaskTimeFilterOperationDuration(time.duration),
+                duration: fromApiTaskQueryTimeFilterOperationDuration(time.duration),
             };
         default:
             throw exhaustive(time);
     }
 }
 
-function fromApiTaskTimeFilterOperationDuration(
-    duration: ApiTaskTimeFilterOperationDuration,
+function fromApiTaskQueryTimeFilterOperationDuration(
+    duration: ApiTaskQueryTimeFilterOperationDuration,
 ): TaskQueryFilterDateOperationDuration {
     switch (duration.type) {
         case "Days":
@@ -462,7 +468,7 @@ function fromApiTaskStatus(status: ApiTaskStatus): TaskDisplayStatus {
     }
 }
 
-function fromApiTaskLayoutFilterLayouts(
+function fromApiTaskQueryLayoutFilterLayouts(
     layouts: ReadonlyArray<ApiTaskLayout>,
 ): readonly [TaskLayout] {
     const normalizedLayouts = new Set(layouts.map(fromApiTaskLayout));

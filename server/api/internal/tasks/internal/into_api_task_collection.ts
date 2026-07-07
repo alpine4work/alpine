@@ -1,5 +1,5 @@
-import {intoApiSort} from "~/server/api/internal/tasks/internal/into_api_task_sort.js";
-import {intoApiFilter} from "~/shared/api/content/closed_source/into_api_task_filter.js";
+import {intoApiTaskQuerySort} from "~/server/api/internal/tasks/internal/into_api_task_query_sort.js";
+import {intoApiTaskQueryFilter} from "~/shared/api/content/closed_source/into_api_task_query_filter.js";
 import {intoApiThemeColor} from "~/shared/api/content/closed_source/into_api_theme_color.js";
 import {
     ApiTaskCollectionResponse,
@@ -22,7 +22,7 @@ export function intoApiTaskCollection(collection: TaskCollectionModel): ApiTaskC
 
 function intoApiTaskQueryDefaults(defaults: TaskQueryDefaults): ApiTaskQueryDefaults {
     return {
-        filters: defaults.filters.map(intoApiFilter),
-        sorts: defaults.sorts.map(intoApiSort),
+        filters: defaults.filters.map(intoApiTaskQueryFilter),
+        sorts: defaults.sorts.map(intoApiTaskQuerySort),
     };
 }

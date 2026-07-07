@@ -19,7 +19,7 @@ export function normalizeAgentWebPath(pathString: string): {
     // We intentionally preserve the order of search params instead of sorting them.
     // Order is meaningful: task filter search params are position aware (adjacent
     // params with the same key merge into one filter and `break` params separate them,
-    // see `parseAgentWebTaskFilters()`).
+    // see `parseAgentWebTaskQueryFilters()`).
     const searchParams = path.searchParams;
 
     let normalizedPath = path.pathname;

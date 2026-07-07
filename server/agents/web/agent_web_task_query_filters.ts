@@ -2,19 +2,21 @@ import {parseDate} from "@internationalized/date";
 import {AgentWebSessionStorage} from "~/server/agents/web/agent_web_session_storage.js";
 import {createAgentWebPageLinkPathname} from "~/server/agents/web/create_agent_web_page_link_pathname.js";
 import {routeAgentWebPageLinkPathname} from "~/server/agents/web/route_agent_web_page_link_pathname.js";
-import {normalizeApiTaskFilters} from "~/shared/api/content/normalize_api_task_filters.js";
+import {
+    normalizeApiTaskQueryFilters,
+} from "~/shared/api/content/normalize_api_task_query_filters.js";
 import {intoApiAccountReference} from "~/shared/api/specification/into_api_account_reference.js";
 import {
-    ApiTaskAccountFilterOperationAccount,
-    ApiTaskAccountFilterOperationAccountResponse,
+    ApiTaskQueryAccountFilterOperationAccount,
+    ApiTaskQueryAccountFilterOperationAccountResponse,
     ApiTaskCollectionPreviewResponse,
-    ApiTaskFilter,
-    ApiTaskFilterResponse,
+    ApiTaskQueryFilter,
+    ApiTaskQueryFilterResponse,
     ApiTaskLayout,
     ApiTaskPriority,
     ApiTaskStatus,
-    ApiTaskTimeFilterOperationDuration,
-    ApiTaskTimeFilterOperationTime,
+    ApiTaskQueryTimeFilterOperationDuration,
+    ApiTaskQueryTimeFilterOperationTime,
 } from "~/shared/api/specification/types/api_specification_convenience_types.js";
 import {InternalError, InvalidArgumentError} from "~/shared/error/error.js";
 import {errorDisplayMessage} from "~/shared/error/error_display_message.js";
@@ -99,8 +101,8 @@ import {TaskCollectionId} from "~/shared/id/types/id_types.js";
  *   no tasks). Empty comma segments don't add values (`status=open,` is just
  *   `open`).
  *
- * Filters are normalized with `normalizeApiTaskFilters()` before printing and
- * `parseAgentWebTaskFilters()` returns exactly the normalized form of whatever was
+ * Filters are normalized with `normalizeApiTaskQueryFilters()` before printing and
+ * `parseAgentWebTaskQueryFilters()` returns exactly the normalized form of whatever was
  * printed.
  *
  * Account and task collection references are printed using the name from their
@@ -110,24 +112,24 @@ import {TaskCollectionId} from "~/shared/id/types/id_types.js";
  * throw an `InternalError`. Typically the page printing the filters also prints
  * Markdown links for those references which creates the stored links.
  *
- * `parseAgentWebTaskFilters()` parses the search params this function prints.
+ * `parseAgentWebTaskQueryFilters()` parses the search params this function prints.
  */
-export async function printAgentWebTaskFilters(
+export async function printAgentWebTaskQueryFilters(
     storage: AgentWebSessionStorage,
-    filters: ReadonlyArray<ApiTaskFilterResponse>,
+    filters: ReadonlyArray<ApiTaskQueryFilterResponse>,
 ): Promise<string> {
-    filters = normalizeApiTaskFilters(filters);
+    filters = normalizeApiTaskQueryFilters(filters);
 
     const searchParams = await runAllPromises(
-        filters.map(filter => printAgentWebTaskFilter(storage, filter)),
+        filters.map(filter => printAgentWebTaskQueryFilter(storage, filter)),
     );
 
     return searchParams.join("&");
 }
 
-async function printAgentWebTaskFilter(
+async function printAgentWebTaskQueryFilter(
     storage: AgentWebSessionStorage,
-    filter: ApiTaskFilterResponse,
+    filter: ApiTaskQueryFilterResponse,
 ): Promise<string> {
     switch (filter.type) {
         case "Status": {
@@ -138,9 +140,9 @@ async function printAgentWebTaskFilter(
                 NoneOf: "status[not]",
             }[operation.type];
 
-            return printAgentWebTaskFilterListValues(
+            return printAgentWebTaskQueryFilterListValues(
                 key,
-                operation.statuses.map(printAgentWebTaskFilterStatus),
+                operation.statuses.map(printAgentWebTaskQueryFilterStatus),
             );
         }
         case "Collections": {
@@ -161,11 +163,11 @@ async function printAgentWebTaskFilter(
 
                     const values = await runAllPromises(
                         operation.collections.map(collection =>
-                            printAgentWebTaskFilterCollection(storage, collection),
+                            printAgentWebTaskQueryFilterCollection(storage, collection),
                         ),
                     );
 
-                    return printAgentWebTaskFilterListValues(key, values);
+                    return printAgentWebTaskQueryFilterListValues(key, values);
                 }
                 default:
                     throw exhaustive(operation);
@@ -179,9 +181,9 @@ async function printAgentWebTaskFilter(
                 NoneOf: "priority[not]",
             }[operation.type];
 
-            return printAgentWebTaskFilterListValues(
+            return printAgentWebTaskQueryFilterListValues(
                 key,
-                operation.priorities.map(printAgentWebTaskFilterPriority),
+                operation.priorities.map(printAgentWebTaskQueryFilterPriority),
             );
         }
         case "Layout": {
@@ -192,9 +194,9 @@ async function printAgentWebTaskFilter(
                 NoneOf: "layout[not]",
             }[operation.type];
 
-            return printAgentWebTaskFilterListValues(
+            return printAgentWebTaskQueryFilterListValues(
                 key,
-                operation.layouts.map(printAgentWebTaskFilterLayout),
+                operation.layouts.map(printAgentWebTaskQueryFilterLayout),
             );
         }
         case "Title": {
@@ -207,7 +209,7 @@ async function printAgentWebTaskFilter(
 
             // An empty title query (`title=`) is a title filter whose text hasn't been typed
             // yet in the task filter editor UI.
-            return `${key}=${escapeAgentWebTaskFilterText(operation.titleQuery)}`;
+            return `${key}=${escapeAgentWebTaskQueryFilterText(operation.titleQuery)}`;
         }
         case "Assignee":
         case "Creator":
@@ -226,10 +228,10 @@ async function printAgentWebTaskFilter(
             }[operation.type];
 
             const values = await runAllPromises(
-                operation.accounts.map(account => printAgentWebTaskFilterAccount(storage, account)),
+                operation.accounts.map(account => printAgentWebTaskQueryFilterAccount(storage, account)),
             );
 
-            return printAgentWebTaskFilterListValues(key, values);
+            return printAgentWebTaskQueryFilterListValues(key, values);
         }
         case "Due": {
             const {operation} = filter;
@@ -243,23 +245,23 @@ async function printAgentWebTaskFilter(
                 }
                 case "LessThan":
                 case "GreaterThan": {
-                    return printAgentWebTaskFilterDateOperation("due", operation);
+                    return printAgentWebTaskQueryFilterDateOperation("due", operation);
                 }
                 default:
                     throw exhaustive(operation);
             }
         }
         case "CreatedTime": {
-            return printAgentWebTaskFilterDateOperation("created", filter.operation);
+            return printAgentWebTaskQueryFilterDateOperation("created", filter.operation);
         }
         case "AssignedTime": {
-            return printAgentWebTaskFilterDateOperation("assigned", filter.operation);
+            return printAgentWebTaskQueryFilterDateOperation("assigned", filter.operation);
         }
         case "ClosedTime": {
-            return printAgentWebTaskFilterDateOperation("closed", filter.operation);
+            return printAgentWebTaskQueryFilterDateOperation("closed", filter.operation);
         }
         case "ActivatedTime": {
-            return printAgentWebTaskFilterDateOperation("activated", filter.operation);
+            return printAgentWebTaskQueryFilterDateOperation("activated", filter.operation);
         }
         default:
             throw exhaustive(filter);
@@ -271,11 +273,11 @@ async function printAgentWebTaskFilter(
  * with no values (which the task filter editor UI represents as a filter that
  * hasn't been fully configured yet) prints as an empty value (e.g. `status=`).
  */
-function printAgentWebTaskFilterListValues(key: string, values: ReadonlyArray<string>): string {
+function printAgentWebTaskQueryFilterListValues(key: string, values: ReadonlyArray<string>): string {
     return `${key}=${values.join(",")}`;
 }
 
-function printAgentWebTaskFilterStatus(status: ApiTaskStatus): string {
+function printAgentWebTaskQueryFilterStatus(status: ApiTaskStatus): string {
     switch (status.type) {
         case "Open":
             return status.isActive ? "open-active" : "open";
@@ -286,7 +288,7 @@ function printAgentWebTaskFilterStatus(status: ApiTaskStatus): string {
     }
 }
 
-async function printAgentWebTaskFilterCollection(
+async function printAgentWebTaskQueryFilterCollection(
     storage: AgentWebSessionStorage,
     collection: ApiTaskCollectionPreviewResponse,
 ): Promise<string> {
@@ -306,7 +308,7 @@ async function printAgentWebTaskFilterCollection(
     return name;
 }
 
-function printAgentWebTaskFilterPriority(priority: ApiTaskPriority | null): string {
+function printAgentWebTaskQueryFilterPriority(priority: ApiTaskPriority | null): string {
     if (priority === null) return "none";
 
     switch (priority.type) {
@@ -323,7 +325,7 @@ function printAgentWebTaskFilterPriority(priority: ApiTaskPriority | null): stri
     }
 }
 
-function printAgentWebTaskFilterLayout(layout: ApiTaskLayout): string {
+function printAgentWebTaskQueryFilterLayout(layout: ApiTaskLayout): string {
     switch (layout.type) {
         case "Project":
             return "project";
@@ -341,7 +343,7 @@ function printAgentWebTaskFilterLayout(layout: ApiTaskLayout): string {
  *
  * [1]: https://url.spec.whatwg.org/#query-percent-encode-set
  */
-function escapeAgentWebTaskFilterText(text: string): string {
+function escapeAgentWebTaskQueryFilterText(text: string): string {
     let escapedText = "";
 
     for (const character of text) {
@@ -401,9 +403,9 @@ function escapeAgentWebTaskFilterText(text: string): string {
     return escapedText;
 }
 
-async function printAgentWebTaskFilterAccount(
+async function printAgentWebTaskQueryFilterAccount(
     storage: AgentWebSessionStorage,
-    account: ApiTaskAccountFilterOperationAccountResponse,
+    account: ApiTaskQueryAccountFilterOperationAccountResponse,
 ): Promise<string> {
     switch (account.type) {
         case "Account": {
@@ -433,19 +435,19 @@ async function printAgentWebTaskFilterAccount(
     }
 }
 
-function printAgentWebTaskFilterDateOperation(
+function printAgentWebTaskQueryFilterDateOperation(
     filterKey: string,
-    operation: {type: "LessThan" | "GreaterThan"; time: ApiTaskTimeFilterOperationTime},
+    operation: {type: "LessThan" | "GreaterThan"; time: ApiTaskQueryTimeFilterOperationTime},
 ): string {
     const operator = {
         LessThan: "before",
         GreaterThan: "after",
     }[operation.type];
 
-    return `${filterKey}[${operator}]=${printAgentWebTaskFilterTime(operation.time)}`;
+    return `${filterKey}[${operator}]=${printAgentWebTaskQueryFilterTime(operation.time)}`;
 }
 
-function printAgentWebTaskFilterTime(time: ApiTaskTimeFilterOperationTime): string {
+function printAgentWebTaskQueryFilterTime(time: ApiTaskQueryTimeFilterOperationTime): string {
     switch (time.type) {
         case "AbsoluteDate": {
             // A `null` absolute date is a filter whose date hasn't been chosen yet in the task
@@ -466,32 +468,34 @@ function printAgentWebTaskFilterTime(time: ApiTaskTimeFilterOperationTime): stri
             return "today";
         }
         case "RelativeAfterToday": {
-            return `today+${printAgentWebTaskFilterDateDuration(time.duration)}`;
+            return `today+${printAgentWebTaskQueryFilterDateDuration(time.duration)}`;
         }
         case "RelativeBeforeToday": {
-            return `today-${printAgentWebTaskFilterDateDuration(time.duration)}`;
+            return `today-${printAgentWebTaskQueryFilterDateDuration(time.duration)}`;
         }
         default:
             throw exhaustive(time);
     }
 }
 
-function printAgentWebTaskFilterDateDuration(duration: ApiTaskTimeFilterOperationDuration): string {
+function printAgentWebTaskQueryFilterDateDuration(
+    duration: ApiTaskQueryTimeFilterOperationDuration,
+): string {
     switch (duration.type) {
         case "Days":
-            return printAgentWebTaskFilterDateDurationCount(duration.days, "d");
+            return printAgentWebTaskQueryFilterDateDurationCount(duration.days, "d");
         case "Weeks":
-            return printAgentWebTaskFilterDateDurationCount(duration.weeks, "w");
+            return printAgentWebTaskQueryFilterDateDurationCount(duration.weeks, "w");
         case "Months":
-            return printAgentWebTaskFilterDateDurationCount(duration.months, "mo");
+            return printAgentWebTaskQueryFilterDateDurationCount(duration.months, "mo");
         case "Years":
-            return printAgentWebTaskFilterDateDurationCount(duration.years, "y");
+            return printAgentWebTaskQueryFilterDateDurationCount(duration.years, "y");
         default:
             throw exhaustive(duration);
     }
 }
 
-function printAgentWebTaskFilterDateDurationCount(count: number, unit: string): string {
+function printAgentWebTaskQueryFilterDateDurationCount(count: number, unit: string): string {
     assert(Number.isInteger(count) && count >= 0);
 
     return `${count}${unit}`;
@@ -499,8 +503,8 @@ function printAgentWebTaskFilterDateDurationCount(count: number, unit: string): 
 
 /**
  * Parses URL search params into API task filters. This is the inverse of
- * `printAgentWebTaskFilters()`, see that function for the format documentation.
- * The returned filters are always normalized with `normalizeApiTaskFilters()`.
+ * `printAgentWebTaskQueryFilters()`, see that function for the format documentation.
+ * The returned filters are always normalized with `normalizeApiTaskQueryFilters()`.
  *
  * Every search param parses to its own filter so `&` always means "and". Search
  * params we don't recognize as task filters (like a caller's pagination params)
@@ -511,11 +515,11 @@ function printAgentWebTaskFilterDateDurationCount(count: number, unit: string): 
  * space so date values like `today+3d` reach us as `today 3d`. We treat the space
  * as a `+` so agents can write either `today+3d` or `today%2B3d`.
  */
-export async function parseAgentWebTaskFilters(
+export async function parseAgentWebTaskQueryFilters(
     storage: AgentWebSessionStorage,
     searchParams: URLSearchParams,
-): Promise<ReadonlyArray<ApiTaskFilter>> {
-    const filterPromises: Array<Promise<ApiTaskFilter>> = [];
+): Promise<ReadonlyArray<ApiTaskQueryFilter>> {
+    const filterPromises: Array<Promise<ApiTaskQueryFilter>> = [];
 
     for (const [key, value] of searchParams.entries()) {
         const keyMatch = key.match(/^([a-z]+)\[([a-z]+)\]$/);
@@ -541,14 +545,14 @@ export async function parseAgentWebTaskFilters(
         if (!isFilterKey) continue;
 
         filterPromises.push(
-            parseAgentWebTaskFilterSearchParam(storage, {key, filterKey, operator, value}),
+            parseAgentWebTaskQueryFilterSearchParam(storage, {key, filterKey, operator, value}),
         );
     }
 
-    return normalizeApiTaskFilters(await runAllPromises(filterPromises));
+    return normalizeApiTaskQueryFilters(await runAllPromises(filterPromises));
 }
 
-async function parseAgentWebTaskFilterSearchParam(
+async function parseAgentWebTaskQueryFilterSearchParam(
     storage: AgentWebSessionStorage,
     {
         key,
@@ -561,11 +565,11 @@ async function parseAgentWebTaskFilterSearchParam(
         operator: string | null;
         value: string;
     },
-): Promise<ApiTaskFilter> {
+): Promise<ApiTaskQueryFilter> {
     switch (filterKey) {
         case "status": {
             if (operator !== null && operator !== "not") {
-                throw createAgentWebTaskFilterOperatorError(
+                throw createAgentWebTaskQueryFilterOperatorError(
                     key,
                     errorDisplayMessage`\`status\` or \`status[not]\``,
                 );
@@ -575,15 +579,15 @@ async function parseAgentWebTaskFilterSearchParam(
                 type: "Status",
                 operation: {
                     type: operator === "not" ? "NoneOf" : "OneOf",
-                    statuses: splitAgentWebTaskFilterListValue(value).map(
-                        parseAgentWebTaskFilterStatus,
+                    statuses: splitAgentWebTaskQueryFilterListValue(value).map(
+                        parseAgentWebTaskQueryFilterStatus,
                     ),
                 },
             };
         }
         case "priority": {
             if (operator !== null && operator !== "not") {
-                throw createAgentWebTaskFilterOperatorError(
+                throw createAgentWebTaskQueryFilterOperatorError(
                     key,
                     errorDisplayMessage`\`priority\` or \`priority[not]\``,
                 );
@@ -593,21 +597,21 @@ async function parseAgentWebTaskFilterSearchParam(
                 type: "Priority",
                 operation: {
                     type: operator === "not" ? "NoneOf" : "OneOf",
-                    priorities: splitAgentWebTaskFilterListValue(value).map(
-                        parseAgentWebTaskFilterPriority,
+                    priorities: splitAgentWebTaskQueryFilterListValue(value).map(
+                        parseAgentWebTaskQueryFilterPriority,
                     ),
                 },
             };
         }
         case "layout": {
             if (operator !== null && operator !== "not") {
-                throw createAgentWebTaskFilterOperatorError(
+                throw createAgentWebTaskQueryFilterOperatorError(
                     key,
                     errorDisplayMessage`\`layout\` or \`layout[not]\``,
                 );
             }
 
-            const layouts = splitAgentWebTaskFilterListValue(value);
+            const layouts = splitAgentWebTaskQueryFilterListValue(value);
 
             // Unlike other list filters, a layout filter with no layouts isn't a state the
             // task filter editor UI can represent so we don't accept it.
@@ -621,13 +625,13 @@ async function parseAgentWebTaskFilterSearchParam(
                 type: "Layout",
                 operation: {
                     type: operator === "not" ? "NoneOf" : "OneOf",
-                    layouts: layouts.map(parseAgentWebTaskFilterLayout),
+                    layouts: layouts.map(parseAgentWebTaskQueryFilterLayout),
                 },
             };
         }
         case "title": {
             if (operator !== null && operator !== "not") {
-                throw createAgentWebTaskFilterOperatorError(
+                throw createAgentWebTaskQueryFilterOperatorError(
                     key,
                     errorDisplayMessage`\`title\` or \`title[not]\``,
                 );
@@ -646,30 +650,30 @@ async function parseAgentWebTaskFilterSearchParam(
         }
         case "collection": {
             if (operator !== null && operator !== "all" && operator !== "not") {
-                throw createAgentWebTaskFilterOperatorError(
+                throw createAgentWebTaskQueryFilterOperatorError(
                     key,
                     errorDisplayMessage`\`collection\`, \`collection[all]\`, or \`collection[not]\``,
                 );
             }
 
-            return await parseAgentWebTaskFilterCollections(
+            return await parseAgentWebTaskQueryFilterCollections(
                 storage,
                 operator,
-                splitAgentWebTaskFilterListValue(value),
+                splitAgentWebTaskQueryFilterListValue(value),
             );
         }
         case "assignee":
         case "assigner": {
             if (operator !== null && operator !== "not") {
-                throw createAgentWebTaskFilterOperatorError(
+                throw createAgentWebTaskQueryFilterOperatorError(
                     key,
                     errorDisplayMessage`\`${filterKey}\` or \`${filterKey}[not]\``,
                 );
             }
 
             const accounts = await runAllPromises(
-                splitAgentWebTaskFilterListValue(value).map(accountValue =>
-                    parseAgentWebTaskFilterAccount(storage, filterKey, accountValue),
+                splitAgentWebTaskQueryFilterListValue(value).map(accountValue =>
+                    parseAgentWebTaskQueryFilterAccount(storage, filterKey, accountValue),
                 ),
             );
 
@@ -683,21 +687,21 @@ async function parseAgentWebTaskFilterSearchParam(
         }
         case "creator": {
             if (operator !== null && operator !== "not") {
-                throw createAgentWebTaskFilterOperatorError(
+                throw createAgentWebTaskQueryFilterOperatorError(
                     key,
                     errorDisplayMessage`\`creator\` or \`creator[not]\``,
                 );
             }
 
             const accounts = await runAllPromises(
-                splitAgentWebTaskFilterListValue(value).map(async accountValue => {
-                    const account = await parseAgentWebTaskFilterAccount(
+                splitAgentWebTaskQueryFilterListValue(value).map(async accountValue => {
+                    const account = await parseAgentWebTaskQueryFilterAccount(
                         storage,
                         filterKey,
                         accountValue,
                     );
 
-                    // `parseAgentWebTaskFilterAccount()` throws for `creator=none` when `filterKey` is
+                    // `parseAgentWebTaskQueryFilterAccount()` throws for `creator=none` when `filterKey` is
                     // `"creator"` so a missing account is impossible here.
                     assert(account.type !== "MissingAccount");
 
@@ -724,7 +728,7 @@ async function parseAgentWebTaskFilterSearchParam(
             }
 
             if (operator !== "before" && operator !== "after") {
-                throw createAgentWebTaskFilterOperatorError(
+                throw createAgentWebTaskQueryFilterOperatorError(
                     key,
                     errorDisplayMessage`\`due\`, \`due[before]\`, or \`due[after]\``,
                 );
@@ -734,7 +738,7 @@ async function parseAgentWebTaskFilterSearchParam(
                 type: "Due",
                 operation: {
                     type: operator === "before" ? "LessThan" : "GreaterThan",
-                    time: parseAgentWebTaskFilterTime(key, value),
+                    time: parseAgentWebTaskQueryFilterTime(key, value),
                 },
             };
         }
@@ -743,7 +747,7 @@ async function parseAgentWebTaskFilterSearchParam(
         case "closed":
         case "activated": {
             if (operator !== "before" && operator !== "after") {
-                throw createAgentWebTaskFilterOperatorError(
+                throw createAgentWebTaskQueryFilterOperatorError(
                     key,
                     errorDisplayMessage`\`${filterKey}[before]\` or \`${filterKey}[after]\``,
                 );
@@ -762,19 +766,19 @@ async function parseAgentWebTaskFilterSearchParam(
                 type: filterType,
                 operation: {
                     type: operator === "before" ? "LessThan" : "GreaterThan",
-                    time: parseAgentWebTaskFilterTime(key, value),
+                    time: parseAgentWebTaskQueryFilterTime(key, value),
                 },
             };
         }
         default: {
-            // `parseAgentWebTaskFilters()` only parses search params with recognized filter
+            // `parseAgentWebTaskQueryFilters()` only parses search params with recognized filter
             // keys, every other search param is ignored.
             throw new InternalError(`Unexpected task filter key \u201c${filterKey}\u201d`);
         }
     }
 }
 
-function createAgentWebTaskFilterOperatorError(
+function createAgentWebTaskQueryFilterOperatorError(
     key: string,
     expectedForms: ErrorDisplayMessage,
 ): InvalidArgumentError {
@@ -789,11 +793,11 @@ function createAgentWebTaskFilterOperatorError(
  * value (`status=`) is a filter with no values which is a filter that hasn't been
  * fully configured in the task filter editor UI yet.
  */
-function splitAgentWebTaskFilterListValue(value: string): Array<string> {
+function splitAgentWebTaskQueryFilterListValue(value: string): Array<string> {
     return value.split(",").filter(segment => segment.length > 0);
 }
 
-function parseAgentWebTaskFilterStatus(value: string): ApiTaskStatus {
+function parseAgentWebTaskQueryFilterStatus(value: string): ApiTaskStatus {
     switch (value) {
         case "open":
             return {type: "Open", isActive: false};
@@ -809,7 +813,7 @@ function parseAgentWebTaskFilterStatus(value: string): ApiTaskStatus {
     }
 }
 
-function parseAgentWebTaskFilterPriority(value: string): ApiTaskPriority | null {
+function parseAgentWebTaskQueryFilterPriority(value: string): ApiTaskPriority | null {
     switch (value) {
         case "none":
             return null;
@@ -833,7 +837,7 @@ function parseAgentWebTaskFilterPriority(value: string): ApiTaskPriority | null 
     }
 }
 
-function parseAgentWebTaskFilterLayout(value: string): ApiTaskLayout {
+function parseAgentWebTaskQueryFilterLayout(value: string): ApiTaskLayout {
     switch (value) {
         case "project":
             return {type: "Project"};
@@ -845,11 +849,11 @@ function parseAgentWebTaskFilterLayout(value: string): ApiTaskLayout {
     }
 }
 
-async function parseAgentWebTaskFilterCollections(
+async function parseAgentWebTaskQueryFilterCollections(
     storage: AgentWebSessionStorage,
     operator: "all" | "not" | null,
     values: ReadonlyArray<string>,
-): Promise<ApiTaskFilter> {
+): Promise<ApiTaskQueryFilter> {
     // In a bare `collection` param the `none` value is a "tasks in no collections"
     // filter of its own. It can't be combined with collections in the same filter
     // since a filter matches tasks with any of its values and a task with no
@@ -873,14 +877,14 @@ async function parseAgentWebTaskFilterCollections(
 
     const collections = await runAllPromises(
         values.map(async value => ({
-            id: await parseAgentWebTaskFilterCollectionId(storage, value),
+            id: await parseAgentWebTaskQueryFilterCollectionId(storage, value),
         })),
     );
 
     return {type: "Collections", operation: {type: operationType, collections}};
 }
 
-async function parseAgentWebTaskFilterCollectionId(
+async function parseAgentWebTaskQueryFilterCollectionId(
     storage: AgentWebSessionStorage,
     value: string,
 ): Promise<TaskCollectionId> {
@@ -898,11 +902,11 @@ async function parseAgentWebTaskFilterCollectionId(
     return pageLinkResult.pageLink.id;
 }
 
-async function parseAgentWebTaskFilterAccount(
+async function parseAgentWebTaskQueryFilterAccount(
     storage: AgentWebSessionStorage,
     filterKey: "assignee" | "creator" | "assigner",
     value: string,
-): Promise<ApiTaskAccountFilterOperationAccount> {
+): Promise<ApiTaskQueryAccountFilterOperationAccount> {
     if (value === "me") {
         return {type: "CurrentAccount"};
     }
@@ -939,10 +943,10 @@ async function parseAgentWebTaskFilterAccount(
     return {type: "Account", account: {id: pageLinkResult.pageLink.id}};
 }
 
-function parseAgentWebTaskFilterTime(
+function parseAgentWebTaskQueryFilterTime(
     key: string,
     dateString: string,
-): ApiTaskTimeFilterOperationTime {
+): ApiTaskQueryTimeFilterOperationTime {
     // An empty date (e.g. `due[before]=`) is a filter whose date hasn't been chosen
     // yet in the task filter editor UI. It matches all tasks.
     if (dateString.length === 0) {
@@ -960,7 +964,10 @@ function parseAgentWebTaskFilterTime(
 
     if (relativeMatch) {
         const [, sign, countString, unit] = relativeMatch;
-        const duration = createAgentWebTaskFilterDateDuration(unit!, parseInt(countString!, 10));
+        const duration = createAgentWebTaskQueryFilterDateDuration(
+            unit!,
+            parseInt(countString!, 10),
+        );
 
         return sign === "-"
             ? {type: "RelativeBeforeToday", duration}
@@ -993,10 +1000,10 @@ function parseAgentWebTaskFilterTime(
     });
 }
 
-function createAgentWebTaskFilterDateDuration(
+function createAgentWebTaskQueryFilterDateDuration(
     unit: string,
     count: number,
-): ApiTaskTimeFilterOperationDuration {
+): ApiTaskQueryTimeFilterOperationDuration {
     switch (unit) {
         case "d":
             return {type: "Days", days: count};

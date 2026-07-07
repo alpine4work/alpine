@@ -1,8 +1,8 @@
-import {ApiTaskSort} from "~/shared/api/specification/types/api_specification_convenience_types.js";
+import {ApiTaskQuerySort} from "~/shared/api/specification/types/api_specification_convenience_types.js";
 import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
 import {TaskQuerySort} from "~/shared/tasks/task_query_sort.js";
 
-export function intoApiSort(sort: TaskQuerySort): ApiTaskSort {
+export function intoApiTaskQuerySort(sort: TaskQuerySort): ApiTaskQuerySort {
     switch (sort.type) {
         case "DisplayStatus": {
             return {type: "Status", direction: sort.direction};
@@ -42,7 +42,7 @@ export function intoApiSort(sort: TaskQuerySort): ApiTaskSort {
     }
 }
 
-export function fromApiSort(sort: ApiTaskSort): TaskQuerySort {
+export function fromApiTaskQuerySort(sort: ApiTaskQuerySort): TaskQuerySort {
     switch (sort.type) {
         case "Status": {
             return {type: "DisplayStatus", direction: sort.direction};

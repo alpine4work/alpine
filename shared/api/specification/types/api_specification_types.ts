@@ -3924,39 +3924,39 @@ export namespace ApiSpecification {
                 readonly task: components["schemas"]["TaskWithoutNotes"];
             };
             readonly TaskQueryDefaults: {
-                readonly filters?: readonly components["schemas"]["TaskFilter"][];
-                readonly sorts?: readonly components["schemas"]["TaskSort"][];
+                readonly filters?: readonly components["schemas"]["TaskQueryFilter"][];
+                readonly sorts?: readonly components["schemas"]["TaskQuerySort"][];
             };
             readonly TaskQueryDefaults_Response: {
-                readonly filters: readonly components["schemas"]["TaskFilter_Response"][];
-                readonly sorts: readonly components["schemas"]["TaskSort"][];
+                readonly filters: readonly components["schemas"]["TaskQueryFilter_Response"][];
+                readonly sorts: readonly components["schemas"]["TaskQuerySort"][];
             };
-            readonly TaskFilter:
-                | components["schemas"]["TaskStatusFilter"]
-                | components["schemas"]["TaskCollectionsFilter"]
-                | components["schemas"]["TaskPriorityFilter"]
-                | components["schemas"]["TaskLayoutFilter"]
-                | components["schemas"]["TaskTitleFilter"]
-                | components["schemas"]["TaskAssigneeFilter"]
-                | components["schemas"]["TaskCreatorFilter"]
-                | components["schemas"]["TaskAssignerFilter"]
-                | components["schemas"]["TaskDueFilter"]
-                | components["schemas"]["TaskCreatedTimeFilter"]
-                | components["schemas"]["TaskAssignedTimeFilter"]
-                | components["schemas"]["TaskClosedTimeFilter"]
-                | components["schemas"]["TaskActivatedTimeFilter"];
-            readonly TaskStatusFilter: {
+            readonly TaskQueryFilter:
+                | components["schemas"]["TaskQueryStatusFilter"]
+                | components["schemas"]["TaskQueryCollectionsFilter"]
+                | components["schemas"]["TaskQueryPriorityFilter"]
+                | components["schemas"]["TaskQueryLayoutFilter"]
+                | components["schemas"]["TaskQueryTitleFilter"]
+                | components["schemas"]["TaskQueryAssigneeFilter"]
+                | components["schemas"]["TaskQueryCreatorFilter"]
+                | components["schemas"]["TaskQueryAssignerFilter"]
+                | components["schemas"]["TaskQueryDueFilter"]
+                | components["schemas"]["TaskQueryCreatedTimeFilter"]
+                | components["schemas"]["TaskQueryAssignedTimeFilter"]
+                | components["schemas"]["TaskQueryClosedTimeFilter"]
+                | components["schemas"]["TaskQueryActivatedTimeFilter"];
+            readonly TaskQueryStatusFilter: {
                 /**
                  * @description discriminator enum property added by openapi-typescript @enum
                  * {string}
                  */
                 readonly type: "Status";
-                readonly operation: components["schemas"]["TaskStatusFilterOperation"];
+                readonly operation: components["schemas"]["TaskQueryStatusFilterOperation"];
             };
-            readonly TaskStatusFilterOperation:
-                | components["schemas"]["TaskStatusFilterOneOfOperation"]
-                | components["schemas"]["TaskStatusFilterNoneOfOperation"];
-            readonly TaskStatusFilterOneOfOperation: {
+            readonly TaskQueryStatusFilterOperation:
+                | components["schemas"]["TaskQueryStatusFilterOneOfOperation"]
+                | components["schemas"]["TaskQueryStatusFilterNoneOfOperation"];
+            readonly TaskQueryStatusFilterOneOfOperation: {
                 /**
                  * @description discriminator enum property added by openapi-typescript @enum
                  * {string}
@@ -3964,7 +3964,7 @@ export namespace ApiSpecification {
                 readonly type: "OneOf";
                 readonly statuses: readonly components["schemas"]["TaskStatus"][];
             };
-            readonly TaskStatusFilterNoneOfOperation: {
+            readonly TaskQueryStatusFilterNoneOfOperation: {
                 /**
                  * @description discriminator enum property added by openapi-typescript @enum
                  * {string}
@@ -3972,20 +3972,20 @@ export namespace ApiSpecification {
                 readonly type: "NoneOf";
                 readonly statuses: readonly components["schemas"]["TaskStatus"][];
             };
-            readonly TaskCollectionsFilter: {
+            readonly TaskQueryCollectionsFilter: {
                 /**
                  * @description discriminator enum property added by openapi-typescript @enum
                  * {string}
                  */
                 readonly type: "Collections";
-                readonly operation: components["schemas"]["TaskCollectionsFilterOperation"];
+                readonly operation: components["schemas"]["TaskQueryCollectionsFilterOperation"];
             };
-            readonly TaskCollectionsFilterOperation:
-                | components["schemas"]["TaskCollectionsFilterIncludesOneOfOperation"]
-                | components["schemas"]["TaskCollectionsFilterIncludesAllOfOperation"]
-                | components["schemas"]["TaskCollectionsFilterExcludesAllOfOperation"]
-                | components["schemas"]["TaskCollectionsFilterIsEmptyOperation"];
-            readonly TaskCollectionsFilterIncludesOneOfOperation: {
+            readonly TaskQueryCollectionsFilterOperation:
+                | components["schemas"]["TaskQueryCollectionsFilterIncludesOneOfOperation"]
+                | components["schemas"]["TaskQueryCollectionsFilterIncludesAllOfOperation"]
+                | components["schemas"]["TaskQueryCollectionsFilterExcludesAllOfOperation"]
+                | components["schemas"]["TaskQueryCollectionsFilterIsEmptyOperation"];
+            readonly TaskQueryCollectionsFilterIncludesOneOfOperation: {
                 /**
                  * @description discriminator enum property added by openapi-typescript @enum
                  * {string}
@@ -3993,7 +3993,7 @@ export namespace ApiSpecification {
                 readonly type: "IncludesOneOf";
                 readonly collections: readonly components["schemas"]["TaskCollectionPreview"][];
             };
-            readonly TaskCollectionsFilterIncludesAllOfOperation: {
+            readonly TaskQueryCollectionsFilterIncludesAllOfOperation: {
                 /**
                  * @description discriminator enum property added by openapi-typescript @enum
                  * {string}
@@ -4001,7 +4001,7 @@ export namespace ApiSpecification {
                 readonly type: "IncludesAllOf";
                 readonly collections: readonly components["schemas"]["TaskCollectionPreview"][];
             };
-            readonly TaskCollectionsFilterExcludesAllOfOperation: {
+            readonly TaskQueryCollectionsFilterExcludesAllOfOperation: {
                 /**
                  * @description discriminator enum property added by openapi-typescript @enum
                  * {string}
@@ -4009,25 +4009,25 @@ export namespace ApiSpecification {
                 readonly type: "ExcludesAllOf";
                 readonly collections: readonly components["schemas"]["TaskCollectionPreview"][];
             };
-            readonly TaskCollectionsFilterIsEmptyOperation: {
+            readonly TaskQueryCollectionsFilterIsEmptyOperation: {
                 /**
                  * @description discriminator enum property added by openapi-typescript @enum
                  * {string}
                  */
                 readonly type: "IsEmpty";
             };
-            readonly TaskPriorityFilter: {
+            readonly TaskQueryPriorityFilter: {
                 /**
                  * @description discriminator enum property added by openapi-typescript @enum
                  * {string}
                  */
                 readonly type: "Priority";
-                readonly operation: components["schemas"]["TaskPriorityFilterOperation"];
+                readonly operation: components["schemas"]["TaskQueryPriorityFilterOperation"];
             };
-            readonly TaskPriorityFilterOperation:
-                | components["schemas"]["TaskPriorityFilterOneOfOperation"]
-                | components["schemas"]["TaskPriorityFilterNoneOfOperation"];
-            readonly TaskPriorityFilterOneOfOperation: {
+            readonly TaskQueryPriorityFilterOperation:
+                | components["schemas"]["TaskQueryPriorityFilterOneOfOperation"]
+                | components["schemas"]["TaskQueryPriorityFilterNoneOfOperation"];
+            readonly TaskQueryPriorityFilterOneOfOperation: {
                 /**
                  * @description discriminator enum property added by openapi-typescript @enum
                  * {string}
@@ -4035,7 +4035,7 @@ export namespace ApiSpecification {
                 readonly type: "OneOf";
                 readonly priorities: readonly (components["schemas"]["TaskPriority"] | null)[];
             };
-            readonly TaskPriorityFilterNoneOfOperation: {
+            readonly TaskQueryPriorityFilterNoneOfOperation: {
                 /**
                  * @description discriminator enum property added by openapi-typescript @enum
                  * {string}
@@ -4043,18 +4043,18 @@ export namespace ApiSpecification {
                 readonly type: "NoneOf";
                 readonly priorities: readonly (components["schemas"]["TaskPriority"] | null)[];
             };
-            readonly TaskLayoutFilter: {
+            readonly TaskQueryLayoutFilter: {
                 /**
                  * @description discriminator enum property added by openapi-typescript @enum
                  * {string}
                  */
                 readonly type: "Layout";
-                readonly operation: components["schemas"]["TaskLayoutFilterOperation"];
+                readonly operation: components["schemas"]["TaskQueryLayoutFilterOperation"];
             };
-            readonly TaskLayoutFilterOperation:
-                | components["schemas"]["TaskLayoutFilterOneOfOperation"]
-                | components["schemas"]["TaskLayoutFilterNoneOfOperation"];
-            readonly TaskLayoutFilterOneOfOperation: {
+            readonly TaskQueryLayoutFilterOperation:
+                | components["schemas"]["TaskQueryLayoutFilterOneOfOperation"]
+                | components["schemas"]["TaskQueryLayoutFilterNoneOfOperation"];
+            readonly TaskQueryLayoutFilterOneOfOperation: {
                 /**
                  * @description discriminator enum property added by openapi-typescript @enum
                  * {string}
@@ -4062,7 +4062,7 @@ export namespace ApiSpecification {
                 readonly type: "OneOf";
                 readonly layouts: readonly components["schemas"]["TaskLayout"][];
             };
-            readonly TaskLayoutFilterNoneOfOperation: {
+            readonly TaskQueryLayoutFilterNoneOfOperation: {
                 /**
                  * @description discriminator enum property added by openapi-typescript @enum
                  * {string}
@@ -4070,18 +4070,18 @@ export namespace ApiSpecification {
                 readonly type: "NoneOf";
                 readonly layouts: readonly components["schemas"]["TaskLayout"][];
             };
-            readonly TaskTitleFilter: {
+            readonly TaskQueryTitleFilter: {
                 /**
                  * @description discriminator enum property added by openapi-typescript @enum
                  * {string}
                  */
                 readonly type: "Title";
-                readonly operation: components["schemas"]["TaskTitleFilterOperation"];
+                readonly operation: components["schemas"]["TaskQueryTitleFilterOperation"];
             };
-            readonly TaskTitleFilterOperation:
-                | components["schemas"]["TaskTitleFilterIncludesOperation"]
-                | components["schemas"]["TaskTitleFilterExcludesOperation"];
-            readonly TaskTitleFilterIncludesOperation: {
+            readonly TaskQueryTitleFilterOperation:
+                | components["schemas"]["TaskQueryTitleFilterIncludesOperation"]
+                | components["schemas"]["TaskQueryTitleFilterExcludesOperation"];
+            readonly TaskQueryTitleFilterIncludesOperation: {
                 /**
                  * @description discriminator enum property added by openapi-typescript @enum
                  * {string}
@@ -4089,7 +4089,7 @@ export namespace ApiSpecification {
                 readonly type: "Includes";
                 readonly titleQuery: string;
             };
-            readonly TaskTitleFilterExcludesOperation: {
+            readonly TaskQueryTitleFilterExcludesOperation: {
                 /**
                  * @description discriminator enum property added by openapi-typescript @enum
                  * {string}
@@ -4097,54 +4097,54 @@ export namespace ApiSpecification {
                 readonly type: "Excludes";
                 readonly titleQuery: string;
             };
-            readonly TaskAssigneeFilter: {
+            readonly TaskQueryAssigneeFilter: {
                 /**
                  * @description discriminator enum property added by openapi-typescript @enum
                  * {string}
                  */
                 readonly type: "Assignee";
-                readonly operation: components["schemas"]["TaskAccountFilterOperation"];
+                readonly operation: components["schemas"]["TaskQueryAccountFilterOperation"];
             };
-            readonly TaskCreatorFilter: {
+            readonly TaskQueryCreatorFilter: {
                 /**
                  * @description discriminator enum property added by openapi-typescript @enum
                  * {string}
                  */
                 readonly type: "Creator";
-                readonly operation: components["schemas"]["TaskCreatorFilterOperation"];
+                readonly operation: components["schemas"]["TaskQueryCreatorFilterOperation"];
             };
-            readonly TaskAssignerFilter: {
+            readonly TaskQueryAssignerFilter: {
                 /**
                  * @description discriminator enum property added by openapi-typescript @enum
                  * {string}
                  */
                 readonly type: "Assigner";
-                readonly operation: components["schemas"]["TaskAccountFilterOperation"];
+                readonly operation: components["schemas"]["TaskQueryAccountFilterOperation"];
             };
-            readonly TaskAccountFilterOperation:
-                | components["schemas"]["TaskAccountFilterOneOfOperation"]
-                | components["schemas"]["TaskAccountFilterNoneOfOperation"];
-            readonly TaskAccountFilterOneOfOperation: {
+            readonly TaskQueryAccountFilterOperation:
+                | components["schemas"]["TaskQueryAccountFilterOneOfOperation"]
+                | components["schemas"]["TaskQueryAccountFilterNoneOfOperation"];
+            readonly TaskQueryAccountFilterOneOfOperation: {
                 /**
                  * @description discriminator enum property added by openapi-typescript @enum
                  * {string}
                  */
                 readonly type: "OneOf";
-                readonly accounts: readonly components["schemas"]["TaskAccountFilterOperationAccount"][];
+                readonly accounts: readonly components["schemas"]["TaskQueryAccountFilterOperationAccount"][];
             };
-            readonly TaskAccountFilterNoneOfOperation: {
+            readonly TaskQueryAccountFilterNoneOfOperation: {
                 /**
                  * @description discriminator enum property added by openapi-typescript @enum
                  * {string}
                  */
                 readonly type: "NoneOf";
-                readonly accounts: readonly components["schemas"]["TaskAccountFilterOperationAccount"][];
+                readonly accounts: readonly components["schemas"]["TaskQueryAccountFilterOperationAccount"][];
             };
-            readonly TaskAccountFilterOperationAccount:
-                | components["schemas"]["TaskAccountFilterOperationAccountItem"]
-                | components["schemas"]["TaskAccountFilterOperationCurrentAccount"]
-                | components["schemas"]["TaskAccountFilterOperationMissingAccount"];
-            readonly TaskAccountFilterOperationAccountItem: {
+            readonly TaskQueryAccountFilterOperationAccount:
+                | components["schemas"]["TaskQueryAccountFilterOperationAccountItem"]
+                | components["schemas"]["TaskQueryAccountFilterOperationCurrentAccount"]
+                | components["schemas"]["TaskQueryAccountFilterOperationMissingAccount"];
+            readonly TaskQueryAccountFilterOperationAccountItem: {
                 /**
                  * @description discriminator enum property added by openapi-typescript @enum
                  * {string}
@@ -4152,126 +4152,126 @@ export namespace ApiSpecification {
                 readonly type: "Account";
                 readonly account: components["schemas"]["Account"];
             };
-            readonly TaskAccountFilterOperationCurrentAccount: {
+            readonly TaskQueryAccountFilterOperationCurrentAccount: {
                 /**
                  * @description discriminator enum property added by openapi-typescript @enum
                  * {string}
                  */
                 readonly type: "CurrentAccount";
             };
-            readonly TaskAccountFilterOperationMissingAccount: {
+            readonly TaskQueryAccountFilterOperationMissingAccount: {
                 /**
                  * @description discriminator enum property added by openapi-typescript @enum
                  * {string}
                  */
                 readonly type: "MissingAccount";
             };
-            readonly TaskCreatorFilterOperation:
-                | components["schemas"]["TaskCreatorFilterOneOfOperation"]
-                | components["schemas"]["TaskCreatorFilterNoneOfOperation"];
-            readonly TaskCreatorFilterOneOfOperation: {
+            readonly TaskQueryCreatorFilterOperation:
+                | components["schemas"]["TaskQueryCreatorFilterOneOfOperation"]
+                | components["schemas"]["TaskQueryCreatorFilterNoneOfOperation"];
+            readonly TaskQueryCreatorFilterOneOfOperation: {
                 /**
                  * @description discriminator enum property added by openapi-typescript @enum
                  * {string}
                  */
                 readonly type: "OneOf";
-                readonly accounts: readonly components["schemas"]["TaskCreatorFilterOperationAccount"][];
+                readonly accounts: readonly components["schemas"]["TaskQueryCreatorFilterOperationAccount"][];
             };
-            readonly TaskCreatorFilterNoneOfOperation: {
+            readonly TaskQueryCreatorFilterNoneOfOperation: {
                 /**
                  * @description discriminator enum property added by openapi-typescript @enum
                  * {string}
                  */
                 readonly type: "NoneOf";
-                readonly accounts: readonly components["schemas"]["TaskCreatorFilterOperationAccount"][];
+                readonly accounts: readonly components["schemas"]["TaskQueryCreatorFilterOperationAccount"][];
             };
-            readonly TaskCreatorFilterOperationAccount:
-                | components["schemas"]["TaskAccountFilterOperationAccountItem"]
-                | components["schemas"]["TaskAccountFilterOperationCurrentAccount"];
-            readonly TaskDueFilter: {
+            readonly TaskQueryCreatorFilterOperationAccount:
+                | components["schemas"]["TaskQueryAccountFilterOperationAccountItem"]
+                | components["schemas"]["TaskQueryAccountFilterOperationCurrentAccount"];
+            readonly TaskQueryDueFilter: {
                 /**
                  * @description discriminator enum property added by openapi-typescript @enum
                  * {string}
                  */
                 readonly type: "Due";
-                readonly operation: components["schemas"]["TaskDueFilterOperation"];
+                readonly operation: components["schemas"]["TaskQueryDueFilterOperation"];
             };
-            readonly TaskDueFilterOperation:
-                | components["schemas"]["TaskDueFilterOverdueOperation"]
-                | components["schemas"]["TaskDueFilterIsEmptyOperation"]
-                | components["schemas"]["TaskTimeFilterLessThanOperation"]
-                | components["schemas"]["TaskTimeFilterGreaterThanOperation"];
-            readonly TaskDueFilterOverdueOperation: {
+            readonly TaskQueryDueFilterOperation:
+                | components["schemas"]["TaskQueryDueFilterOverdueOperation"]
+                | components["schemas"]["TaskQueryDueFilterIsEmptyOperation"]
+                | components["schemas"]["TaskQueryTimeFilterLessThanOperation"]
+                | components["schemas"]["TaskQueryTimeFilterGreaterThanOperation"];
+            readonly TaskQueryDueFilterOverdueOperation: {
                 /**
                  * @description discriminator enum property added by openapi-typescript @enum
                  * {string}
                  */
                 readonly type: "Overdue";
             };
-            readonly TaskDueFilterIsEmptyOperation: {
+            readonly TaskQueryDueFilterIsEmptyOperation: {
                 /**
                  * @description discriminator enum property added by openapi-typescript @enum
                  * {string}
                  */
                 readonly type: "IsEmpty";
             };
-            readonly TaskCreatedTimeFilter: {
+            readonly TaskQueryCreatedTimeFilter: {
                 /**
                  * @description discriminator enum property added by openapi-typescript @enum
                  * {string}
                  */
                 readonly type: "CreatedTime";
-                readonly operation: components["schemas"]["TaskTimeFilterOperation"];
+                readonly operation: components["schemas"]["TaskQueryTimeFilterOperation"];
             };
-            readonly TaskAssignedTimeFilter: {
+            readonly TaskQueryAssignedTimeFilter: {
                 /**
                  * @description discriminator enum property added by openapi-typescript @enum
                  * {string}
                  */
                 readonly type: "AssignedTime";
-                readonly operation: components["schemas"]["TaskTimeFilterOperation"];
+                readonly operation: components["schemas"]["TaskQueryTimeFilterOperation"];
             };
-            readonly TaskClosedTimeFilter: {
+            readonly TaskQueryClosedTimeFilter: {
                 /**
                  * @description discriminator enum property added by openapi-typescript @enum
                  * {string}
                  */
                 readonly type: "ClosedTime";
-                readonly operation: components["schemas"]["TaskTimeFilterOperation"];
+                readonly operation: components["schemas"]["TaskQueryTimeFilterOperation"];
             };
-            readonly TaskActivatedTimeFilter: {
+            readonly TaskQueryActivatedTimeFilter: {
                 /**
                  * @description discriminator enum property added by openapi-typescript @enum
                  * {string}
                  */
                 readonly type: "ActivatedTime";
-                readonly operation: components["schemas"]["TaskTimeFilterOperation"];
+                readonly operation: components["schemas"]["TaskQueryTimeFilterOperation"];
             };
-            readonly TaskTimeFilterOperation:
-                | components["schemas"]["TaskTimeFilterLessThanOperation"]
-                | components["schemas"]["TaskTimeFilterGreaterThanOperation"];
-            readonly TaskTimeFilterLessThanOperation: {
+            readonly TaskQueryTimeFilterOperation:
+                | components["schemas"]["TaskQueryTimeFilterLessThanOperation"]
+                | components["schemas"]["TaskQueryTimeFilterGreaterThanOperation"];
+            readonly TaskQueryTimeFilterLessThanOperation: {
                 /**
                  * @description discriminator enum property added by openapi-typescript @enum
                  * {string}
                  */
                 readonly type: "LessThan";
-                readonly time: components["schemas"]["TaskTimeFilterOperationTime"];
+                readonly time: components["schemas"]["TaskQueryTimeFilterOperationTime"];
             };
-            readonly TaskTimeFilterGreaterThanOperation: {
+            readonly TaskQueryTimeFilterGreaterThanOperation: {
                 /**
                  * @description discriminator enum property added by openapi-typescript @enum
                  * {string}
                  */
                 readonly type: "GreaterThan";
-                readonly time: components["schemas"]["TaskTimeFilterOperationTime"];
+                readonly time: components["schemas"]["TaskQueryTimeFilterOperationTime"];
             };
-            readonly TaskTimeFilterOperationTime:
-                | components["schemas"]["TaskTimeFilterOperationAbsoluteDateTime"]
-                | components["schemas"]["TaskTimeFilterOperationRelativeTodayTime"]
-                | components["schemas"]["TaskTimeFilterOperationRelativeAfterTodayTime"]
-                | components["schemas"]["TaskTimeFilterOperationRelativeBeforeTodayTime"];
-            readonly TaskTimeFilterOperationAbsoluteDateTime: {
+            readonly TaskQueryTimeFilterOperationTime:
+                | components["schemas"]["TaskQueryTimeFilterOperationAbsoluteDateTime"]
+                | components["schemas"]["TaskQueryTimeFilterOperationRelativeTodayTime"]
+                | components["schemas"]["TaskQueryTimeFilterOperationRelativeAfterTodayTime"]
+                | components["schemas"]["TaskQueryTimeFilterOperationRelativeBeforeTodayTime"];
+            readonly TaskQueryTimeFilterOperationAbsoluteDateTime: {
                 /**
                  * @description discriminator enum property added by openapi-typescript @enum
                  * {string}
@@ -4279,35 +4279,35 @@ export namespace ApiSpecification {
                 readonly type: "AbsoluteDate";
                 readonly date: string | null;
             };
-            readonly TaskTimeFilterOperationRelativeTodayTime: {
+            readonly TaskQueryTimeFilterOperationRelativeTodayTime: {
                 /**
                  * @description discriminator enum property added by openapi-typescript @enum
                  * {string}
                  */
                 readonly type: "RelativeToday";
             };
-            readonly TaskTimeFilterOperationRelativeAfterTodayTime: {
+            readonly TaskQueryTimeFilterOperationRelativeAfterTodayTime: {
                 /**
                  * @description discriminator enum property added by openapi-typescript @enum
                  * {string}
                  */
                 readonly type: "RelativeAfterToday";
-                readonly duration: components["schemas"]["TaskTimeFilterOperationDuration"];
+                readonly duration: components["schemas"]["TaskQueryTimeFilterOperationDuration"];
             };
-            readonly TaskTimeFilterOperationRelativeBeforeTodayTime: {
+            readonly TaskQueryTimeFilterOperationRelativeBeforeTodayTime: {
                 /**
                  * @description discriminator enum property added by openapi-typescript @enum
                  * {string}
                  */
                 readonly type: "RelativeBeforeToday";
-                readonly duration: components["schemas"]["TaskTimeFilterOperationDuration"];
+                readonly duration: components["schemas"]["TaskQueryTimeFilterOperationDuration"];
             };
-            readonly TaskTimeFilterOperationDuration:
-                | components["schemas"]["TaskTimeFilterOperationDaysDuration"]
-                | components["schemas"]["TaskTimeFilterOperationWeeksDuration"]
-                | components["schemas"]["TaskTimeFilterOperationMonthsDuration"]
-                | components["schemas"]["TaskTimeFilterOperationYearsDuration"];
-            readonly TaskTimeFilterOperationDaysDuration: {
+            readonly TaskQueryTimeFilterOperationDuration:
+                | components["schemas"]["TaskQueryTimeFilterOperationDaysDuration"]
+                | components["schemas"]["TaskQueryTimeFilterOperationWeeksDuration"]
+                | components["schemas"]["TaskQueryTimeFilterOperationMonthsDuration"]
+                | components["schemas"]["TaskQueryTimeFilterOperationYearsDuration"];
+            readonly TaskQueryTimeFilterOperationDaysDuration: {
                 /**
                  * @description discriminator enum property added by openapi-typescript @enum
                  * {string}
@@ -4315,7 +4315,7 @@ export namespace ApiSpecification {
                 readonly type: "Days";
                 readonly days: number;
             };
-            readonly TaskTimeFilterOperationWeeksDuration: {
+            readonly TaskQueryTimeFilterOperationWeeksDuration: {
                 /**
                  * @description discriminator enum property added by openapi-typescript @enum
                  * {string}
@@ -4323,7 +4323,7 @@ export namespace ApiSpecification {
                 readonly type: "Weeks";
                 readonly weeks: number;
             };
-            readonly TaskTimeFilterOperationMonthsDuration: {
+            readonly TaskQueryTimeFilterOperationMonthsDuration: {
                 /**
                  * @description discriminator enum property added by openapi-typescript @enum
                  * {string}
@@ -4331,7 +4331,7 @@ export namespace ApiSpecification {
                 readonly type: "Months";
                 readonly months: number;
             };
-            readonly TaskTimeFilterOperationYearsDuration: {
+            readonly TaskQueryTimeFilterOperationYearsDuration: {
                 /**
                  * @description discriminator enum property added by openapi-typescript @enum
                  * {string}
@@ -4339,108 +4339,108 @@ export namespace ApiSpecification {
                 readonly type: "Years";
                 readonly years: number;
             };
-            readonly TaskSort:
-                | components["schemas"]["TaskStatusSort"]
-                | components["schemas"]["TaskPrioritySort"]
-                | components["schemas"]["TaskLayoutSort"]
-                | components["schemas"]["TaskAssigneeSort"]
-                | components["schemas"]["TaskCreatorSort"]
-                | components["schemas"]["TaskAssignerSort"]
-                | components["schemas"]["TaskDueSort"]
-                | components["schemas"]["TaskCreatedTimeSort"]
-                | components["schemas"]["TaskAssignedTimeSort"]
-                | components["schemas"]["TaskClosedTimeSort"]
-                | components["schemas"]["TaskActivatedTimeSort"];
+            readonly TaskQuerySort:
+                | components["schemas"]["TaskQueryStatusSort"]
+                | components["schemas"]["TaskQueryPrioritySort"]
+                | components["schemas"]["TaskQueryLayoutSort"]
+                | components["schemas"]["TaskQueryAssigneeSort"]
+                | components["schemas"]["TaskQueryCreatorSort"]
+                | components["schemas"]["TaskQueryAssignerSort"]
+                | components["schemas"]["TaskQueryDueSort"]
+                | components["schemas"]["TaskQueryCreatedTimeSort"]
+                | components["schemas"]["TaskQueryAssignedTimeSort"]
+                | components["schemas"]["TaskQueryClosedTimeSort"]
+                | components["schemas"]["TaskQueryActivatedTimeSort"];
             /** @enum {string} */
-            readonly TaskSortDirection: "Ascending" | "Descending";
+            readonly TaskQuerySortDirection: "Ascending" | "Descending";
             /** @enum {string} */
-            readonly TaskSortMissing: "First" | "Last";
-            readonly TaskStatusSort: {
+            readonly TaskQuerySortMissing: "First" | "Last";
+            readonly TaskQueryStatusSort: {
                 /**
                  * @description discriminator enum property added by openapi-typescript @enum
                  * {string}
                  */
                 readonly type: "Status";
-                readonly direction: components["schemas"]["TaskSortDirection"];
+                readonly direction: components["schemas"]["TaskQuerySortDirection"];
             };
-            readonly TaskPrioritySort: {
+            readonly TaskQueryPrioritySort: {
                 /**
                  * @description discriminator enum property added by openapi-typescript @enum
                  * {string}
                  */
                 readonly type: "Priority";
-                readonly direction: components["schemas"]["TaskSortDirection"];
+                readonly direction: components["schemas"]["TaskQuerySortDirection"];
             };
-            readonly TaskLayoutSort: {
+            readonly TaskQueryLayoutSort: {
                 /**
                  * @description discriminator enum property added by openapi-typescript @enum
                  * {string}
                  */
                 readonly type: "Layout";
-                readonly missing: components["schemas"]["TaskSortMissing"];
+                readonly missing: components["schemas"]["TaskQuerySortMissing"];
             };
-            readonly TaskAssigneeSort: {
+            readonly TaskQueryAssigneeSort: {
                 /**
                  * @description discriminator enum property added by openapi-typescript @enum
                  * {string}
                  */
                 readonly type: "Assignee";
-                readonly missing: components["schemas"]["TaskSortMissing"];
+                readonly missing: components["schemas"]["TaskQuerySortMissing"];
             };
-            readonly TaskCreatorSort: {
+            readonly TaskQueryCreatorSort: {
                 /**
                  * @description discriminator enum property added by openapi-typescript @enum
                  * {string}
                  */
                 readonly type: "Creator";
             };
-            readonly TaskAssignerSort: {
+            readonly TaskQueryAssignerSort: {
                 /**
                  * @description discriminator enum property added by openapi-typescript @enum
                  * {string}
                  */
                 readonly type: "Assigner";
-                readonly missing: components["schemas"]["TaskSortMissing"];
+                readonly missing: components["schemas"]["TaskQuerySortMissing"];
             };
-            readonly TaskDueSort: {
+            readonly TaskQueryDueSort: {
                 /**
                  * @description discriminator enum property added by openapi-typescript @enum
                  * {string}
                  */
                 readonly type: "Due";
-                readonly direction: components["schemas"]["TaskSortDirection"];
+                readonly direction: components["schemas"]["TaskQuerySortDirection"];
             };
-            readonly TaskCreatedTimeSort: {
+            readonly TaskQueryCreatedTimeSort: {
                 /**
                  * @description discriminator enum property added by openapi-typescript @enum
                  * {string}
                  */
                 readonly type: "CreatedTime";
-                readonly direction: components["schemas"]["TaskSortDirection"];
+                readonly direction: components["schemas"]["TaskQuerySortDirection"];
             };
-            readonly TaskAssignedTimeSort: {
+            readonly TaskQueryAssignedTimeSort: {
                 /**
                  * @description discriminator enum property added by openapi-typescript @enum
                  * {string}
                  */
                 readonly type: "AssignedTime";
-                readonly direction: components["schemas"]["TaskSortDirection"];
+                readonly direction: components["schemas"]["TaskQuerySortDirection"];
             };
-            readonly TaskClosedTimeSort: {
+            readonly TaskQueryClosedTimeSort: {
                 /**
                  * @description discriminator enum property added by openapi-typescript @enum
                  * {string}
                  */
                 readonly type: "ClosedTime";
-                readonly direction: components["schemas"]["TaskSortDirection"];
+                readonly direction: components["schemas"]["TaskQuerySortDirection"];
             };
-            readonly TaskActivatedTimeSort: {
+            readonly TaskQueryActivatedTimeSort: {
                 /**
                  * @description discriminator enum property added by openapi-typescript @enum
                  * {string}
                  */
                 readonly type: "ActivatedTime";
-                readonly direction: components["schemas"]["TaskSortDirection"];
+                readonly direction: components["schemas"]["TaskQuerySortDirection"];
             };
             readonly Message: {
                 readonly index: number;
@@ -5389,7 +5389,7 @@ export namespace ApiSpecification {
             readonly ContentFileGalleryBlockElementRow_Response: {
                 readonly items: readonly components["schemas"]["ContentFileGalleryBlockElementRowItem_Response"][];
             };
-            readonly TaskCollectionsFilterIncludesOneOfOperation_Response: {
+            readonly TaskQueryCollectionsFilterIncludesOneOfOperation_Response: {
                 /**
                  * @description discriminator enum property added by openapi-typescript @enum
                  * {string}
@@ -5397,7 +5397,7 @@ export namespace ApiSpecification {
                 readonly type: "IncludesOneOf";
                 readonly collections: readonly components["schemas"]["TaskCollectionPreview_Response"][];
             };
-            readonly TaskCollectionsFilterIncludesAllOfOperation_Response: {
+            readonly TaskQueryCollectionsFilterIncludesAllOfOperation_Response: {
                 /**
                  * @description discriminator enum property added by openapi-typescript @enum
                  * {string}
@@ -5405,7 +5405,7 @@ export namespace ApiSpecification {
                 readonly type: "IncludesAllOf";
                 readonly collections: readonly components["schemas"]["TaskCollectionPreview_Response"][];
             };
-            readonly TaskCollectionsFilterExcludesAllOfOperation_Response: {
+            readonly TaskQueryCollectionsFilterExcludesAllOfOperation_Response: {
                 /**
                  * @description discriminator enum property added by openapi-typescript @enum
                  * {string}
@@ -5427,7 +5427,7 @@ export namespace ApiSpecification {
                 | components["schemas"]["ContentCodeBlockElement_Response"]
                 | components["schemas"]["ContentFileBlockElement_Response"]
                 | components["schemas"]["ContentPreviewBlockElement_Response"];
-            readonly TaskAccountFilterOperationAccountItem_Response: {
+            readonly TaskQueryAccountFilterOperationAccountItem_Response: {
                 /**
                  * @description discriminator enum property added by openapi-typescript @enum
                  * {string}
@@ -5662,11 +5662,11 @@ export namespace ApiSpecification {
                 readonly rows: readonly components["schemas"]["ContentFileGalleryBlockElementRow_Response"][];
                 readonly marks?: readonly components["schemas"]["ContentCommentMark"][];
             };
-            readonly TaskCollectionsFilterOperation_Response:
-                | components["schemas"]["TaskCollectionsFilterIncludesOneOfOperation_Response"]
-                | components["schemas"]["TaskCollectionsFilterIncludesAllOfOperation_Response"]
-                | components["schemas"]["TaskCollectionsFilterExcludesAllOfOperation_Response"]
-                | components["schemas"]["TaskCollectionsFilterIsEmptyOperation"];
+            readonly TaskQueryCollectionsFilterOperation_Response:
+                | components["schemas"]["TaskQueryCollectionsFilterIncludesOneOfOperation_Response"]
+                | components["schemas"]["TaskQueryCollectionsFilterIncludesAllOfOperation_Response"]
+                | components["schemas"]["TaskQueryCollectionsFilterExcludesAllOfOperation_Response"]
+                | components["schemas"]["TaskQueryCollectionsFilterIsEmptyOperation"];
             readonly MessageStreamToolCallPartPayloadReadCall_Response: {
                 /**
                  * @description discriminator enum property added by openapi-typescript @enum
@@ -5686,13 +5686,13 @@ export namespace ApiSpecification {
             readonly ContentTableBlockElementCell_Response: {
                 readonly elements: readonly components["schemas"]["ContentTableBlockElementCellBlockElement_Response"][];
             };
-            readonly TaskAccountFilterOperationAccount_Response:
-                | components["schemas"]["TaskAccountFilterOperationAccountItem_Response"]
-                | components["schemas"]["TaskAccountFilterOperationCurrentAccount"]
-                | components["schemas"]["TaskAccountFilterOperationMissingAccount"];
-            readonly TaskCreatorFilterOperationAccount_Response:
-                | components["schemas"]["TaskAccountFilterOperationAccountItem_Response"]
-                | components["schemas"]["TaskAccountFilterOperationCurrentAccount"];
+            readonly TaskQueryAccountFilterOperationAccount_Response:
+                | components["schemas"]["TaskQueryAccountFilterOperationAccountItem_Response"]
+                | components["schemas"]["TaskQueryAccountFilterOperationCurrentAccount"]
+                | components["schemas"]["TaskQueryAccountFilterOperationMissingAccount"];
+            readonly TaskQueryCreatorFilterOperationAccount_Response:
+                | components["schemas"]["TaskQueryAccountFilterOperationAccountItem_Response"]
+                | components["schemas"]["TaskQueryAccountFilterOperationCurrentAccount"];
             readonly Content_Response_WithoutKeys: {
                 readonly elements: readonly components["schemas"]["ContentBlockElement_Response_WithoutKeys"][];
             };
@@ -5776,13 +5776,13 @@ export namespace ApiSpecification {
                 readonly type: "Reasoning";
                 readonly content: components["schemas"]["Content_Response"];
             };
-            readonly TaskCollectionsFilter_Response: {
+            readonly TaskQueryCollectionsFilter_Response: {
                 /**
                  * @description discriminator enum property added by openapi-typescript @enum
                  * {string}
                  */
                 readonly type: "Collections";
-                readonly operation: components["schemas"]["TaskCollectionsFilterOperation_Response"];
+                readonly operation: components["schemas"]["TaskQueryCollectionsFilterOperation_Response"];
             };
             readonly MessageStreamToolCallPartPayloadCall_Response:
                 | components["schemas"]["MessageStreamToolCallPartPayloadReadCall_Response"]
@@ -5791,37 +5791,37 @@ export namespace ApiSpecification {
             readonly ContentTableBlockElementRow_Response: {
                 readonly cells: readonly components["schemas"]["ContentTableBlockElementCell_Response"][];
             };
-            readonly TaskAccountFilterOneOfOperation_Response: {
+            readonly TaskQueryAccountFilterOneOfOperation_Response: {
                 /**
                  * @description discriminator enum property added by openapi-typescript @enum
                  * {string}
                  */
                 readonly type: "OneOf";
-                readonly accounts: readonly components["schemas"]["TaskAccountFilterOperationAccount_Response"][];
+                readonly accounts: readonly components["schemas"]["TaskQueryAccountFilterOperationAccount_Response"][];
             };
-            readonly TaskAccountFilterNoneOfOperation_Response: {
+            readonly TaskQueryAccountFilterNoneOfOperation_Response: {
                 /**
                  * @description discriminator enum property added by openapi-typescript @enum
                  * {string}
                  */
                 readonly type: "NoneOf";
-                readonly accounts: readonly components["schemas"]["TaskAccountFilterOperationAccount_Response"][];
+                readonly accounts: readonly components["schemas"]["TaskQueryAccountFilterOperationAccount_Response"][];
             };
-            readonly TaskCreatorFilterOneOfOperation_Response: {
+            readonly TaskQueryCreatorFilterOneOfOperation_Response: {
                 /**
                  * @description discriminator enum property added by openapi-typescript @enum
                  * {string}
                  */
                 readonly type: "OneOf";
-                readonly accounts: readonly components["schemas"]["TaskCreatorFilterOperationAccount_Response"][];
+                readonly accounts: readonly components["schemas"]["TaskQueryCreatorFilterOperationAccount_Response"][];
             };
-            readonly TaskCreatorFilterNoneOfOperation_Response: {
+            readonly TaskQueryCreatorFilterNoneOfOperation_Response: {
                 /**
                  * @description discriminator enum property added by openapi-typescript @enum
                  * {string}
                  */
                 readonly type: "NoneOf";
-                readonly accounts: readonly components["schemas"]["TaskCreatorFilterOperationAccount_Response"][];
+                readonly accounts: readonly components["schemas"]["TaskQueryCreatorFilterOperationAccount_Response"][];
             };
             readonly ContentListBlockElement_Response:
                 | components["schemas"]["ContentUnorderedListBlockElement_Response"]
@@ -5847,20 +5847,20 @@ export namespace ApiSpecification {
                 | components["schemas"]["MessageStreamContentPartPayload_Response"]
                 | components["schemas"]["MessageStreamToolCallPartPayload_Response"]
                 | components["schemas"]["MessageStreamReasoningPartPayload_Response"];
-            readonly TaskFilter_Response:
-                | components["schemas"]["TaskStatusFilter"]
-                | components["schemas"]["TaskCollectionsFilter_Response"]
-                | components["schemas"]["TaskPriorityFilter"]
-                | components["schemas"]["TaskLayoutFilter"]
-                | components["schemas"]["TaskTitleFilter"]
-                | components["schemas"]["TaskAssigneeFilter_Response"]
-                | components["schemas"]["TaskCreatorFilter_Response"]
-                | components["schemas"]["TaskAssignerFilter_Response"]
-                | components["schemas"]["TaskDueFilter"]
-                | components["schemas"]["TaskCreatedTimeFilter"]
-                | components["schemas"]["TaskAssignedTimeFilter"]
-                | components["schemas"]["TaskClosedTimeFilter"]
-                | components["schemas"]["TaskActivatedTimeFilter"];
+            readonly TaskQueryFilter_Response:
+                | components["schemas"]["TaskQueryStatusFilter"]
+                | components["schemas"]["TaskQueryCollectionsFilter_Response"]
+                | components["schemas"]["TaskQueryPriorityFilter"]
+                | components["schemas"]["TaskQueryLayoutFilter"]
+                | components["schemas"]["TaskQueryTitleFilter"]
+                | components["schemas"]["TaskQueryAssigneeFilter_Response"]
+                | components["schemas"]["TaskQueryCreatorFilter_Response"]
+                | components["schemas"]["TaskQueryAssignerFilter_Response"]
+                | components["schemas"]["TaskQueryDueFilter"]
+                | components["schemas"]["TaskQueryCreatedTimeFilter"]
+                | components["schemas"]["TaskQueryAssignedTimeFilter"]
+                | components["schemas"]["TaskQueryClosedTimeFilter"]
+                | components["schemas"]["TaskQueryActivatedTimeFilter"];
             readonly MessageStreamToolCallPartPayload_Response: {
                 /**
                  * @description discriminator enum property added by openapi-typescript @enum
@@ -5883,12 +5883,12 @@ export namespace ApiSpecification {
                 }[];
                 readonly rows: readonly components["schemas"]["ContentTableBlockElementRow_Response"][];
             };
-            readonly TaskAccountFilterOperation_Response:
-                | components["schemas"]["TaskAccountFilterOneOfOperation_Response"]
-                | components["schemas"]["TaskAccountFilterNoneOfOperation_Response"];
-            readonly TaskCreatorFilterOperation_Response:
-                | components["schemas"]["TaskCreatorFilterOneOfOperation_Response"]
-                | components["schemas"]["TaskCreatorFilterNoneOfOperation_Response"];
+            readonly TaskQueryAccountFilterOperation_Response:
+                | components["schemas"]["TaskQueryAccountFilterOneOfOperation_Response"]
+                | components["schemas"]["TaskQueryAccountFilterNoneOfOperation_Response"];
+            readonly TaskQueryCreatorFilterOperation_Response:
+                | components["schemas"]["TaskQueryCreatorFilterOneOfOperation_Response"]
+                | components["schemas"]["TaskQueryCreatorFilterNoneOfOperation_Response"];
             readonly ContentTableBlockElement_Response_WithoutKeys: {
                 /**
                  * @description discriminator enum property added by openapi-typescript @enum
@@ -5903,29 +5903,29 @@ export namespace ApiSpecification {
                 }[];
                 readonly rows: readonly components["schemas"]["ContentTableBlockElementRow_Response_WithoutKeys"][];
             };
-            readonly TaskAssigneeFilter_Response: {
+            readonly TaskQueryAssigneeFilter_Response: {
                 /**
                  * @description discriminator enum property added by openapi-typescript @enum
                  * {string}
                  */
                 readonly type: "Assignee";
-                readonly operation: components["schemas"]["TaskAccountFilterOperation_Response"];
+                readonly operation: components["schemas"]["TaskQueryAccountFilterOperation_Response"];
             };
-            readonly TaskCreatorFilter_Response: {
+            readonly TaskQueryCreatorFilter_Response: {
                 /**
                  * @description discriminator enum property added by openapi-typescript @enum
                  * {string}
                  */
                 readonly type: "Creator";
-                readonly operation: components["schemas"]["TaskCreatorFilterOperation_Response"];
+                readonly operation: components["schemas"]["TaskQueryCreatorFilterOperation_Response"];
             };
-            readonly TaskAssignerFilter_Response: {
+            readonly TaskQueryAssignerFilter_Response: {
                 /**
                  * @description discriminator enum property added by openapi-typescript @enum
                  * {string}
                  */
                 readonly type: "Assigner";
-                readonly operation: components["schemas"]["TaskAccountFilterOperation_Response"];
+                readonly operation: components["schemas"]["TaskQueryAccountFilterOperation_Response"];
             };
         };
         responses: {

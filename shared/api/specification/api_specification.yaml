@@ -4167,11 +4167,11 @@ components:
                 filters:
                     type: array
                     items:
-                        $ref: "#/components/schemas/TaskFilter"
+                        $ref: "#/components/schemas/TaskQueryFilter"
                 sorts:
                     type: array
                     items:
-                        $ref: "#/components/schemas/TaskSort"
+                        $ref: "#/components/schemas/TaskQuerySort"
 
         TaskQueryDefaults_Response:
             type: object
@@ -4181,47 +4181,45 @@ components:
                 filters:
                     type: array
                     items:
-                        $ref: "#/components/schemas/TaskFilter"
+                        $ref: "#/components/schemas/TaskQueryFilter"
                 sorts:
                     type: array
                     items:
-                        $ref: "#/components/schemas/TaskSort"
+                        $ref: "#/components/schemas/TaskQuerySort"
 
-        # NOCOMMIT: Rename to `TaskQueryFilter`? And all types below.
-        TaskFilter:
+        TaskQueryFilter:
             oneOf:
-                - $ref: "#/components/schemas/TaskStatusFilter"
-                - $ref: "#/components/schemas/TaskCollectionsFilter"
-                - $ref: "#/components/schemas/TaskPriorityFilter"
-                - $ref: "#/components/schemas/TaskLayoutFilter"
-                - $ref: "#/components/schemas/TaskTitleFilter"
-                - $ref: "#/components/schemas/TaskAssigneeFilter"
-                - $ref: "#/components/schemas/TaskCreatorFilter"
-                - $ref: "#/components/schemas/TaskAssignerFilter"
-                - $ref: "#/components/schemas/TaskDueFilter"
-                # NOCOMMIT: Rename to `CreatedTime`, `AssignedTime`, etc.
-                - $ref: "#/components/schemas/TaskCreatedTimeFilter"
-                - $ref: "#/components/schemas/TaskAssignedTimeFilter"
-                - $ref: "#/components/schemas/TaskClosedTimeFilter"
-                - $ref: "#/components/schemas/TaskActivatedTimeFilter"
+                - $ref: "#/components/schemas/TaskQueryStatusFilter"
+                - $ref: "#/components/schemas/TaskQueryCollectionsFilter"
+                - $ref: "#/components/schemas/TaskQueryPriorityFilter"
+                - $ref: "#/components/schemas/TaskQueryLayoutFilter"
+                - $ref: "#/components/schemas/TaskQueryTitleFilter"
+                - $ref: "#/components/schemas/TaskQueryAssigneeFilter"
+                - $ref: "#/components/schemas/TaskQueryCreatorFilter"
+                - $ref: "#/components/schemas/TaskQueryAssignerFilter"
+                - $ref: "#/components/schemas/TaskQueryDueFilter"
+                - $ref: "#/components/schemas/TaskQueryCreatedTimeFilter"
+                - $ref: "#/components/schemas/TaskQueryAssignedTimeFilter"
+                - $ref: "#/components/schemas/TaskQueryClosedTimeFilter"
+                - $ref: "#/components/schemas/TaskQueryActivatedTimeFilter"
             discriminator:
                 propertyName: type
                 mapping:
-                    Status: "#/components/schemas/TaskStatusFilter"
-                    Collections: "#/components/schemas/TaskCollectionsFilter"
-                    Priority: "#/components/schemas/TaskPriorityFilter"
-                    Layout: "#/components/schemas/TaskLayoutFilter"
-                    Title: "#/components/schemas/TaskTitleFilter"
-                    Assignee: "#/components/schemas/TaskAssigneeFilter"
-                    Creator: "#/components/schemas/TaskCreatorFilter"
-                    Assigner: "#/components/schemas/TaskAssignerFilter"
-                    Due: "#/components/schemas/TaskDueFilter"
-                    CreatedTime: "#/components/schemas/TaskCreatedTimeFilter"
-                    AssignedTime: "#/components/schemas/TaskAssignedTimeFilter"
-                    ClosedTime: "#/components/schemas/TaskClosedTimeFilter"
-                    ActivatedTime: "#/components/schemas/TaskActivatedTimeFilter"
+                    Status: "#/components/schemas/TaskQueryStatusFilter"
+                    Collections: "#/components/schemas/TaskQueryCollectionsFilter"
+                    Priority: "#/components/schemas/TaskQueryPriorityFilter"
+                    Layout: "#/components/schemas/TaskQueryLayoutFilter"
+                    Title: "#/components/schemas/TaskQueryTitleFilter"
+                    Assignee: "#/components/schemas/TaskQueryAssigneeFilter"
+                    Creator: "#/components/schemas/TaskQueryCreatorFilter"
+                    Assigner: "#/components/schemas/TaskQueryAssignerFilter"
+                    Due: "#/components/schemas/TaskQueryDueFilter"
+                    CreatedTime: "#/components/schemas/TaskQueryCreatedTimeFilter"
+                    AssignedTime: "#/components/schemas/TaskQueryAssignedTimeFilter"
+                    ClosedTime: "#/components/schemas/TaskQueryClosedTimeFilter"
+                    ActivatedTime: "#/components/schemas/TaskQueryActivatedTimeFilter"
 
-        TaskStatusFilter:
+        TaskQueryStatusFilter:
             type: object
             required: [type, operation]
             additionalProperties: false
@@ -4229,19 +4227,19 @@ components:
                 type:
                     const: Status
                 operation:
-                    $ref: "#/components/schemas/TaskStatusFilterOperation"
+                    $ref: "#/components/schemas/TaskQueryStatusFilterOperation"
 
-        TaskStatusFilterOperation:
+        TaskQueryStatusFilterOperation:
             oneOf:
-                - $ref: "#/components/schemas/TaskStatusFilterOneOfOperation"
-                - $ref: "#/components/schemas/TaskStatusFilterNoneOfOperation"
+                - $ref: "#/components/schemas/TaskQueryStatusFilterOneOfOperation"
+                - $ref: "#/components/schemas/TaskQueryStatusFilterNoneOfOperation"
             discriminator:
                 propertyName: type
                 mapping:
-                    OneOf: "#/components/schemas/TaskStatusFilterOneOfOperation"
-                    NoneOf: "#/components/schemas/TaskStatusFilterNoneOfOperation"
+                    OneOf: "#/components/schemas/TaskQueryStatusFilterOneOfOperation"
+                    NoneOf: "#/components/schemas/TaskQueryStatusFilterNoneOfOperation"
 
-        TaskStatusFilterOneOfOperation:
+        TaskQueryStatusFilterOneOfOperation:
             type: object
             required: [type, statuses]
             additionalProperties: false
@@ -4253,7 +4251,7 @@ components:
                     items:
                         $ref: "#/components/schemas/TaskStatus"
 
-        TaskStatusFilterNoneOfOperation:
+        TaskQueryStatusFilterNoneOfOperation:
             type: object
             required: [type, statuses]
             additionalProperties: false
@@ -4265,7 +4263,7 @@ components:
                     items:
                         $ref: "#/components/schemas/TaskStatus"
 
-        TaskCollectionsFilter:
+        TaskQueryCollectionsFilter:
             type: object
             required: [type, operation]
             additionalProperties: false
@@ -4273,23 +4271,23 @@ components:
                 type:
                     const: Collections
                 operation:
-                    $ref: "#/components/schemas/TaskCollectionsFilterOperation"
+                    $ref: "#/components/schemas/TaskQueryCollectionsFilterOperation"
 
-        TaskCollectionsFilterOperation:
+        TaskQueryCollectionsFilterOperation:
             oneOf:
-                - $ref: "#/components/schemas/TaskCollectionsFilterIncludesOneOfOperation"
-                - $ref: "#/components/schemas/TaskCollectionsFilterIncludesAllOfOperation"
-                - $ref: "#/components/schemas/TaskCollectionsFilterExcludesAllOfOperation"
-                - $ref: "#/components/schemas/TaskCollectionsFilterIsEmptyOperation"
+                - $ref: "#/components/schemas/TaskQueryCollectionsFilterIncludesOneOfOperation"
+                - $ref: "#/components/schemas/TaskQueryCollectionsFilterIncludesAllOfOperation"
+                - $ref: "#/components/schemas/TaskQueryCollectionsFilterExcludesAllOfOperation"
+                - $ref: "#/components/schemas/TaskQueryCollectionsFilterIsEmptyOperation"
             discriminator:
                 propertyName: type
                 mapping:
-                    IncludesOneOf: "#/components/schemas/TaskCollectionsFilterIncludesOneOfOperation"
-                    IncludesAllOf: "#/components/schemas/TaskCollectionsFilterIncludesAllOfOperation"
-                    ExcludesAllOf: "#/components/schemas/TaskCollectionsFilterExcludesAllOfOperation"
-                    IsEmpty: "#/components/schemas/TaskCollectionsFilterIsEmptyOperation"
+                    IncludesOneOf: "#/components/schemas/TaskQueryCollectionsFilterIncludesOneOfOperation"
+                    IncludesAllOf: "#/components/schemas/TaskQueryCollectionsFilterIncludesAllOfOperation"
+                    ExcludesAllOf: "#/components/schemas/TaskQueryCollectionsFilterExcludesAllOfOperation"
+                    IsEmpty: "#/components/schemas/TaskQueryCollectionsFilterIsEmptyOperation"
 
-        TaskCollectionsFilterIncludesOneOfOperation:
+        TaskQueryCollectionsFilterIncludesOneOfOperation:
             type: object
             required: [type, collections]
             additionalProperties: false
@@ -4301,7 +4299,7 @@ components:
                     items:
                         $ref: "#/components/schemas/TaskCollectionPreview"
 
-        TaskCollectionsFilterIncludesAllOfOperation:
+        TaskQueryCollectionsFilterIncludesAllOfOperation:
             type: object
             required: [type, collections]
             additionalProperties: false
@@ -4313,7 +4311,7 @@ components:
                     items:
                         $ref: "#/components/schemas/TaskCollectionPreview"
 
-        TaskCollectionsFilterExcludesAllOfOperation:
+        TaskQueryCollectionsFilterExcludesAllOfOperation:
             type: object
             required: [type, collections]
             additionalProperties: false
@@ -4325,7 +4323,7 @@ components:
                     items:
                         $ref: "#/components/schemas/TaskCollectionPreview"
 
-        TaskCollectionsFilterIsEmptyOperation:
+        TaskQueryCollectionsFilterIsEmptyOperation:
             type: object
             required: [type]
             additionalProperties: false
@@ -4333,7 +4331,7 @@ components:
                 type:
                     const: IsEmpty
 
-        TaskPriorityFilter:
+        TaskQueryPriorityFilter:
             type: object
             required: [type, operation]
             additionalProperties: false
@@ -4341,19 +4339,19 @@ components:
                 type:
                     const: Priority
                 operation:
-                    $ref: "#/components/schemas/TaskPriorityFilterOperation"
+                    $ref: "#/components/schemas/TaskQueryPriorityFilterOperation"
 
-        TaskPriorityFilterOperation:
+        TaskQueryPriorityFilterOperation:
             oneOf:
-                - $ref: "#/components/schemas/TaskPriorityFilterOneOfOperation"
-                - $ref: "#/components/schemas/TaskPriorityFilterNoneOfOperation"
+                - $ref: "#/components/schemas/TaskQueryPriorityFilterOneOfOperation"
+                - $ref: "#/components/schemas/TaskQueryPriorityFilterNoneOfOperation"
             discriminator:
                 propertyName: type
                 mapping:
-                    OneOf: "#/components/schemas/TaskPriorityFilterOneOfOperation"
-                    NoneOf: "#/components/schemas/TaskPriorityFilterNoneOfOperation"
+                    OneOf: "#/components/schemas/TaskQueryPriorityFilterOneOfOperation"
+                    NoneOf: "#/components/schemas/TaskQueryPriorityFilterNoneOfOperation"
 
-        TaskPriorityFilterOneOfOperation:
+        TaskQueryPriorityFilterOneOfOperation:
             type: object
             required: [type, priorities]
             additionalProperties: false
@@ -4367,7 +4365,7 @@ components:
                             - $ref: "#/components/schemas/TaskPriority"
                             - type: "null"
 
-        TaskPriorityFilterNoneOfOperation:
+        TaskQueryPriorityFilterNoneOfOperation:
             type: object
             required: [type, priorities]
             additionalProperties: false
@@ -4381,7 +4379,7 @@ components:
                             - $ref: "#/components/schemas/TaskPriority"
                             - type: "null"
 
-        TaskLayoutFilter:
+        TaskQueryLayoutFilter:
             type: object
             required: [type, operation]
             additionalProperties: false
@@ -4389,19 +4387,19 @@ components:
                 type:
                     const: Layout
                 operation:
-                    $ref: "#/components/schemas/TaskLayoutFilterOperation"
+                    $ref: "#/components/schemas/TaskQueryLayoutFilterOperation"
 
-        TaskLayoutFilterOperation:
+        TaskQueryLayoutFilterOperation:
             oneOf:
-                - $ref: "#/components/schemas/TaskLayoutFilterOneOfOperation"
-                - $ref: "#/components/schemas/TaskLayoutFilterNoneOfOperation"
+                - $ref: "#/components/schemas/TaskQueryLayoutFilterOneOfOperation"
+                - $ref: "#/components/schemas/TaskQueryLayoutFilterNoneOfOperation"
             discriminator:
                 propertyName: type
                 mapping:
-                    OneOf: "#/components/schemas/TaskLayoutFilterOneOfOperation"
-                    NoneOf: "#/components/schemas/TaskLayoutFilterNoneOfOperation"
+                    OneOf: "#/components/schemas/TaskQueryLayoutFilterOneOfOperation"
+                    NoneOf: "#/components/schemas/TaskQueryLayoutFilterNoneOfOperation"
 
-        TaskLayoutFilterOneOfOperation:
+        TaskQueryLayoutFilterOneOfOperation:
             type: object
             required: [type, layouts]
             additionalProperties: false
@@ -4413,7 +4411,7 @@ components:
                     items:
                         $ref: "#/components/schemas/TaskLayout"
 
-        TaskLayoutFilterNoneOfOperation:
+        TaskQueryLayoutFilterNoneOfOperation:
             type: object
             required: [type, layouts]
             additionalProperties: false
@@ -4425,7 +4423,7 @@ components:
                     items:
                         $ref: "#/components/schemas/TaskLayout"
 
-        TaskTitleFilter:
+        TaskQueryTitleFilter:
             type: object
             required: [type, operation]
             additionalProperties: false
@@ -4433,19 +4431,19 @@ components:
                 type:
                     const: Title
                 operation:
-                    $ref: "#/components/schemas/TaskTitleFilterOperation"
+                    $ref: "#/components/schemas/TaskQueryTitleFilterOperation"
 
-        TaskTitleFilterOperation:
+        TaskQueryTitleFilterOperation:
             oneOf:
-                - $ref: "#/components/schemas/TaskTitleFilterIncludesOperation"
-                - $ref: "#/components/schemas/TaskTitleFilterExcludesOperation"
+                - $ref: "#/components/schemas/TaskQueryTitleFilterIncludesOperation"
+                - $ref: "#/components/schemas/TaskQueryTitleFilterExcludesOperation"
             discriminator:
                 propertyName: type
                 mapping:
-                    Includes: "#/components/schemas/TaskTitleFilterIncludesOperation"
-                    Excludes: "#/components/schemas/TaskTitleFilterExcludesOperation"
+                    Includes: "#/components/schemas/TaskQueryTitleFilterIncludesOperation"
+                    Excludes: "#/components/schemas/TaskQueryTitleFilterExcludesOperation"
 
-        TaskTitleFilterIncludesOperation:
+        TaskQueryTitleFilterIncludesOperation:
             type: object
             required: [type, titleQuery]
             additionalProperties: false
@@ -4455,7 +4453,7 @@ components:
                 titleQuery:
                     type: string
 
-        TaskTitleFilterExcludesOperation:
+        TaskQueryTitleFilterExcludesOperation:
             type: object
             required: [type, titleQuery]
             additionalProperties: false
@@ -4465,7 +4463,7 @@ components:
                 titleQuery:
                     type: string
 
-        TaskAssigneeFilter:
+        TaskQueryAssigneeFilter:
             type: object
             required: [type, operation]
             additionalProperties: false
@@ -4473,9 +4471,9 @@ components:
                 type:
                     const: Assignee
                 operation:
-                    $ref: "#/components/schemas/TaskAccountFilterOperation"
+                    $ref: "#/components/schemas/TaskQueryAccountFilterOperation"
 
-        TaskCreatorFilter:
+        TaskQueryCreatorFilter:
             type: object
             required: [type, operation]
             additionalProperties: false
@@ -4483,9 +4481,9 @@ components:
                 type:
                     const: Creator
                 operation:
-                    $ref: "#/components/schemas/TaskCreatorFilterOperation"
+                    $ref: "#/components/schemas/TaskQueryCreatorFilterOperation"
 
-        TaskAssignerFilter:
+        TaskQueryAssignerFilter:
             type: object
             required: [type, operation]
             additionalProperties: false
@@ -4493,19 +4491,19 @@ components:
                 type:
                     const: Assigner
                 operation:
-                    $ref: "#/components/schemas/TaskAccountFilterOperation"
+                    $ref: "#/components/schemas/TaskQueryAccountFilterOperation"
 
-        TaskAccountFilterOperation:
+        TaskQueryAccountFilterOperation:
             oneOf:
-                - $ref: "#/components/schemas/TaskAccountFilterOneOfOperation"
-                - $ref: "#/components/schemas/TaskAccountFilterNoneOfOperation"
+                - $ref: "#/components/schemas/TaskQueryAccountFilterOneOfOperation"
+                - $ref: "#/components/schemas/TaskQueryAccountFilterNoneOfOperation"
             discriminator:
                 propertyName: type
                 mapping:
-                    OneOf: "#/components/schemas/TaskAccountFilterOneOfOperation"
-                    NoneOf: "#/components/schemas/TaskAccountFilterNoneOfOperation"
+                    OneOf: "#/components/schemas/TaskQueryAccountFilterOneOfOperation"
+                    NoneOf: "#/components/schemas/TaskQueryAccountFilterNoneOfOperation"
 
-        TaskAccountFilterOneOfOperation:
+        TaskQueryAccountFilterOneOfOperation:
             type: object
             required: [type, accounts]
             additionalProperties: false
@@ -4515,9 +4513,9 @@ components:
                 accounts:
                     type: array
                     items:
-                        $ref: "#/components/schemas/TaskAccountFilterOperationAccount"
+                        $ref: "#/components/schemas/TaskQueryAccountFilterOperationAccount"
 
-        TaskAccountFilterNoneOfOperation:
+        TaskQueryAccountFilterNoneOfOperation:
             type: object
             required: [type, accounts]
             additionalProperties: false
@@ -4527,21 +4525,21 @@ components:
                 accounts:
                     type: array
                     items:
-                        $ref: "#/components/schemas/TaskAccountFilterOperationAccount"
+                        $ref: "#/components/schemas/TaskQueryAccountFilterOperationAccount"
 
-        TaskAccountFilterOperationAccount:
+        TaskQueryAccountFilterOperationAccount:
             oneOf:
-                - $ref: "#/components/schemas/TaskAccountFilterOperationAccountItem"
-                - $ref: "#/components/schemas/TaskAccountFilterOperationCurrentAccount"
-                - $ref: "#/components/schemas/TaskAccountFilterOperationMissingAccount"
+                - $ref: "#/components/schemas/TaskQueryAccountFilterOperationAccountItem"
+                - $ref: "#/components/schemas/TaskQueryAccountFilterOperationCurrentAccount"
+                - $ref: "#/components/schemas/TaskQueryAccountFilterOperationMissingAccount"
             discriminator:
                 propertyName: type
                 mapping:
-                    Account: "#/components/schemas/TaskAccountFilterOperationAccountItem"
-                    CurrentAccount: "#/components/schemas/TaskAccountFilterOperationCurrentAccount"
-                    MissingAccount: "#/components/schemas/TaskAccountFilterOperationMissingAccount"
+                    Account: "#/components/schemas/TaskQueryAccountFilterOperationAccountItem"
+                    CurrentAccount: "#/components/schemas/TaskQueryAccountFilterOperationCurrentAccount"
+                    MissingAccount: "#/components/schemas/TaskQueryAccountFilterOperationMissingAccount"
 
-        TaskAccountFilterOperationAccountItem:
+        TaskQueryAccountFilterOperationAccountItem:
             type: object
             required: [type, account]
             additionalProperties: false
@@ -4551,7 +4549,7 @@ components:
                 account:
                     $ref: "#/components/schemas/Account"
 
-        TaskAccountFilterOperationCurrentAccount:
+        TaskQueryAccountFilterOperationCurrentAccount:
             type: object
             required: [type]
             additionalProperties: false
@@ -4559,7 +4557,7 @@ components:
                 type:
                     const: CurrentAccount
 
-        TaskAccountFilterOperationMissingAccount:
+        TaskQueryAccountFilterOperationMissingAccount:
             type: object
             required: [type]
             additionalProperties: false
@@ -4567,17 +4565,17 @@ components:
                 type:
                     const: MissingAccount
 
-        TaskCreatorFilterOperation:
+        TaskQueryCreatorFilterOperation:
             oneOf:
-                - $ref: "#/components/schemas/TaskCreatorFilterOneOfOperation"
-                - $ref: "#/components/schemas/TaskCreatorFilterNoneOfOperation"
+                - $ref: "#/components/schemas/TaskQueryCreatorFilterOneOfOperation"
+                - $ref: "#/components/schemas/TaskQueryCreatorFilterNoneOfOperation"
             discriminator:
                 propertyName: type
                 mapping:
-                    OneOf: "#/components/schemas/TaskCreatorFilterOneOfOperation"
-                    NoneOf: "#/components/schemas/TaskCreatorFilterNoneOfOperation"
+                    OneOf: "#/components/schemas/TaskQueryCreatorFilterOneOfOperation"
+                    NoneOf: "#/components/schemas/TaskQueryCreatorFilterNoneOfOperation"
 
-        TaskCreatorFilterOneOfOperation:
+        TaskQueryCreatorFilterOneOfOperation:
             type: object
             required: [type, accounts]
             additionalProperties: false
@@ -4587,9 +4585,9 @@ components:
                 accounts:
                     type: array
                     items:
-                        $ref: "#/components/schemas/TaskCreatorFilterOperationAccount"
+                        $ref: "#/components/schemas/TaskQueryCreatorFilterOperationAccount"
 
-        TaskCreatorFilterNoneOfOperation:
+        TaskQueryCreatorFilterNoneOfOperation:
             type: object
             required: [type, accounts]
             additionalProperties: false
@@ -4599,19 +4597,19 @@ components:
                 accounts:
                     type: array
                     items:
-                        $ref: "#/components/schemas/TaskCreatorFilterOperationAccount"
+                        $ref: "#/components/schemas/TaskQueryCreatorFilterOperationAccount"
 
-        TaskCreatorFilterOperationAccount:
+        TaskQueryCreatorFilterOperationAccount:
             oneOf:
-                - $ref: "#/components/schemas/TaskAccountFilterOperationAccountItem"
-                - $ref: "#/components/schemas/TaskAccountFilterOperationCurrentAccount"
+                - $ref: "#/components/schemas/TaskQueryAccountFilterOperationAccountItem"
+                - $ref: "#/components/schemas/TaskQueryAccountFilterOperationCurrentAccount"
             discriminator:
                 propertyName: type
                 mapping:
-                    Account: "#/components/schemas/TaskAccountFilterOperationAccountItem"
-                    CurrentAccount: "#/components/schemas/TaskAccountFilterOperationCurrentAccount"
+                    Account: "#/components/schemas/TaskQueryAccountFilterOperationAccountItem"
+                    CurrentAccount: "#/components/schemas/TaskQueryAccountFilterOperationCurrentAccount"
 
-        TaskDueFilter:
+        TaskQueryDueFilter:
             type: object
             required: [type, operation]
             additionalProperties: false
@@ -4619,23 +4617,23 @@ components:
                 type:
                     const: Due
                 operation:
-                    $ref: "#/components/schemas/TaskDueFilterOperation"
+                    $ref: "#/components/schemas/TaskQueryDueFilterOperation"
 
-        TaskDueFilterOperation:
+        TaskQueryDueFilterOperation:
             oneOf:
-                - $ref: "#/components/schemas/TaskDueFilterOverdueOperation"
-                - $ref: "#/components/schemas/TaskDueFilterIsEmptyOperation"
-                - $ref: "#/components/schemas/TaskTimeFilterLessThanOperation"
-                - $ref: "#/components/schemas/TaskTimeFilterGreaterThanOperation"
+                - $ref: "#/components/schemas/TaskQueryDueFilterOverdueOperation"
+                - $ref: "#/components/schemas/TaskQueryDueFilterIsEmptyOperation"
+                - $ref: "#/components/schemas/TaskQueryTimeFilterLessThanOperation"
+                - $ref: "#/components/schemas/TaskQueryTimeFilterGreaterThanOperation"
             discriminator:
                 propertyName: type
                 mapping:
-                    Overdue: "#/components/schemas/TaskDueFilterOverdueOperation"
-                    IsEmpty: "#/components/schemas/TaskDueFilterIsEmptyOperation"
-                    LessThan: "#/components/schemas/TaskTimeFilterLessThanOperation"
-                    GreaterThan: "#/components/schemas/TaskTimeFilterGreaterThanOperation"
+                    Overdue: "#/components/schemas/TaskQueryDueFilterOverdueOperation"
+                    IsEmpty: "#/components/schemas/TaskQueryDueFilterIsEmptyOperation"
+                    LessThan: "#/components/schemas/TaskQueryTimeFilterLessThanOperation"
+                    GreaterThan: "#/components/schemas/TaskQueryTimeFilterGreaterThanOperation"
 
-        TaskDueFilterOverdueOperation:
+        TaskQueryDueFilterOverdueOperation:
             type: object
             required: [type]
             additionalProperties: false
@@ -4643,7 +4641,7 @@ components:
                 type:
                     const: Overdue
 
-        TaskDueFilterIsEmptyOperation:
+        TaskQueryDueFilterIsEmptyOperation:
             type: object
             required: [type]
             additionalProperties: false
@@ -4651,7 +4649,7 @@ components:
                 type:
                     const: IsEmpty
 
-        TaskCreatedTimeFilter:
+        TaskQueryCreatedTimeFilter:
             type: object
             required: [type, operation]
             additionalProperties: false
@@ -4659,9 +4657,9 @@ components:
                 type:
                     const: CreatedTime
                 operation:
-                    $ref: "#/components/schemas/TaskTimeFilterOperation"
+                    $ref: "#/components/schemas/TaskQueryTimeFilterOperation"
 
-        TaskAssignedTimeFilter:
+        TaskQueryAssignedTimeFilter:
             type: object
             required: [type, operation]
             additionalProperties: false
@@ -4669,9 +4667,9 @@ components:
                 type:
                     const: AssignedTime
                 operation:
-                    $ref: "#/components/schemas/TaskTimeFilterOperation"
+                    $ref: "#/components/schemas/TaskQueryTimeFilterOperation"
 
-        TaskClosedTimeFilter:
+        TaskQueryClosedTimeFilter:
             type: object
             required: [type, operation]
             additionalProperties: false
@@ -4679,12 +4677,9 @@ components:
                 type:
                     const: ClosedTime
                 operation:
-                    $ref: "#/components/schemas/TaskTimeFilterOperation"
+                    $ref: "#/components/schemas/TaskQueryTimeFilterOperation"
 
-        # NOCOMMIT I think we should rename these filters to `ActivatedTime`,
-        # `ClosedTime`, etc. but make sure all the date operations include the word
-        # "date" so for example `LessThanDate`,
-        TaskActivatedTimeFilter:
+        TaskQueryActivatedTimeFilter:
             type: object
             required: [type, operation]
             additionalProperties: false
@@ -4692,19 +4687,19 @@ components:
                 type:
                     const: ActivatedTime
                 operation:
-                    $ref: "#/components/schemas/TaskTimeFilterOperation"
+                    $ref: "#/components/schemas/TaskQueryTimeFilterOperation"
 
-        TaskTimeFilterOperation:
+        TaskQueryTimeFilterOperation:
             oneOf:
-                - $ref: "#/components/schemas/TaskTimeFilterLessThanOperation"
-                - $ref: "#/components/schemas/TaskTimeFilterGreaterThanOperation"
+                - $ref: "#/components/schemas/TaskQueryTimeFilterLessThanOperation"
+                - $ref: "#/components/schemas/TaskQueryTimeFilterGreaterThanOperation"
             discriminator:
                 propertyName: type
                 mapping:
-                    LessThan: "#/components/schemas/TaskTimeFilterLessThanOperation"
-                    GreaterThan: "#/components/schemas/TaskTimeFilterGreaterThanOperation"
+                    LessThan: "#/components/schemas/TaskQueryTimeFilterLessThanOperation"
+                    GreaterThan: "#/components/schemas/TaskQueryTimeFilterGreaterThanOperation"
 
-        TaskTimeFilterLessThanOperation:
+        TaskQueryTimeFilterLessThanOperation:
             type: object
             required: [type, time]
             additionalProperties: false
@@ -4712,9 +4707,9 @@ components:
                 type:
                     const: LessThan
                 time:
-                    $ref: "#/components/schemas/TaskTimeFilterOperationTime"
+                    $ref: "#/components/schemas/TaskQueryTimeFilterOperationTime"
 
-        TaskTimeFilterGreaterThanOperation:
+        TaskQueryTimeFilterGreaterThanOperation:
             type: object
             required: [type, time]
             additionalProperties: false
@@ -4722,23 +4717,23 @@ components:
                 type:
                     const: GreaterThan
                 time:
-                    $ref: "#/components/schemas/TaskTimeFilterOperationTime"
+                    $ref: "#/components/schemas/TaskQueryTimeFilterOperationTime"
 
-        TaskTimeFilterOperationTime:
+        TaskQueryTimeFilterOperationTime:
             oneOf:
-                - $ref: "#/components/schemas/TaskTimeFilterOperationAbsoluteDateTime"
-                - $ref: "#/components/schemas/TaskTimeFilterOperationRelativeTodayTime"
-                - $ref: "#/components/schemas/TaskTimeFilterOperationRelativeAfterTodayTime"
-                - $ref: "#/components/schemas/TaskTimeFilterOperationRelativeBeforeTodayTime"
+                - $ref: "#/components/schemas/TaskQueryTimeFilterOperationAbsoluteDateTime"
+                - $ref: "#/components/schemas/TaskQueryTimeFilterOperationRelativeTodayTime"
+                - $ref: "#/components/schemas/TaskQueryTimeFilterOperationRelativeAfterTodayTime"
+                - $ref: "#/components/schemas/TaskQueryTimeFilterOperationRelativeBeforeTodayTime"
             discriminator:
                 propertyName: type
                 mapping:
-                    AbsoluteDate: "#/components/schemas/TaskTimeFilterOperationAbsoluteDateTime"
-                    RelativeToday: "#/components/schemas/TaskTimeFilterOperationRelativeTodayTime"
-                    RelativeAfterToday: "#/components/schemas/TaskTimeFilterOperationRelativeAfterTodayTime"
-                    RelativeBeforeToday: "#/components/schemas/TaskTimeFilterOperationRelativeBeforeTodayTime"
+                    AbsoluteDate: "#/components/schemas/TaskQueryTimeFilterOperationAbsoluteDateTime"
+                    RelativeToday: "#/components/schemas/TaskQueryTimeFilterOperationRelativeTodayTime"
+                    RelativeAfterToday: "#/components/schemas/TaskQueryTimeFilterOperationRelativeAfterTodayTime"
+                    RelativeBeforeToday: "#/components/schemas/TaskQueryTimeFilterOperationRelativeBeforeTodayTime"
 
-        TaskTimeFilterOperationAbsoluteDateTime:
+        TaskQueryTimeFilterOperationAbsoluteDateTime:
             type: object
             required: [type, date]
             additionalProperties: false
@@ -4751,7 +4746,7 @@ components:
                           format: date
                         - type: "null"
 
-        TaskTimeFilterOperationRelativeTodayTime:
+        TaskQueryTimeFilterOperationRelativeTodayTime:
             type: object
             required: [type]
             additionalProperties: false
@@ -4759,7 +4754,7 @@ components:
                 type:
                     const: RelativeToday
 
-        TaskTimeFilterOperationRelativeAfterTodayTime:
+        TaskQueryTimeFilterOperationRelativeAfterTodayTime:
             type: object
             required: [type, duration]
             additionalProperties: false
@@ -4767,9 +4762,9 @@ components:
                 type:
                     const: RelativeAfterToday
                 duration:
-                    $ref: "#/components/schemas/TaskTimeFilterOperationDuration"
+                    $ref: "#/components/schemas/TaskQueryTimeFilterOperationDuration"
 
-        TaskTimeFilterOperationRelativeBeforeTodayTime:
+        TaskQueryTimeFilterOperationRelativeBeforeTodayTime:
             type: object
             required: [type, duration]
             additionalProperties: false
@@ -4777,23 +4772,23 @@ components:
                 type:
                     const: RelativeBeforeToday
                 duration:
-                    $ref: "#/components/schemas/TaskTimeFilterOperationDuration"
+                    $ref: "#/components/schemas/TaskQueryTimeFilterOperationDuration"
 
-        TaskTimeFilterOperationDuration:
+        TaskQueryTimeFilterOperationDuration:
             oneOf:
-                - $ref: "#/components/schemas/TaskTimeFilterOperationDaysDuration"
-                - $ref: "#/components/schemas/TaskTimeFilterOperationWeeksDuration"
-                - $ref: "#/components/schemas/TaskTimeFilterOperationMonthsDuration"
-                - $ref: "#/components/schemas/TaskTimeFilterOperationYearsDuration"
+                - $ref: "#/components/schemas/TaskQueryTimeFilterOperationDaysDuration"
+                - $ref: "#/components/schemas/TaskQueryTimeFilterOperationWeeksDuration"
+                - $ref: "#/components/schemas/TaskQueryTimeFilterOperationMonthsDuration"
+                - $ref: "#/components/schemas/TaskQueryTimeFilterOperationYearsDuration"
             discriminator:
                 propertyName: type
                 mapping:
-                    Days: "#/components/schemas/TaskTimeFilterOperationDaysDuration"
-                    Weeks: "#/components/schemas/TaskTimeFilterOperationWeeksDuration"
-                    Months: "#/components/schemas/TaskTimeFilterOperationMonthsDuration"
-                    Years: "#/components/schemas/TaskTimeFilterOperationYearsDuration"
+                    Days: "#/components/schemas/TaskQueryTimeFilterOperationDaysDuration"
+                    Weeks: "#/components/schemas/TaskQueryTimeFilterOperationWeeksDuration"
+                    Months: "#/components/schemas/TaskQueryTimeFilterOperationMonthsDuration"
+                    Years: "#/components/schemas/TaskQueryTimeFilterOperationYearsDuration"
 
-        TaskTimeFilterOperationDaysDuration:
+        TaskQueryTimeFilterOperationDaysDuration:
             type: object
             required: [type, days]
             additionalProperties: false
@@ -4803,7 +4798,7 @@ components:
                 days:
                     type: integer
 
-        TaskTimeFilterOperationWeeksDuration:
+        TaskQueryTimeFilterOperationWeeksDuration:
             type: object
             required: [type, weeks]
             additionalProperties: false
@@ -4813,7 +4808,7 @@ components:
                 weeks:
                     type: integer
 
-        TaskTimeFilterOperationMonthsDuration:
+        TaskQueryTimeFilterOperationMonthsDuration:
             type: object
             required: [type, months]
             additionalProperties: false
@@ -4823,7 +4818,7 @@ components:
                 months:
                     type: integer
 
-        TaskTimeFilterOperationYearsDuration:
+        TaskQueryTimeFilterOperationYearsDuration:
             type: object
             required: [type, years]
             additionalProperties: false
@@ -4833,44 +4828,43 @@ components:
                 years:
                     type: integer
 
-        # NOCOMMIT: Rename to `TaskQuerySort`? And all types below.
-        TaskSort:
+        TaskQuerySort:
             oneOf:
-                - $ref: "#/components/schemas/TaskStatusSort"
-                - $ref: "#/components/schemas/TaskPrioritySort"
-                - $ref: "#/components/schemas/TaskLayoutSort"
-                - $ref: "#/components/schemas/TaskAssigneeSort"
-                - $ref: "#/components/schemas/TaskCreatorSort"
-                - $ref: "#/components/schemas/TaskAssignerSort"
-                - $ref: "#/components/schemas/TaskDueSort"
-                - $ref: "#/components/schemas/TaskCreatedTimeSort"
-                - $ref: "#/components/schemas/TaskAssignedTimeSort"
-                - $ref: "#/components/schemas/TaskClosedTimeSort"
-                - $ref: "#/components/schemas/TaskActivatedTimeSort"
+                - $ref: "#/components/schemas/TaskQueryStatusSort"
+                - $ref: "#/components/schemas/TaskQueryPrioritySort"
+                - $ref: "#/components/schemas/TaskQueryLayoutSort"
+                - $ref: "#/components/schemas/TaskQueryAssigneeSort"
+                - $ref: "#/components/schemas/TaskQueryCreatorSort"
+                - $ref: "#/components/schemas/TaskQueryAssignerSort"
+                - $ref: "#/components/schemas/TaskQueryDueSort"
+                - $ref: "#/components/schemas/TaskQueryCreatedTimeSort"
+                - $ref: "#/components/schemas/TaskQueryAssignedTimeSort"
+                - $ref: "#/components/schemas/TaskQueryClosedTimeSort"
+                - $ref: "#/components/schemas/TaskQueryActivatedTimeSort"
             discriminator:
                 propertyName: type
                 mapping:
-                    Status: "#/components/schemas/TaskStatusSort"
-                    Priority: "#/components/schemas/TaskPrioritySort"
-                    Layout: "#/components/schemas/TaskLayoutSort"
-                    Assignee: "#/components/schemas/TaskAssigneeSort"
-                    Creator: "#/components/schemas/TaskCreatorSort"
-                    Assigner: "#/components/schemas/TaskAssignerSort"
-                    Due: "#/components/schemas/TaskDueSort"
-                    CreatedTime: "#/components/schemas/TaskCreatedTimeSort"
-                    AssignedTime: "#/components/schemas/TaskAssignedTimeSort"
-                    ClosedTime: "#/components/schemas/TaskClosedTimeSort"
-                    ActivatedTime: "#/components/schemas/TaskActivatedTimeSort"
+                    Status: "#/components/schemas/TaskQueryStatusSort"
+                    Priority: "#/components/schemas/TaskQueryPrioritySort"
+                    Layout: "#/components/schemas/TaskQueryLayoutSort"
+                    Assignee: "#/components/schemas/TaskQueryAssigneeSort"
+                    Creator: "#/components/schemas/TaskQueryCreatorSort"
+                    Assigner: "#/components/schemas/TaskQueryAssignerSort"
+                    Due: "#/components/schemas/TaskQueryDueSort"
+                    CreatedTime: "#/components/schemas/TaskQueryCreatedTimeSort"
+                    AssignedTime: "#/components/schemas/TaskQueryAssignedTimeSort"
+                    ClosedTime: "#/components/schemas/TaskQueryClosedTimeSort"
+                    ActivatedTime: "#/components/schemas/TaskQueryActivatedTimeSort"
 
-        TaskSortDirection:
+        TaskQuerySortDirection:
             type: string
             enum: [Ascending, Descending]
 
-        TaskSortMissing:
+        TaskQuerySortMissing:
             type: string
             enum: [First, Last]
 
-        TaskStatusSort:
+        TaskQueryStatusSort:
             type: object
             required: [type, direction]
             additionalProperties: false
@@ -4878,9 +4872,9 @@ components:
                 type:
                     const: Status
                 direction:
-                    $ref: "#/components/schemas/TaskSortDirection"
+                    $ref: "#/components/schemas/TaskQuerySortDirection"
 
-        TaskPrioritySort:
+        TaskQueryPrioritySort:
             type: object
             required: [type, direction]
             additionalProperties: false
@@ -4888,9 +4882,9 @@ components:
                 type:
                     const: Priority
                 direction:
-                    $ref: "#/components/schemas/TaskSortDirection"
+                    $ref: "#/components/schemas/TaskQuerySortDirection"
 
-        TaskLayoutSort:
+        TaskQueryLayoutSort:
             type: object
             required: [type, missing]
             additionalProperties: false
@@ -4898,9 +4892,9 @@ components:
                 type:
                     const: Layout
                 missing:
-                    $ref: "#/components/schemas/TaskSortMissing"
+                    $ref: "#/components/schemas/TaskQuerySortMissing"
 
-        TaskAssigneeSort:
+        TaskQueryAssigneeSort:
             type: object
             required: [type, missing]
             additionalProperties: false
@@ -4908,9 +4902,9 @@ components:
                 type:
                     const: Assignee
                 missing:
-                    $ref: "#/components/schemas/TaskSortMissing"
+                    $ref: "#/components/schemas/TaskQuerySortMissing"
 
-        TaskCreatorSort:
+        TaskQueryCreatorSort:
             type: object
             required: [type]
             additionalProperties: false
@@ -4918,7 +4912,7 @@ components:
                 type:
                     const: Creator
 
-        TaskAssignerSort:
+        TaskQueryAssignerSort:
             type: object
             required: [type, missing]
             additionalProperties: false
@@ -4926,9 +4920,9 @@ components:
                 type:
                     const: Assigner
                 missing:
-                    $ref: "#/components/schemas/TaskSortMissing"
+                    $ref: "#/components/schemas/TaskQuerySortMissing"
 
-        TaskDueSort:
+        TaskQueryDueSort:
             type: object
             required: [type, direction]
             additionalProperties: false
@@ -4936,9 +4930,9 @@ components:
                 type:
                     const: Due
                 direction:
-                    $ref: "#/components/schemas/TaskSortDirection"
+                    $ref: "#/components/schemas/TaskQuerySortDirection"
 
-        TaskCreatedTimeSort:
+        TaskQueryCreatedTimeSort:
             type: object
             required: [type, direction]
             additionalProperties: false
@@ -4946,9 +4940,9 @@ components:
                 type:
                     const: CreatedTime
                 direction:
-                    $ref: "#/components/schemas/TaskSortDirection"
+                    $ref: "#/components/schemas/TaskQuerySortDirection"
 
-        TaskAssignedTimeSort:
+        TaskQueryAssignedTimeSort:
             type: object
             required: [type, direction]
             additionalProperties: false
@@ -4956,9 +4950,9 @@ components:
                 type:
                     const: AssignedTime
                 direction:
-                    $ref: "#/components/schemas/TaskSortDirection"
+                    $ref: "#/components/schemas/TaskQuerySortDirection"
 
-        TaskClosedTimeSort:
+        TaskQueryClosedTimeSort:
             type: object
             required: [type, direction]
             additionalProperties: false
@@ -4966,9 +4960,9 @@ components:
                 type:
                     const: ClosedTime
                 direction:
-                    $ref: "#/components/schemas/TaskSortDirection"
+                    $ref: "#/components/schemas/TaskQuerySortDirection"
 
-        TaskActivatedTimeSort:
+        TaskQueryActivatedTimeSort:
             type: object
             required: [type, direction]
             additionalProperties: false
@@ -4976,7 +4970,7 @@ components:
                 type:
                     const: ActivatedTime
                 direction:
-                    $ref: "#/components/schemas/TaskSortDirection"
+                    $ref: "#/components/schemas/TaskQuerySortDirection"
 
         # =========================================================================== #
         #                                  Messages                                   #
