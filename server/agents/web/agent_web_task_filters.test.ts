@@ -1,12 +1,22 @@
-import {createAgentWebPageStoredLinkPathname} from "~/server/agents/web/create_agent_web_page_stored_link_pathname.js";
-import {normalizeAgentWebPath} from "~/server/agents/web/internal/normalize_agent_web_path.js";
 import {
     parseAgentWebTaskFilters,
     printAgentWebTaskFilters,
 } from "~/server/agents/web/agent_web_task_filters.js";
+import {createAgentWebPageStoredLinkPathname} from "~/server/agents/web/create_agent_web_page_stored_link_pathname.js";
+import {normalizeAgentWebPath} from "~/server/agents/web/internal/normalize_agent_web_path.js";
 import {createAgentWebSessionStorageForTest} from "~/server/agents/web/test_helpers/create_agent_web_session_storage_for_test.js";
 import {normalizeApiTaskFilters} from "~/shared/api/content/normalize_api_task_filters.js";
-import {ApiTaskFilter} from "~/shared/api/specification/types/api_specification_convenience_types.js";
+import {intoApiAccountReference} from "~/shared/api/specification/into_api_account_reference.js";
+import {
+    ApiAccountResponse,
+    ApiAccountWithoutSpaceResponse,
+    ApiTaskCollectionPreviewResponse,
+    ApiTaskFilter,
+    ApiTaskFilterResponse,
+} from "~/shared/api/specification/types/api_specification_convenience_types.js";
+import {ErrorBase, InternalError} from "~/shared/error/error.js";
+import {ErrorDisplayMessage} from "~/shared/error/types/error_display_message_type.js";
+import {serializeDateString} from "~/shared/helpers/date/date_string.js";
 import {generateId} from "~/shared/id/id.js";
 import {AccountId, BotId, SpaceId, TaskCollectionId} from "~/shared/id/types/id_types.js";
 
@@ -14,12 +24,15 @@ const storage = createAgentWebSessionStorageForTest(generateId<SpaceId>());
 
 /**
  * Asserts that `filters` print to exactly `searchParamsString` and that parsing
- * `searchParamsString` returns exactly `normalizeApiTaskFilters(filters)`. The
- * printed string is inline in each test so the aesthetics of the format are easy
- * to review.
+ * `searchParamsString` returns exactly the normalized filters. The printed string
+ * is inline in each test so the aesthetics of the format are easy to review.
+ *
+ * Parsed filters are compared without hydrated response data (like account names)
+ * since the printed search params only reference accounts and task collections by
+ * the names in their pathnames.
  */
 async function expectTaskFilterFormat(
-    filters: ReadonlyArray<ApiTaskFilter>,
+    filters: ReadonlyArray<ApiTaskFilterResponse>,
     searchParamsString: string,
 ): Promise<void> {
     expect({
@@ -27,31 +40,142 @@ async function expectTaskFilterFormat(
         parsed: await parseAgentWebTaskFilters(storage, new URLSearchParams(searchParamsString)),
     }).toEqual({
         printed: searchParamsString,
-        parsed: normalizeApiTaskFilters(filters),
+        parsed: intoApiTaskFiltersWithoutResponseData(normalizeApiTaskFilters(filters)),
     });
 }
 
-async function createAccountLinkForTest(
+/**
+ * Converts task filter responses into plain task filters by dropping hydrated
+ * response data like account and task collection names.
+ */
+function intoApiTaskFiltersWithoutResponseData(
+    filters: ReadonlyArray<ApiTaskFilterResponse>,
+): Array<ApiTaskFilter> {
+    return filters.map((filter): ApiTaskFilter => {
+        switch (filter.type) {
+            case "Collections": {
+                const {operation} = filter;
+                if (operation.type === "IsEmpty") return {type: "Collections", operation};
+
+                return {
+                    type: "Collections",
+                    operation: {
+                        type: operation.type,
+                        collections: operation.collections.map(collection => ({
+                            id: collection.id,
+                        })),
+                    },
+                };
+            }
+            case "Assignee":
+            case "Assigner": {
+                return {
+                    type: filter.type,
+                    operation: {
+                        type: filter.operation.type,
+                        accounts: filter.operation.accounts.map(account =>
+                            account.type === "Account"
+                                ? {type: "Account", account: {id: account.account.id}}
+                                : account,
+                        ),
+                    },
+                };
+            }
+            case "Creator": {
+                return {
+                    type: "Creator",
+                    operation: {
+                        type: filter.operation.type,
+                        accounts: filter.operation.accounts.map(account =>
+                            account.type === "Account"
+                                ? {type: "Account", account: {id: account.account.id}}
+                                : account,
+                        ),
+                    },
+                };
+            }
+            default:
+                return filter;
+        }
+    });
+}
+
+async function createAccountForTest(
     name: string,
     {bot = false}: {bot?: boolean} = {},
-): Promise<AccountId> {
-    const id = generateId<AccountId>();
-
-    await createAgentWebPageStoredLinkPathname(storage, {
-        type: "Account",
-        id,
-        title: name,
+): Promise<ApiAccountResponse> {
+    const account: ApiAccountResponse = {
+        id: generateId<AccountId>(),
+        name,
         shortName: name.split(" ")[0]!,
         bot: bot ? {id: generateId<BotId>()} : undefined,
-    });
+        space: {role: "Member", addedTime: serializeDateString(new Date())},
+    };
 
-    return id;
+    // `printAgentWebTaskFilters()` creates links on demand but tests create them ahead
+    // of time so pathname dedupe numbers are assigned deterministically.
+    await createAgentWebPageStoredLinkPathname(storage, intoApiAccountReference(account));
+
+    return account;
 }
 
-async function createTaskCollectionLinkForTest(name: string): Promise<TaskCollectionId> {
-    const id = generateId<TaskCollectionId>();
-    await createAgentWebPageStoredLinkPathname(storage, {type: "TaskCollection", id, title: name});
-    return id;
+async function createTaskCollectionForTest(
+    name: string,
+): Promise<ApiTaskCollectionPreviewResponse> {
+    const collection: ApiTaskCollectionPreviewResponse = {
+        id: generateId<TaskCollectionId>(),
+        name,
+    };
+
+    await createAgentWebPageStoredLinkPathname(storage, {
+        type: "TaskCollection",
+        id: collection.id,
+        title: collection.name,
+    });
+
+    return collection;
+}
+
+function printDisplayMessage(displayMessage: ErrorDisplayMessage): string {
+    return displayMessage.map(segment => segment.text).join("");
+}
+
+function getDisplayMessage(error: unknown): ErrorDisplayMessage {
+    if (error instanceof ErrorBase && error.displayMessage) {
+        return error.displayMessage;
+    }
+
+    if (error instanceof AggregateError) {
+        for (const childError of error.errors) {
+            if (childError instanceof ErrorBase && childError.displayMessage) {
+                return childError.displayMessage;
+            }
+        }
+    }
+
+    throw error;
+}
+
+/**
+ * Asserts that parsing `searchParamsString` throws an error with exactly the
+ * `expected` display message. The full message is inline in each test so the
+ * errors an agent would see are easy to review.
+ */
+async function expectParseTaskFiltersDisplayMessage(
+    searchParamsString: string,
+    expected: string,
+): Promise<void> {
+    let error: unknown;
+
+    try {
+        await parseAgentWebTaskFilters(storage, new URLSearchParams(searchParamsString));
+    } catch (actualError) {
+        error = actualError;
+    }
+
+    if (error === undefined) throw new InternalError("Expected task filter parsing to throw");
+
+    expect(printDisplayMessage(getDisplayMessage(error))).toEqual(expected);
 }
 
 test("prints no search params for no filters", async () => {
@@ -93,7 +217,7 @@ test("prints a status filter with multiple statuses", async () => {
                 },
             },
         ],
-        "status=open&status=open-active",
+        "status=open,open-active",
     );
 });
 
@@ -112,7 +236,7 @@ test("prints a status filter deduping repeated statuses", async () => {
                 },
             },
         ],
-        "status=open&status=closed",
+        "status=open,closed",
     );
 });
 
@@ -148,7 +272,7 @@ test("prints a negated status filter with multiple statuses", async () => {
                 },
             },
         ],
-        "status[not]=open-active&status[not]=closed",
+        "status[not]=open-active,closed",
     );
 });
 
@@ -165,7 +289,7 @@ test("prints positive and negated status filters together", async () => {
     );
 });
 
-test("prints two status filters of the same kind with a break param", async () => {
+test("prints two status filters of the same kind as separate params", async () => {
     await expectTaskFilterFormat(
         [
             {
@@ -174,17 +298,17 @@ test("prints two status filters of the same kind with a break param", async () =
             },
             {type: "Status", operation: {type: "OneOf", statuses: [{type: "Closed"}]}},
         ],
-        "status=open&break&status=closed",
+        "status=open&status=closed",
     );
 });
 
-test("prints two empty status filters with a break param", async () => {
+test("prints two empty status filters as separate params", async () => {
     await expectTaskFilterFormat(
         [
             {type: "Status", operation: {type: "OneOf", statuses: []}},
             {type: "Status", operation: {type: "OneOf", statuses: []}},
         ],
-        "status=&break&status=",
+        "status=&status=",
     );
 });
 
@@ -206,7 +330,7 @@ test("prints a priority filter with every priority", async () => {
                 },
             },
         ],
-        "priority=low&priority=medium&priority=high&priority=urgent",
+        "priority=low,medium,high,urgent",
     );
 });
 
@@ -220,7 +344,7 @@ test("prints a missing priority filter", async () => {
 test("prints a priority filter mixing a priority and no priority", async () => {
     await expectTaskFilterFormat(
         [{type: "Priority", operation: {type: "OneOf", priorities: [{type: "High"}, null]}}],
-        "priority=high&priority=none",
+        "priority=high,none",
     );
 });
 
@@ -235,7 +359,7 @@ test("prints a priority filter deduping repeated priorities", async () => {
                 },
             },
         ],
-        "priority=high&priority=none",
+        "priority=high,none",
     );
 });
 
@@ -312,7 +436,7 @@ test("prints multiple title filters", async () => {
     );
 });
 
-test("prints two title filters of the same kind without a break param", async () => {
+test("prints two title filters of the same kind as separate params", async () => {
     await expectTaskFilterFormat(
         [
             {type: "Title", operation: {type: "Includes", titleQuery: "alpha"}},
@@ -361,6 +485,14 @@ test("prints a title filter without escaping equals signs", async () => {
     );
 });
 
+test("prints a title filter with a literal comma", async () => {
+    // Title filters hold text instead of a list of values so commas stay literal.
+    await expectTaskFilterFormat(
+        [{type: "Title", operation: {type: "Includes", titleQuery: "first, second"}}],
+        "title=first,+second",
+    );
+});
+
 test("prints a title filter escaping control characters", async () => {
     await expectTaskFilterFormat(
         [{type: "Title", operation: {type: "Includes", titleQuery: "a\tb"}}],
@@ -376,46 +508,55 @@ test("prints a title filter for text which looks like a reserved value", async (
 });
 
 test("prints an assignee filter with an account", async () => {
-    const accountId = await createAccountLinkForTest("John Doe");
+    const account = await createAccountForTest("John Doe");
 
     await expectTaskFilterFormat(
-        [
-            {
-                type: "Assignee",
-                operation: {type: "OneOf", accounts: [{type: "Account", account: {id: accountId}}]},
-            },
-        ],
+        [{type: "Assignee", operation: {type: "OneOf", accounts: [{type: "Account", account}]}}],
         "assignee=john-doe",
     );
 });
 
 test("prints an assignee filter with a bot account", async () => {
-    const accountId = await createAccountLinkForTest("Melvin", {bot: true});
+    const account = await createAccountForTest("Melvin", {bot: true});
 
     await expectTaskFilterFormat(
-        [
-            {
-                type: "Assignee",
-                operation: {type: "OneOf", accounts: [{type: "Account", account: {id: accountId}}]},
-            },
-        ],
+        [{type: "Assignee", operation: {type: "OneOf", accounts: [{type: "Account", account}]}}],
         "assignee=melvin",
     );
 });
 
+test("prints an assignee filter creating a link for an unseen account", async () => {
+    const account: ApiAccountResponse = {
+        id: generateId<AccountId>(),
+        name: "Anthony Mose",
+        shortName: "Anthony",
+        space: {role: "Member", addedTime: serializeDateString(new Date())},
+    };
+
+    // `printAgentWebTaskFilters()` creates links for referenced accounts on demand
+    // using the hydrated response data, no link has to exist ahead of time.
+    await expectTaskFilterFormat(
+        [{type: "Assignee", operation: {type: "OneOf", accounts: [{type: "Account", account}]}}],
+        "assignee=anthony-mose",
+    );
+});
+
 test("prints unambiguous assignee filters for a human and a bot with the same name", async () => {
-    const humanId = await createAccountLinkForTest("Caleb");
-    const botId = await createAccountLinkForTest("Caleb", {bot: true});
+    const humanAccount = await createAccountForTest("Caleb");
+    const botAccount = await createAccountForTest("Caleb", {bot: true});
 
     await expectTaskFilterFormat(
         [
             {
                 type: "Assignee",
-                operation: {type: "OneOf", accounts: [{type: "Account", account: {id: humanId}}]},
+                operation: {
+                    type: "OneOf",
+                    accounts: [{type: "Account", account: humanAccount}],
+                },
             },
             {
                 type: "Assigner",
-                operation: {type: "OneOf", accounts: [{type: "Account", account: {id: botId}}]},
+                operation: {type: "OneOf", accounts: [{type: "Account", account: botAccount}]},
             },
         ],
         "assignee=caleb&assigner=caleb-2",
@@ -423,15 +564,10 @@ test("prints unambiguous assignee filters for a human and a bot with the same na
 });
 
 test("prints a full account path for an account named like a reserved value", async () => {
-    const accountId = await createAccountLinkForTest("Me");
+    const account = await createAccountForTest("Me");
 
     await expectTaskFilterFormat(
-        [
-            {
-                type: "Assignee",
-                operation: {type: "OneOf", accounts: [{type: "Account", account: {id: accountId}}]},
-            },
-        ],
+        [{type: "Assignee", operation: {type: "OneOf", accounts: [{type: "Account", account}]}}],
         "assignee=/human/me",
     );
 });
@@ -451,7 +587,7 @@ test("prints an unassigned tasks filter", async () => {
 });
 
 test("prints an assignee filter with multiple accounts", async () => {
-    const accountId = await createAccountLinkForTest("John Doe");
+    const account = await createAccountForTest("John Doe");
 
     await expectTaskFilterFormat(
         [
@@ -459,19 +595,16 @@ test("prints an assignee filter with multiple accounts", async () => {
                 type: "Assignee",
                 operation: {
                     type: "OneOf",
-                    accounts: [
-                        {type: "Account", account: {id: accountId}},
-                        {type: "CurrentAccount"},
-                    ],
+                    accounts: [{type: "Account", account}, {type: "CurrentAccount"}],
                 },
             },
         ],
-        "assignee=john-doe&assignee=me",
+        "assignee=john-doe,me",
     );
 });
 
 test("prints an assignee filter deduping repeated accounts", async () => {
-    const accountId = await createAccountLinkForTest("John Doe");
+    const account = await createAccountForTest("John Doe");
 
     await expectTaskFilterFormat(
         [
@@ -480,15 +613,15 @@ test("prints an assignee filter deduping repeated accounts", async () => {
                 operation: {
                     type: "OneOf",
                     accounts: [
-                        {type: "Account", account: {id: accountId}},
-                        {type: "Account", account: {id: accountId}},
+                        {type: "Account", account},
+                        {type: "Account", account},
                         {type: "CurrentAccount"},
                         {type: "CurrentAccount"},
                     ],
                 },
             },
         ],
-        "assignee=john-doe&assignee=me",
+        "assignee=john-doe,me",
     );
 });
 
@@ -500,18 +633,10 @@ test("prints an assignee filter with no accounts", async () => {
 });
 
 test("prints a negated assignee filter", async () => {
-    const accountId = await createAccountLinkForTest("John Doe");
+    const account = await createAccountForTest("John Doe");
 
     await expectTaskFilterFormat(
-        [
-            {
-                type: "Assignee",
-                operation: {
-                    type: "NoneOf",
-                    accounts: [{type: "Account", account: {id: accountId}}],
-                },
-            },
-        ],
+        [{type: "Assignee", operation: {type: "NoneOf", accounts: [{type: "Account", account}]}}],
         "assignee[not]=john-doe",
     );
 });
@@ -524,15 +649,10 @@ test("prints an assigned tasks filter", async () => {
 });
 
 test("prints a creator filter with an account", async () => {
-    const accountId = await createAccountLinkForTest("John Doe");
+    const account = await createAccountForTest("John Doe");
 
     await expectTaskFilterFormat(
-        [
-            {
-                type: "Creator",
-                operation: {type: "OneOf", accounts: [{type: "Account", account: {id: accountId}}]},
-            },
-        ],
+        [{type: "Creator", operation: {type: "OneOf", accounts: [{type: "Account", account}]}}],
         "creator=john-doe",
     );
 });
@@ -552,48 +672,54 @@ test("prints an assigner filter with the current account", async () => {
 });
 
 test("prints a collection filter", async () => {
-    const collectionId = await createTaskCollectionLinkForTest("Roadmap");
+    const collection = await createTaskCollectionForTest("Roadmap");
 
     await expectTaskFilterFormat(
-        [
-            {
-                type: "Collections",
-                operation: {type: "IncludesOneOf", collections: [{id: collectionId}]},
-            },
-        ],
+        [{type: "Collections", operation: {type: "IncludesOneOf", collections: [collection]}}],
         "collection=roadmap",
     );
 });
 
-test("prints a collection filter with multiple collections", async () => {
-    const engineeringId = await createTaskCollectionLinkForTest("Engineering");
-    const designId = await createTaskCollectionLinkForTest("Design");
-
+test("prints a collection filter creating a link for an unseen collection", async () => {
+    // `printAgentWebTaskFilters()` creates links for referenced task collections on
+    // demand using the hydrated response data, no link has to exist ahead of time.
     await expectTaskFilterFormat(
         [
             {
                 type: "Collections",
                 operation: {
                     type: "IncludesOneOf",
-                    collections: [{id: engineeringId}, {id: designId}],
+                    collections: [{id: generateId<TaskCollectionId>(), name: "Unseen Collection"}],
                 },
             },
         ],
-        "collection=engineering&collection=design",
+        "collection=unseen-collection",
+    );
+});
+
+test("prints a collection filter with multiple collections", async () => {
+    const engineering = await createTaskCollectionForTest("Engineering");
+    const design = await createTaskCollectionForTest("Design");
+
+    await expectTaskFilterFormat(
+        [
+            {
+                type: "Collections",
+                operation: {type: "IncludesOneOf", collections: [engineering, design]},
+            },
+        ],
+        "collection=engineering,design",
     );
 });
 
 test("prints a collection filter deduping repeated collections", async () => {
-    const collectionId = await createTaskCollectionLinkForTest("Roadmap");
+    const collection = await createTaskCollectionForTest("Roadmap");
 
     await expectTaskFilterFormat(
         [
             {
                 type: "Collections",
-                operation: {
-                    type: "IncludesOneOf",
-                    collections: [{id: collectionId}, {id: collectionId}],
-                },
+                operation: {type: "IncludesOneOf", collections: [collection, collection]},
             },
         ],
         "collection=roadmap",
@@ -608,33 +734,25 @@ test("prints a collection filter with no collections", async () => {
 });
 
 test("prints a collection filter requiring every collection", async () => {
-    const engineeringId = await createTaskCollectionLinkForTest("Engineering");
-    const designId = await createTaskCollectionLinkForTest("Design");
+    const engineering = await createTaskCollectionForTest("Engineering");
+    const design = await createTaskCollectionForTest("Design");
 
     await expectTaskFilterFormat(
         [
             {
                 type: "Collections",
-                operation: {
-                    type: "IncludesAllOf",
-                    collections: [{id: engineeringId}, {id: designId}],
-                },
+                operation: {type: "IncludesAllOf", collections: [engineering, design]},
             },
         ],
-        "collection[all]=engineering&collection[all]=design",
+        "collection[all]=engineering,design",
     );
 });
 
 test("prints a negated collection filter", async () => {
-    const collectionId = await createTaskCollectionLinkForTest("Archive");
+    const collection = await createTaskCollectionForTest("Archive");
 
     await expectTaskFilterFormat(
-        [
-            {
-                type: "Collections",
-                operation: {type: "ExcludesAllOf", collections: [{id: collectionId}]},
-            },
-        ],
+        [{type: "Collections", operation: {type: "ExcludesAllOf", collections: [collection]}}],
         "collection[not]=archive",
     );
 });
@@ -647,27 +765,22 @@ test("prints a tasks in no collections filter", async () => {
 });
 
 test("prints a full collection path for a collection named like a reserved value", async () => {
-    const collectionId = await createTaskCollectionLinkForTest("None");
+    const collection = await createTaskCollectionForTest("None");
 
     await expectTaskFilterFormat(
-        [
-            {
-                type: "Collections",
-                operation: {type: "IncludesOneOf", collections: [{id: collectionId}]},
-            },
-        ],
+        [{type: "Collections", operation: {type: "IncludesOneOf", collections: [collection]}}],
         "collection=/task-collection/none",
     );
 });
 
 test("prints a collection filter next to a tasks in no collections filter", async () => {
-    const collectionId = await createTaskCollectionLinkForTest("Roadmap");
+    const collection = await createTaskCollectionForTest("Roadmap");
 
     await expectTaskFilterFormat(
         [
             {
                 type: "Collections",
-                operation: {type: "IncludesOneOf", collections: [{id: collectionId}]},
+                operation: {type: "IncludesOneOf", collections: [collection]},
             },
             {type: "Collections", operation: {type: "IsEmpty"}},
         ],
@@ -675,51 +788,41 @@ test("prints a collection filter next to a tasks in no collections filter", asyn
     );
 });
 
-test("prints interleaved collection filters without break params", async () => {
-    const engineeringId = await createTaskCollectionLinkForTest("Engineering");
-    const designId = await createTaskCollectionLinkForTest("Design");
-    const roadmapId = await createTaskCollectionLinkForTest("Roadmap");
-    const archiveId = await createTaskCollectionLinkForTest("Archive");
+test("prints interleaved collection filters", async () => {
+    const engineering = await createTaskCollectionForTest("Engineering");
+    const design = await createTaskCollectionForTest("Design");
+    const roadmap = await createTaskCollectionForTest("Roadmap");
+    const archive = await createTaskCollectionForTest("Archive");
 
     await expectTaskFilterFormat(
         [
             {
                 type: "Collections",
-                operation: {type: "IncludesOneOf", collections: [{id: engineeringId}]},
+                operation: {type: "IncludesOneOf", collections: [engineering]},
             },
-            {
-                type: "Collections",
-                operation: {type: "IncludesAllOf", collections: [{id: designId}]},
-            },
-            {
-                type: "Collections",
-                operation: {type: "IncludesOneOf", collections: [{id: roadmapId}]},
-            },
-            {
-                type: "Collections",
-                operation: {type: "IncludesAllOf", collections: [{id: archiveId}]},
-            },
+            {type: "Collections", operation: {type: "IncludesAllOf", collections: [design]}},
+            {type: "Collections", operation: {type: "IncludesOneOf", collections: [roadmap]}},
+            {type: "Collections", operation: {type: "IncludesAllOf", collections: [archive]}},
         ],
+        // `collection=engineering` and `collection=roadmap` are ANDed like every other
+        // pair of params. Tasks in either collection is one param: `collection=a,b`.
         "collection=engineering&collection[all]=design&collection=roadmap&collection[all]=archive",
     );
 });
 
-test("prints adjacent collection filters of the same kind with a break param", async () => {
-    const engineeringId = await createTaskCollectionLinkForTest("Engineering");
-    const designId = await createTaskCollectionLinkForTest("Design");
+test("prints adjacent collection filters of the same kind as separate params", async () => {
+    const engineering = await createTaskCollectionForTest("Engineering");
+    const design = await createTaskCollectionForTest("Design");
 
     await expectTaskFilterFormat(
         [
             {
                 type: "Collections",
-                operation: {type: "IncludesOneOf", collections: [{id: engineeringId}]},
+                operation: {type: "IncludesOneOf", collections: [engineering]},
             },
-            {
-                type: "Collections",
-                operation: {type: "IncludesOneOf", collections: [{id: designId}]},
-            },
+            {type: "Collections", operation: {type: "IncludesOneOf", collections: [design]}},
         ],
-        "collection=engineering&break&collection=design",
+        "collection=engineering&collection=design",
     );
 });
 
@@ -918,11 +1021,11 @@ test("prints a combined set of filters", async () => {
                 },
             },
         ],
-        "status=open&priority=high&priority=urgent&due[before]=today+1w",
+        "status=open&priority=high,urgent&due[before]=today+1w",
     );
 });
 
-test("prints non-adjacent status filters without a break param", async () => {
+test("prints status filters separated by another filter", async () => {
     await expectTaskFilterFormat(
         [
             {
@@ -959,7 +1062,11 @@ test("normalizes repeated statuses keeping the first occurrence", () => {
 });
 
 test("normalizes repeated accounts in an assignee filter", () => {
-    const accountId = generateId<AccountId>();
+    const account: ApiAccountWithoutSpaceResponse = {
+        id: generateId<AccountId>(),
+        name: "John Doe",
+        shortName: "John",
+    };
 
     expect(
         normalizeApiTaskFilters([
@@ -968,9 +1075,9 @@ test("normalizes repeated accounts in an assignee filter", () => {
                 operation: {
                     type: "OneOf",
                     accounts: [
-                        {type: "Account", account: {id: accountId}},
+                        {type: "Account", account},
                         {type: "MissingAccount"},
-                        {type: "Account", account: {id: accountId}},
+                        {type: "Account", account},
                     ],
                 },
             },
@@ -980,14 +1087,14 @@ test("normalizes repeated accounts in an assignee filter", () => {
             type: "Assignee",
             operation: {
                 type: "OneOf",
-                accounts: [{type: "Account", account: {id: accountId}}, {type: "MissingAccount"}],
+                accounts: [{type: "Account", account}, {type: "MissingAccount"}],
             },
         },
     ]);
 });
 
 test("normalization leaves distinct filters unchanged", () => {
-    const filters: ReadonlyArray<ApiTaskFilter> = [
+    const filters: ReadonlyArray<ApiTaskFilterResponse> = [
         {type: "Title", operation: {type: "Includes", titleQuery: "launch"}},
         {type: "Due", operation: {type: "Overdue"}},
         {type: "Due", operation: {type: "LessThan", date: {type: "Absolute", date: null}}},
@@ -998,42 +1105,6 @@ test("normalization leaves distinct filters unchanged", () => {
     ];
 
     expect(normalizeApiTaskFilters(filters)).toEqual(filters);
-});
-
-test("throws when printing a layout filter with no layouts", async () => {
-    await expect(
-        printAgentWebTaskFilters(storage, [
-            {type: "Layout", operation: {type: "OneOf", layouts: []}},
-        ]),
-    ).rejects.toThrow("Can\u2019t print a task layout filter with no layouts");
-});
-
-test("throws when printing a collection filter without a stored link", async () => {
-    await expect(
-        printAgentWebTaskFilters(storage, [
-            {
-                type: "Collections",
-                operation: {
-                    type: "IncludesOneOf",
-                    collections: [{id: generateId<TaskCollectionId>()}],
-                },
-            },
-        ]),
-    ).rejects.toThrow("Missing stored link pathname for task filter reference");
-});
-
-test("throws when printing a negative date duration", async () => {
-    await expect(
-        printAgentWebTaskFilters(storage, [
-            {
-                type: "Due",
-                operation: {
-                    type: "GreaterThan",
-                    date: {type: "RelativeAfterToday", duration: {type: "Days", days: -3}},
-                },
-            },
-        ]),
-    ).rejects.toThrow("Can\u2019t print the task filter date duration count \u201c-3\u201d");
 });
 
 test("parses search params through agent web path normalization", async () => {
@@ -1076,20 +1147,20 @@ test("parses percent-encoded square brackets in a filter key", async () => {
 });
 
 test("parses a full account path in an assignee filter", async () => {
-    const accountId = await createAccountLinkForTest("John Doe");
+    const account = await createAccountForTest("John Doe");
 
     expect(
         await parseAgentWebTaskFilters(storage, new URLSearchParams("assignee=/human/john-doe")),
     ).toEqual([
         {
             type: "Assignee",
-            operation: {type: "OneOf", accounts: [{type: "Account", account: {id: accountId}}]},
+            operation: {type: "OneOf", accounts: [{type: "Account", account: {id: account.id}}]},
         },
     ]);
 });
 
 test("parses a full collection path in a collection filter", async () => {
-    const collectionId = await createTaskCollectionLinkForTest("Roadmap");
+    const collection = await createTaskCollectionForTest("Roadmap");
 
     expect(
         await parseAgentWebTaskFilters(
@@ -1099,14 +1170,14 @@ test("parses a full collection path in a collection filter", async () => {
     ).toEqual([
         {
             type: "Collections",
-            operation: {type: "IncludesOneOf", collections: [{id: collectionId}]},
+            operation: {type: "IncludesOneOf", collections: [{id: collection.id}]},
         },
     ]);
 });
 
 test("parses repeated identical values into one deduped filter", async () => {
     expect(
-        await parseAgentWebTaskFilters(storage, new URLSearchParams("status=open&status=open")),
+        await parseAgentWebTaskFilters(storage, new URLSearchParams("status=open,open")),
     ).toEqual([
         {
             type: "Status",
@@ -1115,10 +1186,23 @@ test("parses repeated identical values into one deduped filter", async () => {
     ]);
 });
 
-test("parses an empty value in a list filter run as no value", async () => {
+test("parses empty comma segments as no values", async () => {
+    expect(await parseAgentWebTaskFilters(storage, new URLSearchParams("status=,open"))).toEqual([
+        {
+            type: "Status",
+            operation: {type: "OneOf", statuses: [{type: "Open", isActive: false}]},
+        },
+    ]);
+});
+
+test("parses repeated same-key params as separate filters", async () => {
     expect(
-        await parseAgentWebTaskFilters(storage, new URLSearchParams("status=&status=open")),
+        await parseAgentWebTaskFilters(storage, new URLSearchParams("status=open&status=open")),
     ).toEqual([
+        {
+            type: "Status",
+            operation: {type: "OneOf", statuses: [{type: "Open", isActive: false}]},
+        },
         {
             type: "Status",
             operation: {type: "OneOf", statuses: [{type: "Open", isActive: false}]},
@@ -1141,14 +1225,42 @@ test("parses negated and positive filters in order", async () => {
     ]);
 });
 
-test("parses a break param with a value as a no-op", async () => {
+test("parses each bare due param as its own filter", async () => {
     expect(
-        await parseAgentWebTaskFilters(storage, new URLSearchParams("break=anything&status=open")),
+        await parseAgentWebTaskFilters(storage, new URLSearchParams("due=overdue&due=none")),
+    ).toEqual([
+        {type: "Due", operation: {type: "Overdue"}},
+        {type: "Due", operation: {type: "IsEmpty"}},
+    ]);
+});
+
+test("ignores unknown search params", async () => {
+    expect(await parseAgentWebTaskFilters(storage, new URLSearchParams("stauts=open"))).toEqual([]);
+});
+
+test("ignores unknown search params with values", async () => {
+    expect(
+        await parseAgentWebTaskFilters(storage, new URLSearchParams("cursor=anything&status=open")),
     ).toEqual([
         {
             type: "Status",
             operation: {type: "OneOf", statuses: [{type: "Open", isActive: false}]},
         },
+    ]);
+});
+
+test("ignores unknown search params between filter params", async () => {
+    expect(
+        await parseAgentWebTaskFilters(
+            storage,
+            new URLSearchParams("status=open&unknown=x&status=closed"),
+        ),
+    ).toEqual([
+        {
+            type: "Status",
+            operation: {type: "OneOf", statuses: [{type: "Open", isActive: false}]},
+        },
+        {type: "Status", operation: {type: "OneOf", statuses: [{type: "Closed"}]}},
     ]);
 });
 
@@ -1179,130 +1291,220 @@ test("parses an old account pathname after the account was renamed", async () =>
     ]);
 });
 
-test("throws when parsing an unknown task filter key", async () => {
-    await expect(
-        parseAgentWebTaskFilters(storage, new URLSearchParams("stauts=open")),
-    ).rejects.toThrow("Unknown task filter");
-});
-
 test("throws when parsing an unknown task filter operator", async () => {
-    await expect(
-        parseAgentWebTaskFilters(storage, new URLSearchParams("status[all]=open")),
-    ).rejects.toThrow("Unknown task filter operator");
+    await expectParseTaskFiltersDisplayMessage(
+        "status[all]=open",
+        "Unknown task filter `status[all]=...`. Try again with `status` or `status[not]`.",
+    );
 });
 
 test("throws when parsing a date filter without an operator", async () => {
-    await expect(
-        parseAgentWebTaskFilters(storage, new URLSearchParams("created=2026-01-01")),
-    ).rejects.toThrow("Unknown task filter operator");
+    await expectParseTaskFiltersDisplayMessage(
+        "created=2026-01-01",
+        "Unknown task filter `created=...`. Try again with `created[before]` or " +
+            "`created[after]`.",
+    );
 });
 
 test("throws when parsing an unknown date filter operator", async () => {
-    await expect(
-        parseAgentWebTaskFilters(storage, new URLSearchParams("due[since]=today")),
-    ).rejects.toThrow("Unknown task filter operator");
+    await expectParseTaskFiltersDisplayMessage(
+        "due[since]=today",
+        "Unknown task filter `due[since]=...`. Try again with `due`, `due[before]`, or " +
+            "`due[after]`.",
+    );
 });
 
 test("throws when parsing an empty layout filter value", async () => {
-    await expect(parseAgentWebTaskFilters(storage, new URLSearchParams("layout="))).rejects.toThrow(
-        "Empty task layout filter",
+    await expectParseTaskFiltersDisplayMessage(
+        "layout=",
+        "Unexpected empty value in the `layout` task filter. Try again with `project` " +
+            "(e.g. `layout=project`).",
     );
 });
 
 test("throws when parsing an empty due filter value", async () => {
-    await expect(parseAgentWebTaskFilters(storage, new URLSearchParams("due="))).rejects.toThrow(
-        "Unexpected due task filter value",
+    await expectParseTaskFiltersDisplayMessage(
+        "due=",
+        "Unexpected value `` for the `due` task filter in the URL search params. Try again " +
+            "with `due=overdue`, `due=none` for tasks with no due date, or a date operator " +
+            "(e.g. `due[before]=2026-07-12` or `due[after]=today`).",
     );
 });
 
 test("throws when parsing an unknown status", async () => {
-    await expect(
-        parseAgentWebTaskFilters(storage, new URLSearchParams("status=done")),
-    ).rejects.toThrow("Unexpected task status filter value");
+    await expectParseTaskFiltersDisplayMessage(
+        "status=done",
+        "Unexpected task status filter `status=done`. Try again with `open`, " +
+            "`open-active`, or `closed` (e.g. `status=open` or `status[not]=closed`).",
+    );
 });
 
 test("throws when parsing an uppercase status", async () => {
-    await expect(
-        parseAgentWebTaskFilters(storage, new URLSearchParams("status=Open")),
-    ).rejects.toThrow("Unexpected task status filter value");
+    await expectParseTaskFiltersDisplayMessage(
+        "status=Open",
+        "Unexpected task status filter `status=Open`. Try again with `open`, " +
+            "`open-active`, or `closed` (e.g. `status=open` or `status[not]=closed`).",
+    );
 });
 
 test("throws when parsing an unknown priority", async () => {
-    await expect(
-        parseAgentWebTaskFilters(storage, new URLSearchParams("priority=critical")),
-    ).rejects.toThrow("Unexpected task priority filter value");
+    await expectParseTaskFiltersDisplayMessage(
+        "priority=critical",
+        "Unexpected task priority filter `priority=critical`. Try again with `low`, " +
+            "`medium`, `high`, or `none` (e.g. `priority=high` or `priority[not]=none`).",
+    );
 });
 
 test("throws when parsing an unknown layout", async () => {
-    await expect(
-        parseAgentWebTaskFilters(storage, new URLSearchParams("layout=board")),
-    ).rejects.toThrow("Unexpected task layout filter value");
+    await expectParseTaskFiltersDisplayMessage(
+        "layout=board",
+        "Unexpected task layout filter `layout=board`. Try again with `project` (e.g. " +
+            "`layout=project`).",
+    );
 });
 
 test("throws when parsing an account which was never linked", async () => {
-    await expect(
-        parseAgentWebTaskFilters(storage, new URLSearchParams("assignee=nobody")),
-    ).rejects.toThrow("Unknown account in task filter");
+    await expectParseTaskFiltersDisplayMessage(
+        "assignee=nobody",
+        "Nothing found for `nobody` in the `assignee` task filter. You may only filter by " +
+            "those you\u2019ve already seen a link for, using the name from their path (e.g. " +
+            "`assignee=john-doe` for `/human/john-doe`), `me` for yourself (e.g. " +
+            "`assignee=me`), or `none` for tasks with no assignee (e.g. `assignee=none`). " +
+            "Try calling the `search` tool to find people.",
+    );
 });
 
 test("throws when parsing an account path which was never linked", async () => {
-    await expect(
-        parseAgentWebTaskFilters(storage, new URLSearchParams("assignee=/human/nobody")),
-    ).rejects.toThrow("Unknown account in task filter");
+    await expectParseTaskFiltersDisplayMessage(
+        "assignee=/human/nobody",
+        "Nothing found for `/human/nobody` in the `assignee` task filter. You may only " +
+            "filter by those you\u2019ve already seen a link for, using the name from their " +
+            "path (e.g. `assignee=john-doe` for `/human/john-doe`), `me` for yourself " +
+            "(e.g. `assignee=me`), or `none` for tasks with no assignee (e.g. " +
+            "`assignee=none`). Try calling the `search` tool to find people.",
+    );
 });
 
 test("throws when parsing a non-account path as an assignee", async () => {
-    await createTaskCollectionLinkForTest("Roadmap");
+    await createTaskCollectionForTest("Roadmap");
 
-    await expect(
-        parseAgentWebTaskFilters(storage, new URLSearchParams("assignee=/task-collection/roadmap")),
-    ).rejects.toThrow("Unknown account in task filter");
+    await expectParseTaskFiltersDisplayMessage(
+        "assignee=/task-collection/roadmap",
+        "Nothing found for `/task-collection/roadmap` in the `assignee` task filter. You " +
+            "may only filter by those you\u2019ve already seen a link for, using the name " +
+            "from their path (e.g. `assignee=john-doe` for `/human/john-doe`), `me` for " +
+            "yourself (e.g. `assignee=me`), or `none` for tasks with no assignee (e.g. " +
+            "`assignee=none`). Try calling the `search` tool to find people.",
+    );
 });
 
 test("throws when parsing a creator filter with no creator", async () => {
-    await expect(
-        parseAgentWebTaskFilters(storage, new URLSearchParams("creator=none")),
-    ).rejects.toThrow("Unexpected creator task filter value");
+    await expectParseTaskFiltersDisplayMessage(
+        "creator=none",
+        "The task filter `creator=none` isn\u2019t supported since every task has a creator. " +
+            "Try again with the name of an account (e.g. `creator=john-doe`) or `me` for " +
+            "yourself (e.g. `creator=me`).",
+    );
+});
+
+test("throws when parsing a creator which was never linked", async () => {
+    await expectParseTaskFiltersDisplayMessage(
+        "creator=nobody",
+        "Nothing found for `nobody` in the `creator` task filter. You may only filter by " +
+            "those you\u2019ve already seen a link for, using the name from their path (e.g. " +
+            "`creator=john-doe` for `/human/john-doe`) or `me` for yourself (e.g. " +
+            "`creator=me`). Try calling the `search` tool to find people.",
+    );
 });
 
 test("throws when parsing a collection which was never linked", async () => {
-    await expect(
-        parseAgentWebTaskFilters(storage, new URLSearchParams("collection=nothing")),
-    ).rejects.toThrow("Unknown task collection in task filter");
+    await expectParseTaskFiltersDisplayMessage(
+        "collection=nothing",
+        "Nothing found for `nothing` in the `collection` task filter. You may only filter " +
+            "by task collections you\u2019ve already seen a link for, using the name from the " +
+            "collection\u2019s path (e.g. `collection=roadmap` for " +
+            "`/task-collection/roadmap`) or `none` for tasks in no collections (e.g. " +
+            "`collection=none`). Try calling the `search` tool to find task collections.",
+    );
+});
+
+test("throws when parsing a no collections value combined with collections", async () => {
+    await createTaskCollectionForTest("Roadmap");
+
+    await expectParseTaskFiltersDisplayMessage(
+        "collection=roadmap,none",
+        "`none` can\u2019t be combined with other collections in the `collection` task filter " +
+            "since a task with no collections can\u2019t also be in a collection. Try again " +
+            "with either `collection=none` or a list of collection names (e.g. " +
+            "`collection=roadmap,design`).",
+    );
 });
 
 test("throws when parsing a negated no collections value", async () => {
-    await expect(
-        parseAgentWebTaskFilters(storage, new URLSearchParams("collection[not]=none")),
-    ).rejects.toThrow("Unknown task collection in task filter");
+    await expectParseTaskFiltersDisplayMessage(
+        "collection[not]=none",
+        "Nothing found for `none` in the `collection` task filter. You may only filter by " +
+            "task collections you\u2019ve already seen a link for, using the name from the " +
+            "collection\u2019s path (e.g. `collection=roadmap` for " +
+            "`/task-collection/roadmap`) or `none` for tasks in no collections (e.g. " +
+            "`collection=none`). Try calling the `search` tool to find task collections.",
+    );
 });
 
 test("throws when parsing a due date without an operator", async () => {
-    await expect(
-        parseAgentWebTaskFilters(storage, new URLSearchParams("due=2026-07-12")),
-    ).rejects.toThrow("Unexpected due task filter value");
+    await expectParseTaskFiltersDisplayMessage(
+        "due=2026-07-12",
+        "Unexpected value `2026-07-12` for the `due` task filter in the URL search params. " +
+            "Try again with `due=overdue`, `due=none` for tasks with no due date, or a date " +
+            "operator (e.g. `due[before]=2026-07-12` or `due[after]=today`).",
+    );
 });
 
 test("throws when parsing an unknown due value", async () => {
-    await expect(
-        parseAgentWebTaskFilters(storage, new URLSearchParams("due=tomorrow")),
-    ).rejects.toThrow("Unexpected due task filter value");
+    await expectParseTaskFiltersDisplayMessage(
+        "due=tomorrow",
+        "Unexpected value `tomorrow` for the `due` task filter in the URL search params. " +
+            "Try again with `due=overdue`, `due=none` for tasks with no due date, or a date " +
+            "operator (e.g. `due[before]=2026-07-12` or `due[after]=today`).",
+    );
 });
 
 test("throws when parsing an unknown date", async () => {
-    await expect(
-        parseAgentWebTaskFilters(storage, new URLSearchParams("created[after]=someday")),
-    ).rejects.toThrow("Unexpected task filter date");
+    await expectParseTaskFiltersDisplayMessage(
+        "created[after]=someday",
+        "Unexpected date `someday` in the `created[after]` task filter. Try again with an " +
+            "ISO 8601 date (e.g. `created[after]=2026-07-12`), `today` (e.g. " +
+            "`created[after]=today`), or a date relative to today with the units `d`, `w`, " +
+            "`mo`, or `y` (e.g. `created[after]=today+2w` or `created[after]=today-3d`).",
+    );
 });
 
 test("throws when parsing an impossible calendar date", async () => {
-    await expect(
-        parseAgentWebTaskFilters(storage, new URLSearchParams("due[before]=2026-13-45")),
-    ).rejects.toThrow("Unexpected task filter date");
+    await expectParseTaskFiltersDisplayMessage(
+        "due[before]=2026-13-45",
+        "The date `2026-13-45` in the `due[before]` task filter isn\u2019t a real calendar " +
+            "date. Try again with a valid ISO 8601 date (e.g. `due[before]=2026-07-12`).",
+    );
+});
+
+test("throws when parsing a date that parses but doesn\u2019t round trip", async () => {
+    // `parseDate()` accepts and coerces year 0000 to year 0001 so we reject it for not
+    // printing back unchanged.
+    await expectParseTaskFiltersDisplayMessage(
+        "due[before]=0000-01-01",
+        "The date `0000-01-01` in the `due[before]` task filter isn\u2019t a real calendar " +
+            "date. Try again with a valid ISO 8601 date (e.g. `due[before]=2026-07-12`).",
+    );
 });
 
 test("throws when parsing an unknown date duration unit", async () => {
-    await expect(
-        parseAgentWebTaskFilters(storage, new URLSearchParams("due[before]=today+3months")),
-    ).rejects.toThrow("Unexpected task filter date");
+    // The `+` in `today+3months` decodes to a space before parsing, which is why the
+    // display message quotes the date as `today 3months`.
+    await expectParseTaskFiltersDisplayMessage(
+        "due[before]=today+3months",
+        "Unexpected date `today 3months` in the `due[before]` task filter. Try again with " +
+            "an ISO 8601 date (e.g. `due[before]=2026-07-12`), `today` (e.g. " +
+            "`due[before]=today`), or a date relative to today with the units `d`, `w`, " +
+            "`mo`, or `y` (e.g. `due[before]=today+2w` or `due[before]=today-3d`).",
+    );
 });

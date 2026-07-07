@@ -73,34 +73,31 @@ import {TaskCollectionId} from "~/shared/id/types/id_types.js";
  *
  * Filters compose like so:
  *
+ * - Every search param is its own filter and all filters must match, so `&` always
+ *   means "and" (`status=open&title=launch` is open tasks with "launch" in the
+ *   title, `due[after]=2026-07-01&due[before]=2026-08-01` is a date range).
+ *   Repeating a key makes multiple filters: `status=open&status=closed` requires
+ *   both so it matches no tasks, use `status=open,closed` for either.
+ *
+ * - Comma separated values in a `status`, `priority`, `layout`, `assignee`,
+ *   `creator`, `assigner`, or `collection` param match tasks with _any_ of the
+ *   values (`priority=high,medium` is high or medium priority) since these filters
+ *   hold a list of values. Commas in `title` params stay literal text since title
+ *   filters hold text instead of a list.
+ *
  * - A `[not]` operator inverts a filter (`status[not]=closed`,
- *   `assignee[not]=me`).
- *
- * - Adjacent repeated `status`, `priority`, `layout`, `assignee`, `creator`,
- *   `assigner`, and `collection` params merge into one filter matching tasks with
- *   _any_ of the values (`priority=high&priority=medium` is high or medium
- *   priority) since these filters hold a list of values. Adjacent repeated `[not]`
- *   values merge into one filter matching tasks with _none_ of the values.
- *
- * - Params only merge when they're adjacent. `status=open&title=a&status=closed`
- *   is three filters and a `break` param (which, like any param that isn't a task
- *   filter, is otherwise ignored) splits adjacent params apart:
- *   `status=open&break&status=closed` is two status filters. All filters must
- *   match so two status filters usually match fewer tasks than one merged status
- *   filter would.
- *
- * - `title` and date params never merge, each one is its own filter
- *   (`due[after]=2026-07-01&due[before]=2026-08-01` is a date range).
+ *   `assignee[not]=me`). Comma separated `[not]` values match tasks with _none_ of
+ *   the values.
  *
  * - `collection[all]` matches tasks in _every_ listed collection
- *   (`collection[all]=engineering&collection[all]=design`) instead of at least
- *   one.
+ *   (`collection[all]=engineering,design`) instead of at least one.
  *
  * - An empty value is a filter that hasn't been fully configured in the task
  *   filter editor UI yet: `due[before]=` is a date filter with no date chosen (it
  *   matches all tasks), `title=` is a title filter with no text (it matches all
  *   tasks), and `status=` is a status filter with no statuses chosen (it matches
- *   no tasks).
+ *   no tasks). Empty comma segments don't add values (`status=open,` is just
+ *   `open`).
  *
  * Filters are normalized with `normalizeApiTaskFilters()` before printing and
  * `parseAgentWebTaskFilters()` returns exactly the normalized form of whatever was
@@ -121,26 +118,9 @@ export async function printAgentWebTaskFilters(
 ): Promise<string> {
     filters = normalizeApiTaskFilters(filters);
 
-    const printedFilters = await runAllPromises(
+    const searchParams = await runAllPromises(
         filters.map(filter => printAgentWebTaskFilter(storage, filter)),
     );
-
-    const searchParams: Array<string> = [];
-    let previousListKey: string | null = null;
-
-    for (const printedFilter of printedFilters) {
-        // Adjacent filters that print list values under the same search param key would be
-        // merged into one filter by `parseAgentWebTaskFilters()`. A `break` param (which
-        // is otherwise ignored by the parser) splits them apart.
-        if (printedFilter.listKey !== null && printedFilter.listKey === previousListKey) {
-            searchParams.push("break");
-        }
-
-        previousListKey = printedFilter.listKey;
-        for (const searchParam of printedFilter.searchParams) {
-            searchParams.push(searchParam);
-        }
-    }
 
     return searchParams.join("&");
 }
@@ -148,7 +128,7 @@ export async function printAgentWebTaskFilters(
 async function printAgentWebTaskFilter(
     storage: AgentWebSessionStorage,
     filter: ApiTaskFilterResponse,
-): Promise<{searchParams: Array<string>; listKey: string | null}> {
+): Promise<string> {
     switch (filter.type) {
         case "Status": {
             const {operation} = filter;
@@ -158,22 +138,17 @@ async function printAgentWebTaskFilter(
                 NoneOf: "status[not]",
             }[operation.type];
 
-            return {
-                searchParams: printAgentWebTaskFilterListValues(
-                    key,
-                    operation.statuses.map(printAgentWebTaskFilterStatus),
-                ),
-                listKey: key,
-            };
+            return printAgentWebTaskFilterListValues(
+                key,
+                operation.statuses.map(printAgentWebTaskFilterStatus),
+            );
         }
         case "Collections": {
             const {operation} = filter;
 
             switch (operation.type) {
                 case "IsEmpty": {
-                    // `collection=none` splits adjacent bare `collection` runs so it never needs a
-                    // `break` and doesn't claim the list key.
-                    return {searchParams: ["collection=none"], listKey: null};
+                    return "collection=none";
                 }
                 case "IncludesOneOf":
                 case "IncludesAllOf":
@@ -190,10 +165,7 @@ async function printAgentWebTaskFilter(
                         ),
                     );
 
-                    return {
-                        searchParams: printAgentWebTaskFilterListValues(key, values),
-                        listKey: key,
-                    };
+                    return printAgentWebTaskFilterListValues(key, values);
                 }
                 default:
                     throw exhaustive(operation);
@@ -207,13 +179,10 @@ async function printAgentWebTaskFilter(
                 NoneOf: "priority[not]",
             }[operation.type];
 
-            return {
-                searchParams: printAgentWebTaskFilterListValues(
-                    key,
-                    operation.priorities.map(printAgentWebTaskFilterPriority),
-                ),
-                listKey: key,
-            };
+            return printAgentWebTaskFilterListValues(
+                key,
+                operation.priorities.map(printAgentWebTaskFilterPriority),
+            );
         }
         case "Layout": {
             const {operation} = filter;
@@ -223,13 +192,10 @@ async function printAgentWebTaskFilter(
                 NoneOf: "layout[not]",
             }[operation.type];
 
-            return {
-                searchParams: printAgentWebTaskFilterListValues(
-                    key,
-                    operation.layouts.map(printAgentWebTaskFilterLayout),
-                ),
-                listKey: key,
-            };
+            return printAgentWebTaskFilterListValues(
+                key,
+                operation.layouts.map(printAgentWebTaskFilterLayout),
+            );
         }
         case "Title": {
             const {operation} = filter;
@@ -241,10 +207,7 @@ async function printAgentWebTaskFilter(
 
             // An empty title query (`title=`) is a title filter whose text hasn't been typed
             // yet in the task filter editor UI.
-            return {
-                searchParams: [`${key}=${escapeAgentWebTaskFilterText(operation.titleQuery)}`],
-                listKey: null,
-            };
+            return `${key}=${escapeAgentWebTaskFilterText(operation.titleQuery)}`;
         }
         case "Assignee":
         case "Creator":
@@ -266,55 +229,37 @@ async function printAgentWebTaskFilter(
                 operation.accounts.map(account => printAgentWebTaskFilterAccount(storage, account)),
             );
 
-            return {
-                searchParams: printAgentWebTaskFilterListValues(key, values),
-                listKey: key,
-            };
+            return printAgentWebTaskFilterListValues(key, values);
         }
         case "Due": {
             const {operation} = filter;
 
             switch (operation.type) {
                 case "Overdue": {
-                    return {searchParams: ["due=overdue"], listKey: null};
+                    return "due=overdue";
                 }
                 case "IsEmpty": {
-                    return {searchParams: ["due=none"], listKey: null};
+                    return "due=none";
                 }
                 case "LessThan":
                 case "GreaterThan": {
-                    return {
-                        searchParams: [printAgentWebTaskFilterDateOperation("due", operation)],
-                        listKey: null,
-                    };
+                    return printAgentWebTaskFilterDateOperation("due", operation);
                 }
                 default:
                     throw exhaustive(operation);
             }
         }
         case "CreatedDate": {
-            return {
-                searchParams: [printAgentWebTaskFilterDateOperation("created", filter.operation)],
-                listKey: null,
-            };
+            return printAgentWebTaskFilterDateOperation("created", filter.operation);
         }
         case "AssignedDate": {
-            return {
-                searchParams: [printAgentWebTaskFilterDateOperation("assigned", filter.operation)],
-                listKey: null,
-            };
+            return printAgentWebTaskFilterDateOperation("assigned", filter.operation);
         }
         case "ClosedDate": {
-            return {
-                searchParams: [printAgentWebTaskFilterDateOperation("closed", filter.operation)],
-                listKey: null,
-            };
+            return printAgentWebTaskFilterDateOperation("closed", filter.operation);
         }
         case "ActivatedDate": {
-            return {
-                searchParams: [printAgentWebTaskFilterDateOperation("activated", filter.operation)],
-                listKey: null,
-            };
+            return printAgentWebTaskFilterDateOperation("activated", filter.operation);
         }
         default:
             throw exhaustive(filter);
@@ -322,16 +267,12 @@ async function printAgentWebTaskFilter(
 }
 
 /**
- * Prints one search param per list filter value. A list filter with no values
- * (which the task filter editor UI represents as a filter that hasn't been fully
- * configured yet) prints as a single empty value (e.g. `status=`).
+ * Prints a list filter's values as one comma separated search param. A list filter
+ * with no values (which the task filter editor UI represents as a filter that
+ * hasn't been fully configured yet) prints as an empty value (e.g. `status=`).
  */
-function printAgentWebTaskFilterListValues(
-    key: string,
-    values: ReadonlyArray<string>,
-): Array<string> {
-    if (values.length === 0) return [`${key}=`];
-    return values.map(value => `${key}=${value}`);
+function printAgentWebTaskFilterListValues(key: string, values: ReadonlyArray<string>): string {
+    return `${key}=${values.join(",")}`;
 }
 
 function printAgentWebTaskFilterStatus(status: ApiTaskStatus): string {
@@ -561,45 +502,34 @@ function printAgentWebTaskFilterDateDurationCount(count: number, unit: string): 
  * `printAgentWebTaskFilters()`, see that function for the format documentation.
  * The returned filters are always normalized with `normalizeApiTaskFilters()`.
  *
- * Parsing is position aware: adjacent params with the same key merge into one
- * filter while params separated by a different key (or a `break` param) become
- * separate filters. This is what makes the format able to represent every list of
- * API task filters.
+ * Every search param parses to its own filter so `&` always means "and". Search
+ * params we don't recognize as task filters (like a caller's pagination params)
+ * are ignored.
  *
  * Accepts a pre-parsed `URLSearchParams` since the agent web `read` tool already
  * parses paths with `normalizeAgentWebPath()`. `URLSearchParams` decodes `+` as a
  * space so date values like `today+3d` reach us as `today 3d`. We treat the space
  * as a `+` so agents can write either `today+3d` or `today%2B3d`.
- *
- * Search params we don't recognize as task filters (like the `break` params we
- * print or a caller's pagination params) are ignored, except that they split
- * adjacent same-key params into separate filters.
  */
 export async function parseAgentWebTaskFilters(
     storage: AgentWebSessionStorage,
     searchParams: URLSearchParams,
 ): Promise<ReadonlyArray<ApiTaskFilter>> {
-    const runs: Array<AgentWebTaskFilterRun> = [];
-    let currentListRun: AgentWebTaskFilterRun | null = null;
+    const filterPromises: Array<Promise<ApiTaskFilter>> = [];
 
     for (const [key, value] of searchParams.entries()) {
         const keyMatch = key.match(/^([a-z]+)\[([a-z]+)\]$/);
         const filterKey = keyMatch ? keyMatch[1]! : key;
         const operator = keyMatch ? keyMatch[2]! : null;
 
-        // List filters hold a list of values so adjacent params with the same key merge
-        // into one filter. Every other param is its own filter.
-        const isListKey =
+        const isFilterKey =
             filterKey === "status" ||
             filterKey === "priority" ||
             filterKey === "layout" ||
             filterKey === "collection" ||
             filterKey === "assignee" ||
             filterKey === "creator" ||
-            filterKey === "assigner";
-
-        const isFilterKey =
-            isListKey ||
+            filterKey === "assigner" ||
             filterKey === "title" ||
             filterKey === "due" ||
             filterKey === "created" ||
@@ -607,48 +537,31 @@ export async function parseAgentWebTaskFilters(
             filterKey === "closed" ||
             filterKey === "activated";
 
-        // Search params we don't recognize as task filters are ignored, except that they
-        // split adjacent same-key params into separate filters. This is what makes `break`
-        // work: `status=open&break&status=closed` is two status filters. `break` is just
-        // the conventional param we print, any unrecognized param splits runs the same
-        // way.
-        if (!isFilterKey) {
-            currentListRun = null;
-            continue;
-        }
+        // Search params we don't recognize as task filters are ignored.
+        if (!isFilterKey) continue;
 
-        if (isListKey && currentListRun !== null && currentListRun.key === key) {
-            currentListRun.values.push(value);
-            continue;
-        }
-
-        const run: AgentWebTaskFilterRun = {key, filterKey, operator, values: [value]};
-        runs.push(run);
-        currentListRun = isListKey ? run : null;
+        filterPromises.push(
+            parseAgentWebTaskFilterSearchParam(storage, {key, filterKey, operator, value}),
+        );
     }
 
-    const filterPromises = runs.map(run => parseAgentWebTaskFilterRun(storage, run));
-
-    return normalizeApiTaskFilters((await runAllPromises(filterPromises)).flat());
+    return normalizeApiTaskFilters(await runAllPromises(filterPromises));
 }
 
-/**
- * A maximal sequence of adjacent search params sharing the same key. List filter
- * runs may have many values, every other run has exactly one value.
- */
-type AgentWebTaskFilterRun = {
-    readonly key: string;
-    readonly filterKey: string;
-    readonly operator: string | null;
-    readonly values: Array<string>;
-};
-
-async function parseAgentWebTaskFilterRun(
+async function parseAgentWebTaskFilterSearchParam(
     storage: AgentWebSessionStorage,
-    run: AgentWebTaskFilterRun,
-): Promise<Array<ApiTaskFilter>> {
-    const {key, filterKey, operator, values} = run;
-
+    {
+        key,
+        filterKey,
+        operator,
+        value,
+    }: {
+        key: string;
+        filterKey: string;
+        operator: string | null;
+        value: string;
+    },
+): Promise<ApiTaskFilter> {
     switch (filterKey) {
         case "status": {
             if (operator !== null && operator !== "not") {
@@ -658,17 +571,15 @@ async function parseAgentWebTaskFilterRun(
                 );
             }
 
-            return [
-                {
-                    type: "Status",
-                    operation: {
-                        type: operator === "not" ? "NoneOf" : "OneOf",
-                        statuses: nonEmptyAgentWebTaskFilterValues(values).map(
-                            parseAgentWebTaskFilterStatus,
-                        ),
-                    },
+            return {
+                type: "Status",
+                operation: {
+                    type: operator === "not" ? "NoneOf" : "OneOf",
+                    statuses: splitAgentWebTaskFilterListValue(value).map(
+                        parseAgentWebTaskFilterStatus,
+                    ),
                 },
-            ];
+            };
         }
         case "priority": {
             if (operator !== null && operator !== "not") {
@@ -678,17 +589,15 @@ async function parseAgentWebTaskFilterRun(
                 );
             }
 
-            return [
-                {
-                    type: "Priority",
-                    operation: {
-                        type: operator === "not" ? "NoneOf" : "OneOf",
-                        priorities: nonEmptyAgentWebTaskFilterValues(values).map(
-                            parseAgentWebTaskFilterPriority,
-                        ),
-                    },
+            return {
+                type: "Priority",
+                operation: {
+                    type: operator === "not" ? "NoneOf" : "OneOf",
+                    priorities: splitAgentWebTaskFilterListValue(value).map(
+                        parseAgentWebTaskFilterPriority,
+                    ),
                 },
-            ];
+            };
         }
         case "layout": {
             if (operator !== null && operator !== "not") {
@@ -698,7 +607,7 @@ async function parseAgentWebTaskFilterRun(
                 );
             }
 
-            const layouts = nonEmptyAgentWebTaskFilterValues(values);
+            const layouts = splitAgentWebTaskFilterListValue(value);
 
             // Unlike other list filters, a layout filter with no layouts isn't a state the
             // task filter editor UI can represent so we don't accept it.
@@ -708,15 +617,13 @@ async function parseAgentWebTaskFilterRun(
                 });
             }
 
-            return [
-                {
-                    type: "Layout",
-                    operation: {
-                        type: operator === "not" ? "NoneOf" : "OneOf",
-                        layouts: layouts.map(parseAgentWebTaskFilterLayout),
-                    },
+            return {
+                type: "Layout",
+                operation: {
+                    type: operator === "not" ? "NoneOf" : "OneOf",
+                    layouts: layouts.map(parseAgentWebTaskFilterLayout),
                 },
-            ];
+            };
         }
         case "title": {
             if (operator !== null && operator !== "not") {
@@ -726,21 +633,16 @@ async function parseAgentWebTaskFilterRun(
                 );
             }
 
-            // Only list filter params merge into one run, so an agent writing
-            // `title=foo&title=bar` gets one run (and one filter) per param. That's why a
-            // title run always has exactly one value. An empty value (`title=`) is a title
-            // filter whose text hasn't been typed yet in the task filter editor UI.
-            assert(values.length === 1);
-
-            return [
-                {
-                    type: "Title",
-                    operation: {
-                        type: operator === "not" ? "Excludes" : "Includes",
-                        titleQuery: values[0]!,
-                    },
+            // Title filters hold text instead of a list of values so commas stay literal. An
+            // empty value (`title=`) is a title filter whose text hasn't been typed yet in the
+            // task filter editor UI.
+            return {
+                type: "Title",
+                operation: {
+                    type: operator === "not" ? "Excludes" : "Includes",
+                    titleQuery: value,
                 },
-            ];
+            };
         }
         case "collection": {
             if (operator !== null && operator !== "all" && operator !== "not") {
@@ -750,7 +652,11 @@ async function parseAgentWebTaskFilterRun(
                 );
             }
 
-            return await parseAgentWebTaskFilterCollectionsRun(storage, operator, values);
+            return await parseAgentWebTaskFilterCollections(
+                storage,
+                operator,
+                splitAgentWebTaskFilterListValue(value),
+            );
         }
         case "assignee":
         case "assigner": {
@@ -762,20 +668,18 @@ async function parseAgentWebTaskFilterRun(
             }
 
             const accounts = await runAllPromises(
-                nonEmptyAgentWebTaskFilterValues(values).map(value =>
-                    parseAgentWebTaskFilterAccount(storage, filterKey, value),
+                splitAgentWebTaskFilterListValue(value).map(accountValue =>
+                    parseAgentWebTaskFilterAccount(storage, filterKey, accountValue),
                 ),
             );
 
-            return [
-                {
-                    type: filterKey === "assignee" ? "Assignee" : "Assigner",
-                    operation: {
-                        type: operator === "not" ? "NoneOf" : "OneOf",
-                        accounts,
-                    },
+            return {
+                type: filterKey === "assignee" ? "Assignee" : "Assigner",
+                operation: {
+                    type: operator === "not" ? "NoneOf" : "OneOf",
+                    accounts,
                 },
-            ];
+            };
         }
         case "creator": {
             if (operator !== null && operator !== "not") {
@@ -786,8 +690,12 @@ async function parseAgentWebTaskFilterRun(
             }
 
             const accounts = await runAllPromises(
-                nonEmptyAgentWebTaskFilterValues(values).map(async value => {
-                    const account = await parseAgentWebTaskFilterAccount(storage, filterKey, value);
+                splitAgentWebTaskFilterListValue(value).map(async accountValue => {
+                    const account = await parseAgentWebTaskFilterAccount(
+                        storage,
+                        filterKey,
+                        accountValue,
+                    );
 
                     // `parseAgentWebTaskFilterAccount()` throws for `creator=none` when `filterKey` is
                     // `"creator"` so a missing account is impossible here.
@@ -797,26 +705,18 @@ async function parseAgentWebTaskFilterRun(
                 }),
             );
 
-            return [
-                {
-                    type: "Creator",
-                    operation: {
-                        type: operator === "not" ? "NoneOf" : "OneOf",
-                        accounts,
-                    },
+            return {
+                type: "Creator",
+                operation: {
+                    type: operator === "not" ? "NoneOf" : "OneOf",
+                    accounts,
                 },
-            ];
+            };
         }
         case "due": {
-            // Only list filter params merge into one run, so an agent writing
-            // `due=overdue&due=none` gets one run (and one filter) per param. That's why a due
-            // run always has exactly one value.
-            assert(values.length === 1);
-            const value = values[0]!;
-
             if (operator === null) {
-                if (value === "overdue") return [{type: "Due", operation: {type: "Overdue"}}];
-                if (value === "none") return [{type: "Due", operation: {type: "IsEmpty"}}];
+                if (value === "overdue") return {type: "Due", operation: {type: "Overdue"}};
+                if (value === "none") return {type: "Due", operation: {type: "IsEmpty"}};
 
                 throw new InvalidArgumentError("Unexpected due task filter value", {
                     displayMessage: errorDisplayMessage`Unexpected value \`${value}\` for the \`due\` task filter in the URL search params. Try again with \`due=overdue\`, \`due=none\` for tasks with no due date, or a date operator (e.g. \`due[before]=2026-07-12\` or \`due[after]=today\`).`,
@@ -830,15 +730,13 @@ async function parseAgentWebTaskFilterRun(
                 );
             }
 
-            return [
-                {
-                    type: "Due",
-                    operation: {
-                        type: operator === "before" ? "LessThan" : "GreaterThan",
-                        date: parseAgentWebTaskFilterDate(key, value),
-                    },
+            return {
+                type: "Due",
+                operation: {
+                    type: operator === "before" ? "LessThan" : "GreaterThan",
+                    date: parseAgentWebTaskFilterDate(key, value),
                 },
-            ];
+            };
         }
         case "created":
         case "assigned":
@@ -851,8 +749,6 @@ async function parseAgentWebTaskFilterRun(
                 );
             }
 
-            assert(values.length === 1);
-
             const filterType =
                 filterKey === "created"
                     ? "CreatedDate"
@@ -862,20 +758,18 @@ async function parseAgentWebTaskFilterRun(
                         ? "ClosedDate"
                         : "ActivatedDate";
 
-            return [
-                {
-                    type: filterType,
-                    operation: {
-                        type: operator === "before" ? "LessThan" : "GreaterThan",
-                        date: parseAgentWebTaskFilterDate(key, values[0]!),
-                    },
+            return {
+                type: filterType,
+                operation: {
+                    type: operator === "before" ? "LessThan" : "GreaterThan",
+                    date: parseAgentWebTaskFilterDate(key, value),
                 },
-            ];
+            };
         }
         default: {
-            throw new InvalidArgumentError("Unknown task filter", {
-                displayMessage: errorDisplayMessage`Unknown task filter \`${key}=...\`. Try again with one of \`status\`, \`title\`, \`collection\`, \`priority\`, \`layout\`, \`assignee\`, \`creator\`, \`assigner\`, \`due\`, \`created\`, \`assigned\`, \`closed\`, or \`activated\` where operators go in square brackets after the filter name (e.g. \`status[not]=closed\` or \`due[before]=2026-07-12\`).`,
-            });
+            // `parseAgentWebTaskFilters()` only parses search params with recognized filter
+            // keys, every other search param is ignored.
+            throw new InternalError(`Unexpected task filter key \u201c${filterKey}\u201d`);
         }
     }
 }
@@ -890,12 +784,13 @@ function createAgentWebTaskFilterOperatorError(
 }
 
 /**
- * Empty values in a list filter run don't add values to the filter. A run of only
- * empty values (e.g. `status=`) is a filter with no values which is a filter that
- * hasn't been fully configured in the task filter editor UI yet.
+ * Splits a comma separated list filter value into the filter's values. Empty
+ * segments don't add values (`status=open,` is just `open`) and a fully empty
+ * value (`status=`) is a filter with no values which is a filter that hasn't been
+ * fully configured in the task filter editor UI yet.
  */
-function nonEmptyAgentWebTaskFilterValues(values: ReadonlyArray<string>): ReadonlyArray<string> {
-    return values.filter(value => value.length > 0);
+function splitAgentWebTaskFilterListValue(value: string): Array<string> {
+    return value.split(",").filter(segment => segment.length > 0);
 }
 
 function parseAgentWebTaskFilterStatus(value: string): ApiTaskStatus {
@@ -950,17 +845,25 @@ function parseAgentWebTaskFilterLayout(value: string): ApiTaskLayout {
     }
 }
 
-/**
- * Parses one run of adjacent bare `collection` params. Within a bare run the
- * `none` value is its own "tasks in no collections" filter and splits the
- * collection values around it into separate filters, e.g.
- * `collection=a&collection=none&collection=b` is three filters.
- */
-async function parseAgentWebTaskFilterCollectionsRun(
+async function parseAgentWebTaskFilterCollections(
     storage: AgentWebSessionStorage,
     operator: "all" | "not" | null,
     values: ReadonlyArray<string>,
-): Promise<Array<ApiTaskFilter>> {
+): Promise<ApiTaskFilter> {
+    // In a bare `collection` param the `none` value is a "tasks in no collections"
+    // filter of its own. It can't be combined with collections in the same filter
+    // since a filter matches tasks with any of its values and a task with no
+    // collections can never also be in a collection.
+    if (operator === null && values.includes("none")) {
+        if (values.length > 1) {
+            throw new InvalidArgumentError("Conflicting task collection filter values", {
+                displayMessage: errorDisplayMessage`\`none\` can\u2019t be combined with other collections in the \`collection\` task filter since a task with no collections can\u2019t also be in a collection. Try again with either \`collection=none\` or a list of collection names (e.g. \`collection=roadmap,design\`).`,
+            });
+        }
+
+        return {type: "Collections", operation: {type: "IsEmpty"}};
+    }
+
     const operationType =
         operator === null
             ? "IncludesOneOf"
@@ -968,50 +871,13 @@ async function parseAgentWebTaskFilterCollectionsRun(
               ? "IncludesAllOf"
               : "ExcludesAllOf";
 
-    const filterPromises: Array<Promise<ApiTaskFilter>> = [];
-    let segment: Array<string> = [];
-    let segmentExists = false;
+    const collections = await runAllPromises(
+        values.map(async value => ({
+            id: await parseAgentWebTaskFilterCollectionId(storage, value),
+        })),
+    );
 
-    const flushSegment = () => {
-        if (segment.length === 0 && !segmentExists) return;
-
-        const collectionValues = segment;
-        segment = [];
-        segmentExists = false;
-
-        filterPromises.push(
-            (async (): Promise<ApiTaskFilter> => {
-                const collections = await runAllPromises(
-                    collectionValues.map(async value => ({
-                        id: await parseAgentWebTaskFilterCollectionId(storage, value),
-                    })),
-                );
-
-                return {type: "Collections", operation: {type: operationType, collections}};
-            })(),
-        );
-    };
-
-    for (const value of values) {
-        if (value === "none" && operator === null) {
-            flushSegment();
-            filterPromises.push(
-                Promise.resolve({type: "Collections", operation: {type: "IsEmpty"}}),
-            );
-        } else if (value.length === 0) {
-            // An empty value doesn't add a collection but does mark that the run exists so a
-            // run of only empty values (`collection=`) is a collection filter with no
-            // collections which is a filter that hasn't been fully configured in the task
-            // filter editor UI yet.
-            segmentExists = true;
-        } else {
-            segment.push(value);
-        }
-    }
-
-    flushSegment();
-
-    return await runAllPromises(filterPromises);
+    return {type: "Collections", operation: {type: operationType, collections}};
 }
 
 async function parseAgentWebTaskFilterCollectionId(
