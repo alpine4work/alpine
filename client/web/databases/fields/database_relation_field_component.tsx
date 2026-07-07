@@ -33,6 +33,7 @@ import {
     type DatabaseGridViewCellEditorOverlayProps,
     defineDatabaseFieldComponentProvider,
 } from "~/client/web/databases/fields/database_field_component_provider.js";
+import {gridRowHeight} from "~/client/web/databases/grid_view/database_grid_view_constants.js";
 import {useReactiveDatabaseAction} from "~/client/web/databases/use_reactive_database_action.js";
 import {Box} from "~/client/web/design/box.js";
 import {IconButton} from "~/client/web/design/icon_button.js";
@@ -299,7 +300,7 @@ function DatabaseRelationGridViewCellEditorOverlay({
             ref={ref as React.Ref<HTMLDivElement>}
             border="theme-40-const"
             backgroundColor="grey-0"
-            boxShadow="elevation-20"
+            // boxShadow="elevation-20"
             display="flex"
             flexDirection="column"
             onKeyDown={event => {
@@ -321,9 +322,8 @@ function DatabaseRelationGridViewCellEditorOverlay({
                 alignItems="center"
                 gap="1.5"
                 paddingX="2"
-                borderBottom="grey-5"
                 flexShrink="0"
-                style={{height: 40}}
+                height={gridRowHeight}
             >
                 <Box color="grey-40" display="flex" alignItems="center" flexShrink="0">
                     <MagnifyingGlass size={16} />
@@ -378,7 +378,12 @@ function DatabaseRelationGridViewCellEditorOverlay({
                 ) : null}
             </Box>
 
-            <Box ref={listScrollRef} paddingY="1" style={{maxHeight: 320, overflowY: "auto"}}>
+            <Box
+                borderTop="grey-5"
+                ref={listScrollRef}
+                // paddingY="1"
+                style={{maxHeight: 320, overflowY: "auto"}}
+            >
                 {!isSearching && linkedRows.length > 0 ? (
                     <DatabaseRelationLinkedList
                         linkedRows={linkedRows}
