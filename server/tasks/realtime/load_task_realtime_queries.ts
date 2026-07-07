@@ -36,7 +36,7 @@ import {AccountId, SiteId, SpaceId, TaskCollectionId, TaskId} from "~/shared/id/
 import {SitePreviewModel} from "~/shared/sites/site_model.js";
 import {collectReferencedIdsFromTaskCollectionModelData} from "~/shared/tasks/model/collect_referenced_ids_from_task_collection_model_data.js";
 import {collectReferencedIdsFromTaskModelData} from "~/shared/tasks/model/collected_referenced_ids_from_task_model_data.js";
-import {decodeApiTaskCursor} from "~/shared/tasks/model/encode_api_task_cursor.js";
+import {decodeApiTaskCursor} from "~/shared/tasks/model/api_task_cursor_encoder.js";
 import {
     TaskQueryNormalizedFilters,
     normalizeTaskQueryFilters,

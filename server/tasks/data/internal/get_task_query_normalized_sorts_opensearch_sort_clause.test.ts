@@ -24,7 +24,7 @@ import {SpaceId, TaskCollectionId, TaskId} from "~/shared/id/types/id_types.js";
 import {
     decodeApiTaskCursor,
     encodeApiTaskCursor,
-} from "~/shared/tasks/model/encode_api_task_cursor.js";
+} from "~/shared/tasks/model/api_task_cursor_encoder.js";
 import {getTaskQueryNormalizedSortCursorForModel} from "~/shared/tasks/model/get_task_query_normalized_sort_cursor_for_model.js";
 import {TaskModel} from "~/shared/tasks/model/task_model.js";
 import {TaskFilterableTime} from "~/shared/tasks/task_filterable_time.js";
