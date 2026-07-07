@@ -9,6 +9,7 @@ import {
 } from "~/server/cloudflare/context/worker_process_context.js";
 import {createDurableObject} from "~/server/cloudflare/create_durable_object.js";
 import {BrowserPageTracker} from "~/server/databases/browser_page_tracker.js";
+import {buildDatabasePageDiffs} from "~/server/databases/build_database_page_diffs.js";
 import {
     DatabaseDurableObjectConnection,
     DatabaseRealtimeEventStub,
@@ -21,7 +22,8 @@ import {DatabaseActionObjectSchema} from "~/shared/databases/database_actions.js
 import {DatabaseRealtimeProtocol} from "~/shared/databases/database_realtime_protocol.js";
 import {InvalidArgumentError, NotFoundError} from "~/shared/error/error.js";
 import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
-import type {BrowserId} from "~/shared/id/types/id_types.js";
+import {generateId} from "~/shared/id/id.js";
+import type {BrowserId, DatabaseMutationId} from "~/shared/id/types/id_types.js";
 import {SchemaSerializedValue} from "~/shared/schema/schema.js";
 
 type DatabaseGroupDurableObjectRoute = "Main" | "Action" | "NotFound";
@@ -138,6 +140,20 @@ class DatabaseGroupDurableObject {
         );
 
         const actionResult = this._server.executeAction(context, actionObject);
+
+        // Mutations through this route must reach realtime subscribers just like websocket
+        // mutations, or every connected client keeps serving the pre-mutation state. No
+        // client has this mutation queued optimistically, so a fresh `mutationId` is
+        // delivered as an external mutation.
+        const pageDiffs = buildDatabasePageDiffs(actionResult.changedPages, actionResult.readPages);
+        if (pageDiffs.size > 0) {
+            this._webSocketServer.sendEventToAll(this._processContext, {
+                type: "PagesChanged",
+                pageDiffs,
+                mutationId: generateId<DatabaseMutationId>(),
+            });
+        }
+
         return new Response(
             JSON.stringify(
                 DatabaseActionFetchResponseSchema.serialize({

@@ -650,22 +650,17 @@ test("a restarted client revalidates cached per-table files at cold open", async
 });
 
 // ---------------------------------------------------------------------------
-// Known client/server desync issues
+// Out-of-band mutations
 // ---
-//
-// Each test below asserts the _desired_ behavior and is marked `test.failing`
-// because the current protocol implementation gets it wrong. Remove the `.failing`
-// marker as each issue is fixed.
 //
 // ---
 
-// The durable object's HTTP `/action` route executes mutations without
-// broadcasting `PagesChanged`, so realtime subscribers never hear about them:
-// connected clients keep serving the pre-mutation state until some unrelated
-// mutation happens to touch the same pages (whose diff then mismatches and forces
-// a re-fetch). Anything that writes through the route — a loader, a server-side
-// agent — silently desyncs every open client.
-test.failing("a mutation through the HTTP action route reaches realtime subscribers", async () => {
+// The durable object's HTTP `/action` route executes mutations from outside the
+// websocket protocol — loaders, server-side agents. It must broadcast
+// `PagesChanged` like websocket mutations do, or every connected client keeps
+// serving the pre-mutation state until some unrelated mutation happens to touch
+// the same pages.
+test("a mutation through the HTTP action route reaches realtime subscribers", async () => {
     const databaseGroupId = generateId<DatabaseGroupId>();
     const table = await createTableOnServer(databaseGroupId);
     const reader = await createWarmClient(databaseGroupId, table);

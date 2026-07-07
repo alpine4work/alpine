@@ -395,12 +395,14 @@ export class DatabaseConnectionManager {
             case "PagesChanged": {
                 const clientPromise = this.databaseGroups.get(databaseGroupId)?.clientPromise;
                 if (clientPromise === undefined) return;
-                clientPromise.then(
-                    client => {
+                // `.catch` rather than a two-argument `.then`: it must also capture a throw from
+                // `writePageDiffsFromRealtime` itself (e.g. its confirmation-order assert), not
+                // just a failed client cold-open.
+                clientPromise
+                    .then(client => {
                         client.writePageDiffsFromRealtime(event.pageDiffs, event.mutationId);
-                    },
-                    error => this.reportError(error),
-                );
+                    })
+                    .catch(error => this.reportError(error));
                 break;
             }
         }

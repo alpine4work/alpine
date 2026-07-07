@@ -174,10 +174,14 @@ export class DatabaseClient {
                 if (store.writePageIfNewer(pageIndex, version, data)) {
                     this.addPageToInvalidate(tableId, pageIndex);
                     anyChanged = true;
+                } else if (!store.hasPage(pageIndex)) {
+                    // A tombstone rejected the write (a newer version exists whose data we don't
+                    // have). Acknowledging would mark the page "confirmed" in the server's per-browser
+                    // tracker, which then filters it out of every future response — the cache could
+                    // never heal.
+                    continue;
                 }
-            }
-            if (updatedPages.size > 0) {
-                acknowledgedPageIndexes.set(tableId, [...updatedPages.keys()]);
+                getOrSetDefaultMapValue(acknowledgedPageIndexes, tableId, () => []).push(pageIndex);
             }
             if (stalePageIndexes.length > 0) {
                 store.deletePages(new Set(stalePageIndexes));
@@ -525,12 +529,13 @@ export class DatabaseClient {
     private applyServerPages(
         readPages: DatabasePages,
         fileSizesInPages: ReadonlyMap<DatabaseTableId, number> | null,
-    ): void {
+    ): Map<DatabaseTableId, Array<number>> {
         // Caller is expected to have cleared the buffer (executeActionViaServer calls
         // discardBuffer before us) so storage mutations don't conflict with stale buffered
         // writes.
         this.database.assertBufferIsEmpty("applyServerPages");
         let anyWritten = false;
+        const acknowledgedPageIndexes = new Map<DatabaseTableId, Array<number>>();
         for (const [tableId, tablePages] of readPages) {
             const store = this.storage.get(tableId);
             assert(
@@ -541,7 +546,14 @@ export class DatabaseClient {
                 if (store.writePageIfNewer(pageIndex, version, data)) {
                     this.addPageToInvalidate(tableId, pageIndex);
                     anyWritten = true;
+                } else if (!store.hasPage(pageIndex)) {
+                    // A tombstone rejected the write (a newer version exists whose data we don't
+                    // have). Acknowledging would mark the page "confirmed" in the server's per-browser
+                    // tracker, which then filters it out of every future response — the cache could
+                    // never heal.
+                    continue;
                 }
+                getOrSetDefaultMapValue(acknowledgedPageIndexes, tableId, () => []).push(pageIndex);
             }
             // The response's pages may be a sparse subset of the table file, so the store must
             // serve the canonical file size rather than deriving one from the highest cached
@@ -555,6 +567,7 @@ export class DatabaseClient {
         if (anyWritten) {
             this.scheduleInvalidation();
         }
+        return acknowledgedPageIndexes;
     }
 
     private removeOptimisticMutation(mutationId: DatabaseMutationId): void {
@@ -648,10 +661,21 @@ export class DatabaseClient {
      * queue, and schedules invalidation for affected reactive actions.
      */
     async writeLoaderPages(pages: DatabasePages): Promise<void> {
+        // Open every store before touching the buffer. `openStore` can await, and there
+        // must be no `await` between `discardBuffer()` and `replayOptimisticQueue()`
+        // below: worker RPC handlers aren't serialized, so an optimistic action arriving
+        // in that window would execute against a discarded-but-not-replayed state and then
+        // be applied a second time by the replay. Opening a store is safe while the
+        // optimistic buffer is still live — it performs no reads or writes.
+        const stores = new Map<DatabaseTableId, OpfsPageStore>();
+        for (const tableId of pages.keys()) {
+            stores.set(tableId, await this.openStore(tableId));
+        }
+
         this.database.discardBuffer();
         let anyWritten = false;
         for (const [tableId, tablePages] of pages) {
-            const store = await this.openStore(tableId);
+            const store = stores.get(tableId)!;
             for (const [pageIndex, {version, data}] of tablePages) {
                 if (store.writePageIfNewer(pageIndex, version, data)) {
                     this.addPageToInvalidate(tableId, pageIndex);
@@ -730,13 +754,10 @@ export class DatabaseClient {
         // `await` — so the buffer can't be re-dirtied underneath us.
         this.database.discardBuffer();
         if (serverResult.readPages !== null) {
-            this.applyServerPages(serverResult.readPages, serverResult.fileSizesInPages);
-            const acknowledged = new Map<DatabaseTableId, Array<number>>();
-            for (const [tableId, tablePages] of serverResult.readPages) {
-                if (tablePages.size > 0) {
-                    acknowledged.set(tableId, [...tablePages.keys()]);
-                }
-            }
+            const acknowledged = this.applyServerPages(
+                serverResult.readPages,
+                serverResult.fileSizesInPages,
+            );
             if (acknowledged.size > 0) {
                 conn.acknowledgePages(acknowledged);
             }

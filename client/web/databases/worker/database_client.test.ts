@@ -682,6 +682,69 @@ describe("optimistic mutations", () => {
     });
 });
 
+describe("writeLoaderPages", () => {
+    // `writeLoaderPages` must not await between dropping the optimistic buffer and
+    // replaying the queue: worker RPC handlers aren't serialized, so an optimistic
+    // action arriving in that window executes against a discarded-but-not-replayed
+    // state and is then applied a second time by the replay.
+    test("concurrent optimistic action during writeLoaderPages is not applied twice", async () => {
+        const dir = createInMemoryOpfsDirectoryHandle();
+        const client = await DatabaseClient.create(dir);
+        client.executeLocallyForTests(sql`CREATE TABLE t (id INTEGER PRIMARY KEY, val TEXT)`);
+        client.commitOptimisticPagesForTests();
+
+        const conn = makeDatabaseClientConnection({
+            executeActionServer() {
+                return new Promise(() => {});
+            },
+        });
+        await execute(
+            client,
+            conn,
+            sql`
+                INSERT INTO
+                    t (val)
+                VALUES
+                    ('first')
+            `,
+        );
+
+        // Loader pages snapshotted before the optimistic mutation — the store already has
+        // these versions, so applying them changes nothing.
+        const {pages} = await extractOpfsPages(dir);
+        const loaderPages = new Map([[databaseMainTableId, pagesToMap(pages)]]);
+
+        // Fire a second optimistic action inside writeLoaderPages' await window.
+        const writePromise = client.writeLoaderPages(loaderPages);
+        const insertPromise = execute(
+            client,
+            conn,
+            sql`
+                INSERT INTO
+                    t (val)
+                VALUES
+                    ('second')
+            `,
+        );
+        await writePromise;
+        await insertPromise;
+
+        const rows = await execute(
+            client,
+            testConn,
+            sql`
+                SELECT
+                    val
+                FROM
+                    t
+                ORDER BY
+                    id
+            `,
+        );
+        expect(rows).toMatchObject([{val: "first"}, {val: "second"}]);
+    });
+});
+
 describe("ensureCacheIsUpToDate", () => {
     // A cache-validation response can race a newer realtime diff: the diff mismatches
     // its base (tombstoning the page at the diff's version), and the validation
@@ -691,7 +754,7 @@ describe("ensureCacheIsUpToDate", () => {
     // server's per-browser tracker, which then filters it out of every future
     // `executeAction` response — so the cache can never heal and every read of that
     // page falls back to the server forever.
-    test.failing("does not acknowledge pages a tombstone rejected", async () => {
+    test("does not acknowledge pages a tombstone rejected", async () => {
         const serverDir = createInMemoryOpfsDirectoryHandle();
         const server = await DatabaseClient.create(serverDir);
         server.executeLocallyForTests(sql`CREATE TABLE t (id INTEGER PRIMARY KEY, data TEXT)`);
