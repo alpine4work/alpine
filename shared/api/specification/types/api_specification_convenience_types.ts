@@ -383,8 +383,6 @@ export type ApiTaskCollectionPreview =
 export type ApiTaskCollectionPreviewResponse =
     ApiSpecification.components["schemas"]["TaskCollectionPreview_Response"];
 
-export type ApiTaskCollectionTask = ApiSpecification.components["schemas"]["TaskCollectionTask"];
-
 export type ApiTaskQueryDefaults = ApiSpecification.components["schemas"]["TaskQueryDefaults"];
 
 export type ApiTaskQueryDefaultsResponse =
@@ -765,6 +763,9 @@ export type ApiPostPreviewResponse = ApiSpecification.components["schemas"]["Pos
 export type ApiTaskCollectionItemResponse =
     ApiSpecification.components["schemas"]["TaskCollectionItem_Response"];
 
+export type ApiTaskWithoutNotesResponse =
+    ApiSpecification.components["schemas"]["TaskWithoutNotes_Response"];
+
 export type ApiMessageContentPayloadParentResponse =
     ApiSpecification.components["schemas"]["MessageContentPayloadParent_Response"];
 
@@ -821,9 +822,6 @@ export type ApiTaskSetAssigneePatchResponse =
 
 export type ApiTaskSetParentPatchResponse =
     ApiSpecification.components["schemas"]["TaskSetParentPatch_Response"];
-
-export type ApiTaskWithoutNotesResponse =
-    ApiSpecification.components["schemas"]["TaskWithoutNotes_Response"];
 
 export type ApiDirectChatResponse = ApiSpecification.components["schemas"]["DirectChat_Response"];
 
@@ -910,9 +908,6 @@ export type ApiSearchResultResponse =
     ApiSpecification.components["schemas"]["SearchResult_Response"];
 
 export type ApiTaskPatchResponse = ApiSpecification.components["schemas"]["TaskPatch_Response"];
-
-export type ApiTaskCollectionTaskResponse =
-    ApiSpecification.components["schemas"]["TaskCollectionTask_Response"];
 
 export type ApiChatResponse = ApiSpecification.components["schemas"]["Chat_Response"];
 

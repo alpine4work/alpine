@@ -1573,7 +1573,7 @@ paths:
                                     tasks:
                                         type: array
                                         items:
-                                            $ref: "#/components/schemas/TaskCollectionTask"
+                                            $ref: "#/components/schemas/TaskWithoutNotes"
 
     /files/{id}:
         parameters:
@@ -3657,6 +3657,9 @@ components:
         TaskQueryCursor:
             type: string
 
+        TaskCollectionCursor:
+            type: string
+
         Task:
             type: object
             # NOCOMMIT: Make notes optional. If notes is empty the object shouldn't be present
@@ -3846,9 +3849,11 @@ components:
 
         TaskCollectionItem:
             type: object
-            required: [collection]
+            required: [cursor, collection]
             additionalProperties: false
             properties:
+                cursor:
+                    $ref: "#/components/schemas/TaskCollectionCursor"
                 collection:
                     $ref: "#/components/schemas/TaskCollectionPreview"
 
@@ -4026,9 +4031,9 @@ components:
                 type:
                     const: Between
                 afterCursor:
-                    $ref: "#/components/schemas/TaskQueryCursor"
+                    $ref: "#/components/schemas/TaskCollectionCursor"
                 beforeCursor:
-                    $ref: "#/components/schemas/TaskQueryCursor"
+                    $ref: "#/components/schemas/TaskCollectionCursor"
 
         TaskCollectionPatch:
             oneOf:
@@ -4147,17 +4152,6 @@ components:
                     $ref: "#/components/schemas/TaskCollectionId"
                 name:
                     $ref: "#/components/schemas/LabelString"
-
-        # NOCOMMIT: Perhaps get rid of this and move it into the `Task` object?
-        TaskCollectionTask:
-            type: object
-            required: [cursor, task]
-            additionalProperties: false
-            properties:
-                cursor:
-                    $ref: "#/components/schemas/TaskQueryCursor"
-                task:
-                    $ref: "#/components/schemas/TaskWithoutNotes"
 
         TaskQueryDefaults:
             type: object

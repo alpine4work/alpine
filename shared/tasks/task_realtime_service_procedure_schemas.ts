@@ -1,5 +1,5 @@
 import {ErrorSchema} from "~/shared/error/error_schema.js";
-import {ApiTaskQueryCursor} from "~/shared/id/types/api_task_query_cursor.js";
+import {ApiTaskQueryCursor} from "~/shared/id/types/api_task_cursors.js";
 import {
     BrowserId,
     TaskCollectionId,
@@ -50,9 +50,9 @@ export const TaskRealtimeLoadQueriesInputQuerySchema = Schema.union({
         //   However, if this is a large query and it isn't loaded in `TaskRealtimeService`
         //   then we may need to load thousands of tasks.
         //
-        // - This is an `ApiTaskQueryCursor` instead of a `TaskQuerySortCursor` because we need
-        //   the `TaskQueryNormalizedSort`s to parse an `ApiTaskQueryCursor` but the API doesn't
-        //   have the collection's default sorts, that'll be loaded in
+        // - This is an `ApiTaskQueryCursor` instead of a `TaskQuerySortCursor` because we
+        //   need the `TaskQueryNormalizedSort`s to parse an `ApiTaskQueryCursor` but the
+        //   API doesn't have the collection's default sorts, that'll be loaded in
         //   `TaskRealtimeService`.
         expensivelyAfterCursorForApi: Schema.stringAs<ApiTaskQueryCursor>().optional(),
     }),

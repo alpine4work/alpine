@@ -1,7 +1,7 @@
 import {InvalidArgumentError} from "~/shared/error/error.js";
 import {assertOrderKey} from "~/shared/helpers/sort/order_key.js";
 import {assertId} from "~/shared/id/id.js";
-import {ApiTaskQueryCursor} from "~/shared/id/types/api_task_query_cursor.js";
+import {ApiTaskQueryCursor} from "~/shared/id/types/api_task_cursors.js";
 import {TaskCollectionId, TaskId} from "~/shared/id/types/id_types.js";
 import {
     decodeApiTaskQueryCursor,

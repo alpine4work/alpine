@@ -53,7 +53,7 @@ import {defaultTimeZone} from "~/shared/helpers/intl/time_zone.js";
 import {findMapIterable} from "~/shared/helpers/iterable/find_map_iterable.js";
 import {emptyMap} from "~/shared/helpers/map/empty_map.js";
 import {generateId} from "~/shared/id/id.js";
-import {ApiTaskQueryCursor} from "~/shared/id/types/api_task_query_cursor.js";
+import {ApiTaskQueryCursor} from "~/shared/id/types/api_task_cursors.js";
 import {TaskCollectionId, TaskId} from "~/shared/id/types/id_types.js";
 import {MessageContentPayload} from "~/shared/messaging/message_schema.js";
 import {MessagingRealtimeBroadcastNewMessageRequestSchema} from "~/shared/messaging/messaging_realtime_protocol.js";
@@ -826,10 +826,7 @@ export const apiTasksPaths: Pick<
                     spaceId,
                     collection: intoApiTaskCollection(collection),
                     nextCursor,
-                    tasks: tasks.map(({cursor, task}) => ({
-                        cursor: encodeApiTaskQueryCursor(sorts, cursor),
-                        task: converter.into(task),
-                    })),
+                    tasks: tasks.map(({task}) => converter.into(task)),
                 },
             };
         },

@@ -1730,7 +1730,7 @@ paths:
                                     tasks:
                                         type: array
                                         items:
-                                            $ref: "#/components/schemas/TaskCollectionTask_Response"
+                                            $ref: "#/components/schemas/TaskWithoutNotes_Response"
                 default:
                     $ref: "#/components/responses/Error"
     /files/{id}:
@@ -4267,6 +4267,8 @@ components:
                             type: string
         TaskQueryCursor:
             type: string
+        TaskCollectionCursor:
+            type: string
         Task:
             type: object
             required:
@@ -4469,9 +4471,12 @@ components:
         TaskCollectionItem:
             type: object
             required:
+                - cursor
                 - collection
             additionalProperties: false
             properties:
+                cursor:
+                    $ref: "#/components/schemas/TaskCollectionCursor"
                 collection:
                     $ref: "#/components/schemas/TaskCollectionPreview"
         TaskPatch:
@@ -4660,9 +4665,9 @@ components:
                 type:
                     const: Between
                 afterCursor:
-                    $ref: "#/components/schemas/TaskQueryCursor"
+                    $ref: "#/components/schemas/TaskCollectionCursor"
                 beforeCursor:
-                    $ref: "#/components/schemas/TaskQueryCursor"
+                    $ref: "#/components/schemas/TaskCollectionCursor"
         TaskCollectionPatch:
             oneOf:
                 - $ref: "#/components/schemas/TaskCollectionSetNamePatch"
@@ -4792,17 +4797,6 @@ components:
                     $ref: "#/components/schemas/TaskCollectionId"
                 name:
                     $ref: "#/components/schemas/LabelString"
-        TaskCollectionTask:
-            type: object
-            required:
-                - cursor
-                - task
-            additionalProperties: false
-            properties:
-                cursor:
-                    $ref: "#/components/schemas/TaskQueryCursor"
-                task:
-                    $ref: "#/components/schemas/TaskWithoutNotes"
         TaskQueryDefaults:
             type: object
             required: []
@@ -6722,11 +6716,51 @@ components:
         TaskCollectionItem_Response:
             type: object
             required:
+                - cursor
                 - collection
             additionalProperties: false
             properties:
+                cursor:
+                    $ref: "#/components/schemas/TaskCollectionCursor"
                 collection:
                     $ref: "#/components/schemas/TaskCollectionPreview_Response"
+        TaskWithoutNotes_Response:
+            type: object
+            required:
+                - id
+                - status
+                - title
+            additionalProperties: false
+            properties:
+                id:
+                    $ref: "#/components/schemas/TaskId"
+                creator:
+                    type: object
+                    required:
+                        - id
+                    additionalProperties: false
+                    properties:
+                        id:
+                            $ref: "#/components/schemas/AccountId"
+                status:
+                    $ref: "#/components/schemas/TaskStatus"
+                title:
+                    type: string
+                    maxLength: 512
+                assignee:
+                    $ref: "#/components/schemas/Account_Response"
+                due:
+                    $ref: "#/components/schemas/TaskDue"
+                priority:
+                    $ref: "#/components/schemas/TaskPriority"
+                layout:
+                    $ref: "#/components/schemas/TaskLayout"
+                parent:
+                    $ref: "#/components/schemas/TaskParent_Response"
+                collections:
+                    type: array
+                    items:
+                        $ref: "#/components/schemas/TaskCollectionItem_Response"
         MessageContentPayloadParent_Response:
             oneOf:
                 - $ref: "#/components/schemas/MessageContentPayloadMessageParent_Response"
@@ -7432,43 +7466,6 @@ components:
                     oneOf:
                         - $ref: "#/components/schemas/TaskParent_Response"
                         - type: "null"
-        TaskWithoutNotes_Response:
-            type: object
-            required:
-                - id
-                - status
-                - title
-            additionalProperties: false
-            properties:
-                id:
-                    $ref: "#/components/schemas/TaskId"
-                creator:
-                    type: object
-                    required:
-                        - id
-                    additionalProperties: false
-                    properties:
-                        id:
-                            $ref: "#/components/schemas/AccountId"
-                status:
-                    $ref: "#/components/schemas/TaskStatus"
-                title:
-                    type: string
-                    maxLength: 512
-                assignee:
-                    $ref: "#/components/schemas/Account_Response"
-                due:
-                    $ref: "#/components/schemas/TaskDue"
-                priority:
-                    $ref: "#/components/schemas/TaskPriority"
-                layout:
-                    $ref: "#/components/schemas/TaskLayout"
-                parent:
-                    $ref: "#/components/schemas/TaskParent_Response"
-                collections:
-                    type: array
-                    items:
-                        $ref: "#/components/schemas/TaskCollectionItem_Response"
         DirectChat_Response:
             type: object
             required:
@@ -8075,17 +8072,6 @@ components:
                     AddCollection: "#/components/schemas/TaskAddCollectionPatch_Response"
                     RemoveCollection: "#/components/schemas/TaskRemoveCollectionPatch"
                     MoveInCollection: "#/components/schemas/TaskMoveInCollectionPatch"
-        TaskCollectionTask_Response:
-            type: object
-            required:
-                - cursor
-                - task
-            additionalProperties: false
-            properties:
-                cursor:
-                    $ref: "#/components/schemas/TaskQueryCursor"
-                task:
-                    $ref: "#/components/schemas/TaskWithoutNotes_Response"
         Chat_Response:
             oneOf:
                 - $ref: "#/components/schemas/DirectChat_Response"
