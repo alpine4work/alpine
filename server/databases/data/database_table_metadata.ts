@@ -1,4 +1,3 @@
-import {intoEffectiveAccessPolicy} from "~/server/access/into_effective_access_policy.js";
 import type {ServerActionContext} from "~/server/context/server_action_context.js";
 import {fetchDatabaseGroupAction} from "~/server/databases/data/fetch_database_action.js";
 import {DatabaseTablesTable} from "~/server/databases/data/internal/database_tables_table.js";
@@ -8,15 +7,12 @@ import {
     getDatabaseGroupIdForSpace,
     getExistingDatabaseGroupIdForSpace,
 } from "~/server/spaces/get_database_group_id_for_space.js";
-import {
-    type AccessPolicy,
-    AccessPolicySchema,
-    type LocalAccessPolicy,
-} from "~/shared/access/access_policy.js";
+import {type AccessPolicy, type LocalAccessPolicy} from "~/shared/access/access_policy.js";
 import {databaseTableAccessPolicyForCreator} from "~/shared/databases/database_table_access_policy.js";
 import {DatabaseTableMetadataModel} from "~/shared/databases/database_table_metadata_model.js";
 import {NotFoundError} from "~/shared/error/error.js";
 import {assert} from "~/shared/helpers/control/assert.js";
+import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
 import {generateChronologicalId} from "~/shared/id/chronological_id.js";
 import type {
     DatabaseGroupId,
@@ -162,18 +158,20 @@ async function resolveDatabaseTableAccessPolicyForDurableObjectSync(
     context: ServerActionContext,
     accessPolicy: AccessPolicy,
 ): Promise<LocalAccessPolicy> {
-    const effectiveAccessPolicy = await intoEffectiveAccessPolicy(context, accessPolicy, {
-        consistency: "StrongWithinCache",
-    });
-    const localAccessPolicy = AccessPolicySchema.deserialize(
-        AccessPolicySchema.serialize({
-            type: "Local",
-            accountGrantById: effectiveAccessPolicy.accountGrantById,
-            defaultGrant: effectiveAccessPolicy.defaultGrant,
-            urlGrant: effectiveAccessPolicy.urlGrant,
-        } as AccessPolicy),
-    );
-    assert(localAccessPolicy.type === "Local");
-
-    return localAccessPolicy;
+    switch (accessPolicy.type) {
+        case "Local": {
+            const localAccessPolicy: LocalAccessPolicy = accessPolicy;
+            return localAccessPolicy;
+        }
+        case "Site": {
+            const localAccessPolicy: LocalAccessPolicy =
+                await context.sitesInjection.dangerouslyGetSiteAccessPolicyWithoutAuthorization(
+                    accessPolicy.siteId,
+                    {consistency: "StrongWithinCache"},
+                );
+            return localAccessPolicy;
+        }
+        default:
+            throw exhaustive(accessPolicy);
+    }
 }
