@@ -1048,3 +1048,34 @@ export type ApiTaskCreatorFilterResponse =
 
 export type ApiTaskAssignerFilterResponse =
     ApiSpecification.components["schemas"]["TaskAssignerFilter_Response"];
+
+export type ApiErrorResponse = ApiSpecification.components["responses"]["Error"];
+
+export type ApiGetChatResponse = ApiSpecification.components["responses"]["GetChat"];
+
+export type ApiGetDocumentResponse = ApiSpecification.components["responses"]["GetDocument"];
+
+export type ApiGetTaskResponse = ApiSpecification.components["responses"]["GetTask"];
+
+export type ApiGetTaskNotesResponse = ApiSpecification.components["responses"]["GetTaskNotes"];
+
+export type ApiGetMessageResponse = ApiSpecification.components["responses"]["GetMessage"];
+
+export type ApiGetMessagesResponse = ApiSpecification.components["responses"]["GetMessages"];
+
+export type ApiGetMessageStreamCompletionResponse =
+    ApiSpecification.components["responses"]["GetMessageStreamCompletion"];
+
+export type ApiGetMessageStreamPingResponse =
+    ApiSpecification.components["responses"]["GetMessageStreamPing"];
+
+export type ApiGetMessageStreamPartResponse =
+    ApiSpecification.components["responses"]["GetMessageStreamPart"];
+
+export type ApiGetPostResponse = ApiSpecification.components["responses"]["GetPost"];
+
+export type ApiCreateMessageRequestBody =
+    ApiSpecification.components["requestBodies"]["CreateMessage"];
+
+export type ApiPutMessageStreamPartRequestBody =
+    ApiSpecification.components["requestBodies"]["PutMessageStreamPart"];

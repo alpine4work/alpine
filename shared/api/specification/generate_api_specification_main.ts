@@ -330,6 +330,20 @@ ${codeBlockLanguageDefinitionMapContent}};\n`;
         specificationConvenienceTypesContent += `export type ${typeName} = ApiSpecification.components["schemas"]["${schemaName}"];\n\n`;
     }
 
+    for (const schemaName of Object.keys(parsedSpecification.components.responses)) {
+        const typeName = "Api" + schemaName + "Response";
+
+        // eslint-disable-next-line cyberworlds/string-quotes
+        specificationConvenienceTypesContent += `export type ${typeName} = ApiSpecification.components["responses"]["${schemaName}"];\n\n`;
+    }
+
+    for (const schemaName of Object.keys(parsedSpecification.components.requestBodies)) {
+        const typeName = "Api" + schemaName + "RequestBody";
+
+        // eslint-disable-next-line cyberworlds/string-quotes
+        specificationConvenienceTypesContent += `export type ${typeName} = ApiSpecification.components["requestBodies"]["${schemaName}"];\n\n`;
+    }
+
     specificationConvenienceTypesContent = await prettier.format(
         specificationConvenienceTypesContent,
         {
