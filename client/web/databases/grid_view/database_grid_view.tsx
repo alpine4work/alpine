@@ -39,9 +39,11 @@ import {
     type VirtualizedScrollViewRef,
 } from "~/client/web/virtualized/virtualized_scroll_view.js";
 import type {AccessPolicy} from "~/shared/access/access_policy.js";
+import {DatabaseTableMetadataModel} from "~/shared/databases/database_table_metadata_model.js";
 import type {DatabaseFieldValue} from "~/shared/databases/fields/all_database_field_providers.js";
 import {spacing} from "~/shared/design/core/spacing.js";
 import {remPxBySpacingScale} from "~/shared/design/core/spacing_scale.js";
+import type {RynamoEvent} from "~/shared/dynamo/rynamo_types.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 import {generateChronologicalId} from "~/shared/id/chronological_id.js";
 import type {
@@ -134,6 +136,7 @@ export function DatabaseGridView({
     tableName,
     initialAccessPolicy,
     accessPolicySiteById,
+    onTableMetadataEvents,
     fields,
     query,
 }: {
@@ -143,6 +146,7 @@ export function DatabaseGridView({
     tableName: string;
     initialAccessPolicy: AccessPolicy;
     accessPolicySiteById: ReadonlyMap<SiteId, SitePreviewModel>;
+    onTableMetadataEvents: (events: ReadonlyArray<RynamoEvent<DatabaseTableMetadataModel>>) => void;
     fields: ReadonlyArray<DatabaseGridViewField>;
     query: DatabaseQuery;
 }) {
@@ -484,10 +488,7 @@ export function DatabaseGridView({
                                     tableId,
                                     accessPolicy,
                                 });
-                                setAccessPolicyState(state => ({
-                                    ...state,
-                                    accessPolicy: result.accessPolicy,
-                                }));
+                                onTableMetadataEvents(result.events);
                             }}
                             onCopyLink={async () => {
                                 const url = new URL(

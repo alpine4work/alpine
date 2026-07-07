@@ -1,5 +1,7 @@
 import {
     createDatabaseTable,
+    getDatabaseTableMetadataItem,
+    getDatabaseTableMetadataRealtimeEvent,
     updateDatabaseTableAccessPolicy,
 } from "~/server/databases/data/database_table_metadata.js";
 import {implementRpcs} from "~/server/rpc/internal/implement_rpcs.js";
@@ -16,6 +18,26 @@ export default implementRpcs(definitions, {
         visibility: ["AppClient"],
         async execute(context, input) {
             return await updateDatabaseTableAccessPolicy(context, input);
+        },
+    },
+    getDatabaseTableMetadataItem: {
+        visibility: ["AppClient"],
+        async execute(context, input) {
+            return {
+                item: await getDatabaseTableMetadataItem(context.actor.authorizeSession(), input),
+            };
+        },
+    },
+    getDatabaseTableMetadataRealtimeEvent: {
+        visibility: ["DatabaseGroupService"],
+        async execute(context, input) {
+            return {
+                events: await getDatabaseTableMetadataRealtimeEvent(
+                    context.actor.authorizeSession(),
+                    input.databaseGroupId,
+                    input.events,
+                ),
+            };
         },
     },
 });

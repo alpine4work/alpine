@@ -5,16 +5,19 @@ import {DatabaseDurableObjectConnection} from "~/server/databases/database_durab
 import {DatabaseDurableObjectStorage} from "~/server/databases/database_durable_object_storage.js";
 import {truncateFor} from "~/server/databases/test_helpers/truncate_for.js";
 import {writePagesFor} from "~/server/databases/test_helpers/write_pages_for.js";
+import type {DatabaseTableMetadataModel} from "~/shared/databases/database_table_metadata_model.js";
 import {
     cacheUpdateStalePageLimit,
     databaseMainTableId,
     sqlitePageSize,
 } from "~/shared/databases/sqlite_constants.js";
+import type {RynamoEvent, RynamoEventStub} from "~/shared/dynamo/rynamo_types.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {generateChronologicalId} from "~/shared/id/chronological_id.js";
 import {generateId} from "~/shared/id/id.js";
 import type {
     BrowserId,
+    DatabaseGroupId,
     DatabaseMutationId,
     DatabaseTableId,
     WebSocketConnectionId,
@@ -33,9 +36,11 @@ function createConnection(doStorage: DatabaseDurableObjectStorage) {
         processContext: null as any,
         sendEventToAll: () => {},
         sendEventToSelf: () => {},
+        databaseGroupId: generateId<DatabaseGroupId>(),
         browserId: generateId<BrowserId>(),
         connectionId: generateId<WebSocketConnectionId>(),
         browserPageTracker: new BrowserPageTracker(),
+        trackPages: true,
     });
 }
 
@@ -269,6 +274,7 @@ function createTrackedConnection(
     doStorage: DatabaseDurableObjectStorage,
     tracker: BrowserPageTracker,
     browserId: BrowserId,
+    {trackPages = true}: {trackPages?: boolean} = {},
 ) {
     const connectionId = generateId<WebSocketConnectionId>();
     return new DatabaseDurableObjectConnection({
@@ -277,9 +283,11 @@ function createTrackedConnection(
         processContext: null as any,
         sendEventToAll: () => {},
         sendEventToSelf: () => {},
+        databaseGroupId: generateId<DatabaseGroupId>(),
         browserId,
         connectionId,
         browserPageTracker: tracker,
+        trackPages,
     });
 }
 
@@ -708,5 +716,74 @@ describe("per-browser page tracking", () => {
         const filtered = tracker.filterReadPages(browserId, pages);
         expect(filtered.get(databaseMainTableId)?.size).toBe(1);
         expect(filtered.get(databaseMainTableId)?.has(1)).toBe(true);
+    });
+
+    test("trackPages false does not register the browser for page tracking", () => {
+        const doStorage = new DatabaseDurableObjectStorage(storage);
+        const tracker = new BrowserPageTracker();
+        const browserId = generateId<BrowserId>();
+        createTrackedConnection(doStorage, tracker, browserId, {trackPages: false});
+
+        tracker.setPages(browserId, new Map([[databaseMainTableId, [0]]]));
+
+        expect(tracker.clientMightHavePage(browserId, databaseMainTableId, 0)).toBe(false);
+    });
+
+    test("transformEvent resolves table metadata events", async () => {
+        const doStorage = new DatabaseDurableObjectStorage(storage);
+        const tracker = new BrowserPageTracker();
+        const browserId = generateId<BrowserId>();
+        const databaseGroupId = generateId<DatabaseGroupId>();
+        const conn = new DatabaseDurableObjectConnection({
+            server: null as any,
+            durableObjectStorage: doStorage,
+            processContext: null as any,
+            sendEventToAll: () => {},
+            sendEventToSelf: () => {},
+            databaseGroupId,
+            browserId,
+            connectionId: generateId<WebSocketConnectionId>(),
+            browserPageTracker: tracker,
+            trackPages: false,
+        });
+        const eventStub: RynamoEventStub = {
+            type: "PutItem",
+            item: {key: "table-key" as any, version: 1},
+        };
+        const resolvedEvent: RynamoEvent<DatabaseTableMetadataModel> = {
+            type: "PutItem",
+            item: {
+                key: "table-key" as any,
+                version: 1,
+                model: {
+                    databaseGroupId,
+                    tableId: generateChronologicalId<DatabaseTableId>(),
+                    spaceId: generateId(),
+                    name: "Roadmap",
+                    isDeleted: false,
+                    accessPolicy: {type: "Local", accountGrants: new Map()},
+                    version: 1,
+                } as any,
+            },
+            indexes: new Map(),
+        };
+        const context = {
+            rpc: {
+                execute: async (_definition: any, _callId: unknown, input: unknown) => {
+                    expect(input).toMatchObject({
+                        databaseGroupId,
+                        events: [eventStub],
+                    });
+                    return {events: [resolvedEvent]};
+                },
+            },
+        };
+
+        const event = await conn.transformEvent(context as any, {
+            type: "TableMetadataChanged",
+            events: [eventStub],
+        });
+
+        expect(event).toEqual({type: "TableMetadataChanged", events: [resolvedEvent]});
     });
 });

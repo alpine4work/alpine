@@ -6,6 +6,8 @@ import {
     DatabasePageIndexesSchema,
     DatabasePageVersionsByIndexSchema,
 } from "~/shared/databases/database_protocol_schemas.js";
+import {DatabaseTableMetadataModel} from "~/shared/databases/database_table_metadata_model.js";
+import {RynamoEventStubSchema, createRynamoEventSchema} from "~/shared/dynamo/rynamo_types.js";
 import type {DatabaseMutationId} from "~/shared/id/types/id_types.js";
 import {Schema} from "~/shared/schema/schema.js";
 import {
@@ -14,6 +16,10 @@ import {
 } from "~/shared/web_socket/web_socket_protocol.js";
 
 export type DatabaseRealtimeEvent = WebSocketProtocolEventType<typeof DatabaseRealtimeProtocol>;
+
+export const DatabaseTableMetadataRealtimeEventSchema = createRynamoEventSchema(
+    DatabaseTableMetadataModel.schema(),
+);
 
 export const DatabaseRealtimeProtocol = defineWebSocketProtocol({
     procedures: {
@@ -36,5 +42,13 @@ export const DatabaseRealtimeProtocol = defineWebSocketProtocol({
             pageDiffs: DatabasePageDiffsSchema,
             mutationId: Schema.id<DatabaseMutationId>(),
         }),
+        TableMetadataChanged: Schema.object({
+            type: Schema.value("TableMetadataChanged"),
+            events: Schema.array(DatabaseTableMetadataRealtimeEventSchema),
+        }),
     },
+});
+
+export const DatabaseTableMetadataBroadcastRealtimeEventsSchema = Schema.object({
+    events: Schema.array(RynamoEventStubSchema),
 });

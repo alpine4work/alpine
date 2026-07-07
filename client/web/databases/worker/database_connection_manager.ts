@@ -405,6 +405,9 @@ export class DatabaseConnectionManager {
                     .catch(error => this.reportError(error));
                 break;
             }
+            case "TableMetadataChanged": {
+                break;
+            }
         }
     }
 

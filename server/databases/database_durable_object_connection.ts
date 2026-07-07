@@ -18,20 +18,28 @@ import {
     DatabaseRealtimeProtocol,
 } from "~/shared/databases/database_realtime_protocol.js";
 import {cacheUpdateStalePageLimit, sqlitePageSize} from "~/shared/databases/sqlite_constants.js";
+import type {RynamoEventStub} from "~/shared/dynamo/rynamo_types.js";
 import {PermissionDeniedError} from "~/shared/error/error.js";
 import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
 import type {
     BrowserId,
+    DatabaseGroupId,
     DatabaseMutationId,
     DatabaseTableId,
     WebSocketConnectionId,
 } from "~/shared/id/types/id_types.js";
+import {getDatabaseTableMetadataRealtimeEvent} from "~/shared/rpc/database_tables_rpc_definitions.js";
 
-export type DatabaseRealtimeEventStub = {
-    type: "PagesChanged";
-    pageDiffs: DatabasePageDiffs;
-    mutationId: DatabaseMutationId;
-};
+export type DatabaseRealtimeEventStub =
+    | {
+          type: "PagesChanged";
+          pageDiffs: DatabasePageDiffs;
+          mutationId: DatabaseMutationId;
+      }
+    | {
+          type: "TableMetadataChanged";
+          events: ReadonlyArray<RynamoEventStub>;
+      };
 
 export class DatabaseDurableObjectConnection {
     private readonly _server: DatabaseServer;
@@ -45,9 +53,11 @@ export class DatabaseDurableObjectConnection {
         event: DatabaseRealtimeEventStub,
     ) => void;
     private readonly _processContext: WorkerProcessContext;
+    private readonly _databaseGroupId: DatabaseGroupId;
     private readonly _browserId: BrowserId;
     private readonly _connectionId: WebSocketConnectionId;
     private readonly _browserPageTracker: BrowserPageTracker;
+    private readonly _trackPages: boolean;
 
     constructor({
         server,
@@ -55,28 +65,36 @@ export class DatabaseDurableObjectConnection {
         processContext,
         sendEventToAll,
         sendEventToSelf,
+        databaseGroupId,
         browserId,
         connectionId,
         browserPageTracker,
+        trackPages,
     }: {
         server: DatabaseServer;
         durableObjectStorage: DatabaseDurableObjectStorage;
         processContext: WorkerProcessContext;
         sendEventToAll: (context: WorkerProcessContext, event: DatabaseRealtimeEventStub) => void;
         sendEventToSelf: (context: WorkerProcessContext, event: DatabaseRealtimeEventStub) => void;
+        databaseGroupId: DatabaseGroupId;
         browserId: BrowserId;
         connectionId: WebSocketConnectionId;
         browserPageTracker: BrowserPageTracker;
+        trackPages: boolean;
     }) {
         this._server = server;
         this._durableObjectStorage = durableObjectStorage;
         this._processContext = processContext;
         this._sendEventToAll = sendEventToAll;
         this._sendEventToSelf = sendEventToSelf;
+        this._databaseGroupId = databaseGroupId;
         this._browserId = browserId;
         this._connectionId = connectionId;
         this._browserPageTracker = browserPageTracker;
-        this._browserPageTracker.registerConnection(browserId, connectionId);
+        this._trackPages = trackPages;
+        if (trackPages) {
+            this._browserPageTracker.registerConnection(browserId, connectionId);
+        }
     }
 
     public readonly procedures: WebSocketConnectionProcedures<
@@ -240,7 +258,9 @@ export class DatabaseDurableObjectConnection {
     };
 
     public handleClose(): void {
-        this._browserPageTracker.unregisterConnection(this._browserId, this._connectionId);
+        if (this._trackPages) {
+            this._browserPageTracker.unregisterConnection(this._browserId, this._connectionId);
+        }
     }
 
     public async authorize(): Promise<void> {
@@ -249,15 +269,25 @@ export class DatabaseDurableObjectConnection {
     }
 
     public async transformEvent(
-        _context: WorkerSessionActionContext,
+        context: WorkerSessionActionContext,
         eventStub: DatabaseRealtimeEventStub,
     ): Promise<DatabaseRealtimeEvent> {
         switch (eventStub.type) {
             case "PagesChanged": {
                 return eventStub;
             }
+            case "TableMetadataChanged": {
+                const {events} = await getDatabaseTableMetadataRealtimeEvent(context, {
+                    databaseGroupId: this._databaseGroupId,
+                    events: eventStub.events,
+                });
+                return {
+                    type: "TableMetadataChanged",
+                    events,
+                };
+            }
             default:
-                throw exhaustive(eventStub.type);
+                throw exhaustive(eventStub);
         }
     }
 }

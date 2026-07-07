@@ -10,7 +10,9 @@ import {
 import {type AccessPolicy, type LocalAccessPolicy} from "~/shared/access/access_policy.js";
 import {databaseTableAccessPolicyForCreator} from "~/shared/databases/database_table_access_policy.js";
 import {DatabaseTableMetadataModel} from "~/shared/databases/database_table_metadata_model.js";
+import type {RynamoEvent, RynamoEventStub, RynamoItem} from "~/shared/dynamo/rynamo_types.js";
 import {NotFoundError} from "~/shared/error/error.js";
+import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
 import {generateChronologicalId} from "~/shared/id/chronological_id.js";
@@ -79,14 +81,14 @@ export async function updateDatabaseTableAccessPolicy(
         tableId: DatabaseTableId;
         accessPolicy: AccessPolicy;
     },
-): Promise<{accessPolicy: AccessPolicy}> {
+): Promise<{events: ReadonlyArray<RynamoEvent<DatabaseTableMetadataModel>>}> {
     const sessionContext = context.actor.authorizeSession();
     await authorizeSpaceAccess(sessionContext, spaceId, "Member");
 
     const databaseGroupId = await getExistingDatabaseGroupIdForSpace(sessionContext, spaceId);
     let tableName: string | null = null;
 
-    await DatabaseTablesTable.updateItem(
+    const {getEvent} = await DatabaseTablesTable.updateItem(
         context,
         {partitionType: "DatabaseGroup", sortRangeType: "Table", databaseGroupId, tableId},
         item => {
@@ -123,13 +125,13 @@ export async function updateDatabaseTableAccessPolicy(
         }),
     );
 
-    return {accessPolicy};
+    return {events: [await getEvent(context)]};
 }
 
-export async function getDatabaseTableMetadata(
+export async function getDatabaseTableMetadataItem(
     context: ServerActionContext,
     {spaceId, tableId}: {spaceId: SpaceId; tableId: DatabaseTableId},
-): Promise<DatabaseTableMetadataModel> {
+): Promise<RynamoItem<DatabaseTableMetadataModel>> {
     const databaseGroupId = await getExistingDatabaseGroupIdForSpace(context, spaceId);
     const item = await DatabaseTablesTable.getRealtimeItemIfExists(
         context,
@@ -146,7 +148,47 @@ export async function getDatabaseTableMetadata(
         throw new NotFoundError(`Database table ${tableId} not found`);
     }
 
-    return item.model;
+    return item;
+}
+
+export async function getDatabaseTableMetadata(
+    context: ServerActionContext,
+    input: {spaceId: SpaceId; tableId: DatabaseTableId},
+): Promise<DatabaseTableMetadataModel> {
+    return (await getDatabaseTableMetadataItem(context, input)).model;
+}
+
+export async function getDatabaseTableMetadataRealtimeEvent(
+    context: ServerActionContext,
+    databaseGroupId: DatabaseGroupId,
+    events: ReadonlyArray<RynamoEventStub>,
+): Promise<ReadonlyArray<RynamoEvent<DatabaseTableMetadataModel>>> {
+    const actualEvents = (await DatabaseTablesTable.getRealtimeEvent(
+        context,
+        events.map(eventStub => {
+            const itemKey = DatabaseTablesTable.deserializeOpaqueItemKey(eventStub.item.key);
+
+            if (
+                itemKey.partitionType === "DatabaseGroup" &&
+                itemKey.databaseGroupId === databaseGroupId &&
+                itemKey.sortRangeType === "Table"
+            ) {
+                return {...eventStub, itemKey};
+            }
+
+            throw new NotFoundError("Database table metadata realtime event not found");
+        }),
+    )) as ReadonlyArray<RynamoEvent<DatabaseTableMetadataModel>>;
+
+    await runAllPromises(
+        actualEvents.map(async event => {
+            if (event.type === "PutItem") {
+                await authorizeSpaceAccess(context, event.item.model.spaceId, "Member");
+            }
+        }),
+    );
+
+    return actualEvents as ReadonlyArray<RynamoEvent<DatabaseTableMetadataModel>>;
 }
 
 export async function getDatabaseTableMetadataForSearchIndex(
