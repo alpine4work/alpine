@@ -36,9 +36,11 @@ import {
 import {gridRowHeight} from "~/client/web/databases/grid_view/database_grid_view_constants.js";
 import {useReactiveDatabaseAction} from "~/client/web/databases/use_reactive_database_action.js";
 import {Box} from "~/client/web/design/box.js";
+import {useOutsideInteraction} from "~/client/web/design/helpers/use_outside_interaction.js";
 import {IconButton} from "~/client/web/design/icon_button.js";
 import {useReporter} from "~/client/web/design/reporter.js";
 import {useEvent} from "~/client/web/helpers/lifecycle/use_event.js";
+import {useMergedRefs} from "~/client/web/helpers/refs/use_merged_refs.js";
 import {sprinkles} from "~/client/web/styles/styles.js";
 import {databaseRelationFieldProvider} from "~/shared/databases/fields/database_relation_field.js";
 import {noop} from "~/shared/helpers/control/noop.js";
@@ -295,9 +297,13 @@ function DatabaseRelationGridViewCellEditorOverlay({
         comboBoxState,
     );
 
+    // Close the picker when the account presses (or moves focus) outside of it, merged
+    // with the positioning ref the `Overlay` provides.
+    const rootRef = useMergedRefs(ref as React.Ref<HTMLDivElement>, useOutsideInteraction(onClose));
+
     return (
         <Box
-            ref={ref as React.Ref<HTMLDivElement>}
+            ref={rootRef}
             border="theme-40-const"
             backgroundColor="grey-0"
             display="flex"
