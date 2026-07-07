@@ -300,7 +300,6 @@ function DatabaseRelationGridViewCellEditorOverlay({
             ref={ref as React.Ref<HTMLDivElement>}
             border="theme-40-const"
             backgroundColor="grey-0"
-            // boxShadow="elevation-20"
             display="flex"
             flexDirection="column"
             onKeyDown={event => {
@@ -378,12 +377,7 @@ function DatabaseRelationGridViewCellEditorOverlay({
                 ) : null}
             </Box>
 
-            <Box
-                borderTop="grey-5"
-                ref={listScrollRef}
-                // paddingY="1"
-                style={{maxHeight: 320, overflowY: "auto"}}
-            >
+            <Box borderTop="grey-5" ref={listScrollRef} style={{maxHeight: 320, overflowY: "auto"}}>
                 {!isSearching && linkedRows.length > 0 ? (
                     <DatabaseRelationLinkedList
                         linkedRows={linkedRows}
