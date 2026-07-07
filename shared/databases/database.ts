@@ -232,6 +232,13 @@ export class Database {
     private readonly trackedExecutions = new Set<DatabaseTrackedExecutionImpl<any>>();
     private hasServerMainTableChangeTriggers = false;
     private readonly serverTableChangeTriggerTableIds = new Set<DatabaseTableId>();
+    /**
+     * Server-only hook invoked after every successful {@link attach}. The durable
+     * object uses it to load the freshly attached file's access-policy metadata,
+     * maintaining the invariant that every attached schema has a cached policy the
+     * authorizer's table-access resolver can consult synchronously.
+     */
+    private serverTableAttachHook: ((tableId: DatabaseTableId) => void) | null = null;
     private currentActionAccountId: AccountId | null = null;
     /**
      * Server-only action capabilities, or `null` on the client. Lets server-only
@@ -482,6 +489,43 @@ export class Database {
         const access = resolver(tableId);
         return access === "unrestricted" ? unrestrictedSqliteTableAccess : access;
     };
+
+    /**
+     * Server-only: install a hook invoked after every successful {@link attach} with
+     * the attached table's id. See {@link serverTableAttachHook}. The hook may run its
+     * own SQL via {@link \_runServerMetadataRead} and may attach further tables (e.g.
+     * a join file's two joined tables).
+     */
+    _installServerTableAttachHook(hook: (tableId: DatabaseTableId) => void): void {
+        assert(this.serverContext !== null, "table attach hook is server-only");
+        this.serverTableAttachHook = hook;
+    }
+
+    /**
+     * Server-only: run internal metadata reads against the raw SQLite handle, outside
+     * the current execution's authorization and page tracking. The per-table
+     * authorizer layer is bypassed (the reads consult metadata the ambient account may
+     * not have access to — that's the point) and page reads stay out of the tracked
+     * read set so they never leak into a user execution's `readPages` broadcast.
+     */
+    _runServerMetadataRead<T>(fn: (db: SqliteDatabase) => T): T {
+        assert(this.serverContext !== null, "server metadata reads are server-only");
+        const previousInAttachRecovery = this.inAttachRecovery;
+        const previousReadSet = this.currentReadSet;
+        const previousWriteSet = this.currentWriteSet;
+        // `inAttachRecovery` doubles as the authorizer's internal-SQL bypass and disables
+        // attach-on-miss recursion in the patched `prepare`.
+        this.inAttachRecovery = true;
+        this.currentReadSet = null;
+        this.currentWriteSet = null;
+        try {
+            return fn(this.db);
+        } finally {
+            this.inAttachRecovery = previousInAttachRecovery;
+            this.currentReadSet = previousReadSet;
+            this.currentWriteSet = previousWriteSet;
+        }
+    }
 
     /**
      * Install server-only temp triggers that report user table metadata changes.
@@ -746,6 +790,10 @@ export class Database {
         // The new pager exists now; re-install the hook so the C side loops over the
         // updated `aDb[]` and covers it too.
         this.installPageAccessHook();
+
+        // Let the server load the new file's access-policy metadata while the attach is
+        // fresh — before any statement can touch the schema under a restricted resolver.
+        this.serverTableAttachHook?.(tableId);
     }
 
     /**

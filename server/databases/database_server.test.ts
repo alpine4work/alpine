@@ -1,5 +1,6 @@
 import {DatabaseServer} from "~/server/databases/database_server.js";
 import type {DatabaseServerStorage} from "~/server/databases/database_server_storage.js";
+import type {AccessLevel, LocalAccessPolicy} from "~/shared/access/access_policy.js";
 import {databaseTableAccessPolicyForCreator} from "~/shared/databases/database_table_access_policy.js";
 import {hashWithPrivateSalt} from "~/shared/databases/hash_with_private_salt.js";
 import {type SqlQuery, databaseTableSchemaName, sql} from "~/shared/databases/sql.js";
@@ -1222,5 +1223,359 @@ describe("DatabaseServer — per-table storage", () => {
                 ${sql.tableRef(relation.joinTableId, "_alpine_join_table")}
         `.selectValue(server2.unsafeGetDbForTests(), Schema.id<DatabaseTableId>());
         expect(joinTableId).toBe(relation.joinTableId);
+    });
+});
+
+describe("DatabaseServer — per-table access", () => {
+    function createSessionContext(accountId: AccountId | null) {
+        return {
+            ...testContext,
+            actor: {
+                serviceName: undefined,
+                getPossiblyBotAccountIdIfExists: () => accountId,
+            },
+        } as any;
+    }
+
+    function localPolicyWithGrants(
+        grants: ReadonlyArray<[AccountId, Exclude<AccessLevel, "Manage">]>,
+    ): LocalAccessPolicy {
+        return {
+            type: "Local",
+            accountGrantById: new Map(grants.map(([accountId, level]) => [accountId, {level}])),
+            defaultGrant: null,
+            urlGrant: null,
+        };
+    }
+
+    async function createServer(): Promise<DatabaseServer> {
+        const server = await DatabaseServer.create(new InMemoryStorage(), testPrivateSalt);
+        openServers.push(server);
+        return server;
+    }
+
+    function createTableWithPolicy(
+        server: DatabaseServer,
+        name: string,
+        accessPolicy: LocalAccessPolicy,
+    ): {tableId: DatabaseTableId; tableName: string} {
+        const tableId = generateChronologicalId<DatabaseTableId>();
+        const {result} = server.executeAction<"createTable">(testContext, {
+            name: "createTable",
+            input: {tableId, name, accessPolicy},
+        });
+        return {tableId, tableName: result.tableName};
+    }
+
+    function selectAllFromTable(tableName: string) {
+        return {
+            name: "readonlyRawSql" as const,
+            input: {sql: `SELECT * FROM "${tableName}"`},
+        };
+    }
+
+    test("denies reads of a table the account has no access to", async () => {
+        const server = await createServer();
+        const {tableId, tableName} = createTableWithPolicy(
+            server,
+            "Tasks",
+            databaseTableAccessPolicyForCreator(testAccountId),
+        );
+        const outsider = generateId<AccountId>();
+
+        expect(() =>
+            server.executeAction(createSessionContext(outsider), selectAllFromTable(tableName)),
+        ).toThrow(`Permission denied for read on database table ${tableId}`);
+    });
+
+    test("allows reads at View level", async () => {
+        const server = await createServer();
+        const viewer = generateId<AccountId>();
+        const {tableName} = createTableWithPolicy(
+            server,
+            "Tasks",
+            localPolicyWithGrants([[viewer, "View"]]),
+        );
+
+        const {result} = server.executeAction<"readonlyRawSql">(
+            createSessionContext(viewer),
+            selectAllFromTable(tableName),
+        );
+
+        expect(result.rows).toEqual([]);
+    });
+
+    test("denies schema changes at View level", async () => {
+        const server = await createServer();
+        const viewer = generateId<AccountId>();
+        const {tableId} = createTableWithPolicy(
+            server,
+            "Tasks",
+            localPolicyWithGrants([[viewer, "View"]]),
+        );
+
+        expect(() =>
+            server.executeAction(createSessionContext(viewer), {
+                name: "renameTable",
+                input: {tableId, name: "Renamed"},
+            }),
+        ).toThrow(`Permission denied for alter-table on database table ${tableId}`);
+    });
+
+    test("allows schema changes at Edit level", async () => {
+        const server = await createServer();
+        const editor = generateId<AccountId>();
+        const {tableId} = createTableWithPolicy(
+            server,
+            "Tasks",
+            localPolicyWithGrants([[editor, "Edit"]]),
+        );
+
+        const {result} = server.executeAction<"renameTable">(createSessionContext(editor), {
+            name: "renameTable",
+            input: {tableId, name: "Renamed"},
+        });
+
+        expect(result.tableName).toBe("renamed");
+    });
+
+    test("internal actors bypass per-table access", async () => {
+        const server = await createServer();
+        // A policy granting nobody anything; the Test service actor must still read.
+        const {tableName} = createTableWithPolicy(server, "Tasks", localPolicyWithGrants([]));
+
+        const {result} = server.executeAction<"readonlyRawSql">(
+            testContext,
+            selectAllFromTable(tableName),
+        );
+
+        expect(result.rows).toEqual([]);
+    });
+
+    test("a policy update through syncTableMetadata revokes access mid-session", async () => {
+        const server = await createServer();
+        const viewer = generateId<AccountId>();
+        const {tableId, tableName} = createTableWithPolicy(
+            server,
+            "Tasks",
+            localPolicyWithGrants([[viewer, "View"]]),
+        );
+        server.executeAction<"readonlyRawSql">(
+            createSessionContext(viewer),
+            selectAllFromTable(tableName),
+        );
+
+        server.executeAction<"syncTableMetadata">(testContext, {
+            name: "syncTableMetadata",
+            input: {tableId, name: "Tasks", accessPolicy: localPolicyWithGrants([])},
+        });
+
+        expect(() =>
+            server.executeAction(createSessionContext(viewer), selectAllFromTable(tableName)),
+        ).toThrow(`Permission denied for read on database table ${tableId}`);
+    });
+
+    // Linked-records scenario: Tasks и People joined by an "Assignee" relation.
+    // Account access matrix — everyone has Edit on Tasks; People access varies.
+    async function createLinkedTablesScenario() {
+        const server = await createServer();
+        const viewPeople = generateId<AccountId>();
+        const noPeople = generateId<AccountId>();
+        const editBoth = generateId<AccountId>();
+        const tasks = createTableWithPolicy(
+            server,
+            "Tasks",
+            localPolicyWithGrants([
+                [viewPeople, "Edit"],
+                [noPeople, "Edit"],
+                [editBoth, "Edit"],
+            ]),
+        );
+        const people = createTableWithPolicy(
+            server,
+            "People",
+            localPolicyWithGrants([
+                [viewPeople, "View"],
+                [editBoth, "Edit"],
+            ]),
+        );
+        const joinTableId = generateChronologicalId<DatabaseTableId>();
+        const relation = server.executeAction<"createRelationField">(testContext, {
+            name: "createRelationField",
+            input: {
+                joinTableId,
+                sourceTableId: tasks.tableId,
+                sourceFieldName: "Assignee",
+                targetTableId: people.tableId,
+                cardinality: "many",
+            },
+        }).result;
+        const taskRowId = generateChronologicalId<DatabaseRowId>();
+        const personRowId = generateChronologicalId<DatabaseRowId>();
+        server.executeAction<"createRow">(testContext, {
+            name: "createRow",
+            input: {tableId: tasks.tableId, rowId: taskRowId},
+        });
+        server.executeAction<"createRow">(testContext, {
+            name: "createRow",
+            input: {tableId: people.tableId, rowId: personRowId},
+        });
+        return {
+            server,
+            viewPeople,
+            noPeople,
+            editBoth,
+            tasks,
+            people,
+            relation,
+            taskRowId,
+            personRowId,
+        };
+    }
+
+    function addLinkAction(scenario: Awaited<ReturnType<typeof createLinkedTablesScenario>>) {
+        return {
+            name: "addLink" as const,
+            input: {
+                tableId: scenario.tasks.tableId,
+                fieldId: scenario.relation.sourceFieldId,
+                rowId: scenario.taskRowId,
+                linkedRowId: scenario.personRowId,
+            },
+        };
+    }
+
+    test("addLink succeeds with Edit on one side and View on the other", async () => {
+        const scenario = await createLinkedTablesScenario();
+
+        expect(() =>
+            scenario.server.executeAction(
+                createSessionContext(scenario.viewPeople),
+                addLinkAction(scenario),
+            ),
+        ).not.toThrow();
+    });
+
+    test("addLink is denied without access to the linked table", async () => {
+        const scenario = await createLinkedTablesScenario();
+
+        expect(() =>
+            scenario.server.executeAction(
+                createSessionContext(scenario.noPeople),
+                addLinkAction(scenario),
+            ),
+        ).toThrow(`Permission denied for read on database table ${scenario.people.tableId}`);
+    });
+
+    test("a raw link insert is denied without View on both sides", async () => {
+        const scenario = await createLinkedTablesScenario();
+        const joinSchemaName = databaseTableSchemaName(scenario.relation.joinTableId);
+        const joinMeta = scenario.server.executeAction<"readonlyRawSql">(testContext, {
+            name: "readonlyRawSql",
+            input: {
+                sql:
+                    `SELECT table_name, source_row_id_column_name, target_row_id_column_name, ` +
+                    `source_position_column_name, target_position_column_name ` +
+                    `FROM "${joinSchemaName}"._alpine_join_table`,
+            },
+        }).result.rows[0] as Record<string, string>;
+
+        // The authorizer rejects the INSERT at prepare time — before constraint checks —
+        // so placeholder values are fine.
+        expect(() =>
+            scenario.server.executeAction(createSessionContext(scenario.noPeople), {
+                name: "rawSql",
+                input: {
+                    sql:
+                        `INSERT INTO "${joinSchemaName}"."${joinMeta.table_name}" ` +
+                        `("${joinMeta.source_row_id_column_name}", "${joinMeta.target_row_id_column_name}", ` +
+                        `"${joinMeta.source_position_column_name}", "${joinMeta.target_position_column_name}") ` +
+                        `VALUES ('a', 'b', 'c', 'd')`,
+                },
+            }),
+        ).toThrow(
+            `Permission denied for insert on database table ${scenario.relation.joinTableId}`,
+        );
+    });
+
+    test("removeLink succeeds with Edit on one side only", async () => {
+        const scenario = await createLinkedTablesScenario();
+        scenario.server.executeAction(
+            createSessionContext(scenario.viewPeople),
+            addLinkAction(scenario),
+        );
+
+        expect(() =>
+            scenario.server.executeAction(createSessionContext(scenario.noPeople), {
+                name: "removeLink",
+                input: addLinkAction(scenario).input,
+            }),
+        ).not.toThrow();
+    });
+
+    test("join file reads are allowed with access to either side", async () => {
+        const scenario = await createLinkedTablesScenario();
+        const joinSchemaName = databaseTableSchemaName(scenario.relation.joinTableId);
+
+        const {result} = scenario.server.executeAction<"readonlyRawSql">(
+            createSessionContext(scenario.noPeople),
+            {
+                name: "readonlyRawSql",
+                input: {sql: `SELECT * FROM "${joinSchemaName}"._alpine_join_table`},
+            },
+        );
+
+        expect(result.rows).toHaveLength(1);
+    });
+
+    test("join file reads are denied without access to either side", async () => {
+        const scenario = await createLinkedTablesScenario();
+        const outsider = generateId<AccountId>();
+        const joinSchemaName = databaseTableSchemaName(scenario.relation.joinTableId);
+
+        expect(() =>
+            scenario.server.executeAction(createSessionContext(outsider), {
+                name: "readonlyRawSql",
+                input: {sql: `SELECT * FROM "${joinSchemaName}"._alpine_join_table`},
+            }),
+        ).toThrow(`Permission denied for read on database table ${scenario.relation.joinTableId}`);
+    });
+
+    test("createRelationField succeeds with Edit on both sides", async () => {
+        const scenario = await createLinkedTablesScenario();
+        const joinTableId = generateChronologicalId<DatabaseTableId>();
+
+        const {result} = scenario.server.executeAction<"createRelationField">(
+            createSessionContext(scenario.editBoth),
+            {
+                name: "createRelationField",
+                input: {
+                    joinTableId,
+                    sourceTableId: scenario.tasks.tableId,
+                    sourceFieldName: "Reviewer",
+                    targetTableId: scenario.people.tableId,
+                    cardinality: "many",
+                },
+            },
+        );
+
+        expect(result.joinTableId).toBe(joinTableId);
+    });
+
+    test("createRelationField is denied with only View on the target", async () => {
+        const scenario = await createLinkedTablesScenario();
+
+        expect(() =>
+            scenario.server.executeAction(createSessionContext(scenario.viewPeople), {
+                name: "createRelationField",
+                input: {
+                    joinTableId: generateChronologicalId<DatabaseTableId>(),
+                    sourceTableId: scenario.tasks.tableId,
+                    sourceFieldName: "Reviewer",
+                    targetTableId: scenario.people.tableId,
+                    cardinality: "many",
+                },
+            }),
+        ).toThrow(`Permission denied for insert on database table ${scenario.people.tableId}`);
     });
 });

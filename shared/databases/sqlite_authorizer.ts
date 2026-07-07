@@ -212,13 +212,21 @@ export function isSqliteActionAllowedForSchemaAccess({
 
     const targetSchemaName = action === "alter-table" ? arg1 : schemaName;
     if (targetSchemaName === null) {
-        // SQLite fires a supplementary whole-table `read` probe with an empty column name
-        // and no database name during statement compilation (e.g. the min/max/ count
-        // optimization check in select.c). It grants nothing by itself: every real column
-        // read — and the count(\*) whole-table read on an attached schema — arrives with
-        // its schema name and is authorized above. Allow the anonymous probe; every other
-        // schema-scoped action without a schema fails closed.
-        return action === "read" && (arg2 === "" || arg2 === null);
+        // Two schema-scoped actions legitimately arrive without a database name;
+        // everything else without one fails closed.
+        //
+        // - A supplementary whole-table `read` probe with an empty column name fires
+        //   during statement compilation (e.g. the min/max/count optimization check in
+        //   select.c). It grants nothing by itself: every real column read — and the
+        //   count(\*) whole-table read on an attached schema — arrives with its schema
+        //   name and is authorized above.
+        // - Unqualified pragmas (SQLite's own DDL-internal pragmas, and the server's
+        //   post-write `PRAGMA optimize`) aren't table-scoped. Schema-qualified pragmas
+        //   (e.g. `PRAGMA "_x".integrity_check`) do carry the schema and stay restricted;
+        //   and no public action path can issue arbitrary pragmas — the global write-level
+        //   layer only permits pragmas at `schema+data`, which no raw-SQL action runs at.
+        if (action === "read") return arg2 === "" || arg2 === null;
+        return action === "pragma";
     }
 
     const access = resolveSchemaAccess(targetSchemaName);
