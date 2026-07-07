@@ -1705,7 +1705,7 @@ paths:
                 - name: cursor
                   in: query
                   schema:
-                      $ref: "#/components/schemas/TaskCursor"
+                      $ref: "#/components/schemas/TaskQueryCursor"
             responses:
                 "200":
                     content:
@@ -1725,7 +1725,7 @@ paths:
                                         $ref: "#/components/schemas/TaskCollection_Response"
                                     nextCursor:
                                         oneOf:
-                                            - $ref: "#/components/schemas/TaskCursor"
+                                            - $ref: "#/components/schemas/TaskQueryCursor"
                                             - type: "null"
                                     tasks:
                                         type: array
@@ -4265,7 +4265,7 @@ components:
                     properties:
                         title:
                             type: string
-        TaskCursor:
+        TaskQueryCursor:
             type: string
         Task:
             type: object
@@ -4660,9 +4660,9 @@ components:
                 type:
                     const: Between
                 afterCursor:
-                    $ref: "#/components/schemas/TaskCursor"
+                    $ref: "#/components/schemas/TaskQueryCursor"
                 beforeCursor:
-                    $ref: "#/components/schemas/TaskCursor"
+                    $ref: "#/components/schemas/TaskQueryCursor"
         TaskCollectionPatch:
             oneOf:
                 - $ref: "#/components/schemas/TaskCollectionSetNamePatch"
@@ -4800,7 +4800,7 @@ components:
             additionalProperties: false
             properties:
                 cursor:
-                    $ref: "#/components/schemas/TaskCursor"
+                    $ref: "#/components/schemas/TaskQueryCursor"
                 task:
                     $ref: "#/components/schemas/TaskWithoutNotes"
         TaskQueryDefaults:
@@ -8083,7 +8083,7 @@ components:
             additionalProperties: false
             properties:
                 cursor:
-                    $ref: "#/components/schemas/TaskCursor"
+                    $ref: "#/components/schemas/TaskQueryCursor"
                 task:
                     $ref: "#/components/schemas/TaskWithoutNotes_Response"
         Chat_Response:

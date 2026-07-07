@@ -22,9 +22,9 @@ import {assertOrderKey, initialOrderKey} from "~/shared/helpers/sort/order_key.j
 import {generateId} from "~/shared/id/id.js";
 import {SpaceId, TaskCollectionId, TaskId} from "~/shared/id/types/id_types.js";
 import {
-    decodeApiTaskCursor,
-    encodeApiTaskCursor,
-} from "~/shared/tasks/model/api_task_cursor_encoder.js";
+    decodeApiTaskQueryCursor,
+    encodeApiTaskQueryCursor,
+} from "~/shared/tasks/model/api_task_query_cursor_encoder.js";
 import {getTaskQueryNormalizedSortCursorForModel} from "~/shared/tasks/model/get_task_query_normalized_sort_cursor_for_model.js";
 import {TaskModel} from "~/shared/tasks/model/task_model.js";
 import {TaskFilterableTime} from "~/shared/tasks/task_filterable_time.js";
@@ -209,7 +209,7 @@ async function testQueryWithNormalizedSorts(
     // have a corresponding string representation and vice-versa.
     expect(
         sortedCursors1.map(({cursor}) =>
-            decodeApiTaskCursor(sorts, encodeApiTaskCursor(sorts, cursor)),
+            decodeApiTaskQueryCursor(sorts, encodeApiTaskQueryCursor(sorts, cursor)),
         ),
     ).toEqual(sortedCursors1.map(({cursor}) => cursor));
 

@@ -36,7 +36,7 @@ import {AccountId, SiteId, SpaceId, TaskCollectionId, TaskId} from "~/shared/id/
 import {SitePreviewModel} from "~/shared/sites/site_model.js";
 import {collectReferencedIdsFromTaskCollectionModelData} from "~/shared/tasks/model/collect_referenced_ids_from_task_collection_model_data.js";
 import {collectReferencedIdsFromTaskModelData} from "~/shared/tasks/model/collected_referenced_ids_from_task_model_data.js";
-import {decodeApiTaskCursor} from "~/shared/tasks/model/api_task_cursor_encoder.js";
+import {decodeApiTaskQueryCursor} from "~/shared/tasks/model/api_task_query_cursor_encoder.js";
 import {
     TaskQueryNormalizedFilters,
     normalizeTaskQueryFilters,
@@ -272,7 +272,7 @@ export async function loadTaskRealtimeQueries(
                     expensivelyAfterCursor = null;
                 } else {
                     try {
-                        expensivelyAfterCursor = decodeApiTaskCursor(
+                        expensivelyAfterCursor = decodeApiTaskQueryCursor(
                             sorts,
                             query.expensivelyAfterCursorForApi,
                         );
@@ -285,7 +285,7 @@ export async function loadTaskRealtimeQueries(
                             // NOCOMMIT: If sorts are explicitly provided and override the defaults then don't
                             // include the defaults message. Also make it clear in the defaults message that
                             // you can explicitly provide sorts to avoid this error in the future.
-                            displayMessage: errorDisplayMessage`Invalid task cursor for this collection. Try again with a task cursor that matches the requested sorts. (You may get this error if you're paginating through a task collection when the task collection's default sorts change. In that case try paginating from the start of the collection again and you'll pick up the new sorts.)`,
+                            displayMessage: errorDisplayMessage`Invalid task query cursor for this collection. Try again with a task query cursor that matches the requested sorts. (You may get this error if you're paginating through a task collection when the task collection's default sorts change. In that case try paginating from the start of the collection again and you'll pick up the new sorts.)`,
                         });
                     }
                 }

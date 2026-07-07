@@ -291,8 +291,6 @@ export type ApiPost = ApiSpecification.components["schemas"]["Post"];
 
 export type ApiPostPreview = ApiSpecification.components["schemas"]["PostPreview"];
 
-export type ApiTaskCursor = ApiSpecification.components["schemas"]["TaskCursor"];
-
 export type ApiTask = ApiSpecification.components["schemas"]["Task"];
 
 export type ApiTaskWithoutNotes = ApiSpecification.components["schemas"]["TaskWithoutNotes"];

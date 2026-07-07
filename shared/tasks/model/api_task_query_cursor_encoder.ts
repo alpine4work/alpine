@@ -8,7 +8,7 @@ import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
 import {decodeOrderKey, encodeOrderKey} from "~/shared/helpers/sort/encode_order_key.js";
 import {assertOrderKey} from "~/shared/helpers/sort/order_key.js";
 import {assertId, decodeId, encodeId, idByteLength} from "~/shared/id/id.js";
-import {ApiTaskCursor} from "~/shared/id/types/api_task_cursor.js";
+import {ApiTaskQueryCursor} from "~/shared/id/types/api_task_query_cursor.js";
 import {TaskId} from "~/shared/id/types/id_types.js";
 import {
     deserializeHybridLogicalTime,
@@ -28,32 +28,32 @@ const scrambleSeed = 0x5441_534b; // "TASK" in ASCII
 /**
  * Encodes a `TaskQuerySortCursor` to an opaque string we'll share over the API.
  */
-export function encodeApiTaskCursor(
+export function encodeApiTaskQueryCursor(
     sorts: ReadonlyArray<TaskQueryNormalizedSort>,
     cursor: TaskQuerySortCursor,
-): ApiTaskCursor {
+): ApiTaskQueryCursor {
     assert(cursor.length === sorts.length + 1);
 
-    const payload = new DataBuilderView();
+    const view = new DataBuilderView();
 
     for (let i = 0; i < sorts.length; i++) {
-        writeTaskQuerySortCursorValue(sorts[i]!, cursor[i]!, payload);
+        writeTaskQuerySortCursorValue(sorts[i]!, cursor[i]!, view);
     }
 
     const taskId = cursor[cursor.length - 1];
     assert(typeof taskId === "string");
 
-    for (const byte of decodeId(assertId<TaskId>(taskId))) payload.pushUint8(byte);
+    view.pushUint8s(decodeId(assertId<TaskId>(taskId)));
 
     return encodeBase64(
-        scrambleBytes(payload.build(), scrambleSeed),
+        scrambleBytes(view.build(), scrambleSeed),
         "Rfc4648Url",
-    ) as ApiTaskCursor;
+    ) as ApiTaskQueryCursor;
 }
 
-export function decodeApiTaskCursor(
+export function decodeApiTaskQueryCursor(
     sorts: ReadonlyArray<TaskQueryNormalizedSort>,
-    cursorString: ApiTaskCursor,
+    cursorString: ApiTaskQueryCursor,
 ): TaskQuerySortCursor {
     const payload = unscrambleBytes(decodeBase64(cursorString, "Rfc4648Url"), scrambleSeed);
     const payloadView = new DataView(payload.buffer, payload.byteOffset, payload.byteLength);
@@ -68,7 +68,7 @@ export function decodeApiTaskCursor(
     }
 
     if (offset + idByteLength !== payload.length)
-        throw new InvalidArgumentError("Unexpected task cursor length");
+        throw new InvalidArgumentError("Unexpected task query cursor length");
 
     cursor.push(encodeId<TaskId>(payload, offset));
 
@@ -150,7 +150,7 @@ function writeTaskQuerySortCursorValue(
 
             const orderKeyBytes = encodeOrderKey(assertOrderKey(value[2]));
             pushVarInt(view, orderKeyBytes.length);
-            for (const byte of orderKeyBytes) view.pushUint8(byte);
+            view.pushUint8s(orderKeyBytes);
             break;
         }
         default:
@@ -165,27 +165,27 @@ function readTaskQuerySortCursorValue(
     byteOffset: number,
 ): {value: TaskQuerySortCursorValue; byteOffset: number} {
     if (byteOffset >= view.byteLength)
-        throw new InvalidArgumentError("Task cursor missing header byte");
+        throw new InvalidArgumentError("Task query cursor missing header byte");
 
     const headerByte = view.getUint8(byteOffset);
     byteOffset += 1;
 
     if ((headerByte & sortByteFormatMask) !== 0)
-        throw new InvalidArgumentError("Unexpected task cursor format bit");
+        throw new InvalidArgumentError("Unexpected task query cursor format bit");
 
     if (headerByte >> 1 !== getTaskQueryNormalizedSortByte(sort)) {
-        throw new InvalidArgumentError("Task cursor doesn\u2019t match sorts");
+        throw new InvalidArgumentError("Task query cursor doesn\u2019t match sorts");
     }
 
     if (sort.type === "CollectionPosition") {
         const expectedCollectionIdBytes = decodeId(sort.collectionId);
         if (byteOffset + collectionIdPrefixByteLength > view.byteLength) {
-            throw new InvalidArgumentError("Task cursor doesn\u2019t match sorts");
+            throw new InvalidArgumentError("Task query cursor doesn\u2019t match sorts");
         }
 
         for (let i = 0; i < collectionIdPrefixByteLength; i++) {
             if (view.getUint8(byteOffset + i) !== expectedCollectionIdBytes[i]) {
-                throw new InvalidArgumentError("Task cursor doesn\u2019t match sorts");
+                throw new InvalidArgumentError("Task query cursor doesn\u2019t match sorts");
             }
         }
 
@@ -199,12 +199,13 @@ function readTaskQuerySortCursorValue(
         case "Priority":
         case "Layout": {
             if (byteOffset >= view.byteLength)
-                throw new InvalidArgumentError("Expected task cursor byte value");
+                throw new InvalidArgumentError("Expected task query cursor byte value");
 
             const value = view.getUint8(byteOffset);
             byteOffset += 1;
 
-            if (value === 0) throw new InvalidArgumentError("Expected task cursor byte value");
+            if (value === 0)
+                throw new InvalidArgumentError("Expected task query cursor byte value");
 
             return {value, byteOffset};
         }
@@ -216,7 +217,7 @@ function readTaskQuerySortCursorValue(
 
             if (byteOffset + stringByteLengthResult.value > view.byteLength)
                 throw new InvalidArgumentError(
-                    "Invalid task cursor string value, not enough bytes",
+                    "Invalid task query cursor string value, not enough bytes",
                 );
 
             const value = new TextDecoder().decode(
@@ -234,7 +235,9 @@ function readTaskQuerySortCursorValue(
         case "ClosedTime":
         case "ActivatedTime": {
             if (byteOffset + 8 > view.byteLength)
-                throw new InvalidArgumentError("Expected task cursor hybrid logical time value");
+                throw new InvalidArgumentError(
+                    "Expected task query cursor hybrid logical time value",
+                );
 
             const value = deserializeHybridLogicalTime(view.getBigUint64(byteOffset));
 
@@ -245,7 +248,7 @@ function readTaskQuerySortCursorValue(
         case "AssigneePosition": {
             if (byteOffset + 8 > view.byteLength)
                 throw new InvalidArgumentError(
-                    "Expected task cursor position order hybrid logical time value",
+                    "Expected task query cursor position order hybrid logical time value",
                 );
 
             const time = deserializeHybridLogicalTime(view.getBigUint64(byteOffset));
@@ -256,7 +259,7 @@ function readTaskQuerySortCursorValue(
 
             if (byteOffset + orderKeyByteLengthResult.value > view.byteLength)
                 throw new InvalidArgumentError(
-                    "Invalid task cursor position order key value, not enough bytes",
+                    "Invalid task query cursor position order key value, not enough bytes",
                 );
 
             const orderKeyEndOffset = byteOffset + orderKeyByteLengthResult.value;

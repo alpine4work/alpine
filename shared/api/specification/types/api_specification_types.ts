@@ -4,7 +4,7 @@
 import type {ApiContentKey} from "~/shared/api/specification/types/api_content_key.js";
 import type {DateString} from "~/shared/helpers/date/date_string.js";
 import type {TimeZone} from "~/shared/helpers/intl/time_zone.js";
-import type {ApiTaskCursor} from "~/shared/id/types/api_task_cursor.js";
+import type {ApiTaskQueryCursor} from "~/shared/id/types/api_task_query_cursor.js";
 import type * as IdTypes from "~/shared/id/types/id_types.js";
 
 export namespace ApiSpecification {
@@ -2399,7 +2399,7 @@ export namespace ApiSpecification {
                 readonly parameters: {
                     readonly query?: {
                         readonly limit?: number;
-                        readonly cursor?: components["schemas"]["TaskCursor"];
+                        readonly cursor?: components["schemas"]["TaskQueryCursor"];
                     };
                     readonly header?: never;
                     readonly path: {
@@ -2417,7 +2417,9 @@ export namespace ApiSpecification {
                             readonly "application/json": {
                                 readonly spaceId: components["schemas"]["SpaceId"];
                                 readonly collection: components["schemas"]["TaskCollection_Response"];
-                                readonly nextCursor: components["schemas"]["TaskCursor"] | null;
+                                readonly nextCursor:
+                                    | components["schemas"]["TaskQueryCursor"]
+                                    | null;
                                 readonly tasks: readonly components["schemas"]["TaskCollectionTask_Response"][];
                             };
                         };
@@ -3642,7 +3644,7 @@ export namespace ApiSpecification {
                     readonly title: string;
                 };
             };
-            readonly TaskCursor: ApiTaskCursor;
+            readonly TaskQueryCursor: ApiTaskQueryCursor;
             readonly Task: {
                 readonly id: components["schemas"]["TaskId"];
                 readonly creator?: {
@@ -3853,8 +3855,8 @@ export namespace ApiSpecification {
                  * {string}
                  */
                 readonly type: "Between";
-                readonly afterCursor: components["schemas"]["TaskCursor"];
-                readonly beforeCursor: components["schemas"]["TaskCursor"];
+                readonly afterCursor: components["schemas"]["TaskQueryCursor"];
+                readonly beforeCursor: components["schemas"]["TaskQueryCursor"];
             };
             readonly TaskCollectionPatch:
                 | components["schemas"]["TaskCollectionSetNamePatch"]
@@ -3920,7 +3922,7 @@ export namespace ApiSpecification {
                 readonly name: components["schemas"]["LabelString"];
             };
             readonly TaskCollectionTask: {
-                readonly cursor: components["schemas"]["TaskCursor"];
+                readonly cursor: components["schemas"]["TaskQueryCursor"];
                 readonly task: components["schemas"]["TaskWithoutNotes"];
             };
             readonly TaskQueryDefaults: {
@@ -5575,7 +5577,7 @@ export namespace ApiSpecification {
                 | components["schemas"]["TaskRemoveCollectionPatch"]
                 | components["schemas"]["TaskMoveInCollectionPatch"];
             readonly TaskCollectionTask_Response: {
-                readonly cursor: components["schemas"]["TaskCursor"];
+                readonly cursor: components["schemas"]["TaskQueryCursor"];
                 readonly task: components["schemas"]["TaskWithoutNotes_Response"];
             };
             readonly Chat_Response:

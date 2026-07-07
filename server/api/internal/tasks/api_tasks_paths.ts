@@ -53,15 +53,15 @@ import {defaultTimeZone} from "~/shared/helpers/intl/time_zone.js";
 import {findMapIterable} from "~/shared/helpers/iterable/find_map_iterable.js";
 import {emptyMap} from "~/shared/helpers/map/empty_map.js";
 import {generateId} from "~/shared/id/id.js";
-import {ApiTaskCursor} from "~/shared/id/types/api_task_cursor.js";
+import {ApiTaskQueryCursor} from "~/shared/id/types/api_task_query_cursor.js";
 import {TaskCollectionId, TaskId} from "~/shared/id/types/id_types.js";
 import {MessageContentPayload} from "~/shared/messaging/message_schema.js";
 import {MessagingRealtimeBroadcastNewMessageRequestSchema} from "~/shared/messaging/messaging_realtime_protocol.js";
 import {emptyReactionSet} from "~/shared/reactions/reaction_set.js";
 import {
-    decodeApiTaskCursor,
-    encodeApiTaskCursor,
-} from "~/shared/tasks/model/api_task_cursor_encoder.js";
+    decodeApiTaskQueryCursor,
+    encodeApiTaskQueryCursor,
+} from "~/shared/tasks/model/api_task_query_cursor_encoder.js";
 import {evaluateTaskQueryNormalizedFiltersForModel} from "~/shared/tasks/model/evaluate_task_query_normalized_filters_for_model.js";
 import {getTaskQueryNormalizedSortCursorForModel} from "~/shared/tasks/model/get_task_query_normalized_sort_cursor_for_model.js";
 import {TaskActor} from "~/shared/tasks/task_creator.js";
@@ -741,7 +741,7 @@ export const apiTasksPaths: Pick<
 
             const afterCursor =
                 queryParameters.cursor !== undefined
-                    ? decodeApiTaskCursor(sorts, queryParameters.cursor)
+                    ? decodeApiTaskQueryCursor(sorts, queryParameters.cursor)
                     : null;
 
             if (filtersResult.type === "Possible") {
@@ -782,7 +782,7 @@ export const apiTasksPaths: Pick<
                 compareTaskQuerySortCursors(sorts, task1.cursor, task2.cursor),
             );
 
-            let nextCursor: ApiTaskCursor | null;
+            let nextCursor: ApiTaskQueryCursor | null;
 
             switch (loadedState.type) {
                 case "Full": {
@@ -812,7 +812,7 @@ export const apiTasksPaths: Pick<
                         );
                     }
 
-                    nextCursor = encodeApiTaskCursor(sorts, loadedState.endCursor);
+                    nextCursor = encodeApiTaskQueryCursor(sorts, loadedState.endCursor);
                     break;
                 }
                 default:
@@ -827,7 +827,7 @@ export const apiTasksPaths: Pick<
                     collection: intoApiTaskCollection(collection),
                     nextCursor,
                     tasks: tasks.map(({cursor, task}) => ({
-                        cursor: encodeApiTaskCursor(sorts, cursor),
+                        cursor: encodeApiTaskQueryCursor(sorts, cursor),
                         task: converter.into(task),
                     })),
                 },

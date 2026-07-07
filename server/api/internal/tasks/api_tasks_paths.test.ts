@@ -2422,7 +2422,7 @@ describe("/task-collections/{id}/tasks", () => {
         return response.body.nextCursor!;
     }
 
-    function getTaskCollectionTaskCursor(
+    function getTaskCollectionTaskQueryCursor(
         response: TaskCollectionTasksResponse,
         index: number,
     ): string {
@@ -2430,7 +2430,7 @@ describe("/task-collections/{id}/tasks", () => {
         return response.body.tasks[index]!.cursor;
     }
 
-    function getTaskCollectionTaskCursors(response: TaskCollectionTasksResponse): Array<string> {
+    function getTaskCollectionTaskQueryCursors(response: TaskCollectionTasksResponse): Array<string> {
         return response.body.tasks.map(({cursor}) => cursor);
     }
 
@@ -3137,8 +3137,8 @@ describe("/task-collections/{id}/tasks", () => {
         expect(getTaskCollectionTaskIds(repeatedFirstPageResponse)).toEqual(
             getTaskCollectionTaskIds(firstPageResponse),
         );
-        expect(getTaskCollectionTaskCursors(repeatedFirstPageResponse)).toEqual(
-            getTaskCollectionTaskCursors(firstPageResponse),
+        expect(getTaskCollectionTaskQueryCursors(repeatedFirstPageResponse)).toEqual(
+            getTaskCollectionTaskQueryCursors(firstPageResponse),
         );
         expect(repeatedFirstPageResponse.body.nextCursor).toEqual(
             firstPageResponse.body.nextCursor,
@@ -3151,8 +3151,8 @@ describe("/task-collections/{id}/tasks", () => {
         expect(getTaskCollectionTaskIds(repeatedSecondPageResponse)).toEqual(
             getTaskCollectionTaskIds(secondPageResponse),
         );
-        expect(getTaskCollectionTaskCursors(repeatedSecondPageResponse)).toEqual(
-            getTaskCollectionTaskCursors(secondPageResponse),
+        expect(getTaskCollectionTaskQueryCursors(repeatedSecondPageResponse)).toEqual(
+            getTaskCollectionTaskQueryCursors(secondPageResponse),
         );
         expect(repeatedSecondPageResponse.body.nextCursor).toEqual(
             secondPageResponse.body.nextCursor,
@@ -3270,7 +3270,7 @@ describe("/task-collections/{id}/tasks", () => {
             headers: expect.objectContaining({"content-type": "application/json"}),
             body: {
                 error: expect.objectContaining({
-                    message: expect.stringMatching("Invalid task cursor for this collection"),
+                    message: expect.stringMatching("Invalid task query cursor for this collection"),
                 }),
             },
         });
@@ -3308,7 +3308,7 @@ describe("/task-collections/{id}/tasks", () => {
         expect(collection1Response.status).toBe(200);
 
         const response = await server.GET(
-            `/task-collections/${collection2.id}/tasks?cursor=${getTaskCollectionTaskCursor(collection1Response, 0)}`,
+            `/task-collections/${collection2.id}/tasks?cursor=${getTaskCollectionTaskQueryCursor(collection1Response, 0)}`,
             {
                 headers: {authorization: `bearer ${apiKey}`},
             },
@@ -3319,7 +3319,7 @@ describe("/task-collections/{id}/tasks", () => {
             headers: expect.objectContaining({"content-type": "application/json"}),
             body: {
                 error: expect.objectContaining({
-                    message: expect.stringMatching("Invalid task cursor for this collection"),
+                    message: expect.stringMatching("Invalid task query cursor for this collection"),
                 }),
             },
         });
@@ -3372,7 +3372,7 @@ describe("/task-collections/{id}/tasks", () => {
             headers: expect.objectContaining({"content-type": "application/json"}),
             body: {
                 error: expect.objectContaining({
-                    message: expect.stringMatching("Invalid task cursor for this collection"),
+                    message: expect.stringMatching("Invalid task query cursor for this collection"),
                 }),
             },
         });

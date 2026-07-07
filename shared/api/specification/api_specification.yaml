@@ -1548,7 +1548,7 @@ paths:
                 - name: cursor
                   in: query
                   schema:
-                      $ref: "#/components/schemas/TaskCursor"
+                      $ref: "#/components/schemas/TaskQueryCursor"
             responses:
                 default: {$ref: "#/components/responses/Error"}
                 "200":
@@ -1568,7 +1568,7 @@ paths:
                                     # sorts aren't explicitly specified.
                                     nextCursor:
                                         oneOf:
-                                            - $ref: "#/components/schemas/TaskCursor"
+                                            - $ref: "#/components/schemas/TaskQueryCursor"
                                             - type: "null"
                                     tasks:
                                         type: array
@@ -3654,7 +3654,7 @@ components:
         #                                    Tasks                                    #
         # =========================================================================== #
 
-        TaskCursor:
+        TaskQueryCursor:
             type: string
 
         Task:
@@ -4026,9 +4026,9 @@ components:
                 type:
                     const: Between
                 afterCursor:
-                    $ref: "#/components/schemas/TaskCursor"
+                    $ref: "#/components/schemas/TaskQueryCursor"
                 beforeCursor:
-                    $ref: "#/components/schemas/TaskCursor"
+                    $ref: "#/components/schemas/TaskQueryCursor"
 
         TaskCollectionPatch:
             oneOf:
@@ -4155,7 +4155,7 @@ components:
             additionalProperties: false
             properties:
                 cursor:
-                    $ref: "#/components/schemas/TaskCursor"
+                    $ref: "#/components/schemas/TaskQueryCursor"
                 task:
                     $ref: "#/components/schemas/TaskWithoutNotes"
 

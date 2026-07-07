@@ -83,6 +83,10 @@ export class DataBuilderView implements DataViewInterface {
         this.#bytes.push(value & 0xff);
     }
 
+    pushUint8s(value: Iterable<number>): void {
+        for (const byte of value) this.pushUint8(byte);
+    }
+
     getBigUint64(byteOffset: number, littleEndian?: boolean): bigint {
         const byteIndex = Math.trunc(byteOffset);
 

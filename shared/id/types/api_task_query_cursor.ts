@@ -10,4 +10,4 @@
 // `shared/api/specification/types` because we need to be able to import it from
 // `shared/tasks` and `server/tasks` code which don't depend on the broad API
 // specification package.
-export type ApiTaskCursor = string & {readonly _ApiTaskCursor: never};
+export type ApiTaskQueryCursor = string & {readonly _ApiTaskQueryCursor: never};
