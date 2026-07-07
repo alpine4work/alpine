@@ -14,6 +14,7 @@ ts_project(
         "@sqlite",
         "//:node_modules/@dnd-kit/core",
         "//:node_modules/@react-aria/interactions",
+        "//:node_modules/@react-types/shared",
         "//:node_modules/@dnd-kit/sortable",
         "//:node_modules/@dnd-kit/utilities",
         "//:node_modules/@types/react",
