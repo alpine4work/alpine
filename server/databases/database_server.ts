@@ -164,18 +164,14 @@ export class DatabaseServer {
     // -- Internal -----------------------------------------------------------
 
     private _bootstrap(): void {
-        // Bootstrap runs as one privileged "execute" so its writes flow through the buffer
-        // like any other action; we drain to storage immediately after. ATTACH is legal
-        // mid-execute (no explicit transaction is open), so we can attach + migrate every
-        // per-table file inline.
-        this.database.execute(
+        // Bootstrap writes flow through the buffer like any other execute; each batch
+        // drains to storage right after. ATTACH is legal mid-execute (no explicit
+        // transaction is open), so per-table files attach + migrate inline.
+        const {result: tables} = this.database.execute(
             db => {
                 db.exec("PRAGMA quick_check");
                 runMainMigrations(db);
-
-                // Attach + migrate each existing table's per-db file so its data and metadata are
-                // reachable.
-                const tables = sql`
+                return sql`
                     SELECT
                         id,
                         kind
@@ -185,7 +181,22 @@ export class DatabaseServer {
                     id: Schema.id<DatabaseTableId>(),
                     kind: Schema.enum(["table", "join"]),
                 });
-                for (const table of tables) {
+            },
+            {allowWrites: "schema+data"},
+        );
+        this._persistBuffer();
+
+        // Migrate every existing per-table file, one execute + persist per table.
+        // Attach-on-miss assumes every registered file is migration-current, so this
+        // sweep must finish before any action runs. Persisting per table keeps
+        // migrated files' buffered writes drained — Database only evicts tables with
+        // an empty buffer, and for groups with more tables than the attach threshold
+        // the sweep relies on that LRU eviction to stay under SQLite's limit. A
+        // table whose migrations are already current buffers nothing, so its persist
+        // is a no-op.
+        for (const table of tables) {
+            this.database.execute(
+                db => {
                     this.database.attachIfNeeded(table.id);
                     switch (table.kind) {
                         case "table":
@@ -197,11 +208,11 @@ export class DatabaseServer {
                         default:
                             throw exhaustive(table.kind);
                     }
-                }
-            },
-            {allowWrites: "schema+data"},
-        );
-        this._persistBuffer();
+                },
+                {allowWrites: "schema+data"},
+            );
+            this._persistBuffer();
+        }
     }
 
     private _runAndPersist<T>(
