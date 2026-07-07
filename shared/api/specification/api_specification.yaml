@@ -1165,12 +1165,7 @@ paths:
                                         status:
                                             $ref: "#/components/schemas/TaskStatus"
                                         assignee:
-                                            type: object
-                                            required: [id]
-                                            additionalProperties: false
-                                            properties:
-                                                id:
-                                                    $ref: "#/components/schemas/AccountId"
+                                            $ref: "#/components/schemas/Account"
                                         due:
                                             $ref: "#/components/schemas/TaskDue"
                                         priority:
@@ -2006,7 +2001,7 @@ components:
             type: object
             required: [type, id, title, shortName]
             additionalProperties: false
-            properties: &accountReferenceResponseProperties
+            properties:
                 type:
                     const: Account
                 id:
@@ -2636,13 +2631,14 @@ components:
 
         ContentFileBlockElement:
             type: object
-            required: [type, id]
+            required: [type, file]
             additionalProperties: false
             properties:
                 type:
                     const: File
-                id:
-                    $ref: "#/components/schemas/FileId"
+                # NOCOMMIT: Make sure this nesting works everywhere
+                file:
+                    $ref: "#/components/schemas/ContentFileBlockElementFile"
                 marks:
                     type: array
                     items:
@@ -2650,20 +2646,15 @@ components:
 
         ContentFileBlockElement_Response:
             type: object
-            required: [type, key, id, contentType, contentLength]
+            required: [type, key, file]
             additionalProperties: false
             properties:
                 type:
                     const: File
                 key:
                     $ref: "#/components/schemas/ContentKey"
-                id:
-                    $ref: "#/components/schemas/FileId"
-                contentType:
-                    $ref: "#/components/schemas/FileContentType"
-                contentLength:
-                    type: integer
-                    minimum: 0
+                file:
+                    $ref: "#/components/schemas/ContentFileBlockElementFile"
                 marks:
                     type: array
                     items:
@@ -2671,11 +2662,31 @@ components:
 
         ContentFileBlockElement_Response_WithoutKeys:
             type: object
-            required: [type, id, contentType, contentLength]
+            required: [type, file]
             additionalProperties: false
             properties:
                 type:
                     const: File
+                file:
+                    $ref: "#/components/schemas/ContentFileBlockElementFile"
+                marks:
+                    type: array
+                    items:
+                        $ref: "#/components/schemas/ContentCommentMark"
+
+        ContentFileBlockElementFile:
+            type: object
+            required: [id]
+            additionalProperties: false
+            properties:
+                id:
+                    $ref: "#/components/schemas/FileId"
+
+        ContentFileBlockElementFile_Response:
+            type: object
+            required: [id, contentType, contentLength]
+            additionalProperties: false
+            properties:
                 id:
                     $ref: "#/components/schemas/FileId"
                 contentType:
@@ -2683,10 +2694,6 @@ components:
                 contentLength:
                     type: integer
                     minimum: 0
-                marks:
-                    type: array
-                    items:
-                        $ref: "#/components/schemas/ContentCommentMark"
 
         ContentPreviewBlockElement:
             type: object
@@ -3012,6 +3019,19 @@ components:
 
         AccountWithoutSpace:
             type: object
+            required: [id]
+            additionalProperties: false
+            properties:
+                id:
+                    $ref: "#/components/schemas/AccountId"
+                # NOTE(calebmer): Optional `title` property so we can accept an
+                # `AccountReferenceResponse` to this type without `additionalProperties`
+                # throwing an error. We should hide this from documentation!
+                title:
+                    type: string
+
+        AccountWithoutSpace_Response:
+            type: object
             required: [id, name, shortName]
             additionalProperties: false
             properties:
@@ -3041,9 +3061,22 @@ components:
 
         Account:
             type: object
+            required: [id]
+            additionalProperties: false
+            properties:
+                id:
+                    $ref: "#/components/schemas/AccountId"
+                # NOTE(calebmer): Optional `title` property so we can accept an
+                # `AccountReferenceResponse` to this type without `additionalProperties`
+                # throwing an error. We should hide this from documentation!
+                title:
+                    type: string
+
+        Account_Response:
+            type: object
             required: [id, name, shortName, space]
             additionalProperties: false
-            properties: &accountProperties
+            properties:
                 id:
                     $ref: "#/components/schemas/AccountId"
                 name:
@@ -3446,19 +3479,7 @@ components:
                         additionalProperties: false
                         properties:
                             account:
-                                type: object
-                                required: [id]
-                                additionalProperties: false
-                                properties:
-                                    id:
-                                        $ref: "#/components/schemas/AccountId"
-                                    # Allow properties from `Account` or `AccountReference` when declaring this
-                                    # account. These properties are ignored but it allows you to pass an object
-                                    # from the API response in as input.
-                                    #
-                                    # TODO(#public-api): Make sure these properties are hidden in the
-                                    # documentation!
-                                    <<: [*accountProperties, *accountReferenceResponseProperties]
+                                $ref: "#/components/schemas/Account"
 
         CreateChatRequestBodyRoomChat:
             type: object
@@ -3838,27 +3859,7 @@ components:
             additionalProperties: false
             properties:
                 collection:
-                    type: object
-                    required: [id]
-                    additionalProperties: false
-                    properties:
-                        id:
-                            $ref: "#/components/schemas/TaskCollectionId"
-
-        TaskCollectionItem_Response:
-            type: object
-            required: [collection]
-            additionalProperties: false
-            properties:
-                collection:
-                    type: object
-                    required: [id, name]
-                    additionalProperties: false
-                    properties:
-                        id:
-                            $ref: "#/components/schemas/TaskCollectionId"
-                        name:
-                            $ref: "#/components/schemas/LabelString"
+                    $ref: "#/components/schemas/TaskCollectionPreview"
 
         TaskPatch:
             oneOf:
@@ -3905,12 +3906,7 @@ components:
                     const: SetAssignee
                 assignee:
                     oneOf:
-                        - type: object
-                          required: [id]
-                          additionalProperties: false
-                          properties:
-                              id:
-                                  $ref: "#/components/schemas/AccountId"
+                        - $ref: "#/components/schemas/Account"
                         - type: "null"
 
         TaskSetStatusPatch:
@@ -4122,6 +4118,24 @@ components:
                 color:
                     $ref: "#/components/schemas/TaskCollectionColor"
 
+        TaskCollectionPreview:
+            type: object
+            required: [id]
+            additionalProperties: false
+            properties:
+                id:
+                    $ref: "#/components/schemas/TaskCollectionId"
+
+        TaskCollectionPreview_Response:
+            type: object
+            required: [id, name]
+            additionalProperties: false
+            properties:
+                id:
+                    $ref: "#/components/schemas/TaskCollectionId"
+                name:
+                    $ref: "#/components/schemas/LabelString"
+
         TaskCollection_Response:
             type: object
             required: [id, name, defaults]
@@ -4282,14 +4296,6 @@ components:
                     ExcludesAllOf: "#/components/schemas/TaskCollectionsFilterExcludesAllOfOperation"
                     IsEmpty: "#/components/schemas/TaskCollectionsFilterIsEmptyOperation"
 
-        TaskCollectionsFilterCollection:
-            type: object
-            required: [id]
-            additionalProperties: false
-            properties:
-                id:
-                    $ref: "#/components/schemas/TaskCollectionId"
-
         TaskCollectionsFilterIncludesOneOfOperation:
             type: object
             required: [type, collections]
@@ -4300,7 +4306,7 @@ components:
                 collections:
                     type: array
                     items:
-                        $ref: "#/components/schemas/TaskCollectionsFilterCollection"
+                        $ref: "#/components/schemas/TaskCollectionPreview"
 
         TaskCollectionsFilterIncludesAllOfOperation:
             type: object
@@ -4312,7 +4318,7 @@ components:
                 collections:
                     type: array
                     items:
-                        $ref: "#/components/schemas/TaskCollectionsFilterCollection"
+                        $ref: "#/components/schemas/TaskCollectionPreview"
 
         TaskCollectionsFilterExcludesAllOfOperation:
             type: object
@@ -4324,7 +4330,7 @@ components:
                 collections:
                     type: array
                     items:
-                        $ref: "#/components/schemas/TaskCollectionsFilterCollection"
+                        $ref: "#/components/schemas/TaskCollectionPreview"
 
         TaskCollectionsFilterIsEmptyOperation:
             type: object
@@ -4550,12 +4556,7 @@ components:
                 type:
                     const: Account
                 account:
-                    type: object
-                    required: [id]
-                    additionalProperties: false
-                    properties:
-                        id:
-                            $ref: "#/components/schemas/AccountId"
+                    $ref: "#/components/schemas/Account"
 
         TaskAccountFilterOperationCurrentAccount:
             type: object

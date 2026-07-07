@@ -61,6 +61,10 @@ import {JsonScalarValue} from "~/shared/helpers/types/json_value.js";
 // of using this keyless shape. The conditional type preserves primitives, walks
 // arrays and objects, and strips `key` wherever the generated response type
 // declares one.
+//
+// NOCOMMIT: Delete the "without keys" from here and replace it "with optional
+// keys"? Then use the "without keys" types from
+// `shared/api/specification/types/api_specification_convenience_types.ts`.
 type MakeApiContentWithoutKeys<Value> = Value extends JsonScalarValue | undefined
     ? Value
     : Value extends ReadonlyArray<infer Item>

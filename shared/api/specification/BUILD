@@ -72,6 +72,7 @@ js_run_binary(
         "api_content_code_block_language_definition_generated.ts",
         "api_specification_final_generated.yaml",
         "types/api_specification_types_generated.ts",
+        "types/api_specification_convenience_types_generated.ts",
     ],
     tool = ":specification_generate",
 )
@@ -81,6 +82,7 @@ write_source_files(
     files = {
         "api_specification_final.yaml": "api_specification_final_generated.yaml",
         "types/api_specification_types.ts": "types/api_specification_types_generated.ts",
+        "types/api_specification_convenience_types.ts": "types/api_specification_convenience_types_generated.ts",
         "api_content_code_block_language_definition.ts": "api_content_code_block_language_definition_generated.ts",
     },
 )

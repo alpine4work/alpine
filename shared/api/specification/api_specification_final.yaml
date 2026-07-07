@@ -35,7 +35,7 @@ paths:
                                 additionalProperties: false
                                 properties:
                                     account:
-                                        $ref: "#/components/schemas/AccountWithoutSpace"
+                                        $ref: "#/components/schemas/AccountWithoutSpace_Response"
                 default:
                     $ref: "#/components/responses/Error"
     /accounts/{id}/reference:
@@ -109,7 +109,7 @@ paths:
                                 additionalProperties: false
                                 properties:
                                     account:
-                                        $ref: "#/components/schemas/Account"
+                                        $ref: "#/components/schemas/Account_Response"
                 default:
                     $ref: "#/components/responses/Error"
     /spaces/{id}/accounts/{accountId}/inbox:
@@ -193,7 +193,7 @@ paths:
                                     entries:
                                         type: array
                                         items:
-                                            $ref: "#/components/schemas/InboxEntry"
+                                            $ref: "#/components/schemas/InboxEntry_Response"
                 default:
                     $ref: "#/components/responses/Error"
     /spaces/{id}/bots/{botId}/settings:
@@ -653,7 +653,7 @@ paths:
                                     spaceId:
                                         $ref: "#/components/schemas/SpaceId"
                                     thread:
-                                        $ref: "#/components/schemas/DocumentThreadPreview"
+                                        $ref: "#/components/schemas/DocumentThreadPreview_Response"
                 default:
                     $ref: "#/components/responses/Error"
     /documents/{id}/threads/{threadId}/messages/{index}:
@@ -1209,7 +1209,7 @@ paths:
                                     results:
                                         type: array
                                         items:
-                                            $ref: "#/components/schemas/SearchResult"
+                                            $ref: "#/components/schemas/SearchResult_Response"
                 default:
                     $ref: "#/components/responses/Error"
     /sites/{id}/reference:
@@ -1270,13 +1270,7 @@ paths:
                                         status:
                                             $ref: "#/components/schemas/TaskStatus"
                                         assignee:
-                                            type: object
-                                            required:
-                                                - id
-                                            additionalProperties: false
-                                            properties:
-                                                id:
-                                                    $ref: "#/components/schemas/AccountId"
+                                            $ref: "#/components/schemas/Account"
                                         due:
                                             $ref: "#/components/schemas/TaskDue"
                                         priority:
@@ -1893,7 +1887,7 @@ components:
                             spaceId:
                                 $ref: "#/components/schemas/SpaceId"
                             chat:
-                                $ref: "#/components/schemas/Chat"
+                                $ref: "#/components/schemas/Chat_Response"
         GetDocument:
             content:
                 application/json:
@@ -2946,45 +2940,33 @@ components:
             type: object
             required:
                 - type
-                - id
+                - file
             additionalProperties: false
             properties:
                 type:
                     const: File
-                id:
-                    $ref: "#/components/schemas/FileId"
+                file:
+                    $ref: "#/components/schemas/ContentFileBlockElementFile"
                 marks:
                     type: array
                     items:
                         $ref: "#/components/schemas/ContentCommentMark"
                 key:
                     $ref: "#/components/schemas/ContentKey"
-                contentType:
-                    $ref: "#/components/schemas/FileContentType"
-                contentLength:
-                    type: integer
-                    minimum: 0
         ContentFileBlockElement_Response:
             type: object
             required:
                 - type
                 - key
-                - id
-                - contentType
-                - contentLength
+                - file
             additionalProperties: false
             properties:
                 type:
                     const: File
                 key:
                     $ref: "#/components/schemas/ContentKey"
-                id:
-                    $ref: "#/components/schemas/FileId"
-                contentType:
-                    $ref: "#/components/schemas/FileContentType"
-                contentLength:
-                    type: integer
-                    minimum: 0
+                file:
+                    $ref: "#/components/schemas/ContentFileBlockElementFile_Response"
                 marks:
                     type: array
                     items:
@@ -2993,13 +2975,23 @@ components:
             type: object
             required:
                 - type
-                - id
-                - contentType
-                - contentLength
+                - file
             additionalProperties: false
             properties:
                 type:
                     const: File
+                file:
+                    $ref: "#/components/schemas/ContentFileBlockElementFile_Response"
+                marks:
+                    type: array
+                    items:
+                        $ref: "#/components/schemas/ContentCommentMark"
+        ContentFileBlockElementFile:
+            type: object
+            required:
+                - id
+            additionalProperties: false
+            properties:
                 id:
                     $ref: "#/components/schemas/FileId"
                 contentType:
@@ -3007,10 +2999,21 @@ components:
                 contentLength:
                     type: integer
                     minimum: 0
-                marks:
-                    type: array
-                    items:
-                        $ref: "#/components/schemas/ContentCommentMark"
+        ContentFileBlockElementFile_Response:
+            type: object
+            required:
+                - id
+                - contentType
+                - contentLength
+            additionalProperties: false
+            properties:
+                id:
+                    $ref: "#/components/schemas/FileId"
+                contentType:
+                    $ref: "#/components/schemas/FileContentType"
+                contentLength:
+                    type: integer
+                    minimum: 0
         ContentPreviewBlockElement:
             type: object
             required:
@@ -3347,6 +3350,28 @@ components:
             type: object
             required:
                 - id
+            additionalProperties: false
+            properties:
+                id:
+                    $ref: "#/components/schemas/AccountId"
+                title:
+                    type: string
+                name:
+                    $ref: "#/components/schemas/LabelString"
+                shortName:
+                    $ref: "#/components/schemas/LabelString"
+                bot:
+                    type: object
+                    required:
+                        - id
+                    additionalProperties: false
+                    properties:
+                        id:
+                            $ref: "#/components/schemas/BotId"
+        AccountWithoutSpace_Response:
+            type: object
+            required:
+                - id
                 - name
                 - shortName
             additionalProperties: false
@@ -3377,6 +3402,30 @@ components:
                 name:
                     $ref: "#/components/schemas/LabelString"
         Account:
+            type: object
+            required:
+                - id
+            additionalProperties: false
+            properties:
+                id:
+                    $ref: "#/components/schemas/AccountId"
+                title:
+                    type: string
+                name:
+                    $ref: "#/components/schemas/LabelString"
+                shortName:
+                    $ref: "#/components/schemas/LabelString"
+                bot:
+                    type: object
+                    required:
+                        - id
+                    additionalProperties: false
+                    properties:
+                        id:
+                            $ref: "#/components/schemas/BotId"
+                space:
+                    $ref: "#/components/schemas/AccountSpace"
+        Account_Response:
             type: object
             required:
                 - id
@@ -4015,31 +4064,7 @@ components:
                         additionalProperties: false
                         properties:
                             account:
-                                type: object
-                                required:
-                                    - id
-                                additionalProperties: false
-                                properties:
-                                    id:
-                                        $ref: "#/components/schemas/AccountId"
-                                    name:
-                                        $ref: "#/components/schemas/LabelString"
-                                    shortName:
-                                        $ref: "#/components/schemas/LabelString"
-                                    bot:
-                                        type: object
-                                        required:
-                                            - id
-                                        additionalProperties: false
-                                        properties:
-                                            id:
-                                                $ref: "#/components/schemas/BotId"
-                                    space:
-                                        $ref: "#/components/schemas/AccountSpace"
-                                    type:
-                                        const: Account
-                                    title:
-                                        type: string
+                                $ref: "#/components/schemas/Account"
         CreateChatRequestBodyRoomChat:
             type: object
             required:
@@ -4458,30 +4483,7 @@ components:
             additionalProperties: false
             properties:
                 collection:
-                    type: object
-                    required:
-                        - id
-                    additionalProperties: false
-                    properties:
-                        id:
-                            $ref: "#/components/schemas/TaskCollectionId"
-        TaskCollectionItem_Response:
-            type: object
-            required:
-                - collection
-            additionalProperties: false
-            properties:
-                collection:
-                    type: object
-                    required:
-                        - id
-                        - name
-                    additionalProperties: false
-                    properties:
-                        id:
-                            $ref: "#/components/schemas/TaskCollectionId"
-                        name:
-                            $ref: "#/components/schemas/LabelString"
+                    $ref: "#/components/schemas/TaskCollectionPreview"
         TaskPatch:
             oneOf:
                 - $ref: "#/components/schemas/TaskSetTitlePatch"
@@ -4529,13 +4531,7 @@ components:
                     const: SetAssignee
                 assignee:
                     oneOf:
-                        - type: object
-                          required:
-                              - id
-                          additionalProperties: false
-                          properties:
-                              id:
-                                  $ref: "#/components/schemas/AccountId"
+                        - $ref: "#/components/schemas/Account"
                         - type: "null"
         TaskSetStatusPatch:
             type: object
@@ -4761,6 +4757,27 @@ components:
                     $ref: "#/components/schemas/TaskCollectionColor"
                 defaults:
                     $ref: "#/components/schemas/TaskQueryDefaults"
+        TaskCollectionPreview:
+            type: object
+            required:
+                - id
+            additionalProperties: false
+            properties:
+                id:
+                    $ref: "#/components/schemas/TaskCollectionId"
+                name:
+                    $ref: "#/components/schemas/LabelString"
+        TaskCollectionPreview_Response:
+            type: object
+            required:
+                - id
+                - name
+            additionalProperties: false
+            properties:
+                id:
+                    $ref: "#/components/schemas/TaskCollectionId"
+                name:
+                    $ref: "#/components/schemas/LabelString"
         TaskCollection_Response:
             type: object
             required:
@@ -4819,7 +4836,7 @@ components:
                 filters:
                     type: array
                     items:
-                        $ref: "#/components/schemas/TaskFilter"
+                        $ref: "#/components/schemas/TaskFilter_Response"
                 sorts:
                     type: array
                     items:
@@ -4928,14 +4945,6 @@ components:
                     ExcludesAllOf: "#/components/schemas/TaskCollectionsFilterExcludesAllOfOperatio\
                         n"
                     IsEmpty: "#/components/schemas/TaskCollectionsFilterIsEmptyOperation"
-        TaskCollectionsFilterCollection:
-            type: object
-            required:
-                - id
-            additionalProperties: false
-            properties:
-                id:
-                    $ref: "#/components/schemas/TaskCollectionId"
         TaskCollectionsFilterIncludesOneOfOperation:
             type: object
             required:
@@ -4948,7 +4957,7 @@ components:
                 collections:
                     type: array
                     items:
-                        $ref: "#/components/schemas/TaskCollectionsFilterCollection"
+                        $ref: "#/components/schemas/TaskCollectionPreview"
         TaskCollectionsFilterIncludesAllOfOperation:
             type: object
             required:
@@ -4961,7 +4970,7 @@ components:
                 collections:
                     type: array
                     items:
-                        $ref: "#/components/schemas/TaskCollectionsFilterCollection"
+                        $ref: "#/components/schemas/TaskCollectionPreview"
         TaskCollectionsFilterExcludesAllOfOperation:
             type: object
             required:
@@ -4974,7 +4983,7 @@ components:
                 collections:
                     type: array
                     items:
-                        $ref: "#/components/schemas/TaskCollectionsFilterCollection"
+                        $ref: "#/components/schemas/TaskCollectionPreview"
         TaskCollectionsFilterIsEmptyOperation:
             type: object
             required:
@@ -5210,13 +5219,7 @@ components:
                 type:
                     const: Account
                 account:
-                    type: object
-                    required:
-                        - id
-                    additionalProperties: false
-                    properties:
-                        id:
-                            $ref: "#/components/schemas/AccountId"
+                    $ref: "#/components/schemas/Account"
         TaskAccountFilterOperationCurrentAccount:
             type: object
             required:
@@ -5900,7 +5903,7 @@ components:
                     type: integer
                     minimum: 0
                 author:
-                    $ref: "#/components/schemas/Account"
+                    $ref: "#/components/schemas/Account_Response"
                 contentSnippet:
                     $ref: "#/components/schemas/MessageContentPayloadParentContentSnippet"
         MessageContentPayloadPostParent:
@@ -5926,7 +5929,7 @@ components:
                 type:
                     const: Post
                 author:
-                    $ref: "#/components/schemas/Account"
+                    $ref: "#/components/schemas/Account_Response"
                 contentSnippet:
                     $ref: "#/components/schemas/MessageContentPayloadParentContentSnippet"
         MessageDeletedPayload:
@@ -6615,6 +6618,120 @@ components:
             properties:
                 summary:
                     type: string
+        DocumentThread_Response:
+            type: object
+            required:
+                - id
+                - isResolved
+                - totalMessageCount
+                - firstMessage
+                - marked
+            additionalProperties: false
+            properties:
+                id:
+                    $ref: "#/components/schemas/DocumentThreadId"
+                isResolved:
+                    type: boolean
+                totalMessageCount:
+                    type: integer
+                    minimum: 0
+                firstMessage:
+                    type: object
+                    required:
+                        - author
+                        - createdTime
+                        - createdTimeZone
+                    properties:
+                        author:
+                            $ref: "#/components/schemas/Account_Response"
+                        createdTime:
+                            $ref: "#/components/schemas/DateTime"
+                        createdTimeZone:
+                            $ref: "#/components/schemas/TimeZone"
+                marked:
+                    type: object
+                    required:
+                        - preview
+                    properties:
+                        preview:
+                            type: object
+                            required:
+                                - version
+                                - contentSnippet
+                            properties:
+                                version:
+                                    type: integer
+                                    minimum: 0
+                                contentSnippet:
+                                    $ref: "#/components/schemas/Content_Response_WithoutKeys"
+        DocumentThreadPreview_Response:
+            type: object
+            required:
+                - id
+                - isResolved
+                - totalMessageCount
+                - firstMessage
+            additionalProperties: false
+            properties:
+                id:
+                    $ref: "#/components/schemas/DocumentThreadId"
+                isResolved:
+                    type: boolean
+                totalMessageCount:
+                    type: integer
+                    minimum: 0
+                firstMessage:
+                    type: object
+                    required:
+                        - author
+                        - createdTime
+                        - createdTimeZone
+                    properties:
+                        author:
+                            $ref: "#/components/schemas/Account_Response"
+                        createdTime:
+                            $ref: "#/components/schemas/DateTime"
+                        createdTimeZone:
+                            $ref: "#/components/schemas/TimeZone"
+        PostPreview_Response:
+            type: object
+            required:
+                - id
+                - author
+                - createdTime
+                - createdTimeZone
+                - contentSnippet
+                - reference
+            additionalProperties: false
+            properties:
+                id:
+                    $ref: "#/components/schemas/PostId"
+                author:
+                    $ref: "#/components/schemas/Account_Response"
+                createdTime:
+                    $ref: "#/components/schemas/DateTime"
+                createdTimeZone:
+                    $ref: "#/components/schemas/TimeZone"
+                channel:
+                    $ref: "#/components/schemas/ChannelPreview"
+                contentSnippet:
+                    $ref: "#/components/schemas/Content_Response_WithoutKeys"
+                reference:
+                    type: object
+                    required:
+                        - title
+                    additionalProperties: false
+                    properties:
+                        title:
+                            type: string
+        TaskCollectionItem_Response:
+            type: object
+            required:
+                - collection
+            additionalProperties: false
+            properties:
+                collection:
+                    $ref: "#/components/schemas/TaskCollectionPreview_Response"
         MessageContentPayloadParent_Response:
             oneOf:
                 - $ref: "#/components/schemas/MessageContentPayloadMessageParent_Response"
@@ -6649,7 +6766,7 @@ components:
                     type: string
                     maxLength: 512
                 assignee:
-                    $ref: "#/components/schemas/Account"
+                    $ref: "#/components/schemas/Account_Response"
                 due:
                     $ref: "#/components/schemas/TaskDue"
                 priority:
@@ -6664,6 +6781,58 @@ components:
                         $ref: "#/components/schemas/TaskCollectionItem_Response"
                 notes:
                     $ref: "#/components/schemas/TaskNotes_Response"
+        Message_Response:
+            type: object
+            required:
+                - index
+                - author
+                - createdTime
+                - createdTimeZone
+                - payload
+            additionalProperties: false
+            properties:
+                index:
+                    type: integer
+                    minimum: 0
+                author:
+                    $ref: "#/components/schemas/Account_Response"
+                createdTime:
+                    $ref: "#/components/schemas/DateTime"
+                createdTimeZone:
+                    $ref: "#/components/schemas/TimeZone"
+                payload:
+                    $ref: "#/components/schemas/MessagePayload_Response"
+        Post_Response:
+            type: object
+            required:
+                - id
+                - author
+                - createdTime
+                - createdTimeZone
+                - content
+                - reference
+            additionalProperties: false
+            properties:
+                id:
+                    $ref: "#/components/schemas/PostId"
+                author:
+                    $ref: "#/components/schemas/Account_Response"
+                createdTime:
+                    $ref: "#/components/schemas/DateTime"
+                createdTimeZone:
+                    $ref: "#/components/schemas/TimeZone"
+                channel:
+                    $ref: "#/components/schemas/ChannelPreview"
+                content:
+                    $ref: "#/components/schemas/Content_Response"
+                reference:
+                    type: object
+                    required:
+                        - title
+                    additionalProperties: false
+                    properties:
+                        title:
+                            type: string
         PreviewReference_Response:
             oneOf:
                 - $ref: "#/components/schemas/ChannelReference_Response"
@@ -6683,6 +6852,403 @@ components:
                     Task: "#/components/schemas/TaskReference_Response"
                     TaskCollection: "#/components/schemas/TaskCollectionReference_Response"
                     Site: "#/components/schemas/SiteReference_Response"
+        InboxChatEntry_Response:
+            type: object
+            required:
+                - title
+                - time
+                - loudNotificationCount
+                - status
+                - featured
+                - type
+                - chat
+                - previewMessage
+            additionalProperties: false
+            properties:
+                title:
+                    type: array
+                    items:
+                        $ref: "#/components/schemas/InboxEntryTitleItem_Response"
+                preview:
+                    type: string
+                time:
+                    $ref: "#/components/schemas/DateTime"
+                loudNotificationCount:
+                    type: integer
+                    minimum: 0
+                status:
+                    type: string
+                    enum:
+                        - New
+                        - Done
+                featured:
+                    type: object
+                    required:
+                        - type
+                    additionalProperties: false
+                    oneOf:
+                        - $ref: "#/components/schemas/InboxEntryAccountFeatured_Response"
+                    discriminator:
+                        propertyName: type
+                        mapping:
+                            Account: "#/components/schemas/InboxEntryAccountFeatured_Response"
+                otherAccount:
+                    $ref: "#/components/schemas/Account_Response"
+                type:
+                    const: Chat
+                chat:
+                    type: object
+                    required:
+                        - id
+                    additionalProperties: false
+                    properties:
+                        id:
+                            $ref: "#/components/schemas/ChatId"
+                previewMessage:
+                    type: object
+                    required:
+                        - index
+                    additionalProperties: false
+                    properties:
+                        index:
+                            type: integer
+                            minimum: 0
+        InboxCreatedChannelPostsEntry_Response:
+            type: object
+            required:
+                - title
+                - time
+                - loudNotificationCount
+                - status
+                - featured
+                - type
+                - channel
+                - posts
+            additionalProperties: false
+            properties:
+                title:
+                    type: array
+                    items:
+                        $ref: "#/components/schemas/InboxEntryTitleItem_Response"
+                preview:
+                    type: string
+                time:
+                    $ref: "#/components/schemas/DateTime"
+                loudNotificationCount:
+                    type: integer
+                    minimum: 0
+                status:
+                    type: string
+                    enum:
+                        - New
+                        - Done
+                featured:
+                    type: object
+                    required:
+                        - type
+                    additionalProperties: false
+                    oneOf:
+                        - $ref: "#/components/schemas/InboxEntryAccountFeatured_Response"
+                    discriminator:
+                        propertyName: type
+                        mapping:
+                            Account: "#/components/schemas/InboxEntryAccountFeatured_Response"
+                otherAccount:
+                    $ref: "#/components/schemas/Account_Response"
+                type:
+                    const: CreatedChannelPosts
+                channel:
+                    type: object
+                    required:
+                        - id
+                    additionalProperties: false
+                    properties:
+                        id:
+                            $ref: "#/components/schemas/ChannelId"
+                posts:
+                    type: array
+                    minItems: 1
+                    items:
+                        type: object
+                        required:
+                            - id
+                        additionalProperties: false
+                        properties:
+                            id:
+                                $ref: "#/components/schemas/PostId"
+        InboxPostEntry_Response:
+            type: object
+            required:
+                - title
+                - time
+                - loudNotificationCount
+                - status
+                - featured
+                - type
+                - post
+            additionalProperties: false
+            properties:
+                title:
+                    type: array
+                    items:
+                        $ref: "#/components/schemas/InboxEntryTitleItem_Response"
+                preview:
+                    type: string
+                time:
+                    $ref: "#/components/schemas/DateTime"
+                loudNotificationCount:
+                    type: integer
+                    minimum: 0
+                status:
+                    type: string
+                    enum:
+                        - New
+                        - Done
+                featured:
+                    type: object
+                    required:
+                        - type
+                    additionalProperties: false
+                    oneOf:
+                        - $ref: "#/components/schemas/InboxEntryAccountFeatured_Response"
+                    discriminator:
+                        propertyName: type
+                        mapping:
+                            Account: "#/components/schemas/InboxEntryAccountFeatured_Response"
+                otherAccount:
+                    $ref: "#/components/schemas/Account_Response"
+                type:
+                    const: Post
+                post:
+                    type: object
+                    required:
+                        - id
+                    additionalProperties: false
+                    properties:
+                        id:
+                            $ref: "#/components/schemas/PostId"
+                previewMessage:
+                    type: object
+                    required:
+                        - index
+                    additionalProperties: false
+                    properties:
+                        index:
+                            type: integer
+                            minimum: 0
+        InboxCreatedDocumentThreadsEntry_Response:
+            type: object
+            required:
+                - title
+                - time
+                - loudNotificationCount
+                - status
+                - featured
+                - type
+                - document
+                - threads
+            additionalProperties: false
+            properties:
+                title:
+                    type: array
+                    items:
+                        $ref: "#/components/schemas/InboxEntryTitleItem_Response"
+                preview:
+                    type: string
+                time:
+                    $ref: "#/components/schemas/DateTime"
+                loudNotificationCount:
+                    type: integer
+                    minimum: 0
+                status:
+                    type: string
+                    enum:
+                        - New
+                        - Done
+                featured:
+                    type: object
+                    required:
+                        - type
+                    additionalProperties: false
+                    oneOf:
+                        - $ref: "#/components/schemas/InboxEntryAccountFeatured_Response"
+                    discriminator:
+                        propertyName: type
+                        mapping:
+                            Account: "#/components/schemas/InboxEntryAccountFeatured_Response"
+                otherAccount:
+                    $ref: "#/components/schemas/Account_Response"
+                type:
+                    const: CreatedDocumentThreads
+                document:
+                    type: object
+                    required:
+                        - id
+                    additionalProperties: false
+                    properties:
+                        id:
+                            $ref: "#/components/schemas/DocumentId"
+                threads:
+                    type: array
+                    minItems: 1
+                    items:
+                        type: object
+                        required:
+                            - id
+                        additionalProperties: false
+                        properties:
+                            id:
+                                $ref: "#/components/schemas/DocumentThreadId"
+        InboxDocumentThreadEntry_Response:
+            type: object
+            required:
+                - title
+                - time
+                - loudNotificationCount
+                - status
+                - featured
+                - type
+                - thread
+                - previewMessage
+            additionalProperties: false
+            properties:
+                title:
+                    type: array
+                    items:
+                        $ref: "#/components/schemas/InboxEntryTitleItem_Response"
+                preview:
+                    type: string
+                time:
+                    $ref: "#/components/schemas/DateTime"
+                loudNotificationCount:
+                    type: integer
+                    minimum: 0
+                status:
+                    type: string
+                    enum:
+                        - New
+                        - Done
+                featured:
+                    type: object
+                    required:
+                        - type
+                    additionalProperties: false
+                    oneOf:
+                        - $ref: "#/components/schemas/InboxEntryAccountFeatured_Response"
+                    discriminator:
+                        propertyName: type
+                        mapping:
+                            Account: "#/components/schemas/InboxEntryAccountFeatured_Response"
+                otherAccount:
+                    $ref: "#/components/schemas/Account_Response"
+                type:
+                    const: DocumentThread
+                thread:
+                    type: object
+                    required:
+                        - id
+                        - document
+                    additionalProperties: false
+                    properties:
+                        id:
+                            $ref: "#/components/schemas/DocumentThreadId"
+                        document:
+                            type: object
+                            required:
+                                - id
+                            additionalProperties: false
+                            properties:
+                                id:
+                                    $ref: "#/components/schemas/DocumentId"
+                previewMessage:
+                    type: object
+                    required:
+                        - index
+                    additionalProperties: false
+                    properties:
+                        index:
+                            type: integer
+                            minimum: 0
+        InboxTaskMessagesEntry_Response:
+            type: object
+            required:
+                - title
+                - time
+                - loudNotificationCount
+                - status
+                - featured
+                - type
+                - task
+                - previewMessage
+            additionalProperties: false
+            properties:
+                title:
+                    type: array
+                    items:
+                        $ref: "#/components/schemas/InboxEntryTitleItem_Response"
+                preview:
+                    type: string
+                time:
+                    $ref: "#/components/schemas/DateTime"
+                loudNotificationCount:
+                    type: integer
+                    minimum: 0
+                status:
+                    type: string
+                    enum:
+                        - New
+                        - Done
+                featured:
+                    type: object
+                    required:
+                        - type
+                    additionalProperties: false
+                    oneOf:
+                        - $ref: "#/components/schemas/InboxEntryAccountFeatured_Response"
+                    discriminator:
+                        propertyName: type
+                        mapping:
+                            Account: "#/components/schemas/InboxEntryAccountFeatured_Response"
+                otherAccount:
+                    $ref: "#/components/schemas/Account_Response"
+                type:
+                    const: TaskMessages
+                task:
+                    type: object
+                    required:
+                        - id
+                    additionalProperties: false
+                    properties:
+                        id:
+                            $ref: "#/components/schemas/TaskId"
+                previewMessage:
+                    type: object
+                    required:
+                        - index
+                    additionalProperties: false
+                    properties:
+                        index:
+                            type: integer
+                            minimum: 0
+        CreateChatRequestBodyDirectChat_Response:
+            type: object
+            required:
+                - type
+                - members
+            additionalProperties: false
+            properties:
+                type:
+                    const: Direct
+                members:
+                    type: array
+                    items:
+                        type: object
+                        required:
+                            - account
+                        additionalProperties: false
+                        properties:
+                            account:
+                                $ref: "#/components/schemas/Account_Response"
         ContentBlockElement_Response:
             oneOf:
                 - $ref: "#/components/schemas/ContentParagraphBlockElement_Response"
@@ -6714,6 +7280,150 @@ components:
                     FileGallery: "#/components/schemas/ContentFileGalleryBlockElement_Response"
                     FileFloat: "#/components/schemas/ContentFileFloatBlockElement_Response"
                     Preview: "#/components/schemas/ContentPreviewBlockElement_Response"
+        SearchChatMessageResult_Response:
+            type: object
+            required:
+                - type
+                - id
+                - index
+                - title
+                - bodyMatch
+                - author
+            additionalProperties: false
+            properties:
+                type:
+                    const: ChatMessage
+                id:
+                    $ref: "#/components/schemas/ChatId"
+                index:
+                    type: integer
+                    minimum: 0
+                title:
+                    const: null
+                bodyMatch:
+                    $ref: "#/components/schemas/SearchResultBodyMatch"
+                parsedFilter:
+                    $ref: "#/components/schemas/SearchResultParsedFilter"
+                author:
+                    $ref: "#/components/schemas/Account_Response"
+        SearchDocumentMessageResult_Response:
+            type: object
+            required:
+                - type
+                - id
+                - threadId
+                - index
+                - title
+                - bodyMatch
+                - author
+            additionalProperties: false
+            properties:
+                type:
+                    const: DocumentMessage
+                id:
+                    $ref: "#/components/schemas/DocumentId"
+                threadId:
+                    $ref: "#/components/schemas/DocumentThreadId"
+                index:
+                    type: integer
+                    minimum: 0
+                title:
+                    const: null
+                bodyMatch:
+                    $ref: "#/components/schemas/SearchResultBodyMatch"
+                parsedFilter:
+                    $ref: "#/components/schemas/SearchResultParsedFilter"
+                author:
+                    $ref: "#/components/schemas/Account_Response"
+        SearchPostResult_Response:
+            type: object
+            required:
+                - type
+                - id
+                - title
+                - bodyMatch
+                - author
+            additionalProperties: false
+            properties:
+                type:
+                    const: Post
+                id:
+                    $ref: "#/components/schemas/PostId"
+                title:
+                    type: string
+                bodyMatch:
+                    oneOf:
+                        - $ref: "#/components/schemas/SearchResultBodyMatch"
+                        - type: "null"
+                parsedFilter:
+                    $ref: "#/components/schemas/SearchResultParsedFilter"
+                author:
+                    $ref: "#/components/schemas/Account_Response"
+        SearchPostMessageResult_Response:
+            type: object
+            required:
+                - type
+                - id
+                - index
+                - title
+                - bodyMatch
+                - author
+            additionalProperties: false
+            properties:
+                type:
+                    const: PostMessage
+                id:
+                    $ref: "#/components/schemas/PostId"
+                index:
+                    type: integer
+                    minimum: 0
+                title:
+                    const: null
+                bodyMatch:
+                    $ref: "#/components/schemas/SearchResultBodyMatch"
+                parsedFilter:
+                    $ref: "#/components/schemas/SearchResultParsedFilter"
+                author:
+                    $ref: "#/components/schemas/Account_Response"
+        SearchTaskMessageResult_Response:
+            type: object
+            required:
+                - type
+                - id
+                - index
+                - title
+                - bodyMatch
+                - author
+            additionalProperties: false
+            properties:
+                type:
+                    const: TaskMessage
+                id:
+                    $ref: "#/components/schemas/TaskId"
+                index:
+                    type: integer
+                    minimum: 0
+                title:
+                    const: null
+                bodyMatch:
+                    $ref: "#/components/schemas/SearchResultBodyMatch"
+                parsedFilter:
+                    $ref: "#/components/schemas/SearchResultParsedFilter"
+                author:
+                    $ref: "#/components/schemas/Account_Response"
+        TaskSetAssigneePatch_Response:
+            type: object
+            required:
+                - type
+                - assignee
+            additionalProperties: false
+            properties:
+                type:
+                    const: SetAssignee
+                assignee:
+                    oneOf:
+                        - $ref: "#/components/schemas/Account_Response"
+                        - type: "null"
         TaskSetParentPatch_Response:
             type: object
             required:
@@ -6727,17 +7437,6 @@ components:
                     oneOf:
                         - $ref: "#/components/schemas/TaskParent_Response"
                         - type: "null"
-        TaskAddCollectionPatch_Response:
-            type: object
-            required:
-                - type
-                - item
-            additionalProperties: false
-            properties:
-                type:
-                    const: AddCollection
-                item:
-                    $ref: "#/components/schemas/TaskCollectionItem_Response"
         TaskWithoutNotes_Response:
             type: object
             required:
@@ -6762,7 +7461,7 @@ components:
                     type: string
                     maxLength: 512
                 assignee:
-                    $ref: "#/components/schemas/Account"
+                    $ref: "#/components/schemas/Account_Response"
                 due:
                     $ref: "#/components/schemas/TaskDue"
                 priority:
@@ -6775,6 +7474,37 @@ components:
                     type: array
                     items:
                         $ref: "#/components/schemas/TaskCollectionItem_Response"
+        DirectChat_Response:
+            type: object
+            required:
+                - type
+                - id
+                - members
+                - reference
+            additionalProperties: false
+            properties:
+                type:
+                    const: Direct
+                id:
+                    $ref: "#/components/schemas/ChatId"
+                members:
+                    type: array
+                    items:
+                        type: object
+                        required:
+                            - account
+                        additionalProperties: false
+                        properties:
+                            account:
+                                $ref: "#/components/schemas/Account_Response"
+                reference:
+                    type: object
+                    required:
+                        - title
+                    additionalProperties: false
+                    properties:
+                        title:
+                            type: string
         MessagePayload_Response:
             oneOf:
                 - $ref: "#/components/schemas/MessageContentPayload_Response"
@@ -6784,6 +7514,17 @@ components:
                 mapping:
                     Content: "#/components/schemas/MessageContentPayload_Response"
                     Deleted: "#/components/schemas/MessageDeletedPayload"
+        InboxEntryAccountFeatured_Response:
+            type: object
+            required:
+                - type
+                - account
+            additionalProperties: false
+            properties:
+                type:
+                    const: Account
+                account:
+                    $ref: "#/components/schemas/Account_Response"
         ContentCodeBlockElement_Response:
             type: object
             required:
@@ -6884,6 +7625,17 @@ components:
                     Task: "#/components/schemas/TaskReference_Response"
                     TaskCollection: "#/components/schemas/TaskCollectionReference_Response"
                     Site: "#/components/schemas/SiteReference_Response"
+        InboxEntryTitleAccountItem_Response:
+            type: object
+            required:
+                - type
+                - account
+            additionalProperties: false
+            properties:
+                type:
+                    const: Account
+                account:
+                    $ref: "#/components/schemas/Account_Response"
         ContentListBlockElementItem_Response:
             type: object
             required:
@@ -6940,6 +7692,45 @@ components:
                     maxItems: 3
                     items:
                         $ref: "#/components/schemas/ContentFileGalleryBlockElementRowItem_Response"
+        TaskCollectionsFilterIncludesOneOfOperation_Response:
+            type: object
+            required:
+                - type
+                - collections
+            additionalProperties: false
+            properties:
+                type:
+                    const: IncludesOneOf
+                collections:
+                    type: array
+                    items:
+                        $ref: "#/components/schemas/TaskCollectionPreview_Response"
+        TaskCollectionsFilterIncludesAllOfOperation_Response:
+            type: object
+            required:
+                - type
+                - collections
+            additionalProperties: false
+            properties:
+                type:
+                    const: IncludesAllOf
+                collections:
+                    type: array
+                    items:
+                        $ref: "#/components/schemas/TaskCollectionPreview_Response"
+        TaskCollectionsFilterExcludesAllOfOperation_Response:
+            type: object
+            required:
+                - type
+                - collections
+            additionalProperties: false
+            properties:
+                type:
+                    const: ExcludesAllOf
+                collections:
+                    type: array
+                    items:
+                        $ref: "#/components/schemas/TaskCollectionPreview_Response"
         MessageStreamToolCallPartCreateCallReference_Response:
             oneOf:
                 - $ref: "#/components/schemas/DocumentReference_Response"
@@ -6974,6 +7765,17 @@ components:
                     Code: "#/components/schemas/ContentCodeBlockElement_Response"
                     File: "#/components/schemas/ContentFileBlockElement_Response"
                     Preview: "#/components/schemas/ContentPreviewBlockElement_Response"
+        TaskAccountFilterOperationAccountItem_Response:
+            type: object
+            required:
+                - type
+                - account
+            additionalProperties: false
+            properties:
+                type:
+                    const: Account
+                account:
+                    $ref: "#/components/schemas/Account_Response"
         ContentBlockElement_Response_WithoutKeys:
             oneOf:
                 - $ref: "#/components/schemas/ContentParagraphBlockElement_Response_WithoutKeys"
@@ -7186,6 +7988,34 @@ components:
                     Code: "#/components/schemas/ContentCodeBlockElement_Response_WithoutKeys"
                     File: "#/components/schemas/ContentFileBlockElement_Response_WithoutKeys"
                     Preview: "#/components/schemas/ContentPreviewBlockElement_Response_WithoutKeys"
+        InboxEntry_Response:
+            oneOf:
+                - $ref: "#/components/schemas/InboxChatEntry_Response"
+                - $ref: "#/components/schemas/InboxCreatedChannelPostsEntry_Response"
+                - $ref: "#/components/schemas/InboxPostEntry_Response"
+                - $ref: "#/components/schemas/InboxCreatedDocumentThreadsEntry_Response"
+                - $ref: "#/components/schemas/InboxDocumentThreadEntry_Response"
+                - $ref: "#/components/schemas/InboxTaskMessagesEntry_Response"
+            discriminator:
+                propertyName: type
+                mapping:
+                    Chat: "#/components/schemas/InboxChatEntry_Response"
+                    CreatedChannelPosts: "#/components/schemas/InboxCreatedChannelPostsEntry_Respon\
+                        se"
+                    Post: "#/components/schemas/InboxPostEntry_Response"
+                    CreatedDocumentThreads: "#/components/schemas/InboxCreatedDocumentThreadsEntry_\
+                        Response"
+                    DocumentThread: "#/components/schemas/InboxDocumentThreadEntry_Response"
+                    TaskMessages: "#/components/schemas/InboxTaskMessagesEntry_Response"
+        CreateChatRequestBodyChat_Response:
+            oneOf:
+                - $ref: "#/components/schemas/CreateChatRequestBodyDirectChat_Response"
+                - $ref: "#/components/schemas/CreateChatRequestBodyRoomChat"
+            discriminator:
+                propertyName: type
+                mapping:
+                    Direct: "#/components/schemas/CreateChatRequestBodyDirectChat_Response"
+                    Room: "#/components/schemas/CreateChatRequestBodyRoomChat"
         Content_Response:
             type: object
             additionalProperties: false
@@ -7196,10 +8026,39 @@ components:
                     type: array
                     items:
                         $ref: "#/components/schemas/ContentBlockElement_Response"
+        SearchResult_Response:
+            oneOf:
+                - $ref: "#/components/schemas/SearchAccountResult"
+                - $ref: "#/components/schemas/SearchChannelResult"
+                - $ref: "#/components/schemas/SearchChatResult"
+                - $ref: "#/components/schemas/SearchChatMessageResult_Response"
+                - $ref: "#/components/schemas/SearchDocumentResult"
+                - $ref: "#/components/schemas/SearchDocumentMessageResult_Response"
+                - $ref: "#/components/schemas/SearchPostResult_Response"
+                - $ref: "#/components/schemas/SearchPostMessageResult_Response"
+                - $ref: "#/components/schemas/SearchSiteResult"
+                - $ref: "#/components/schemas/SearchTaskResult"
+                - $ref: "#/components/schemas/SearchTaskMessageResult_Response"
+                - $ref: "#/components/schemas/SearchTaskCollectionResult"
+            discriminator:
+                propertyName: type
+                mapping:
+                    Account: "#/components/schemas/SearchAccountResult"
+                    Channel: "#/components/schemas/SearchChannelResult"
+                    Chat: "#/components/schemas/SearchChatResult"
+                    ChatMessage: "#/components/schemas/SearchChatMessageResult_Response"
+                    Document: "#/components/schemas/SearchDocumentResult"
+                    DocumentMessage: "#/components/schemas/SearchDocumentMessageResult_Response"
+                    Post: "#/components/schemas/SearchPostResult_Response"
+                    PostMessage: "#/components/schemas/SearchPostMessageResult_Response"
+                    Site: "#/components/schemas/SearchSiteResult"
+                    Task: "#/components/schemas/SearchTaskResult"
+                    TaskMessage: "#/components/schemas/SearchTaskMessageResult_Response"
+                    TaskCollection: "#/components/schemas/SearchTaskCollectionResult"
         TaskPatch_Response:
             oneOf:
                 - $ref: "#/components/schemas/TaskSetTitlePatch"
-                - $ref: "#/components/schemas/TaskSetAssigneePatch"
+                - $ref: "#/components/schemas/TaskSetAssigneePatch_Response"
                 - $ref: "#/components/schemas/TaskSetStatusPatch"
                 - $ref: "#/components/schemas/TaskSetDuePatch"
                 - $ref: "#/components/schemas/TaskSetPriorityPatch"
@@ -7212,7 +8071,7 @@ components:
                 propertyName: type
                 mapping:
                     SetTitle: "#/components/schemas/TaskSetTitlePatch"
-                    SetAssignee: "#/components/schemas/TaskSetAssigneePatch"
+                    SetAssignee: "#/components/schemas/TaskSetAssigneePatch_Response"
                     SetStatus: "#/components/schemas/TaskSetStatusPatch"
                     SetDue: "#/components/schemas/TaskSetDuePatch"
                     SetPriority: "#/components/schemas/TaskSetPriorityPatch"
@@ -7232,27 +8091,26 @@ components:
                     $ref: "#/components/schemas/TaskCursor"
                 task:
                     $ref: "#/components/schemas/TaskWithoutNotes_Response"
-        Message_Response:
+        Chat_Response:
+            oneOf:
+                - $ref: "#/components/schemas/DirectChat_Response"
+                - $ref: "#/components/schemas/RoomChat"
+            discriminator:
+                propertyName: type
+                mapping:
+                    Direct: "#/components/schemas/DirectChat_Response"
+                    Room: "#/components/schemas/RoomChat"
+        TaskAddCollectionPatch_Response:
             type: object
             required:
-                - index
-                - author
-                - createdTime
-                - createdTimeZone
-                - payload
+                - type
+                - item
             additionalProperties: false
             properties:
-                index:
-                    type: integer
-                    minimum: 0
-                author:
-                    $ref: "#/components/schemas/Account"
-                createdTime:
-                    $ref: "#/components/schemas/DateTime"
-                createdTimeZone:
-                    $ref: "#/components/schemas/TimeZone"
-                payload:
-                    $ref: "#/components/schemas/MessagePayload_Response"
+                type:
+                    const: AddCollection
+                item:
+                    $ref: "#/components/schemas/TaskCollectionItem_Response"
         BotWebhookCreatedMessageEvent_Response:
             type: object
             required:
@@ -7309,6 +8167,15 @@ components:
                     type: array
                     items:
                         $ref: "#/components/schemas/ContentInlineElementMark"
+        InboxEntryTitleItem_Response:
+            oneOf:
+                - $ref: "#/components/schemas/InboxEntryTitleTextItem"
+                - $ref: "#/components/schemas/InboxEntryTitleAccountItem_Response"
+            discriminator:
+                propertyName: type
+                mapping:
+                    Text: "#/components/schemas/InboxEntryTitleTextItem"
+                    Account: "#/components/schemas/InboxEntryTitleAccountItem_Response"
         ContentUnorderedListBlockElement_Response:
             type: object
             required:
@@ -7386,6 +8253,25 @@ components:
                     type: array
                     items:
                         $ref: "#/components/schemas/ContentCommentMark"
+        TaskCollectionsFilterOperation_Response:
+            oneOf:
+                - $ref: "#/components/schemas/TaskCollectionsFilterIncludesOneOfOperation_Respons\
+                      e"
+                - $ref: "#/components/schemas/TaskCollectionsFilterIncludesAllOfOperation_Respons\
+                      e"
+                - $ref: "#/components/schemas/TaskCollectionsFilterExcludesAllOfOperation_Respons\
+                      e"
+                - $ref: "#/components/schemas/TaskCollectionsFilterIsEmptyOperation"
+            discriminator:
+                propertyName: type
+                mapping:
+                    IncludesOneOf: "#/components/schemas/TaskCollectionsFilterIncludesOneOfOperatio\
+                        n_Response"
+                    IncludesAllOf: "#/components/schemas/TaskCollectionsFilterIncludesAllOfOperatio\
+                        n_Response"
+                    ExcludesAllOf: "#/components/schemas/TaskCollectionsFilterExcludesAllOfOperatio\
+                        n_Response"
+                    IsEmpty: "#/components/schemas/TaskCollectionsFilterIsEmptyOperation"
         MessageStreamToolCallPartPayloadReadCall_Response:
             type: object
             required:
@@ -7419,6 +8305,26 @@ components:
                     type: array
                     items:
                         $ref: "#/components/schemas/ContentTableBlockElementCellBlockElement_Response"
+        TaskAccountFilterOperationAccount_Response:
+            oneOf:
+                - $ref: "#/components/schemas/TaskAccountFilterOperationAccountItem_Response"
+                - $ref: "#/components/schemas/TaskAccountFilterOperationCurrentAccount"
+                - $ref: "#/components/schemas/TaskAccountFilterOperationMissingAccount"
+            discriminator:
+                propertyName: type
+                mapping:
+                    Account: "#/components/schemas/TaskAccountFilterOperationAccountItem_Response"
+                    CurrentAccount: "#/components/schemas/TaskAccountFilterOperationCurrentAccount"
+                    MissingAccount: "#/components/schemas/TaskAccountFilterOperationMissingAccount"
+        TaskCreatorFilterOperationAccount_Response:
+            oneOf:
+                - $ref: "#/components/schemas/TaskAccountFilterOperationAccountItem_Response"
+                - $ref: "#/components/schemas/TaskAccountFilterOperationCurrentAccount"
+            discriminator:
+                propertyName: type
+                mapping:
+                    Account: "#/components/schemas/TaskAccountFilterOperationAccountItem_Response"
+                    CurrentAccount: "#/components/schemas/TaskAccountFilterOperationCurrentAccount"
         Content_Response_WithoutKeys:
             type: object
             additionalProperties: false
@@ -7514,52 +8420,6 @@ components:
                     items:
                         $ref: "#/components/schemas/ContentTableBlockElementCellBlockElement_Response_W\
                             ithoutKeys"
-        DocumentThread_Response:
-            type: object
-            required:
-                - id
-                - isResolved
-                - totalMessageCount
-                - firstMessage
-                - marked
-            additionalProperties: false
-            properties:
-                id:
-                    $ref: "#/components/schemas/DocumentThreadId"
-                isResolved:
-                    type: boolean
-                totalMessageCount:
-                    type: integer
-                    minimum: 0
-                firstMessage:
-                    type: object
-                    required:
-                        - author
-                        - createdTime
-                        - createdTimeZone
-                    properties:
-                        author:
-                            $ref: "#/components/schemas/Account"
-                        createdTime:
-                            $ref: "#/components/schemas/DateTime"
-                        createdTimeZone:
-                            $ref: "#/components/schemas/TimeZone"
-                marked:
-                    type: object
-                    required:
-                        - preview
-                    properties:
-                        preview:
-                            type: object
-                            required:
-                                - version
-                                - contentSnippet
-                            properties:
-                                version:
-                                    type: integer
-                                    minimum: 0
-                                contentSnippet:
-                                    $ref: "#/components/schemas/Content_Response_WithoutKeys"
         Document_Response:
             type: object
             required:
@@ -7600,37 +8460,6 @@ components:
                     $ref: "#/components/schemas/LabelString"
                 description:
                     $ref: "#/components/schemas/Content_Response"
-        PostPreview_Response:
-            type: object
-            required:
-                - id
-                - author
-                - createdTime
-                - createdTimeZone
-                - contentSnippet
-                - reference
-            additionalProperties: false
-            properties:
-                id:
-                    $ref: "#/components/schemas/PostId"
-                author:
-                    $ref: "#/components/schemas/Account"
-                createdTime:
-                    $ref: "#/components/schemas/DateTime"
-                createdTimeZone:
-                    $ref: "#/components/schemas/TimeZone"
-                channel:
-                    $ref: "#/components/schemas/ChannelPreview"
-                contentSnippet:
-                    $ref: "#/components/schemas/Content_Response_WithoutKeys"
-                reference:
-                    type: object
-                    required:
-                        - title
-                    additionalProperties: false
-                    properties:
-                        title:
-                            type: string
         BotWebhookEvent_Response:
             oneOf:
                 - $ref: "#/components/schemas/BotWebhookCreatedMessageEvent_Response"
@@ -7652,37 +8481,6 @@ components:
                     minimum: 0
                 content:
                     $ref: "#/components/schemas/Content_Response"
-        Post_Response:
-            type: object
-            required:
-                - id
-                - author
-                - createdTime
-                - createdTimeZone
-                - content
-                - reference
-            additionalProperties: false
-            properties:
-                id:
-                    $ref: "#/components/schemas/PostId"
-                author:
-                    $ref: "#/components/schemas/Account"
-                createdTime:
-                    $ref: "#/components/schemas/DateTime"
-                createdTimeZone:
-                    $ref: "#/components/schemas/TimeZone"
-                channel:
-                    $ref: "#/components/schemas/ChannelPreview"
-                content:
-                    $ref: "#/components/schemas/Content_Response"
-                reference:
-                    type: object
-                    required:
-                        - title
-                    additionalProperties: false
-                    properties:
-                        title:
-                            type: string
         ContentInlineElement_Response:
             oneOf:
                 - $ref: "#/components/schemas/ContentTextInlineElement"
@@ -7716,6 +8514,17 @@ components:
                     const: Reasoning
                 content:
                     $ref: "#/components/schemas/Content_Response"
+        TaskCollectionsFilter_Response:
+            type: object
+            required:
+                - type
+                - operation
+            additionalProperties: false
+            properties:
+                type:
+                    const: Collections
+                operation:
+                    $ref: "#/components/schemas/TaskCollectionsFilterOperation_Response"
         MessageStreamToolCallPartPayloadCall_Response:
             oneOf:
                 - $ref: "#/components/schemas/MessageStreamToolCallPartPayloadReadCall_Response"
@@ -7739,6 +8548,58 @@ components:
                     minItems: 2
                     items:
                         $ref: "#/components/schemas/ContentTableBlockElementCell_Response"
+        TaskAccountFilterOneOfOperation_Response:
+            type: object
+            required:
+                - type
+                - accounts
+            additionalProperties: false
+            properties:
+                type:
+                    const: OneOf
+                accounts:
+                    type: array
+                    items:
+                        $ref: "#/components/schemas/TaskAccountFilterOperationAccount_Response"
+        TaskAccountFilterNoneOfOperation_Response:
+            type: object
+            required:
+                - type
+                - accounts
+            additionalProperties: false
+            properties:
+                type:
+                    const: NoneOf
+                accounts:
+                    type: array
+                    items:
+                        $ref: "#/components/schemas/TaskAccountFilterOperationAccount_Response"
+        TaskCreatorFilterOneOfOperation_Response:
+            type: object
+            required:
+                - type
+                - accounts
+            additionalProperties: false
+            properties:
+                type:
+                    const: OneOf
+                accounts:
+                    type: array
+                    items:
+                        $ref: "#/components/schemas/TaskCreatorFilterOperationAccount_Response"
+        TaskCreatorFilterNoneOfOperation_Response:
+            type: object
+            required:
+                - type
+                - accounts
+            additionalProperties: false
+            properties:
+                type:
+                    const: NoneOf
+                accounts:
+                    type: array
+                    items:
+                        $ref: "#/components/schemas/TaskCreatorFilterOperationAccount_Response"
         ContentListBlockElement_Response:
             oneOf:
                 - $ref: "#/components/schemas/ContentUnorderedListBlockElement_Response"
@@ -7806,6 +8667,37 @@ components:
                     Content: "#/components/schemas/MessageStreamContentPartPayload_Response"
                     ToolCall: "#/components/schemas/MessageStreamToolCallPartPayload_Response"
                     Reasoning: "#/components/schemas/MessageStreamReasoningPartPayload_Response"
+        TaskFilter_Response:
+            oneOf:
+                - $ref: "#/components/schemas/TaskStatusFilter"
+                - $ref: "#/components/schemas/TaskCollectionsFilter_Response"
+                - $ref: "#/components/schemas/TaskPriorityFilter"
+                - $ref: "#/components/schemas/TaskLayoutFilter"
+                - $ref: "#/components/schemas/TaskTitleFilter"
+                - $ref: "#/components/schemas/TaskAssigneeFilter_Response"
+                - $ref: "#/components/schemas/TaskCreatorFilter_Response"
+                - $ref: "#/components/schemas/TaskAssignerFilter_Response"
+                - $ref: "#/components/schemas/TaskDueFilter"
+                - $ref: "#/components/schemas/TaskCreatedDateFilter"
+                - $ref: "#/components/schemas/TaskAssignedDateFilter"
+                - $ref: "#/components/schemas/TaskClosedDateFilter"
+                - $ref: "#/components/schemas/TaskActivatedDateFilter"
+            discriminator:
+                propertyName: type
+                mapping:
+                    Status: "#/components/schemas/TaskStatusFilter"
+                    Collections: "#/components/schemas/TaskCollectionsFilter_Response"
+                    Priority: "#/components/schemas/TaskPriorityFilter"
+                    Layout: "#/components/schemas/TaskLayoutFilter"
+                    Title: "#/components/schemas/TaskTitleFilter"
+                    Assignee: "#/components/schemas/TaskAssigneeFilter_Response"
+                    Creator: "#/components/schemas/TaskCreatorFilter_Response"
+                    Assigner: "#/components/schemas/TaskAssignerFilter_Response"
+                    Due: "#/components/schemas/TaskDueFilter"
+                    CreatedDate: "#/components/schemas/TaskCreatedDateFilter"
+                    AssignedDate: "#/components/schemas/TaskAssignedDateFilter"
+                    ClosedDate: "#/components/schemas/TaskClosedDateFilter"
+                    ActivatedDate: "#/components/schemas/TaskActivatedDateFilter"
         MessageStreamToolCallPartPayload_Response:
             type: object
             required:
@@ -7850,6 +8742,24 @@ components:
                     minItems: 1
                     items:
                         $ref: "#/components/schemas/ContentTableBlockElementRow_Response"
+        TaskAccountFilterOperation_Response:
+            oneOf:
+                - $ref: "#/components/schemas/TaskAccountFilterOneOfOperation_Response"
+                - $ref: "#/components/schemas/TaskAccountFilterNoneOfOperation_Response"
+            discriminator:
+                propertyName: type
+                mapping:
+                    OneOf: "#/components/schemas/TaskAccountFilterOneOfOperation_Response"
+                    NoneOf: "#/components/schemas/TaskAccountFilterNoneOfOperation_Response"
+        TaskCreatorFilterOperation_Response:
+            oneOf:
+                - $ref: "#/components/schemas/TaskCreatorFilterOneOfOperation_Response"
+                - $ref: "#/components/schemas/TaskCreatorFilterNoneOfOperation_Response"
+            discriminator:
+                propertyName: type
+                mapping:
+                    OneOf: "#/components/schemas/TaskCreatorFilterOneOfOperation_Response"
+                    NoneOf: "#/components/schemas/TaskCreatorFilterNoneOfOperation_Response"
         ContentTableBlockElement_Response_WithoutKeys:
             type: object
             required:
@@ -7883,3 +8793,36 @@ components:
                     minItems: 1
                     items:
                         $ref: "#/components/schemas/ContentTableBlockElementRow_Response_WithoutKeys"
+        TaskAssigneeFilter_Response:
+            type: object
+            required:
+                - type
+                - operation
+            additionalProperties: false
+            properties:
+                type:
+                    const: Assignee
+                operation:
+                    $ref: "#/components/schemas/TaskAccountFilterOperation_Response"
+        TaskCreatorFilter_Response:
+            type: object
+            required:
+                - type
+                - operation
+            additionalProperties: false
+            properties:
+                type:
+                    const: Creator
+                operation:
+                    $ref: "#/components/schemas/TaskCreatorFilterOperation_Response"
+        TaskAssignerFilter_Response:
+            type: object
+            required:
+                - type
+                - operation
+            additionalProperties: false
+            properties:
+                type:
+                    const: Assigner
+                operation:
+                    $ref: "#/components/schemas/TaskAccountFilterOperation_Response"

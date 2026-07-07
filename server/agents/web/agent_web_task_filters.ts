@@ -1,14 +1,17 @@
 import {parseDate} from "@internationalized/date";
 import {AgentWebSessionStorage} from "~/server/agents/web/agent_web_session_storage.js";
+import {createAgentWebPageLinkPathname} from "~/server/agents/web/create_agent_web_page_link_pathname.js";
 import {routeAgentWebPageLinkPathname} from "~/server/agents/web/route_agent_web_page_link_pathname.js";
 import {normalizeApiTaskFilters} from "~/shared/api/content/normalize_api_task_filters.js";
-import {printApiMentionReferenceKey} from "~/shared/api/specification/api_mention_reference_key.js";
+import {intoApiAccountReference} from "~/shared/api/specification/into_api_account_reference.js";
 import {
-    ApiMentionReference,
     ApiTaskAccountFilterOperationAccount,
+    ApiTaskAccountFilterOperationAccountResponse,
+    ApiTaskCollectionPreviewResponse,
     ApiTaskDateFilterOperationDate,
     ApiTaskDateFilterOperationDuration,
     ApiTaskFilter,
+    ApiTaskFilterResponse,
     ApiTaskLayout,
     ApiTaskPriority,
     ApiTaskStatus,
@@ -113,7 +116,7 @@ import {TaskCollectionId} from "~/shared/id/types/id_types.js";
  */
 export async function printAgentWebTaskFilters(
     storage: AgentWebSessionStorage,
-    filters: ReadonlyArray<ApiTaskFilter>,
+    filters: ReadonlyArray<ApiTaskFilterResponse>,
 ): Promise<string> {
     filters = normalizeApiTaskFilters(filters);
 
@@ -143,7 +146,7 @@ export async function printAgentWebTaskFilters(
 
 async function printAgentWebTaskFilter(
     storage: AgentWebSessionStorage,
-    filter: ApiTaskFilter,
+    filter: ApiTaskFilterResponse,
 ): Promise<{searchParams: Array<string>; listKey: string | null}> {
     switch (filter.type) {
         case "Status": {
@@ -182,7 +185,7 @@ async function printAgentWebTaskFilter(
 
                     const values = await runAllPromises(
                         operation.collections.map(collection =>
-                            printAgentWebTaskFilterCollection(storage, collection.id),
+                            printAgentWebTaskFilterCollection(storage, collection),
                         ),
                     );
 
@@ -343,11 +346,12 @@ function printAgentWebTaskFilterStatus(status: ApiTaskStatus): string {
 
 async function printAgentWebTaskFilterCollection(
     storage: AgentWebSessionStorage,
-    id: TaskCollectionId,
+    collection: ApiTaskCollectionPreviewResponse,
 ): Promise<string> {
-    const pathname = await getAgentWebTaskFilterReferencePathname(storage, {
+    const pathname = await createAgentWebPageLinkPathname(storage, {
         type: "TaskCollection",
-        id,
+        id: collection.id,
+        title: collection.name,
     });
 
     assert(pathname.startsWith("/task-collection/"));
@@ -358,25 +362,6 @@ async function printAgentWebTaskFilterCollection(
     if (name === "none") return pathname;
 
     return name;
-}
-
-async function getAgentWebTaskFilterReferencePathname(
-    storage: AgentWebSessionStorage,
-    reference: ApiMentionReference & {readonly type: "Account" | "TaskCollection"},
-): Promise<string> {
-    const referenceKey = printApiMentionReferenceKey(reference);
-    const pathname = await storage.latestPageStoredLinkPathnameByKey.get(referenceKey);
-
-    // NOCOMMIT: We need to load collection titles and such. How can we make sure
-    // referenced collection titles are passed in? Ooh, they need to be in `_Response`
-    // for the filter right?
-    if (pathname === undefined) {
-        throw new InternalError(
-            `Missing stored link pathname for task filter reference \u201c${referenceKey}\u201d. Create links for all accounts and task collections referenced by task filters before printing the filters.`,
-        );
-    }
-
-    return pathname;
 }
 
 function printAgentWebTaskFilterPriority(priority: ApiTaskPriority | null): string {
@@ -476,14 +461,14 @@ function escapeAgentWebTaskFilterText(text: string): string {
 
 async function printAgentWebTaskFilterAccount(
     storage: AgentWebSessionStorage,
-    account: ApiTaskAccountFilterOperationAccount,
+    account: ApiTaskAccountFilterOperationAccountResponse,
 ): Promise<string> {
     switch (account.type) {
         case "Account": {
-            const pathname = await getAgentWebTaskFilterReferencePathname(storage, {
-                type: "Account",
-                id: account.account.id,
-            });
+            const pathname = await createAgentWebPageLinkPathname(
+                storage,
+                intoApiAccountReference(account.account),
+            );
 
             const nameMatch = pathname.match(/^\/(?:human|bot)\/(.+)$/);
             assert(nameMatch !== null);

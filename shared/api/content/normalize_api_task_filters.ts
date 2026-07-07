@@ -1,6 +1,6 @@
 import {
     ApiTaskAccountFilterOperation,
-    ApiTaskFilter,
+    ApiTaskFilterResponse,
 } from "~/shared/api/specification/types/api_specification_convenience_types.js";
 import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
 
@@ -25,12 +25,12 @@ import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
  * ```
  */
 export function normalizeApiTaskFilters(
-    filters: ReadonlyArray<ApiTaskFilter>,
-): ReadonlyArray<ApiTaskFilter> {
+    filters: ReadonlyArray<ApiTaskFilterResponse>,
+): ReadonlyArray<ApiTaskFilterResponse> {
     return filters.map(normalizeApiTaskFilter);
 }
 
-function normalizeApiTaskFilter(filter: ApiTaskFilter): ApiTaskFilter {
+function normalizeApiTaskFilter(filter: ApiTaskFilterResponse): ApiTaskFilterResponse {
     switch (filter.type) {
         case "Status": {
             return {
