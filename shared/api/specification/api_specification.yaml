@@ -1536,7 +1536,6 @@ paths:
               in: path
               required: true
               schema: {$ref: "#/components/schemas/TaskCollectionId"}
-
         get:
             parameters:
                 - name: limit
@@ -1550,14 +1549,6 @@ paths:
                   in: query
                   schema:
                       $ref: "#/components/schemas/TaskCursor"
-                - name: status
-                  in: query
-                  schema:
-                      type: array
-                      items:
-                          type: string
-                          enum: [Open, Closed]
-                      maxItems: 2
             responses:
                 default: {$ref: "#/components/responses/Error"}
                 "200":
@@ -4118,24 +4109,6 @@ components:
                 color:
                     $ref: "#/components/schemas/TaskCollectionColor"
 
-        TaskCollectionPreview:
-            type: object
-            required: [id]
-            additionalProperties: false
-            properties:
-                id:
-                    $ref: "#/components/schemas/TaskCollectionId"
-
-        TaskCollectionPreview_Response:
-            type: object
-            required: [id, name]
-            additionalProperties: false
-            properties:
-                id:
-                    $ref: "#/components/schemas/TaskCollectionId"
-                name:
-                    $ref: "#/components/schemas/LabelString"
-
         TaskCollection_Response:
             type: object
             required: [id, name, defaults]
@@ -4157,6 +4130,25 @@ components:
                 defaults:
                     $ref: "#/components/schemas/TaskQueryDefaults"
 
+        TaskCollectionPreview:
+            type: object
+            required: [id]
+            additionalProperties: false
+            properties:
+                id:
+                    $ref: "#/components/schemas/TaskCollectionId"
+
+        TaskCollectionPreview_Response:
+            type: object
+            required: [id, name]
+            additionalProperties: false
+            properties:
+                id:
+                    $ref: "#/components/schemas/TaskCollectionId"
+                name:
+                    $ref: "#/components/schemas/LabelString"
+
+        # NOCOMMIT: Perhaps get rid of this and move it into the `Task` object?
         TaskCollectionTask:
             type: object
             required: [cursor, task]
@@ -4207,6 +4199,7 @@ components:
                 - $ref: "#/components/schemas/TaskCreatorFilter"
                 - $ref: "#/components/schemas/TaskAssignerFilter"
                 - $ref: "#/components/schemas/TaskDueFilter"
+                # NOCOMMIT: Rename to `CreatedTime`, `AssignedTime`, etc.
                 - $ref: "#/components/schemas/TaskCreatedDateFilter"
                 - $ref: "#/components/schemas/TaskAssignedDateFilter"
                 - $ref: "#/components/schemas/TaskClosedDateFilter"

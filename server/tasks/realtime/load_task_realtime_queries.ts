@@ -282,7 +282,7 @@ export async function loadTaskRealtimeQueries(
                             //
                             // NOCOMMIT: Test that we throw this error message.
                             //
-                            // NOCOMIMT: If sorts are explicitly provided and override the defaults then don't
+                            // NOCOMMIT: If sorts are explicitly provided and override the defaults then don't
                             // include the defaults message. Also make it clear in the defaults message that
                             // you can explicitly provide sorts to avoid this error in the future.
                             displayMessage: errorDisplayMessage`Invalid task cursor for this collection. Try again with a task cursor that matches the requested sorts. (You may get this error if you're paginating through a task collection when the task collection's default sorts change. In that case try paginating from the start of the collection again and you'll pick up the new sorts.)`,

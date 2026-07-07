@@ -2400,7 +2400,6 @@ export namespace ApiSpecification {
                     readonly query?: {
                         readonly limit?: number;
                         readonly cursor?: components["schemas"]["TaskCursor"];
-                        readonly status?: readonly ("Open" | "Closed")[];
                     };
                     readonly header?: never;
                     readonly path: {
@@ -3903,14 +3902,6 @@ export namespace ApiSpecification {
                 readonly color?: components["schemas"]["TaskCollectionColor"];
                 readonly defaults?: components["schemas"]["TaskQueryDefaults"];
             };
-            readonly TaskCollectionPreview: {
-                readonly id: components["schemas"]["TaskCollectionId"];
-                readonly name?: components["schemas"]["LabelString"];
-            };
-            readonly TaskCollectionPreview_Response: {
-                readonly id: components["schemas"]["TaskCollectionId"];
-                readonly name: components["schemas"]["LabelString"];
-            };
             readonly TaskCollection_Response: {
                 readonly id: components["schemas"]["TaskCollectionId"];
                 readonly creator?: {
@@ -3919,6 +3910,14 @@ export namespace ApiSpecification {
                 readonly name: components["schemas"]["LabelString"];
                 readonly color?: components["schemas"]["TaskCollectionColor"];
                 readonly defaults: components["schemas"]["TaskQueryDefaults_Response"];
+            };
+            readonly TaskCollectionPreview: {
+                readonly id: components["schemas"]["TaskCollectionId"];
+                readonly name?: components["schemas"]["LabelString"];
+            };
+            readonly TaskCollectionPreview_Response: {
+                readonly id: components["schemas"]["TaskCollectionId"];
+                readonly name: components["schemas"]["LabelString"];
             };
             readonly TaskCollectionTask: {
                 readonly cursor: components["schemas"]["TaskCursor"];

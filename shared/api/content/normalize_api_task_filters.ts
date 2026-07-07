@@ -1,6 +1,6 @@
 import {
     ApiTaskAccountFilterOperation,
-    ApiTaskFilterResponse,
+    ApiTaskFilter,
 } from "~/shared/api/specification/types/api_specification_convenience_types.js";
 import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
 
@@ -24,19 +24,19 @@ import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
  * ) === normalizeApiTaskFilters(filters);
  * ```
  */
-export function normalizeApiTaskFilters(
-    filters: ReadonlyArray<ApiTaskFilterResponse>,
-): ReadonlyArray<ApiTaskFilterResponse> {
+export function normalizeApiTaskFilters<Filter extends ApiTaskFilter>(
+    filters: ReadonlyArray<Filter>,
+): ReadonlyArray<Filter> {
     return filters.map(normalizeApiTaskFilter);
 }
 
-function normalizeApiTaskFilter(filter: ApiTaskFilterResponse): ApiTaskFilterResponse {
+function normalizeApiTaskFilter<Filter extends ApiTaskFilter>(filter: Filter): Filter {
     switch (filter.type) {
         case "Status": {
             return {
-                type: "Status",
+                ...filter,
                 operation: {
-                    type: filter.operation.type,
+                    ...filter.operation,
                     statuses: dedupeApiTaskFilterValues(filter.operation.statuses, status =>
                         status.type === "Open" ? `Open:${status.isActive}` : "Closed",
                     ),
@@ -48,9 +48,9 @@ function normalizeApiTaskFilter(filter: ApiTaskFilterResponse): ApiTaskFilterRes
             if (operation.type === "IsEmpty") return filter;
 
             return {
-                type: "Collections",
+                ...filter,
                 operation: {
-                    type: operation.type,
+                    ...filter.operation,
                     collections: dedupeApiTaskFilterValues(
                         operation.collections,
                         collection => collection.id,
@@ -60,9 +60,9 @@ function normalizeApiTaskFilter(filter: ApiTaskFilterResponse): ApiTaskFilterRes
         }
         case "Priority": {
             return {
-                type: "Priority",
+                ...filter,
                 operation: {
-                    type: filter.operation.type,
+                    ...filter.operation,
                     priorities: dedupeApiTaskFilterValues(filter.operation.priorities, priority =>
                         priority === null ? "None" : priority.type,
                     ),
@@ -71,9 +71,9 @@ function normalizeApiTaskFilter(filter: ApiTaskFilterResponse): ApiTaskFilterRes
         }
         case "Layout": {
             return {
-                type: "Layout",
+                ...filter,
                 operation: {
-                    type: filter.operation.type,
+                    ...filter.operation,
                     layouts: dedupeApiTaskFilterValues(
                         filter.operation.layouts,
                         layout => layout.type,
@@ -86,9 +86,9 @@ function normalizeApiTaskFilter(filter: ApiTaskFilterResponse): ApiTaskFilterRes
         }
         case "Assignee": {
             return {
-                type: "Assignee",
+                ...filter,
                 operation: {
-                    type: filter.operation.type,
+                    ...filter.operation,
                     accounts: dedupeApiTaskFilterValues(
                         filter.operation.accounts,
                         printApiTaskFilterAccountDedupeKey,
@@ -98,9 +98,9 @@ function normalizeApiTaskFilter(filter: ApiTaskFilterResponse): ApiTaskFilterRes
         }
         case "Creator": {
             return {
-                type: "Creator",
+                ...filter,
                 operation: {
-                    type: filter.operation.type,
+                    ...filter.operation,
                     accounts: dedupeApiTaskFilterValues(
                         filter.operation.accounts,
                         printApiTaskFilterAccountDedupeKey,
@@ -110,9 +110,9 @@ function normalizeApiTaskFilter(filter: ApiTaskFilterResponse): ApiTaskFilterRes
         }
         case "Assigner": {
             return {
-                type: "Assigner",
+                ...filter,
                 operation: {
-                    type: filter.operation.type,
+                    ...filter.operation,
                     accounts: dedupeApiTaskFilterValues(
                         filter.operation.accounts,
                         printApiTaskFilterAccountDedupeKey,

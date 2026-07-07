@@ -376,14 +376,14 @@ export type ApiTaskClosedStatus = ApiSpecification.components["schemas"]["TaskCl
 
 export type ApiTaskCollection = ApiSpecification.components["schemas"]["TaskCollection"];
 
+export type ApiTaskCollectionResponse =
+    ApiSpecification.components["schemas"]["TaskCollection_Response"];
+
 export type ApiTaskCollectionPreview =
     ApiSpecification.components["schemas"]["TaskCollectionPreview"];
 
 export type ApiTaskCollectionPreviewResponse =
     ApiSpecification.components["schemas"]["TaskCollectionPreview_Response"];
-
-export type ApiTaskCollectionResponse =
-    ApiSpecification.components["schemas"]["TaskCollection_Response"];
 
 export type ApiTaskCollectionTask = ApiSpecification.components["schemas"]["TaskCollectionTask"];
 

@@ -1706,16 +1706,6 @@ paths:
                   in: query
                   schema:
                       $ref: "#/components/schemas/TaskCursor"
-                - name: status
-                  in: query
-                  schema:
-                      type: array
-                      items:
-                          type: string
-                          enum:
-                              - Open
-                              - Closed
-                      maxItems: 2
             responses:
                 "200":
                     content:
@@ -4757,27 +4747,6 @@ components:
                     $ref: "#/components/schemas/TaskCollectionColor"
                 defaults:
                     $ref: "#/components/schemas/TaskQueryDefaults"
-        TaskCollectionPreview:
-            type: object
-            required:
-                - id
-            additionalProperties: false
-            properties:
-                id:
-                    $ref: "#/components/schemas/TaskCollectionId"
-                name:
-                    $ref: "#/components/schemas/LabelString"
-        TaskCollectionPreview_Response:
-            type: object
-            required:
-                - id
-                - name
-            additionalProperties: false
-            properties:
-                id:
-                    $ref: "#/components/schemas/TaskCollectionId"
-                name:
-                    $ref: "#/components/schemas/LabelString"
         TaskCollection_Response:
             type: object
             required:
@@ -4802,6 +4771,27 @@ components:
                     $ref: "#/components/schemas/TaskCollectionColor"
                 defaults:
                     $ref: "#/components/schemas/TaskQueryDefaults_Response"
+        TaskCollectionPreview:
+            type: object
+            required:
+                - id
+            additionalProperties: false
+            properties:
+                id:
+                    $ref: "#/components/schemas/TaskCollectionId"
+                name:
+                    $ref: "#/components/schemas/LabelString"
+        TaskCollectionPreview_Response:
+            type: object
+            required:
+                - id
+                - name
+            additionalProperties: false
+            properties:
+                id:
+                    $ref: "#/components/schemas/TaskCollectionId"
+                name:
+                    $ref: "#/components/schemas/LabelString"
         TaskCollectionTask:
             type: object
             required:
