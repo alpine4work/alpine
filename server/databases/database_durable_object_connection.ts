@@ -7,6 +7,7 @@ import {BrowserPageTracker} from "~/server/databases/browser_page_tracker.js";
 import {DatabaseDurableObjectStorage} from "~/server/databases/database_durable_object_storage.js";
 import {DatabaseServer} from "~/server/databases/database_server.js";
 import {WebSocketConnectionProcedures} from "~/server/web_socket/web_socket_server.js";
+import {databaseActions} from "~/shared/databases/database_actions.js";
 import type {
     DatabasePageDiffs,
     DatabaseTablePageDiffs,
@@ -18,6 +19,7 @@ import {
 } from "~/shared/databases/database_realtime_protocol.js";
 import {type PageDiff, diffPage} from "~/shared/databases/page_diff.js";
 import {cacheUpdateStalePageLimit, sqlitePageSize} from "~/shared/databases/sqlite_constants.js";
+import {PermissionDeniedError} from "~/shared/error/error.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
 import type {
@@ -84,6 +86,12 @@ export class DatabaseDurableObjectConnection {
         typeof DatabaseRealtimeProtocol
     > = {
         executeAction: async (context, input) => {
+            if (databaseActions[input.action.name].internalOnly) {
+                throw new PermissionDeniedError(
+                    `Database action ${input.action.name} is internal-only`,
+                );
+            }
+
             const result = this._server.executeAction(context, input.action);
 
             const pageDiffs = new Map<DatabaseTableId, DatabaseTablePageDiffs>();

@@ -27,6 +27,7 @@ import {
 import {databaseMainTableId} from "~/shared/databases/sqlite_constants.js";
 import {type SqliteMigration} from "~/shared/databases/sqlite_migrations.js";
 import {TableNotAttachedError} from "~/shared/databases/table_not_attached_error.js";
+import {PermissionDeniedError} from "~/shared/error/error.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import type {Result} from "~/shared/helpers/control/result.js";
 import {getOrSetDefaultMapValue} from "~/shared/helpers/map/get_or_set_default_map_value.js";
@@ -236,6 +237,12 @@ export class DatabaseClient {
         conn: DatabaseClientConnection,
         actionObject: DatabaseActionObject<N>,
     ): Promise<DatabaseActionOutput<N>> {
+        if (databaseActions[actionObject.name].internalOnly) {
+            throw new PermissionDeniedError(
+                `Database action ${actionObject.name} is internal-only`,
+            );
+        }
+
         const mutationId = generateId<DatabaseMutationId>();
 
         let output: DatabaseActionOutput<N>;
@@ -291,6 +298,12 @@ export class DatabaseClient {
         conn: DatabaseClientConnection,
         actionObject: DatabaseActionObject<N>,
     ): Promise<{output: DatabaseActionOutput<N>; readPages: ReadonlyDatabasePageSet}> {
+        if (databaseActions[actionObject.name].internalOnly) {
+            throw new PermissionDeniedError(
+                `Database action ${actionObject.name} is internal-only`,
+            );
+        }
+
         assert(
             databaseActions[actionObject.name].writeLevel === "none",
             "executeActionWithTracking only supports read-only actions",

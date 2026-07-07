@@ -961,7 +961,7 @@ describe("DatabaseServer", () => {
                     name: "createTable",
                     input: createTableInputForTest("Tasks"),
                 }),
-            ).toThrow("Database action createTable is not visible to AppClient");
+            ).toThrow("Database action createTable is internal-only");
             expect(() =>
                 server.executeAction(appClientContext, {
                     name: "syncTableMetadata",
@@ -971,7 +971,7 @@ describe("DatabaseServer", () => {
                         accessPolicy: databaseTableAccessPolicyForCreator(testAccountId),
                     },
                 }),
-            ).toThrow("Database action syncTableMetadata is not visible to AppClient");
+            ).toThrow("Database action syncTableMetadata is internal-only");
         });
     });
 

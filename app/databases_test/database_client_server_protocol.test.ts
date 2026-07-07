@@ -11,6 +11,7 @@ import {createTestWorkerContext} from "~/server/cloudflare/test_helpers/create_t
 import {DatabaseGroupDurableObject} from "~/server/databases/database_durable_object.js";
 import {DatabaseDurableObjectStorage} from "~/server/databases/database_durable_object_storage.js";
 import {TestSpace} from "~/server/spaces/test_helpers/test_space.js";
+import {DatabaseActionFetchResponseSchema} from "~/shared/databases/database_action_fetch_schema.js";
 import {
     type DatabaseActionInput,
     type DatabaseActionName,
@@ -67,13 +68,12 @@ function createTableInputForTest(name: string) {
 
 test("client executes actions against the database server", async () => {
     const databaseGroupId = generateId<DatabaseGroupId>();
-    const client = await createTestClient(databaseGroupId);
-
-    const createTableResult = await executeAction(
-        client,
+    const createTableResult = await executeInternalAction(
+        databaseGroupId,
         "createTable",
         createTableInputForTest("Projects"),
     );
+    const client = await createTestClient(databaseGroupId);
     const tableRowsResult = await executeAction(client, "readonlyRawSql", {
         sql: `
             SELECT
@@ -95,16 +95,62 @@ test("client executes actions against the database server", async () => {
     });
 });
 
-// Guards the ATTACH ordering in `executeActionViaServer`: the new table's pages
-// are applied to the local store _before_ the per-db file is attached. Attaching
-// first would make SQLite parse — and, under `locking_mode = EXCLUSIVE`,
-// permanently cache — an empty schema, failing every later local reference to the
-// table with "no such table".
-test("a client can immediately use a table it just created", async () => {
+test("internal-only actions are available over HTTP but not public websocket procedures", async () => {
     const databaseGroupId = generateId<DatabaseGroupId>();
     const client = await createTestClient(databaseGroupId);
+    const createTableInput = createTableInputForTest("Projects");
 
-    const table = await executeAction(client, "createTable", createTableInputForTest("Projects"));
+    await expect(executeAction(client, "createTable", createTableInput)).rejects.toThrow(
+        "Database action createTable is internal-only",
+    );
+    expect(client.executeActionCalls).toEqual([]);
+
+    const space = await getOrCreateTestSpaceForDatabaseGroupId(databaseGroupId);
+    const session = await space.createSession();
+    const serverConnection = await durableObjectTest.connectForTest(
+        context.action(session),
+        databaseGroupId,
+        {searchParams: new URLSearchParams([["browserId", generateId<BrowserId>()]])},
+    );
+    await expect(
+        serverConnection.procedures.executeAction({
+            action: {name: "createTable", input: createTableInput} as DatabaseActionObject,
+            mutationId: generateId(),
+            returnResult: true,
+            returnPages: true,
+        }),
+    ).rejects.toThrow("Database action createTable is internal-only");
+
+    const table = await executeInternalAction(databaseGroupId, "createTable", createTableInput);
+    await expect(
+        serverConnection.procedures.executeAction({
+            action: {
+                name: "syncTableMetadata",
+                input: {
+                    tableId: table.tableId,
+                    name: "Projects",
+                    accessPolicy: createTableInput.accessPolicy,
+                },
+            } as DatabaseActionObject,
+            mutationId: generateId(),
+            returnResult: true,
+            returnPages: true,
+        }),
+    ).rejects.toThrow("Database action syncTableMetadata is internal-only");
+    await executeInternalAction(databaseGroupId, "syncTableMetadata", {
+        tableId: table.tableId,
+        name: "Projects",
+        accessPolicy: createTableInput.accessPolicy,
+    });
+
+    serverConnection.close();
+});
+
+test("a warm client can use an internally created table", async () => {
+    const databaseGroupId = generateId<DatabaseGroupId>();
+    const table = await createTableOnServer(databaseGroupId);
+    const client = await createWarmClient(databaseGroupId, table);
+
     const rowId = generateChronologicalId<DatabaseRowId>();
     await executeAction(client, "createRow", {tableId: table.tableId, rowId});
     await settle();
@@ -566,8 +612,11 @@ test("a restarted client revalidates the main registry at cold open", async () =
 
     // While the browser is gone, another client registers a second table (a main
     // registry change).
-    const other = await createTestClient(databaseGroupId);
-    const secondTable = await executeAction(other, "createTable", createTableInputForTest("Tasks"));
+    const secondTable = await executeInternalAction(
+        databaseGroupId,
+        "createTable",
+        createTableInputForTest("Tasks"),
+    );
     await settle();
 
     // On restart, `ensureCacheIsUpToDate` refreshes the stale main pages, so the
@@ -803,23 +852,40 @@ async function restartClient(
 }
 
 /**
- * Create the group's table via a throwaway client and snapshot the group's pages
- * for seeding warm clients. Server-only actions like `createTable` execute fine,
- * but the creating client itself can't use the table afterwards (see the "known
- * desync issues" tests), so tests that need a usable table pair this with {@link
- * createWarmClient}.
+ * Create the group's table through the internal HTTP action route and snapshot the
+ * group's pages for seeding warm clients.
  */
 async function createTableOnServer(databaseGroupId: DatabaseGroupId): Promise<TestDatabaseTable> {
-    const client = await createTestClient(databaseGroupId);
-    const {tableId, tableName} = await executeAction(
-        client,
+    const {tableId, tableName} = await executeInternalAction(
+        databaseGroupId,
         "createTable",
         createTableInputForTest("Projects"),
     );
     await settle();
     const seedPages = extractServerPages(databaseGroupId, [databaseMainTableId, tableId]);
-    client.close();
     return {tableId, tableName, seedPages};
+}
+
+async function executeInternalAction<const Name extends DatabaseActionName>(
+    databaseGroupId: DatabaseGroupId,
+    name: Name,
+    input: DatabaseActionInput<Name>,
+): Promise<DatabaseActionOutput<Name>> {
+    const space = await getOrCreateTestSpaceForDatabaseGroupId(databaseGroupId);
+    const response = await durableObjectTest.fetchForTest(
+        context.systemAction(space.id, {serviceName: "DatabaseGroupService"}),
+        databaseGroupId,
+        new Request("https://databases.test.invalid/action", {
+            method: "POST",
+            body: JSON.stringify(
+                DatabaseActionObjectSchema.serialize({name, input} as DatabaseActionObject),
+            ),
+        }),
+    );
+    assert(response.status === 200, `action route returned ${response.status}`);
+    const {result} = DatabaseActionFetchResponseSchema.deserialize(await response.json());
+    assert(result.name === name);
+    return result.output as DatabaseActionOutput<Name>;
 }
 
 /**

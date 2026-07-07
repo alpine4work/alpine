@@ -25,7 +25,6 @@ import type {
 import {LabelStringSchema} from "~/shared/schema/helpers/label_string_schema.js";
 import {OrderKeySchema} from "~/shared/schema/helpers/order_key_schema.js";
 import {type ObjectSchema, Schema, type SchemaType} from "~/shared/schema/schema.js";
-import type {TracerServiceName} from "~/shared/tracer/tracer_root.js";
 
 /**
  * Server-only capabilities. Accessing these on the client causes the action to
@@ -75,30 +74,27 @@ export function createDatabaseActionContext(
  * Defines a database action with typed input/output schemas, a write level, and a
  * shared `run()` function that executes on both client and server.
  *
- * `serverOnly` actions never run optimistically on the client; the client routes
- * them straight to the server. This lets them generate ids internally and attach
- * new per-table files without client/server divergence.
+ * `internalOnly` actions may only be executed by internal server code. Public
+ * client transports must reject them.
  */
 function defineDatabaseAction<Input, Output>(def: {
     input: ObjectSchema<Input>;
     output: ObjectSchema<Output>;
     writeLevel: SqliteWriteLevel;
     transactionMode?: "automatic" | "manual";
-    visibility?: ReadonlyArray<TracerServiceName>;
+    internalOnly?: boolean;
     run: (ctx: DatabaseActionContext, input: Input) => any;
 }): {
     input: ObjectSchema<Input>;
     output: ObjectSchema<Output>;
     writeLevel: SqliteWriteLevel;
     transactionMode: "automatic" | "manual";
-    visibility: ReadonlyArray<TracerServiceName> | undefined;
-    serverOnly: boolean;
+    internalOnly: boolean;
     run: (ctx: DatabaseActionContext, input: Input) => Output;
 } {
     return {
-        serverOnly: false,
         transactionMode: "automatic",
-        visibility: undefined,
+        internalOnly: false,
         ...def,
     };
 }
@@ -193,7 +189,7 @@ export const databaseActions = {
         }),
         writeLevel: "schema+data",
         transactionMode: "manual",
-        visibility: ["DatabaseGroupService", "Test"],
+        internalOnly: true,
         run({db, server, model}, {tableId, name, accessPolicy}) {
             // Attach + migrate the new per-db file before writing any of the table's data or
             // metadata into it. `attach` is a no-op if already attached.
@@ -220,7 +216,7 @@ export const databaseActions = {
         }),
         writeLevel: "schema+data",
         transactionMode: "manual",
-        visibility: ["DatabaseGroupService", "Test"],
+        internalOnly: true,
         run({db, model}, {tableId, name, accessPolicy}) {
             const {table, viewId} = executeDatabaseActionTransaction(db, () => {
                 const table = model.getTable(tableId).updateName(name);

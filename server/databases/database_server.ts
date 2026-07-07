@@ -120,10 +120,14 @@ export class DatabaseServer {
         context: WorkerActionContext,
         actionObject: DatabaseActionObject<N>,
     ): DatabaseServerActionResult<N> {
-        const visibility = databaseActions[actionObject.name].visibility;
-        if (visibility !== undefined && !visibility.includes(context.actor.serviceName)) {
+        const internalOnly = databaseActions[actionObject.name].internalOnly;
+        if (
+            internalOnly &&
+            context.actor.serviceName !== "DatabaseGroupService" &&
+            context.actor.serviceName !== "Test"
+        ) {
             throw new PermissionDeniedError(
-                `Database action ${actionObject.name} is not visible to ${context.actor.serviceName}`,
+                `Database action ${actionObject.name} is internal-only`,
             );
         }
         return this._runAndPersist(context, () =>
