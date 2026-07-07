@@ -1,6 +1,7 @@
 import {TestBot} from "~/server/bots/test_helpers/test_bot.js";
 import {chatInjection} from "~/server/chat/data/chat_injection.js";
 import {TestChat} from "~/server/chat/test_helpers/test_chat.js";
+import {createDatabaseTableMetadataForTest} from "~/server/databases/data/database_table_metadata.js";
 import {createDocument} from "~/server/documents/data/documents_actions.js";
 import {TestDocument} from "~/server/documents/test_helpers/test_document.js";
 import {createTestContext} from "~/server/dynamo/test_helpers/create_test_context.js";
@@ -239,6 +240,55 @@ const testCasesBySearchEntityType: {[Key in SearchDynamicEntityIdObject["type"]]
                     {tokenizer, registerAdditionalWrite: noop},
                 ),
             ).rejects.toThrow(`Database table ${databaseTableId} not found`);
+        });
+
+        test("can get database table search entity with site access policy", async () => {
+            const databaseGroupId = generateId<DatabaseGroupId>();
+            const space = await TestSpace.create(context, {databaseGroupId});
+            const session = await space.createSession();
+            const site = await TestSite.create(session, {access: "Private"});
+            const tokenizer = await CohereEmbedEnglishV3LanguageTokenizer.get();
+            const tableId = generateChronologicalId<DatabaseTableId>();
+
+            await createDatabaseTableMetadataForTest(space.systemAction(), {
+                databaseGroupId,
+                tableId,
+                spaceId: space.id,
+                name: "Roadmap Grid",
+                accessPolicy: {type: "Site", siteId: site.id},
+            });
+
+            expect(
+                await getSearchEntity(
+                    space.systemAction(),
+                    {type: "DatabaseTable", tableId},
+                    {tokenizer, registerAdditionalWrite: noop},
+                ),
+            ).toEqual({
+                dependencyIds: new Set([`Site:${site.id}:Preview`]),
+                entity: {
+                    id: `DatabaseTable:${tableId}`,
+                    accessPolicy: {
+                        accountGrantAccountIds: new Set([session.account.id]),
+                        defaultGrantType: null,
+                        urlGrantLevel: null,
+                    },
+                    createdTime: null,
+                    title: "Roadmap Grid",
+                    titleVersion: null,
+                    body: null,
+                    tags: [],
+                    media: null,
+                    embeddingChunks: [],
+                    creatorId: null,
+                    contributorIds: new Map(),
+                    priority: null,
+                    openness: null,
+                    activeness: null,
+                    assigneeId: null,
+                    dueDate: null,
+                },
+            });
         });
     },
     Channel: () => {

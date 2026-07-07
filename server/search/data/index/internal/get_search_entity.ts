@@ -1111,21 +1111,6 @@ function getSearchEntityIndexAccessPolicy(
     };
 }
 
-function getSearchEntityIndexAccessPolicyFromResolvedAccessPolicy(
-    accessPolicy: AccessPolicy,
-): SearchEntityIndexAccessPolicy {
-    switch (accessPolicy.type) {
-        case "Local":
-            return getSearchEntityIndexAccessPolicy(new AccessPolicyModel(accessPolicy));
-        case "Site":
-            throw new InternalError(
-                "Database table access policy must be resolved before indexing",
-            );
-        default:
-            throw exhaustive(accessPolicy);
-    }
-}
-
 export function isSearchEntityIndexAccessPolicySubset(
     supersetAccessPolicy: SearchEntityIndexAccessPolicy,
     subsetAccessPolicy: SearchEntityIndexAccessPolicy,
@@ -1551,6 +1536,7 @@ async function getDatabaseTableSearchEntity(
     }
 
     const {name, accessPolicy} = table;
+    const accessPolicyModel = await state.getAccessPolicy(accessPolicy);
     state.registerAdditionalWrite(context =>
         syncDatabaseTableMetadataToDurableObject(context, {
             spaceId,
@@ -1562,7 +1548,7 @@ async function getDatabaseTableSearchEntity(
 
     return {
         id,
-        accessPolicy: getSearchEntityIndexAccessPolicyFromResolvedAccessPolicy(accessPolicy),
+        accessPolicy: getSearchEntityIndexAccessPolicy(accessPolicyModel),
         createdTime: null,
         title: name,
         titleVersion: null,

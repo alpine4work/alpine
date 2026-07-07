@@ -8,12 +8,22 @@ import {
     getDatabaseGroupIdForSpace,
     getExistingDatabaseGroupIdForSpace,
 } from "~/server/spaces/get_database_group_id_for_space.js";
-import {type AccessPolicy, AccessPolicySchema} from "~/shared/access/access_policy.js";
+import {
+    type AccessPolicy,
+    AccessPolicySchema,
+    type LocalAccessPolicy,
+} from "~/shared/access/access_policy.js";
 import {databaseTableAccessPolicyForCreator} from "~/shared/databases/database_table_access_policy.js";
 import {DatabaseTableMetadataModel} from "~/shared/databases/database_table_metadata_model.js";
 import {NotFoundError} from "~/shared/error/error.js";
+import {assert} from "~/shared/helpers/control/assert.js";
 import {generateChronologicalId} from "~/shared/id/chronological_id.js";
-import type {DatabaseTableId, DatabaseViewId, SpaceId} from "~/shared/id/types/id_types.js";
+import type {
+    DatabaseGroupId,
+    DatabaseTableId,
+    DatabaseViewId,
+    SpaceId,
+} from "~/shared/id/types/id_types.js";
 
 export async function createDatabaseTable(
     context: ServerActionContext,
@@ -82,9 +92,7 @@ export async function getDatabaseTableMetadataForSearchIndex(
         throw new NotFoundError(`Database table ${tableId} not found`);
     }
 
-    const accessPolicy = await resolveDatabaseTableAccessPolicy(context, item.model.accessPolicy);
-
-    return item.model.clone({accessPolicy});
+    return item.model;
 }
 
 export async function syncDatabaseTableMetadataToDurableObject(
@@ -102,21 +110,62 @@ export async function syncDatabaseTableMetadataToDurableObject(
     },
 ): Promise<void> {
     const databaseGroupId = await getExistingDatabaseGroupIdForSpace(context, spaceId);
+    const localAccessPolicy = await resolveDatabaseTableAccessPolicyForDurableObjectSync(
+        context,
+        accessPolicy,
+    );
+
     await fetchDatabaseGroupAction(context, databaseGroupId, {
         name: "syncTableMetadata",
-        input: {tableId, name, accessPolicy},
+        input: {tableId, name, accessPolicy: localAccessPolicy},
     });
 }
 
-async function resolveDatabaseTableAccessPolicy(
+export async function createDatabaseTableMetadataForTest(
+    context: ServerActionContext,
+    {
+        databaseGroupId,
+        tableId,
+        spaceId,
+        name,
+        isDeleted = false,
+        accessPolicy,
+    }: {
+        databaseGroupId: DatabaseGroupId;
+        tableId: DatabaseTableId;
+        spaceId: SpaceId;
+        name: string | null;
+        isDeleted?: boolean;
+        accessPolicy: AccessPolicy;
+    },
+): Promise<void> {
+    assert(process.env.NODE_ENV === "test");
+
+    await DatabaseTablesTable.updateItem(
+        context,
+        {partitionType: "DatabaseGroup", sortRangeType: "Table", databaseGroupId, tableId},
+        item =>
+            DynamoItem.createOrUpdate(item, {
+                partitionType: "DatabaseGroup",
+                sortRangeType: "Table",
+                databaseGroupId,
+                tableId,
+                spaceId,
+                name,
+                isDeleted,
+                accessPolicy,
+            }),
+    );
+}
+
+async function resolveDatabaseTableAccessPolicyForDurableObjectSync(
     context: ServerActionContext,
     accessPolicy: AccessPolicy,
-): Promise<AccessPolicy> {
+): Promise<LocalAccessPolicy> {
     const effectiveAccessPolicy = await intoEffectiveAccessPolicy(context, accessPolicy, {
         consistency: "StrongWithinCache",
     });
-
-    return AccessPolicySchema.deserialize(
+    const localAccessPolicy = AccessPolicySchema.deserialize(
         AccessPolicySchema.serialize({
             type: "Local",
             accountGrantById: effectiveAccessPolicy.accountGrantById,
@@ -124,4 +173,7 @@ async function resolveDatabaseTableAccessPolicy(
             urlGrant: effectiveAccessPolicy.urlGrant,
         } as AccessPolicy),
     );
+    assert(localAccessPolicy.type === "Local");
+
+    return localAccessPolicy;
 }
