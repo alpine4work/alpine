@@ -116,11 +116,13 @@ function selectionReducer(
 export function DatabaseGridView({
     tableId,
     viewId,
+    tableName,
     fields,
     query,
 }: {
     tableId: DatabaseTableId;
     viewId: DatabaseViewId;
+    tableName: string;
     fields: ReadonlyArray<DatabaseGridViewField>;
     query: DatabaseQuery;
 }) {
@@ -393,7 +395,11 @@ export function DatabaseGridView({
         <GlobalKeyDownEvent onGlobalKeyDown={handleGlobalKeyDown}>
             <Box
                 flexGrow="1"
+                minHeight="0"
                 overflowY="hidden"
+                display="flex"
+                flexDirection="column"
+                gap="2"
                 onFocus={() => dispatch({type: "focus"})}
                 onBlur={e => {
                     // Only deactivate if focus moved outside the grid entirely (not between children).
@@ -402,25 +408,38 @@ export function DatabaseGridView({
                     }
                 }}
             >
-                <VirtualizedScrollView
-                    ref={scrollViewRef}
-                    itemCount={itemCount}
-                    bufferedItemHeight={spacing[gridRowHeight]}
-                    renderItem={renderItem}
-                    alwaysRenderAdditionalItemIndexes={alwaysRenderIndexes}
-                    scrollbarInsetTopItemIndex={0}
-                    scrollbarInsetBottomItemIndex={addRowIndex}
-                    contentMinWidth={gridFields.contentMinWidth}
-                    extraChildren={
-                        <DatabaseGridViewSelectionOverlay
-                            selection={visibleSelection}
-                            fields={gridFields.fields}
-                            fieldIndexById={gridFields.fieldIndexById}
-                            rowCount={rowCount}
-                            scrollViewRef={scrollViewRef}
-                        />
-                    }
-                />
+                <Box
+                    as="h1"
+                    margin="0"
+                    fontSize="200"
+                    fontStyle="semi-bold"
+                    color="grey-100"
+                    overflow="hidden"
+                    style={{textOverflow: "ellipsis", whiteSpace: "nowrap"}}
+                >
+                    {tableName}
+                </Box>
+                <Box flexGrow="1" minHeight="0" overflowY="hidden">
+                    <VirtualizedScrollView
+                        ref={scrollViewRef}
+                        itemCount={itemCount}
+                        bufferedItemHeight={spacing[gridRowHeight]}
+                        renderItem={renderItem}
+                        alwaysRenderAdditionalItemIndexes={alwaysRenderIndexes}
+                        scrollbarInsetTopItemIndex={0}
+                        scrollbarInsetBottomItemIndex={addRowIndex}
+                        contentMinWidth={gridFields.contentMinWidth}
+                        extraChildren={
+                            <DatabaseGridViewSelectionOverlay
+                                selection={visibleSelection}
+                                fields={gridFields.fields}
+                                fieldIndexById={gridFields.fieldIndexById}
+                                rowCount={rowCount}
+                                scrollViewRef={scrollViewRef}
+                            />
+                        }
+                    />
+                </Box>
             </Box>
         </GlobalKeyDownEvent>
     );

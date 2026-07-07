@@ -1,16 +1,14 @@
-import {Outlet, useParams} from "@remix-run/react";
+import {Outlet} from "@remix-run/react";
 import {useEffect, useRef, useState} from "react";
 import {deserializeSpaceIdForLoader} from "~/app/helpers/deserialize_id_for_loader.js";
 import {createDatabaseGroupConnection} from "~/client/web/databases/connect_to_database.js";
 import {DatabaseConnectionContext} from "~/client/web/databases/database_connection_context.js";
 import {Box} from "~/client/web/design/box.js";
-import {Button} from "~/client/web/design/button.js";
 import {useReporter} from "~/client/web/design/reporter.js";
 import {useEvent} from "~/client/web/helpers/lifecycle/use_event.js";
 import {useBrowserId} from "~/client/web/remix/client_info_context.js";
 import {createMetaFunction} from "~/client/web/remix/create_meta_function.js";
 import {useLoaderDataWithSchema} from "~/client/web/remix/use_loader_data_with_schema.js";
-import {useNavigate} from "~/client/web/remix/use_navigate.js";
 import {fetchDatabaseGroupAction} from "~/server/databases/data/fetch_database_action.js";
 import {jsonWithSchema} from "~/server/remix/json_with_schema.js";
 import {LoaderArgs} from "~/server/remix/loader_context.js";
@@ -45,11 +43,8 @@ export async function loader({params, context: unauthenticatedContext}: LoaderAr
 
 export default function DatabaseGroupLayoutRoute() {
     const {databaseGroupId, pages} = useLoaderDataWithSchema(LoaderSchema);
-    const params = useParams();
     const browserId = useBrowserId();
-    const navigate = useNavigate();
     const reporter = useReporter();
-    const basePath = `/databases/${params.spaceId}`;
     const [db] = useState(createDatabaseGroupConnection);
     const conn = db.connection;
     const initialPagesRef = useRef(pages);
@@ -90,15 +85,6 @@ export default function DatabaseGroupLayoutRoute() {
             gap="3"
             padding="4"
         >
-            <Box display="flex" gap="1" flexWrap="wrap">
-                <Button
-                    variant={params.tableOrViewId == null ? "neutral" : "quieter"}
-                    onPress={() => navigate(`${basePath}/sql`, {stopPropagation: true})}
-                    pressErrorTitle="Failed to navigate"
-                >
-                    SQL
-                </Button>
-            </Box>
             <DatabaseConnectionContext.Provider value={conn}>
                 <Outlet />
             </DatabaseConnectionContext.Provider>

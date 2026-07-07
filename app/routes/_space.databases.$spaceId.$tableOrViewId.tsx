@@ -127,6 +127,7 @@ export default function DatabaseViewRoute() {
         <DatabaseGridView
             tableId={schemaResult.value.tableId}
             viewId={schemaResult.value.viewId}
+            tableName={schemaResult.value.tableName}
             fields={schemaResult.value.fields}
             query={query}
         />
