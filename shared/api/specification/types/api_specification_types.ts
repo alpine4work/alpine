@@ -3941,10 +3941,10 @@ export namespace ApiSpecification {
                 | components["schemas"]["TaskCreatorFilter"]
                 | components["schemas"]["TaskAssignerFilter"]
                 | components["schemas"]["TaskDueFilter"]
-                | components["schemas"]["TaskCreatedDateFilter"]
-                | components["schemas"]["TaskAssignedDateFilter"]
-                | components["schemas"]["TaskClosedDateFilter"]
-                | components["schemas"]["TaskActivatedDateFilter"];
+                | components["schemas"]["TaskCreatedTimeFilter"]
+                | components["schemas"]["TaskAssignedTimeFilter"]
+                | components["schemas"]["TaskClosedTimeFilter"]
+                | components["schemas"]["TaskActivatedTimeFilter"];
             readonly TaskStatusFilter: {
                 /**
                  * @description discriminator enum property added by openapi-typescript @enum
@@ -4199,8 +4199,8 @@ export namespace ApiSpecification {
             readonly TaskDueFilterOperation:
                 | components["schemas"]["TaskDueFilterOverdueOperation"]
                 | components["schemas"]["TaskDueFilterIsEmptyOperation"]
-                | components["schemas"]["TaskDateFilterLessThanOperation"]
-                | components["schemas"]["TaskDateFilterGreaterThanOperation"];
+                | components["schemas"]["TaskTimeFilterLessThanOperation"]
+                | components["schemas"]["TaskTimeFilterGreaterThanOperation"];
             readonly TaskDueFilterOverdueOperation: {
                 /**
                  * @description discriminator enum property added by openapi-typescript @enum
@@ -4215,99 +4215,99 @@ export namespace ApiSpecification {
                  */
                 readonly type: "IsEmpty";
             };
-            readonly TaskCreatedDateFilter: {
+            readonly TaskCreatedTimeFilter: {
                 /**
                  * @description discriminator enum property added by openapi-typescript @enum
                  * {string}
                  */
-                readonly type: "CreatedDate";
-                readonly operation: components["schemas"]["TaskDateFilterOperation"];
+                readonly type: "CreatedTime";
+                readonly operation: components["schemas"]["TaskTimeFilterOperation"];
             };
-            readonly TaskAssignedDateFilter: {
+            readonly TaskAssignedTimeFilter: {
                 /**
                  * @description discriminator enum property added by openapi-typescript @enum
                  * {string}
                  */
-                readonly type: "AssignedDate";
-                readonly operation: components["schemas"]["TaskDateFilterOperation"];
+                readonly type: "AssignedTime";
+                readonly operation: components["schemas"]["TaskTimeFilterOperation"];
             };
-            readonly TaskClosedDateFilter: {
+            readonly TaskClosedTimeFilter: {
                 /**
                  * @description discriminator enum property added by openapi-typescript @enum
                  * {string}
                  */
-                readonly type: "ClosedDate";
-                readonly operation: components["schemas"]["TaskDateFilterOperation"];
+                readonly type: "ClosedTime";
+                readonly operation: components["schemas"]["TaskTimeFilterOperation"];
             };
-            readonly TaskActivatedDateFilter: {
+            readonly TaskActivatedTimeFilter: {
                 /**
                  * @description discriminator enum property added by openapi-typescript @enum
                  * {string}
                  */
-                readonly type: "ActivatedDate";
-                readonly operation: components["schemas"]["TaskDateFilterOperation"];
+                readonly type: "ActivatedTime";
+                readonly operation: components["schemas"]["TaskTimeFilterOperation"];
             };
-            readonly TaskDateFilterOperation:
-                | components["schemas"]["TaskDateFilterLessThanOperation"]
-                | components["schemas"]["TaskDateFilterGreaterThanOperation"];
-            readonly TaskDateFilterLessThanOperation: {
+            readonly TaskTimeFilterOperation:
+                | components["schemas"]["TaskTimeFilterLessThanOperation"]
+                | components["schemas"]["TaskTimeFilterGreaterThanOperation"];
+            readonly TaskTimeFilterLessThanOperation: {
                 /**
                  * @description discriminator enum property added by openapi-typescript @enum
                  * {string}
                  */
                 readonly type: "LessThan";
-                readonly date: components["schemas"]["TaskDateFilterOperationDate"];
+                readonly time: components["schemas"]["TaskTimeFilterOperationTime"];
             };
-            readonly TaskDateFilterGreaterThanOperation: {
+            readonly TaskTimeFilterGreaterThanOperation: {
                 /**
                  * @description discriminator enum property added by openapi-typescript @enum
                  * {string}
                  */
                 readonly type: "GreaterThan";
-                readonly date: components["schemas"]["TaskDateFilterOperationDate"];
+                readonly time: components["schemas"]["TaskTimeFilterOperationTime"];
             };
-            readonly TaskDateFilterOperationDate:
-                | components["schemas"]["TaskDateFilterOperationAbsoluteDate"]
-                | components["schemas"]["TaskDateFilterOperationRelativeTodayDate"]
-                | components["schemas"]["TaskDateFilterOperationRelativeAfterTodayDate"]
-                | components["schemas"]["TaskDateFilterOperationRelativeBeforeTodayDate"];
-            readonly TaskDateFilterOperationAbsoluteDate: {
+            readonly TaskTimeFilterOperationTime:
+                | components["schemas"]["TaskTimeFilterOperationAbsoluteDateTime"]
+                | components["schemas"]["TaskTimeFilterOperationRelativeTodayTime"]
+                | components["schemas"]["TaskTimeFilterOperationRelativeAfterTodayTime"]
+                | components["schemas"]["TaskTimeFilterOperationRelativeBeforeTodayTime"];
+            readonly TaskTimeFilterOperationAbsoluteDateTime: {
                 /**
                  * @description discriminator enum property added by openapi-typescript @enum
                  * {string}
                  */
-                readonly type: "Absolute";
+                readonly type: "AbsoluteDate";
                 readonly date: string | null;
             };
-            readonly TaskDateFilterOperationRelativeTodayDate: {
+            readonly TaskTimeFilterOperationRelativeTodayTime: {
                 /**
                  * @description discriminator enum property added by openapi-typescript @enum
                  * {string}
                  */
                 readonly type: "RelativeToday";
             };
-            readonly TaskDateFilterOperationRelativeAfterTodayDate: {
+            readonly TaskTimeFilterOperationRelativeAfterTodayTime: {
                 /**
                  * @description discriminator enum property added by openapi-typescript @enum
                  * {string}
                  */
                 readonly type: "RelativeAfterToday";
-                readonly duration: components["schemas"]["TaskDateFilterOperationDuration"];
+                readonly duration: components["schemas"]["TaskTimeFilterOperationDuration"];
             };
-            readonly TaskDateFilterOperationRelativeBeforeTodayDate: {
+            readonly TaskTimeFilterOperationRelativeBeforeTodayTime: {
                 /**
                  * @description discriminator enum property added by openapi-typescript @enum
                  * {string}
                  */
                 readonly type: "RelativeBeforeToday";
-                readonly duration: components["schemas"]["TaskDateFilterOperationDuration"];
+                readonly duration: components["schemas"]["TaskTimeFilterOperationDuration"];
             };
-            readonly TaskDateFilterOperationDuration:
-                | components["schemas"]["TaskDateFilterOperationDaysDuration"]
-                | components["schemas"]["TaskDateFilterOperationWeeksDuration"]
-                | components["schemas"]["TaskDateFilterOperationMonthsDuration"]
-                | components["schemas"]["TaskDateFilterOperationYearsDuration"];
-            readonly TaskDateFilterOperationDaysDuration: {
+            readonly TaskTimeFilterOperationDuration:
+                | components["schemas"]["TaskTimeFilterOperationDaysDuration"]
+                | components["schemas"]["TaskTimeFilterOperationWeeksDuration"]
+                | components["schemas"]["TaskTimeFilterOperationMonthsDuration"]
+                | components["schemas"]["TaskTimeFilterOperationYearsDuration"];
+            readonly TaskTimeFilterOperationDaysDuration: {
                 /**
                  * @description discriminator enum property added by openapi-typescript @enum
                  * {string}
@@ -4315,7 +4315,7 @@ export namespace ApiSpecification {
                 readonly type: "Days";
                 readonly days: number;
             };
-            readonly TaskDateFilterOperationWeeksDuration: {
+            readonly TaskTimeFilterOperationWeeksDuration: {
                 /**
                  * @description discriminator enum property added by openapi-typescript @enum
                  * {string}
@@ -4323,7 +4323,7 @@ export namespace ApiSpecification {
                 readonly type: "Weeks";
                 readonly weeks: number;
             };
-            readonly TaskDateFilterOperationMonthsDuration: {
+            readonly TaskTimeFilterOperationMonthsDuration: {
                 /**
                  * @description discriminator enum property added by openapi-typescript @enum
                  * {string}
@@ -4331,7 +4331,7 @@ export namespace ApiSpecification {
                 readonly type: "Months";
                 readonly months: number;
             };
-            readonly TaskDateFilterOperationYearsDuration: {
+            readonly TaskTimeFilterOperationYearsDuration: {
                 /**
                  * @description discriminator enum property added by openapi-typescript @enum
                  * {string}
@@ -5857,10 +5857,10 @@ export namespace ApiSpecification {
                 | components["schemas"]["TaskCreatorFilter_Response"]
                 | components["schemas"]["TaskAssignerFilter_Response"]
                 | components["schemas"]["TaskDueFilter"]
-                | components["schemas"]["TaskCreatedDateFilter"]
-                | components["schemas"]["TaskAssignedDateFilter"]
-                | components["schemas"]["TaskClosedDateFilter"]
-                | components["schemas"]["TaskActivatedDateFilter"];
+                | components["schemas"]["TaskCreatedTimeFilter"]
+                | components["schemas"]["TaskAssignedTimeFilter"]
+                | components["schemas"]["TaskClosedTimeFilter"]
+                | components["schemas"]["TaskActivatedTimeFilter"];
             readonly MessageStreamToolCallPartPayload_Response: {
                 /**
                  * @description discriminator enum property added by openapi-typescript @enum

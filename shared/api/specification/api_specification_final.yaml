@@ -4842,10 +4842,10 @@ components:
                 - $ref: "#/components/schemas/TaskCreatorFilter"
                 - $ref: "#/components/schemas/TaskAssignerFilter"
                 - $ref: "#/components/schemas/TaskDueFilter"
-                - $ref: "#/components/schemas/TaskCreatedDateFilter"
-                - $ref: "#/components/schemas/TaskAssignedDateFilter"
-                - $ref: "#/components/schemas/TaskClosedDateFilter"
-                - $ref: "#/components/schemas/TaskActivatedDateFilter"
+                - $ref: "#/components/schemas/TaskCreatedTimeFilter"
+                - $ref: "#/components/schemas/TaskAssignedTimeFilter"
+                - $ref: "#/components/schemas/TaskClosedTimeFilter"
+                - $ref: "#/components/schemas/TaskActivatedTimeFilter"
             discriminator:
                 propertyName: type
                 mapping:
@@ -4858,10 +4858,10 @@ components:
                     Creator: "#/components/schemas/TaskCreatorFilter"
                     Assigner: "#/components/schemas/TaskAssignerFilter"
                     Due: "#/components/schemas/TaskDueFilter"
-                    CreatedDate: "#/components/schemas/TaskCreatedDateFilter"
-                    AssignedDate: "#/components/schemas/TaskAssignedDateFilter"
-                    ClosedDate: "#/components/schemas/TaskClosedDateFilter"
-                    ActivatedDate: "#/components/schemas/TaskActivatedDateFilter"
+                    CreatedTime: "#/components/schemas/TaskCreatedTimeFilter"
+                    AssignedTime: "#/components/schemas/TaskAssignedTimeFilter"
+                    ClosedTime: "#/components/schemas/TaskClosedTimeFilter"
+                    ActivatedTime: "#/components/schemas/TaskActivatedTimeFilter"
         TaskStatusFilter:
             type: object
             required:
@@ -5285,15 +5285,15 @@ components:
             oneOf:
                 - $ref: "#/components/schemas/TaskDueFilterOverdueOperation"
                 - $ref: "#/components/schemas/TaskDueFilterIsEmptyOperation"
-                - $ref: "#/components/schemas/TaskDateFilterLessThanOperation"
-                - $ref: "#/components/schemas/TaskDateFilterGreaterThanOperation"
+                - $ref: "#/components/schemas/TaskTimeFilterLessThanOperation"
+                - $ref: "#/components/schemas/TaskTimeFilterGreaterThanOperation"
             discriminator:
                 propertyName: type
                 mapping:
                     Overdue: "#/components/schemas/TaskDueFilterOverdueOperation"
                     IsEmpty: "#/components/schemas/TaskDueFilterIsEmptyOperation"
-                    LessThan: "#/components/schemas/TaskDateFilterLessThanOperation"
-                    GreaterThan: "#/components/schemas/TaskDateFilterGreaterThanOperation"
+                    LessThan: "#/components/schemas/TaskTimeFilterLessThanOperation"
+                    GreaterThan: "#/components/schemas/TaskTimeFilterGreaterThanOperation"
         TaskDueFilterOverdueOperation:
             type: object
             required:
@@ -5310,7 +5310,7 @@ components:
             properties:
                 type:
                     const: IsEmpty
-        TaskCreatedDateFilter:
+        TaskCreatedTimeFilter:
             type: object
             required:
                 - type
@@ -5318,10 +5318,10 @@ components:
             additionalProperties: false
             properties:
                 type:
-                    const: CreatedDate
+                    const: CreatedTime
                 operation:
-                    $ref: "#/components/schemas/TaskDateFilterOperation"
-        TaskAssignedDateFilter:
+                    $ref: "#/components/schemas/TaskTimeFilterOperation"
+        TaskAssignedTimeFilter:
             type: object
             required:
                 - type
@@ -5329,10 +5329,10 @@ components:
             additionalProperties: false
             properties:
                 type:
-                    const: AssignedDate
+                    const: AssignedTime
                 operation:
-                    $ref: "#/components/schemas/TaskDateFilterOperation"
-        TaskClosedDateFilter:
+                    $ref: "#/components/schemas/TaskTimeFilterOperation"
+        TaskClosedTimeFilter:
             type: object
             required:
                 - type
@@ -5340,10 +5340,10 @@ components:
             additionalProperties: false
             properties:
                 type:
-                    const: ClosedDate
+                    const: ClosedTime
                 operation:
-                    $ref: "#/components/schemas/TaskDateFilterOperation"
-        TaskActivatedDateFilter:
+                    $ref: "#/components/schemas/TaskTimeFilterOperation"
+        TaskActivatedTimeFilter:
             type: object
             required:
                 - type
@@ -5351,56 +5351,56 @@ components:
             additionalProperties: false
             properties:
                 type:
-                    const: ActivatedDate
+                    const: ActivatedTime
                 operation:
-                    $ref: "#/components/schemas/TaskDateFilterOperation"
-        TaskDateFilterOperation:
+                    $ref: "#/components/schemas/TaskTimeFilterOperation"
+        TaskTimeFilterOperation:
             oneOf:
-                - $ref: "#/components/schemas/TaskDateFilterLessThanOperation"
-                - $ref: "#/components/schemas/TaskDateFilterGreaterThanOperation"
+                - $ref: "#/components/schemas/TaskTimeFilterLessThanOperation"
+                - $ref: "#/components/schemas/TaskTimeFilterGreaterThanOperation"
             discriminator:
                 propertyName: type
                 mapping:
-                    LessThan: "#/components/schemas/TaskDateFilterLessThanOperation"
-                    GreaterThan: "#/components/schemas/TaskDateFilterGreaterThanOperation"
-        TaskDateFilterLessThanOperation:
+                    LessThan: "#/components/schemas/TaskTimeFilterLessThanOperation"
+                    GreaterThan: "#/components/schemas/TaskTimeFilterGreaterThanOperation"
+        TaskTimeFilterLessThanOperation:
             type: object
             required:
                 - type
-                - date
+                - time
             additionalProperties: false
             properties:
                 type:
                     const: LessThan
-                date:
-                    $ref: "#/components/schemas/TaskDateFilterOperationDate"
-        TaskDateFilterGreaterThanOperation:
+                time:
+                    $ref: "#/components/schemas/TaskTimeFilterOperationTime"
+        TaskTimeFilterGreaterThanOperation:
             type: object
             required:
                 - type
-                - date
+                - time
             additionalProperties: false
             properties:
                 type:
                     const: GreaterThan
-                date:
-                    $ref: "#/components/schemas/TaskDateFilterOperationDate"
-        TaskDateFilterOperationDate:
+                time:
+                    $ref: "#/components/schemas/TaskTimeFilterOperationTime"
+        TaskTimeFilterOperationTime:
             oneOf:
-                - $ref: "#/components/schemas/TaskDateFilterOperationAbsoluteDate"
-                - $ref: "#/components/schemas/TaskDateFilterOperationRelativeTodayDate"
-                - $ref: "#/components/schemas/TaskDateFilterOperationRelativeAfterTodayDate"
-                - $ref: "#/components/schemas/TaskDateFilterOperationRelativeBeforeTodayDate"
+                - $ref: "#/components/schemas/TaskTimeFilterOperationAbsoluteDateTime"
+                - $ref: "#/components/schemas/TaskTimeFilterOperationRelativeTodayTime"
+                - $ref: "#/components/schemas/TaskTimeFilterOperationRelativeAfterTodayTime"
+                - $ref: "#/components/schemas/TaskTimeFilterOperationRelativeBeforeTodayTime"
             discriminator:
                 propertyName: type
                 mapping:
-                    Absolute: "#/components/schemas/TaskDateFilterOperationAbsoluteDate"
-                    RelativeToday: "#/components/schemas/TaskDateFilterOperationRelativeTodayDate"
-                    RelativeAfterToday: "#/components/schemas/TaskDateFilterOperationRelativeAfterT\
-                        odayDate"
-                    RelativeBeforeToday: "#/components/schemas/TaskDateFilterOperationRelativeBefor\
-                        eTodayDate"
-        TaskDateFilterOperationAbsoluteDate:
+                    AbsoluteDate: "#/components/schemas/TaskTimeFilterOperationAbsoluteDateTime"
+                    RelativeToday: "#/components/schemas/TaskTimeFilterOperationRelativeTodayTime"
+                    RelativeAfterToday: "#/components/schemas/TaskTimeFilterOperationRelativeAfterT\
+                        odayTime"
+                    RelativeBeforeToday: "#/components/schemas/TaskTimeFilterOperationRelativeBefor\
+                        eTodayTime"
+        TaskTimeFilterOperationAbsoluteDateTime:
             type: object
             required:
                 - type
@@ -5408,13 +5408,13 @@ components:
             additionalProperties: false
             properties:
                 type:
-                    const: Absolute
+                    const: AbsoluteDate
                 date:
                     oneOf:
                         - type: string
                           format: date
                         - type: "null"
-        TaskDateFilterOperationRelativeTodayDate:
+        TaskTimeFilterOperationRelativeTodayTime:
             type: object
             required:
                 - type
@@ -5422,7 +5422,7 @@ components:
             properties:
                 type:
                     const: RelativeToday
-        TaskDateFilterOperationRelativeAfterTodayDate:
+        TaskTimeFilterOperationRelativeAfterTodayTime:
             type: object
             required:
                 - type
@@ -5432,8 +5432,8 @@ components:
                 type:
                     const: RelativeAfterToday
                 duration:
-                    $ref: "#/components/schemas/TaskDateFilterOperationDuration"
-        TaskDateFilterOperationRelativeBeforeTodayDate:
+                    $ref: "#/components/schemas/TaskTimeFilterOperationDuration"
+        TaskTimeFilterOperationRelativeBeforeTodayTime:
             type: object
             required:
                 - type
@@ -5443,21 +5443,21 @@ components:
                 type:
                     const: RelativeBeforeToday
                 duration:
-                    $ref: "#/components/schemas/TaskDateFilterOperationDuration"
-        TaskDateFilterOperationDuration:
+                    $ref: "#/components/schemas/TaskTimeFilterOperationDuration"
+        TaskTimeFilterOperationDuration:
             oneOf:
-                - $ref: "#/components/schemas/TaskDateFilterOperationDaysDuration"
-                - $ref: "#/components/schemas/TaskDateFilterOperationWeeksDuration"
-                - $ref: "#/components/schemas/TaskDateFilterOperationMonthsDuration"
-                - $ref: "#/components/schemas/TaskDateFilterOperationYearsDuration"
+                - $ref: "#/components/schemas/TaskTimeFilterOperationDaysDuration"
+                - $ref: "#/components/schemas/TaskTimeFilterOperationWeeksDuration"
+                - $ref: "#/components/schemas/TaskTimeFilterOperationMonthsDuration"
+                - $ref: "#/components/schemas/TaskTimeFilterOperationYearsDuration"
             discriminator:
                 propertyName: type
                 mapping:
-                    Days: "#/components/schemas/TaskDateFilterOperationDaysDuration"
-                    Weeks: "#/components/schemas/TaskDateFilterOperationWeeksDuration"
-                    Months: "#/components/schemas/TaskDateFilterOperationMonthsDuration"
-                    Years: "#/components/schemas/TaskDateFilterOperationYearsDuration"
-        TaskDateFilterOperationDaysDuration:
+                    Days: "#/components/schemas/TaskTimeFilterOperationDaysDuration"
+                    Weeks: "#/components/schemas/TaskTimeFilterOperationWeeksDuration"
+                    Months: "#/components/schemas/TaskTimeFilterOperationMonthsDuration"
+                    Years: "#/components/schemas/TaskTimeFilterOperationYearsDuration"
+        TaskTimeFilterOperationDaysDuration:
             type: object
             required:
                 - type
@@ -5468,7 +5468,7 @@ components:
                     const: Days
                 days:
                     type: integer
-        TaskDateFilterOperationWeeksDuration:
+        TaskTimeFilterOperationWeeksDuration:
             type: object
             required:
                 - type
@@ -5479,7 +5479,7 @@ components:
                     const: Weeks
                 weeks:
                     type: integer
-        TaskDateFilterOperationMonthsDuration:
+        TaskTimeFilterOperationMonthsDuration:
             type: object
             required:
                 - type
@@ -5490,7 +5490,7 @@ components:
                     const: Months
                 months:
                     type: integer
-        TaskDateFilterOperationYearsDuration:
+        TaskTimeFilterOperationYearsDuration:
             type: object
             required:
                 - type
@@ -8668,10 +8668,10 @@ components:
                 - $ref: "#/components/schemas/TaskCreatorFilter_Response"
                 - $ref: "#/components/schemas/TaskAssignerFilter_Response"
                 - $ref: "#/components/schemas/TaskDueFilter"
-                - $ref: "#/components/schemas/TaskCreatedDateFilter"
-                - $ref: "#/components/schemas/TaskAssignedDateFilter"
-                - $ref: "#/components/schemas/TaskClosedDateFilter"
-                - $ref: "#/components/schemas/TaskActivatedDateFilter"
+                - $ref: "#/components/schemas/TaskCreatedTimeFilter"
+                - $ref: "#/components/schemas/TaskAssignedTimeFilter"
+                - $ref: "#/components/schemas/TaskClosedTimeFilter"
+                - $ref: "#/components/schemas/TaskActivatedTimeFilter"
             discriminator:
                 propertyName: type
                 mapping:
@@ -8684,10 +8684,10 @@ components:
                     Creator: "#/components/schemas/TaskCreatorFilter_Response"
                     Assigner: "#/components/schemas/TaskAssignerFilter_Response"
                     Due: "#/components/schemas/TaskDueFilter"
-                    CreatedDate: "#/components/schemas/TaskCreatedDateFilter"
-                    AssignedDate: "#/components/schemas/TaskAssignedDateFilter"
-                    ClosedDate: "#/components/schemas/TaskClosedDateFilter"
-                    ActivatedDate: "#/components/schemas/TaskActivatedDateFilter"
+                    CreatedTime: "#/components/schemas/TaskCreatedTimeFilter"
+                    AssignedTime: "#/components/schemas/TaskAssignedTimeFilter"
+                    ClosedTime: "#/components/schemas/TaskClosedTimeFilter"
+                    ActivatedTime: "#/components/schemas/TaskActivatedTimeFilter"
         MessageStreamToolCallPartPayload_Response:
             type: object
             required:

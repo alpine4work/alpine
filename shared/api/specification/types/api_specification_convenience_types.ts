@@ -506,56 +506,56 @@ export type ApiTaskDueFilterOverdueOperation =
 export type ApiTaskDueFilterIsEmptyOperation =
     ApiSpecification.components["schemas"]["TaskDueFilterIsEmptyOperation"];
 
-export type ApiTaskCreatedDateFilter =
-    ApiSpecification.components["schemas"]["TaskCreatedDateFilter"];
+export type ApiTaskCreatedTimeFilter =
+    ApiSpecification.components["schemas"]["TaskCreatedTimeFilter"];
 
-export type ApiTaskAssignedDateFilter =
-    ApiSpecification.components["schemas"]["TaskAssignedDateFilter"];
+export type ApiTaskAssignedTimeFilter =
+    ApiSpecification.components["schemas"]["TaskAssignedTimeFilter"];
 
-export type ApiTaskClosedDateFilter =
-    ApiSpecification.components["schemas"]["TaskClosedDateFilter"];
+export type ApiTaskClosedTimeFilter =
+    ApiSpecification.components["schemas"]["TaskClosedTimeFilter"];
 
-export type ApiTaskActivatedDateFilter =
-    ApiSpecification.components["schemas"]["TaskActivatedDateFilter"];
+export type ApiTaskActivatedTimeFilter =
+    ApiSpecification.components["schemas"]["TaskActivatedTimeFilter"];
 
-export type ApiTaskDateFilterOperation =
-    ApiSpecification.components["schemas"]["TaskDateFilterOperation"];
+export type ApiTaskTimeFilterOperation =
+    ApiSpecification.components["schemas"]["TaskTimeFilterOperation"];
 
-export type ApiTaskDateFilterLessThanOperation =
-    ApiSpecification.components["schemas"]["TaskDateFilterLessThanOperation"];
+export type ApiTaskTimeFilterLessThanOperation =
+    ApiSpecification.components["schemas"]["TaskTimeFilterLessThanOperation"];
 
-export type ApiTaskDateFilterGreaterThanOperation =
-    ApiSpecification.components["schemas"]["TaskDateFilterGreaterThanOperation"];
+export type ApiTaskTimeFilterGreaterThanOperation =
+    ApiSpecification.components["schemas"]["TaskTimeFilterGreaterThanOperation"];
 
-export type ApiTaskDateFilterOperationDate =
-    ApiSpecification.components["schemas"]["TaskDateFilterOperationDate"];
+export type ApiTaskTimeFilterOperationTime =
+    ApiSpecification.components["schemas"]["TaskTimeFilterOperationTime"];
 
-export type ApiTaskDateFilterOperationAbsoluteDate =
-    ApiSpecification.components["schemas"]["TaskDateFilterOperationAbsoluteDate"];
+export type ApiTaskTimeFilterOperationAbsoluteDateTime =
+    ApiSpecification.components["schemas"]["TaskTimeFilterOperationAbsoluteDateTime"];
 
-export type ApiTaskDateFilterOperationRelativeTodayDate =
-    ApiSpecification.components["schemas"]["TaskDateFilterOperationRelativeTodayDate"];
+export type ApiTaskTimeFilterOperationRelativeTodayTime =
+    ApiSpecification.components["schemas"]["TaskTimeFilterOperationRelativeTodayTime"];
 
-export type ApiTaskDateFilterOperationRelativeAfterTodayDate =
-    ApiSpecification.components["schemas"]["TaskDateFilterOperationRelativeAfterTodayDate"];
+export type ApiTaskTimeFilterOperationRelativeAfterTodayTime =
+    ApiSpecification.components["schemas"]["TaskTimeFilterOperationRelativeAfterTodayTime"];
 
-export type ApiTaskDateFilterOperationRelativeBeforeTodayDate =
-    ApiSpecification.components["schemas"]["TaskDateFilterOperationRelativeBeforeTodayDate"];
+export type ApiTaskTimeFilterOperationRelativeBeforeTodayTime =
+    ApiSpecification.components["schemas"]["TaskTimeFilterOperationRelativeBeforeTodayTime"];
 
-export type ApiTaskDateFilterOperationDuration =
-    ApiSpecification.components["schemas"]["TaskDateFilterOperationDuration"];
+export type ApiTaskTimeFilterOperationDuration =
+    ApiSpecification.components["schemas"]["TaskTimeFilterOperationDuration"];
 
-export type ApiTaskDateFilterOperationDaysDuration =
-    ApiSpecification.components["schemas"]["TaskDateFilterOperationDaysDuration"];
+export type ApiTaskTimeFilterOperationDaysDuration =
+    ApiSpecification.components["schemas"]["TaskTimeFilterOperationDaysDuration"];
 
-export type ApiTaskDateFilterOperationWeeksDuration =
-    ApiSpecification.components["schemas"]["TaskDateFilterOperationWeeksDuration"];
+export type ApiTaskTimeFilterOperationWeeksDuration =
+    ApiSpecification.components["schemas"]["TaskTimeFilterOperationWeeksDuration"];
 
-export type ApiTaskDateFilterOperationMonthsDuration =
-    ApiSpecification.components["schemas"]["TaskDateFilterOperationMonthsDuration"];
+export type ApiTaskTimeFilterOperationMonthsDuration =
+    ApiSpecification.components["schemas"]["TaskTimeFilterOperationMonthsDuration"];
 
-export type ApiTaskDateFilterOperationYearsDuration =
-    ApiSpecification.components["schemas"]["TaskDateFilterOperationYearsDuration"];
+export type ApiTaskTimeFilterOperationYearsDuration =
+    ApiSpecification.components["schemas"]["TaskTimeFilterOperationYearsDuration"];
 
 export type ApiTaskSort = ApiSpecification.components["schemas"]["TaskSort"];
 
