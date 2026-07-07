@@ -1226,6 +1226,7 @@ describe("DatabaseServer — per-table storage", () => {
     });
 });
 
+/* eslint-disable cyberworlds/string-quotes -- raw SQL strings quote identifiers */
 describe("DatabaseServer — per-table access", () => {
     function createSessionContext(accountId: AccountId | null) {
         return {
