@@ -21,7 +21,6 @@ import {runJoinTableMigrations, runTableMigrations} from "~/shared/databases/sql
 import {assert} from "~/shared/helpers/control/assert.js";
 import {generateChronologicalId} from "~/shared/id/chronological_id.js";
 import type {
-    AccountId,
     DatabaseFieldId,
     DatabaseRowId,
     DatabaseTableId,
