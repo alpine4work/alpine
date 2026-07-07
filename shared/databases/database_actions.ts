@@ -16,7 +16,7 @@ import {DatabaseModel} from "~/shared/databases/model/database_root_model.js";
 import {SqlBooleanSchema} from "~/shared/databases/model/sqlite_schema.js";
 import {type SqlQuery, sql} from "~/shared/databases/sql.js";
 import {SqliteDatabase} from "~/shared/databases/sqlite.js";
-import type {SqliteWriteLevel} from "~/shared/databases/sqlite_authorizer.js";
+import type {SqliteTableAccess, SqliteWriteLevel} from "~/shared/databases/sqlite_authorizer.js";
 import {runJoinTableMigrations, runTableMigrations} from "~/shared/databases/sqlite_migrations.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {generateChronologicalId} from "~/shared/id/chronological_id.js";
@@ -33,8 +33,9 @@ import {type ObjectSchema, Schema, type SchemaType} from "~/shared/schema/schema
 export function createDatabaseActionContext(
     db: SqliteDatabase,
     server: DatabaseActionServerContext | null,
+    getTableAccess?: (tableId: DatabaseTableId) => SqliteTableAccess,
 ): DatabaseActionContext {
-    return new DatabaseModel(db, server).ctx;
+    return new DatabaseModel(db, server, getTableAccess).ctx;
 }
 
 /**

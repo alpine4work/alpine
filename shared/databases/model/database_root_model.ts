@@ -17,6 +17,10 @@ import {DatabaseTableModel} from "~/shared/databases/model/database_table_model.
 import {SqlBooleanSchema} from "~/shared/databases/model/sqlite_schema.js";
 import {databaseTableSchemaName, sql} from "~/shared/databases/sql.js";
 import {SqliteDatabase} from "~/shared/databases/sqlite.js";
+import {
+    type SqliteTableAccess,
+    unrestrictedSqliteTableAccess,
+} from "~/shared/databases/sqlite_authorizer.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 import {generateChronologicalId} from "~/shared/id/chronological_id.js";
@@ -34,7 +38,12 @@ export class DatabaseModel {
      */
     readonly ctx: DatabaseActionContext;
 
-    constructor(db: SqliteDatabase, server: DatabaseActionServerContext | null = null) {
+    constructor(
+        db: SqliteDatabase,
+        server: DatabaseActionServerContext | null = null,
+        getTableAccess: (tableId: DatabaseTableId) => SqliteTableAccess = () =>
+            unrestrictedSqliteTableAccess,
+    ) {
         this.ctx = {
             db,
             server: () => {
@@ -44,6 +53,7 @@ export class DatabaseModel {
                 return server;
             },
             model: this,
+            getTableAccess,
         };
     }
 

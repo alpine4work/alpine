@@ -1,5 +1,13 @@
-import {Database, type ReadonlyDatabaseStorage} from "~/shared/databases/database.js";
+import {
+    Database,
+    type DatabaseTableAccessResolver,
+    type ReadonlyDatabaseStorage,
+} from "~/shared/databases/database.js";
 import {type SqlQuery, sql} from "~/shared/databases/sql.js";
+import {
+    deniedSqliteTableAccess,
+    unrestrictedSqliteTableAccess,
+} from "~/shared/databases/sqlite_authorizer.js";
 import {databaseMainTableId, sqlitePageSize} from "~/shared/databases/sqlite_constants.js";
 import {runMainMigrations, runTableMigrations} from "~/shared/databases/sqlite_migrations.js";
 import {TableNotAttachedError} from "~/shared/databases/table_not_attached_error.js";
@@ -481,6 +489,134 @@ describe("Database — authorizer", () => {
 
         // writeLevel is null (no execute in flight); the authorizer must still ban attach.
         expect(() => sql`ATTACH DATABASE '/foo' AS foo`.exec(db)).toThrow();
+    });
+});
+
+describe("Database — per-table access", () => {
+    /** Attach a fresh table with a seeded `things` table and return its id. */
+    async function createDatabaseWithAttachedTable(): Promise<{
+        database: Database;
+        otherTableId: DatabaseTableId;
+    }> {
+        const {database} = await createDatabase();
+        const otherTableId = generateChronologicalId<DatabaseTableId>();
+        database.attach(otherTableId);
+        database.executeSql(
+            sql`CREATE TABLE ${sql.tableRef(otherTableId, "things")} (id INTEGER PRIMARY KEY)`,
+            {allowWrites: "schema+data"},
+        );
+        database.executeSql(
+            sql`
+                INSERT INTO
+                    ${sql.tableRef(otherTableId, "things")}
+                VALUES
+                    (1)
+            `,
+            {allowWrites: "data"},
+        );
+        return {database, otherTableId};
+    }
+
+    test("a denied read surfaces as a typed permission error naming the table", async () => {
+        const {database, otherTableId} = await createDatabaseWithAttachedTable();
+        const denyAll: DatabaseTableAccessResolver = () => deniedSqliteTableAccess;
+
+        expect(() =>
+            database.executeSql(
+                sql`
+                    SELECT
+                        id
+                    FROM
+                        ${sql.tableRef(otherTableId, "things")}
+                `,
+                {allowWrites: "none", tableAccessResolver: denyAll},
+            ),
+        ).toThrow(`Permission denied for read on database table ${otherTableId}`);
+    });
+
+    test("a read the resolver grants passes", async () => {
+        const {database, otherTableId} = await createDatabaseWithAttachedTable();
+        const readOnly: DatabaseTableAccessResolver = () => ({
+            ...deniedSqliteTableAccess,
+            read: true,
+        });
+
+        const result = database.executeSql(
+            sql`
+                SELECT
+                    id
+                FROM
+                    ${sql.tableRef(otherTableId, "things")}
+            `,
+            {allowWrites: "none", tableAccessResolver: readOnly},
+        );
+
+        expect(result.rows).toEqual([{id: 1}]);
+    });
+
+    test("a write is denied when the resolver grants read only", async () => {
+        const {database, otherTableId} = await createDatabaseWithAttachedTable();
+        const readOnly: DatabaseTableAccessResolver = () => ({
+            ...deniedSqliteTableAccess,
+            read: true,
+        });
+
+        expect(() =>
+            database.executeSql(
+                sql`
+                    UPDATE ${sql.tableRef(otherTableId, "things")}
+                    SET
+                        id = 2
+                    WHERE
+                        id = 1
+                `,
+                {allowWrites: "data", tableAccessResolver: readOnly},
+            ),
+        ).toThrow(`Permission denied for update on database table ${otherTableId}`);
+    });
+
+    test("main stays readable under a deny-all resolver", async () => {
+        const {database} = await createDatabaseWithSchema(
+            sql`CREATE TABLE items (id INTEGER PRIMARY KEY)`,
+            sql`
+                INSERT INTO
+                    items
+                VALUES
+                    (1)
+            `,
+        );
+        const denyAll: DatabaseTableAccessResolver = () => deniedSqliteTableAccess;
+
+        const result = database.executeSql(
+            sql`
+                SELECT
+                    id
+                FROM
+                    items
+            `,
+            {allowWrites: "none", tableAccessResolver: denyAll},
+        );
+
+        expect(result.rows).toEqual([{id: 1}]);
+    });
+
+    test("getTableAccessForCurrentExecution reflects the installed resolver", async () => {
+        const {database, otherTableId} = await createDatabaseWithAttachedTable();
+
+        const {result} = database.execute(
+            () => database.getTableAccessForCurrentExecution(otherTableId),
+            {allowWrites: "none", tableAccessResolver: () => deniedSqliteTableAccess},
+        );
+
+        expect(result).toEqual(deniedSqliteTableAccess);
+    });
+
+    test("getTableAccessForCurrentExecution is unrestricted without a resolver", async () => {
+        const {database, otherTableId} = await createDatabaseWithAttachedTable();
+
+        expect(database.getTableAccessForCurrentExecution(otherTableId)).toEqual(
+            unrestrictedSqliteTableAccess,
+        );
     });
 });
 
