@@ -10,6 +10,17 @@ diff --git a/ext/wasm/GNUmakefile b/ext/wasm/GNUmakefile
  -e '/assert.*sqlite3.*missing.*;/d' \
  -e '/_sqlite.*createExportWrapper.*;/d' $@
  endef
+@@ -393,6 +393,10 @@ $(sqlite3.c): $(sqlite3.h)
+ # Common options for building sqlite3-wasm.c and speedtest1.c.
+ # Explicit ENABLEs...
+ #
++# Alpine: raise the ATTACH limit from the default 10 to the hard maximum
++# of 125. Each Alpine database table lives in its own ATTACH-ed per-db
++# file, so the default is far too small.
+ SQLITE_OPT.common = \
++  -DSQLITE_MAX_ATTACHED=125 \
+   -DSQLITE_THREADSAFE=0 \
+   -DSQLITE_TEMP_STORE=2 \
 diff --git a/ext/wasm/api/EXPORTED_FUNCTIONS.c-pp b/ext/wasm/api/EXPORTED_FUNCTIONS.c-pp
 --- a/ext/wasm/api/EXPORTED_FUNCTIONS.c-pp
 +++ b/ext/wasm/api/EXPORTED_FUNCTIONS.c-pp
