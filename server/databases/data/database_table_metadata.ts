@@ -126,7 +126,7 @@ export async function updateDatabaseTableAccessPolicy(
     return {accessPolicy};
 }
 
-export async function getDatabaseTableMetadataForSearchIndex(
+export async function getDatabaseTableMetadata(
     context: ServerActionContext,
     {spaceId, tableId}: {spaceId: SpaceId; tableId: DatabaseTableId},
 ): Promise<DatabaseTableMetadataModel> {
@@ -147,6 +147,13 @@ export async function getDatabaseTableMetadataForSearchIndex(
     }
 
     return item.model;
+}
+
+export async function getDatabaseTableMetadataForSearchIndex(
+    context: ServerActionContext,
+    input: {spaceId: SpaceId; tableId: DatabaseTableId},
+): Promise<DatabaseTableMetadataModel> {
+    return await getDatabaseTableMetadata(context, input);
 }
 
 export async function syncDatabaseTableMetadataToDurableObject(

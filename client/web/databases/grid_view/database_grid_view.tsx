@@ -8,7 +8,9 @@ import {
     useOptimistic,
     useReducer,
     useRef,
+    useState,
 } from "react";
+import {createAccessPolicyStoreFromReferences} from "~/client/web/access/create_access_policy_store.js";
 import {useAppContext} from "~/client/web/context/app_context.js";
 import {useDatabaseConnection} from "~/client/web/databases/database_connection_context.js";
 import type {DatabaseQuery} from "~/client/web/databases/database_query.js";
@@ -28,34 +30,31 @@ import {useEvent} from "~/client/web/helpers/lifecycle/use_event.js";
 import {useStore} from "~/client/web/helpers/use_store.js";
 import {writeTextToClipboard} from "~/client/web/helpers/write_text_to_clipboard.js";
 import {ShareButton} from "~/client/web/navigation/share_button.js";
+import {useSiteContextIfExists} from "~/client/web/sites/context/site_context.js";
 import {useSiteRegistry} from "~/client/web/sites/context/site_registry_context.js";
+import {applySiteAccessPolicyChange} from "~/client/web/sites/helpers/apply_site_access_policy_change.js";
 import {
     VirtualizedScrollView,
     VirtualizedScrollViewItem,
     type VirtualizedScrollViewRef,
 } from "~/client/web/virtualized/virtualized_scroll_view.js";
-import type {
-    AccessPolicy,
-    ResolvedAccessPolicyWithGenerations,
-} from "~/shared/access/access_policy.js";
+import type {AccessPolicy} from "~/shared/access/access_policy.js";
 import type {DatabaseFieldValue} from "~/shared/databases/fields/all_database_field_providers.js";
 import {spacing} from "~/shared/design/core/spacing.js";
 import {remPxBySpacingScale} from "~/shared/design/core/spacing_scale.js";
-import {assert} from "~/shared/helpers/control/assert.js";
-import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
+import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 import {generateChronologicalId} from "~/shared/id/chronological_id.js";
 import type {
     DatabaseFieldId,
     DatabaseRowId,
     DatabaseTableId,
     DatabaseViewId,
+    SiteId,
     SpaceId,
 } from "~/shared/id/types/id_types.js";
 import {updateDatabaseTableAccessPolicy} from "~/shared/rpc/database_tables_rpc_definitions.js";
 import type {SchemaSerializedValue} from "~/shared/schema/schema.js";
 import {SitePreviewModel} from "~/shared/sites/site_model.js";
-import {ConstStore} from "~/shared/store/const_store.js";
-import {Store} from "~/shared/store/store.js";
 
 // -- Selection state ----------------------------------------------------------
 
@@ -133,8 +132,8 @@ export function DatabaseGridView({
     tableId,
     viewId,
     tableName,
-    accessPolicy,
-    accessPolicySite,
+    initialAccessPolicy,
+    accessPolicySiteById,
     fields,
     query,
 }: {
@@ -142,39 +141,35 @@ export function DatabaseGridView({
     tableId: DatabaseTableId;
     viewId: DatabaseViewId;
     tableName: string;
-    accessPolicy: AccessPolicy;
-    accessPolicySite: SitePreviewModel | null;
+    initialAccessPolicy: AccessPolicy;
+    accessPolicySiteById: ReadonlyMap<SiteId, SitePreviewModel>;
     fields: ReadonlyArray<DatabaseGridViewField>;
     query: DatabaseQuery;
 }) {
     const context = useAppContext();
     const siteRegistry = useSiteRegistry();
+    const siteContext = useSiteContextIfExists();
+    const [accessPolicyState, setAccessPolicyState] = useState({
+        accessPolicy: initialAccessPolicy,
+        initialAccessPolicy,
+    });
+    if (accessPolicyState.initialAccessPolicy !== initialAccessPolicy) {
+        setAccessPolicyState({
+            accessPolicy: initialAccessPolicy,
+            initialAccessPolicy,
+        });
+    }
+    const accessPolicy = accessPolicyState.accessPolicy;
     const resolvedAccessPolicy = useStore(
-        useMemo((): Store<ResolvedAccessPolicyWithGenerations> => {
-            switch (accessPolicy.type) {
-                case "Local":
-                    return new ConstStore(accessPolicy);
-                case "Site": {
-                    const siteStore =
-                        siteRegistry.weakGetSiteStoreByIdIfExists(accessPolicy.siteId) ??
-                        (() => {
-                            assert(
-                                accessPolicySite?.id === accessPolicy.siteId,
-                                "Expected database table access policy site",
-                            );
-                            return siteRegistry.getSiteStore(accessPolicySite);
-                        })();
-
-                    return siteStore.map(site => ({
-                        ...site.accessPolicy,
-                        type: "Site",
-                        siteId: site.id,
-                    }));
-                }
-                default:
-                    throw exhaustive(accessPolicy);
-            }
-        }, [accessPolicy, accessPolicySite, siteRegistry]),
+        useMemo(
+            () =>
+                createAccessPolicyStoreFromReferences(
+                    accessPolicy,
+                    accessPolicySiteById,
+                    siteRegistry,
+                ),
+            [accessPolicy, accessPolicySiteById, siteRegistry],
+        ),
     );
     const tree = useStore(query.treeStore);
     const [selection, dispatch] = useReducer(selectionReducer, null);
@@ -474,14 +469,25 @@ export function DatabaseGridView({
                             entityNoun="database table"
                             accessPolicy={resolvedAccessPolicy}
                             onAccessPolicyChange={async (_notification, accessPolicy) => {
-                                await updateDatabaseTableAccessPolicy(context, {
+                                if (accessPolicy.type === "Site") {
+                                    await applySiteAccessPolicyChange({
+                                        context,
+                                        accessPolicy,
+                                        handleEventForSite:
+                                            assertExists(siteContext).handleEventForSite,
+                                    });
+                                    return;
+                                }
+
+                                const result = await updateDatabaseTableAccessPolicy(context, {
                                     spaceId,
                                     tableId,
-                                    accessPolicy:
-                                        accessPolicy.type === "Local"
-                                            ? accessPolicy
-                                            : {type: "Site", siteId: accessPolicy.siteId},
+                                    accessPolicy,
                                 });
+                                setAccessPolicyState(state => ({
+                                    ...state,
+                                    accessPolicy: result.accessPolicy,
+                                }));
                             }}
                             onCopyLink={async () => {
                                 const url = new URL(

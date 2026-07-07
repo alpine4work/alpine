@@ -9,21 +9,24 @@ import {Box} from "~/client/web/design/box.js";
 import {useLoaderDataWithSchema} from "~/client/web/remix/use_loader_data_with_schema.js";
 import {useSearchAffinityViewEntityInteraction} from "~/client/web/search/use_search_affinity_view_entity_interaction.js";
 import {sprinkles} from "~/client/web/styles/styles.js";
+import {getDatabaseTableMetadata} from "~/server/databases/data/database_table_metadata.js";
 import {fetchDatabaseGroupAction} from "~/server/databases/data/fetch_database_action.js";
 import {jsonWithSchema} from "~/server/remix/json_with_schema.js";
 import {LoaderArgs} from "~/server/remix/loader_context.js";
 import {getSitePreview} from "~/server/sites/data/get_site_preview.js";
 import {getDatabaseGroupIdForSpace} from "~/server/spaces/get_database_group_id_for_space.js";
+import {AccessPolicySchema} from "~/shared/access/access_policy.js";
 import {LoaderDatabaseActionResultSchemas} from "~/shared/databases/database_protocol_schemas.js";
 import {databaseViewTargetRowsPerPage} from "~/shared/databases/sqlite_constants.js";
-import type {DatabaseRowId, SpaceId} from "~/shared/id/types/id_types.js";
+import type {DatabaseRowId, SiteId, SpaceId} from "~/shared/id/types/id_types.js";
 import {Schema, type SchemaType} from "~/shared/schema/schema.js";
 import {SitePreviewModel} from "~/shared/sites/site_model.js";
 
 const LoaderSchema = Schema.object({
     spaceId: Schema.id<SpaceId>(),
     schema: LoaderDatabaseActionResultSchemas.getViewSchema,
-    accessPolicySite: SitePreviewModel.schema.nullable(),
+    accessPolicy: AccessPolicySchema,
+    accessPolicySiteById: Schema.map(Schema.id<SiteId>(), SitePreviewModel.schema),
     firstPage: Schema.object({
         endCursor: Schema.id<DatabaseRowId>().nullable(),
         pageResult: LoaderDatabaseActionResultSchemas.getViewRowsPage,
@@ -65,9 +68,15 @@ export async function loader({request, params, context: unauthenticatedContext}:
             endCursor: cursorResult.result.endCursor,
         },
     });
-    const accessPolicy = schemaResult.result.accessPolicy;
-    const accessPolicySite =
-        accessPolicy.type === "Site" ? await getSitePreview(context, accessPolicy.siteId) : null;
+    const tableMetadata = await getDatabaseTableMetadata(context, {
+        spaceId,
+        tableId: schemaResult.result.tableId,
+    });
+    const accessPolicy = tableMetadata.accessPolicy;
+    const accessPolicySiteById =
+        accessPolicy.type === "Site"
+            ? new Map([[accessPolicy.siteId, await getSitePreview(context, accessPolicy.siteId)]])
+            : new Map<SiteId, SitePreviewModel>();
 
     return jsonWithSchema(LoaderSchema, {
         spaceId,
@@ -77,7 +86,8 @@ export async function loader({request, params, context: unauthenticatedContext}:
             output: schemaResult.result,
             readPages: schemaResult.readPages,
         },
-        accessPolicySite,
+        accessPolicy,
+        accessPolicySiteById,
         firstPage: {
             endCursor: cursorResult.result.endCursor,
             pageResult: {
@@ -138,8 +148,8 @@ export default function DatabaseViewRoute() {
             tableId={schemaResult.value.tableId}
             viewId={schemaResult.value.viewId}
             tableName={schemaResult.value.tableName}
-            accessPolicy={schemaResult.value.accessPolicy}
-            accessPolicySite={loaderData.accessPolicySite}
+            initialAccessPolicy={loaderData.accessPolicy}
+            accessPolicySiteById={loaderData.accessPolicySiteById}
             fields={schemaResult.value.fields}
             query={query}
         />

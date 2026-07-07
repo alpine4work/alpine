@@ -1,5 +1,3 @@
-import type {AccessPolicy} from "~/shared/access/access_policy.js";
-import {DatabaseTableAccessPolicySqlSchema} from "~/shared/databases/database_table_access_policy.js";
 import {
     DatabaseFieldConfig,
     DatabaseFieldConfigSqlSchema,
@@ -88,20 +86,6 @@ export class DatabaseTableModel extends DatabaseSchemaScopedBaseModel {
         for (const joinTable of this.getRelatedJoinTables()) {
             joinTable.ensureColumnNamesAreUpToDate();
         }
-
-        return this.root.getTable(this.id);
-    }
-
-    updateAccessPolicy(accessPolicy: AccessPolicy) {
-        sql`
-            UPDATE ${this.schema}._alpine_table
-            SET
-                access_policy = jsonb (${DatabaseTableAccessPolicySqlSchema.serialize(
-                accessPolicy,
-            )})
-            WHERE
-                id = ${this.id}
-        `.exec(this.db);
 
         return this.root.getTable(this.id);
     }

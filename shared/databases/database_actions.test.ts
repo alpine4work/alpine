@@ -393,16 +393,6 @@ describe("createTable", () => {
 });
 
 describe("getViewSchema", () => {
-    test("returns table access policy", async () => {
-        const db = await createDb();
-        const {viewId} = createTableForTest(db, "T");
-
-        const result = run(db, "getViewSchema", {tableOrViewId: viewId});
-
-        expect(result.accessPolicy).toEqual(databaseTableAccessPolicyForCreator(testAccountId));
-        db.close();
-    });
-
     test("returns position and hidden in field output", async () => {
         const db = await createDb();
         const {viewId} = createTableForTest(db, "T");
@@ -1320,30 +1310,6 @@ describe("renameTable", () => {
         const {tableName} = run(db, "renameTable", {tableId, name: "Tasks"});
 
         expect(tableName).toBe("tasks_2");
-        db.close();
-    });
-});
-
-describe("updateTableAccessPolicy", () => {
-    test("updates table access policy", async () => {
-        const db = await createDb();
-        const {tableId, viewId} = createTableForTest(db, "T");
-        const accessPolicy = {
-            type: "Local" as const,
-            accountGrantById: new Map([[testAccountId, {level: "Manage" as const, generation: 0}]]),
-            defaultGrant: {level: "View" as const},
-            urlGrant: null,
-        };
-
-        const result = run(db, "updateTableAccessPolicy", {tableId, accessPolicy});
-
-        expect({
-            updatedAccessPolicy: result.accessPolicy,
-            returnedAccessPolicy: run(db, "getViewSchema", {tableOrViewId: viewId}).accessPolicy,
-        }).toEqual({
-            updatedAccessPolicy: accessPolicy,
-            returnedAccessPolicy: accessPolicy,
-        });
         db.close();
     });
 });
