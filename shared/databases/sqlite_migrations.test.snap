@@ -28,7 +28,7 @@ CREATE TABLE _alpine_tables (
     id TEXT PRIMARY KEY,
     kind TEXT NOT NULL,
     schema_version INTEGER NOT NULL DEFAULT 0,
-    table_name_hash TEXT,
+    table_name_hash TEXT NOT NULL,
     CHECK (is_id (id)),
     CHECK (kind IN ('table', 'join'))
 ) STRICT,

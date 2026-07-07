@@ -203,8 +203,10 @@ export const databaseActions = {
                 name,
             });
 
-            // Attach + migrate the new per-db file before writing any of the table's data or
-            // metadata into it. `attach` is a no-op if already attached.
+            // Register the table (at schema_version 0), then attach + migrate its per-db file
+            // before writing any of the table's data or metadata into it. `attach` is a no-op
+            // if already attached.
+            model.registerTable(tableId, {kind: "table", tableNameHash});
             server().attach(tableId);
             runTableMigrations(db, tableId);
 
@@ -212,7 +214,6 @@ export const databaseActions = {
                 model.createTable(tableId, {
                     name,
                     tableName,
-                    tableNameHash,
                     accessPolicy: databaseTableAccessPolicyForCreator(creatorAccountId),
                 }),
             );
@@ -539,6 +540,16 @@ export const databaseActions = {
             const sourceFieldId = generateChronologicalId<DatabaseFieldId>();
             const targetFieldId = generateChronologicalId<DatabaseFieldId>();
 
+            // The join table is named after its two relation fields, created below as
+            // `sourceFieldName` and the source table's name. Resolved before the join table is
+            // registered so the uniqueness probe doesn't see its own row.
+            const {tableName: joinTableName, tableNameHash} = formatUniqueTableName({
+                model,
+                hashWithPrivateSalt: value => server().hashWithPrivateSalt(value),
+                name: `${sourceFieldName} ${sourceTable.name}`,
+            });
+
+            model.registerTable(joinTableId, {kind: "join", tableNameHash});
             server().attach(joinTableId);
             runJoinTableMigrations(db, joinTableId);
 
@@ -563,15 +574,9 @@ export const databaseActions = {
                     });
                     targetTable.appendFieldToAllViews(targetField);
 
-                    const joinTable = model.createJoinTable(
-                        sourceField,
-                        targetField,
-                        formatUniqueTableName({
-                            model,
-                            hashWithPrivateSalt: value => server().hashWithPrivateSalt(value),
-                            name: `${sourceField.name} ${targetField.name}`,
-                        }),
-                    );
+                    const joinTable = model.createJoinTable(sourceField, targetField, {
+                        tableName: joinTableName,
+                    });
                     return {sourceField, targetField, joinTable};
                 },
             );

@@ -74,8 +74,7 @@ export class DatabaseModel {
     /**
      * Whether any registered table's salted `table_name_hash` equals `tableNameHash`.
      * Backs `formatUniqueTableName`'s uniqueness probe; pass `excludeTableId` when
-     * renaming so the table's own row doesn't count. Rows with a `NULL` hash (a table
-     * mid-creation, before its name is chosen) are invisible by design.
+     * renaming so the table's own row doesn't count.
      */
     isTableNameHashTaken(tableNameHash: string, excludeTableId?: DatabaseTableId) {
         const excludeClause =
@@ -94,8 +93,9 @@ export class DatabaseModel {
 
     /**
      * Record a table's salted name hash in its registry row, keeping the uniqueness
-     * index in the same buffer batch as the rename or creation that set the name. Call
-     * from every site that writes a `table_name`.
+     * index in the same buffer batch as the rename that set the name. Call from every
+     * site that renames a `table_name` (creation writes the hash via the migration
+     * runner's registration instead).
      */
     writeTableNameHash(tableId: DatabaseTableId, tableNameHash: string) {
         sql`
@@ -108,26 +108,47 @@ export class DatabaseModel {
     }
 
     /**
-     * `tableName` and `tableNameHash` are resolved by the calling action via
-     * `formatUniqueTableName`.
+     * Register a table id in main's `_alpine_tables`, at `schema_version` 0. Create
+     * flows call this _before_ attaching + migrating the per-table file — the
+     * migration runner assumes the row exists and only mirrors the applied version
+     * into it. `tableNameHash` is the salted hash of the table's resolved SQLite name
+     * (see `formatUniqueTableName`), so the name-uniqueness index covers the table
+     * from the moment it is visible to probes.
+     */
+    registerTable(
+        tableId: DatabaseTableId,
+        {kind, tableNameHash}: {kind: DatabaseTableKind; tableNameHash: string},
+    ) {
+        sql`
+            INSERT INTO
+                _alpine_tables (id, kind, table_name_hash)
+            VALUES
+                (
+                    ${tableId},
+                    ${kind},
+                    ${tableNameHash}
+                )
+        `.exec(this.db);
+    }
+
+    /**
+     * `tableName` is resolved by the calling action via `formatUniqueTableName`
+     * (alongside the hash it registered the table with).
      */
     createTable(
         tableId: DatabaseTableId,
         {
             name,
             tableName,
-            tableNameHash,
             accessPolicy,
-        }: {name: string; tableName: string; tableNameHash: string; accessPolicy: AccessPolicy},
+        }: {name: string; tableName: string; accessPolicy: AccessPolicy},
     ) {
         const defaultViewId = generateChronologicalId<DatabaseViewId>();
         const nameFieldId = generateChronologicalId<DatabaseFieldId>();
 
-        // The caller (the createTable action) migrated the table's per-db file before this
-        // runs; the migration runner registered the table in main's `_alpine_tables` as
-        // part of that. The runner leaves `table_name_hash` NULL — only now is the name
-        // known.
-        this.writeTableNameHash(tableId, tableNameHash);
+        // The caller (the createTable action) registered the table in main's
+        // `_alpine_tables` (see `registerTable`) and migrated its per-db file before this
+        // runs.
         sql`
             INSERT INTO
                 ${sql.tableRef(tableId, "_alpine_table")} (
@@ -190,13 +211,13 @@ export class DatabaseModel {
     }
 
     /**
-     * `tableName` and `tableNameHash` are resolved by the calling action via
-     * `formatUniqueTableName`.
+     * `tableName` is resolved by the calling action via `formatUniqueTableName`
+     * (alongside the hash it registered the join table with).
      */
     createJoinTable(
         source: DatabaseFieldModel,
         target: DatabaseFieldModel,
-        {tableName: joinTableName, tableNameHash}: {tableName: string; tableNameHash: string},
+        {tableName: joinTableName}: {tableName: string},
     ) {
         assert(source.config.type === "relation", "source field is not a relation field");
         assert(target.config.type === "relation", "target field is not a relation field");
@@ -206,10 +227,6 @@ export class DatabaseModel {
 
         const joinTableId = source.config.joinTableId;
         const schema = sql.identifier(databaseTableSchemaName(joinTableId));
-
-        // Like createTable: the migration runner already registered the join table in
-        // main's `_alpine_tables` with a NULL `table_name_hash`.
-        this.writeTableNameHash(joinTableId, tableNameHash);
 
         const sourceColumnNames = this.formatJoinTableColumnNames(source.table, target.table);
 

@@ -751,9 +751,13 @@ describe("listTableIds", () => {
 
         sql`
             INSERT INTO
-                _alpine_tables (id, kind)
+                _alpine_tables (id, kind, table_name_hash)
             VALUES
-                (${joinTableId}, 'join')
+                (
+                    ${joinTableId},
+                    'join',
+                    'test-join-table-name-hash'
+                )
         `.exec(db);
 
         const {tableIds} = run(db, "listTableIds", {});

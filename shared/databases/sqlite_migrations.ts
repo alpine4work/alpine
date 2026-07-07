@@ -34,15 +34,12 @@ function sqlStringLiteral(value: string): SqlQuery {
  * tableSqliteMigrations}.
  */
 export const mainSqliteMigrations: ReadonlyArray<SqliteMigration> = [
-    // `table_name_hash` is nullable because the migration runner registers a new table
-    // before its name is chosen; the creating action fills the hash in the same buffer
-    // batch.
     sql`
         CREATE TABLE _alpine_tables (
             id TEXT PRIMARY KEY,
             kind TEXT NOT NULL,
             schema_version INTEGER NOT NULL DEFAULT 0,
-            table_name_hash TEXT,
+            table_name_hash TEXT NOT NULL,
             CHECK (is_id (id)),
             CHECK (kind IN ('table', 'join'))
         ) STRICT,
@@ -233,6 +230,10 @@ export function runMainMigrations(db: Database, migrationLimitForTest?: number):
  *
  * Runs server-side only: the server is canonical for schema, and clients trust the
  * pages it syncs.
+ *
+ * The table must already be registered in main's `_alpine_tables` (see
+ * `DatabaseModel.registerTable`) — the runner only mirrors the applied version
+ * into the row's `schema_version`.
  */
 export function runTableMigrations(
     db: Database,
@@ -292,23 +293,19 @@ function runSchemaMigrations(
     }
 
     // Mirror the applied version into main's registry so server bootstrap can tell
-    // which files need migrating without attaching the current ones. Upsert: when a
-    // new table's migrations run (createTable, before the model registers it) this
-    // creates the registry row; when an existing file catches up after a deploy (or
-    // the registry mirror is stale, e.g. right after the schema_version backfill
-    // migration) it repairs the row in the same buffer batch as the migrations
-    // themselves.
+    // which files need migrating without attaching the current ones, in the same
+    // buffer batch as the migrations themselves. The row always exists already: create
+    // flows register the table (at version 0, see `DatabaseModel.registerTable`)
+    // before attaching + migrating, and bootstrap iterates registered rows.
     sql`
-        INSERT INTO
-            main._alpine_tables (id, kind, schema_version)
-        VALUES
-            (
-                ${tableId},
-                ${kind},
-                ${migrationLimit}
-            )
-        ON CONFLICT (id) DO UPDATE
+        UPDATE main._alpine_tables
         SET
-            schema_version = excluded.schema_version
+            schema_version = ${migrationLimit}
+        WHERE
+            id = ${tableId}
     `.exec(db);
+    assert(
+        db.changes() === 1,
+        `${description} ${tableId} is not registered in main._alpine_tables`,
+    );
 }

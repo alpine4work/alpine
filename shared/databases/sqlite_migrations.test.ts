@@ -35,6 +35,21 @@ function attachTableDb(db: SqliteDatabase, tableId: DatabaseTableId): void {
     );
 }
 
+// The migration runner mirrors the applied version into main's registry and
+// asserts the table is already registered — see `DatabaseModel.registerTable`.
+function registerTestTable(db: SqliteDatabase, tableId: DatabaseTableId, kind: string): void {
+    sql`
+        INSERT INTO
+            main._alpine_tables (id, kind, table_name_hash)
+        VALUES
+            (
+                ${tableId},
+                ${kind},
+                'test-table-name-hash'
+            )
+    `.exec(db);
+}
+
 async function readSqliteSchema(db: Database, tableId: DatabaseTableId | null): Promise<string> {
     const sqliteSchema =
         tableId == null ? sql.identifier("sqlite_schema") : sql.tableRef(tableId, "sqlite_schema");
@@ -111,6 +126,7 @@ describe("sqlite migrations", () => {
             // The runner mirrors the applied version into main's registry, so main must be
             // migrated first.
             runMainMigrations(db);
+            registerTestTable(db, tableId, "table");
             attachTableDb(db, tableId);
             runTableMigrations(db, tableId, i);
 
@@ -132,6 +148,7 @@ describe("sqlite migrations", () => {
         test(`join table migration up to ${i}`, async () => {
             const db = await createDb();
             runMainMigrations(db);
+            registerTestTable(db, joinTableId, "join");
             attachTableDb(db, joinTableId);
             runJoinTableMigrations(db, joinTableId, i);
 

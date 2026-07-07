@@ -730,9 +730,13 @@ async function createServerDatabaseWithTables(
             db => {
                 sql`
                     INSERT INTO
-                        main._alpine_tables (id, kind)
+                        main._alpine_tables (id, kind, table_name_hash)
                     VALUES
-                        (${tableId}, 'table')
+                        (
+                            ${tableId},
+                            'table',
+                            ${`test-hash-${tableId}`}
+                        )
                 `.exec(db);
                 database.attach(tableId);
                 runTableMigrations(db, tableId);
@@ -819,9 +823,13 @@ describe("Database — LRU eviction at the attach threshold", () => {
         database.executeSql(
             sql`
                 INSERT INTO
-                    main._alpine_tables (id, kind)
+                    main._alpine_tables (id, kind, table_name_hash)
                 VALUES
-                    (${staleTableId}, 'table')
+                    (
+                        ${staleTableId},
+                        'table',
+                        'test-stale-table-name-hash'
+                    )
             `,
             {allowWrites: "schema+data"},
         );

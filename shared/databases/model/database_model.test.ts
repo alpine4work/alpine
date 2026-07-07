@@ -44,37 +44,40 @@ function attachTableDb(db: SqliteDatabase, tableId: DatabaseTableId): void {
 }
 
 function createTable(model: DatabaseModel, tableId: DatabaseTableId, name: string) {
-    // Resolve the name before the migration runner registers the table — see
-    // `formatUniqueTableName`.
+    // Mirrors the createTable action: resolve the unique name, register the table with
+    // its salted hash, migrate the per-table file, then create the metadata.
     const {tableName, tableNameHash} = formatUniqueTableName({
         model,
         hashWithPrivateSalt: testHashWithPrivateSalt,
         name,
     });
+    model.registerTable(tableId, {kind: "table", tableNameHash});
     attachTableDb(model.db, tableId);
     runTableMigrations(model.db, tableId);
     return model.createTable(tableId, {
         name,
         tableName,
-        tableNameHash,
         accessPolicy: emptyDatabaseTableAccessPolicy,
     });
 }
 
+// Mirrors the createRelationField action: resolve the join table's unique name,
+// register the join table with the salted hash, migrate its file, then create the
+// join table metadata.
 function createJoinTableWithUniqueName(
     model: DatabaseModel,
+    joinTableId: DatabaseTableId,
     sourceField: DatabaseFieldModel,
     targetField: DatabaseFieldModel,
 ) {
-    return model.createJoinTable(
-        sourceField,
-        targetField,
-        formatUniqueTableName({
-            model,
-            hashWithPrivateSalt: testHashWithPrivateSalt,
-            name: `${sourceField.name} ${targetField.name}`,
-        }),
-    );
+    const {tableName, tableNameHash} = formatUniqueTableName({
+        model,
+        hashWithPrivateSalt: testHashWithPrivateSalt,
+        name: `${sourceField.name} ${targetField.name}`,
+    });
+    model.registerTable(joinTableId, {kind: "join", tableNameHash});
+    runJoinTableMigrations(model.db, joinTableId);
+    return model.createJoinTable(sourceField, targetField, {tableName});
 }
 
 function createRelation(model: DatabaseModel) {
@@ -84,7 +87,6 @@ function createRelation(model: DatabaseModel) {
     const source = createTable(model, sourceId, "Tasks").table;
     const target = createTable(model, targetId, "Projects").table;
     attachTableDb(model.db, joinTableId);
-    runJoinTableMigrations(model.db, joinTableId);
 
     const sourceField = source.createField(generateChronologicalId<DatabaseFieldId>(), "Project", {
         type: "relation",
@@ -100,7 +102,7 @@ function createRelation(model: DatabaseModel) {
         cardinality: "many",
         linkedTableId: source.id,
     });
-    const joinRow = createJoinTableWithUniqueName(model, sourceField, targetField);
+    const joinRow = createJoinTableWithUniqueName(model, joinTableId, sourceField, targetField);
     const joinTable = model.getJoinTable(joinRow.id);
 
     return {source, target, sourceField, targetField, joinTable};
@@ -198,7 +200,6 @@ describe("DatabaseModel", () => {
         const joinTableId = generateChronologicalId<DatabaseTableId>();
         const table = createTable(model, tableId, "Tasks").table;
         attachTableDb(db, joinTableId);
-        runJoinTableMigrations(db, joinTableId);
 
         const sourceField = table.createField(
             generateChronologicalId<DatabaseFieldId>(),
@@ -219,7 +220,12 @@ describe("DatabaseModel", () => {
             linkedTableId: table.id,
         });
 
-        const joinTable = createJoinTableWithUniqueName(model, sourceField, targetField);
+        const joinTable = createJoinTableWithUniqueName(
+            model,
+            joinTableId,
+            sourceField,
+            targetField,
+        );
 
         expect(readColumnNames(db, joinTable.id, joinTable.tableName)).toEqual([
             "tasks_id",
