@@ -412,10 +412,10 @@ export function DatabaseGridView({
                     as="h1"
                     margin="0"
                     fontSize="200"
-                    fontStyle="semi-bold"
+                    fontStyle="truncate-semi-bold"
                     color="grey-100"
                     overflow="hidden"
-                    style={{textOverflow: "ellipsis", whiteSpace: "nowrap"}}
+                    flex="none"
                 >
                     {tableName}
                 </Box>
