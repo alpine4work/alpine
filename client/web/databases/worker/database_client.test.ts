@@ -1781,8 +1781,8 @@ describe("DatabaseClient handle release", () => {
 describe("DatabaseClient — table access levels", () => {
     test("stores the map from ensureCacheIsUpToDate and merges event deltas", async () => {
         const client = await DatabaseClient.create(createInMemoryOpfsDirectoryHandle());
-        const readableTableId = generateId<DatabaseTableId>();
-        const hiddenTableId = generateId<DatabaseTableId>();
+        const readableTableId = generateChronologicalId<DatabaseTableId>();
+        const hiddenTableId = generateChronologicalId<DatabaseTableId>();
         const conn = makeDatabaseClientConnection({
             ensureCacheIsUpToDate: () =>
                 Promise.resolve({
@@ -1800,7 +1800,7 @@ describe("DatabaseClient — table access levels", () => {
         expect({
             readable: client.getTableAccessLevel(readableTableId),
             granted: client.getTableAccessLevel(hiddenTableId),
-            unknown: client.getTableAccessLevel(generateId<DatabaseTableId>()),
+            unknown: client.getTableAccessLevel(generateChronologicalId<DatabaseTableId>()),
         }).toEqual({readable: "read", granted: "write", unknown: "write"});
 
         client.close();
