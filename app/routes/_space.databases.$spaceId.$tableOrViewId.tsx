@@ -12,14 +12,18 @@ import {sprinkles} from "~/client/web/styles/styles.js";
 import {fetchDatabaseGroupAction} from "~/server/databases/data/fetch_database_action.js";
 import {jsonWithSchema} from "~/server/remix/json_with_schema.js";
 import {LoaderArgs} from "~/server/remix/loader_context.js";
+import {getSitePreview} from "~/server/sites/data/get_site_preview.js";
 import {getDatabaseGroupIdForSpace} from "~/server/spaces/get_database_group_id_for_space.js";
 import {LoaderDatabaseActionResultSchemas} from "~/shared/databases/database_protocol_schemas.js";
 import {databaseViewTargetRowsPerPage} from "~/shared/databases/sqlite_constants.js";
-import type {DatabaseRowId} from "~/shared/id/types/id_types.js";
+import type {DatabaseRowId, SpaceId} from "~/shared/id/types/id_types.js";
 import {Schema, type SchemaType} from "~/shared/schema/schema.js";
+import {SitePreviewModel} from "~/shared/sites/site_model.js";
 
 const LoaderSchema = Schema.object({
+    spaceId: Schema.id<SpaceId>(),
     schema: LoaderDatabaseActionResultSchemas.getViewSchema,
+    accessPolicySite: SitePreviewModel.schema.nullable(),
     firstPage: Schema.object({
         endCursor: Schema.id<DatabaseRowId>().nullable(),
         pageResult: LoaderDatabaseActionResultSchemas.getViewRowsPage,
@@ -61,14 +65,19 @@ export async function loader({request, params, context: unauthenticatedContext}:
             endCursor: cursorResult.result.endCursor,
         },
     });
+    const accessPolicy = schemaResult.result.accessPolicy;
+    const accessPolicySite =
+        accessPolicy.type === "Site" ? await getSitePreview(context, accessPolicy.siteId) : null;
 
     return jsonWithSchema(LoaderSchema, {
+        spaceId,
         schema: {
             name: "getViewSchema",
             input: {tableOrViewId},
             output: schemaResult.result,
             readPages: schemaResult.readPages,
         },
+        accessPolicySite,
         firstPage: {
             endCursor: cursorResult.result.endCursor,
             pageResult: {
@@ -125,9 +134,12 @@ export default function DatabaseViewRoute() {
     }
     return (
         <DatabaseGridView
+            spaceId={loaderData.spaceId}
             tableId={schemaResult.value.tableId}
             viewId={schemaResult.value.viewId}
             tableName={schemaResult.value.tableName}
+            accessPolicy={schemaResult.value.accessPolicy}
+            accessPolicySite={loaderData.accessPolicySite}
             fields={schemaResult.value.fields}
             query={query}
         />

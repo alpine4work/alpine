@@ -68,6 +68,64 @@ export async function createDatabaseTable(
     return {tableId, viewId: result.viewId};
 }
 
+export async function updateDatabaseTableAccessPolicy(
+    context: ServerActionContext,
+    {
+        spaceId,
+        tableId,
+        accessPolicy,
+    }: {
+        spaceId: SpaceId;
+        tableId: DatabaseTableId;
+        accessPolicy: AccessPolicy;
+    },
+): Promise<{accessPolicy: AccessPolicy}> {
+    const sessionContext = context.actor.authorizeSession();
+    await authorizeSpaceAccess(sessionContext, spaceId, "Member");
+
+    const databaseGroupId = await getExistingDatabaseGroupIdForSpace(sessionContext, spaceId);
+    let tableName: string | null = null;
+
+    await DatabaseTablesTable.updateItem(
+        context,
+        {partitionType: "DatabaseGroup", sortRangeType: "Table", databaseGroupId, tableId},
+        item => {
+            if (item === null) {
+                throw new NotFoundError(`Database table ${tableId} not found`);
+            }
+            if (item.name === null) {
+                throw new NotFoundError(`Database table ${tableId} not found`);
+            }
+
+            tableName = item.name;
+            return item.update({accessPolicy});
+        },
+    );
+
+    assert(tableName !== null);
+
+    await syncDatabaseTableMetadataToDurableObject(context, {
+        spaceId,
+        tableId,
+        name: tableName,
+        accessPolicy,
+    });
+
+    context.process.waitUntil(
+        context.jobs.sendAndWait({
+            type: "IndexSearchEntity",
+            spaceId,
+            update: {
+                type: "DatabaseTable",
+                tableId,
+                updatedTraits: {type: "Any"},
+            },
+        }),
+    );
+
+    return {accessPolicy};
+}
+
 export async function getDatabaseTableMetadataForSearchIndex(
     context: ServerActionContext,
     {spaceId, tableId}: {spaceId: SpaceId; tableId: DatabaseTableId},

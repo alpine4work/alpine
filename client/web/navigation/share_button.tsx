@@ -46,7 +46,7 @@ export function ShareButton({
     onActivationHintHide,
 }: {
     entityNoun: string;
-    entityId: FileEntityId;
+    entityId?: FileEntityId;
     accessLevelText?: Record<AccessLevel, string>;
     accessPolicy: ResolvedAccessPolicyWithGenerations;
     inherited?: {

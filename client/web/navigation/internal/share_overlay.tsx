@@ -112,7 +112,7 @@ function ShareOverlay(
     }: {
         id: string;
         entityNoun: string;
-        entityId: FileEntityId;
+        entityId?: FileEntityId;
         accessLevelText: Record<AccessLevel, string>;
         accessPolicy: ResolvedAccessPolicyWithGenerations;
         inherited?: {
@@ -413,28 +413,30 @@ function ShareOverlay(
                                             Copy link
                                         </Button>
                                     </Box>
-                                    <Box flexGrow="1" style={{flexBasis: 0}}>
-                                        <Button
-                                            variant="accent"
-                                            height="8"
-                                            fullWidth={true}
-                                            iconGap="1.5"
-                                            pressErrorTitle="Couldn&#x2019;t copy link"
-                                            onPress={async () => {
-                                                const draftId =
-                                                    generateChronologicalId<PostDraftId>();
+                                    {entityId !== undefined && (
+                                        <Box flexGrow="1" style={{flexBasis: 0}}>
+                                            <Button
+                                                variant="accent"
+                                                height="8"
+                                                fullWidth={true}
+                                                iconGap="1.5"
+                                                pressErrorTitle="Couldn&#x2019;t copy link"
+                                                onPress={async () => {
+                                                    const draftId =
+                                                        generateChronologicalId<PostDraftId>();
 
-                                                await navigate(
-                                                    `/post/new/${draftId}/${space.id}?focus=content&share=${entityId}`,
-                                                );
+                                                    await navigate(
+                                                        `/post/new/${draftId}/${space.id}?focus=content&share=${entityId}`,
+                                                    );
 
-                                                // Assume copy will work and close overlay without flicker.
-                                                onCloseWithoutAnimation();
-                                            }}
-                                        >
-                                            Share in channel
-                                        </Button>
-                                    </Box>
+                                                    // Assume copy will work and close overlay without flicker.
+                                                    onCloseWithoutAnimation();
+                                                }}
+                                            >
+                                                Share in channel
+                                            </Button>
+                                        </Box>
+                                    )}
                                 </Box>
                             </Box>
                         </>

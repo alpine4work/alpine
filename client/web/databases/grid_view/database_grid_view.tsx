@@ -9,6 +9,7 @@ import {
     useReducer,
     useRef,
 } from "react";
+import {useAppContext} from "~/client/web/context/app_context.js";
 import {useDatabaseConnection} from "~/client/web/databases/database_connection_context.js";
 import type {DatabaseQuery} from "~/client/web/databases/database_query.js";
 import type {DatabaseQueryRow} from "~/client/web/databases/database_query_row.js";
@@ -25,22 +26,36 @@ import {Overlay} from "~/client/web/design/overlay.js";
 import {GlobalKeyDownEvent} from "~/client/web/helpers/global_key_down_event.js";
 import {useEvent} from "~/client/web/helpers/lifecycle/use_event.js";
 import {useStore} from "~/client/web/helpers/use_store.js";
+import {writeTextToClipboard} from "~/client/web/helpers/write_text_to_clipboard.js";
+import {ShareButton} from "~/client/web/navigation/share_button.js";
+import {useSiteRegistry} from "~/client/web/sites/context/site_registry_context.js";
 import {
     VirtualizedScrollView,
     VirtualizedScrollViewItem,
     type VirtualizedScrollViewRef,
 } from "~/client/web/virtualized/virtualized_scroll_view.js";
+import type {
+    AccessPolicy,
+    ResolvedAccessPolicyWithGenerations,
+} from "~/shared/access/access_policy.js";
 import type {DatabaseFieldValue} from "~/shared/databases/fields/all_database_field_providers.js";
 import {spacing} from "~/shared/design/core/spacing.js";
 import {remPxBySpacingScale} from "~/shared/design/core/spacing_scale.js";
+import {assert} from "~/shared/helpers/control/assert.js";
+import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
 import {generateChronologicalId} from "~/shared/id/chronological_id.js";
 import type {
     DatabaseFieldId,
     DatabaseRowId,
     DatabaseTableId,
     DatabaseViewId,
+    SpaceId,
 } from "~/shared/id/types/id_types.js";
+import {updateDatabaseTableAccessPolicy} from "~/shared/rpc/database_tables_rpc_definitions.js";
 import type {SchemaSerializedValue} from "~/shared/schema/schema.js";
+import {SitePreviewModel} from "~/shared/sites/site_model.js";
+import {ConstStore} from "~/shared/store/const_store.js";
+import {Store} from "~/shared/store/store.js";
 
 // -- Selection state ----------------------------------------------------------
 
@@ -114,18 +129,53 @@ function selectionReducer(
  * view field metadata for column names, widths, and field IDs for cell editing.
  */
 export function DatabaseGridView({
+    spaceId,
     tableId,
     viewId,
     tableName,
+    accessPolicy,
+    accessPolicySite,
     fields,
     query,
 }: {
+    spaceId: SpaceId;
     tableId: DatabaseTableId;
     viewId: DatabaseViewId;
     tableName: string;
+    accessPolicy: AccessPolicy;
+    accessPolicySite: SitePreviewModel | null;
     fields: ReadonlyArray<DatabaseGridViewField>;
     query: DatabaseQuery;
 }) {
+    const context = useAppContext();
+    const siteRegistry = useSiteRegistry();
+    const resolvedAccessPolicy = useStore(
+        useMemo((): Store<ResolvedAccessPolicyWithGenerations> => {
+            switch (accessPolicy.type) {
+                case "Local":
+                    return new ConstStore(accessPolicy);
+                case "Site": {
+                    const siteStore =
+                        siteRegistry.weakGetSiteStoreByIdIfExists(accessPolicy.siteId) ??
+                        (() => {
+                            assert(
+                                accessPolicySite?.id === accessPolicy.siteId,
+                                "Expected database table access policy site",
+                            );
+                            return siteRegistry.getSiteStore(accessPolicySite);
+                        })();
+
+                    return siteStore.map(site => ({
+                        ...site.accessPolicy,
+                        type: "Site",
+                        siteId: site.id,
+                    }));
+                }
+                default:
+                    throw exhaustive(accessPolicy);
+            }
+        }, [accessPolicy, accessPolicySite, siteRegistry]),
+    );
     const tree = useStore(query.treeStore);
     const [selection, dispatch] = useReducer(selectionReducer, null);
 
@@ -408,16 +458,40 @@ export function DatabaseGridView({
                     }
                 }}
             >
-                <Box
-                    as="h1"
-                    margin="0"
-                    fontSize="200"
-                    fontStyle="truncate-semi-bold"
-                    color="grey-100"
-                    overflow="hidden"
-                    flex="none"
-                >
-                    {tableName}
+                <Box display="flex" alignItems="center" justifyContent="space-between" gap="3">
+                    <Box
+                        as="h1"
+                        margin="0"
+                        fontSize="200"
+                        fontStyle="truncate-semi-bold"
+                        color="grey-100"
+                        overflow="hidden"
+                    >
+                        {tableName}
+                    </Box>
+                    <Box flexShrink="0">
+                        <ShareButton
+                            entityNoun="database table"
+                            accessPolicy={resolvedAccessPolicy}
+                            onAccessPolicyChange={async (_notification, accessPolicy) => {
+                                await updateDatabaseTableAccessPolicy(context, {
+                                    spaceId,
+                                    tableId,
+                                    accessPolicy:
+                                        accessPolicy.type === "Local"
+                                            ? accessPolicy
+                                            : {type: "Site", siteId: accessPolicy.siteId},
+                                });
+                            }}
+                            onCopyLink={async () => {
+                                const url = new URL(
+                                    `/databases/${spaceId}/${viewId}`,
+                                    window.location.href,
+                                );
+                                await writeTextToClipboard(url.toString());
+                            }}
+                        />
+                    </Box>
                 </Box>
                 <Box flexGrow="1" minHeight="0" overflowY="hidden">
                     <VirtualizedScrollView

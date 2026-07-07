@@ -137,6 +137,20 @@ test("internal-only actions are available over HTTP but not public websocket pro
             returnPages: true,
         }),
     ).rejects.toThrow("Database action syncTableMetadata is internal-only");
+    await expect(
+        serverConnection.procedures.executeAction({
+            action: {
+                name: "updateTableAccessPolicy",
+                input: {
+                    tableId: table.tableId,
+                    accessPolicy: createTableInput.accessPolicy,
+                },
+            } as DatabaseActionObject,
+            mutationId: generateId(),
+            returnResult: true,
+            returnPages: true,
+        }),
+    ).rejects.toThrow("Database action updateTableAccessPolicy is internal-only");
     await executeInternalAction(databaseGroupId, "syncTableMetadata", {
         tableId: table.tableId,
         name: "Projects",

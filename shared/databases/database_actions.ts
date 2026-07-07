@@ -252,6 +252,23 @@ export const databaseActions = {
         },
     }),
 
+    updateTableAccessPolicy: defineDatabaseAction({
+        input: Schema.object({
+            tableId: Schema.id<DatabaseTableId>(),
+            accessPolicy: AccessPolicySchema,
+        }),
+        output: Schema.object({
+            accessPolicy: AccessPolicySchema,
+        }),
+        writeLevel: "schema+data",
+        internalOnly: true,
+        run({model}, {tableId, accessPolicy}) {
+            const updated = model.getTable(tableId).updateAccessPolicy(accessPolicy);
+
+            return {accessPolicy: updated.accessPolicy};
+        },
+    }),
+
     listTableIds: defineDatabaseAction({
         input: Schema.object({}),
         output: Schema.object({
@@ -319,6 +336,7 @@ export const databaseActions = {
             tableId: Schema.id<DatabaseTableId>(),
             viewId: Schema.id<DatabaseViewId>(),
             tableName: Schema.string,
+            accessPolicy: AccessPolicySchema,
             fields: Schema.array(
                 Schema.object({
                     id: Schema.id<DatabaseFieldId>(),
@@ -340,6 +358,7 @@ export const databaseActions = {
                 tableId: table.id,
                 viewId: view.id,
                 tableName: table.name,
+                accessPolicy: table.accessPolicy,
                 fields,
             };
         },
