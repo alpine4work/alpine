@@ -10,9 +10,9 @@ import {
     executeDatabaseAction,
 } from "~/shared/databases/database_actions.js";
 import type {ReadonlyDatabasePageSet} from "~/shared/databases/database_protocol_schemas.js";
+import {hashWithPrivateSalt} from "~/shared/databases/hash_with_private_salt.js";
 import type {InstalledVfs, VfsFile} from "~/shared/databases/install_vfs.js";
 import {installVfs} from "~/shared/databases/install_vfs.js";
-import {hashWithPrivateSalt} from "~/shared/databases/hash_with_private_salt.js";
 import {DatabaseModel} from "~/shared/databases/model/database_root_model.js";
 import {
     type SqlQuery,
