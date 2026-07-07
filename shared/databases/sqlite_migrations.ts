@@ -301,7 +301,11 @@ function runSchemaMigrations(
         INSERT INTO
             main._alpine_tables (id, kind, schema_version)
         VALUES
-            (${tableId}, ${kind}, ${migrationLimit})
+            (
+                ${tableId},
+                ${kind},
+                ${migrationLimit}
+            )
         ON CONFLICT (id) DO UPDATE
         SET
             schema_version = excluded.schema_version

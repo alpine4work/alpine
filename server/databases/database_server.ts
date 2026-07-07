@@ -205,8 +205,8 @@ export class DatabaseServer {
                     ? tableSqliteMigrations(table.id).length
                     : joinTableSqliteMigrations(table.id).length;
             if (table.schemaVersion === migrationCount) continue;
-            // The migration runner also repairs the registry's schema_version mirror,
-            // in the same buffer batch as the migrations themselves.
+            // The migration runner also repairs the registry's schema_version mirror, in the
+            // same buffer batch as the migrations themselves.
             this.database.execute(
                 db => {
                     this.database.attachIfNeeded(table.id);

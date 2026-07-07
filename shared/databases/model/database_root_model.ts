@@ -72,11 +72,11 @@ export class DatabaseModel {
     }
 
     formatUniqueTableName(name: string, oldName?: string) {
-        // Both loops tolerate a registered table whose metadata row doesn't exist
-        // yet: during createTable/createJoinTable the migration runner registers the
-        // table in `_alpine_tables` before its `_alpine_table` / `_alpine_join_table`
-        // singleton row is inserted — and this method runs inside that window to
-        // name the very table being created.
+        // Both loops tolerate a registered table whose metadata row doesn't exist yet:
+        // during createTable/createJoinTable the migration runner registers the table in
+        // `_alpine_tables` before its `_alpine_table` / `_alpine_join_table` singleton row
+        // is inserted — and this method runs inside that window to name the very table
+        // being created.
         const existingTableNames = new Set<string>();
         for (const tableId of this.getTableIds("table")) {
             const schema = sql.identifier(databaseTableSchemaName(tableId));
@@ -114,9 +114,9 @@ export class DatabaseModel {
 
         const tableName = this.formatUniqueTableName(name);
 
-        // The caller (the createTable action) migrated the table's per-db file before
-        // this runs; the migration runner registered the table in main's
-        // `_alpine_tables` as part of that.
+        // The caller (the createTable action) migrated the table's per-db file before this
+        // runs; the migration runner registered the table in main's `_alpine_tables` as
+        // part of that.
         sql`
             INSERT INTO
                 ${sql.tableRef(tableId, "_alpine_table")} (

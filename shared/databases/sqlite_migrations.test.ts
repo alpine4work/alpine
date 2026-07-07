@@ -108,8 +108,8 @@ describe("sqlite migrations", () => {
     for (let i = 1; i <= tableMigrations.length; i++) {
         test(`table migration up to ${i}`, async () => {
             const db = await createDb();
-            // The runner mirrors the applied version into main's registry, so main
-            // must be migrated first.
+            // The runner mirrors the applied version into main's registry, so main must be
+            // migrated first.
             runMainMigrations(db);
             attachTableDb(db, tableId);
             runTableMigrations(db, tableId, i);
