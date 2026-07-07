@@ -1,5 +1,4 @@
 import {UrlPath} from "~/shared/helpers/http/url_path.js";
-import {defaultCompareStrings} from "~/shared/helpers/string/default_compare_strings.js";
 
 export function normalizeAgentWebPath(pathString: string): {
     path: string;
@@ -17,21 +16,21 @@ export function normalizeAgentWebPath(pathString: string): {
 
     const path = new UrlPath(pathString);
 
-    const normalizedSearchParams = new URLSearchParams(
-        Array.from(path.searchParams.entries()).sort(([key1], [key2]) =>
-            defaultCompareStrings(key1, key2),
-        ),
-    );
+    // We intentionally preserve the order of search params instead of sorting them.
+    // Order is meaningful: task filter search params are position aware (adjacent
+    // params with the same key merge into one filter and `break` params separate them,
+    // see `parseAgentWebTaskFilters()`).
+    const searchParams = path.searchParams;
 
     let normalizedPath = path.pathname;
 
-    if (normalizedSearchParams.size > 0) {
-        normalizedPath += "?" + normalizedSearchParams.toString();
+    if (searchParams.size > 0) {
+        normalizedPath += "?" + searchParams.toString();
     }
 
     return {
         path: normalizedPath,
         pathname: path.pathname,
-        searchParams: normalizedSearchParams,
+        searchParams,
     };
 }

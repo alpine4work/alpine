@@ -1,7 +1,7 @@
 import {
     fromApiFilter,
     intoApiFilter,
-} from "~/server/api/internal/tasks/internal/into_api_task_filter.js";
+} from "~/shared/api/content/closed_source/into_api_task_filter.js";
 import {ApiTaskFilter} from "~/shared/api/specification/types/api_specification_convenience_types.js";
 import {cast} from "~/shared/helpers/control/cast.js";
 import {generateId} from "~/shared/id/id.js";

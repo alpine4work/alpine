@@ -419,7 +419,7 @@ test("normalizes path during update lookup", async () => {
         documentId,
         title,
         bodyMarkdown: "Only once",
-        path: `${path}?b=2&a=1#ignored`,
+        path: `${path}?a=1&b=2#ignored`,
     });
 
     mockDocumentPatch(documentId, 2);

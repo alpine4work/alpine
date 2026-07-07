@@ -370,7 +370,7 @@ test("normalizes paths before reading the cached response", async () => {
     });
 
     const responseString = await callFindTool({
-        path: "document/normalized?b=2&a=1#ignored",
+        path: "document/normalized?a=1&b=2#ignored",
         matchLimit: "6b",
     });
 

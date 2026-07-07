@@ -340,7 +340,7 @@ test("uses normalized path when reading cached responses", async () => {
     });
 
     await callAgentWebReadTool(context, {
-        path: "/document/path-normalized?b=2&a=1#ignored",
+        path: "/document/path-normalized?a=1&b=2#ignored",
         limit: "10kb",
     });
 
