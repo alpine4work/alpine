@@ -37,9 +37,16 @@ function attachTableDb(db: SqliteDatabase, tableId: DatabaseTableId): void {
 }
 
 function createTable(model: DatabaseModel, tableId: DatabaseTableId, name: string) {
+    // Resolve the name before the migration runner registers the table — see
+    // `DatabaseModel.createTable`.
+    const tableName = model.formatUniqueTableName(name);
     attachTableDb(model.db, tableId);
     runTableMigrations(model.db, tableId);
-    return model.createTable(tableId, name, emptyDatabaseTableAccessPolicy);
+    return model.createTable(tableId, {
+        name,
+        tableName,
+        accessPolicy: emptyDatabaseTableAccessPolicy,
+    });
 }
 
 function createRelation(model: DatabaseModel) {

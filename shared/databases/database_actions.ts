@@ -186,17 +186,21 @@ export const databaseActions = {
             const creatorAccountId = server().getCurrentAccountId();
             assert(creatorAccountId !== null, "createTable requires an account actor");
 
+            // Resolve the unique SQLite table name before the migration runner registers the
+            // new table — see `DatabaseModel.createTable`.
+            const tableName = model.formatUniqueTableName(name);
+
             // Attach + migrate the new per-db file before writing any of the table's data or
             // metadata into it. `attach` is a no-op if already attached.
             server().attach(tableId);
             runTableMigrations(db, tableId);
 
             const {table, defaultView} = executeDatabaseActionTransaction(db, () =>
-                model.createTable(
-                    tableId,
+                model.createTable(tableId, {
                     name,
-                    databaseTableAccessPolicyForCreator(creatorAccountId),
-                ),
+                    tableName,
+                    accessPolicy: databaseTableAccessPolicyForCreator(creatorAccountId),
+                }),
             );
 
             return {tableId: table.id, tableName: table.tableName, viewId: defaultView.id};

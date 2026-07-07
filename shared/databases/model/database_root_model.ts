@@ -72,24 +72,14 @@ export class DatabaseModel {
     }
 
     formatUniqueTableName(name: string, oldName?: string) {
-        // Both loops tolerate a registered table whose metadata row doesn't exist yet:
-        // during createTable/createJoinTable the migration runner registers the table in
-        // `_alpine_tables` before its `_alpine_table` / `_alpine_join_table` singleton row
-        // is inserted — and this method runs inside that window to name the very table
-        // being created.
         const existingTableNames = new Set<string>();
         for (const tableId of this.getTableIds("table")) {
-            const schema = sql.identifier(databaseTableSchemaName(tableId));
-            const tableName = sql`
-                SELECT
-                    table_name
-                FROM
-                    ${schema}._alpine_table
-            `.selectValueIfExists(this.db, Schema.string);
-            if (tableName) {
-                existingTableNames.add(tableName);
-            }
+            existingTableNames.add(this.getTable(tableId).tableName);
         }
+        // `selectValueIfExists`: during createJoinTable the migration runner has already
+        // registered the join table in `_alpine_tables`, but its `_alpine_join_table` row
+        // doesn't exist yet — and this method runs inside that window to name the join
+        // table itself.
         for (const joinTableId of this.getTableIds("join")) {
             const schema = sql.identifier(databaseTableSchemaName(joinTableId));
             const tableName = sql`
@@ -108,11 +98,22 @@ export class DatabaseModel {
         return formatUniqueSqlName(name, existingTableNames);
     }
 
-    createTable(tableId: DatabaseTableId, name: string, accessPolicy: AccessPolicy) {
+    /**
+     * `tableName` must be resolved via {@link formatUniqueTableName} _before_ the
+     * table's migrations run: the migration runner registers the table in main's
+     * `_alpine_tables`, and formatUniqueTableName reads every registered table's
+     * metadata — which doesn't exist yet for the table being created.
+     */
+    createTable(
+        tableId: DatabaseTableId,
+        {
+            name,
+            tableName,
+            accessPolicy,
+        }: {name: string; tableName: string; accessPolicy: AccessPolicy},
+    ) {
         const defaultViewId = generateChronologicalId<DatabaseViewId>();
         const nameFieldId = generateChronologicalId<DatabaseFieldId>();
-
-        const tableName = this.formatUniqueTableName(name);
 
         // The caller (the createTable action) migrated the table's per-db file before this
         // runs; the migration runner registered the table in main's `_alpine_tables` as
