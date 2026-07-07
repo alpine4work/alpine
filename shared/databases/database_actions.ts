@@ -7,6 +7,7 @@ import {
     getUnknownDatabaseFieldProvider,
 } from "~/shared/databases/fields/all_database_field_providers.js";
 import {ColumnBackedDatabaseFieldProvider} from "~/shared/databases/fields/base/database_field_provider_base.js";
+import {insertJoinLink} from "~/shared/databases/insert_join_link.js";
 import {DatabaseModel} from "~/shared/databases/model/database_root_model.js";
 import {SqlBooleanSchema} from "~/shared/databases/model/sqlite_schema.js";
 import {type SqlQuery, sql} from "~/shared/databases/sql.js";
@@ -613,48 +614,7 @@ export const databaseActions = {
                 `.exec(db);
             }
 
-            const ourPosition = sql`
-                SELECT
-                    generate_order_key (MAX(${relation.our.positionColumn}), NULL)
-                FROM
-                    ${joinTable.tableRef}
-                WHERE
-                    ${relation.our.rowIdColumn} = ${rowId}
-                ORDER BY
-                    ${relation.our.positionColumn} DESC
-                LIMIT
-                    1
-            `.selectValue(db, Schema.string);
-
-            const theirPosition = sql`
-                SELECT
-                    generate_order_key (MAX(${relation.their.positionColumn}), NULL)
-                FROM
-                    ${joinTable.tableRef}
-                WHERE
-                    ${relation.their.rowIdColumn} = ${linkedRowId}
-                ORDER BY
-                    ${relation.their.positionColumn} DESC
-                LIMIT
-                    1
-            `.selectValue(db, Schema.string);
-
-            sql`
-                INSERT OR IGNORE INTO
-                    ${joinTable.tableRef} (
-                        ${relation.our.rowIdColumn},
-                        ${relation.their.rowIdColumn},
-                        ${relation.our.positionColumn},
-                        ${relation.their.positionColumn}
-                    )
-                VALUES
-                    (
-                        ${rowId},
-                        ${linkedRowId},
-                        ${ourPosition},
-                        ${theirPosition}
-                    )
-            `.exec(db);
+            insertJoinLink({db, relation, rowId, linkedRowId});
 
             return {};
         },
@@ -692,12 +652,97 @@ export const databaseActions = {
             tableId: Schema.id<DatabaseTableId>(),
             fieldId: Schema.id<DatabaseFieldId>(),
             rowId: Schema.id<DatabaseRowId>(),
+            /**
+             * Optional case-insensitive substring filter on the linked table's name
+             * field. Wildcard characters are matched literally.
+             */
+            search: Schema.string.optional(),
+        }),
+        output: Schema.object({
+            /** Display name of the linked table, shown in the picker header. */
+            linkedTableName: Schema.string,
+            rows: Schema.array(
+                Schema.object({
+                    id: Schema.id<DatabaseRowId>(),
+                    name: Schema.string.nullable(),
+                }),
+            ),
+        }),
+        writeLevel: "none",
+        run({db, model}, {tableId, fieldId, rowId, search}) {
+            const table = model.getTable(tableId);
+            const field = table.getField(fieldId);
+            assert(field.isType("relation"));
+            const provider = getDatabaseFieldProvider(field.config.type);
+            const relation = provider.resolveRelation(field);
+
+            assert(table.rowExists(rowId), "row not found");
+
+            const linkedTable = model.getTable(relation.linkedTableId);
+            const linkedNameField = linkedTable.getNameField();
+            const linkedNameProvider = getUnknownDatabaseFieldProvider(linkedNameField.config.type);
+            const linkedNameColumn = linkedNameProvider.selectColumn(
+                linkedNameField,
+                sql.identifier("linked_row"),
+            );
+
+            // Escape LIKE wildcards so the query is a literal substring match rather
+            // than letting user input like `50%` behave as a pattern.
+            const searchFilter =
+                search != null && search !== ""
+                    ? sql`AND ${linkedNameColumn} LIKE ('%' || ${search.replace(
+                          /[\\%_]/g,
+                          char => `\\${char}`,
+                      )} || '%') ESCAPE '\\'`
+                    : sql``;
+
+            const rows = sql`
+                SELECT
+                    linked_row._id AS id,
+                    ${linkedNameColumn} AS name
+                FROM
+                    ${linkedTable.tableRef} AS linked_row
+                WHERE
+                    NOT EXISTS (
+                        SELECT
+                            1
+                        FROM
+                            ${relation.joinTable.tableRef} link_row
+                        WHERE
+                            link_row.${relation.our.rowIdColumn} = ${rowId}
+                            AND link_row.${relation.their.rowIdColumn} = linked_row._id
+                    )
+                    ${searchFilter}
+                ORDER BY
+                    linked_row._created_at DESC,
+                    linked_row._id DESC
+            `.selectAll(db, {
+                id: Schema.id<DatabaseRowId>(),
+                name: linkedNameProvider.sqlValueSchema ?? linkedNameProvider.valueSchema,
+            });
+
+            return {
+                linkedTableName: linkedTable.name,
+                rows: rows.map(row => ({
+                    id: row.id,
+                    name: linkedNameProvider.valueToString(row.name, linkedNameField.config),
+                })),
+            };
+        },
+    }),
+
+    listLinkedRows: defineDatabaseAction({
+        input: Schema.object({
+            tableId: Schema.id<DatabaseTableId>(),
+            fieldId: Schema.id<DatabaseFieldId>(),
+            rowId: Schema.id<DatabaseRowId>(),
         }),
         output: Schema.object({
             rows: Schema.array(
                 Schema.object({
                     id: Schema.id<DatabaseRowId>(),
                     name: Schema.string.nullable(),
+                    position: OrderKeySchema,
                 }),
             ),
         }),
@@ -722,33 +767,114 @@ export const databaseActions = {
             const rows = sql`
                 SELECT
                     linked_row._id AS id,
-                    ${linkedNameColumn} AS name
+                    ${linkedNameColumn} AS name,
+                    link_row.${relation.our.positionColumn} AS position
                 FROM
-                    ${linkedTable.tableRef} AS linked_row
+                    ${relation.joinTable.tableRef} AS link_row
+                    JOIN ${linkedTable.tableRef} AS linked_row ON linked_row._id = link_row.${relation
+                        .their.rowIdColumn}
                 WHERE
-                    NOT EXISTS (
-                        SELECT
-                            1
-                        FROM
-                            ${relation.joinTable.tableRef} link_row
-                        WHERE
-                            link_row.${relation.our.rowIdColumn} = ${rowId}
-                            AND link_row.${relation.their.rowIdColumn} = linked_row._id
-                    )
+                    link_row.${relation.our.rowIdColumn} = ${rowId}
                 ORDER BY
-                    linked_row._created_at DESC,
-                    linked_row._id DESC
+                    link_row.${relation.our.positionColumn}
             `.selectAll(db, {
                 id: Schema.id<DatabaseRowId>(),
                 name: linkedNameProvider.sqlValueSchema ?? linkedNameProvider.valueSchema,
+                position: OrderKeySchema,
             });
 
             return {
                 rows: rows.map(row => ({
                     id: row.id,
                     name: linkedNameProvider.valueToString(row.name, linkedNameField.config),
+                    position: row.position,
                 })),
             };
+        },
+    }),
+
+    moveLink: defineDatabaseAction({
+        input: Schema.object({
+            tableId: Schema.id<DatabaseTableId>(),
+            fieldId: Schema.id<DatabaseFieldId>(),
+            rowId: Schema.id<DatabaseRowId>(),
+            linkedRowId: Schema.id<DatabaseRowId>(),
+            /** New order key for this link on the edited row's side of the relation. */
+            position: OrderKeySchema,
+        }),
+        output: Schema.object({}),
+        writeLevel: "data",
+        run({db, model}, {tableId, fieldId, rowId, linkedRowId, position}) {
+            const table = model.getTable(tableId);
+            const field = table.getField(fieldId);
+            assert(field.isType("relation"));
+            const provider = getDatabaseFieldProvider(field.config.type);
+            const relation = provider.resolveRelation(field);
+
+            sql`
+                UPDATE ${relation.joinTable.tableRef}
+                SET
+                    ${relation.our.positionColumn} = ${position}
+                WHERE
+                    ${relation.our.rowIdColumn} = ${rowId}
+                    AND ${relation.their.rowIdColumn} = ${linkedRowId}
+            `.exec(db);
+
+            return {};
+        },
+    }),
+
+    createAndLinkRow: defineDatabaseAction({
+        input: Schema.object({
+            tableId: Schema.id<DatabaseTableId>(),
+            fieldId: Schema.id<DatabaseFieldId>(),
+            rowId: Schema.id<DatabaseRowId>(),
+            /** Id to assign the newly created row in the linked table. */
+            linkedRowId: Schema.id<DatabaseRowId>(),
+            /** Name to store in the linked table's name field for the new row. */
+            name: Schema.string,
+        }),
+        output: Schema.object({}),
+        writeLevel: "data",
+        run({db, model}, {tableId, fieldId, rowId, linkedRowId, name}) {
+            const table = model.getTable(tableId);
+            const field = table.getField(fieldId);
+            assert(field.isType("relation"));
+            const provider = getDatabaseFieldProvider(field.config.type);
+            const relation = provider.resolveRelation(field);
+            const linkedTable = model.getTable(relation.linkedTableId);
+
+            assert(table.rowExists(rowId), "row not found");
+
+            const linkedNameField = linkedTable.getNameField();
+            const linkedNameProvider = getUnknownDatabaseFieldProvider(linkedNameField.config.type);
+            assert(
+                linkedNameProvider instanceof ColumnBackedDatabaseFieldProvider,
+                "linked table name field must be column-backed to create a row by name",
+            );
+            const parsedName = linkedNameProvider.parseValueString(name, linkedNameField.config);
+            const nameSql = parsedName.ok
+                ? linkedNameProvider.valueToSql(parsedName.value)
+                : linkedNameProvider.defaultValue;
+
+            sql`
+                INSERT INTO
+                    ${linkedTable.tableRef} (_id, ${sql.identifier(linkedNameField.columnName)})
+                VALUES
+                    (${linkedRowId}, ${nameSql})
+            `.exec(db);
+
+            if (relation.config.cardinality === "one") {
+                sql`
+                    DELETE FROM ${relation.joinTable.tableRef}
+                    WHERE
+                        ${relation.our.rowIdColumn} = ${rowId}
+                `.exec(db);
+            }
+
+            insertJoinLink({db, relation, rowId, linkedRowId});
+
+            return {};
         },
     }),
 

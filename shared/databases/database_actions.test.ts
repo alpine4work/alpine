@@ -1250,6 +1250,268 @@ describe("listLinkableRows", () => {
         expect(rows).toEqual([{id: sourceRowId, name: "Write tests"}]);
         db.close();
     });
+
+    test("filters candidates by a case-insensitive name substring", async () => {
+        const db = await createDb();
+        const source = createTableForTest(db, "Tasks");
+        const target = createTableForTest(db, "Projects");
+        const relation = run(db, "createRelationField", {
+            joinTableId: generateChronologicalId<DatabaseTableId>(),
+            sourceTableId: source.tableId,
+            sourceFieldName: "Project",
+            targetTableId: target.tableId,
+            cardinality: "many",
+        });
+        const sourceRowId = createRowAndGetId(db, source.tableId);
+        const targetNameFieldId = readNameFieldId(db, target.tableId);
+        for (const name of ["Frogger", "Toad", "Frobnicate"]) {
+            const targetRowId = createRowAndGetId(db, target.tableId);
+            run(db, "updateCellValue", {
+                tableId: target.tableId,
+                fieldId: targetNameFieldId,
+                rowId: targetRowId,
+                value: name,
+            });
+        }
+
+        const {rows} = run(db, "listLinkableRows", {
+            tableId: source.tableId,
+            fieldId: relation.sourceFieldId,
+            rowId: sourceRowId,
+            search: "fro",
+        });
+
+        expect(rows.map(row => row.name).sort()).toEqual(["Frobnicate", "Frogger"]);
+        db.close();
+    });
+
+    test("matches LIKE wildcards in the search literally", async () => {
+        const db = await createDb();
+        const source = createTableForTest(db, "Tasks");
+        const target = createTableForTest(db, "Projects");
+        const relation = run(db, "createRelationField", {
+            joinTableId: generateChronologicalId<DatabaseTableId>(),
+            sourceTableId: source.tableId,
+            sourceFieldName: "Project",
+            targetTableId: target.tableId,
+            cardinality: "many",
+        });
+        const sourceRowId = createRowAndGetId(db, source.tableId);
+        const targetNameFieldId = readNameFieldId(db, target.tableId);
+        for (const name of ["50% done", "plain"]) {
+            const targetRowId = createRowAndGetId(db, target.tableId);
+            run(db, "updateCellValue", {
+                tableId: target.tableId,
+                fieldId: targetNameFieldId,
+                rowId: targetRowId,
+                value: name,
+            });
+        }
+
+        const {rows} = run(db, "listLinkableRows", {
+            tableId: source.tableId,
+            fieldId: relation.sourceFieldId,
+            rowId: sourceRowId,
+            search: "50%",
+        });
+
+        expect(rows).toEqual([{id: expect.anything(), name: "50% done"}]);
+        db.close();
+    });
+
+    test("returns the linked table name for the picker header", async () => {
+        const db = await createDb();
+        const source = createTableForTest(db, "Tasks");
+        const target = createTableForTest(db, "Projects");
+        const relation = run(db, "createRelationField", {
+            joinTableId: generateChronologicalId<DatabaseTableId>(),
+            sourceTableId: source.tableId,
+            sourceFieldName: "Project",
+            targetTableId: target.tableId,
+            cardinality: "many",
+        });
+        const sourceRowId = createRowAndGetId(db, source.tableId);
+
+        const {linkedTableName} = run(db, "listLinkableRows", {
+            tableId: source.tableId,
+            fieldId: relation.sourceFieldId,
+            rowId: sourceRowId,
+        });
+
+        expect(linkedTableName).toBe("Projects");
+        db.close();
+    });
+});
+
+describe("listLinkedRows", () => {
+    test("returns linked rows ordered by their position on the edited side", async () => {
+        const db = await createDb();
+        const source = createTableForTest(db, "Tasks");
+        const target = createTableForTest(db, "Projects");
+        const relation = run(db, "createRelationField", {
+            joinTableId: generateChronologicalId<DatabaseTableId>(),
+            sourceTableId: source.tableId,
+            sourceFieldName: "Project",
+            targetTableId: target.tableId,
+            cardinality: "many",
+        });
+        const sourceRowId = createRowAndGetId(db, source.tableId);
+        const targetNameFieldId = readNameFieldId(db, target.tableId);
+        const linkedNames = ["First", "Second", "Third"];
+        for (const name of linkedNames) {
+            const targetRowId = createRowAndGetId(db, target.tableId);
+            run(db, "updateCellValue", {
+                tableId: target.tableId,
+                fieldId: targetNameFieldId,
+                rowId: targetRowId,
+                value: name,
+            });
+            run(db, "addLink", {
+                tableId: source.tableId,
+                fieldId: relation.sourceFieldId,
+                rowId: sourceRowId,
+                linkedRowId: targetRowId,
+            });
+        }
+
+        const {rows} = run(db, "listLinkedRows", {
+            tableId: source.tableId,
+            fieldId: relation.sourceFieldId,
+            rowId: sourceRowId,
+        });
+
+        expect(rows.map(row => row.name)).toEqual(linkedNames);
+        db.close();
+    });
+});
+
+describe("moveLink", () => {
+    test("reorders a link on the edited side of the relation", async () => {
+        const db = await createDb();
+        const source = createTableForTest(db, "Tasks");
+        const target = createTableForTest(db, "Projects");
+        const relation = run(db, "createRelationField", {
+            joinTableId: generateChronologicalId<DatabaseTableId>(),
+            sourceTableId: source.tableId,
+            sourceFieldName: "Project",
+            targetTableId: target.tableId,
+            cardinality: "many",
+        });
+        const sourceRowId = createRowAndGetId(db, source.tableId);
+        const targetNameFieldId = readNameFieldId(db, target.tableId);
+        const targetRowIds: Array<DatabaseRowId> = [];
+        for (const name of ["First", "Second", "Third"]) {
+            const targetRowId = createRowAndGetId(db, target.tableId);
+            targetRowIds.push(targetRowId);
+            run(db, "updateCellValue", {
+                tableId: target.tableId,
+                fieldId: targetNameFieldId,
+                rowId: targetRowId,
+                value: name,
+            });
+            run(db, "addLink", {
+                tableId: source.tableId,
+                fieldId: relation.sourceFieldId,
+                rowId: sourceRowId,
+                linkedRowId: targetRowId,
+            });
+        }
+
+        // Move "Third" to the front by giving it a key before "First".
+        const {rows: before} = run(db, "listLinkedRows", {
+            tableId: source.tableId,
+            fieldId: relation.sourceFieldId,
+            rowId: sourceRowId,
+        });
+        run(db, "moveLink", {
+            tableId: source.tableId,
+            fieldId: relation.sourceFieldId,
+            rowId: sourceRowId,
+            linkedRowId: targetRowIds[2]!,
+            position: generateOrderKeyBetween(null, before[0]!.position),
+        });
+
+        const {rows: after} = run(db, "listLinkedRows", {
+            tableId: source.tableId,
+            fieldId: relation.sourceFieldId,
+            rowId: sourceRowId,
+        });
+
+        expect(after.map(row => row.name)).toEqual(["Third", "First", "Second"]);
+        db.close();
+    });
+});
+
+describe("createAndLinkRow", () => {
+    test("creates a named row in the linked table and links it", async () => {
+        const db = await createDb();
+        const source = createTableForTest(db, "Tasks");
+        const target = createTableForTest(db, "Projects");
+        const relation = run(db, "createRelationField", {
+            joinTableId: generateChronologicalId<DatabaseTableId>(),
+            sourceTableId: source.tableId,
+            sourceFieldName: "Project",
+            targetTableId: target.tableId,
+            cardinality: "many",
+        });
+        const sourceRowId = createRowAndGetId(db, source.tableId);
+        const linkedRowId = generateChronologicalId<DatabaseRowId>();
+
+        run(db, "createAndLinkRow", {
+            tableId: source.tableId,
+            fieldId: relation.sourceFieldId,
+            rowId: sourceRowId,
+            linkedRowId,
+            name: "Frog",
+        });
+
+        const {rows} = run(db, "listLinkedRows", {
+            tableId: source.tableId,
+            fieldId: relation.sourceFieldId,
+            rowId: sourceRowId,
+        });
+
+        expect(rows).toEqual([{id: linkedRowId, name: "Frog", position: expect.anything()}]);
+        db.close();
+    });
+
+    test("replaces the existing link for one-cardinality fields", async () => {
+        const db = await createDb();
+        const source = createTableForTest(db, "Tasks");
+        const target = createTableForTest(db, "Projects");
+        const relation = run(db, "createRelationField", {
+            joinTableId: generateChronologicalId<DatabaseTableId>(),
+            sourceTableId: source.tableId,
+            sourceFieldName: "Project",
+            targetTableId: target.tableId,
+            cardinality: "one",
+        });
+        const sourceRowId = createRowAndGetId(db, source.tableId);
+        const firstTargetRowId = createRowAndGetId(db, target.tableId);
+        run(db, "addLink", {
+            tableId: source.tableId,
+            fieldId: relation.sourceFieldId,
+            rowId: sourceRowId,
+            linkedRowId: firstTargetRowId,
+        });
+
+        run(db, "createAndLinkRow", {
+            tableId: source.tableId,
+            fieldId: relation.sourceFieldId,
+            rowId: sourceRowId,
+            linkedRowId: generateChronologicalId<DatabaseRowId>(),
+            name: "Frog",
+        });
+
+        const {rows} = run(db, "listLinkedRows", {
+            tableId: source.tableId,
+            fieldId: relation.sourceFieldId,
+            rowId: sourceRowId,
+        });
+
+        expect(rows.map(row => row.name)).toEqual(["Frog"]);
+        db.close();
+    });
 });
 
 describe("renameTable", () => {
