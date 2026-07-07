@@ -63,3 +63,18 @@ export const getDatabaseTableMetadataRealtimeEvent = defineRpc({
         events: Schema.array(DatabaseTableMetadataRealtimeEventSchema),
     },
 });
+
+/**
+ * Authorizes the calling actor's access to the space a database group belongs to.
+ * Called by the database group durable object when a realtime connection is
+ * (re-)authorized; throws `PermissionDeniedError` when the actor is not a member
+ * of the group's space.
+ */
+export const authorizeDatabaseGroupAccess = defineRpc({
+    name: "authorizeDatabaseGroupAccess",
+    isIdempotent: true,
+    input: {
+        databaseGroupId: Schema.id<DatabaseGroupId>(),
+    },
+    output: {},
+});

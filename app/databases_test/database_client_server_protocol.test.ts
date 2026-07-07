@@ -95,6 +95,43 @@ test("client executes actions against the database server", async () => {
     });
 });
 
+test("a connection from an account outside the group's space is refused", async () => {
+    const databaseGroupId = generateId<DatabaseGroupId>();
+    await getOrCreateTestSpaceForDatabaseGroupId(databaseGroupId);
+    const otherSpace = await TestSpace.create(context);
+    const outsiderSession = await otherSpace.createSession();
+
+    await expect(
+        durableObjectTest.connectForTest(context.action(outsiderSession), databaseGroupId, {
+            searchParams: new URLSearchParams([["browserId", generateId<BrowserId>()]]),
+        }),
+    ).rejects.toThrow();
+});
+
+test("the HTTP action route rejects browser-issued tokens", async () => {
+    const databaseGroupId = generateId<DatabaseGroupId>();
+    const space = await getOrCreateTestSpaceForDatabaseGroupId(databaseGroupId);
+
+    // Browser traffic reaches the durable object with EdgeService-issued tokens (the
+    // edge forwards any subpath); the action route is for internal services only —
+    // browsers must use the websocket protocol.
+    await expect(
+        durableObjectTest.fetchForTest(
+            context.systemAction(space.id, {serviceName: "EdgeService"}),
+            databaseGroupId,
+            new Request("https://databases.test.invalid/action", {
+                method: "POST",
+                body: JSON.stringify(
+                    DatabaseActionObjectSchema.serialize({
+                        name: "listTableIds",
+                        input: {},
+                    } as DatabaseActionObject),
+                ),
+            }),
+        ),
+    ).rejects.toThrow("Database actions over HTTP are restricted to internal services");
+});
+
 test("internal-only actions are available over HTTP but not public websocket procedures", async () => {
     const databaseGroupId = generateId<DatabaseGroupId>();
     const client = await createTestClient(databaseGroupId);

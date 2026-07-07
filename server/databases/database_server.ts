@@ -1,6 +1,7 @@
 import type {Database as SqliteDatabase} from "~/external/sqlite/ext/wasm/jswasm/sqlite3.mjs";
 import type {WorkerActionContext} from "~/server/cloudflare/context/worker_action_context.js";
 import type {DatabaseServerStorage} from "~/server/databases/database_server_storage.js";
+import {isTrustedDatabaseServiceActor} from "~/server/databases/is_trusted_database_service_actor.js";
 import {
     type AccessLevel,
     type AccessPolicy,
@@ -175,22 +176,22 @@ export class DatabaseServer {
         context: WorkerActionContext,
         actionObject: DatabaseActionObject<N>,
     ): DatabaseServerActionResult<N> {
-        const isInternalActor =
-            context.actor.serviceName === "DatabaseGroupService" ||
-            context.actor.serviceName === "Test";
-        if (databaseActions[actionObject.name].internalOnly && !isInternalActor) {
+        // Trusted issuers are internal server code that authorized the operation before
+        // forwarding it (see {@link isTrustedDatabaseServiceActor}); they run
+        // unrestricted. Everyone else — browser traffic over the websocket protocol — may
+        // not run internal actions and gets a per-table access resolver derived from the
+        // replicated policies, enforced per statement by the SQLite authorizer.
+        const isTrustedActor = isTrustedDatabaseServiceActor(context.actor);
+        if (databaseActions[actionObject.name].internalOnly && !isTrustedActor) {
             throw new PermissionDeniedError(
                 `Database action ${actionObject.name} is internal-only`,
             );
         }
-        // Internal actors run unrestricted; everyone else gets a per-table access resolver
-        // derived from the replicated policies, enforced per statement by the SQLite
-        // authorizer.
         const currentAccountId = context.actor.getPossiblyBotAccountIdIfExists();
         return this._runAndPersist(context, () =>
             this.database.executeAction(actionObject, {
                 currentAccountId,
-                tableAccessResolver: isInternalActor
+                tableAccessResolver: isTrustedActor
                     ? null
                     : tableId => this.getTableAccessForAccount(tableId, currentAccountId),
             }),

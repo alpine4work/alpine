@@ -16,6 +16,7 @@ import {
 } from "~/server/databases/database_durable_object_connection.js";
 import {DatabaseDurableObjectStorage} from "~/server/databases/database_durable_object_storage.js";
 import {DatabaseServer} from "~/server/databases/database_server.js";
+import {isTrustedDatabaseServiceActor} from "~/server/databases/is_trusted_database_service_actor.js";
 import {WebSocketServer} from "~/server/web_socket/web_socket_server.js";
 import {DatabaseActionFetchResponseSchema} from "~/shared/databases/database_action_fetch_schema.js";
 import {DatabaseActionObjectSchema} from "~/shared/databases/database_actions.js";
@@ -204,6 +205,16 @@ class DatabaseGroupDurableObject {
     }
 
     private async _handleAction(context: WorkerActionContext, request: Request): Promise<Response> {
+        // This route is for server code only (`fetchDatabaseGroupAction`). Browser traffic
+        // reaches the durable object with EdgeService-issued tokens — the edge forwards
+        // any subpath — and must use the WebSocket protocol, whose connection-level
+        // authorization and per-account enforcement this route has no equivalent of.
+        if (!isTrustedDatabaseServiceActor(context.actor)) {
+            throw new PermissionDeniedError(
+                "Database actions over HTTP are restricted to internal services",
+            );
+        }
+
         const actionObject = DatabaseActionObjectSchema.deserialize(
             (await request.json()) as SchemaSerializedValue,
         );

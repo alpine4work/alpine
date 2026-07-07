@@ -28,7 +28,10 @@ import type {
     DatabaseTableId,
     WebSocketConnectionId,
 } from "~/shared/id/types/id_types.js";
-import {getDatabaseTableMetadataRealtimeEvent} from "~/shared/rpc/database_tables_rpc_definitions.js";
+import {
+    authorizeDatabaseGroupAccess,
+    getDatabaseTableMetadataRealtimeEvent,
+} from "~/shared/rpc/database_tables_rpc_definitions.js";
 
 export type DatabaseRealtimeEventStub =
     | {
@@ -263,9 +266,15 @@ export class DatabaseDurableObjectConnection {
         }
     }
 
-    public async authorize(): Promise<void> {
-        // No-op for now. Authorization is handled by createDurableObject's token
-        // verification.
+    public async authorize(context: WorkerSessionActionContext): Promise<void> {
+        // Space-level gate: every database group belongs to exactly one space, and all
+        // per-table checks downstream (the authorizer's access resolver, realtime
+        // filtering) evaluate replicated policies _assuming_ space access — this is the
+        // async check that assumption rests on. The websocket wrapper re-runs it roughly
+        // every two minutes, so a revoked space membership closes the socket within that
+        // bound (plus the ~15s server-side membership cache) — the same staleness Alpine
+        // accepts for documents and chat.
+        await authorizeDatabaseGroupAccess(context, {databaseGroupId: this._databaseGroupId});
     }
 
     public async transformEvent(

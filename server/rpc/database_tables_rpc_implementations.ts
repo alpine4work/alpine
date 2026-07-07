@@ -5,6 +5,8 @@ import {
     updateDatabaseTableAccessPolicy,
 } from "~/server/databases/data/database_table_metadata.js";
 import {implementRpcs} from "~/server/rpc/internal/implement_rpcs.js";
+import {authorizeSpaceAccess} from "~/server/spaces/authorize_space_access.js";
+import {getSpaceIdForDatabaseGroupId} from "~/server/spaces/get_database_group_id_for_space.js";
 import * as definitions from "~/shared/rpc/database_tables_rpc_definitions.js";
 
 export default implementRpcs(definitions, {
@@ -38,6 +40,14 @@ export default implementRpcs(definitions, {
                     input.events,
                 ),
             };
+        },
+    },
+    authorizeDatabaseGroupAccess: {
+        visibility: ["DatabaseGroupService"],
+        async execute(context, input) {
+            const spaceId = await getSpaceIdForDatabaseGroupId(context, input.databaseGroupId);
+            await authorizeSpaceAccess(context, spaceId);
+            return {};
         },
     },
 });

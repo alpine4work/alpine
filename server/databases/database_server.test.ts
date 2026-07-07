@@ -977,6 +977,24 @@ describe("DatabaseServer", () => {
                 }),
             ).toThrow("Database action syncTableMetadata is internal-only");
         });
+
+        test("accepts internal actions forwarded by trusted services", async () => {
+            const server = await createServerWithSchema();
+            // `syncDatabaseTableMetadataToDurableObject` reaches the durable object with an
+            // AppService-issued token; the actor's payload may be the end user's session, but
+            // the forwarding server code already authorized the operation.
+            const appServiceContext = {
+                ...testContext,
+                actor: {...testContext.actor, serviceName: "AppService"},
+            };
+
+            expect(() =>
+                server.executeAction(appServiceContext, {
+                    name: "createTable",
+                    input: createTableInputForTest("Tasks"),
+                }),
+            ).not.toThrow();
+        });
     });
 
     describe("executeAction — changed tables", () => {

@@ -788,6 +788,58 @@ describe("per-browser page tracking", () => {
         expect(event).toEqual({type: "TableMetadataChanged", events: [resolvedEvent]});
     });
 
+    test("authorize checks space access for the database group", async () => {
+        const doStorage = new DatabaseDurableObjectStorage(storage);
+        const tracker = new BrowserPageTracker();
+        const databaseGroupId = generateId<DatabaseGroupId>();
+        const conn = new DatabaseDurableObjectConnection({
+            server: null as any,
+            durableObjectStorage: doStorage,
+            processContext: null as any,
+            sendEventToAll: () => {},
+            sendEventToSelf: () => {},
+            databaseGroupId,
+            browserId: generateId<BrowserId>(),
+            connectionId: generateId<WebSocketConnectionId>(),
+            browserPageTracker: tracker,
+            trackPages: false,
+        });
+        const authorizedInputs: Array<unknown> = [];
+        const context = {
+            rpc: {
+                execute: async (_definition: any, _callId: unknown, input: unknown) => {
+                    authorizedInputs.push(input);
+                    return {};
+                },
+            },
+        };
+
+        await conn.authorize(context as any);
+
+        expect(authorizedInputs).toEqual([{databaseGroupId}]);
+    });
+
+    test("authorize propagates a space access denial", async () => {
+        const doStorage = new DatabaseDurableObjectStorage(storage);
+        const conn = createTrackedConnection(
+            doStorage,
+            new BrowserPageTracker(),
+            generateId<BrowserId>(),
+            {trackPages: false},
+        );
+        const context = {
+            rpc: {
+                execute: async () => {
+                    throw new PermissionDeniedError("Actor doesn’t have access to the space");
+                },
+            },
+        };
+
+        await expect(conn.authorize(context as any)).rejects.toThrow(
+            "Actor doesn’t have access to the space",
+        );
+    });
+
     test("transformEvent rejects table metadata events without access", async () => {
         const doStorage = new DatabaseDurableObjectStorage(storage);
         const tracker = new BrowserPageTracker();
