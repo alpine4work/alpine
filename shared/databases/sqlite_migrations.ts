@@ -19,10 +19,13 @@ function sqlStringLiteral(value: string): SqlQuery {
  * `main`. It is treated as public and holds **no real information**, only opaque
  * IDs and migration bookkeeping:
  *
- * - `_alpine_tables(id, kind, schema_version)` — registry of every table id.
- *   `schema_version` mirrors the per-table file's `user_version` (the number of
- *   applied per-table migrations) so server bootstrap can tell which files need
- *   migrating without attaching the current ones.
+ * - `_alpine_tables(id, kind, schema_version, table_name_hash)` — registry of
+ *   every table id. `schema_version` mirrors the per-table file's `user_version`
+ *   (the number of applied per-table migrations) so server bootstrap can tell
+ *   which files need migrating without attaching the current ones.
+ *   `table_name_hash` is a salted hash of the table's SQLite `table_name` (see
+ *   `hashWithPrivateSalt`) so name-uniqueness checks don't read per-table files
+ *   either.
  * - `_alpine_views(id, table_id)` — view→table routing index so a bare view id
  *   from a URL resolves to its owning table without attaching every table.
  *
@@ -54,6 +57,14 @@ export const mainSqliteMigrations: ReadonlyArray<SqliteMigration> = [
     sql`
         ALTER TABLE _alpine_tables
         ADD COLUMN schema_version INTEGER NOT NULL DEFAULT 0
+    `,
+    // HMAC of the table's SQLite `table_name` keyed by the group's private salt
+    // (see `hashWithPrivateSalt`), so table-name uniqueness can be checked against
+    // the always-attached registry instead of reading every per-table file. `NULL`
+    // marks a pre-existing table for the server-bootstrap backfill sweep.
+    sql`
+        ALTER TABLE _alpine_tables
+        ADD COLUMN table_name_hash TEXT
     `,
 ];
 

@@ -12,6 +12,7 @@ import {
 import type {ReadonlyDatabasePageSet} from "~/shared/databases/database_protocol_schemas.js";
 import type {InstalledVfs, VfsFile} from "~/shared/databases/install_vfs.js";
 import {installVfs} from "~/shared/databases/install_vfs.js";
+import {hashWithPrivateSalt} from "~/shared/databases/hash_with_private_salt.js";
 import {DatabaseModel} from "~/shared/databases/model/database_root_model.js";
 import {
     type SqlQuery,
@@ -209,16 +210,24 @@ export class Database {
     private constructor(
         sqlite3: Sqlite3Static,
         storage: ReadonlyDatabaseStorage,
-        {isServer, attachEvictionThreshold}: {isServer: boolean; attachEvictionThreshold: number},
+        {
+            isServer,
+            attachEvictionThreshold,
+            privateSalt,
+        }: {isServer: boolean; attachEvictionThreshold: number; privateSalt?: Uint8Array},
     ) {
         this.storage = storage;
         this.attachEvictionThreshold = attachEvictionThreshold;
-        this.serverContext = isServer
-            ? {
-                  attach: tableId => this.attachIfNeeded(tableId),
-                  getCurrentAccountId: () => this.currentActionAccountId,
-              }
-            : null;
+        if (isServer) {
+            assert(privateSalt !== undefined, "a server database requires a private salt");
+            this.serverContext = {
+                attach: tableId => this.attachIfNeeded(tableId),
+                getCurrentAccountId: () => this.currentActionAccountId,
+                hashWithPrivateSalt: value => hashWithPrivateSalt(privateSalt, value),
+            };
+        } else {
+            this.serverContext = null;
+        }
         this.tables.set(databaseMainTableId, new DatabaseTableState());
         // SQLite reserves the schema name "main" for `aDb[0]`, so the connection's main
         // table is always reachable under that name.
@@ -280,13 +289,17 @@ export class Database {
     }
 
     /**
-     * Open a {@link Database} backed by `storage`. Pass `{server: true}` to grant
-     * server-only action capabilities (attaching per-table files); the client leaves
-     * it off so its actions can't attach.
+     * Open a {@link Database} backed by `storage`. Pass `server` (with the group's
+     * private salt) to grant server-only action capabilities — attaching per-table
+     * files and salted name hashing; the client leaves it off so its actions can't
+     * attach.
      */
     static async create(
         storage: ReadonlyDatabaseStorage,
-        options?: {server?: boolean; attachEvictionThresholdForTests?: number},
+        options?: {
+            server?: {privateSalt: Uint8Array};
+            attachEvictionThresholdForTests?: number;
+        },
     ): Promise<Database> {
         if (options?.attachEvictionThresholdForTests !== undefined) {
             assert(import.meta.jest, "attachEvictionThresholdForTests is test-only");
@@ -297,9 +310,10 @@ export class Database {
         }
         const sqlite3 = await sqlite3Promise;
         return new Database(sqlite3, storage, {
-            isServer: options?.server ?? false,
+            isServer: options?.server !== undefined,
             attachEvictionThreshold:
                 options?.attachEvictionThresholdForTests ?? sqliteAttachEvictionThreshold,
+            privateSalt: options?.server?.privateSalt,
         });
     }
 

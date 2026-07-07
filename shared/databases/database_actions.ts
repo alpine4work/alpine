@@ -38,6 +38,14 @@ export interface DatabaseActionServerContext {
      */
     attach(tableId: DatabaseTableId): void;
     getCurrentAccountId(): AccountId | null;
+    /**
+     * HMAC of `value` keyed by the database group's private salt (see
+     * `hashWithPrivateSalt` in `shared/databases`). Server-only because the salt
+     * never leaves the group's durable object. Maintains the registry's
+     * `table_name_hash` uniqueness index without disclosing table names to group
+     * members who lack access to the table.
+     */
+    hashWithPrivateSalt(value: string): string;
 }
 
 /** Context handed to a database action's `run()`. */
@@ -58,15 +66,20 @@ export function createDatabaseActionContext(
     db: SqliteDatabase,
     server: DatabaseActionServerContext | null,
 ): DatabaseActionContext {
+    const requireServer = () => {
+        if (server === null) {
+            throw new DatabaseActionRequiresServerError("action is server-only");
+        }
+        return server;
+    };
     return {
         db,
-        server: () => {
-            if (server === null) {
-                throw new DatabaseActionRequiresServerError("action is server-only");
-            }
-            return server;
-        },
-        model: new DatabaseModel(db),
+        server: requireServer,
+        // The model's name hasher defers the server() check to first use, so shared
+        // model code stays callable on the client until it actually needs the salt —
+        // at which point the thrown DatabaseActionRequiresServerError routes the
+        // action to the server.
+        model: new DatabaseModel(db, value => requireServer().hashWithPrivateSalt(value)),
     };
 }
 

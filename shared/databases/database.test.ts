@@ -86,6 +86,7 @@ function commit(database: Database, storage: InMemoryStorage): void {
 }
 
 const openDatabases: Array<Database> = [];
+const testPrivateSalt = new Uint8Array(32).fill(7);
 
 afterEach(() => {
     while (openDatabases.length > 0) {
@@ -676,7 +677,7 @@ describe("Database — unattached per-db file detection", () => {
 
     test("the server surfaces the raw SQL error, not TableNotAttachedError", async () => {
         const storage = new InMemoryStorage();
-        const database = await Database.create(storage, {server: true});
+        const database = await Database.create(storage, {server: {privateSalt: testPrivateSalt}});
         openDatabases.push(database);
         const tableId = generateChronologicalId<DatabaseTableId>();
 
@@ -714,7 +715,7 @@ async function createServerDatabaseWithTables(
 ): Promise<{database: Database; storage: InMemoryStorage; tableIds: Array<DatabaseTableId>}> {
     const storage = new InMemoryStorage();
     const database = await Database.create(storage, {
-        server: true,
+        server: {privateSalt: testPrivateSalt},
         attachEvictionThresholdForTests,
     });
     openDatabases.push(database);

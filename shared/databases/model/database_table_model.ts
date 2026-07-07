@@ -67,12 +67,13 @@ export class DatabaseTableModel extends DatabaseSchemaScopedBaseModel {
     }
 
     updateName(name: string) {
-        const newTableName = this.root.formatUniqueTableName(name, this.tableName);
+        const newTableName = this.root.formatUniqueTableName(name, this.id);
         if (newTableName !== this.tableName) {
             sql`
                 ALTER TABLE ${this.tableRef}
                 RENAME TO ${sql.identifier(newTableName)}
             `.exec(this.db);
+            this.root.writeTableNameHash(this.id, newTableName);
         }
         sql`
             UPDATE ${this.schema}._alpine_table

@@ -64,7 +64,7 @@ export class DatabaseJoinTableModel extends DatabaseSchemaScopedBaseModel {
 
         const joinTableName = this.root.formatUniqueTableName(
             `${sourceName} ${targetName}`,
-            this.tableName,
+            this.id,
         );
 
         if (joinTableName === this.tableName) return;
@@ -81,6 +81,7 @@ export class DatabaseJoinTableModel extends DatabaseSchemaScopedBaseModel {
             WHERE
                 id = ${this.id}
         `.exec(this.db);
+        this.root.writeTableNameHash(this.id, joinTableName);
     }
 
     ensureColumnNamesAreUpToDate() {

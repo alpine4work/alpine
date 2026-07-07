@@ -1,5 +1,6 @@
 import sqlite3InitModule from "~/external/sqlite/ext/wasm/jswasm/sqlite3.mjs";
 import {emptyDatabaseTableAccessPolicy} from "~/shared/databases/database_table_access_policy.js";
+import {hashWithPrivateSalt} from "~/shared/databases/hash_with_private_salt.js";
 import type {DatabaseFieldModel} from "~/shared/databases/model/database_field_model.js";
 import {DatabaseModel} from "~/shared/databases/model/database_root_model.js";
 import {databaseTableSchemaName, sql} from "~/shared/databases/sql.js";
@@ -21,6 +22,11 @@ import type {
 
 const sqlite3Promise = sqlite3InitModule();
 let dbCounter = 0;
+const testPrivateSalt = new Uint8Array(32).fill(7);
+
+function testHashWithPrivateSalt(value: string): string {
+    return hashWithPrivateSalt(testPrivateSalt, value);
+}
 
 async function createDb(): Promise<SqliteDatabase> {
     const sqlite3 = await sqlite3Promise;
@@ -87,7 +93,7 @@ function readColumnNames(db: SqliteDatabase, tableId: DatabaseTableId, tableName
 describe("DatabaseModel", () => {
     test("createTable creates a default view containing the Name field", async () => {
         const db = await createDb();
-        const model = new DatabaseModel(db);
+        const model = new DatabaseModel(db, testHashWithPrivateSalt);
         const tableId = generateChronologicalId<DatabaseTableId>();
 
         const {table, nameField, defaultView} = createTable(model, tableId, "Tasks");
@@ -110,7 +116,7 @@ describe("DatabaseModel", () => {
 
     test("appendFieldToAllViews adds a field to every table view", async () => {
         const db = await createDb();
-        const model = new DatabaseModel(db);
+        const model = new DatabaseModel(db, testHashWithPrivateSalt);
         const tableId = generateChronologicalId<DatabaseTableId>();
         const {table} = createTable(model, tableId, "Tasks");
         const secondViewId = generateChronologicalId<DatabaseViewId>();
@@ -143,7 +149,7 @@ describe("DatabaseModel", () => {
 
     test("createJoinTable creates metadata and a custom data-table schema", async () => {
         const db = await createDb();
-        const model = new DatabaseModel(db);
+        const model = new DatabaseModel(db, testHashWithPrivateSalt);
 
         const {joinTable} = createRelation(model);
 
@@ -165,7 +171,7 @@ describe("DatabaseModel", () => {
 
     test("createJoinTable disambiguates self-relation columns", async () => {
         const db = await createDb();
-        const model = new DatabaseModel(db);
+        const model = new DatabaseModel(db, testHashWithPrivateSalt);
         const tableId = generateChronologicalId<DatabaseTableId>();
         const joinTableId = generateChronologicalId<DatabaseTableId>();
         const table = createTable(model, tableId, "Tasks").table;
@@ -204,7 +210,7 @@ describe("DatabaseModel", () => {
 
     test("renaming a related table keeps join table columns and data in sync", async () => {
         const db = await createDb();
-        const model = new DatabaseModel(db);
+        const model = new DatabaseModel(db, testHashWithPrivateSalt);
         const {target, joinTable} = createRelation(model);
         const sourceRowId = generateChronologicalId<DatabaseRowId>();
         const targetRowId = generateChronologicalId<DatabaseRowId>();
@@ -253,7 +259,7 @@ describe("DatabaseModel", () => {
 
     test("renaming a relation field keeps the join table name in sync", async () => {
         const db = await createDb();
-        const model = new DatabaseModel(db);
+        const model = new DatabaseModel(db, testHashWithPrivateSalt);
         const {sourceField, joinTable} = createRelation(model);
 
         (sourceField as DatabaseFieldModel).updateName("Owner");

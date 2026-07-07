@@ -71,6 +71,7 @@
         "@miniflare/storage-file": "2.14.4",
         "@miniflare/storage-memory": "2.14.4",
         "@nextjournal/lezer-clojure": "^1.0.0",
+        "@noble/hashes": "1.8.0",
         "@octokit/auth-action": "^5.1.1",
         "@octokit/auth-app": "^7.1.0",
         "@octokit/request": "^9.1.3",

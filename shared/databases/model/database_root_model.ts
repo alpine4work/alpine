@@ -1,6 +1,7 @@
 import type {AccessPolicy} from "~/shared/access/access_policy.js";
 import {DatabaseTableAccessPolicySqlSchema} from "~/shared/databases/database_table_access_policy.js";
 import {formatUniqueSqlName} from "~/shared/databases/internal/format_unique_sql_name.js";
+import {slugifySqlName} from "~/shared/databases/internal/slugify_sql_name.js";
 import type {DatabaseFieldModel} from "~/shared/databases/model/database_field_model.js";
 import {DatabaseJoinTableModel} from "~/shared/databases/model/database_join_table_model.js";
 import {
@@ -19,7 +20,18 @@ import {DatabaseFieldId, DatabaseTableId, DatabaseViewId} from "~/shared/id/type
 import {Schema} from "~/shared/schema/schema.js";
 
 export class DatabaseModel {
-    constructor(readonly db: SqliteDatabase) {}
+    /**
+     * `hashWithPrivateSalt` (normally `DatabaseActionServerContext`'s method of the
+     * same name) keys the registry's `table_name_hash` uniqueness index. Optional
+     * because read-only constructions (e.g. change-trigger refresh) never touch
+     * table names; on the client the injected closure throws
+     * `DatabaseActionRequiresServerError`, routing the calling action to the
+     * server — only the group's durable object holds the salt.
+     */
+    constructor(
+        readonly db: SqliteDatabase,
+        private readonly hashWithPrivateSalt?: (value: string) => string,
+    ) {}
 
     getTableIds(kind: DatabaseTableKind | "all") {
         const whereClause =
@@ -71,31 +83,67 @@ export class DatabaseModel {
         return assertExists(this.getTableIfExists(tableId));
     }
 
-    formatUniqueTableName(name: string, oldName?: string) {
-        const existingTableNames = new Set<string>();
-        for (const tableId of this.getTableIds("table")) {
-            existingTableNames.add(this.getTable(tableId).tableName);
-        }
-        // `selectValueIfExists`: during createJoinTable the migration runner has already
-        // registered the join table in `_alpine_tables`, but its `_alpine_join_table` row
-        // doesn't exist yet — and this method runs inside that window to name the join
-        // table itself.
-        for (const joinTableId of this.getTableIds("join")) {
-            const schema = sql.identifier(databaseTableSchemaName(joinTableId));
-            const tableName = sql`
+    /**
+     * Resolve a unique SQLite table name for `name` by probing the registry's
+     * salted `table_name_hash` index — no per-table file is read, so this stays
+     * O(candidates) regardless of how many tables the group has (reading every
+     * file would churn the attach LRU once the group outgrows SQLite's attach
+     * limit). Pass `excludeTableId` when renaming so a rename to a slug variant
+     * of the table's current name resolves to that same name.
+     *
+     * Server-only in effect: hashing needs the group's private salt, and rows
+     * whose hash is `NULL` (awaiting the bootstrap backfill) are invisible to the
+     * probe — sound because the backfill completes before any action runs.
+     */
+    formatUniqueTableName(name: string, excludeTableId?: DatabaseTableId) {
+        const hashWithPrivateSalt = this.hashWithPrivateSalt;
+        assert(
+            hashWithPrivateSalt !== undefined,
+            "formatUniqueTableName requires a private-salt hasher",
+        );
+
+        const slug = slugifySqlName(name);
+        const excludeClause =
+            excludeTableId === undefined
+                ? sql``
+                : sql`
+                      AND id != ${excludeTableId}
+                  `;
+        const isTaken = (candidate: string) =>
+            sql`
                 SELECT
-                    table_name
+                    1
                 FROM
-                    ${schema}._alpine_join_table
-            `.selectValueIfExists(this.db, Schema.string);
-            if (tableName) {
-                existingTableNames.add(tableName);
-            }
+                    _alpine_tables
+                WHERE
+                    table_name_hash = ${hashWithPrivateSalt(candidate)} ${excludeClause}
+            `.selectValueIfExists(this.db, SqlBooleanSchema) !== null;
+
+        if (!isTaken(slug)) return slug;
+        for (let i = 2; ; i++) {
+            const candidate = `${slug}_${i}`;
+            if (!isTaken(candidate)) return candidate;
         }
-        if (oldName) {
-            existingTableNames.delete(oldName);
-        }
-        return formatUniqueSqlName(name, existingTableNames);
+    }
+
+    /**
+     * Record `tableName`'s salted hash in `tableId`'s registry row, keeping the
+     * uniqueness index in the same buffer batch as the rename or creation that
+     * set the name. Call from every site that writes a `table_name`.
+     */
+    writeTableNameHash(tableId: DatabaseTableId, tableName: string) {
+        const hashWithPrivateSalt = this.hashWithPrivateSalt;
+        assert(
+            hashWithPrivateSalt !== undefined,
+            "writeTableNameHash requires a private-salt hasher",
+        );
+        sql`
+            UPDATE _alpine_tables
+            SET
+                table_name_hash = ${hashWithPrivateSalt(tableName)}
+            WHERE
+                id = ${tableId}
+        `.exec(this.db);
     }
 
     /**
@@ -117,7 +165,9 @@ export class DatabaseModel {
 
         // The caller (the createTable action) migrated the table's per-db file before this
         // runs; the migration runner registered the table in main's `_alpine_tables` as
-        // part of that.
+        // part of that. The runner leaves `table_name_hash` NULL — only now is the
+        // name known.
+        this.writeTableNameHash(tableId, tableName);
         sql`
             INSERT INTO
                 ${sql.tableRef(tableId, "_alpine_table")} (
@@ -191,7 +241,9 @@ export class DatabaseModel {
         const joinTableName = this.formatUniqueTableName(`${source.name} ${target.name}`);
 
         // Like createTable: the migration runner already registered the join table in
-        // main's `_alpine_tables`.
+        // main's `_alpine_tables` with a NULL `table_name_hash`.
+        this.writeTableNameHash(joinTableId, joinTableName);
+
         const sourceColumnNames = this.formatJoinTableColumnNames(source.table, target.table);
 
         const row = sql`

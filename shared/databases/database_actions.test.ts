@@ -9,6 +9,7 @@ import {
     executeDatabaseAction,
 } from "~/shared/databases/database_actions.js";
 import {databaseTableAccessPolicyForCreator} from "~/shared/databases/database_table_access_policy.js";
+import {hashWithPrivateSalt} from "~/shared/databases/hash_with_private_salt.js";
 import {
     type DatabaseFieldConfig,
     DatabaseFieldConfigSqlSchema,
@@ -39,6 +40,7 @@ import {Schema} from "~/shared/schema/schema.js";
 const sqlite3Promise = sqlite3InitModule();
 let dbCounter = 0;
 const testAccountId = generateId<AccountId>();
+const testPrivateSalt = new Uint8Array(32).fill(7);
 
 async function createDb(): Promise<SqliteDatabase> {
     const sqlite3 = await sqlite3Promise;
@@ -66,6 +68,9 @@ function makeCtx(db: SqliteDatabase): DatabaseActionContext {
         },
         getCurrentAccountId() {
             return testAccountId;
+        },
+        hashWithPrivateSalt(value) {
+            return hashWithPrivateSalt(testPrivateSalt, value);
         },
     });
 }
@@ -95,7 +100,12 @@ describe("createTable", () => {
                 _alpine_tables
         `.selectAllUnknown(db);
         expect(tables).toEqual([
-            {id: tableId, kind: "table", schema_version: tableSqliteMigrations(tableId).length},
+            {
+                id: tableId,
+                kind: "table",
+                schema_version: tableSqliteMigrations(tableId).length,
+                table_name_hash: hashWithPrivateSalt(testPrivateSalt, "tasks"),
+            },
         ]);
         db.close();
     });
@@ -870,6 +880,7 @@ describe("createRelationField", () => {
                 id: result.joinTableId,
                 kind: "join",
                 schema_version: joinTableSqliteMigrations(result.joinTableId).length,
+                table_name_hash: hashWithPrivateSalt(testPrivateSalt, "project_tasks"),
             },
             joinRow: {
                 id: result.joinTableId,
@@ -1312,6 +1323,27 @@ describe("renameTable", () => {
         const {tableName} = run(db, "renameTable", {tableId, name: "Tasks"});
 
         expect(tableName).toBe("tasks_2");
+        db.close();
+    });
+
+    test("rename keeps the registry's salted name hash current", async () => {
+        const db = await createDb();
+        const {tableId} = run(db, "createTable", {name: "Tasks"});
+
+        run(db, "renameTable", {tableId, name: "Projects"});
+
+        // The hash is the uniqueness index future creates and renames probe; a
+        // stale value would let a new "Projects" table collide (or block "Tasks"
+        // forever).
+        const tableNameHash = sql`
+            SELECT
+                table_name_hash
+            FROM
+                _alpine_tables
+            WHERE
+                id = ${tableId}
+        `.selectValue(db, Schema.string);
+        expect(tableNameHash).toBe(hashWithPrivateSalt(testPrivateSalt, "projects"));
         db.close();
     });
 });
