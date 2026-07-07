@@ -187,13 +187,12 @@ export class DatabaseServer {
         this._persistBuffer();
 
         // Migrate every existing per-table file, one execute + persist per table.
-        // Attach-on-miss assumes every registered file is migration-current, so this
-        // sweep must finish before any action runs. Persisting per table keeps
-        // migrated files' buffered writes drained — Database only evicts tables with
-        // an empty buffer, and for groups with more tables than the attach threshold
-        // the sweep relies on that LRU eviction to stay under SQLite's limit. A
-        // table whose migrations are already current buffers nothing, so its persist
-        // is a no-op.
+        // Attach-on-miss assumes every registered file is migration-current, so this sweep
+        // must finish before any action runs. Persisting per table keeps migrated files'
+        // buffered writes drained — Database only evicts tables with an empty buffer, and
+        // for groups with more tables than the attach threshold the sweep relies on that
+        // LRU eviction to stay under SQLite's limit. A table whose migrations are already
+        // current buffers nothing, so its persist is a no-op.
         for (const table of tables) {
             this.database.execute(
                 db => {

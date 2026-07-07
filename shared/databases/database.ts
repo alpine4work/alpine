@@ -34,11 +34,11 @@ import {
     sqliteOpenPragmas,
     sqlitePageSize,
 } from "~/shared/databases/sqlite_constants.js";
+import {registerSqliteCustomFunctions} from "~/shared/databases/sqlite_custom_functions.js";
 import {
     joinTableSqliteMigrations,
     tableSqliteMigrations,
 } from "~/shared/databases/sqlite_migrations.js";
-import {registerSqliteCustomFunctions} from "~/shared/databases/sqlite_custom_functions.js";
 import {installTracing} from "~/shared/databases/sqlite_tracing.js";
 import {TableNotAttachedError} from "~/shared/databases/table_not_attached_error.js";
 import {VfsTempFile} from "~/shared/databases/vfs_temp_file.js";
@@ -595,9 +595,8 @@ export class Database {
 
         // The VFS open callback runs synchronously during ATTACH and looks up state by
         // tableId, so the entry must exist before the SQL runs. Stamp the new table
-        // warmest: a statement referencing several unattached schemas re-attaches them
-        // one at a time, and a cold stamp would let each recovery evict the previous
-        // one.
+        // warmest: a statement referencing several unattached schemas re-attaches them one
+        // at a time, and a cold stamp would let each recovery evict the previous one.
         const state = new DatabaseTableState();
         state.lastTouchedAt = ++this.touchCounter;
         this.tables.set(tableId, state);
@@ -686,12 +685,11 @@ export class Database {
      * implementation prepares its statements through this same patched `prepare`, so
      * multi-statement batches recover too — and because "no such table" fires at
      * prepare time (before the statement has any effect) and the retry happens
-     * *inside* `prepare`, statements the batch already executed are never re-run.
+     * _inside_ `prepare`, statements the batch already executed are never re-run.
      *
-     * Each `prepare` call attaches any given schema at most once: a second miss on
-     * the same schema means the reference is genuinely broken (or the statement
-     * references more schemas than the attach limit allows) and the original error
-     * surfaces.
+     * Each `prepare` call attaches any given schema at most once: a second miss on the
+     * same schema means the reference is genuinely broken (or the statement references
+     * more schemas than the attach limit allows) and the original error surfaces.
      */
     private installAttachOnMiss(): void {
         const originalPrepare = this.db.prepare.bind(this.db);
@@ -703,8 +701,8 @@ export class Database {
                 } catch (error) {
                     if (this.inAttachRecovery || !(error instanceof Error)) throw error;
                     const tableId = parseUnattachedTableMessage(error.message);
-                    // Bail when the named schema is already attached — then it's a missing
-                    // inner table, not an unattached file.
+                    // Bail when the named schema is already attached — then it's a missing inner
+                    // table, not an unattached file.
                     if (
                         tableId === null ||
                         this.tables.has(tableId) ||
@@ -726,31 +724,36 @@ export class Database {
      * Server: the table must exist in main's `_alpine_tables` registry — attaching an
      * unregistered name would create a phantom empty file through the VFS. Every
      * registered file is migration-current (the bootstrap sweep migrates existing
-     * files before actions run; `createTable` migrates new ones at creation), which
-     * is asserted rather than repaired here: running migrations mid-statement would
+     * files before actions run; `createTable` migrates new ones at creation), which is
+     * asserted rather than repaired here: running migrations mid-statement would
      * buffer writes inside whatever read/write context triggered the miss.
-     * Change-capture triggers are recreated for user tables since eviction drops
-     * them.
+     * Change-capture triggers are recreated for user tables since eviction drops them.
      *
      * Client: only attaches files whose header page is locally cached — under
-     * `locking_mode = EXCLUSIVE`, attaching a headerless store would permanently
-     * cache an empty schema. An unrecoverable miss keeps the original error, which
-     * {@link runTracked} converts to {@link TableNotAttachedError} for the
-     * server-fallback path.
+     * `locking_mode = EXCLUSIVE`, attaching a headerless store would permanently cache
+     * an empty schema. An unrecoverable miss keeps the original error, which {@link
+     * runTracked} converts to {@link TableNotAttachedError} for the server-fallback
+     * path.
      */
     private tryAttachUnattachedTable(tableId: DatabaseTableId): boolean {
         this.inAttachRecovery = true;
         try {
             if (this.serverContext !== null) {
-                const kind = sql`
-                    SELECT
-                        kind
-                    FROM
-                        main._alpine_tables
-                    WHERE
-                        id = ${tableId}
-                `.selectValueIfExists(this.db, Schema.enum(["table", "join"]));
-                if (kind === null) return false;
+                // captureResult: a server database whose main file predates the registry (only
+                // reachable in tests that skip runMainMigrations) can't recover anything, and the
+                // original statement's error should surface — not the registry lookup's.
+                const kindResult = captureResult(() =>
+                    sql`
+                        SELECT
+                            kind
+                        FROM
+                            main._alpine_tables
+                        WHERE
+                            id = ${tableId}
+                    `.selectValueIfExists(this.db, Schema.enum(["table", "join"])),
+                );
+                if (!kindResult.ok || kindResult.value === null) return false;
+                const kind = kindResult.value;
                 this.attach(tableId);
                 this.assertAttachedTableMigrationsAreCurrent(tableId, kind);
                 if (kind === "table" && this.hasServerMainTableChangeTriggers) {
@@ -771,10 +774,10 @@ export class Database {
      * Detach least-recently-used per-table files until the attached-schema count is
      * back under {@link attachEvictionThreshold}. Skips `main`, tables with buffered
      * writes (their pages would be lost with the {@link DatabaseTableState} entry),
-     * and tables the open transaction has touched (SQLite holds a btree transaction
-     * on those until commit, so `DETACH` reports them locked). When every candidate
-     * is pinned, gives up and relies on the headroom between the threshold and the
-     * hard `SQLITE_MAX_ATTACHED` limit.
+     * and tables the open transaction has touched (SQLite holds a btree transaction on
+     * those until commit, so `DETACH` reports them locked). When every candidate is
+     * pinned, gives up and relies on the headroom between the threshold and the hard
+     * `SQLITE_MAX_ATTACHED` limit.
      */
     private evictForAttachCapacity(): void {
         const pinned = new Set<DatabaseTableId>();
@@ -829,9 +832,9 @@ export class Database {
      * Drop a detached table's change-capture temp triggers. They survive `DETACH`
      * (still listed in `temp.sqlite_master`) but never fire again, and the
      * `CREATE TEMP TRIGGER IF NOT EXISTS` in {@link
-     * createServerTableChangeTriggersForTable} would keep the dead ones on
-     * re-attach — silently dropping table-metadata replication. Dropping them here
-     * (and clearing the bookkeeping) makes re-attach recreate working triggers.
+     * createServerTableChangeTriggersForTable} would keep the dead ones on re-attach —
+     * silently dropping table-metadata replication. Dropping them here (and clearing
+     * the bookkeeping) makes re-attach recreate working triggers.
      */
     private dropServerTableChangeTriggersForDetachedTable(tableId: DatabaseTableId): void {
         if (!this.serverTableChangeTriggerTableIds.has(tableId)) return;
@@ -839,12 +842,12 @@ export class Database {
         const previousWriteLevel = this.writeLevel;
         this.writeLevel = "schema+data";
         try {
-            sql`DROP TRIGGER ${sql.identifier(
-                `${triggerNamePrefix}_alpine_table_change_insert`,
-            )}`.exec(this.db);
-            sql`DROP TRIGGER ${sql.identifier(
-                `${triggerNamePrefix}_alpine_table_change_update`,
-            )}`.exec(this.db);
+            sql`
+                DROP TRIGGER ${sql.identifier(`${triggerNamePrefix}_alpine_table_change_insert`)}
+            `.exec(this.db);
+            sql`
+                DROP TRIGGER ${sql.identifier(`${triggerNamePrefix}_alpine_table_change_update`)}
+            `.exec(this.db);
         } finally {
             this.writeLevel = previousWriteLevel;
         }
@@ -852,10 +855,10 @@ export class Database {
     }
 
     /**
-     * Recreate `tableId`'s change-capture temp triggers right after an
-     * attach-on-miss re-attach. Waiting for the post-execute
-     * {@link refreshServerTableChangeTriggers} would miss `_alpine_table` writes
-     * made by the very statement whose miss triggered the re-attach.
+     * Recreate `tableId`'s change-capture temp triggers right after an attach-on-miss
+     * re-attach. Waiting for the post-execute {@link refreshServerTableChangeTriggers}
+     * would miss `_alpine_table` writes made by the very statement whose miss
+     * triggered the re-attach.
      */
     private recreateServerTableChangeTriggersAfterAttach(tableId: DatabaseTableId): void {
         const previousWriteLevel = this.writeLevel;
@@ -960,15 +963,14 @@ export class Database {
             // A query against an unattached per-db file fails at statement preparation with
             // "no such table" / "unknown database". The patched `prepare` (see
             // `installAttachOnMiss`) already attached-and-retried where it could; an error
-            // reaching this catch means recovery wasn't possible. On the client that's a
-            // table with no locally cached header page — rethrow as TableNotAttachedError so
-            // the client falls back to the server, whose response supplies the table's pages
-            // and attaches it.
+            // reaching this catch means recovery wasn't possible. On the client that's a table
+            // with no locally cached header page — rethrow as TableNotAttachedError so the
+            // client falls back to the server, whose response supplies the table's pages and
+            // attaches it.
             //
             // Client-only: the server can attach any registered table on miss, so the same
             // error there is a genuine bug and must surface as-is. Bail too when the named
-            // schema _is_ attached — then it's a missing inner table, not an unattached
-            // file.
+            // schema _is_ attached — then it's a missing inner table, not an unattached file.
             if (this.serverContext === null && error instanceof Error) {
                 const tableId = parseUnattachedTableMessage(error.message);
                 if (tableId !== null && !this.tables.has(tableId)) {
@@ -1125,9 +1127,9 @@ class DatabaseTableState {
      */
     bufferedMaxPageIndex: number | null = null;
     /**
-     * {@link Database}'s touch counter value at this table's last page access (read
-     * or write) or attach. Lowest value = least recently used, first evicted when
-     * the attach threshold is hit.
+     * {@link Database}'s touch counter value at this table's last page access (read or
+     * write) or attach. Lowest value = least recently used, first evicted when the
+     * attach threshold is hit.
      */
     lastTouchedAt = 0;
 
