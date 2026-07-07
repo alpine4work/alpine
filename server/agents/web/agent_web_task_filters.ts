@@ -83,10 +83,11 @@ import {TaskCollectionId} from "~/shared/id/types/id_types.js";
  *   values merge into one filter matching tasks with _none_ of the values.
  *
  * - Params only merge when they're adjacent. `status=open&title=a&status=closed`
- *   is three filters and a `break` param (which is otherwise ignored) splits
- *   adjacent params apart: `status=open&break&status=closed` is two status
- *   filters. All filters must match so two status filters usually match fewer
- *   tasks than one merged status filter would.
+ *   is three filters and a `break` param (which, like any param that isn't a task
+ *   filter, is otherwise ignored) splits adjacent params apart:
+ *   `status=open&break&status=closed` is two status filters. All filters must
+ *   match so two status filters usually match fewer tasks than one merged status
+ *   filter would.
  *
  * - `title` and date params never merge, each one is its own filter
  *   (`due[after]=2026-07-01&due[before]=2026-08-01` is a date range).
@@ -570,9 +571,9 @@ function printAgentWebTaskFilterDateDurationCount(count: number, unit: string): 
  * space so date values like `today+3d` reach us as `today 3d`. We treat the space
  * as a `+` so agents can write either `today+3d` or `today%2B3d`.
  *
- * Throws an `InvalidArgumentError` with an agent-friendly display message for any
- * search param we don't recognize. Callers with their own search params (e.g.
- * pagination cursors) should remove them before calling.
+ * Search params we don't recognize as task filters (like the `break` params we
+ * print or a caller's pagination params) are ignored, except that they split
+ * adjacent same-key params into separate filters.
  */
 export async function parseAgentWebTaskFilters(
     storage: AgentWebSessionStorage,
@@ -582,16 +583,6 @@ export async function parseAgentWebTaskFilters(
     let currentListRun: AgentWebTaskFilterRun | null = null;
 
     for (const [key, value] of searchParams.entries()) {
-        // `break` params are ignored except that they split adjacent same-key params into
-        // separate filters (`status=open&break&status=closed` is two status filters).
-        //
-        // NOCOMMIT: No special exception for `break`. Any unknown search param should
-        // break the run.
-        if (key === "break") {
-            currentListRun = null;
-            continue;
-        }
-
         const keyMatch = key.match(/^([a-z]+)\[([a-z]+)\]$/);
         const filterKey = keyMatch ? keyMatch[1]! : key;
         const operator = keyMatch ? keyMatch[2]! : null;
@@ -606,6 +597,25 @@ export async function parseAgentWebTaskFilters(
             filterKey === "assignee" ||
             filterKey === "creator" ||
             filterKey === "assigner";
+
+        const isFilterKey =
+            isListKey ||
+            filterKey === "title" ||
+            filterKey === "due" ||
+            filterKey === "created" ||
+            filterKey === "assigned" ||
+            filterKey === "closed" ||
+            filterKey === "activated";
+
+        // Search params we don't recognize as task filters are ignored, except that they
+        // split adjacent same-key params into separate filters. This is what makes `break`
+        // work: `status=open&break&status=closed` is two status filters. `break` is just
+        // the conventional param we print, any unrecognized param splits runs the same
+        // way.
+        if (!isFilterKey) {
+            currentListRun = null;
+            continue;
+        }
 
         if (isListKey && currentListRun !== null && currentListRun.key === key) {
             currentListRun.values.push(value);
@@ -716,13 +726,10 @@ async function parseAgentWebTaskFilterRun(
                 );
             }
 
-            // Title runs always have exactly one value. An empty value (`title=`) is a title
+            // Only list filter params merge into one run, so an agent writing
+            // `title=foo&title=bar` gets one run (and one filter) per param. That's why a
+            // title run always has exactly one value. An empty value (`title=`) is a title
             // filter whose text hasn't been typed yet in the task filter editor UI.
-            //
-            // NOCOMMIT: Is it possible for an agent to write `title=foo&title=bar`? Do we
-            // treat that as a run? We need to be able to parse a broader range of syntax than
-            // we print since the agent may write arbitrary search params directly into the
-            // URL.
             assert(values.length === 1);
 
             return [
@@ -801,10 +808,9 @@ async function parseAgentWebTaskFilterRun(
             ];
         }
         case "due": {
-            // NOCOMMIT: Is it possible for an agent to write `due=foo&due=bar`? Do we treat
-            // that as a run? We need to be able to parse a broader range of syntax than we
-            // print since the agent may write arbitrary search params directly into the URL.
-            // Even if it makes no semantic sense!
+            // Only list filter params merge into one run, so an agent writing
+            // `due=overdue&due=none` gets one run (and one filter) per param. That's why a due
+            // run always has exactly one value.
             assert(values.length === 1);
             const value = values[0]!;
 
@@ -1096,14 +1102,19 @@ function parseAgentWebTaskFilterDate(
     }
 
     if (/^\d{4}-\d{2}-\d{2}$/.test(dateString)) {
+        // `parseDate()` throws for out of range date fields (e.g. month 13 or day 31 in
+        // February) but it also accepts and coerces some impossible dates (e.g. year 0000
+        // is parsed as year 0001), so we also check that the parsed date prints back
+        // unchanged.
+        let isValidDate: boolean;
         try {
-            parseDate(dateString);
+            isValidDate = parseDate(dateString).toString() === dateString;
         } catch {
+            isValidDate = false;
+        }
+
+        if (!isValidDate) {
             throw new InvalidArgumentError("Unexpected task filter date", {
-                // NOCOMMIT: Do we have a test for this error message? Is it even possible to throw
-                // here? I think `parseDate()` will coerce most things. We may want to check as
-                // well `parseDate(dateString).toString() === dateString` to catch cases that
-                // `parseDate()` accepts and coerces.
                 displayMessage: errorDisplayMessage`The date \`${dateString}\` in the \`${key}\` task filter isn\u2019t a real calendar date. Try again with a valid ISO 8601 date (e.g. \`${key}=2026-07-12\`).`,
             });
         }
