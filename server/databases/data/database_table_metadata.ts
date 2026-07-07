@@ -1,3 +1,4 @@
+import {evaluateAccessPolicy} from "~/server/access/evaluate_access_policy.js";
 import type {ServerActionContext} from "~/server/context/server_action_context.js";
 import {fetchDatabaseGroupAction} from "~/server/databases/data/fetch_database_action.js";
 import {DatabaseTablesTable} from "~/server/databases/data/internal/database_tables_table.js";
@@ -7,11 +8,15 @@ import {
     getDatabaseGroupIdForSpace,
     getExistingDatabaseGroupIdForSpace,
 } from "~/server/spaces/get_database_group_id_for_space.js";
-import {type AccessPolicy, type LocalAccessPolicy} from "~/shared/access/access_policy.js";
+import {
+    type AccessLevel,
+    type AccessPolicy,
+    type LocalAccessPolicy,
+} from "~/shared/access/access_policy.js";
 import {databaseTableAccessPolicyForCreator} from "~/shared/databases/database_table_access_policy.js";
 import {DatabaseTableMetadataModel} from "~/shared/databases/database_table_metadata_model.js";
 import type {RynamoEvent, RynamoEventStub, RynamoItem} from "~/shared/dynamo/rynamo_types.js";
-import {NotFoundError} from "~/shared/error/error.js";
+import {NotFoundError, PermissionDeniedError} from "~/shared/error/error.js";
 import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
@@ -176,19 +181,48 @@ export async function getDatabaseTableMetadataRealtimeEvent(
                 return {...eventStub, itemKey};
             }
 
-            throw new NotFoundError("Database table metadata realtime event not found");
+            throw new PermissionDeniedError(
+                "Can\u2019t get realtime event for item that\u2019s not associated with the designated database group",
+            );
         }),
     )) as ReadonlyArray<RynamoEvent<DatabaseTableMetadataModel>>;
 
     await runAllPromises(
         actualEvents.map(async event => {
-            if (event.type === "PutItem") {
-                await authorizeSpaceAccess(context, event.item.model.spaceId, "Member");
+            switch (event.type) {
+                case "PutItem":
+                    await authorizeDatabaseTableMetadataAccess(context, event.item.model, "View");
+                    break;
+                case "DeleteItem":
+                    throw new PermissionDeniedError(
+                        "Can\u2019t authorize deleted database table metadata realtime event",
+                    );
+                default:
+                    throw exhaustive(event);
             }
         }),
     );
 
     return actualEvents as ReadonlyArray<RynamoEvent<DatabaseTableMetadataModel>>;
+}
+
+async function authorizeDatabaseTableMetadataAccess(
+    context: ServerActionContext,
+    tableMetadata: DatabaseTableMetadataModel,
+    expectedAccessLevel: AccessLevel,
+): Promise<void> {
+    const isAccessAuthorized = await evaluateAccessPolicy(
+        context,
+        tableMetadata.spaceId,
+        tableMetadata.accessPolicy,
+        expectedAccessLevel,
+    );
+
+    if (!isAccessAuthorized) {
+        throw new PermissionDeniedError(
+            `Actor doesn\u2019t have ${expectedAccessLevel} access level`,
+        );
+    }
 }
 
 export async function getDatabaseTableMetadataForSearchIndex(

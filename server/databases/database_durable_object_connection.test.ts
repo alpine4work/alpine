@@ -12,6 +12,7 @@ import {
     sqlitePageSize,
 } from "~/shared/databases/sqlite_constants.js";
 import type {RynamoEvent, RynamoEventStub} from "~/shared/dynamo/rynamo_types.js";
+import {PermissionDeniedError} from "~/shared/error/error.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {generateChronologicalId} from "~/shared/id/chronological_id.js";
 import {generateId} from "~/shared/id/id.js";
@@ -785,5 +786,31 @@ describe("per-browser page tracking", () => {
         });
 
         expect(event).toEqual({type: "TableMetadataChanged", events: [resolvedEvent]});
+    });
+
+    test("transformEvent rejects table metadata events without access", async () => {
+        const doStorage = new DatabaseDurableObjectStorage(storage);
+        const tracker = new BrowserPageTracker();
+        const eventStub: RynamoEventStub = {
+            type: "PutItem",
+            item: {key: "table-key" as any, version: 1},
+        };
+        const conn = createTrackedConnection(doStorage, tracker, generateId<BrowserId>(), {
+            trackPages: false,
+        });
+        const context = {
+            rpc: {
+                execute: async () => {
+                    throw new PermissionDeniedError("Actor doesn\u2019t have View access level");
+                },
+            },
+        };
+
+        await expect(
+            conn.transformEvent(context as any, {
+                type: "TableMetadataChanged",
+                events: [eventStub],
+            }),
+        ).rejects.toThrow("Actor doesn\u2019t have View access level");
     });
 });
