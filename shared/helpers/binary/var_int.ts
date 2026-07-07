@@ -4,11 +4,6 @@ import {
     type DataViewInterface,
 } from "~/shared/helpers/binary/data_builder_view.js";
 
-export type VarIntResult = {
-    readonly value: number;
-    readonly byteOffset: number;
-};
-
 /**
  * Pushes a non-negative integer with variable length encoding to
  * `DataBuilderView`. Uses the same variable length encoding as protocol buffers.
@@ -32,7 +27,13 @@ export function pushVarInt(view: DataBuilderView, value: number): void {
  * variable length encoding as protocol buffers and returns the offset after the
  * integer.
  */
-export function getVarInt(view: DataViewInterface, byteOffset: number): VarIntResult {
+export function getVarInt(
+    view: DataViewInterface,
+    byteOffset: number,
+): {
+    value: number;
+    byteOffset: number;
+} {
     byteOffset = Math.trunc(byteOffset);
 
     if (!Number.isSafeInteger(byteOffset) || byteOffset < 0) {

@@ -1,6 +1,8 @@
 import {InvalidArgumentError} from "~/shared/error/error.js";
 import {decodeBase64, encodeBase64} from "~/shared/helpers/binary/base64.js";
+import {DataBuilderView} from "~/shared/helpers/binary/data_builder_view.js";
 import {scrambleBytes, unscrambleBytes} from "~/shared/helpers/binary/scramble_bytes.js";
+import {getVarInt, pushVarInt} from "~/shared/helpers/binary/var_int.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
 import {decodeOrderKey, encodeOrderKey} from "~/shared/helpers/sort/encode_order_key.js";
@@ -32,7 +34,7 @@ export function encodeApiTaskCursor(
 ): ApiTaskCursor {
     assert(cursor.length === sorts.length + 1);
 
-    const payload: Array<number> = [];
+    const payload = new DataBuilderView();
 
     for (let i = 0; i < sorts.length; i++) {
         writeTaskQuerySortCursorValue(sorts[i]!, cursor[i]!, payload);
@@ -41,10 +43,10 @@ export function encodeApiTaskCursor(
     const taskId = cursor[cursor.length - 1];
     assert(typeof taskId === "string");
 
-    for (const byte of decodeId(assertId<TaskId>(taskId))) payload.push(byte);
+    for (const byte of decodeId(assertId<TaskId>(taskId))) payload.pushUint8(byte);
 
     return encodeBase64(
-        scrambleBytes(Uint8Array.from(payload), scrambleSeed),
+        scrambleBytes(payload.build(), scrambleSeed),
         "Rfc4648Url",
     ) as ApiTaskCursor;
 }
@@ -54,13 +56,14 @@ export function decodeApiTaskCursor(
     cursorString: ApiTaskCursor,
 ): TaskQuerySortCursor {
     const payload = unscrambleBytes(decodeBase64(cursorString, "Rfc4648Url"), scrambleSeed);
+    const payloadView = new DataView(payload.buffer, payload.byteOffset, payload.byteLength);
 
     let offset = 0;
     const cursor: Array<TaskQuerySortCursorValue | TaskId> = [];
 
     for (const sort of sorts) {
-        const result = readTaskQuerySortCursorValue(sort, payload, offset);
-        offset = result.offset;
+        const result = readTaskQuerySortCursorValue(sort, payloadView, payload, offset);
+        offset = result.byteOffset;
         cursor.push(result.value);
     }
 
@@ -75,18 +78,18 @@ export function decodeApiTaskCursor(
 function writeTaskQuerySortCursorValue(
     sort: TaskQueryNormalizedSort,
     value: TaskQuerySortCursorValue,
-    bytes: Array<number>,
+    view: DataBuilderView,
 ): void {
     const sortByte = getTaskQueryNormalizedSortByte(sort);
     assert(sortByte <= 0b00111111);
 
-    bytes.push((sortByte << 1) | (value === null ? sortByteNullMask : 0));
+    view.pushUint8((sortByte << 1) | (value === null ? sortByteNullMask : 0));
 
     if (sort.type === "CollectionPosition") {
         let byteIndex = 0;
         for (const byte of decodeId(sort.collectionId)) {
             if (byteIndex >= collectionIdPrefixByteLength) break;
-            bytes.push(byte);
+            view.pushUint8(byte);
             byteIndex++;
         }
     }
@@ -101,7 +104,7 @@ function writeTaskQuerySortCursorValue(
             assert(Number.isInteger(value));
             assert(0 < value && value <= 0xff);
 
-            bytes.push(value);
+            view.pushUint8(value);
             break;
         }
         case "Assignee":
@@ -110,8 +113,8 @@ function writeTaskQuerySortCursorValue(
             assert(typeof value === "string");
 
             const stringBytes = new TextEncoder().encode(value);
-            writeVarint(stringBytes.length, bytes);
-            for (const byte of stringBytes) bytes.push(byte);
+            pushVarInt(view, stringBytes.length);
+            for (const byte of stringBytes) view.pushUint8(byte);
             break;
         }
         case "DueDate": {
@@ -119,7 +122,7 @@ function writeTaskQuerySortCursorValue(
             assert(Number.isSafeInteger(value));
             assert(value >= 0);
 
-            writeVarint(value, bytes);
+            pushVarInt(view, value);
             break;
         }
         case "CreatedTime":
@@ -131,7 +134,7 @@ function writeTaskQuerySortCursorValue(
             assert(typeof value[0] === "number");
             assert(typeof value[1] === "number");
 
-            writeUint64(serializeHybridLogicalTime(value as [number, number]), bytes);
+            view.pushBigUint64(serializeHybridLogicalTime(value as [number, number]));
             break;
         }
         case "ParentPosition":
@@ -143,11 +146,11 @@ function writeTaskQuerySortCursorValue(
             assert(typeof value[1] === "number");
             assert(typeof value[2] === "string");
 
-            writeUint64(serializeHybridLogicalTime(value as [number, number]), bytes);
+            view.pushBigUint64(serializeHybridLogicalTime(value as [number, number]));
 
             const orderKeyBytes = encodeOrderKey(assertOrderKey(value[2]));
-            writeVarint(orderKeyBytes.length, bytes);
-            for (const byte of orderKeyBytes) bytes.push(byte);
+            pushVarInt(view, orderKeyBytes.length);
+            for (const byte of orderKeyBytes) view.pushUint8(byte);
             break;
         }
         default:
@@ -157,11 +160,16 @@ function writeTaskQuerySortCursorValue(
 
 function readTaskQuerySortCursorValue(
     sort: TaskQueryNormalizedSort,
+    view: DataView,
     bytes: Uint8Array,
-    offset: number,
-): {value: TaskQuerySortCursorValue; offset: number} {
-    const headerByte = bytes[offset++];
-    if (headerByte === undefined) throw new InvalidArgumentError("Task cursor missing header byte");
+    byteOffset: number,
+): {value: TaskQuerySortCursorValue; byteOffset: number} {
+    if (byteOffset >= view.byteLength)
+        throw new InvalidArgumentError("Task cursor missing header byte");
+
+    const headerByte = view.getUint8(byteOffset);
+    byteOffset += 1;
+
     if ((headerByte & sortByteFormatMask) !== 0)
         throw new InvalidArgumentError("Unexpected task cursor format bit");
 
@@ -171,97 +179,92 @@ function readTaskQuerySortCursorValue(
 
     if (sort.type === "CollectionPosition") {
         const expectedCollectionIdBytes = decodeId(sort.collectionId);
-        if (offset + collectionIdPrefixByteLength > bytes.length) {
+        if (byteOffset + collectionIdPrefixByteLength > view.byteLength) {
             throw new InvalidArgumentError("Task cursor doesn\u2019t match sorts");
         }
 
         for (let i = 0; i < collectionIdPrefixByteLength; i++) {
-            if (bytes[offset + i] !== expectedCollectionIdBytes[i]) {
+            if (view.getUint8(byteOffset + i) !== expectedCollectionIdBytes[i]) {
                 throw new InvalidArgumentError("Task cursor doesn\u2019t match sorts");
             }
         }
 
-        offset += collectionIdPrefixByteLength;
+        byteOffset += collectionIdPrefixByteLength;
     }
 
-    if ((headerByte & sortByteNullMask) !== 0) return {value: null, offset};
+    if ((headerByte & sortByteNullMask) !== 0) return {value: null, byteOffset};
 
     switch (sort.type) {
         case "DisplayStatus":
         case "Priority":
         case "Layout": {
-            const value = bytes[offset++];
-            if (value === undefined || value === 0)
+            if (byteOffset >= view.byteLength)
                 throw new InvalidArgumentError("Expected task cursor byte value");
 
-            return {value, offset};
+            const value = view.getUint8(byteOffset);
+            byteOffset += 1;
+
+            if (value === 0) throw new InvalidArgumentError("Expected task cursor byte value");
+
+            return {value, byteOffset};
         }
         case "Assignee":
         case "Creator":
         case "Assigner": {
-            const stringByteLengthResult = readVarint(bytes, offset, bytes.length);
-            if (stringByteLengthResult === null)
-                throw new InvalidArgumentError("Expected task cursor string value length");
-            offset = stringByteLengthResult.offset;
+            const stringByteLengthResult = getVarInt(view, byteOffset);
+            byteOffset = stringByteLengthResult.byteOffset;
 
-            if (offset + stringByteLengthResult.value > bytes.length)
+            if (byteOffset + stringByteLengthResult.value > view.byteLength)
                 throw new InvalidArgumentError(
                     "Invalid task cursor string value, not enough bytes",
                 );
 
             const value = new TextDecoder().decode(
-                bytes.subarray(offset, offset + stringByteLengthResult.value),
+                bytes.subarray(byteOffset, byteOffset + stringByteLengthResult.value),
             );
 
-            return {value, offset: offset + stringByteLengthResult.value};
+            return {value, byteOffset: byteOffset + stringByteLengthResult.value};
         }
         case "DueDate": {
-            const result = readVarint(bytes, offset, bytes.length);
-            if (result === null)
-                throw new InvalidArgumentError("Invalid task cursor integer value");
-
-            return {value: result.value, offset: result.offset};
+            const result = getVarInt(view, byteOffset);
+            return {value: result.value, byteOffset: result.byteOffset};
         }
         case "CreatedTime":
         case "AssignedTime":
         case "ClosedTime":
         case "ActivatedTime": {
-            const result = readUint64(bytes, offset);
-            if (result === null)
+            if (byteOffset + 8 > view.byteLength)
                 throw new InvalidArgumentError("Expected task cursor hybrid logical time value");
 
-            const value = deserializeHybridLogicalTime(result.value);
+            const value = deserializeHybridLogicalTime(view.getBigUint64(byteOffset));
 
-            return {value, offset: result.offset};
+            return {value, byteOffset: byteOffset + 8};
         }
         case "ParentPosition":
         case "CollectionPosition":
         case "AssigneePosition": {
-            const timeResult = readUint64(bytes, offset);
-            if (timeResult === null)
+            if (byteOffset + 8 > view.byteLength)
                 throw new InvalidArgumentError(
                     "Expected task cursor position order hybrid logical time value",
                 );
-            offset = timeResult.offset;
 
-            const time = deserializeHybridLogicalTime(timeResult.value);
+            const time = deserializeHybridLogicalTime(view.getBigUint64(byteOffset));
+            byteOffset += 8;
 
-            const orderKeyByteLengthResult = readVarint(bytes, offset, bytes.length);
-            if (orderKeyByteLengthResult === null)
-                throw new InvalidArgumentError("Expected task cursor position order key length");
-            offset = orderKeyByteLengthResult.offset;
+            const orderKeyByteLengthResult = getVarInt(view, byteOffset);
+            byteOffset = orderKeyByteLengthResult.byteOffset;
 
-            if (offset + orderKeyByteLengthResult.value > bytes.length)
+            if (byteOffset + orderKeyByteLengthResult.value > view.byteLength)
                 throw new InvalidArgumentError(
                     "Invalid task cursor position order key value, not enough bytes",
                 );
 
-            const orderKeyEndOffset = offset + orderKeyByteLengthResult.value;
-            const orderKey = decodeOrderKey(bytes.subarray(offset, orderKeyEndOffset));
+            const orderKeyEndOffset = byteOffset + orderKeyByteLengthResult.value;
+            const orderKey = decodeOrderKey(bytes.subarray(byteOffset, orderKeyEndOffset));
 
             return {
                 value: [time[0], time[1], orderKey],
-                offset: orderKeyEndOffset,
+                byteOffset: orderKeyEndOffset,
             };
         }
         default:
@@ -291,63 +294,4 @@ function getTaskQueryNormalizedSortByte(sort: TaskQueryNormalizedSort): number {
     const directionBit = sort.direction === "Ascending" ? 0 : 1;
     const missingBit = sort.missing === "First" ? 0 : 1;
     return typeIndex * 4 + directionBit * 2 + missingBit;
-}
-
-function writeUint64(value: bigint, bytes: Array<number>): void {
-    for (let shift = 56n; shift >= 0n; shift -= 8n) {
-        bytes.push(Number((value >> shift) & 0xffn));
-    }
-}
-
-function readUint64(bytes: Uint8Array, offset: number): {value: bigint; offset: number} | null {
-    if (offset + 8 > bytes.length) return null;
-
-    let value = 0n;
-    for (let i = 0; i < 8; i++) {
-        value = (value << 8n) | BigInt(bytes[offset + i]!);
-    }
-
-    return {value, offset: offset + 8};
-}
-
-function writeVarint(value: number, bytes: Array<number>): void {
-    assert(Number.isSafeInteger(value));
-    assert(value >= 0);
-
-    let n = value;
-
-    while (n >= 0x80) {
-        bytes.push((n % 0x80) | 0x80);
-        n = Math.floor(n / 0x80);
-    }
-
-    bytes.push(n);
-}
-
-function readVarint(
-    bytes: Uint8Array,
-    offset: number,
-    limit: number,
-): {value: number; offset: number} | null {
-    let value = 0;
-    let multiplier = 1;
-
-    while (offset < limit) {
-        const byte = bytes[offset++]!;
-        const digit = byte & 0x7f;
-
-        if (digit > (Number.MAX_SAFE_INTEGER - value) / multiplier) return null;
-
-        value += digit * multiplier;
-
-        if ((byte & 0x80) === 0) {
-            return {value, offset};
-        }
-
-        if (multiplier > Number.MAX_SAFE_INTEGER / 0x80) return null;
-
-        multiplier *= 0x80;
-    }
-
-    return null;
 }

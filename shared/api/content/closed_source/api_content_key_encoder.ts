@@ -3,7 +3,9 @@ import type {ApiContentKey} from "~/shared/api/specification/types/api_content_k
 import {InvalidArgumentError} from "~/shared/error/error.js";
 import {errorDisplayMessage} from "~/shared/error/error_display_message.js";
 import {decodeBase64, encodeBase64} from "~/shared/helpers/binary/base64.js";
+import {DataBuilderView} from "~/shared/helpers/binary/data_builder_view.js";
 import {scrambleBytes, unscrambleBytes} from "~/shared/helpers/binary/scramble_bytes.js";
+import {getVarInt, pushVarInt} from "~/shared/helpers/binary/var_int.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {getSearchEntityNoun} from "~/shared/search/get_search_entity_noun.js";
 import {isSearchDynamicEntityType} from "~/shared/search/search_entity_id.js";
@@ -15,7 +17,7 @@ import {isSearchDynamicEntityType} from "~/shared/search/search_entity_id.js";
  */
 export class ApiContentKeyEncoder {
     readonly #entityIdHash: number;
-    readonly #basePayload: ReadonlyArray<number>;
+    readonly #basePayload: Uint8Array;
 
     constructor({entityId, version}: {entityId: string; version: number}) {
         assert(version >= 0);
@@ -23,7 +25,7 @@ export class ApiContentKeyEncoder {
 
         const entityIdHash = murmurhash.v3(entityId);
 
-        const basePayload: Array<number> = [];
+        const basePayload = new DataBuilderView();
 
         // Use 22 bits of the entity hash as a way to detect when you're using a key for
         // the wrong entity. Collision chance is 1 / 4,194,304 which is fine since it's not
@@ -38,14 +40,14 @@ export class ApiContentKeyEncoder {
         //
         // The second bit is the "inline" bit. `encode()` sets it when the keyed element
         // has inline content and therefore supports `Inline` positions.
-        basePayload.push(entityIdHash & 0b00111111);
-        basePayload.push((entityIdHash >>> 8) & 0b11111111);
-        basePayload.push((entityIdHash >>> 16) & 0b11111111);
+        basePayload.pushUint8(entityIdHash & 0b00111111);
+        basePayload.pushUint8((entityIdHash >>> 8) & 0b11111111);
+        basePayload.pushUint8((entityIdHash >>> 16) & 0b11111111);
 
-        writeVarint(version, basePayload);
+        pushVarInt(basePayload, version);
 
         this.#entityIdHash = entityIdHash;
-        this.#basePayload = basePayload;
+        this.#basePayload = basePayload.build();
     }
 
     encode({
@@ -63,14 +65,14 @@ export class ApiContentKeyEncoder {
         assert(nodeSize >= 0);
         assert(Number.isSafeInteger(nodeSize));
 
-        const payload = [...this.#basePayload];
+        const payload = new DataBuilderView(this.#basePayload);
 
-        if (inlineContent) payload[0] = payload[0]! | 0b01000000;
+        if (inlineContent) payload.setUint8(0, payload.getUint8(0) | 0b01000000);
 
-        writeVarint(pos, payload);
-        writeVarint(nodeSize, payload);
+        pushVarInt(payload, pos);
+        pushVarInt(payload, nodeSize);
 
-        const bytes = scrambleBytes(new Uint8Array(payload), this.#entityIdHash);
+        const bytes = scrambleBytes(payload.build(), this.#entityIdHash);
 
         return encodeBase64(bytes, "Rfc4648Url") as ApiContentKey;
     }
@@ -99,6 +101,7 @@ export class ApiContentKeyDecoder {
         const bytes = decodeBase64(key, "Rfc4648Url");
 
         const payload = unscrambleBytes(bytes, this.#entityIdHash);
+        const payloadView = new DataView(payload.buffer, payload.byteOffset, payload.byteLength);
 
         const createError = () =>
             new InvalidArgumentError("Invalid content key", {
@@ -109,17 +112,14 @@ export class ApiContentKeyDecoder {
 
         let offset = 3;
 
-        const versionResult = readVarint(payload, offset, payload.length);
-        if (versionResult === null) throw createError();
-        offset = versionResult.offset;
+        const versionResult = getVarInt(payloadView, offset);
+        offset = versionResult.byteOffset;
 
-        const posResult = readVarint(payload, offset, payload.length);
-        if (posResult === null) throw createError();
-        offset = posResult.offset;
+        const posResult = getVarInt(payloadView, offset);
+        offset = posResult.byteOffset;
 
-        const nodeSizeResult = readVarint(payload, offset, payload.length);
-        if (nodeSizeResult === null) throw createError();
-        offset = nodeSizeResult.offset;
+        const nodeSizeResult = getVarInt(payloadView, offset);
+        offset = nodeSizeResult.byteOffset;
 
         if (offset !== payload.length) throw createError();
 
@@ -128,9 +128,10 @@ export class ApiContentKeyDecoder {
         //
         // The first byte masks out the "inline" bit since it varies per key.
         if (
-            (payload[0]! & 0b10111111) !== (this.#entityIdHash & 0b00111111) ||
-            payload[1] !== ((this.#entityIdHash >>> 8) & 0b11111111) ||
-            payload[2] !== ((this.#entityIdHash >>> 16) & 0b11111111)
+            (payloadView.getUint8(0) & 0b10111111) !==
+                (this.#entityIdHash & 0b00111111) ||
+            payloadView.getUint8(1) !== ((this.#entityIdHash >>> 8) & 0b11111111) ||
+            payloadView.getUint8(2) !== ((this.#entityIdHash >>> 16) & 0b11111111)
         ) {
             const [entityIdType = ""] = this.#entityId.split(":", 2);
 
@@ -147,50 +148,7 @@ export class ApiContentKeyDecoder {
             version: versionResult.value,
             pos: posResult.value,
             nodeSize: nodeSizeResult.value,
-            inlineContent: (payload[0]! & 0b01000000) !== 0,
+            inlineContent: (payloadView.getUint8(0) & 0b01000000) !== 0,
         };
     }
-}
-
-function writeVarint(value: number, out: Array<number>): void {
-    let n = value;
-
-    // Protobuf unsigned varint encoding:
-    //
-    // Each byte stores 7 bits of the integer. The high bit means "more bytes follow."
-    // So all bytes except the final byte have bit 0x80 set.
-    while (n >= 0x80) {
-        out.push((n % 0x80) | 0x80);
-        n = Math.floor(n / 0x80);
-    }
-
-    out.push(n);
-}
-
-function readVarint(
-    bytes: Uint8Array,
-    offset: number,
-    limit: number,
-): {value: number; offset: number} | null {
-    let value = 0;
-    let multiplier = 1;
-
-    while (offset < limit) {
-        const byte = bytes[offset++]!;
-        const digit = byte & 0x7f;
-
-        if (digit > (Number.MAX_SAFE_INTEGER - value) / multiplier) return null;
-
-        value += digit * multiplier;
-
-        if ((byte & 0x80) === 0) {
-            return {value, offset};
-        }
-
-        if (multiplier > Number.MAX_SAFE_INTEGER / 0x80) return null;
-
-        multiplier *= 0x80;
-    }
-
-    return null;
 }
