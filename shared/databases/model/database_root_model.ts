@@ -72,19 +72,14 @@ export class DatabaseModel {
     }
 
     /**
-     * Whether any registered table's salted `table_name_hash` equals
-     * `tableNameHash`. Backs `formatUniqueTableName`'s uniqueness probe; pass
-     * `excludeTableId` when renaming so the table's own row doesn't count. Rows
-     * with a `NULL` hash (a table mid-creation, before its name is chosen) are
-     * invisible by design.
+     * Whether any registered table's salted `table_name_hash` equals `tableNameHash`.
+     * Backs `formatUniqueTableName`'s uniqueness probe; pass `excludeTableId` when
+     * renaming so the table's own row doesn't count. Rows with a `NULL` hash (a table
+     * mid-creation, before its name is chosen) are invisible by design.
      */
     isTableNameHashTaken(tableNameHash: string, excludeTableId?: DatabaseTableId) {
         const excludeClause =
-            excludeTableId === undefined
-                ? sql``
-                : sql`
-                      AND id != ${excludeTableId}
-                  `;
+            excludeTableId === undefined ? sql`` : sql` AND id != ${excludeTableId} `;
         return (
             sql`
                 SELECT
@@ -98,9 +93,9 @@ export class DatabaseModel {
     }
 
     /**
-     * Record a table's salted name hash in its registry row, keeping the
-     * uniqueness index in the same buffer batch as the rename or creation that
-     * set the name. Call from every site that writes a `table_name`.
+     * Record a table's salted name hash in its registry row, keeping the uniqueness
+     * index in the same buffer batch as the rename or creation that set the name. Call
+     * from every site that writes a `table_name`.
      */
     writeTableNameHash(tableId: DatabaseTableId, tableNameHash: string) {
         sql`
@@ -130,8 +125,8 @@ export class DatabaseModel {
 
         // The caller (the createTable action) migrated the table's per-db file before this
         // runs; the migration runner registered the table in main's `_alpine_tables` as
-        // part of that. The runner leaves `table_name_hash` NULL — only now is the
-        // name known.
+        // part of that. The runner leaves `table_name_hash` NULL — only now is the name
+        // known.
         this.writeTableNameHash(tableId, tableNameHash);
         sql`
             INSERT INTO

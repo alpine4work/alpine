@@ -68,15 +68,12 @@ export class DatabaseTableModel extends DatabaseSchemaScopedBaseModel {
 
     /**
      * `tableName`/`tableNameHash` are resolved by the calling action via
-     * `formatUniqueTableName` (with this table as `excludeTableId`, so a rename to
-     * a slug variant of the current name is a no-op on the SQL identifier).
+     * `formatUniqueTableName` (with this table as `excludeTableId`, so a rename to a
+     * slug variant of the current name is a no-op on the SQL identifier).
      */
     updateName(
         name: string,
-        {
-            tableName: newTableName,
-            tableNameHash,
-        }: {tableName: string; tableNameHash: string},
+        {tableName: newTableName, tableNameHash}: {tableName: string; tableNameHash: string},
     ) {
         if (newTableName !== this.tableName) {
             sql`

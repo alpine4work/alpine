@@ -41,10 +41,10 @@ export interface DatabaseActionServerContext {
     getCurrentAccountId(): AccountId | null;
     /**
      * HMAC of `value` keyed by the database group's private salt (see
-     * `hashWithPrivateSalt` in `shared/databases`). Server-only because the salt
-     * never leaves the group's durable object. Maintains the registry's
-     * `table_name_hash` uniqueness index without disclosing table names to group
-     * members who lack access to the table.
+     * `hashWithPrivateSalt` in `shared/databases`). Server-only because the salt never
+     * leaves the group's durable object. Maintains the registry's `table_name_hash`
+     * uniqueness index without disclosing table names to group members who lack access
+     * to the table.
      */
     hashWithPrivateSalt(value: string): string;
 }
@@ -195,8 +195,8 @@ export const databaseActions = {
             const creatorAccountId = server().getCurrentAccountId();
             assert(creatorAccountId !== null, "createTable requires an account actor");
 
-            // Resolve the unique SQLite table name (and its salted registry hash)
-            // before the migration runner registers the new table.
+            // Resolve the unique SQLite table name (and its salted registry hash) before the
+            // migration runner registers the new table.
             const {tableName, tableNameHash} = formatUniqueTableName({
                 model,
                 hashWithPrivateSalt: value => server().hashWithPrivateSalt(value),
@@ -825,8 +825,8 @@ export const databaseActions = {
         run({model, server}, {tableId, fieldId, name}) {
             const table = model.getTable(tableId);
             const existingField = table.getField(fieldId);
-            // The hasher is only invoked when the rename cascades into a join-table
-            // rename (relation fields), so plain-field renames stay client-runnable.
+            // The hasher is only invoked when the rename cascades into a join-table rename
+            // (relation fields), so plain-field renames stay client-runnable.
             existingField.updateName(name, value => server().hashWithPrivateSalt(value));
 
             return {};

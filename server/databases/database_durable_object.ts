@@ -65,10 +65,10 @@ class DatabaseGroupDurableObject {
         const databaseGroupId = idName as DatabaseGroupId;
 
         // The group's private salt keys the registry's `table_name_hash` index (see
-        // `hashWithPrivateSalt`). It lives only in this durable object's key-value
-        // storage — never in the replicated SQLite pages — so group members can't
-        // dictionary-attack the name hashes. Generated once at the group's first
-        // boot; losing it is recoverable (rotate + re-hash every table's name).
+        // `hashWithPrivateSalt`). It lives only in this durable object's key-value storage
+        // — never in the replicated SQLite pages — so group members can't
+        // dictionary-attack the name hashes. Generated once at the group's first boot;
+        // losing it is recoverable (rotate + re-hash every table's name).
         let privateSalt = await storage.get<Uint8Array>(databasePrivateSaltStorageKey);
         if (privateSalt === undefined) {
             privateSalt = crypto.getRandomValues(new Uint8Array(32));

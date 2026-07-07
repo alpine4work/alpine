@@ -34,9 +34,9 @@ function sqlStringLiteral(value: string): SqlQuery {
  * tableSqliteMigrations}.
  */
 export const mainSqliteMigrations: ReadonlyArray<SqliteMigration> = [
-    // `table_name_hash` is nullable because the migration runner registers a new
-    // table before its name is chosen; the creating action fills the hash in the
-    // same buffer batch.
+    // `table_name_hash` is nullable because the migration runner registers a new table
+    // before its name is chosen; the creating action fills the hash in the same buffer
+    // batch.
     sql`
         CREATE TABLE _alpine_tables (
             id TEXT PRIMARY KEY,

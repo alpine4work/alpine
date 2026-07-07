@@ -41,9 +41,9 @@ export class DatabaseFieldModel extends DatabaseTableScopedBaseModel {
     }
 
     /**
-     * `hashWithPrivateSalt` is only invoked when the field's provider renames a
-     * table as part of the field rename (relation fields rename their join
-     * table); see `DatabaseFieldProviderBase.renameFieldInSchema`.
+     * `hashWithPrivateSalt` is only invoked when the field's provider renames a table
+     * as part of the field rename (relation fields rename their join table); see
+     * `DatabaseFieldProviderBase.renameFieldInSchema`.
      */
     updateName(newName: string, hashWithPrivateSalt: (value: string) => string) {
         const newColumnName = this.table.formatUniqueFieldName(newName, this.columnName);

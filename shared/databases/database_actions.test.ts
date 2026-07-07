@@ -1326,15 +1326,14 @@ describe("renameTable", () => {
         db.close();
     });
 
-    test("rename keeps the registry's salted name hash current", async () => {
+    test("rename keeps the registry\u2019s salted name hash current", async () => {
         const db = await createDb();
         const {tableId} = run(db, "createTable", {name: "Tasks"});
 
         run(db, "renameTable", {tableId, name: "Projects"});
 
-        // The hash is the uniqueness index future creates and renames probe; a
-        // stale value would let a new "Projects" table collide (or block "Tasks"
-        // forever).
+        // The hash is the uniqueness index future creates and renames probe; a stale value
+        // would let a new "Projects" table collide (or block "Tasks" forever).
         const tableNameHash = sql`
             SELECT
                 table_name_hash

@@ -46,9 +46,9 @@ export abstract class DatabaseFieldProviderBase<
 
     /**
      * `hashWithPrivateSalt` supports providers whose rename cascades into a table
-     * rename (relation fields rename their join table) — resolving the new table
-     * name probes the registry's salted hash index. Providers that don't rename
-     * tables ignore it, so plain column renames stay runnable on the client.
+     * rename (relation fields rename their join table) — resolving the new table name
+     * probes the registry's salted hash index. Providers that don't rename tables
+     * ignore it, so plain column renames stay runnable on the client.
      */
     renameFieldInSchema(
         oldField: DatabaseFieldModel,

@@ -109,7 +109,11 @@ afterEach(() => {
 });
 
 async function createServerWithSchema(...statements: Array<SqlQuery>): Promise<DatabaseServer> {
-    const server = await DatabaseServer.create(new InMemoryStorage(), testDatabaseGroupId, testPrivateSalt);
+    const server = await DatabaseServer.create(
+        new InMemoryStorage(),
+        testDatabaseGroupId,
+        testPrivateSalt,
+    );
     openServers.push(server);
     const db = server.unsafeGetDbForTests();
     for (const stmt of statements) {
@@ -615,7 +619,11 @@ describe("DatabaseServer", () => {
     describe("storage integration", () => {
         test("writes go through to storage", async () => {
             const storage = new InMemoryStorage();
-            const server = await DatabaseServer.create(storage, testDatabaseGroupId, testPrivateSalt);
+            const server = await DatabaseServer.create(
+                storage,
+                testDatabaseGroupId,
+                testPrivateSalt,
+            );
             openServers.push(server);
             const db = server.unsafeGetDbForTests();
 
@@ -634,7 +642,11 @@ describe("DatabaseServer", () => {
 
         test("page data from execute matches what storage has", async () => {
             const storage = new InMemoryStorage();
-            const server = await DatabaseServer.create(storage, testDatabaseGroupId, testPrivateSalt);
+            const server = await DatabaseServer.create(
+                storage,
+                testDatabaseGroupId,
+                testPrivateSalt,
+            );
             openServers.push(server);
             const db = server.unsafeGetDbForTests();
 
@@ -760,7 +772,11 @@ describe("DatabaseServer", () => {
 
         test("before snapshot matches pre-mutation storage state", async () => {
             const storage = new InMemoryStorage();
-            const server = await DatabaseServer.create(storage, testDatabaseGroupId, testPrivateSalt);
+            const server = await DatabaseServer.create(
+                storage,
+                testDatabaseGroupId,
+                testPrivateSalt,
+            );
             openServers.push(server);
             const db = server.unsafeGetDbForTests();
             sql`CREATE TABLE items (id INTEGER PRIMARY KEY)`.exec(db);
@@ -797,7 +813,11 @@ describe("DatabaseServer", () => {
 
         test("after snapshot matches post-mutation storage state", async () => {
             const storage = new InMemoryStorage();
-            const server = await DatabaseServer.create(storage, testDatabaseGroupId, testPrivateSalt);
+            const server = await DatabaseServer.create(
+                storage,
+                testDatabaseGroupId,
+                testPrivateSalt,
+            );
             openServers.push(server);
             const db = server.unsafeGetDbForTests();
             sql`CREATE TABLE items (id INTEGER PRIMARY KEY)`.exec(db);
@@ -884,7 +904,11 @@ describe("DatabaseServer", () => {
         // shrink.
         test("VACUUM that shrinks the file drains without error", async () => {
             const storage = new InMemoryStorage();
-            const server = await DatabaseServer.create(storage, testDatabaseGroupId, testPrivateSalt);
+            const server = await DatabaseServer.create(
+                storage,
+                testDatabaseGroupId,
+                testPrivateSalt,
+            );
             openServers.push(server);
             const db = server.unsafeGetDbForTests();
             sql`CREATE TABLE items (id INTEGER PRIMARY KEY, BLOB TEXT NOT NULL)`.exec(db);
@@ -1021,7 +1045,11 @@ describe("DatabaseServer", () => {
 
 describe("DatabaseServer — per-table storage", () => {
     test("a fresh group has no tables", async () => {
-        const server = await DatabaseServer.create(new InMemoryStorage(), testDatabaseGroupId, testPrivateSalt);
+        const server = await DatabaseServer.create(
+            new InMemoryStorage(),
+            testDatabaseGroupId,
+            testPrivateSalt,
+        );
         openServers.push(server);
 
         const tables = sql`
@@ -1034,7 +1062,11 @@ describe("DatabaseServer — per-table storage", () => {
     });
 
     test("createTable stores public main metadata plus its own per-db file", async () => {
-        const server = await DatabaseServer.create(new InMemoryStorage(), testDatabaseGroupId, testPrivateSalt);
+        const server = await DatabaseServer.create(
+            new InMemoryStorage(),
+            testDatabaseGroupId,
+            testPrivateSalt,
+        );
         openServers.push(server);
         const {result} = server.executeAction<"createTable">(testContext, {
             name: "createTable",
@@ -1042,8 +1074,8 @@ describe("DatabaseServer — per-table storage", () => {
         });
         const db = server.unsafeGetDbForTests();
 
-        // Main holds only public routing metadata — no name, no table_name; the
-        // table's name appears only as a salted hash.
+        // Main holds only public routing metadata — no name, no table_name; the table's
+        // name appears only as a salted hash.
         const tables = sql`
             SELECT
                 *

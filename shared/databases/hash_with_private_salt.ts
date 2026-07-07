@@ -7,10 +7,10 @@ import {bytesToHex, utf8ToBytes} from "@noble/hashes/utils.js";
  * hex.
  *
  * Used to mirror per-table secrets (currently each table's SQLite `table_name`)
- * into main's replicated `_alpine_tables` registry without disclosing them:
- * main replicates to every group member, but the salt lives only in the group's
- * durable object, so members can't dictionary-attack the digests. HMAC with a
- * secret key is a PRF — without the salt the hashes are opaque.
+ * into main's replicated `_alpine_tables` registry without disclosing them: main
+ * replicates to every group member, but the salt lives only in the group's durable
+ * object, so members can't dictionary-attack the digests. HMAC with a secret key
+ * is a PRF — without the salt the hashes are opaque.
  *
  * The hash column is derived data: the plaintext truth stays in each per-table
  * file, so a lost salt is recoverable in principle — generate a new one and

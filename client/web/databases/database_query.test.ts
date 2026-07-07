@@ -167,7 +167,7 @@ async function buildSchemaSeed(
 ): Promise<{seedPages: DatabasePages; viewId: string; tableName: string}> {
     const fake = await Database.create(
         {readPage: () => null, getFileSize: () => 0},
-        {server: true},
+        {server: {privateSalt: new Uint8Array(32).fill(7)}},
     );
     fake.execute(db => runMainMigrations(db), {allowWrites: "schema+data"});
     const {result} = fake.executeAction<"createTable">(

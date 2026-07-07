@@ -3,18 +3,18 @@ import type {DatabaseTableId} from "~/shared/id/types/id_types.js";
 
 /**
  * Resolve a unique SQLite table name (and its salted hash) for a human-readable
- * `name` by probing the registry's `table_name_hash` index — no per-table file
- * is read, so this stays O(candidates) regardless of how many tables the group
- * has (reading every file would churn the attach LRU once the group outgrows
- * SQLite's attach limit). Pass `excludeTableId` when renaming so a rename to a
- * slug variant of the table's current name resolves to that same name.
+ * `name` by probing the registry's `table_name_hash` index — no per-table file is
+ * read, so this stays O(candidates) regardless of how many tables the group has
+ * (reading every file would churn the attach LRU once the group outgrows SQLite's
+ * attach limit). Pass `excludeTableId` when renaming so a rename to a slug variant
+ * of the table's current name resolves to that same name.
  *
  * Lives in the action layer: `hashWithPrivateSalt` is
- * `DatabaseActionServerContext`'s method of the same name, so calling this on
- * the client throws `DatabaseActionRequiresServerError`, routing the action to
- * the server — only the group's durable object holds the salt. The resolved
- * name and hash are then passed into the model together, keeping them
- * consistent by construction.
+ * `DatabaseActionServerContext`'s method of the same name, so calling this on the
+ * client throws `DatabaseActionRequiresServerError`, routing the action to the
+ * server — only the group's durable object holds the salt. The resolved name and
+ * hash are then passed into the model together, keeping them consistent by
+ * construction.
  */
 export function formatUniqueTableName({
     model,

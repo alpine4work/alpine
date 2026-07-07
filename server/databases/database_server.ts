@@ -195,24 +195,23 @@ export class DatabaseServer {
         );
         this._persistBuffer();
 
-        // Migrate stale per-table files, one execute + persist per table. The
-        // registry's schema_version mirrors each file's user_version, so a current
-        // table is skipped without ever attaching it — bootstrap costs O(stale
-        // tables), and cold starts after a no-migration deploy attach nothing.
-        // Attach-on-miss assumes every registered file is migration-current, so this
-        // sweep must finish before any action runs. Persisting per table keeps
-        // migrated files' buffered writes drained — Database only evicts tables with
-        // an empty buffer, and for groups with more stale tables than the attach
-        // threshold the sweep relies on that LRU eviction to stay under SQLite's
-        // limit.
+        // Migrate stale per-table files, one execute + persist per table. The registry's
+        // schema_version mirrors each file's user_version, so a current table is skipped
+        // without ever attaching it — bootstrap costs O(stale tables), and cold starts
+        // after a no-migration deploy attach nothing. Attach-on-miss assumes every
+        // registered file is migration-current, so this sweep must finish before any
+        // action runs. Persisting per table keeps migrated files' buffered writes drained
+        // — Database only evicts tables with an empty buffer, and for groups with more
+        // stale tables than the attach threshold the sweep relies on that LRU eviction to
+        // stay under SQLite's limit.
         for (const table of tables) {
             const migrationCount =
                 table.kind === "table"
                     ? tableSqliteMigrations(table.id).length
                     : joinTableSqliteMigrations(table.id).length;
             if (table.schemaVersion === migrationCount) continue;
-            // The migration runner also repairs the registry's schema_version mirror,
-            // in the same buffer batch as the migrations themselves.
+            // The migration runner also repairs the registry's schema_version mirror, in the
+            // same buffer batch as the migrations themselves.
             this.database.execute(
                 db => {
                     this.database.attachIfNeeded(table.id);
