@@ -190,7 +190,7 @@ function DatabaseRelationGridViewCellEditorOverlay({
     // options while focus stays in the input. Selecting an option links the record.
     const renderCandidate = useCallback(
         (row: DatabaseRelationCandidateRow) => (
-            <Item key={row.id} textValue={row.name || "Untitled"}>
+            <Item key={row.id} textValue={databaseRelationRowLabel(row.name)}>
                 <DatabaseRelationRowName name={row.name} />
             </Item>
         ),
@@ -559,7 +559,7 @@ function DatabaseRelationLinkedRow({
             <button
                 {...attributes}
                 {...listeners}
-                aria-label={`Reorder ${row.name || "Untitled"}`}
+                aria-label={`Reorder ${databaseRelationRowLabel(row.name)}`}
                 className={sprinkles({
                     width: "4",
                     height: "4",
@@ -579,7 +579,7 @@ function DatabaseRelationLinkedRow({
             </Box>
             <Box flexShrink="0">
                 <IconButton
-                    description={`Remove ${row.name || "Untitled"}`}
+                    description={`Remove ${databaseRelationRowLabel(row.name)}`}
                     size="xs"
                     variant="quiet"
                     onPress={onRemove}
@@ -592,12 +592,24 @@ function DatabaseRelationLinkedRow({
 }
 
 /**
+ * The accessible label / typeahead text for a linked record, falling back to
+ * "Untitled" when the record has no meaningful name (`null`, empty, or
+ * whitespace-only).
+ */
+function databaseRelationRowLabel(name: string | null): string {
+    return name != null && name.trim() !== "" ? name : "Untitled";
+}
+
+/**
  * Renders a linked record's name, falling back to a muted "Untitled" when the
- * record has no name (either `null` or an empty string).
+ * record has no meaningful name (`null`, empty, or whitespace-only). Preserves the
+ * name's whitespace with `white-space: pre` so names aren't silently collapsed.
  */
 function DatabaseRelationRowName({name}: {name: string | null}) {
-    if (name) return <>{name}</>;
-    return <span className={sprinkles({color: "grey-50"})}>Untitled</span>;
+    if (name == null || name.trim() === "") {
+        return <span className={sprinkles({color: "grey-50"})}>Untitled</span>;
+    }
+    return <span style={{whiteSpace: "pre"}}>{name}</span>;
 }
 
 function DatabaseRelationChip({name}: {name: string | null}) {
@@ -613,7 +625,9 @@ function DatabaseRelationChip({name}: {name: string | null}) {
             color="grey-100"
             style={{maxWidth: 120}}
         >
-            <Box fontStyle="truncate">{name ?? "Untitled"}</Box>
+            <Box fontStyle="truncate">
+                <DatabaseRelationRowName name={name} />
+            </Box>
         </Box>
     );
 }
