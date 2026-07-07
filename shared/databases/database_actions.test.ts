@@ -1558,8 +1558,8 @@ describe("getViewRowsPage", () => {
             {
                 id: firstSourceRowId,
                 links: [
-                    {id: firstTargetRowId, name: "Alpha"},
-                    {id: secondTargetRowId, name: "Beta"},
+                    {id: firstTargetRowId, name: "Alpha", position: "a0"},
+                    {id: secondTargetRowId, name: "Beta", position: "a1"},
                 ],
             },
             {id: secondSourceRowId, links: []},
@@ -1622,7 +1622,7 @@ describe("getViewRowsPage", () => {
         });
 
         expect(rows[0]![fieldIndexes.get(relation.sourceFieldId)!]).toEqual([
-            {id: targetRowId, name: "3.14"},
+            {id: targetRowId, name: "3.14", position: "a0"},
         ]);
         db.close();
     });
@@ -1701,13 +1701,13 @@ describe("getViewRowsPage", () => {
         ).toEqual([
             {
                 id: sourceRowId,
-                sourceLinks: [{id: targetRowId, name: "Child"}],
+                sourceLinks: [{id: targetRowId, name: "Child", position: "a0"}],
                 targetLinks: [],
             },
             {
                 id: targetRowId,
                 sourceLinks: [],
-                targetLinks: [{id: sourceRowId, name: "Parent"}],
+                targetLinks: [{id: sourceRowId, name: "Parent", position: "a0"}],
             },
         ]);
         db.close();
