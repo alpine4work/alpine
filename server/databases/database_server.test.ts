@@ -973,6 +973,24 @@ describe("DatabaseServer", () => {
                 }),
             ).toThrow("Database action syncTableMetadata is internal-only");
         });
+
+        for (const serviceName of ["AppService", "JobQueueService"] as const) {
+            test(`allows the internal ${serviceName} to run internal actions`, async () => {
+                const server = await createServerWithSchema();
+                const internalContext = {
+                    ...testContext,
+                    actor: {...testContext.actor, serviceName},
+                };
+
+                const input = createTableInputForTest("Tasks");
+                const {result} = server.executeAction<"createTable">(internalContext, {
+                    name: "createTable",
+                    input,
+                });
+
+                expect(result.tableId).toBe(input.tableId);
+            });
+        }
     });
 
     describe("executeAction — changed tables", () => {

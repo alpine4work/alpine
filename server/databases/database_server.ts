@@ -1,6 +1,7 @@
 import type {Database as SqliteDatabase} from "~/external/sqlite/ext/wasm/jswasm/sqlite3.mjs";
 import type {WorkerActionContext} from "~/server/cloudflare/context/worker_action_context.js";
 import type {DatabaseServerStorage} from "~/server/databases/database_server_storage.js";
+import type {ActorServiceName} from "~/server/helpers/actor_context_module.js";
 import {Database, type DatabaseTrackedExecution} from "~/shared/databases/database.js";
 import {
     type DatabaseActionName,
@@ -22,6 +23,30 @@ import {assert} from "~/shared/helpers/control/assert.js";
 import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
 import type {DatabaseTableId} from "~/shared/id/types/id_types.js";
 import {Schema} from "~/shared/schema/schema.js";
+
+/**
+ * Backend services allowed to execute `internalOnly` database actions (schema
+ * mutations like `createTable`/`syncTableMetadata`) through the durable object's
+ * action transport.
+ *
+ * The durable object's action route is reachable through the public edge, but a
+ * public client only ever arrives as a session actor (`AppClient`) or, over the
+ * WebSocket transport, as `EdgeService` — none of which are listed here, so they
+ * cannot run internal actions. Only first-party backend services that legitimately
+ * originate an internal action belong in this set; keep it minimal.
+ */
+const internalDatabaseActionServiceNames: ReadonlySet<ActorServiceName> = new Set([
+    // Database RPCs and route loaders, e.g. `createDatabaseTable` running
+    // `createTable`.
+    "AppService",
+    // Search indexing syncs table metadata into the durable object via
+    // `syncTableMetadata`.
+    "JobQueueService",
+    // The database group durable object executing an internal action against itself.
+    "DatabaseGroupService",
+    // The test harness.
+    "Test",
+]);
 
 export interface DatabaseServerPageChange {
     before: Uint8Array;
@@ -121,11 +146,7 @@ export class DatabaseServer {
         actionObject: DatabaseActionObject<N>,
     ): DatabaseServerActionResult<N> {
         const internalOnly = databaseActions[actionObject.name].internalOnly;
-        if (
-            internalOnly &&
-            context.actor.serviceName !== "DatabaseGroupService" &&
-            context.actor.serviceName !== "Test"
-        ) {
+        if (internalOnly && !internalDatabaseActionServiceNames.has(context.actor.serviceName)) {
             throw new PermissionDeniedError(
                 `Database action ${actionObject.name} is internal-only`,
             );
