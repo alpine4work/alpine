@@ -7,17 +7,23 @@ import {BrowserPageTracker} from "~/server/databases/browser_page_tracker.js";
 import {buildDatabasePageDiffs} from "~/server/databases/build_database_page_diffs.js";
 import {DatabaseDurableObjectStorage} from "~/server/databases/database_durable_object_storage.js";
 import {DatabaseServer} from "~/server/databases/database_server.js";
+import {isTrustedDatabaseServiceActor} from "~/server/databases/is_trusted_database_service_actor.js";
 import {WebSocketConnectionProcedures} from "~/server/web_socket/web_socket_server.js";
 import {databaseActions} from "~/shared/databases/database_actions.js";
 import type {
     DatabasePageDiffs,
+    DatabaseTableAccessLevel,
     DatabaseTablePages,
 } from "~/shared/databases/database_protocol_schemas.js";
 import {
     DatabaseRealtimeEvent,
     DatabaseRealtimeProtocol,
 } from "~/shared/databases/database_realtime_protocol.js";
-import {cacheUpdateStalePageLimit, sqlitePageSize} from "~/shared/databases/sqlite_constants.js";
+import {
+    cacheUpdateStalePageLimit,
+    databaseMainTableId,
+    sqlitePageSize,
+} from "~/shared/databases/sqlite_constants.js";
 import type {RynamoEventStub} from "~/shared/dynamo/rynamo_types.js";
 import {PermissionDeniedError} from "~/shared/error/error.js";
 import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
@@ -169,7 +175,18 @@ export class DatabaseDurableObjectConnection {
                 fileSizesInPages,
             };
         },
-        ensureCacheIsUpToDate: async (_context, input) => {
+        ensureCacheIsUpToDate: async (context, input) => {
+            // Trusted internal connections are unrestricted; browser connections get per-table
+            // withholding plus the complete access map (their only source of "exists but no
+            // access" — an inaccessible table's policy lives inside a file that never
+            // replicates to them).
+            const isTrustedActor = isTrustedDatabaseServiceActor(context.actor);
+            const tableAccess = isTrustedActor
+                ? new Map<DatabaseTableId, DatabaseTableAccessLevel>()
+                : this._server.getTableAccessLevelsForAccount(
+                      context.actor.getPossiblyBotAccountIdIfExists(),
+                  );
+
             // Mutable builder for the readonly `DatabaseEnsureCacheIsUpToDateResult["tables"]`
             // return type; `updatedPages` reuses the wire type.
             const tables = new Map<
@@ -188,6 +205,12 @@ export class DatabaseDurableObjectConnection {
             const pendingPagesByTable = new Map<DatabaseTableId, Iterable<number>>();
 
             for (const [tableId, tableVersions] of input.pageVersionsByIndex) {
+                // Withhold tables the account can't read. Omitting the table also wipes its
+                // per-browser tracker state below — correct, since no pages will be sent while
+                // access is missing.
+                if (!isTrustedActor && (tableAccess.get(tableId) ?? "none") === "none") {
+                    continue;
+                }
                 const updatedPages = new Map<number, {version: number; data: Uint8Array}>();
                 const stalePageIndexes: Array<number> = [];
                 let overLimit = false;
@@ -252,7 +275,7 @@ export class DatabaseDurableObjectConnection {
                 this._browserPageTracker.addPendingPages(this._browserId, pendingPagesByTable);
             }
 
-            return {tables};
+            return {tables, tableAccess};
         },
         acknowledgePages: async (_context, input) => {
             this._browserPageTracker.addPages(this._browserId, input.pageIndexes);
@@ -281,18 +304,54 @@ export class DatabaseDurableObjectConnection {
         context: WorkerSessionActionContext,
         eventStub: DatabaseRealtimeEventStub,
     ): Promise<DatabaseRealtimeEvent> {
+        const isTrustedActor = isTrustedDatabaseServiceActor(context.actor);
         switch (eventStub.type) {
             case "PagesChanged": {
-                return eventStub;
+                if (isTrustedActor) return eventStub;
+                // Withhold page diffs for tables this connection's account can't read; the main
+                // registry is public by design. The event is sent even when everything filters out
+                // — the originator's optimistic queue dequeues on the `mutationId`.
+                const accountId = context.actor.getPossiblyBotAccountIdIfExists();
+                const pageDiffs: DatabasePageDiffs = new Map(
+                    [...eventStub.pageDiffs].filter(
+                        ([tableId]) =>
+                            tableId === databaseMainTableId ||
+                            this._server.getTableAccessLevelForAccount(tableId, accountId) !==
+                                "none",
+                    ),
+                );
+                return {type: "PagesChanged", pageDiffs, mutationId: eventStub.mutationId};
             }
             case "TableMetadataChanged": {
-                const {events} = await getDatabaseTableMetadataRealtimeEvent(context, {
-                    databaseGroupId: this._databaseGroupId,
-                    events: eventStub.events,
-                });
+                const {events, deniedTableIds} = await getDatabaseTableMetadataRealtimeEvent(
+                    context,
+                    {
+                        databaseGroupId: this._databaseGroupId,
+                        events: eventStub.events,
+                    },
+                );
+                // Access-map delta for every table the batch touched: visible events report the
+                // account's current level from the replicated policies, denied ones report "none"
+                // (the revocation signal). Trusted connections are unrestricted and get no map.
+                const tableAccess = new Map<DatabaseTableId, DatabaseTableAccessLevel>();
+                if (!isTrustedActor) {
+                    const accountId = context.actor.getPossiblyBotAccountIdIfExists();
+                    for (const event of events) {
+                        if (event.type !== "PutItem") continue;
+                        const tableId = event.item.model.tableId;
+                        tableAccess.set(
+                            tableId,
+                            this._server.getTableAccessLevelForAccount(tableId, accountId),
+                        );
+                    }
+                    for (const tableId of deniedTableIds ?? []) {
+                        tableAccess.set(tableId, "none");
+                    }
+                }
                 return {
                     type: "TableMetadataChanged",
                     events,
+                    tableAccess,
                 };
             }
             default:

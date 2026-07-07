@@ -60,7 +60,15 @@ export const getDatabaseTableMetadataRealtimeEvent = defineRpc({
         events: Schema.array(RynamoEventStubSchema),
     },
     output: {
+        /** The events the calling actor may see. */
         events: Schema.array(DatabaseTableMetadataRealtimeEventSchema),
+        /**
+         * Tables whose events were withheld — the actor lacks `View` on them (or the
+         * metadata was deleted). Redacted rather than an error: a group mixes accessible
+         * and inaccessible tables, and the ids double as the revocation signal for the
+         * receiver's access map.
+         */
+        deniedTableIds: Schema.array(Schema.id<DatabaseTableId>()),
     },
 });
 

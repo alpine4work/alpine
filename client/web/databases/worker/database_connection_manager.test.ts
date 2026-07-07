@@ -28,7 +28,7 @@ function makeTestSocket(): {
                 return new Promise(() => {});
             },
             async ensureCacheIsUpToDate() {
-                return {tables: new Map()};
+                return {tables: new Map(), tableAccess: new Map()};
             },
             async acknowledgePages() {
                 return {};

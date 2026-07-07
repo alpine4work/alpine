@@ -15,7 +15,10 @@ import {
     type DatabaseActionOutput,
     databaseActions,
 } from "~/shared/databases/database_actions.js";
-import type {ReadonlyDatabasePageSet} from "~/shared/databases/database_protocol_schemas.js";
+import type {
+    DatabaseTableAccessLevel,
+    ReadonlyDatabasePageSet,
+} from "~/shared/databases/database_protocol_schemas.js";
 import {DatabaseTableAccessPolicySqlSchema} from "~/shared/databases/database_table_access_policy.js";
 import {type SqlQuery, databaseTableSchemaName, sql} from "~/shared/databases/sql.js";
 import {
@@ -24,7 +27,7 @@ import {
     deniedSqliteTableAccess,
     unrestrictedSqliteTableAccess,
 } from "~/shared/databases/sqlite_authorizer.js";
-import {sqlitePageSize} from "~/shared/databases/sqlite_constants.js";
+import {databaseMainTableId, sqlitePageSize} from "~/shared/databases/sqlite_constants.js";
 import {
     joinTableSqliteMigrations,
     runJoinTableMigrations,
@@ -244,6 +247,53 @@ export class DatabaseServer {
             default:
                 throw exhaustive(entry);
         }
+    }
+
+    /**
+     * `accountId`'s wire-level access to one table — the per-table delta shape the
+     * realtime layer pushes to clients.
+     */
+    getTableAccessLevelForAccount(
+        tableId: DatabaseTableId,
+        accountId: AccountId | null,
+    ): DatabaseTableAccessLevel {
+        return databaseTableAccessLevelForSqliteAccess(
+            this.getTableAccessForAccount(tableId, accountId),
+        );
+    }
+
+    /**
+     * `accountId`'s wire-level access to every table registered in the group, plus the
+     * main registry (public by design). This is the complete map
+     * `ensureCacheIsUpToDate` pushes to clients — their only source of "exists but no
+     * access", since an inaccessible table's policy lives inside a file that never
+     * replicates to them.
+     *
+     * Tables whose policies aren't cached yet (registered but never attached since
+     * this durable object woke) are attached on demand — the attach hook loads their
+     * entries, and entries survive LRU detach, so this is a one-time cost per table
+     * per durable-object lifetime.
+     */
+    getTableAccessLevelsForAccount(
+        accountId: AccountId | null,
+    ): Map<DatabaseTableId, DatabaseTableAccessLevel> {
+        const tableIds = this.database._runServerMetadataRead(db =>
+            sql`
+                SELECT
+                    id
+                FROM
+                    main._alpine_tables
+            `.selectAll(db, {id: Schema.id<DatabaseTableId>()}),
+        );
+        const levels = new Map<DatabaseTableId, DatabaseTableAccessLevel>();
+        for (const {id} of tableIds) {
+            if (!this.tableAccessCache.has(id) && !this.pendingCreatedTableIds.has(id)) {
+                this.database.attachIfNeeded(id);
+            }
+            levels.set(id, this.getTableAccessLevelForAccount(id, accountId));
+        }
+        levels.set(databaseMainTableId, "write");
+        return levels;
     }
 
     createTrackedExecution<Value>(fn: () => Value): DatabaseTrackedExecution<Value> {
@@ -689,4 +739,18 @@ function accessLevelForPolicy(
 ): AccessLevel | null {
     if (accessPolicy.type !== "Local") return null;
     return getAccountAccessLevelAssumingSpaceAccess(accessPolicy, accountId);
+}
+
+/**
+ * Collapse per-statement capabilities into the coarser wire shape clients consume.
+ * `insert`-vs-`updateDelete` nuance (join files) is dropped: any write capability
+ * reports `"write"` — the authoritative per-statement enforcement stays
+ * server-side.
+ */
+function databaseTableAccessLevelForSqliteAccess(
+    access: SqliteTableAccess,
+): DatabaseTableAccessLevel {
+    if (access.updateDelete || access.insert || access.schema) return "write";
+    if (access.read) return "read";
+    return "none";
 }

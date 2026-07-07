@@ -775,6 +775,7 @@ describe("ensureCacheIsUpToDate", () => {
                     fileSizeInPages: number;
                 }
             >;
+            tableAccess: Map<DatabaseTableId, "none" | "read" | "write">;
         }) => void;
         const validationGate = new Promise<{
             tables: Map<
@@ -785,6 +786,7 @@ describe("ensureCacheIsUpToDate", () => {
                     fileSizeInPages: number;
                 }
             >;
+            tableAccess: Map<DatabaseTableId, "none" | "read" | "write">;
         }>(resolve => {
             resolveValidation = resolve;
         });
@@ -838,6 +840,7 @@ describe("ensureCacheIsUpToDate", () => {
                     },
                 ],
             ]),
+            tableAccess: new Map(),
         });
         await validation;
 
@@ -1772,5 +1775,34 @@ describe("DatabaseClient handle release", () => {
         expect(rows).toMatchObject([{n: 1}]);
 
         reopened.close();
+    });
+});
+
+describe("DatabaseClient — table access levels", () => {
+    test("stores the map from ensureCacheIsUpToDate and merges event deltas", async () => {
+        const client = await DatabaseClient.create(createInMemoryOpfsDirectoryHandle());
+        const readableTableId = generateId<DatabaseTableId>();
+        const hiddenTableId = generateId<DatabaseTableId>();
+        const conn = makeDatabaseClientConnection({
+            ensureCacheIsUpToDate: () =>
+                Promise.resolve({
+                    tables: new Map(),
+                    tableAccess: new Map<DatabaseTableId, "none" | "read" | "write">([
+                        [readableTableId, "read"],
+                        [hiddenTableId, "none"],
+                    ]),
+                }),
+        });
+        await client.ensureCacheIsUpToDate(conn);
+
+        client.applyTableAccessLevels(new Map([[hiddenTableId, "write"]]));
+
+        expect({
+            readable: client.getTableAccessLevel(readableTableId),
+            granted: client.getTableAccessLevel(hiddenTableId),
+            unknown: client.getTableAccessLevel(generateId<DatabaseTableId>()),
+        }).toEqual({readable: "read", granted: "write", unknown: "write"});
+
+        client.close();
     });
 });

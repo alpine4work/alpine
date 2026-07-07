@@ -33,13 +33,11 @@ export default implementRpcs(definitions, {
     getDatabaseTableMetadataRealtimeEvent: {
         visibility: ["DatabaseGroupService"],
         async execute(context, input) {
-            return {
-                events: await getDatabaseTableMetadataRealtimeEvent(
-                    context.actor.authorizeSession(),
-                    input.databaseGroupId,
-                    input.events,
-                ),
-            };
+            return await getDatabaseTableMetadataRealtimeEvent(
+                context.actor.authorizeSession(),
+                input.databaseGroupId,
+                input.events,
+            );
         },
     },
     authorizeDatabaseGroupAccess: {

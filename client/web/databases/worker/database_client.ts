@@ -17,6 +17,8 @@ import type {
     DatabasePageIndexes,
     DatabasePageVersionsByIndex,
     DatabasePages,
+    DatabaseTableAccessLevel,
+    DatabaseTableAccessLevels,
     ReadonlyDatabasePageSet,
 } from "~/shared/databases/database_protocol_schemas.js";
 import {
@@ -78,6 +80,15 @@ export class DatabaseClient {
     private readonly storage: OpfsDatabaseStorage;
     private optimisticQueue: Array<OptimisticMutation> = [];
     private nextTestCommitVersion = 0;
+    /**
+     * The account's per-table access map, pushed by the server: replaced with the
+     * complete map on every {@link ensureCacheIsUpToDate} and merged with the deltas
+     * carried on `TableMetadataChanged` events (see {@link applyTableAccessLevels}).
+     * Advisory — the server's per-statement authorizer is the enforcement — but it's
+     * the client's only source of "exists but no access", e.g. for rendering a
+     * relation into a table this account can't read.
+     */
+    private tableAccessLevelByTableId = new Map<DatabaseTableId, DatabaseTableAccessLevel>();
 
     private constructor(database: Database, storage: OpfsDatabaseStorage) {
         this.database = database;
@@ -153,7 +164,10 @@ export class DatabaseClient {
             pageVersionsByIndex.set(tableId, tableVersions);
         }
 
-        const {tables} = await conn.ensureCacheIsUpToDate(pageVersionsByIndex);
+        const {tables, tableAccess} = await conn.ensureCacheIsUpToDate(pageVersionsByIndex);
+        if (tableAccess.size > 0) {
+            this.tableAccessLevelByTableId = new Map(tableAccess);
+        }
 
         // From here through `replayOptimisticQueue()` runs synchronously — no `await` — so
         // a concurrent handler can't re-dirty the buffer between the discard and the
@@ -203,6 +217,28 @@ export class DatabaseClient {
         if (anyChanged) {
             this.scheduleInvalidation();
         }
+    }
+
+    /**
+     * Merge a `TableMetadataChanged` access delta into the map (see {@link
+     * tableAccessLevelByTableId}).
+     */
+    applyTableAccessLevels(tableAccess: DatabaseTableAccessLevels): void {
+        for (const [tableId, level] of tableAccess) {
+            this.tableAccessLevelByTableId.set(tableId, level);
+        }
+    }
+
+    /**
+     * The account's access to `tableId` per the server-pushed map. Tables absent from
+     * the map report `"write"`: trusted internal connections (tests, tools) receive
+     * empty maps, and a real client's map is complete for every registered table — so
+     * absence means unrestricted or brand-new, and the server's authorizer is the
+     * enforcement either way.
+     */
+    getTableAccessLevel(tableId: DatabaseTableId): DatabaseTableAccessLevel {
+        if (tableId === databaseMainTableId) return "write";
+        return this.tableAccessLevelByTableId.get(tableId) ?? "write";
     }
 
     /**

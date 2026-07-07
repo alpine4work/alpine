@@ -5,6 +5,7 @@ import {
     DatabasePageDiffsSchema,
     DatabasePageIndexesSchema,
     DatabasePageVersionsByIndexSchema,
+    DatabaseTableAccessLevelsSchema,
 } from "~/shared/databases/database_protocol_schemas.js";
 import {DatabaseTableMetadataModel} from "~/shared/databases/database_table_metadata_model.js";
 import {RynamoEventStubSchema, createRynamoEventSchema} from "~/shared/dynamo/rynamo_types.js";
@@ -44,7 +45,18 @@ export const DatabaseRealtimeProtocol = defineWebSocketProtocol({
         }),
         TableMetadataChanged: Schema.object({
             type: Schema.value("TableMetadataChanged"),
+            /**
+             * Only the events the receiving account may see; events for tables it lacks `View`
+             * on are dropped (their ids surface in `tableAccess` as `"none"` instead — never
+             * as a socket error, since a group mixes accessible and inaccessible tables).
+             */
             events: Schema.array(DatabaseTableMetadataRealtimeEventSchema),
+            /**
+             * Access-map delta covering every table this batch touched. The client merges it
+             * over the complete map it received from `ensureCacheIsUpToDate`. Empty for
+             * trusted internal connections.
+             */
+            tableAccess: DatabaseTableAccessLevelsSchema,
         }),
     },
 });

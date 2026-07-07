@@ -113,6 +113,32 @@ export const DatabasePageVersionsByIndexSchema = Schema.map(
 
 export type DatabasePageVersionsByIndex = SchemaType<typeof DatabasePageVersionsByIndexSchema>;
 
+// -- Table access levels --------------------------------------------------------
+
+/**
+ * Wire-level summary of the receiving account's access to one table file, derived
+ * server-side from the replicated access policies (`"write"` = Edit or above,
+ * `"read"` = View/Comment, `"none"` = no access).
+ *
+ * The client can't compute this itself: a table's policy lives inside its own
+ * file, which never replicates to accounts without access — so the server pushes
+ * the complete map in `ensureCacheIsUpToDate` responses and per-table deltas on
+ * `TableMetadataChanged` events. The client uses it to _plan_ (e.g. relation
+ * fields render "No access" chips instead of joining into a file it can't read);
+ * the authoritative enforcement is the server's per-statement authorizer.
+ */
+export const DatabaseTableAccessLevelSchema = Schema.enum(["none", "read", "write"]);
+
+export type DatabaseTableAccessLevel = SchemaType<typeof DatabaseTableAccessLevelSchema>;
+
+/** Per-table {@link DatabaseTableAccessLevelSchema} map. */
+export const DatabaseTableAccessLevelsSchema = Schema.map(
+    Schema.id<DatabaseTableId>(),
+    DatabaseTableAccessLevelSchema,
+);
+
+export type DatabaseTableAccessLevels = SchemaType<typeof DatabaseTableAccessLevelsSchema>;
+
 /**
  * Result config for `ensureCacheIsUpToDate`.
  *
@@ -137,6 +163,13 @@ export const DatabaseEnsureCacheIsUpToDateResultConfig = {
             fileSizeInPages: Schema.integer,
         }),
     ),
+    /**
+     * The complete access map for every table registered in the group (plus the main
+     * registry), regardless of what the client requested — this is the client's only
+     * source of "exists but no access". Empty for trusted internal connections, which
+     * are unrestricted.
+     */
+    tableAccess: DatabaseTableAccessLevelsSchema,
 };
 
 export type DatabaseEnsureCacheIsUpToDateResult = ObjectSchemaConfigType<

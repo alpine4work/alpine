@@ -8,11 +8,7 @@ import {
     getDatabaseGroupIdForSpace,
     getExistingDatabaseGroupIdForSpace,
 } from "~/server/spaces/get_database_group_id_for_space.js";
-import {
-    type AccessLevel,
-    type AccessPolicy,
-    type LocalAccessPolicy,
-} from "~/shared/access/access_policy.js";
+import {type AccessPolicy, type LocalAccessPolicy} from "~/shared/access/access_policy.js";
 import {databaseTableAccessPolicyForCreator} from "~/shared/databases/database_table_access_policy.js";
 import {DatabaseTableMetadataModel} from "~/shared/databases/database_table_metadata_model.js";
 import type {RynamoEvent, RynamoEventStub, RynamoItem} from "~/shared/dynamo/rynamo_types.js";
@@ -167,62 +163,63 @@ export async function getDatabaseTableMetadataRealtimeEvent(
     context: ServerActionContext,
     databaseGroupId: DatabaseGroupId,
     events: ReadonlyArray<RynamoEventStub>,
-): Promise<ReadonlyArray<RynamoEvent<DatabaseTableMetadataModel>>> {
+): Promise<{
+    events: ReadonlyArray<RynamoEvent<DatabaseTableMetadataModel>>;
+    deniedTableIds: ReadonlyArray<DatabaseTableId>;
+}> {
+    const eventStubs = events.map(eventStub => {
+        const itemKey = DatabaseTablesTable.deserializeOpaqueItemKey(eventStub.item.key);
+
+        if (
+            itemKey.partitionType === "DatabaseGroup" &&
+            itemKey.databaseGroupId === databaseGroupId &&
+            itemKey.sortRangeType === "Table"
+        ) {
+            return {...eventStub, itemKey};
+        }
+
+        throw new PermissionDeniedError(
+            "Can\u2019t get realtime event for item that\u2019s not associated with the designated database group",
+        );
+    });
     const actualEvents = (await DatabaseTablesTable.getRealtimeEvent(
         context,
-        events.map(eventStub => {
-            const itemKey = DatabaseTablesTable.deserializeOpaqueItemKey(eventStub.item.key);
-
-            if (
-                itemKey.partitionType === "DatabaseGroup" &&
-                itemKey.databaseGroupId === databaseGroupId &&
-                itemKey.sortRangeType === "Table"
-            ) {
-                return {...eventStub, itemKey};
-            }
-
-            throw new PermissionDeniedError(
-                "Can\u2019t get realtime event for item that\u2019s not associated with the designated database group",
-            );
-        }),
+        eventStubs,
     )) as ReadonlyArray<RynamoEvent<DatabaseTableMetadataModel>>;
 
-    await runAllPromises(
+    // Redact rather than reject: a database group mixes tables the actor can and can't
+    // see, so a denied event must not tear down the actor's realtime connection.
+    // Withheld table ids are returned so receivers can update their access maps (a
+    // denial doubles as the revocation signal). Deleted metadata has no policy left to
+    // evaluate \u2014 treat it as inaccessible too.
+    const authorizedByIndex = await runAllPromises(
         actualEvents.map(async event => {
             switch (event.type) {
                 case "PutItem":
-                    await authorizeDatabaseTableMetadataAccess(context, event.item.model, "View");
-                    break;
-                case "DeleteItem":
-                    throw new PermissionDeniedError(
-                        "Can\u2019t authorize deleted database table metadata realtime event",
+                    return await evaluateAccessPolicy(
+                        context,
+                        event.item.model.spaceId,
+                        event.item.model.accessPolicy,
+                        "View",
                     );
+                case "DeleteItem":
+                    return false;
                 default:
                     throw exhaustive(event);
             }
         }),
     );
 
-    return actualEvents as ReadonlyArray<RynamoEvent<DatabaseTableMetadataModel>>;
-}
-
-async function authorizeDatabaseTableMetadataAccess(
-    context: ServerActionContext,
-    tableMetadata: DatabaseTableMetadataModel,
-    expectedAccessLevel: AccessLevel,
-): Promise<void> {
-    const isAccessAuthorized = await evaluateAccessPolicy(
-        context,
-        tableMetadata.spaceId,
-        tableMetadata.accessPolicy,
-        expectedAccessLevel,
-    );
-
-    if (!isAccessAuthorized) {
-        throw new PermissionDeniedError(
-            `Actor doesn\u2019t have ${expectedAccessLevel} access level`,
-        );
-    }
+    const visibleEvents: Array<RynamoEvent<DatabaseTableMetadataModel>> = [];
+    const deniedTableIds: Array<DatabaseTableId> = [];
+    actualEvents.forEach((event, index) => {
+        if (authorizedByIndex[index] === true) {
+            visibleEvents.push(event);
+        } else {
+            deniedTableIds.push(eventStubs[index]!.itemKey.tableId);
+        }
+    });
+    return {events: visibleEvents, deniedTableIds};
 }
 
 export async function getDatabaseTableMetadataForSearchIndex(

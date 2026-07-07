@@ -1598,3 +1598,60 @@ describe("DatabaseServer — per-table access", () => {
         ).toThrow(`Permission denied for insert on database table ${scenario.people.tableId}`);
     });
 });
+
+describe("DatabaseServer — table access levels", () => {
+    test("returns the complete map, loading policies for never-attached tables", async () => {
+        const storage = new InMemoryStorage();
+        const server1 = await DatabaseServer.create(storage, testPrivateSalt);
+        openServers.push(server1);
+        const viewer = generateId<AccountId>();
+        const readable = server1.executeAction<"createTable">(testContext, {
+            name: "createTable",
+            input: {
+                tableId: generateChronologicalId<DatabaseTableId>(),
+                name: "Readable",
+                accessPolicy: {
+                    type: "Local",
+                    accountGrantById: new Map([[viewer, {level: "View" as const}]]),
+                    defaultGrant: null,
+                    urlGrant: null,
+                },
+            },
+        }).result;
+        const hidden = server1.executeAction<"createTable">(testContext, {
+            name: "createTable",
+            input: {
+                tableId: generateChronologicalId<DatabaseTableId>(),
+                name: "Hidden",
+                accessPolicy: databaseTableAccessPolicyForCreator(testAccountId),
+            },
+        }).result;
+        server1.close();
+
+        // A fresh server on the same storage attaches nothing at bootstrap (both tables
+        // are migration-current); the access map must load their policies on demand.
+        const server2 = await DatabaseServer.create(storage, testPrivateSalt);
+        openServers.push(server2);
+
+        expect(server2.getTableAccessLevelsForAccount(viewer)).toEqual(
+            new Map([
+                [readable.tableId, "read"],
+                [hidden.tableId, "none"],
+                [databaseMainTableId, "write"],
+            ]),
+        );
+    });
+
+    test("owners report write access", async () => {
+        const server = await DatabaseServer.create(new InMemoryStorage(), testPrivateSalt);
+        openServers.push(server);
+        const {result} = server.executeAction<"createTable">(testContext, {
+            name: "createTable",
+            input: createTableInputForTest("Tasks"),
+        });
+
+        expect(server.getTableAccessLevelsForAccount(testAccountId).get(result.tableId)).toBe(
+            "write",
+        );
+    });
+});
