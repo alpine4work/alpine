@@ -205,6 +205,8 @@ export class DatabaseServer {
                     ? tableSqliteMigrations(table.id).length
                     : joinTableSqliteMigrations(table.id).length;
             if (table.schemaVersion === migrationCount) continue;
+            // The migration runner also repairs the registry's schema_version mirror,
+            // in the same buffer batch as the migrations themselves.
             this.database.execute(
                 db => {
                     this.database.attachIfNeeded(table.id);
@@ -218,15 +220,6 @@ export class DatabaseServer {
                         default:
                             throw exhaustive(table.kind);
                     }
-                    // Same buffer batch as the migrations themselves, so the registry mirror and the
-                    // file's user_version persist atomically.
-                    sql`
-                        UPDATE _alpine_tables
-                        SET
-                            schema_version = ${migrationCount}
-                        WHERE
-                            id = ${table.id}
-                    `.exec(db);
                 },
                 {allowWrites: "schema+data"},
             );

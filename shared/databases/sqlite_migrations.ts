@@ -227,7 +227,8 @@ export function runMainMigrations(db: Database, migrationLimitForTest?: number):
 /**
  * Runs any pending {@link tableSqliteMigrations} against `tableId`'s `ATTACH`-ed
  * per-table database. Tracks progress with that schema's own
- * `PRAGMA "_{tableId}".user_version`.
+ * `PRAGMA "_{tableId}".user_version`, mirrored into main's
+ * `_alpine_tables.schema_version` registry column.
  *
  * Runs server-side only: the server is canonical for schema, and clients trust the
  * pages it syncs.
@@ -237,44 +238,35 @@ export function runTableMigrations(
     tableId: DatabaseTableId,
     migrationLimitForTest?: number,
 ): void {
-    runSchemaMigrations(
-        db,
-        tableId,
-        tableSqliteMigrations(tableId),
-        "table",
-        migrationLimitForTest,
-    );
+    runSchemaMigrations(db, tableId, "table", migrationLimitForTest);
 }
 
 /**
  * Runs any pending {@link joinTableSqliteMigrations} against `tableId`'s
- * `ATTACH`-ed join-table database.
+ * `ATTACH`-ed join-table database. Version tracking mirrors {@link
+ * runTableMigrations}.
  */
 export function runJoinTableMigrations(
     db: Database,
     tableId: DatabaseTableId,
     migrationLimitForTest?: number,
 ): void {
-    runSchemaMigrations(
-        db,
-        tableId,
-        joinTableSqliteMigrations(tableId),
-        "join table",
-        migrationLimitForTest,
-    );
+    runSchemaMigrations(db, tableId, "join", migrationLimitForTest);
 }
 
 function runSchemaMigrations(
     db: Database,
     tableId: DatabaseTableId,
-    migrations: ReadonlyArray<SqliteMigration>,
-    description: string,
+    kind: "table" | "join",
     migrationLimitForTest?: number,
 ): void {
     if (migrationLimitForTest) {
         assert(import.meta.jest);
     }
 
+    const migrations =
+        kind === "table" ? tableSqliteMigrations(tableId) : joinTableSqliteMigrations(tableId);
+    const description = kind === "table" ? "table" : "join table";
     const migrationLimit = migrationLimitForTest ?? migrations.length;
     const schema = sql.identifier(databaseTableSchemaName(tableId));
     const version = sql`PRAGMA ${schema}.user_version`.selectValue(db, Schema.integer);
@@ -297,4 +289,21 @@ function runSchemaMigrations(
     if (version < migrationLimit) {
         sql` PRAGMA ${schema}.user_version = ${sql.raw(String(migrationLimit))} `.exec(db);
     }
+
+    // Mirror the applied version into main's registry so server bootstrap can tell
+    // which files need migrating without attaching the current ones. Upsert: when a
+    // new table's migrations run (createTable, before the model registers it) this
+    // creates the registry row; when an existing file catches up after a deploy (or
+    // the registry mirror is stale, e.g. right after the schema_version backfill
+    // migration) it repairs the row in the same buffer batch as the migrations
+    // themselves.
+    sql`
+        INSERT INTO
+            main._alpine_tables (id, kind, schema_version)
+        VALUES
+            (${tableId}, ${kind}, ${migrationLimit})
+        ON CONFLICT (id) DO UPDATE
+        SET
+            schema_version = excluded.schema_version
+    `.exec(db);
 }

@@ -12,10 +12,6 @@ import {DatabaseTableModel} from "~/shared/databases/model/database_table_model.
 import {SqlBooleanSchema} from "~/shared/databases/model/sqlite_schema.js";
 import {databaseTableSchemaName, sql} from "~/shared/databases/sql.js";
 import {SqliteDatabase} from "~/shared/databases/sqlite.js";
-import {
-    joinTableSqliteMigrations,
-    tableSqliteMigrations,
-} from "~/shared/databases/sqlite_migrations.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 import {generateChronologicalId} from "~/shared/id/chronological_id.js";
@@ -76,9 +72,23 @@ export class DatabaseModel {
     }
 
     formatUniqueTableName(name: string, oldName?: string) {
+        // Both loops tolerate a registered table whose metadata row doesn't exist
+        // yet: during createTable/createJoinTable the migration runner registers the
+        // table in `_alpine_tables` before its `_alpine_table` / `_alpine_join_table`
+        // singleton row is inserted — and this method runs inside that window to
+        // name the very table being created.
         const existingTableNames = new Set<string>();
         for (const tableId of this.getTableIds("table")) {
-            existingTableNames.add(this.getTable(tableId).tableName);
+            const schema = sql.identifier(databaseTableSchemaName(tableId));
+            const tableName = sql`
+                SELECT
+                    table_name
+                FROM
+                    ${schema}._alpine_table
+            `.selectValueIfExists(this.db, Schema.string);
+            if (tableName) {
+                existingTableNames.add(tableName);
+            }
         }
         for (const joinTableId of this.getTableIds("join")) {
             const schema = sql.identifier(databaseTableSchemaName(joinTableId));
@@ -104,18 +114,9 @@ export class DatabaseModel {
 
         const tableName = this.formatUniqueTableName(name);
 
-        // The caller (the createTable action) migrated the table's per-db file before this
-        // insert, so the registry's schema_version starts current.
-        sql`
-            INSERT INTO
-                _alpine_tables (id, kind, schema_version)
-            VALUES
-                (
-                    ${tableId},
-                    'table',
-                    ${tableSqliteMigrations(tableId).length}
-                )
-        `.exec(this.db);
+        // The caller (the createTable action) migrated the table's per-db file before
+        // this runs; the migration runner registered the table in main's
+        // `_alpine_tables` as part of that.
         sql`
             INSERT INTO
                 ${sql.tableRef(tableId, "_alpine_table")} (
@@ -188,18 +189,8 @@ export class DatabaseModel {
         const schema = sql.identifier(databaseTableSchemaName(joinTableId));
         const joinTableName = this.formatUniqueTableName(`${source.name} ${target.name}`);
 
-        // Like createTable: the join-table file was migrated before this insert.
-        sql`
-            INSERT INTO
-                _alpine_tables (id, kind, schema_version)
-            VALUES
-                (
-                    ${joinTableId},
-                    'join',
-                    ${joinTableSqliteMigrations(joinTableId).length}
-                )
-        `.exec(this.db);
-
+        // Like createTable: the migration runner already registered the join table in
+        // main's `_alpine_tables`.
         const sourceColumnNames = this.formatJoinTableColumnNames(source.table, target.table);
 
         const row = sql`
