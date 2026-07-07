@@ -10,6 +10,7 @@ import {
     intoApiContentWithReferences,
 } from "~/server/api/internal/shared/into_api_content_with_references.js";
 import {intoApiMessage} from "~/server/api/internal/shared/into_api_message.js";
+import {createApiTaskActor} from "~/server/api/internal/tasks/internal/create_api_task_actor.js";
 import {createIntoApiTaskCommentContentPayloadParent} from "~/server/api/internal/tasks/internal/create_into_api_task_comment_content_payload_parent.ts.js";
 import {createTaskFromApi} from "~/server/api/internal/tasks/internal/create_task_from_api.js";
 import {fromApiTaskLayout} from "~/server/api/internal/tasks/internal/from_api_task_layout.js";
@@ -57,7 +58,6 @@ import {TaskCollectionId, TaskId} from "~/shared/id/types/id_types.js";
 import {MessageContentPayload} from "~/shared/messaging/message_schema.js";
 import {MessagingRealtimeBroadcastNewMessageRequestSchema} from "~/shared/messaging/messaging_realtime_protocol.js";
 import {emptyReactionSet} from "~/shared/reactions/reaction_set.js";
-import {TaskActor} from "~/shared/tasks/task_creator.js";
 import {
     TaskNotesContentProsemirrorSchema,
     assertTaskNotesContent,
@@ -557,10 +557,7 @@ export const apiTasksPaths: Pick<
             const clock = new HybridLogicalClock(unsynchronizedSystemClock);
             const botAccountId = context.actor.getBotAccountId();
             const creatorId = collection.creator?.id ?? botAccountId;
-            const actor: TaskActor = {
-                accountId: creatorId,
-                from: {type: "Bot", accountId: botAccountId},
-            };
+            const actor = createApiTaskActor({actorId: creatorId, botAccountId});
 
             const accessPolicy = await createAccessPolicyForContentCreatedByBot(context, spaceId, {
                 consistency: "StrongWithinCache",
@@ -576,10 +573,7 @@ export const apiTasksPaths: Pick<
                         collectionId,
                         collectionAction: {
                             type: "Create",
-                            creator: {
-                                accountId: creatorId,
-                                from: {type: "Bot", accountId: botAccountId},
-                            },
+                            creator: actor,
                             name: collection.name,
                             accessPolicy,
                         },

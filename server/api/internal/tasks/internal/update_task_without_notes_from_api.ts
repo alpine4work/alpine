@@ -1,5 +1,6 @@
 import {CalendarDate, parseDate} from "@internationalized/date";
 import {ApiServiceBotActionContext} from "~/server/api/internal/shared/api_service_context.js";
+import {createApiTaskActor} from "~/server/api/internal/tasks/internal/create_api_task_actor.js";
 import {fromApiTaskLayout} from "~/server/api/internal/tasks/internal/from_api_task_layout.js";
 import {validateApiActor} from "~/server/api/internal/tasks/internal/validate_api_actor.js";
 import {getAccount} from "~/server/spaces/get_account.js";
@@ -69,10 +70,7 @@ export async function updateTaskWithoutNotesFromApi(
     const clock = new HybridLogicalClock(unsynchronizedSystemClock);
     const botAccountId = context.actor.getBotAccountId();
     await validateApiActor(context, {spaceId, actorId});
-    const actor: TaskActor = {
-        accountId: actorId ?? botAccountId,
-        from: {type: "Bot", accountId: botAccountId},
-    };
+    const actor = createApiTaskActor({actorId, botAccountId});
     const timeZone = defaultTimeZone;
 
     const initialTask = await context.tasks.getTaskWithoutDependencies(spaceId, taskId, {

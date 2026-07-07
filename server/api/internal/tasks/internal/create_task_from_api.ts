@@ -1,5 +1,6 @@
 import {CalendarDate} from "@internationalized/date";
 import {ApiServiceBotActionContext} from "~/server/api/internal/shared/api_service_context.js";
+import {createApiTaskActor} from "~/server/api/internal/tasks/internal/create_api_task_actor.js";
 import {commitTaskActionTransaction} from "~/server/tasks/data/commit_task_action_transaction.js";
 import {createTaskNotesCreateTransactionEntry} from "~/server/tasks/data/create_task_notes_create_transaction_entry.js";
 import {LocalAccessPolicy} from "~/shared/access/access_policy.js";
@@ -10,7 +11,6 @@ import {defaultTimeZone} from "~/shared/helpers/intl/time_zone.js";
 import {generateOrderKeysBetween} from "~/shared/helpers/sort/order_key.js";
 import {AccountId, SpaceId, TaskCollectionId, TaskId} from "~/shared/id/types/id_types.js";
 import {TaskAction} from "~/shared/tasks/actions/task_action.js";
-import {TaskActor} from "~/shared/tasks/task_creator.js";
 import {TaskFilterableTime} from "~/shared/tasks/task_filterable_time.js";
 import {TaskLayout} from "~/shared/tasks/task_layout.js";
 import {TaskNotesContent} from "~/shared/tasks/task_notes_content_schema.js";
@@ -68,10 +68,7 @@ export async function createTaskFromApi(
     const clock = new HybridLogicalClock(unsynchronizedSystemClock);
     const botAccountId = context.actor.getBotAccountId();
     creatorId ??= botAccountId;
-    const actor: TaskActor = {
-        accountId: creatorId,
-        from: {type: "Bot", accountId: botAccountId},
-    };
+    const actor = createApiTaskActor({actorId: creatorId, botAccountId});
     const createdTimeZone = defaultTimeZone;
 
     const effectiveAssigneeId =
@@ -90,10 +87,7 @@ export async function createTaskFromApi(
             taskId,
             taskAction: {
                 type: "Create",
-                creator: {
-                    accountId: creatorId,
-                    from: {type: "Bot", accountId: botAccountId},
-                },
+                creator: actor,
                 creatorTimeZone: createdTimeZone,
                 accessPolicy,
             },
