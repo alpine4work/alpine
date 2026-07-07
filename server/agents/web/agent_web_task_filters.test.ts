@@ -3,7 +3,7 @@ import {normalizeAgentWebPath} from "~/server/agents/web/internal/normalize_agen
 import {
     parseAgentWebTaskFilters,
     printAgentWebTaskFilters,
-} from "~/server/agents/web/print_agent_web_task_filters.js";
+} from "~/server/agents/web/agent_web_task_filters.js";
 import {createAgentWebSessionStorageForTest} from "~/server/agents/web/test_helpers/create_agent_web_session_storage_for_test.js";
 import {normalizeApiTaskFilters} from "~/shared/api/content/normalize_api_task_filters.js";
 import {ApiTaskFilter} from "~/shared/api/specification/types/api_specification_convenience_types.js";
