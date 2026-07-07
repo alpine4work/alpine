@@ -102,8 +102,8 @@ export async function run(context: TestActualContext, runner: ScreenshotTestRunn
     await runner.mouse.move(0, 0);
     await runner.screenshot("a7", "linked-record-editor");
 
-    // Link two customers. Each linked record shows a drag handle for reordering and
-    // a remove button, above the "Add more" list of remaining candidates.
+    // Link two customers. Each linked record shows a drag handle for reordering and a
+    // remove button, above the "Add more" list of remaining candidates.
     await runner.getByRole("button", {name: "Link Northwind Trading"}).click();
     await runner.getByRole("button", {name: "Remove Northwind Trading"}).waitFor();
     await runner.getByRole("button", {name: "Link Meridian Labs"}).click();
@@ -116,7 +116,8 @@ export async function run(context: TestActualContext, runner: ScreenshotTestRunn
     // searching.
     await runner.getByLabel("Search records").fill("co");
     await runner.getByRole("button", {name: "Create co"}).waitFor();
-    await runner.getByRole("button", {name: "Link Northwind Trading"}).waitFor({state: "detached"});
+    // "Everpeak Retail" has no "co" so it drops out of the filtered candidates.
+    await runner.getByRole("button", {name: "Link Everpeak Retail"}).waitFor({state: "detached"});
     await runner.mouse.move(0, 0);
     await runner.screenshot("a9", "linked-record-editor-search");
 }

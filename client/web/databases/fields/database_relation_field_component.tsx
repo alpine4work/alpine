@@ -122,8 +122,9 @@ function DatabaseRelationGridViewCellEditorOverlay({
         }
     }, [linkedRowsResult, linkableRowsResult, reporter]);
 
-    const linkedRows: ReadonlyArray<DatabaseRelationLinkedRow> =
-        linkedRowsResult?.ok ? linkedRowsResult.value.rows : [];
+    const linkedRows: ReadonlyArray<DatabaseRelationLinkedRow> = linkedRowsResult?.ok
+        ? linkedRowsResult.value.rows
+        : [];
     const candidateRows = linkableRowsResult?.ok ? linkableRowsResult.value.rows : [];
     const linkedTableName = linkableRowsResult?.ok ? linkableRowsResult.value.linkedTableName : "";
 

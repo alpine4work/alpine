@@ -653,8 +653,8 @@ export const databaseActions = {
             fieldId: Schema.id<DatabaseFieldId>(),
             rowId: Schema.id<DatabaseRowId>(),
             /**
-             * Optional case-insensitive substring filter on the linked table's name
-             * field. Wildcard characters are matched literally.
+             * Optional case-insensitive substring filter on the linked table's name field.
+             * Wildcard characters are matched literally.
              */
             search: Schema.string.optional(),
         }),
@@ -686,14 +686,12 @@ export const databaseActions = {
                 sql.identifier("linked_row"),
             );
 
-            // Escape LIKE wildcards so the query is a literal substring match rather
-            // than letting user input like `50%` behave as a pattern.
+            // Escape LIKE wildcards so the query is a literal substring match rather than
+            // letting user input like `50%` behave as a pattern.
+            const escapedSearch = search?.replace(/[\\%_]/g, char => `\\${char}`);
             const searchFilter =
-                search != null && search !== ""
-                    ? sql`AND ${linkedNameColumn} LIKE ('%' || ${search.replace(
-                          /[\\%_]/g,
-                          char => `\\${char}`,
-                      )} || '%') ESCAPE '\\'`
+                escapedSearch != null && escapedSearch !== ""
+                    ? sql`AND ${linkedNameColumn} LIKE('%' || ${escapedSearch} || '%') ESCAPE '\\'`
                     : sql``;
 
             const rows = sql`
@@ -711,8 +709,7 @@ export const databaseActions = {
                         WHERE
                             link_row.${relation.our.rowIdColumn} = ${rowId}
                             AND link_row.${relation.their.rowIdColumn} = linked_row._id
-                    )
-                    ${searchFilter}
+                    ) ${searchFilter}
                 ORDER BY
                     linked_row._created_at DESC,
                     linked_row._id DESC
@@ -772,7 +769,7 @@ export const databaseActions = {
                 FROM
                     ${relation.joinTable.tableRef} AS link_row
                     JOIN ${linkedTable.tableRef} AS linked_row ON linked_row._id = link_row.${relation
-                        .their.rowIdColumn}
+                    .their.rowIdColumn}
                 WHERE
                     link_row.${relation.our.rowIdColumn} = ${rowId}
                 ORDER BY
@@ -861,7 +858,10 @@ export const databaseActions = {
                 INSERT INTO
                     ${linkedTable.tableRef} (_id, ${sql.identifier(linkedNameField.columnName)})
                 VALUES
-                    (${linkedRowId}, ${nameSql})
+                    (
+                        ${linkedRowId},
+                        ${nameSql}
+                    )
             `.exec(db);
 
             if (relation.config.cardinality === "one") {
