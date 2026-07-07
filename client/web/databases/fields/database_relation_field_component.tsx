@@ -190,8 +190,8 @@ function DatabaseRelationGridViewCellEditorOverlay({
     // options while focus stays in the input. Selecting an option links the record.
     const renderCandidate = useCallback(
         (row: DatabaseRelationCandidateRow) => (
-            <Item key={row.id} textValue={row.name ?? "Untitled"}>
-                {row.name ?? "Untitled"}
+            <Item key={row.id} textValue={row.name || "Untitled"}>
+                <DatabaseRelationRowName name={row.name} />
             </Item>
         ),
         [],
@@ -559,7 +559,7 @@ function DatabaseRelationLinkedRow({
             <button
                 {...attributes}
                 {...listeners}
-                aria-label={`Reorder ${row.name ?? "Untitled"}`}
+                aria-label={`Reorder ${row.name || "Untitled"}`}
                 className={sprinkles({
                     width: "4",
                     height: "4",
@@ -575,11 +575,11 @@ function DatabaseRelationLinkedRow({
                 <DotsSixVertical size={14} />
             </button>
             <Box flexGrow="1" fontSize="75" fontStyle="truncate" color="grey-100">
-                {row.name ?? "Untitled"}
+                <DatabaseRelationRowName name={row.name} />
             </Box>
             <Box flexShrink="0">
                 <IconButton
-                    description={`Remove ${row.name ?? "Untitled"}`}
+                    description={`Remove ${row.name || "Untitled"}`}
                     size="xs"
                     variant="quiet"
                     onPress={onRemove}
@@ -589,6 +589,15 @@ function DatabaseRelationLinkedRow({
             </Box>
         </Box>
     );
+}
+
+/**
+ * Renders a linked record's name, falling back to a muted "Untitled" when the
+ * record has no name (either `null` or an empty string).
+ */
+function DatabaseRelationRowName({name}: {name: string | null}) {
+    if (name) return <>{name}</>;
+    return <span className={sprinkles({color: "grey-50"})}>Untitled</span>;
 }
 
 function DatabaseRelationChip({name}: {name: string | null}) {
