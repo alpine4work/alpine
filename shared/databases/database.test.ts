@@ -1,6 +1,7 @@
 import {Database, type ReadonlyDatabaseStorage} from "~/shared/databases/database.js";
 import {type SqlQuery, sql} from "~/shared/databases/sql.js";
 import {databaseMainTableId, sqlitePageSize} from "~/shared/databases/sqlite_constants.js";
+import {runMainMigrations, runTableMigrations} from "~/shared/databases/sqlite_migrations.js";
 import {TableNotAttachedError} from "~/shared/databases/table_not_attached_error.js";
 import {InternalError} from "~/shared/error/error.js";
 import {generateChronologicalId} from "~/shared/id/chronological_id.js";
@@ -85,6 +86,7 @@ function commit(database: Database, storage: InMemoryStorage): void {
 }
 
 const openDatabases: Array<Database> = [];
+const testPrivateSalt = new Uint8Array(32).fill(7);
 
 afterEach(() => {
     while (openDatabases.length > 0) {
@@ -675,7 +677,7 @@ describe("Database — unattached per-db file detection", () => {
 
     test("the server surfaces the raw SQL error, not TableNotAttachedError", async () => {
         const storage = new InMemoryStorage();
-        const database = await Database.create(storage, {server: true});
+        const database = await Database.create(storage, {server: {privateSalt: testPrivateSalt}});
         openDatabases.push(database);
         const tableId = generateChronologicalId<DatabaseTableId>();
 
@@ -692,6 +694,349 @@ describe("Database — unattached per-db file detection", () => {
                 {allowWrites: "none"},
             ),
         ).toThrow("no such table");
+    });
+});
+
+// ---------------------------------------------------------------------------
+// Attach-on-miss + LRU eviction
+// ---
+//
+// ---
+
+/**
+ * Server-mode database with a migrated main registry and `count` registered,
+ * migrated per-table files, each holding an `items` table with one row `(i)`.
+ * Mirrors the post-bootstrap invariant attach-on-miss relies on: every registered
+ * file is migration-current.
+ */
+async function createServerDatabaseWithTables(
+    count: number,
+    attachEvictionThresholdForTests: number,
+): Promise<{database: Database; storage: InMemoryStorage; tableIds: Array<DatabaseTableId>}> {
+    const storage = new InMemoryStorage();
+    const database = await Database.create(storage, {
+        server: {privateSalt: testPrivateSalt},
+        attachEvictionThresholdForTests,
+    });
+    openDatabases.push(database);
+    database.execute(db => runMainMigrations(db), {allowWrites: "schema+data"});
+    commit(database, storage);
+
+    const tableIds: Array<DatabaseTableId> = [];
+    for (let i = 0; i < count; i++) {
+        const tableId = generateChronologicalId<DatabaseTableId>();
+        tableIds.push(tableId);
+        database.execute(
+            db => {
+                sql`
+                    INSERT INTO
+                        main._alpine_tables (id, kind, table_name_hash)
+                    VALUES
+                        (
+                            ${tableId},
+                            'table',
+                            ${`test-hash-${tableId}`}
+                        )
+                `.exec(db);
+                database.attach(tableId);
+                runTableMigrations(db, tableId);
+                sql` CREATE TABLE ${sql.tableRef(tableId, "items")} (id INTEGER PRIMARY KEY) `.exec(
+                    db,
+                );
+                sql`
+                    INSERT INTO
+                        ${sql.tableRef(tableId, "items")}
+                    VALUES
+                        (${i})
+                `.exec(db);
+            },
+            {allowWrites: "schema+data"},
+        );
+        commit(database, storage);
+    }
+    return {database, storage, tableIds};
+}
+
+describe("Database — LRU eviction at the attach threshold", () => {
+    test("attaching past the threshold evicts the least-recently-used table", async () => {
+        // Threshold 3 = main + 2 per-table files.
+        const {database, tableIds} = await createServerDatabaseWithTables(3, 3);
+        const [tableA, tableB, tableC] = tableIds as [
+            DatabaseTableId,
+            DatabaseTableId,
+            DatabaseTableId,
+        ];
+
+        expect({
+            a: database.isAttached(tableA),
+            b: database.isAttached(tableB),
+            c: database.isAttached(tableC),
+        }).toEqual({a: false, b: true, c: true});
+    });
+
+    test("a query against an evicted table re-attaches it on demand", async () => {
+        const {database, tableIds} = await createServerDatabaseWithTables(3, 3);
+        const tableA = tableIds[0]!;
+        expect(database.isAttached(tableA)).toBe(false);
+
+        const result = database.executeSql(
+            sql`
+                SELECT
+                    id
+                FROM
+                    ${sql.tableRef(tableA, "items")}
+            `,
+            {allowWrites: "none"},
+        );
+
+        expect({rows: result.rows, reattached: database.isAttached(tableA)}).toEqual({
+            rows: [{id: 0}],
+            reattached: true,
+        });
+    });
+
+    test("attach-on-miss refuses a table missing from the registry", async () => {
+        const {database} = await createServerDatabaseWithTables(1, 115);
+        const unregisteredTableId = generateChronologicalId<DatabaseTableId>();
+
+        // Attaching an unregistered name would create a phantom empty file; the original
+        // name-resolution error must surface instead.
+        expect(() =>
+            database.executeSql(
+                sql`
+                    SELECT
+                        id
+                    FROM
+                        ${sql.tableRef(unregisteredTableId, "items")}
+                `,
+                {allowWrites: "none"},
+            ),
+        ).toThrow("no such table");
+        expect(database.isAttached(unregisteredTableId)).toBe(false);
+    });
+
+    test("attach-on-miss asserts the re-attached file is migration-current", async () => {
+        const {database} = await createServerDatabaseWithTables(0, 115);
+        const staleTableId = generateChronologicalId<DatabaseTableId>();
+        // Register the table without ever migrating its file — the post-bootstrap
+        // invariant attach-on-miss depends on is broken, which must be loud.
+        database.executeSql(
+            sql`
+                INSERT INTO
+                    main._alpine_tables (id, kind, table_name_hash)
+                VALUES
+                    (
+                        ${staleTableId},
+                        'table',
+                        'test-stale-table-name-hash'
+                    )
+            `,
+            {allowWrites: "schema+data"},
+        );
+
+        expect(() =>
+            database.executeSql(
+                sql`
+                    SELECT
+                        id
+                    FROM
+                        ${sql.tableRef(staleTableId, "items")}
+                `,
+                {allowWrites: "none"},
+            ),
+        ).toThrow("attach-on-miss found table");
+    });
+
+    test("eviction skips tables with buffered writes", async () => {
+        const {database, tableIds} = await createServerDatabaseWithTables(2, 3);
+        const [tableA, tableB] = tableIds as [DatabaseTableId, DatabaseTableId];
+
+        // Buffer a write into the LRU candidate without committing: its buffered pages
+        // would be lost with its table state, so eviction must pick the other table
+        // despite it being more recently used.
+        database.executeSql(
+            sql`
+                INSERT INTO
+                    ${sql.tableRef(tableA, "items")}
+                VALUES
+                    (100)
+            `,
+            {allowWrites: "data"},
+        );
+        // tableB was touched after tableA's insert; make tableA the LRU candidate again by
+        // touching tableB even later.
+        database.executeSql(
+            sql`
+                SELECT
+                    id
+                FROM
+                    ${sql.tableRef(tableB, "items")}
+            `,
+            {allowWrites: "none"},
+        );
+        database.attach(generateChronologicalId<DatabaseTableId>());
+
+        expect({a: database.isAttached(tableA), b: database.isAttached(tableB)}).toEqual({
+            a: true,
+            b: false,
+        });
+    });
+
+    test("a schema read by the open transaction is pinned; attach overflows the threshold instead", async () => {
+        // Threshold 2 = main + 1: the only eviction candidate is pinned mid-txn.
+        const {database, tableIds} = await createServerDatabaseWithTables(1, 2);
+        const tableA = tableIds[0]!;
+        const tableB = generateChronologicalId<DatabaseTableId>();
+
+        database.execute(
+            db => {
+                db.exec("BEGIN");
+                sql`
+                    SELECT
+                        id
+                    FROM
+                        ${sql.tableRef(tableA, "items")}
+                `.selectAllUnknown(db);
+                // SQLite holds a btree read transaction on tableA until COMMIT, so DETACH reports
+                // it locked; attach must proceed past the threshold using the headroom below the
+                // hard SQLITE_MAX_ATTACHED limit.
+                database.attach(tableB);
+                db.exec("COMMIT");
+            },
+            {allowWrites: "schema+data"},
+        );
+
+        expect({a: database.isAttached(tableA), b: database.isAttached(tableB)}).toEqual({
+            a: true,
+            b: true,
+        });
+    });
+
+    test("change-capture triggers survive evict + re-attach", async () => {
+        const {database, storage, tableIds} = await createServerDatabaseWithTables(3, 3);
+        const tableA = tableIds[0]!;
+        const fieldId = generateChronologicalId<DatabaseTableId>();
+
+        // Give the evicted table an `_alpine_table` row (re-attach it via a direct write —
+        // attach-on-miss covers writes too) and install change capture.
+        database.executeSql(
+            sql`
+                INSERT INTO
+                    ${sql.tableRef(tableA, "_alpine_fields")} (id, name, column_name, config)
+                VALUES
+                    (
+                        ${fieldId},
+                        'Name',
+                        'name',
+                        jsonb ('{}')
+                    )
+            `,
+            {allowWrites: "schema+data"},
+        );
+        database.executeSql(
+            sql`
+                INSERT INTO
+                    ${sql.tableRef(tableA, "_alpine_table")} (
+                        id,
+                        name,
+                        table_name,
+                        name_field_id,
+                        access_policy
+                    )
+                VALUES
+                    (
+                        ${tableA},
+                        'Table A',
+                        'items',
+                        ${fieldId},
+                        jsonb ('{}')
+                    )
+            `,
+            {allowWrites: "schema+data"},
+        );
+        commit(database, storage);
+
+        const changedTableIds: Array<DatabaseTableId> = [];
+        database._installServerTableChangeCapture(tableId => changedTableIds.push(tableId));
+
+        // Evict tableA again (it's warm from the writes above), then update its
+        // `_alpine_table` row: attach-on-miss must recreate the change-capture triggers
+        // before the update runs, not leave the dead post-DETACH ones.
+        database.executeSql(
+            sql`
+                SELECT
+                    id
+                FROM
+                    ${sql.tableRef(tableIds[1]!, "items")}
+            `,
+            {allowWrites: "none"},
+        );
+        database.executeSql(
+            sql`
+                SELECT
+                    id
+                FROM
+                    ${sql.tableRef(tableIds[2]!, "items")}
+            `,
+            {allowWrites: "none"},
+        );
+        expect(database.isAttached(tableA)).toBe(false);
+
+        database.executeSql(
+            sql`
+                UPDATE ${sql.tableRef(tableA, "_alpine_table")}
+                SET
+                    name = 'Renamed'
+            `,
+            {allowWrites: "schema+data"},
+        );
+
+        expect(changedTableIds).toContain(tableA);
+    });
+});
+
+describe("Database — client attach-on-miss", () => {
+    test("re-attaches a table whose pages are locally cached instead of failing", async () => {
+        // Populate storage through one client database...
+        const storage = new InMemoryStorage();
+        const first = await Database.create(storage);
+        openDatabases.push(first);
+        const tableId = generateChronologicalId<DatabaseTableId>();
+        first.attach(tableId);
+        first.executeSql(
+            sql`CREATE TABLE ${sql.tableRef(tableId, "items")} (id INTEGER PRIMARY KEY)`,
+            {allowWrites: "schema+data"},
+        );
+        first.executeSql(
+            sql`
+                INSERT INTO
+                    ${sql.tableRef(tableId, "items")}
+                VALUES
+                    (7)
+            `,
+            {allowWrites: "data"},
+        );
+        commit(first, storage);
+
+        // ...then query it from a second database that never attached it. The header page
+        // is cached in storage, so attach-on-miss recovers locally instead of throwing
+        // TableNotAttachedError for a server round-trip.
+        const second = await Database.create(storage);
+        openDatabases.push(second);
+        const result = second.executeSql(
+            sql`
+                SELECT
+                    id
+                FROM
+                    ${sql.tableRef(tableId, "items")}
+            `,
+            {allowWrites: "none"},
+        );
+
+        expect({rows: result.rows, attached: second.isAttached(tableId)}).toEqual({
+            rows: [{id: 7}],
+            attached: true,
+        });
     });
 });
 

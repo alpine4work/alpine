@@ -13,9 +13,11 @@ import {type SqlQuery, sql} from "~/shared/databases/sql.js";
 import type {SqliteWriteLevel} from "~/shared/databases/sqlite_authorizer.js";
 import {sqlitePageSize} from "~/shared/databases/sqlite_constants.js";
 import {
+    joinTableSqliteMigrations,
     runJoinTableMigrations,
     runMainMigrations,
     runTableMigrations,
+    tableSqliteMigrations,
 } from "~/shared/databases/sqlite_migrations.js";
 import {PermissionDeniedError} from "~/shared/error/error.js";
 import {assert} from "~/shared/helpers/control/assert.js";
@@ -91,8 +93,15 @@ export class DatabaseServer {
         this.storage = storage;
     }
 
-    static async create(storage: DatabaseServerStorage): Promise<DatabaseServer> {
-        const database = await Database.create(storage, {server: true});
+    /**
+     * `privateSalt` is the group's secret salt (held in its durable object, never
+     * replicated) keying the registry's `table_name_hash` uniqueness index.
+     */
+    static async create(
+        storage: DatabaseServerStorage,
+        privateSalt: Uint8Array,
+    ): Promise<DatabaseServer> {
+        const database = await Database.create(storage, {server: {privateSalt}});
         const server = new DatabaseServer(database, storage);
         server._bootstrap();
         database._installServerTableChangeCapture(tableId => {
@@ -166,28 +175,49 @@ export class DatabaseServer {
     // -- Internal -----------------------------------------------------------
 
     private _bootstrap(): void {
-        // Bootstrap runs as one privileged "execute" so its writes flow through the buffer
-        // like any other action; we drain to storage immediately after. ATTACH is legal
-        // mid-execute (no explicit transaction is open), so we can attach + migrate every
-        // per-table file inline.
-        this.database.execute(
+        // Bootstrap writes flow through the buffer like any other execute; each batch
+        // drains to storage right after. ATTACH is legal mid-execute (no explicit
+        // transaction is open), so per-table files attach + migrate inline.
+        const {result: tables} = this.database.execute(
             db => {
                 db.exec("PRAGMA quick_check");
                 runMainMigrations(db);
-
-                // Attach + migrate each existing table's per-db file so its data and metadata are
-                // reachable.
-                const tables = sql`
+                return sql`
                     SELECT
                         id,
-                        kind
+                        kind,
+                        schema_version
                     FROM
                         _alpine_tables
                 `.selectAll(db, {
                     id: Schema.id<DatabaseTableId>(),
                     kind: Schema.enum(["table", "join"]),
+                    schemaVersion: Schema.integer.originalPropertyKey("schema_version"),
                 });
-                for (const table of tables) {
+            },
+            {allowWrites: "schema+data"},
+        );
+        this._persistBuffer();
+
+        // Migrate stale per-table files, one execute + persist per table. The registry's
+        // schema_version mirrors each file's user_version, so a current table is skipped
+        // without ever attaching it — bootstrap costs O(stale tables), and cold starts
+        // after a no-migration deploy attach nothing. Attach-on-miss assumes every
+        // registered file is migration-current, so this sweep must finish before any
+        // action runs. Persisting per table keeps migrated files' buffered writes drained
+        // — Database only evicts tables with an empty buffer, and for groups with more
+        // stale tables than the attach threshold the sweep relies on that LRU eviction to
+        // stay under SQLite's limit.
+        for (const table of tables) {
+            const migrationCount =
+                table.kind === "table"
+                    ? tableSqliteMigrations(table.id).length
+                    : joinTableSqliteMigrations(table.id).length;
+            if (table.schemaVersion === migrationCount) continue;
+            // The migration runner also repairs the registry's schema_version mirror, in the
+            // same buffer batch as the migrations themselves.
+            this.database.execute(
+                db => {
                     this.database.attachIfNeeded(table.id);
                     switch (table.kind) {
                         case "table":
@@ -199,11 +229,11 @@ export class DatabaseServer {
                         default:
                             throw exhaustive(table.kind);
                     }
-                }
-            },
-            {allowWrites: "schema+data"},
-        );
-        this._persistBuffer();
+                },
+                {allowWrites: "schema+data"},
+            );
+            this._persistBuffer();
+        }
     }
 
     private _runAndPersist<T>(

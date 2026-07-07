@@ -133,9 +133,9 @@ export class DatabaseClient {
      *
      * Both empty for a table means its cache is already up to date.
      *
-     * Once every store is validated, attaches all known tables (see {@link
-     * attachKnownTables}) so subsequent actions run locally without any on-demand
-     * attach step.
+     * Once every store is validated, eagerly attaches known tables up to the attach
+     * capacity (see {@link attachKnownTables}); tables past capacity attach on demand
+     * at first use.
      *
      * Safe to call on a live database, not just at cold open: pending optimistic
      * writes and SQLite's pager cache are dropped before the validated pages land, the
@@ -206,17 +206,22 @@ export class DatabaseClient {
     }
 
     /**
-     * Attach every open per-table store whose header page is cached. Runs after cache
-     * validation — attaching before validation would let SQLite parse a schema from
-     * pages about to be replaced, and (under `locking_mode = EXCLUSIVE`) attaching a
-     * store with no header would permanently cache an empty schema.
+     * Attach open per-table stores whose header page is cached, up to the attach
+     * capacity. Runs after cache validation — attaching before validation would let
+     * SQLite parse a schema from pages about to be replaced, and (under
+     * `locking_mode = EXCLUSIVE`) attaching a store with no header would permanently
+     * cache an empty schema.
      *
-     * A cached table whose header page was discarded as stale stays unattached; its
-     * first action falls back to the server, whose response re-populates and attaches
-     * it (see {@link executeActionViaServer}).
+     * This eager attach is an optimization, not a requirement: a locally cached table
+     * left unattached (past capacity, or with a stale header) re-attaches on first use
+     * via `Database`'s attach-on-miss, and a table with no local header falls back to
+     * the server, whose response re-populates and attaches it (see {@link
+     * executeActionViaServer}). Attaching past capacity would only churn the LRU
+     * working set.
      */
     private attachKnownTables(): void {
         for (const [tableId, store] of this.storage) {
+            if (this.database.isAtAttachCapacity()) break;
             if (tableId === databaseMainTableId) continue;
             if (this.database.isAttached(tableId)) continue;
             if (store.readPage(0) === null) continue;
@@ -231,11 +236,11 @@ export class DatabaseClient {
      * execution and background server confirmation.
      *
      * Falls back to the server when the local store is missing pages or the action
-     * references a table this client doesn't know about (every known table is attached
-     * up front — see {@link attachKnownTables}). Actions that call `ctx.server()` for
-     * server-only work (e.g. allocating an ID via `generateChronologicalId()`) throw
-     * {@link DatabaseActionRequiresServerError} on the client, which routes them
-     * straight to the server the same way.
+     * references a table with no locally cached pages (locally cached tables attach
+     * eagerly up to capacity — see {@link attachKnownTables} — and on demand past it).
+     * Actions that call `ctx.server()` for server-only work (e.g. allocating an ID via
+     * `generateChronologicalId()`) throw {@link DatabaseActionRequiresServerError} on
+     * the client, which routes them straight to the server the same way.
      */
     async executeAction<N extends DatabaseActionName>(
         conn: DatabaseClientConnection,

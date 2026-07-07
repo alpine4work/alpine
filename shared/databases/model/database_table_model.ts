@@ -66,13 +66,21 @@ export class DatabaseTableModel extends DatabaseSchemaScopedBaseModel {
         `.selectValueIfExists(this.db, SqlBooleanSchema);
     }
 
-    updateName(name: string) {
-        const newTableName = this.root.formatUniqueTableName(name, this.tableName);
+    /**
+     * `tableName`/`tableNameHash` are resolved by the calling action via
+     * `formatUniqueTableName` (with this table as `excludeTableId`, so a rename to a
+     * slug variant of the current name is a no-op on the SQL identifier).
+     */
+    updateName(
+        name: string,
+        {tableName: newTableName, tableNameHash}: {tableName: string; tableNameHash: string},
+    ) {
         if (newTableName !== this.tableName) {
             sql`
                 ALTER TABLE ${this.tableRef}
                 RENAME TO ${sql.identifier(newTableName)}
             `.exec(this.db);
+            this.root.writeTableNameHash(this.id, tableNameHash);
         }
         sql`
             UPDATE ${this.schema}._alpine_table

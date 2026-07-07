@@ -1,7 +1,7 @@
 import sqlite3InitModule, {Database} from "~/external/sqlite/ext/wasm/jswasm/sqlite3.mjs";
 import {AccessPolicySchema} from "~/shared/access/access_policy.js";
+import type {DatabaseActionContext} from "~/shared/databases/database_action_context.js";
 import {
-    type DatabaseActionContext,
     type DatabaseActionInput,
     type DatabaseActionName,
     type DatabaseActionOutput,
@@ -13,12 +13,17 @@ import {
     type DatabaseFieldConfig,
     DatabaseFieldConfigSqlSchema,
 } from "~/shared/databases/fields/all_database_field_providers.js";
+import {hashWithPrivateSalt} from "~/shared/databases/hash_with_private_salt.js";
 import {DatabaseModel} from "~/shared/databases/model/database_root_model.js";
 import {databaseTableSchemaName, sql} from "~/shared/databases/sql.js";
 import {SqliteDatabase} from "~/shared/databases/sqlite.js";
 import {databaseViewDefaultColumnWidth} from "~/shared/databases/sqlite_constants.js";
 import {registerSqliteCustomFunctions} from "~/shared/databases/sqlite_custom_functions.js";
-import {runMainMigrations} from "~/shared/databases/sqlite_migrations.js";
+import {
+    joinTableSqliteMigrations,
+    runMainMigrations,
+    tableSqliteMigrations,
+} from "~/shared/databases/sqlite_migrations.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {type OrderKey, generateOrderKeyBetween} from "~/shared/helpers/sort/order_key.js";
 import {generateChronologicalId} from "~/shared/id/chronological_id.js";
@@ -35,6 +40,7 @@ import {Schema} from "~/shared/schema/schema.js";
 const sqlite3Promise = sqlite3InitModule();
 let dbCounter = 0;
 const testAccountId = generateId<AccountId>();
+const testPrivateSalt = new Uint8Array(32).fill(7);
 
 async function createDb(): Promise<SqliteDatabase> {
     const sqlite3 = await sqlite3Promise;
@@ -62,6 +68,9 @@ function makeCtx(db: SqliteDatabase): DatabaseActionContext {
         },
         getCurrentAccountId() {
             return testAccountId;
+        },
+        hashWithPrivateSalt(value) {
+            return hashWithPrivateSalt(testPrivateSalt, value);
         },
     });
 }
@@ -98,7 +107,14 @@ describe("createTable", () => {
             FROM
                 _alpine_tables
         `.selectAllUnknown(db);
-        expect(tables).toEqual([{id: tableId, kind: "table"}]);
+        expect(tables).toEqual([
+            {
+                id: tableId,
+                kind: "table",
+                schema_version: tableSqliteMigrations(tableId).length,
+                table_name_hash: hashWithPrivateSalt(testPrivateSalt, "tasks"),
+            },
+        ]);
         db.close();
     });
 
@@ -743,9 +759,13 @@ describe("listTableIds", () => {
 
         sql`
             INSERT INTO
-                _alpine_tables (id, kind)
+                _alpine_tables (id, kind, table_name_hash)
             VALUES
-                (${joinTableId}, 'join')
+                (
+                    ${joinTableId},
+                    'join',
+                    'test-join-table-name-hash'
+                )
         `.exec(db);
 
         const {tableIds} = run(db, "listTableIds", {});
@@ -868,7 +888,12 @@ describe("createRelationField", () => {
             sourceViewFieldIds,
             targetViewFieldIds,
         }).toMatchObject({
-            registryRow: {id: result.joinTableId, kind: "join"},
+            registryRow: {
+                id: result.joinTableId,
+                kind: "join",
+                schema_version: joinTableSqliteMigrations(result.joinTableId).length,
+                table_name_hash: hashWithPrivateSalt(testPrivateSalt, "project_tasks"),
+            },
             joinRow: {
                 id: result.joinTableId,
                 table_name: "project_tasks",
@@ -1310,6 +1335,26 @@ describe("renameTable", () => {
         const {tableName} = run(db, "renameTable", {tableId, name: "Tasks"});
 
         expect(tableName).toBe("tasks_2");
+        db.close();
+    });
+
+    test("rename keeps the registry\u2019s salted name hash current", async () => {
+        const db = await createDb();
+        const {tableId} = createTableForTest(db, "Tasks");
+
+        run(db, "renameTable", {tableId, name: "Projects"});
+
+        // The hash is the uniqueness index future creates and renames probe; a stale value
+        // would let a new "Projects" table collide (or block "Tasks" forever).
+        const tableNameHash = sql`
+            SELECT
+                table_name_hash
+            FROM
+                _alpine_tables
+            WHERE
+                id = ${tableId}
+        `.selectValue(db, Schema.string);
+        expect(tableNameHash).toBe(hashWithPrivateSalt(testPrivateSalt, "projects"));
         db.close();
     });
 });

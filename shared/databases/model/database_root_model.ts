@@ -1,4 +1,9 @@
 import type {AccessPolicy} from "~/shared/access/access_policy.js";
+import type {
+    DatabaseActionContext,
+    DatabaseActionServerContext,
+} from "~/shared/databases/database_action_context.js";
+import {DatabaseActionRequiresServerError} from "~/shared/databases/database_action_requires_server_error.js";
 import {DatabaseTableAccessPolicySqlSchema} from "~/shared/databases/database_table_access_policy.js";
 import {formatUniqueSqlName} from "~/shared/databases/internal/format_unique_sql_name.js";
 import type {DatabaseFieldModel} from "~/shared/databases/model/database_field_model.js";
@@ -19,7 +24,32 @@ import {DatabaseFieldId, DatabaseTableId, DatabaseViewId} from "~/shared/id/type
 import {Schema} from "~/shared/schema/schema.js";
 
 export class DatabaseModel {
-    constructor(readonly db: SqliteDatabase) {}
+    /**
+     * The action context this model runs in — `ctx.model` is this model, and
+     * `ctx.server()` exposes server-only capabilities (the salted name hasher,
+     * attach). On the client `ctx.server()` throws
+     * `DatabaseActionRequiresServerError`, routing the calling action to the server.
+     * Omit `server` for read-only constructions (e.g. change-trigger refresh) that
+     * never touch server-only paths.
+     */
+    readonly ctx: DatabaseActionContext;
+
+    constructor(db: SqliteDatabase, server: DatabaseActionServerContext | null = null) {
+        this.ctx = {
+            db,
+            server: () => {
+                if (server === null) {
+                    throw new DatabaseActionRequiresServerError("action is server-only");
+                }
+                return server;
+            },
+            model: this,
+        };
+    }
+
+    get db(): SqliteDatabase {
+        return this.ctx.db;
+    }
 
     getTableIds(kind: DatabaseTableKind | "all") {
         const whereClause =
@@ -71,41 +101,84 @@ export class DatabaseModel {
         return assertExists(this.getTableIfExists(tableId));
     }
 
-    formatUniqueTableName(name: string, oldName?: string) {
-        const existingTableNames = new Set<string>();
-        for (const tableId of this.getTableIds("table")) {
-            existingTableNames.add(this.getTable(tableId).tableName);
-        }
-        for (const joinTableId of this.getTableIds("join")) {
-            const schema = sql.identifier(databaseTableSchemaName(joinTableId));
-            const tableName = sql`
+    /**
+     * Whether any registered table's salted `table_name_hash` equals `tableNameHash`.
+     * Backs `formatUniqueTableName`'s uniqueness probe; pass `excludeTableId` when
+     * renaming so the table's own row doesn't count.
+     */
+    isTableNameHashTaken(tableNameHash: string, excludeTableId?: DatabaseTableId) {
+        const excludeClause =
+            excludeTableId === undefined ? sql`` : sql` AND id != ${excludeTableId} `;
+        return (
+            sql`
                 SELECT
-                    table_name
+                    1
                 FROM
-                    ${schema}._alpine_join_table
-            `.selectValueIfExists(this.db, Schema.string);
-            if (tableName) {
-                existingTableNames.add(tableName);
-            }
-        }
-        if (oldName) {
-            existingTableNames.delete(oldName);
-        }
-        return formatUniqueSqlName(name, existingTableNames);
+                    _alpine_tables
+                WHERE
+                    table_name_hash = ${tableNameHash} ${excludeClause}
+            `.selectValueIfExists(this.db, SqlBooleanSchema) !== null
+        );
     }
 
-    createTable(tableId: DatabaseTableId, name: string, accessPolicy: AccessPolicy) {
+    /**
+     * Record a table's salted name hash in its registry row, keeping the uniqueness
+     * index in the same buffer batch as the rename that set the name. Call from every
+     * site that renames a `table_name` (creation writes the hash via the migration
+     * runner's registration instead).
+     */
+    writeTableNameHash(tableId: DatabaseTableId, tableNameHash: string) {
+        sql`
+            UPDATE _alpine_tables
+            SET
+                table_name_hash = ${tableNameHash}
+            WHERE
+                id = ${tableId}
+        `.exec(this.db);
+    }
+
+    /**
+     * Register a table id in main's `_alpine_tables`, at `schema_version` 0. Create
+     * flows call this _before_ attaching + migrating the per-table file — the
+     * migration runner assumes the row exists and only mirrors the applied version
+     * into it. `tableNameHash` is the salted hash of the table's resolved SQLite name
+     * (see `formatUniqueTableName`), so the name-uniqueness index covers the table
+     * from the moment it is visible to probes.
+     */
+    registerTable(
+        tableId: DatabaseTableId,
+        {kind, tableNameHash}: {kind: DatabaseTableKind; tableNameHash: string},
+    ) {
+        sql`
+            INSERT INTO
+                _alpine_tables (id, kind, table_name_hash)
+            VALUES
+                (
+                    ${tableId},
+                    ${kind},
+                    ${tableNameHash}
+                )
+        `.exec(this.db);
+    }
+
+    /**
+     * `tableName` is resolved by the calling action via `formatUniqueTableName`
+     * (alongside the hash it registered the table with).
+     */
+    createTable(
+        tableId: DatabaseTableId,
+        {
+            name,
+            tableName,
+            accessPolicy,
+        }: {name: string; tableName: string; accessPolicy: AccessPolicy},
+    ) {
         const defaultViewId = generateChronologicalId<DatabaseViewId>();
         const nameFieldId = generateChronologicalId<DatabaseFieldId>();
 
-        const tableName = this.formatUniqueTableName(name);
-
-        sql`
-            INSERT INTO
-                _alpine_tables (id, kind)
-            VALUES
-                (${tableId}, 'table')
-        `.exec(this.db);
+        // The caller (the createTable action) registered the table in main's
+        // `_alpine_tables` (see `registerTable`) and migrated its per-db file before this
+        // runs.
         sql`
             INSERT INTO
                 ${sql.tableRef(tableId, "_alpine_table")} (
@@ -167,7 +240,15 @@ export class DatabaseModel {
         return new DatabaseJoinTableModel(this, row);
     }
 
-    createJoinTable(source: DatabaseFieldModel, target: DatabaseFieldModel) {
+    /**
+     * `tableName` is resolved by the calling action via `formatUniqueTableName`
+     * (alongside the hash it registered the join table with).
+     */
+    createJoinTable(
+        source: DatabaseFieldModel,
+        target: DatabaseFieldModel,
+        {tableName: joinTableName}: {tableName: string},
+    ) {
         assert(source.config.type === "relation", "source field is not a relation field");
         assert(target.config.type === "relation", "target field is not a relation field");
         assert(source.config.joinTableId === target.config.joinTableId, "join table mismatch");
@@ -176,14 +257,6 @@ export class DatabaseModel {
 
         const joinTableId = source.config.joinTableId;
         const schema = sql.identifier(databaseTableSchemaName(joinTableId));
-        const joinTableName = this.formatUniqueTableName(`${source.name} ${target.name}`);
-
-        sql`
-            INSERT INTO
-                _alpine_tables (id, kind)
-            VALUES
-                (${joinTableId}, 'join')
-        `.exec(this.db);
 
         const sourceColumnNames = this.formatJoinTableColumnNames(source.table, target.table);
 

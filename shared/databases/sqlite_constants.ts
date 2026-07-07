@@ -61,6 +61,23 @@ export function sqliteAttachPagePragma(schemaName: string): string {
 }
 
 /**
+ * Maximum number of `ATTACH`-ed databases per SQLite connection. This is the
+ * compile-time `SQLITE_MAX_ATTACHED` value our WASM build is compiled with (see
+ * `admin/patches/bazel/sqlite.patch`) — also SQLite's hard ceiling. It cannot be
+ * raised at runtime.
+ */
+export const sqliteMaxAttachedDatabases = 125;
+
+/**
+ * Attached-schema count at which `Database.attach` starts evicting
+ * least-recently-used per-table files to make room. Kept below {@link
+ * sqliteMaxAttachedDatabases} so an in-flight transaction — whose touched schemas
+ * are pinned and cannot be detached until commit — still has headroom to attach
+ * more tables before hitting the hard limit.
+ */
+export const sqliteAttachEvictionThreshold = 115;
+
+/**
  * Flag passed to `pageAccessHook` when SQLite reads a page from the pager.
  */
 export const pageAccessFlagRead = 1;

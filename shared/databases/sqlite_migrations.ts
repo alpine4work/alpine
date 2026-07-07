@@ -17,10 +17,15 @@ function sqlStringLiteral(value: string): SqlQuery {
 /**
  * Ordered migrations for the **main** database — the one SQLite opens as schema
  * `main`. It is treated as public and holds **no real information**, only opaque
- * IDs:
+ * IDs and migration bookkeeping:
  *
- * - `_alpine_tables(id, kind)` — registry of every table id; drives cold-open
- *   attach of per-table databases.
+ * - `_alpine_tables(id, kind, schema_version, table_name_hash)` — registry of
+ *   every table id. `schema_version` mirrors the per-table file's `user_version`
+ *   (the number of applied per-table migrations) so server bootstrap can tell
+ *   which files need migrating without attaching the current ones.
+ *   `table_name_hash` is a salted hash of the table's SQLite `table_name` (see
+ *   `hashWithPrivateSalt`) so name-uniqueness checks don't read per-table files
+ *   either.
  * - `_alpine_views(id, table_id)` — view→table routing index so a bare view id
  *   from a URL resolves to its owning table without attaching every table.
  *
@@ -33,6 +38,8 @@ export const mainSqliteMigrations: ReadonlyArray<SqliteMigration> = [
         CREATE TABLE _alpine_tables (
             id TEXT PRIMARY KEY,
             kind TEXT NOT NULL,
+            schema_version INTEGER NOT NULL DEFAULT 0,
+            table_name_hash TEXT NOT NULL,
             CHECK (is_id (id)),
             CHECK (kind IN ('table', 'join'))
         ) STRICT,
@@ -218,54 +225,50 @@ export function runMainMigrations(db: Database, migrationLimitForTest?: number):
 /**
  * Runs any pending {@link tableSqliteMigrations} against `tableId`'s `ATTACH`-ed
  * per-table database. Tracks progress with that schema's own
- * `PRAGMA "_{tableId}".user_version`.
+ * `PRAGMA "_{tableId}".user_version`, mirrored into main's
+ * `_alpine_tables.schema_version` registry column.
  *
  * Runs server-side only: the server is canonical for schema, and clients trust the
  * pages it syncs.
+ *
+ * The table must already be registered in main's `_alpine_tables` (see
+ * `DatabaseModel.registerTable`) — the runner only mirrors the applied version
+ * into the row's `schema_version`.
  */
 export function runTableMigrations(
     db: Database,
     tableId: DatabaseTableId,
     migrationLimitForTest?: number,
 ): void {
-    runSchemaMigrations(
-        db,
-        tableId,
-        tableSqliteMigrations(tableId),
-        "table",
-        migrationLimitForTest,
-    );
+    runSchemaMigrations(db, tableId, "table", migrationLimitForTest);
 }
 
 /**
  * Runs any pending {@link joinTableSqliteMigrations} against `tableId`'s
- * `ATTACH`-ed join-table database.
+ * `ATTACH`-ed join-table database. Version tracking mirrors {@link
+ * runTableMigrations}.
  */
 export function runJoinTableMigrations(
     db: Database,
     tableId: DatabaseTableId,
     migrationLimitForTest?: number,
 ): void {
-    runSchemaMigrations(
-        db,
-        tableId,
-        joinTableSqliteMigrations(tableId),
-        "join table",
-        migrationLimitForTest,
-    );
+    runSchemaMigrations(db, tableId, "join", migrationLimitForTest);
 }
 
 function runSchemaMigrations(
     db: Database,
     tableId: DatabaseTableId,
-    migrations: ReadonlyArray<SqliteMigration>,
-    description: string,
+    kind: "table" | "join",
     migrationLimitForTest?: number,
 ): void {
     if (migrationLimitForTest) {
         assert(import.meta.jest);
     }
 
+    const migrations =
+        kind === "table" ? tableSqliteMigrations(tableId) : joinTableSqliteMigrations(tableId);
+    const description = kind === "table" ? "table" : "join table";
     const migrationLimit = migrationLimitForTest ?? migrations.length;
     const schema = sql.identifier(databaseTableSchemaName(tableId));
     const version = sql`PRAGMA ${schema}.user_version`.selectValue(db, Schema.integer);
@@ -288,4 +291,21 @@ function runSchemaMigrations(
     if (version < migrationLimit) {
         sql` PRAGMA ${schema}.user_version = ${sql.raw(String(migrationLimit))} `.exec(db);
     }
+
+    // Mirror the applied version into main's registry so server bootstrap can tell
+    // which files need migrating without attaching the current ones, in the same
+    // buffer batch as the migrations themselves. The row always exists already: create
+    // flows register the table (at version 0, see `DatabaseModel.registerTable`)
+    // before attaching + migrating, and bootstrap iterates registered rows.
+    sql`
+        UPDATE main._alpine_tables
+        SET
+            schema_version = ${migrationLimit}
+        WHERE
+            id = ${tableId}
+    `.exec(db);
+    assert(
+        db.changes() === 1,
+        `${description} ${tableId} is not registered in main._alpine_tables`,
+    );
 }

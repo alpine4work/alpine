@@ -1,3 +1,4 @@
+import {formatUniqueTableName} from "~/shared/databases/format_unique_table_name.js";
 import type {DatabaseModel} from "~/shared/databases/model/database_root_model.js";
 import {DatabaseJoinTableRow} from "~/shared/databases/model/database_row_schemas.js";
 import {DatabaseSchemaScopedBaseModel} from "~/shared/databases/model/database_schema_scoped_base_model.js";
@@ -62,10 +63,11 @@ export class DatabaseJoinTableModel extends DatabaseSchemaScopedBaseModel {
         const sourceName = this.root.getTable(this.sourceTableId).getField(this.sourceFieldId).name;
         const targetName = this.root.getTable(this.targetTableId).getField(this.targetFieldId).name;
 
-        const joinTableName = this.root.formatUniqueTableName(
-            `${sourceName} ${targetName}`,
-            this.tableName,
-        );
+        const {tableName: joinTableName, tableNameHash} = formatUniqueTableName({
+            model: this.root,
+            name: `${sourceName} ${targetName}`,
+            excludeTableId: this.id,
+        });
 
         if (joinTableName === this.tableName) return;
 
@@ -81,6 +83,7 @@ export class DatabaseJoinTableModel extends DatabaseSchemaScopedBaseModel {
             WHERE
                 id = ${this.id}
         `.exec(this.db);
+        this.root.writeTableNameHash(this.id, tableNameHash);
     }
 
     ensureColumnNamesAreUpToDate() {
