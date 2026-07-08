@@ -5,6 +5,7 @@ import {createTestApiServer} from "~/server/api/internal/test_helpers/create_tes
 import {TestBot} from "~/server/bots/test_helpers/test_bot.js";
 import {createTestContext} from "~/server/dynamo/test_helpers/create_test_context.js";
 import {TestSpace} from "~/server/spaces/test_helpers/test_space.js";
+import {TestSpaceSession} from "~/server/spaces/test_helpers/test_space_session.js";
 import {backfillTaskActionTransactionHistory} from "~/server/tasks/data/backfill_task_action_transaction_history.js";
 import {getTaskNotesContentSteps} from "~/server/tasks/data/get_task_notes_content_steps.js";
 import {getTaskNotesContentWithoutReferences} from "~/server/tasks/data/get_task_notes_content_without_references.js";
@@ -31,6 +32,7 @@ import {
     TaskNotesContentProsemirrorSchema,
     assertTaskNotesContent,
 } from "~/shared/tasks/task_notes_content_schema.js";
+import {TaskPosition} from "~/shared/tasks/task_position.js";
 
 const baseContext = createTestContext({
     shouldStartOpensearch: true,
@@ -1525,7 +1527,7 @@ test("setting active status while clearing assignee auto-assigns the bot", async
     });
 });
 
-test("setting active status before changing assignee keeps the task active", async () => {
+test("setting active status before changing assignee leaves the new assignee inactive", async () => {
     const space = await TestSpace.create(context);
     const session1 = await space.createSession({name: "Alice Smith", role: "Admin"});
     const session2 = await space.createSession({name: "Bob Johnson"});
@@ -1556,7 +1558,7 @@ test("setting active status before changing assignee keeps the task active", asy
                     id: session2.account.id,
                     name: "Bob Johnson",
                 }),
-                status: {type: "Open", isActive: true},
+                status: {type: "Open", isActive: false},
             }),
         }),
     });
@@ -1612,8 +1614,8 @@ test("can clear and reassign before setting active in the same patch request", a
         body: {
             patches: [
                 {type: "SetAssignee", assignee: null},
-                {type: "SetStatus", status: {type: "Open", isActive: true}},
                 {type: "SetAssignee", assignee: {id: session2.account.id}},
+                {type: "SetStatus", status: {type: "Open", isActive: true}},
             ],
         },
     });
@@ -1684,13 +1686,32 @@ test("adding collections through repeated patch requests appends them to the end
 });
 
 describe("MoveInCollection patch", () => {
+    async function createMoveCollectionFixture() {
+        const space = await TestSpace.create(context);
+        const session = await space.createSession({name: "Alice Smith", role: "Admin"});
+
+        const bot = await TestBot.createAndInstantiate(session);
+        const apiKey = await bot.createApiKey(session);
+
+        const collection = await TestTaskCollection.create(session, {
+            name: "Move Collection",
+            access: "Public",
+        });
+
+        return {space, session, apiKey, collection};
+    }
+
     async function getTaskCollectionListing(
         apiKey: string,
         collectionId: TaskCollectionId,
+        {limit}: {limit?: number} = {},
     ): Promise<{taskIds: Array<TaskId>; cursors: Array<string>}> {
-        const response = await server.GET(`/task-collections/${collectionId}/tasks`, {
-            headers: {authorization: `bearer ${apiKey}`},
-        });
+        const response = await server.GET(
+            `/task-collections/${collectionId}/tasks${limit !== undefined ? `?limit=${limit}` : ""}`,
+            {
+                headers: {authorization: `bearer ${apiKey}`},
+            },
+        );
 
         expect(response.status).toBe(200);
 
@@ -1703,6 +1724,21 @@ describe("MoveInCollection patch", () => {
             taskIds: tasks.map(task => task.id),
             cursors: tasks.map(task => task.collections[0]!.cursor),
         };
+    }
+
+    function createCollectionPosition() {
+        return {orderTime: testTaskClock.now(), orderKey: initialOrderKey};
+    }
+
+    async function updateTasksToCollectionPosition(
+        session: TestSpaceSession,
+        collection: TestTaskCollection,
+        tasks: ReadonlyArray<TestTask>,
+        position: TaskPosition,
+    ) {
+        await runAllPromises(
+            tasks.map(task => task.updateCollectionPosition(session, collection, position)),
+        );
     }
 
     test("can move a task to the start of a collection", async () => {
@@ -1908,6 +1944,266 @@ describe("MoveInCollection patch", () => {
         ]);
     });
 
+    test("can move a task between tied positions that reach the collection end", async () => {
+        const {space, session, apiKey, collection} = await createMoveCollectionFixture();
+
+        const movedTask = await TestTask.create(session, {
+            title: "Moved Task",
+            collections: collection,
+        });
+        const tiedTasks = await runAllPromises(
+            Array.from({length: 4}, (_, index) =>
+                TestTask.create(session, {
+                    title: `Tied Task ${index + 1}`,
+                    collections: collection,
+                }),
+            ),
+        );
+
+        await movedTask.updateCollectionPosition(session, collection, createCollectionPosition());
+        await updateTasksToCollectionPosition(
+            session,
+            collection,
+            tiedTasks,
+            createCollectionPosition(),
+        );
+
+        await ProcessContextModule.waitForTestTasks();
+
+        const {taskIds, cursors} = await getTaskCollectionListing(apiKey, collection.id);
+        expect(taskIds).toEqual([movedTask.id, ...tiedTasks.map(task => task.id)]);
+
+        const startTime = new Date();
+        const response = await server.PATCH(`/tasks/${movedTask.id}`, {
+            headers: {authorization: `bearer ${apiKey}`},
+            body: {
+                patches: [
+                    {
+                        type: "MoveInCollection",
+                        collectionId: collection.id,
+                        position: {
+                            type: "Between",
+                            afterCursor: cursors[1],
+                            beforeCursor: cursors[2],
+                        },
+                    },
+                ],
+            },
+        });
+
+        expect(response.status).toBe(200);
+        await ProcessContextModule.waitForTestTasks();
+
+        expect(await getTaskCollectionListing(apiKey, collection.id)).toMatchObject({
+            taskIds: [
+                tiedTasks[0]!.id,
+                movedTask.id,
+                tiedTasks[1]!.id,
+                tiedTasks[2]!.id,
+                tiedTasks[3]!.id,
+            ],
+        });
+
+        expect(
+            await backfillTaskActionTransactionHistory(space.systemAction(), space.id, startTime),
+        ).toEqual([
+            expect.objectContaining({
+                actions: [
+                    expect.objectContaining({
+                        taskId: movedTask.id,
+                        taskAction: expect.objectContaining({type: "UpdateCollectionPosition"}),
+                    }),
+                    expect.objectContaining({
+                        taskId: tiedTasks[1]!.id,
+                        taskAction: expect.objectContaining({type: "UpdateCollectionPosition"}),
+                    }),
+                    expect.objectContaining({
+                        taskId: tiedTasks[2]!.id,
+                        taskAction: expect.objectContaining({type: "UpdateCollectionPosition"}),
+                    }),
+                    expect.objectContaining({
+                        taskId: tiedTasks[3]!.id,
+                        taskAction: expect.objectContaining({type: "UpdateCollectionPosition"}),
+                    }),
+                ],
+            }),
+        ]);
+    });
+
+    test("can move a task into four tied positions followed by non-tied positions", async () => {
+        const {space, session, apiKey, collection} = await createMoveCollectionFixture();
+
+        const tasks = await runAllPromises(
+            Array.from({length: 10}, (_, index) =>
+                TestTask.create(session, {
+                    title: `Task ${index + 1}`,
+                    collections: collection,
+                }),
+            ),
+        );
+
+        await tasks[0]!.updateCollectionPosition(session, collection, createCollectionPosition());
+        await updateTasksToCollectionPosition(
+            session,
+            collection,
+            tasks.slice(1, 5),
+            createCollectionPosition(),
+        );
+        await runAllPromises(
+            tasks
+                .slice(5)
+                .map(task =>
+                    task.updateCollectionPosition(session, collection, createCollectionPosition()),
+                ),
+        );
+
+        await ProcessContextModule.waitForTestTasks();
+
+        const {taskIds, cursors} = await getTaskCollectionListing(apiKey, collection.id);
+        expect(taskIds).toEqual(tasks.map(task => task.id));
+
+        const startTime = new Date();
+        const response = await server.PATCH(`/tasks/${tasks[9]!.id}`, {
+            headers: {authorization: `bearer ${apiKey}`},
+            body: {
+                patches: [
+                    {
+                        type: "MoveInCollection",
+                        collectionId: collection.id,
+                        position: {
+                            type: "Between",
+                            afterCursor: cursors[2],
+                            beforeCursor: cursors[3],
+                        },
+                    },
+                ],
+            },
+        });
+
+        expect(response.status).toBe(200);
+        await ProcessContextModule.waitForTestTasks();
+
+        expect(await getTaskCollectionListing(apiKey, collection.id)).toMatchObject({
+            taskIds: [
+                tasks[0]!.id,
+                tasks[1]!.id,
+                tasks[2]!.id,
+                tasks[9]!.id,
+                tasks[3]!.id,
+                tasks[4]!.id,
+                tasks[5]!.id,
+                tasks[6]!.id,
+                tasks[7]!.id,
+                tasks[8]!.id,
+            ],
+        });
+
+        expect(
+            await backfillTaskActionTransactionHistory(space.systemAction(), space.id, startTime),
+        ).toEqual([
+            expect.objectContaining({
+                actions: [
+                    expect.objectContaining({
+                        taskId: tasks[9]!.id,
+                        taskAction: expect.objectContaining({type: "UpdateCollectionPosition"}),
+                    }),
+                    expect.objectContaining({
+                        taskId: tasks[3]!.id,
+                        taskAction: expect.objectContaining({type: "UpdateCollectionPosition"}),
+                    }),
+                    expect.objectContaining({
+                        taskId: tasks[4]!.id,
+                        taskAction: expect.objectContaining({type: "UpdateCollectionPosition"}),
+                    }),
+                ],
+            }),
+        ]);
+    });
+
+    test("can move a task into a forty task tied position sequence", async () => {
+        const {space, session, apiKey, collection} = await createMoveCollectionFixture();
+
+        const movedTask = await TestTask.create(session, {
+            title: "Moved Task",
+            collections: collection,
+        });
+        const tiedTasks = await runAllPromises(
+            Array.from({length: 40}, (_, index) =>
+                TestTask.create(session, {
+                    title: `Tied Task ${index + 1}`,
+                    collections: collection,
+                }),
+            ),
+        );
+
+        await movedTask.updateCollectionPosition(session, collection, createCollectionPosition());
+        await updateTasksToCollectionPosition(
+            session,
+            collection,
+            tiedTasks,
+            createCollectionPosition(),
+        );
+
+        await ProcessContextModule.waitForTestTasks();
+
+        const {taskIds, cursors} = await getTaskCollectionListing(apiKey, collection.id, {
+            limit: 50,
+        });
+        expect(taskIds).toEqual([movedTask.id, ...tiedTasks.map(task => task.id)]);
+
+        const startTime = new Date();
+        const response = await server.PATCH(`/tasks/${movedTask.id}`, {
+            headers: {authorization: `bearer ${apiKey}`},
+            body: {
+                patches: [
+                    {
+                        type: "MoveInCollection",
+                        collectionId: collection.id,
+                        position: {
+                            type: "Between",
+                            afterCursor: cursors[3],
+                            beforeCursor: cursors[4],
+                        },
+                    },
+                ],
+            },
+        });
+
+        expect(response.status).toBe(200);
+        await ProcessContextModule.waitForTestTasks();
+
+        expect(await getTaskCollectionListing(apiKey, collection.id, {limit: 50})).toMatchObject({
+            taskIds: [
+                tiedTasks[0]!.id,
+                tiedTasks[1]!.id,
+                tiedTasks[2]!.id,
+                movedTask.id,
+                ...tiedTasks.slice(3).map(task => task.id),
+            ],
+        });
+
+        expect(
+            await backfillTaskActionTransactionHistory(space.systemAction(), space.id, startTime),
+        ).toEqual([
+            expect.objectContaining({
+                actions: [
+                    expect.objectContaining({
+                        taskId: movedTask.id,
+                        taskAction: expect.objectContaining({type: "UpdateCollectionPosition"}),
+                    }),
+                    ...tiedTasks.slice(3).map(task =>
+                        expect.objectContaining({
+                            taskId: task.id,
+                            taskAction: expect.objectContaining({
+                                type: "UpdateCollectionPosition",
+                            }),
+                        }),
+                    ),
+                ],
+            }),
+        ]);
+    });
+
     test("can add a task to a collection and move it in the same patch request", async () => {
         const space = await TestSpace.create(context);
         const session = await space.createSession({name: "Alice Smith", role: "Admin"});
@@ -1950,6 +2246,110 @@ describe("MoveInCollection patch", () => {
         });
     });
 
+    test("can\u2019t move a task between identical cursors for the same task", async () => {
+        const {session, apiKey, collection} = await createMoveCollectionFixture();
+
+        const task1 = await TestTask.create(session, {title: "Task 1", collections: collection});
+        const task2 = await TestTask.create(session, {title: "Task 2", collections: collection});
+        const movedTask = await TestTask.create(session, {
+            title: "Moved Task",
+            collections: collection,
+        });
+
+        await ProcessContextModule.waitForTestTasks();
+
+        const {taskIds, cursors} = await getTaskCollectionListing(apiKey, collection.id);
+        expect(taskIds).toEqual([task1.id, task2.id, movedTask.id]);
+
+        expect(
+            await server.PATCH(`/tasks/${movedTask.id}`, {
+                headers: {authorization: `bearer ${apiKey}`},
+                body: {
+                    patches: [
+                        {
+                            type: "MoveInCollection",
+                            collectionId: collection.id,
+                            position: {
+                                type: "Between",
+                                afterCursor: cursors[0],
+                                beforeCursor: cursors[0],
+                            },
+                        },
+                    ],
+                },
+            }),
+        ).toEqual({
+            status: 400,
+            headers: expect.objectContaining({"content-type": "application/json"}),
+            body: {
+                error: expect.objectContaining({
+                    message:
+                        "The `MoveInCollection` patch `afterCursor` is for the same task as `beforeCursor`. Try again but with two `TaskCollectionCursor`s from different tasks.",
+                }),
+            },
+        });
+    });
+
+    test("can\u2019t move a task between different cursors for the same task", async () => {
+        const {session, apiKey, collection} = await createMoveCollectionFixture();
+
+        const task1 = await TestTask.create(session, {title: "Task 1", collections: collection});
+        const task2 = await TestTask.create(session, {title: "Task 2", collections: collection});
+        const task3 = await TestTask.create(session, {title: "Task 3", collections: collection});
+
+        await ProcessContextModule.waitForTestTasks();
+
+        const initialListing = await getTaskCollectionListing(apiKey, collection.id);
+        expect(initialListing.taskIds).toEqual([task1.id, task2.id, task3.id]);
+
+        const moveResponse = await server.PATCH(`/tasks/${task1.id}`, {
+            headers: {authorization: `bearer ${apiKey}`},
+            body: {
+                patches: [
+                    {
+                        type: "MoveInCollection",
+                        collectionId: collection.id,
+                        position: {type: "End"},
+                    },
+                ],
+            },
+        });
+
+        expect(moveResponse.status).toBe(200);
+        await ProcessContextModule.waitForTestTasks();
+
+        const updatedListing = await getTaskCollectionListing(apiKey, collection.id);
+        expect(updatedListing.taskIds).toEqual([task2.id, task3.id, task1.id]);
+
+        expect(
+            await server.PATCH(`/tasks/${task2.id}`, {
+                headers: {authorization: `bearer ${apiKey}`},
+                body: {
+                    patches: [
+                        {
+                            type: "MoveInCollection",
+                            collectionId: collection.id,
+                            position: {
+                                type: "Between",
+                                afterCursor: initialListing.cursors[0],
+                                beforeCursor: updatedListing.cursors[2],
+                            },
+                        },
+                    ],
+                },
+            }),
+        ).toEqual({
+            status: 400,
+            headers: expect.objectContaining({"content-type": "application/json"}),
+            body: {
+                error: expect.objectContaining({
+                    message:
+                        "The `MoveInCollection` patch `afterCursor` is for the same task as `beforeCursor`. Try again but with two `TaskCollectionCursor`s from different tasks.",
+                }),
+            },
+        });
+    });
+
     test("can\u2019t move a task in a collection it\u2019s not in", async () => {
         const space = await TestSpace.create(context);
         const session = await space.createSession({name: "Alice Smith", role: "Admin"});
@@ -1984,7 +2384,7 @@ describe("MoveInCollection patch", () => {
             body: {
                 error: expect.objectContaining({
                     message:
-                        "This task is not in the collection you\u2019re moving it within. Try again after adding the task to the collection with an `AddCollection` patch.",
+                        "The task isn\u2019t in the collection you\u2019re moving it within. Try again after adding the task to the collection with an `AddCollection` patch.",
                 }),
             },
         });
@@ -2032,7 +2432,7 @@ describe("MoveInCollection patch", () => {
             body: {
                 error: expect.objectContaining({
                     message:
-                        "The `afterCursor` task is positioned after the `beforeCursor` task in this collection. Try again with `afterCursor` and `beforeCursor` in collection order.",
+                        "The `MoveInCollection` patch `afterCursor` is positioned after `beforeCursor`. Try again but swap the order of `afterCursor` and `beforeCursor`.",
                 }),
             },
         });
