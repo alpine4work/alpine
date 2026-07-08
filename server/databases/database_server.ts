@@ -72,13 +72,10 @@ export type DatabaseServerReadPages = Map<
 
 export type DatabaseServerChangedPages = Map<DatabaseTableId, DatabaseServerTableChangedPages>;
 
-export type DatabaseServerChangedTables = ReadonlySet<DatabaseTableId>;
-
 export interface DatabaseServerResult {
     rows: Array<Record<string, unknown>>;
     readPages: DatabaseServerReadPages;
     changedPages: DatabaseServerChangedPages;
-    changedTables: DatabaseServerChangedTables;
     writeVersion: number;
 }
 
@@ -86,7 +83,6 @@ export type DatabaseServerActionResult<N extends DatabaseActionName> = {
     result: DatabaseActionOutput<N>;
     readPages: DatabaseServerReadPages;
     changedPages: DatabaseServerChangedPages;
-    changedTables: DatabaseServerChangedTables;
     writeVersion: number;
 };
 
@@ -98,9 +94,9 @@ export type DatabaseServerActionResult<N extends DatabaseActionName> = {
  * The cache upholds the invariant _attached ⟹ cached_: entries load in the attach
  * hook — the moment a schema becomes reachable by any statement — so the
  * authorizer's synchronous resolver never has to touch SQLite. Table policies only
- * change through `syncTableMetadata` (which fires the change-capture triggers,
- * refreshing the entry post-action), and a join's table ids are immutable (the
- * authorizer denies updating them), so entries stay valid even across LRU detach.
+ * change through `syncTableMetadata` (after which `executeAction` reloads the
+ * entry explicitly), and a join's table ids are immutable (the authorizer denies
+ * updating them), so entries stay valid even across LRU detach.
  */
 type DatabaseServerTableAccessEntry =
     | {kind: "table"; accessPolicy: AccessPolicy}
@@ -120,7 +116,6 @@ type DatabaseServerTableAccessEntry =
 export class DatabaseServer {
     private readonly database: Database;
     private readonly storage: DatabaseServerStorage;
-    private readonly changedTables = new Set<DatabaseTableId>();
     /** See {@link DatabaseServerTableAccessEntry}. */
     private readonly tableAccessCache = new Map<DatabaseTableId, DatabaseServerTableAccessEntry>();
     /**
@@ -154,9 +149,6 @@ export class DatabaseServer {
             server._loadTableAccessCacheEntry(tableId, {allowPendingCreation: true});
         });
         server._bootstrap();
-        database._installServerTableChangeCapture(tableId => {
-            server.changedTables.add(tableId);
-        });
         return server;
     }
 
@@ -165,14 +157,11 @@ export class DatabaseServer {
         query: SqlQuery,
         options: {allowWrites: SqliteWriteLevel},
     ): DatabaseServerResult {
-        const {result, readPages, changedPages, changedTables, writeVersion} = this._runAndPersist(
-            context,
-            () => {
-                const {rows, readPages} = this.database.executeSql(query, options);
-                return {result: rows, readPages};
-            },
-        );
-        return {rows: result, readPages, changedPages, changedTables, writeVersion};
+        const {result, readPages, changedPages, writeVersion} = this._runAndPersist(context, () => {
+            const {rows, readPages} = this.database.executeSql(query, options);
+            return {result: rows, readPages};
+        });
+        return {rows: result, readPages, changedPages, writeVersion};
     }
 
     executeAction<N extends DatabaseActionName>(
@@ -191,7 +180,7 @@ export class DatabaseServer {
             );
         }
         const currentAccountId = context.actor.getPossiblyBotAccountIdIfExists();
-        return this._runAndPersist(context, () =>
+        const persisted = this._runAndPersist(context, () =>
             this.database.executeAction(actionObject, {
                 currentAccountId,
                 tableAccessResolver: isTrustedActor
@@ -199,6 +188,15 @@ export class DatabaseServer {
                     : tableId => this.getTableAccessForAccount(tableId, currentAccountId),
             }),
         );
+        // `syncTableMetadata` is the only action that rewrites a table's replicated access
+        // policy (the authorizer's `_alpine_table` guard denies every restricted
+        // execution, and no other internal action touches `access_policy`), so the access
+        // cache refreshes here instead of tracking `_alpine_table` writes on every action.
+        if (actionObject.name === "syncTableMetadata") {
+            const {tableId} = (actionObject as DatabaseActionObject<"syncTableMetadata">).input;
+            this._loadTableAccessCacheEntry(tableId);
+        }
+        return persisted;
     }
 
     /**
@@ -448,12 +446,14 @@ export class DatabaseServer {
     }
 
     /**
-     * Post-action cache maintenance: reload entries for tables whose `_alpine_table`
-     * rows the action wrote (captured by the change triggers) and resolve mid-creation
-     * tables into real entries now that their metadata rows are committed.
+     * Success-path cache maintenance: resolve mid-creation tables into real entries
+     * now that their metadata rows are committed. Policy _updates_ don't need
+     * per-action tracking — `syncTableMetadata` is the only action that can rewrite a
+     * replicated policy (the authorizer denies `_alpine_table` writes to every
+     * restricted execution), and {@link executeAction} reloads its entry explicitly.
      */
-    private _refreshTableAccessCache(changedTableIds: ReadonlySet<DatabaseTableId>): void {
-        const tableIds = new Set([...changedTableIds, ...this.pendingCreatedTableIds]);
+    private _resolvePendingCreatedTableAccess(): void {
+        const tableIds = [...this.pendingCreatedTableIds];
         this.pendingCreatedTableIds.clear();
         for (const tableId of tableIds) {
             this._loadTableAccessCacheEntry(tableId);
@@ -533,7 +533,7 @@ export class DatabaseServer {
             this._persistBuffer();
             // The attach hook loaded this table's access entry against its pre-migration
             // schema — which may predate the `access_policy` column. Reload now that the file
-            // is current. (No change-capture triggers exist yet during bootstrap.)
+            // is current.
             this._loadTableAccessCacheEntry(table.id);
         }
         this.pendingCreatedTableIds.clear();
@@ -546,29 +546,18 @@ export class DatabaseServer {
         result: T;
         readPages: DatabaseServerReadPages;
         changedPages: DatabaseServerChangedPages;
-        changedTables: DatabaseServerChangedTables;
         writeVersion: number;
     } {
         // The error path below clears the buffer to recover from a partial write; assert
         // up front that we're not silently throwing away pre-existing buffered writes
         // belonging to a prior (forgotten) drain.
         this.database.assertBufferIsEmpty("_runAndPersist");
-        this.changedTables.clear();
-        let persisted: {
-            result: T;
-            readPages: DatabaseServerReadPages;
-            changedPages: DatabaseServerChangedPages;
-            changedTables: DatabaseServerChangedTables;
-            writeVersion: number;
-        };
         try {
-            persisted = this.storage.transactionSync(() => {
+            return this.storage.transactionSync(() => {
                 const {result, readPages} = run();
-                const changedTables = new Set(this.changedTables);
                 const persistedResult = this._persistAndBuildResult(result, readPages);
-                this.database.refreshServerTableChangeTriggers();
-                this._refreshTableAccessCache(changedTables);
-                return {...persistedResult, changedTables};
+                this._resolvePendingCreatedTableAccess();
+                return persistedResult;
             });
         } catch (error) {
             // Drop any partial buffered writes — whether the tracked execute or the drain
@@ -578,10 +567,7 @@ export class DatabaseServer {
             this.database.discardBuffer();
             this._dropPendingCreatedTableAccess();
             throw error;
-        } finally {
-            this.changedTables.clear();
         }
-        return persisted;
     }
 
     private _persistAndBuildResult<T>(

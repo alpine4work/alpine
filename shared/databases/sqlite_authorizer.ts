@@ -151,9 +151,13 @@ export function isSqliteActionAllowed(
 export interface SqliteTableAccess {
     /** SELECT / read of the table file's rows, metadata, and schema. */
     read: boolean;
-    /** INSERT / UPDATE / DELETE of rows. */
+    /** INSERT / UPDATE / DELETE of user data rows. */
     write: boolean;
-    /** DDL (CREATE/DROP/ALTER/…) and schema-targeted PRAGMAs. */
+    /**
+     * DDL (CREATE/DROP/ALTER/…), schema-targeted PRAGMAs, and DML against the reserved
+     * `_`-prefixed metadata tables — writing those reshapes the table's structure, so
+     * it's a schema change even when it's technically an UPDATE.
+     */
     schema: boolean;
 }
 
@@ -230,6 +234,13 @@ export function isSqliteActionAllowedForSchemaAccess({
     const access = resolveSchemaAccess(targetSchemaName);
     if (access === "unrestricted") return true;
 
+    // The `_` name prefix is reserved for the tables we manage to represent our own
+    // schema (`_alpine_table`, `_alpine_fields`, `_alpine_views`, …); user tables can
+    // never start with `_` (see `slugifySqlName`). Writing them reshapes the table's
+    // structure or metadata, so DML against them is a schema change, not a data write.
+    const effectiveRequirement =
+        requirement === "write" && arg1 !== null && arg1.startsWith("_") ? "schema" : requirement;
+
     // Restricted executions may never reshape a table file's replicated access policy:
     // the durable object and the realtime filters trust these rows, so a user-supplied
     // statement rewriting them would be a privilege escalation. Internal writers
@@ -256,7 +267,7 @@ export function isSqliteActionAllowedForSchemaAccess({
         }
     }
 
-    switch (requirement) {
+    switch (effectiveRequirement) {
         case "read":
             return access.read;
         case "write":
@@ -264,7 +275,7 @@ export function isSqliteActionAllowedForSchemaAccess({
         case "schema":
             return access.schema;
         default:
-            throw exhaustive(requirement);
+            throw exhaustive(effectiveRequirement);
     }
 }
 

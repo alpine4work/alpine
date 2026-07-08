@@ -319,7 +319,10 @@ const fullTableAccess: SqliteTableAccess = {
     schema: true,
 };
 
-/** Attach an in-memory `_t1` schema and seed a data table inside it. */
+/**
+ * Attach an in-memory `_t1` schema and seed a data table plus a reserved
+ * `_`-prefixed metadata table inside it.
+ */
 function attachTestSchema(): void {
     writeLevel = "attach";
     try {
@@ -333,6 +336,13 @@ function attachTestSchema(): void {
             _t1.things
         VALUES
             (1, 'a')
+    `.query);
+    db.exec(sql`CREATE TABLE _t1._alpine_fields (id TEXT PRIMARY KEY, name TEXT)`.query);
+    db.exec(sql`
+        INSERT INTO
+            _t1._alpine_fields
+        VALUES
+            ('f1', 'Name')
     `.query);
 }
 
@@ -400,6 +410,38 @@ describe("per-table schema access matrix (real SQLite)", () => {
             `,
             needed: "write",
         },
+        // DML against reserved `_`-prefixed metadata tables is a schema change: those rows
+        // _are_ the table's structure (fields, views, layout).
+        {
+            name: "INSERT into _alpine metadata",
+            query: sql`
+                INSERT INTO
+                    _t1._alpine_fields
+                VALUES
+                    ('f2', 'Status')
+            `,
+            needed: "schema",
+        },
+        {
+            name: "UPDATE of _alpine metadata",
+            query: sql`
+                UPDATE _t1._alpine_fields
+                SET
+                    name = 'Title'
+                WHERE
+                    id = 'f1'
+            `,
+            needed: "schema",
+        },
+        {
+            name: "DELETE of _alpine metadata",
+            query: sql`
+                DELETE FROM _t1._alpine_fields
+                WHERE
+                    id = 'f1'
+            `,
+            needed: "schema",
+        },
         {
             name: "CREATE INDEX",
             query: sql`CREATE INDEX _t1.idx_things_name ON things (name)`,
@@ -440,6 +482,22 @@ describe("per-table schema access matrix (real SQLite)", () => {
             ).toThrow(/not authorized|is prohibited/);
         });
     }
+
+    test("metadata DML needs schema, not write", () => {
+        attachTestSchema();
+        expect(() =>
+            runWithTableAccess(
+                sql`
+                    UPDATE _t1._alpine_fields
+                    SET
+                        name = 'Title'
+                    WHERE
+                        id = 'f1'
+                `,
+                {...fullTableAccess, write: false},
+            ),
+        ).not.toThrow();
+    });
 
     test("main stays readable while _t1 is denied", () => {
         attachTestSchema();

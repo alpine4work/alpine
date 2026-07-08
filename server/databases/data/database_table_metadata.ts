@@ -87,7 +87,6 @@ export async function updateDatabaseTableAccessPolicy(
     await authorizeSpaceAccess(sessionContext, spaceId, "Member");
 
     const databaseGroupId = await getExistingDatabaseGroupIdForSpace(sessionContext, spaceId);
-    let tableName: string | null = null;
 
     const {getEvent} = await DatabaseTablesTable.updateItem(
         context,
@@ -100,20 +99,16 @@ export async function updateDatabaseTableAccessPolicy(
                 throw new NotFoundError(`Database table ${tableId} not found`);
             }
 
-            tableName = item.name;
             return item.update({accessPolicy});
         },
     );
 
-    assert(tableName !== null);
-
-    await syncDatabaseTableMetadataToDurableObject(context, {
-        spaceId,
-        tableId,
-        name: tableName,
-        accessPolicy,
-    });
-
+    // The durable object's replica is synced by the `IndexSearchEntity` job below:
+    // indexing a `DatabaseTable` entity re-runs
+    // `syncDatabaseTableMetadataToDurableObject` as an additional write (see
+    // `getDatabaseTableSearchEntity`). That's the same route Site-policy changes
+    // propagate through (the entity's `Site:*` dependency), so direct policy updates
+    // share its delivery guarantees and latency.
     context.process.waitUntil(
         context.jobs.sendAndWait({
             type: "IndexSearchEntity",

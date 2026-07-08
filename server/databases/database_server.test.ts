@@ -997,35 +997,6 @@ describe("DatabaseServer", () => {
         });
     });
 
-    describe("executeAction — changed tables", () => {
-        test("captures table metadata changes without capturing row changes", async () => {
-            const server = await createServerWithSchema();
-
-            const created = server.executeAction<"createTable">(testContext, {
-                name: "createTable",
-                input: createTableInputForTest("Tasks"),
-            });
-            const tableId = created.result.tableId;
-
-            expect(created.changedTables).toEqual(new Set([tableId]));
-
-            const renamed = server.executeAction<"renameTable">(testContext, {
-                name: "renameTable",
-                input: {tableId, name: "Projects"},
-            });
-
-            expect(renamed.changedTables).toEqual(new Set([tableId]));
-
-            const rowId = generateChronologicalId<DatabaseRowId>();
-            const rowCreated = server.executeAction<"createRow">(testContext, {
-                name: "createRow",
-                input: {tableId, rowId},
-            });
-
-            expect(rowCreated.changedTables).toEqual(new Set());
-        });
-    });
-
     describe("create", () => {
         test("multiple servers can coexist", async () => {
             const server1 = await createServerWithSchema(
