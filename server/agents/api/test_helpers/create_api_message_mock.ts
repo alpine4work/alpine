@@ -1,4 +1,4 @@
-import {addKeysToApiContentForTest} from "~/shared/api/content/test_helpers/add_keys_to_api_content_for_test.js";
+import {parseApiContentResponseFromMarkdownForTest} from "~/shared/api/content/test_helpers/parse_api_content_response_from_markdown_for_test.js";
 import {
     ApiAccount,
     ApiContentResponse,
@@ -6,7 +6,7 @@ import {
     ApiMessageResponse,
 } from "~/shared/api/specification/types/api_specification_convenience_types.js";
 import {isReadonlyArray} from "~/shared/helpers/array/is_readonly_array.js";
-import {assertDateString} from "~/shared/helpers/date/date_string.js";
+import {DateString, serializeDateString} from "~/shared/helpers/date/date_string.js";
 import {TimeZone, defaultTimeZone} from "~/shared/helpers/intl/time_zone.js";
 
 export type ApiMessageMockParent = {
@@ -20,35 +20,29 @@ export function createApiMessageMock({
     index,
     author,
     content = `Test message ${index}`,
-    createdTime = new Date(Date.UTC(2026, 4, 14, 15, index * 5)).toISOString(),
+    createdTime = new Date(Date.UTC(2026, 4, 14, 15, index * 5)),
     createdTimeZone = defaultTimeZone,
     parent,
 }: {
     index: number;
     author: ApiAccount | ReadonlyArray<ApiAccount>;
-    content?: ApiContentResponse | string;
-    createdTime?: string;
+    content?: string | ApiContentResponse;
+    createdTime?: DateString | Date;
     createdTimeZone?: TimeZone;
     parent?: ApiMessageMockParent;
 }): ApiMessageResponse {
     return {
         index,
         author: isReadonlyArray(author) ? author[index % author.length]! : author,
-        createdTime: assertDateString(createdTime),
+        createdTime:
+            typeof createdTime === "string" ? createdTime : serializeDateString(createdTime),
         createdTimeZone,
         payload: {
             type: "Content",
             content:
-                typeof content !== "string"
-                    ? content
-                    : addKeysToApiContentForTest({
-                          elements: [
-                              {
-                                  type: "Paragraph",
-                                  elements: [{type: "Text", text: content}],
-                              },
-                          ],
-                      }),
+                typeof content === "string"
+                    ? parseApiContentResponseFromMarkdownForTest(content)
+                    : content,
             parent: parent
                 ? {
                       type: "Message" as const,
