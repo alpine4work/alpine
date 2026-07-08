@@ -9,6 +9,8 @@ import {
 import {getAccount} from "~/server/spaces/get_account.js";
 import {commitTaskActionTransaction} from "~/server/tasks/data/commit_task_action_transaction.js";
 import {ApiTaskPatch} from "~/shared/api/specification/types/api_specification_convenience_types.js";
+import {InvalidArgumentError} from "~/shared/error/error.js";
+import {errorDisplayMessage} from "~/shared/error/error_display_message.js";
 import {emptyArray} from "~/shared/helpers/array/empty_array.js";
 import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
 import {HybridLogicalClock} from "~/shared/helpers/clock/hybrid_logical_clock.js";
@@ -47,6 +49,7 @@ import {
 type TaskPatchState = {
     title: TaskTitleModel;
     assigneeId: AccountId | null;
+    collectionIds: Set<TaskCollectionId>;
     lastCollectionOrderKey: OrderKey | null;
 };
 
@@ -276,6 +279,12 @@ function createTaskActionsFromApiTaskPatches({
     const state: TaskPatchState = {
         title: initialTask.getTitle(),
         assigneeId: initialTask.getAssignee()?.assignee.accountId ?? null,
+        collectionIds: new Set(
+            initialTask
+                .getCollections()
+                .getArray()
+                .map(({collectionId}) => collectionId),
+        ),
         lastCollectionOrderKey: initialTask.getCollections().getLastOrderKey(),
     };
 
@@ -408,10 +417,10 @@ function createTaskActionsFromApiTaskPatches({
                 break;
             }
             case "SetStatus": {
-                const time = clock.now();
-
                 switch (patch.status.type) {
                     case "Closed": {
+                        const time = clock.now();
+
                         actions.push({
                             type: "UpdateTask",
                             time,
@@ -433,6 +442,8 @@ function createTaskActionsFromApiTaskPatches({
                     }
                     case "Open": {
                         if (!patch.status.isActive) {
+                            const time = clock.now();
+
                             // NOCOMMIT: Test that this clears the active status.
                             actions.push({
                                 type: "UpdateTask",
@@ -449,9 +460,11 @@ function createTaskActionsFromApiTaskPatches({
                             // currently have an assignee, assign it to the bot. This is what the UI will do.
                             // If you try to mark an unassigned task as active it will assign you to the task.
                             if (state.assigneeId === null) {
+                                const time1 = clock.now();
+
                                 actions.push({
                                     type: "UpdateTask",
-                                    time,
+                                    time: time1,
                                     actor,
                                     taskId,
                                     taskAction: {
@@ -460,7 +473,7 @@ function createTaskActionsFromApiTaskPatches({
                                             assigneeId: botAccountId,
                                             assignerId: botAccountId,
                                             assignedTime: new TaskFilterableTime({
-                                                absoluteTime: time,
+                                                absoluteTime: time1,
                                                 setterTimeZone: timeZone,
                                             }),
                                         },
@@ -470,9 +483,11 @@ function createTaskActionsFromApiTaskPatches({
                                 state.assigneeId = botAccountId;
                             }
 
+                            const time2 = clock.now();
+
                             actions.push({
                                 type: "UpdateTask",
-                                time,
+                                time: time2,
                                 actor,
                                 taskId,
                                 taskAction: {
@@ -481,7 +496,7 @@ function createTaskActionsFromApiTaskPatches({
                                     assigneeStatus: {
                                         type: "Active",
                                         activatedTime: new TaskFilterableTime({
-                                            absoluteTime: time,
+                                            absoluteTime: time2,
                                             setterTimeZone: timeZone,
                                         }),
                                     },
@@ -556,6 +571,7 @@ function createTaskActionsFromApiTaskPatches({
                 });
 
                 state.lastCollectionOrderKey = orderKey;
+                state.collectionIds.add(collectionId);
                 break;
             }
             case "RemoveCollection": {
@@ -568,10 +584,21 @@ function createTaskActionsFromApiTaskPatches({
                     taskId,
                     taskAction: {type: "RemoveCollection", collectionId},
                 });
+
+                state.collectionIds.delete(collectionId);
                 break;
             }
             case "MoveInCollection": {
                 const {collectionId} = patch;
+
+                if (!state.collectionIds.has(collectionId)) {
+                    throw new InvalidArgumentError(
+                        "Trying to move task when it\u2019s not in collection",
+                        {
+                            displayMessage: errorDisplayMessage`The task isn\u2019t in the collection you\u2019re moving it within. Try again after adding the task to the collection with an \`AddCollection\` patch.`,
+                        },
+                    );
+                }
 
                 const preparedMovePosition = assertExists(preparedMovePositions[patchIndex]);
 
