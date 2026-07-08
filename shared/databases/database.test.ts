@@ -753,6 +753,32 @@ describe("Database — attach", () => {
 
         expect(database.isAttached(otherTableId)).toBe(true);
     });
+
+    test("detachTableIfAttached detaches and drops buffered writes to the table", async () => {
+        const {database} = await createDatabase();
+        const otherTableId = generateChronologicalId<DatabaseTableId>();
+        database.attach(otherTableId);
+        database.executeSql(
+            sql`CREATE TABLE ${sql.tableRef(otherTableId, "items")} (id INTEGER PRIMARY KEY)`,
+            {allowWrites: "schema+data"},
+        );
+
+        const detached = database.detachTableIfAttached(otherTableId);
+
+        expect({
+            detached,
+            isAttached: database.isAttached(otherTableId),
+            bufferedPages: database.getBufferedWrites()?.pages.get(otherTableId),
+        }).toEqual({detached: true, isAttached: false, bufferedPages: undefined});
+    });
+
+    test("detachTableIfAttached is a no-op for an unattached table", async () => {
+        const {database} = await createDatabase();
+
+        expect(database.detachTableIfAttached(generateChronologicalId<DatabaseTableId>())).toBe(
+            true,
+        );
+    });
 });
 
 describe("Database — unattached per-db file detection", () => {

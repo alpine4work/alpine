@@ -40,6 +40,19 @@ export class OpfsDatabaseStorage implements ReadonlyDatabaseStorage {
     }
 
     /**
+     * Close `tableId`'s page store, unregister it, and delete its `{tableId}/`
+     * subdirectory from the group dir. Used to purge a table the account lost access
+     * to; the closed sync-access handles free the directory for removal.
+     */
+    async delete(tableId: DatabaseTableId): Promise<void> {
+        const store = this.stores.get(tableId);
+        assert(store !== undefined, `delete for unknown table: ${tableId}`);
+        store.close();
+        this.stores.delete(tableId);
+        await this.groupDir.removeEntry(tableId, {recursive: true});
+    }
+
+    /**
      * Close every open page store, releasing their OPFS sync-access handles. Call when
      * discarding the owning {@link DatabaseClient} (e.g. a failed cold-open) so a
      * later re-open isn't blocked by OPFS's exclusive sync-access-handle lock.

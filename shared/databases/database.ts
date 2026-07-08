@@ -797,6 +797,17 @@ export class Database {
     }
 
     /**
+     * `DETACH` `tableId`'s per-table file if it is attached, dropping any buffered
+     * writes to it. Returns `false` without detaching when SQLite reports the schema
+     * locked (the open transaction touched it) — the caller should retry later. Used
+     * by the client to purge a table the account lost access to.
+     */
+    detachTableIfAttached(tableId: DatabaseTableId): boolean {
+        if (!this.tables.has(tableId)) return true;
+        return this.tryDetachTable(tableId);
+    }
+
+    /**
      * Whether attaching another per-table file would trigger LRU eviction. Callers
      * that eagerly attach tables as an optimization (e.g. the client's
      * `attachKnownTables`) should stop here — past this point eager attaches just

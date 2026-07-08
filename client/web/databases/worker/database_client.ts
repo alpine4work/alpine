@@ -35,6 +35,7 @@ import {databaseMainTableId} from "~/shared/databases/sqlite_constants.js";
 import {type SqliteMigration} from "~/shared/databases/sqlite_migrations.js";
 import {TableNotAttachedError} from "~/shared/databases/table_not_attached_error.js";
 import {PermissionDeniedError} from "~/shared/error/error.js";
+import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
 import type {Result} from "~/shared/helpers/control/result.js";
@@ -173,6 +174,7 @@ export class DatabaseClient {
         const {tables, tableAccess} = await conn.ensureCacheIsUpToDate(pageVersionsByIndex);
         if (tableAccess.size > 0) {
             this.tableAccessLevelByTableId = new Map(tableAccess);
+            await this.purgeRevokedTables();
         }
 
         // From here through `replayOptimisticQueue()` runs synchronously — no `await` — so
@@ -227,12 +229,46 @@ export class DatabaseClient {
 
     /**
      * Merge a `TableMetadataChanged` access delta into the map (see {@link
-     * tableAccessLevelByTableId}).
+     * tableAccessLevelByTableId}) and purge any table the delta revoked.
      */
-    applyTableAccessLevels(tableAccess: DatabaseTableAccessLevels): void {
+    async applyTableAccessLevels(tableAccess: DatabaseTableAccessLevels): Promise<void> {
         for (const [tableId, level] of tableAccess) {
             this.tableAccessLevelByTableId.set(tableId, level);
         }
+        await this.purgeRevokedTables();
+    }
+
+    /**
+     * Best-effort local purge of every cached table the access map now reports
+     * `"none"` for: detach its per-table file from SQLite (dropping buffered writes to
+     * it), delete its pages from OPFS, and re-run reactive queries that read them. The
+     * server stops replicating a revoked table on its own; this removes the copies
+     * that already reached this device.
+     *
+     * Best-effort by nature — the account may simply never come back online — so a
+     * table whose schema an open transaction has locked is skipped and retried on the
+     * next access-map push.
+     */
+    private async purgeRevokedTables(): Promise<void> {
+        const dirRemovals: Array<Promise<void>> = [];
+        for (const [tableId, store] of [...this.storage]) {
+            if (tableId === databaseMainTableId) continue;
+            if (this.getTableAccessLevel(tableId) !== "none") continue;
+            if (!this.database.detachTableIfAttached(tableId)) continue;
+            for (const {pageIndex} of store.pageEntries()) {
+                this.addPageToInvalidate(tableId, pageIndex);
+            }
+            dirRemovals.push(this.storage.delete(tableId));
+        }
+        if (dirRemovals.length === 0) return;
+
+        // Queued optimistic mutations may have written to a purged table: discard the
+        // buffer and replay so now-denied mutations drop out and the rest reapply cleanly
+        // (both synchronous — see {@link ensureCacheIsUpToDate}).
+        this.database.discardBuffer();
+        this.replayOptimisticQueue();
+        this.scheduleInvalidation();
+        await runAllPromises(dirRemovals);
     }
 
     /**
@@ -896,6 +932,16 @@ export class DatabaseClient {
             }
         }
         this.database.markCommitted({skipReactiveInvalidationForTests: true});
+    }
+
+    /**
+     * Open a page store for `tableId` and attach its (empty) per-table file, so tests
+     * can populate it via {@link executeLocallyForTests}. Test-only.
+     */
+    async attachTableForTests(tableId: DatabaseTableId): Promise<void> {
+        assert(import.meta.jest, "attachTableForTests is test-only");
+        await this.storage.create(tableId);
+        this.database.attach(tableId);
     }
 
     /** Exposed for tests only. Do not use in production code. */

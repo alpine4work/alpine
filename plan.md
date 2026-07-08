@@ -189,11 +189,19 @@ for the "No access" chip.
 
 ## Milestone 6 (optional, post-v1)
 
-- Client-side authorizer enforcement from the access map (fail optimistic writes fast instead
-  of rebase-discarding them).
-- OPFS purge on revocation (handler on an access-map delta — plumbing exists after M4).
+- ✅ Client-side authorizer enforcement from the access map (fail optimistic writes fast instead
+  of rebase-discarding them). Landed in M5: the worker installs a `tableAccessResolver` on every
+  local execution.
+- ✅ OPFS purge on revocation. `DatabaseClient.purgeRevokedTables()` runs on both access-map
+  entry points (`ensureCacheIsUpToDate` full-map replacement and `applyTableAccessLevels`
+  event deltas): detaches the per-table file (`Database.detachTableIfAttached`, dropping
+  buffered writes), deletes the OPFS subdirectory (`OpfsDatabaseStorage.delete`), invalidates
+  overlapping reactive queries, and discards + replays the optimistic queue so now-denied
+  mutations drop out. Best-effort: a schema locked by an open transaction is skipped and
+  retried on the next push.
 - Membership-driven policy re-push (product-wide gap: `removeSpaceAccount` triggers nothing;
-  a `Space:*` search-entity dependency would close the ≤2min window).
+  a `Space:*` search-entity dependency would close the ≤2min window). Remains open — needs a
+  product-wide membership-propagation mechanism, not databases-specific.
 
 ## Known limitations / open items
 
