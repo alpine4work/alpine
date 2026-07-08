@@ -271,10 +271,8 @@ const MessageStreamToolCallPartPayloadCallSchema = Schema.union({
     Read: Schema.object({
         type: Schema.value("Read"),
         // TODO(calebmer, #api-path-destruction): This shouldn't be a `targetPath` string
-        // but rather a `target` object like `Create`. We may be able to get rid of
+        // but rather a `reference` object like `Create`. We may be able to get rid of
         // `ApiMentionReferencePath` after doing this.
-        //
-        // NOCOMMIT: Rename to `reference`?
         targetPath: Schema.stringAs<ApiMentionReferencePath>(),
     }),
     Search: Schema.object({

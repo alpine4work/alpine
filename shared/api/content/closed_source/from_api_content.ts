@@ -6,13 +6,11 @@ import {intoApiContentParagraphBlockElement} from "~/shared/api/content/parse_ap
 import {
     ApiContent,
     ApiContentBlockElement,
-    ApiContentCheckListBlockElementItem,
     ApiContentFileBlockElement,
     ApiContentHighlightMarkColor,
     ApiContentInlineElement,
     ApiContentInlineElementMark,
     ApiContentListBlockElement,
-    ApiContentListBlockElementItem,
     ApiContentMentionInlineElement,
     ApiContentPreviewBlockElement,
     ApiContentTableBlockElementCellBlockElement,

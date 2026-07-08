@@ -601,9 +601,11 @@ export async function convertMarkdownTreeToAgentWebMarkdownTree(
                         data: {
                             fileElement: {
                                 type: "File",
-                                id: pageLink.id,
-                                contentType: pageLink.contentType,
-                                contentLength: pageLink.contentLength,
+                                file: {
+                                    id: pageLink.id,
+                                    contentType: pageLink.contentType,
+                                    contentLength: pageLink.contentLength,
+                                },
                             },
                         },
                     };

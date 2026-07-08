@@ -1405,16 +1405,20 @@ Second render:
                             paragraph([text("First render:")]),
                             {
                                 type: "File",
-                                id: duplicateFileId,
-                                contentType: "image/png",
-                                contentLength: 100,
+                                file: {
+                                    id: duplicateFileId,
+                                    contentType: "image/png",
+                                    contentLength: 100,
+                                },
                             },
                             paragraph([text("Second render:")]),
                             {
                                 type: "File",
-                                id: duplicateFileId,
-                                contentType: "image/png",
-                                contentLength: 200,
+                                file: {
+                                    id: duplicateFileId,
+                                    contentType: "image/png",
+                                    contentLength: 200,
+                                },
                             },
                         ]),
                     },

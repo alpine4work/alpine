@@ -2018,9 +2018,11 @@ test("streams file gallery rows as their HTML completes", async () => {
                                         {
                                             element: {
                                                 type: "File",
-                                                id: file1Id,
-                                                contentType: "image/png",
-                                                contentLength: 100,
+                                                file: {
+                                                    id: file1Id,
+                                                    contentType: "image/png",
+                                                    contentLength: 100,
+                                                },
                                             },
                                         },
                                     ],
@@ -2066,17 +2068,21 @@ test("streams file gallery rows as their HTML completes", async () => {
                                         {
                                             element: {
                                                 type: "File",
-                                                id: file2Id,
-                                                contentType: "image/png",
-                                                contentLength: 200,
+                                                file: {
+                                                    id: file2Id,
+                                                    contentType: "image/png",
+                                                    contentLength: 200,
+                                                },
                                             },
                                         },
                                         {
                                             element: {
                                                 type: "File",
-                                                id: file3Id,
-                                                contentType: "image/png",
-                                                contentLength: 300,
+                                                file: {
+                                                    id: file3Id,
+                                                    contentType: "image/png",
+                                                    contentLength: 300,
+                                                },
                                             },
                                         },
                                     ],
@@ -2108,25 +2114,31 @@ test("streams file gallery rows as their HTML completes", async () => {
                                         {
                                             element: {
                                                 type: "File",
-                                                id: file4Id,
-                                                contentType: "image/png",
-                                                contentLength: 400,
+                                                file: {
+                                                    id: file4Id,
+                                                    contentType: "image/png",
+                                                    contentLength: 400,
+                                                },
                                             },
                                         },
                                         {
                                             element: {
                                                 type: "File",
-                                                id: file5Id,
-                                                contentType: "image/png",
-                                                contentLength: 500,
+                                                file: {
+                                                    id: file5Id,
+                                                    contentType: "image/png",
+                                                    contentLength: 500,
+                                                },
                                             },
                                         },
                                         {
                                             element: {
                                                 type: "File",
-                                                id: file6Id,
-                                                contentType: "image/png",
-                                                contentLength: 600,
+                                                file: {
+                                                    id: file6Id,
+                                                    contentType: "image/png",
+                                                    contentLength: 600,
+                                                },
                                             },
                                         },
                                     ],

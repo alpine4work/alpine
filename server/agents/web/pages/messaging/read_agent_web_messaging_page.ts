@@ -830,7 +830,10 @@ function buildAgentWebMessagingPageFromApiMessages<
                                     ? messageParent.endIndex + 1
                                     : messageParent.index + 1,
                         },
-                        // NOCOMMIT: Proper value for `matchAttribute` on read
+                        // TODO(calebmer): Ideally we have a proper `match` attribute for messages on read
+                        // to match the one agents add on write. However, implementing that properly is a
+                        // little complex so choosing to not to implement right now. But we should
+                        // implement eventually for symmetry between the read and write format.
                         matchAttribute: null,
                         author: intoApiAccountReference(messageParent.author),
                         previewContent:

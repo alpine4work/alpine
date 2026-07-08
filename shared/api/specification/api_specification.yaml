@@ -2627,7 +2627,6 @@ components:
             properties:
                 type:
                     const: File
-                # NOCOMMIT: Make sure this nesting works everywhere
                 file:
                     $ref: "#/components/schemas/ContentFileBlockElementFile"
                 marks:

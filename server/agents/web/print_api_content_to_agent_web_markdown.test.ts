@@ -1612,9 +1612,11 @@ Review this today:
             elements: [
                 {
                     type: "File",
-                    id: file1Id,
-                    contentType: "image/png",
-                    contentLength: 100,
+                    file: {
+                        id: file1Id,
+                        contentType: "image/png",
+                        contentLength: 100,
+                    },
                 },
             ],
         },
@@ -1628,9 +1630,11 @@ Review this today:
             elements: [
                 {
                     type: "File",
-                    id: file1Id,
-                    contentType: "video/mp4",
-                    contentLength: 100,
+                    file: {
+                        id: file1Id,
+                        contentType: "video/mp4",
+                        contentLength: 100,
+                    },
                 },
             ],
         },
@@ -1644,9 +1648,11 @@ Review this today:
             elements: [
                 {
                     type: "File",
-                    id: file1Id,
-                    contentType: "audio/webm",
-                    contentLength: 100,
+                    file: {
+                        id: file1Id,
+                        contentType: "audio/webm",
+                        contentLength: 100,
+                    },
                 },
             ],
         },
@@ -1660,9 +1666,11 @@ Review this today:
             elements: [
                 {
                     type: "File",
-                    id: file1Id,
-                    contentType: "application/pdf",
-                    contentLength: 100,
+                    file: {
+                        id: file1Id,
+                        contentType: "application/pdf",
+                        contentLength: 100,
+                    },
                 },
             ],
         },
@@ -1683,18 +1691,22 @@ Review this today:
                                     width: 0.5,
                                     element: {
                                         type: "File",
-                                        id: file1Id,
-                                        contentType: "image/png",
-                                        contentLength: 100,
+                                        file: {
+                                            id: file1Id,
+                                            contentType: "image/png",
+                                            contentLength: 100,
+                                        },
                                     },
                                 },
                                 {
                                     width: 0.5,
                                     element: {
                                         type: "File",
-                                        id: file2Id,
-                                        contentType: "video/mp4",
-                                        contentLength: 200,
+                                        file: {
+                                            id: file2Id,
+                                            contentType: "video/mp4",
+                                            contentLength: 200,
+                                        },
                                     },
                                 },
                             ],
@@ -1768,27 +1780,33 @@ Review this today:
                                     width: 0.3,
                                     element: {
                                         type: "File",
-                                        id: file1Id,
-                                        contentType: "image/png",
-                                        contentLength: 100,
+                                        file: {
+                                            id: file1Id,
+                                            contentType: "image/png",
+                                            contentLength: 100,
+                                        },
                                     },
                                 },
                                 {
                                     width: 0.3,
                                     element: {
                                         type: "File",
-                                        id: file2Id,
-                                        contentType: "video/mp4",
-                                        contentLength: 200,
+                                        file: {
+                                            id: file2Id,
+                                            contentType: "video/mp4",
+                                            contentLength: 200,
+                                        },
                                     },
                                 },
                                 {
                                     width: 0.4,
                                     element: {
                                         type: "File",
-                                        id: file3Id,
-                                        contentType: "application/pdf",
-                                        contentLength: 300,
+                                        file: {
+                                            id: file3Id,
+                                            contentType: "application/pdf",
+                                            contentLength: 300,
+                                        },
                                     },
                                 },
                             ],
@@ -1818,27 +1836,33 @@ Review this today:
                                     width: 0.3,
                                     element: {
                                         type: "File",
-                                        id: file1Id,
-                                        contentType: "image/png",
-                                        contentLength: 100,
+                                        file: {
+                                            id: file1Id,
+                                            contentType: "image/png",
+                                            contentLength: 100,
+                                        },
                                     },
                                 },
                                 {
                                     width: 0.3,
                                     element: {
                                         type: "File",
-                                        id: file2Id,
-                                        contentType: "video/mp4",
-                                        contentLength: 200,
+                                        file: {
+                                            id: file2Id,
+                                            contentType: "video/mp4",
+                                            contentLength: 200,
+                                        },
                                     },
                                 },
                                 {
                                     width: 0.4,
                                     element: {
                                         type: "File",
-                                        id: file3Id,
-                                        contentType: "application/pdf",
-                                        contentLength: 300,
+                                        file: {
+                                            id: file3Id,
+                                            contentType: "application/pdf",
+                                            contentLength: 300,
+                                        },
                                     },
                                 },
                             ],
@@ -1849,18 +1873,22 @@ Review this today:
                                     width: 0.5,
                                     element: {
                                         type: "File",
-                                        id: file4Id,
-                                        contentType: "audio/webm",
-                                        contentLength: 400,
+                                        file: {
+                                            id: file4Id,
+                                            contentType: "audio/webm",
+                                            contentLength: 400,
+                                        },
                                     },
                                 },
                                 {
                                     width: 0.5,
                                     element: {
                                         type: "File",
-                                        id: file5Id,
-                                        contentType: "image/gif",
-                                        contentLength: 500,
+                                        file: {
+                                            id: file5Id,
+                                            contentType: "image/gif",
+                                            contentLength: 500,
+                                        },
                                     },
                                 },
                             ],
@@ -1895,27 +1923,33 @@ Review this today:
                                     width: 0.3,
                                     element: {
                                         type: "File",
-                                        id: file1Id,
-                                        contentType: "image/png",
-                                        contentLength: 100,
+                                        file: {
+                                            id: file1Id,
+                                            contentType: "image/png",
+                                            contentLength: 100,
+                                        },
                                     },
                                 },
                                 {
                                     width: 0.3,
                                     element: {
                                         type: "File",
-                                        id: file2Id,
-                                        contentType: "video/mp4",
-                                        contentLength: 200,
+                                        file: {
+                                            id: file2Id,
+                                            contentType: "video/mp4",
+                                            contentLength: 200,
+                                        },
                                     },
                                 },
                                 {
                                     width: 0.4,
                                     element: {
                                         type: "File",
-                                        id: file3Id,
-                                        contentType: "application/pdf",
-                                        contentLength: 300,
+                                        file: {
+                                            id: file3Id,
+                                            contentType: "application/pdf",
+                                            contentLength: 300,
+                                        },
                                     },
                                 },
                             ],
@@ -1926,9 +1960,11 @@ Review this today:
                                     width: 1,
                                     element: {
                                         type: "File",
-                                        id: file6Id,
-                                        contentType: "image/avif",
-                                        contentLength: 600,
+                                        file: {
+                                            id: file6Id,
+                                            contentType: "image/avif",
+                                            contentLength: 600,
+                                        },
                                     },
                                 },
                             ],
@@ -1939,18 +1975,22 @@ Review this today:
                                     width: 0.5,
                                     element: {
                                         type: "File",
-                                        id: file4Id,
-                                        contentType: "audio/webm",
-                                        contentLength: 400,
+                                        file: {
+                                            id: file4Id,
+                                            contentType: "audio/webm",
+                                            contentLength: 400,
+                                        },
                                     },
                                 },
                                 {
                                     width: 0.5,
                                     element: {
                                         type: "File",
-                                        id: file5Id,
-                                        contentType: "image/gif",
-                                        contentLength: 500,
+                                        file: {
+                                            id: file5Id,
+                                            contentType: "image/gif",
+                                            contentLength: 500,
+                                        },
                                     },
                                 },
                             ],
@@ -1983,9 +2023,11 @@ Review this today:
                     side: "Left",
                     element: {
                         type: "File",
-                        id: file1Id,
-                        contentType: "image/png",
-                        contentLength: 100,
+                        file: {
+                            id: file1Id,
+                            contentType: "image/png",
+                            contentLength: 100,
+                        },
                     },
                 },
             ],
@@ -2046,9 +2088,11 @@ Review this today:
                                     width: 0.5,
                                     element: {
                                         type: "File",
-                                        id: assertId<FileId>("r3xsmjpecc4k0qp6tz6tebrm6c"),
-                                        contentType: "audio/mpeg",
-                                        contentLength: 1200813419,
+                                        file: {
+                                            id: assertId<FileId>("r3xsmjpecc4k0qp6tz6tebrm6c"),
+                                            contentType: "audio/mpeg",
+                                            contentLength: 1200813419,
+                                        },
                                     },
                                 },
                             ],
@@ -2219,9 +2263,11 @@ Review this today:
                                     width: 0.5,
                                     element: {
                                         type: "File",
-                                        id: assertId<FileId>("hkwdk6myqtdq71j7e2rmy0am84"),
-                                        contentType: "application/octet-stream",
-                                        contentLength: 0,
+                                        file: {
+                                            id: assertId<FileId>("hkwdk6myqtdq71j7e2rmy0am84"),
+                                            contentType: "application/octet-stream",
+                                            contentLength: 0,
+                                        },
                                     },
                                 },
                             ],
@@ -2265,18 +2311,22 @@ Review this today:
                                     width: 0.5,
                                     element: {
                                         type: "File",
-                                        id: file1Id,
-                                        contentType: "image/png",
-                                        contentLength: 100,
+                                        file: {
+                                            id: file1Id,
+                                            contentType: "image/png",
+                                            contentLength: 100,
+                                        },
                                     },
                                 },
                                 {
                                     width: 0.5,
                                     element: {
                                         type: "File",
-                                        id: file1Id,
-                                        contentType: "video/mp4",
-                                        contentLength: 200,
+                                        file: {
+                                            id: file1Id,
+                                            contentType: "video/mp4",
+                                            contentLength: 200,
+                                        },
                                     },
                                 },
                             ],
@@ -2406,9 +2456,11 @@ Review this today:
                                     width: 0.5,
                                     element: {
                                         type: "File",
-                                        id: assertId<FileId>("sedwmv127rwjkm2vgegznrkxtg"),
-                                        contentType: "video/mp4",
-                                        contentLength: 0,
+                                        file: {
+                                            id: assertId<FileId>("sedwmv127rwjkm2vgegznrkxtg"),
+                                            contentType: "video/mp4",
+                                            contentLength: 0,
+                                        },
                                         marks: [
                                             {
                                                 type: "Comment",
@@ -2425,9 +2477,11 @@ Review this today:
                                     width: 0.5,
                                     element: {
                                         type: "File",
-                                        id: assertId<FileId>("00000000000000000000000000"),
-                                        contentType: "image/jpeg",
-                                        contentLength: 0,
+                                        file: {
+                                            id: assertId<FileId>("00000000000000000000000000"),
+                                            contentType: "image/jpeg",
+                                            contentLength: 0,
+                                        },
                                         marks: [],
                                     },
                                 },

@@ -20,7 +20,6 @@ test.each([
         encoded: "q1GJhUGIePdN8VnW20R-lZoINYivd78gcA",
     },
     {
-        // NOCOMMIT: Can we get this shorter if we're moving it??
         sorts: [
             {
                 type: "CollectionPosition",
