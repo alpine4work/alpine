@@ -354,7 +354,12 @@ test("does not return deleted task collections when reading a task", async () =>
             spaceId: space.id,
             task: expect.objectContaining({
                 id: task.id,
-                collections: [{collection: {id: activeCollection.id, name: "Active"}}],
+                collections: [
+                    {
+                        cursor: expect.any(String),
+                        collection: {id: activeCollection.id, name: "Active"},
+                    },
+                ],
             }),
         }),
     });
@@ -395,7 +400,12 @@ test("does not return private task collections when reading a task", async () =>
             task: expect.objectContaining({
                 id: task.id,
                 title: "Task with mixed collection access",
-                collections: [{collection: {id: publicCollection.id, name: "Public Collection"}}],
+                collections: [
+                    {
+                        cursor: expect.any(String),
+                        collection: {id: publicCollection.id, name: "Public Collection"},
+                    },
+                ],
             }),
         }),
     });
@@ -780,6 +790,7 @@ test("can create a project task with parent task and collections", async () => {
                 layout: {type: "Project"},
                 parent: {task: {id: parentTask.id}},
                 collections: collections.map(collection => ({
+                    cursor: "ignored",
                     collection: {id: collection.id},
                 })),
             },
@@ -801,8 +812,14 @@ test("can create a project task with parent task and collections", async () => {
                     },
                 },
                 collections: [
-                    {collection: {id: collections[0].id, name: "Roadmap"}},
-                    {collection: {id: collections[1].id, name: "Engineering"}},
+                    {
+                        cursor: expect.any(String),
+                        collection: {id: collections[0].id, name: "Roadmap"},
+                    },
+                    {
+                        cursor: expect.any(String),
+                        collection: {id: collections[1].id, name: "Engineering"},
+                    },
                 ],
             }),
         },
@@ -1085,6 +1102,7 @@ test("can update multiple task fields at once", async () => {
         from: {type: "Bot", accountId: bot.id},
     };
 
+    // Actions are generated one-by-one from the patches in request order.
     expect(
         await backfillTaskActionTransactionHistory(space.systemAction(), space.id, startTime),
     ).toEqual([
@@ -1100,7 +1118,7 @@ test("can update multiple task fields at once", async () => {
                     type: "UpdateTask",
                     actor,
                     taskId: task.id,
-                    taskAction: expect.objectContaining({type: "UpdateDueDate"}),
+                    taskAction: expect.objectContaining({type: "UpdateAssignee"}),
                 }),
                 expect.objectContaining({
                     type: "UpdateTask",
@@ -1112,7 +1130,7 @@ test("can update multiple task fields at once", async () => {
                     type: "UpdateTask",
                     actor,
                     taskId: task.id,
-                    taskAction: expect.objectContaining({type: "UpdateAssignee"}),
+                    taskAction: expect.objectContaining({type: "UpdateDueDate"}),
                 }),
             ],
         }),
@@ -1287,7 +1305,12 @@ test("returns a private parent placeholder when reading a task", async () => {
                         status: {type: "Closed"},
                     },
                 },
-                collections: [{collection: {id: collection.id, name: "Public Collection"}}],
+                collections: [
+                    {
+                        cursor: expect.any(String),
+                        collection: {id: collection.id, name: "Public Collection"},
+                    },
+                ],
             }),
         }),
     });
@@ -1633,7 +1656,12 @@ test("adding collections through repeated patch requests appends them to the end
         const response = await server.PATCH(`/tasks/${task.id}`, {
             headers: {authorization: `bearer ${apiKey}`},
             body: {
-                patches: [{type: "AddCollection", item: {collection: {id: collection.id}}}],
+                patches: [
+                    {
+                        type: "AddCollection",
+                        item: {cursor: "ignored", collection: {id: collection.id}},
+                    },
+                ],
             },
         });
 
@@ -1653,6 +1681,362 @@ test("adding collections through repeated patch requests appends them to the end
             .getArray()
             .map(({collectionId}) => collectionId),
     ).toEqual([initialCollection.id, ...appendedCollections.map(collection => collection.id)]);
+});
+
+describe("MoveInCollection patch", () => {
+    async function getTaskCollectionListing(
+        apiKey: string,
+        collectionId: TaskCollectionId,
+    ): Promise<{taskIds: Array<TaskId>; cursors: Array<string>}> {
+        const response = await server.GET(`/task-collections/${collectionId}/tasks`, {
+            headers: {authorization: `bearer ${apiKey}`},
+        });
+
+        expect(response.status).toBe(200);
+
+        const tasks: ReadonlyArray<{
+            id: TaskId;
+            collections: ReadonlyArray<{cursor: string}>;
+        }> = response.body.tasks;
+
+        return {
+            taskIds: tasks.map(task => task.id),
+            cursors: tasks.map(task => task.collections[0]!.cursor),
+        };
+    }
+
+    test("can move a task to the start of a collection", async () => {
+        const space = await TestSpace.create(context);
+        const session = await space.createSession({name: "Alice Smith", role: "Admin"});
+
+        const bot = await TestBot.createAndInstantiate(session);
+        const apiKey = await bot.createApiKey(session);
+
+        const collection = await TestTaskCollection.create(session, {
+            name: "Move Collection",
+            access: "Public",
+        });
+        const task1 = await TestTask.create(session, {title: "Task 1", collections: collection});
+        const task2 = await TestTask.create(session, {title: "Task 2", collections: collection});
+        const task3 = await TestTask.create(session, {title: "Task 3", collections: collection});
+
+        await ProcessContextModule.waitForTestTasks();
+
+        const response = await server.PATCH(`/tasks/${task3.id}`, {
+            headers: {authorization: `bearer ${apiKey}`},
+            body: {
+                patches: [
+                    {
+                        type: "MoveInCollection",
+                        collectionId: collection.id,
+                        position: {type: "Start"},
+                    },
+                ],
+            },
+        });
+
+        expect(response.status).toBe(200);
+        await ProcessContextModule.waitForTestTasks();
+
+        expect(await getTaskCollectionListing(apiKey, collection.id)).toMatchObject({
+            taskIds: [task3.id, task1.id, task2.id],
+        });
+    });
+
+    test("can move a task to the end of a collection", async () => {
+        const space = await TestSpace.create(context);
+        const session = await space.createSession({name: "Alice Smith", role: "Admin"});
+
+        const bot = await TestBot.createAndInstantiate(session);
+        const apiKey = await bot.createApiKey(session);
+
+        const collection = await TestTaskCollection.create(session, {
+            name: "Move Collection",
+            access: "Public",
+        });
+        const task1 = await TestTask.create(session, {title: "Task 1", collections: collection});
+        const task2 = await TestTask.create(session, {title: "Task 2", collections: collection});
+        const task3 = await TestTask.create(session, {title: "Task 3", collections: collection});
+
+        await ProcessContextModule.waitForTestTasks();
+
+        const response = await server.PATCH(`/tasks/${task1.id}`, {
+            headers: {authorization: `bearer ${apiKey}`},
+            body: {
+                patches: [
+                    {
+                        type: "MoveInCollection",
+                        collectionId: collection.id,
+                        position: {type: "End"},
+                    },
+                ],
+            },
+        });
+
+        expect(response.status).toBe(200);
+        await ProcessContextModule.waitForTestTasks();
+
+        expect(await getTaskCollectionListing(apiKey, collection.id)).toMatchObject({
+            taskIds: [task2.id, task3.id, task1.id],
+        });
+    });
+
+    test("can move a task between two tasks in a collection", async () => {
+        const space = await TestSpace.create(context);
+        const session = await space.createSession({name: "Alice Smith", role: "Admin"});
+
+        const bot = await TestBot.createAndInstantiate(session);
+        const apiKey = await bot.createApiKey(session);
+
+        const collection = await TestTaskCollection.create(session, {
+            name: "Move Collection",
+            access: "Public",
+        });
+        const task1 = await TestTask.create(session, {title: "Task 1", collections: collection});
+        const task2 = await TestTask.create(session, {title: "Task 2", collections: collection});
+        const task3 = await TestTask.create(session, {title: "Task 3", collections: collection});
+
+        await ProcessContextModule.waitForTestTasks();
+
+        const {cursors} = await getTaskCollectionListing(apiKey, collection.id);
+
+        const response = await server.PATCH(`/tasks/${task3.id}`, {
+            headers: {authorization: `bearer ${apiKey}`},
+            body: {
+                patches: [
+                    {
+                        type: "MoveInCollection",
+                        collectionId: collection.id,
+                        position: {
+                            type: "Between",
+                            afterCursor: cursors[0],
+                            beforeCursor: cursors[1],
+                        },
+                    },
+                ],
+            },
+        });
+
+        expect(response.status).toBe(200);
+        await ProcessContextModule.waitForTestTasks();
+
+        expect(await getTaskCollectionListing(apiKey, collection.id)).toMatchObject({
+            taskIds: [task1.id, task3.id, task2.id],
+        });
+    });
+
+    test("can move a task between two tasks that share the exact same position", async () => {
+        const space = await TestSpace.create(context);
+        const session = await space.createSession({name: "Alice Smith", role: "Admin"});
+
+        const bot = await TestBot.createAndInstantiate(session);
+        const apiKey = await bot.createApiKey(session);
+
+        const collection = await TestTaskCollection.create(session, {
+            name: "Move Collection",
+            access: "Public",
+        });
+        const task1 = await TestTask.create(session, {title: "Task 1", collections: collection});
+        const task2 = await TestTask.create(session, {title: "Task 2", collections: collection});
+        const task3 = await TestTask.create(session, {title: "Task 3", collections: collection});
+        const movedTask = await TestTask.create(session, {
+            title: "Moved Task",
+            collections: collection,
+        });
+
+        // Give the first three tasks the exact same position (like task duplication does)
+        // and keep the moved task at the end.
+        const tiedPosition = {orderTime: testTaskClock.now(), orderKey: initialOrderKey};
+        await task1.updateCollectionPosition(session, collection, tiedPosition);
+        await task2.updateCollectionPosition(session, collection, tiedPosition);
+        await task3.updateCollectionPosition(session, collection, tiedPosition);
+        await movedTask.updateCollectionPosition(session, collection, {
+            orderTime: testTaskClock.now(),
+            orderKey: initialOrderKey,
+        });
+
+        await ProcessContextModule.waitForTestTasks();
+
+        const {taskIds, cursors} = await getTaskCollectionListing(apiKey, collection.id);
+        expect(taskIds).toEqual([task1.id, task2.id, task3.id, movedTask.id]);
+
+        const startTime = new Date();
+        const response = await server.PATCH(`/tasks/${movedTask.id}`, {
+            headers: {authorization: `bearer ${apiKey}`},
+            body: {
+                patches: [
+                    {
+                        type: "MoveInCollection",
+                        collectionId: collection.id,
+                        position: {
+                            type: "Between",
+                            afterCursor: cursors[0],
+                            beforeCursor: cursors[1],
+                        },
+                    },
+                ],
+            },
+        });
+
+        expect(response.status).toBe(200);
+        await ProcessContextModule.waitForTestTasks();
+
+        expect(await getTaskCollectionListing(apiKey, collection.id)).toMatchObject({
+            taskIds: [task1.id, movedTask.id, task2.id, task3.id],
+        });
+
+        // The tasks sharing the position were re-keyed to make room for the moved task.
+        expect(
+            await backfillTaskActionTransactionHistory(space.systemAction(), space.id, startTime),
+        ).toEqual([
+            expect.objectContaining({
+                actions: [
+                    expect.objectContaining({
+                        taskId: movedTask.id,
+                        taskAction: expect.objectContaining({type: "UpdateCollectionPosition"}),
+                    }),
+                    expect.objectContaining({
+                        taskId: task2.id,
+                        taskAction: expect.objectContaining({type: "UpdateCollectionPosition"}),
+                    }),
+                    expect.objectContaining({
+                        taskId: task3.id,
+                        taskAction: expect.objectContaining({type: "UpdateCollectionPosition"}),
+                    }),
+                ],
+            }),
+        ]);
+    });
+
+    test("can add a task to a collection and move it in the same patch request", async () => {
+        const space = await TestSpace.create(context);
+        const session = await space.createSession({name: "Alice Smith", role: "Admin"});
+
+        const bot = await TestBot.createAndInstantiate(session);
+        const apiKey = await bot.createApiKey(session);
+
+        const collection = await TestTaskCollection.create(session, {
+            name: "Move Collection",
+            access: "Public",
+        });
+        const task1 = await TestTask.create(session, {title: "Task 1", collections: collection});
+        const task2 = await TestTask.create(session, {title: "Task 2", collections: collection});
+        const newTask = await TestTask.create(session, {title: "New Task"});
+
+        await ProcessContextModule.waitForTestTasks();
+
+        const response = await server.PATCH(`/tasks/${newTask.id}`, {
+            headers: {authorization: `bearer ${apiKey}`},
+            body: {
+                patches: [
+                    {
+                        type: "AddCollection",
+                        item: {cursor: "ignored", collection: {id: collection.id}},
+                    },
+                    {
+                        type: "MoveInCollection",
+                        collectionId: collection.id,
+                        position: {type: "Start"},
+                    },
+                ],
+            },
+        });
+
+        expect(response.status).toBe(200);
+        await ProcessContextModule.waitForTestTasks();
+
+        expect(await getTaskCollectionListing(apiKey, collection.id)).toMatchObject({
+            taskIds: [newTask.id, task1.id, task2.id],
+        });
+    });
+
+    test("can\u2019t move a task in a collection it\u2019s not in", async () => {
+        const space = await TestSpace.create(context);
+        const session = await space.createSession({name: "Alice Smith", role: "Admin"});
+
+        const bot = await TestBot.createAndInstantiate(session);
+        const apiKey = await bot.createApiKey(session);
+
+        const collection = await TestTaskCollection.create(session, {
+            name: "Move Collection",
+            access: "Public",
+        });
+        const task = await TestTask.create(session, {title: "Task outside collection"});
+
+        await ProcessContextModule.waitForTestTasks();
+
+        expect(
+            await server.PATCH(`/tasks/${task.id}`, {
+                headers: {authorization: `bearer ${apiKey}`},
+                body: {
+                    patches: [
+                        {
+                            type: "MoveInCollection",
+                            collectionId: collection.id,
+                            position: {type: "End"},
+                        },
+                    ],
+                },
+            }),
+        ).toEqual({
+            status: 400,
+            headers: expect.objectContaining({"content-type": "application/json"}),
+            body: {
+                error: expect.objectContaining({
+                    message:
+                        "This task is not in the collection you\u2019re moving it within. Try again after adding the task to the collection with an `AddCollection` patch.",
+                }),
+            },
+        });
+    });
+
+    test("can\u2019t move a task between cursors in the wrong order", async () => {
+        const space = await TestSpace.create(context);
+        const session = await space.createSession({name: "Alice Smith", role: "Admin"});
+
+        const bot = await TestBot.createAndInstantiate(session);
+        const apiKey = await bot.createApiKey(session);
+
+        const collection = await TestTaskCollection.create(session, {
+            name: "Move Collection",
+            access: "Public",
+        });
+        await TestTask.create(session, {title: "Task 1", collections: collection});
+        await TestTask.create(session, {title: "Task 2", collections: collection});
+        const task3 = await TestTask.create(session, {title: "Task 3", collections: collection});
+
+        await ProcessContextModule.waitForTestTasks();
+
+        const {cursors} = await getTaskCollectionListing(apiKey, collection.id);
+
+        expect(
+            await server.PATCH(`/tasks/${task3.id}`, {
+                headers: {authorization: `bearer ${apiKey}`},
+                body: {
+                    patches: [
+                        {
+                            type: "MoveInCollection",
+                            collectionId: collection.id,
+                            position: {
+                                type: "Between",
+                                afterCursor: cursors[1],
+                                beforeCursor: cursors[0],
+                            },
+                        },
+                    ],
+                },
+            }),
+        ).toEqual({
+            status: 400,
+            headers: expect.objectContaining({"content-type": "application/json"}),
+            body: {
+                error: expect.objectContaining({
+                    message:
+                        "The `afterCursor` task is positioned after the `beforeCursor` task in this collection. Try again with `afterCursor` and `beforeCursor` in collection order.",
+                }),
+            },
+        });
+    });
 });
 
 describe("/tasks/{id}/reference", () => {
@@ -2407,14 +2791,16 @@ describe("/task-collections/{id}/tasks", () => {
         body: {
             nextCursor: string | null;
             tasks: ReadonlyArray<{
-                cursor: string;
-                task: {id: TaskId};
+                id: TaskId;
+                collections?: ReadonlyArray<{
+                    cursor: string;
+                }>;
             }>;
         };
     };
 
     function getTaskCollectionTaskIds(response: TaskCollectionTasksResponse): Array<TaskId> {
-        return response.body.tasks.map(({task}) => task.id);
+        return response.body.tasks.map(task => task.id);
     }
 
     function getTaskCollectionNextCursor(response: TaskCollectionTasksResponse): string {
@@ -2422,16 +2808,12 @@ describe("/task-collections/{id}/tasks", () => {
         return response.body.nextCursor!;
     }
 
-    function getTaskCollectionTaskQueryCursor(
+    function getTaskCollectionTaskCollectionCursors(
         response: TaskCollectionTasksResponse,
-        index: number,
-    ): string {
-        expect(response.body.tasks[index]?.cursor).toEqual(expect.any(String));
-        return response.body.tasks[index]!.cursor;
-    }
-
-    function getTaskCollectionTaskQueryCursors(response: TaskCollectionTasksResponse): Array<string> {
-        return response.body.tasks.map(({cursor}) => cursor);
+    ): Array<string> {
+        return response.body.tasks.flatMap(
+            task => task.collections?.map(({cursor}) => cursor) ?? [],
+        );
     }
 
     function getTestTaskIds(tasks: ReadonlyArray<TestTask>): Array<TaskId> {
@@ -2510,28 +2892,28 @@ describe("/task-collections/{id}/tasks", () => {
                 spaceId: space.id,
                 tasks: [
                     {
-                        cursor: expect.any(String),
-                        task: {
-                            creator: {id: session.account.id},
-                            id: task1.id,
-                            title: "First Task",
-                            status: {type: "Open", isActive: false},
-                            collections: [
-                                {collection: {id: collection.id, name: "Public Collection"}},
-                            ],
-                        },
+                        creator: {id: session.account.id},
+                        id: task1.id,
+                        title: "First Task",
+                        status: {type: "Open", isActive: false},
+                        collections: [
+                            {
+                                cursor: expect.any(String),
+                                collection: {id: collection.id, name: "Public Collection"},
+                            },
+                        ],
                     },
                     {
-                        cursor: expect.any(String),
-                        task: {
-                            creator: {id: session.account.id},
-                            id: task2.id,
-                            title: "Second Task",
-                            status: {type: "Open", isActive: false},
-                            collections: [
-                                {collection: {id: collection.id, name: "Public Collection"}},
-                            ],
-                        },
+                        creator: {id: session.account.id},
+                        id: task2.id,
+                        title: "Second Task",
+                        status: {type: "Open", isActive: false},
+                        collections: [
+                            {
+                                cursor: expect.any(String),
+                                collection: {id: collection.id, name: "Public Collection"},
+                            },
+                        ],
                     },
                 ],
                 nextCursor: null,
@@ -2605,29 +2987,29 @@ describe("/task-collections/{id}/tasks", () => {
                 spaceId: space.id,
                 tasks: [
                     {
-                        cursor: expect.any(String),
-                        task: {
-                            creator: {id: session1.account.id},
-                            id: task.id,
-                            title: "Detailed Task",
-                            status: {type: "Open", isActive: false},
-                            assignee: {
-                                id: session2.account.id,
-                                name: "Bob Johnson",
-                                shortName: "Bob",
-                                space: {
-                                    addedTime: expect.any(String),
-                                    role: "Member",
-                                },
+                        creator: {id: session1.account.id},
+                        id: task.id,
+                        title: "Detailed Task",
+                        status: {type: "Open", isActive: false},
+                        assignee: {
+                            id: session2.account.id,
+                            name: "Bob Johnson",
+                            shortName: "Bob",
+                            space: {
+                                addedTime: expect.any(String),
+                                role: "Member",
                             },
-                            due: {
-                                date: "2025-12-31",
-                            },
-                            priority: {type: "High"},
-                            collections: [
-                                {collection: {id: collection.id, name: "Collection with Details"}},
-                            ],
                         },
+                        due: {
+                            date: "2025-12-31",
+                        },
+                        priority: {type: "High"},
+                        collections: [
+                            {
+                                cursor: expect.any(String),
+                                collection: {id: collection.id, name: "Collection with Details"},
+                            },
+                        ],
                     },
                 ],
                 nextCursor: null,
@@ -2678,27 +3060,26 @@ describe("/task-collections/{id}/tasks", () => {
                     defaults: {filters: [], sorts: []},
                 },
                 tasks: [
-                    {
-                        cursor: expect.any(String),
-                        task: expect.objectContaining({
-                            id: task.id,
-                            title: "Task with mixed collection references",
-                            collections: [
-                                {
-                                    collection: {
-                                        id: mainCollection.id,
-                                        name: "Main Collection",
-                                    },
+                    expect.objectContaining({
+                        id: task.id,
+                        title: "Task with mixed collection references",
+                        collections: [
+                            {
+                                cursor: expect.any(String),
+                                collection: {
+                                    id: mainCollection.id,
+                                    name: "Main Collection",
                                 },
-                                {
-                                    collection: {
-                                        id: publicCollection.id,
-                                        name: "Public Collection",
-                                    },
+                            },
+                            {
+                                cursor: expect.any(String),
+                                collection: {
+                                    id: publicCollection.id,
+                                    name: "Public Collection",
                                 },
-                            ],
-                        }),
-                    },
+                            },
+                        ],
+                    }),
                 ],
                 nextCursor: null,
             }),
@@ -2742,23 +3123,23 @@ describe("/task-collections/{id}/tasks", () => {
                     defaults: {filters: [], sorts: []},
                 },
                 tasks: [
-                    {
-                        cursor: expect.any(String),
-                        task: expect.objectContaining({
-                            id: childTask.id,
-                            title: "Child Task",
-                            parent: {
-                                task: {
-                                    id: parentTask.id,
-                                    title: "Private task",
-                                    status: {type: "Closed"},
-                                },
+                    expect.objectContaining({
+                        id: childTask.id,
+                        title: "Child Task",
+                        parent: {
+                            task: {
+                                id: parentTask.id,
+                                title: "Private task",
+                                status: {type: "Closed"},
                             },
-                            collections: [
-                                {collection: {id: collection.id, name: "Public Collection"}},
-                            ],
-                        }),
-                    },
+                        },
+                        collections: [
+                            {
+                                cursor: expect.any(String),
+                                collection: {id: collection.id, name: "Public Collection"},
+                            },
+                        ],
+                    }),
                 ],
                 nextCursor: null,
             }),
@@ -3137,8 +3518,8 @@ describe("/task-collections/{id}/tasks", () => {
         expect(getTaskCollectionTaskIds(repeatedFirstPageResponse)).toEqual(
             getTaskCollectionTaskIds(firstPageResponse),
         );
-        expect(getTaskCollectionTaskQueryCursors(repeatedFirstPageResponse)).toEqual(
-            getTaskCollectionTaskQueryCursors(firstPageResponse),
+        expect(getTaskCollectionTaskCollectionCursors(repeatedFirstPageResponse)).toEqual(
+            getTaskCollectionTaskCollectionCursors(firstPageResponse),
         );
         expect(repeatedFirstPageResponse.body.nextCursor).toEqual(
             firstPageResponse.body.nextCursor,
@@ -3151,8 +3532,8 @@ describe("/task-collections/{id}/tasks", () => {
         expect(getTaskCollectionTaskIds(repeatedSecondPageResponse)).toEqual(
             getTaskCollectionTaskIds(secondPageResponse),
         );
-        expect(getTaskCollectionTaskQueryCursors(repeatedSecondPageResponse)).toEqual(
-            getTaskCollectionTaskQueryCursors(secondPageResponse),
+        expect(getTaskCollectionTaskCollectionCursors(repeatedSecondPageResponse)).toEqual(
+            getTaskCollectionTaskCollectionCursors(secondPageResponse),
         );
         expect(repeatedSecondPageResponse.body.nextCursor).toEqual(
             secondPageResponse.body.nextCursor,
@@ -3186,13 +3567,10 @@ describe("/task-collections/{id}/tasks", () => {
             body: expect.objectContaining({
                 spaceId: space.id,
                 tasks: [
-                    {
-                        cursor: expect.any(String),
-                        task: expect.objectContaining({
-                            id: task.id,
-                            title: "Only Task",
-                        }),
-                    },
+                    expect.objectContaining({
+                        id: task.id,
+                        title: "Only Task",
+                    }),
                 ],
                 nextCursor: null,
             }),
@@ -3233,12 +3611,7 @@ describe("/task-collections/{id}/tasks", () => {
             headers: expect.objectContaining({"content-type": "application/json"}),
             body: expect.objectContaining({
                 spaceId: space.id,
-                tasks: [
-                    {
-                        cursor: expect.any(String),
-                        task: expect.objectContaining({id: task1.id, title: "Task 1"}),
-                    },
-                ],
+                tasks: [expect.objectContaining({id: task1.id, title: "Task 1"})],
                 nextCursor: expect.any(String),
             }),
         });
@@ -3291,11 +3664,15 @@ describe("/task-collections/{id}/tasks", () => {
             name: "Second Collection",
             access: "Public",
         });
-        const task = await TestTask.create(session, {title: "Task"});
+        const [task1, task2] = await runAllPromises([
+            TestTask.create(session, {title: "Task 1"}),
+            TestTask.create(session, {title: "Task 2"}),
+        ]);
 
         await runAllPromises([
-            task.addCollection(session, collection1),
-            task.addCollection(session, collection2),
+            task1.addCollection(session, collection1),
+            task2.addCollection(session, collection1),
+            task1.addCollection(session, collection2),
         ]);
         await ProcessContextModule.waitForTestTasks();
 
@@ -3308,7 +3685,7 @@ describe("/task-collections/{id}/tasks", () => {
         expect(collection1Response.status).toBe(200);
 
         const response = await server.GET(
-            `/task-collections/${collection2.id}/tasks?cursor=${getTaskCollectionTaskQueryCursor(collection1Response, 0)}`,
+            `/task-collections/${collection2.id}/tasks?cursor=${getTaskCollectionNextCursor(collection1Response)}`,
             {
                 headers: {authorization: `bearer ${apiKey}`},
             },
@@ -3418,19 +3795,16 @@ describe("/task-collections/{id}/tasks", () => {
             headers: expect.objectContaining({"content-type": "application/json"}),
             body: expect.objectContaining({
                 tasks: [
-                    {
-                        cursor: expect.any(String),
-                        task: expect.objectContaining({
-                            id: childTask.id,
-                            parent: {
-                                task: {
-                                    id: parentTask.id,
-                                    title: "Parent Task",
-                                    status: {type: "Open", isActive: false},
-                                },
+                    expect.objectContaining({
+                        id: childTask.id,
+                        parent: {
+                            task: {
+                                id: parentTask.id,
+                                title: "Parent Task",
+                                status: {type: "Open", isActive: false},
                             },
-                        }),
-                    },
+                        },
+                    }),
                 ],
                 nextCursor: null,
             }),
@@ -3481,19 +3855,16 @@ describe("/task-collections/{id}/tasks", () => {
             headers: expect.objectContaining({"content-type": "application/json"}),
             body: expect.objectContaining({
                 tasks: [
-                    {
-                        cursor: expect.any(String),
-                        task: expect.objectContaining({
-                            id: childTask.id,
-                            parent: {
-                                task: {
-                                    id: parentTask.id,
-                                    title: "Parent Task",
-                                    status: {type: "Open", isActive: false},
-                                },
+                    expect.objectContaining({
+                        id: childTask.id,
+                        parent: {
+                            task: {
+                                id: parentTask.id,
+                                title: "Parent Task",
+                                status: {type: "Open", isActive: false},
                             },
-                        }),
-                    },
+                        },
+                    }),
                 ],
                 nextCursor: null,
             }),
@@ -3532,19 +3903,16 @@ describe("/task-collections/{id}/tasks", () => {
             headers: expect.objectContaining({"content-type": "application/json"}),
             body: expect.objectContaining({
                 tasks: [
-                    {
-                        cursor: expect.any(String),
-                        task: expect.objectContaining({
-                            id: childTask.id,
-                            parent: {
-                                task: {
-                                    id: parentTask.id,
-                                    title: "Parent Task",
-                                    status: {type: "Open", isActive: false},
-                                },
+                    expect.objectContaining({
+                        id: childTask.id,
+                        parent: {
+                            task: {
+                                id: parentTask.id,
+                                title: "Parent Task",
+                                status: {type: "Open", isActive: false},
                             },
-                        }),
-                    },
+                        },
+                    }),
                 ],
                 nextCursor: expect.any(String),
             }),
@@ -3718,13 +4086,13 @@ describe("/task-collections/{id}/tasks", () => {
                 spaceId: space.id,
                 tasks: [
                     expect.objectContaining({
-                        cursor: expect.any(String),
-                        task: expect.objectContaining({
-                            id: task.id,
-                            collections: [
-                                {collection: {id: activeCollection.id, name: "Active Collection"}},
-                            ],
-                        }),
+                        id: task.id,
+                        collections: [
+                            {
+                                cursor: expect.any(String),
+                                collection: {id: activeCollection.id, name: "Active Collection"},
+                            },
+                        ],
                     }),
                 ],
             }),
