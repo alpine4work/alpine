@@ -14,6 +14,7 @@ import {createIntoApiTaskCommentContentPayloadParent} from "~/server/api/interna
 import {createTaskFromApi} from "~/server/api/internal/tasks/internal/create_task_from_api.js";
 import {fromApiTaskLayout} from "~/server/api/internal/tasks/internal/from_api_task_layout.js";
 import {getApiTaskNotes} from "~/server/api/internal/tasks/internal/get_api_task_notes.js";
+import {getTasksInRealtimeQueryLoadedRangeForApi} from "~/server/api/internal/tasks/internal/get_tasks_in_realtime_query_loaded_range_for_api.js";
 import {intoApiTaskCollection} from "~/server/api/internal/tasks/internal/into_api_task_collection.js";
 import {updateTaskCollectionFromApi} from "~/server/api/internal/tasks/internal/update_task_collection_from_api.js";
 import {updateTaskNotesFromApi} from "~/server/api/internal/tasks/internal/update_task_notes_from_api.js";
@@ -62,15 +63,12 @@ import {
     decodeApiTaskQueryCursor,
     encodeApiTaskQueryCursor,
 } from "~/shared/tasks/model/api_task_query_cursor_encoder.js";
-import {evaluateTaskQueryNormalizedFiltersForModel} from "~/shared/tasks/model/evaluate_task_query_normalized_filters_for_model.js";
-import {getTaskQueryNormalizedSortCursorForModel} from "~/shared/tasks/model/get_task_query_normalized_sort_cursor_for_model.js";
 import {TaskActor} from "~/shared/tasks/task_creator.js";
 import {
     TaskNotesContentProsemirrorSchema,
     assertTaskNotesContent,
     emptyTaskNotesContent,
 } from "~/shared/tasks/task_notes_content_schema.js";
-import {compareTaskQuerySortCursors} from "~/shared/tasks/task_query_sort_cursor.js";
 
 export const apiTasksPaths: Pick<
     ApiPaths,
@@ -735,52 +733,18 @@ export const apiTasksPaths: Pick<
                 ),
             );
 
-            const tasks = [];
-
-            const {loadedState, sorts, filtersResult} = query;
+            const {loadedState, sorts} = query;
 
             const afterCursor =
                 queryParameters.cursor !== undefined
                     ? decodeApiTaskQueryCursor(sorts, queryParameters.cursor)
                     : null;
 
-            if (filtersResult.type === "Possible") {
-                const filters = filtersResult.normalizedFilters;
-
-                for (const backfillTask of updateEvent.backfillTasks) {
-                    if (backfillTask.type !== "Authorized") continue;
-                    const {task} = backfillTask;
-
-                    if (!evaluateTaskQueryNormalizedFiltersForModel(filters, task)) continue;
-
-                    const cursor = getTaskQueryNormalizedSortCursorForModel(sorts, task);
-
-                    // If the task is before or equal to `afterCursor` then it's outside the loaded
-                    // range for this request.
-                    if (
-                        afterCursor !== null &&
-                        compareTaskQuerySortCursors(sorts, afterCursor, cursor) >= 0
-                    ) {
-                        continue;
-                    }
-
-                    // If the task is after (though not equal to) `endCursor` then it's outside the
-                    // loaded range for this request.
-                    if (
-                        loadedState.type === "Partial" &&
-                        loadedState.endCursor !== null &&
-                        compareTaskQuerySortCursors(sorts, loadedState.endCursor, cursor) < 0
-                    ) {
-                        continue;
-                    }
-
-                    tasks.push({cursor, task});
-                }
-            }
-
-            tasks.sort((task1, task2) =>
-                compareTaskQuerySortCursors(sorts, task1.cursor, task2.cursor),
-            );
+            const tasks = getTasksInRealtimeQueryLoadedRangeForApi({
+                query,
+                updateEvent,
+                afterCursor,
+            });
 
             let nextCursor: ApiTaskQueryCursor | null;
 
