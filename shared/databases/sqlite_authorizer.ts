@@ -142,11 +142,11 @@ export function isSqliteActionAllowed(
  * `getAccountAccessLevelAssumingSpaceAccess`); an execution with no resolver
  * installed (internal server code, service actors) is unrestricted.
  *
- * The join-table add-vs-remove asymmetry (adding a link needs `View` on the
- * linked table, removing one doesn't) is _not_ modelled here. Adding a link
- * reads the referenced row to verify it exists (`addLink`'s `rowExists` check),
- * so the linked table's `read` capability already gates it; removing a link
- * reads nothing. Write is a single capability.
+ * The join-table add-vs-remove asymmetry (adding a link needs `View` on the linked
+ * table, removing one doesn't) is _not_ modelled here. Adding a link reads the
+ * referenced row to verify it exists (`addLink`'s `rowExists` check), so the
+ * linked table's `read` capability already gates it; removing a link reads
+ * nothing. Write is a single capability.
  */
 export interface SqliteTableAccess {
     /** SELECT / read of the table file's rows, metadata, and schema. */
@@ -273,9 +273,7 @@ export function isSqliteActionAllowedForSchemaAccess({
  * schema, or `null` for actions that aren't schema-scoped (gated by the global
  * write level only).
  */
-function sqliteSchemaAccessRequirement(
-    action: string,
-): "read" | "write" | "schema" | null {
+function sqliteSchemaAccessRequirement(action: string): "read" | "write" | "schema" | null {
     switch (action) {
         case "read":
             return "read";

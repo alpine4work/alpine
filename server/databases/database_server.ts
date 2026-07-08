@@ -208,8 +208,8 @@ export class DatabaseServer {
      * - User tables map their `LocalAccessPolicy` level through the v1 rules
      *   (`View`/`Comment` read-only, `Edit`/`Manage` everything).
      * - Join files derive from the two joined tables: the max level of either side.
-     *   (The add-vs-remove asymmetry — adding a link needs `View` on the linked table —
-     *   is enforced by `addLink`'s `rowExists` read, not here; see {@link
+     *   (The add-vs-remove asymmetry — adding a link needs `View` on the linked table
+     *   — is enforced by `addLink`'s `rowExists` read, not here; see {@link
      *   SqliteTableAccess}.)
      * - Unknown/uncached tables fail closed. The realtime layer reuses this for page
      *   filtering (milestone 4).

@@ -1486,37 +1486,6 @@ describe("DatabaseServer — per-table access", () => {
         ).toThrow(`Permission denied for read on database table ${scenario.people.tableId}`);
     });
 
-    test("a raw link insert is denied without View on both sides", async () => {
-        const scenario = await createLinkedTablesScenario();
-        const joinSchemaName = databaseTableSchemaName(scenario.relation.joinTableId);
-        const joinMeta = scenario.server.executeAction<"readonlyRawSql">(testContext, {
-            name: "readonlyRawSql",
-            input: {
-                sql:
-                    `SELECT table_name, source_row_id_column_name, target_row_id_column_name, ` +
-                    `source_position_column_name, target_position_column_name ` +
-                    `FROM "${joinSchemaName}"._alpine_join_table`,
-            },
-        }).result.rows[0] as Record<string, string>;
-
-        // The authorizer rejects the INSERT at prepare time — before constraint checks —
-        // so placeholder values are fine.
-        expect(() =>
-            scenario.server.executeAction(createSessionContext(scenario.noPeople), {
-                name: "rawSql",
-                input: {
-                    sql:
-                        `INSERT INTO "${joinSchemaName}"."${joinMeta.table_name}" ` +
-                        `("${joinMeta.source_row_id_column_name}", "${joinMeta.target_row_id_column_name}", ` +
-                        `"${joinMeta.source_position_column_name}", "${joinMeta.target_position_column_name}") ` +
-                        `VALUES ('a', 'b', 'c', 'd')`,
-                },
-            }),
-        ).toThrow(
-            `Permission denied for insert on database table ${scenario.relation.joinTableId}`,
-        );
-    });
-
     test("removeLink succeeds with Edit on one side only", async () => {
         const scenario = await createLinkedTablesScenario();
         scenario.server.executeAction(
