@@ -546,8 +546,6 @@ export async function createAgentWebChannelPage(
         });
     }
 
-    // NOCOMMIT: Test parsing a page with regular `---` divider in description
-
     // TODO(#agents-web): Implement channel create endpoint. When we add the ability to
     // create make sure to also test that you can update the channel name +
     // description. Maybe even that you can add a divider with the `<hr />` syntax (and
