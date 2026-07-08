@@ -126,7 +126,6 @@ export async function prepareApiTaskMoveInCollectionPatch(
             );
 
             if (afterCursor.taskId === beforeCursor.taskId) {
-                // NOCOMMIT: Test this code path
                 throw new InvalidArgumentError(
                     "`afterCursor` points to the same task as `beforeCursor`",
                     {
@@ -141,14 +140,12 @@ export async function prepareApiTaskMoveInCollectionPatch(
             );
 
             if (positionComparison > 0) {
-                // NOCOMMIT: Test this code path
                 throw new InvalidArgumentError("`afterCursor` is positioned after `beforeCursor`", {
                     displayMessage: errorDisplayMessage`The \`MoveInCollection\` patch \`afterCursor\` is positioned after \`beforeCursor\`. Try again but swap the order of \`afterCursor\` and \`beforeCursor\`.`,
                 });
             }
 
             if (positionComparison < 0) {
-                // NOCOMMIT: Test this code path
                 return {
                     type: "Between",
                     afterPosition: afterCursor.collectionPosition,
@@ -272,7 +269,6 @@ async function prepareApiTaskMoveInCollectionPathForTiedPositions(
             // So if when we start loading tasks, make sure to check that `afterCursor` and
             // `beforeCursor` are correctly ordered.
             if (task.id === beforeTaskId && afterTask === null) {
-                // NOCOMMIT: Test this code path
                 throw new InvalidArgumentError(
                     "`afterCursor` is positioned after `beforeCursor` (when resolving tied positions)",
                     {
@@ -287,7 +283,6 @@ async function prepareApiTaskMoveInCollectionPathForTiedPositions(
             // to update and the `OrderKey` we'll use as the upper bound when we fix the task
             // positions.
             if (!isDeepEqual(actualFirstCursorValue, expectedFirstCursorValue)) {
-                // NOCOMMIT: Test this code path
                 return {
                     type: "BetweenTied",
                     tiedPosition,
@@ -310,7 +305,6 @@ async function prepareApiTaskMoveInCollectionPathForTiedPositions(
         // If all tasks are tied up until the end of our collection then we need to update
         // all tasks to the end of the collection.
         if (query.loadedState.type === "Full") {
-            // NOCOMMIT: Test this code path
             return {
                 type: "BetweenTied",
                 tiedPosition,
