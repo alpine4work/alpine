@@ -354,7 +354,7 @@ export class ApiClientMock implements ApiClient {
             if (record.method !== method || record.path !== path) {
                 return false;
             }
-            if (params !== undefined) {
+            if (params !== "Any") {
                 return isDeepEqual(params, record.params);
             }
             return true;
