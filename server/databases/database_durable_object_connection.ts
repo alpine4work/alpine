@@ -13,6 +13,7 @@ import {databaseActions} from "~/shared/databases/database_actions.js";
 import type {
     DatabasePageDiffs,
     DatabaseTableAccessLevel,
+    DatabaseTablePageDiffs,
     DatabaseTablePages,
 } from "~/shared/databases/database_protocol_schemas.js";
 import {
@@ -312,14 +313,15 @@ export class DatabaseDurableObjectConnection {
                 // registry is public by design. The event is sent even when everything filters out
                 // — the originator's optimistic queue dequeues on the `mutationId`.
                 const accountId = context.actor.getPossiblyBotAccountIdIfExists();
-                const pageDiffs: DatabasePageDiffs = new Map(
-                    [...eventStub.pageDiffs].filter(
-                        ([tableId]) =>
-                            tableId === databaseMainTableId ||
-                            this._server.getTableAccessLevelForAccount(tableId, accountId) !==
-                                "none",
-                    ),
-                );
+                const pageDiffs = new Map<DatabaseTableId, DatabaseTablePageDiffs>();
+                for (const [tableId, diffs] of eventStub.pageDiffs) {
+                    if (
+                        tableId === databaseMainTableId ||
+                        this._server.getTableAccessLevelForAccount(tableId, accountId) !== "none"
+                    ) {
+                        pageDiffs.set(tableId, diffs);
+                    }
+                }
                 return {type: "PagesChanged", pageDiffs, mutationId: eventStub.mutationId};
             }
             case "TableMetadataChanged": {
