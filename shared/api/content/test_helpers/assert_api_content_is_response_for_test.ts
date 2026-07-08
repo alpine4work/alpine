@@ -38,33 +38,31 @@ import {quote} from "~/shared/helpers/string/quote.js";
  * (like `Mention` or `File`). But elements like `Text` which don't need response
  * properties are ok.
  */
-export function assertApiContentAsResponseForTest(
+export function assertApiContentIsResponseForTest(
     content: ApiContent,
 ): ApiContentResponseWithoutKeys {
     assert(process.env.NODE_ENV === "test");
 
     return {
-        elements: content.elements.map(assertApiContentBlockElementAsResponseForTest),
+        elements: content.elements.map(assertApiContentBlockElementIsResponseForTest),
     };
 }
 
-export {assertApiContentAsResponseForTest as assertApiContentIsResponseForTest};
-
-function assertApiContentBlockElementAsResponseForTest(
+function assertApiContentBlockElementIsResponseForTest(
     element: ApiContentBlockElement,
 ): ApiContentBlockElementResponseWithoutKeys {
     switch (element.type) {
         case "Paragraph":
-            return assertApiContentParagraphBlockElementAsResponseForTest(element);
+            return assertApiContentParagraphBlockElementIsResponseForTest(element);
         case "UnorderedList":
         case "OrderedList":
         case "CheckList":
-            return assertApiContentListBlockElementAsResponseForTest(element);
+            return assertApiContentListBlockElementIsResponseForTest(element);
         case "Quote": {
             return {
                 type: "Quote",
                 elements: element.elements.map(
-                    assertApiContentQuoteBlockElementBlockElementAsResponseForTest,
+                    assertApiContentQuoteBlockElementBlockElementIsResponseForTest,
                 ),
             };
         }
@@ -72,15 +70,15 @@ function assertApiContentBlockElementAsResponseForTest(
             return {
                 type: "Heading",
                 level: element.level,
-                elements: element.elements.map(assertApiContentInlineElementAsResponseForTest),
+                elements: element.elements.map(assertApiContentInlineElementIsResponseForTest),
             };
         }
         case "Divider":
             return element;
         case "Table":
-            return assertApiContentTableBlockElementAsResponseForTest(element);
+            return assertApiContentTableBlockElementIsResponseForTest(element);
         case "Code":
-            return assertApiContentCodeBlockElementAsResponseForTest(element);
+            return assertApiContentCodeBlockElementIsResponseForTest(element);
         case "File":
         case "Preview":
         case "FileGallery":
@@ -91,35 +89,35 @@ function assertApiContentBlockElementAsResponseForTest(
     }
 }
 
-function assertApiContentParagraphBlockElementAsResponseForTest(
+function assertApiContentParagraphBlockElementIsResponseForTest(
     element: ApiContentParagraphBlockElement,
 ): ApiContentParagraphBlockElementResponseWithoutKeys {
     return {
         type: "Paragraph",
-        elements: element.elements.map(assertApiContentInlineElementAsResponseForTest),
+        elements: element.elements.map(assertApiContentInlineElementIsResponseForTest),
     };
 }
 
-function assertApiContentListBlockElementAsResponseForTest(
+function assertApiContentListBlockElementIsResponseForTest(
     element: ApiContentListBlockElement,
 ): ApiContentListBlockElementResponseWithoutKeys {
     switch (element.type) {
         case "UnorderedList":
             return {
                 type: "UnorderedList",
-                items: element.items.map(assertApiContentListBlockElementItemAsResponseForTest),
+                items: element.items.map(assertApiContentListBlockElementItemIsResponseForTest),
             };
         case "OrderedList":
             return {
                 type: "OrderedList",
                 ...(element.orderStart !== undefined ? {orderStart: element.orderStart} : {}),
-                items: element.items.map(assertApiContentListBlockElementItemAsResponseForTest),
+                items: element.items.map(assertApiContentListBlockElementItemIsResponseForTest),
             };
         case "CheckList":
             return {
                 type: "CheckList",
                 items: element.items.map(
-                    assertApiContentCheckListBlockElementItemAsResponseForTest,
+                    assertApiContentCheckListBlockElementItemIsResponseForTest,
                 ),
             };
         default:
@@ -127,51 +125,51 @@ function assertApiContentListBlockElementAsResponseForTest(
     }
 }
 
-function assertApiContentListBlockElementItemAsResponseForTest(
+function assertApiContentListBlockElementItemIsResponseForTest(
     item: ApiContentListBlockElementItem,
 ): ApiContentListBlockElementItemResponseWithoutKeys {
     const nestedListElements =
         item.nestedListElements !== undefined
-            ? item.nestedListElements.map(assertApiContentListBlockElementAsResponseForTest)
+            ? item.nestedListElements.map(assertApiContentListBlockElementIsResponseForTest)
             : undefined;
 
     return {
-        elements: item.elements.map(assertApiContentParagraphBlockElementAsResponseForTest),
+        elements: item.elements.map(assertApiContentParagraphBlockElementIsResponseForTest),
         ...(nestedListElements !== undefined ? {nestedListElements} : {}),
     };
 }
 
-function assertApiContentCheckListBlockElementItemAsResponseForTest(
+function assertApiContentCheckListBlockElementItemIsResponseForTest(
     item: ApiContentCheckListBlockElementItem,
 ): ApiContentCheckListBlockElementItemResponseWithoutKeys {
     const nestedListElements =
         item.nestedListElements !== undefined
-            ? item.nestedListElements.map(assertApiContentListBlockElementAsResponseForTest)
+            ? item.nestedListElements.map(assertApiContentListBlockElementIsResponseForTest)
             : undefined;
 
     return {
         checked: item.checked,
-        elements: item.elements.map(assertApiContentParagraphBlockElementAsResponseForTest),
+        elements: item.elements.map(assertApiContentParagraphBlockElementIsResponseForTest),
         ...(nestedListElements !== undefined ? {nestedListElements} : {}),
     };
 }
 
-function assertApiContentQuoteBlockElementBlockElementAsResponseForTest(
+function assertApiContentQuoteBlockElementBlockElementIsResponseForTest(
     element: ApiContentQuoteBlockElementBlockElement,
 ): ApiContentQuoteBlockElementBlockElementResponseWithoutKeys {
     switch (element.type) {
         case "Paragraph":
-            return assertApiContentParagraphBlockElementAsResponseForTest(element);
+            return assertApiContentParagraphBlockElementIsResponseForTest(element);
         case "UnorderedList":
         case "OrderedList":
         case "CheckList":
-            return assertApiContentListBlockElementAsResponseForTest(element);
+            return assertApiContentListBlockElementIsResponseForTest(element);
         default:
             throw exhaustive(element);
     }
 }
 
-function assertApiContentTableBlockElementAsResponseForTest(
+function assertApiContentTableBlockElementIsResponseForTest(
     element: ApiContentTableBlockElement,
 ): ApiContentTableBlockElementResponseWithoutKeys {
     return {
@@ -181,32 +179,32 @@ function assertApiContentTableBlockElementAsResponseForTest(
             cells: row.cells.map(cell => ({
                 ...cell,
                 elements: cell.elements.map(
-                    assertApiContentTableBlockElementCellBlockElementAsResponseForTest,
+                    assertApiContentTableBlockElementCellBlockElementIsResponseForTest,
                 ),
             })),
         })),
     };
 }
 
-function assertApiContentTableBlockElementCellBlockElementAsResponseForTest(
+function assertApiContentTableBlockElementCellBlockElementIsResponseForTest(
     element: ApiContentTableBlockElementCellBlockElement,
 ): ApiContentTableBlockElementCellBlockElementResponseWithoutKeys {
     switch (element.type) {
         case "Paragraph":
-            return assertApiContentParagraphBlockElementAsResponseForTest(element);
+            return assertApiContentParagraphBlockElementIsResponseForTest(element);
         case "UnorderedList":
         case "OrderedList":
         case "CheckList":
-            return assertApiContentListBlockElementAsResponseForTest(element);
+            return assertApiContentListBlockElementIsResponseForTest(element);
         case "Quote":
             return {
                 ...element,
                 elements: element.elements.map(
-                    assertApiContentQuoteBlockElementBlockElementAsResponseForTest,
+                    assertApiContentQuoteBlockElementBlockElementIsResponseForTest,
                 ),
             };
         case "Code":
-            return assertApiContentCodeBlockElementAsResponseForTest(element);
+            return assertApiContentCodeBlockElementIsResponseForTest(element);
         case "File":
         case "Preview":
             return throwMissingApiContentResponseProperties(element.type);
@@ -215,7 +213,7 @@ function assertApiContentTableBlockElementCellBlockElementAsResponseForTest(
     }
 }
 
-function assertApiContentCodeBlockElementAsResponseForTest(
+function assertApiContentCodeBlockElementIsResponseForTest(
     element: ApiContentCodeBlockElement,
 ): ApiContentCodeBlockElementResponseWithoutKeys {
     return {
@@ -224,7 +222,7 @@ function assertApiContentCodeBlockElementAsResponseForTest(
     };
 }
 
-function assertApiContentInlineElementAsResponseForTest(
+function assertApiContentInlineElementIsResponseForTest(
     element: ApiContentInlineElement,
 ): ApiContentInlineElementResponse {
     switch (element.type) {
