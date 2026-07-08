@@ -2437,6 +2437,66 @@ describe("MoveInCollection patch", () => {
             },
         });
     });
+
+    test("can\u2019t move a task between tied cursors in the wrong created-time order", async () => {
+        const {session, apiKey, collection} = await createMoveCollectionFixture();
+
+        const beforeTask = await TestTask.create(session, {
+            title: "Before Task",
+            collections: collection,
+        });
+        const afterTask = await TestTask.create(session, {
+            title: "After Task",
+            collections: collection,
+        });
+        const movedTask = await TestTask.create(session, {
+            title: "Moved Task",
+            collections: collection,
+        });
+
+        await updateTasksToCollectionPosition(
+            session,
+            collection,
+            [beforeTask, afterTask],
+            createCollectionPosition(),
+        );
+
+        await ProcessContextModule.waitForTestTasks();
+
+        const {taskIds, cursors} = await getTaskCollectionListing(apiKey, collection.id);
+        expect(taskIds.slice(-2)).toEqual([beforeTask.id, afterTask.id]);
+
+        const beforeCursor = cursors[taskIds.indexOf(beforeTask.id)];
+        const afterCursor = cursors[taskIds.indexOf(afterTask.id)];
+
+        expect(
+            await server.PATCH(`/tasks/${movedTask.id}`, {
+                headers: {authorization: `bearer ${apiKey}`},
+                body: {
+                    patches: [
+                        {
+                            type: "MoveInCollection",
+                            collectionId: collection.id,
+                            position: {
+                                type: "Between",
+                                afterCursor,
+                                beforeCursor,
+                            },
+                        },
+                    ],
+                },
+            }),
+        ).toEqual({
+            status: 400,
+            headers: expect.objectContaining({"content-type": "application/json"}),
+            body: {
+                error: expect.objectContaining({
+                    message:
+                        "The `MoveInCollection` patch `afterCursor` is positioned after `beforeCursor`. Try again but swap the order of `afterCursor` and `beforeCursor`.",
+                }),
+            },
+        });
+    });
 });
 
 describe("/tasks/{id}/reference", () => {
