@@ -50,7 +50,7 @@ Branch: `alex/db-permissions`. Design settled 2026-07-08.
 
 ---
 
-## Milestone 1 — Authorizer plumbing (shared, no behavior change yet)
+## Milestone 1 — Authorizer plumbing (shared, no behavior change yet) — ✅ done
 
 **`shared/databases/sqlite_authorizer.ts`**
 - Add `SqliteTableAccess = {read: boolean; insert: boolean; updateDelete: boolean;
@@ -90,7 +90,7 @@ Branch: `alex/db-permissions`. Design settled 2026-07-08.
 column denial; VACUUM/attach interplay unchanged); `database.test.ts` coverage for the
 per-execution swap and the typed `PermissionDeniedError`.
 
-## Milestone 2 — Server policy cache + enforcement on the server DO
+## Milestone 2 — Server policy cache + enforcement on the server DO — ✅ done
 
 **`server/databases/database_server.ts`**
 - In-memory cache `Map<DatabaseTableId, {kind: "table"; policy: LocalAccessPolicy} |
@@ -118,7 +118,7 @@ place the v1 level mapping lives.
 messages; join-table INSERT vs DELETE matrix; service-actor bypass; cache refresh after
 `syncTableMetadata` changes a policy mid-session.
 
-## Milestone 3 — Connection/request space authorization
+## Milestone 3 — Connection/request space authorization — ✅ done
 
 - New RPC `authorizeDatabaseGroupAccess({databaseGroupId})` in
   `shared/rpc/database_tables_rpc_definitions.ts` + `server/rpc/…_implementations.ts`: query
@@ -133,7 +133,7 @@ messages; join-table INSERT vs DELETE matrix; service-actor bypass; cache refres
 **Tests:** connection tests for authorize pass/fail; revoked-membership socket close (mirror
 the documents test shape).
 
-## Milestone 4 — Realtime filtering, access map, redacted metadata events
+## Milestone 4 — Realtime filtering, access map, redacted metadata events — ✅ done
 
 **`server/databases/database_durable_object_connection.ts`**
 - `transformEvent` `PagesChanged`: filter `pageDiffs` to tables where
@@ -164,7 +164,10 @@ the documents test shape).
 `ensureCacheIsUpToDate` withholding + access map contents; metadata redaction (update the two
 existing tests that assert socket close).
 
-## Milestone 5 — Relation-field degradation + UI
+## Milestone 5 — Relation-field degradation + UI — ✅ done
+
+Note: client-side authorizer enforcement (M6 first bullet) was pulled into M5 — the worker
+installs a `tableAccessResolver` from the pushed access map on every local execution.
 
 - `shared/databases/fields/database_relation_field.ts`: `_selectColumn` /
   `_selectColumnAsString` consult `ctx.getTableAccess(relation.linkedTableId).read` (server:

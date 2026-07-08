@@ -146,9 +146,7 @@ function DatabaseRelationChip({name, noAccess}: {name: string | null; noAccess?:
             color={noAccess === true ? "grey-50" : "grey-100"}
             style={{maxWidth: 120}}
         >
-            <Box fontStyle="truncate">
-                {noAccess === true ? "No access" : (name ?? "Untitled")}
-            </Box>
+            <Box fontStyle="truncate">{noAccess === true ? "No access" : (name ?? "Untitled")}</Box>
         </Box>
     );
 }

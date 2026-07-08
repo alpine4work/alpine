@@ -7,7 +7,6 @@ import {
     type DatabaseTrackedExecution,
 } from "~/shared/databases/database.js";
 import {DatabaseActionRequiresServerError} from "~/shared/databases/database_action_requires_server_error.js";
-import {deniedSqliteTableAccess} from "~/shared/databases/sqlite_authorizer.js";
 import {
     type DatabaseActionName,
     type DatabaseActionObject,
@@ -31,12 +30,13 @@ import {
     diffPage,
     shouldIgnorePageInvalidation,
 } from "~/shared/databases/page_diff.js";
+import {deniedSqliteTableAccess} from "~/shared/databases/sqlite_authorizer.js";
 import {databaseMainTableId} from "~/shared/databases/sqlite_constants.js";
 import {type SqliteMigration} from "~/shared/databases/sqlite_migrations.js";
 import {TableNotAttachedError} from "~/shared/databases/table_not_attached_error.js";
 import {PermissionDeniedError} from "~/shared/error/error.js";
-import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
 import {assert} from "~/shared/helpers/control/assert.js";
+import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
 import type {Result} from "~/shared/helpers/control/result.js";
 import {getOrSetDefaultMapValue} from "~/shared/helpers/map/get_or_set_default_map_value.js";
 import {generateId} from "~/shared/id/id.js";
@@ -237,15 +237,15 @@ export class DatabaseClient {
 
     /**
      * Per-execution table access derived from the server-pushed map, installed on
-     * every local action execution. Keeps the client's decisions — most
-     * importantly a relation field's ids-only projection when the linked table
-     * isn't readable — deterministic with the server's authorizer, which
-     * evaluates the same policies. Local statements that would be denied
-     * server-side fail fast here instead of optimistically applying and being
-     * rolled back.
+     * every local action execution. Keeps the client's decisions — most importantly a
+     * relation field's ids-only projection when the linked table isn't readable —
+     * deterministic with the server's authorizer, which evaluates the same policies.
+     * Local statements that would be denied server-side fail fast here instead of
+     * optimistically applying and being rolled back.
      */
     private readonly tableAccessResolver: DatabaseTableAccessResolver = tableId => {
-        switch (this.getTableAccessLevel(tableId)) {
+        const level = this.getTableAccessLevel(tableId);
+        switch (level) {
             case "write":
                 return "unrestricted";
             case "read":
@@ -253,7 +253,7 @@ export class DatabaseClient {
             case "none":
                 return deniedSqliteTableAccess;
             default:
-                throw exhaustive(this.getTableAccessLevel(tableId));
+                throw exhaustive(level);
         }
     };
 

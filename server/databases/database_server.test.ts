@@ -1627,7 +1627,7 @@ describe("DatabaseServer — per-table access", () => {
 
         const fieldIndex = result.fieldIndexes.get(scenario.relation.sourceFieldId)!;
         expect(result.rows[0]![fieldIndex]).toEqual([
-            {id: scenario.personRowId, name: null, noAccess: false},
+            {id: scenario.personRowId, name: "", noAccess: false},
         ]);
     });
 
