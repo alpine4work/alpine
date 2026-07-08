@@ -48,7 +48,7 @@ afterEach(async () => {
 
 describe("searchAlpineForAgent", () => {
     test("returns \u2018No results found\u2019 when results array is empty", async () => {
-        apiClient.mockGet("/spaces/{id}/search", {data: {results: []}});
+        apiClient.mockGet("/spaces/{id}/search", {params: "Any", data: {results: []}});
 
         const result = await storage.transaction(async transaction =>
             searchAlpineForAgent(testTracer, transaction, request, "test query"),
@@ -141,7 +141,7 @@ describe("searchAlpineForAgent", () => {
             },
         ];
 
-        apiClient.mockGet("/spaces/{id}/search", {data: {results}});
+        apiClient.mockGet("/spaces/{id}/search", {params: "Any", data: {results}});
 
         const result = await storage.transaction(async transaction =>
             searchAlpineForAgent(testTracer, transaction, request, "query"),
@@ -273,7 +273,7 @@ The following search results matched the keyword search but did not match any sp
             },
         ];
 
-        apiClient.mockGet("/spaces/{id}/search", {data: {results}});
+        apiClient.mockGet("/spaces/{id}/search", {params: "Any", data: {results}});
 
         const result = await storage.transaction(async transaction =>
             searchAlpineForAgent(testTracer, transaction, request, "query"),
@@ -325,7 +325,7 @@ The following search results matched the keyword search but did not match any sp
             },
         ];
 
-        apiClient.mockGet("/spaces/{id}/search", {data: {results}});
+        apiClient.mockGet("/spaces/{id}/search", {params: "Any", data: {results}});
 
         const requestWithRoom = {
             ...request,
@@ -374,7 +374,7 @@ The following search results matched the keyword search but did not match any sp
             },
         ];
 
-        apiClient.mockGet("/spaces/{id}/search", {data: {results}});
+        apiClient.mockGet("/spaces/{id}/search", {params: "Any", data: {results}});
 
         const requestWithRoom = {
             ...request,
@@ -432,7 +432,7 @@ The following search results matched the keyword search but did not match any sp
             },
         ];
 
-        apiClient.mockGet("/spaces/{id}/search", {data: {results}});
+        apiClient.mockGet("/spaces/{id}/search", {params: "Any", data: {results}});
 
         const requestWithRoom = {
             ...request,
@@ -490,7 +490,7 @@ The following search results matched the keyword search but did not match any sp
             },
         ];
 
-        apiClient.mockGet("/spaces/{id}/search", {data: {results}});
+        apiClient.mockGet("/spaces/{id}/search", {params: "Any", data: {results}});
 
         const requestWithRoom = {
             ...request,
@@ -552,7 +552,7 @@ The following search results matched the keyword search but did not match any sp
             },
         ];
 
-        apiClient.mockGet("/spaces/{id}/search", {data: {results}});
+        apiClient.mockGet("/spaces/{id}/search", {params: "Any", data: {results}});
 
         const requestWithRoom = {
             ...request,
@@ -607,7 +607,7 @@ The following search results matched the keyword search but did not match any sp
             },
         ];
 
-        apiClient.mockGet("/spaces/{id}/search", {data: {results}});
+        apiClient.mockGet("/spaces/{id}/search", {params: "Any", data: {results}});
 
         const requestWithRoom = {
             ...request,
@@ -701,7 +701,7 @@ The following search results matched the keyword search but did not match any sp
             },
         ];
 
-        apiClient.mockGet("/spaces/{id}/search", {data: {results}});
+        apiClient.mockGet("/spaces/{id}/search", {params: "Any", data: {results}});
 
         const requestWithRoom = {
             ...request,
@@ -761,7 +761,7 @@ The following search results matched the keyword search but did not match any sp
             },
         ];
 
-        apiClient.mockGet("/spaces/{id}/search", {data: {results}});
+        apiClient.mockGet("/spaces/{id}/search", {params: "Any", data: {results}});
 
         const requestWithRoom = {
             ...request,
@@ -819,7 +819,7 @@ The following search results matched the keyword search but did not match any sp
             },
         ];
 
-        apiClient.mockGet("/spaces/{id}/search", {data: {results}});
+        apiClient.mockGet("/spaces/{id}/search", {params: "Any", data: {results}});
 
         const result = await storage.transaction(async transaction =>
             searchAlpineForAgent(testTracer, transaction, request, "query"),
@@ -882,7 +882,7 @@ The following search results are \\_not\\_ documents created yesterday but Alpin
             },
         ];
 
-        apiClient.mockGet("/spaces/{id}/search", {data: {results}});
+        apiClient.mockGet("/spaces/{id}/search", {params: "Any", data: {results}});
 
         const result = await storage.transaction(async transaction =>
             searchAlpineForAgent(testTracer, transaction, request, "query"),

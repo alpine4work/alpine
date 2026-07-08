@@ -61,40 +61,34 @@ function mockGetCollectionTasks({
     );
     const returnedTaskCount = Math.max(endIndex - startIndex + 1, 0);
 
-    api.mockGet(
-        "/task-collections/{id}/tasks",
-        {
-            data: {
-                spaceId,
-                collection: {
-                    id: collectionId,
-                    name: "Roadmap",
-                    ...(color !== null ? {color} : {}),
-                    defaults: {filters: [], sorts: []},
-                },
-                nextCursor: endIndex < totalTaskCount - 1 ? getTaskQueryCursor(endIndex) : null,
-                tasks: Array.from({length: returnedTaskCount}, (_, index) => {
-                    const taskIndex = startIndex + index;
-
-                    return {
-                        cursor: getTaskQueryCursor(taskIndex),
-                        task: {
-                            id: generateId<TaskId>(),
-                            title: getTaskTitle(taskIndex),
-                            status: {type: "Open" as const, isActive: false},
-                        },
-                    };
-                }),
-            },
-        },
-        {
+    api.mockGet("/task-collections/{id}/tasks", {
+        params: {
             path: {id: collectionId},
             query: {
                 limit: agentWebTaskCollectionPageApiTasksBatchCount,
                 cursor,
             },
         },
-    );
+        data: {
+            spaceId,
+            collection: {
+                id: collectionId,
+                name: "Roadmap",
+                ...(color !== null ? {color} : {}),
+                defaults: {filters: [], sorts: []},
+            },
+            nextCursor: endIndex < totalTaskCount - 1 ? getTaskQueryCursor(endIndex) : null,
+            tasks: Array.from({length: returnedTaskCount}, (_, index) => {
+                const taskIndex = startIndex + index;
+
+                return {
+                    id: generateId<TaskId>(),
+                    title: getTaskTitle(taskIndex),
+                    status: {type: "Open" as const, isActive: false},
+                };
+            }),
+        },
+    });
 }
 
 function getTaskQueryCursor(index: number): ApiTaskQueryCursor {

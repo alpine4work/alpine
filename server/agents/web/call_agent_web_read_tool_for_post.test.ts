@@ -79,41 +79,35 @@ function mockGetPost({
     createdTime?: Date;
     createdTimeZone?: TimeZone;
 } = {}) {
-    api.mockGet(
-        "/posts/{id}",
-        {
-            data: {
-                spaceId,
-                post: {
-                    id: postId,
-                    author: aliceAccount,
-                    createdTime: serializeDateString(createdTime),
-                    createdTimeZone,
-                    channel: {id: channelId, name: "Announcements"},
-                    content: content ?? contentFromText("Post body."),
-                    reference: {title: postReference.title},
-                },
+    api.mockGet("/posts/{id}", {
+        params: {path: {id: postId}},
+        data: {
+            spaceId,
+            post: {
+                id: postId,
+                author: aliceAccount,
+                createdTime: serializeDateString(createdTime),
+                createdTimeZone,
+                channel: {id: channelId, name: "Announcements"},
+                content: content ?? contentFromText("Post body."),
+                reference: {title: postReference.title},
             },
         },
-        {path: {id: postId}},
-    );
+    });
 }
 
 function mockGetPostReference() {
-    api.mockGet(
-        "/posts/{id}/reference",
-        {
-            data: {
-                spaceId,
-                reference: {
-                    type: "Post",
-                    id: postId,
-                    title: postReference.title,
-                },
+    api.mockGet("/posts/{id}/reference", {
+        params: {path: {id: postId}},
+        data: {
+            spaceId,
+            reference: {
+                type: "Post",
+                id: postId,
+                title: postReference.title,
             },
         },
-        {path: {id: postId}},
-    );
+    });
 }
 
 test("reads the first post page with the post above comments", async () => {

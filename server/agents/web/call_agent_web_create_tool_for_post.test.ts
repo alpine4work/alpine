@@ -222,6 +222,7 @@ function mockCreatePost({
     content?: ApiContentResponse;
 }): PostId {
     api.mockPost("/posts", {
+        params: "Any",
         data: {
             spaceId,
             post: {
@@ -244,20 +245,17 @@ function mockCreatePost({
 
 function mockCreateComments({postId, indexes}: {postId: PostId; indexes: ReadonlyArray<number>}) {
     for (const index of indexes) {
-        api.mockPost(
-            "/posts/{id}/messages",
-            {
-                data: {
-                    spaceId,
-                    message: createApiMessageMock({
-                        index,
-                        author: botApiAccount,
-                        content: "Created comment response",
-                    }),
-                },
+        api.mockPost("/posts/{id}/messages", {
+            params: {path: {id: postId}},
+            data: {
+                spaceId,
+                message: createApiMessageMock({
+                    index,
+                    author: botApiAccount,
+                    content: "Created comment response",
+                }),
             },
-            {path: {id: postId}},
-        );
+        });
     }
 }
 

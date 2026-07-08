@@ -280,6 +280,7 @@ describe("ChatGptAgentDurableObject.webhook", () => {
 
         // create the bot's response message, needs to be mocked because we need the index
         apiClient.mockPost("/chats/{id}/messages", {
+            params: "Any",
             data: {
                 spaceId,
                 message: {
@@ -294,6 +295,7 @@ describe("ChatGptAgentDurableObject.webhook", () => {
 
         // get space info for system prompt
         apiClient.mockGet("/spaces/{id}", {
+            params: "Any",
             data: {
                 space: {
                     id: spaceId,
@@ -304,6 +306,7 @@ describe("ChatGptAgentDurableObject.webhook", () => {
 
         // fetch conversation history for context
         apiClient.mockGet("/chats/{id}/messages", {
+            params: "Any",
             data: {
                 spaceId,
                 totalMessageCount: 1,
@@ -470,6 +473,7 @@ describe("ChatGptAgentDurableObject.webhook", () => {
         const durableObject = createChatGptAgentDurableObject();
 
         apiClient.mockPost("/chats/{id}/messages", {
+            params: "Any",
             data: {
                 spaceId,
                 message: {
@@ -483,12 +487,14 @@ describe("ChatGptAgentDurableObject.webhook", () => {
         });
 
         apiClient.mockGet("/spaces/{id}", {
+            params: "Any",
             data: {
                 space: {id: spaceId, name: "Test Space"},
             },
         });
 
         apiClient.mockGet("/chats/{id}/messages", {
+            params: "Any",
             data: {
                 spaceId,
                 totalMessageCount: 1,
@@ -647,6 +653,7 @@ describe("ChatGptAgentDurableObject.webhook", () => {
 
         // ----- Mock API responses -----
         apiClient.mockPost("/chats/{id}/messages", {
+            params: "Any",
             data: {
                 spaceId,
                 message: {
@@ -660,10 +667,12 @@ describe("ChatGptAgentDurableObject.webhook", () => {
         });
 
         apiClient.mockGet("/spaces/{id}", {
+            params: "Any",
             data: {space: {id: spaceId, name: "Test Space"}},
         });
 
         apiClient.mockGet("/chats/{id}/messages", {
+            params: "Any",
             data: {
                 spaceId,
                 totalMessageCount: 1,
@@ -845,6 +854,7 @@ describe("ChatGptAgentDurableObject.webhook", () => {
 
         // ----- Mock API responses -----
         apiClient.mockPost("/chats/{id}/messages", {
+            params: "Any",
             data: {
                 spaceId,
                 message: {
@@ -858,10 +868,12 @@ describe("ChatGptAgentDurableObject.webhook", () => {
         });
 
         apiClient.mockGet("/spaces/{id}", {
+            params: "Any",
             data: {space: {id: spaceId, name: "Test Space"}},
         });
 
         apiClient.mockGet("/chats/{id}/messages", {
+            params: "Any",
             data: {
                 spaceId,
                 totalMessageCount: 1,
@@ -1090,6 +1102,7 @@ describe("ChatGptAgentDurableObject.webhook", () => {
 
         // ----- Mock API responses -----
         apiClient.mockPost("/chats/{id}/messages", {
+            params: "Any",
             data: {
                 spaceId,
                 message: {
@@ -1103,10 +1116,12 @@ describe("ChatGptAgentDurableObject.webhook", () => {
         });
 
         apiClient.mockGet("/spaces/{id}", {
+            params: "Any",
             data: {space: {id: spaceId, name: "Test Space"}},
         });
 
         apiClient.mockGet("/chats/{id}/messages", {
+            params: "Any",
             data: {
                 spaceId,
                 totalMessageCount: 1,
@@ -1133,6 +1148,7 @@ describe("ChatGptAgentDurableObject.webhook", () => {
 
         // Mock the search API endpoint
         apiClient.mockGet("/spaces/{id}/search", {
+            params: "Any",
             data: {
                 results: [
                     {
@@ -1148,6 +1164,7 @@ describe("ChatGptAgentDurableObject.webhook", () => {
 
         // Mock the document API endpoint for read_link
         apiClient.mockGet("/documents/{id}", {
+            params: "Any",
             data: {
                 spaceId,
                 document: {
@@ -1329,6 +1346,7 @@ describe("ChatGptAgentDurableObject.webhook", () => {
 
         // ----- Mock API responses -----
         apiClient.mockPost("/chats/{id}/messages", {
+            params: "Any",
             data: {
                 spaceId,
                 message: {
@@ -1497,6 +1515,7 @@ describe("ChatGptAgentDurableObject.webhook", () => {
 
         // ----- Mock API responses -----
         apiClient.mockPost("/chats/{id}/messages", {
+            params: "Any",
             data: {
                 spaceId,
                 message: {
@@ -1510,10 +1529,12 @@ describe("ChatGptAgentDurableObject.webhook", () => {
         });
 
         apiClient.mockGet("/spaces/{id}", {
+            params: "Any",
             data: {space: {id: spaceId, name: "Test Space"}},
         });
 
         apiClient.mockGet("/chats/{id}/messages", {
+            params: "Any",
             data: {
                 spaceId,
                 totalMessageCount: 1,
@@ -1748,6 +1769,7 @@ describe("ChatGptAgentDurableObject.webhook", () => {
             mockAgentUsageForAccount(authorId);
 
             apiClient.mockPost("/chats/{id}/messages", {
+                params: "Any",
                 data: {
                     spaceId,
                     message: {
@@ -1762,9 +1784,11 @@ describe("ChatGptAgentDurableObject.webhook", () => {
 
             // Mock spaces endpoint twice - once for initial call, once for retry
             apiClient.mockGet("/spaces/{id}", {
+                params: "Any",
                 data: {space: {id: spaceId, name: "Test Space"}},
             });
             apiClient.mockGet("/spaces/{id}", {
+                params: "Any",
                 data: {space: {id: spaceId, name: "Test Space"}},
             });
 
@@ -1791,8 +1815,8 @@ describe("ChatGptAgentDurableObject.webhook", () => {
                     ],
                 },
             } as const;
-            apiClient.mockGet("/chats/{id}/messages", mockGetMessagesResponse);
-            apiClient.mockGet("/chats/{id}/messages", mockGetMessagesResponse);
+            apiClient.mockGet("/chats/{id}/messages", {params: "Any", ...mockGetMessagesResponse});
+            apiClient.mockGet("/chats/{id}/messages", {params: "Any", ...mockGetMessagesResponse});
 
             await durableObject.webhook(span, request);
 
@@ -1901,6 +1925,7 @@ describe("ChatGptAgentDurableObject.webhook", () => {
             mockAgentUsageForAccount(authorId);
 
             apiClient.mockPost("/chats/{id}/messages", {
+                params: "Any",
                 data: {
                     spaceId,
                     message: {
@@ -1915,9 +1940,11 @@ describe("ChatGptAgentDurableObject.webhook", () => {
 
             // Mock spaces endpoint twice - once for initial call, once for retry
             apiClient.mockGet("/spaces/{id}", {
+                params: "Any",
                 data: {space: {id: spaceId, name: "Test Space"}},
             });
             apiClient.mockGet("/spaces/{id}", {
+                params: "Any",
                 data: {space: {id: spaceId, name: "Test Space"}},
             });
 
@@ -1944,8 +1971,8 @@ describe("ChatGptAgentDurableObject.webhook", () => {
                     ],
                 },
             } as const;
-            apiClient.mockGet("/chats/{id}/messages", mockGetMessagesResponse);
-            apiClient.mockGet("/chats/{id}/messages", mockGetMessagesResponse);
+            apiClient.mockGet("/chats/{id}/messages", {params: "Any", ...mockGetMessagesResponse});
+            apiClient.mockGet("/chats/{id}/messages", {params: "Any", ...mockGetMessagesResponse});
 
             await durableObject.webhook(span, request);
 
@@ -2110,6 +2137,7 @@ describe("ChatGptAgentDurableObject.webhook", () => {
 
             // Creates the message for the message stream
             apiClient.mockPost("/chats/{id}/messages", {
+                params: "Any",
                 data: {
                     spaceId,
                     message: {
@@ -2124,13 +2152,16 @@ describe("ChatGptAgentDurableObject.webhook", () => {
 
             // Mock spaces endpoint twice - once for initial call, once for retry
             apiClient.mockGet("/spaces/{id}", {
+                params: "Any",
                 data: {space: {id: spaceId, name: "Test Space"}},
             });
             apiClient.mockGet("/spaces/{id}", {
+                params: "Any",
                 data: {space: {id: spaceId, name: "Test Space"}},
             });
 
             apiClient.mockGet("/spaces/{id}/search", {
+                params: "Any",
                 data: {
                     results: [
                         {
@@ -2167,8 +2198,8 @@ describe("ChatGptAgentDurableObject.webhook", () => {
                     ],
                 },
             } as const;
-            apiClient.mockGet("/chats/{id}/messages", mockGetMessagesResponse);
-            apiClient.mockGet("/chats/{id}/messages", mockGetMessagesResponse);
+            apiClient.mockGet("/chats/{id}/messages", {params: "Any", ...mockGetMessagesResponse});
+            apiClient.mockGet("/chats/{id}/messages", {params: "Any", ...mockGetMessagesResponse});
 
             const deleteAllSpy = jest.spyOn(storage, "deleteAll");
 
@@ -2359,6 +2390,7 @@ describe("ChatGptAgentDurableObject.webhook", () => {
             mockAgentUsageForAccount(authorId);
 
             apiClient.mockPost("/chats/{id}/messages", {
+                params: "Any",
                 data: {
                     spaceId,
                     message: {
@@ -2373,9 +2405,11 @@ describe("ChatGptAgentDurableObject.webhook", () => {
 
             // Mock spaces endpoint 3 times - initial call + 2 retries
             apiClient.mockGet("/spaces/{id}", {
+                params: "Any",
                 data: {space: {id: spaceId, name: "Test Space"}},
             });
             apiClient.mockGet("/spaces/{id}", {
+                params: "Any",
                 data: {space: {id: spaceId, name: "Test Space"}},
             });
 
@@ -2402,8 +2436,8 @@ describe("ChatGptAgentDurableObject.webhook", () => {
                     ],
                 },
             } as const;
-            apiClient.mockGet("/chats/{id}/messages", mockGetMessagesResponse);
-            apiClient.mockGet("/chats/{id}/messages", mockGetMessagesResponse);
+            apiClient.mockGet("/chats/{id}/messages", {params: "Any", ...mockGetMessagesResponse});
+            apiClient.mockGet("/chats/{id}/messages", {params: "Any", ...mockGetMessagesResponse});
 
             // Should throw after exhausting retries
             await expect(durableObject.webhook(span, request)).rejects.toThrow(
@@ -2525,6 +2559,7 @@ describe("ChatGptAgentDurableObject.webhook", () => {
             mockAgentUsageForAccount(authorId);
 
             apiClient.mockPost("/chats/{id}/messages", {
+                params: "Any",
                 data: {
                     spaceId,
                     message: {
@@ -2538,10 +2573,12 @@ describe("ChatGptAgentDurableObject.webhook", () => {
             });
 
             apiClient.mockGet("/spaces/{id}", {
+                params: "Any",
                 data: {space: {id: spaceId, name: "Test Space"}},
             });
 
             apiClient.mockGet("/chats/{id}/messages", {
+                params: "Any",
                 data: {
                     spaceId,
                     totalMessageCount: 1,
@@ -2724,6 +2761,7 @@ describe("ChatGptAgentDurableObject.webhook", () => {
             mockAgentUsageDatabase.downgradeModelForWindow.mockResolvedValue(undefined);
 
             apiClient.mockPost("/chats/{id}/messages", {
+                params: "Any",
                 data: {
                     spaceId,
                     message: {
@@ -2738,9 +2776,11 @@ describe("ChatGptAgentDurableObject.webhook", () => {
 
             // Mock spaces endpoint twice - once for initial call, once for retry
             apiClient.mockGet("/spaces/{id}", {
+                params: "Any",
                 data: {space: {id: spaceId, name: "Test Space"}},
             });
             apiClient.mockGet("/spaces/{id}", {
+                params: "Any",
                 data: {space: {id: spaceId, name: "Test Space"}},
             });
 
@@ -2767,8 +2807,8 @@ describe("ChatGptAgentDurableObject.webhook", () => {
                     ],
                 },
             } as const;
-            apiClient.mockGet("/chats/{id}/messages", mockGetMessagesResponse);
-            apiClient.mockGet("/chats/{id}/messages", mockGetMessagesResponse);
+            apiClient.mockGet("/chats/{id}/messages", {params: "Any", ...mockGetMessagesResponse});
+            apiClient.mockGet("/chats/{id}/messages", {params: "Any", ...mockGetMessagesResponse});
 
             // Should throw after exhausting retries
             await expect(durableObject.webhook(span, request)).rejects.toThrow(
@@ -2965,6 +3005,7 @@ describe("ChatGptAgentDurableObject.webhook", () => {
 
         // create the bot's response message, needs to be mocked because we need the index
         apiClient.mockPost("/chats/{id}/messages", {
+            params: "Any",
             data: {
                 spaceId,
                 message: {
@@ -2979,6 +3020,7 @@ describe("ChatGptAgentDurableObject.webhook", () => {
 
         // get space info for system prompt
         apiClient.mockGet("/spaces/{id}", {
+            params: "Any",
             data: {
                 space: {
                     id: spaceId,
@@ -2989,6 +3031,7 @@ describe("ChatGptAgentDurableObject.webhook", () => {
 
         // fetch conversation history for context
         apiClient.mockGet("/chats/{id}/messages", {
+            params: "Any",
             data: {
                 spaceId,
                 totalMessageCount: 1,
@@ -3279,6 +3322,7 @@ describe("injectCurrentlyViewedEntityIntoContextIfNeeded", () => {
 
         // Mock the API calls
         apiClient.mockGet("/documents/{id}/mention", {
+            params: "Any",
             data: {
                 spaceId,
                 mention: {
@@ -3288,6 +3332,7 @@ describe("injectCurrentlyViewedEntityIntoContextIfNeeded", () => {
         });
 
         apiClient.mockGet("/accounts/{id}", {
+            params: "Any",
             data: {
                 account: createApiAccountMock({name: "Test User"}),
             },
@@ -3365,6 +3410,7 @@ describe("injectCurrentlyViewedEntityIntoContextIfNeeded", () => {
         });
 
         apiClient.mockGet("/accounts/{id}", {
+            params: "Any",
             data: {
                 account: createApiAccountMock({name: "Test User"}),
             },
@@ -3441,6 +3487,7 @@ describe("injectCurrentlyViewedEntityIntoContextIfNeeded", () => {
 
         // Mock API call for mention (to get the same entity)
         apiClient.mockGet("/documents/{id}/mention", {
+            params: "Any",
             data: {
                 spaceId,
                 mention: viewingTarget,
@@ -3502,6 +3549,7 @@ describe("injectCurrentlyViewedEntityIntoContextIfNeeded", () => {
 
         // Mock API calls
         apiClient.mockGet("/documents/{id}/mention", {
+            params: "Any",
             data: {
                 spaceId,
                 mention: viewingTarget,
@@ -3509,6 +3557,7 @@ describe("injectCurrentlyViewedEntityIntoContextIfNeeded", () => {
         });
 
         apiClient.mockGet("/accounts/{id}", {
+            params: "Any",
             data: {
                 account: createApiAccountMock({name: "Test User"}),
             },
@@ -3583,6 +3632,7 @@ describe("injectCurrentlyViewedEntityIntoContextIfNeeded", () => {
 
         // Mock API calls
         apiClient.mockGet("/documents/{id}/mention", {
+            params: "Any",
             data: {
                 spaceId,
                 mention: {
@@ -3593,6 +3643,7 @@ describe("injectCurrentlyViewedEntityIntoContextIfNeeded", () => {
         });
 
         apiClient.mockGet("/accounts/{id}", {
+            params: "Any",
             data: {
                 account: createApiAccountMock({name: "Test User"}),
             },

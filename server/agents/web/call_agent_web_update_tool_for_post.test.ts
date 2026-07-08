@@ -268,43 +268,37 @@ function mockGetPost({
     createdTime?: Date;
     createdTimeZone?: TimeZone;
 } = {}) {
-    api.mockGet(
-        "/posts/{id}",
-        {
-            data: {
-                spaceId,
-                post: {
-                    id: postId,
-                    author,
-                    createdTime: serializeDateString(createdTime),
-                    createdTimeZone,
-                    channel:
-                        channel === null
-                            ? undefined
-                            : {
-                                  id: channel.id,
-                                  name: channel.title,
-                              },
-                    content,
-                    reference: {title: postReference.title},
-                },
+    api.mockGet("/posts/{id}", {
+        params: {path: {id: postId}},
+        data: {
+            spaceId,
+            post: {
+                id: postId,
+                author,
+                createdTime: serializeDateString(createdTime),
+                createdTimeZone,
+                channel:
+                    channel === null
+                        ? undefined
+                        : {
+                              id: channel.id,
+                              name: channel.title,
+                          },
+                content,
+                reference: {title: postReference.title},
             },
         },
-        {path: {id: postId}},
-    );
+    });
 }
 
 function mockGetPostReference(reference = postReference) {
-    api.mockGet(
-        "/posts/{id}/reference",
-        {
-            data: {
-                spaceId,
-                reference,
-            },
+    api.mockGet("/posts/{id}/reference", {
+        params: {path: {id: postId}},
+        data: {
+            spaceId,
+            reference,
         },
-        {path: {id: postId}},
-    );
+    });
 }
 
 async function readPost({
@@ -342,20 +336,17 @@ async function readPost({
 
 function mockCreateComments({count, startIndex = 0}: {count: number; startIndex?: number}) {
     for (let index = 0; index < count; index++) {
-        api.mockPost(
-            "/posts/{id}/messages",
-            {
-                data: {
-                    spaceId,
-                    message: createComment({
-                        index: startIndex + index,
-                        author: botApiAccount,
-                        content: "Created comment response",
-                    }),
-                },
+        api.mockPost("/posts/{id}/messages", {
+            params: {path: {id: postId}},
+            data: {
+                spaceId,
+                message: createComment({
+                    index: startIndex + index,
+                    author: botApiAccount,
+                    content: "Created comment response",
+                }),
             },
-            {path: {id: postId}},
-        );
+        });
     }
 }
 

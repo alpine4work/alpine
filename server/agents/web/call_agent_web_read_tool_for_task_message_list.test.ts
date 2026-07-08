@@ -62,11 +62,10 @@ beforeEach(async () => {
 });
 
 function mockApiGetTaskReference() {
-    api.mockGet(
-        "/tasks/{id}/reference",
-        {data: {spaceId, reference: taskReference}},
-        {path: {id: taskId}},
-    );
+    api.mockGet("/tasks/{id}/reference", {
+        params: {path: {id: taskId}},
+        data: {spaceId, reference: taskReference},
+    });
 }
 
 test("reads a task message list with one human comment", async () => {

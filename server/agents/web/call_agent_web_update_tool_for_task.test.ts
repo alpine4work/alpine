@@ -83,22 +83,19 @@ beforeEach(async () => {
 
 function mockTaskPatch(taskId: TaskId, count = 1) {
     for (let i = 0; i < count; i++) {
-        api.mockPatch(
-            "/tasks/{id}",
-            {
-                data: {
-                    spaceId,
-                    task: {
-                        id: taskId,
-                        title: "ignored",
-                        status: {type: "Open", isActive: false},
-                        collections: [],
-                        notes: {version: 0, content: {elements: []}},
-                    },
-                } as any,
-            },
-            {path: {id: taskId}},
-        );
+        api.mockPatch("/tasks/{id}", {
+            params: {path: {id: taskId}},
+            data: {
+                spaceId,
+                task: {
+                    id: taskId,
+                    title: "ignored",
+                    status: {type: "Open", isActive: false},
+                    collections: [],
+                    notes: {version: 0, content: {elements: []}},
+                },
+            } as any,
+        });
     }
 }
 
@@ -111,19 +108,16 @@ function mockTaskNotesPatch({
     version: number;
     content: ApiContentResponseWithoutKeys;
 }) {
-    api.mockPatch(
-        "/tasks/{id}/notes",
-        {
-            data: {
-                spaceId,
-                notes: {
-                    version,
-                    content: addKeysToApiContentForTest(content),
-                },
+    api.mockPatch("/tasks/{id}/notes", {
+        params: {path: {id: taskId}},
+        data: {
+            spaceId,
+            notes: {
+                version,
+                content: addKeysToApiContentForTest(content),
             },
         },
-        {path: {id: taskId}},
-    );
+    });
 }
 
 function getTaskPatchRequests() {

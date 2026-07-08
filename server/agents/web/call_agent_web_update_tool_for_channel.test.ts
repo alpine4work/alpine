@@ -154,20 +154,17 @@ async function expectUnimplementedUpdate({
 }
 
 function mockGetChannel() {
-    api.mockGet(
-        "/channels/{id}",
-        {
-            data: {
-                spaceId,
-                channel: {
-                    id: channelId,
-                    name: "Announcements",
-                    description: contentFromText("Updates from the team."),
-                },
+    api.mockGet("/channels/{id}", {
+        params: {path: {id: channelId}},
+        data: {
+            spaceId,
+            channel: {
+                id: channelId,
+                name: "Announcements",
+                description: contentFromText("Updates from the team."),
             },
         },
-        {path: {id: channelId}},
-    );
+    });
 }
 
 function mockGetChannelPosts({
@@ -223,27 +220,24 @@ function mockGetChannelPosts({
     );
     const nextPost = allPosts[safeStartIndex + returnedPosts.length];
 
-    api.mockGet(
-        "/channels/{id}/posts",
-        {
-            data: {
-                spaceId,
-                channel: {
-                    id: channelId,
-                    name: "Announcements",
-                },
-                nextCursor: nextPost ? returnedPosts[returnedPosts.length - 1]!.createdTime : null,
-                posts: returnedPosts,
-            },
-        },
-        {
+    api.mockGet("/channels/{id}/posts", {
+        params: {
             path: {id: channelId},
             query: {
                 limit: agentWebChannelPageApiPostsBatchCount,
                 cursor,
             },
         },
-    );
+        data: {
+            spaceId,
+            channel: {
+                id: channelId,
+                name: "Announcements",
+            },
+            nextCursor: nextPost ? returnedPosts[returnedPosts.length - 1]!.createdTime : null,
+            posts: returnedPosts,
+        },
+    });
 }
 
 async function readHeadChannelPage({

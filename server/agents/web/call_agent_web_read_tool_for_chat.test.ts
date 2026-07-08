@@ -62,21 +62,18 @@ async function mockDirectChatForTest(): Promise<{chatId: ChatId; path: string}> 
         title: "Alice and Bob",
     });
 
-    api.mockGet(
-        "/chats/{id}",
-        {
-            data: {
-                spaceId,
-                chat: {
-                    type: "Direct",
-                    id: directChatId,
-                    members: [{account: aliceAccount}, {account: bobAccount}],
-                    reference: {title: "Alice and Bob"},
-                },
+    api.mockGet("/chats/{id}", {
+        params: {path: {id: directChatId}},
+        data: {
+            spaceId,
+            chat: {
+                type: "Direct",
+                id: directChatId,
+                members: [{account: aliceAccount}, {account: bobAccount}],
+                reference: {title: "Alice and Bob"},
             },
         },
-        {path: {id: directChatId}},
-    );
+    });
 
     return {chatId: directChatId, path};
 }
@@ -89,21 +86,18 @@ test("reads a direct chat with one human message", async () => {
         title: "Alice",
     });
 
-    api.mockGet(
-        "/chats/{id}",
-        {
-            data: {
-                spaceId,
-                chat: {
-                    type: "Direct",
-                    id: directChatId,
-                    members: [{account: aliceAccount}, {account: bobAccount}],
-                    reference: {title: "Alice"},
-                },
+    api.mockGet("/chats/{id}", {
+        params: {path: {id: directChatId}},
+        data: {
+            spaceId,
+            chat: {
+                type: "Direct",
+                id: directChatId,
+                members: [{account: aliceAccount}, {account: bobAccount}],
+                reference: {title: "Alice"},
             },
         },
-        {path: {id: directChatId}},
-    );
+    });
     mockApiGetChatMessages(api, {
         spaceId,
         chatId: directChatId,

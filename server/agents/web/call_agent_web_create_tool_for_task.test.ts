@@ -74,6 +74,7 @@ function mockCreateTask({
     status: {readonly type: "Open"; readonly isActive: boolean} | {readonly type: "Closed"};
 }): TaskId {
     api.mockPost("/tasks", {
+        params: "Any",
         data: {
             spaceId,
             task: {

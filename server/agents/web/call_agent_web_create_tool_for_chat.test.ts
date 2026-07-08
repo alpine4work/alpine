@@ -165,6 +165,7 @@ function mockCreateDirectChat({
     members?: ReadonlyArray<ApiAccount>;
 }): ChatId {
     api.mockPost("/chats", {
+        params: "Any",
         data: {
             spaceId,
             chat: {
@@ -187,6 +188,7 @@ function mockCreateRoomChat({
     name: string;
 }): ChatId {
     api.mockPost("/chats", {
+        params: "Any",
         data: {
             spaceId,
             chat: {
@@ -210,20 +212,17 @@ function mockCreateMessages({
     startIndex?: number;
 }) {
     for (let index = 0; index < count; index++) {
-        api.mockPost(
-            "/chats/{id}/messages",
-            {
-                data: {
-                    spaceId,
-                    message: createApiMessageMock({
-                        index: startIndex + index,
-                        author: botApiAccount,
-                        content: "Created message response",
-                    }),
-                },
+        api.mockPost("/chats/{id}/messages", {
+            params: {path: {id: chatId}},
+            data: {
+                spaceId,
+                message: createApiMessageMock({
+                    index: startIndex + index,
+                    author: botApiAccount,
+                    content: "Created message response",
+                }),
             },
-            {path: {id: chatId}},
-        );
+        });
     }
 }
 

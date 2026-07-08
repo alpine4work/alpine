@@ -148,11 +148,10 @@ function documentContentSnippet(): ApiContentResponse {
 }
 
 function mockGetDocumentReference() {
-    api.mockGet(
-        "/documents/{id}/reference",
-        {data: {spaceId, reference: documentReference}},
-        {path: {id: documentId}},
-    );
+    api.mockGet("/documents/{id}/reference", {
+        params: {path: {id: documentId}},
+        data: {spaceId, reference: documentReference},
+    });
 }
 
 function mockGetDocumentThread({
@@ -168,37 +167,34 @@ function mockGetDocumentThread({
     previewContent?: ApiContentResponse;
     isResolved?: boolean;
 } = {}) {
-    api.mockGet(
-        "/documents/{id}/threads/{threadId}",
-        {
-            data: {
-                spaceId,
-                thread: {
-                    id: threadId,
-                    isResolved,
-                    totalMessageCount: commentCount,
-                    firstMessage: {
-                        author: aliceAccount,
-                        createdTime: serializeDateString(createdTime),
-                        createdTimeZone: defaultTimeZone,
-                    },
-                    marked: {
-                        preview: {
-                            version: 1,
-                            contentSnippet: previewContent,
-                        },
-                    },
+    api.mockGet("/documents/{id}/threads/{threadId}", {
+        params: {path: {id: documentId, threadId}},
+        data: {
+            spaceId,
+            thread: {
+                id: threadId,
+                isResolved,
+                totalMessageCount: commentCount,
+                firstMessage: {
+                    author: aliceAccount,
+                    createdTime: serializeDateString(createdTime),
+                    createdTimeZone: defaultTimeZone,
                 },
-                document: {
-                    id: documentId,
-                    title: documentReference.title,
-                    content: documentContent,
-                    version: 1,
+                marked: {
+                    preview: {
+                        version: 1,
+                        contentSnippet: previewContent,
+                    },
                 },
             },
+            document: {
+                id: documentId,
+                title: documentReference.title,
+                content: documentContent,
+                version: 1,
+            },
         },
-        {path: {id: documentId, threadId}},
-    );
+    });
 }
 
 function mockGetDocument({

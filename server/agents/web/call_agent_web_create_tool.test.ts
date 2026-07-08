@@ -65,6 +65,7 @@ function mockCreateDocument({
     version?: number;
 }): DocumentId {
     api.mockPost("/documents", {
+        params: "Any",
         data: {
             spaceId,
             document: {

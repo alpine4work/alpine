@@ -33,24 +33,20 @@ export function mockApiGetTaskMessages(
             let endIndex = startIndex + limit - 1;
             endIndex = Math.min(endIndex, totalMessageCount - 1);
 
-            api.mockGet(
-                "/tasks/{id}/messages",
-                {
-                    data: {
-                        spaceId,
-                        totalMessageCount,
-                        nextCursor: endIndex !== totalMessageCount - 1 ? endIndex : null,
-                        messages: createArrayWithLength(
-                            Math.max(endIndex - startIndex + 1, 0),
-                            index => createMessage(startIndex + index),
-                        ),
-                    },
-                },
-                {
+            api.mockGet("/tasks/{id}/messages", {
+                params: {
                     path: {id: taskId},
                     query: {from, limit, cursor},
                 },
-            );
+                data: {
+                    spaceId,
+                    totalMessageCount,
+                    nextCursor: endIndex !== totalMessageCount - 1 ? endIndex : null,
+                    messages: createArrayWithLength(Math.max(endIndex - startIndex + 1, 0), index =>
+                        createMessage(startIndex + index),
+                    ),
+                },
+            });
             break;
         }
         case "End": {
@@ -60,24 +56,20 @@ export function mockApiGetTaskMessages(
             let startIndex = endIndex - limit + 1;
             startIndex = Math.max(startIndex, 0);
 
-            api.mockGet(
-                "/tasks/{id}/messages",
-                {
-                    data: {
-                        spaceId,
-                        totalMessageCount,
-                        nextCursor: startIndex !== 0 ? startIndex : null,
-                        messages: createArrayWithLength(
-                            Math.max(endIndex - startIndex + 1, 0),
-                            index => createMessage(startIndex + index),
-                        ),
-                    },
-                },
-                {
+            api.mockGet("/tasks/{id}/messages", {
+                params: {
                     path: {id: taskId},
                     query: {from, limit, cursor},
                 },
-            );
+                data: {
+                    spaceId,
+                    totalMessageCount,
+                    nextCursor: startIndex !== 0 ? startIndex : null,
+                    messages: createArrayWithLength(Math.max(endIndex - startIndex + 1, 0), index =>
+                        createMessage(startIndex + index),
+                    ),
+                },
+            });
             break;
         }
         default:

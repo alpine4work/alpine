@@ -35,24 +35,20 @@ export function mockApiGetDocumentThreadMessages(
             let endIndex = startIndex + limit - 1;
             endIndex = Math.min(endIndex, totalMessageCount - 1);
 
-            api.mockGet(
-                "/documents/{id}/threads/{threadId}/messages",
-                {
-                    data: {
-                        spaceId,
-                        totalMessageCount,
-                        nextCursor: endIndex !== totalMessageCount - 1 ? endIndex : null,
-                        messages: createArrayWithLength(
-                            Math.max(endIndex - startIndex + 1, 0),
-                            index => createMessage(startIndex + index),
-                        ),
-                    },
-                },
-                {
+            api.mockGet("/documents/{id}/threads/{threadId}/messages", {
+                params: {
                     path: {id: documentId, threadId},
                     query: {from, limit, cursor},
                 },
-            );
+                data: {
+                    spaceId,
+                    totalMessageCount,
+                    nextCursor: endIndex !== totalMessageCount - 1 ? endIndex : null,
+                    messages: createArrayWithLength(Math.max(endIndex - startIndex + 1, 0), index =>
+                        createMessage(startIndex + index),
+                    ),
+                },
+            });
             break;
         }
         case "End": {
@@ -62,24 +58,20 @@ export function mockApiGetDocumentThreadMessages(
             let startIndex = endIndex - limit + 1;
             startIndex = Math.max(startIndex, 0);
 
-            api.mockGet(
-                "/documents/{id}/threads/{threadId}/messages",
-                {
-                    data: {
-                        spaceId,
-                        totalMessageCount,
-                        nextCursor: startIndex !== 0 ? startIndex : null,
-                        messages: createArrayWithLength(
-                            Math.max(endIndex - startIndex + 1, 0),
-                            index => createMessage(startIndex + index),
-                        ),
-                    },
-                },
-                {
+            api.mockGet("/documents/{id}/threads/{threadId}/messages", {
+                params: {
                     path: {id: documentId, threadId},
                     query: {from, limit, cursor},
                 },
-            );
+                data: {
+                    spaceId,
+                    totalMessageCount,
+                    nextCursor: startIndex !== 0 ? startIndex : null,
+                    messages: createArrayWithLength(Math.max(endIndex - startIndex + 1, 0), index =>
+                        createMessage(startIndex + index),
+                    ),
+                },
+            });
             break;
         }
         default:

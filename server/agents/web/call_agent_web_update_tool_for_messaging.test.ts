@@ -271,20 +271,17 @@ async function readChat({
 
 function mockCreateMessages({count, startIndex = 0}: {count: number; startIndex?: number}) {
     for (let index = 0; index < count; index++) {
-        api.mockPost(
-            "/chats/{id}/messages",
-            {
-                data: {
-                    spaceId,
-                    message: createMessage({
-                        index: startIndex + index,
-                        author: botApiAccount,
-                        content: "Created message response",
-                    }),
-                },
+        api.mockPost("/chats/{id}/messages", {
+            params: {path: {id: chatId}},
+            data: {
+                spaceId,
+                message: createMessage({
+                    index: startIndex + index,
+                    author: botApiAccount,
+                    content: "Created message response",
+                }),
             },
-            {path: {id: chatId}},
-        );
+        });
     }
 }
 

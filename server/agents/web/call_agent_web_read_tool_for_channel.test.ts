@@ -67,20 +67,17 @@ function mockGetChannel({
 }: {
     description?: ApiContentResponse;
 } = {}) {
-    api.mockGet(
-        "/channels/{id}",
-        {
-            data: {
-                spaceId,
-                channel: {
-                    id: channelId,
-                    name: "Announcements",
-                    description,
-                },
+    api.mockGet("/channels/{id}", {
+        params: {path: {id: channelId}},
+        data: {
+            spaceId,
+            channel: {
+                id: channelId,
+                name: "Announcements",
+                description,
             },
         },
-        {path: {id: channelId}},
-    );
+    });
 }
 
 function mockGetChannelPosts({
@@ -120,39 +117,36 @@ function mockGetChannelPosts({
     );
     const returnedPostCount = Math.max(endIndex - startIndex + 1, 0);
 
-    api.mockGet(
-        "/channels/{id}/posts",
-        {
-            data: {
-                spaceId,
-                channel: {
-                    id: channelId,
-                    name: "Announcements",
-                },
-                nextCursor: endIndex < postCount - 1 ? postCreatedTimes[endIndex]! : null,
-                posts: Array.from({length: returnedPostCount}, (_, index) => {
-                    const postIndex = startIndex + index;
-
-                    return {
-                        id: generateId<PostId>(),
-                        author: author[postIndex % author.length]!,
-                        createdTime: postCreatedTimes[postIndex]!,
-                        createdTimeZone: defaultTimeZone,
-                        channel: {id: channelId, name: "Announcements"},
-                        contentSnippet: contentFromText(getChannelPostTitle(postIndex)),
-                        reference: {title: getChannelPostTitle(postIndex)},
-                    };
-                }),
-            },
-        },
-        {
+    api.mockGet("/channels/{id}/posts", {
+        params: {
             path: {id: channelId},
             query: {
                 limit: agentWebChannelPageApiPostsBatchCount,
                 cursor,
             },
         },
-    );
+        data: {
+            spaceId,
+            channel: {
+                id: channelId,
+                name: "Announcements",
+            },
+            nextCursor: endIndex < postCount - 1 ? postCreatedTimes[endIndex]! : null,
+            posts: Array.from({length: returnedPostCount}, (_, index) => {
+                const postIndex = startIndex + index;
+
+                return {
+                    id: generateId<PostId>(),
+                    author: author[postIndex % author.length]!,
+                    createdTime: postCreatedTimes[postIndex]!,
+                    createdTimeZone: defaultTimeZone,
+                    channel: {id: channelId, name: "Announcements"},
+                    contentSnippet: contentFromText(getChannelPostTitle(postIndex)),
+                    reference: {title: getChannelPostTitle(postIndex)},
+                };
+            }),
+        },
+    });
 }
 
 function getChannelPostCreatedTime(index: number): DateString {

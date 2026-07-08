@@ -224,21 +224,18 @@ async function readDirectChat({
         title: "Alice and Bob",
     });
 
-    api.mockGet(
-        "/chats/{id}",
-        {
-            data: {
-                spaceId,
-                chat: {
-                    type: "Direct",
-                    id: directChatId,
-                    members: [{account: aliceAccount}, {account: bobAccount}],
-                    reference: {title: "Alice and Bob"},
-                },
+    api.mockGet("/chats/{id}", {
+        params: {path: {id: directChatId}},
+        data: {
+            spaceId,
+            chat: {
+                type: "Direct",
+                id: directChatId,
+                members: [{account: aliceAccount}, {account: bobAccount}],
+                reference: {title: "Alice and Bob"},
             },
         },
-        {path: {id: directChatId}},
-    );
+    });
 
     mockApiGetChatMessages(api, {
         spaceId,

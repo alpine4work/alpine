@@ -349,7 +349,52 @@ export class ApiClientMock implements ApiClient {
     /**
      * Get the number of times a specific endpoint was called
      */
-    getCallCount(method: HttpMethod, path: string, params?: any): number {
+    getCallCount<Path extends PathsWithMethod<ApiSpecification.paths, "get">>(
+        method: "GET",
+        path: Path,
+        params?: ApiSpecification.paths[Path]["get"] extends {
+            parameters: infer Parameters;
+        }
+            ? Parameters | "Any"
+            : {} | "Any",
+    ): number;
+    getCallCount<Path extends PathsWithMethod<ApiSpecification.paths, "put">>(
+        method: "PUT",
+        path: Path,
+        params?: ApiSpecification.paths[Path]["put"] extends {
+            parameters: infer Parameters;
+        }
+            ? Parameters | "Any"
+            : {} | "Any",
+    ): number;
+    getCallCount<Path extends PathsWithMethod<ApiSpecification.paths, "post">>(
+        method: "POST",
+        path: Path,
+        params?: ApiSpecification.paths[Path]["post"] extends {
+            parameters: infer Parameters;
+        }
+            ? Parameters | "Any"
+            : {} | "Any",
+    ): number;
+    getCallCount<Path extends PathsWithMethod<ApiSpecification.paths, "delete">>(
+        method: "DELETE",
+        path: Path,
+        params?: ApiSpecification.paths[Path]["delete"] extends {
+            parameters: infer Parameters;
+        }
+            ? Parameters | "Any"
+            : {} | "Any",
+    ): number;
+    getCallCount<Path extends PathsWithMethod<ApiSpecification.paths, "patch">>(
+        method: "PATCH",
+        path: Path,
+        params?: ApiSpecification.paths[Path]["patch"] extends {
+            parameters: infer Parameters;
+        }
+            ? Parameters | "Any"
+            : {} | "Any",
+    ): number;
+    getCallCount(method: HttpMethod, path: string, params: any = "Any"): number {
         return this.requestHistory.filter(record => {
             if (record.method !== method || record.path !== path) {
                 return false;

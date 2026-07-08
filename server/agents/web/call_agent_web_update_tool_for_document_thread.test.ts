@@ -280,37 +280,34 @@ function mockGetDocumentThread({
     previewContent?: ApiContentResponse;
     isResolved?: boolean;
 } = {}) {
-    api.mockGet(
-        "/documents/{id}/threads/{threadId}",
-        {
-            data: {
-                spaceId,
-                thread: {
-                    id: threadId,
-                    isResolved,
-                    totalMessageCount: 0,
-                    firstMessage: {
-                        author: aliceAccount,
-                        createdTime: serializeDateString(createdTime),
-                        createdTimeZone: defaultTimeZone,
-                    },
-                    marked: {
-                        preview: {
-                            version: 1,
-                            contentSnippet: previewContent,
-                        },
-                    },
+    api.mockGet("/documents/{id}/threads/{threadId}", {
+        params: {path: {id: documentId, threadId}},
+        data: {
+            spaceId,
+            thread: {
+                id: threadId,
+                isResolved,
+                totalMessageCount: 0,
+                firstMessage: {
+                    author: aliceAccount,
+                    createdTime: serializeDateString(createdTime),
+                    createdTimeZone: defaultTimeZone,
                 },
-                document: {
-                    id: documentId,
-                    title: documentReference.title,
-                    content: documentContent,
-                    version: 1,
+                marked: {
+                    preview: {
+                        version: 1,
+                        contentSnippet: previewContent,
+                    },
                 },
             },
+            document: {
+                id: documentId,
+                title: documentReference.title,
+                content: documentContent,
+                version: 1,
+            },
         },
-        {path: {id: documentId, threadId}},
-    );
+    });
 }
 
 async function readDocumentThread({
@@ -349,20 +346,17 @@ async function readDocumentThread({
 
 function mockCreateComments({count, startIndex = 0}: {count: number; startIndex?: number}) {
     for (let index = 0; index < count; index++) {
-        api.mockPost(
-            "/documents/{id}/threads/{threadId}/messages",
-            {
-                data: {
-                    spaceId,
-                    message: createComment({
-                        index: startIndex + index,
-                        author: botApiAccount,
-                        content: "Created comment response",
-                    }),
-                },
+        api.mockPost("/documents/{id}/threads/{threadId}/messages", {
+            params: {path: {id: documentId, threadId}},
+            data: {
+                spaceId,
+                message: createComment({
+                    index: startIndex + index,
+                    author: botApiAccount,
+                    content: "Created comment response",
+                }),
             },
-            {path: {id: documentId, threadId}},
-        );
+        });
     }
 }
 
@@ -427,10 +421,7 @@ async function addMatchAttributeToStoredDocumentPreview() {
     const readResponse = await storage.readResponseByPath.get(documentThreadPath);
     assert(readResponse !== undefined);
 
-    const response = readResponse.response.replace(
-        "<blockquote>",
-        '<blockquote match="2">',
-    );
+    const response = readResponse.response.replace("<blockquote>", '<blockquote match="2">');
     assert(response !== readResponse.response);
 
     await storage.readResponseByPath.put(documentThreadPath, {

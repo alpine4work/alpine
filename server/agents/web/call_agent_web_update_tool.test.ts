@@ -133,21 +133,18 @@ async function setupDocument({
 
 function mockDocumentPatch(documentId: DocumentId, ...versions: ReadonlyArray<number>) {
     for (const version of versions) {
-        api.mockPatch(
-            "/documents/{id}",
-            {
-                data: {
-                    document: {
-                        id: documentId,
-                        version,
-                        title: "ignored",
-                        content: createDocumentContentFromMarkdown("ignored"),
-                    },
-                    spaceId,
+        api.mockPatch("/documents/{id}", {
+            params: {path: {id: documentId}},
+            data: {
+                document: {
+                    id: documentId,
+                    version,
+                    title: "ignored",
+                    content: createDocumentContentFromMarkdown("ignored"),
                 },
-            } as any,
-            {path: {id: documentId}},
-        );
+                spaceId,
+            },
+        } as any);
     }
 }
 

@@ -5,18 +5,15 @@ export function mockApiGetChat(
     api: ApiClientMock,
     {spaceId, chatId, name = "Test Chat"}: {spaceId: SpaceId; chatId: ChatId; name?: string},
 ) {
-    api.mockGet(
-        "/chats/{id}",
-        {
-            data: {
-                spaceId,
-                chat: {
-                    type: "Room",
-                    id: chatId,
-                    name,
-                },
+    api.mockGet("/chats/{id}", {
+        params: {path: {id: chatId}},
+        data: {
+            spaceId,
+            chat: {
+                type: "Room",
+                id: chatId,
+                name,
             },
         },
-        {path: {id: chatId}},
-    );
+    });
 }

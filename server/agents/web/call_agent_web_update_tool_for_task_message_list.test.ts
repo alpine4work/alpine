@@ -92,11 +92,10 @@ function createTextContent(text: string): ApiContentResponseWithoutKeys {
 }
 
 function mockApiGetTaskReference() {
-    api.mockGet(
-        "/tasks/{id}/reference",
-        {data: {spaceId, reference: taskReference}},
-        {path: {id: taskId}},
-    );
+    api.mockGet("/tasks/{id}/reference", {
+        params: {path: {id: taskId}},
+        data: {spaceId, reference: taskReference},
+    });
 }
 
 async function readTaskComments() {
@@ -113,20 +112,17 @@ async function readTaskComments() {
 }
 
 function mockCreateTaskComment({index}: {index: number}) {
-    api.mockPost(
-        "/tasks/{id}/messages",
-        {
-            data: {
-                spaceId,
-                message: createApiMessageMock({
-                    index,
-                    author: botApiAccount,
-                    content: "Created comment response",
-                }),
-            },
+    api.mockPost("/tasks/{id}/messages", {
+        params: {path: {id: taskId}},
+        data: {
+            spaceId,
+            message: createApiMessageMock({
+                index,
+                author: botApiAccount,
+                content: "Created comment response",
+            }),
         },
-        {path: {id: taskId}},
-    );
+    });
 }
 
 function getCreateTaskCommentRequests() {
