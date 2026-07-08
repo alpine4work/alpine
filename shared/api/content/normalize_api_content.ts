@@ -1,5 +1,5 @@
 import {Draft, castDraft, produce} from "immer";
-import {assertApiChecklistBlockElementItem} from "~/shared/api/content/assert_api_checklist_block_element_item.js";
+import {assertApiCheckListBlockElementItem} from "~/shared/api/content/assert_api_check_list_block_element_item.js";
 import {
     ApiReferenceKey,
     printApiReferenceKey,
@@ -219,7 +219,7 @@ export class ApiContentNormalizer {
 
                     for (const item of nextElement.items) {
                         if (element.type === "CheckList") {
-                            element.items.push(castDraft(assertApiChecklistBlockElementItem(item)));
+                            element.items.push(castDraft(assertApiCheckListBlockElementItem(item)));
                         } else {
                             element.items.push(item);
                         }
@@ -455,8 +455,12 @@ export class ApiContentNormalizer {
                     // `contentType` and `contentLength` are response-only metadata that don't survive
                     // the markdown round trip. Strip them so that content with and without metadata
                     // normalizes to the same form.
-                    if (hasOwnProperty(element, "contentType")) delete element.contentType;
-                    if (hasOwnProperty(element, "contentLength")) delete element.contentLength;
+                    if (hasOwnProperty(element.file, "contentType")) {
+                        delete element.file.contentType;
+                    }
+                    if (hasOwnProperty(element.file, "contentLength")) {
+                        delete element.file.contentLength;
+                    }
                 } else {
                     // Don't allow updating old response properties after the normalizer is destroyed.
                     assert(!this.#isDestroyed);
@@ -469,14 +473,15 @@ export class ApiContentNormalizer {
                     // `printApiContentToAgentWebMarkdown()` which ends up with the last seen response
                     // data in storage.)
                     const actualElement = element as Draft<ApiContentFileBlockElementResponse>;
+                    const actualFile = actualElement.file;
 
                     const otherFileElements = this.#response.fileElementsById.getOrSetDefault(
-                        actualElement.id,
+                        actualFile.id,
                     );
 
                     for (const otherFileElement of otherFileElements) {
-                        otherFileElement.contentType = actualElement.contentType;
-                        otherFileElement.contentLength = actualElement.contentLength;
+                        otherFileElement.file.contentType = actualFile.contentType;
+                        otherFileElement.file.contentLength = actualFile.contentLength;
                     }
 
                     otherFileElements.push(actualElement);

@@ -515,7 +515,7 @@ function areTokenValuesEqual(value1: TokenValue, value2: TokenValue): boolean {
         }
         case "File": {
             if (value2.type !== "File") return false;
-            return value1.id === value2.id;
+            return value1.file.id === value2.file.id;
         }
         case "Preview": {
             if (value2.type !== "Preview") return false;

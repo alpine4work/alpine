@@ -673,7 +673,7 @@ test("empty cell and the file cell in row", () => {
                                 elements: [
                                     {
                                         type: "File",
-                                        id: assertId<FileId>("00000000000000000000000000"),
+                                        file: {id: assertId<FileId>("00000000000000000000000000")},
                                         marks: [],
                                     },
                                 ],

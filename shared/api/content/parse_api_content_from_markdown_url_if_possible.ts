@@ -73,7 +73,7 @@ export function parseApiContentFileOrPreviewBlockElementFromMarkdownUrlIfPossibl
         isId<FileId>(pathnameSegments[1]!) &&
         pathnameSegments[2] === "content"
     ) {
-        return {type: "File", id: pathnameSegments[1]};
+        return {type: "File", file: {id: pathnameSegments[1]}};
     }
 
     // Preview URL: `/{entityType}/{entityId}/preview`

@@ -27,7 +27,7 @@ export function computeApiContentFileRowWidths(
     const layouts = computeFileRowLayout(
         elements.map(element => {
             if (element.type === "File") {
-                const file = getFileIfExists(element.id);
+                const file = getFileIfExists(element.file.id);
                 return getFilePreviewSize(file?.preview);
             }
 

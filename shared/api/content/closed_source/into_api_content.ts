@@ -797,9 +797,11 @@ function intoApiContentFileOrPreviewElement(
             type: "File",
             // NOCOMMIT: Test with unknown file id?
             ...(key !== undefined ? {key} : {}),
-            id: unknownFileId,
-            contentType: "application/octet-stream",
-            contentLength: 0,
+            file: {
+                id: unknownFileId,
+                contentType: "application/octet-stream",
+                contentLength: 0,
+            },
             ...(marks !== undefined ? {marks} : {}),
         };
     }
@@ -897,9 +899,11 @@ function intoApiContentFileOrPreviewElement(
     return {
         type: "File",
         ...(key !== undefined ? {key} : {}),
-        id: fileId,
-        contentType: file?.contentType ?? "application/octet-stream",
-        contentLength: file?.contentLength ?? 0,
+        file: {
+            id: fileId,
+            contentType: file?.contentType ?? "application/octet-stream",
+            contentLength: file?.contentLength ?? 0,
+        },
         ...(marks !== undefined ? {marks} : {}),
     };
 }

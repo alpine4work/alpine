@@ -273,20 +273,22 @@ const ApiContentFileBlockElementArbitrary: Arbitrary<ApiContentFileBlockElementR
     fc.record({
         type: fc.constant("File"),
         key: ApiContentKeyArbitrary,
-        id: fc.oneof(
-            {weight: 100, arbitrary: createIdArbitrary<FileId>()},
-            {weight: 1, arbitrary: fc.constant(unknownFileId)},
-        ),
-        contentType: fc.oneof(
-            fc.constant("image/png"),
-            fc.constant("image/jpeg"),
-            fc.constant("video/mp4"),
-            fc.constant("audio/mpeg"),
-            fc.constant("application/pdf"),
-            fc.constant("application/yaml"),
-            fc.constant("application/octet-stream"),
-        ),
-        contentLength: fc.integer({min: 0}),
+        file: fc.record({
+            id: fc.oneof(
+                {weight: 100, arbitrary: createIdArbitrary<FileId>()},
+                {weight: 1, arbitrary: fc.constant(unknownFileId)},
+            ),
+            contentType: fc.oneof(
+                fc.constant("image/png"),
+                fc.constant("image/jpeg"),
+                fc.constant("video/mp4"),
+                fc.constant("audio/mpeg"),
+                fc.constant("application/pdf"),
+                fc.constant("application/yaml"),
+                fc.constant("application/octet-stream"),
+            ),
+            contentLength: fc.integer({min: 0}),
+        }),
         marks: fc.oneof(
             {arbitrary: fc.constant([]), weight: 20},
             fc.array(ApiContentCommentMarkArbitrary, {maxLength: 3}),

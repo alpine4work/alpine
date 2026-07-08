@@ -10,8 +10,8 @@ export function extractFileIdsFromApiContent(content: ApiContent): Set<FileId> {
     const fileIds = new Set<FileId>();
     visitApiContent(content, {
         visitBlockElement: element => {
-            if (element.type === "File" && element.id !== null) {
-                fileIds.add(element.id);
+            if (element.type === "File" && element.file.id !== null) {
+                fileIds.add(element.file.id);
             }
         },
     });

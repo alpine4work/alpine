@@ -1,4 +1,5 @@
 import {Mark, Node, Schema as ProsemirrorSchema} from "prosemirror-model";
+import {assertApiCheckListBlockElementItem} from "~/shared/api/content/assert_api_check_list_block_element_item.js";
 import {unknownFileId} from "~/shared/api/content/closed_source/unknown_file_id.js";
 import {normalizeApiContentInlineElementMarks} from "~/shared/api/content/normalize_api_content.js";
 import {intoApiContentParagraphBlockElement} from "~/shared/api/content/parse_api_content_from_markdown.js";
@@ -124,7 +125,7 @@ export function* fromApiContentBlockElements(
                         };
 
                         if (typeName === "checkListItem") {
-                            attrs.checked = assertCheckListItem(item).checked;
+                            attrs.checked = assertApiCheckListBlockElementItem(item).checked;
                         }
 
                         // Only set orderStart for the first ordered list item. Subsequent items
@@ -327,7 +328,7 @@ function fromApiContentFileOrPreviewElement(
             const marks = normalizeApiContentInlineElementMarks(element.marks);
 
             return schema.nodes.file!.create(
-                {fileId: element.id === unknownFileId ? null : element.id},
+                {fileId: element.file.id === unknownFileId ? null : element.file.id},
                 undefined,
                 marks?.map(mark => schema.marks.comment!.create({commentThreadId: mark.thread.id})),
             );
@@ -511,11 +512,4 @@ export function fromApiContentInlineElementHighlightMarkColor(
         default:
             throw exhaustive(color);
     }
-}
-
-function assertCheckListItem(
-    item: ApiContentCheckListBlockElementItem | ApiContentListBlockElementItem,
-): ApiContentCheckListBlockElementItem {
-    assert(typeof item.checked === "boolean");
-    return item;
 }

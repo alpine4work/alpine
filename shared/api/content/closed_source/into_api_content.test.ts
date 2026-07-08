@@ -4144,9 +4144,9 @@ describe("file block elements", () => {
             elements: [
                 {
                     type: "File",
-                    id: fileId1,
+                    file: {id: fileId1,
                     contentType: "image/png",
-                    contentLength: 1024,
+                    contentLength: 1024},
                 },
             ],
         });
@@ -4160,9 +4160,9 @@ describe("file block elements", () => {
                     side: "Left",
                     element: {
                         type: "File",
-                        id: fileId1,
+                        file: {id: fileId1,
                         contentType: "image/png",
-                        contentLength: 1024,
+                        contentLength: 1024},
                     },
                 },
             ],
@@ -4177,9 +4177,9 @@ describe("file block elements", () => {
                     side: "Right",
                     element: {
                         type: "File",
-                        id: fileId1,
+                        file: {id: fileId1,
                         contentType: "image/png",
-                        contentLength: 1024,
+                        contentLength: 1024},
                     },
                 },
             ],
@@ -4198,18 +4198,18 @@ describe("file block elements", () => {
                                     width: 0.5,
                                     element: {
                                         type: "File",
-                                        id: fileId1,
+                                        file: {id: fileId1,
                                         contentType: "image/png",
-                                        contentLength: 1024,
+                                        contentLength: 1024},
                                     },
                                 },
                                 {
                                     width: 0.5,
                                     element: {
                                         type: "File",
-                                        id: fileId2,
+                                        file: {id: fileId2,
                                         contentType: "image/png",
-                                        contentLength: 1024,
+                                        contentLength: 1024},
                                     },
                                 },
                             ],
@@ -4263,9 +4263,9 @@ describe("file block elements", () => {
                                         width: 0.53,
                                         element: {
                                             type: "File",
-                                            id: fileId1,
+                                            file: {id: fileId1,
                                             contentType: "image/png",
-                                            contentLength: 1024,
+                                            contentLength: 1024},
                                         },
                                     },
                                     {
@@ -4293,9 +4293,9 @@ describe("file block elements", () => {
             elements: [
                 {
                     type: "File",
-                    id: unknownFileId,
+                    file: {id: unknownFileId,
                     contentType: "application/octet-stream",
-                    contentLength: 0,
+                    contentLength: 0},
                 },
             ],
         });
@@ -4309,9 +4309,9 @@ describe("file block elements", () => {
                     side: "Left",
                     element: {
                         type: "File",
-                        id: unknownFileId,
+                        file: {id: unknownFileId,
                         contentType: "application/octet-stream",
-                        contentLength: 0,
+                        contentLength: 0},
                     },
                 },
             ],
@@ -4351,9 +4351,9 @@ describe("file block elements", () => {
                                     elements: [
                                         {
                                             type: "File",
-                                            id: fileId1,
+                                            file: {id: fileId1,
                                             contentType: "image/png",
-                                            contentLength: 1024,
+                                            contentLength: 1024},
                                         },
                                     ],
                                 },
@@ -4372,9 +4372,9 @@ describe("file block elements", () => {
             elements: [
                 {
                     type: "File",
-                    id: fileId1,
+                    file: {id: fileId1,
                     contentType: "image/png",
-                    contentLength: 1024,
+                    contentLength: 1024},
                     marks: [{type: "Comment", thread: {id: thread1}}],
                 },
             ],
@@ -4770,7 +4770,7 @@ describe("file block elements", () => {
         test("single file has no widths (unwrapped to standalone)", () => {
             const result = intoApiContent(doc(fileRow(file({fileId: fileId1}))), fileOptions);
             // Single-item gallery is unwrapped to standalone File.
-            expect(result.elements[0]).toMatchObject({type: "File", id: fileId1});
+            expect(result.elements[0]).toMatchObject({type: "File", file: {id: fileId1}});
         });
 
         test("widths survive markdown round trip", () => {

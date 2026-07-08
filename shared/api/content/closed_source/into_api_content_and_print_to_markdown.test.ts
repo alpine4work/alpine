@@ -408,9 +408,9 @@ test("single file in a fileRow", () => {
             elements: [
                 {
                     type: "File",
-                    id: fileId1,
+                    file: {id: fileId1,
                     contentType: "image/png",
-                    contentLength: 1024,
+                    contentLength: 1024},
                 },
             ],
         },
@@ -434,9 +434,9 @@ test("fileFloat with left direction", () => {
                     side: "Left",
                     element: {
                         type: "File",
-                        id: fileId1,
+                        file: {id: fileId1,
                         contentType: "image/png",
-                        contentLength: 1024,
+                        contentLength: 1024},
                     },
                 },
             ],
@@ -463,9 +463,9 @@ test("fileFloat with right direction", () => {
                     side: "Right",
                     element: {
                         type: "File",
-                        id: fileId1,
+                        file: {id: fileId1,
                         contentType: "image/png",
-                        contentLength: 1024,
+                        contentLength: 1024},
                     },
                 },
             ],
@@ -497,18 +497,18 @@ test("file gallery with multiple files", () => {
                                     width: 0.5,
                                     element: {
                                         type: "File",
-                                        id: fileId1,
+                                        file: {id: fileId1,
                                         contentType: "image/png",
-                                        contentLength: 1024,
+                                        contentLength: 1024},
                                     },
                                 },
                                 {
                                     width: 0.5,
                                     element: {
                                         type: "File",
-                                        id: fileId2,
+                                        file: {id: fileId2,
                                         contentType: "image/png",
-                                        contentLength: 1024,
+                                        contentLength: 1024},
                                     },
                                 },
                             ],
@@ -546,27 +546,27 @@ test("file gallery with three files", () => {
                                     width: 0.33,
                                     element: {
                                         type: "File",
-                                        id: fileId1,
+                                        file: {id: fileId1,
                                         contentType: "image/png",
-                                        contentLength: 1024,
+                                        contentLength: 1024},
                                     },
                                 },
                                 {
                                     width: 0.33,
                                     element: {
                                         type: "File",
-                                        id: fileId2,
+                                        file: {id: fileId2,
                                         contentType: "image/png",
-                                        contentLength: 1024,
+                                        contentLength: 1024},
                                     },
                                 },
                                 {
                                     width: 0.34,
                                     element: {
                                         type: "File",
-                                        id: fileId3,
+                                        file: {id: fileId3,
                                         contentType: "image/png",
-                                        contentLength: 1024,
+                                        contentLength: 1024},
                                     },
                                 },
                             ],
@@ -652,9 +652,9 @@ test("file gallery with mixed files and previews", () => {
                                     width: 0.53,
                                     element: {
                                         type: "File",
-                                        id: fileId1,
+                                        file: {id: fileId1,
                                         contentType: "image/png",
-                                        contentLength: 1024,
+                                        contentLength: 1024},
                                     },
                                 },
                                 {
@@ -697,9 +697,9 @@ test("null fileId round-trips through ApiContent as unknownFileId", () => {
         elements: [
             {
                 type: "File",
-                id: unknownFileId,
+                file: {id: unknownFileId,
                 contentType: "application/octet-stream",
-                contentLength: 0,
+                contentLength: 0},
             },
         ],
     });
@@ -748,9 +748,9 @@ test("fileRowTable in a table cell", () => {
                                 elements: [
                                     {
                                         type: "File",
-                                        id: fileId1,
+                                        file: {id: fileId1,
                                         contentType: "image/png",
-                                        contentLength: 1024,
+                                        contentLength: 1024},
                                     },
                                 ],
                             },

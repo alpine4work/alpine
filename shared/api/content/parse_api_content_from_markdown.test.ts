@@ -3485,8 +3485,8 @@ test("FileGallery with multi-item rows throws in table cells", () => {
                 rows: [
                     {
                         items: [
-                            {element: {type: "File", id: fileId1}},
-                            {element: {type: "File", id: fileId2}},
+                            {element: {type: "File", file: {id: fileId1}}},
+                            {element: {type: "File", file: {id: fileId2}}},
                         ],
                     },
                 ],
@@ -3523,8 +3523,8 @@ test("gallery row div with style after other attributes still parses", () => {
                 rows: [
                     {
                         items: [
-                            {element: {type: "File", id: fileId}},
-                            {element: {type: "File", id: fileId}},
+                            {element: {type: "File", file: {id: fileId}}},
+                            {element: {type: "File", file: {id: fileId}}},
                         ],
                     },
                 ],
@@ -3544,8 +3544,8 @@ test("gallery row div with style before other attributes still parses", () => {
                 rows: [
                     {
                         items: [
-                            {element: {type: "File", id: fileId}},
-                            {element: {type: "File", id: fileId}},
+                            {element: {type: "File", file: {id: fileId}}},
+                            {element: {type: "File", file: {id: fileId}}},
                         ],
                     },
                 ],
@@ -3560,7 +3560,7 @@ test("FileFloat throws when used in table cells", () => {
             intoApiContentParagraphBlockElement({
                 type: "FileFloat",
                 side: "Right",
-                element: {type: "File", id: generateChronologicalId<FileId>()},
+                element: {type: "File", file: {id: generateChronologicalId<FileId>()}},
             }),
         ),
     ).toThrow("File floats aren\u2019t supported in table cells");
@@ -3575,7 +3575,7 @@ describe("inline HTML media elements", () => {
         const fileId = generateChronologicalId<FileId>();
         const md = `<video controls><source type="video/mp4" src="${fileUrl(fileId)}"/></video>\n`;
         expect(parseApiContentFromMarkdown(md)).toEqual({
-            elements: [{type: "File", id: fileId}],
+            elements: [{type: "File", file: {id: fileId}}],
         });
     });
 
@@ -3583,7 +3583,7 @@ describe("inline HTML media elements", () => {
         const fileId = generateChronologicalId<FileId>();
         const md = `<audio controls><source type="audio/mpeg" src="${fileUrl(fileId)}"/></audio>\n`;
         expect(parseApiContentFromMarkdown(md)).toEqual({
-            elements: [{type: "File", id: fileId}],
+            elements: [{type: "File", file: {id: fileId}}],
         });
     });
 
@@ -3591,7 +3591,7 @@ describe("inline HTML media elements", () => {
         const fileId = generateChronologicalId<FileId>();
         const md = `<object type="application/pdf" data="${fileUrl(fileId)}"/>\n`;
         expect(parseApiContentFromMarkdown(md)).toEqual({
-            elements: [{type: "File", id: fileId}],
+            elements: [{type: "File", file: {id: fileId}}],
         });
     });
 
@@ -3599,7 +3599,7 @@ describe("inline HTML media elements", () => {
         const fileId = generateChronologicalId<FileId>();
         const md = `![](${fileUrl(fileId)})\n`;
         expect(parseApiContentFromMarkdown(md)).toEqual({
-            elements: [{type: "File", id: fileId}],
+            elements: [{type: "File", file: {id: fileId}}],
         });
     });
 
@@ -3612,7 +3612,7 @@ describe("inline HTML media elements", () => {
                     type: "Paragraph",
                     elements: [{type: "Text", text: "Here is a video:"}],
                 },
-                {type: "File", id: fileId},
+                {type: "File", file: {id: fileId}},
             ],
         });
     });
@@ -3622,7 +3622,7 @@ describe("inline HTML media elements", () => {
         const md = `<video controls><source type="video/mp4" src="${fileUrl(fileId)}"/></video> and some text\n`;
         expect(parseApiContentFromMarkdown(md)).toEqual({
             elements: [
-                {type: "File", id: fileId},
+                {type: "File", file: {id: fileId}},
                 {
                     type: "Paragraph",
                     elements: [{type: "Text", text: "and some text"}],
@@ -3640,7 +3640,7 @@ describe("inline HTML media elements", () => {
                     type: "Paragraph",
                     elements: [{type: "Text", text: "First paragraph."}],
                 },
-                {type: "File", id: fileId},
+                {type: "File", file: {id: fileId}},
                 {
                     type: "Paragraph",
                     elements: [{type: "Text", text: "Second paragraph."}],
@@ -3653,7 +3653,7 @@ describe("inline HTML media elements", () => {
         const fileId = generateChronologicalId<FileId>();
         const md = `<video controls src="${fileUrl(fileId)}"></video>\n`;
         expect(parseApiContentFromMarkdown(md)).toEqual({
-            elements: [{type: "File", id: fileId}],
+            elements: [{type: "File", file: {id: fileId}}],
         });
     });
 
@@ -3661,7 +3661,7 @@ describe("inline HTML media elements", () => {
         const fileId = generateChronologicalId<FileId>();
         const md = `<div><video controls><source type="video/mp4" src="${fileUrl(fileId)}"/></video></div>\n`;
         expect(parseApiContentFromMarkdown(md)).toEqual({
-            elements: [{type: "File", id: fileId}],
+            elements: [{type: "File", file: {id: fileId}}],
         });
     });
 
@@ -3669,7 +3669,7 @@ describe("inline HTML media elements", () => {
         const fileId = generateChronologicalId<FileId>();
         const md = `<div><audio controls><source type="audio/mpeg" src="${fileUrl(fileId)}"/></audio></div>\n`;
         expect(parseApiContentFromMarkdown(md)).toEqual({
-            elements: [{type: "File", id: fileId}],
+            elements: [{type: "File", file: {id: fileId}}],
         });
     });
 
@@ -3677,7 +3677,7 @@ describe("inline HTML media elements", () => {
         const fileId = generateChronologicalId<FileId>();
         const md = `<div><object type="application/pdf" data="${fileUrl(fileId)}"/></div>\n`;
         expect(parseApiContentFromMarkdown(md)).toEqual({
-            elements: [{type: "File", id: fileId}],
+            elements: [{type: "File", file: {id: fileId}}],
         });
     });
 
@@ -3692,8 +3692,8 @@ describe("inline HTML media elements", () => {
                 {
                     type: "FileGallery",
                     rows: [
-                        {items: [{element: {type: "File", id: fileId1}}]},
-                        {items: [{element: {type: "File", id: fileId2}}]},
+                        {items: [{element: {type: "File", file: {id: fileId1}}}]},
+                        {items: [{element: {type: "File", file: {id: fileId2}}}]},
                     ],
                 },
             ],
@@ -3711,8 +3711,8 @@ describe("inline HTML media elements", () => {
                 {
                     type: "FileGallery",
                     rows: [
-                        {items: [{element: {type: "File", id: fileId1}}]},
-                        {items: [{element: {type: "File", id: fileId2}}]},
+                        {items: [{element: {type: "File", file: {id: fileId1}}}]},
+                        {items: [{element: {type: "File", file: {id: fileId2}}}]},
                     ],
                 },
             ],
@@ -3734,8 +3734,8 @@ describe("inline HTML media elements", () => {
                     rows: [
                         {
                             items: [
-                                {element: {type: "File", id: fileId1}},
-                                {element: {type: "File", id: fileId2}},
+                                {element: {type: "File", file: {id: fileId1}}},
+                                {element: {type: "File", file: {id: fileId2}}},
                             ],
                         },
                     ],
@@ -3759,8 +3759,8 @@ describe("inline HTML media elements", () => {
                     rows: [
                         {
                             items: [
-                                {element: {type: "File", id: fileId1}},
-                                {element: {type: "File", id: fileId2}},
+                                {element: {type: "File", file: {id: fileId1}}},
+                                {element: {type: "File", file: {id: fileId2}}},
                             ],
                         },
                     ],
@@ -3836,14 +3836,14 @@ describe("inline HTML media elements", () => {
                     elements: [{type: "Text", text: "Opening paragraph."}],
                 },
                 // 2. Markdown image
-                {type: "File", id: f1},
+                {type: "File", file: {id: f1}},
                 // 3. Text
                 {
                     type: "Paragraph",
                     elements: [{type: "Text", text: "Some context between files."}],
                 },
                 // 4. Block-level HTML image
-                {type: "File", id: f2},
+                {type: "File", file: {id: f2}},
                 // 5. Text
                 {
                     type: "Paragraph",
@@ -3854,8 +3854,8 @@ describe("inline HTML media elements", () => {
                 {
                     type: "FileGallery",
                     rows: [
-                        {items: [{element: {type: "File", id: f3}}]},
-                        {items: [{element: {type: "File", id: f4}}]},
+                        {items: [{element: {type: "File", file: {id: f3}}}]},
+                        {items: [{element: {type: "File", file: {id: f4}}}]},
                     ],
                 },
                 // 7. Text
@@ -3867,8 +3867,8 @@ describe("inline HTML media elements", () => {
                 {
                     type: "FileGallery",
                     rows: [
-                        {items: [{element: {type: "File", id: f8}}]},
-                        {items: [{element: {type: "File", id: f9}}]},
+                        {items: [{element: {type: "File", file: {id: f8}}}]},
+                        {items: [{element: {type: "File", file: {id: f9}}}]},
                     ],
                 },
                 // 10. Text
@@ -3883,12 +3883,12 @@ describe("inline HTML media elements", () => {
                     rows: [
                         {
                             items: [
-                                {element: {type: "File", id: f5}},
-                                {element: {type: "File", id: f6}},
-                                {element: {type: "File", id: f7}},
+                                {element: {type: "File", file: {id: f5}}},
+                                {element: {type: "File", file: {id: f6}}},
+                                {element: {type: "File", file: {id: f7}}},
                             ],
                         },
-                        {items: [{element: {type: "File", id: f1}}]},
+                        {items: [{element: {type: "File", file: {id: f1}}}]},
                     ],
                 },
                 // 13. Text
@@ -3906,7 +3906,7 @@ test("File throws when used in quote blocks", () => {
         Array.from(
             intoApiContentParagraphBlockElement({
                 type: "File",
-                id: generateChronologicalId<FileId>(),
+                file: {id: generateChronologicalId<FileId>()},
             }),
         ),
     ).toThrow("Files aren\u2019t supported in quote blocks");

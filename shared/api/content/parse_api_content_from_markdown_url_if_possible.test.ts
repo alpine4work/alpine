@@ -51,7 +51,7 @@ test("parses file content URL", () => {
         parseApiContentFileOrPreviewBlockElementFromMarkdownUrlIfPossible(
             `https://alpine.inc/file/${fileId}/content`,
         ),
-    ).toEqual({type: "File", id: fileId});
+    ).toEqual({type: "File", file: {id: fileId}});
 });
 
 test("returns null for file URL without content suffix", () => {

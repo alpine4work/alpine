@@ -136,11 +136,13 @@ async function traverseApiContentMarkdownNode(
                 if (element.type === "Preview") {
                     pageLink = element.reference;
                 } else {
+                    const {file} = element;
+
                     pageLink = {
                         type: "File",
-                        id: element.id,
-                        contentType: element.contentType,
-                        contentLength: element.contentLength,
+                        id: file.id,
+                        contentType: file.contentType,
+                        contentLength: file.contentLength,
                     };
                 }
 
@@ -190,14 +192,16 @@ async function traverseApiContentMarkdownNode(
                             pageLink = item.element.reference;
                             url = printApiPreviewReferenceToPreviewUrl(item.element.reference);
                         } else {
+                            const {file} = item.element;
+
                             pageLink = {
                                 type: "File",
-                                id: item.element.id,
-                                contentType: item.element.contentType,
-                                contentLength: item.element.contentLength,
+                                id: file.id,
+                                contentType: file.contentType,
+                                contentLength: file.contentLength,
                             };
 
-                            url = printApiFileContentUrl(item.element.id);
+                            url = printApiFileContentUrl(file.id);
                         }
 
                         const pageLinkPathname = await createAgentWebPageStoredLinkPathname(
@@ -305,9 +309,9 @@ async function traverseApiContentMarkdownNode(
 
                 const pageLink: AgentWebPageStoredLink = {
                     type: "File",
-                    id: fileElement.id,
-                    contentType: fileElement.contentType,
-                    contentLength: fileElement.contentLength,
+                    id: fileElement.file.id,
+                    contentType: fileElement.file.contentType,
+                    contentLength: fileElement.file.contentLength,
                 };
 
                 const pageLinkPathname = await createAgentWebPageStoredLinkPathname(

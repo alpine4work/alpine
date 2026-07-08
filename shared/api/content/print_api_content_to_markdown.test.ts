@@ -5957,8 +5957,8 @@ Value
                                             {elements: []},
                                             {
                                                 elements: [
-                                                    {type: "File", id: fileId},
-                                                    {type: "File", id: fileId},
+                                                    {type: "File", file: {id: fileId}},
+                                                    {type: "File", file: {id: fileId}},
                                                 ],
                                             },
                                         ],
@@ -10295,7 +10295,7 @@ a
                 {
                     description: "standalone image file",
                     content: {
-                        elements: [{type: "File", id: fileId}],
+                        elements: [{type: "File", file: {id: fileId}}],
                     },
                     expectedMarkdown: `\
 ![](https://alpine.inc/file/${fileId}/content)
@@ -10308,8 +10308,8 @@ a
                         elements: [
                             {
                                 type: "File",
-                                id: fileId,
-                                contentType: "image/png",
+                                file: {id: fileId,
+                                contentType: "image/png"},
                             },
                         ],
                     },
@@ -10324,8 +10324,8 @@ a
                         elements: [
                             {
                                 type: "File",
-                                id: fileId,
-                                contentType: "video/mp4",
+                                file: {id: fileId,
+                                contentType: "video/mp4"},
                             },
                         ],
                     },
@@ -10340,8 +10340,8 @@ a
                         elements: [
                             {
                                 type: "File",
-                                id: fileId,
-                                contentType: "audio/mpeg",
+                                file: {id: fileId,
+                                contentType: "audio/mpeg"},
                             },
                         ],
                     },
@@ -10356,8 +10356,8 @@ a
                         elements: [
                             {
                                 type: "File",
-                                id: fileId,
-                                contentType: "application/pdf",
+                                file: {id: fileId,
+                                contentType: "application/pdf"},
                             },
                         ],
                     },
@@ -10414,14 +10414,14 @@ a
                                                 width: 0.5,
                                                 element: {
                                                     type: "File",
-                                                    id: fileId,
+                                                    file: {id: fileId},
                                                 },
                                             },
                                             {
                                                 width: 0.5,
                                                 element: {
                                                     type: "File",
-                                                    id: fileId,
+                                                    file: {id: fileId},
                                                 },
                                             },
                                         ],
@@ -10448,16 +10448,16 @@ a
                                         items: [
                                             {
                                                 width: 0.5,
-                                                element: {type: "File", id: fileId},
+                                                element: {type: "File", file: {id: fileId}},
                                             },
                                             {
                                                 width: 0.5,
-                                                element: {type: "File", id: fileId},
+                                                element: {type: "File", file: {id: fileId}},
                                             },
                                         ],
                                     },
                                     {
-                                        items: [{element: {type: "File", id: fileId}}],
+                                        items: [{element: {type: "File", file: {id: fileId}}}],
                                     },
                                 ],
                             },
@@ -10480,7 +10480,7 @@ a
                                 type: "FileGallery",
                                 rows: [
                                     {
-                                        items: [{element: {type: "File", id: fileId}}],
+                                        items: [{element: {type: "File", file: {id: fileId}}}],
                                     },
                                 ],
                             },
@@ -10499,7 +10499,7 @@ a
                                 side: "Left",
                                 element: {
                                     type: "File",
-                                    id: fileId,
+                                    file: {id: fileId},
                                 },
                             },
                         ],
@@ -10519,7 +10519,7 @@ a
                                 side: "Right",
                                 element: {
                                     type: "File",
-                                    id: fileId,
+                                    file: {id: fileId},
                                 },
                             },
                         ],
@@ -10570,11 +10570,11 @@ a
                                         items: [
                                             {
                                                 width: 0.5,
-                                                element: {type: "File", id: fileId},
+                                                element: {type: "File", file: {id: fileId}},
                                             },
                                             {
                                                 width: 0.5,
-                                                element: {type: "File", id: fileId},
+                                                element: {type: "File", file: {id: fileId}},
                                             },
                                         ],
                                     },
@@ -10582,20 +10582,20 @@ a
                                         items: [
                                             {
                                                 width: 0.33,
-                                                element: {type: "File", id: fileId},
+                                                element: {type: "File", file: {id: fileId}},
                                             },
                                             {
                                                 width: 0.33,
-                                                element: {type: "File", id: fileId},
+                                                element: {type: "File", file: {id: fileId}},
                                             },
                                             {
                                                 width: 0.34,
-                                                element: {type: "File", id: fileId},
+                                                element: {type: "File", file: {id: fileId}},
                                             },
                                         ],
                                     },
                                     {
-                                        items: [{element: {type: "File", id: fileId}}],
+                                        items: [{element: {type: "File", file: {id: fileId}}}],
                                     },
                                 ],
                             },
@@ -10657,7 +10657,7 @@ a
                                     {
                                         cells: [
                                             {
-                                                elements: [{type: "File", id: fileId}],
+                                                elements: [{type: "File", file: {id: fileId}}],
                                             },
                                             {
                                                 elements: [
@@ -10707,8 +10707,8 @@ description
                                         cells: [
                                             {
                                                 elements: [
-                                                    {type: "File", id: fileId},
-                                                    {type: "File", id: fileId},
+                                                    {type: "File", file: {id: fileId}},
+                                                    {type: "File", file: {id: fileId}},
                                                 ],
                                             },
                                             {elements: []},
@@ -10754,7 +10754,7 @@ description
                                                         type: "Paragraph",
                                                         elements: [{type: "Text", text: "caption"}],
                                                     },
-                                                    {type: "File", id: fileId},
+                                                    {type: "File", file: {id: fileId}},
                                                 ],
                                             },
                                             {elements: []},
@@ -10854,7 +10854,7 @@ caption
                                                 width: 0.5,
                                                 element: {
                                                     type: "File",
-                                                    id: fileId,
+                                                    file: {id: fileId},
                                                 },
                                             },
                                         ],
@@ -10881,11 +10881,11 @@ caption
                                         items: [
                                             {
                                                 width: 0.67,
-                                                element: {type: "File", id: fileId},
+                                                element: {type: "File", file: {id: fileId}},
                                             },
                                             {
                                                 width: 0.33,
-                                                element: {type: "File", id: fileId},
+                                                element: {type: "File", file: {id: fileId}},
                                             },
                                         ],
                                     },
@@ -10913,13 +10913,13 @@ caption
                                                 width: 0.5,
                                                 element: {
                                                     type: "File",
-                                                    id: fileId,
-                                                    contentType: "video/mp4",
+                                                    file: {id: fileId,
+                                                    contentType: "video/mp4"},
                                                 },
                                             },
                                             {
                                                 width: 0.5,
-                                                element: {type: "File", id: fileId},
+                                                element: {type: "File", file: {id: fileId}},
                                             },
                                         ],
                                     },
@@ -10947,13 +10947,13 @@ caption
                                                 width: 0.5,
                                                 element: {
                                                     type: "File",
-                                                    id: fileId,
-                                                    contentType: "audio/mpeg",
+                                                    file: {id: fileId,
+                                                    contentType: "audio/mpeg"},
                                                 },
                                             },
                                             {
                                                 width: 0.5,
-                                                element: {type: "File", id: fileId},
+                                                element: {type: "File", file: {id: fileId}},
                                             },
                                         ],
                                     },
@@ -10981,13 +10981,13 @@ caption
                                                 width: 0.5,
                                                 element: {
                                                     type: "File",
-                                                    id: fileId,
-                                                    contentType: "application/pdf",
+                                                    file: {id: fileId,
+                                                    contentType: "application/pdf"},
                                                 },
                                             },
                                             {
                                                 width: 0.5,
-                                                element: {type: "File", id: fileId},
+                                                element: {type: "File", file: {id: fileId}},
                                             },
                                         ],
                                     },
@@ -11026,8 +11026,8 @@ caption
                                                 width: 0.6,
                                                 element: {
                                                     type: "File",
-                                                    id: fileId,
-                                                    contentType: "video/mp4",
+                                                    file: {id: fileId,
+                                                    contentType: "video/mp4"},
                                                 },
                                             },
                                         ],
@@ -11054,15 +11054,15 @@ caption
                                         items: [
                                             {
                                                 width: 0.5,
-                                                element: {type: "File", id: fileId},
+                                                element: {type: "File", file: {id: fileId}},
                                             },
                                             {
                                                 width: 0.3,
-                                                element: {type: "File", id: fileId},
+                                                element: {type: "File", file: {id: fileId}},
                                             },
                                             {
                                                 width: 0.2,
-                                                element: {type: "File", id: fileId},
+                                                element: {type: "File", file: {id: fileId}},
                                             },
                                         ],
                                     },
@@ -11091,21 +11091,21 @@ caption
                                                 width: 0.33,
                                                 element: {
                                                     type: "File",
-                                                    id: fileId,
-                                                    contentType: "audio/mpeg",
+                                                    file: {id: fileId,
+                                                    contentType: "audio/mpeg"},
                                                 },
                                             },
                                             {
                                                 width: 0.33,
                                                 element: {
                                                     type: "File",
-                                                    id: fileId,
-                                                    contentType: "video/mp4",
+                                                    file: {id: fileId,
+                                                    contentType: "video/mp4"},
                                                 },
                                             },
                                             {
                                                 width: 0.34,
-                                                element: {type: "File", id: fileId},
+                                                element: {type: "File", file: {id: fileId}},
                                             },
                                         ],
                                     },
@@ -11127,7 +11127,7 @@ caption
                         elements: [
                             {
                                 type: "File",
-                                id: fileId,
+                                file: {id: fileId},
                                 marks: [
                                     {
                                         type: "Comment",
@@ -11171,8 +11171,8 @@ caption
                         elements: [
                             {
                                 type: "File",
-                                id: fileId,
-                                contentType: "video/mp4",
+                                file: {id: fileId,
+                                contentType: "video/mp4"},
                                 marks: [
                                     {
                                         type: "Comment",
@@ -11192,7 +11192,7 @@ caption
                         elements: [
                             {
                                 type: "File",
-                                id: fileId,
+                                file: {id: fileId},
                                 marks: [
                                     {
                                         type: "Comment",
@@ -11244,8 +11244,8 @@ caption
                         elements: [
                             {
                                 type: "File",
-                                id: fileId,
-                                contentType: "video/mp4",
+                                file: {id: fileId,
+                                contentType: "video/mp4"},
                                 marks: [
                                     {
                                         type: "Comment",
@@ -11275,7 +11275,7 @@ caption
                                             {
                                                 element: {
                                                     type: "File",
-                                                    id: fileId,
+                                                    file: {id: fileId},
                                                     marks: [
                                                         {type: "Comment", thread: {id: threadId}},
                                                     ],
@@ -11297,8 +11297,8 @@ caption
                                             {
                                                 element: {
                                                     type: "File",
-                                                    id: fileId2,
-                                                    contentType: "video/mp4",
+                                                    file: {id: fileId2,
+                                                    contentType: "video/mp4"},
                                                     marks: [
                                                         {type: "Comment", thread: {id: threadId3}},
                                                     ],
@@ -11330,7 +11330,7 @@ caption
                                             {
                                                 element: {
                                                     type: "File",
-                                                    id: fileId,
+                                                    file: {id: fileId},
                                                     marks: [
                                                         {type: "Comment", thread: {id: threadId}},
                                                         {type: "Comment", thread: {id: threadId2}},
@@ -11354,8 +11354,8 @@ caption
                                             {
                                                 element: {
                                                     type: "File",
-                                                    id: fileId2,
-                                                    contentType: "video/mp4",
+                                                    file: {id: fileId2,
+                                                    contentType: "video/mp4"},
                                                     marks: [
                                                         {type: "Comment", thread: {id: threadId}},
                                                         {type: "Comment", thread: {id: threadId2}},
@@ -11385,7 +11385,7 @@ caption
                                 side: "Right",
                                 element: {
                                     type: "File",
-                                    id: fileId,
+                                    file: {id: fileId},
                                     marks: [
                                         {
                                             type: "Comment",
@@ -11441,8 +11441,8 @@ caption
                                 side: "Right",
                                 element: {
                                     type: "File",
-                                    id: fileId,
-                                    contentType: "video/mp4",
+                                    file: {id: fileId,
+                                    contentType: "video/mp4"},
                                     marks: [
                                         {
                                             type: "Comment",
@@ -11468,7 +11468,7 @@ caption
                                 side: "Right",
                                 element: {
                                     type: "File",
-                                    id: fileId,
+                                    file: {id: fileId},
                                     marks: [
                                         {
                                             type: "Comment",

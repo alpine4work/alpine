@@ -806,9 +806,11 @@ async function traverseMarkdownHtmlNode(
                         if (pageLink.type === "File") {
                             const fileElement: ApiContentFileBlockElementResponseWithoutKeys = {
                                 type: "File",
-                                id: pageLink.id,
-                                contentType: pageLink.contentType,
-                                contentLength: pageLink.contentLength,
+                                file: {
+                                    id: pageLink.id,
+                                    contentType: pageLink.contentType,
+                                    contentLength: pageLink.contentLength,
+                                },
                             };
 
                             const replacedUrl = printApiFileContentUrl(pageLink.id);

@@ -15,13 +15,13 @@ test("FileGallery with single row and single file unwraps to standalone File", (
         elements: [
             {
                 type: "FileGallery",
-                rows: [{items: [{element: {type: "File", id: fileId1}}]}],
+                rows: [{items: [{element: {type: "File", file: {id: fileId1}}}]}],
             },
         ],
     };
 
     expect(normalizeApiContent(content)).toEqual({
-        elements: [{type: "File", id: fileId1}],
+        elements: [{type: "File", file: {id: fileId1}}],
     });
 });
 
@@ -86,8 +86,8 @@ test("FileGallery with multiple items in a row is preserved", () => {
                 rows: [
                     {
                         items: [
-                            {element: {type: "File", id: fileId1}},
-                            {element: {type: "File", id: fileId2}},
+                            {element: {type: "File", file: {id: fileId1}}},
+                            {element: {type: "File", file: {id: fileId2}}},
                         ],
                     },
                 ],
@@ -106,15 +106,15 @@ test("adjacent FileGalleries are merged into one", () => {
                 rows: [
                     {
                         items: [
-                            {element: {type: "File", id: fileId1}},
-                            {element: {type: "File", id: fileId2}},
+                            {element: {type: "File", file: {id: fileId1}}},
+                            {element: {type: "File", file: {id: fileId2}}},
                         ],
                     },
                 ],
             },
             {
                 type: "FileGallery",
-                rows: [{items: [{element: {type: "File", id: fileId3}}]}],
+                rows: [{items: [{element: {type: "File", file: {id: fileId3}}}]}],
             },
         ],
     };
@@ -126,11 +126,11 @@ test("adjacent FileGalleries are merged into one", () => {
                 rows: [
                     {
                         items: [
-                            {element: {type: "File", id: fileId1}},
-                            {element: {type: "File", id: fileId2}},
+                            {element: {type: "File", file: {id: fileId1}}},
+                            {element: {type: "File", file: {id: fileId2}}},
                         ],
                     },
-                    {items: [{element: {type: "File", id: fileId3}}]},
+                    {items: [{element: {type: "File", file: {id: fileId3}}}]},
                 ],
             },
         ],
@@ -140,9 +140,9 @@ test("adjacent FileGalleries are merged into one", () => {
 test("three adjacent single-item FileGalleries merge into one", () => {
     const content: ApiContent = {
         elements: [
-            {type: "FileGallery", rows: [{items: [{element: {type: "File", id: fileId1}}]}]},
-            {type: "FileGallery", rows: [{items: [{element: {type: "File", id: fileId2}}]}]},
-            {type: "FileGallery", rows: [{items: [{element: {type: "File", id: fileId3}}]}]},
+            {type: "FileGallery", rows: [{items: [{element: {type: "File", file: {id: fileId1}}}]}]},
+            {type: "FileGallery", rows: [{items: [{element: {type: "File", file: {id: fileId2}}}]}]},
+            {type: "FileGallery", rows: [{items: [{element: {type: "File", file: {id: fileId3}}}]}]},
         ],
     };
 
@@ -151,9 +151,9 @@ test("three adjacent single-item FileGalleries merge into one", () => {
             {
                 type: "FileGallery",
                 rows: [
-                    {items: [{element: {type: "File", id: fileId1}}]},
-                    {items: [{element: {type: "File", id: fileId2}}]},
-                    {items: [{element: {type: "File", id: fileId3}}]},
+                    {items: [{element: {type: "File", file: {id: fileId1}}}]},
+                    {items: [{element: {type: "File", file: {id: fileId2}}}]},
+                    {items: [{element: {type: "File", file: {id: fileId3}}}]},
                 ],
             },
         ],
@@ -168,8 +168,8 @@ test("three adjacent multi-item FileGalleries merge into one", () => {
                 rows: [
                     {
                         items: [
-                            {element: {type: "File", id: fileId1}},
-                            {element: {type: "File", id: fileId2}},
+                            {element: {type: "File", file: {id: fileId1}}},
+                            {element: {type: "File", file: {id: fileId2}}},
                         ],
                     },
                 ],
@@ -179,8 +179,8 @@ test("three adjacent multi-item FileGalleries merge into one", () => {
                 rows: [
                     {
                         items: [
-                            {element: {type: "File", id: fileId2}},
-                            {element: {type: "File", id: fileId3}},
+                            {element: {type: "File", file: {id: fileId2}}},
+                            {element: {type: "File", file: {id: fileId3}}},
                         ],
                     },
                 ],
@@ -190,8 +190,8 @@ test("three adjacent multi-item FileGalleries merge into one", () => {
                 rows: [
                     {
                         items: [
-                            {element: {type: "File", id: fileId3}},
-                            {element: {type: "File", id: fileId1}},
+                            {element: {type: "File", file: {id: fileId3}}},
+                            {element: {type: "File", file: {id: fileId1}}},
                         ],
                     },
                 ],
@@ -206,20 +206,20 @@ test("three adjacent multi-item FileGalleries merge into one", () => {
                 rows: [
                     {
                         items: [
-                            {element: {type: "File", id: fileId1}},
-                            {element: {type: "File", id: fileId2}},
+                            {element: {type: "File", file: {id: fileId1}}},
+                            {element: {type: "File", file: {id: fileId2}}},
                         ],
                     },
                     {
                         items: [
-                            {element: {type: "File", id: fileId2}},
-                            {element: {type: "File", id: fileId3}},
+                            {element: {type: "File", file: {id: fileId2}}},
+                            {element: {type: "File", file: {id: fileId3}}},
                         ],
                     },
                     {
                         items: [
-                            {element: {type: "File", id: fileId3}},
-                            {element: {type: "File", id: fileId1}},
+                            {element: {type: "File", file: {id: fileId3}}},
+                            {element: {type: "File", file: {id: fileId1}}},
                         ],
                     },
                 ],
@@ -236,8 +236,8 @@ test("non-adjacent FileGalleries are not merged", () => {
                 rows: [
                     {
                         items: [
-                            {element: {type: "File", id: fileId1}},
-                            {element: {type: "File", id: fileId2}},
+                            {element: {type: "File", file: {id: fileId1}}},
+                            {element: {type: "File", file: {id: fileId2}}},
                         ],
                     },
                 ],
@@ -245,7 +245,7 @@ test("non-adjacent FileGalleries are not merged", () => {
             {type: "Paragraph", elements: [{type: "Text", text: "hello"}]},
             {
                 type: "FileGallery",
-                rows: [{items: [{element: {type: "File", id: fileId3}}]}],
+                rows: [{items: [{element: {type: "File", file: {id: fileId3}}}]}],
             },
         ],
     };
@@ -258,14 +258,14 @@ test("non-adjacent FileGalleries are not merged", () => {
                 rows: [
                     {
                         items: [
-                            {element: {type: "File", id: fileId1}},
-                            {element: {type: "File", id: fileId2}},
+                            {element: {type: "File", file: {id: fileId1}}},
+                            {element: {type: "File", file: {id: fileId2}}},
                         ],
                     },
                 ],
             },
             {type: "Paragraph", elements: [{type: "Text", text: "hello"}]},
-            {type: "File", id: fileId3},
+            {type: "File", file: {id: fileId3}},
         ],
     });
 });
@@ -278,23 +278,23 @@ test("separate FileGalleries with a single-element gallery between them normaliz
                 rows: [
                     {
                         items: [
-                            {element: {type: "File", id: fileId1}},
-                            {element: {type: "File", id: fileId2}},
+                            {element: {type: "File", file: {id: fileId1}}},
+                            {element: {type: "File", file: {id: fileId2}}},
                         ],
                     },
                 ],
             },
             {
                 type: "FileGallery",
-                rows: [{items: [{element: {type: "File", id: fileId3}}]}],
+                rows: [{items: [{element: {type: "File", file: {id: fileId3}}}]}],
             },
             {
                 type: "FileGallery",
                 rows: [
                     {
                         items: [
-                            {element: {type: "File", id: fileId4}},
-                            {element: {type: "File", id: fileId5}},
+                            {element: {type: "File", file: {id: fileId4}}},
+                            {element: {type: "File", file: {id: fileId5}}},
                         ],
                     },
                 ],
@@ -309,15 +309,15 @@ test("separate FileGalleries with a single-element gallery between them normaliz
                 rows: [
                     {
                         items: [
-                            {element: {type: "File", id: fileId1}},
-                            {element: {type: "File", id: fileId2}},
+                            {element: {type: "File", file: {id: fileId1}}},
+                            {element: {type: "File", file: {id: fileId2}}},
                         ],
                     },
-                    {items: [{element: {type: "File", id: fileId3}}]},
+                    {items: [{element: {type: "File", file: {id: fileId3}}}]},
                     {
                         items: [
-                            {element: {type: "File", id: fileId4}},
-                            {element: {type: "File", id: fileId5}},
+                            {element: {type: "File", file: {id: fileId4}}},
+                            {element: {type: "File", file: {id: fileId5}}},
                         ],
                     },
                 ],
@@ -336,20 +336,20 @@ test("standalone File between two FileGalleries normalizes the same as one combi
                 rows: [
                     {
                         items: [
-                            {element: {type: "File", id: fileId1}},
-                            {element: {type: "File", id: fileId2}},
+                            {element: {type: "File", file: {id: fileId1}}},
+                            {element: {type: "File", file: {id: fileId2}}},
                         ],
                     },
                 ],
             },
-            {type: "File", id: fileId3},
+            {type: "File", file: {id: fileId3}},
             {
                 type: "FileGallery",
                 rows: [
                     {
                         items: [
-                            {element: {type: "File", id: fileId4}},
-                            {element: {type: "File", id: fileId5}},
+                            {element: {type: "File", file: {id: fileId4}}},
+                            {element: {type: "File", file: {id: fileId5}}},
                         ],
                     },
                 ],
@@ -364,15 +364,15 @@ test("standalone File between two FileGalleries normalizes the same as one combi
                 rows: [
                     {
                         items: [
-                            {element: {type: "File", id: fileId1}},
-                            {element: {type: "File", id: fileId2}},
+                            {element: {type: "File", file: {id: fileId1}}},
+                            {element: {type: "File", file: {id: fileId2}}},
                         ],
                     },
-                    {items: [{element: {type: "File", id: fileId3}}]},
+                    {items: [{element: {type: "File", file: {id: fileId3}}}]},
                     {
                         items: [
-                            {element: {type: "File", id: fileId4}},
-                            {element: {type: "File", id: fileId5}},
+                            {element: {type: "File", file: {id: fileId4}}},
+                            {element: {type: "File", file: {id: fileId5}}},
                         ],
                     },
                 ],
@@ -435,7 +435,7 @@ test("empty table cell is filled with an empty paragraph", () => {
                             {
                                 elements: [
                                     {type: "Paragraph", elements: []},
-                                    {type: "File", id: fileId1},
+                                    {type: "File", file: {id: fileId1}},
                                 ],
                             },
                             {elements: []},
@@ -453,7 +453,7 @@ test("empty table cell is filled with an empty paragraph", () => {
                     {
                         elements: [
                             {type: "Paragraph", elements: []},
-                            {type: "File", id: fileId1},
+                            {type: "File", file: {id: fileId1}},
                         ],
                     },
                     {elements: [{type: "Paragraph", elements: []}]},
@@ -492,8 +492,8 @@ test("FileFloat normalizes inner element", () => {
 test("adjacent standalone Files merge into a FileGallery", () => {
     const content: ApiContent = {
         elements: [
-            {type: "File", id: fileId1},
-            {type: "File", id: fileId2},
+            {type: "File", file: {id: fileId1}},
+            {type: "File", file: {id: fileId2}},
         ],
     };
 
@@ -502,8 +502,8 @@ test("adjacent standalone Files merge into a FileGallery", () => {
             {
                 type: "FileGallery",
                 rows: [
-                    {items: [{element: {type: "File", id: fileId1}}]},
-                    {items: [{element: {type: "File", id: fileId2}}]},
+                    {items: [{element: {type: "File", file: {id: fileId1}}}]},
+                    {items: [{element: {type: "File", file: {id: fileId2}}}]},
                 ],
             },
         ],
@@ -519,7 +519,7 @@ test("FileGallery normalizes Preview title inside items", () => {
                 rows: [
                     {
                         items: [
-                            {element: {type: "File", id: fileId1}},
+                            {element: {type: "File", file: {id: fileId1}}},
                             {
                                 element: {
                                     type: "Preview",
@@ -544,7 +544,7 @@ test("FileGallery normalizes Preview title inside items", () => {
                 rows: [
                     {
                         items: [
-                            {element: {type: "File", id: fileId1}},
+                            {element: {type: "File", file: {id: fileId1}}},
                             {
                                 element: {
                                     type: "Preview",

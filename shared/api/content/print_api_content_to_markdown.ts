@@ -17,7 +17,7 @@ import {gfmTableToMarkdown} from "mdast-util-gfm-table";
 import {gfmTaskListItemToMarkdown} from "mdast-util-gfm-task-list-item";
 import {mathToMarkdown} from "mdast-util-math";
 import {toMarkdown} from "mdast-util-to-markdown";
-import {assertApiChecklistBlockElementItem} from "~/shared/api/content/assert_api_checklist_block_element_item.js";
+import {assertApiCheckListBlockElementItem} from "~/shared/api/content/assert_api_check_list_block_element_item.js";
 import {getApiMentionReferenceNoun} from "~/shared/api/content/get_api_mention_reference_noun.js";
 import {normalizeApiContentInlineElementMarks} from "~/shared/api/content/normalize_api_content.js";
 import {
@@ -325,7 +325,7 @@ function* printApiContentBlockElementToMarkdown(
                         type: "listItem",
                         checked:
                             element.type === "CheckList"
-                                ? assertApiChecklistBlockElementItem(item).checked
+                                ? assertApiCheckListBlockElementItem(item).checked
                                 : undefined,
                         children,
                     };
@@ -370,8 +370,8 @@ function* printApiContentBlockElementToMarkdown(
             break;
         }
         case "File": {
-            const fileUrl = printApiFileContentUrl(element.id);
-            if (!element.contentType || isWebSafeImageContentType(element.contentType)) {
+            const fileUrl = printApiFileContentUrl(element.file.id);
+            if (!element.file.contentType || isWebSafeImageContentType(element.file.contentType)) {
                 const children: Array<PhrasingContent> = [
                     // Web safe images (and files with unknown content type) use markdown image syntax.
                     {type: "image", url: fileUrl, alt: null, data: {fileElement: element}},
@@ -397,7 +397,10 @@ function* printApiContentBlockElementToMarkdown(
             } else {
                 const htmlNode: Html = {
                     type: "html",
-                    value: printApiContentFileBlockElementToMarkdown(fileUrl, element.contentType),
+                    value: printApiContentFileBlockElementToMarkdown(
+                        fileUrl,
+                        element.file.contentType,
+                    ),
                     data: {fileElement: element},
                 };
 
@@ -589,17 +592,20 @@ function printApiContentFileBlockElementToMarkdown(
 
 function printApiContentFileOrPreviewBlockElementToMarkdown(
     element:
-        | {readonly type: "File"; readonly id: string; readonly contentType?: string}
+        | {
+              readonly type: "File";
+              readonly file: {readonly id: string; readonly contentType?: string};
+          }
         | {readonly type: "Preview"; readonly reference: ApiPreviewReference},
     style?: string,
 ): string {
     const styleAttr = style ? ` style="${escapeHtml(style)}"` : "";
     switch (element.type) {
         case "File": {
-            const fileUrl = printApiFileContentUrl(element.id);
+            const fileUrl = printApiFileContentUrl(element.file.id);
             return printApiContentFileBlockElementToMarkdown(
                 fileUrl,
-                element.contentType,
+                element.file.contentType,
                 styleAttr,
             );
         }
