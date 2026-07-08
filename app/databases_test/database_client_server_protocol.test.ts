@@ -905,7 +905,7 @@ async function executeInternalAction<const Name extends DatabaseActionName>(
 ): Promise<DatabaseActionOutput<Name>> {
     const space = await getOrCreateTestSpaceForDatabaseGroupId(databaseGroupId);
     const response = await durableObjectTest.fetchForTest(
-        context.systemAction(space.id, {serviceName: "DatabaseGroupService"}),
+        context.systemAction(space.id, {serviceName: "AppService"}),
         databaseGroupId,
         new Request("https://databases.test.invalid/action", {
             method: "POST",
