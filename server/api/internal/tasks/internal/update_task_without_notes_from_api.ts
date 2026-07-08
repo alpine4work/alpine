@@ -252,9 +252,6 @@ export async function updateTaskWithoutNotesFromApi(
  * Turns the API patch list into task actions, one patch at a time in request
  * order. Returns the actions along with the final task state which the caller uses
  * to load newly referenced data for the API response.
- *
- * Patches that don't change anything (like setting the title to its current value)
- * generate no actions.
  */
 function createTaskActionsFromApiTaskPatches({
     initialTask,
