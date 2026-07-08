@@ -1,8 +1,13 @@
 import type {OpfsDirectoryHandle} from "~/client/web/databases/worker/opfs.js";
 import {OpfsDatabaseStorage} from "~/client/web/databases/worker/opfs_database_storage.js";
 import type {OpfsPageStore} from "~/client/web/databases/worker/opfs_page_store.js";
-import {Database, type DatabaseTrackedExecution} from "~/shared/databases/database.js";
+import {
+    Database,
+    type DatabaseTableAccessResolver,
+    type DatabaseTrackedExecution,
+} from "~/shared/databases/database.js";
 import {DatabaseActionRequiresServerError} from "~/shared/databases/database_action_requires_server_error.js";
+import {deniedSqliteTableAccess} from "~/shared/databases/sqlite_authorizer.js";
 import {
     type DatabaseActionName,
     type DatabaseActionObject,
@@ -30,6 +35,7 @@ import {databaseMainTableId} from "~/shared/databases/sqlite_constants.js";
 import {type SqliteMigration} from "~/shared/databases/sqlite_migrations.js";
 import {TableNotAttachedError} from "~/shared/databases/table_not_attached_error.js";
 import {PermissionDeniedError} from "~/shared/error/error.js";
+import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import type {Result} from "~/shared/helpers/control/result.js";
 import {getOrSetDefaultMapValue} from "~/shared/helpers/map/get_or_set_default_map_value.js";
@@ -230,6 +236,28 @@ export class DatabaseClient {
     }
 
     /**
+     * Per-execution table access derived from the server-pushed map, installed on
+     * every local action execution. Keeps the client's decisions — most
+     * importantly a relation field's ids-only projection when the linked table
+     * isn't readable — deterministic with the server's authorizer, which
+     * evaluates the same policies. Local statements that would be denied
+     * server-side fail fast here instead of optimistically applying and being
+     * rolled back.
+     */
+    private readonly tableAccessResolver: DatabaseTableAccessResolver = tableId => {
+        switch (this.getTableAccessLevel(tableId)) {
+            case "write":
+                return "unrestricted";
+            case "read":
+                return {read: true, insert: false, updateDelete: false, schema: false};
+            case "none":
+                return deniedSqliteTableAccess;
+            default:
+                throw exhaustive(this.getTableAccessLevel(tableId));
+        }
+    };
+
+    /**
      * The account's access to `tableId` per the server-pushed map. Tables absent from
      * the map report `"write"`: trusted internal connections (tests, tools) receive
      * empty maps, and a real client's map is complete for every registered table — so
@@ -293,7 +321,9 @@ export class DatabaseClient {
         let output: DatabaseActionOutput<N>;
         let writtenPages: ReadonlyDatabasePageSet;
         try {
-            const executed = this.database.executeAction(actionObject);
+            const executed = this.database.executeAction(actionObject, {
+                tableAccessResolver: this.tableAccessResolver,
+            });
             output = executed.result;
             writtenPages = executed.writtenPages;
         } catch (error) {
@@ -370,7 +400,9 @@ export class DatabaseClient {
     private executeReadOnly<N extends DatabaseActionName>(
         actionObject: DatabaseActionObject<N>,
     ): {output: DatabaseActionOutput<N>; readPages: ReadonlyDatabasePageSet} {
-        const {result, readPages, writtenPages} = this.database.executeAction(actionObject);
+        const {result, readPages, writtenPages} = this.database.executeAction(actionObject, {
+            tableAccessResolver: this.tableAccessResolver,
+        });
         assert(writtenPages.size === 0, "executeActionWithTracking does not support writes");
         return {output: result, readPages};
     }
@@ -624,7 +656,9 @@ export class DatabaseClient {
         let anyInvalidated = false;
         this.optimisticQueue = this.optimisticQueue.filter(mutation => {
             try {
-                const {writtenPages} = this.database.executeAction(mutation.action);
+                const {writtenPages} = this.database.executeAction(mutation.action, {
+                    tableAccessResolver: this.tableAccessResolver,
+                });
                 if (this.markWrittenPages(writtenPages)) {
                     anyInvalidated = true;
                 }

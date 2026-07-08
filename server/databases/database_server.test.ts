@@ -1581,6 +1581,56 @@ describe("DatabaseServer — per-table access", () => {
         expect(result.joinTableId).toBe(joinTableId);
     });
 
+    test("view rows degrade linked records to ids when the linked table is unreadable", async () => {
+        const scenario = await createLinkedTablesScenario();
+        scenario.server.executeAction(
+            createSessionContext(scenario.viewPeople),
+            addLinkAction(scenario),
+        );
+
+        const {result} = scenario.server.executeAction<"getViewRowsPage">(
+            createSessionContext(scenario.noPeople),
+            {
+                name: "getViewRowsPage",
+                input: {
+                    tableOrViewId: scenario.tasks.tableId,
+                    afterCursor: null,
+                    endCursor: null,
+                },
+            },
+        );
+
+        const fieldIndex = result.fieldIndexes.get(scenario.relation.sourceFieldId)!;
+        expect(result.rows[0]![fieldIndex]).toEqual([
+            {id: scenario.personRowId, name: null, noAccess: true},
+        ]);
+    });
+
+    test("view rows include linked record names when the linked table is readable", async () => {
+        const scenario = await createLinkedTablesScenario();
+        scenario.server.executeAction(
+            createSessionContext(scenario.viewPeople),
+            addLinkAction(scenario),
+        );
+
+        const {result} = scenario.server.executeAction<"getViewRowsPage">(
+            createSessionContext(scenario.viewPeople),
+            {
+                name: "getViewRowsPage",
+                input: {
+                    tableOrViewId: scenario.tasks.tableId,
+                    afterCursor: null,
+                    endCursor: null,
+                },
+            },
+        );
+
+        const fieldIndex = result.fieldIndexes.get(scenario.relation.sourceFieldId)!;
+        expect(result.rows[0]![fieldIndex]).toEqual([
+            {id: scenario.personRowId, name: null, noAccess: false},
+        ]);
+    });
+
     test("createRelationField is denied with only View on the target", async () => {
         const scenario = await createLinkedTablesScenario();
 

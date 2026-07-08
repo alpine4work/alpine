@@ -35,7 +35,11 @@ function DatabaseRelationGridViewCellContent({
             onClick={onCellClick}
         >
             {links.slice(0, 3).map(link => (
-                <DatabaseRelationChip key={link.id} name={link.name} />
+                <DatabaseRelationChip
+                    key={link.id}
+                    name={link.name}
+                    noAccess={link.noAccess === true}
+                />
             ))}
             {links.length > 3 ? (
                 <Box fontSize="75" color="grey-50" flexShrink="0">
@@ -104,7 +108,7 @@ function DatabaseRelationGridViewCellEditorOverlay({
                     {links.map(link => (
                         <DatabaseRelationEditableChip
                             key={link.id}
-                            name={link.name}
+                            name={link.noAccess === true ? "No access" : link.name}
                             onRemove={() => removeLink(link.id)}
                         />
                     ))}
@@ -129,7 +133,7 @@ function DatabaseRelationGridViewCellEditorOverlay({
     );
 }
 
-function DatabaseRelationChip({name}: {name: string | null}) {
+function DatabaseRelationChip({name, noAccess}: {name: string | null; noAccess?: boolean}) {
     return (
         <Box
             display="flex"
@@ -139,10 +143,12 @@ function DatabaseRelationChip({name}: {name: string | null}) {
             borderRadius="1"
             paddingX="1"
             fontSize="75"
-            color="grey-100"
+            color={noAccess === true ? "grey-50" : "grey-100"}
             style={{maxWidth: 120}}
         >
-            <Box fontStyle="truncate">{name ?? "Untitled"}</Box>
+            <Box fontStyle="truncate">
+                {noAccess === true ? "No access" : (name ?? "Untitled")}
+            </Box>
         </Box>
     );
 }
