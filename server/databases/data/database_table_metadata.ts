@@ -192,33 +192,36 @@ export async function getDatabaseTableMetadataRealtimeEvent(
     // Withheld table ids are returned so receivers can update their access maps (a
     // denial doubles as the revocation signal). Deleted metadata has no policy left to
     // evaluate \u2014 treat it as inaccessible too.
-    const authorizedByIndex = await runAllPromises(
-        actualEvents.map(async event => {
+    const visibleEvents: Array<RynamoEvent<DatabaseTableMetadataModel>> = [];
+    const deniedTableIds: Array<DatabaseTableId> = [];
+
+    await runAllPromises(
+        actualEvents.map(async (event, index) => {
+            let isAuthorized = false;
             switch (event.type) {
                 case "PutItem":
-                    return await evaluateAccessPolicy(
+                    isAuthorized = await evaluateAccessPolicy(
                         context,
                         event.item.model.spaceId,
                         event.item.model.accessPolicy,
                         "View",
                     );
+                    break;
                 case "DeleteItem":
-                    return false;
+                    isAuthorized = false;
+                    break;
                 default:
                     throw exhaustive(event);
+            }
+
+            if (isAuthorized) {
+                visibleEvents.push(event);
+            } else {
+                deniedTableIds.push(eventStubs[index]!.itemKey.tableId);
             }
         }),
     );
 
-    const visibleEvents: Array<RynamoEvent<DatabaseTableMetadataModel>> = [];
-    const deniedTableIds: Array<DatabaseTableId> = [];
-    actualEvents.forEach((event, index) => {
-        if (authorizedByIndex[index] === true) {
-            visibleEvents.push(event);
-        } else {
-            deniedTableIds.push(eventStubs[index]!.itemKey.tableId);
-        }
-    });
     return {events: visibleEvents, deniedTableIds};
 }
 
