@@ -19,7 +19,7 @@ export function sqliteTableAccessForAccessLevel(level: AccessLevel | null): Sqli
     switch (level) {
         case "View":
         case "Comment":
-            return {read: true, insert: false, updateDelete: false, schema: false};
+            return {read: true, write: false, schema: false};
         case "Edit":
         case "Manage":
             return unrestrictedSqliteTableAccess;

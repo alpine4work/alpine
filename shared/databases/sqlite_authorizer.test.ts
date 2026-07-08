@@ -315,8 +315,7 @@ describe("authorizer interaction", () => {
 
 const fullTableAccess: SqliteTableAccess = {
     read: true,
-    insert: true,
-    updateDelete: true,
+    write: true,
     schema: true,
 };
 
@@ -379,7 +378,7 @@ describe("per-table schema access matrix (real SQLite)", () => {
                 VALUES
                     (2, 'b')
             `,
-            needed: "insert",
+            needed: "write",
         },
         {
             name: "UPDATE",
@@ -390,7 +389,7 @@ describe("per-table schema access matrix (real SQLite)", () => {
                 WHERE
                     id = 1
             `,
-            needed: "updateDelete",
+            needed: "write",
         },
         {
             name: "DELETE",
@@ -399,7 +398,7 @@ describe("per-table schema access matrix (real SQLite)", () => {
                 WHERE
                     id = 1
             `,
-            needed: "updateDelete",
+            needed: "write",
         },
         {
             name: "CREATE INDEX",

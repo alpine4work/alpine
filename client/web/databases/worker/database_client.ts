@@ -285,7 +285,7 @@ export class DatabaseClient {
             case "write":
                 return "unrestricted";
             case "read":
-                return {read: true, insert: false, updateDelete: false, schema: false};
+                return {read: true, write: false, schema: false};
             case "none":
                 return deniedSqliteTableAccess;
             default:

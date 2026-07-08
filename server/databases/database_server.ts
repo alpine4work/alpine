@@ -207,10 +207,10 @@ export class DatabaseServer {
      *
      * - User tables map their `LocalAccessPolicy` level through the v1 rules
      *   (`View`/`Comment` read-only, `Edit`/`Manage` everything).
-     * - Join files derive from the two joined tables: the max level of either side,
-     *   except `insert` additionally requires at least `View` on _both_ sides — adding
-     *   a link references a row the account must be able to see, while removing one
-     *   only needs `Edit` on either side.
+     * - Join files derive from the two joined tables: the max level of either side.
+     *   (The add-vs-remove asymmetry — adding a link needs `View` on the linked table —
+     *   is enforced by `addLink`'s `rowExists` read, not here; see {@link
+     *   SqliteTableAccess}.)
      * - Unknown/uncached tables fail closed. The realtime layer reuses this for page
      *   filtering (milestone 4).
      */
@@ -238,11 +238,7 @@ export class DatabaseServer {
                         : targetLevel === null
                           ? sourceLevel
                           : maxAccessLevel(sourceLevel, targetLevel);
-                const access = sqliteTableAccessForAccessLevel(combinedLevel);
-                return {
-                    ...access,
-                    insert: access.insert && sourceLevel !== null && targetLevel !== null,
-                };
+                return sqliteTableAccessForAccessLevel(combinedLevel);
             }
             default:
                 throw exhaustive(entry);
@@ -743,14 +739,13 @@ function accessLevelForPolicy(
 
 /**
  * Collapse per-statement capabilities into the coarser wire shape clients consume.
- * `insert`-vs-`updateDelete` nuance (join files) is dropped: any write capability
- * reports `"write"` — the authoritative per-statement enforcement stays
- * server-side.
+ * `write` and `schema` both report `"write"` — the authoritative per-statement
+ * enforcement stays server-side.
  */
 function databaseTableAccessLevelForSqliteAccess(
     access: SqliteTableAccess,
 ): DatabaseTableAccessLevel {
-    if (access.updateDelete || access.insert || access.schema) return "write";
+    if (access.write || access.schema) return "write";
     if (access.read) return "read";
     return "none";
 }

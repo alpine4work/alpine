@@ -142,17 +142,17 @@ export function isSqliteActionAllowed(
  * `getAccountAccessLevelAssumingSpaceAccess`); an execution with no resolver
  * installed (internal server code, service actors) is unrestricted.
  *
- * `insert` is split from `updateDelete` for join tables: adding a link requires
- * `View` on both joined tables (you can't reference a row you can't verify
- * exists), while removing one only requires `Edit` on either side.
+ * The join-table add-vs-remove asymmetry (adding a link needs `View` on the
+ * linked table, removing one doesn't) is _not_ modelled here. Adding a link
+ * reads the referenced row to verify it exists (`addLink`'s `rowExists` check),
+ * so the linked table's `read` capability already gates it; removing a link
+ * reads nothing. Write is a single capability.
  */
 export interface SqliteTableAccess {
     /** SELECT / read of the table file's rows, metadata, and schema. */
     read: boolean;
-    /** INSERT of new rows. */
-    insert: boolean;
-    /** UPDATE and DELETE of existing rows. */
-    updateDelete: boolean;
+    /** INSERT / UPDATE / DELETE of rows. */
+    write: boolean;
     /** DDL (CREATE/DROP/ALTER/…) and schema-targeted PRAGMAs. */
     schema: boolean;
 }
@@ -160,16 +160,14 @@ export interface SqliteTableAccess {
 /** All capabilities granted — internal executions and `Edit`+ access (v1). */
 export const unrestrictedSqliteTableAccess: SqliteTableAccess = {
     read: true,
-    insert: true,
-    updateDelete: true,
+    write: true,
     schema: true,
 };
 
 /** No capabilities granted — accounts with no access to the table. */
 export const deniedSqliteTableAccess: SqliteTableAccess = {
     read: false,
-    insert: false,
-    updateDelete: false,
+    write: false,
     schema: false,
 };
 
@@ -261,10 +259,8 @@ export function isSqliteActionAllowedForSchemaAccess({
     switch (requirement) {
         case "read":
             return access.read;
-        case "insert":
-            return access.insert;
-        case "updateDelete":
-            return access.updateDelete;
+        case "write":
+            return access.write;
         case "schema":
             return access.schema;
         default:
@@ -279,15 +275,14 @@ export function isSqliteActionAllowedForSchemaAccess({
  */
 function sqliteSchemaAccessRequirement(
     action: string,
-): "read" | "insert" | "updateDelete" | "schema" | null {
+): "read" | "write" | "schema" | null {
     switch (action) {
         case "read":
             return "read";
         case "insert":
-            return "insert";
         case "update":
         case "delete":
-            return "updateDelete";
+            return "write";
         case "create-index":
         case "create-table":
         case "create-temp-index":
