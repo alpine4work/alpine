@@ -46,6 +46,12 @@ import {
     readAgentWebPostPage,
 } from "~/server/agents/web/pages/agent_web_post_page.js";
 import {
+    normalizeAgentWebTaskCollectionPage,
+    parseAgentWebTaskCollectionPage,
+    printAgentWebTaskCollectionPage,
+    readAgentWebTaskCollectionPage,
+} from "~/server/agents/web/pages/agent_web_task_collection_page.js";
+import {
     normalizeAgentWebTaskMessageListPage,
     parseAgentWebTaskMessageListPage,
     printAgentWebTaskMessageListPage,
@@ -307,7 +313,7 @@ async function readAgentWebPageLink(
             return await readAgentWebTaskPage(context, pageLink.id, options);
         }
         case "TaskCollection": {
-            throw new UnimplementedError("NOCOMMIT");
+            return await readAgentWebTaskCollectionPage(context, pageLink.id, options);
         }
         case "TaskMessage": {
             return await readAgentWebTaskMessageListMessagePage(
@@ -347,6 +353,9 @@ function normalizeAgentWebPage(page: AgentWebPage): AgentWebPage {
         }
         case "Task": {
             return normalizeAgentWebTaskPage(page);
+        }
+        case "TaskCollection": {
+            return normalizeAgentWebTaskCollectionPage(page);
         }
         case "Post": {
             return normalizeAgentWebPostPage(page);
@@ -409,7 +418,8 @@ function printAgentWebPage(
             return printAgentWebTaskPage(storage, pageLink.id, page);
         }
         case "TaskCollection": {
-            throw new UnimplementedError("NOCOMMIT");
+            assert(page.type === "TaskCollection");
+            return printAgentWebTaskCollectionPage(storage, pageLink.id, page);
         }
         case "TaskMessage": {
             assert(page.type === "TaskMessageList");
@@ -456,6 +466,9 @@ async function parseAgentWebPageForTest(
         }
         case "Task": {
             return await parseAgentWebTaskPage(storage, pageMetadata.id, response);
+        }
+        case "TaskCollection": {
+            return await parseAgentWebTaskCollectionPage(storage, pageMetadata.id, response);
         }
         case "TaskMessageList": {
             return await parseAgentWebTaskMessageListPage(storage, pageMetadata.id, response);

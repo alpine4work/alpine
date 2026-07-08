@@ -29,6 +29,10 @@ import {
     parseAgentWebPostPage,
 } from "~/server/agents/web/pages/agent_web_post_page.js";
 import {
+    createAgentWebTaskCollectionPage,
+    parseAgentWebTaskCollectionPage,
+} from "~/server/agents/web/pages/agent_web_task_collection_page.js";
+import {
     createAgentWebTaskPage,
     parseAgentWebTaskPage,
 } from "~/server/agents/web/pages/agent_web_task_page.js";
@@ -264,6 +268,21 @@ async function createAgentWebPageLink(
 
             return {
                 noun: "task",
+                pageMetadata,
+                pageLink,
+                pageLinkLabel: pageLink.title.length > 0 ? pageLink.title : "Untitled",
+            };
+        }
+        case "task-collect": {
+            const newPage = await parseAgentWebTaskCollectionPage(context.storage, null, content);
+
+            const {pageMetadata, pageLink} = await createAgentWebTaskCollectionPage(
+                context,
+                newPage,
+            );
+
+            return {
+                noun: "task collection",
                 pageMetadata,
                 pageLink,
                 pageLinkLabel: pageLink.title.length > 0 ? pageLink.title : "Untitled",

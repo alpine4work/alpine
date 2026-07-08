@@ -24,6 +24,10 @@ import {
     updateAgentWebPostPage,
 } from "~/server/agents/web/pages/agent_web_post_page.js";
 import {
+    parseAgentWebTaskCollectionPage,
+    updateAgentWebTaskCollectionPage,
+} from "~/server/agents/web/pages/agent_web_task_collection_page.js";
+import {
     parseAgentWebTaskMessageListPage,
     updateAgentWebTaskMessageListPage,
 } from "~/server/agents/web/pages/agent_web_task_message_list_page.js";
@@ -355,6 +359,21 @@ async function updateAgentWebPageLink(
             ]);
 
             return await updateAgentWebTaskPage(context, oldPageMetadata, oldPage, newPage);
+        }
+        case "TaskCollection": {
+            const oldResponse = oldResponseLazy.get();
+
+            const [oldPage, newPage] = await runAllPromises([
+                parseAgentWebTaskCollectionPage(context.storage, oldPageMetadata.id, oldResponse),
+                parseAgentWebTaskCollectionPage(context.storage, oldPageMetadata.id, newResponse),
+            ]);
+
+            return await updateAgentWebTaskCollectionPage(
+                context,
+                oldPageMetadata,
+                oldPage,
+                newPage,
+            );
         }
         case "Post": {
             const oldResponse = oldResponseLazy.get();

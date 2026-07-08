@@ -3,6 +3,7 @@ import {AgentWebChatPageWithMetadata} from "~/server/agents/web/pages/agent_web_
 import {AgentWebDocumentPageWithMetadata} from "~/server/agents/web/pages/agent_web_document_page.js";
 import {AgentWebDocumentThreadPageWithMetadata} from "~/server/agents/web/pages/agent_web_document_thread_page.js";
 import {AgentWebPostPageWithMetadata} from "~/server/agents/web/pages/agent_web_post_page.js";
+import {AgentWebTaskCollectionPageWithMetadata} from "~/server/agents/web/pages/agent_web_task_collection_page.js";
 import {AgentWebTaskMessageListPageWithMetadata} from "~/server/agents/web/pages/agent_web_task_message_list_page.js";
 import {AgentWebTaskPageWithMetadata} from "~/server/agents/web/pages/agent_web_task_page.js";
 import {assertEqualTypes} from "~/shared/helpers/control/assert_equal_types.js";
@@ -54,6 +55,7 @@ export type AgentWebPageWithMetadata =
     | AgentWebChatPageWithMetadata
     | AgentWebPostPageWithMetadata
     | AgentWebTaskPageWithMetadata
+    | AgentWebTaskCollectionPageWithMetadata
     | AgentWebTaskMessageListPageWithMetadata;
 
 // This checks that at the type system level `page.metadata.type === page.type`.
