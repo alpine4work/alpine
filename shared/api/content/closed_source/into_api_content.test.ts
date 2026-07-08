@@ -4144,9 +4144,11 @@ describe("file block elements", () => {
             elements: [
                 {
                     type: "File",
-                    file: {id: fileId1,
-                    contentType: "image/png",
-                    contentLength: 1024},
+                    file: {
+                        id: fileId1,
+                        contentType: "image/png",
+                        contentLength: 1024,
+                    },
                 },
             ],
         });
@@ -4160,9 +4162,11 @@ describe("file block elements", () => {
                     side: "Left",
                     element: {
                         type: "File",
-                        file: {id: fileId1,
-                        contentType: "image/png",
-                        contentLength: 1024},
+                        file: {
+                            id: fileId1,
+                            contentType: "image/png",
+                            contentLength: 1024,
+                        },
                     },
                 },
             ],
@@ -4177,9 +4181,11 @@ describe("file block elements", () => {
                     side: "Right",
                     element: {
                         type: "File",
-                        file: {id: fileId1,
-                        contentType: "image/png",
-                        contentLength: 1024},
+                        file: {
+                            id: fileId1,
+                            contentType: "image/png",
+                            contentLength: 1024,
+                        },
                     },
                 },
             ],
@@ -4198,18 +4204,22 @@ describe("file block elements", () => {
                                     width: 0.5,
                                     element: {
                                         type: "File",
-                                        file: {id: fileId1,
-                                        contentType: "image/png",
-                                        contentLength: 1024},
+                                        file: {
+                                            id: fileId1,
+                                            contentType: "image/png",
+                                            contentLength: 1024,
+                                        },
                                     },
                                 },
                                 {
                                     width: 0.5,
                                     element: {
                                         type: "File",
-                                        file: {id: fileId2,
-                                        contentType: "image/png",
-                                        contentLength: 1024},
+                                        file: {
+                                            id: fileId2,
+                                            contentType: "image/png",
+                                            contentLength: 1024,
+                                        },
                                     },
                                 },
                             ],
@@ -4263,9 +4273,11 @@ describe("file block elements", () => {
                                         width: 0.53,
                                         element: {
                                             type: "File",
-                                            file: {id: fileId1,
-                                            contentType: "image/png",
-                                            contentLength: 1024},
+                                            file: {
+                                                id: fileId1,
+                                                contentType: "image/png",
+                                                contentLength: 1024,
+                                            },
                                         },
                                     },
                                     {
@@ -4293,9 +4305,11 @@ describe("file block elements", () => {
             elements: [
                 {
                     type: "File",
-                    file: {id: unknownFileId,
-                    contentType: "application/octet-stream",
-                    contentLength: 0},
+                    file: {
+                        id: unknownFileId,
+                        contentType: "application/octet-stream",
+                        contentLength: 0,
+                    },
                 },
             ],
         });
@@ -4309,9 +4323,11 @@ describe("file block elements", () => {
                     side: "Left",
                     element: {
                         type: "File",
-                        file: {id: unknownFileId,
-                        contentType: "application/octet-stream",
-                        contentLength: 0},
+                        file: {
+                            id: unknownFileId,
+                            contentType: "application/octet-stream",
+                            contentLength: 0,
+                        },
                     },
                 },
             ],
@@ -4351,9 +4367,11 @@ describe("file block elements", () => {
                                     elements: [
                                         {
                                             type: "File",
-                                            file: {id: fileId1,
-                                            contentType: "image/png",
-                                            contentLength: 1024},
+                                            file: {
+                                                id: fileId1,
+                                                contentType: "image/png",
+                                                contentLength: 1024,
+                                            },
                                         },
                                     ],
                                 },
@@ -4372,9 +4390,11 @@ describe("file block elements", () => {
             elements: [
                 {
                     type: "File",
-                    file: {id: fileId1,
-                    contentType: "image/png",
-                    contentLength: 1024},
+                    file: {
+                        id: fileId1,
+                        contentType: "image/png",
+                        contentLength: 1024,
+                    },
                     marks: [{type: "Comment", thread: {id: thread1}}],
                 },
             ],
