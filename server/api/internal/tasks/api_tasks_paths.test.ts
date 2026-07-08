@@ -24,6 +24,7 @@ import {initialOrderKey} from "~/shared/helpers/sort/order_key.js";
 import {assertId, generateId} from "~/shared/id/id.js";
 import {TaskCollectionId, TaskId} from "~/shared/id/types/id_types.js";
 import {diffProsemirrorNodes} from "~/shared/prosemirror/diff_prosemirror_nodes.js";
+import {TaskUpdateTaskAction} from "~/shared/tasks/actions/task_action.js";
 import {
     TaskNotesCollaborationUpdateContentWithDiffRequestBodySchema,
     TaskNotesCollaborationUpdateContentWithDiffResponseBodySchema,
@@ -103,6 +104,18 @@ const baseContext = createTestContext({
 const context = TestTaskRealtimeServer.with(baseContext);
 
 const server = createTestApiServer(context, apiTasksPaths);
+
+async function getTaskUpdateActionsSince(space: TestSpace, startTime: Date) {
+    const transactions = await backfillTaskActionTransactionHistory(
+        space.systemAction(),
+        space.id,
+        startTime,
+    );
+
+    return transactions
+        .flatMap(transaction => transaction.actions)
+        .filter((action): action is TaskUpdateTaskAction => action.type === "UpdateTask");
+}
 
 test("can read task information", async () => {
     const space = await TestSpace.create(context);
@@ -898,6 +911,94 @@ test("can update a task title", async () => {
     ]);
 });
 
+test.each([
+    {name: "insert into empty title", initial: "", updated: "Seed title"},
+    {name: "prepend word", initial: "beta gamma", updated: "alpha beta gamma"},
+    {name: "append word", initial: "alpha beta", updated: "alpha beta gamma"},
+    {name: "delete middle word", initial: "alpha beta gamma", updated: "alpha gamma"},
+    {name: "delete all text", initial: "alpha beta gamma", updated: ""},
+    {name: "replace middle word", initial: "alpha beta gamma", updated: "alpha delta gamma"},
+    {
+        name: "replace punctuation-delimited word",
+        initial: "Fix login, signup, and logout.",
+        updated: "Fix login, billing, and logout.",
+    },
+    {
+        name: "replace repeated phrase",
+        initial: "repeat word repeat word",
+        updated: "repeat word changed word",
+    },
+    {name: "preserve doubled whitespace", initial: "alpha beta", updated: "alpha  beta"},
+])("title diffing handles word-boundary edit: $name", async ({initial, updated}) => {
+    const space = await TestSpace.create(context);
+    const session = await space.createSession({name: "Alice Smith", role: "Admin"});
+
+    const bot = await TestBot.createAndInstantiate(session);
+    const apiKey = await bot.createApiKey(session);
+
+    const task = await TestTask.create(session, {title: initial});
+
+    await ProcessContextModule.waitForTestTasks();
+
+    const response = await server.PATCH(`/tasks/${task.id}`, {
+        headers: {authorization: `bearer ${apiKey}`},
+        body: {
+            patches: [{type: "SetTitle", title: updated}],
+        },
+    });
+
+    expect(response).toMatchObject({
+        status: 200,
+        body: expect.objectContaining({
+            task: expect.objectContaining({
+                id: task.id,
+                title: updated,
+            }),
+        }),
+    });
+});
+
+test("title updates only touch changed words so concurrent edits can merge", async () => {
+    const space = await TestSpace.create(context);
+    const session = await space.createSession({name: "Alice Smith", role: "Admin"});
+
+    const bot = await TestBot.createAndInstantiate(session);
+    const apiKey = await bot.createApiKey(session);
+
+    const task = await TestTask.create(session, {title: "one two three four"});
+
+    await ProcessContextModule.waitForTestTasks();
+
+    const [firstWordResponse, thirdWordResponse] = await runAllPromises([
+        server.PATCH(`/tasks/${task.id}`, {
+            headers: {authorization: `bearer ${apiKey}`},
+            body: {
+                patches: [{type: "SetTitle", title: "ONE two three four"}],
+            },
+        }),
+        server.PATCH(`/tasks/${task.id}`, {
+            headers: {authorization: `bearer ${apiKey}`},
+            body: {
+                patches: [{type: "SetTitle", title: "one two THREE four"}],
+            },
+        }),
+    ]);
+
+    await ProcessContextModule.waitForTestTasks();
+
+    const finalResponse = await server.GET(`/tasks/${task.id}`, {
+        headers: {authorization: `bearer ${apiKey}`},
+    });
+
+    expect({
+        patchStatuses: [firstWordResponse.status, thirdWordResponse.status],
+        title: finalResponse.status === 200 ? finalResponse.body.task.title : undefined,
+    }).toEqual({
+        patchStatuses: [200, 200],
+        title: "ONE two THREE four",
+    });
+});
+
 test("returns 403 when updating a task with an actor outside the space", async () => {
     const space = await TestSpace.create(context);
     const otherSpace = await TestSpace.create(context);
@@ -1401,6 +1502,7 @@ test("setting active status without assignee auto-assigns the bot", async () => 
 
     await ProcessContextModule.waitForTestTasks();
 
+    const startTime = new Date();
     const response = await server.PATCH(`/tasks/${task.id}`, {
         headers: {authorization: `bearer ${apiKey}`},
         body: {
@@ -1420,6 +1522,20 @@ test("setting active status without assignee auto-assigns the bot", async () => 
             }),
         }),
     });
+
+    expect(
+        (await getTaskUpdateActionsSince(space, startTime)).map(action => action.taskAction),
+    ).toEqual([
+        expect.objectContaining({
+            type: "UpdateAssignee",
+            assignee: expect.objectContaining({assigneeId: bot.id}),
+        }),
+        expect.objectContaining({
+            type: "UpdateStatus",
+            status: {type: "Open"},
+            assigneeStatus: expect.objectContaining({type: "Active"}),
+        }),
+    ]);
 });
 
 test("can set active status when task already has an assignee", async () => {
@@ -1435,6 +1551,7 @@ test("can set active status when task already has an assignee", async () => {
 
     await ProcessContextModule.waitForTestTasks();
 
+    const startTime = new Date();
     const response = await server.PATCH(`/tasks/${task.id}`, {
         headers: {authorization: `bearer ${apiKey}`},
         body: {
@@ -1454,9 +1571,19 @@ test("can set active status when task already has an assignee", async () => {
             }),
         }),
     });
+
+    expect(
+        (await getTaskUpdateActionsSince(space, startTime)).map(action => action.taskAction),
+    ).toEqual([
+        expect.objectContaining({
+            type: "UpdateStatus",
+            status: {type: "Open"},
+            assigneeStatus: expect.objectContaining({type: "Active"}),
+        }),
+    ]);
 });
 
-test("can set an active task back to inactive without clearing assignee", async () => {
+test("SetStatus Open clears active status without clearing assignee", async () => {
     const space = await TestSpace.create(context);
     const session1 = await space.createSession({name: "Alice Smith", role: "Admin"});
     const session2 = await space.createSession({name: "Bob Johnson"});
@@ -1469,6 +1596,7 @@ test("can set an active task back to inactive without clearing assignee", async 
 
     await ProcessContextModule.waitForTestTasks();
 
+    const startTime = new Date();
     const response = await server.PATCH(`/tasks/${task.id}`, {
         headers: {authorization: `bearer ${apiKey}`},
         body: {
@@ -1488,6 +1616,10 @@ test("can set an active task back to inactive without clearing assignee", async 
             }),
         }),
     });
+
+    expect(
+        (await getTaskUpdateActionsSince(space, startTime)).map(action => action.taskAction),
+    ).toEqual([{type: "UpdateStatus", status: {type: "Open"}}]);
 });
 
 test("setting active status while clearing assignee auto-assigns the bot", async () => {
@@ -1564,23 +1696,24 @@ test("setting active status before changing assignee leaves the new assignee ina
     });
 });
 
-test("last title patch wins when updating the title multiple times", async () => {
+test("multiple title patches in one request diff against prior title patches", async () => {
     const space = await TestSpace.create(context);
     const session = await space.createSession({name: "Alice Smith", role: "Admin"});
 
     const bot = await TestBot.createAndInstantiate(session);
     const apiKey = await bot.createApiKey(session);
 
-    const task = await TestTask.create(session, {title: "Original Title"});
+    const task = await TestTask.create(session, {title: "one three"});
 
     await ProcessContextModule.waitForTestTasks();
 
+    const startTime = new Date();
     const response = await server.PATCH(`/tasks/${task.id}`, {
         headers: {authorization: `bearer ${apiKey}`},
         body: {
             patches: [
-                {type: "SetTitle", title: "Intermediate Title"},
-                {type: "SetTitle", title: "Final Title"},
+                {type: "SetTitle", title: "one two three"},
+                {type: "SetTitle", title: "one two three four"},
             ],
         },
     });
@@ -1590,10 +1723,14 @@ test("last title patch wins when updating the title multiple times", async () =>
         body: expect.objectContaining({
             task: expect.objectContaining({
                 id: task.id,
-                title: "Final Title",
+                title: "one two three four",
             }),
         }),
     });
+
+    expect(
+        (await getTaskUpdateActionsSince(space, startTime)).map(action => action.taskAction.type),
+    ).toEqual(["UpdateTitle", "UpdateTitle"]);
 });
 
 test("can clear and reassign before setting active in the same patch request", async () => {
