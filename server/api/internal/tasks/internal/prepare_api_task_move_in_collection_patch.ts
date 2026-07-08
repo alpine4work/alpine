@@ -64,15 +64,8 @@ export type ApiTaskMoveInCollectionPreparedPosition =
  */
 export async function prepareApiTaskMoveInCollectionPatch(
     context: ApiServiceBotActionContext,
-    {
-        spaceId,
-        taskId,
-        patch,
-    }: {
-        spaceId: SpaceId;
-        taskId: TaskId;
-        patch: ApiTaskMoveInCollectionPatch;
-    },
+    spaceId: SpaceId,
+    patch: ApiTaskMoveInCollectionPatch,
 ): Promise<ApiTaskMoveInCollectionPreparedPosition> {
     const {collectionId, position} = patch;
 
