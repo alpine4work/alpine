@@ -1,15 +1,16 @@
 import type {Sqlite3Static, WasmPointer} from "~/external/sqlite/ext/wasm/jswasm/sqlite3.mjs";
 import sqlite3InitModule from "~/external/sqlite/ext/wasm/jswasm/sqlite3.mjs";
+import type {DatabaseActionServerContext} from "~/shared/databases/database_action_context.js";
 import {
     type DatabaseActionName,
     type DatabaseActionObject,
     type DatabaseActionOutput,
-    type DatabaseActionServerContext,
     createDatabaseActionContext,
     databaseActions,
     executeDatabaseAction,
 } from "~/shared/databases/database_actions.js";
 import type {ReadonlyDatabasePageSet} from "~/shared/databases/database_protocol_schemas.js";
+import {hashWithPrivateSalt} from "~/shared/databases/hash_with_private_salt.js";
 import type {InstalledVfs, VfsFile} from "~/shared/databases/install_vfs.js";
 import {installVfs} from "~/shared/databases/install_vfs.js";
 import {DatabaseModel} from "~/shared/databases/model/database_root_model.js";
@@ -22,26 +23,37 @@ import {
 import {SqliteDatabase, trySqlite3WasmLoader} from "~/shared/databases/sqlite.js";
 import {
     type InternalSqliteWriteLevel,
+    type SqliteTableAccess,
     type SqliteWriteLevel,
+    deniedSqliteTableAccess,
     isSqliteActionAllowed,
+    isSqliteActionAllowedForSchemaAccess,
     sqliteAuthorizerActionName,
+    unrestrictedSqliteTableAccess,
 } from "~/shared/databases/sqlite_authorizer.js";
 import {
     databaseMainTableId,
     pageAccessFlagRead,
+    sqliteAttachEvictionThreshold,
     sqliteAttachPagePragma,
     sqliteOpenPragmas,
     sqlitePageSize,
 } from "~/shared/databases/sqlite_constants.js";
 import {registerSqliteCustomFunctions} from "~/shared/databases/sqlite_custom_functions.js";
+import {
+    joinTableSqliteMigrations,
+    tableSqliteMigrations,
+} from "~/shared/databases/sqlite_migrations.js";
 import {installTracing} from "~/shared/databases/sqlite_tracing.js";
 import {TableNotAttachedError} from "~/shared/databases/table_not_attached_error.js";
 import {VfsTempFile} from "~/shared/databases/vfs_temp_file.js";
+import {PermissionDeniedError} from "~/shared/error/error.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {captureResult, unwrapResult} from "~/shared/helpers/control/capture_result.js";
 import type {Result} from "~/shared/helpers/control/result.js";
 import {getOrSetDefaultMapValue} from "~/shared/helpers/map/get_or_set_default_map_value.js";
 import type {AccountId, DatabaseTableId} from "~/shared/id/types/id_types.js";
+import {Schema} from "~/shared/schema/schema.js";
 
 const vfsNamePrefix = "alpine-database";
 let vfsCounter = 0;
@@ -143,6 +155,20 @@ export interface DatabaseTrackedExecution<Value> {
 }
 
 /**
+ * Resolves a table's {@link SqliteTableAccess} capabilities for the current
+ * execution's account. Installed per execution (see {@link Database.execute});
+ * executions without a resolver are unrestricted (internal server code, service
+ * actors, and — until per-account enforcement ships there — the client).
+ *
+ * Returning `"unrestricted"` grants everything; resolvers should reserve it for
+ * schemas outside the permission model and return explicit capability flags for
+ * real tables.
+ */
+export type DatabaseTableAccessResolver = (
+    tableId: DatabaseTableId,
+) => SqliteTableAccess | "unrestricted";
+
+/**
  * SQLite database that buffers writes in memory.
  *
  * Built around a {@link ReadonlyDatabaseStorage}: every write goes into an
@@ -175,11 +201,44 @@ export class Database {
      */
     private readonly schemaToTable = new Map<string, DatabaseTableId>();
     private writeLevel: InternalSqliteWriteLevel | null = null;
+    /**
+     * Per-execution table access, installed via {@link execute}'s
+     * `tableAccessResolver` option; `null` runs unrestricted. Enforced by the
+     * authorizer for every statement except internal SQL (attach recovery and the
+     * `"attach"` write level).
+     */
+    private tableAccessResolver: DatabaseTableAccessResolver | null = null;
+    /**
+     * The last denial issued by the per-table authorizer layer, used to convert
+     * SQLite's generic "not authorized" error into a typed {@link
+     * PermissionDeniedError} naming the table. Cleared at the start of each tracked
+     * run.
+     */
+    private tableAccessDenial: {action: string; schemaName: string} | null = null;
     private currentReadSet: Map<DatabaseTableId, Set<number>> | null = null;
     private currentWriteSet: Map<DatabaseTableId, Set<number>> | null = null;
+    /**
+     * Monotonic clock for LRU eviction: bumped on every page access and attach,
+     * stamped into {@link DatabaseTableState.lastTouchedAt}.
+     */
+    private touchCounter = 0;
+    /** Attached-schema count at which {@link attach} starts evicting LRU tables. */
+    private readonly attachEvictionThreshold: number;
+    /**
+     * True while {@link tryAttachUnattachedTable} runs its own SQL, so the patched
+     * `prepare` (see {@link installAttachOnMiss}) doesn't recurse into recovery.
+     */
+    private inAttachRecovery = false;
     private readonly trackedExecutions = new Set<DatabaseTrackedExecutionImpl<any>>();
     private hasServerMainTableChangeTriggers = false;
     private readonly serverTableChangeTriggerTableIds = new Set<DatabaseTableId>();
+    /**
+     * Server-only hook invoked after every successful {@link attach}. The durable
+     * object uses it to load the freshly attached file's access-policy metadata,
+     * maintaining the invariant that every attached schema has a cached policy the
+     * authorizer's table-access resolver can consult synchronously.
+     */
+    private serverTableAttachHook: ((tableId: DatabaseTableId) => void) | null = null;
     private currentActionAccountId: AccountId | null = null;
     /**
      * Server-only action capabilities, or `null` on the client. Lets server-only
@@ -191,15 +250,24 @@ export class Database {
     private constructor(
         sqlite3: Sqlite3Static,
         storage: ReadonlyDatabaseStorage,
-        isServer: boolean,
+        {
+            isServer,
+            attachEvictionThreshold,
+            privateSalt,
+        }: {isServer: boolean; attachEvictionThreshold: number; privateSalt?: Uint8Array},
     ) {
         this.storage = storage;
-        this.serverContext = isServer
-            ? {
-                  attach: tableId => this.attachIfNeeded(tableId),
-                  getCurrentAccountId: () => this.currentActionAccountId,
-              }
-            : null;
+        this.attachEvictionThreshold = attachEvictionThreshold;
+        if (isServer) {
+            assert(privateSalt !== undefined, "a server database requires a private salt");
+            this.serverContext = {
+                attach: tableId => this.attachIfNeeded(tableId),
+                getCurrentAccountId: () => this.currentActionAccountId,
+                hashWithPrivateSalt: value => hashWithPrivateSalt(privateSalt, value),
+            };
+        } else {
+            this.serverContext = null;
+        }
         this.tables.set(databaseMainTableId, new DatabaseTableState());
         // SQLite reserves the schema name "main" for `aDb[0]`, so the connection's main
         // table is always reachable under that name.
@@ -234,18 +302,51 @@ export class Database {
 
         this.db = new sqlite3.oo1.DB(`/${databaseMainTableId}`, "c", vfsName);
         installTracing(this.db);
+        this.installAttachOnMiss();
 
         capi.sqlite3_set_authorizer(
             this.db.pointer!,
-            (_cbArg: WasmPointer, actionCode: number, actionArg: string | 0) => {
+            (
+                _cbArg: WasmPointer,
+                actionCode: number,
+                actionArg: string | 0,
+                actionArg2: string | 0,
+                schemaArg: string | 0,
+            ) => {
                 const action = sqliteAuthorizerActionName(actionCode);
                 if (action === undefined) return capi.SQLITE_DENY;
                 // SQLite passes the C null pointer (`0`) when an action has no string argument;
                 // normalize to `null` for the authorizer.
                 const arg = typeof actionArg === "string" ? actionArg : null;
-                return isSqliteActionAllowed(action, arg, this.writeLevel)
-                    ? capi.SQLITE_OK
-                    : capi.SQLITE_DENY;
+                if (!isSqliteActionAllowed(action, arg, this.writeLevel)) {
+                    return capi.SQLITE_DENY;
+                }
+                // The per-table layer. Skipped for internal SQL: the `"attach"` write level (only
+                // settable by `Database` itself) and attach-on-miss recovery (registry lookups,
+                // `user_version` asserts, and change-capture trigger DDL that must succeed
+                // regardless of the ambient account's access).
+                if (
+                    this.tableAccessResolver !== null &&
+                    this.writeLevel !== "attach" &&
+                    !this.inAttachRecovery
+                ) {
+                    const schemaName = typeof schemaArg === "string" ? schemaArg : null;
+                    const allowed = isSqliteActionAllowedForSchemaAccess({
+                        action,
+                        arg1: arg,
+                        arg2: typeof actionArg2 === "string" ? actionArg2 : null,
+                        schemaName,
+                        resolveSchemaAccess: this.resolveSchemaAccess,
+                    });
+                    if (!allowed) {
+                        this.tableAccessDenial = {
+                            action,
+                            schemaName: (action === "alter-table" ? arg : schemaName) ?? "",
+                        };
+                        return capi.SQLITE_DENY;
+                    }
+                }
+                return capi.SQLITE_OK;
             },
             0,
         );
@@ -260,20 +361,32 @@ export class Database {
     }
 
     /**
-     * Open a {@link Database} backed by `storage`. Pass `{server: true}` to grant
-     * server-only action capabilities (attaching per-table files); the client leaves
-     * it off so its actions can't attach.
+     * Open a {@link Database} backed by `storage`. Pass `server` (with the group's
+     * private salt) to grant server-only action capabilities — attaching per-table
+     * files and salted name hashing; the client leaves it off so its actions can't
+     * attach.
      */
     static async create(
         storage: ReadonlyDatabaseStorage,
-        options?: {server?: boolean},
+        options?: {
+            server?: {privateSalt: Uint8Array};
+            attachEvictionThresholdForTests?: number;
+        },
     ): Promise<Database> {
+        if (options?.attachEvictionThresholdForTests !== undefined) {
+            assert(import.meta.jest, "attachEvictionThresholdForTests is test-only");
+        }
         if (sqlite3Promise === undefined) {
             const instantiateWasm = trySqlite3WasmLoader();
             sqlite3Promise = sqlite3InitModule(instantiateWasm ? {instantiateWasm} : undefined);
         }
         const sqlite3 = await sqlite3Promise;
-        return new Database(sqlite3, storage, options?.server ?? false);
+        return new Database(sqlite3, storage, {
+            isServer: options?.server !== undefined,
+            attachEvictionThreshold:
+                options?.attachEvictionThresholdForTests ?? sqliteAttachEvictionThreshold,
+            privateSalt: options?.server?.privateSalt,
+        });
     }
 
     /**
@@ -282,27 +395,47 @@ export class Database {
      * point; {@link executeSql} and {@link executeAction} are thin wrappers.
      *
      * `allowWrites` controls which classes of statement the authorizer permits while
-     * `fn` runs. On the canonical (server) database, a schema change also triggers
-     * `PRAGMA optimize` inside the same tracked call (see {@link
-     * maybeOptimizeAfterWrites}).
+     * `fn` runs. `tableAccessResolver` additionally restricts which attached table
+     * files those statements may touch (see {@link DatabaseTableAccessResolver}); omit
+     * it to inherit the ambient resolver, pass `null` to run unrestricted. On the
+     * canonical (server) database, a schema change also triggers `PRAGMA optimize`
+     * inside the same tracked call (see {@link maybeOptimizeAfterWrites}).
      */
     execute<T>(
         fn: (db: SqliteDatabase) => T,
-        options: {allowWrites: SqliteWriteLevel},
+        options: {
+            allowWrites: SqliteWriteLevel;
+            tableAccessResolver?: DatabaseTableAccessResolver | null;
+        },
     ): {result: T; readPages: ReadonlyDatabasePageSet; writtenPages: ReadonlyDatabasePageSet} {
-        return this.runTracked(options.allowWrites, db => {
-            const result = fn(db);
-            this.maybeOptimizeAfterWrites(options.allowWrites);
-            return result;
-        });
+        const previousResolver = this.tableAccessResolver;
+        if (options.tableAccessResolver !== undefined) {
+            this.tableAccessResolver = options.tableAccessResolver;
+        }
+        try {
+            return this.runTracked(options.allowWrites, db => {
+                const result = fn(db);
+                this.maybeOptimizeAfterWrites(options.allowWrites);
+                return result;
+            });
+        } finally {
+            this.tableAccessResolver = previousResolver;
+        }
     }
 
     /**
      * Run a {@link SqlQuery} (built with the {@link sql} tagged template) against the
      * database. `allowWrites` controls which classes of statement the authorizer
-     * permits.
+     * permits; `tableAccessResolver` restricts which attached table files it may touch
+     * (see {@link execute}).
      */
-    executeSql(query: SqlQuery, options: {allowWrites: SqliteWriteLevel}): DatabaseExecuteResult {
+    executeSql(
+        query: SqlQuery,
+        options: {
+            allowWrites: SqliteWriteLevel;
+            tableAccessResolver?: DatabaseTableAccessResolver | null;
+        },
+    ): DatabaseExecuteResult {
         const {result, readPages, writtenPages} = this.execute(
             db => query.selectAllUnknown(db),
             options,
@@ -316,20 +449,81 @@ export class Database {
      */
     executeAction<N extends DatabaseActionName>(
         actionObject: DatabaseActionObject<N>,
-        options?: {currentAccountId?: AccountId | null},
+        options?: {
+            currentAccountId?: AccountId | null;
+            tableAccessResolver?: DatabaseTableAccessResolver | null;
+        },
     ): DatabaseExecuteActionResult<N> {
         const previousActionAccountId = this.currentActionAccountId;
         this.currentActionAccountId = options?.currentAccountId ?? null;
         try {
             const action = databaseActions[actionObject.name];
-            const ctx = createDatabaseActionContext(this.db, this.serverContext);
+            const ctx = createDatabaseActionContext(
+                this.db,
+                this.serverContext,
+                this.getTableAccessForCurrentExecution,
+            );
             const {result, readPages, writtenPages} = this.execute(
                 () => executeDatabaseAction(actionObject, ctx),
-                {allowWrites: action.writeLevel},
+                {
+                    allowWrites: action.writeLevel,
+                    tableAccessResolver: options?.tableAccessResolver,
+                },
             );
             return {result: result as DatabaseActionOutput<N>, readPages, writtenPages};
         } finally {
             this.currentActionAccountId = previousActionAccountId;
+        }
+    }
+
+    /**
+     * The current execution's capabilities on `tableId`, resolved from the installed
+     * {@link DatabaseTableAccessResolver} (everything when none is installed). Handed
+     * to action contexts so shared action code — e.g. relation fields deciding whether
+     * they may join into a linked table — sees the same verdicts the authorizer
+     * enforces.
+     */
+    readonly getTableAccessForCurrentExecution = (tableId: DatabaseTableId): SqliteTableAccess => {
+        const resolver = this.tableAccessResolver;
+        if (resolver === null) return unrestrictedSqliteTableAccess;
+        const access = resolver(tableId);
+        return access === "unrestricted" ? unrestrictedSqliteTableAccess : access;
+    };
+
+    /**
+     * Server-only: install a hook invoked after every successful {@link attach} with
+     * the attached table's id. See {@link serverTableAttachHook}. The hook may run its
+     * own SQL via {@link \_runServerMetadataRead} and may attach further tables (e.g.
+     * a join file's two joined tables).
+     */
+    _installServerTableAttachHook(hook: (tableId: DatabaseTableId) => void): void {
+        assert(this.serverContext !== null, "table attach hook is server-only");
+        this.serverTableAttachHook = hook;
+    }
+
+    /**
+     * Server-only: run internal metadata reads against the raw SQLite handle, outside
+     * the current execution's authorization and page tracking. The per-table
+     * authorizer layer is bypassed (the reads consult metadata the ambient account may
+     * not have access to — that's the point) and page reads stay out of the tracked
+     * read set so they never leak into a user execution's `readPages` broadcast.
+     */
+    _runServerMetadataRead<T>(fn: (db: SqliteDatabase) => T): T {
+        assert(this.serverContext !== null, "server metadata reads are server-only");
+        const previousInAttachRecovery = this.inAttachRecovery;
+        const previousReadSet = this.currentReadSet;
+        const previousWriteSet = this.currentWriteSet;
+        // `inAttachRecovery` doubles as the authorizer's internal-SQL bypass and disables
+        // attach-on-miss recursion in the patched `prepare`.
+        this.inAttachRecovery = true;
+        this.currentReadSet = null;
+        this.currentWriteSet = null;
+        try {
+            return fn(this.db);
+        } finally {
+            this.inAttachRecovery = previousInAttachRecovery;
+            this.currentReadSet = previousReadSet;
+            this.currentWriteSet = previousWriteSet;
         }
     }
 
@@ -390,28 +584,7 @@ export class Database {
         for (const tableId of model.getTableIds("table")) {
             if (!this.tables.has(tableId)) continue;
             if (this.serverTableChangeTriggerTableIds.has(tableId)) continue;
-            const schema = sql.identifier(databaseTableSchemaName(tableId));
-            const triggerNamePrefix = `_${tableId}`;
-            sql`
-                CREATE TEMP TRIGGER IF NOT EXISTS ${sql.identifier(
-                    `${triggerNamePrefix}_alpine_table_change_insert`,
-                )} AFTER INSERT ON ${schema}._alpine_table BEGIN
-                SELECT
-                    alpine_record_table_changed (NEW.id);
-
-                END
-            `.exec(this.db);
-            sql`
-                CREATE TEMP TRIGGER IF NOT EXISTS ${sql.identifier(
-                    `${triggerNamePrefix}_alpine_table_change_update`,
-                )} AFTER
-                UPDATE ON ${schema}._alpine_table BEGIN
-                SELECT
-                    alpine_record_table_changed (NEW.id);
-
-                END
-            `.exec(this.db);
-            this.serverTableChangeTriggerTableIds.add(tableId);
+            this.createServerTableChangeTriggersForTable(tableId);
         }
     }
 
@@ -574,13 +747,26 @@ export class Database {
      * statements is legal, and the surrounding write level is saved and restored. The
      * caller is responsible for ensuring the backing `storage` already has a page
      * store for `tableId` before this is invoked.
+     *
+     * At {@link sqliteAttachEvictionThreshold} attached schemas, the
+     * least-recently-used per-table files are detached first to stay under SQLite's
+     * compile-time `SQLITE_MAX_ATTACHED` limit. A statement that later references an
+     * evicted file re-attaches it via {@link installAttachOnMiss}.
      */
     attach(tableId: DatabaseTableId): void {
         assert(!this.tables.has(tableId), `attach: table already attached: ${tableId}`);
 
+        // Make room before inserting the new entry — evicting after could pick the
+        // not-yet-opened table itself as a victim.
+        this.evictForAttachCapacity();
+
         // The VFS open callback runs synchronously during ATTACH and looks up state by
-        // tableId, so the entry must exist before the SQL runs.
-        this.tables.set(tableId, new DatabaseTableState());
+        // tableId, so the entry must exist before the SQL runs. Stamp the new table
+        // warmest: a statement referencing several unattached schemas re-attaches them one
+        // at a time, and a cold stamp would let each recovery evict the previous one.
+        const state = new DatabaseTableState();
+        state.lastTouchedAt = ++this.touchCounter;
+        this.tables.set(tableId, state);
 
         // The VFS filename is the raw table id; the SQLite schema name is `_`-prefixed to
         // mark it internal (see {@link databaseTableSchemaName}).
@@ -604,6 +790,32 @@ export class Database {
         // The new pager exists now; re-install the hook so the C side loops over the
         // updated `aDb[]` and covers it too.
         this.installPageAccessHook();
+
+        // Let the server load the new file's access-policy metadata while the attach is
+        // fresh — before any statement can touch the schema under a restricted resolver.
+        this.serverTableAttachHook?.(tableId);
+    }
+
+    /**
+     * `DETACH` `tableId`'s per-table file if it is attached, dropping any buffered
+     * writes to it. Returns `false` without detaching when SQLite reports the schema
+     * locked (the open transaction touched it) — the caller should retry later. Used
+     * by the client to purge a table the account lost access to.
+     */
+    detachTableIfAttached(tableId: DatabaseTableId): boolean {
+        if (!this.tables.has(tableId)) return true;
+        return this.tryDetachTable(tableId);
+    }
+
+    /**
+     * Whether attaching another per-table file would trigger LRU eviction. Callers
+     * that eagerly attach tables as an optimization (e.g. the client's
+     * `attachKnownTables`) should stop here — past this point eager attaches just
+     * churn the working set, since any table they evict re-attaches on first use
+     * anyway.
+     */
+    isAtAttachCapacity(): boolean {
+        return this.tables.size >= this.attachEvictionThreshold;
     }
 
     close(): void {
@@ -619,6 +831,34 @@ export class Database {
     // -- Internal -----------------------------------------------------------
 
     /**
+     * Read-and-clear the last per-table authorizer denial. A method (rather than a
+     * direct field read) so TypeScript doesn't narrow the field to the `null` it was
+     * reset to before the statement ran — the authorizer callback mutates it out of
+     * band.
+     */
+    private takeTableAccessDenial(): {action: string; schemaName: string} | null {
+        const denial = this.tableAccessDenial;
+        this.tableAccessDenial = null;
+        return denial;
+    }
+
+    /**
+     * Maps an authorizer schema name to the current execution's capabilities. `main`
+     * (the public ID-only registry) and SQLite's `temp` schema sit outside the
+     * per-table permission model; unknown schemas fail closed.
+     */
+    private readonly resolveSchemaAccess = (
+        schemaName: string,
+    ): SqliteTableAccess | "unrestricted" => {
+        if (schemaName === "main" || schemaName === "temp") return "unrestricted";
+        const tableId = this.schemaToTable.get(schemaName);
+        if (tableId === undefined) return deniedSqliteTableAccess;
+        const resolver = this.tableAccessResolver;
+        assert(resolver !== null, "resolveSchemaAccess requires an installed resolver");
+        return resolver(tableId);
+    };
+
+    /**
      * Captures cache-hit reads via the page access hook so {@link execute} returns a
      * complete read set even when SQLite serves pages from its pager cache without
      * going through `xRead`. The hook fires for every attached database; demux on
@@ -628,11 +868,16 @@ export class Database {
      * the FuncPtrAdapter doesn't churn wasm thunks.
      */
     private readonly handlePageAccess = (schemaName: string, pgno: number, flags: number): void => {
+        const tableId = this.schemaToTable.get(schemaName);
+        if (tableId === undefined) return;
+        // Both reads and writes count as LRU touches for eviction.
+        const state = this.tables.get(tableId);
+        if (state !== undefined) {
+            state.lastTouchedAt = ++this.touchCounter;
+        }
         if (flags !== pageAccessFlagRead) return;
         const readSet = this.currentReadSet;
         if (readSet === null) return;
-        const tableId = this.schemaToTable.get(schemaName);
-        if (tableId === undefined) return;
         addToTablePageSet(readSet, tableId, pgno - 1);
     };
 
@@ -642,6 +887,252 @@ export class Database {
      */
     private installPageAccessHook(): void {
         this.db.pageAccessHook(this.handlePageAccess);
+    }
+
+    /**
+     * Monkey-patches `db.prepare` so a statement referencing an unattached per-table
+     * schema attaches the file and retries instead of failing. The `oo1` `exec()`
+     * implementation prepares its statements through this same patched `prepare`, so
+     * multi-statement batches recover too — and because "no such table" fires at
+     * prepare time (before the statement has any effect) and the retry happens
+     * _inside_ `prepare`, statements the batch already executed are never re-run.
+     *
+     * Each `prepare` call attaches any given schema at most once: a second miss on the
+     * same schema means the reference is genuinely broken (or the statement references
+     * more schemas than the attach limit allows) and the original error surfaces.
+     */
+    private installAttachOnMiss(): void {
+        const originalPrepare = this.db.prepare.bind(this.db);
+        (this.db as any).prepare = (sqlArg: any) => {
+            let recoveredTableIds: Set<DatabaseTableId> | null = null;
+            for (;;) {
+                try {
+                    return originalPrepare(sqlArg as string);
+                } catch (error) {
+                    if (this.inAttachRecovery || !(error instanceof Error)) throw error;
+                    const tableId = parseUnattachedTableMessage(error.message);
+                    // Bail when the named schema is already attached — then it's a missing inner
+                    // table, not an unattached file.
+                    if (
+                        tableId === null ||
+                        this.tables.has(tableId) ||
+                        recoveredTableIds?.has(tableId) === true ||
+                        !this.tryAttachUnattachedTable(tableId)
+                    ) {
+                        throw error;
+                    }
+                    (recoveredTableIds ??= new Set()).add(tableId);
+                }
+            }
+        };
+    }
+
+    /**
+     * Attempt to recover from a statement referencing `tableId`'s unattached per-db
+     * file by attaching it. Returns whether the caller should retry.
+     *
+     * Server: the table must exist in main's `_alpine_tables` registry — attaching an
+     * unregistered name would create a phantom empty file through the VFS. Every
+     * registered file is migration-current (the bootstrap sweep migrates existing
+     * files before actions run; `createTable` migrates new ones at creation), which is
+     * asserted rather than repaired here: running migrations mid-statement would
+     * buffer writes inside whatever read/write context triggered the miss.
+     * Change-capture triggers are recreated for user tables since eviction drops them.
+     *
+     * Client: only attaches files whose header page is locally cached — under
+     * `locking_mode = EXCLUSIVE`, attaching a headerless store would permanently cache
+     * an empty schema. An unrecoverable miss keeps the original error, which {@link
+     * runTracked} converts to {@link TableNotAttachedError} for the server-fallback
+     * path.
+     */
+    private tryAttachUnattachedTable(tableId: DatabaseTableId): boolean {
+        this.inAttachRecovery = true;
+        try {
+            if (this.serverContext !== null) {
+                // captureResult: a server database whose main file predates the registry (only
+                // reachable in tests that skip runMainMigrations) can't recover anything, and the
+                // original statement's error should surface — not the registry lookup's.
+                const kindResult = captureResult(() =>
+                    sql`
+                        SELECT
+                            kind
+                        FROM
+                            main._alpine_tables
+                        WHERE
+                            id = ${tableId}
+                    `.selectValueIfExists(this.db, Schema.enum(["table", "join"])),
+                );
+                if (!kindResult.ok || kindResult.value === null) return false;
+                const kind = kindResult.value;
+                this.attach(tableId);
+                this.assertAttachedTableMigrationsAreCurrent(tableId, kind);
+                if (kind === "table" && this.hasServerMainTableChangeTriggers) {
+                    this.recreateServerTableChangeTriggersAfterAttach(tableId);
+                }
+                return true;
+            }
+            const headerPage = captureResult(() => this.storage.readPage(tableId, 0));
+            if (!headerPage.ok || headerPage.value === null) return false;
+            this.attach(tableId);
+            return true;
+        } finally {
+            this.inAttachRecovery = false;
+        }
+    }
+
+    /**
+     * Detach least-recently-used per-table files until the attached-schema count is
+     * back under {@link attachEvictionThreshold}. Skips `main`, tables with buffered
+     * writes (their pages would be lost with the {@link DatabaseTableState} entry),
+     * and tables the open transaction has touched (SQLite holds a btree transaction on
+     * those until commit, so `DETACH` reports them locked). When every candidate is
+     * pinned, gives up and relies on the headroom between the threshold and the hard
+     * `SQLITE_MAX_ATTACHED` limit.
+     */
+    private evictForAttachCapacity(): void {
+        const pinned = new Set<DatabaseTableId>();
+        while (this.tables.size >= this.attachEvictionThreshold) {
+            const victim = this.findAttachEvictionVictim(pinned);
+            if (victim === null) return;
+            if (!this.tryDetachTable(victim)) {
+                pinned.add(victim);
+            }
+        }
+    }
+
+    /** Least-recently-touched evictable table, or `null` if none qualifies. */
+    private findAttachEvictionVictim(pinned: ReadonlySet<DatabaseTableId>): DatabaseTableId | null {
+        let victimId: DatabaseTableId | null = null;
+        let victimTouchedAt = Infinity;
+        for (const [tableId, state] of this.tables) {
+            if (tableId === databaseMainTableId || pinned.has(tableId)) continue;
+            if (state.bufferedPages.size > 0 || state.bufferedTruncate !== null) continue;
+            if (state.lastTouchedAt < victimTouchedAt) {
+                victimId = tableId;
+                victimTouchedAt = state.lastTouchedAt;
+            }
+        }
+        return victimId;
+    }
+
+    /**
+     * `DETACH` a per-table file and forget its state. Returns `false` without
+     * detaching when SQLite reports the schema locked (the open transaction touched
+     * it); the caller should pick another victim.
+     */
+    private tryDetachTable(tableId: DatabaseTableId): boolean {
+        const schemaName = databaseTableSchemaName(tableId);
+        const previousWriteLevel = this.writeLevel;
+        this.writeLevel = "attach";
+        try {
+            sql`DETACH DATABASE ${sql.identifier(schemaName)}`.exec(this.db);
+        } catch (error) {
+            if (error instanceof Error && error.message.includes("is locked")) return false;
+            throw error;
+        } finally {
+            this.writeLevel = previousWriteLevel;
+        }
+        this.tables.delete(tableId);
+        this.schemaToTable.delete(schemaName);
+        this.dropServerTableChangeTriggersForDetachedTable(tableId);
+        return true;
+    }
+
+    /**
+     * Drop a detached table's change-capture temp triggers. They survive `DETACH`
+     * (still listed in `temp.sqlite_master`) but never fire again, and the
+     * `CREATE TEMP TRIGGER IF NOT EXISTS` in {@link
+     * createServerTableChangeTriggersForTable} would keep the dead ones on re-attach —
+     * silently dropping table-metadata replication. Dropping them here (and clearing
+     * the bookkeeping) makes re-attach recreate working triggers.
+     */
+    private dropServerTableChangeTriggersForDetachedTable(tableId: DatabaseTableId): void {
+        if (!this.serverTableChangeTriggerTableIds.has(tableId)) return;
+        const triggerNamePrefix = `_${tableId}`;
+        const previousWriteLevel = this.writeLevel;
+        this.writeLevel = "schema+data";
+        try {
+            sql`
+                DROP TRIGGER ${sql.identifier(`${triggerNamePrefix}_alpine_table_change_insert`)}
+            `.exec(this.db);
+            sql`
+                DROP TRIGGER ${sql.identifier(`${triggerNamePrefix}_alpine_table_change_update`)}
+            `.exec(this.db);
+        } finally {
+            this.writeLevel = previousWriteLevel;
+        }
+        this.serverTableChangeTriggerTableIds.delete(tableId);
+    }
+
+    /**
+     * Recreate `tableId`'s change-capture temp triggers right after an attach-on-miss
+     * re-attach. Waiting for the post-execute {@link refreshServerTableChangeTriggers}
+     * would miss `_alpine_table` writes made by the very statement whose miss
+     * triggered the re-attach.
+     */
+    private recreateServerTableChangeTriggersAfterAttach(tableId: DatabaseTableId): void {
+        const previousWriteLevel = this.writeLevel;
+        // The ambient level may be read-only; trigger DDL is our own trusted SQL.
+        this.writeLevel = "schema+data";
+        try {
+            this.createServerTableChangeTriggersForTable(tableId);
+        } finally {
+            this.writeLevel = previousWriteLevel;
+        }
+    }
+
+    /** Create the insert+update change-capture temp triggers for one user table. */
+    private createServerTableChangeTriggersForTable(tableId: DatabaseTableId): void {
+        const schema = sql.identifier(databaseTableSchemaName(tableId));
+        const triggerNamePrefix = `_${tableId}`;
+        sql`
+            CREATE TEMP TRIGGER IF NOT EXISTS ${sql.identifier(
+                `${triggerNamePrefix}_alpine_table_change_insert`,
+            )} AFTER INSERT ON ${schema}._alpine_table BEGIN
+            SELECT
+                alpine_record_table_changed (NEW.id);
+
+            END
+        `.exec(this.db);
+        sql`
+            CREATE TEMP TRIGGER IF NOT EXISTS ${sql.identifier(
+                `${triggerNamePrefix}_alpine_table_change_update`,
+            )} AFTER
+            UPDATE ON ${schema}._alpine_table BEGIN
+            SELECT
+                alpine_record_table_changed (NEW.id);
+
+            END
+        `.exec(this.db);
+        this.serverTableChangeTriggerTableIds.add(tableId);
+    }
+
+    /**
+     * Assert an attach-on-miss'd file has all known migrations applied. The
+     * `user_version` read needs the internal `"attach"` level so the authorizer
+     * permits the PRAGMA regardless of the ambient write level.
+     */
+    private assertAttachedTableMigrationsAreCurrent(
+        tableId: DatabaseTableId,
+        kind: "table" | "join",
+    ): void {
+        const migrationCount =
+            kind === "table"
+                ? tableSqliteMigrations(tableId).length
+                : joinTableSqliteMigrations(tableId).length;
+        const schema = sql.identifier(databaseTableSchemaName(tableId));
+        const previousWriteLevel = this.writeLevel;
+        this.writeLevel = "attach";
+        let version: number;
+        try {
+            version = sql`PRAGMA ${schema}.user_version`.selectValue(this.db, Schema.integer);
+        } finally {
+            this.writeLevel = previousWriteLevel;
+        }
+        assert(
+            version === migrationCount,
+            `attach-on-miss found ${kind} ${tableId} with user_version ${version}, expected ${migrationCount}`,
+        );
     }
 
     private runTracked<T>(
@@ -662,6 +1153,7 @@ export class Database {
         this.writeLevel = writeLevel;
         this.currentReadSet = readPages;
         this.currentWriteSet = writtenPages;
+        this.tableAccessDenial = null;
         try {
             const result = fn(this.db);
             if (parentReadSet !== null) {
@@ -679,17 +1171,36 @@ export class Database {
                 }
                 throw stashed;
             }
-            // A query against a table whose per-db file isn't attached (a table this client
-            // holds no pages for — every known table is attached up front) fails at statement
-            // preparation with "no such table" / "unknown database" — before any page read.
-            // Recover the tableId from the error text and rethrow as TableNotAttachedError so
-            // the client falls back to the server, whose response supplies the table's pages
-            // and attaches it.
+            // A statement the per-table authorizer layer rejected fails with SQLite's
+            // authorization error ("not authorized", or "access to X is prohibited" for read
+            // denials at prepare time); convert it into a typed error naming the table so
+            // callers (and tests) can distinguish a permission denial from other SQL failures.
+            // Global write-level denials leave no marker and surface as-is.
+            const denial = this.takeTableAccessDenial();
+            if (
+                denial !== null &&
+                error instanceof Error &&
+                (error.message.includes("not authorized") ||
+                    error.message.includes("is prohibited"))
+            ) {
+                const tableId = this.schemaToTable.get(denial.schemaName) ?? denial.schemaName;
+                const permissionError = new PermissionDeniedError(
+                    `Permission denied for ${denial.action} on database table ${tableId}`,
+                );
+                permissionError.cause = error;
+                throw permissionError;
+            }
+            // A query against an unattached per-db file fails at statement preparation with
+            // "no such table" / "unknown database". The patched `prepare` (see
+            // `installAttachOnMiss`) already attached-and-retried where it could; an error
+            // reaching this catch means recovery wasn't possible. On the client that's a table
+            // with no locally cached header page — rethrow as TableNotAttachedError so the
+            // client falls back to the server, whose response supplies the table's pages and
+            // attaches it.
             //
-            // Client-only: the canonical server attaches every per-db file it touches, so the
-            // same error there is a genuine bug and must surface as-is. Bail too when the
-            // named schema _is_ attached — then it's a missing inner table, not an unattached
-            // file.
+            // Client-only: the server can attach any registered table on miss, so the same
+            // error there is a genuine bug and must surface as-is. Bail too when the named
+            // schema _is_ attached — then it's a missing inner table, not an unattached file.
             if (this.serverContext === null && error instanceof Error) {
                 const tableId = parseUnattachedTableMessage(error.message);
                 if (tableId !== null && !this.tables.has(tableId)) {
@@ -845,6 +1356,12 @@ class DatabaseTableState {
      * scanning the buffer on every read.
      */
     bufferedMaxPageIndex: number | null = null;
+    /**
+     * {@link Database}'s touch counter value at this table's last page access (read or
+     * write) or attach. Lowest value = least recently used, first evicted when the
+     * attach threshold is hit.
+     */
+    lastTouchedAt = 0;
 
     reset(): void {
         this.bufferedPages.clear();

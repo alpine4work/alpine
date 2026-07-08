@@ -775,6 +775,7 @@ describe("ensureCacheIsUpToDate", () => {
                     fileSizeInPages: number;
                 }
             >;
+            tableAccess: Map<DatabaseTableId, "none" | "read" | "write">;
         }) => void;
         const validationGate = new Promise<{
             tables: Map<
@@ -785,6 +786,7 @@ describe("ensureCacheIsUpToDate", () => {
                     fileSizeInPages: number;
                 }
             >;
+            tableAccess: Map<DatabaseTableId, "none" | "read" | "write">;
         }>(resolve => {
             resolveValidation = resolve;
         });
@@ -838,6 +840,7 @@ describe("ensureCacheIsUpToDate", () => {
                     },
                 ],
             ]),
+            tableAccess: new Map(),
         });
         await validation;
 
@@ -1772,5 +1775,149 @@ describe("DatabaseClient handle release", () => {
         expect(rows).toMatchObject([{n: 1}]);
 
         reopened.close();
+    });
+});
+
+describe("DatabaseClient — table access levels", () => {
+    /**
+     * Attach a per-table file to `client` and create a populated `items` table in it,
+     * committed to the local OPFS store.
+     */
+    async function attachItemsTable(client: DatabaseClient): Promise<DatabaseTableId> {
+        const tableId = generateChronologicalId<DatabaseTableId>();
+        await client.attachTableForTests(tableId);
+        client.executeLocallyForTests(sql`
+            CREATE TABLE ${sql.tableRef(tableId, "items")} (id INTEGER PRIMARY KEY)
+        `);
+        client.executeLocallyForTests(sql`
+            INSERT INTO
+                ${sql.tableRef(tableId, "items")}
+            VALUES
+                (1)
+        `);
+        client.commitOptimisticPagesForTests();
+        return tableId;
+    }
+
+    test("stores the map from ensureCacheIsUpToDate and merges event deltas", async () => {
+        const client = await DatabaseClient.create(createInMemoryOpfsDirectoryHandle());
+        const readableTableId = generateChronologicalId<DatabaseTableId>();
+        const hiddenTableId = generateChronologicalId<DatabaseTableId>();
+        const conn = makeDatabaseClientConnection({
+            ensureCacheIsUpToDate: () =>
+                Promise.resolve({
+                    tables: new Map(),
+                    tableAccess: new Map<DatabaseTableId, "none" | "read" | "write">([
+                        [readableTableId, "read"],
+                        [hiddenTableId, "none"],
+                    ]),
+                }),
+        });
+        await client.ensureCacheIsUpToDate(conn);
+
+        await client.applyTableAccessLevels(new Map([[hiddenTableId, "write"]]));
+
+        expect({
+            readable: client.getTableAccessLevel(readableTableId),
+            granted: client.getTableAccessLevel(hiddenTableId),
+            unknown: client.getTableAccessLevel(generateChronologicalId<DatabaseTableId>()),
+        }).toEqual({readable: "read", granted: "write", unknown: "write"});
+
+        client.close();
+    });
+
+    test("a denied optimistic write fails fast without contacting the server", async () => {
+        const client = await DatabaseClient.create(createInMemoryOpfsDirectoryHandle());
+        const tableId = await attachItemsTable(client);
+        await client.applyTableAccessLevels(new Map([[tableId, "read"]]));
+
+        let serverCalled = false;
+        const conn = makeDatabaseClientConnection({
+            async executeActionServer() {
+                serverCalled = true;
+                throw new InternalError("unreachable");
+            },
+        });
+
+        await expect(
+            client.executeAction(conn, {
+                name: "rawSql",
+                input: rawSqlInput(sql`
+                    INSERT INTO
+                        ${sql.tableRef(tableId, "items")}
+                    VALUES
+                        (2)
+                `),
+            }),
+        ).rejects.toThrow(`Permission denied for insert on database table ${tableId}`);
+        expect(serverCalled).toBe(false);
+
+        client.close();
+    });
+
+    test("a revocation delta purges the table\u2019s OPFS pages and detaches it", async () => {
+        const groupDir = createInMemoryOpfsDirectoryHandle();
+        const client = await DatabaseClient.create(groupDir);
+        const tableId = await attachItemsTable(client);
+
+        await client.applyTableAccessLevels(new Map([[tableId, "none"]]));
+
+        const opfsEntries: Array<string> = [];
+        for await (const name of groupDir.keys()) {
+            opfsEntries.push(name);
+        }
+        expect(opfsEntries).toEqual([databaseMainTableId]);
+
+        // With the pages gone and the file detached, a read of the table no longer
+        // resolves locally — it routes to the server, which enforces the denial.
+        let serverCalled = false;
+        const conn = makeDatabaseClientConnection({
+            async executeActionServer() {
+                serverCalled = true;
+                return {
+                    result: {name: "rawSql", output: {rows: []}},
+                    readPages: new Map(),
+                    fileSizesInPages: null,
+                };
+            },
+        });
+        await execute(
+            client,
+            conn,
+            sql`
+                SELECT
+                    *
+                FROM
+                    ${sql.tableRef(tableId, "items")}
+            `,
+        );
+        expect(serverCalled).toBe(true);
+
+        client.close();
+    });
+
+    test("ensureCacheIsUpToDate purges tables the full access map revokes", async () => {
+        const groupDir = createInMemoryOpfsDirectoryHandle();
+        const client = await DatabaseClient.create(groupDir);
+        const tableId = await attachItemsTable(client);
+
+        const conn = makeDatabaseClientConnection({
+            ensureCacheIsUpToDate: () =>
+                Promise.resolve({
+                    tables: new Map(),
+                    tableAccess: new Map<DatabaseTableId, "none" | "read" | "write">([
+                        [tableId, "none"],
+                    ]),
+                }),
+        });
+        await client.ensureCacheIsUpToDate(conn);
+
+        const opfsEntries: Array<string> = [];
+        for await (const name of groupDir.keys()) {
+            opfsEntries.push(name);
+        }
+        expect(opfsEntries).toEqual([databaseMainTableId]);
+
+        client.close();
     });
 });

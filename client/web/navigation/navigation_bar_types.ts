@@ -29,7 +29,7 @@ export type NavigationBarRef = {
 
 export type NavigationBarShareButtonProps = {
     readonly entityNoun: string;
-    readonly entityId: FileEntityId;
+    readonly entityId?: FileEntityId;
     readonly accessLevelText?: Record<AccessLevel, string>;
     readonly accessPolicy: ResolvedAccessPolicyWithGenerations;
     readonly inherited?: {

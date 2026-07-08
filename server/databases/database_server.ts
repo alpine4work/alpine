@@ -1,7 +1,17 @@
 import type {Database as SqliteDatabase} from "~/external/sqlite/ext/wasm/jswasm/sqlite3.mjs";
 import type {WorkerActionContext} from "~/server/cloudflare/context/worker_action_context.js";
 import type {DatabaseServerStorage} from "~/server/databases/database_server_storage.js";
+<<<<<<< HEAD
 import type {ActorServiceName} from "~/server/helpers/actor_context_module.js";
+=======
+import {isTrustedDatabaseServiceActor} from "~/server/databases/is_trusted_database_service_actor.js";
+import {
+    type AccessLevel,
+    type AccessPolicy,
+    getAccountAccessLevelAssumingSpaceAccess,
+    maxAccessLevel,
+} from "~/shared/access/access_policy.js";
+>>>>>>> alex/db-permissions
 import {Database, type DatabaseTrackedExecution} from "~/shared/databases/database.js";
 import {
     type DatabaseActionName,
@@ -9,19 +19,32 @@ import {
     type DatabaseActionOutput,
     databaseActions,
 } from "~/shared/databases/database_actions.js";
-import type {ReadonlyDatabasePageSet} from "~/shared/databases/database_protocol_schemas.js";
-import {type SqlQuery, sql} from "~/shared/databases/sql.js";
-import type {SqliteWriteLevel} from "~/shared/databases/sqlite_authorizer.js";
-import {sqlitePageSize} from "~/shared/databases/sqlite_constants.js";
+import type {
+    DatabaseTableAccessLevel,
+    ReadonlyDatabasePageSet,
+} from "~/shared/databases/database_protocol_schemas.js";
+import {DatabaseTableAccessPolicySqlSchema} from "~/shared/databases/database_table_access_policy.js";
+import {type SqlQuery, databaseTableSchemaName, sql} from "~/shared/databases/sql.js";
 import {
+    type SqliteTableAccess,
+    type SqliteWriteLevel,
+    deniedSqliteTableAccess,
+    unrestrictedSqliteTableAccess,
+} from "~/shared/databases/sqlite_authorizer.js";
+import {databaseMainTableId, sqlitePageSize} from "~/shared/databases/sqlite_constants.js";
+import {
+    joinTableSqliteMigrations,
     runJoinTableMigrations,
     runMainMigrations,
     runTableMigrations,
+    tableSqliteMigrations,
 } from "~/shared/databases/sqlite_migrations.js";
+import {sqliteTableAccessForAccessLevel} from "~/shared/databases/sqlite_table_access_for_access_level.js";
 import {PermissionDeniedError} from "~/shared/error/error.js";
 import {assert} from "~/shared/helpers/control/assert.js";
+import {captureResult} from "~/shared/helpers/control/capture_result.js";
 import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
-import type {DatabaseTableId} from "~/shared/id/types/id_types.js";
+import type {AccountId, DatabaseTableId} from "~/shared/id/types/id_types.js";
 import {Schema} from "~/shared/schema/schema.js";
 
 /**
@@ -104,6 +127,22 @@ export type DatabaseServerActionResult<N extends DatabaseActionName> = {
 };
 
 /**
+ * Cached access metadata for one table file, sourced from the file's own
+ * replicated rows (`_alpine_table.access_policy` for user tables,
+ * `_alpine_join_table`'s joined-table ids for join files).
+ *
+ * The cache upholds the invariant _attached ⟹ cached_: entries load in the attach
+ * hook — the moment a schema becomes reachable by any statement — so the
+ * authorizer's synchronous resolver never has to touch SQLite. Table policies only
+ * change through `syncTableMetadata` (which fires the change-capture triggers,
+ * refreshing the entry post-action), and a join's table ids are immutable (the
+ * authorizer denies updating them), so entries stay valid even across LRU detach.
+ */
+type DatabaseServerTableAccessEntry =
+    | {kind: "table"; accessPolicy: AccessPolicy}
+    | {kind: "join"; sourceTableId: DatabaseTableId; targetTableId: DatabaseTableId};
+
+/**
  * Canonical SQLite database backed by a {@link DatabaseServerStorage}
  * implementation.
  *
@@ -118,15 +157,38 @@ export class DatabaseServer {
     private readonly database: Database;
     private readonly storage: DatabaseServerStorage;
     private readonly changedTables = new Set<DatabaseTableId>();
+    /** See {@link DatabaseServerTableAccessEntry}. */
+    private readonly tableAccessCache = new Map<DatabaseTableId, DatabaseServerTableAccessEntry>();
+    /**
+     * Tables attached mid-action whose metadata row doesn't exist yet — a file being
+     * created by the current action (`createRelationField` registers and attaches its
+     * join file before inserting the `_alpine_join_table` row). The resolver treats
+     * them as unrestricted so the creating action can run its migrations and metadata
+     * insert; the set is re-resolved into real cache entries when the action commits
+     * and cleared (entries dropped) when it fails.
+     */
+    private readonly pendingCreatedTableIds = new Set<DatabaseTableId>();
 
     private constructor(database: Database, storage: DatabaseServerStorage) {
         this.database = database;
         this.storage = storage;
     }
 
-    static async create(storage: DatabaseServerStorage): Promise<DatabaseServer> {
-        const database = await Database.create(storage, {server: true});
+    /**
+     * `privateSalt` is the group's secret salt (held in its durable object, never
+     * replicated) keying the registry's `table_name_hash` uniqueness index.
+     */
+    static async create(
+        storage: DatabaseServerStorage,
+        privateSalt: Uint8Array,
+    ): Promise<DatabaseServer> {
+        const database = await Database.create(storage, {server: {privateSalt}});
         const server = new DatabaseServer(database, storage);
+        // Install the attach hook before bootstrap so the migration sweep's attaches
+        // populate the access cache too.
+        database._installServerTableAttachHook(tableId => {
+            server._loadTableAccessCacheEntry(tableId, {allowPendingCreation: true});
+        });
         server._bootstrap();
         database._installServerTableChangeCapture(tableId => {
             server.changedTables.add(tableId);
@@ -153,17 +215,122 @@ export class DatabaseServer {
         context: WorkerActionContext,
         actionObject: DatabaseActionObject<N>,
     ): DatabaseServerActionResult<N> {
+<<<<<<< HEAD
         const internalOnly = databaseActions[actionObject.name].internalOnly;
         if (internalOnly && !internalDatabaseActionServiceNames.has(context.actor.serviceName)) {
+=======
+        // Trusted issuers are internal server code that authorized the operation before
+        // forwarding it (see {@link isTrustedDatabaseServiceActor}); they run
+        // unrestricted. Everyone else — browser traffic over the websocket protocol — may
+        // not run internal actions and gets a per-table access resolver derived from the
+        // replicated policies, enforced per statement by the SQLite authorizer.
+        const isTrustedActor = isTrustedDatabaseServiceActor(context.actor);
+        if (databaseActions[actionObject.name].internalOnly && !isTrustedActor) {
+>>>>>>> alex/db-permissions
             throw new PermissionDeniedError(
                 `Database action ${actionObject.name} is internal-only`,
             );
         }
+        const currentAccountId = context.actor.getPossiblyBotAccountIdIfExists();
         return this._runAndPersist(context, () =>
             this.database.executeAction(actionObject, {
-                currentAccountId: context.actor.getPossiblyBotAccountIdIfExists(),
+                currentAccountId,
+                tableAccessResolver: isTrustedActor
+                    ? null
+                    : tableId => this.getTableAccessForAccount(tableId, currentAccountId),
             }),
         );
+    }
+
+    /**
+     * The capabilities `accountId` has on `tableId`, derived synchronously from the
+     * cached replicated policies (see {@link DatabaseServerTableAccessEntry}).
+     *
+     * - User tables map their `LocalAccessPolicy` level through the v1 rules
+     *   (`View`/`Comment` read-only, `Edit`/`Manage` everything).
+     * - Join files derive from the two joined tables: the max level of either side.
+     *   (The add-vs-remove asymmetry — adding a link needs `View` on the linked table
+     *   — is enforced by `addLink`'s `rowExists` read, not here; see {@link
+     *   SqliteTableAccess}.)
+     * - Unknown/uncached tables fail closed. The realtime layer reuses this for page
+     *   filtering (milestone 4).
+     */
+    getTableAccessForAccount(
+        tableId: DatabaseTableId,
+        accountId: AccountId | null,
+    ): SqliteTableAccess {
+        if (this.pendingCreatedTableIds.has(tableId)) {
+            // Mid-creation carve-out — see {@link pendingCreatedTableIds}.
+            return unrestrictedSqliteTableAccess;
+        }
+        const entry = this.tableAccessCache.get(tableId);
+        if (entry === undefined) return deniedSqliteTableAccess;
+        switch (entry.kind) {
+            case "table":
+                return sqliteTableAccessForAccessLevel(
+                    accessLevelForPolicy(entry.accessPolicy, accountId),
+                );
+            case "join": {
+                const sourceLevel = this._getSideTableAccessLevel(entry.sourceTableId, accountId);
+                const targetLevel = this._getSideTableAccessLevel(entry.targetTableId, accountId);
+                const combinedLevel =
+                    sourceLevel === null
+                        ? targetLevel
+                        : targetLevel === null
+                          ? sourceLevel
+                          : maxAccessLevel(sourceLevel, targetLevel);
+                return sqliteTableAccessForAccessLevel(combinedLevel);
+            }
+            default:
+                throw exhaustive(entry);
+        }
+    }
+
+    /**
+     * `accountId`'s wire-level access to one table — the per-table delta shape the
+     * realtime layer pushes to clients.
+     */
+    getTableAccessLevelForAccount(
+        tableId: DatabaseTableId,
+        accountId: AccountId | null,
+    ): DatabaseTableAccessLevel {
+        return databaseTableAccessLevelForSqliteAccess(
+            this.getTableAccessForAccount(tableId, accountId),
+        );
+    }
+
+    /**
+     * `accountId`'s wire-level access to every table registered in the group, plus the
+     * main registry (public by design). This is the complete map
+     * `ensureCacheIsUpToDate` pushes to clients — their only source of "exists but no
+     * access", since an inaccessible table's policy lives inside a file that never
+     * replicates to them.
+     *
+     * Tables whose policies aren't cached yet (registered but never attached since
+     * this durable object woke) are attached on demand — the attach hook loads their
+     * entries, and entries survive LRU detach, so this is a one-time cost per table
+     * per durable-object lifetime.
+     */
+    getTableAccessLevelsForAccount(
+        accountId: AccountId | null,
+    ): Map<DatabaseTableId, DatabaseTableAccessLevel> {
+        const tableIds = this.database._runServerMetadataRead(db =>
+            sql`
+                SELECT
+                    id
+                FROM
+                    main._alpine_tables
+            `.selectAll(db, {id: Schema.id<DatabaseTableId>()}),
+        );
+        const levels = new Map<DatabaseTableId, DatabaseTableAccessLevel>();
+        for (const {id} of tableIds) {
+            if (!this.tableAccessCache.has(id) && !this.pendingCreatedTableIds.has(id)) {
+                this.database.attachIfNeeded(id);
+            }
+            levels.set(id, this.getTableAccessLevelForAccount(id, accountId));
+        }
+        levels.set(databaseMainTableId, "write");
+        return levels;
     }
 
     createTrackedExecution<Value>(fn: () => Value): DatabaseTrackedExecution<Value> {
@@ -194,29 +361,202 @@ export class DatabaseServer {
 
     // -- Internal -----------------------------------------------------------
 
+    /**
+     * A joined table's access level for `accountId`, `null` when denied/unknown.
+     */
+    private _getSideTableAccessLevel(
+        tableId: DatabaseTableId,
+        accountId: AccountId | null,
+    ): AccessLevel | null {
+        const entry = this.tableAccessCache.get(tableId);
+        if (entry === undefined || entry.kind !== "table") return null;
+        return accessLevelForPolicy(entry.accessPolicy, accountId);
+    }
+
+    /**
+     * (Re)load `tableId`'s {@link tableAccessCache} entry from its replicated metadata
+     * rows. Runs as an internal metadata read — outside the ambient execution's
+     * authorization and page tracking.
+     *
+     * `allowPendingCreation` marks a metadata-less file as mid-creation (see {@link
+     * pendingCreatedTableIds}); only the attach hook passes it — the post-action
+     * refresh must not, or a file that persistently lacks metadata would stay
+     * unrestricted forever instead of failing closed.
+     */
+    private _loadTableAccessCacheEntry(
+        tableId: DatabaseTableId,
+        options?: {allowPendingCreation?: boolean},
+    ): void {
+        this.database._runServerMetadataRead(db => {
+            const missing = (): void => {
+                this.tableAccessCache.delete(tableId);
+                if (options?.allowPendingCreation === true) {
+                    this.pendingCreatedTableIds.add(tableId);
+                }
+            };
+            // `captureResult` throughout: a file mid-creation or pre-`access_policy` migration
+            // is missing tables/columns, and a registry predating the tables migration
+            // (test-only) can't answer at all. All of those resolve to "no entry" — fail
+            // closed — rather than an error.
+            const kindResult = captureResult(() =>
+                sql`
+                    SELECT
+                        kind
+                    FROM
+                        main._alpine_tables
+                    WHERE
+                        id = ${tableId}
+                `.selectValueIfExists(db, Schema.enum(["table", "join"])),
+            );
+            if (!kindResult.ok || kindResult.value === null) {
+                // Not registered (e.g. the registering transaction rolled back after the attach):
+                // drop any entry and never treat as pending — an unregistered schema must fail
+                // closed.
+                this.tableAccessCache.delete(tableId);
+                return;
+            }
+            const schema = sql.identifier(databaseTableSchemaName(tableId));
+            switch (kindResult.value) {
+                case "table": {
+                    // `JSON(...)` converts the stored JSONB blob to text for the schema.
+                    const policyResult = captureResult(() =>
+                        sql`
+                            SELECT
+                                JSON(access_policy)
+                            FROM
+                                ${schema}._alpine_table
+                            WHERE
+                                id = ${tableId}
+                        `.selectValueIfExists(db, DatabaseTableAccessPolicySqlSchema),
+                    );
+                    if (!policyResult.ok || policyResult.value === null) {
+                        missing();
+                        return;
+                    }
+                    this.tableAccessCache.set(tableId, {
+                        kind: "table",
+                        accessPolicy: policyResult.value,
+                    });
+                    this.pendingCreatedTableIds.delete(tableId);
+                    return;
+                }
+                case "join": {
+                    const rowResult = captureResult(() =>
+                        sql`
+                            SELECT
+                                source_table_id,
+                                target_table_id
+                            FROM
+                                ${schema}._alpine_join_table
+                            WHERE
+                                id = ${tableId}
+                        `.selectOneOrNone(db, {
+                            sourceTableId:
+                                Schema.id<DatabaseTableId>().originalPropertyKey("source_table_id"),
+                            targetTableId:
+                                Schema.id<DatabaseTableId>().originalPropertyKey("target_table_id"),
+                        }),
+                    );
+                    if (!rowResult.ok || rowResult.value === null) {
+                        missing();
+                        return;
+                    }
+                    const {sourceTableId, targetTableId} = rowResult.value;
+                    this.tableAccessCache.set(tableId, {
+                        kind: "join",
+                        sourceTableId,
+                        targetTableId,
+                    });
+                    this.pendingCreatedTableIds.delete(tableId);
+                    // A join's access derives from its two sides, so their policies must be cached
+                    // alongside it. Attaching a side runs this loader for it via the attach hook; an
+                    // already-attached but uncached side (shouldn't happen — attached implies cached)
+                    // loads directly.
+                    for (const sideTableId of [sourceTableId, targetTableId]) {
+                        if (this.tableAccessCache.has(sideTableId)) continue;
+                        if (this.database.isAttached(sideTableId)) {
+                            this._loadTableAccessCacheEntry(sideTableId, options);
+                        } else {
+                            this.database.attachIfNeeded(sideTableId);
+                        }
+                    }
+                    return;
+                }
+                default:
+                    throw exhaustive(kindResult.value);
+            }
+        });
+    }
+
+    /**
+     * Post-action cache maintenance: reload entries for tables whose `_alpine_table`
+     * rows the action wrote (captured by the change triggers) and resolve mid-creation
+     * tables into real entries now that their metadata rows are committed.
+     */
+    private _refreshTableAccessCache(changedTableIds: ReadonlySet<DatabaseTableId>): void {
+        const tableIds = new Set([...changedTableIds, ...this.pendingCreatedTableIds]);
+        this.pendingCreatedTableIds.clear();
+        for (const tableId of tableIds) {
+            this._loadTableAccessCacheEntry(tableId);
+        }
+    }
+
+    /**
+     * Failure-path cache maintenance: a failed action's transaction rolled back, so
+     * any files it was creating have no metadata (and possibly no registry row). Drop
+     * their carve-out and entries — fail closed.
+     */
+    private _dropPendingCreatedTableAccess(): void {
+        for (const tableId of this.pendingCreatedTableIds) {
+            this.tableAccessCache.delete(tableId);
+        }
+        this.pendingCreatedTableIds.clear();
+    }
+
     private _bootstrap(): void {
-        // Bootstrap runs as one privileged "execute" so its writes flow through the buffer
-        // like any other action; we drain to storage immediately after. ATTACH is legal
-        // mid-execute (no explicit transaction is open), so we can attach + migrate every
-        // per-table file inline.
-        this.database.execute(
+        // Bootstrap writes flow through the buffer like any other execute; each batch
+        // drains to storage right after. ATTACH is legal mid-execute (no explicit
+        // transaction is open), so per-table files attach + migrate inline.
+        const {result: tables} = this.database.execute(
             db => {
                 db.exec("PRAGMA quick_check");
                 runMainMigrations(db);
-
-                // Attach + migrate each existing table's per-db file so its data and metadata are
-                // reachable.
-                const tables = sql`
+                return sql`
                     SELECT
                         id,
-                        kind
+                        kind,
+                        schema_version
                     FROM
                         _alpine_tables
                 `.selectAll(db, {
                     id: Schema.id<DatabaseTableId>(),
                     kind: Schema.enum(["table", "join"]),
+                    schemaVersion: Schema.integer.originalPropertyKey("schema_version"),
                 });
-                for (const table of tables) {
+            },
+            {allowWrites: "schema+data"},
+        );
+        this._persistBuffer();
+
+        // Migrate stale per-table files, one execute + persist per table. The registry's
+        // schema_version mirrors each file's user_version, so a current table is skipped
+        // without ever attaching it — bootstrap costs O(stale tables), and cold starts
+        // after a no-migration deploy attach nothing. Attach-on-miss assumes every
+        // registered file is migration-current, so this sweep must finish before any
+        // action runs. Persisting per table keeps migrated files' buffered writes drained
+        // — Database only evicts tables with an empty buffer, and for groups with more
+        // stale tables than the attach threshold the sweep relies on that LRU eviction to
+        // stay under SQLite's limit.
+        for (const table of tables) {
+            const migrationCount =
+                table.kind === "table"
+                    ? tableSqliteMigrations(table.id).length
+                    : joinTableSqliteMigrations(table.id).length;
+            if (table.schemaVersion === migrationCount) continue;
+            // The migration runner also repairs the registry's schema_version mirror, in the
+            // same buffer batch as the migrations themselves.
+            this.database.execute(
+                db => {
                     this.database.attachIfNeeded(table.id);
                     switch (table.kind) {
                         case "table":
@@ -228,11 +568,16 @@ export class DatabaseServer {
                         default:
                             throw exhaustive(table.kind);
                     }
-                }
-            },
-            {allowWrites: "schema+data"},
-        );
-        this._persistBuffer();
+                },
+                {allowWrites: "schema+data"},
+            );
+            this._persistBuffer();
+            // The attach hook loaded this table's access entry against its pre-migration
+            // schema — which may predate the `access_policy` column. Reload now that the file
+            // is current. (No change-capture triggers exist yet during bootstrap.)
+            this._loadTableAccessCacheEntry(table.id);
+        }
+        this.pendingCreatedTableIds.clear();
     }
 
     private _runAndPersist<T>(
@@ -263,6 +608,7 @@ export class DatabaseServer {
                 const changedTables = new Set(this.changedTables);
                 const persistedResult = this._persistAndBuildResult(result, readPages);
                 this.database.refreshServerTableChangeTriggers();
+                this._refreshTableAccessCache(changedTables);
                 return {...persistedResult, changedTables};
             });
         } catch (error) {
@@ -271,6 +617,7 @@ export class DatabaseServer {
             // starts from an empty buffer. `discardBuffer` is a safe no-op if the drain
             // already committed.
             this.database.discardBuffer();
+            this._dropPendingCreatedTableAccess();
             throw error;
         } finally {
             this.changedTables.clear();
@@ -413,4 +760,33 @@ export class DatabaseServer {
         this.database.markCommitted();
         return version;
     }
+}
+
+/**
+ * Evaluate a replicated table policy for an account. The durable object only ever
+ * receives `Local` policies (`syncTableMetadata` resolves `Site` policies before
+ * syncing — see `resolveDatabaseTableAccessPolicyForDurableObjectSync`); an
+ * unresolved `Site` policy fails closed. Space membership was authorized at the
+ * connection/request boundary, which is exactly the assumption
+ * `getAccountAccessLevelAssumingSpaceAccess` requires.
+ */
+function accessLevelForPolicy(
+    accessPolicy: AccessPolicy,
+    accountId: AccountId | null,
+): AccessLevel | null {
+    if (accessPolicy.type !== "Local") return null;
+    return getAccountAccessLevelAssumingSpaceAccess(accessPolicy, accountId);
+}
+
+/**
+ * Collapse per-statement capabilities into the coarser wire shape clients consume.
+ * `write` and `schema` both report `"write"` — the authoritative per-statement
+ * enforcement stays server-side.
+ */
+function databaseTableAccessLevelForSqliteAccess(
+    access: SqliteTableAccess,
+): DatabaseTableAccessLevel {
+    if (access.write || access.schema) return "write";
+    if (access.read) return "read";
+    return "none";
 }

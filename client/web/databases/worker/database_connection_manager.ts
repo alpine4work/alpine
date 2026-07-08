@@ -405,6 +405,17 @@ export class DatabaseConnectionManager {
                     .catch(error => this.reportError(error));
                 break;
             }
+            case "TableMetadataChanged": {
+                // The worker only consumes the access-map delta; the metadata events themselves
+                // (names, policies) are handled by the route component's own subscription.
+                if (event.tableAccess.size === 0) break;
+                const clientPromise = this.databaseGroups.get(databaseGroupId)?.clientPromise;
+                if (clientPromise === undefined) return;
+                clientPromise
+                    .then(client => client.applyTableAccessLevels(event.tableAccess))
+                    .catch(error => this.reportError(error));
+                break;
+            }
         }
     }
 

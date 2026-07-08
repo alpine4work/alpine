@@ -1,5 +1,7 @@
 import sqlite3InitModule from "~/external/sqlite/ext/wasm/jswasm/sqlite3.mjs";
 import {emptyDatabaseTableAccessPolicy} from "~/shared/databases/database_table_access_policy.js";
+import {formatUniqueTableName} from "~/shared/databases/format_unique_table_name.js";
+import {hashWithPrivateSalt} from "~/shared/databases/hash_with_private_salt.js";
 import type {DatabaseFieldModel} from "~/shared/databases/model/database_field_model.js";
 import {DatabaseModel} from "~/shared/databases/model/database_root_model.js";
 import {databaseTableSchemaName, sql} from "~/shared/databases/sql.js";
@@ -21,6 +23,23 @@ import type {
 
 const sqlite3Promise = sqlite3InitModule();
 let dbCounter = 0;
+const testPrivateSalt = new Uint8Array(32).fill(7);
+
+function testHashWithPrivateSalt(value: string): string {
+    return hashWithPrivateSalt(testPrivateSalt, value);
+}
+
+// Test stand-in for the action server context: `formatUniqueTableName` reaches the
+// salted name hasher through `model.ctx.server()`.
+function createTestModel(db: SqliteDatabase): DatabaseModel {
+    return new DatabaseModel(db, {
+        attach() {},
+        getCurrentAccountId() {
+            return null;
+        },
+        hashWithPrivateSalt: testHashWithPrivateSalt,
+    });
+}
 
 async function createDb(): Promise<SqliteDatabase> {
     const sqlite3 = await sqlite3Promise;
@@ -37,9 +56,35 @@ function attachTableDb(db: SqliteDatabase, tableId: DatabaseTableId): void {
 }
 
 function createTable(model: DatabaseModel, tableId: DatabaseTableId, name: string) {
+    // Mirrors the createTable action: resolve the unique name, register the table with
+    // its salted hash, migrate the per-table file, then create the metadata.
+    const {tableName, tableNameHash} = formatUniqueTableName({model, name});
+    model.registerTable(tableId, {kind: "table", tableNameHash});
     attachTableDb(model.db, tableId);
     runTableMigrations(model.db, tableId);
-    return model.createTable(tableId, name, emptyDatabaseTableAccessPolicy);
+    return model.createTable(tableId, {
+        name,
+        tableName,
+        accessPolicy: emptyDatabaseTableAccessPolicy,
+    });
+}
+
+// Mirrors the createRelationField action: resolve the join table's unique name,
+// register the join table with the salted hash, migrate its file, then create the
+// join table metadata.
+function createJoinTableWithUniqueName(
+    model: DatabaseModel,
+    joinTableId: DatabaseTableId,
+    sourceField: DatabaseFieldModel,
+    targetField: DatabaseFieldModel,
+) {
+    const {tableName, tableNameHash} = formatUniqueTableName({
+        model,
+        name: `${sourceField.name} ${targetField.name}`,
+    });
+    model.registerTable(joinTableId, {kind: "join", tableNameHash});
+    runJoinTableMigrations(model.db, joinTableId);
+    return model.createJoinTable(sourceField, targetField, {tableName});
 }
 
 function createRelation(model: DatabaseModel) {
@@ -49,7 +94,6 @@ function createRelation(model: DatabaseModel) {
     const source = createTable(model, sourceId, "Tasks").table;
     const target = createTable(model, targetId, "Projects").table;
     attachTableDb(model.db, joinTableId);
-    runJoinTableMigrations(model.db, joinTableId);
 
     const sourceField = source.createField(generateChronologicalId<DatabaseFieldId>(), "Project", {
         type: "relation",
@@ -65,7 +109,7 @@ function createRelation(model: DatabaseModel) {
         cardinality: "many",
         linkedTableId: source.id,
     });
-    const joinRow = model.createJoinTable(sourceField, targetField);
+    const joinRow = createJoinTableWithUniqueName(model, joinTableId, sourceField, targetField);
     const joinTable = model.getJoinTable(joinRow.id);
 
     return {source, target, sourceField, targetField, joinTable};
@@ -80,7 +124,7 @@ function readColumnNames(db: SqliteDatabase, tableId: DatabaseTableId, tableName
 describe("DatabaseModel", () => {
     test("createTable creates a default view containing the Name field", async () => {
         const db = await createDb();
-        const model = new DatabaseModel(db);
+        const model = createTestModel(db);
         const tableId = generateChronologicalId<DatabaseTableId>();
 
         const {table, nameField, defaultView} = createTable(model, tableId, "Tasks");
@@ -103,7 +147,7 @@ describe("DatabaseModel", () => {
 
     test("appendFieldToAllViews adds a field to every table view", async () => {
         const db = await createDb();
-        const model = new DatabaseModel(db);
+        const model = createTestModel(db);
         const tableId = generateChronologicalId<DatabaseTableId>();
         const {table} = createTable(model, tableId, "Tasks");
         const secondViewId = generateChronologicalId<DatabaseViewId>();
@@ -136,7 +180,7 @@ describe("DatabaseModel", () => {
 
     test("createJoinTable creates metadata and a custom data-table schema", async () => {
         const db = await createDb();
-        const model = new DatabaseModel(db);
+        const model = createTestModel(db);
 
         const {joinTable} = createRelation(model);
 
@@ -158,12 +202,11 @@ describe("DatabaseModel", () => {
 
     test("createJoinTable disambiguates self-relation columns", async () => {
         const db = await createDb();
-        const model = new DatabaseModel(db);
+        const model = createTestModel(db);
         const tableId = generateChronologicalId<DatabaseTableId>();
         const joinTableId = generateChronologicalId<DatabaseTableId>();
         const table = createTable(model, tableId, "Tasks").table;
         attachTableDb(db, joinTableId);
-        runJoinTableMigrations(db, joinTableId);
 
         const sourceField = table.createField(
             generateChronologicalId<DatabaseFieldId>(),
@@ -184,7 +227,12 @@ describe("DatabaseModel", () => {
             linkedTableId: table.id,
         });
 
-        const joinTable = model.createJoinTable(sourceField, targetField);
+        const joinTable = createJoinTableWithUniqueName(
+            model,
+            joinTableId,
+            sourceField,
+            targetField,
+        );
 
         expect(readColumnNames(db, joinTable.id, joinTable.tableName)).toEqual([
             "tasks_id",
@@ -197,7 +245,7 @@ describe("DatabaseModel", () => {
 
     test("renaming a related table keeps join table columns and data in sync", async () => {
         const db = await createDb();
-        const model = new DatabaseModel(db);
+        const model = createTestModel(db);
         const {target, joinTable} = createRelation(model);
         const sourceRowId = generateChronologicalId<DatabaseRowId>();
         const targetRowId = generateChronologicalId<DatabaseRowId>();
@@ -219,7 +267,14 @@ describe("DatabaseModel", () => {
                 )
         `.exec(db);
 
-        target.updateName("Milestones");
+        target.updateName(
+            "Milestones",
+            formatUniqueTableName({
+                model,
+                name: "Milestones",
+                excludeTableId: target.id,
+            }),
+        );
 
         const updatedJoinTable = model.getJoinTable(joinTable.id);
         const row = sql`
@@ -246,7 +301,7 @@ describe("DatabaseModel", () => {
 
     test("renaming a relation field keeps the join table name in sync", async () => {
         const db = await createDb();
-        const model = new DatabaseModel(db);
+        const model = createTestModel(db);
         const {sourceField, joinTable} = createRelation(model);
 
         (sourceField as DatabaseFieldModel).updateName("Owner");

@@ -23,7 +23,17 @@ export const DatabaseRelationFieldValueSchema = Schema.array(
     Schema.object({
         id: Schema.id<DatabaseRowId>(),
         name: Schema.string.nullable(),
+<<<<<<< HEAD
         position: OrderKeySchema,
+=======
+        /**
+         * True when the account can't read the linked table: the link and its row id are
+         * visible (they live in the join file, which either side's access unlocks), but
+         * the linked row's name isn't. Distinguishes "no access" from a linked row whose
+         * name is simply empty (`name: null`).
+         */
+        noAccess: Schema.boolean.default(false),
+>>>>>>> alex/db-permissions
     }),
 );
 export type DatabaseRelationFieldValue = SchemaType<typeof DatabaseRelationFieldValueSchema>;
@@ -46,15 +56,51 @@ export class DatabaseRelationFieldProvider extends DatabaseFieldProviderBase<
     }
 
     override valueToString(value: DatabaseRelationFieldValue) {
-        return value.map(link => link.name ?? "Untitled").join(", ");
+        return value
+            .map(link => (link.noAccess ? "No access" : (link.name ?? "Untitled")))
+            .join(", ");
     }
 
     _selectColumn(field: DatabaseFieldModelOfType<"relation">, dataRow: SqlQuery) {
         const relation = this.resolveRelation(field);
+        const joinRow = sql.identifier(`_join_${field.id}`);
+
+        // Without read access to the linked table, project ids only from the join file —
+        // never touching the linked table's file, which the authorizer would deny (server)
+        // or which isn't replicated at all (client). Both sides decide from the same
+        // server-computed access state, so local execution and server fallback return the
+        // same shape.
+        if (!field.root.ctx.getTableAccess(relation.linkedTableId).read) {
+            return sql`
+                (
+                    SELECT
+                        JSON(
+                            COALESCE(
+                                jsonb_group_array (
+                                    jsonb_object (
+                                        'id',
+                                        ${joinRow}.${relation.their.rowIdColumn},
+                                        'name',
+                                        NULL,
+                                        'noAccess',
+                                        jsonb ('true')
+                                    )
+                                    ORDER BY
+                                        ${joinRow}.${relation.our.positionColumn}
+                                ),
+                                jsonb ('[]')
+                            )
+                        )
+                    FROM
+                        ${relation.joinTable.tableRef} AS ${joinRow}
+                    WHERE
+                        ${joinRow}.${relation.our.rowIdColumn} = ${dataRow}._id
+                )
+            `;
+        }
+
         const linkedTable = field.root.getTable(relation.linkedTableId);
         const linkedNameField = linkedTable.getNameField();
-
-        const joinRow = sql.identifier(`_join_${field.id}`);
         const linkedRow = sql.identifier(`_linked_${field.id}`);
 
         const linkedNameColumnSql = getDatabaseFieldProvider(
@@ -93,10 +139,32 @@ export class DatabaseRelationFieldProvider extends DatabaseFieldProviderBase<
 
     _selectColumnAsString(field: DatabaseFieldModelOfType<"relation">, dataRow: SqlQuery) {
         const relation = this.resolveRelation(field);
+        const joinRow = sql.identifier(`_join_${field.id}`);
+
+        // See `_selectColumn`: ids-only when the linked table isn't readable.
+        if (!field.root.ctx.getTableAccess(relation.linkedTableId).read) {
+            return sql`
+                (
+                    SELECT
+                        COALESCE(
+                            GROUP_CONCAT(
+                                'No access',
+                                ', '
+                                ORDER BY
+                                    ${joinRow}.${relation.our.positionColumn}
+                            ),
+                            ''
+                        )
+                    FROM
+                        ${relation.joinTable.tableRef} AS ${joinRow}
+                    WHERE
+                        ${joinRow}.${relation.our.rowIdColumn} = ${dataRow}._id
+                )
+            `;
+        }
+
         const linkedTable = field.root.getTable(relation.linkedTableId);
         const linkedNameField = linkedTable.getNameField();
-
-        const joinRow = sql.identifier(`_join_${field.id}`);
         const linkedRow = sql.identifier(`_linked_${field.id}`);
 
         const linkedNameColumnSql = getDatabaseFieldProvider(

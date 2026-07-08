@@ -5,16 +5,20 @@ import {DatabaseDurableObjectConnection} from "~/server/databases/database_durab
 import {DatabaseDurableObjectStorage} from "~/server/databases/database_durable_object_storage.js";
 import {truncateFor} from "~/server/databases/test_helpers/truncate_for.js";
 import {writePagesFor} from "~/server/databases/test_helpers/write_pages_for.js";
+import type {DatabaseTableMetadataModel} from "~/shared/databases/database_table_metadata_model.js";
 import {
     cacheUpdateStalePageLimit,
     databaseMainTableId,
     sqlitePageSize,
 } from "~/shared/databases/sqlite_constants.js";
+import type {RynamoEvent, RynamoEventStub} from "~/shared/dynamo/rynamo_types.js";
+import {PermissionDeniedError} from "~/shared/error/error.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {generateChronologicalId} from "~/shared/id/chronological_id.js";
 import {generateId} from "~/shared/id/id.js";
 import type {
     BrowserId,
+    DatabaseGroupId,
     DatabaseMutationId,
     DatabaseTableId,
     WebSocketConnectionId,
@@ -26,6 +30,15 @@ beforeEach(() => {
     storage = new DurableObjectStorage(new MemoryStorage());
 });
 
+// Trusted service context: procedures and event transforms treat it as internal
+// server code, bypassing per-table access (which has its own dedicated tests).
+const trustedTestContext = {
+    actor: {
+        serviceName: "Test",
+        getPossiblyBotAccountIdIfExists: () => null,
+    },
+} as any;
+
 function createConnection(doStorage: DatabaseDurableObjectStorage) {
     return new DatabaseDurableObjectConnection({
         server: null as any,
@@ -33,9 +46,11 @@ function createConnection(doStorage: DatabaseDurableObjectStorage) {
         processContext: null as any,
         sendEventToAll: () => {},
         sendEventToSelf: () => {},
+        databaseGroupId: generateId<DatabaseGroupId>(),
         browserId: generateId<BrowserId>(),
         connectionId: generateId<WebSocketConnectionId>(),
         browserPageTracker: new BrowserPageTracker(),
+        trackPages: true,
     });
 }
 
@@ -44,7 +59,7 @@ async function ensureCacheIsUpToDate(
     pageVersionsByIndex: ReadonlyMap<number, number>,
 ) {
     const result = await conn.procedures.ensureCacheIsUpToDate(
-        null as any,
+        trustedTestContext,
         {pageVersionsByIndex: new Map([[databaseMainTableId, pageVersionsByIndex]])},
         null as any,
     );
@@ -62,7 +77,7 @@ async function acknowledgePages(
     pageIndexes: ReadonlyArray<number>,
 ) {
     return conn.procedures.acknowledgePages(
-        null as any,
+        trustedTestContext,
         {pageIndexes: new Map([[databaseMainTableId, pageIndexes]])},
         null as any,
     );
@@ -269,6 +284,7 @@ function createTrackedConnection(
     doStorage: DatabaseDurableObjectStorage,
     tracker: BrowserPageTracker,
     browserId: BrowserId,
+    {trackPages = true}: {trackPages?: boolean} = {},
 ) {
     const connectionId = generateId<WebSocketConnectionId>();
     return new DatabaseDurableObjectConnection({
@@ -277,9 +293,11 @@ function createTrackedConnection(
         processContext: null as any,
         sendEventToAll: () => {},
         sendEventToSelf: () => {},
+        databaseGroupId: generateId<DatabaseGroupId>(),
         browserId,
         connectionId,
         browserPageTracker: tracker,
+        trackPages,
     });
 }
 
@@ -295,7 +313,7 @@ describe("per-browser page tracking", () => {
         // untrusted client can grow the per-browser page map without bound.
         const bogusTableId = generateChronologicalId<DatabaseTableId>();
         await conn.procedures.acknowledgePages(
-            null as any,
+            trustedTestContext,
             {pageIndexes: new Map([[bogusTableId, [0, 1, 2]]])},
             null as any,
         );
@@ -448,7 +466,7 @@ describe("per-browser page tracking", () => {
         // single call. Both tables' matching pages must be confirmed in the tracker —
         // validating the main table must not wipe the attached table's state.
         await conn.procedures.ensureCacheIsUpToDate(
-            null as any,
+            trustedTestContext,
             {
                 pageVersionsByIndex: new Map([
                     [databaseMainTableId, new Map([[0, mainVersion0]])],
@@ -581,7 +599,7 @@ describe("per-browser page tracking", () => {
             ]),
             mutationId: generateId<DatabaseMutationId>(),
         };
-        const event = await conn.transformEvent(null as any, eventStub);
+        const event = await conn.transformEvent(trustedTestContext, eventStub);
         assert(event.type === "PagesChanged", "expected PagesChanged event");
 
         const main = event.pageDiffs.get(databaseMainTableId);
@@ -629,7 +647,7 @@ describe("per-browser page tracking", () => {
             ]),
             mutationId: generateId<DatabaseMutationId>(),
         };
-        const event = await conn.transformEvent(null as any, eventStub);
+        const event = await conn.transformEvent(trustedTestContext, eventStub);
         assert(event.type === "PagesChanged", "expected PagesChanged event");
 
         // Both included: page 0 confirmed, page 1 pending
@@ -659,7 +677,7 @@ describe("per-browser page tracking", () => {
             ]),
             mutationId: generateId<DatabaseMutationId>(),
         };
-        const event = await conn.transformEvent(null as any, eventStub);
+        const event = await conn.transformEvent(trustedTestContext, eventStub);
         assert(event.type === "PagesChanged", "expected PagesChanged event");
 
         const main = event.pageDiffs.get(databaseMainTableId);
@@ -708,5 +726,250 @@ describe("per-browser page tracking", () => {
         const filtered = tracker.filterReadPages(browserId, pages);
         expect(filtered.get(databaseMainTableId)?.size).toBe(1);
         expect(filtered.get(databaseMainTableId)?.has(1)).toBe(true);
+    });
+
+    test("trackPages false does not register the browser for page tracking", () => {
+        const doStorage = new DatabaseDurableObjectStorage(storage);
+        const tracker = new BrowserPageTracker();
+        const browserId = generateId<BrowserId>();
+        createTrackedConnection(doStorage, tracker, browserId, {trackPages: false});
+
+        tracker.setPages(browserId, new Map([[databaseMainTableId, [0]]]));
+
+        expect(tracker.clientMightHavePage(browserId, databaseMainTableId, 0)).toBe(false);
+    });
+
+    test("transformEvent resolves table metadata events", async () => {
+        const doStorage = new DatabaseDurableObjectStorage(storage);
+        const tracker = new BrowserPageTracker();
+        const browserId = generateId<BrowserId>();
+        const databaseGroupId = generateId<DatabaseGroupId>();
+        const conn = new DatabaseDurableObjectConnection({
+            server: null as any,
+            durableObjectStorage: doStorage,
+            processContext: null as any,
+            sendEventToAll: () => {},
+            sendEventToSelf: () => {},
+            databaseGroupId,
+            browserId,
+            connectionId: generateId<WebSocketConnectionId>(),
+            browserPageTracker: tracker,
+            trackPages: false,
+        });
+        const eventStub: RynamoEventStub = {
+            type: "PutItem",
+            item: {key: "table-key" as any, version: 1},
+        };
+        const resolvedEvent: RynamoEvent<DatabaseTableMetadataModel> = {
+            type: "PutItem",
+            item: {
+                key: "table-key" as any,
+                version: 1,
+                model: {
+                    databaseGroupId,
+                    tableId: generateChronologicalId<DatabaseTableId>(),
+                    spaceId: generateId(),
+                    name: "Roadmap",
+                    isDeleted: false,
+                    accessPolicy: {type: "Local", accountGrants: new Map()},
+                    version: 1,
+                } as any,
+            },
+            indexes: new Map(),
+        };
+        const context = {
+            ...trustedTestContext,
+            rpc: {
+                execute: async (_definition: any, _callId: unknown, input: unknown) => {
+                    expect(input).toMatchObject({
+                        databaseGroupId,
+                        events: [eventStub],
+                    });
+                    return {events: [resolvedEvent]};
+                },
+            },
+        };
+
+        const event = await conn.transformEvent(context as any, {
+            type: "TableMetadataChanged",
+            events: [eventStub],
+        });
+
+        expect(event).toEqual({
+            type: "TableMetadataChanged",
+            events: [resolvedEvent],
+            tableAccess: new Map(),
+        });
+    });
+
+    test("authorize checks space access for the database group", async () => {
+        const doStorage = new DatabaseDurableObjectStorage(storage);
+        const tracker = new BrowserPageTracker();
+        const databaseGroupId = generateId<DatabaseGroupId>();
+        const conn = new DatabaseDurableObjectConnection({
+            server: null as any,
+            durableObjectStorage: doStorage,
+            processContext: null as any,
+            sendEventToAll: () => {},
+            sendEventToSelf: () => {},
+            databaseGroupId,
+            browserId: generateId<BrowserId>(),
+            connectionId: generateId<WebSocketConnectionId>(),
+            browserPageTracker: tracker,
+            trackPages: false,
+        });
+        const authorizedInputs: Array<unknown> = [];
+        const context = {
+            ...trustedTestContext,
+            rpc: {
+                execute: async (_definition: any, _callId: unknown, input: unknown) => {
+                    authorizedInputs.push(input);
+                    return {};
+                },
+            },
+        };
+
+        await conn.authorize(context as any);
+
+        expect(authorizedInputs).toEqual([{databaseGroupId}]);
+    });
+
+    test("authorize propagates a space access denial", async () => {
+        const doStorage = new DatabaseDurableObjectStorage(storage);
+        const conn = createTrackedConnection(
+            doStorage,
+            new BrowserPageTracker(),
+            generateId<BrowserId>(),
+            {trackPages: false},
+        );
+        const context = {
+            ...trustedTestContext,
+            rpc: {
+                execute: async () => {
+                    throw new PermissionDeniedError("Actor doesn\u2019t have access to the space");
+                },
+            },
+        };
+
+        await expect(conn.authorize(context as any)).rejects.toThrow(
+            "Actor doesn\u2019t have access to the space",
+        );
+    });
+
+    test("transformEvent rejects table metadata events without access", async () => {
+        const doStorage = new DatabaseDurableObjectStorage(storage);
+        const tracker = new BrowserPageTracker();
+        const eventStub: RynamoEventStub = {
+            type: "PutItem",
+            item: {key: "table-key" as any, version: 1},
+        };
+        const conn = createTrackedConnection(doStorage, tracker, generateId<BrowserId>(), {
+            trackPages: false,
+        });
+        const context = {
+            ...trustedTestContext,
+            rpc: {
+                execute: async () => {
+                    throw new PermissionDeniedError("Actor doesn\u2019t have View access level");
+                },
+            },
+        };
+
+        await expect(
+            conn.transformEvent(context as any, {
+                type: "TableMetadataChanged",
+                events: [eventStub],
+            }),
+        ).rejects.toThrow("Actor doesn\u2019t have View access level");
+    });
+});
+
+describe("per-table realtime filtering", () => {
+    // An EdgeService-issued (browser) actor: untrusted, so per-table filtering
+    // applies. The server mock answers access-level lookups.
+    function createUntrustedContext() {
+        return {
+            actor: {
+                serviceName: "EdgeService",
+                getPossiblyBotAccountIdIfExists: () => null,
+            },
+        } as any;
+    }
+
+    function createFilteringConnection(
+        levelByTableId: ReadonlyMap<DatabaseTableId, "none" | "read" | "write">,
+    ) {
+        return new DatabaseDurableObjectConnection({
+            server: {
+                getTableAccessLevelForAccount: (tableId: DatabaseTableId) =>
+                    levelByTableId.get(tableId) ?? "none",
+            } as any,
+            durableObjectStorage: new DatabaseDurableObjectStorage(storage),
+            processContext: null as any,
+            sendEventToAll: () => {},
+            sendEventToSelf: () => {},
+            databaseGroupId: generateId<DatabaseGroupId>(),
+            browserId: generateId<BrowserId>(),
+            connectionId: generateId<WebSocketConnectionId>(),
+            browserPageTracker: new BrowserPageTracker(),
+            trackPages: false,
+        });
+    }
+
+    test("PagesChanged withholds diffs for tables without read access", async () => {
+        const readableTableId = generateChronologicalId<DatabaseTableId>();
+        const hiddenTableId = generateChronologicalId<DatabaseTableId>();
+        const conn = createFilteringConnection(new Map([[readableTableId, "read"]]));
+        const mutationId = generateId<DatabaseMutationId>();
+
+        const event = await conn.transformEvent(createUntrustedContext(), {
+            type: "PagesChanged",
+            pageDiffs: new Map([
+                [databaseMainTableId, "main-diffs"],
+                [readableTableId, "readable-diffs"],
+                [hiddenTableId, "hidden-diffs"],
+            ]) as any,
+            mutationId,
+        });
+
+        assert(event.type === "PagesChanged");
+        expect({pageDiffs: event.pageDiffs, mutationId: event.mutationId}).toEqual({
+            pageDiffs: new Map([
+                [databaseMainTableId, "main-diffs"],
+                [readableTableId, "readable-diffs"],
+            ]),
+            mutationId,
+        });
+    });
+
+    test("TableMetadataChanged carries the access delta", async () => {
+        const visibleTableId = generateChronologicalId<DatabaseTableId>();
+        const deniedTableId = generateChronologicalId<DatabaseTableId>();
+        const conn = createFilteringConnection(new Map([[visibleTableId, "write"]]));
+        const visibleEvent = {
+            type: "PutItem",
+            item: {key: "table-key" as any, version: 1, model: {tableId: visibleTableId}},
+            indexes: new Map(),
+        };
+        const context = {
+            ...createUntrustedContext(),
+            rpc: {
+                execute: async () => ({events: [visibleEvent], deniedTableIds: [deniedTableId]}),
+            },
+        };
+
+        const event = await conn.transformEvent(context, {
+            type: "TableMetadataChanged",
+            events: [{type: "PutItem", item: {key: "table-key" as any, version: 1}}],
+        });
+
+        assert(event.type === "TableMetadataChanged");
+        expect({events: event.events, tableAccess: event.tableAccess}).toEqual({
+            events: [visibleEvent],
+            tableAccess: new Map([
+                [visibleTableId, "write"],
+                [deniedTableId, "none"],
+            ]),
+        });
     });
 });

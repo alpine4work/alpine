@@ -1,4 +1,8 @@
 import {AccessPolicySchema} from "~/shared/access/access_policy.js";
+import type {
+    DatabaseActionContext,
+    DatabaseActionServerContext,
+} from "~/shared/databases/database_action_context.js";
 import {DatabaseActionRequiresServerError} from "~/shared/databases/database_action_requires_server_error.js";
 import {DatabaseTableAccessPolicySqlSchema} from "~/shared/databases/database_table_access_policy.js";
 import {
@@ -7,17 +11,20 @@ import {
     getUnknownDatabaseFieldProvider,
 } from "~/shared/databases/fields/all_database_field_providers.js";
 import {ColumnBackedDatabaseFieldProvider} from "~/shared/databases/fields/base/database_field_provider_base.js";
+<<<<<<< HEAD
 import {insertJoinLink} from "~/shared/databases/insert_join_link.js";
+=======
+import {formatUniqueTableName} from "~/shared/databases/format_unique_table_name.js";
+>>>>>>> alex/db-permissions
 import {DatabaseModel} from "~/shared/databases/model/database_root_model.js";
 import {SqlBooleanSchema} from "~/shared/databases/model/sqlite_schema.js";
 import {type SqlQuery, sql} from "~/shared/databases/sql.js";
 import {SqliteDatabase} from "~/shared/databases/sqlite.js";
-import type {SqliteWriteLevel} from "~/shared/databases/sqlite_authorizer.js";
+import type {SqliteTableAccess, SqliteWriteLevel} from "~/shared/databases/sqlite_authorizer.js";
 import {runJoinTableMigrations, runTableMigrations} from "~/shared/databases/sqlite_migrations.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {generateChronologicalId} from "~/shared/id/chronological_id.js";
 import type {
-    AccountId,
     DatabaseFieldId,
     DatabaseRowId,
     DatabaseTableId,
@@ -27,48 +34,12 @@ import {LabelStringSchema} from "~/shared/schema/helpers/label_string_schema.js"
 import {OrderKeySchema} from "~/shared/schema/helpers/order_key_schema.js";
 import {type ObjectSchema, Schema, type SchemaType} from "~/shared/schema/schema.js";
 
-/**
- * Server-only capabilities. Accessing these on the client causes the action to
- * fall back to the server.
- */
-export interface DatabaseActionServerContext {
-    /**
-     * Attach a per-table database file (no-op if already attached) so the action can
-     * create or write to it. Used by server-only schema actions like {@link
-     * databaseActions.createTable}.
-     */
-    attach(tableId: DatabaseTableId): void;
-    getCurrentAccountId(): AccountId | null;
-}
-
-/** Context handed to a database action's `run()`. */
-export interface DatabaseActionContext {
-    /** The SQLite handle the action runs against. */
-    db: SqliteDatabase;
-    /**
-     * Server-only capabilities. Calling this on the client will throw a {@link
-     * DatabaseActionRequiresServerError}, causing the action to be executed on the
-     * server instead.
-     */
-    server: () => DatabaseActionServerContext;
-    /** The database schema */
-    model: DatabaseModel;
-}
-
 export function createDatabaseActionContext(
     db: SqliteDatabase,
     server: DatabaseActionServerContext | null,
+    getTableAccess?: (tableId: DatabaseTableId) => SqliteTableAccess,
 ): DatabaseActionContext {
-    return {
-        db,
-        server: () => {
-            if (server === null) {
-                throw new DatabaseActionRequiresServerError("action is server-only");
-            }
-            return server;
-        },
-        model: new DatabaseModel(db),
-    };
+    return new DatabaseModel(db, server, getTableAccess).ctx;
 }
 
 /**
@@ -192,13 +163,19 @@ export const databaseActions = {
         transactionMode: "manual",
         internalOnly: true,
         run({db, server, model}, {tableId, name, accessPolicy}) {
-            // Attach + migrate the new per-db file before writing any of the table's data or
-            // metadata into it. `attach` is a no-op if already attached.
+            // Resolve the unique SQLite table name (and its salted registry hash) before
+            // registering the new table.
+            const {tableName, tableNameHash} = formatUniqueTableName({model, name});
+
+            // Register the table (at schema_version 0), then attach + migrate its per-db file
+            // before writing any of the table's data or metadata into it. `attach` is a no-op
+            // if already attached.
+            model.registerTable(tableId, {kind: "table", tableNameHash});
             server().attach(tableId);
             runTableMigrations(db, tableId);
 
             const {table, defaultView} = executeDatabaseActionTransaction(db, () =>
-                model.createTable(tableId, name, accessPolicy),
+                model.createTable(tableId, {name, tableName, accessPolicy}),
             );
 
             return {tableId: table.id, tableName: table.tableName, viewId: defaultView.id};
@@ -220,7 +197,14 @@ export const databaseActions = {
         internalOnly: true,
         run({db, model}, {tableId, name, accessPolicy}) {
             const {table, viewId} = executeDatabaseActionTransaction(db, () => {
-                const table = model.getTable(tableId).updateName(name);
+                // Resolve the unique SQLite table name (and its salted registry hash) before
+                // renaming, same as `renameTable`.
+                const {tableName, tableNameHash} = formatUniqueTableName({
+                    model,
+                    name,
+                    excludeTableId: tableId,
+                });
+                const table = model.getTable(tableId).updateName(name, {tableName, tableNameHash});
                 sql`
                     UPDATE ${table.schema}._alpine_table
                     SET
@@ -247,7 +231,12 @@ export const databaseActions = {
         writeLevel: "schema+data",
         run({model}, {tableId, name}) {
             const table = model.getTable(tableId);
-            const updated = table.updateName(name);
+            const {tableName, tableNameHash} = formatUniqueTableName({
+                model,
+                name,
+                excludeTableId: tableId,
+            });
+            const updated = table.updateName(name, {tableName, tableNameHash});
 
             return {tableName: updated.tableName};
         },
@@ -295,7 +284,6 @@ export const databaseActions = {
                 name: Schema.string,
                 tableName: Schema.string,
                 nameFieldId: Schema.id<DatabaseFieldId>(),
-                accessPolicy: AccessPolicySchema,
             }).nullable(),
         }),
         writeLevel: "none",
@@ -308,7 +296,6 @@ export const databaseActions = {
                     name: table.name,
                     tableName: table.tableName,
                     nameFieldId: table.nameFieldId,
-                    accessPolicy: table.accessPolicy,
                 },
             };
         },
@@ -548,6 +535,15 @@ export const databaseActions = {
             const sourceFieldId = generateChronologicalId<DatabaseFieldId>();
             const targetFieldId = generateChronologicalId<DatabaseFieldId>();
 
+            // The join table is named after its two relation fields, created below as
+            // `sourceFieldName` and the source table's name. Resolved before the join table is
+            // registered so the uniqueness probe doesn't see its own row.
+            const {tableName: joinTableName, tableNameHash} = formatUniqueTableName({
+                model,
+                name: `${sourceFieldName} ${sourceTable.name}`,
+            });
+
+            model.registerTable(joinTableId, {kind: "join", tableNameHash});
             server().attach(joinTableId);
             runJoinTableMigrations(db, joinTableId);
 
@@ -572,7 +568,9 @@ export const databaseActions = {
                     });
                     targetTable.appendFieldToAllViews(targetField);
 
-                    const joinTable = model.createJoinTable(sourceField, targetField);
+                    const joinTable = model.createJoinTable(sourceField, targetField, {
+                        tableName: joinTableName,
+                    });
                     return {sourceField, targetField, joinTable};
                 },
             );

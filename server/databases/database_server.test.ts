@@ -1,8 +1,11 @@
 import {DatabaseServer} from "~/server/databases/database_server.js";
 import type {DatabaseServerStorage} from "~/server/databases/database_server_storage.js";
+import type {AccessLevel, LocalAccessPolicy} from "~/shared/access/access_policy.js";
 import {databaseTableAccessPolicyForCreator} from "~/shared/databases/database_table_access_policy.js";
-import {type SqlQuery, sql} from "~/shared/databases/sql.js";
+import {hashWithPrivateSalt} from "~/shared/databases/hash_with_private_salt.js";
+import {type SqlQuery, databaseTableSchemaName, sql} from "~/shared/databases/sql.js";
 import {databaseMainTableId, sqlitePageSize} from "~/shared/databases/sqlite_constants.js";
+import {tableSqliteMigrations} from "~/shared/databases/sqlite_migrations.js";
 import {InternalError} from "~/shared/error/error.js";
 import {generateChronologicalId} from "~/shared/id/chronological_id.js";
 import {generateId} from "~/shared/id/id.js";
@@ -76,6 +79,7 @@ class InMemoryStorage implements DatabaseServerStorage {
 // individual tests don't have to call `server.close()` themselves.
 const openServers: Array<DatabaseServer> = [];
 const testAccountId = generateId<AccountId>();
+const testPrivateSalt = new Uint8Array(32).fill(7);
 const testContext = {
     process: {
         waitUntil: () => {},
@@ -110,7 +114,7 @@ afterEach(() => {
 });
 
 async function createServerWithSchema(...statements: Array<SqlQuery>): Promise<DatabaseServer> {
-    const server = await DatabaseServer.create(new InMemoryStorage());
+    const server = await DatabaseServer.create(new InMemoryStorage(), testPrivateSalt);
     openServers.push(server);
     const db = server.unsafeGetDbForTests();
     for (const stmt of statements) {
@@ -158,7 +162,7 @@ describe("DatabaseServer — storage failure recovery", () => {
 
     test("a failed buffer drain does not wedge later executes", async () => {
         const storage = new FlakyStorage();
-        const server = await DatabaseServer.create(storage);
+        const server = await DatabaseServer.create(storage, testPrivateSalt);
         openServers.push(server);
         server.execute(testContext, sql`CREATE TABLE items (id INTEGER PRIMARY KEY)`, {
             allowWrites: "schema+data",
@@ -207,7 +211,7 @@ describe("DatabaseServer", () => {
             calls.push("after");
             return result;
         };
-        const server = await DatabaseServer.create(storage);
+        const server = await DatabaseServer.create(storage, testPrivateSalt);
         openServers.push(server);
 
         server.execute(
@@ -616,7 +620,7 @@ describe("DatabaseServer", () => {
     describe("storage integration", () => {
         test("writes go through to storage", async () => {
             const storage = new InMemoryStorage();
-            const server = await DatabaseServer.create(storage);
+            const server = await DatabaseServer.create(storage, testPrivateSalt);
             openServers.push(server);
             const db = server.unsafeGetDbForTests();
 
@@ -635,7 +639,7 @@ describe("DatabaseServer", () => {
 
         test("page data from execute matches what storage has", async () => {
             const storage = new InMemoryStorage();
-            const server = await DatabaseServer.create(storage);
+            const server = await DatabaseServer.create(storage, testPrivateSalt);
             openServers.push(server);
             const db = server.unsafeGetDbForTests();
 
@@ -761,7 +765,7 @@ describe("DatabaseServer", () => {
 
         test("before snapshot matches pre-mutation storage state", async () => {
             const storage = new InMemoryStorage();
-            const server = await DatabaseServer.create(storage);
+            const server = await DatabaseServer.create(storage, testPrivateSalt);
             openServers.push(server);
             const db = server.unsafeGetDbForTests();
             sql`CREATE TABLE items (id INTEGER PRIMARY KEY)`.exec(db);
@@ -798,7 +802,7 @@ describe("DatabaseServer", () => {
 
         test("after snapshot matches post-mutation storage state", async () => {
             const storage = new InMemoryStorage();
-            const server = await DatabaseServer.create(storage);
+            const server = await DatabaseServer.create(storage, testPrivateSalt);
             openServers.push(server);
             const db = server.unsafeGetDbForTests();
             sql`CREATE TABLE items (id INTEGER PRIMARY KEY)`.exec(db);
@@ -885,7 +889,7 @@ describe("DatabaseServer", () => {
         // shrink.
         test("VACUUM that shrinks the file drains without error", async () => {
             const storage = new InMemoryStorage();
-            const server = await DatabaseServer.create(storage);
+            const server = await DatabaseServer.create(storage, testPrivateSalt);
             openServers.push(server);
             const db = server.unsafeGetDbForTests();
             sql`CREATE TABLE items (id INTEGER PRIMARY KEY, BLOB TEXT NOT NULL)`.exec(db);
@@ -1014,6 +1018,24 @@ describe("DatabaseServer", () => {
                 }),
             ).toThrow("Database action syncTableMetadata is internal-only");
         });
+
+        test("accepts internal actions forwarded by trusted services", async () => {
+            const server = await createServerWithSchema();
+            // `syncDatabaseTableMetadataToDurableObject` reaches the durable object with an
+            // AppService-issued token; the actor's payload may be the end user's session, but
+            // the forwarding server code already authorized the operation.
+            const appServiceContext = {
+                ...testContext,
+                actor: {...testContext.actor, serviceName: "AppService"},
+            };
+
+            expect(() =>
+                server.executeAction(appServiceContext, {
+                    name: "createTable",
+                    input: createTableInputForTest("Tasks"),
+                }),
+            ).not.toThrow();
+        });
     });
 
     describe("executeAction — changed tables", () => {
@@ -1091,7 +1113,7 @@ describe("DatabaseServer", () => {
 
 describe("DatabaseServer — per-table storage", () => {
     test("a fresh group has no tables", async () => {
-        const server = await DatabaseServer.create(new InMemoryStorage());
+        const server = await DatabaseServer.create(new InMemoryStorage(), testPrivateSalt);
         openServers.push(server);
 
         const tables = sql`
@@ -1104,7 +1126,7 @@ describe("DatabaseServer — per-table storage", () => {
     });
 
     test("createTable stores public main metadata plus its own per-db file", async () => {
-        const server = await DatabaseServer.create(new InMemoryStorage());
+        const server = await DatabaseServer.create(new InMemoryStorage(), testPrivateSalt);
         openServers.push(server);
         const {result} = server.executeAction<"createTable">(testContext, {
             name: "createTable",
@@ -1112,14 +1134,22 @@ describe("DatabaseServer — per-table storage", () => {
         });
         const db = server.unsafeGetDbForTests();
 
-        // Main holds only public routing metadata — no name, no table_name.
+        // Main holds only public routing metadata — no name, no table_name; the table's
+        // name appears only as a salted hash.
         const tables = sql`
             SELECT
                 *
             FROM
                 _alpine_tables
         `.selectAllUnknown(db);
-        expect(tables).toEqual([{id: result.tableId, kind: "table"}]);
+        expect(tables).toEqual([
+            {
+                id: result.tableId,
+                kind: "table",
+                schema_version: tableSqliteMigrations(result.tableId).length,
+                table_name_hash: hashWithPrivateSalt(testPrivateSalt, "tasks"),
+            },
+        ]);
 
         // The display name lives in the table's own per-db file.
         const name = sql`
@@ -1133,16 +1163,16 @@ describe("DatabaseServer — per-table storage", () => {
 
     test("re-attaches and serves an existing table after reopening", async () => {
         const storage = new InMemoryStorage();
-        const server1 = await DatabaseServer.create(storage);
+        const server1 = await DatabaseServer.create(storage, testPrivateSalt);
         const {result} = server1.executeAction<"createTable">(testContext, {
             name: "createTable",
             input: createTableInputForTest("Tasks"),
         });
         server1.close();
 
-        // Reopen on the same storage; bootstrap should attach and migrate the existing
-        // table so it stays queryable.
-        const server2 = await DatabaseServer.create(storage);
+        // Reopen on the same storage; the table must stay queryable (bootstrap skips
+        // migration-current files, so this exercises attach-on-miss).
+        const server2 = await DatabaseServer.create(storage, testPrivateSalt);
         openServers.push(server2);
         const name = sql`
             SELECT
@@ -1153,9 +1183,76 @@ describe("DatabaseServer — per-table storage", () => {
         expect(name).toBe("Tasks");
     });
 
+    test("bootstrap skips attaching migration-current tables", async () => {
+        const storage = new InMemoryStorage();
+        const server1 = await DatabaseServer.create(storage, testPrivateSalt);
+        const {result} = server1.executeAction<"createTable">(testContext, {
+            name: "createTable",
+            input: createTableInputForTest("Tasks"),
+        });
+        server1.close();
+
+        // The registry's schema_version says the file is current, so bootstrap never
+        // attaches it — cold starts cost O(stale tables), not O(tables).
+        const server2 = await DatabaseServer.create(storage, testPrivateSalt);
+        openServers.push(server2);
+        const attachedSchemaNames = sql`PRAGMA database_list`
+            .selectAllUnknown(server2.unsafeGetDbForTests())
+            .map(row => row.name);
+
+        expect(attachedSchemaNames).not.toContain(databaseTableSchemaName(result.tableId));
+    });
+
+    test("bootstrap migrates a table whose registry schema_version is stale", async () => {
+        const storage = new InMemoryStorage();
+        const server1 = await DatabaseServer.create(storage, testPrivateSalt);
+        const {result} = server1.executeAction<"createTable">(testContext, {
+            name: "createTable",
+            input: createTableInputForTest("Tasks"),
+        });
+        // Zero the registry mirror — the state every pre-existing table is in right after
+        // the ALTER TABLE backfill migration.
+        sql`
+            UPDATE _alpine_tables
+            SET
+                schema_version = 0
+            WHERE
+                id = ${result.tableId}
+        `.exec(server1.unsafeGetDbForTests());
+        server1.commitBufferForTests();
+        server1.close();
+
+        // Bootstrap must attach the "stale" table, run its (no-op) migrations, and repair
+        // the registry mirror so the next cold start skips it again.
+        const server2 = await DatabaseServer.create(storage, testPrivateSalt);
+        openServers.push(server2);
+        const db = server2.unsafeGetDbForTests();
+        const attachedSchemaNames = sql`PRAGMA database_list`
+            .selectAllUnknown(db)
+            .map(row => row.name);
+        const registryVersion = sql`
+            SELECT
+                schema_version
+            FROM
+                _alpine_tables
+            WHERE
+                id = ${result.tableId}
+        `.selectValue(db, Schema.integer);
+
+        expect({
+            attachedAfterBootstrap: attachedSchemaNames.includes(
+                databaseTableSchemaName(result.tableId),
+            ),
+            registryVersion,
+        }).toEqual({
+            attachedAfterBootstrap: true,
+            registryVersion: tableSqliteMigrations(result.tableId).length,
+        });
+    });
+
     test("re-attaches and serves an existing relation join table after reopening", async () => {
         const storage = new InMemoryStorage();
-        const server1 = await DatabaseServer.create(storage);
+        const server1 = await DatabaseServer.create(storage, testPrivateSalt);
         const source = server1.executeAction<"createTable">(testContext, {
             name: "createTable",
             input: createTableInputForTest("Tasks"),
@@ -1176,7 +1273,7 @@ describe("DatabaseServer — per-table storage", () => {
         }).result;
         server1.close();
 
-        const server2 = await DatabaseServer.create(storage);
+        const server2 = await DatabaseServer.create(storage, testPrivateSalt);
         openServers.push(server2);
         const joinTableId = sql`
             SELECT
@@ -1185,5 +1282,436 @@ describe("DatabaseServer — per-table storage", () => {
                 ${sql.tableRef(relation.joinTableId, "_alpine_join_table")}
         `.selectValue(server2.unsafeGetDbForTests(), Schema.id<DatabaseTableId>());
         expect(joinTableId).toBe(relation.joinTableId);
+    });
+});
+
+/* eslint-disable cyberworlds/string-quotes -- raw SQL strings quote identifiers */
+describe("DatabaseServer — per-table access", () => {
+    function createSessionContext(accountId: AccountId | null) {
+        return {
+            ...testContext,
+            actor: {
+                serviceName: undefined,
+                getPossiblyBotAccountIdIfExists: () => accountId,
+            },
+        } as any;
+    }
+
+    function localPolicyWithGrants(
+        grants: ReadonlyArray<[AccountId, Exclude<AccessLevel, "Manage">]>,
+    ): LocalAccessPolicy {
+        return {
+            type: "Local",
+            accountGrantById: new Map(grants.map(([accountId, level]) => [accountId, {level}])),
+            defaultGrant: null,
+            urlGrant: null,
+        };
+    }
+
+    async function createServer(): Promise<DatabaseServer> {
+        const server = await DatabaseServer.create(new InMemoryStorage(), testPrivateSalt);
+        openServers.push(server);
+        return server;
+    }
+
+    function createTableWithPolicy(
+        server: DatabaseServer,
+        name: string,
+        accessPolicy: LocalAccessPolicy,
+    ): {tableId: DatabaseTableId; tableName: string} {
+        const tableId = generateChronologicalId<DatabaseTableId>();
+        const {result} = server.executeAction<"createTable">(testContext, {
+            name: "createTable",
+            input: {tableId, name, accessPolicy},
+        });
+        return {tableId, tableName: result.tableName};
+    }
+
+    function selectAllFromTable(tableName: string) {
+        return {
+            name: "readonlyRawSql" as const,
+            input: {sql: `SELECT * FROM "${tableName}"`},
+        };
+    }
+
+    test("denies reads of a table the account has no access to", async () => {
+        const server = await createServer();
+        const {tableId, tableName} = createTableWithPolicy(
+            server,
+            "Tasks",
+            databaseTableAccessPolicyForCreator(testAccountId),
+        );
+        const outsider = generateId<AccountId>();
+
+        expect(() =>
+            server.executeAction(createSessionContext(outsider), selectAllFromTable(tableName)),
+        ).toThrow(`Permission denied for read on database table ${tableId}`);
+    });
+
+    test("allows reads at View level", async () => {
+        const server = await createServer();
+        const viewer = generateId<AccountId>();
+        const {tableName} = createTableWithPolicy(
+            server,
+            "Tasks",
+            localPolicyWithGrants([[viewer, "View"]]),
+        );
+
+        const {result} = server.executeAction<"readonlyRawSql">(
+            createSessionContext(viewer),
+            selectAllFromTable(tableName),
+        );
+
+        expect(result.rows).toEqual([]);
+    });
+
+    test("denies schema changes at View level", async () => {
+        const server = await createServer();
+        const viewer = generateId<AccountId>();
+        const {tableId} = createTableWithPolicy(
+            server,
+            "Tasks",
+            localPolicyWithGrants([[viewer, "View"]]),
+        );
+
+        expect(() =>
+            server.executeAction(createSessionContext(viewer), {
+                name: "renameTable",
+                input: {tableId, name: "Renamed"},
+            }),
+        ).toThrow(`Permission denied for alter-table on database table ${tableId}`);
+    });
+
+    test("allows schema changes at Edit level", async () => {
+        const server = await createServer();
+        const editor = generateId<AccountId>();
+        const {tableId} = createTableWithPolicy(
+            server,
+            "Tasks",
+            localPolicyWithGrants([[editor, "Edit"]]),
+        );
+
+        const {result} = server.executeAction<"renameTable">(createSessionContext(editor), {
+            name: "renameTable",
+            input: {tableId, name: "Renamed"},
+        });
+
+        expect(result.tableName).toBe("renamed");
+    });
+
+    test("internal actors bypass per-table access", async () => {
+        const server = await createServer();
+        // A policy granting nobody anything; the Test service actor must still read.
+        const {tableName} = createTableWithPolicy(server, "Tasks", localPolicyWithGrants([]));
+
+        const {result} = server.executeAction<"readonlyRawSql">(
+            testContext,
+            selectAllFromTable(tableName),
+        );
+
+        expect(result.rows).toEqual([]);
+    });
+
+    test("a policy update through syncTableMetadata revokes access mid-session", async () => {
+        const server = await createServer();
+        const viewer = generateId<AccountId>();
+        const {tableId, tableName} = createTableWithPolicy(
+            server,
+            "Tasks",
+            localPolicyWithGrants([[viewer, "View"]]),
+        );
+        server.executeAction<"readonlyRawSql">(
+            createSessionContext(viewer),
+            selectAllFromTable(tableName),
+        );
+
+        server.executeAction<"syncTableMetadata">(testContext, {
+            name: "syncTableMetadata",
+            input: {tableId, name: "Tasks", accessPolicy: localPolicyWithGrants([])},
+        });
+
+        expect(() =>
+            server.executeAction(createSessionContext(viewer), selectAllFromTable(tableName)),
+        ).toThrow(`Permission denied for read on database table ${tableId}`);
+    });
+
+    // Linked-records scenario: Tasks и People joined by an "Assignee" relation.
+    // Account access matrix — everyone has Edit on Tasks; People access varies.
+    async function createLinkedTablesScenario() {
+        const server = await createServer();
+        const viewPeople = generateId<AccountId>();
+        const noPeople = generateId<AccountId>();
+        const editBoth = generateId<AccountId>();
+        const tasks = createTableWithPolicy(
+            server,
+            "Tasks",
+            localPolicyWithGrants([
+                [viewPeople, "Edit"],
+                [noPeople, "Edit"],
+                [editBoth, "Edit"],
+            ]),
+        );
+        const people = createTableWithPolicy(
+            server,
+            "People",
+            localPolicyWithGrants([
+                [viewPeople, "View"],
+                [editBoth, "Edit"],
+            ]),
+        );
+        const joinTableId = generateChronologicalId<DatabaseTableId>();
+        const relation = server.executeAction<"createRelationField">(testContext, {
+            name: "createRelationField",
+            input: {
+                joinTableId,
+                sourceTableId: tasks.tableId,
+                sourceFieldName: "Assignee",
+                targetTableId: people.tableId,
+                cardinality: "many",
+            },
+        }).result;
+        const taskRowId = generateChronologicalId<DatabaseRowId>();
+        const personRowId = generateChronologicalId<DatabaseRowId>();
+        server.executeAction<"createRow">(testContext, {
+            name: "createRow",
+            input: {tableId: tasks.tableId, rowId: taskRowId},
+        });
+        server.executeAction<"createRow">(testContext, {
+            name: "createRow",
+            input: {tableId: people.tableId, rowId: personRowId},
+        });
+        return {
+            server,
+            viewPeople,
+            noPeople,
+            editBoth,
+            tasks,
+            people,
+            relation,
+            taskRowId,
+            personRowId,
+        };
+    }
+
+    function addLinkAction(scenario: Awaited<ReturnType<typeof createLinkedTablesScenario>>) {
+        return {
+            name: "addLink" as const,
+            input: {
+                tableId: scenario.tasks.tableId,
+                fieldId: scenario.relation.sourceFieldId,
+                rowId: scenario.taskRowId,
+                linkedRowId: scenario.personRowId,
+            },
+        };
+    }
+
+    test("addLink succeeds with Edit on one side and View on the other", async () => {
+        const scenario = await createLinkedTablesScenario();
+
+        expect(() =>
+            scenario.server.executeAction(
+                createSessionContext(scenario.viewPeople),
+                addLinkAction(scenario),
+            ),
+        ).not.toThrow();
+    });
+
+    test("addLink is denied without access to the linked table", async () => {
+        const scenario = await createLinkedTablesScenario();
+
+        expect(() =>
+            scenario.server.executeAction(
+                createSessionContext(scenario.noPeople),
+                addLinkAction(scenario),
+            ),
+        ).toThrow(`Permission denied for read on database table ${scenario.people.tableId}`);
+    });
+
+    test("removeLink succeeds with Edit on one side only", async () => {
+        const scenario = await createLinkedTablesScenario();
+        scenario.server.executeAction(
+            createSessionContext(scenario.viewPeople),
+            addLinkAction(scenario),
+        );
+
+        expect(() =>
+            scenario.server.executeAction(createSessionContext(scenario.noPeople), {
+                name: "removeLink",
+                input: addLinkAction(scenario).input,
+            }),
+        ).not.toThrow();
+    });
+
+    test("join file reads are allowed with access to either side", async () => {
+        const scenario = await createLinkedTablesScenario();
+        const joinSchemaName = databaseTableSchemaName(scenario.relation.joinTableId);
+
+        const {result} = scenario.server.executeAction<"readonlyRawSql">(
+            createSessionContext(scenario.noPeople),
+            {
+                name: "readonlyRawSql",
+                input: {sql: `SELECT * FROM "${joinSchemaName}"._alpine_join_table`},
+            },
+        );
+
+        expect(result.rows).toHaveLength(1);
+    });
+
+    test("join file reads are denied without access to either side", async () => {
+        const scenario = await createLinkedTablesScenario();
+        const outsider = generateId<AccountId>();
+        const joinSchemaName = databaseTableSchemaName(scenario.relation.joinTableId);
+
+        expect(() =>
+            scenario.server.executeAction(createSessionContext(outsider), {
+                name: "readonlyRawSql",
+                input: {sql: `SELECT * FROM "${joinSchemaName}"._alpine_join_table`},
+            }),
+        ).toThrow(`Permission denied for read on database table ${scenario.relation.joinTableId}`);
+    });
+
+    test("createRelationField succeeds with Edit on both sides", async () => {
+        const scenario = await createLinkedTablesScenario();
+        const joinTableId = generateChronologicalId<DatabaseTableId>();
+
+        const {result} = scenario.server.executeAction<"createRelationField">(
+            createSessionContext(scenario.editBoth),
+            {
+                name: "createRelationField",
+                input: {
+                    joinTableId,
+                    sourceTableId: scenario.tasks.tableId,
+                    sourceFieldName: "Reviewer",
+                    targetTableId: scenario.people.tableId,
+                    cardinality: "many",
+                },
+            },
+        );
+
+        expect(result.joinTableId).toBe(joinTableId);
+    });
+
+    test("view rows degrade linked records to ids when the linked table is unreadable", async () => {
+        const scenario = await createLinkedTablesScenario();
+        scenario.server.executeAction(
+            createSessionContext(scenario.viewPeople),
+            addLinkAction(scenario),
+        );
+
+        const {result} = scenario.server.executeAction<"getViewRowsPage">(
+            createSessionContext(scenario.noPeople),
+            {
+                name: "getViewRowsPage",
+                input: {
+                    tableOrViewId: scenario.tasks.tableId,
+                    afterCursor: null,
+                    endCursor: null,
+                },
+            },
+        );
+
+        const fieldIndex = result.fieldIndexes.get(scenario.relation.sourceFieldId)!;
+        expect(result.rows[0]![fieldIndex]).toEqual([
+            {id: scenario.personRowId, name: null, noAccess: true},
+        ]);
+    });
+
+    test("view rows include linked record names when the linked table is readable", async () => {
+        const scenario = await createLinkedTablesScenario();
+        scenario.server.executeAction(
+            createSessionContext(scenario.viewPeople),
+            addLinkAction(scenario),
+        );
+
+        const {result} = scenario.server.executeAction<"getViewRowsPage">(
+            createSessionContext(scenario.viewPeople),
+            {
+                name: "getViewRowsPage",
+                input: {
+                    tableOrViewId: scenario.tasks.tableId,
+                    afterCursor: null,
+                    endCursor: null,
+                },
+            },
+        );
+
+        const fieldIndex = result.fieldIndexes.get(scenario.relation.sourceFieldId)!;
+        expect(result.rows[0]![fieldIndex]).toEqual([
+            {id: scenario.personRowId, name: "", noAccess: false},
+        ]);
+    });
+
+    test("createRelationField is denied with only View on the target", async () => {
+        const scenario = await createLinkedTablesScenario();
+
+        expect(() =>
+            scenario.server.executeAction(createSessionContext(scenario.viewPeople), {
+                name: "createRelationField",
+                input: {
+                    joinTableId: generateChronologicalId<DatabaseTableId>(),
+                    sourceTableId: scenario.tasks.tableId,
+                    sourceFieldName: "Reviewer",
+                    targetTableId: scenario.people.tableId,
+                    cardinality: "many",
+                },
+            }),
+        ).toThrow(`Permission denied for insert on database table ${scenario.people.tableId}`);
+    });
+});
+
+describe("DatabaseServer — table access levels", () => {
+    test("returns the complete map, loading policies for never-attached tables", async () => {
+        const storage = new InMemoryStorage();
+        const server1 = await DatabaseServer.create(storage, testPrivateSalt);
+        openServers.push(server1);
+        const viewer = generateId<AccountId>();
+        const readable = server1.executeAction<"createTable">(testContext, {
+            name: "createTable",
+            input: {
+                tableId: generateChronologicalId<DatabaseTableId>(),
+                name: "Readable",
+                accessPolicy: {
+                    type: "Local",
+                    accountGrantById: new Map([[viewer, {level: "View" as const}]]),
+                    defaultGrant: null,
+                    urlGrant: null,
+                },
+            },
+        }).result;
+        const hidden = server1.executeAction<"createTable">(testContext, {
+            name: "createTable",
+            input: {
+                tableId: generateChronologicalId<DatabaseTableId>(),
+                name: "Hidden",
+                accessPolicy: databaseTableAccessPolicyForCreator(testAccountId),
+            },
+        }).result;
+        server1.close();
+
+        // A fresh server on the same storage attaches nothing at bootstrap (both tables
+        // are migration-current); the access map must load their policies on demand.
+        const server2 = await DatabaseServer.create(storage, testPrivateSalt);
+        openServers.push(server2);
+
+        expect(server2.getTableAccessLevelsForAccount(viewer)).toEqual(
+            new Map([
+                [readable.tableId, "read"],
+                [hidden.tableId, "none"],
+                [databaseMainTableId, "write"],
+            ]),
+        );
+    });
+
+    test("owners report write access", async () => {
+        const server = await DatabaseServer.create(new InMemoryStorage(), testPrivateSalt);
+        openServers.push(server);
+        const {result} = server.executeAction<"createTable">(testContext, {
+            name: "createTable",
+            input: createTableInputForTest("Tasks"),
+        });
+
+        expect(server.getTableAccessLevelsForAccount(testAccountId).get(result.tableId)).toBe(
+            "write",
+        );
     });
 });

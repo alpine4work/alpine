@@ -1,7 +1,11 @@
 import type {OpfsDirectoryHandle} from "~/client/web/databases/worker/opfs.js";
 import {OpfsDatabaseStorage} from "~/client/web/databases/worker/opfs_database_storage.js";
 import type {OpfsPageStore} from "~/client/web/databases/worker/opfs_page_store.js";
-import {Database, type DatabaseTrackedExecution} from "~/shared/databases/database.js";
+import {
+    Database,
+    type DatabaseTableAccessResolver,
+    type DatabaseTrackedExecution,
+} from "~/shared/databases/database.js";
 import {DatabaseActionRequiresServerError} from "~/shared/databases/database_action_requires_server_error.js";
 import {
     type DatabaseActionName,
@@ -17,6 +21,8 @@ import type {
     DatabasePageIndexes,
     DatabasePageVersionsByIndex,
     DatabasePages,
+    DatabaseTableAccessLevel,
+    DatabaseTableAccessLevels,
     ReadonlyDatabasePageSet,
 } from "~/shared/databases/database_protocol_schemas.js";
 import {
@@ -24,11 +30,14 @@ import {
     diffPage,
     shouldIgnorePageInvalidation,
 } from "~/shared/databases/page_diff.js";
+import {deniedSqliteTableAccess} from "~/shared/databases/sqlite_authorizer.js";
 import {databaseMainTableId} from "~/shared/databases/sqlite_constants.js";
 import {type SqliteMigration} from "~/shared/databases/sqlite_migrations.js";
 import {TableNotAttachedError} from "~/shared/databases/table_not_attached_error.js";
 import {PermissionDeniedError} from "~/shared/error/error.js";
+import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
 import {assert} from "~/shared/helpers/control/assert.js";
+import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
 import type {Result} from "~/shared/helpers/control/result.js";
 import {getOrSetDefaultMapValue} from "~/shared/helpers/map/get_or_set_default_map_value.js";
 import {generateId} from "~/shared/id/id.js";
@@ -78,6 +87,15 @@ export class DatabaseClient {
     private readonly storage: OpfsDatabaseStorage;
     private optimisticQueue: Array<OptimisticMutation> = [];
     private nextTestCommitVersion = 0;
+    /**
+     * The account's per-table access map, pushed by the server: replaced with the
+     * complete map on every {@link ensureCacheIsUpToDate} and merged with the deltas
+     * carried on `TableMetadataChanged` events (see {@link applyTableAccessLevels}).
+     * Advisory — the server's per-statement authorizer is the enforcement — but it's
+     * the client's only source of "exists but no access", e.g. for rendering a
+     * relation into a table this account can't read.
+     */
+    private tableAccessLevelByTableId = new Map<DatabaseTableId, DatabaseTableAccessLevel>();
 
     private constructor(database: Database, storage: OpfsDatabaseStorage) {
         this.database = database;
@@ -133,9 +151,9 @@ export class DatabaseClient {
      *
      * Both empty for a table means its cache is already up to date.
      *
-     * Once every store is validated, attaches all known tables (see {@link
-     * attachKnownTables}) so subsequent actions run locally without any on-demand
-     * attach step.
+     * Once every store is validated, eagerly attaches known tables up to the attach
+     * capacity (see {@link attachKnownTables}); tables past capacity attach on demand
+     * at first use.
      *
      * Safe to call on a live database, not just at cold open: pending optimistic
      * writes and SQLite's pager cache are dropped before the validated pages land, the
@@ -153,7 +171,11 @@ export class DatabaseClient {
             pageVersionsByIndex.set(tableId, tableVersions);
         }
 
-        const {tables} = await conn.ensureCacheIsUpToDate(pageVersionsByIndex);
+        const {tables, tableAccess} = await conn.ensureCacheIsUpToDate(pageVersionsByIndex);
+        if (tableAccess.size > 0) {
+            this.tableAccessLevelByTableId = new Map(tableAccess);
+            await this.purgeRevokedTables();
+        }
 
         // From here through `replayOptimisticQueue()` runs synchronously — no `await` — so
         // a concurrent handler can't re-dirty the buffer between the discard and the
@@ -206,17 +228,100 @@ export class DatabaseClient {
     }
 
     /**
-     * Attach every open per-table store whose header page is cached. Runs after cache
-     * validation — attaching before validation would let SQLite parse a schema from
-     * pages about to be replaced, and (under `locking_mode = EXCLUSIVE`) attaching a
-     * store with no header would permanently cache an empty schema.
+     * Merge a `TableMetadataChanged` access delta into the map (see {@link
+     * tableAccessLevelByTableId}) and purge any table the delta revoked.
+     */
+    async applyTableAccessLevels(tableAccess: DatabaseTableAccessLevels): Promise<void> {
+        for (const [tableId, level] of tableAccess) {
+            this.tableAccessLevelByTableId.set(tableId, level);
+        }
+        await this.purgeRevokedTables();
+    }
+
+    /**
+     * Best-effort local purge of every cached table the access map now reports
+     * `"none"` for: detach its per-table file from SQLite (dropping buffered writes to
+     * it), delete its pages from OPFS, and re-run reactive queries that read them. The
+     * server stops replicating a revoked table on its own; this removes the copies
+     * that already reached this device.
      *
-     * A cached table whose header page was discarded as stale stays unattached; its
-     * first action falls back to the server, whose response re-populates and attaches
-     * it (see {@link executeActionViaServer}).
+     * Best-effort by nature — the account may simply never come back online — so a
+     * table whose schema an open transaction has locked is skipped and retried on the
+     * next access-map push.
+     */
+    private async purgeRevokedTables(): Promise<void> {
+        const dirRemovals: Array<Promise<void>> = [];
+        for (const [tableId, store] of [...this.storage]) {
+            if (tableId === databaseMainTableId) continue;
+            if (this.getTableAccessLevel(tableId) !== "none") continue;
+            if (!this.database.detachTableIfAttached(tableId)) continue;
+            for (const {pageIndex} of store.pageEntries()) {
+                this.addPageToInvalidate(tableId, pageIndex);
+            }
+            dirRemovals.push(this.storage.delete(tableId));
+        }
+        if (dirRemovals.length === 0) return;
+
+        // Queued optimistic mutations may have written to a purged table: discard the
+        // buffer and replay so now-denied mutations drop out and the rest reapply cleanly
+        // (both synchronous — see {@link ensureCacheIsUpToDate}).
+        this.database.discardBuffer();
+        this.replayOptimisticQueue();
+        this.scheduleInvalidation();
+        await runAllPromises(dirRemovals);
+    }
+
+    /**
+     * Per-execution table access derived from the server-pushed map, installed on
+     * every local action execution. Keeps the client's decisions — most importantly a
+     * relation field's ids-only projection when the linked table isn't readable —
+     * deterministic with the server's authorizer, which evaluates the same policies.
+     * Local statements that would be denied server-side fail fast here instead of
+     * optimistically applying and being rolled back.
+     */
+    private readonly tableAccessResolver: DatabaseTableAccessResolver = tableId => {
+        const level = this.getTableAccessLevel(tableId);
+        switch (level) {
+            case "write":
+                return "unrestricted";
+            case "read":
+                return {read: true, write: false, schema: false};
+            case "none":
+                return deniedSqliteTableAccess;
+            default:
+                throw exhaustive(level);
+        }
+    };
+
+    /**
+     * The account's access to `tableId` per the server-pushed map. Tables absent from
+     * the map report `"write"`: trusted internal connections (tests, tools) receive
+     * empty maps, and a real client's map is complete for every registered table — so
+     * absence means unrestricted or brand-new, and the server's authorizer is the
+     * enforcement either way.
+     */
+    getTableAccessLevel(tableId: DatabaseTableId): DatabaseTableAccessLevel {
+        if (tableId === databaseMainTableId) return "write";
+        return this.tableAccessLevelByTableId.get(tableId) ?? "write";
+    }
+
+    /**
+     * Attach open per-table stores whose header page is cached, up to the attach
+     * capacity. Runs after cache validation — attaching before validation would let
+     * SQLite parse a schema from pages about to be replaced, and (under
+     * `locking_mode = EXCLUSIVE`) attaching a store with no header would permanently
+     * cache an empty schema.
+     *
+     * This eager attach is an optimization, not a requirement: a locally cached table
+     * left unattached (past capacity, or with a stale header) re-attaches on first use
+     * via `Database`'s attach-on-miss, and a table with no local header falls back to
+     * the server, whose response re-populates and attaches it (see {@link
+     * executeActionViaServer}). Attaching past capacity would only churn the LRU
+     * working set.
      */
     private attachKnownTables(): void {
         for (const [tableId, store] of this.storage) {
+            if (this.database.isAtAttachCapacity()) break;
             if (tableId === databaseMainTableId) continue;
             if (this.database.isAttached(tableId)) continue;
             if (store.readPage(0) === null) continue;
@@ -231,11 +336,11 @@ export class DatabaseClient {
      * execution and background server confirmation.
      *
      * Falls back to the server when the local store is missing pages or the action
-     * references a table this client doesn't know about (every known table is attached
-     * up front — see {@link attachKnownTables}). Actions that call `ctx.server()` for
-     * server-only work (e.g. allocating an ID via `generateChronologicalId()`) throw
-     * {@link DatabaseActionRequiresServerError} on the client, which routes them
-     * straight to the server the same way.
+     * references a table with no locally cached pages (locally cached tables attach
+     * eagerly up to capacity — see {@link attachKnownTables} — and on demand past it).
+     * Actions that call `ctx.server()` for server-only work (e.g. allocating an ID via
+     * `generateChronologicalId()`) throw {@link DatabaseActionRequiresServerError} on
+     * the client, which routes them straight to the server the same way.
      */
     async executeAction<N extends DatabaseActionName>(
         conn: DatabaseClientConnection,
@@ -252,7 +357,9 @@ export class DatabaseClient {
         let output: DatabaseActionOutput<N>;
         let writtenPages: ReadonlyDatabasePageSet;
         try {
-            const executed = this.database.executeAction(actionObject);
+            const executed = this.database.executeAction(actionObject, {
+                tableAccessResolver: this.tableAccessResolver,
+            });
             output = executed.result;
             writtenPages = executed.writtenPages;
         } catch (error) {
@@ -329,7 +436,9 @@ export class DatabaseClient {
     private executeReadOnly<N extends DatabaseActionName>(
         actionObject: DatabaseActionObject<N>,
     ): {output: DatabaseActionOutput<N>; readPages: ReadonlyDatabasePageSet} {
-        const {result, readPages, writtenPages} = this.database.executeAction(actionObject);
+        const {result, readPages, writtenPages} = this.database.executeAction(actionObject, {
+            tableAccessResolver: this.tableAccessResolver,
+        });
         assert(writtenPages.size === 0, "executeActionWithTracking does not support writes");
         return {output: result, readPages};
     }
@@ -583,7 +692,9 @@ export class DatabaseClient {
         let anyInvalidated = false;
         this.optimisticQueue = this.optimisticQueue.filter(mutation => {
             try {
-                const {writtenPages} = this.database.executeAction(mutation.action);
+                const {writtenPages} = this.database.executeAction(mutation.action, {
+                    tableAccessResolver: this.tableAccessResolver,
+                });
                 if (this.markWrittenPages(writtenPages)) {
                     anyInvalidated = true;
                 }
@@ -821,6 +932,16 @@ export class DatabaseClient {
             }
         }
         this.database.markCommitted({skipReactiveInvalidationForTests: true});
+    }
+
+    /**
+     * Open a page store for `tableId` and attach its (empty) per-table file, so tests
+     * can populate it via {@link executeLocallyForTests}. Test-only.
+     */
+    async attachTableForTests(tableId: DatabaseTableId): Promise<void> {
+        assert(import.meta.jest, "attachTableForTests is test-only");
+        await this.storage.create(tableId);
+        this.database.attach(tableId);
     }
 
     /** Exposed for tests only. Do not use in production code. */

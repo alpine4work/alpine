@@ -18,6 +18,7 @@ ts_project(
         "//admin/external_types:sqlite",
         "//server/cloudflare",
         "//server/web_socket",
+        "//shared/access",
         "//shared/databases",
         "//shared/error",
         "//shared/helpers",

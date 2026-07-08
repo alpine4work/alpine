@@ -20,11 +20,12 @@ import {Schema} from "~/shared/schema/schema.js";
 const sqlite3Promise = sqlite3InitModule();
 let dbCounter = 0;
 
+// Deliberately does NOT run main migrations: the `main migration up to N` tests
+// below apply them incrementally themselves.
 async function createDb(): Promise<SqliteDatabase> {
     const sqlite3 = await sqlite3Promise;
     const db = new sqlite3.oo1.DB(`/test-migrations-${dbCounter++}.sqlite3`, "ct");
     registerSqliteCustomFunctions(sqlite3, db);
-    runMainMigrations(db);
     return db;
 }
 
@@ -32,6 +33,21 @@ function attachTableDb(db: SqliteDatabase, tableId: DatabaseTableId): void {
     sql` ATTACH DATABASE ':memory:' AS ${sql.identifier(databaseTableSchemaName(tableId))} `.exec(
         db,
     );
+}
+
+// The migration runner mirrors the applied version into main's registry and
+// asserts the table is already registered — see `DatabaseModel.registerTable`.
+function registerTestTable(db: SqliteDatabase, tableId: DatabaseTableId, kind: string): void {
+    sql`
+        INSERT INTO
+            main._alpine_tables (id, kind, table_name_hash)
+        VALUES
+            (
+                ${tableId},
+                ${kind},
+                'test-table-name-hash'
+            )
+    `.exec(db);
 }
 
 async function readSqliteSchema(db: Database, tableId: DatabaseTableId | null): Promise<string> {
@@ -107,6 +123,10 @@ describe("sqlite migrations", () => {
     for (let i = 1; i <= tableMigrations.length; i++) {
         test(`table migration up to ${i}`, async () => {
             const db = await createDb();
+            // The runner mirrors the applied version into main's registry, so main must be
+            // migrated first.
+            runMainMigrations(db);
+            registerTestTable(db, tableId, "table");
             attachTableDb(db, tableId);
             runTableMigrations(db, tableId, i);
 
@@ -127,6 +147,8 @@ describe("sqlite migrations", () => {
     for (let i = 1; i <= joinTableMigrations.length; i++) {
         test(`join table migration up to ${i}`, async () => {
             const db = await createDb();
+            runMainMigrations(db);
+            registerTestTable(db, joinTableId, "join");
             attachTableDb(db, joinTableId);
             runJoinTableMigrations(db, joinTableId, i);
 

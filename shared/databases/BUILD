@@ -4,6 +4,7 @@ ts_project(
     name = "databases",
     visibility = ["//visibility:public"],
     deps = [
+        "//:node_modules/@noble/hashes",
         "//:node_modules/prettier",
         "//:node_modules/prettier-plugin-sql",
         "@sqlite",
