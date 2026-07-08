@@ -326,7 +326,6 @@ function DatabaseRelationGridViewCellEditorOverlay({
             }}
             style={{minWidth: 280, maxWidth: 360}}
         >
-<<<<<<< HEAD
             <Box
                 display="flex"
                 alignItems="center"
@@ -337,17 +336,6 @@ function DatabaseRelationGridViewCellEditorOverlay({
             >
                 <Box color="grey-40" display="flex" alignItems="center" flexShrink="0">
                     <MagnifyingGlass size={16} />
-=======
-            {links.length > 0 ? (
-                <Box display="flex" flexWrap="wrap" gap="1" padding="1" borderBottom="grey-5">
-                    {links.map(link => (
-                        <DatabaseRelationEditableChip
-                            key={link.id}
-                            name={link.noAccess === true ? "No access" : link.name}
-                            onRemove={() => removeLink(link.id)}
-                        />
-                    ))}
->>>>>>> alex/db-permissions
                 </Box>
                 <Box flexGrow="1" style={{minWidth: 0}}>
                     <input
@@ -612,7 +600,6 @@ function DatabaseRelationLinkedRow({
     );
 }
 
-<<<<<<< HEAD
 /**
  * The accessible label / typeahead text for a linked record, falling back to
  * "Untitled" when the record has no meaningful name (`null`, empty, or
@@ -634,10 +621,7 @@ function DatabaseRelationRowName({name}: {name: string | null}) {
     return <span style={{whiteSpace: "pre"}}>{name}</span>;
 }
 
-function DatabaseRelationChip({name}: {name: string | null}) {
-=======
 function DatabaseRelationChip({name, noAccess}: {name: string | null; noAccess?: boolean}) {
->>>>>>> alex/db-permissions
     return (
         <Box
             display="flex"
@@ -650,13 +634,9 @@ function DatabaseRelationChip({name, noAccess}: {name: string | null; noAccess?:
             color={noAccess === true ? "grey-50" : "grey-100"}
             style={{maxWidth: 120}}
         >
-<<<<<<< HEAD
             <Box fontStyle="truncate">
-                <DatabaseRelationRowName name={name} />
+                {noAccess === true ? "No access" : <DatabaseRelationRowName name={name} />}
             </Box>
-=======
-            <Box fontStyle="truncate">{noAccess === true ? "No access" : (name ?? "Untitled")}</Box>
->>>>>>> alex/db-permissions
         </Box>
     );
 }

@@ -6,27 +6,24 @@ import type {DatabaseRowId} from "~/shared/id/types/id_types.js";
 describe("databaseRelationFieldProvider", () => {
     test("formats linked record names", () => {
         const value = [
-<<<<<<< HEAD
             {
                 id: generateChronologicalId<DatabaseRowId>(),
                 name: "Alpha",
                 position: assertOrderKey("a0"),
+                noAccess: false,
             },
             {
                 id: generateChronologicalId<DatabaseRowId>(),
                 name: null,
                 position: assertOrderKey("a1"),
+                noAccess: false,
             },
             {
                 id: generateChronologicalId<DatabaseRowId>(),
                 name: "Beta",
                 position: assertOrderKey("a2"),
+                noAccess: false,
             },
-=======
-            {id: generateChronologicalId<DatabaseRowId>(), name: "Alpha", noAccess: false},
-            {id: generateChronologicalId<DatabaseRowId>(), name: null, noAccess: false},
-            {id: generateChronologicalId<DatabaseRowId>(), name: "Beta", noAccess: false},
->>>>>>> alex/db-permissions
         ];
 
         expect(databaseRelationFieldProvider.valueToString(value)).toBe("Alpha, Untitled, Beta");

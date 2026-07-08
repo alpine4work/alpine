@@ -23,9 +23,10 @@ export const DatabaseRelationFieldValueSchema = Schema.array(
     Schema.object({
         id: Schema.id<DatabaseRowId>(),
         name: Schema.string.nullable(),
-<<<<<<< HEAD
-        position: OrderKeySchema,
-=======
+        // Absent for links to an unreadable table: those rows are projected from the join
+        // file alone (see `_selectColumn`), which carries the order key but the no-access
+        // branch doesn't emit it. Present for readable rows.
+        position: OrderKeySchema.optional(),
         /**
          * True when the account can't read the linked table: the link and its row id are
          * visible (they live in the join file, which either side's access unlocks), but
@@ -33,7 +34,6 @@ export const DatabaseRelationFieldValueSchema = Schema.array(
          * name is simply empty (`name: null`).
          */
         noAccess: Schema.boolean.default(false),
->>>>>>> alex/db-permissions
     }),
 );
 export type DatabaseRelationFieldValue = SchemaType<typeof DatabaseRelationFieldValueSchema>;

@@ -1865,13 +1865,8 @@ describe("getViewRowsPage", () => {
             {
                 id: firstSourceRowId,
                 links: [
-<<<<<<< HEAD
-                    {id: firstTargetRowId, name: "Alpha", position: "a0"},
-                    {id: secondTargetRowId, name: "Beta", position: "a1"},
-=======
-                    {id: firstTargetRowId, name: "Alpha", noAccess: false},
-                    {id: secondTargetRowId, name: "Beta", noAccess: false},
->>>>>>> alex/db-permissions
+                    {id: firstTargetRowId, name: "Alpha", position: "a0", noAccess: false},
+                    {id: secondTargetRowId, name: "Beta", position: "a1", noAccess: false},
                 ],
             },
             {id: secondSourceRowId, links: []},
@@ -1934,11 +1929,7 @@ describe("getViewRowsPage", () => {
         });
 
         expect(rows[0]![fieldIndexes.get(relation.sourceFieldId)!]).toEqual([
-<<<<<<< HEAD
-            {id: targetRowId, name: "3.14", position: "a0"},
-=======
-            {id: targetRowId, name: "3.14", noAccess: false},
->>>>>>> alex/db-permissions
+            {id: targetRowId, name: "3.14", position: "a0", noAccess: false},
         ]);
         db.close();
     });
@@ -2017,21 +2008,13 @@ describe("getViewRowsPage", () => {
         ).toEqual([
             {
                 id: sourceRowId,
-<<<<<<< HEAD
-                sourceLinks: [{id: targetRowId, name: "Child", position: "a0"}],
-=======
-                sourceLinks: [{id: targetRowId, name: "Child", noAccess: false}],
->>>>>>> alex/db-permissions
+                sourceLinks: [{id: targetRowId, name: "Child", position: "a0", noAccess: false}],
                 targetLinks: [],
             },
             {
                 id: targetRowId,
                 sourceLinks: [],
-<<<<<<< HEAD
-                targetLinks: [{id: sourceRowId, name: "Parent", position: "a0"}],
-=======
-                targetLinks: [{id: sourceRowId, name: "Parent", noAccess: false}],
->>>>>>> alex/db-permissions
+                targetLinks: [{id: sourceRowId, name: "Parent", position: "a0", noAccess: false}],
             },
         ]);
         db.close();

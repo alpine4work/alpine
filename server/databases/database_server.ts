@@ -1,9 +1,6 @@
 import type {Database as SqliteDatabase} from "~/external/sqlite/ext/wasm/jswasm/sqlite3.mjs";
 import type {WorkerActionContext} from "~/server/cloudflare/context/worker_action_context.js";
 import type {DatabaseServerStorage} from "~/server/databases/database_server_storage.js";
-<<<<<<< HEAD
-import type {ActorServiceName} from "~/server/helpers/actor_context_module.js";
-=======
 import {isTrustedDatabaseServiceActor} from "~/server/databases/is_trusted_database_service_actor.js";
 import {
     type AccessLevel,
@@ -11,7 +8,6 @@ import {
     getAccountAccessLevelAssumingSpaceAccess,
     maxAccessLevel,
 } from "~/shared/access/access_policy.js";
->>>>>>> alex/db-permissions
 import {Database, type DatabaseTrackedExecution} from "~/shared/databases/database.js";
 import {
     type DatabaseActionName,
@@ -46,38 +42,6 @@ import {captureResult} from "~/shared/helpers/control/capture_result.js";
 import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
 import type {AccountId, DatabaseTableId} from "~/shared/id/types/id_types.js";
 import {Schema} from "~/shared/schema/schema.js";
-
-/**
- * First-party backend services allowed to execute `internalOnly` database actions
- * (schema mutations like `createTable`/`syncTableMetadata`).
- *
- * `context.actor.serviceName` is the JWT _issuer_ — the service that signed the
- * request with its own private key (see `createDurableObjectActorContextModule`),
- * not the audience or the originating account. A public client cannot forge it: a
- * browser request forwarded through the edge is re-signed by the edge and arrives
- * as `EdgeService`, and a session/account actor carries its own non-backend
- * service name. So the only entries that belong here are backend services that
- * legitimately _originate_ an internal action.
- *
- * Keep this set as small as the call graph allows: an action reaching the durable
- * object from an unlisted service fails loudly with a `PermissionDeniedError`
- * naming the action (easy to diagnose and add), whereas a spurious entry silently
- * widens the schema-mutation surface. Notably this excludes `DatabaseGroupService`
- * (the durable object's own service name): nothing self-issues an internal action,
- * and listing it would grant internal-action rights to any token signed by the
- * durable object's key.
- */
-const internalDatabaseActionServiceNames: ReadonlySet<ActorServiceName> = new Set([
-    // Database RPCs and route loaders, e.g. `createDatabaseTable` running
-    // `createTable`.
-    "AppService",
-    // The `IndexSearchEntity` job syncs table metadata via `syncTableMetadata`.
-    "JobQueueService",
-    // Unit tests execute actions directly with a `Test` actor. No production token can
-    // be issued as `Test` (it is not a signing service), so this is unreachable
-    // outside tests.
-    "Test",
-]);
 
 export interface DatabaseServerPageChange {
     before: Uint8Array;
@@ -215,10 +179,6 @@ export class DatabaseServer {
         context: WorkerActionContext,
         actionObject: DatabaseActionObject<N>,
     ): DatabaseServerActionResult<N> {
-<<<<<<< HEAD
-        const internalOnly = databaseActions[actionObject.name].internalOnly;
-        if (internalOnly && !internalDatabaseActionServiceNames.has(context.actor.serviceName)) {
-=======
         // Trusted issuers are internal server code that authorized the operation before
         // forwarding it (see {@link isTrustedDatabaseServiceActor}); they run
         // unrestricted. Everyone else — browser traffic over the websocket protocol — may
@@ -226,7 +186,6 @@ export class DatabaseServer {
         // replicated policies, enforced per statement by the SQLite authorizer.
         const isTrustedActor = isTrustedDatabaseServiceActor(context.actor);
         if (databaseActions[actionObject.name].internalOnly && !isTrustedActor) {
->>>>>>> alex/db-permissions
             throw new PermissionDeniedError(
                 `Database action ${actionObject.name} is internal-only`,
             );

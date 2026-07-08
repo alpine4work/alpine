@@ -11,11 +11,8 @@ import {
     getUnknownDatabaseFieldProvider,
 } from "~/shared/databases/fields/all_database_field_providers.js";
 import {ColumnBackedDatabaseFieldProvider} from "~/shared/databases/fields/base/database_field_provider_base.js";
-<<<<<<< HEAD
-import {insertJoinLink} from "~/shared/databases/insert_join_link.js";
-=======
 import {formatUniqueTableName} from "~/shared/databases/format_unique_table_name.js";
->>>>>>> alex/db-permissions
+import {insertJoinLink} from "~/shared/databases/insert_join_link.js";
 import {DatabaseModel} from "~/shared/databases/model/database_root_model.js";
 import {SqlBooleanSchema} from "~/shared/databases/model/sqlite_schema.js";
 import {type SqlQuery, sql} from "~/shared/databases/sql.js";
