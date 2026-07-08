@@ -358,13 +358,6 @@ function createTaskActionsFromApiTaskPatches({
                     pendingHunk = null;
                 }
 
-                // NOCOMMIT: Test and make sure this works
-                //
-                // NOCOMMIT: Noop task title update should work? And we should still commit an
-                // action?
-                //
-                // NOCOMMIT: Try updating title multiple times in the same patch request. Should
-                // diff multiple times.
                 const titleUpdate = state.title.replaceMany(
                     randomlyGenerateTaskTitleClientId(),
                     titleUpdates,
@@ -441,7 +434,6 @@ function createTaskActionsFromApiTaskPatches({
                         if (!patch.status.isActive) {
                             const time = clock.now();
 
-                            // NOCOMMIT: Test that this clears the active status.
                             actions.push({
                                 type: "UpdateTask",
                                 time,
