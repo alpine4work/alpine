@@ -34,9 +34,9 @@ import {concatIterables} from "~/shared/helpers/iterable/concat_iterables.js";
 import {mapIterable} from "~/shared/helpers/iterable/map_iterable.js";
 import {AccountId, SiteId, SpaceId, TaskCollectionId, TaskId} from "~/shared/id/types/id_types.js";
 import {SitePreviewModel} from "~/shared/sites/site_model.js";
+import {decodeApiTaskQueryCursor} from "~/shared/tasks/model/api_task_query_cursor_encoder.js";
 import {collectReferencedIdsFromTaskCollectionModelData} from "~/shared/tasks/model/collect_referenced_ids_from_task_collection_model_data.js";
 import {collectReferencedIdsFromTaskModelData} from "~/shared/tasks/model/collected_referenced_ids_from_task_model_data.js";
-import {decodeApiTaskQueryCursor} from "~/shared/tasks/model/api_task_query_cursor_encoder.js";
 import {
     TaskQueryNormalizedFilters,
     normalizeTaskQueryFilters,
@@ -222,7 +222,7 @@ export async function loadTaskRealtimeQueries(
             case "Normalized": {
                 filtersResult = {type: "Possible", normalizedFilters: query.filters};
                 sorts = query.sorts;
-                expensivelyAfterCursor = null;
+                expensivelyAfterCursor = query.expensivelyAfterCursor ?? null;
                 break;
             }
             case "Collection": {
