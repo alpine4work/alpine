@@ -1,5 +1,6 @@
 import {ApiClientMock} from "~/server/agents/api/test_helpers/api_client_mock.js";
 import {createApiAccountMock} from "~/server/agents/api/test_helpers/create_api_account_mock.js";
+import {mockApiGetDocument} from "~/server/agents/api/test_helpers/mock_api_get_document.js";
 import type {AgentWebContext} from "~/server/agents/web/agent_web_context.js";
 import {callAgentWebCreateTool} from "~/server/agents/web/call_agent_web_create_tool.js";
 import {callAgentWebReadTool} from "~/server/agents/web/call_agent_web_read_tool.js";
@@ -164,7 +165,7 @@ ${bodyMarkdown}`,
         }),
     ).resolves.toEqual(`Create was successful. New document: [${title}](${path}).\n`);
 
-    api.mockGetDocument(spaceId, documentId, {title, content});
+    mockApiGetDocument(api, {spaceId, documentId, version: 1, title, content});
 
     await expect(callAgentWebReadTool(context, {path, limit: "10kb"})).resolves.toContain(
         bodyMarkdown.split("\n")[0] ?? "",

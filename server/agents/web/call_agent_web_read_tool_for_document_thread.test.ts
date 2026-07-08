@@ -1,6 +1,7 @@
 import {ApiClientMock} from "~/server/agents/api/test_helpers/api_client_mock.js";
 import {createApiAccountMock} from "~/server/agents/api/test_helpers/create_api_account_mock.js";
 import {createApiMessageMock} from "~/server/agents/api/test_helpers/create_api_message_mock.js";
+import {mockApiGetDocument} from "~/server/agents/api/test_helpers/mock_api_get_document.js";
 import {mockApiGetDocumentThreadMessages} from "~/server/agents/api/test_helpers/mock_api_get_document_thread_messages.js";
 import {AgentWebContext} from "~/server/agents/web/agent_web_context.js";
 import {AgentWebPageDocumentThreadRoutedLink} from "~/server/agents/web/agent_web_page_routed_link.js";
@@ -200,7 +201,10 @@ function mockGetDocumentThread({
 function mockGetDocument({
     content = documentContentSnippet(),
 }: {content?: ApiContentResponse} = {}) {
-    api.mockGetDocument(spaceId, documentId, {
+    mockApiGetDocument(api, {
+        spaceId,
+        documentId,
+        version: 1,
         title: documentReference.title,
         content,
     });

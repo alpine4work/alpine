@@ -6,6 +6,7 @@ import {createAgentWebPageStoredLinkPathname} from "~/server/agents/web/create_a
 import {createAgentWebSessionStorageForTest} from "~/server/agents/web/test_helpers/create_agent_web_session_storage_for_test.js";
 import {addKeysToApiContentForTest} from "~/shared/api/content/test_helpers/add_keys_to_api_content_for_test.js";
 import {ApiContentResponseWithoutKeys} from "~/shared/api/specification/types/api_content_response_without_keys.js";
+import {ApiTaskResponse} from "~/shared/api/specification/types/api_specification_convenience_types.js";
 import {defaultTimeZone} from "~/shared/helpers/intl/time_zone.js";
 import {generateId} from "~/shared/id/id.js";
 import {AccountId, BotId, SpaceId, TaskCollectionId, TaskId} from "~/shared/id/types/id_types.js";
@@ -39,6 +40,24 @@ const emptyNotesContent: ApiContentResponseWithoutKeys = {
     elements: [{type: "Paragraph", elements: []}],
 };
 
+function mockGetTask(
+    api: ApiClientMock,
+    spaceId: SpaceId,
+    taskId: TaskId,
+    responseData: Omit<ApiTaskResponse, "id">,
+): void {
+    api.mockGet("/tasks/{id}", {
+        params: {path: {id: taskId}},
+        data: {
+            spaceId,
+            task: {
+                id: taskId,
+                ...responseData,
+            },
+        },
+    });
+}
+
 test("reads full task page", async () => {
     const taskId = generateId<TaskId>();
     const parentTaskId = generateId<TaskId>();
@@ -53,7 +72,7 @@ test("reads full task page", async () => {
         status: {type: "Open", isActive: true},
     });
 
-    api.mockGetTask(spaceId, taskId, {
+    mockGetTask(api, spaceId, taskId, {
         title: "Ship task page",
         status: {type: "Open", isActive: true},
         parent: {
@@ -126,7 +145,7 @@ test("reads task page with hidden optional fields", async () => {
         status: {type: "Closed"},
     });
 
-    api.mockGetTask(spaceId, taskId, {
+    mockGetTask(api, spaceId, taskId, {
         title: "Bare task",
         status: {type: "Closed"},
         collections: [],

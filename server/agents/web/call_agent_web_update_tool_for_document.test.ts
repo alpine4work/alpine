@@ -1,4 +1,5 @@
 import {ApiClientMock} from "~/server/agents/api/test_helpers/api_client_mock.js";
+import {mockApiGetDocument} from "~/server/agents/api/test_helpers/mock_api_get_document.js";
 import {AgentWebContext} from "~/server/agents/web/agent_web_context.js";
 import {printAgentWebPageStoredLinkPathname} from "~/server/agents/web/agent_web_page_stored_link.js";
 import {callAgentWebReadTool} from "~/server/agents/web/call_agent_web_read_tool.js";
@@ -102,7 +103,10 @@ async function seedReadCacheViaRead({
     path: string;
     version?: number;
 }) {
-    api.mockGetDocument(spaceId, documentId, {
+    mockApiGetDocument(api, {
+        spaceId,
+        documentId,
+        version: 1,
         title,
         version,
         content: createDocumentContentFromMarkdown(bodyMarkdown),

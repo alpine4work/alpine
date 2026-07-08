@@ -9,9 +9,14 @@ import {loadAgentPostCommentsLinkContent as actuallyLoadAgentPostCommentsLinkCon
 import {printAgentContentMarkdownTree} from "~/server/agents/bots/internal/print_api_content_to_agent_markdown.js";
 import {parseApiContentFromMarkdown} from "~/shared/api/content/parse_api_content_from_markdown.js";
 import {addKeysToApiContentForTest} from "~/shared/api/content/test_helpers/add_keys_to_api_content_for_test.js";
-import {ApiContentResponse} from "~/shared/api/specification/types/api_specification_convenience_types.js";
+import {ApiContentResponseWithOptionalKeys} from "~/shared/api/specification/types/api_content_response_without_keys.js";
+import {
+    ApiContentResponse,
+    ApiMessageResponse,
+    ApiPostResponse,
+} from "~/shared/api/specification/types/api_specification_convenience_types.js";
 import {TracerContextModule} from "~/shared/context/tracer_context_module.js";
-import {assertDateString} from "~/shared/helpers/date/date_string.js";
+import {assertDateString, serializeDateString} from "~/shared/helpers/date/date_string.js";
 import {assertTimeZone, defaultTimeZone} from "~/shared/helpers/intl/time_zone.js";
 import {generateId} from "~/shared/id/id.js";
 import {AccountId, ChannelId, PostId, SpaceId} from "~/shared/id/types/id_types.js";
@@ -54,6 +59,87 @@ async function loadAgentPostCommentsLinkContent(
     return messagesContent;
 }
 
+function mockGetPost(
+    api: ApiClientMock,
+    spaceId: SpaceId,
+    postId: PostId,
+    responseData: Partial<
+        Omit<ApiPostResponse, "id" | "content"> & {content: ApiContentResponseWithOptionalKeys}
+    > &
+        Record<string, unknown>,
+): void {
+    api.mockGet("/posts/{id}", {
+        params: {path: {id: postId}},
+        data: {
+            spaceId,
+            post: {
+                id: postId,
+                author: responseData.author ?? createApiAccountMock({}),
+                createdTimeZone: responseData.createdTimeZone ?? defaultTimeZone,
+                createdTime: responseData.createdTime ?? serializeDateString(new Date()),
+                reference: responseData.reference ?? {title: "Test Post Content Preview"},
+                ...responseData,
+                content: addKeysToApiContentForTest(
+                    responseData.content ??
+                        createApiContentResponseWithSingleParagraph("Test Post Content"),
+                ),
+                contentPreview: responseData.contentPreview ?? "Test Post Content Preview",
+            },
+        },
+    });
+}
+
+function mockGetPostCommentsList(
+    api: ApiClientMock,
+    spaceId: SpaceId,
+    postId: PostId,
+    responseData: {
+        totalMessageCount?: number;
+        nextCursor?: number | null;
+        messages?: Array<ApiMessageResponse>;
+    },
+    pageInfo?: {
+        from?: "start" | "end";
+        cursor: number | undefined;
+        limit: number;
+    },
+): void {
+    const params = pageInfo
+        ? {
+              path: {id: postId},
+              query: {
+                  ...(pageInfo.from ? {from: pageInfo.from} : {}),
+                  cursor: pageInfo.cursor,
+                  limit: pageInfo.limit,
+              },
+          }
+        : "Any";
+
+    api.mockGet("/posts/{id}/messages", {
+        params,
+        data: {
+            spaceId,
+            totalMessageCount: 0,
+            nextCursor: null,
+            messages: [],
+            ...responseData,
+        },
+    });
+}
+
+function createApiContentResponseWithSingleParagraph(
+    text: string,
+): ApiContentResponseWithOptionalKeys {
+    return {
+        elements: [
+            {
+                type: "Paragraph",
+                elements: [{type: "Text", text}],
+            },
+        ],
+    };
+}
+
 describe("loadAgentPostCommentsLinkContent", () => {
     const spaceId = generateId<SpaceId>();
     const client = new ApiClientMock();
@@ -77,14 +163,15 @@ describe("loadAgentPostCommentsLinkContent", () => {
         const authorId = generateId<AccountId>();
         const channelId = generateId<ChannelId>();
 
-        client.mockGetPost(spaceId, postId, {
+        mockGetPost(client, spaceId, postId, {
             author: createApiAccountMock({id: authorId, name: "Alice Author"}),
             channel: {id: channelId, name: "Announcements"},
             content: createSampleContent("This is a post about quarterly results."),
             createdTime: postCreationDate,
         });
 
-        client.mockGetPostCommentsList(
+        mockGetPostCommentsList(
+            client,
             spaceId,
             postId,
             {
@@ -147,14 +234,15 @@ This is a comment on the post.
         const authorId = generateId<AccountId>();
         const channelId = generateId<ChannelId>();
 
-        client.mockGetPost(spaceId, postId, {
+        mockGetPost(client, spaceId, postId, {
             author: createApiAccountMock({id: authorId, name: "Alice Author"}),
             channel: {id: channelId, name: "Announcements"},
             content: createSampleContent("This is a post about quarterly results."),
             createdTime: postCreationDate,
         });
 
-        client.mockGetPostCommentsList(
+        mockGetPostCommentsList(
+            client,
             spaceId,
             postId,
             {
@@ -234,14 +322,14 @@ ${"This is a comment on the post.".repeat(200)}
     test("loads post with comments if current chunk loads the first comment", async () => {
         const postId = generateId<PostId>();
 
-        client.mockGetPost(spaceId, postId, {
+        mockGetPost(client, spaceId, postId, {
             author: aliceAccount,
             channel: {id: generateId(), name: "Announcements"},
             content: createSampleContent("This is a post about quarterly results."),
             createdTime: postCreationDate,
         });
 
-        client.mockGetPostCommentsList(spaceId, postId, {
+        mockGetPostCommentsList(client, spaceId, postId, {
             totalMessageCount: 1,
             nextCursor: null,
             messages: [
@@ -259,7 +347,7 @@ ${"This is a comment on the post.".repeat(200)}
             ],
         });
 
-        client.mockGetPostCommentsList(spaceId, postId, {
+        mockGetPostCommentsList(client, spaceId, postId, {
             totalMessageCount: 2,
             nextCursor: null,
             messages: [
@@ -332,14 +420,14 @@ ${"Hi Alice, how are you?".repeat(200)}
     test("loads post with comments for first page of comments", async () => {
         const postId = generateId<PostId>();
 
-        client.mockGetPost(spaceId, postId, {
+        mockGetPost(client, spaceId, postId, {
             author: aliceAccount,
             channel: {id: generateId(), name: "General"},
             content: createSampleContent("Post content."),
             createdTime: postCreationDate,
         });
 
-        client.mockGetPostCommentsList(spaceId, postId, {
+        mockGetPostCommentsList(client, spaceId, postId, {
             totalMessageCount: 1,
             nextCursor: null,
             messages: [
@@ -431,14 +519,14 @@ Nice post!
     test("loads post with comments if first comment is loaded when paginating from the end", async () => {
         const postId = generateId<PostId>();
 
-        client.mockGetPost(spaceId, postId, {
+        mockGetPost(client, spaceId, postId, {
             author: aliceAccount,
             channel: {id: generateId(), name: "General"},
             content: createSampleContent("Post content."),
             createdTime: postCreationDate,
         });
 
-        client.mockGetPostCommentsList(spaceId, postId, {
+        mockGetPostCommentsList(client, spaceId, postId, {
             totalMessageCount: 3,
             nextCursor: null,
             messages: [
@@ -526,7 +614,7 @@ Third comment!
     test("doesn't load original post if middle chunk doesn't load the first comment", async () => {
         const postId = generateId<PostId>();
 
-        client.mockGetPost(spaceId, postId, {
+        mockGetPost(client, spaceId, postId, {
             author: aliceAccount,
             channel: {id: generateId(), name: "Announcements"},
             content: createSampleContent("Big news!"),
@@ -534,7 +622,7 @@ Third comment!
             createdTime: postCreationDate,
         });
 
-        client.mockGetPostCommentsList(spaceId, postId, {
+        mockGetPostCommentsList(client, spaceId, postId, {
             totalMessageCount: 2,
             nextCursor: 1,
             messages: [
@@ -552,7 +640,7 @@ Third comment!
             ],
         });
 
-        client.mockGetPostCommentsList(spaceId, postId, {
+        mockGetPostCommentsList(client, spaceId, postId, {
             totalMessageCount: 2,
             nextCursor: 4,
             messages: [
@@ -629,7 +717,7 @@ ${"Fourth comment!".repeat(200)}
     test("doesn't load original post when paginating from end if first comment isn't loaded", async () => {
         const postId = generateId<PostId>();
 
-        client.mockGetPost(spaceId, postId, {
+        mockGetPost(client, spaceId, postId, {
             author: aliceAccount,
             channel: {id: generateId(), name: "Announcements"},
             content: createSampleContent("Big news!"),
@@ -637,7 +725,7 @@ ${"Fourth comment!".repeat(200)}
             createdTime: postCreationDate,
         });
 
-        client.mockGetPostCommentsList(spaceId, postId, {
+        mockGetPostCommentsList(client, spaceId, postId, {
             totalMessageCount: 1,
             nextCursor: 2,
             messages: [
@@ -708,14 +796,14 @@ Thanks Alice!
     test("doesn't show link to next page if there are no more comments", async () => {
         const postId = generateId<PostId>();
 
-        client.mockGetPost(spaceId, postId, {
+        mockGetPost(client, spaceId, postId, {
             author: aliceAccount,
             channel: {id: generateId(), name: "General"},
             content: createSampleContent("Post content."),
             createdTime: postCreationDate,
         });
 
-        client.mockGetPostCommentsList(spaceId, postId, {
+        mockGetPostCommentsList(client, spaceId, postId, {
             totalMessageCount: 2,
             nextCursor: null,
             messages: [
@@ -793,14 +881,14 @@ Second comment!
             name: "Alice Author",
         });
 
-        client.mockGetPost(spaceId, postId, {
+        mockGetPost(client, spaceId, postId, {
             author: aliceAccount,
             channel: {id: channelId, name: "Announcements"},
             content: createSampleContent("This is a post about quarterly results."),
             createdTime: postCreationDate,
         });
 
-        client.mockGetPostCommentsList(spaceId, postId, {
+        mockGetPostCommentsList(client, spaceId, postId, {
             totalMessageCount: 0,
             nextCursor: null,
             messages: [],

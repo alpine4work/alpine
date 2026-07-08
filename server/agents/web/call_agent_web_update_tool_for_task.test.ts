@@ -8,6 +8,7 @@ import {createAgentWebSessionStorageForTest} from "~/server/agents/web/test_help
 import {addKeysToApiContentForTest} from "~/shared/api/content/test_helpers/add_keys_to_api_content_for_test.js";
 import {intoApiAccountReference} from "~/shared/api/specification/into_api_account_reference.js";
 import {ApiContentResponseWithoutKeys} from "~/shared/api/specification/types/api_content_response_without_keys.js";
+import {ApiTaskResponse} from "~/shared/api/specification/types/api_specification_convenience_types.js";
 import {ErrorBase, InternalError} from "~/shared/error/error.js";
 import {ErrorDisplayMessage} from "~/shared/error/types/error_display_message_type.js";
 import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
@@ -132,6 +133,24 @@ function getTaskNotesPatchRequests() {
         .filter(request => request.method === "PATCH" && request.path === "/tasks/{id}/notes");
 }
 
+function mockGetTask(
+    api: ApiClientMock,
+    spaceId: SpaceId,
+    taskId: TaskId,
+    responseData: Omit<ApiTaskResponse, "id">,
+): void {
+    api.mockGet("/tasks/{id}", {
+        params: {path: {id: taskId}},
+        data: {
+            spaceId,
+            task: {
+                id: taskId,
+                ...responseData,
+            },
+        },
+    });
+}
+
 function printDisplayMessage(displayMessage: ErrorDisplayMessage): string {
     let string = "";
 
@@ -219,7 +238,7 @@ async function readTask({
         status,
     });
 
-    api.mockGetTask(spaceId, taskId, {
+    mockGetTask(api, spaceId, taskId, {
         title,
         status,
         ...(parent

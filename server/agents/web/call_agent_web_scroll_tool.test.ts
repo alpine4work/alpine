@@ -1,4 +1,5 @@
 import {ApiClientMock} from "~/server/agents/api/test_helpers/api_client_mock.js";
+import {mockApiGetDocument} from "~/server/agents/api/test_helpers/mock_api_get_document.js";
 import {AgentWebContext} from "~/server/agents/web/agent_web_context.js";
 import {callAgentWebReadTool} from "~/server/agents/web/call_agent_web_read_tool.js";
 import {
@@ -73,7 +74,10 @@ test("paginates through a long document across multiple scroll calls", async () 
         title: "Long Document",
     });
 
-    api.mockGetDocument(spaceId, documentId, {
+    mockApiGetDocument(api, {
+        spaceId,
+        documentId,
+        version: 1,
         title: "Long Document",
         content: createDocumentContentFromParagraphs(
             Array.from({length: 24}, (_, index) => `Paragraph ${index + 1}: alpha beta gamma.`),
@@ -255,7 +259,10 @@ test("iterates through realistic wikipedia content one page at a time", async ()
         title: "YouTube",
     });
 
-    api.mockGetDocument(spaceId, documentId, {
+    mockApiGetDocument(api, {
+        spaceId,
+        documentId,
+        version: 1,
         title: "YouTube",
         content: addKeysToApiContentForTest(
             intoApiContent(wikipediaYoutubeDocumentContent.get(), {
@@ -334,7 +341,10 @@ test("uses normalized path when reading cached responses", async () => {
         title: "Path Normalized",
     });
 
-    api.mockGetDocument(spaceId, documentId, {
+    mockApiGetDocument(api, {
+        spaceId,
+        documentId,
+        version: 1,
         title: "Path Normalized",
         content: createDocumentContentFromParagraphs(["Only one paragraph."]),
     });

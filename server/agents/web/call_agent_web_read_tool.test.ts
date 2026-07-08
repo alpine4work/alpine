@@ -3,6 +3,7 @@
 // `server/agents/web/call_agent_web_read_tool_document.test.ts`.
 
 import {ApiClientMock} from "~/server/agents/api/test_helpers/api_client_mock.js";
+import {mockApiGetDocument} from "~/server/agents/api/test_helpers/mock_api_get_document.js";
 import {AgentWebContext} from "~/server/agents/web/agent_web_context.js";
 import {printAgentWebPageStoredLinkKey} from "~/server/agents/web/agent_web_page_stored_link_key.js";
 import {callAgentWebReadTool} from "~/server/agents/web/call_agent_web_read_tool.js";
@@ -77,7 +78,10 @@ test("returns full markdown and stores normalized read response", async () => {
         title: "Engineering Spec",
     });
 
-    api.mockGetDocument(spaceId, documentId, {
+    mockApiGetDocument(api, {
+        spaceId,
+        documentId,
+        version: 1,
         title: "Engineering Spec",
         content: createDocumentContentFromParagraphs([
             "Overview paragraph.",
@@ -107,7 +111,10 @@ test("truncates the returned response but caches the full response", async () =>
         title: "Pagination Spec",
     });
 
-    api.mockGetDocument(spaceId, documentId, {
+    mockApiGetDocument(api, {
+        spaceId,
+        documentId,
+        version: 1,
         title: "Pagination Spec",
         content: createDocumentContentFromParagraphs(
             Array.from({length: 20}, (_, index) => {
@@ -139,7 +146,10 @@ test("reads GFM table content without crashing prettier formatting", async () =>
         title: "Roadmap Table",
     });
 
-    api.mockGetDocument(spaceId, documentId, {
+    mockApiGetDocument(api, {
+        spaceId,
+        documentId,
+        version: 1,
         title: "Roadmap Table",
         content: parseApiContentFromMarkdown(
             `\
@@ -179,12 +189,18 @@ test("throws a redirect error when document title changes for same document id",
         title: "Mention Source",
     });
 
-    api.mockGetDocument(spaceId, sourceDocumentId, {
+    mockApiGetDocument(api, {
+        spaceId,
+        documentId: sourceDocumentId,
+        version: 1,
         title: "Mention Source",
         content: createDocumentContentWithDocumentMention(documentId, "Engineering Spec"),
     });
 
-    api.mockGetDocument(spaceId, sourceDocumentId, {
+    mockApiGetDocument(api, {
+        spaceId,
+        documentId: sourceDocumentId,
+        version: 1,
         title: "Mention Source",
         content: createDocumentContentWithDocumentMention(documentId, "Engineering Plan"),
     });
