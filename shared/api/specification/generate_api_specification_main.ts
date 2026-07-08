@@ -327,7 +327,6 @@ ${codeBlockLanguageDefinitionMapContent}};\n`;
             typeName === "ApiTimeZone" ||
             typeName === "ApiFileContentType" ||
             typeName === "ApiContentKey" ||
-            typeName === "ApiTaskCollectionColor" ||
             typeName === "ApiTaskQueryCursor" ||
             typeName === "ApiTaskCollectionCursor"
         ) {

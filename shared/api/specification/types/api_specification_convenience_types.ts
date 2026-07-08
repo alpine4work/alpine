@@ -2,6 +2,8 @@
 
 import {ApiSpecification} from "~/shared/api/specification/types/api_specification_types.js";
 
+export type ApiTaskCollectionColor = ApiSpecification.components["schemas"]["TaskCollectionColor"];
+
 export type ApiAccountReference = ApiSpecification.components["schemas"]["AccountReference"];
 
 export type ApiAccountReferenceResponse =

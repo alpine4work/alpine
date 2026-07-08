@@ -13,7 +13,7 @@ import {assertEqualTypes} from "~/shared/helpers/control/assert_equal_types.js";
 import {TimeZone} from "~/shared/helpers/intl/time_zone.js";
 import {initialOrderKey} from "~/shared/helpers/sort/order_key.js";
 import {generateId} from "~/shared/id/id.js";
-import {AccountId, SpaceId, TaskId} from "~/shared/id/types/id_types.js";
+import {AccountId, SpaceId, TaskCollectionId, TaskId} from "~/shared/id/types/id_types.js";
 import {HybridLogicalTimeSchema} from "~/shared/schema/helpers/hybrid_logical_time_schema.js";
 import {Schema, SchemaType} from "~/shared/schema/schema.js";
 import {TaskAction, TaskUpdateAccountNameAction} from "~/shared/tasks/actions/task_action.js";
@@ -595,6 +595,26 @@ export class TaskModel {
 
     public getCollections() {
         return this.rawData.collections;
+    }
+
+    /**
+     * Get the task's position in a collection. Returns null if the task is not in the
+     * collection.
+     *
+     * If the task's position in this collection was never explicitly set then the
+     * task's position defaults to the end of the collection at the time the task was
+     * added to the collection. See `TaskUpdateCollectionPositionAction` for more.
+     */
+    public getCollectionPosition(collectionId: TaskCollectionId): TaskPosition | null {
+        const version = this.getCollections().getVersion(collectionId);
+        if (!version) return null;
+
+        return (
+            this.rawData.positionByCollectionId.get(collectionId) ?? {
+                orderTime: version,
+                orderKey: initialOrderKey,
+            }
+        );
     }
 
     public getStatus() {

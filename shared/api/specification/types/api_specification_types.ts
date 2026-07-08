@@ -3834,7 +3834,7 @@ export namespace ApiSpecification {
                  */
                 readonly type: "MoveInCollection";
                 readonly collectionId: components["schemas"]["TaskCollectionId"];
-                readonly position?: components["schemas"]["TaskMoveInCollectionPatchPosition"];
+                readonly position: components["schemas"]["TaskMoveInCollectionPatchPosition"];
             };
             readonly TaskMoveInCollectionPatchPosition:
                 | components["schemas"]["TaskMoveInCollectionPatchStartPosition"]

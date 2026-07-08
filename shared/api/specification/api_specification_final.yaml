@@ -4618,7 +4618,7 @@ components:
             required:
                 - type
                 - collectionId
-                - item
+                - position
             additionalProperties: false
             properties:
                 type:

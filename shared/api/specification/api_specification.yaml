@@ -3985,7 +3985,7 @@ components:
 
         TaskMoveInCollectionPatch:
             type: object
-            required: [type, collectionId, item]
+            required: [type, collectionId, position]
             additionalProperties: false
             properties:
                 type:
