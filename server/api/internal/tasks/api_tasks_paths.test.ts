@@ -5027,4 +5027,133 @@ describe("POST /task-collections/{id}/tasks/query", () => {
             highTask.id,
         ]);
     });
+
+    test("paginates 12 tasks five at a time with custom sorts", async () => {
+        const space = await TestSpace.create(context);
+        const session = await space.createSession({name: "Alice Smith", role: "Admin"});
+
+        const bot = await TestBot.createAndInstantiate(session);
+        const apiKey = await bot.createApiKey(session);
+        const collection = await TestTaskCollection.create(session, {
+            name: "Custom Sorted Pagination Collection",
+            access: "Public",
+        });
+        const tasks: Array<TestTask> = [];
+
+        for (let index = 0; index < 12; index++) {
+            const task = await TestTask.create(session, {title: `Task ${index + 1}`});
+            await task.addCollection(session, collection);
+            tasks.push(task);
+        }
+        await ProcessContextModule.waitForTestTasks();
+
+        const body = {
+            limit: 5,
+            sorts: [{type: "CreatedTime", direction: "Descending"}],
+        };
+        const firstPageResponse = await server.POST(
+            `/task-collections/${collection.id}/tasks/query`,
+            {
+                headers: {authorization: `bearer ${apiKey}`},
+                body,
+            },
+        );
+        const secondPageResponse = await server.POST(
+            `/task-collections/${collection.id}/tasks/query`,
+            {
+                headers: {authorization: `bearer ${apiKey}`},
+                body: {...body, cursor: firstPageResponse.body.nextCursor},
+            },
+        );
+        const thirdPageResponse = await server.POST(
+            `/task-collections/${collection.id}/tasks/query`,
+            {
+                headers: {authorization: `bearer ${apiKey}`},
+                body: {...body, cursor: secondPageResponse.body.nextCursor},
+            },
+        );
+        const expectedTaskIds = tasks.map(task => task.id).reverse();
+
+        expect({
+            statuses: [
+                firstPageResponse.status,
+                secondPageResponse.status,
+                thirdPageResponse.status,
+            ],
+            taskIdsByPage: [firstPageResponse, secondPageResponse, thirdPageResponse].map(
+                response => response.body.tasks.map(({task}: {task: {id: TaskId}}) => task.id),
+            ),
+            nextCursors: [
+                firstPageResponse.body.nextCursor,
+                secondPageResponse.body.nextCursor,
+                thirdPageResponse.body.nextCursor,
+            ],
+        }).toEqual({
+            statuses: [200, 200, 200],
+            taskIdsByPage: [
+                expectedTaskIds.slice(0, 5),
+                expectedTaskIds.slice(5, 10),
+                expectedTaskIds.slice(10, 12),
+            ],
+            nextCursors: [expect.any(String), expect.any(String), null],
+        });
+    });
+
+    test("rejects a cursor from a query with different sorts", async () => {
+        const space = await TestSpace.create(context);
+        const session = await space.createSession({name: "Alice Smith", role: "Admin"});
+
+        const bot = await TestBot.createAndInstantiate(session);
+        const apiKey = await bot.createApiKey(session);
+        const collection = await TestTaskCollection.create(session, {
+            name: "Mismatched Sort Cursor Collection",
+            access: "Public",
+        });
+        const [firstTask, secondTask] = await runAllPromises([
+            TestTask.create(session, {title: "First Task", priority: "Low"}),
+            TestTask.create(session, {title: "Second Task", priority: "High"}),
+        ]);
+
+        await runAllPromises([
+            firstTask.addCollection(session, collection),
+            secondTask.addCollection(session, collection),
+        ]);
+        await ProcessContextModule.waitForTestTasks();
+
+        const firstPageResponse = await server.POST(
+            `/task-collections/${collection.id}/tasks/query`,
+            {
+                headers: {authorization: `bearer ${apiKey}`},
+                body: {
+                    limit: 1,
+                    sorts: [{type: "CreatedTime", direction: "Descending"}],
+                },
+            },
+        );
+        const mismatchedSortResponse = await server.POST(
+            `/task-collections/${collection.id}/tasks/query`,
+            {
+                headers: {authorization: `bearer ${apiKey}`},
+                body: {
+                    limit: 1,
+                    cursor: firstPageResponse.body.nextCursor,
+                    sorts: [{type: "Priority", direction: "Ascending"}],
+                },
+            },
+        );
+
+        expect({
+            firstPage: {
+                status: firstPageResponse.status,
+                nextCursor: firstPageResponse.body.nextCursor,
+            },
+            mismatchedSortResponse,
+        }).toEqual({
+            firstPage: {status: 200, nextCursor: expect.any(String)},
+            mismatchedSortResponse: expectedApiErrorResponse(
+                400,
+                "Invalid task query cursor for this collection",
+            ),
+        });
+    });
 });
