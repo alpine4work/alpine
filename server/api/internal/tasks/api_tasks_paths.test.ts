@@ -387,7 +387,6 @@ test("does not return deleted task collections when reading a task", async () =>
                 id: task.id,
                 collections: [
                     {
-                        cursor: expect.any(String),
                         collection: {id: activeCollection.id, name: "Active"},
                     },
                 ],
@@ -433,7 +432,6 @@ test("does not return private task collections when reading a task", async () =>
                 title: "Task with mixed collection access",
                 collections: [
                     {
-                        cursor: expect.any(String),
                         collection: {id: publicCollection.id, name: "Public Collection"},
                     },
                 ],
@@ -874,7 +872,6 @@ test("can create a project task with parent task and collections", async () => {
                 layout: {type: "Project"},
                 parent: {task: {id: parentTask.id}},
                 collections: collections.map(collection => ({
-                    cursor: "ignored",
                     collection: {id: collection.id},
                 })),
             },
@@ -897,11 +894,9 @@ test("can create a project task with parent task and collections", async () => {
                 },
                 collections: [
                     {
-                        cursor: expect.any(String),
                         collection: {id: collections[0].id, name: "Roadmap"},
                     },
                     {
-                        cursor: expect.any(String),
                         collection: {id: collections[1].id, name: "Engineering"},
                     },
                 ],
@@ -1479,7 +1474,6 @@ test("returns a private parent placeholder when reading a task", async () => {
                 },
                 collections: [
                     {
-                        cursor: expect.any(String),
                         collection: {id: collection.id, name: "Public Collection"},
                     },
                 ],
@@ -1867,7 +1861,7 @@ test("adding collections through repeated patch requests appends them to the end
                 patches: [
                     {
                         type: "AddCollection",
-                        item: {cursor: "ignored", collection: {id: collection.id}},
+                        item: {collection: {id: collection.id}},
                     },
                 ],
             },
@@ -1922,15 +1916,15 @@ describe("MoveInCollection patch", () => {
         expect(response.status).toBe(200);
 
         const items: ReadonlyArray<{
+            cursor: string;
             task: {
                 id: TaskId;
-                collections: ReadonlyArray<{cursor: string}>;
             };
         }> = response.body.tasks;
 
         return {
             taskIds: items.map(({task}) => task.id),
-            cursors: items.map(({task}) => task.collections[0]!.cursor),
+            cursors: items.map(({cursor}) => cursor),
         };
     }
 
@@ -2435,7 +2429,7 @@ describe("MoveInCollection patch", () => {
                 patches: [
                     {
                         type: "AddCollection",
-                        item: {cursor: "ignored", collection: {id: collection.id}},
+                        item: {collection: {id: collection.id}},
                     },
                     {
                         type: "MoveInCollection",
@@ -2492,7 +2486,7 @@ describe("MoveInCollection patch", () => {
             body: {
                 error: expect.objectContaining({
                     message:
-                        "The `MoveInCollection` patch `afterCursor` is for the same task as `beforeCursor`. Try again but with two `TaskCollectionCursor`s from different tasks.",
+                        "The `MoveInCollection` patch `afterCursor` is for the same task as `beforeCursor`. Try again but with two `TaskQueryCursor`s from different tasks.",
                 }),
             },
         });
@@ -2552,7 +2546,7 @@ describe("MoveInCollection patch", () => {
             body: {
                 error: expect.objectContaining({
                     message:
-                        "The `MoveInCollection` patch `afterCursor` is for the same task as `beforeCursor`. Try again but with two `TaskCollectionCursor`s from different tasks.",
+                        "The `MoveInCollection` patch `afterCursor` is for the same task as `beforeCursor`. Try again but with two `TaskQueryCursor`s from different tasks.",
                 }),
             },
         });
@@ -3463,7 +3457,7 @@ describe("/task-collections/{id}/tasks", () => {
                 task: {
                     id: TaskId;
                     collections?: ReadonlyArray<{
-                        cursor: string;
+                        collection: {id: TaskCollectionId};
                     }>;
                 };
             }>;
@@ -3479,12 +3473,8 @@ describe("/task-collections/{id}/tasks", () => {
         return response.body.nextCursor!;
     }
 
-    function getTaskCollectionTaskCollectionCursors(
-        response: TaskCollectionTasksResponse,
-    ): Array<string> {
-        return response.body.tasks.flatMap(
-            ({task}) => task.collections?.map(({cursor}) => cursor) ?? [],
-        );
+    function getTaskCollectionTaskCursors(response: TaskCollectionTasksResponse): Array<string> {
+        return response.body.tasks.map(({cursor}) => cursor);
     }
 
     function getTestTaskIds(tasks: ReadonlyArray<TestTask>): Array<TaskId> {
@@ -3571,7 +3561,6 @@ describe("/task-collections/{id}/tasks", () => {
                             status: {type: "Open", isActive: false},
                             collections: [
                                 {
-                                    cursor: expect.any(String),
                                     collection: {id: collection.id, name: "Public Collection"},
                                 },
                             ],
@@ -3586,7 +3575,6 @@ describe("/task-collections/{id}/tasks", () => {
                             status: {type: "Open", isActive: false},
                             collections: [
                                 {
-                                    cursor: expect.any(String),
                                     collection: {id: collection.id, name: "Public Collection"},
                                 },
                             ],
@@ -3685,7 +3673,6 @@ describe("/task-collections/{id}/tasks", () => {
                             priority: {type: "High"},
                             collections: [
                                 {
-                                    cursor: expect.any(String),
                                     collection: {
                                         id: collection.id,
                                         name: "Collection with Details",
@@ -3750,14 +3737,12 @@ describe("/task-collections/{id}/tasks", () => {
                             title: "Task with mixed collection references",
                             collections: [
                                 {
-                                    cursor: expect.any(String),
                                     collection: {
                                         id: mainCollection.id,
                                         name: "Main Collection",
                                     },
                                 },
                                 {
-                                    cursor: expect.any(String),
                                     collection: {
                                         id: publicCollection.id,
                                         name: "Public Collection",
@@ -3823,7 +3808,6 @@ describe("/task-collections/{id}/tasks", () => {
                             },
                             collections: [
                                 {
-                                    cursor: expect.any(String),
                                     collection: {id: collection.id, name: "Public Collection"},
                                 },
                             ],
@@ -4207,8 +4191,8 @@ describe("/task-collections/{id}/tasks", () => {
         expect(getTaskCollectionTaskIds(repeatedFirstPageResponse)).toEqual(
             getTaskCollectionTaskIds(firstPageResponse),
         );
-        expect(getTaskCollectionTaskCollectionCursors(repeatedFirstPageResponse)).toEqual(
-            getTaskCollectionTaskCollectionCursors(firstPageResponse),
+        expect(getTaskCollectionTaskCursors(repeatedFirstPageResponse)).toEqual(
+            getTaskCollectionTaskCursors(firstPageResponse),
         );
         expect(repeatedFirstPageResponse.body.nextCursor).toEqual(
             firstPageResponse.body.nextCursor,
@@ -4221,8 +4205,8 @@ describe("/task-collections/{id}/tasks", () => {
         expect(getTaskCollectionTaskIds(repeatedSecondPageResponse)).toEqual(
             getTaskCollectionTaskIds(secondPageResponse),
         );
-        expect(getTaskCollectionTaskCollectionCursors(repeatedSecondPageResponse)).toEqual(
-            getTaskCollectionTaskCollectionCursors(secondPageResponse),
+        expect(getTaskCollectionTaskCursors(repeatedSecondPageResponse)).toEqual(
+            getTaskCollectionTaskCursors(secondPageResponse),
         );
         expect(repeatedSecondPageResponse.body.nextCursor).toEqual(
             secondPageResponse.body.nextCursor,
@@ -4797,7 +4781,6 @@ describe("/task-collections/{id}/tasks", () => {
                             id: task.id,
                             collections: [
                                 {
-                                    cursor: expect.any(String),
                                     collection: {
                                         id: activeCollection.id,
                                         name: "Active Collection",

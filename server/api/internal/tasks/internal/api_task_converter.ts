@@ -8,13 +8,10 @@ import {
 import {filterMapArray} from "~/shared/helpers/array/filter_map_array.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
-import {LazyMap} from "~/shared/helpers/control/lazy_map.js";
 import {emptyObject} from "~/shared/helpers/object/empty_object.js";
-import {initialOrderKey} from "~/shared/helpers/sort/order_key.js";
 import {AccountId, TaskCollectionId, TaskId} from "~/shared/id/types/id_types.js";
 import {AccountModel} from "~/shared/spaces/account_model.js";
 import {intoApiAccount} from "~/shared/spaces/into_api_account.js";
-import {ApiTaskCollectionCursorEncoder} from "~/shared/tasks/model/api_task_collection_cursor_encoder.js";
 import {TaskCollectionModel} from "~/shared/tasks/model/task_collection_model.js";
 import {TaskModel} from "~/shared/tasks/model/task_model.js";
 import {TaskRealtimeUpdateEvent} from "~/shared/tasks/task_realtime_protocol.js";
@@ -37,10 +34,6 @@ export class ApiTaskConverter {
     >();
 
     #referencedAccountById = new Map<AccountId, AccountModel>();
-
-    #collectionCursorEncoderById = new LazyMap<TaskCollectionId, ApiTaskCollectionCursorEncoder>(
-        collectionId => new ApiTaskCollectionCursorEncoder(collectionId),
-    );
 
     constructor(updateEvent: TaskRealtimeUpdateEvent) {
         for (const backfillTask of updateEvent.backfillTasks) {
@@ -142,7 +135,7 @@ export class ApiTaskConverter {
             })(),
             collections: filterMapArray(
                 task.getCollections().getArray(),
-                ({collectionId, version}) => {
+                ({collectionId}) => {
                     const backfillCollection = assertExists(
                         this.#backfillCollectionById.get(collectionId),
                     );
@@ -152,17 +145,7 @@ export class ApiTaskConverter {
 
                     const {collection} = backfillCollection;
 
-                    const collectionPosition = task.rawData.positionByCollectionId.get(
-                        collectionId,
-                    ) ?? {
-                        orderTime: version,
-                        orderKey: initialOrderKey,
-                    };
-
                     return {
-                        cursor: this.#collectionCursorEncoderById
-                            .get(collectionId)
-                            .encode({taskId, collectionPosition}),
                         collection: {
                             id: collectionId,
                             name: collection.getName(),

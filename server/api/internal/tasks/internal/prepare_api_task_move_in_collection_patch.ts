@@ -4,20 +4,17 @@ import {ApiTaskMoveInCollectionPatch} from "~/shared/api/specification/types/api
 import {InvalidArgumentError} from "~/shared/error/error.js";
 import {errorDisplayMessage} from "~/shared/error/error_display_message.js";
 import {ErrorDisplayMessage} from "~/shared/error/types/error_display_message_type.js";
-import {
-    compareHybridLogicalTimes,
-    zeroHybridLogicalTime,
-} from "~/shared/helpers/clock/hybrid_logical_clock.js";
+import {compareHybridLogicalTimes} from "~/shared/helpers/clock/hybrid_logical_clock.js";
+import {assert} from "~/shared/helpers/control/assert.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
 import {isDeepEqual} from "~/shared/helpers/control/is_deep_equal.js";
-import {OrderKey} from "~/shared/helpers/sort/order_key.js";
-import {getMinId} from "~/shared/id/id.js";
-import {ApiTaskCollectionCursor} from "~/shared/id/types/api_task_cursors.js";
+import {OrderKey, assertOrderKey} from "~/shared/helpers/sort/order_key.js";
+import {ApiTaskQueryCursor} from "~/shared/id/types/api_task_query_cursor.js";
 import {SpaceId, TaskCollectionId, TaskId} from "~/shared/id/types/id_types.js";
-import {ApiTaskCollectionCursorDecoder} from "~/shared/tasks/model/api_task_collection_cursor_encoder.js";
+import {decodeApiTaskQueryCursor} from "~/shared/tasks/model/api_task_query_cursor_encoder.js";
 import {TaskModel} from "~/shared/tasks/model/task_model.js";
-import {TaskPosition, compareTaskPosition} from "~/shared/tasks/task_position.js";
+import {TaskPosition} from "~/shared/tasks/task_position.js";
 import {
     TaskQueryNormalizedFilters,
     assertNonEmptyReadonlyMap,
@@ -26,6 +23,8 @@ import {TaskQueryNormalizedSort} from "~/shared/tasks/task_query_normalized_sort
 import {
     TaskQuerySortCursor,
     TaskQuerySortCursorValue,
+    compareTaskQuerySortCursors,
+    getTaskQuerySortCursorTaskId,
 } from "~/shared/tasks/task_query_sort_cursor.js";
 
 /**
@@ -111,16 +110,16 @@ export async function prepareApiTaskMoveInCollectionPatch(
             };
         }
         case "Between": {
-            const decoder = new ApiTaskCollectionCursorDecoder(collectionId);
+            const queryInput = createCollectionPositionQueryInput(collectionId);
 
-            const afterCursor = decodeApiTaskCollectionCursor(
-                decoder,
+            const afterCursor = decodeApiTaskMoveInCollectionCursor(
+                queryInput.sorts,
                 errorDisplayMessage`\`afterCursor\``,
                 position.afterCursor,
             );
 
-            const beforeCursor = decodeApiTaskCollectionCursor(
-                decoder,
+            const beforeCursor = decodeApiTaskMoveInCollectionCursor(
+                queryInput.sorts,
                 errorDisplayMessage`\`beforeCursor\``,
                 position.beforeCursor,
             );
@@ -129,23 +128,24 @@ export async function prepareApiTaskMoveInCollectionPatch(
                 throw new InvalidArgumentError(
                     "`afterCursor` points to the same task as `beforeCursor`",
                     {
-                        displayMessage: errorDisplayMessage`The \`MoveInCollection\` patch \`afterCursor\` is for the same task as \`beforeCursor\`. Try again but with two \`TaskCollectionCursor\`s from different tasks.`,
+                        displayMessage: errorDisplayMessage`The \`MoveInCollection\` patch \`afterCursor\` is for the same task as \`beforeCursor\`. Try again but with two \`TaskQueryCursor\`s from different tasks.`,
                     },
                 );
             }
 
-            const positionComparison = compareTaskPosition(
-                afterCursor.collectionPosition,
-                beforeCursor.collectionPosition,
+            const cursorComparison = compareTaskQuerySortCursors(
+                queryInput.sorts,
+                afterCursor.cursor,
+                beforeCursor.cursor,
             );
 
-            if (positionComparison > 0) {
+            if (cursorComparison > 0) {
                 throw new InvalidArgumentError("`afterCursor` is positioned after `beforeCursor`", {
                     displayMessage: errorDisplayMessage`The \`MoveInCollection\` patch \`afterCursor\` is positioned after \`beforeCursor\`. Try again but swap the order of \`afterCursor\` and \`beforeCursor\`.`,
                 });
             }
 
-            if (positionComparison < 0) {
+            if (cursorComparison < 0) {
                 return {
                     type: "Between",
                     afterPosition: afterCursor.collectionPosition,
@@ -164,10 +164,10 @@ export async function prepareApiTaskMoveInCollectionPatch(
                 async context => {
                     return await prepareApiTaskMoveInCollectionPathForTiedPositions(context, {
                         spaceId,
-                        collectionId,
+                        filters: queryInput.filters,
+                        sorts: queryInput.sorts,
                         tiedPosition: afterCursor.collectionPosition,
-                        afterTaskId: afterCursor.taskId,
-                        beforeTaskId: beforeCursor.taskId,
+                        afterCursor: afterCursor.cursor,
                     });
                 },
             );
@@ -186,29 +186,25 @@ export async function prepareApiTaskMoveInCollectionPatch(
  * preserved: the shared group keeps its order, the moved task goes first.
  *
  * We load from `afterCursor` to the first task that has a different position. The
- * collection listing sorts ties by created time, and the collection cursor doesn't
- * include a created time, so we first load the `afterCursor` task to anchor the
- * query.
+ * collection listing cursor includes created time, so we can anchor the query
+ * directly after the `afterCursor` task.
  */
 async function prepareApiTaskMoveInCollectionPathForTiedPositions(
     context: ApiServiceBotActionContext,
     {
         spaceId,
-        collectionId,
+        filters,
+        sorts,
         tiedPosition,
-        afterTaskId,
-        beforeTaskId,
+        afterCursor,
     }: {
         spaceId: SpaceId;
-        collectionId: TaskCollectionId;
+        filters: TaskQueryNormalizedFilters;
+        sorts: ReadonlyArray<TaskQueryNormalizedSort>;
         tiedPosition: TaskPosition;
-        afterTaskId: TaskId;
-        beforeTaskId: TaskId;
+        afterCursor: TaskQuerySortCursor;
     },
 ): Promise<ApiTaskMoveInCollectionPreparedPosition> {
-    const queryInput = createCollectionPositionQueryInput(collectionId);
-
-    let afterTask: TaskModel | null = null;
     const tiedTasksToUpdate: Array<TaskModel> = [];
 
     const expectedFirstCursorValue = [
@@ -216,17 +212,6 @@ async function prepareApiTaskMoveInCollectionPathForTiedPositions(
         tiedPosition.orderTime[1],
         tiedPosition.orderKey,
     ] as const satisfies TaskQuerySortCursorValue;
-
-    // Build a cursor with the same structure as
-    // `getTaskQueryNormalizedSortCursorForModel()`. We want to include `afterTaskId`
-    // in the query so this cursor is designed to be placed in as near a position
-    // before `afterTaskId` as we can guess. This does depend on `afterTaskId` not
-    // having `zeroHybridLogicalTime` as its `createdTime`.
-    let afterCursor: TaskQuerySortCursor = [
-        expectedFirstCursorValue,
-        zeroHybridLogicalTime,
-        getMinId<TaskId>(),
-    ];
 
     while (true) {
         const {queries, updateEvent} = await context.tasks.loadQueries(
@@ -237,8 +222,8 @@ async function prepareApiTaskMoveInCollectionPathForTiedPositions(
                         type: "Normalized",
                         // Small since generally the number of tied tasks should be small.
                         limit: 20,
-                        filters: queryInput.filters,
-                        sorts: queryInput.sorts,
+                        filters,
+                        sorts,
                         expensivelyAfterCursor: afterCursor,
                     },
                 ],
@@ -257,26 +242,6 @@ async function prepareApiTaskMoveInCollectionPathForTiedPositions(
         });
 
         for (const {cursor, task} of tasks) {
-            if (task.id === afterTaskId) {
-                afterTask = task;
-                continue;
-            }
-
-            // If `collectionPosition`s are tied then we don't know whether `afterCursor` is
-            // actually before `beforeCursor` until we load the underlying tasks (since we
-            // don't have the `createdTime`s).
-            //
-            // So if when we start loading tasks, make sure to check that `afterCursor` and
-            // `beforeCursor` are correctly ordered.
-            if (task.id === beforeTaskId && afterTask === null) {
-                throw new InvalidArgumentError(
-                    "`afterCursor` is positioned after `beforeCursor` (when resolving tied positions)",
-                    {
-                        displayMessage: errorDisplayMessage`The \`MoveInCollection\` patch \`afterCursor\` is positioned after \`beforeCursor\`. Try again but swap the order of \`afterCursor\` and \`beforeCursor\`.`,
-                    },
-                );
-            }
-
             const actualFirstCursorValue = cursor[0] as typeof expectedFirstCursorValue;
 
             // We've found the first task that's not tied! Return with the tied tasks we need
@@ -293,10 +258,6 @@ async function prepareApiTaskMoveInCollectionPathForTiedPositions(
                             ? actualFirstCursorValue[2]
                             : null,
                 };
-            }
-
-            if (afterTask === null) {
-                continue;
             }
 
             tiedTasksToUpdate.push(task);
@@ -350,19 +311,37 @@ function createCollectionPositionQueryInput(collectionId: TaskCollectionId): {
 }
 
 /**
- * Decode an `ApiTaskCollectionCursor`, wrapping decode failures with an error
- * message that tells the API caller which cursor was invalid.
+ * Decode an `ApiTaskQueryCursor`, wrapping decode failures with an error message
+ * that tells the API caller which cursor was invalid.
  */
-function decodeApiTaskCollectionCursor(
-    decoder: ApiTaskCollectionCursorDecoder,
+function decodeApiTaskMoveInCollectionCursor(
+    sorts: ReadonlyArray<TaskQueryNormalizedSort>,
     cursorDisplayName: ErrorDisplayMessage,
-    cursor: ApiTaskCollectionCursor,
-): {taskId: TaskId; collectionPosition: TaskPosition} {
+    apiCursor: ApiTaskQueryCursor,
+): {taskId: TaskId; collectionPosition: TaskPosition; cursor: TaskQuerySortCursor} {
     try {
-        return decoder.decode(cursor);
+        const cursor = decodeApiTaskQueryCursor(sorts, apiCursor);
+        const collectionPositionValue = cursor[0];
+
+        assert(
+            Array.isArray(collectionPositionValue) &&
+                collectionPositionValue.length === 3 &&
+                typeof collectionPositionValue[0] === "number" &&
+                typeof collectionPositionValue[1] === "number" &&
+                typeof collectionPositionValue[2] === "string",
+        );
+
+        return {
+            taskId: getTaskQuerySortCursorTaskId(cursor),
+            collectionPosition: {
+                orderTime: [collectionPositionValue[0], collectionPositionValue[1]],
+                orderKey: assertOrderKey(collectionPositionValue[2]),
+            },
+            cursor,
+        };
     } catch (error) {
         throw InvalidArgumentError.from(error, undefined, {
-            displayMessage: errorDisplayMessage`Invalid \`MoveInCollection\` patch ${cursorDisplayName}. Try again with a \`TaskCollectionCursor\` for a task in the collection you\u2019re moving this task within.`,
+            displayMessage: errorDisplayMessage`Invalid \`MoveInCollection\` patch ${cursorDisplayName}. Try again with a \`TaskQueryCursor\` for a task in the collection you\u2019re moving this task within.`,
         });
     }
 }

@@ -12,13 +12,3 @@
  * client is giving us back a well formed cursor for the sort they requested.
  */
 export type ApiTaskQueryCursor = string & {readonly _ApiTaskQueryCursor: never};
-
-/**
- * An opaque cursor which tells you the position of a task in some collection.
- *
- * This includes a subset of the data in `ApiTaskQueryCursor` for a manually sorted
- * collection. We can omit the `createdTime` (which doesn't matter when moving
- * tasks in a collection) and only include the first ~23 bits of the
- * `TaskCollectionId` so we can save some bytes returned by the API.
- */
-export type ApiTaskCollectionCursor = string & {readonly _ApiTaskCollectionCursor: never};

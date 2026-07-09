@@ -2,8 +2,8 @@ import {ApiReference} from "~/shared/api/specification/types/api_reference.js";
 import {ApiReferenceResponse} from "~/shared/api/specification/types/api_reference_response.js";
 import {
     ApiBotWebhookCreatedMessageEventParent,
-    ApiContentFileBlockElementResponse,
-    ApiContentPreviewBlockElementResponse,
+    ApiContentFileBlockElementResponseWithoutKeys,
+    ApiContentPreviewBlockElementResponseWithoutKeys,
     ApiCreateDocumentRequestBody,
     ApiCreateTaskCollectionRequestBody,
     ApiCreateTaskRequestBody,
@@ -12,10 +12,8 @@ import {
     ApiGetTaskResponse,
     ApiMentionReference,
     ApiMentionReferenceResponse,
-    ApiMessageContentPayloadFileElementResponse,
     ApiMessageContentPayloadFileResponse,
     ApiMessageContentPayloadParentResponse,
-    ApiMessageContentPayloadPreviewElementResponse,
     ApiMessageStreamToolCallPartCreateCallReference,
     ApiSearchResult,
     ApiSearchResultBodyMatch,
@@ -129,16 +127,16 @@ test("`ApiMessageContentPayloadParentResponse` is assignable to `ApiBotWebhookCr
     >();
 });
 
-test("`ApiContentFileBlockElementResponse` is assignable to `ApiMessageContentPayloadFileElementResponse`", () => {
+test("`ApiContentFileBlockElementResponseWithoutKeys` is assignable to message file elements", () => {
     assertAssignableTypes<
-        ApiContentFileBlockElementResponse,
-        ApiMessageContentPayloadFileElementResponse
+        ApiContentFileBlockElementResponseWithoutKeys,
+        ApiMessageContentPayloadFileResponse["element"]
     >();
 });
 
-test("`ApiContentPreviewBlockElementResponse` is assignable to `ApiMessageContentPayloadPreviewElementResponse`", () => {
+test("`ApiContentPreviewBlockElementResponseWithoutKeys` is assignable to message file elements", () => {
     assertAssignableTypes<
-        ApiContentPreviewBlockElementResponse,
-        ApiMessageContentPayloadPreviewElementResponse
+        ApiContentPreviewBlockElementResponseWithoutKeys,
+        ApiMessageContentPayloadFileResponse["element"]
     >();
 });

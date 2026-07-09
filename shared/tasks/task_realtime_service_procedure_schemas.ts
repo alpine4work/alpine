@@ -1,5 +1,5 @@
 import {ErrorSchema} from "~/shared/error/error_schema.js";
-import {ApiTaskQueryCursor} from "~/shared/id/types/api_task_cursors.js";
+import {ApiTaskQueryCursor} from "~/shared/id/types/api_task_query_cursor.js";
 import {
     BrowserId,
     TaskCollectionId,

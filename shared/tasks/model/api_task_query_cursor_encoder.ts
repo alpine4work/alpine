@@ -8,7 +8,7 @@ import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
 import {decodeOrderKey, encodeOrderKey} from "~/shared/helpers/sort/encode_order_key.js";
 import {assertOrderKey} from "~/shared/helpers/sort/order_key.js";
 import {assertId, decodeId, encodeId, idByteLength} from "~/shared/id/id.js";
-import {ApiTaskQueryCursor} from "~/shared/id/types/api_task_cursors.js";
+import {ApiTaskQueryCursor} from "~/shared/id/types/api_task_query_cursor.js";
 import {TaskId} from "~/shared/id/types/id_types.js";
 import {
     deserializeHybridLogicalTime,

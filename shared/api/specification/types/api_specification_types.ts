@@ -4,7 +4,7 @@
 import type {ApiContentKey} from "~/shared/api/specification/types/api_content_key.js";
 import type {DateString} from "~/shared/helpers/date/date_string.js";
 import type {TimeZone} from "~/shared/helpers/intl/time_zone.js";
-import type {ApiTaskQueryCursor} from "~/shared/id/types/api_task_cursors.js";
+import type {ApiTaskQueryCursor} from "~/shared/id/types/api_task_query_cursor.js";
 import type * as IdTypes from "~/shared/id/types/id_types.js";
 
 export namespace ApiSpecification {
