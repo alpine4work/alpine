@@ -25,9 +25,11 @@ ts_project(
     deps = [
         "//:node_modules/@types/mdast",
         "//:node_modules/htmlparser2",
+        "//:node_modules/murmurhash",
         "//:node_modules/prettier",
         "//:node_modules/pretty-bytes",
         "//:node_modules/stemmer",
+        "//:node_modules/unicode-default-word-boundary",
         "//server/agents/api",
         "//shared/api/content",
         "//shared/api/content/closed_source",

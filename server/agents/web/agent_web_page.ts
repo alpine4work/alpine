@@ -1,3 +1,4 @@
+import {AgentWebAccountPageWithMetadata} from "~/server/agents/web/pages/agent_web_account_page.js";
 import {AgentWebChannelPageWithMetadata} from "~/server/agents/web/pages/agent_web_channel_page.js";
 import {AgentWebChatPageWithMetadata} from "~/server/agents/web/pages/agent_web_chat_page.js";
 import {AgentWebDocumentPageWithMetadata} from "~/server/agents/web/pages/agent_web_document_page.js";
@@ -49,6 +50,7 @@ export type AgentWebPageMetadata = AgentWebPageWithMetadata["metadata"];
  * `page.metadata.type` come along with it.
  */
 export type AgentWebPageWithMetadata =
+    | AgentWebAccountPageWithMetadata
     | AgentWebDocumentPageWithMetadata
     | AgentWebDocumentThreadPageWithMetadata
     | AgentWebChannelPageWithMetadata

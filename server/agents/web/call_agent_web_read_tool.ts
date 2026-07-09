@@ -12,6 +12,12 @@ import {AgentWebSessionStorage} from "~/server/agents/web/agent_web_session_stor
 import {truncateAgentWebReadResponse} from "~/server/agents/web/call_agent_web_scroll_tool.js";
 import {normalizeAgentWebPath} from "~/server/agents/web/internal/normalize_agent_web_path.js";
 import {
+    normalizeAgentWebAccountPage,
+    parseAgentWebAccountPage,
+    printAgentWebAccountPage,
+    readAgentWebAccountPage,
+} from "~/server/agents/web/pages/agent_web_account_page.js";
+import {
     normalizeAgentWebChannelPage,
     parseAgentWebChannelPage,
     printAgentWebChannelPage,
@@ -269,7 +275,7 @@ async function readAgentWebPageLink(
 ): Promise<{response: string; metadata: AgentWebPageMetadata}> {
     switch (pageLink.type) {
         case "Account": {
-            throw new UnimplementedError("NOCOMMIT");
+            return await readAgentWebAccountPage(context, pageLink.id, options);
         }
         case "Document": {
             return await readAgentWebDocumentPage(context, pageLink.id, options);
@@ -336,6 +342,9 @@ async function readAgentWebPageLink(
 
 function normalizeAgentWebPage(page: AgentWebPage): AgentWebPage {
     switch (page.type) {
+        case "Account": {
+            return normalizeAgentWebAccountPage(page);
+        }
         case "Document": {
             return normalizeAgentWebDocumentPage(page);
         }
@@ -372,7 +381,8 @@ function printAgentWebPage(
 ): Promise<Root> {
     switch (pageLink.type) {
         case "Account": {
-            throw new UnimplementedError("NOCOMMIT");
+            assert(page.type === "Account");
+            return printAgentWebAccountPage(storage, pageLink.id, page);
         }
         case "Document": {
             assert(page.type === "Document");
@@ -445,6 +455,9 @@ async function parseAgentWebPageForTest(
     assert(process.env.NODE_ENV !== "production");
 
     switch (pageMetadata.type) {
+        case "Account": {
+            return await parseAgentWebAccountPage(storage, pageMetadata.id, response);
+        }
         case "Document": {
             return await parseAgentWebDocumentPage(storage, pageMetadata.id, response);
         }

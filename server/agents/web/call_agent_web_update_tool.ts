@@ -4,6 +4,10 @@ import {AgentWebPageMetadata} from "~/server/agents/web/agent_web_page.js";
 import {normalizeAgentWebPath} from "~/server/agents/web/internal/normalize_agent_web_path.js";
 import {quoteMarkdown} from "~/server/agents/web/internal/quote_markdown.js";
 import {
+    parseAgentWebAccountPage,
+    updateAgentWebAccountPage,
+} from "~/server/agents/web/pages/agent_web_account_page.js";
+import {
     parseAgentWebChannelPage,
     updateAgentWebChannelPage,
 } from "~/server/agents/web/pages/agent_web_channel_page.js";
@@ -275,6 +279,16 @@ async function updateAgentWebPageLink(
     newResponse: Root,
 ): Promise<AgentWebPageMetadata> {
     switch (oldPageMetadata.type) {
+        case "Account": {
+            const oldResponse = oldResponseLazy.get();
+
+            const [oldPage, newPage] = await runAllPromises([
+                parseAgentWebAccountPage(context.storage, oldPageMetadata.id, oldResponse),
+                parseAgentWebAccountPage(context.storage, oldPageMetadata.id, newResponse),
+            ]);
+
+            return updateAgentWebAccountPage(context, oldPageMetadata, oldPage, newPage);
+        }
         case "Document": {
             const newPage = await parseAgentWebDocumentPage(
                 context.storage,

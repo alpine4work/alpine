@@ -1,6 +1,5 @@
 import {addHours} from "date-fns";
 import {Root} from "mdast";
-import {stemmer} from "stemmer";
 import {AgentWebContext} from "~/server/agents/web/agent_web_context.js";
 import {AgentWebPageMetadata} from "~/server/agents/web/agent_web_page.js";
 import {AgentWebPageLink} from "~/server/agents/web/agent_web_page_link.js";
