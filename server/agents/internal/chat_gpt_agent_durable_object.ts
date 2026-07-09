@@ -29,6 +29,9 @@ import {
     recordAgentUsage,
     shouldDowngradeModelForAgentUsageLimit,
 } from "~/server/agents/internal/agent_usage_limits.js";
+import {denyPendingChatGptAgentApprovalsIfNeeded} from "~/server/agents/internal/approvals/deny_pending_chat_gpt_agent_approvals_if_needed.js";
+import {expirePendingChatGptAgentApprovalsIfNeeded} from "~/server/agents/internal/approvals/expire_pending_chat_gpt_agent_approvals_if_needed.js";
+import {handleChatGptAgentApprovalDecisionWebhookEventIfPossible} from "~/server/agents/internal/approvals/handle_chat_gpt_agent_approval_decision_webhook_event_if_possible.js";
 import {
     chatGptAgentCreateDocumentTool,
     chatGptAgentReadLinkTool,
@@ -36,8 +39,14 @@ import {
     getChatGptAgentInstructions,
 } from "~/server/agents/internal/chat_gpt_agent_instructions.js";
 import {
+    ChatGptAgentMessageApprovalDecisionOption,
+    getChatGptAgentDecidedApprovalResponseByCallIdIfExists,
+    getChatGptAgentDecidedMessageApprovalIfExists,
+    getChatGptAgentPendingMessageApprovalIfExistsWithPendingApprovalIndexes,
+    putChatGptAgentPendingMessageApproval,
+} from "~/server/agents/internal/conversation/chat_gpt_agent_approval_collection.js";
+import {
     ChatGptAgentConversationItemCollection,
-    ChatGptAgentConversationState,
     ChatGptAgentConversationStore,
 } from "~/server/agents/internal/conversation/chat_gpt_agent_conversation_store.js";
 import {getAgentModelDowngradedMessage} from "~/server/agents/internal/get_agent_model_downgraded_message.js";
@@ -81,6 +90,7 @@ import {
 } from "~/shared/api/specification/parse_api_path.js";
 import {
     ApiContentBlockElement,
+    ApiLabelContent,
     ApiMentionResponse,
     ApiMessageRoomTarget,
 } from "~/shared/api/specification/types/api_specification_convenience_types.js";
@@ -91,7 +101,6 @@ import {
     FailedPreconditionError,
     InvalidArgumentError,
     NotFoundError,
-    UnimplementedError,
 } from "~/shared/error/error.js";
 import {errorDisplayMessage} from "~/shared/error/error_display_message.js";
 import {serializeError} from "~/shared/error/error_schema.js";
@@ -186,6 +195,20 @@ export class ChatGptAgentDurableObject extends AgentDurableObjectBase<
         // The only scheduled event type right now is `ClearStorage`.
         cast<"ClearStorage">(event.type);
 
+        // NOTE(ifitzsimmons): We store pending function calls in the Durable Object's
+        // storage. This means that if an actor approves a function call _after_ we clear
+        // the Durable Object's storage, the agent has no way to recover the approved
+        // function call. In this case, we'd have to tell the actor that their approval
+        // decision could not be processed.
+        //
+        // To avoid this, we decline any outstanding approval requests before clearing the
+        // Durable Object's storage. This way, when the actor comes back to their
+        // conversation, the approval UI won't be displayed. We can set the reason to
+        // "Expired" so that we can explain what happened in the UI. Alternatively, we can
+        // add a stream part here that explains to the user that the approval request
+        // expired?
+        await expirePendingChatGptAgentApprovalsIfNeeded(span, this._state.storage, this._env);
+
         // NOTE(ifitzsimmons): There's a race condition where we receive a request as the
         // `ClearStorage` event is running, in which case the message will not be responded
         // to.
@@ -202,23 +225,65 @@ export class ChatGptAgentDurableObject extends AgentDurableObjectBase<
     }
 
     public override async webhook(span: TracerSpan, request: AgentWebhookRequest): Promise<void> {
-        const requestAuthorId = getAgentWebhookRequestAuthorId(request);
-
-        if (
-            request.event.type === "UpdatedMessageStreamExperimentalApprovalsPart" &&
-            request.event.approvals.some(approval => approval.decision.value === undefined)
-        ) {
-            return;
-        }
-
+        // We do this event dance to make typescript happy. ideally we'd just check
+        // `request.event.type` above and pass the request in, but that doesn't work
         const event = request.event;
-        if (
-            event.type !== "UpdatedMessageStreamExperimentalApprovalsPart" &&
-            // We do this event dance to make typescript happy. ideally we'd just check
-            // `request.event.type` above and pass the request in, but that doesn't work
-            !(await shouldAgentRespondToRequest(span, {...request, event}))
-        ) {
-            return;
+
+        if (event.type !== "UpdatedMessageStreamExperimentalApprovalsPart") {
+            if (!(await shouldAgentRespondToRequest(span, {...request, event}))) {
+                return;
+            }
+        } else {
+            const result = await handleChatGptAgentApprovalDecisionWebhookEventIfPossible(span, {
+                ...request,
+                event,
+            });
+
+            // If the approvals decisions were already received, we no-op.
+            if (result === null) return;
+
+            // If some approvals for the message are still pending, don't respond.
+            if (
+                result.ok &&
+                (await getChatGptAgentPendingMessageApprovalIfExistsWithPendingApprovalIndexes(
+                    request.storage,
+                )) !== undefined
+            ) {
+                return;
+            }
+
+            if (!result.ok) {
+                span.addException(result.error);
+                const conversationState = await request.storage.transaction(async transaction => {
+                    const conversation = await ChatGptAgentConversationStore.new(transaction, {
+                        initialTimeZone: getTimezoneFromBotWebhookRequest(request),
+                    });
+                    return conversation.getState();
+                });
+
+                const agentMessageStream = new AgentMessageStream({
+                    spaceId: request.spaceId,
+                    getTargetPathIfExists: async linkPath => {
+                        const agentLink = await getAgentLink(request.storage, linkPath);
+
+                        if (!agentLink) return null;
+
+                        return printApiPathForAgentLink(agentLink);
+                    },
+                });
+
+                await AgentMessageStreamSession.with(
+                    span,
+                    request,
+                    conversationState.timeZone,
+                    agentMessageStream,
+                    async session => {
+                        session.pushText(span, defaultAgentErrorDisplayMessage);
+                    },
+                );
+
+                return;
+            }
         }
 
         // We fully clear the ChatGPT agent's conversation state every 6 hours or so.
@@ -252,6 +317,14 @@ export class ChatGptAgentDurableObject extends AgentDurableObjectBase<
             });
             return conversation.getState();
         });
+
+        const requestAuthorId = await getAgentWebhookRequestAuthorIdIfExists(request);
+
+        // `NewMessage` and `NewPost` events always carry an author. For approval events
+        // the author is the stored approval record's requester. We need the approval
+        // record in order to process the event, so if it doesn't exist, we'll never reach
+        // this point.
+        assert(requestAuthorId);
 
         const agentUsageLimitWindowsPromise = span.withSpan(
             "Get agent usage limit windows",
@@ -561,6 +634,10 @@ async function requestChatGptAgent(
     // TODO(calebmer, #ai): How should we handle the reply feature for the AI?
     await ensureMessagesInChatGptAgentConversation(span, request, session.newMessageIndex);
 
+    // We should never prompt the LLM while we have pending approvals. If we've reached
+    // this point, we should reject any outstanding approval requests.
+    await denyPendingChatGptAgentApprovalsIfNeeded(span, request);
+
     // Send a message from ChatGPT.
     return await createChatGptAgentMessage(span, request, {
         env,
@@ -731,11 +808,20 @@ async function createChatGptAgentResponse(
     // ChatGPT agent loop. If an agent response has function calls then we call
     // `createChatGptAgentResponse()` again. Which starts with this function that
     // actually executes the function calls.
-    const input = await getChatGptAgentConversationItemsAndCallPendingFunctions(
+    const pendingResult = await getChatGptAgentConversationItemsAndCallPendingFunctions(
         span,
         request,
         session,
     );
+
+    // A tool call paused for human approval. Park the turn: we leave the pending
+    // `function_call` without an output and stop generating. The turn resumes when a
+    // decision arrives and the call is re-run (see the awaiting-approval collection).
+    if (pendingResult.type === "Paused") {
+        return {usedMillicents: totalUsedMillicents, model};
+    }
+
+    const input = pendingResult.input;
 
     // TODO(calebmer, #ai): Tool calls to implement:
     //
@@ -758,7 +844,7 @@ async function createChatGptAgentResponse(
             request.spaceId,
             parseApiBotWebhookEventIntoMessageRoom(request.event),
         ),
-        safety_identifier: getAgentWebhookRequestAuthorId(request),
+        safety_identifier: await getAgentWebhookRequestAuthorId(request),
         // NOTE(ifitzsimmons, 2026-01-10): We had originally planned to add the web search
         // [1] tool to our agent but decided against it for several reasons:
         //
@@ -896,7 +982,7 @@ async function createChatGptAgentResponse(
 }
 
 function getChatGptAgentConversationItemsAndCallPendingFunctions(
-    tracer: TracerBase,
+    tracer: TracerSpan,
     request: AgentWebhookRequest,
     session: AgentMessageStreamSession,
 ) {
@@ -923,19 +1009,30 @@ function getChatGptAgentConversationItemsAndCallPendingFunctions(
         }
 
         // No pending function calls! Return the input as is.
-        if (pendingFunctionCallById.size === 0) return input;
+        if (pendingFunctionCallById.size === 0) return {type: "Continue" as const, input};
 
         const state = await ChatGptAgentConversationStore.new(transaction, {
             initialTimeZone: getTimezoneFromBotWebhookRequest(request),
         });
 
-        const functionCallOutputs = await runAllPromises(
+        const callResults = await runAllPromises(
             mapIterable(pendingFunctionCallById.values(), functionCall => {
                 return tracer.withSpan(
                     "Call ChatGPT agent function",
                     async (
                         span,
-                    ): Promise<OpenAi.Responses.ResponseInputItem.FunctionCallOutput> => {
+                    ): Promise<
+                        | {
+                              readonly type: "Output";
+                              readonly output: OpenAi.Responses.ResponseInputItem.FunctionCallOutput;
+                          }
+                        | {
+                              readonly type: "Paused";
+                              readonly requestApproval:
+                                  | (ChatGptAgentFunctionResult & {readonly type: "NeedsApproval"})
+                                  | null;
+                          }
+                    > => {
                         const result = await captureResultPromise(
                             callChatGptAgentFunction({
                                 span,
@@ -943,21 +1040,13 @@ function getChatGptAgentConversationItemsAndCallPendingFunctions(
                                 request,
                                 session,
                                 functionCall,
-                                conversationState: state.getState(),
+                                conversationStore: state,
                             }),
                         );
 
                         if (!result.ok) {
                             span.addException(result.error);
-                        }
 
-                        // If the call fails then we tell our LLM the error message using `displayMessage`.
-                        // This is the same information a human would get.
-                        let output: string;
-
-                        if (result.ok) {
-                            output = result.value;
-                        } else {
                             // Log errors in development since function call error stack traces aren't shown to
                             // the user in the UI. So we show function call errors in our logs.
                             if (process.env.NODE_ENV !== "production") {
@@ -970,45 +1059,117 @@ function getChatGptAgentConversationItemsAndCallPendingFunctions(
                                     ? result.error.displayMessage
                                     : undefined;
 
-                            output = `Error: \`${
+                            // If the call fails then we tell our LLM the error message using `displayMessage`.
+                            // This is the same information a human would get.
+                            const output = `Error: \`${
                                 functionCall.name
                             }\` function call failed. ${renderErrorDisplayMessageForChatGptAgent(
                                 displayMessage ?? defaultErrorDisplayMessage,
                             )}`;
+
+                            return {
+                                type: "Output",
+                                output: {
+                                    type: "function_call_output",
+                                    call_id: functionCall.call_id,
+                                    output,
+                                },
+                            };
+                        }
+
+                        // The call paused awaiting human approval. Leave it without an output so the
+                        // conversation keeps it pending until a decision resumes the turn.
+                        if (result.value.type === "NeedsApproval") {
+                            return {
+                                type: "Paused",
+                                requestApproval: result.value,
+                            };
+                        }
+
+                        if (result.value.type === "Pending") {
+                            return {type: "Paused", requestApproval: null};
                         }
 
                         return {
-                            type: "function_call_output",
-                            call_id: functionCall.call_id,
-                            output,
+                            type: "Output",
+                            output: {
+                                type: "function_call_output",
+                                call_id: functionCall.call_id,
+                                output: result.value.output,
+                            },
                         };
                     },
                 );
             }),
         );
 
-        const orderKeys = generateOrderKeysBetween(
-            state.getState().lastOrderKey,
-            null,
-            functionCallOutputs.length,
+        const functionCallOutputs = callResults.flatMap(result =>
+            result.type === "Output" ? [result.output] : [],
+        );
+        const isPaused = callResults.some(result => result.type === "Paused");
+        const newApprovalRequests = callResults.flatMap(result =>
+            result.type === "Paused" && result.requestApproval ? [result.requestApproval] : [],
         );
 
-        // Write the result of our function calls both to storage and to the `input` we'll
-        // use to generate the next response.
-        for (let i = 0; i < functionCallOutputs.length; i++) {
-            const orderKey = orderKeys[i]!;
-            const functionCallOutput = functionCallOutputs[i]!;
+        if (newApprovalRequests.length > 0) {
+            const pendingApproval =
+                await getChatGptAgentPendingMessageApprovalIfExistsWithPendingApprovalIndexes(
+                    transaction,
+                );
 
-            input.push(functionCallOutput);
+            // We should never be invoking the LLM while we have pending tool calls.
+            assert(pendingApproval === undefined);
 
-            await ChatGptAgentConversationItemCollection.put(transaction, orderKey, {
-                item: functionCallOutput,
+            await putChatGptAgentPendingMessageApproval(tracer, transaction, {
+                room: request.room,
+                messageIndex: session.newMessageIndex,
+                apiAccessToken: request.apiAccessToken,
+                requesterAccountId: await getAgentWebhookRequestAuthorId(request),
+                approvals: newApprovalRequests.map(approvalRequest => ({
+                    functionCallId: approvalRequest.functionCallId,
+                    options: approvalRequest.approval.options,
+                })),
+            });
+
+            session.pushApprovalRequest(tracer, {
+                type: "ExperimentalApprovals",
+                approvals: newApprovalRequests.map(approvalRequest => ({
+                    summary: approvalRequest.approval.summary,
+                    decision: {
+                        schema: {
+                            options: approvalRequest.approval.options,
+                        },
+                    },
+                })),
             });
         }
 
-        await state.setState(transaction, {lastOrderKey: orderKeys[orderKeys.length - 1]!});
+        // Write the result of our function calls both to storage and to the `input` we'll
+        // use to generate the next response. (A paused call contributes no output.)
+        if (functionCallOutputs.length > 0) {
+            const orderKeys = generateOrderKeysBetween(
+                state.getState().lastOrderKey,
+                null,
+                functionCallOutputs.length,
+            );
 
-        return input;
+            for (let i = 0; i < functionCallOutputs.length; i++) {
+                const orderKey = assertExists(orderKeys[i]);
+                const functionCallOutput = assertExists(functionCallOutputs[i]);
+
+                input.push(functionCallOutput);
+
+                await ChatGptAgentConversationItemCollection.put(transaction, orderKey, {
+                    item: functionCallOutput,
+                });
+            }
+
+            await state.setState(transaction, {
+                lastOrderKey: assertExists(orderKeys[orderKeys.length - 1]),
+            });
+        }
+
+        return isPaused ? {type: "Paused" as const} : {type: "Continue" as const, input};
     });
 }
 
@@ -1039,21 +1200,43 @@ function renderErrorDisplayMessageForChatGptAgent(displayMessage: ErrorDisplayMe
     return string;
 }
 
+/**
+ * The result of executing (or attempting to execute) a single agent tool call:
+ * either the tool's output string, or a signal that the call is now parked
+ * awaiting human approval (so the loop should leave it pending and stop
+ * generating).
+ */
+type ChatGptAgentFunctionResult =
+    | {readonly type: "Output"; readonly output: string}
+    | {
+          readonly type: "Pending";
+      }
+    | {
+          readonly type: "NeedsApproval";
+          readonly functionCallId: string;
+          readonly approval: {
+              readonly summary: ApiLabelContent;
+              readonly options: ReadonlyArray<
+                  ChatGptAgentMessageApprovalDecisionOption & {summary?: ApiLabelContent}
+              >;
+          };
+      };
+
 async function callChatGptAgentFunction({
     span,
     transaction,
     request,
     session,
     functionCall,
-    conversationState,
+    conversationStore,
 }: {
     span: TracerSpan;
     transaction: DurableObjectTransaction;
     request: AgentWebhookRequest;
     session: AgentMessageStreamSession;
     functionCall: OpenAi.Responses.ResponseFunctionToolCall;
-    conversationState: ChatGptAgentConversationState;
-}): Promise<string> {
+    conversationStore: ChatGptAgentConversationStore;
+}): Promise<ChatGptAgentFunctionResult> {
     let functionCallArguments: unknown;
     try {
         functionCallArguments = JSON.parse(functionCall.arguments);
@@ -1106,12 +1289,12 @@ async function callChatGptAgentFunction({
                 transaction,
                 request,
                 link,
-                conversationState,
+                conversationState: conversationStore.getState(),
             });
 
             const output = printAgentContentMarkdownTree(markdownTree);
             session.updateFunctionCallOutputTokenCount(output);
-            return output;
+            return {type: "Output", output};
         }
         case "search_alpine": {
             checkChatGptFunctionCallOutputTokenCount(session);
@@ -1140,7 +1323,7 @@ async function callChatGptAgentFunction({
                 functionCallArguments.query,
             );
             session.updateFunctionCallOutputTokenCount(output);
-            return output;
+            return {type: "Output", output};
         }
         case "create_document": {
             if (
@@ -1156,10 +1339,85 @@ async function callChatGptAgentFunction({
                 );
             }
 
-            return await handleCreateDocumentFunctionCall(span, request, session, {
-                title: functionCallArguments.title,
-                content: functionCallArguments.content,
-            });
+            const {title, content} = functionCallArguments;
+
+            const approvalResponse = await getChatGptAgentDecidedApprovalResponseByCallIdIfExists(
+                transaction,
+                functionCall.call_id,
+            );
+
+            // We check to see if there is a pending approval _before_ checking tool call
+            // permissions because we don't want to retroactively approve a tool call after
+            // it's been rejected.
+            //
+            // For example:
+            //
+            // 1. User rejects Write call A
+            // 2. Agent makes separate approval request for Write call B
+            // 3. User approves all Write calls
+            // 4. Agent adds Write to its approved tools
+            // 5. Agent calls pending tool calls, and visits Write A
+            // 6. Agent sees that Write A was explicitly rejected, so it doesn't make the call
+            //
+            // In practice, Write A shouldn't be in the pending tool call list in step 6, so
+            // this is really just a bit of defensive programming.
+            if (approvalResponse) {
+                switch (approvalResponse.type) {
+                    case "Approved":
+                    case "ApprovedForSession": {
+                        const output = await handleCreateDocumentFunctionCall(
+                            span,
+                            request,
+                            session,
+                            {title, content},
+                        );
+                        return {type: "Output", output};
+                    }
+                    case "Rejected": {
+                        return {
+                            type: "Output",
+                            output: "The requested document was not created because the approval was rejected.",
+                        };
+                    }
+                    default:
+                        throw exhaustive(approvalResponse);
+                }
+            }
+
+            if (conversationStore.getState().allowedMessageApprovalScopes.has("Write")) {
+                const output = await handleCreateDocumentFunctionCall(span, request, session, {
+                    title,
+                    content,
+                });
+                return {type: "Output", output};
+            }
+
+            // If there is no pending approval, and the agent doesn't have Write access, then
+            // we request approval for the Write call.
+            return {
+                type: "NeedsApproval",
+                functionCallId: functionCall.call_id,
+                approval: {
+                    summary: {elements: [{type: "Text", text: `Create document: ${title}`}]},
+                    options: [
+                        {type: "Approved"},
+                        {type: "Rejected"},
+                        {
+                            type: "ApprovedForSession",
+                            scope: {value: "Write"},
+                            summary: {
+                                elements: [
+                                    {
+                                        type: "Text",
+                                        text: "Approve all writes for this session.",
+                                    },
+                                ],
+                            },
+                            durationMinutes: null,
+                        },
+                    ],
+                },
+            };
         }
         default: {
             throw new InvalidArgumentError("Unrecognized function name", {
@@ -1293,8 +1551,7 @@ async function requestChatGptAgentWithRetry(
         // with backoff, then we should clear the durable object state so that subsequent
         // requests will not be impacted by any potentially corrupted state.
         //
-        // [1]:
-        //     https://alpine.inc/s/c2pwxmpv3z7b3db19tsn6y1qfg/tasks/t6adyjshd5qaq256ks12yp395w
+        // [1]: https://alpine.inc/task/t6adyjshd5qaq256ks12yp395w
         const isStateMaybeCorruptedError =
             error instanceof OpenAi.BadRequestError || error instanceof OpenAi.NotFoundError;
 
@@ -1310,6 +1567,7 @@ async function requestChatGptAgentWithRetry(
         // conversation state and retrying _should_ fix the issue. If it doesn't we don't
         // want to waste resources while retrying.
         if (isRetryableError && attemptCount < 1) {
+            await denyPendingChatGptAgentApprovalsIfNeeded(span, request);
             await request.storage.deleteAll();
             return await requestChatGptAgentWithRetry(span, request, options, attemptCount + 1);
         }
@@ -1366,7 +1624,7 @@ async function handleCreateDocumentFunctionCall(
             document: {
                 title,
                 creator: {
-                    id: getAgentWebhookRequestAuthorId(request),
+                    id: await getAgentWebhookRequestAuthorId(request),
                 },
                 content: {elements},
             },
@@ -1450,9 +1708,13 @@ async function injectCurrentlyViewedEntityIntoContextIfNeeded(
         return;
     }
 
+    const requestAuthorId = await getAgentWebhookRequestAuthorId(request);
+
     const [{data: author}, entityLink, previousEntityLink] = await runAllPromises([
         request.apiClient.get(tracer, "/accounts/{id}", {
-            params: {path: {id: request.event.authorId}},
+            params: {
+                path: {id: requestAuthorId},
+            },
         }),
         newViewingTarget !== null
             ? await createAgentLink(transaction, intoCreateAgentLinkOptions(newViewingTarget))
@@ -1634,19 +1896,40 @@ function intoCreateAgentLinkOptions(entity: ApiMentionResponse): CreateAgentLink
     }
 }
 
-function getAgentWebhookRequestAuthorId(request: AgentWebhookRequest): AccountId {
-    if (request.event.type === "UpdatedMessageStreamExperimentalApprovalsPart") {
-        // TODO(ifitzsimmons, #approvals): The "author" for an approval decision is the
-        // account who initially prompted the agent to send an approval.
-        throw new UnimplementedError(
-            "getAgentWebhookRequestAuthorId not implemented for approval decision events",
-        );
+/**
+ * The account this webhook request should be attributed to. For an approval
+ * decision event this is the account that originally prompted the agent to request
+ * the approval, read from the pending approval record \u2014 the actor who made
+ * the decision may be someone else entirely.
+ *
+ * Throws if the approval record backing a decision event no longer exists. Use
+ * `getAgentWebhookRequestAuthorIdIfExists` when that case must be handled.
+ */
+async function getAgentWebhookRequestAuthorId(request: AgentWebhookRequest): Promise<AccountId> {
+    const requestAuthorId = await getAgentWebhookRequestAuthorIdIfExists(request);
+
+    if (requestAuthorId === null) {
+        throw new NotFoundError("Pending approval not found for approval decision event");
     }
 
+    return requestAuthorId;
+}
+
+async function getAgentWebhookRequestAuthorIdIfExists(
+    request: AgentWebhookRequest,
+): Promise<AccountId | null> {
     switch (request.event.type) {
         case "NewMessage":
         case "NewPost":
             return request.event.authorId;
+        case "UpdatedMessageStreamExperimentalApprovalsPart": {
+            const pendingApproval = await getChatGptAgentDecidedMessageApprovalIfExists(
+                request.storage,
+                request.event.messageIndex,
+            );
+
+            return pendingApproval?.requesterAccountId ?? null;
+        }
         default:
             throw exhaustive(request.event);
     }

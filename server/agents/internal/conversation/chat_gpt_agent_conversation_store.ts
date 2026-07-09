@@ -5,11 +5,14 @@ import {ApiMentionResponse} from "~/shared/api/specification/types/api_specifica
 import {TimeZone} from "~/shared/helpers/intl/time_zone.js";
 import {OrderKey, generateOrderKeyBetween} from "~/shared/helpers/sort/order_key.js";
 
+export type ChatGptAgentMessageApprovalScope = "Write";
+
 export type ChatGptAgentConversationState = {
     readonly lastOrderKey: OrderKey | null;
     readonly lastMessageIndex: number | null;
     readonly startTime: Date;
     readonly timeZone: TimeZone;
+    readonly allowedMessageApprovalScopes: ReadonlySet<ChatGptAgentMessageApprovalScope>;
     readonly currentlyViewingTarget: {
         readonly target: ApiMentionResponse | null;
         readonly previousTarget: ApiMentionResponse | null;
@@ -34,6 +37,11 @@ export const ChatGptAgentConversationItemCollection = new DurableObjectStorageCo
     ChatGptAgentConversationItem
 >("a2");
 
+// TODO(ifitzsimmons, #approvals): Remove this and use `emptySet` after merging the
+// client changes. This will ensure that all write requests are approved until
+// there's an approval UI in place
+const defaultAllowedMessageApprovalScopes = new Set<ChatGptAgentMessageApprovalScope>(["Write"]);
+
 export class ChatGptAgentConversationStore extends AgentConversationStore<ChatGptAgentConversationState> {
     private _state: ChatGptAgentConversationState;
 
@@ -52,6 +60,7 @@ export class ChatGptAgentConversationStore extends AgentConversationStore<ChatGp
             timeZone: initialTimeZone,
             startTime: new Date(),
             currentlyViewingTarget: null,
+            allowedMessageApprovalScopes: defaultAllowedMessageApprovalScopes,
         };
 
         return new ChatGptAgentConversationStore(state);
@@ -91,6 +100,20 @@ export class ChatGptAgentConversationStore extends AgentConversationStore<ChatGp
         await this.setState(transaction, {
             lastOrderKey: orderKey,
             lastMessageIndex: newMessageIndex,
+        });
+    }
+
+    public async grantApprovedMessageApprovalScope(
+        transaction: DurableObjectTransaction,
+        scope: ChatGptAgentMessageApprovalScope,
+    ) {
+        if (this._state.allowedMessageApprovalScopes.has(scope)) return;
+
+        await this.setState(transaction, {
+            allowedMessageApprovalScopes: new Set([
+                ...this._state.allowedMessageApprovalScopes,
+                scope,
+            ]),
         });
     }
 }

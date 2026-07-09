@@ -226,8 +226,16 @@ export class CursorAgentDurableObject extends AgentDurableObjectBase<CursorAgent
     }
 
     public override async webhook(span: TracerSpan, request: AgentWebhookRequest) {
+        // We do this event dance to make typescript happy. ideally we'd just check
+        // `request.event.type` above and pass the request in, but that doesn't work
+        const {event} = request;
+
+        // NOTE(ifitzsimmons, 2026-06-24): As of writing, the cursor agent doesn't have the
+        // ability to write Alpine data and therefore has no use for approvals.
+        if (event.type === "UpdatedMessageStreamExperimentalApprovalsPart") return;
+
         // Check if the agent should respond before continuing.
-        if (!(await shouldAgentRespondToRequest(span, request))) return;
+        if (!(await shouldAgentRespondToRequest(span, {...request, event}))) return;
 
         if (
             request.event.type === "NewMessage" &&

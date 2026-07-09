@@ -5,9 +5,12 @@ import {AwsRequestSigner} from "~/server/helpers/aws_request_signer.js";
 import {createSimpleErrorResponse} from "~/server/helpers/create_simple_error_response.js";
 import {createServerTracer} from "~/server/tracer/server_tracer.js";
 import {traceServerResponse} from "~/server/tracer/trace_server_response.js";
-import {printApiMessageRoomPath} from "~/shared/api/specification/parse_api_path.js";
+import {
+    ApiMessageRoomPath,
+    printApiMessageRoomPath,
+} from "~/shared/api/specification/parse_api_path.js";
 import {ApiBotWebhookRequestBody} from "~/shared/api/specification/types/api_specification_convenience_types.js";
-import {InternalError, InvalidArgumentError, UnimplementedError} from "~/shared/error/error.js";
+import {InternalError, InvalidArgumentError} from "~/shared/error/error.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
 import {addTracerPropagationContextHeader} from "~/shared/tracer/tracer_propagation_context_header.js";
@@ -359,17 +362,23 @@ async function fetchFromDurableObjectWithId(
     return await durableObjectStub.fetch(request);
 }
 
+// Every webhook event for the same message room must map to the same durable
+// object name. A conversation's state (including pending approval records) lives
+// in one durable object, so if two event types derived different names for the
+// same room the conversation would split across instances. This happened with
+// `NewPost` deriving its name from the bare post ID while the follow-up
+// `UpdatedMessageStreamExperimentalApprovalsPart` event used the room path:
+// approval decisions landed on an empty durable object and were rejected as not
+// found.
 function getDurableObjectIdFromApiBotWebhookEvent(request: ApiBotWebhookRequestBody) {
     switch (request.event.type) {
+        case "UpdatedMessageStreamExperimentalApprovalsPart":
         case "NewMessage":
             return `${request.botAccountId}:${printApiMessageRoomPath(request.event.room)}`;
-        case "NewPost":
-            return `${request.botAccountId}:${request.event.postId}`;
-        case "UpdatedMessageStreamExperimentalApprovalsPart":
-            // TODO(ifitzsimmons, #approvals)
-            throw new UnimplementedError(
-                "UpdatedMessageStreamExperimentalApprovalsPart is not supported",
-            );
+        case "NewPost": {
+            const messageRoomPath: ApiMessageRoomPath = `/posts/${request.event.postId}`;
+            return `${request.botAccountId}:${messageRoomPath}`;
+        }
         default:
             throw exhaustive(request.event);
     }

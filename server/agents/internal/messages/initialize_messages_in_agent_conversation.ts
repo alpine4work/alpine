@@ -10,7 +10,6 @@ import {loadAgentMessagesListLinkContent} from "~/server/agents/internal/link_re
 import {loadAgentPostCommentsLinkContent} from "~/server/agents/internal/link_references/load_agent_post_comments_link_content.js";
 import {AgentMessage} from "~/server/agents/internal/messages/agent_message.js";
 import {printAgentContentMarkdownTree} from "~/server/agents/internal/print_api_content_to_agent_markdown.js";
-import {UnimplementedError} from "~/shared/error/error.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
 import {TracerBase} from "~/shared/tracer/tracer_base.js";
@@ -28,7 +27,7 @@ export async function initializeMessagesInAgentConversation({
 }): Promise<void> {
     assert(conversation.getState().lastMessageIndex === null);
 
-    const {messagesContent} = await loadInitialAgentMessagesContent({
+    const {messagesContent, messages} = await loadInitialAgentMessagesContent({
         tracer,
         transaction,
         request,
@@ -47,14 +46,16 @@ export async function initializeMessagesInAgentConversation({
                 return -1;
             }
             case "UpdatedMessageStreamExperimentalApprovalsPart": {
-                // TODO(ifitzsimmons, #approvals)
-                throw new UnimplementedError(
-                    "UpdatedMessageStreamExperimentalApprovalsPart is not supported",
-                );
+                // If the conversation has been initialized via an approval decision, which isn't a
+                // new message in the conversation, we load messages from the back of the
+                // conversation and use the last loaded message index as the conversation message
+                // index. If no messages were loaded (an approval decision is user input, so we
+                // can't assert the room's shape), fall back to `-1` like `NewPost` above since
+                // nothing was actually loaded yet.
+                return messages[messages.length - 1]?.index ?? -1;
             }
-            default: {
+            default:
                 throw exhaustive(request.event);
-            }
         }
     };
 
@@ -92,10 +93,8 @@ export async function loadInitialAgentMessagesContent({
                 return 1;
             }
             case "UpdatedMessageStreamExperimentalApprovalsPart": {
-                // TODO(ifitzsimmons, #approvals)
-                throw new UnimplementedError(
-                    "UpdatedMessageStreamExperimentalApprovalsPart is not supported",
-                );
+                // Load messages from the end of the conversation.
+                return null;
             }
             default: {
                 throw exhaustive(event);

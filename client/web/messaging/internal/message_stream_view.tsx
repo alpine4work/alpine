@@ -110,6 +110,11 @@ export function MessageStreamView({
         }
 
         for (const part of stream.parts) {
+            // TODO(ifitzsimmons, #approvals): Render an interactive approval card. Until that
+            // ships, skip these parts instead of letting the non-content part renderer throw
+            // and crash the whole message stream.
+            if (part.payload.type === "ExperimentalApprovals") continue;
+
             if (part.payload.type === "Content") {
                 posAttributeOffset += part.payload.content.content.size;
                 currentSection.contentStartTime ??= part.createdTime;

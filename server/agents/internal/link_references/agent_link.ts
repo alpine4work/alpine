@@ -34,7 +34,7 @@ export type AgentLinkPaginatedMessagesListPageInfo =
       }
     | {
           readonly from: "End";
-          readonly cursor: number;
+          readonly cursor: number | null;
       };
 type AgentLinkPaginatedMessagesListCommonOptions<
     PageInfo extends AgentLinkPaginatedMessagesListPageInfo =

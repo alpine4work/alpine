@@ -95,10 +95,19 @@ abstract class MockAgentDurableObjectBase extends AgentDurableObjectBase<MockAge
         // May only play a the recording in test and development environments.
         assert(process.env.NODE_ENV !== "production");
 
+        // We do this event dance to make typescript happy. ideally we'd just check
+        // `request.event.type` above and pass the request in, but that doesn't work
+        const {event} = request;
+        if (event.type === "UpdatedMessageStreamExperimentalApprovalsPart") {
+            throw new UnimplementedError(
+                "UpdatedMessageStreamExperimentalApprovalsPart is not supported",
+            );
+        }
+
         // Mirror the real agent's response policy so the mock behaves the same in a 1:1
         // chat with the bot — where users don't typically @-mention — as the production
         // ChatGPT agent does.
-        if (!(await shouldAgentRespondToRequest(tracer, request))) return;
+        if (!(await shouldAgentRespondToRequest(tracer, {...request, event}))) return;
 
         let recording =
             (await MockAgentRecordingCollection.get(this._state.storage, "")) ?? emptyArray;
