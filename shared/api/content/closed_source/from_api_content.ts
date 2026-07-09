@@ -1,4 +1,4 @@
-import {Mark, Node, Schema as ProsemirrorSchema} from "prosemirror-model";
+import {Mark, Node} from "prosemirror-model";
 import {assertApiCheckListBlockElementItem} from "~/shared/api/content/assert_api_check_list_block_element_item.js";
 import {unknownFileId} from "~/shared/api/content/closed_source/unknown_file_id.js";
 import {normalizeApiContentInlineElementMarks} from "~/shared/api/content/normalize_api_content.js";
@@ -18,8 +18,13 @@ import {
 } from "~/shared/api/specification/types/api_specification_convenience_types.js";
 import {ContentMention} from "~/shared/content/content_mention.js";
 import {ContentListItemNodeTypeName} from "~/shared/content/content_node_type_name.js";
-import {maxContentListItemIndentation} from "~/shared/content/content_schema.js";
+import {
+    ContentProsemirrorSchema,
+    maxContentListItemIndentation,
+} from "~/shared/content/content_schema.js";
 import {HighlightColor} from "~/shared/design/core/highlight_color.js";
+import {InvalidArgumentError} from "~/shared/error/error.js";
+import {errorDisplayMessage} from "~/shared/error/error_display_message.js";
 import {filterMapArray} from "~/shared/helpers/array/filter_map_array.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
@@ -29,12 +34,12 @@ import {SearchMentionEntityId} from "~/shared/search/search_entity_id.js";
 /**
  * Convert content from the API back into ProseMirror nodes.
  */
-export function fromApiContent(schema: ProsemirrorSchema, content: ApiContent): Node {
+export function fromApiContent(schema: ContentProsemirrorSchema, content: ApiContent): Node {
     const blockNodes = Array.from(fromApiContentBlockElements(schema, content.elements));
 
-    return schema.nodes.doc!.create(
+    return schema.nodes.doc.create(
         null,
-        blockNodes.length > 0 ? blockNodes : [schema.nodes.paragraph!.create()],
+        blockNodes.length > 0 ? blockNodes : [schema.nodes.paragraph.create()],
     );
 }
 
@@ -46,32 +51,34 @@ export function fromApiContent(schema: ProsemirrorSchema, content: ApiContent): 
  * (e.g. the `accessPolicy` on document create).
  */
 export function fromApiContentToDocumentChildNodes(
-    schema: ProsemirrorSchema,
+    schema: ContentProsemirrorSchema,
     title: string,
     content: ApiContent,
 ): ReadonlyArray<Node> {
+    assert(schema.nodes.title);
+
     const blockNodes = Array.from(
         concatIterables(
-            [schema.nodes.title!.create(null, title.length > 0 ? schema.text(title) : null)],
+            [schema.nodes.title.create(null, title.length > 0 ? schema.text(title) : null)],
             fromApiContentBlockElements(schema, content.elements),
         ),
     );
 
     if (blockNodes.length === 1) {
-        blockNodes.push(schema.nodes.paragraph!.create());
+        blockNodes.push(schema.nodes.paragraph.create());
     }
 
     return blockNodes;
 }
 
 export function* fromApiContentBlockElements(
-    schema: ProsemirrorSchema,
+    schema: ContentProsemirrorSchema,
     elements: Iterable<ApiContentBlockElement>,
 ): IterableIterator<Node> {
     for (const element of elements) {
         switch (element.type) {
             case "Paragraph": {
-                yield schema.nodes.paragraph!.create(
+                yield schema.nodes.paragraph.create(
                     null,
                     fromApiContentInlineElements(schema, element.elements),
                 );
@@ -141,13 +148,32 @@ export function* fromApiContentBlockElements(
                                     nestedElement => nestedElement.items.length === 0,
                                 )
                             ) {
-                                yield schema.nodes[typeName]!.create(
-                                    attrs,
-                                    schema.nodes.paragraph!.create(),
-                                );
+                                const nodeType = schema.nodes[typeName];
+
+                                if (!nodeType) {
+                                    throw new InvalidArgumentError(
+                                        "Unsupported node type in this content schema",
+                                        {
+                                            displayMessage: errorDisplayMessage`${element.type} elements aren\u2019t supported in this type of content. Try again without ${element.type} elements.`,
+                                        },
+                                    );
+                                }
+
+                                yield nodeType.create(attrs, schema.nodes.paragraph.create());
                             }
                         } else {
-                            yield schema.nodes[typeName]!.create(
+                            const nodeType = schema.nodes[typeName];
+
+                            if (!nodeType) {
+                                throw new InvalidArgumentError(
+                                    "Unsupported node type in this content schema",
+                                    {
+                                        displayMessage: errorDisplayMessage`${element.type} elements aren\u2019t supported in this type of content. Try again without ${element.type} elements.`,
+                                    },
+                                );
+                            }
+
+                            yield nodeType.create(
                                 attrs,
                                 Array.from(fromApiContentBlockElements(schema, item.elements)),
                             );
@@ -175,10 +201,10 @@ export function* fromApiContentBlockElements(
                 // Quote blocks require at least one block element ((paragraph | listItem)+) If the
                 // quote is empty, add an empty paragraph
                 if (quoteContent.length === 0) {
-                    quoteContent.push(schema.nodes.paragraph!.create());
+                    quoteContent.push(schema.nodes.paragraph.create());
                 }
 
-                yield schema.nodes.quoteBlock!.create(null, quoteContent);
+                yield schema.nodes.quoteBlock.create(null, quoteContent);
                 break;
             }
             case "Heading": {
@@ -212,31 +238,31 @@ export function* fromApiContentBlockElements(
                         // Table cells require at least one block element (tableBlock+) If the cell is
                         // empty, create an empty paragraph
                         if (cellContent.length === 0) {
-                            cellContent.push(schema.nodes.paragraph!.create());
+                            cellContent.push(schema.nodes.paragraph.create());
                         }
 
-                        return schema.nodes.tableCell!.create(null, cellContent);
+                        return schema.nodes.tableCell.create(null, cellContent);
                     });
 
                     while (cells.length < 2) {
                         cells.push(
-                            schema.nodes.tableCell!.create(null, schema.nodes.paragraph!.create()),
+                            schema.nodes.tableCell.create(null, schema.nodes.paragraph.create()),
                         );
                     }
 
-                    return schema.nodes.tableRow!.create(null, cells);
+                    return schema.nodes.tableRow.create(null, cells);
                 });
 
                 if (rows.length < 1) {
                     rows.push(
-                        schema.nodes.tableRow!.create(null, [
-                            schema.nodes.tableCell!.create(null, schema.nodes.paragraph!.create()),
-                            schema.nodes.tableCell!.create(null, schema.nodes.paragraph!.create()),
+                        schema.nodes.tableRow.create(null, [
+                            schema.nodes.tableCell.create(null, schema.nodes.paragraph.create()),
+                            schema.nodes.tableCell.create(null, schema.nodes.paragraph.create()),
                         ]),
                     );
                 }
 
-                yield schema.nodes.table!.create(
+                yield schema.nodes.table.create(
                     {
                         tableWidth: element.width,
                         columnWidths: element.columns.map(column => column.width),
@@ -249,38 +275,57 @@ export function* fromApiContentBlockElements(
             }
             case "Code": {
                 const lines = element.lines.map(line => {
-                    return schema.nodes.codeBlockLine!.create(
+                    return schema.nodes.codeBlockLine.create(
                         null,
                         fromApiContentInlineElements(schema, line.elements),
                     );
                 });
 
                 if (lines.length < 1) {
-                    lines.push(schema.nodes.codeBlockLine!.create());
+                    lines.push(schema.nodes.codeBlockLine.create());
                 }
 
-                yield schema.nodes.codeBlock!.create({language: element.language}, lines);
+                yield schema.nodes.codeBlock.create({language: element.language}, lines);
                 break;
             }
             case "File":
             case "Preview": {
-                yield schema.nodes.fileRow!.create(null, [
+                if (!schema.nodes.fileRow) {
+                    throw new InvalidArgumentError("Unsupported node type in this content schema", {
+                        displayMessage: errorDisplayMessage`${element.type} elements aren\u2019t supported in this type of content. Try again without ${element.type} elements.`,
+                    });
+                }
+
+                yield schema.nodes.fileRow.create(null, [
                     fromApiContentFileOrPreviewElement(schema, element),
                 ]);
                 break;
             }
             case "FileGallery": {
+                if (!schema.nodes.fileRow) {
+                    throw new InvalidArgumentError("Unsupported node type in this content schema", {
+                        displayMessage: errorDisplayMessage`${element.type} elements aren\u2019t supported in this type of content. Try again without ${element.type} elements.`,
+                    });
+                }
+
                 for (const row of element.rows) {
                     const fileNodes = row.items.map(item =>
                         fromApiContentFileOrPreviewElement(schema, item.element),
                     );
-                    yield schema.nodes.fileRow!.create(null, fileNodes);
+
+                    yield schema.nodes.fileRow.create(null, fileNodes);
                 }
                 break;
             }
             case "FileFloat": {
+                if (!schema.nodes.fileFloat) {
+                    throw new InvalidArgumentError("Unsupported node type in this content schema", {
+                        displayMessage: errorDisplayMessage`${element.type} elements aren\u2019t supported in this type of content. Try again without ${element.type} elements.`,
+                    });
+                }
+
                 const fileNode = fromApiContentFileOrPreviewElement(schema, element.element);
-                yield schema.nodes.fileFloat!.create(
+                yield schema.nodes.fileFloat.create(
                     {direction: element.side === "Left" ? "left" : "right"},
                     [fileNode],
                 );
@@ -298,14 +343,20 @@ export function* fromApiContentBlockElements(
  * top-level `fileRow` node type.
  */
 function* fromApiContentTableCellBlockElements(
-    schema: ProsemirrorSchema,
+    schema: ContentProsemirrorSchema,
     elements: Iterable<ApiContentTableBlockElementCellBlockElement>,
 ): IterableIterator<Node> {
     for (const element of elements) {
         switch (element.type) {
             case "File":
             case "Preview": {
-                yield schema.nodes.fileRowTable!.create(null, [
+                if (!schema.nodes.fileRowTable) {
+                    throw new InvalidArgumentError("Unsupported node type in this content schema", {
+                        displayMessage: errorDisplayMessage`${element.type} elements aren\u2019t supported in this type of content. Try again without ${element.type} elements.`,
+                    });
+                }
+
+                yield schema.nodes.fileRowTable.create(null, [
                     fromApiContentFileOrPreviewElement(schema, element),
                 ]);
                 break;
@@ -318,26 +369,60 @@ function* fromApiContentTableCellBlockElements(
 }
 
 function fromApiContentFileOrPreviewElement(
-    schema: ProsemirrorSchema,
+    schema: ContentProsemirrorSchema,
     element: ApiContentFileBlockElement | ApiContentPreviewBlockElement,
 ): Node {
     switch (element.type) {
         case "File": {
+            if (!schema.nodes.file) {
+                throw new InvalidArgumentError("Unsupported node type in this content schema", {
+                    displayMessage: errorDisplayMessage`${element.type} elements aren\u2019t supported in this type of content. Try again without ${element.type} elements.`,
+                });
+            }
+
             const marks = normalizeApiContentInlineElementMarks(element.marks);
 
-            return schema.nodes.file!.create(
+            return schema.nodes.file.create(
                 {fileId: element.file.id === unknownFileId ? null : element.file.id},
                 undefined,
-                marks?.map(mark => schema.marks.comment!.create({commentThreadId: mark.thread.id})),
+                marks?.map(mark => {
+                    if (!schema.marks.comment) {
+                        throw new InvalidArgumentError(
+                            "Unsupported node type in this content schema",
+                            {
+                                displayMessage: errorDisplayMessage`${mark.type} marks aren\u2019t supported in this type of content. Try again without ${mark.type} marks.`,
+                            },
+                        );
+                    }
+
+                    return schema.marks.comment.create({commentThreadId: mark.thread.id});
+                }),
             );
         }
         case "Preview": {
+            if (!schema.nodes.file) {
+                throw new InvalidArgumentError("Unsupported node type in this content schema", {
+                    displayMessage: errorDisplayMessage`${element.type} elements aren\u2019t supported in this type of content. Try again without ${element.type} elements.`,
+                });
+            }
+
             const marks = normalizeApiContentInlineElementMarks(element.marks);
 
-            return schema.nodes.file!.create(
+            return schema.nodes.file.create(
                 {fileId: previewReferenceToFileEntityId(element.reference)},
                 undefined,
-                marks?.map(mark => schema.marks.comment!.create({commentThreadId: mark.thread.id})),
+                marks?.map(mark => {
+                    if (!schema.marks.comment) {
+                        throw new InvalidArgumentError(
+                            "Unsupported node type in this content schema",
+                            {
+                                displayMessage: errorDisplayMessage`${mark.type} marks aren\u2019t supported in this type of content. Try again without ${mark.type} marks.`,
+                            },
+                        );
+                    }
+
+                    return schema.marks.comment.create({commentThreadId: mark.thread.id});
+                }),
             );
         }
         default:
@@ -362,7 +447,7 @@ function previewReferenceToFileEntityId(target: ApiPreviewReference): string {
 }
 
 function fromApiContentInlineElements(
-    schema: ProsemirrorSchema,
+    schema: ContentProsemirrorSchema,
     elements: ReadonlyArray<ApiContentInlineElement>,
 ): ReadonlyArray<Node> {
     return filterMapArray(elements, element => {
@@ -372,7 +457,7 @@ function fromApiContentInlineElements(
 }
 
 function fromApiContentInlineElement(
-    schema: ProsemirrorSchema,
+    schema: ContentProsemirrorSchema,
     element: ApiContentInlineElement,
 ): Node {
     const marks = fromApiContentInlineElementMarks(schema, element.marks);
@@ -382,7 +467,7 @@ function fromApiContentInlineElement(
             return schema.text(element.text, marks);
         }
         case "Break": {
-            return schema.nodes.break!.create(null, null, marks);
+            return schema.nodes.break.create(null, null, marks);
         }
         case "Mention": {
             return fromApiContentMentionInlineElement(schema, element, marks);
@@ -393,10 +478,16 @@ function fromApiContentInlineElement(
 }
 
 function fromApiContentMentionInlineElement(
-    schema: ProsemirrorSchema,
+    schema: ContentProsemirrorSchema,
     element: ApiContentMentionInlineElement,
     marks: ReadonlyArray<Mark> | undefined,
 ) {
+    if (!schema.nodes.mention) {
+        throw new InvalidArgumentError("Unsupported node type in this content schema", {
+            displayMessage: errorDisplayMessage`${element.type} elements aren\u2019t supported in this type of content. Try again without ${element.type} elements.`,
+        });
+    }
+
     const mentionReference = element.reference;
     let mention: ContentMention;
 
@@ -448,11 +539,11 @@ function fromApiContentMentionInlineElement(
         };
     }
 
-    return schema.nodes.mention!.create({mention}, null, marks);
+    return schema.nodes.mention.create({mention}, null, marks);
 }
 
 function fromApiContentInlineElementMarks(
-    schema: ProsemirrorSchema,
+    schema: ContentProsemirrorSchema,
     marks: ReadonlyArray<ApiContentInlineElementMark> | undefined,
 ): ReadonlyArray<Mark> | undefined {
     marks = normalizeApiContentInlineElementMarks(marks);
@@ -461,20 +552,20 @@ function fromApiContentInlineElementMarks(
 }
 
 function fromApiContentInlineElementMark(
-    schema: ProsemirrorSchema,
+    schema: ContentProsemirrorSchema,
     mark: ApiContentInlineElementMark,
 ): Mark | undefined {
     switch (mark.type) {
         case "Link":
-            return schema.marks.link!.create({url: mark.url});
+            return schema.marks.link.create({url: mark.url});
         case "Italic":
-            return schema.marks.italic!.create();
+            return schema.marks.italic.create();
         case "Bold":
-            return schema.marks.bold!.create();
+            return schema.marks.bold.create();
         case "Code":
-            return schema.marks.code!.create();
+            return schema.marks.code.create();
         case "Strike":
-            return schema.marks.strike!.create();
+            return schema.marks.strike.create();
 
         case "Highlight": {
             if (!schema.marks.highlight) return;
