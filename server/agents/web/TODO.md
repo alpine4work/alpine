@@ -4,10 +4,11 @@ NOCOMMIT: Remove this file
 
 ## Agent web pages
 
-- [ ] Task fields in collection
+- [x] Task fields in collection
+- [ ] Task collections field in pagination (showing 3 more if many collections)
 - [ ] Update task status in collection
 - [ ] Show subtask count in collection
-- [ ] Collection pagination
+- [x] Collection pagination
 - [ ] Updating tasks in collection
 - [ ] Adding/removing tasks from collection
 - [ ] Subtasks
@@ -16,6 +17,7 @@ NOCOMMIT: Remove this file
 - [ ] Account
 - [ ] File (read)
 - [ ] File (write)
+- [x] Search!
 
 ## Access modes
 

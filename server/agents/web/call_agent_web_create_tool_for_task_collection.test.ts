@@ -284,3 +284,23 @@ test("rejects creating a task collection with an unknown task link", async () =>
 
     expect(getCreateTaskCollectionRequests()).toHaveLength(0);
 });
+
+test("rejects creating a task collection with a next page link", async () => {
+    await createAgentWebPageStoredLinkPathname(storage, {
+        type: "TaskCollection",
+        id: generateId<TaskCollectionId>(),
+        title: "Roadmap",
+    });
+
+    await expectInvalidCreateDisplayMessage({
+        content: `\
+# Roadmap 2026
+
+[Next page »](/task-collection/roadmap?after=a1b2c3)`,
+        expected:
+            "You can\u2019t include a \u201CNext page »\u201D link when creating a task collection. " +
+            "Try again without a \u201CNext page »\u201D link.",
+    });
+
+    expect(getCreateTaskCollectionRequests()).toHaveLength(0);
+});

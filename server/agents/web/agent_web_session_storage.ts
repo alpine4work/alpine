@@ -2,7 +2,13 @@ import {AgentWebPageMetadata} from "~/server/agents/web/agent_web_page.js";
 import {AgentWebPageStoredLink} from "~/server/agents/web/agent_web_page_stored_link.js";
 import {AgentWebPageStoredLinkKey} from "~/server/agents/web/agent_web_page_stored_link_key.js";
 import {Mutex} from "~/shared/helpers/async/mutex.js";
-import {DocumentCommentThreadId, DocumentId, SpaceId} from "~/shared/id/types/id_types.js";
+import {ApiTaskQueryCursor} from "~/shared/id/types/api_task_query_cursor.js";
+import {
+    DocumentCommentThreadId,
+    DocumentId,
+    SpaceId,
+    TaskCollectionId,
+} from "~/shared/id/types/id_types.js";
 
 /**
  * Storage for web data that persists across an agent session.
@@ -124,6 +130,21 @@ export interface AgentWebSessionStorage {
     readonly documentCommentThreadIdByNumber: AgentWebSessionStorageCollection<
         `${DocumentId}-${number}`,
         DocumentCommentThreadId
+    >;
+
+    /**
+     * The full `ApiTaskQueryCursor` for a short task query cursor hash which is used
+     * when printing "Next page »" links in task collection pages (e.g.
+     * `?after=a1b2c3`). Keys are the task collection ID and the short hash separated
+     * by a dash.
+     *
+     * Full cursors are too long to print in agent web markdown so we print a short
+     * hash of the cursor instead. See `createAgentWebTaskQueryCursorHash()` for how
+     * the short hash is computed.
+     */
+    readonly taskQueryCursorByHash: AgentWebSessionStorageCollection<
+        `${TaskCollectionId}-${string}`,
+        ApiTaskQueryCursor
     >;
 
     /**

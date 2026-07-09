@@ -45,6 +45,7 @@ export function createAgentWebSessionStorageForTest(
         dedupeNumberByTruncatedUrlAndUrl: createAgentWebSessionStorageCollection(),
         documentCommentThreadNumberById: createAgentWebSessionStorageCollection(),
         documentCommentThreadIdByNumber: createAgentWebSessionStorageCollection(),
+        taskQueryCursorByHash: createAgentWebSessionStorageCollection(),
         tableWidthByTruncatedWidth: createAgentWebSessionStorageCollection(),
         tableColumnWidthsByTruncatedColumnWidths: createAgentWebSessionStorageCollection(),
         readResponseByPath: createAgentWebSessionStorageCollection(),

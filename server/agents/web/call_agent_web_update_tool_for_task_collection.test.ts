@@ -3,7 +3,10 @@ import {AgentWebContext} from "~/server/agents/web/agent_web_context.js";
 import {callAgentWebReadTool} from "~/server/agents/web/call_agent_web_read_tool.js";
 import {callAgentWebUpdateTool} from "~/server/agents/web/call_agent_web_update_tool.js";
 import {createAgentWebPageStoredLinkPathname} from "~/server/agents/web/create_agent_web_page_stored_link_pathname.js";
-import {agentWebTaskCollectionPageApiTasksBatchCount} from "~/server/agents/web/pages/agent_web_task_collection_page.js";
+import {
+    agentWebTaskCollectionPageApiTasksBatchCount,
+    updateAgentWebTaskCollectionPage,
+} from "~/server/agents/web/pages/agent_web_task_collection_page.js";
 import {createAgentWebSessionStorageForTest} from "~/server/agents/web/test_helpers/create_agent_web_session_storage_for_test.js";
 import {ApiTaskCollectionColor} from "~/shared/api/specification/types/api_specification_convenience_types.js";
 import {
@@ -17,6 +20,7 @@ import {captureResultPromise} from "~/shared/helpers/control/capture_result_prom
 import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
 import {defaultTimeZone} from "~/shared/helpers/intl/time_zone.js";
 import {generateId} from "~/shared/id/id.js";
+import {ApiTaskQueryCursor} from "~/shared/id/types/api_task_query_cursor.js";
 import {AccountId, BotId, SpaceId, TaskCollectionId, TaskId} from "~/shared/id/types/id_types.js";
 import {testTracer} from "~/shared/tracer/dev/test_tracer.js";
 
@@ -164,14 +168,20 @@ function mockGetCollectionTasks({
             nextCursor: null,
             tasks: [
                 {
-                    id: launchTaskId,
-                    title: "Launch task",
-                    status: {type: "Open" as const, isActive: false},
+                    cursor: "task-cursor-0" as ApiTaskQueryCursor,
+                    task: {
+                        id: launchTaskId,
+                        title: "Launch task",
+                        status: {type: "Open" as const, isActive: false},
+                    },
                 },
                 {
-                    id: specTaskId,
-                    title: "Spec task",
-                    status: {type: "Open" as const, isActive: false},
+                    cursor: "task-cursor-1" as ApiTaskQueryCursor,
+                    task: {
+                        id: specTaskId,
+                        title: "Spec task",
+                        status: {type: "Open" as const, isActive: false},
+                    },
                 },
             ],
         },
@@ -423,4 +433,42 @@ test("rejects unexpected markdown after the task list", async () => {
             "followed by a task list (an unordered list where every item is a task link) after " +
             "the task collection name.",
     });
+});
+
+test("rejects changing the next page link cursor", async () => {
+    const oldPage = {
+        type: "TaskCollection" as const,
+        name: "Roadmap",
+        color: null,
+        pagination: {nextCursorHash: "a1b2c3"},
+        tasks: [],
+    };
+
+    await expect(
+        updateAgentWebTaskCollectionPage(
+            context,
+            {type: "TaskCollection", id: collectionId, tasks: []},
+            oldPage,
+            {...oldPage, pagination: {nextCursorHash: "d4e5f6"}},
+        ),
+    ).rejects.toThrow("Can\u2019t update task collection pagination");
+});
+
+test("rejects removing the next page link", async () => {
+    const oldPage = {
+        type: "TaskCollection" as const,
+        name: "Roadmap",
+        color: null,
+        pagination: {nextCursorHash: "a1b2c3"},
+        tasks: [],
+    };
+
+    await expect(
+        updateAgentWebTaskCollectionPage(
+            context,
+            {type: "TaskCollection", id: collectionId, tasks: []},
+            oldPage,
+            {...oldPage, pagination: null},
+        ),
+    ).rejects.toThrow("Can\u2019t update task collection pagination");
 });
