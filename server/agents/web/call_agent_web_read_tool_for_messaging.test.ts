@@ -14,18 +14,15 @@ import {callAgentWebScrollTool} from "~/server/agents/web/call_agent_web_scroll_
 import {createAgentWebPageStoredLinkPathname} from "~/server/agents/web/create_agent_web_page_stored_link_pathname.js";
 import {createAgentWebSessionStorageForTest} from "~/server/agents/web/test_helpers/create_agent_web_session_storage_for_test.js";
 import {addKeysToApiContentForTest} from "~/shared/api/content/test_helpers/add_keys_to_api_content_for_test.js";
-import {ApiContentResponse} from "~/shared/api/specification/types/api_specification_convenience_types.js";
+import {
+    ApiContentResponse,
+    ApiMessageContentPayloadFileResponse,
+} from "~/shared/api/specification/types/api_specification_convenience_types.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {assertTimeZone, defaultTimeZone} from "~/shared/helpers/intl/time_zone.js";
+import {generateChronologicalId} from "~/shared/id/chronological_id.js";
 import {generateId} from "~/shared/id/id.js";
-import {
-    AccountId,
-    BotId,
-    ChatId,
-    DocumentId,
-    FileId,
-    SpaceId,
-} from "~/shared/id/types/id_types.js";
+import {AccountId, BotId, ChatId, DocumentId, FileId, SpaceId} from "~/shared/id/types/id_types.js";
 import {testTracer} from "~/shared/tracer/dev/test_tracer.js";
 
 const spaceId = generateId<SpaceId>();
@@ -77,6 +74,29 @@ function stableRandomBit(index: number): number {
     return (index ^ (index >>> 16)) >>> 31;
 }
 
+function createImageMessageFiles(
+    count: number,
+): ReadonlyArray<ApiMessageContentPayloadFileResponse> {
+    return Array.from({length: count}, (_, index) => {
+        const rowIndex = Math.floor(index / 3);
+        const rowStartIndex = rowIndex * 3;
+        const rowFileCount = Math.min(3, count - rowStartIndex);
+
+        return {
+            rowIndex,
+            width: 1 / rowFileCount,
+            element: {
+                type: "File" as const,
+                file: {
+                    id: generateChronologicalId<FileId>(),
+                    contentType: "image/png" as const,
+                    contentLength: 100 + index,
+                },
+            },
+        };
+    });
+}
+
 test("prints bot messages with bot `from` path", async () => {
     const assistantAccount = createApiAccountMock({
         name: "Assistant",
@@ -114,10 +134,6 @@ End of messages.`);
 });
 
 test("prints message files at the end and splits following messages", async () => {
-    const fileId1 = generateId<FileId>();
-    const fileId2 = generateId<FileId>();
-    const fileId3 = generateId<FileId>();
-
     mockApiGetChat(api, {spaceId, chatId, name: "Incident Response"});
     mockApiGetChatMessages(api, {
         spaceId,
@@ -136,21 +152,7 @@ test("prints message files at the end and splits following messages", async () =
                           ? "Second message."
                           : "Third message.",
                 createdTime: new Date(Date.UTC(2026, 4, 14, 15, index * 2)),
-                files:
-                    index === 1
-                        ? [fileId1, fileId2, fileId3].map((fileId, fileIndex) => ({
-                              rowIndex: 0,
-                              width: 1 / 3,
-                              element: {
-                                  type: "File" as const,
-                                  file: {
-                                      id: fileId,
-                                      contentType: "image/png" as const,
-                                      contentLength: 100 + fileIndex,
-                                  },
-                              },
-                          }))
-                        : [],
+                files: index === 1 ? createImageMessageFiles(3) : [],
             }),
     });
 
@@ -181,6 +183,187 @@ Second message.
 <message id="2" from="[Alice](/human/alice)">
 
 Third message.
+
+</message>
+
+End of messages.`);
+});
+
+test("prints a message with one file", async () => {
+    mockApiGetChat(api, {spaceId, chatId, name: "Incident Response"});
+    mockApiGetChatMessages(api, {
+        spaceId,
+        chatId,
+        from: "End",
+        totalMessageCount: 1,
+        limit: 30,
+        createMessage: index =>
+            createApiMessageMock({
+                index,
+                author: aliceAccount,
+                content: "Message with files.",
+                createdTime: new Date(Date.UTC(2026, 4, 14, 15)),
+                files: createImageMessageFiles(1),
+            }),
+    });
+
+    expect(
+        await callAgentWebReadTool(context, {
+            path: "/chat/incident-response",
+            limit: "10kb",
+        }),
+    ).toEqual(`\
+# Incident Response
+
+<time>May 14th at 11:00am EDT</time>
+
+<message id="0" from="[Alice](/human/alice)">
+
+Message with files.
+
+![](/file/image.png)
+
+</message>
+
+End of messages.`);
+});
+
+test("prints a message with four files", async () => {
+    mockApiGetChat(api, {spaceId, chatId, name: "Incident Response"});
+    mockApiGetChatMessages(api, {
+        spaceId,
+        chatId,
+        from: "End",
+        totalMessageCount: 1,
+        limit: 30,
+        createMessage: index =>
+            createApiMessageMock({
+                index,
+                author: aliceAccount,
+                content: "Message with files.",
+                createdTime: new Date(Date.UTC(2026, 4, 14, 15)),
+                files: createImageMessageFiles(4),
+            }),
+    });
+
+    expect(
+        await callAgentWebReadTool(context, {
+            path: "/chat/incident-response",
+            limit: "10kb",
+        }),
+    ).toEqual(`\
+# Incident Response
+
+<time>May 14th at 11:00am EDT</time>
+
+<message id="0" from="[Alice](/human/alice)">
+
+Message with files.
+
+<div style="display: flex">
+<img src="/file/image.png" />
+<img src="/file/image-2.png" />
+<img src="/file/image-3.png" />
+</div>
+
+![](/file/image-4.png)
+
+</message>
+
+End of messages.`);
+});
+
+test("prints a message with five files", async () => {
+    mockApiGetChat(api, {spaceId, chatId, name: "Incident Response"});
+    mockApiGetChatMessages(api, {
+        spaceId,
+        chatId,
+        from: "End",
+        totalMessageCount: 1,
+        limit: 30,
+        createMessage: index =>
+            createApiMessageMock({
+                index,
+                author: aliceAccount,
+                content: "Message with files.",
+                createdTime: new Date(Date.UTC(2026, 4, 14, 15)),
+                files: createImageMessageFiles(5),
+            }),
+    });
+
+    expect(
+        await callAgentWebReadTool(context, {
+            path: "/chat/incident-response",
+            limit: "10kb",
+        }),
+    ).toEqual(`\
+# Incident Response
+
+<time>May 14th at 11:00am EDT</time>
+
+<message id="0" from="[Alice](/human/alice)">
+
+Message with files.
+
+<div style="display: flex">
+<img src="/file/image.png" />
+<img src="/file/image-2.png" />
+<img src="/file/image-3.png" />
+</div>
+
+<div style="display: flex">
+<img src="/file/image-4.png" />
+<img src="/file/image-5.png" />
+</div>
+
+</message>
+
+End of messages.`);
+});
+
+test("prints a message with six files", async () => {
+    mockApiGetChat(api, {spaceId, chatId, name: "Incident Response"});
+    mockApiGetChatMessages(api, {
+        spaceId,
+        chatId,
+        from: "End",
+        totalMessageCount: 1,
+        limit: 30,
+        createMessage: index =>
+            createApiMessageMock({
+                index,
+                author: aliceAccount,
+                content: "Message with files.",
+                createdTime: new Date(Date.UTC(2026, 4, 14, 15)),
+                files: createImageMessageFiles(6),
+            }),
+    });
+
+    expect(
+        await callAgentWebReadTool(context, {
+            path: "/chat/incident-response",
+            limit: "10kb",
+        }),
+    ).toEqual(`\
+# Incident Response
+
+<time>May 14th at 11:00am EDT</time>
+
+<message id="0" from="[Alice](/human/alice)">
+
+Message with files.
+
+<div style="display: flex">
+<img src="/file/image.png" />
+<img src="/file/image-2.png" />
+<img src="/file/image-3.png" />
+</div>
+
+<div style="display: flex">
+<img src="/file/image-4.png" />
+<img src="/file/image-5.png" />
+<img src="/file/image-6.png" />
+</div>
 
 </message>
 

@@ -264,7 +264,7 @@ export async function updateAgentWebMessagingPage<
 
         if (!isDeepEqual(normalizedOldBlock.files, normalizedNewBlock.files)) {
             throw new InvalidArgumentError("Can\u2019t change message file attachments", {
-                displayMessage: errorDisplayMessage`You can update the text of your \`<${messageNouns.noun}>\`s. You can\u2019t add, remove, or reorder files attached to an existing \`<${messageNouns.noun}>\`. Try again but leave the file attachments at the end of \`<${messageNouns.noun}${normalizedOldBlock.idAttribute ? ` id="${printAgentWebMessagingPageMessageIndexRange(normalizedOldBlock.idAttribute)}"` : ""}>\` exactly as they appeared.`,
+                displayMessage: errorDisplayMessage`You can only update the text of your \`<${messageNouns.noun}>\`s. You can\u2019t add, remove, or reorder files attached to an existing \`<${messageNouns.noun}>\`. Try again but leave the file attachments at the end of \`<${messageNouns.noun}${normalizedOldBlock.idAttribute ? ` id="${printAgentWebMessagingPageMessageIndexRange(normalizedOldBlock.idAttribute)}"` : ""}>\` exactly as they appeared.`,
             });
         }
 

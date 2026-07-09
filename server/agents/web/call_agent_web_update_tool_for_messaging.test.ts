@@ -29,6 +29,7 @@ import {ApiContentResponseWithoutKeys} from "~/shared/api/specification/types/ap
 import {
     ApiAccount,
     ApiContentResponse,
+    ApiMessageContentPayloadFileResponse,
     ApiMessageResponse,
 } from "~/shared/api/specification/types/api_specification_convenience_types.js";
 import {
@@ -44,8 +45,9 @@ import {captureResultPromise} from "~/shared/helpers/control/capture_result_prom
 import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
 import {UrlPath} from "~/shared/helpers/http/url_path.js";
 import {defaultTimeZone} from "~/shared/helpers/intl/time_zone.js";
+import {generateChronologicalId} from "~/shared/id/chronological_id.js";
 import {generateId} from "~/shared/id/id.js";
-import {AccountId, BotId, ChatId, SpaceId} from "~/shared/id/types/id_types.js";
+import {AccountId, BotId, ChatId, FileId, SpaceId} from "~/shared/id/types/id_types.js";
 import {testTracer} from "~/shared/tracer/dev/test_tracer.js";
 
 const spaceId = generateId<SpaceId>();
@@ -182,18 +184,43 @@ function createTextContent(text: string): ApiContentResponseWithoutKeys {
     return {elements: [{type: "Paragraph", elements: [{type: "Text", text}]}]};
 }
 
+function createImageMessageFiles(
+    count: number,
+): ReadonlyArray<ApiMessageContentPayloadFileResponse> {
+    return Array.from({length: count}, (_, index) => {
+        const rowIndex = Math.floor(index / 3);
+        const rowStartIndex = rowIndex * 3;
+        const rowFileCount = Math.min(3, count - rowStartIndex);
+
+        return {
+            rowIndex,
+            width: 1 / rowFileCount,
+            element: {
+                type: "File" as const,
+                file: {
+                    id: generateChronologicalId<FileId>(),
+                    contentType: "image/png" as const,
+                    contentLength: 100 + index,
+                },
+            },
+        };
+    });
+}
+
 function createMessage({
     index,
     author = index % 2 === 0 ? aliceAccount : bobAccount,
     content = `Message ${index}`,
     createdTime = new Date(Date.UTC(2026, 4, 14, 15, index * 5)).toISOString(),
     parent,
+    files = [],
 }: {
     index: number;
     author?: ApiAccount;
     content?: ApiContentResponse | string;
     createdTime?: string;
     parent?: ApiMessageMockParent;
+    files?: ReadonlyArray<ApiMessageContentPayloadFileResponse>;
 }): ApiMessageResponse {
     return createApiMessageMock({
         index,
@@ -201,6 +228,7 @@ function createMessage({
         content,
         createdTime,
         parent,
+        files,
     });
 }
 
@@ -337,6 +365,32 @@ test("creates a message without a from attribute", async () => {
             content: createTextContent("First implicit-author update."),
         },
     ]);
+});
+
+test("throws UnimplementedError when creating a message with a file", async () => {
+    const filePathname = await createAgentWebPageStoredLinkPathname(storage, {
+        type: "File",
+        id: generateChronologicalId<FileId>(),
+        contentType: "image/png",
+        contentLength: 100,
+    });
+
+    await readChat({totalMessageCount: 0});
+
+    await expect(
+        callAgentWebUpdateTool(context, {
+            path: chatPath,
+            updates: [
+                {
+                    old: "\n\nEnd of messages.",
+                    new: `\n\n<message from="[ChatGPT](/bot/chatgpt)">\n\n![](${filePathname})\n\n</message>\n\nEnd of messages.`,
+                    replaceAll: false,
+                },
+            ],
+        }),
+    ).rejects.toThrow(UnimplementedError);
+
+    expect(getCreateMessageRequests()).toEqual([]);
 });
 
 test("creates a message with the next valid id after existing messages", async () => {
@@ -1168,6 +1222,102 @@ test("throws UnimplementedError when updating existing bot message content", asy
             updates: [{old: "Bot original", new: "Bot edited", replaceAll: false}],
         }),
     ).rejects.toThrow(UnimplementedError);
+});
+
+test("throws UnimplementedError when updating existing bot message content with unchanged files", async () => {
+    await readChat({
+        totalMessageCount: 1,
+        createMessage: index =>
+            createMessage({
+                index,
+                author: botApiAccount,
+                content: "Bot original",
+                files: createImageMessageFiles(2),
+            }),
+    });
+
+    await expect(
+        callAgentWebUpdateTool(context, {
+            path: chatPath,
+            updates: [{old: "Bot original", new: "Bot edited", replaceAll: false}],
+        }),
+    ).rejects.toThrow("Message update API endpoint");
+});
+
+test("rejects removing files from an existing bot message", async () => {
+    await readChat({
+        totalMessageCount: 1,
+        createMessage: index =>
+            createMessage({
+                index,
+                author: botApiAccount,
+                content: "Bot original",
+                files: createImageMessageFiles(1),
+            }),
+    });
+
+    await expectInvalidUpdateDisplayMessage({
+        updates: [{old: "\n\n![](/file/image.png)", new: "", replaceAll: false}],
+        expected:
+            'You can only update the text of your `<message>`s. You can\u2019t add, remove, or reorder files attached to an existing `<message>`. Try again but leave the file attachments at the end of `<message id="0">` exactly as they appeared.',
+    });
+});
+
+test("rejects adding files to an existing bot message", async () => {
+    await readChat({
+        totalMessageCount: 1,
+        createMessage: index =>
+            createMessage({
+                index,
+                author: botApiAccount,
+                content: "Bot original",
+                files: createImageMessageFiles(1),
+            }),
+    });
+
+    const addedFilePathname = await createAgentWebPageStoredLinkPathname(storage, {
+        type: "File",
+        id: generateChronologicalId<FileId>(),
+        contentType: "image/png",
+        contentLength: 200,
+    });
+
+    await expectInvalidUpdateDisplayMessage({
+        updates: [
+            {
+                old: "![](/file/image.png)",
+                new: `![](/file/image.png)\n\n![](${addedFilePathname})`,
+                replaceAll: false,
+            },
+        ],
+        expected:
+            'You can only update the text of your `<message>`s. You can\u2019t add, remove, or reorder files attached to an existing `<message>`. Try again but leave the file attachments at the end of `<message id="0">` exactly as they appeared.',
+    });
+});
+
+test("rejects reordering files in an existing bot message", async () => {
+    await readChat({
+        totalMessageCount: 1,
+        createMessage: index =>
+            createMessage({
+                index,
+                author: botApiAccount,
+                content: "Bot original",
+                files: createImageMessageFiles(2),
+            }),
+    });
+
+    await expectInvalidUpdateDisplayMessage({
+        updates: [
+            {
+                old: '<img src="/file/image.png" />\n<img src="/file/image-2.png" />',
+                new: '<img src="/file/image-2.png" />\n<img src="/file/image.png" />',
+                replaceAll: false,
+            },
+        ],
+        expected:
+            'You can only update the text of your `<message>`s. You can\u2019t add, remove, or reorder files attached to an existing `<message>`. Try again but leave the file attachments at the end of `<message id="0">` exactly as they appeared.',
+    });
 });
 
 test("throws UnimplementedError when deleting existing bot message content", async () => {
