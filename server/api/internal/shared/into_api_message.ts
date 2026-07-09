@@ -118,6 +118,10 @@ export async function intoApiMessage(
                 // its stream parts.
                 break;
             }
+            case "ExperimentalApprovals": {
+                // TODO(ifitzsimmons, #approvals)
+                break;
+            }
             case "Content": {
                 // Concatenate all the streamed content into the content we return from the API.
                 // That way in rendering code developers don't have to worry about whether this is

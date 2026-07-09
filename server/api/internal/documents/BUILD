@@ -20,6 +20,7 @@ ts_project(
         "//server/documents/data",
         "//server/files/data",
         "//server/search/data/index",
+        "//shared/access",
         "//shared/api/content",
         "//shared/api/markdown",
         "//shared/api/specification",

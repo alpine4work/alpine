@@ -16,6 +16,7 @@ import {AccountId} from "~/shared/id/types/id_types.js";
 import {MessageContentPayloadModelFileSchema} from "~/shared/messaging/message_model.js";
 import {
     MessageContentPayload,
+    MessageExperimentalApproval,
     MessagePayload,
     MessageStream,
     MessageStreamPartPayload,
@@ -126,6 +127,10 @@ function collectContentReferencedIdsForStreamPartInto(
             collectContentReferencesForToolCall(referencedIds, part.call);
             return;
         }
+        case "ExperimentalApprovals": {
+            collectContentReferencesForApprovals(referencedIds, part.approvals);
+            return;
+        }
         default:
             throw exhaustive(part);
     }
@@ -159,6 +164,45 @@ function collectContentReferencesForToolCall(
         }
         default: {
             throw exhaustive(toolCall);
+        }
+    }
+}
+
+function collectContentReferencesForApprovals(
+    referencedIds: MutableContentReferencedIds,
+    approvals: ReadonlyArray<MessageExperimentalApproval>,
+) {
+    for (const approval of approvals) {
+        collectContentReferencedIdsInto(referencedIds, visitor => {
+            visitProsemirrorNode(approval.summary, visitor);
+        });
+
+        // Reference the decider so clients can render who made the decision.
+        const decisionValue = approval.decision.value;
+        if (decisionValue !== undefined) {
+            referencedIds.accountIds.add(decisionValue.decider.account.id);
+        }
+
+        for (const option of approval.decision.schema.options) {
+            switch (option.type) {
+                case "Approved":
+                case "Rejected": {
+                    break;
+                }
+                case "ApprovedForSession": {
+                    const optionSummary = option.summary;
+                    if (!optionSummary) break;
+
+                    collectContentReferencedIdsInto(referencedIds, visitor => {
+                        visitProsemirrorNode(optionSummary, visitor);
+                    });
+
+                    break;
+                }
+                default: {
+                    throw exhaustive(option);
+                }
+            }
         }
     }
 }

@@ -19,6 +19,7 @@ import {
     getPostCommentsFromEnd,
     getPostCommentsFromStart,
     pingPostCommentStream,
+    putPostCommentMessageApprovalDecisions,
     putPostCommentStreamPart,
     setPostCommentReaction,
     updatePostCommentContent,
@@ -171,7 +172,7 @@ testMessagingImplementation<PostId>(context, {
         };
     },
     async pingMessageStream(context, {roomKey: postId, messageIndex}) {
-        return pingPostCommentStream(context, {postId, commentIndex: messageIndex});
+        return await pingPostCommentStream(context, {postId, commentIndex: messageIndex});
     },
     async putMessageStreamPart(
         context,
@@ -185,14 +186,27 @@ testMessagingImplementation<PostId>(context, {
             isTimeoutErrorCompletion,
         });
     },
+    async putMessageApprovalDecisions(
+        context,
+        {roomKey: postId, messageIndex: commentIndex, payload},
+    ) {
+        const {approvals} = await putPostCommentMessageApprovalDecisions(context, {
+            postId,
+            commentIndex,
+            payload,
+            consistency: "StrongWithinCache",
+        });
+
+        return {approvals};
+    },
     async completeMessageStream(context, {roomKey: postId, messageIndex: commentIndex}) {
-        return completePostCommentStream(context, {
+        return await completePostCommentStream(context, {
             postId,
             commentIndex,
         });
     },
     async getMessage(context, {roomKey: postId, messageIndex: commentIndex}) {
-        return getPostComment(context, {postId, commentIndex});
+        return await getPostComment(context, {postId, commentIndex});
     },
     async getMessagePayload(context, {roomKey: postId, messageIndex: commentIndex}) {
         return await getPostCommentPayload(context, {postId, commentIndex});
@@ -213,7 +227,7 @@ testMessagingImplementation<PostId>(context, {
         context,
         {roomKey: postId, messageIndex: commentIndex, contentVersion, steps},
     ) {
-        return updatePostCommentContent(context, {
+        return await updatePostCommentContent(context, {
             postId,
             commentIndex,
             contentVersion,
@@ -221,13 +235,13 @@ testMessagingImplementation<PostId>(context, {
         });
     },
     async deleteMessage(context, {roomKey: postId, messageIndex: commentIndex}) {
-        return deletePostComment(context, {postId, commentIndex});
+        return await deletePostComment(context, {postId, commentIndex});
     },
     async setMessageReaction(
         context,
         {roomKey: postId, messageIndex: commentIndex, contentVersion, pos, reaction},
     ) {
-        return setPostCommentReaction(context, {
+        return await setPostCommentReaction(context, {
             postId,
             commentIndex,
             contentVersion,
@@ -239,7 +253,7 @@ testMessagingImplementation<PostId>(context, {
         context,
         {roomKey: postId, messageIndex: commentIndex, contentVersion, pos},
     ) {
-        return deletePostCommentReaction(context, {
+        return await deletePostCommentReaction(context, {
             postId,
             commentIndex,
             contentVersion,

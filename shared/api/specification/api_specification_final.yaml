@@ -490,6 +490,33 @@ paths:
                     $ref: "#/components/responses/GetMessageStreamPart"
                 default:
                     $ref: "#/components/responses/Error"
+    /chats/{id}/messages/{index}/experimental-approvals:
+        parameters:
+            - name: id
+              in: path
+              required: true
+              schema:
+                  $ref: "#/components/schemas/ChatId"
+            - name: index
+              in: path
+              required: true
+              schema:
+                  type: integer
+                  minimum: 0
+        get:
+            responses:
+                "200":
+                    $ref: "#/components/responses/GetMessageExperimentalApprovals"
+                default:
+                    $ref: "#/components/responses/Error"
+        patch:
+            requestBody:
+                $ref: "#/components/requestBodies/PatchMessageExperimentalApprovals"
+            responses:
+                "200":
+                    $ref: "#/components/responses/GetMessageExperimentalApprovals"
+                default:
+                    $ref: "#/components/responses/Error"
     /documents:
         post:
             requestBody:
@@ -812,6 +839,38 @@ paths:
                     $ref: "#/components/responses/GetMessageStreamPart"
                 default:
                     $ref: "#/components/responses/Error"
+    /documents/{id}/threads/{threadId}/messages/{index}/experimental-approvals:
+        parameters:
+            - name: id
+              in: path
+              required: true
+              schema:
+                  $ref: "#/components/schemas/DocumentId"
+            - name: threadId
+              in: path
+              required: true
+              schema:
+                  $ref: "#/components/schemas/DocumentThreadId"
+            - name: index
+              in: path
+              required: true
+              schema:
+                  type: integer
+                  minimum: 0
+        get:
+            responses:
+                "200":
+                    $ref: "#/components/responses/GetMessageExperimentalApprovals"
+                default:
+                    $ref: "#/components/responses/Error"
+        patch:
+            requestBody:
+                $ref: "#/components/requestBodies/PatchMessageExperimentalApprovals"
+            responses:
+                "200":
+                    $ref: "#/components/responses/GetMessageExperimentalApprovals"
+                default:
+                    $ref: "#/components/responses/Error"
     /channels/{id}:
         parameters:
             - name: id
@@ -1121,6 +1180,33 @@ paths:
             responses:
                 "200":
                     $ref: "#/components/responses/GetMessageStreamPart"
+                default:
+                    $ref: "#/components/responses/Error"
+    /posts/{id}/messages/{index}/experimental-approvals:
+        parameters:
+            - name: id
+              in: path
+              required: true
+              schema:
+                  $ref: "#/components/schemas/PostId"
+            - name: index
+              in: path
+              required: true
+              schema:
+                  type: integer
+                  minimum: 0
+        get:
+            responses:
+                "200":
+                    $ref: "#/components/responses/GetMessageExperimentalApprovals"
+                default:
+                    $ref: "#/components/responses/Error"
+        patch:
+            requestBody:
+                $ref: "#/components/requestBodies/PatchMessageExperimentalApprovals"
+            responses:
+                "200":
+                    $ref: "#/components/responses/GetMessageExperimentalApprovals"
                 default:
                     $ref: "#/components/responses/Error"
     /spaces/{id}/search:
@@ -1520,6 +1606,33 @@ paths:
                     $ref: "#/components/responses/GetMessageStreamPart"
                 default:
                     $ref: "#/components/responses/Error"
+    /tasks/{id}/messages/{index}/experimental-approvals:
+        parameters:
+            - name: id
+              in: path
+              required: true
+              schema:
+                  $ref: "#/components/schemas/TaskId"
+            - name: index
+              in: path
+              required: true
+              schema:
+                  type: integer
+                  minimum: 0
+        get:
+            responses:
+                "200":
+                    $ref: "#/components/responses/GetMessageExperimentalApprovals"
+                default:
+                    $ref: "#/components/responses/Error"
+        patch:
+            requestBody:
+                $ref: "#/components/requestBodies/PatchMessageExperimentalApprovals"
+            responses:
+                "200":
+                    $ref: "#/components/responses/GetMessageExperimentalApprovals"
+                default:
+                    $ref: "#/components/responses/Error"
     /task-collections:
         post:
             requestBody:
@@ -1779,6 +1892,18 @@ paths:
 webhooks:
     bot:
         post:
+            parameters:
+                - name: Alpine-Signature
+                  in: header
+                  required: false
+                  description: >
+                      Signature of the raw request body formatted as
+                      `sha256=<hex>` where `<hex>` is the hex-encoded HMAC
+                      SHA-256 of the raw request body keyed with the bot's
+                      webhook secret. Only sent when the bot has a webhook
+                      secret configured.
+                  schema:
+                      type: string
             requestBody:
                 required: true
                 content:
@@ -1928,6 +2053,22 @@ components:
                                 type: array
                                 items:
                                     $ref: "#/components/schemas/Message_Response"
+        GetMessageExperimentalApprovals:
+            content:
+                application/json:
+                    schema:
+                        type: object
+                        required:
+                            - spaceId
+                            - approvals
+                        additionalProperties: false
+                        properties:
+                            spaceId:
+                                $ref: "#/components/schemas/SpaceId"
+                            approvals:
+                                type: array
+                                items:
+                                    $ref: "#/components/schemas/MessageExperimentalApproval_Response"
         GetMessageStreamCompletion:
             content:
                 application/json:
@@ -2016,6 +2157,57 @@ components:
                                 type: array
                                 items:
                                     $ref: "#/components/schemas/MessageContentPayloadFile"
+        PutMessageExperimentalApprovalsPendingDecision:
+            required: true
+            content:
+                application/json:
+                    schema:
+                        type: object
+                        required:
+                            - decision
+                        additionalProperties: false
+                        properties:
+                            decision:
+                                type: object
+                                required:
+                                    - value
+                                additionalProperties: false
+                                properties:
+                                    value:
+                                        $ref: "#/components/schemas/MessageExperimentalApprovalDecisionValue"
+        PatchMessageExperimentalApprovals:
+            required: true
+            content:
+                application/json:
+                    schema:
+                        type: object
+                        required:
+                            - patches
+                        additionalProperties: false
+                        properties:
+                            patches:
+                                type: array
+                                items:
+                                    type: object
+                                    required:
+                                        - type
+                                        - index
+                                        - decision
+                                    additionalProperties: false
+                                    properties:
+                                        type:
+                                            const: SetDecisionValue
+                                        index:
+                                            type: integer
+                                            minimum: 0
+                                        decision:
+                                            type: object
+                                            required:
+                                                - value
+                                            additionalProperties: false
+                                            properties:
+                                                value:
+                                                    $ref: "#/components/schemas/MessageExperimentalApprovalDecisionValue"
         PutMessageStreamPart:
             required: true
             content:
@@ -3122,6 +3314,90 @@ components:
                     Link: "#/components/schemas/ContentInlineElementLinkMark"
                     Highlight: "#/components/schemas/ContentInlineElementHighlightMark"
                     Comment: "#/components/schemas/ContentInlineElementCommentMark"
+        LabelContent:
+            type: object
+            additionalProperties: false
+            required:
+                - elements
+            properties:
+                elements:
+                    type: array
+                    items:
+                        $ref: "#/components/schemas/LabelContentInlineElement"
+        LabelContentInlineElement:
+            oneOf:
+                - $ref: "#/components/schemas/LabelContentTextInlineElement"
+                - $ref: "#/components/schemas/LabelContentMentionInlineElement"
+            discriminator:
+                propertyName: type
+                mapping:
+                    Text: "#/components/schemas/LabelContentTextInlineElement"
+                    Mention: "#/components/schemas/LabelContentMentionInlineElement"
+        LabelContentInlineElementMark:
+            oneOf:
+                - $ref: "#/components/schemas/ContentInlineElementItalicMark"
+                - $ref: "#/components/schemas/ContentInlineElementCodeMark"
+            discriminator:
+                propertyName: type
+                mapping:
+                    Italic: "#/components/schemas/ContentInlineElementItalicMark"
+                    Code: "#/components/schemas/ContentInlineElementCodeMark"
+        LabelContentTextInlineElement:
+            type: object
+            required:
+                - type
+                - text
+            additionalProperties: false
+            properties:
+                type:
+                    const: Text
+                text:
+                    type: string
+                    minLength: 1
+                marks:
+                    type: array
+                    items:
+                        $ref: "#/components/schemas/LabelContentInlineElementMark"
+        LabelContentMentionInlineElement:
+            type: object
+            required:
+                - type
+                - target
+            additionalProperties: false
+            properties:
+                type:
+                    const: Mention
+                target:
+                    $ref: "#/components/schemas/MentionTarget"
+                title:
+                    type: string
+                isAccountShortName:
+                    type: boolean
+                marks:
+                    type: array
+                    items:
+                        $ref: "#/components/schemas/LabelContentInlineElementMark"
+        LabelContentMentionInlineElement_Response:
+            type: object
+            required:
+                - type
+                - target
+                - title
+            additionalProperties: false
+            properties:
+                type:
+                    const: Mention
+                target:
+                    $ref: "#/components/schemas/MentionTarget_Response"
+                title:
+                    type: string
+                    minLength: 1
+                isAccountShortName:
+                    type: boolean
+                marks:
+                    type: array
+                    items:
+                        $ref: "#/components/schemas/LabelContentInlineElementMark"
         AccountWithoutSpace:
             type: object
             required:
@@ -4467,12 +4743,226 @@ components:
                 - $ref: "#/components/schemas/MessageStreamContentPartPayload"
                 - $ref: "#/components/schemas/MessageStreamToolCallPartPayload"
                 - $ref: "#/components/schemas/MessageStreamReasoningPartPayload"
+                - $ref: "#/components/schemas/MessageStreamExperimentalApprovalsPartPayload"
             discriminator:
                 propertyName: type
                 mapping:
                     Content: "#/components/schemas/MessageStreamContentPartPayload"
                     ToolCall: "#/components/schemas/MessageStreamToolCallPartPayload"
                     Reasoning: "#/components/schemas/MessageStreamReasoningPartPayload"
+                    ExperimentalApprovals: "#/components/schemas/MessageStreamExperimentalApprovals\
+                        PartPayload"
+        MessageStreamExperimentalApprovalsPartPayload:
+            type: object
+            required:
+                - type
+                - approvals
+            additionalProperties: false
+            properties:
+                type:
+                    const: ExperimentalApprovals
+                approvals:
+                    type: array
+                    items:
+                        $ref: "#/components/schemas/MessageExperimentalApproval"
+        MessageExperimentalApproval:
+            type: object
+            required:
+                - summary
+                - decision
+            additionalProperties: false
+            properties:
+                summary:
+                    $ref: "#/components/schemas/LabelContent"
+                decision:
+                    $ref: "#/components/schemas/MessageExperimentalApprovalDecision"
+        MessageExperimentalApprovalDecision:
+            type: object
+            required:
+                - schema
+            additionalProperties: false
+            properties:
+                schema:
+                    $ref: "#/components/schemas/MessageExperimentalApprovalDecisionSchema"
+                value:
+                    $ref: "#/components/schemas/MessageExperimentalApprovalDecisionValue"
+        MessageExperimentalApprovalDecisionSchema:
+            type: object
+            required:
+                - options
+            additionalProperties: false
+            properties:
+                options:
+                    type: array
+                    minItems: 1
+                    items:
+                        $ref: "#/components/schemas/MessageExperimentalApprovalDecisionOption"
+        MessageExperimentalApprovalDecisionOption:
+            oneOf:
+                - $ref: "#/components/schemas/MessageExperimentalApprovalDecisionApprovedOption"
+                - $ref: "#/components/schemas/MessageExperimentalApprovalDecisionRejectedOption"
+                - $ref: "#/components/schemas/MessageExperimentalApprovalDecisionApprovedForSessi\
+                      onOption"
+            discriminator:
+                propertyName: type
+                mapping:
+                    Approved: "#/components/schemas/MessageExperimentalApprovalDecisionApprovedOpti\
+                        on"
+                    Rejected: "#/components/schemas/MessageExperimentalApprovalDecisionRejectedOpti\
+                        on"
+                    ApprovedForSession: "#/components/schemas/MessageExperimentalApprovalDecisionAp\
+                        provedForSessionOption"
+        MessageExperimentalApprovalDecisionApprovedOption:
+            type: object
+            required:
+                - type
+            additionalProperties: false
+            properties:
+                type:
+                    const: Approved
+        MessageExperimentalApprovalDecisionRejectedOption:
+            type: object
+            required:
+                - type
+            additionalProperties: false
+            properties:
+                type:
+                    const: Rejected
+        MessageExperimentalApprovalDecisionApprovedForSessionOption:
+            type: object
+            required:
+                - type
+                - scope
+                - durationMinutes
+            additionalProperties: false
+            properties:
+                type:
+                    const: ApprovedForSession
+                scope:
+                    $ref: "#/components/schemas/MessageExperimentalApprovalDecisionApprovedForSessi\
+                        onValueScope"
+                summary:
+                    $ref: "#/components/schemas/LabelContent"
+                durationMinutes:
+                    oneOf:
+                        - type: integer
+                          minimum: 1
+                        - type: "null"
+        MessageExperimentalApprovalDecisionValue:
+            oneOf:
+                - $ref: "#/components/schemas/MessageExperimentalApprovalDecisionApprovedValue"
+                - $ref: "#/components/schemas/MessageExperimentalApprovalDecisionRejectedValue"
+                - $ref: "#/components/schemas/MessageExperimentalApprovalDecisionApprovedForSessi\
+                      onValue"
+            discriminator:
+                propertyName: type
+                mapping:
+                    Approved: "#/components/schemas/MessageExperimentalApprovalDecisionApprovedValu\
+                        e"
+                    Rejected: "#/components/schemas/MessageExperimentalApprovalDecisionRejectedValu\
+                        e"
+                    ApprovedForSession: "#/components/schemas/MessageExperimentalApprovalDecisionAp\
+                        provedForSessionValue"
+        MessageExperimentalApprovalDecisionApprovedValue:
+            type: object
+            required:
+                - type
+            additionalProperties: false
+            properties:
+                type:
+                    const: Approved
+        MessageExperimentalApprovalDecisionApprovedValue_Response:
+            type: object
+            required:
+                - type
+                - decider
+            additionalProperties: false
+            properties:
+                type:
+                    const: Approved
+                decider:
+                    $ref: "#/components/schemas/Actor_Response"
+        MessageExperimentalApprovalDecisionRejectedValue:
+            type: object
+            required:
+                - type
+            additionalProperties: false
+            properties:
+                type:
+                    const: Rejected
+        MessageExperimentalApprovalDecisionRejectedValue_Response:
+            type: object
+            required:
+                - type
+                - decider
+            additionalProperties: false
+            properties:
+                type:
+                    const: Rejected
+                decider:
+                    $ref: "#/components/schemas/Actor_Response"
+        MessageExperimentalApprovalDecisionApprovedForSessionValue:
+            type: object
+            required:
+                - type
+                - scope
+                - durationMinutes
+            additionalProperties: false
+            properties:
+                type:
+                    const: ApprovedForSession
+                scope:
+                    $ref: "#/components/schemas/MessageExperimentalApprovalDecisionApprovedForSessi\
+                        onValueScope"
+                durationMinutes:
+                    oneOf:
+                        - type: integer
+                          minimum: 1
+                        - type: "null"
+        MessageExperimentalApprovalDecisionApprovedForSessionValue_Response:
+            type: object
+            required:
+                - type
+                - decider
+                - scope
+                - durationMinutes
+            additionalProperties: false
+            properties:
+                type:
+                    const: ApprovedForSession
+                decider:
+                    $ref: "#/components/schemas/Actor_Response"
+                scope:
+                    $ref: "#/components/schemas/MessageExperimentalApprovalDecisionApprovedForSessi\
+                        onValueScope"
+                durationMinutes:
+                    oneOf:
+                        - type: integer
+                          minimum: 1
+                        - type: "null"
+        MessageExperimentalApprovalDecisionApprovedForSessionValueScope:
+            type: object
+            required:
+                - value
+            additionalProperties: false
+            properties:
+                value:
+                    description: >
+                        Groups equivalent approval options so that one selected
+                        approval can approve the same pending scope elsewhere in
+                        the same message. For example, let's say an agent is
+                        asking for approval to make 3 tool calls: `Write` to
+                        Document, `WebFetch` to Website, and `Write` to Task,
+                        and each approval has an `ApprovedForSession` option
+                        with summary `Approve all writes` and `Approve all web
+                        fetches`respectively. If the user selects `Approve all
+                        writes` on the document approval, the `Write` task
+                        approval should also be approved. Agents can also use
+                        this key to decide its own tool permissions. This will
+                        only work if the rest of the approval option is the same
+                        (e.g. `durationInMinutes` is the same value for the
+                        other options with the same `scope` key).
+                    type: string
         MessageStreamContentPartPayload:
             type: object
             required:
@@ -4567,11 +5057,46 @@ components:
             oneOf:
                 - $ref: "#/components/schemas/BotWebhookNewMessageEvent"
                 - $ref: "#/components/schemas/BotWebhookNewPostEvent"
+                - $ref: "#/components/schemas/BotWebhookUpdatedMessageStreamExperimentalApprovals\
+                      PartEvent"
             discriminator:
                 propertyName: type
                 mapping:
                     NewMessage: "#/components/schemas/BotWebhookNewMessageEvent"
                     NewPost: "#/components/schemas/BotWebhookNewPostEvent"
+                    UpdatedMessageStreamExperimentalApprovalsPart: "#/components/schemas/BotWebhook\
+                        UpdatedMessageStreamExperimentalApprovalsPartEvent"
+        BotWebhookUpdatedMessageStreamExperimentalApprovalsPartEvent:
+            type: object
+            required:
+                - type
+                - room
+                - messageIndex
+                - approvals
+            additionalProperties: false
+            properties:
+                type:
+                    const: UpdatedMessageStreamExperimentalApprovalsPart
+                room:
+                    $ref: "#/components/schemas/MessageRoomTarget"
+                messageIndex:
+                    type: integer
+                    minimum: 0
+                approvals:
+                    type: array
+                    items:
+                        type: object
+                        required:
+                            - decision
+                        additionalProperties: false
+                        properties:
+                            decision:
+                                type: object
+                                required: []
+                                additionalProperties: false
+                                properties:
+                                    value:
+                                        $ref: "#/components/schemas/MessageExperimentalApprovalDecisionValue_Response"
         BotWebhookNewMessageEvent:
             type: object
             required:
@@ -5091,6 +5616,52 @@ components:
             properties:
                 summary:
                     type: string
+        Actor:
+            type: object
+            required:
+                - account
+            additionalProperties: false
+            properties:
+                account:
+                    type: object
+                    required:
+                        - id
+                    additionalProperties: false
+                    properties:
+                        id:
+                            $ref: "#/components/schemas/AccountId"
+        Actor_Response:
+            type: object
+            required:
+                - account
+            additionalProperties: false
+            properties:
+                account:
+                    type: object
+                    required:
+                        - id
+                    additionalProperties: false
+                    properties:
+                        id:
+                            $ref: "#/components/schemas/AccountId"
+                from:
+                    $ref: "#/components/schemas/ActorBotFrom"
+        ActorBotFrom:
+            type: object
+            required:
+                - account
+            additionalProperties: false
+            properties:
+                type:
+                    const: Bot
+                account:
+                    type: object
+                    required:
+                        - id
+                    additionalProperties: false
+                    properties:
+                        id:
+                            $ref: "#/components/schemas/AccountId"
         MentionTarget_Response:
             oneOf:
                 - $ref: "#/components/schemas/AccountMentionTarget"
@@ -5274,6 +5845,15 @@ components:
                     Text: "#/components/schemas/ContentTextInlineElement"
                     Break: "#/components/schemas/ContentBreakInlineElement"
                     Mention: "#/components/schemas/ContentMentionInlineElement_Response"
+        LabelContentInlineElement_Response:
+            oneOf:
+                - $ref: "#/components/schemas/LabelContentTextInlineElement"
+                - $ref: "#/components/schemas/LabelContentMentionInlineElement_Response"
+            discriminator:
+                propertyName: type
+                mapping:
+                    Text: "#/components/schemas/LabelContentTextInlineElement"
+                    Mention: "#/components/schemas/LabelContentMentionInlineElement_Response"
         MessagePayload_Response:
             oneOf:
                 - $ref: "#/components/schemas/MessageContentPayload_Response"
@@ -5292,6 +5872,23 @@ components:
                 mapping:
                     Message: "#/components/schemas/MessageContentPayloadMessageParent_Response"
                     Post: "#/components/schemas/MessageContentPayloadPostParent_Response"
+        MessageExperimentalApprovalDecisionValue_Response:
+            oneOf:
+                - $ref: "#/components/schemas/MessageExperimentalApprovalDecisionApprovedValue_Re\
+                      sponse"
+                - $ref: "#/components/schemas/MessageExperimentalApprovalDecisionRejectedValue_Re\
+                      sponse"
+                - $ref: "#/components/schemas/MessageExperimentalApprovalDecisionApprovedForSessi\
+                      onValue_Response"
+            discriminator:
+                propertyName: type
+                mapping:
+                    Approved: "#/components/schemas/MessageExperimentalApprovalDecisionApprovedValu\
+                        e_Response"
+                    Rejected: "#/components/schemas/MessageExperimentalApprovalDecisionRejectedValu\
+                        e_Response"
+                    ApprovedForSession: "#/components/schemas/MessageExperimentalApprovalDecisionAp\
+                        provedForSessionValue_Response"
         MessageStreamToolCallPartCreateCallTarget_Response:
             oneOf:
                 - $ref: "#/components/schemas/DocumentMentionTarget"
@@ -5398,6 +5995,16 @@ components:
                     minItems: 1
                     items:
                         $ref: "#/components/schemas/ContentFileGalleryBlockElementRow_Response"
+        LabelContent_Response:
+            type: object
+            additionalProperties: false
+            required:
+                - elements
+            properties:
+                elements:
+                    type: array
+                    items:
+                        $ref: "#/components/schemas/LabelContentInlineElement_Response"
         Message_Response:
             type: object
             required:
@@ -5419,6 +6026,16 @@ components:
                     $ref: "#/components/schemas/TimeZone"
                 payload:
                     $ref: "#/components/schemas/MessagePayload_Response"
+        MessageExperimentalApprovalDecision_Response:
+            type: object
+            required:
+                - schema
+            additionalProperties: false
+            properties:
+                schema:
+                    $ref: "#/components/schemas/MessageExperimentalApprovalDecisionSchema_Response"
+                value:
+                    $ref: "#/components/schemas/MessageExperimentalApprovalDecisionValue_Response"
         MessageStreamToolCallPartPayloadReadCall_Response:
             type: object
             required:
@@ -5593,6 +6210,37 @@ components:
                     minimum: 0
                 content:
                     $ref: "#/components/schemas/Content_Response"
+        MessageExperimentalApproval_Response:
+            type: object
+            required:
+                - summary
+                - decision
+            additionalProperties: false
+            properties:
+                summary:
+                    $ref: "#/components/schemas/LabelContent_Response"
+                decision:
+                    $ref: "#/components/schemas/MessageExperimentalApprovalDecision_Response"
+        MessageExperimentalApprovalDecisionApprovedForSessionOption_Response:
+            type: object
+            required:
+                - type
+                - scope
+                - durationMinutes
+            additionalProperties: false
+            properties:
+                type:
+                    const: ApprovedForSession
+                scope:
+                    $ref: "#/components/schemas/MessageExperimentalApprovalDecisionApprovedForSessi\
+                        onValueScope"
+                summary:
+                    $ref: "#/components/schemas/LabelContent_Response"
+                durationMinutes:
+                    oneOf:
+                        - type: integer
+                          minimum: 1
+                        - type: "null"
         MessageStreamContentPartPayload_Response:
             type: object
             required:
@@ -5631,11 +6279,15 @@ components:
             oneOf:
                 - $ref: "#/components/schemas/BotWebhookNewMessageEvent_Response"
                 - $ref: "#/components/schemas/BotWebhookNewPostEvent"
+                - $ref: "#/components/schemas/BotWebhookUpdatedMessageStreamExperimentalApprovals\
+                      PartEvent"
             discriminator:
                 propertyName: type
                 mapping:
                     NewMessage: "#/components/schemas/BotWebhookNewMessageEvent_Response"
                     NewPost: "#/components/schemas/BotWebhookNewPostEvent"
+                    UpdatedMessageStreamExperimentalApprovalsPart: "#/components/schemas/BotWebhook\
+                        UpdatedMessageStreamExperimentalApprovalsPartEvent"
         ContentTableBlockElement_Response:
             type: object
             required:
@@ -5719,12 +6371,44 @@ components:
                 - $ref: "#/components/schemas/MessageStreamContentPartPayload_Response"
                 - $ref: "#/components/schemas/MessageStreamToolCallPartPayload_Response"
                 - $ref: "#/components/schemas/MessageStreamReasoningPartPayload_Response"
+                - $ref: "#/components/schemas/MessageStreamExperimentalApprovalsPartPayload_Respo\
+                      nse"
             discriminator:
                 propertyName: type
                 mapping:
                     Content: "#/components/schemas/MessageStreamContentPartPayload_Response"
                     ToolCall: "#/components/schemas/MessageStreamToolCallPartPayload_Response"
                     Reasoning: "#/components/schemas/MessageStreamReasoningPartPayload_Response"
+                    ExperimentalApprovals: "#/components/schemas/MessageStreamExperimentalApprovals\
+                        PartPayload_Response"
+        MessageStreamExperimentalApprovalsPartPayload_Response:
+            type: object
+            required:
+                - type
+                - approvals
+            additionalProperties: false
+            properties:
+                type:
+                    const: ExperimentalApprovals
+                approvals:
+                    type: array
+                    items:
+                        $ref: "#/components/schemas/MessageExperimentalApproval_Response"
+        MessageExperimentalApprovalDecisionOption_Response:
+            oneOf:
+                - $ref: "#/components/schemas/MessageExperimentalApprovalDecisionApprovedOption"
+                - $ref: "#/components/schemas/MessageExperimentalApprovalDecisionRejectedOption"
+                - $ref: "#/components/schemas/MessageExperimentalApprovalDecisionApprovedForSessi\
+                      onOption_Response"
+            discriminator:
+                propertyName: type
+                mapping:
+                    Approved: "#/components/schemas/MessageExperimentalApprovalDecisionApprovedOpti\
+                        on"
+                    Rejected: "#/components/schemas/MessageExperimentalApprovalDecisionRejectedOpti\
+                        on"
+                    ApprovedForSession: "#/components/schemas/MessageExperimentalApprovalDecisionAp\
+                        provedForSessionOption_Response"
         MessageStreamToolCallPartPayload_Response:
             type: object
             required:
@@ -5756,3 +6440,14 @@ components:
                     format: date-time
                 payload:
                     $ref: "#/components/schemas/MessageStreamPartPayload_Response"
+        MessageExperimentalApprovalDecisionSchema_Response:
+            type: object
+            required:
+                - options
+            additionalProperties: false
+            properties:
+                options:
+                    type: array
+                    minItems: 1
+                    items:
+                        $ref: "#/components/schemas/MessageExperimentalApprovalDecisionOption_Response"

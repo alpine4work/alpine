@@ -10,6 +10,7 @@ import {loadAgentMessagesListLinkContent} from "~/server/agents/internal/link_re
 import {loadAgentPostCommentsLinkContent} from "~/server/agents/internal/link_references/load_agent_post_comments_link_content.js";
 import {AgentMessage} from "~/server/agents/internal/messages/agent_message.js";
 import {printAgentContentMarkdownTree} from "~/server/agents/internal/print_api_content_to_agent_markdown.js";
+import {UnimplementedError} from "~/shared/error/error.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
 import {TracerBase} from "~/shared/tracer/tracer_base.js";
@@ -45,8 +46,15 @@ export async function initializeMessagesInAgentConversation({
                 // message index since it wasn't actually loaded yet.
                 return -1;
             }
-            default:
+            case "UpdatedMessageStreamExperimentalApprovalsPart": {
+                // TODO(ifitzsimmons, #approvals)
+                throw new UnimplementedError(
+                    "UpdatedMessageStreamExperimentalApprovalsPart is not supported",
+                );
+            }
+            default: {
                 throw exhaustive(request.event);
+            }
         }
     };
 
@@ -82,6 +90,12 @@ export async function loadInitialAgentMessagesContent({
                 // Has to be 1 for a valid api call to get messages from end since it's range
                 // exclusive.
                 return 1;
+            }
+            case "UpdatedMessageStreamExperimentalApprovalsPart": {
+                // TODO(ifitzsimmons, #approvals)
+                throw new UnimplementedError(
+                    "UpdatedMessageStreamExperimentalApprovalsPart is not supported",
+                );
             }
             default: {
                 throw exhaustive(event);

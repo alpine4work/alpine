@@ -7,7 +7,7 @@ import {createServerTracer} from "~/server/tracer/server_tracer.js";
 import {traceServerResponse} from "~/server/tracer/trace_server_response.js";
 import {printApiMessageRoomPath} from "~/shared/api/specification/parse_api_path.js";
 import {ApiBotWebhookRequestBody} from "~/shared/api/specification/types/api_specification_convenience_types.js";
-import {InternalError, InvalidArgumentError} from "~/shared/error/error.js";
+import {InternalError, InvalidArgumentError, UnimplementedError} from "~/shared/error/error.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
 import {addTracerPropagationContextHeader} from "~/shared/tracer/tracer_propagation_context_header.js";
@@ -365,6 +365,13 @@ function getDurableObjectIdFromApiBotWebhookEvent(request: ApiBotWebhookRequestB
             return `${request.botAccountId}:${printApiMessageRoomPath(request.event.room)}`;
         case "NewPost":
             return `${request.botAccountId}:${request.event.postId}`;
+        case "UpdatedMessageStreamExperimentalApprovalsPart":
+            // TODO(ifitzsimmons, #approvals)
+            throw new UnimplementedError(
+                "UpdatedMessageStreamExperimentalApprovalsPart is not supported",
+            );
+        default:
+            throw exhaustive(request.event);
     }
 }
 

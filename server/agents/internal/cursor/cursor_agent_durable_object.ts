@@ -32,6 +32,7 @@ import {
     DurableObjectStorageCollection,
     DurableObjectTransactionInterface,
 } from "~/server/agents/internal/durable_object_storage_collection.js";
+import {getTimezoneFromBotWebhookRequest} from "~/server/agents/internal/get_timezone_from_bot_webhook_request.js";
 import {getAgentLink} from "~/server/agents/internal/link_references/agent_link_collection.js";
 import {loadAgentLinkContent} from "~/server/agents/internal/link_references/load_agent_link_content.js";
 import {AgentMessage} from "~/server/agents/internal/messages/agent_message.js";
@@ -343,7 +344,7 @@ async function withCursorAgentMessageStreamSession<Value>(
     } = await createApiMessage(tracer, request.apiClient, request.room, {
         isStream: true,
         content: {elements: []},
-        createdTimeZone: request.event.createdTimeZone,
+        createdTimeZone: getTimezoneFromBotWebhookRequest(request),
     });
 
     const mutex = new Mutex();
@@ -462,9 +463,10 @@ async function handleCursorAgentLaunchFirstPartyWebhook({
     const temporaryStorage = new TemporaryDurableObjectStorage();
 
     const conversationState = {
-        timeZone: request.event.createdTimeZone,
+        timeZone: getTimezoneFromBotWebhookRequest(request),
         startTime: new Date(),
     };
+    const requestAuthorId = getCursorAgentWebhookRequestAuthorId(request);
 
     const setupPromise = runAllPromises([
         getCursorBotSettings({
@@ -473,7 +475,7 @@ async function handleCursorAgentLaunchFirstPartyWebhook({
             apiClient: request.apiClient,
             spaceId: request.spaceId,
             botId: request.botId,
-            accountId: request.event.authorId,
+            accountId: requestAuthorId,
         }),
         isOneOnOneChat(span, request).then(isOneOnOneChat =>
             loadInitialAgentMessagesContent({
@@ -546,7 +548,7 @@ async function handleCursorAgentLaunchFirstPartyWebhook({
                     botAccountId: request.botAccountId,
                     room: request.room,
                     startTime: conversationState.startTime,
-                    timeZone: request.event.createdTimeZone,
+                    timeZone: getTimezoneFromBotWebhookRequest(request),
                     launchMessageIndex: launchMessageSession.index,
                     followUpMessageIndexes: emptySet,
                     statusChangeMessageIndexes: emptySet,
@@ -1331,4 +1333,21 @@ async function sendCursorCloudAgentsThirdPartyWebhookMessage({
             addToIterable(agent.statusChangeMessageIndexes, message.index),
         ),
     };
+}
+
+function getCursorAgentWebhookRequestAuthorId(request: AgentWebhookRequest): AccountId {
+    switch (request.event.type) {
+        case "NewMessage":
+        case "NewPost":
+            return request.event.authorId;
+        case "UpdatedMessageStreamExperimentalApprovalsPart":
+            // TODO(ifitzsimmons, #approvals): The "author" for an approval decision is the
+            // account who initially prompted the agent to send an approval. Although I don't
+            // think we'll add approvals to our cursor agents any time soon.
+            throw new UnimplementedError(
+                "UpdatedMessageStreamExperimentalApprovalsPart is not supported",
+            );
+        default:
+            throw exhaustive(request.event);
+    }
 }

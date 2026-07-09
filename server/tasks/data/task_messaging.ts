@@ -33,6 +33,7 @@ import {
 import {MessageStreamAttributes} from "~/server/messaging/helpers/message_stream_schema.js";
 import {hasMessageStreamDefinitelyTimedOut} from "~/server/messaging/helpers/message_stream_timeout_ms.js";
 import {MessageItem} from "~/server/messaging/helpers/process_messages_query.js";
+import {putMessageApprovalDecisions} from "~/server/messaging/helpers/put_message_approval_decisions.js";
 import {
     messagingEventExpirationDays,
     runBackfillMessageUpdates,
@@ -78,6 +79,7 @@ import {FileEntityId} from "~/shared/files/file_entity_id.js";
 import {createPromiseResolver} from "~/shared/helpers/async/promise_resolver.js";
 import {runAllPromiseThunks, runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
 import {assert} from "~/shared/helpers/control/assert.js";
+import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 import {unwrapResult} from "~/shared/helpers/control/capture_result.js";
 import {captureResultPromise} from "~/shared/helpers/control/capture_result_promise.js";
 import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
@@ -97,8 +99,14 @@ import {computeSetMessageReaction} from "~/shared/messaging/compute_set_message_
 import {cutMessageContentPayload} from "~/shared/messaging/cut_message_content_payload.js";
 import {getTruncatedParentMessagesRangeContentWithoutReferences} from "~/shared/messaging/get_truncated_parent_message_range_content_with_references.js";
 import {
+    createMessageApprovalNotFoundError,
+    createMessageApprovalRequiresMessageStreamError,
+} from "~/shared/messaging/message_approval_error_messages.js";
+import {
     MessageContentPayloadContentUpdate,
     MessageContentPayloadParent,
+    MessageExperimentalApproval,
+    MessageStreamExperimentalApprovalsPartPayload,
     MessageStreamPartPayload,
     iterateMessageContentPayloadParentIndexes,
 } from "~/shared/messaging/message_schema.js";
@@ -107,6 +115,7 @@ import {
     MessagingRealtimeBroadcastCompleteMessageStreamRequestSchema,
     MessagingRealtimeBroadcastPutMessageStreamPartRequestSchema,
 } from "~/shared/messaging/messaging_realtime_protocol.js";
+import {PutMessageApprovalDecisionsPayload} from "~/shared/messaging/put_message_approval_decisions_payload_schema.js";
 import {Reaction} from "~/shared/reactions/reaction.js";
 import {emptyReactionSet} from "~/shared/reactions/reaction_set.js";
 import {TaskCommentModel} from "~/shared/tasks/model/task_comment_model.js";
@@ -189,6 +198,132 @@ export async function getTaskCommentPayload(
     if (!item) throw createTaskCommentNotFoundError(taskId, commentIndex);
 
     return {spaceId, ...item};
+}
+
+export async function getTaskCommentMessageApprovals(
+    context: ServerActionContext,
+    {
+        taskId,
+        commentIndex,
+        consistency,
+    }: {
+        taskId: TaskId;
+        commentIndex: number;
+        consistency?: DynamoCacheReadConsistency;
+    },
+): Promise<{
+    spaceId: SpaceId;
+    approvals: ReadonlyArray<MessageExperimentalApproval>;
+}> {
+    const [{spaceId}, commentItem] = await runAllPromises([
+        authorizeTaskAccess(context, taskId, "Comment", null, {
+            consistency,
+        }),
+        // NOTE(ifitzsimmons, 2026-07-06): We decided to fetch the entire comment item (a
+        // single query) because the entire comment (including all parts) will almost
+        // always fit within 4kb and will thus cost 0.5 RCUs (from an Eventually Consistent
+        // read). There are times when the comment content will exceed 4kb, but this will
+        // still almost always be more efficient than
+        //
+        // 1. getItem(Comments#Stream) - 0.5 RCU
+        // 2. query(Comments#StreamPart, limit=1, descending=true) - 0.5 RCU
+        //
+        // ... which makes 2 roundtrips to DynamoDB.
+        getTaskCommentItem(context, taskId, commentIndex, {consistency}),
+    ]);
+
+    if (!commentItem.stream) throw createMessageApprovalRequiresMessageStreamError();
+
+    const lastStreamPart = assertExists(
+        commentItem.stream.parts[commentItem.stream.parts.length - 1],
+    );
+
+    if (lastStreamPart.payload.type !== "ExperimentalApprovals") {
+        throw createMessageApprovalNotFoundError();
+    }
+
+    return {
+        spaceId,
+        approvals: lastStreamPart.payload.approvals,
+    };
+}
+
+/**
+ * Set approval decisions in a task comment on behalf of the bot API.
+ */
+export async function putTaskCommentMessageApprovalDecisions(
+    context: ServerActionContext,
+    {
+        taskId,
+        commentIndex,
+        payload,
+        consistency,
+    }: {
+        taskId: TaskId;
+        commentIndex: number;
+        payload: PutMessageApprovalDecisionsPayload;
+        consistency?: DynamoCacheReadConsistency;
+    },
+): Promise<{
+    spaceId: SpaceId;
+    approvals: ReadonlyArray<MessageExperimentalApproval>;
+    partIndex: number;
+    version: number;
+    createdTime: Date;
+}> {
+    return await putMessageApprovalDecisions(context, {
+        room: {type: "Task", id: taskId},
+        messageIndex: commentIndex,
+        payload,
+        consistency,
+        readApprovalStreamPart: async context => {
+            const [{spaceId}, commentItem] = await runAllPromises([
+                authorizeTaskAccess(context, taskId, "Comment", null, {
+                    consistency,
+                }),
+                // NOTE(ifitzsimmons, 2026-07-06): We decided to fetch the entire comment item (a
+                // single query) because the entire comment (including all parts) will almost
+                // always fit within 4kb and will thus cost 0.5 RCUs (from an Eventually Consistent
+                // read). There are times when the comment content will exceed 4kb, but this will
+                // still almost always be more efficient than
+                //
+                // 1. getItem(Comments#Stream) - 0.5 RCU
+                // 2. query(Comments#StreamPart, limit=1, descending=true) - 0.5 RCU
+                //
+                // ... which makes 2 roundtrips to DynamoDB.
+                getTaskCommentItem(context, taskId, commentIndex, {consistency}),
+            ]);
+
+            return {
+                spaceId,
+                message: commentItem,
+                putMessageApprovalPartPayloadWithDecisionValues: async ({
+                    partIndex,
+                    createdTime,
+                    version,
+                    nextPayload,
+                }: {
+                    partIndex: number;
+                    createdTime: Date;
+                    version: number;
+                    nextPayload: MessageStreamExperimentalApprovalsPartPayload;
+                }) => {
+                    const updatedPart = await TaskTable.directlyUpdateItem(context, {
+                        partitionType: "Task",
+                        sortRangeType: "Comments#StreamPart",
+                        taskId,
+                        commentIndex,
+                        partIndex,
+                        payload: nextPayload,
+                        createdTime,
+                        updateLockVersion: version,
+                    });
+
+                    return {version: updatedPart.updateLockVersion};
+                },
+            };
+        },
+    });
 }
 
 export async function backfillTaskComments(
@@ -1488,7 +1623,10 @@ export function putTaskCommentStreamPart(
             await DynamoTableSchema.executeTransaction(context, [
                 TaskTable.transactionDirectlyUpdateItem({
                     ...item,
-                    completedTime: isTimeoutErrorCompletion ? currentTime : null,
+                    completedTime:
+                        isTimeoutErrorCompletion || payload.type === "ExperimentalApprovals"
+                            ? currentTime
+                            : null,
                     partCount: partIndex + 1,
                     lastPartUpdateLockVersion: 0,
                     lastPartCreatedTime: createdTime,
@@ -1526,9 +1664,18 @@ export function putTaskCommentStreamPart(
                 );
             }
 
+            // NOTE(ifitzsimmons): Adding an approval part "completes" the stream, and we can't
+            // update a completed stream (we throw earlier in this routine). It should not be
+            // possible to reach this line of code. If this assertion fails, it means we never
+            // completed the stream when adding the approval part, and we'll need to figure out
+            // how/why that happened.
+            assert(payload.type !== "ExperimentalApprovals");
+
             assert(item.lastPartUpdateLockVersion !== null);
             assert(item.lastPartCreatedTime !== null);
             createdTime = item.lastPartCreatedTime;
+
+            const nextPartUpdateLockVersion = item.lastPartUpdateLockVersion + 1;
 
             const updatePartTransactionEntry = TaskTable.transactionCreateOrReplaceItem({
                 partitionType: "Task",
@@ -1538,7 +1685,7 @@ export function putTaskCommentStreamPart(
                 partIndex,
                 payload,
                 createdTime,
-                updateLockVersion: item.lastPartUpdateLockVersion + 1,
+                updateLockVersion: nextPartUpdateLockVersion,
             });
 
             version = updatePartTransactionEntry.newItem.updateLockVersion ?? 0;
@@ -1546,7 +1693,7 @@ export function putTaskCommentStreamPart(
             await DynamoTableSchema.executeTransaction(context, [
                 TaskTable.transactionDirectlyUpdateItem({
                     ...item,
-                    lastPartUpdateLockVersion: item.lastPartUpdateLockVersion + 1,
+                    lastPartUpdateLockVersion: nextPartUpdateLockVersion,
                     lastPingTime,
                     lastIndexSearchEntityJob:
                         nextIndexSearchEntityJob ?? item.lastIndexSearchEntityJob,
@@ -1571,31 +1718,64 @@ export function putTaskCommentStreamPart(
             );
         }
 
-        // NOTE(calebmer): If the process dies after committing to DynamoDB but before
-        // sending this realtime event the user might not see an update to their message in
-        // realtime.
-        //
-        // Should we send this broadcast event in a DynamoDB Streams listener that reacts
-        // to the update? We plan to move `NotificationEvent`, `IndexSearchEntity`, and
-        // other processing that needs to reliably run after an updates to DynamoDB
-        // Streams.
-        context.process.waitUntil(
-            context.edge.broadcastToDurableObject(
-                `/api/durable-objects/task-notes/${taskId}/broadcast-put-message-stream-part`,
-                {
-                    serviceName: "TaskNotesCollaborationService",
-                    route: "/api/durable-objects/task-notes/:taskId/broadcast-put-message-stream-part",
-                    body: MessagingRealtimeBroadcastPutMessageStreamPartRequestSchema.serialize({
-                        index: commentIndex,
-                        partIndex,
-                        part: {version, payload, createdTime},
-                    }),
-                },
-            ),
-        );
+        broadcastPutTaskCommentStreamPart(context, {
+            taskId,
+            commentIndex,
+            partIndex,
+            version,
+            payload,
+            createdTime,
+        });
 
         return {spaceId, createdTime};
     });
+}
+
+/**
+ * Broadcast an updated comment stream part to all clients connected to the task's
+ * realtime durable object. Called by writers that don't have their own realtime
+ * connection to emit events from (e.g. bots writing through the HTTP API).
+ */
+export function broadcastPutTaskCommentStreamPart(
+    context: ServerActionContext,
+    {
+        taskId,
+        commentIndex,
+        partIndex,
+        version,
+        payload,
+        createdTime,
+    }: {
+        taskId: TaskId;
+        commentIndex: number;
+        partIndex: number;
+        version: number;
+        payload: MessageStreamPartPayload;
+        createdTime: Date;
+    },
+) {
+    // NOTE(calebmer): If the process dies after committing to DynamoDB but before
+    // sending this realtime event the user might not see an update to their message in
+    // realtime.
+    //
+    // Should we send this broadcast event in a DynamoDB Streams listener that reacts
+    // to the update? We plan to move `NotificationEvent`, `IndexSearchEntity`, and
+    // other processing that needs to reliably run after an updates to DynamoDB
+    // Streams.
+    context.process.waitUntil(
+        context.edge.broadcastToDurableObject(
+            `/api/durable-objects/task-notes/${taskId}/broadcast-put-message-stream-part`,
+            {
+                serviceName: "TaskNotesCollaborationService",
+                route: "/api/durable-objects/task-notes/:taskId/broadcast-put-message-stream-part",
+                body: MessagingRealtimeBroadcastPutMessageStreamPartRequestSchema.serialize({
+                    index: commentIndex,
+                    partIndex,
+                    part: {version, payload, createdTime},
+                }),
+            },
+        ),
+    );
 }
 
 export async function getNotificationEventForPutTaskCommentStreamPart(

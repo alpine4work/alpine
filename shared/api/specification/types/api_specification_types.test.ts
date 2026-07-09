@@ -15,6 +15,8 @@ import {
     ApiMessageContentPayloadFileResponse,
     ApiMessageContentPayloadParentContentSnippetTextInlineElement,
     ApiMessageContentPayloadParentResponse,
+    ApiMessageExperimentalApprovalDecisionOption,
+    ApiMessageExperimentalApprovalDecisionValue,
     ApiMessageStreamToolCallPartCreateCallTarget,
     ApiSearchResult,
     ApiSearchResultBodyMatch,
@@ -131,5 +133,12 @@ test("`ApiMessageContentPayloadParentResponse` is assignable to `ApiBotWebhookNe
     assertAssignableTypes<
         ApiMessageContentPayloadParentResponse,
         ApiBotWebhookNewMessageEventParent
+    >();
+});
+
+test("`ApiMessageExperimentalApprovalDecisionValue` is assignable to `ApiMessageExperimentalApprovalDecisionOption`", () => {
+    assertAssignableTypes<
+        ApiMessageExperimentalApprovalDecisionValue,
+        ApiMessageExperimentalApprovalDecisionOption
     >();
 });

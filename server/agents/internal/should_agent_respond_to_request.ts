@@ -10,6 +10,8 @@ export async function shouldAgentRespondToRequest(
     tracer: TracerBase,
     request: AgentWebhookRequest,
 ): Promise<boolean> {
+    if (request.event.type === "UpdatedMessageStreamExperimentalApprovalsPart") return true;
+
     // Always respond if mentioned.
     if (request.event.wasMentioned) return true;
 

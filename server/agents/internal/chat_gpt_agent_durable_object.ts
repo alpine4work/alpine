@@ -42,6 +42,7 @@ import {
 } from "~/server/agents/internal/conversation/chat_gpt_agent_conversation_store.js";
 import {getAgentModelDowngradedMessage} from "~/server/agents/internal/get_agent_model_downgraded_message.js";
 import {getAgentTokenLimitExceededMessage} from "~/server/agents/internal/get_agent_token_limit_exceeded_message.js";
+import {getTimezoneFromBotWebhookRequest} from "~/server/agents/internal/get_timezone_from_bot_webhook_request.js";
 import {AgentLink} from "~/server/agents/internal/link_references/agent_link.js";
 import {
     CreateAgentLinkOptions,
@@ -90,6 +91,7 @@ import {
     FailedPreconditionError,
     InvalidArgumentError,
     NotFoundError,
+    UnimplementedError,
 } from "~/shared/error/error.js";
 import {errorDisplayMessage} from "~/shared/error/error_display_message.js";
 import {serializeError} from "~/shared/error/error_schema.js";
@@ -110,7 +112,7 @@ import {
     generateOrderKeysBetween,
 } from "~/shared/helpers/sort/order_key.js";
 import {TestCheckpoint} from "~/shared/helpers/test/test_checkpoint.js";
-import {SpaceId} from "~/shared/id/types/id_types.js";
+import {AccountId, SpaceId} from "~/shared/id/types/id_types.js";
 import {TracerBase} from "~/shared/tracer/tracer_base.js";
 import {TracerSpan} from "~/shared/tracer/tracer_span.js";
 
@@ -196,8 +198,24 @@ export class ChatGptAgentDurableObject extends AgentDurableObjectBase<
     }
 
     public override async webhook(span: TracerSpan, request: AgentWebhookRequest): Promise<void> {
-        // Check if the agent should respond before continuing.
-        if (!(await shouldAgentRespondToRequest(span, request))) return;
+        const requestAuthorId = getAgentWebhookRequestAuthorId(request);
+
+        if (
+            request.event.type === "UpdatedMessageStreamExperimentalApprovalsPart" &&
+            request.event.approvals.some(approval => approval.decision.value === undefined)
+        ) {
+            return;
+        }
+
+        const event = request.event;
+        if (
+            event.type !== "UpdatedMessageStreamExperimentalApprovalsPart" &&
+            // We do this event dance to make typescript happy. ideally we'd just check
+            // `request.event.type` above and pass the request in, but that doesn't work
+            !(await shouldAgentRespondToRequest(span, {...request, event}))
+        ) {
+            return;
+        }
 
         // We fully clear the ChatGPT agent's conversation state every 6 hours or so.
         // ChatGPT should be perfectly capable of booting up from empty state.
@@ -226,7 +244,7 @@ export class ChatGptAgentDurableObject extends AgentDurableObjectBase<
 
         const conversationState = await request.storage.transaction(async transaction => {
             const conversation = await ChatGptAgentConversationStore.new(transaction, {
-                initialTimeZone: request.event.createdTimeZone,
+                initialTimeZone: getTimezoneFromBotWebhookRequest(request),
             });
             return conversation.getState();
         });
@@ -235,7 +253,7 @@ export class ChatGptAgentDurableObject extends AgentDurableObjectBase<
             "Get agent usage limit windows",
             async span =>
                 await getAgentUsageLimitWindows(span, request.agentUsageDatabase.get(), {
-                    accountId: request.event.authorId,
+                    accountId: requestAuthorId,
                     currentTimestamp: currentTime.getTime(),
                 }),
         );
@@ -252,7 +270,7 @@ export class ChatGptAgentDurableObject extends AgentDurableObjectBase<
 
                     const isAgentUsageLimitExceededResult = isAgentUsageLimitExceeded(
                         span,
-                        request.event.authorId,
+                        requestAuthorId,
                         agentUsageLimitWindows,
                     );
 
@@ -305,7 +323,7 @@ export class ChatGptAgentDurableObject extends AgentDurableObjectBase<
 
         if (response) {
             await recordAgentUsage(span, request.agentUsageDatabase.get(), {
-                accountId: request.event.authorId,
+                accountId: requestAuthorId,
                 spaceId: request.spaceId,
                 requestUsedMillicents: response.usedMillicents,
                 currentTimestamp: currentTime.getTime(),
@@ -477,7 +495,7 @@ function sendLimitErrorMessage(
         getAgentTokenLimitExceededMessage(
             resetTime,
             currentTime,
-            request.event.createdTimeZone,
+            getTimezoneFromBotWebhookRequest(request),
             shouldUpsell,
         ),
     );
@@ -505,7 +523,11 @@ function sendDowngradeWarningMessage(
 ): void {
     session.pushText(
         span,
-        getAgentModelDowngradedMessage(resetTime, currentTime, request.event.createdTimeZone),
+        getAgentModelDowngradedMessage(
+            resetTime,
+            currentTime,
+            getTimezoneFromBotWebhookRequest(request),
+        ),
     );
 }
 
@@ -551,7 +573,7 @@ async function ensureMessagesInChatGptAgentConversation(
 ): Promise<void> {
     await request.storage.transaction(async transaction => {
         const state = await ChatGptAgentConversationStore.new(transaction, {
-            initialTimeZone: request.event.createdTimeZone,
+            initialTimeZone: getTimezoneFromBotWebhookRequest(request),
         });
 
         await initializeInChatGptAgentConversationIfNeeded(tracer, transaction, request, state);
@@ -732,7 +754,7 @@ async function createChatGptAgentResponse(
             request.spaceId,
             parseApiBotWebhookEventIntoMessageRoom(request.event),
         ),
-        safety_identifier: request.event.authorId,
+        safety_identifier: getAgentWebhookRequestAuthorId(request),
         // NOTE(ifitzsimmons, 2026-01-10): We had originally planned to add the web search
         // [1] tool to our agent but decided against it for several reasons:
         //
@@ -792,7 +814,7 @@ async function createChatGptAgentResponse(
                 // OpenAI again it's previous messages, function calls, reasoning tokens, etc.
                 await request.storage.transaction(async transaction => {
                     const state = await ChatGptAgentConversationStore.new(transaction, {
-                        initialTimeZone: request.event.createdTimeZone,
+                        initialTimeZone: getTimezoneFromBotWebhookRequest(request),
                     });
 
                     const orderKey = generateOrderKeyBetween(state.getState().lastOrderKey, null);
@@ -900,7 +922,7 @@ function getChatGptAgentConversationItemsAndCallPendingFunctions(
         if (pendingFunctionCallById.size === 0) return input;
 
         const state = await ChatGptAgentConversationStore.new(transaction, {
-            initialTimeZone: request.event.createdTimeZone,
+            initialTimeZone: getTimezoneFromBotWebhookRequest(request),
         });
 
         const functionCallOutputs = await runAllPromises(
@@ -1340,7 +1362,7 @@ async function handleCreateDocumentFunctionCall(
             document: {
                 title,
                 creator: {
-                    id: request.event.authorId,
+                    id: getAgentWebhookRequestAuthorId(request),
                 },
                 content: {elements},
             },
@@ -1605,5 +1627,23 @@ function intoCreateAgentLinkOptions(entity: ApiMentionResponse): CreateAgentLink
         }
         default:
             throw exhaustive(entity.target);
+    }
+}
+
+function getAgentWebhookRequestAuthorId(request: AgentWebhookRequest): AccountId {
+    if (request.event.type === "UpdatedMessageStreamExperimentalApprovalsPart") {
+        // TODO(ifitzsimmons, #approvals): The "author" for an approval decision is the
+        // account who initially prompted the agent to send an approval.
+        throw new UnimplementedError(
+            "getAgentWebhookRequestAuthorId not implemented for approval decision events",
+        );
+    }
+
+    switch (request.event.type) {
+        case "NewMessage":
+        case "NewPost":
+            return request.event.authorId;
+        default:
+            throw exhaustive(request.event);
     }
 }

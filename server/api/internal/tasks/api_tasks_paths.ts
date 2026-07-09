@@ -10,6 +10,7 @@ import {
     intoApiContentWithReferences,
 } from "~/server/api/internal/shared/into_api_content_with_references.js";
 import {intoApiMessage} from "~/server/api/internal/shared/into_api_message.js";
+import {intoApiMessageExperimentalApproval} from "~/server/api/internal/shared/into_api_message_stream_part_payload.js";
 import {createApiTaskActor} from "~/server/api/internal/tasks/internal/create_api_task_actor.js";
 import {createIntoApiTaskCommentContentPayloadParent} from "~/server/api/internal/tasks/internal/create_into_api_task_comment_content_payload_parent.ts.js";
 import {createTaskFromApi} from "~/server/api/internal/tasks/internal/create_task_from_api.js";
@@ -26,12 +27,15 @@ import {attachFileToTargetAsBot} from "~/server/files/data/attach_file_to_target
 import {FileTaskAuthorizer} from "~/server/tasks/data/authorization/file_task_authorizer.js";
 import {commitTaskActionTransaction} from "~/server/tasks/data/commit_task_action_transaction.js";
 import {
+    broadcastPutTaskCommentStreamPart,
     completeTaskCommentStream,
     createTaskComment,
+    getTaskCommentMessageApprovals,
     getTaskCommentPayload,
     getTaskCommentPayloadsFromEnd,
     getTaskCommentPayloadsFromStart,
     pingTaskCommentStream,
+    putTaskCommentMessageApprovalDecisions,
     putTaskCommentStreamPart,
 } from "~/server/tasks/data/task_messaging.js";
 import {LocalAccessPolicy} from "~/shared/access/access_policy.js";
@@ -739,6 +743,70 @@ export const apiTasksPaths: Pick<
             >(obj: Record<string, boolean>): asserts obj is T {
                 assert(Object.values(obj).some(v => v));
             }
+        },
+    },
+
+    "/tasks/{id}/messages/{index}/experimental-approvals": {
+        get: async (context, {pathParameters}) => {
+            const {spaceId, approvals} = await getTaskCommentMessageApprovals(context, {
+                taskId: pathParameters.id,
+                commentIndex: pathParameters.index,
+                consistency: "StrongWithinCache",
+            });
+
+            const referenceContext = context.dynamo.unexpectStrongReadConsistency();
+            return {
+                content: {
+                    spaceId,
+                    approvals: await runAllPromises(
+                        approvals.map(approval =>
+                            intoApiMessageExperimentalApproval(referenceContext, {
+                                spaceId,
+                                approval,
+                            }),
+                        ),
+                    ),
+                },
+            };
+        },
+        patch: async (context, {pathParameters, requestBody}) => {
+            const {spaceId, approvals, partIndex, version, createdTime} =
+                await putTaskCommentMessageApprovalDecisions(context, {
+                    taskId: pathParameters.id,
+                    commentIndex: pathParameters.index,
+                    payload: {
+                        type: "ExperimentalDecisions",
+                        decisions: requestBody.patches.map(patch => ({
+                            index: patch.index,
+                            value: patch.decision.value,
+                        })),
+                    },
+                    consistency: "StrongWithinCache",
+                });
+
+            broadcastPutTaskCommentStreamPart(context, {
+                taskId: pathParameters.id,
+                commentIndex: pathParameters.index,
+                partIndex,
+                version,
+                payload: {type: "ExperimentalApprovals", approvals},
+                createdTime,
+            });
+
+            const referenceContext = context.dynamo.unexpectStrongReadConsistency();
+            return {
+                content: {
+                    spaceId,
+                    approvals: await runAllPromises(
+                        approvals.map(approval =>
+                            intoApiMessageExperimentalApproval(referenceContext, {
+                                spaceId,
+                                approval,
+                            }),
+                        ),
+                    ),
+                },
+            };
         },
     },
 };

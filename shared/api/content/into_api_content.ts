@@ -142,6 +142,12 @@ type ApiContentWithoutKeys<Value> = Value extends JsonScalarValue | undefined
 
 export type ApiContentResponseWithoutKeys = ApiContentWithoutKeys<ApiContentResponse>;
 
+export type ApiContentBlockElementResponseWithoutKeys =
+    ApiContentWithoutKeys<ApiContentBlockElementResponse>;
+
+export type ApiContentParagraphBlockElementResponseWithoutKeys =
+    ApiContentWithoutKeys<ApiContentParagraphBlockElementResponse>;
+
 type ApiContentWithOptionalKeys<Value> = Value extends JsonScalarValue | undefined
     ? Value
     : Value extends ReadonlyArray<infer Item>

@@ -44,6 +44,7 @@ import {
 import {MessageStreamAttributes} from "~/server/messaging/helpers/message_stream_schema.js";
 import {hasMessageStreamDefinitelyTimedOut} from "~/server/messaging/helpers/message_stream_timeout_ms.js";
 import {MessageItem} from "~/server/messaging/helpers/process_messages_query.js";
+import {putMessageApprovalDecisions} from "~/server/messaging/helpers/put_message_approval_decisions.js";
 import {
     messagingEventExpirationDays,
     runBackfillMessageUpdates,
@@ -95,9 +96,15 @@ import {computeSetMessageReaction} from "~/shared/messaging/compute_set_message_
 import {cutMessageContentPayload} from "~/shared/messaging/cut_message_content_payload.js";
 import {getTruncatedParentMessagesRangeContentWithoutReferences} from "~/shared/messaging/get_truncated_parent_message_range_content_with_references.js";
 import {
+    createMessageApprovalNotFoundError,
+    createMessageApprovalRequiresMessageStreamError,
+} from "~/shared/messaging/message_approval_error_messages.js";
+import {
     MessageContentPayloadClerical,
     MessageContentPayloadContentUpdate,
     MessageContentPayloadParent,
+    MessageExperimentalApproval,
+    MessageStreamExperimentalApprovalsPartPayload,
     MessageStreamPartPayload,
     iterateMessageContentPayloadParentIndexes,
 } from "~/shared/messaging/message_schema.js";
@@ -106,6 +113,7 @@ import {
     MessagingRealtimeBroadcastCompleteMessageStreamRequestSchema,
     MessagingRealtimeBroadcastPutMessageStreamPartRequestSchema,
 } from "~/shared/messaging/messaging_realtime_protocol.js";
+import {PutMessageApprovalDecisionsPayload} from "~/shared/messaging/put_message_approval_decisions_payload_schema.js";
 import {Reaction} from "~/shared/reactions/reaction.js";
 import {emptyReactionSet} from "~/shared/reactions/reaction_set.js";
 import {SearchAffinityEntityInteraction} from "~/shared/search/search_affinity_entity_interaction.js";
@@ -636,6 +644,123 @@ export async function processSendShareNotificationJob(
     );
 }
 
+export async function getChatMessageApprovals(
+    context: ServerActionContext,
+    {
+        chatId,
+        messageIndex,
+        consistency,
+    }: {
+        chatId: ChatId;
+        messageIndex: number;
+        consistency?: DynamoCacheReadConsistency;
+    },
+): Promise<{
+    spaceId: SpaceId;
+    approvals: ReadonlyArray<MessageExperimentalApproval>;
+}> {
+    const [{spaceId}, message] = await runAllPromises([
+        authorizeChatAccess(context, chatId, "Comment", {consistency}),
+        // NOTE(ifitzsimmons, 2026-07-06): We decided to fetch the entire message item (a
+        // single query) because the entire message (including all parts) will almost
+        // always fit within 4kb and will thus cost 0.5 RCUs (from an Eventually Consistent
+        // read). There are times when the message content will exceed 4kb, but this will
+        // still almost always be more efficient than
+        //
+        // 1. getItem(Message#Stream) - 0.5 RCU
+        // 2. query(Message#StreamPart, limit=1, descending=true) - 0.5 RCU
+        //
+        // ... which makes 2 roundtrips to DynamoDB.
+        getChatMessageItem(context, chatId, messageIndex, {consistency}),
+    ]);
+
+    if (!message.stream) throw createMessageApprovalRequiresMessageStreamError();
+
+    const lastStreamPart = assertExists(message.stream.parts[message.stream.parts.length - 1]);
+
+    if (lastStreamPart.payload.type !== "ExperimentalApprovals") {
+        throw createMessageApprovalNotFoundError();
+    }
+
+    return {
+        spaceId,
+        approvals: lastStreamPart.payload.approvals,
+    };
+}
+
+export async function putChatMessageApprovalDecisions(
+    context: ServerActionContext,
+    {
+        chatId,
+        messageIndex,
+        payload,
+        consistency,
+    }: {
+        chatId: ChatId;
+        messageIndex: number;
+        payload: PutMessageApprovalDecisionsPayload;
+        consistency?: DynamoCacheReadConsistency;
+    },
+): Promise<{
+    spaceId: SpaceId;
+    approvals: ReadonlyArray<MessageExperimentalApproval>;
+    partIndex: number;
+    version: number;
+    createdTime: Date;
+}> {
+    return await putMessageApprovalDecisions(context, {
+        room: {type: "Chat", id: chatId},
+        messageIndex,
+        payload,
+        consistency,
+        readApprovalStreamPart: async context => {
+            const [{spaceId}, message] = await runAllPromises([
+                authorizeChatAccess(context, chatId, "Comment", {consistency}),
+                // NOTE(ifitzsimmons, 2026-07-06): We decided to fetch the entire message item (a
+                // single query) because the entire message (including all parts) will almost
+                // always fit within 4kb and will thus cost 0.5 RCUs (from an Eventually Consistent
+                // read). There are times when the message content will exceed 4kb, but this will
+                // still almost always be more efficient than
+                //
+                // 1. getItem(Message#Stream) - 0.5 RCU
+                // 2. query(Message#StreamPart, limit=1, descending=true) - 0.5 RCU
+                //
+                // ... which makes 2 roundtrips to DynamoDB.
+                getChatMessageItem(context, chatId, messageIndex, {consistency}),
+            ]);
+
+            return {
+                spaceId,
+                message,
+                putMessageApprovalPartPayloadWithDecisionValues: async ({
+                    partIndex,
+                    createdTime,
+                    version,
+                    nextPayload,
+                }: {
+                    partIndex: number;
+                    createdTime: Date;
+                    version: number;
+                    nextPayload: MessageStreamExperimentalApprovalsPartPayload;
+                }) => {
+                    const updatedPart = await ChatTable.directlyUpdateItem(context, {
+                        partitionType: "Chat",
+                        sortRangeType: "Messages#StreamPart",
+                        chatId,
+                        messageIndex,
+                        partIndex,
+                        payload: nextPayload,
+                        createdTime,
+                        updateLockVersion: version,
+                    });
+
+                    return {version: updatedPart.updateLockVersion};
+                },
+            };
+        },
+    });
+}
+
 /**
  * Update a part of the message stream.
  *
@@ -781,7 +906,10 @@ export function putChatMessageStreamPart(
             await DynamoTableSchema.executeTransaction(context, [
                 ChatTable.transactionDirectlyUpdateItem({
                     ...item,
-                    completedTime: isTimeoutErrorCompletion ? currentTime : null,
+                    completedTime:
+                        isTimeoutErrorCompletion || payload.type === "ExperimentalApprovals"
+                            ? currentTime
+                            : null,
                     partCount: partIndex + 1,
                     lastPartUpdateLockVersion: 0,
                     lastPartCreatedTime: createdTime,
@@ -819,9 +947,18 @@ export function putChatMessageStreamPart(
                 );
             }
 
+            // NOTE(ifitzsimmons): Adding an approval part "completes" the stream, and we can't
+            // update a completed stream (we throw earlier in this routine). It should not be
+            // possible to reach this line of code. If this assertion fails, it means we never
+            // completed the stream when adding the approval part, and we'll need to figure out
+            // how/why that happened.
+            assert(payload.type !== "ExperimentalApprovals");
+
             assert(item.lastPartUpdateLockVersion !== null);
             assert(item.lastPartCreatedTime !== null);
             createdTime = item.lastPartCreatedTime;
+
+            const nextPartUpdateLockVersion = item.lastPartUpdateLockVersion + 1;
 
             const updatePartTransactionEntry = ChatTable.transactionCreateOrReplaceItem({
                 partitionType: "Chat",
@@ -831,7 +968,7 @@ export function putChatMessageStreamPart(
                 partIndex,
                 payload,
                 createdTime,
-                updateLockVersion: item.lastPartUpdateLockVersion + 1,
+                updateLockVersion: nextPartUpdateLockVersion,
             });
 
             version = updatePartTransactionEntry.newItem.updateLockVersion ?? 0;
@@ -840,7 +977,7 @@ export function putChatMessageStreamPart(
                 ChatTable.transactionDirectlyUpdateItem({
                     ...item,
                     lastPingTime,
-                    lastPartUpdateLockVersion: item.lastPartUpdateLockVersion + 1,
+                    lastPartUpdateLockVersion: nextPartUpdateLockVersion,
                     lastIndexSearchEntityJob:
                         nextIndexSearchEntityJob ?? item.lastIndexSearchEntityJob,
                 }),
@@ -864,31 +1001,64 @@ export function putChatMessageStreamPart(
             );
         }
 
-        // NOTE(calebmer): If the process dies after committing to DynamoDB but before
-        // sending this realtime event the user might not see an update to their message in
-        // realtime.
-        //
-        // Should we send this broadcast event in a DynamoDB Streams listener that reacts
-        // to the update? We plan to move `NotificationEvent`, `IndexSearchEntity`, and
-        // other processing that needs to reliably run after an updates to DynamoDB
-        // Streams.
-        context.process.waitUntil(
-            context.edge.broadcastToDurableObject(
-                `/api/durable-objects/chat/${chatId}/broadcast-put-message-stream-part`,
-                {
-                    serviceName: "ChatRealtimeService",
-                    route: "/api/durable-objects/chat/:chatId/broadcast-put-message-stream-part",
-                    body: MessagingRealtimeBroadcastPutMessageStreamPartRequestSchema.serialize({
-                        index: messageIndex,
-                        partIndex,
-                        part: {version, payload, createdTime},
-                    }),
-                },
-            ),
-        );
+        broadcastPutChatMessageStreamPart(context, {
+            chatId,
+            messageIndex,
+            partIndex,
+            version,
+            payload,
+            createdTime,
+        });
 
         return {spaceId, createdTime};
     });
+}
+
+/**
+ * Broadcast an updated message stream part to all clients connected to the chat's
+ * realtime durable object. Called by writers that don't have their own realtime
+ * connection to emit events from (e.g. bots writing through the HTTP API).
+ */
+export function broadcastPutChatMessageStreamPart(
+    context: ServerActionContext,
+    {
+        chatId,
+        messageIndex,
+        partIndex,
+        version,
+        payload,
+        createdTime,
+    }: {
+        chatId: ChatId;
+        messageIndex: number;
+        partIndex: number;
+        version: number;
+        payload: MessageStreamPartPayload;
+        createdTime: Date;
+    },
+) {
+    // NOTE(calebmer): If the process dies after committing to DynamoDB but before
+    // sending this realtime event the user might not see an update to their message in
+    // realtime.
+    //
+    // Should we send this broadcast event in a DynamoDB Streams listener that reacts
+    // to the update? We plan to move `NotificationEvent`, `IndexSearchEntity`, and
+    // other processing that needs to reliably run after an updates to DynamoDB
+    // Streams.
+    context.process.waitUntil(
+        context.edge.broadcastToDurableObject(
+            `/api/durable-objects/chat/${chatId}/broadcast-put-message-stream-part`,
+            {
+                serviceName: "ChatRealtimeService",
+                route: "/api/durable-objects/chat/:chatId/broadcast-put-message-stream-part",
+                body: MessagingRealtimeBroadcastPutMessageStreamPartRequestSchema.serialize({
+                    index: messageIndex,
+                    partIndex,
+                    part: {version, payload, createdTime},
+                }),
+            },
+        ),
+    );
 }
 
 /**

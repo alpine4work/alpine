@@ -2,9 +2,20 @@ import {ApiMentionTargetPath} from "~/shared/api/specification/parse_api_path.js
 import {MessageContentSchema} from "~/shared/content/message_content_schema.js";
 import {FileIdOrFileEntityIdSchema, getFileEntityTypes} from "~/shared/files/file_entity_id.js";
 import {emptyArray} from "~/shared/helpers/array/empty_array.js";
+import {assert} from "~/shared/helpers/control/assert.js";
+import {assertAssignableTypes} from "~/shared/helpers/control/assert_assignable_types.js";
+import {assertEqualTypes} from "~/shared/helpers/control/assert_equal_types.js";
 import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
+import {isDeepEqual} from "~/shared/helpers/control/is_deep_equal.js";
 import {emptyMap} from "~/shared/helpers/map/empty_map.js";
-import {DocumentId, PostId, TaskCollectionId, TaskId} from "~/shared/id/types/id_types.js";
+import {omitObject} from "~/shared/helpers/object/omit_object.js";
+import {
+    AccountId,
+    DocumentId,
+    PostId,
+    TaskCollectionId,
+    TaskId,
+} from "~/shared/id/types/id_types.js";
 import {ProsemirrorMappingSchema} from "~/shared/prosemirror/prosemirror_mapping_schema.js";
 import {ReactionSet, emptyReactionSet} from "~/shared/reactions/reaction_set.js";
 import {Schema, SchemaType} from "~/shared/schema/schema.js";
@@ -320,12 +331,167 @@ export const MessageStreamReasoningPartPayloadSchema = Schema.object({
     content: MessageContentSchema,
 });
 
+export type MessageExperimentalApprovalDecisionOption = SchemaType<
+    typeof MessageExperimentalApprovalDecisionOptionSchema
+>;
+
+const MessageExperimentalApprovalDecisionApprovedForSessionValueScopeSchema = Schema.object({
+    value: Schema.string.minLength(1),
+});
+
+export const MessageExperimentalApprovalDecisionOptionSchema = Schema.union({
+    Approved: Schema.object({
+        type: Schema.value("Approved"),
+    }),
+    Rejected: Schema.object({
+        type: Schema.value("Rejected"),
+    }),
+    ApprovedForSession: Schema.object({
+        type: Schema.value("ApprovedForSession"),
+        scope: MessageExperimentalApprovalDecisionApprovedForSessionValueScopeSchema,
+        summary: MessageContentSchema.optional(),
+        durationMinutes: Schema.integer.min(1).nullable(),
+    }),
+});
+
+const MessageExperimentalApprovalDecisionValueDecidedBySchema = Schema.object({
+    account: Schema.object({
+        id: Schema.id<AccountId>(),
+    }),
+});
+
+export type MessageExperimentalApprovalDecisionValueWithoutDecider = SchemaType<
+    typeof MessageExperimentalApprovalDecisionValueWithoutDeciderSchema
+>;
+export const MessageExperimentalApprovalDecisionValueWithoutDeciderSchema = Schema.union({
+    Approved: Schema.object({
+        type: Schema.value("Approved"),
+    }),
+    Rejected: Schema.object({
+        type: Schema.value("Rejected"),
+    }),
+    ApprovedForSession: Schema.object({
+        type: Schema.value("ApprovedForSession"),
+        scope: MessageExperimentalApprovalDecisionApprovedForSessionValueScopeSchema,
+        durationMinutes: Schema.integer.min(1).nullable(),
+    }),
+});
+
+export type MessageExperimentalApprovalDecisionValue = SchemaType<
+    typeof MessageExperimentalApprovalDecisionValueSchema
+>;
+
+export const MessageExperimentalApprovalDecisionValueSchema = Schema.union({
+    Approved: Schema.object({
+        type: Schema.value("Approved"),
+        decider: MessageExperimentalApprovalDecisionValueDecidedBySchema,
+    }),
+    Rejected: Schema.object({
+        type: Schema.value("Rejected"),
+        decider: MessageExperimentalApprovalDecisionValueDecidedBySchema,
+    }),
+    ApprovedForSession: Schema.object({
+        type: Schema.value("ApprovedForSession"),
+        decider: MessageExperimentalApprovalDecisionValueDecidedBySchema,
+        scope: MessageExperimentalApprovalDecisionApprovedForSessionValueScopeSchema,
+        durationMinutes: Schema.integer.min(1).nullable(),
+    }),
+});
+
+assertAssignableTypes<
+    MessageExperimentalApprovalDecisionValue,
+    MessageExperimentalApprovalDecisionValueWithoutDecider
+>();
+
+const defaultMessageApprovalDecisionOptions: ReadonlyArray<MessageExperimentalApprovalDecisionOption> =
+    [{type: "Approved"}, {type: "Rejected"}];
+
+export const MessageExperimentalApprovalDecisionSchemaSchema = Schema.object({
+    options: Schema.array(MessageExperimentalApprovalDecisionOptionSchema).default(
+        defaultMessageApprovalDecisionOptions,
+    ),
+}).validation(
+    "Approval decision schemas must have at least one option",
+    schema => schema.options.length >= 1,
+);
+
+export function isMessageApprovalDecisionValueForOption(
+    option: MessageExperimentalApprovalDecisionOption,
+    decisionValue: MessageExperimentalApprovalDecisionValue,
+): boolean {
+    if (decisionValue.type !== option.type) return false;
+
+    const decisionValueWithoutDecider = omitObject(decisionValue, ["decider"]);
+
+    switch (decisionValueWithoutDecider.type) {
+        case "Approved": {
+            assert(option.type === decisionValueWithoutDecider.type);
+
+            assertEqualTypes<typeof decisionValueWithoutDecider, typeof option>();
+            return isDeepEqual(decisionValueWithoutDecider, option);
+        }
+        case "Rejected": {
+            assert(option.type === decisionValueWithoutDecider.type);
+
+            assertEqualTypes<typeof decisionValueWithoutDecider, typeof option>();
+            return isDeepEqual(decisionValueWithoutDecider, option);
+        }
+        case "ApprovedForSession": {
+            assert(option.type === decisionValueWithoutDecider.type);
+            if (option.scope.value !== decisionValueWithoutDecider.scope.value) return false;
+
+            const optionWithoutSummary = omitObject(option, ["summary"]);
+
+            assertEqualTypes<typeof decisionValueWithoutDecider, typeof optionWithoutSummary>();
+            return isDeepEqual(decisionValueWithoutDecider, optionWithoutSummary);
+        }
+        default:
+            throw exhaustive(decisionValueWithoutDecider);
+    }
+}
+
+export type MessageExperimentalApprovalDecision = SchemaType<
+    typeof MessageExperimentalApprovalDecisionSchema
+>;
+
+export const MessageExperimentalApprovalDecisionSchema = Schema.object({
+    schema: MessageExperimentalApprovalDecisionSchemaSchema,
+    value: MessageExperimentalApprovalDecisionValueSchema.optional(),
+}).validation(
+    "Approval decision values must be included in the decision schema options",
+    decision => {
+        const decisionValue = decision.value;
+        if (decisionValue === undefined) return true;
+
+        return decision.schema.options.some(option =>
+            isMessageApprovalDecisionValueForOption(option, decisionValue),
+        );
+    },
+);
+
+export type MessageExperimentalApproval = SchemaType<typeof MessageExperimentalApprovalSchema>;
+
+export const MessageExperimentalApprovalSchema = Schema.object({
+    summary: MessageContentSchema,
+    decision: MessageExperimentalApprovalDecisionSchema,
+});
+
+export type MessageStreamExperimentalApprovalsPartPayload = SchemaType<
+    typeof MessageStreamExperimentalApprovalsPartPayloadSchema
+>;
+
+export const MessageStreamExperimentalApprovalsPartPayloadSchema = Schema.object({
+    type: Schema.value("ExperimentalApprovals"),
+    approvals: Schema.array(MessageExperimentalApprovalSchema).default(emptyArray),
+});
+
 export type MessageStreamPartPayload = SchemaType<typeof MessageStreamPartPayloadSchema>;
 
 export const MessageStreamPartPayloadSchema = Schema.union({
     Content: MessageStreamContentPartPayloadSchema,
     ToolCall: MessageStreamToolCallPartPayloadSchema,
     Reasoning: MessageStreamReasoningPartPayloadSchema,
+    ExperimentalApprovals: MessageStreamExperimentalApprovalsPartPayloadSchema,
 });
 
 export type MessageStream = SchemaType<typeof MessageStreamSchema>;

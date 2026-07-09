@@ -1,6 +1,8 @@
 import {BotsTable} from "~/server/bots/internal/bots_table.js";
 import {DynamoContext} from "~/server/dynamo/core/dynamo_context.js";
+import {DynamoCacheReadConsistency} from "~/server/dynamo/core/dynamo_read_consistency.js";
 import {createBotNotFoundError} from "~/shared/bots/bot_error_messages.js";
+import {emptyObject} from "~/shared/helpers/object/empty_object.js";
 import {BotId} from "~/shared/id/types/id_types.js";
 
 type BotWithoutAvatar = {
@@ -12,8 +14,12 @@ type BotWithoutAvatar = {
  * Get the information associated with a bot. Currently, basic information about a
  * bot is public globally (e.g. its name, presence of a webhook URL, and avatar)!
  */
-export async function getBot(context: DynamoContext, botId: BotId): Promise<BotWithoutAvatar> {
-    const bot = await getBotIfExists(context, botId);
+export async function getBot(
+    context: DynamoContext,
+    botId: BotId,
+    options: {consistency?: DynamoCacheReadConsistency} = emptyObject,
+): Promise<BotWithoutAvatar> {
+    const bot = await getBotIfExists(context, botId, options);
     if (!bot) throw createBotNotFoundError(botId);
     return bot;
 }
@@ -25,12 +31,17 @@ export async function getBot(context: DynamoContext, botId: BotId): Promise<BotW
 export async function getBotIfExists(
     context: DynamoContext,
     botId: BotId,
+    {consistency}: {consistency?: DynamoCacheReadConsistency} = emptyObject,
 ): Promise<BotWithoutAvatar | null> {
-    const botItem = await BotsTable.getItemIfExists(context, {
-        partitionType: "Bot",
-        sortRangeType: "Attributes",
-        botId,
-    });
+    const botItem = await BotsTable.getItemIfExists(
+        context,
+        {
+            partitionType: "Bot",
+            sortRangeType: "Attributes",
+            botId,
+        },
+        {consistency},
+    );
 
     if (!botItem) return null;
 
