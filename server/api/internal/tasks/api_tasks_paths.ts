@@ -1,4 +1,4 @@
-import {parseDate} from "@internationalized/date";
+import {parseDate, today} from "@internationalized/date";
 import {createAccessPolicyForContentCreatedByBot} from "~/server/access/create_access_policy_for_content_created_by_bot.js";
 import {ApiPaths} from "~/server/api/internal/shared/api_paths_type.js";
 import {fromApiMessageContentPayloadParent} from "~/server/api/internal/shared/from_api_message_content_payload_parent.js";
@@ -15,7 +15,7 @@ import {createTaskFromApi} from "~/server/api/internal/tasks/internal/create_tas
 import {fromApiTaskLayout} from "~/server/api/internal/tasks/internal/from_api_task_layout.js";
 import {getApiTaskNotes} from "~/server/api/internal/tasks/internal/get_api_task_notes.js";
 import {intoApiTaskCollection} from "~/server/api/internal/tasks/internal/into_api_task_collection.js";
-import {loadTaskCollectionTasksFromApi} from "~/server/api/internal/tasks/internal/load_task_collection_tasks_from_api.js";
+import {loadTasksFromApiQuery} from "~/server/api/internal/tasks/internal/load_tasks_from_api_query.js";
 import {updateTaskCollectionFromApi} from "~/server/api/internal/tasks/internal/update_task_collection_from_api.js";
 import {updateTaskNotesFromApi} from "~/server/api/internal/tasks/internal/update_task_notes_from_api.js";
 import {updateTaskWithoutNotesFromApi} from "~/server/api/internal/tasks/internal/update_task_without_notes_from_api.js";
@@ -46,10 +46,12 @@ import {
 import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
 import {HybridLogicalClock} from "~/shared/helpers/clock/hybrid_logical_clock.js";
 import {unsynchronizedSystemClock} from "~/shared/helpers/clock/unsynchronized_system_clock.js";
+import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 import {unwrapResult} from "~/shared/helpers/control/capture_result.js";
 import {captureResultPromise} from "~/shared/helpers/control/capture_result_promise.js";
 import {serializeDateString} from "~/shared/helpers/date/date_string.js";
 import {defaultTimeZone} from "~/shared/helpers/intl/time_zone.js";
+import {findMapIterable} from "~/shared/helpers/iterable/find_map_iterable.js";
 import {emptyMap} from "~/shared/helpers/map/empty_map.js";
 import {generateId} from "~/shared/id/id.js";
 import {TaskCollectionId, TaskId} from "~/shared/id/types/id_types.js";
@@ -234,6 +236,80 @@ export const apiTasksPaths: Pick<
                         ...new ApiTaskConverter(result.updateEvent).into(pathParameters.id),
                         notes,
                     },
+                },
+            };
+        },
+    },
+
+    "/tasks/{id}/subtasks": {
+        get: async (context, {pathParameters, queryParameters}) => {
+            const taskId = pathParameters.id;
+
+            const [{spaceId, updateEvent, nextCursor, tasks}, {notes}] = await runAllPromises([
+                loadTasksFromApiQuery(context, {
+                    query: {
+                        type: "Subtasks",
+                        taskId,
+                        limit: queryParameters.limit ?? 10,
+                        evaluationContext: {
+                            currentAccountId: null,
+                            currentDate: today(defaultTimeZone),
+                        },
+                        expensivelyAfterCursorForApi: queryParameters.cursor,
+                    },
+                    taskIds: [taskId],
+                    collectionIds: [],
+                }),
+                getApiTaskNotes(context, taskId, {consistency: "StrongWithinCache"}),
+            ]);
+
+            return {
+                content: {
+                    spaceId,
+                    task: {
+                        ...new ApiTaskConverter(updateEvent).into(taskId),
+                        notes,
+                    },
+                    nextCursor,
+                    tasks,
+                },
+            };
+        },
+    },
+
+    "/tasks/{id}/subtasks/query": {
+        post: async (context, {pathParameters, requestBody}) => {
+            const taskId = pathParameters.id;
+
+            const [{spaceId, updateEvent, nextCursor, tasks}, {notes}] = await runAllPromises([
+                loadTasksFromApiQuery(context, {
+                    query: {
+                        type: "Subtasks",
+                        taskId,
+                        limit: requestBody.limit ?? 10,
+                        filters: requestBody.filters?.map(fromApiTaskQueryFilter),
+                        sorts: requestBody.sorts?.map(fromApiTaskQuerySort),
+                        evaluationContext: {
+                            currentAccountId: null,
+                            currentDate: today(defaultTimeZone),
+                        },
+                        expensivelyAfterCursorForApi: requestBody.cursor,
+                    },
+                    taskIds: [taskId],
+                    collectionIds: [],
+                }),
+                getApiTaskNotes(context, taskId, {consistency: "StrongWithinCache"}),
+            ]);
+
+            return {
+                content: {
+                    spaceId,
+                    task: {
+                        ...new ApiTaskConverter(updateEvent).into(taskId),
+                        notes,
+                    },
+                    nextCursor,
+                    tasks,
                 },
             };
         },
@@ -688,23 +764,81 @@ export const apiTasksPaths: Pick<
 
     "/task-collections/{id}/tasks": {
         get: async (context, {pathParameters, queryParameters}) => {
-            return await loadTaskCollectionTasksFromApi(context, {
-                collectionId: pathParameters.id,
-                limit: queryParameters.limit ?? 10,
-                cursor: queryParameters.cursor,
+            const collectionId = pathParameters.id;
+
+            const {spaceId, updateEvent, nextCursor, tasks} = await loadTasksFromApiQuery(context, {
+                query: {
+                    type: "Collection",
+                    limit: queryParameters.limit ?? 10,
+                    collectionId,
+                    evaluationContext: {
+                        currentAccountId: null,
+                        currentDate: today(defaultTimeZone),
+                    },
+                    expensivelyAfterCursorForApi: queryParameters.cursor,
+                },
+                taskIds: [],
+                collectionIds: [collectionId],
             });
+
+            const collection = assertExists(
+                findMapIterable(updateEvent.backfillCollections, backfillCollection =>
+                    backfillCollection.type === "Authorized" &&
+                    backfillCollection.collection.id === collectionId
+                        ? backfillCollection.collection
+                        : undefined,
+                ),
+            );
+
+            return {
+                content: {
+                    spaceId,
+                    collection: intoApiTaskCollection(collection),
+                    nextCursor,
+                    tasks,
+                },
+            };
         },
     },
 
     "/task-collections/{id}/tasks/query": {
         post: async (context, {pathParameters, requestBody}) => {
-            return await loadTaskCollectionTasksFromApi(context, {
-                collectionId: pathParameters.id,
-                limit: requestBody.limit ?? 10,
-                cursor: requestBody.cursor,
-                filters: requestBody.filters?.map(fromApiTaskQueryFilter),
-                sorts: requestBody.sorts?.map(fromApiTaskQuerySort),
+            const collectionId = pathParameters.id;
+
+            const {spaceId, updateEvent, nextCursor, tasks} = await loadTasksFromApiQuery(context, {
+                query: {
+                    type: "Collection",
+                    limit: requestBody.limit ?? 10,
+                    collectionId,
+                    evaluationContext: {
+                        currentAccountId: null,
+                        currentDate: today(defaultTimeZone),
+                    },
+                    filters: requestBody.filters?.map(fromApiTaskQueryFilter),
+                    sorts: requestBody.sorts?.map(fromApiTaskQuerySort),
+                    expensivelyAfterCursorForApi: requestBody.cursor,
+                },
+                taskIds: [],
+                collectionIds: [collectionId],
             });
+
+            const collection = assertExists(
+                findMapIterable(updateEvent.backfillCollections, backfillCollection =>
+                    backfillCollection.type === "Authorized" &&
+                    backfillCollection.collection.id === collectionId
+                        ? backfillCollection.collection
+                        : undefined,
+                ),
+            );
+
+            return {
+                content: {
+                    spaceId,
+                    collection: intoApiTaskCollection(collection),
+                    nextCursor,
+                    tasks,
+                },
+            };
         },
     },
 };

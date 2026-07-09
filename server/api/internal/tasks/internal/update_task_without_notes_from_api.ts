@@ -1,11 +1,11 @@
 import {parseDate} from "@internationalized/date";
 import {findSpans} from "unicode-default-word-boundary";
 import {ApiServiceBotActionContext} from "~/server/api/internal/shared/api_service_context.js";
+import {createApiTaskMovePositionUpdates} from "~/server/api/internal/tasks/internal/create_api_task_move_position_updates.js";
 import {fromApiTaskLayout} from "~/server/api/internal/tasks/internal/from_api_task_layout.js";
-import {
-    ApiTaskMoveInCollectionPreparedPosition,
-    prepareApiTaskMoveInCollectionPatch,
-} from "~/server/api/internal/tasks/internal/prepare_api_task_move_in_collection_patch.js";
+import {prepareApiTaskMoveInCollectionPatch} from "~/server/api/internal/tasks/internal/prepare_api_task_move_in_collection_patch.js";
+import {prepareApiTaskMoveInParentPatch} from "~/server/api/internal/tasks/internal/prepare_api_task_move_in_parent_patch.js";
+import {ApiTaskMovePreparedPosition} from "~/server/api/internal/tasks/internal/prepare_api_task_move_patch.js";
 import {getAccount} from "~/server/spaces/get_account.js";
 import {commitTaskActionTransaction} from "~/server/tasks/data/commit_task_action_transaction.js";
 import {ApiTaskPatch} from "~/shared/api/specification/types/api_specification_convenience_types.js";
@@ -20,12 +20,7 @@ import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
 import {diff} from "~/shared/helpers/diff/diff.js";
 import {TimeZone, defaultTimeZone} from "~/shared/helpers/intl/time_zone.js";
 import {findMapIterable} from "~/shared/helpers/iterable/find_map_iterable.js";
-import {
-    OrderKey,
-    generateOrderKeyBetween,
-    generateOrderKeysBetween,
-    initialOrderKey,
-} from "~/shared/helpers/sort/order_key.js";
+import {OrderKey, generateOrderKeyBetween} from "~/shared/helpers/sort/order_key.js";
 import {MaybeReadonlyArray} from "~/shared/helpers/types/maybe_array.js";
 import {AccountId, SpaceId, TaskCollectionId, TaskId} from "~/shared/id/types/id_types.js";
 import {collectReferencedIdsFromTaskAction} from "~/shared/tasks/actions/collect_referenced_ids_from_task_action.js";
@@ -49,6 +44,7 @@ import {
 type TaskPatchState = {
     title: TaskTitleModel;
     assigneeId: AccountId | null;
+    parentTaskId: TaskId | null;
     collectionIds: Set<TaskCollectionId>;
     lastCollectionOrderKey: OrderKey | null;
 };
@@ -93,31 +89,17 @@ export async function updateTaskWithoutNotesFromApi(
     // `TaskRealtimeService`. If we pushed task notes loading into
     // `TaskRealtimeService` then we could leverage `ContextCache` to only load the bot
     // authorization data once.
-    //
-    // Load the task we're patching and prepare any `MoveInCollection` patches at the
-    // same time. Moves may need query data (like the first task in a collection) that
-    // doesn't depend on the task we're patching, so all of this loading can happen in
-    // parallel.
-    const [result, preparedMovePositions] = await runAllPromises([
-        context.tasks.loadQueries(
-            // NOCOMMIT: What happens if task exists but in a different space? We should throw
-            // some kind of error.
-            spaceId,
-            {
-                queries: [],
-                taskIds: [taskId],
-                collectionIds: [],
-            },
-            {consistency: "StrongWithinCache"},
-        ),
-        runAllPromises(
-            patches.map(patch =>
-                patch.type === "MoveInCollection"
-                    ? prepareApiTaskMoveInCollectionPatch(context, spaceId, patch)
-                    : null,
-            ),
-        ),
-    ]);
+    const result = await context.tasks.loadQueries(
+        // NOCOMMIT: What happens if task exists but in a different space? We should throw
+        // some kind of error.
+        spaceId,
+        {
+            queries: [],
+            taskIds: [taskId],
+            collectionIds: [],
+        },
+        {consistency: "StrongWithinCache"},
+    );
 
     // If the task is not found or you don't have permission to access the task then
     // `loadQueries()` will throw an error.
@@ -130,6 +112,37 @@ export async function updateTaskWithoutNotesFromApi(
                 ? backfillTask.task
                 : undefined,
         ),
+    );
+
+    // `MoveInParent` uses the parent established by all preceding patches. Resolve
+    // those parent IDs synchronously, then prepare every move's query data in
+    // parallel.
+    let parentTaskId = initialTask.getParent()?.taskId ?? null;
+    const parentTaskIdsByPatch = patches.map(patch => {
+        if (patch.type === "SetParent") {
+            parentTaskId = patch.parent?.task.id ?? null;
+            return null;
+        }
+
+        return patch.type === "MoveInParent" ? parentTaskId : null;
+    });
+
+    const preparedMovePositions = await runAllPromises(
+        patches.map((patch, patchIndex) => {
+            if (patch.type === "MoveInCollection") {
+                return prepareApiTaskMoveInCollectionPatch(context, spaceId, patch);
+            }
+
+            if (patch.type === "MoveInParent") {
+                const moveParentTaskId = parentTaskIdsByPatch[patchIndex]!;
+
+                return moveParentTaskId === null
+                    ? null
+                    : prepareApiTaskMoveInParentPatch(context, spaceId, moveParentTaskId, patch);
+            }
+
+            return null;
+        }),
     );
 
     // Make sure all times we generate are higher than the times in the tasks we're
@@ -264,7 +277,7 @@ function createTaskActionsFromApiTaskPatches({
 }: {
     initialTask: TaskModel;
     patches: ReadonlyArray<ApiTaskPatch>;
-    preparedMovePositions: ReadonlyArray<ApiTaskMoveInCollectionPreparedPosition | null>;
+    preparedMovePositions: ReadonlyArray<ApiTaskMovePreparedPosition | null>;
     clock: HybridLogicalClock;
     botAccountId: AccountId;
     actor: TaskActor;
@@ -276,6 +289,7 @@ function createTaskActionsFromApiTaskPatches({
     const state: TaskPatchState = {
         title: initialTask.getTitle(),
         assigneeId: initialTask.getAssignee()?.assignee.accountId ?? null,
+        parentTaskId: initialTask.getParent()?.taskId ?? null,
         collectionIds: new Set(
             initialTask
                 .getCollections()
@@ -545,6 +559,8 @@ function createTaskActionsFromApiTaskPatches({
                     taskId,
                     taskAction: {type: "UpdateParentTaskId", parentTaskId},
                 });
+
+                state.parentTaskId = parentTaskId;
                 break;
             }
             case "AddCollection": {
@@ -591,120 +607,49 @@ function createTaskActionsFromApiTaskPatches({
 
                 const preparedMovePosition = assertExists(preparedMovePositions[patchIndex]);
 
-                switch (preparedMovePosition.type) {
-                    case "End": {
-                        const time = clock.now();
+                for (const update of createApiTaskMovePositionUpdates(
+                    taskId,
+                    preparedMovePosition,
+                    clock,
+                )) {
+                    actions.push({
+                        type: "UpdateTask",
+                        time: update.time,
+                        actor,
+                        taskId: update.taskId,
+                        taskAction: {
+                            type: "UpdateCollectionPosition",
+                            collectionId,
+                            position: update.position,
+                        },
+                    });
+                }
+                break;
+            }
+            case "MoveInParent": {
+                if (state.parentTaskId === null) {
+                    throw new InvalidArgumentError("Trying to move a task without a parent", {
+                        displayMessage: errorDisplayMessage`The task doesn\u2019t have a parent to move within. Try again after setting the task\u2019s parent with a \`SetParent\` patch.`,
+                    });
+                }
 
-                        actions.push({
-                            type: "UpdateTask",
-                            time,
-                            actor,
-                            taskId,
-                            taskAction: {
-                                type: "UpdateCollectionPosition",
-                                collectionId,
-                                position: {orderTime: time, orderKey: initialOrderKey},
-                            },
-                        });
-                        break;
-                    }
-                    case "Start": {
-                        const time = clock.now();
-                        const {firstTaskPosition} = preparedMovePosition;
+                const preparedMovePosition = assertExists(preparedMovePositions[patchIndex]);
 
-                        actions.push({
-                            type: "UpdateTask",
-                            time,
-                            actor,
-                            taskId,
-                            taskAction: {
-                                type: "UpdateCollectionPosition",
-                                collectionId,
-                                position:
-                                    firstTaskPosition === null
-                                        ? // The collection is empty so the start is also the end.
-                                          {orderTime: time, orderKey: initialOrderKey}
-                                        : {
-                                              orderTime: firstTaskPosition.orderTime,
-                                              orderKey: generateOrderKeyBetween(
-                                                  null,
-                                                  firstTaskPosition.orderKey,
-                                              ),
-                                          },
-                            },
-                        });
-                        break;
-                    }
-                    case "Between": {
-                        const {afterPosition, beforeOrderKey} = preparedMovePosition;
-
-                        actions.push({
-                            type: "UpdateTask",
-                            time: clock.now(),
-                            actor,
-                            taskId,
-                            taskAction: {
-                                type: "UpdateCollectionPosition",
-                                collectionId,
-                                position: {
-                                    orderTime: afterPosition.orderTime,
-                                    orderKey: generateOrderKeyBetween(
-                                        afterPosition.orderKey,
-                                        beforeOrderKey,
-                                    ),
-                                },
-                            },
-                        });
-                        break;
-                    }
-                    case "BetweenTied": {
-                        // The two cursor tasks share the exact same position so there's no space between
-                        // them. Give the moved task the first new order key and re-key the tasks sharing
-                        // the position so their order is preserved after the moved task.
-                        const {tiedPosition, tiedTasksToUpdate, upperOrderKey} =
-                            preparedMovePosition;
-
-                        const orderKeys = generateOrderKeysBetween(
-                            tiedPosition.orderKey,
-                            upperOrderKey,
-                            tiedTasksToUpdate.length + 1,
-                        );
-
-                        actions.push({
-                            type: "UpdateTask",
-                            time: clock.now(),
-                            actor,
-                            taskId,
-                            taskAction: {
-                                type: "UpdateCollectionPosition",
-                                collectionId,
-                                position: {
-                                    orderTime: tiedPosition.orderTime,
-                                    orderKey: assertExists(orderKeys[0]),
-                                },
-                            },
-                        });
-
-                        for (let tiedIndex = 0; tiedIndex < tiedTasksToUpdate.length; tiedIndex++) {
-                            actions.push({
-                                type: "UpdateTask",
-                                time: clock.now(),
-                                actor,
-                                taskId: tiedTasksToUpdate[tiedIndex]!.id,
-                                taskAction: {
-                                    type: "UpdateCollectionPosition",
-                                    collectionId,
-                                    position: {
-                                        orderTime: tiedPosition.orderTime,
-                                        orderKey: assertExists(orderKeys[tiedIndex + 1]),
-                                    },
-                                },
-                            });
-                        }
-                        break;
-                    }
-                    default:
-                        throw exhaustive(preparedMovePosition);
+                for (const update of createApiTaskMovePositionUpdates(
+                    taskId,
+                    preparedMovePosition,
+                    clock,
+                )) {
+                    actions.push({
+                        type: "UpdateTask",
+                        time: update.time,
+                        actor,
+                        taskId: update.taskId,
+                        taskAction: {
+                            type: "UpdateParentPosition",
+                            parentPosition: update.position,
+                        },
+                    });
                 }
                 break;
             }

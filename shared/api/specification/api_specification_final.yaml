@@ -1332,6 +1332,112 @@ paths:
                     $ref: "#/components/responses/GetTask"
                 default:
                     $ref: "#/components/responses/Error"
+    /tasks/{id}/subtasks:
+        parameters:
+            - name: id
+              in: path
+              required: true
+              schema:
+                  $ref: "#/components/schemas/TaskId"
+        get:
+            parameters:
+                - name: limit
+                  in: query
+                  schema:
+                      type: integer
+                      minimum: 1
+                      maximum: 100
+                      default: 10
+                - name: cursor
+                  in: query
+                  schema:
+                      $ref: "#/components/schemas/TaskQueryCursor"
+            responses:
+                "200":
+                    content:
+                        application/json:
+                            schema:
+                                type: object
+                                required:
+                                    - spaceId
+                                    - task
+                                    - nextCursor
+                                    - tasks
+                                additionalProperties: false
+                                properties:
+                                    spaceId:
+                                        $ref: "#/components/schemas/SpaceId"
+                                    task:
+                                        $ref: "#/components/schemas/Task_Response"
+                                    nextCursor:
+                                        oneOf:
+                                            - $ref: "#/components/schemas/TaskQueryCursor"
+                                            - type: "null"
+                                    tasks:
+                                        type: array
+                                        items:
+                                            $ref: "#/components/schemas/TaskQueryItem_Response"
+                default:
+                    $ref: "#/components/responses/Error"
+    /tasks/{id}/subtasks/query:
+        parameters:
+            - name: id
+              in: path
+              required: true
+              schema:
+                  $ref: "#/components/schemas/TaskId"
+        post:
+            requestBody:
+                required: true
+                content:
+                    application/json:
+                        schema:
+                            type: object
+                            required: []
+                            additionalProperties: false
+                            properties:
+                                limit:
+                                    type: integer
+                                    minimum: 1
+                                    maximum: 100
+                                    default: 10
+                                cursor:
+                                    $ref: "#/components/schemas/TaskQueryCursor"
+                                filters:
+                                    type: array
+                                    items:
+                                        $ref: "#/components/schemas/TaskQueryFilter"
+                                sorts:
+                                    type: array
+                                    items:
+                                        $ref: "#/components/schemas/TaskQuerySort"
+            responses:
+                "200":
+                    content:
+                        application/json:
+                            schema:
+                                type: object
+                                required:
+                                    - spaceId
+                                    - task
+                                    - nextCursor
+                                    - tasks
+                                additionalProperties: false
+                                properties:
+                                    spaceId:
+                                        $ref: "#/components/schemas/SpaceId"
+                                    task:
+                                        $ref: "#/components/schemas/Task_Response"
+                                    nextCursor:
+                                        oneOf:
+                                            - $ref: "#/components/schemas/TaskQueryCursor"
+                                            - type: "null"
+                                    tasks:
+                                        type: array
+                                        items:
+                                            $ref: "#/components/schemas/TaskQueryItem_Response"
+                default:
+                    $ref: "#/components/responses/Error"
     /tasks/{id}/notes:
         parameters:
             - name: id
@@ -4572,6 +4678,7 @@ components:
                 - $ref: "#/components/schemas/TaskSetPriorityPatch"
                 - $ref: "#/components/schemas/TaskSetLayoutPatch"
                 - $ref: "#/components/schemas/TaskSetParentPatch"
+                - $ref: "#/components/schemas/TaskMoveInParentPatch"
                 - $ref: "#/components/schemas/TaskAddCollectionPatch"
                 - $ref: "#/components/schemas/TaskRemoveCollectionPatch"
                 - $ref: "#/components/schemas/TaskMoveInCollectionPatch"
@@ -4585,6 +4692,7 @@ components:
                     SetPriority: "#/components/schemas/TaskSetPriorityPatch"
                     SetLayout: "#/components/schemas/TaskSetLayoutPatch"
                     SetParent: "#/components/schemas/TaskSetParentPatch"
+                    MoveInParent: "#/components/schemas/TaskMoveInParentPatch"
                     AddCollection: "#/components/schemas/TaskAddCollectionPatch"
                     RemoveCollection: "#/components/schemas/TaskRemoveCollectionPatch"
                     MoveInCollection: "#/components/schemas/TaskMoveInCollectionPatch"
@@ -4675,6 +4783,17 @@ components:
                     oneOf:
                         - $ref: "#/components/schemas/TaskParent"
                         - type: "null"
+        TaskMoveInParentPatch:
+            type: object
+            required:
+                - type
+                - position
+            additionalProperties: false
+            properties:
+                type:
+                    const: MoveInParent
+                position:
+                    $ref: "#/components/schemas/TaskMoveInQueryPatchPosition"
         TaskAddCollectionPatch:
             type: object
             required:
@@ -4710,19 +4829,19 @@ components:
                 collectionId:
                     $ref: "#/components/schemas/TaskCollectionId"
                 position:
-                    $ref: "#/components/schemas/TaskMoveInCollectionPatchPosition"
-        TaskMoveInCollectionPatchPosition:
+                    $ref: "#/components/schemas/TaskMoveInQueryPatchPosition"
+        TaskMoveInQueryPatchPosition:
             oneOf:
-                - $ref: "#/components/schemas/TaskMoveInCollectionPatchStartPosition"
-                - $ref: "#/components/schemas/TaskMoveInCollectionPatchEndPosition"
-                - $ref: "#/components/schemas/TaskMoveInCollectionPatchBetweenPosition"
+                - $ref: "#/components/schemas/TaskMoveInQueryPatchStartPosition"
+                - $ref: "#/components/schemas/TaskMoveInQueryPatchEndPosition"
+                - $ref: "#/components/schemas/TaskMoveInQueryPatchBetweenPosition"
             discriminator:
                 propertyName: type
                 mapping:
-                    Start: "#/components/schemas/TaskMoveInCollectionPatchStartPosition"
-                    End: "#/components/schemas/TaskMoveInCollectionPatchEndPosition"
-                    Between: "#/components/schemas/TaskMoveInCollectionPatchBetweenPosition"
-        TaskMoveInCollectionPatchStartPosition:
+                    Start: "#/components/schemas/TaskMoveInQueryPatchStartPosition"
+                    End: "#/components/schemas/TaskMoveInQueryPatchEndPosition"
+                    Between: "#/components/schemas/TaskMoveInQueryPatchBetweenPosition"
+        TaskMoveInQueryPatchStartPosition:
             type: object
             required:
                 - type
@@ -4730,7 +4849,7 @@ components:
             properties:
                 type:
                     const: Start
-        TaskMoveInCollectionPatchEndPosition:
+        TaskMoveInQueryPatchEndPosition:
             type: object
             required:
                 - type
@@ -4738,7 +4857,7 @@ components:
             properties:
                 type:
                     const: End
-        TaskMoveInCollectionPatchBetweenPosition:
+        TaskMoveInQueryPatchBetweenPosition:
             type: object
             required:
                 - type
@@ -6759,15 +6878,6 @@ components:
             properties:
                 collection:
                     $ref: "#/components/schemas/TaskCollectionPreview_Response"
-        MessageContentPayloadParent_Response:
-            oneOf:
-                - $ref: "#/components/schemas/MessageContentPayloadMessageParent_Response"
-                - $ref: "#/components/schemas/MessageContentPayloadPostParent_Response"
-            discriminator:
-                propertyName: type
-                mapping:
-                    Message: "#/components/schemas/MessageContentPayloadMessageParent_Response"
-                    Post: "#/components/schemas/MessageContentPayloadPostParent_Response"
         Task_Response:
             type: object
             required:
@@ -6811,6 +6921,15 @@ components:
                     $ref: "#/components/schemas/TaskSubtasks"
                 notes:
                     $ref: "#/components/schemas/TaskNotes_Response"
+        MessageContentPayloadParent_Response:
+            oneOf:
+                - $ref: "#/components/schemas/MessageContentPayloadMessageParent_Response"
+                - $ref: "#/components/schemas/MessageContentPayloadPostParent_Response"
+            discriminator:
+                propertyName: type
+                mapping:
+                    Message: "#/components/schemas/MessageContentPayloadMessageParent_Response"
+                    Post: "#/components/schemas/MessageContentPayloadPostParent_Response"
         Message_Response:
             type: object
             required:
@@ -8097,6 +8216,7 @@ components:
                 - $ref: "#/components/schemas/TaskSetPriorityPatch"
                 - $ref: "#/components/schemas/TaskSetLayoutPatch"
                 - $ref: "#/components/schemas/TaskSetParentPatch_Response"
+                - $ref: "#/components/schemas/TaskMoveInParentPatch"
                 - $ref: "#/components/schemas/TaskAddCollectionPatch_Response"
                 - $ref: "#/components/schemas/TaskRemoveCollectionPatch"
                 - $ref: "#/components/schemas/TaskMoveInCollectionPatch"
@@ -8110,6 +8230,7 @@ components:
                     SetPriority: "#/components/schemas/TaskSetPriorityPatch"
                     SetLayout: "#/components/schemas/TaskSetLayoutPatch"
                     SetParent: "#/components/schemas/TaskSetParentPatch_Response"
+                    MoveInParent: "#/components/schemas/TaskMoveInParentPatch"
                     AddCollection: "#/components/schemas/TaskAddCollectionPatch_Response"
                     RemoveCollection: "#/components/schemas/TaskRemoveCollectionPatch"
                     MoveInCollection: "#/components/schemas/TaskMoveInCollectionPatch"

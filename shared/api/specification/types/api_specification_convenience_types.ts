@@ -343,6 +343,9 @@ export type ApiTaskSetLayoutPatch = ApiSpecification.components["schemas"]["Task
 
 export type ApiTaskSetParentPatch = ApiSpecification.components["schemas"]["TaskSetParentPatch"];
 
+export type ApiTaskMoveInParentPatch =
+    ApiSpecification.components["schemas"]["TaskMoveInParentPatch"];
+
 export type ApiTaskAddCollectionPatch =
     ApiSpecification.components["schemas"]["TaskAddCollectionPatch"];
 
@@ -352,17 +355,17 @@ export type ApiTaskRemoveCollectionPatch =
 export type ApiTaskMoveInCollectionPatch =
     ApiSpecification.components["schemas"]["TaskMoveInCollectionPatch"];
 
-export type ApiTaskMoveInCollectionPatchPosition =
-    ApiSpecification.components["schemas"]["TaskMoveInCollectionPatchPosition"];
+export type ApiTaskMoveInQueryPatchPosition =
+    ApiSpecification.components["schemas"]["TaskMoveInQueryPatchPosition"];
 
-export type ApiTaskMoveInCollectionPatchStartPosition =
-    ApiSpecification.components["schemas"]["TaskMoveInCollectionPatchStartPosition"];
+export type ApiTaskMoveInQueryPatchStartPosition =
+    ApiSpecification.components["schemas"]["TaskMoveInQueryPatchStartPosition"];
 
-export type ApiTaskMoveInCollectionPatchEndPosition =
-    ApiSpecification.components["schemas"]["TaskMoveInCollectionPatchEndPosition"];
+export type ApiTaskMoveInQueryPatchEndPosition =
+    ApiSpecification.components["schemas"]["TaskMoveInQueryPatchEndPosition"];
 
-export type ApiTaskMoveInCollectionPatchBetweenPosition =
-    ApiSpecification.components["schemas"]["TaskMoveInCollectionPatchBetweenPosition"];
+export type ApiTaskMoveInQueryPatchBetweenPosition =
+    ApiSpecification.components["schemas"]["TaskMoveInQueryPatchBetweenPosition"];
 
 export type ApiTaskCollectionPatch = ApiSpecification.components["schemas"]["TaskCollectionPatch"];
 
@@ -763,10 +766,10 @@ export type ApiPostPreviewResponse = ApiSpecification.components["schemas"]["Pos
 export type ApiTaskCollectionItemResponse =
     ApiSpecification.components["schemas"]["TaskCollectionItem_Response"];
 
+export type ApiTaskResponse = ApiSpecification.components["schemas"]["Task_Response"];
+
 export type ApiMessageContentPayloadParentResponse =
     ApiSpecification.components["schemas"]["MessageContentPayloadParent_Response"];
-
-export type ApiTaskResponse = ApiSpecification.components["schemas"]["Task_Response"];
 
 export type ApiMessageResponse = ApiSpecification.components["schemas"]["Message_Response"];
 

@@ -9,6 +9,7 @@ import {TestSpaceSession} from "~/server/spaces/test_helpers/test_space_session.
 import {backfillTaskActionTransactionHistory} from "~/server/tasks/data/backfill_task_action_transaction_history.js";
 import {getTaskNotesContentSteps} from "~/server/tasks/data/get_task_notes_content_steps.js";
 import {getTaskNotesContentWithoutReferences} from "~/server/tasks/data/get_task_notes_content_without_references.js";
+import {getTaskQueryNormalizedSortCursorForIndexDoc} from "~/server/tasks/data/get_task_query_normalized_sort_cursor_for_index_doc.js";
 import {tasksInjection} from "~/server/tasks/data/tasks_injection.js";
 import {getTaskItemForTest} from "~/server/tasks/data/test_helpers/get_task_item_for_test.js";
 import {TestTask} from "~/server/tasks/data/test_helpers/test_task.js";
@@ -25,6 +26,7 @@ import {assertId, generateId} from "~/shared/id/id.js";
 import {TaskCollectionId, TaskId} from "~/shared/id/types/id_types.js";
 import {diffProsemirrorNodes} from "~/shared/prosemirror/diff_prosemirror_nodes.js";
 import {TaskUpdateTaskAction} from "~/shared/tasks/actions/task_action.js";
+import {encodeApiTaskQueryCursor} from "~/shared/tasks/model/api_task_query_cursor_encoder.js";
 import {
     TaskNotesCollaborationUpdateContentWithDiffRequestBodySchema,
     TaskNotesCollaborationUpdateContentWithDiffResponseBodySchema,
@@ -34,6 +36,7 @@ import {
     assertTaskNotesContent,
 } from "~/shared/tasks/task_notes_content_schema.js";
 import {TaskPosition} from "~/shared/tasks/task_position.js";
+import {TaskQueryNormalizedSort} from "~/shared/tasks/task_query_normalized_sort.js";
 
 const baseContext = createTestContext({
     shouldStartOpensearch: true,
@@ -2746,6 +2749,228 @@ describe("MoveInCollection patch", () => {
     });
 });
 
+describe("MoveInParent patch", () => {
+    const parentPositionSorts = [
+        {type: "ParentPosition", direction: "Ascending", missing: "Last"},
+        {type: "CreatedTime", direction: "Ascending", missing: "Last"},
+    ] as const satisfies ReadonlyArray<TaskQueryNormalizedSort>;
+
+    async function createMoveParentFixture() {
+        const space = await TestSpace.create(context);
+        const session = await space.createSession({name: "Alice Smith", role: "Admin"});
+
+        const bot = await TestBot.createAndInstantiate(session);
+        const apiKey = await bot.createApiKey(session);
+
+        const parentTask = await TestTask.create(session, {title: "Parent Task"});
+        const task1 = await TestTask.create(session, {title: "Task 1", parent: parentTask});
+        const task2 = await TestTask.create(session, {title: "Task 2", parent: parentTask});
+        const task3 = await TestTask.create(session, {title: "Task 3", parent: parentTask});
+
+        await ProcessContextModule.waitForTestTasks();
+
+        return {space, session, apiKey, parentTask, task1, task2, task3};
+    }
+
+    async function getParentTaskListing(session: TestSpaceSession, parentTaskId: TaskId) {
+        const {tasks} = await context.getTaskRealtimeServer().loadQuery(session, {
+            filters: {
+                displayStatusFilter: {
+                    ifOpenActive: true,
+                    ifOpenInactive: true,
+                    ifClosed: true,
+                },
+                parentFilter: {parentTaskId},
+            },
+            sorts: parentPositionSorts,
+        });
+
+        return {
+            taskIds: tasks.map(task => task.id),
+            cursors: tasks.map(task =>
+                encodeApiTaskQueryCursor(
+                    parentPositionSorts,
+                    getTaskQueryNormalizedSortCursorForIndexDoc(parentPositionSorts, task),
+                ),
+            ),
+        };
+    }
+
+    test("can move a task to the start of its parent\u2019s subtasks", async () => {
+        const {session, apiKey, parentTask, task1, task2, task3} = await createMoveParentFixture();
+
+        await server.PATCH(`/tasks/${task3.id}`, {
+            headers: {authorization: `bearer ${apiKey}`},
+            body: {
+                patches: [{type: "MoveInParent", position: {type: "Start"}}],
+            },
+        });
+        await ProcessContextModule.waitForTestTasks();
+
+        expect(await getParentTaskListing(session, parentTask.id)).toMatchObject({
+            taskIds: [task3.id, task1.id, task2.id],
+        });
+    });
+
+    test("can set a parent and move within it in the same patch list", async () => {
+        const {session, apiKey, parentTask, task1, task2, task3} = await createMoveParentFixture();
+        const movedTask = await TestTask.create(session, {title: "Moved Task"});
+        await ProcessContextModule.waitForTestTasks();
+
+        await server.PATCH(`/tasks/${movedTask.id}`, {
+            headers: {authorization: `bearer ${apiKey}`},
+            body: {
+                patches: [
+                    {type: "SetParent", parent: {task: {id: parentTask.id}}},
+                    {type: "MoveInParent", position: {type: "Start"}},
+                ],
+            },
+        });
+        await ProcessContextModule.waitForTestTasks();
+
+        expect(await getParentTaskListing(session, parentTask.id)).toMatchObject({
+            taskIds: [movedTask.id, task1.id, task2.id, task3.id],
+        });
+    });
+
+    test("can move a task to the end of its parent\u2019s subtasks", async () => {
+        const {session, apiKey, parentTask, task1, task2, task3} = await createMoveParentFixture();
+
+        await server.PATCH(`/tasks/${task1.id}`, {
+            headers: {authorization: `bearer ${apiKey}`},
+            body: {
+                patches: [{type: "MoveInParent", position: {type: "End"}}],
+            },
+        });
+        await ProcessContextModule.waitForTestTasks();
+
+        expect(await getParentTaskListing(session, parentTask.id)).toMatchObject({
+            taskIds: [task2.id, task3.id, task1.id],
+        });
+    });
+
+    test("can move a task between two of its parent\u2019s subtasks", async () => {
+        const {session, apiKey, parentTask, task1, task2, task3} = await createMoveParentFixture();
+        const {cursors} = await getParentTaskListing(session, parentTask.id);
+
+        await server.PATCH(`/tasks/${task3.id}`, {
+            headers: {authorization: `bearer ${apiKey}`},
+            body: {
+                patches: [
+                    {
+                        type: "MoveInParent",
+                        position: {
+                            type: "Between",
+                            afterCursor: cursors[0],
+                            beforeCursor: cursors[1],
+                        },
+                    },
+                ],
+            },
+        });
+        await ProcessContextModule.waitForTestTasks();
+
+        expect(await getParentTaskListing(session, parentTask.id)).toMatchObject({
+            taskIds: [task1.id, task3.id, task2.id],
+        });
+    });
+
+    test("can move a task between subtasks with tied parent positions", async () => {
+        const {space, session, apiKey, parentTask, task1, task2, task3} =
+            await createMoveParentFixture();
+        const movedTask = await TestTask.create(session, {
+            title: "Moved Task",
+            parent: parentTask,
+        });
+
+        const tiedTime = testTaskClock.now();
+        await runAllPromises(
+            [task1, task2, task3].map(task =>
+                task.updateParentTask(session, parentTask, {time: tiedTime}),
+            ),
+        );
+        await movedTask.updateParentTask(session, parentTask);
+        await ProcessContextModule.waitForTestTasks();
+
+        const {cursors} = await getParentTaskListing(session, parentTask.id);
+        const startTime = new Date();
+
+        await server.PATCH(`/tasks/${movedTask.id}`, {
+            headers: {authorization: `bearer ${apiKey}`},
+            body: {
+                patches: [
+                    {
+                        type: "MoveInParent",
+                        position: {
+                            type: "Between",
+                            afterCursor: cursors[0],
+                            beforeCursor: cursors[1],
+                        },
+                    },
+                ],
+            },
+        });
+        await ProcessContextModule.waitForTestTasks();
+
+        const [listing, history] = await runAllPromises([
+            getParentTaskListing(session, parentTask.id),
+            backfillTaskActionTransactionHistory(space.systemAction(), space.id, startTime),
+        ]);
+
+        expect({listing, history}).toEqual({
+            listing: expect.objectContaining({
+                taskIds: [task1.id, movedTask.id, task2.id, task3.id],
+            }),
+            history: [
+                expect.objectContaining({
+                    actions: [
+                        expect.objectContaining({
+                            taskId: movedTask.id,
+                            taskAction: expect.objectContaining({type: "UpdateParentPosition"}),
+                        }),
+                        expect.objectContaining({
+                            taskId: task2.id,
+                            taskAction: expect.objectContaining({type: "UpdateParentPosition"}),
+                        }),
+                        expect.objectContaining({
+                            taskId: task3.id,
+                            taskAction: expect.objectContaining({type: "UpdateParentPosition"}),
+                        }),
+                    ],
+                }),
+            ],
+        });
+    });
+
+    test("can\u2019t move a task that doesn\u2019t have a parent", async () => {
+        const space = await TestSpace.create(context);
+        const session = await space.createSession({name: "Alice Smith", role: "Admin"});
+        const bot = await TestBot.createAndInstantiate(session);
+        const apiKey = await bot.createApiKey(session);
+        const task = await TestTask.create(session, {title: "Task without parent"});
+
+        await ProcessContextModule.waitForTestTasks();
+
+        expect(
+            await server.PATCH(`/tasks/${task.id}`, {
+                headers: {authorization: `bearer ${apiKey}`},
+                body: {
+                    patches: [{type: "MoveInParent", position: {type: "End"}}],
+                },
+            }),
+        ).toEqual({
+            status: 400,
+            headers: expect.objectContaining({"content-type": "application/json"}),
+            body: {
+                error: expect.objectContaining({
+                    message:
+                        "The task doesn\u2019t have a parent to move within. Try again after setting the task\u2019s parent with a `SetParent` patch.",
+                }),
+            },
+        });
+    });
+});
+
 describe("/tasks/{id}/reference", () => {
     test("can read task mention with open status", async () => {
         const space = await TestSpace.create(context);
@@ -5154,6 +5379,210 @@ describe("POST /task-collections/{id}/tasks/query", () => {
                 400,
                 "Invalid task query cursor for this collection",
             ),
+        });
+    });
+});
+
+describe("/tasks/{id}/subtasks", () => {
+    test("GET and POST require access to the parent task", async () => {
+        const space = await TestSpace.create(context);
+        const session1 = await space.createSession({role: "Admin"});
+        const session2 = await space.createSession();
+
+        const bot = await TestBot.createAndInstantiate(session1);
+        const apiKey = await bot.createApiKey(session1);
+        const parentTask = await TestTask.create(session2);
+        await TestTask.create(session2, {parent: parentTask});
+        await ProcessContextModule.waitForTestTasks();
+
+        const [getResponse, postResponse] = await runAllPromises([
+            server.GET(`/tasks/${parentTask.id}/subtasks`, {
+                headers: {authorization: `bearer ${apiKey}`},
+            }),
+            server.POST(`/tasks/${parentTask.id}/subtasks/query`, {
+                headers: {authorization: `bearer ${apiKey}`},
+                body: {},
+            }),
+        ]);
+
+        expect({getResponse, postResponse}).toEqual({
+            getResponse: expectedApiErrorResponse(
+                403,
+                "You aren\u2019t allowed to access this task",
+            ),
+            postResponse: expectedApiErrorResponse(
+                403,
+                "You aren\u2019t allowed to access this task",
+            ),
+        });
+    });
+
+    test("GET returns the full task and all of its direct subtasks", async () => {
+        const space = await TestSpace.create(context);
+        const session = await space.createSession({name: "Alice Smith", role: "Admin"});
+
+        const bot = await TestBot.createAndInstantiate(session);
+        const apiKey = await bot.createApiKey(session);
+        const parentTask = await TestTask.create(session, {title: "Parent Task"});
+        const openSubtask = await TestTask.create(session, {
+            title: "Open Subtask",
+            parent: parentTask,
+        });
+        const closedSubtask = await TestTask.create(session, {
+            title: "Closed Subtask",
+            status: "Closed",
+            parent: parentTask,
+        });
+        await TestTask.create(session, {title: "Grandchild", parent: openSubtask});
+        await TestTask.create(session, {title: "Unrelated Task"});
+        await ProcessContextModule.waitForTestTasks();
+
+        const response = await server.GET(`/tasks/${parentTask.id}/subtasks`, {
+            headers: {authorization: `bearer ${apiKey}`},
+        });
+
+        expect({
+            status: response.status,
+            spaceId: response.body.spaceId,
+            task: response.body.task,
+            nextCursor: response.body.nextCursor,
+            taskIds: response.body.tasks.map(({task}: {task: {id: TaskId}}) => task.id),
+        }).toEqual({
+            status: 200,
+            spaceId: space.id,
+            task: expect.objectContaining({
+                id: parentTask.id,
+                title: "Parent Task",
+                subtasks: {openTaskCount: 1, closedTaskCount: 1},
+                notes: expect.objectContaining({version: 0}),
+            }),
+            nextCursor: null,
+            taskIds: [openSubtask.id, closedSubtask.id],
+        });
+    });
+
+    test("GET paginates 12 subtasks five at a time", async () => {
+        const space = await TestSpace.create(context);
+        const session = await space.createSession({name: "Alice Smith", role: "Admin"});
+
+        const bot = await TestBot.createAndInstantiate(session);
+        const apiKey = await bot.createApiKey(session);
+        const parentTask = await TestTask.create(session, {title: "Parent Task"});
+        const subtasks: Array<TestTask> = [];
+
+        for (let index = 0; index < 12; index++) {
+            subtasks.push(
+                await TestTask.create(session, {
+                    title: `Subtask ${index + 1}`,
+                    parent: parentTask,
+                }),
+            );
+        }
+        await ProcessContextModule.waitForTestTasks();
+
+        const firstPageResponse = await server.GET(`/tasks/${parentTask.id}/subtasks?limit=5`, {
+            headers: {authorization: `bearer ${apiKey}`},
+        });
+        const secondPageResponse = await server.GET(
+            `/tasks/${parentTask.id}/subtasks?limit=5&cursor=${firstPageResponse.body.nextCursor}`,
+            {headers: {authorization: `bearer ${apiKey}`}},
+        );
+        const thirdPageResponse = await server.GET(
+            `/tasks/${parentTask.id}/subtasks?limit=5&cursor=${secondPageResponse.body.nextCursor}`,
+            {headers: {authorization: `bearer ${apiKey}`}},
+        );
+        const expectedTaskIds = subtasks.map(task => task.id);
+
+        expect({
+            statuses: [
+                firstPageResponse.status,
+                secondPageResponse.status,
+                thirdPageResponse.status,
+            ],
+            taskIdsByPage: [firstPageResponse, secondPageResponse, thirdPageResponse].map(
+                response => response.body.tasks.map(({task}: {task: {id: TaskId}}) => task.id),
+            ),
+            nextCursors: [
+                firstPageResponse.body.nextCursor,
+                secondPageResponse.body.nextCursor,
+                thirdPageResponse.body.nextCursor,
+            ],
+        }).toEqual({
+            statuses: [200, 200, 200],
+            taskIdsByPage: [
+                expectedTaskIds.slice(0, 5),
+                expectedTaskIds.slice(5, 10),
+                expectedTaskIds.slice(10, 12),
+            ],
+            nextCursors: [expect.any(String), expect.any(String), null],
+        });
+    });
+
+    test("POST applies custom filters and sorts to direct subtasks", async () => {
+        const space = await TestSpace.create(context);
+        const session = await space.createSession({name: "Alice Smith", role: "Admin"});
+
+        const bot = await TestBot.createAndInstantiate(session);
+        const apiKey = await bot.createApiKey(session);
+        const parentTask = await TestTask.create(session, {title: "Parent Task"});
+        const otherParentTask = await TestTask.create(session, {title: "Other Parent Task"});
+        await TestTask.create(session, {
+            title: "Low Subtask",
+            priority: "Low",
+            parent: parentTask,
+        });
+        const highSubtask = await TestTask.create(session, {
+            title: "High Subtask",
+            priority: "High",
+            parent: parentTask,
+        });
+        const closedUrgentSubtask = await TestTask.create(session, {
+            title: "Closed Urgent Subtask",
+            status: "Closed",
+            priority: "Urgent",
+            parent: parentTask,
+        });
+        await TestTask.create(session, {
+            title: "Other Urgent Subtask",
+            priority: "Urgent",
+            parent: otherParentTask,
+        });
+        await ProcessContextModule.waitForTestTasks();
+
+        const body = {
+            limit: 1,
+            filters: [
+                {
+                    type: "Priority",
+                    operation: {
+                        type: "OneOf",
+                        priorities: [{type: "High"}, {type: "Urgent"}],
+                    },
+                },
+            ],
+            sorts: [{type: "Priority", direction: "Descending"}],
+        };
+        const firstPageResponse = await server.POST(`/tasks/${parentTask.id}/subtasks/query`, {
+            headers: {authorization: `bearer ${apiKey}`},
+            body,
+        });
+        const secondPageResponse = await server.POST(`/tasks/${parentTask.id}/subtasks/query`, {
+            headers: {authorization: `bearer ${apiKey}`},
+            body: {...body, cursor: firstPageResponse.body.nextCursor},
+        });
+
+        expect({
+            statuses: [firstPageResponse.status, secondPageResponse.status],
+            parentTaskIds: [firstPageResponse.body.task.id, secondPageResponse.body.task.id],
+            taskIdsByPage: [firstPageResponse, secondPageResponse].map(response =>
+                response.body.tasks.map(({task}: {task: {id: TaskId}}) => task.id),
+            ),
+            nextCursors: [firstPageResponse.body.nextCursor, secondPageResponse.body.nextCursor],
+        }).toEqual({
+            statuses: [200, 200],
+            parentTaskIds: [parentTask.id, parentTask.id],
+            taskIdsByPage: [[closedUrgentSubtask.id], [highSubtask.id]],
+            nextCursors: [expect.any(String), null],
         });
     });
 });
