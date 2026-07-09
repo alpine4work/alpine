@@ -1,9 +1,11 @@
 import {Link, ListItem, Paragraph, PhrasingContent, RootContent} from "mdast";
 import {AgentWebContext} from "~/server/agents/web/agent_web_context.js";
-import {printAgentWebPageStoredLinkLabel} from "~/server/agents/web/agent_web_page_stored_link.js";
+import {
+    AgentWebPageStoredLink,
+    printAgentWebPageStoredLinkLabel,
+} from "~/server/agents/web/agent_web_page_stored_link.js";
 import {AgentWebSessionStorage} from "~/server/agents/web/agent_web_session_storage.js";
 import {createAgentWebPageStoredLinkPathname} from "~/server/agents/web/create_agent_web_page_stored_link_pathname.js";
-import {createApiReferenceAgentWebPageStoredLink} from "~/server/agents/web/create_api_reference_agent_web_page_stored_link.js";
 import {
     ApiSearchMessageResultResponse,
     splitApiSearchMessageResultBodyMatch,
@@ -160,10 +162,7 @@ async function createAgentWebSearchEntityResultListItem(
     storage: AgentWebSessionStorage,
     result: Exclude<ApiSearchResultResponse, ApiSearchMessageResultResponse>,
 ): Promise<ListItem> {
-    const resultLinkPathname = await createAgentWebPageStoredLinkPathname(
-        storage,
-        createApiReferenceAgentWebPageStoredLink(result),
-    );
+    const resultLinkPathname = await createAgentWebPageStoredLinkPathname(storage, result);
 
     const resultLink: Link = {
         type: "link",
@@ -191,24 +190,73 @@ async function createAgentWebSearchMessageResultListItem(
 ): Promise<ListItem> {
     const {preview, newBodyMatch} = splitApiSearchMessageResultBodyMatch(result);
 
-    const resultLinkPathname = await createAgentWebPageStoredLinkPathname(
-        storage,
-        createApiReferenceAgentWebPageStoredLink(result),
-    );
+    let resultLink: AgentWebPageStoredLink;
 
-    const resultLink: Link = {
-        type: "link",
-        url: resultLinkPathname,
-        // Preserve bold marks in the link label for the match.
-        children: intoPhrasingContent(preview),
-    };
+    switch (result.type) {
+        case "ChatMessage": {
+            resultLink = {
+                type: "ChatMessage",
+                id: result.id,
+                index: result.index,
+                authorShortName: result.author.shortName,
+                preview: flatBodyMatch(preview),
+            };
+            break;
+        }
+        case "DocumentMessage": {
+            resultLink = {
+                type: "DocumentMessage",
+                id: result.id,
+                threadId: result.threadId,
+                index: result.index,
+                authorShortName: result.author.shortName,
+                preview: flatBodyMatch(preview),
+            };
+            break;
+        }
+        case "PostMessage": {
+            resultLink = {
+                type: "PostMessage",
+                id: result.id,
+                index: result.index,
+                authorShortName: result.author.shortName,
+                preview: flatBodyMatch(preview),
+            };
+            break;
+        }
+        case "TaskMessage": {
+            resultLink = {
+                type: "TaskMessage",
+                id: result.id,
+                index: result.index,
+                authorShortName: result.author.shortName,
+                preview: flatBodyMatch(preview),
+            };
+            break;
+        }
+        default:
+            throw exhaustive(result);
+    }
+
+    const resultLinkPathname = await createAgentWebPageStoredLinkPathname(storage, resultLink);
 
     return {
         type: "listItem",
         children: [
             {
                 type: "paragraph",
-                children: [resultLink, ...intoPhrasingContent(newBodyMatch)],
+                children: [
+                    {
+                        type: "link",
+                        url: resultLinkPathname,
+                        // Preserve bold marks in the link label for the match.
+                        children: [
+                            {type: "text", value: `${result.author.shortName}: `},
+                            ...intoPhrasingContent(preview),
+                        ],
+                    },
+                    ...intoPhrasingContent(newBodyMatch),
+                ],
             },
         ],
     };
@@ -222,4 +270,10 @@ function intoPhrasingContent(bodyMatch: ApiSearchResultBodyMatch | null): Array<
         if (!isMatch) return textContent;
         return {type: "strong", children: [textContent]};
     });
+}
+
+function flatBodyMatch(bodyMatch: ReadonlyArray<{text: string}>): string {
+    let bodySnippet = "";
+    for (const {text} of bodyMatch) bodySnippet += text;
+    return bodySnippet;
 }

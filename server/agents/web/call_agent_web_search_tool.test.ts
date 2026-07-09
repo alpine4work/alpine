@@ -63,7 +63,7 @@ function mockSearch(query: string, results: Array<ApiSearchResultResponse>): voi
 test("returns no results found for an empty search response", async () => {
     mockSearch("nothing", []);
 
-    expect(await callAgentWebSearchTool(context, {query: "nothing"})).toBe("No results found");
+    expect(await callAgentWebSearchTool(context, {query: "nothing"})).toBe("No results found.\n");
 });
 
 test("prints entity results as links", async () => {
@@ -316,13 +316,13 @@ test("prints the missing entity title for message results without a body match",
     ]);
 
     expect(await callAgentWebSearchTool(context, {query: "test"})).toEqual(`\
-1. [John: Unknown chat message](/chat-message/john-unknown)
+1. [John: Unknown chat message](/chat-message/john-unknown-chat-message)
 
-2. [Jane: Unknown document comment](/document-comment/jane-unknown)
+2. [Jane: Unknown document comment](/document-comment/jane-unknown-document-comment)
 
-3. [Alice: Unknown post comment](/post-comment/alice-unknown)
+3. [Alice: Unknown post comment](/post-comment/alice-unknown-post-comment)
 
-4. [Bob: Unknown task comment](/task-comment/bob-unknown)
+4. [Bob: Unknown task comment](/task-comment/bob-unknown-task-comment)
 `);
 });
 
@@ -364,7 +364,7 @@ test("truncates long message previews and prints the rest of the match after the
 `);
 });
 
-test("groups results that matched a parsed filter", async () => {
+test("groups results under the parsed filter summary", async () => {
     mockSearch("test", [
         {
             type: "Document",
@@ -397,9 +397,7 @@ test("groups results that matched a parsed filter", async () => {
     ]);
 
     expect(await callAgentWebSearchTool(context, {query: "test"})).toEqual(`\
-# Filtered results
-
-The following results are all documents created yesterday.
+## Documents created yesterday
 
 1. [Matching Document 1](/document/matching-document-1)
 
@@ -407,9 +405,9 @@ The following results are all documents created yesterday.
 
 2. [Matching Document 2](/document/matching-document-2)
 
-# Other results
+## Other
 
-The following results don\u2019t match any filter but Alpine thought they might be relevant anyway. Use your best judgement when determining if they\u2019re actually useful for responding to the user\u2019s request.
+The following results don\u2019t match any natural language filter but Alpine thought they might be relevant anyway. Use your best judgement when determining if they\u2019re actually useful for responding to the user\u2019s request.
 
 1. [Non-matching Post](/post/non-matching-post)
 
@@ -419,7 +417,7 @@ The following results don\u2019t match any filter but Alpine thought they might 
 `);
 });
 
-test("numbers Filtered results sections for multiple parsed filters", async () => {
+test("prints a section for every parsed filter summary", async () => {
     mockSearch("test", [
         {
             type: "Document",
@@ -453,33 +451,27 @@ test("numbers Filtered results sections for multiple parsed filters", async () =
     ]);
 
     expect(await callAgentWebSearchTool(context, {query: "test"})).toEqual(`\
-# Filtered results 1
-
-The following results are all documents created yesterday.
+## Documents created yesterday
 
 1. [Matching Document](/document/matching-document)
 
-# Filtered results 2
-
-The following results are all posts created yesterday.
+## Posts created yesterday
 
 1. [Matching Post](/post/matching-post)
 
-# Filtered results 3
-
-The following results are all tasks assigned to Jane.
+## Tasks assigned to Jane
 
 1. [Matching Task (Open)](/task/matching-task)
 
-# Other results
+## Other
 
-The following results are *not* documents created yesterday, posts created yesterday, or tasks assigned to Jane but Alpine thought they might be relevant anyway. Use your best judgement when determining if they\u2019re actually useful for responding to the user\u2019s request.
+The following results don\u2019t match any natural language filter but Alpine thought they might be relevant anyway. Use your best judgement when determining if they\u2019re actually useful for responding to the user\u2019s request.
 
 1. [Non-matching Chat](/chat/non-matching-chat)
 `);
 });
 
-test("prints only Filtered results sections when every result matched a filter", async () => {
+test("does not print an Other section when every result matched a filter", async () => {
     mockSearch("test", [
         {
             type: "Document",
@@ -491,9 +483,7 @@ test("prints only Filtered results sections when every result matched a filter",
     ]);
 
     expect(await callAgentWebSearchTool(context, {query: "test"})).toEqual(`\
-# Filtered results
-
-The following results are all documents created yesterday.
+## Documents created yesterday
 
 1. [Matching Document](/document/matching-document)
 `);
