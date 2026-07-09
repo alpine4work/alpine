@@ -12,8 +12,9 @@ export async function putMockAgentRecording(
     recording: MockAgentRecording,
 ) {
     const botItem = await botAccount.bot.getItem();
+    const webhook = assertExists(botItem.webhook);
 
-    const url = new URL(`/mock/${bot}/recording`, assertExists(botItem.webhookUrl));
+    const url = new URL(`/mock/${bot}/recording`, webhook.url);
 
     url.searchParams.set("accountId", botAccount.id);
     url.searchParams.set("roomPath", roomPath);

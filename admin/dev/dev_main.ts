@@ -87,6 +87,10 @@ const logoDevSecretKey = env.LOGO_DEV_SECRET_KEY;
 const loopsApiKey = env.LOOPS_API_KEY;
 const logoDevPublishableKey = env.LOGO_DEV_PUBLISHABLE_KEY;
 const cursorAgentSmeeWebhookUrl = env.CURSOR_AGENT_SMEE_WEBHOOK_URL;
+const chatGptWebhookSecret = env.CHAT_GPT_WEBHOOK_SECRET;
+const cursorWebhookSecret = env.CURSOR_WEBHOOK_SECRET;
+const mockChatGptWebhookSecret = env.MOCK_CHAT_GPT_WEBHOOK_SECRET;
+const mockCursorWebhookSecret = env.MOCK_CURSOR_WEBHOOK_SECRET;
 
 const appDevPort = parsePort(env.APP_DEV_PORT);
 const appDevInspectorPort = parsePort(env.APP_DEV_INSPECTOR_PORT);
@@ -417,6 +421,11 @@ async function createArtifacts() {
                 `--chatGptLocalScopedApiKey=${chatGptScopedApiKeyPath}`,
                 `--cursorLocalUnscopedApiKey=${cursorUnscopedApiKeyPath}`,
                 `--mockChatGptLocalUnscopedApiKey=${mockChatGptUnscopedApiKeyPath}`,
+                ...(chatGptWebhookSecret ? [`--chatGptWebhookSecret=${chatGptWebhookSecret}`] : []),
+                ...(cursorWebhookSecret ? [`--cursorWebhookSecret=${cursorWebhookSecret}`] : []),
+                ...(mockChatGptWebhookSecret
+                    ? [`--mockChatGptWebhookSecret=${mockChatGptWebhookSecret}`]
+                    : []),
                 `--cookieNameSuffix=${devEnvPathsNameSuffix}`,
                 `--kinesisTracerStreamName=${kinesisTracerStreamName}`,
                 ...(logoDevSecretKey ? [`--logoDevSecretKey=${logoDevSecretKey}`] : []),
@@ -686,6 +695,14 @@ async function createArtifacts() {
                 `--mockCursorApiServiceKey=${mockCursorUnscopedApiKeyPath}`,
                 `--openAiDevApiKey=${openAiDevApiKey}`,
                 `--inspectorPort=${agentsDevInspectorPort}`,
+                ...(chatGptWebhookSecret ? [`--chatGptWebhookSecret=${chatGptWebhookSecret}`] : []),
+                ...(cursorWebhookSecret ? [`--cursorWebhookSecret=${cursorWebhookSecret}`] : []),
+                ...(mockChatGptWebhookSecret
+                    ? [`--mockChatGptWebhookSecret=${mockChatGptWebhookSecret}`]
+                    : []),
+                ...(mockCursorWebhookSecret
+                    ? [`--mockCursorWebhookSecret=${mockCursorWebhookSecret}`]
+                    : []),
                 ...(honeycombApiKey ? [`--honeycombApiKey=${honeycombApiKey}`] : []),
                 ...(cursorAgentSmeeWebhookUrl
                     ? [`--cursorAgentSmeeWebhookUrl=${cursorAgentSmeeWebhookUrl}`]

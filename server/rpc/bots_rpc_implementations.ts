@@ -23,7 +23,7 @@ export default implementRpcs(definitions, {
         execute: async (context, input) => {
             return await createBot(context, {
                 name: input.name,
-                webhookUrl: input.webhookUrl,
+                webhook: input.webhook,
             });
         },
     },

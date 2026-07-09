@@ -3,6 +3,17 @@ import {BotId, SpaceId} from "~/shared/id/types/id_types.js";
 import {LabelStringSchema} from "~/shared/schema/helpers/label_string_schema.js";
 import {Schema, SchemaType} from "~/shared/schema/schema.js";
 
+export const BotWebhookSchema = Schema.object({
+    url: Schema.string,
+    secret: Schema.string.nullable(),
+});
+export type BotWebhook = SchemaType<typeof BotWebhookSchema>;
+
+export const BotWebhookForAdminSchema = Schema.object({
+    url: Schema.string.nullable(),
+    hasSecret: Schema.boolean,
+});
+
 export const BotSchema = Schema.object({
     id: Schema.id<BotId>(),
     createdTime: Schema.date,
@@ -14,7 +25,7 @@ export type Bot = SchemaType<typeof BotSchema>;
 
 export const BotForAdminSchema = BotSchema.merge(
     Schema.object({
-        webhookUrl: Schema.string.nullable(),
+        webhook: BotWebhookForAdminSchema,
         apiKeys: Schema.array(
             Schema.object({
                 apiKey: Schema.string,

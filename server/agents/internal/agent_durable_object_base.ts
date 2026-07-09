@@ -18,6 +18,10 @@ import {createServerTracer} from "~/server/tracer/server_tracer.js";
 import {traceServerResponse} from "~/server/tracer/trace_server_response.js";
 import {parseApiBotWebhookEventIntoMessageRoom} from "~/shared/api/specification/parse_api_path.js";
 import {
+    botWebhookSignatureHeader,
+    verifyBotWebhookRequestSignature,
+} from "~/shared/api/specification/sign_bot_webhook_request.js";
+import {
     ApiBotWebhookEvent,
     ApiBotWebhookRequestBody,
     ApiMessageRoomTarget,
@@ -158,6 +162,10 @@ export abstract class AgentDurableObjectBase<
 
     protected abstract _getApiKey(): string;
 
+    protected _getWebhookSecret(): string | null {
+        return null;
+    }
+
     /**
      * Parse the route from a URL. We include the route in the tracer span for this
      * request which helps since we can search our logs for all requests to a certain
@@ -233,7 +241,18 @@ export abstract class AgentDurableObjectBase<
             });
         }
 
-        const requestBody: ApiBotWebhookRequestBody = await request.json();
+        const requestBodyString = await request.text();
+
+        const webhookSecret = this._getWebhookSecret();
+        if (webhookSecret !== null) {
+            await verifyBotWebhookRequestSignature({
+                requestBodyString,
+                signature: request.headers.get(botWebhookSignatureHeader),
+                secret: webhookSecret,
+            });
+        }
+
+        const requestBody: ApiBotWebhookRequestBody = JSON.parse(requestBodyString);
 
         // TODO(ifitzsimmons): If this works, we'll probably want to execute the following
         // logic before scheduling the event:

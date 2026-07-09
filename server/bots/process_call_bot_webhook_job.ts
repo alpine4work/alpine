@@ -10,7 +10,12 @@ import {ServerSystemActionContextModules} from "~/server/context/server_action_c
 import {CallBotWebhookJobDescription} from "~/server/jobs/core/job_description.js";
 import {BotTokenPayloadScope} from "~/server/tokens/token_payload.js";
 import {parseApiBotWebhookEventIntoMessageRoom} from "~/shared/api/specification/parse_api_path.js";
+import {
+    botWebhookSignatureHeader,
+    signBotWebhookRequest,
+} from "~/shared/api/specification/sign_bot_webhook_request.js";
 import {ApiBotWebhookRequestBody} from "~/shared/api/specification/types/api_specification_convenience_types.js";
+import {BotWebhook} from "~/shared/bots/bot_schema.js";
 import {Context} from "~/shared/context/context.js";
 import {DeadlineExceededError, UnknownError} from "~/shared/error/error.js";
 import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
@@ -69,14 +74,14 @@ export async function processCallBotWebhookJob(
     // We always create an event item if one doesn't already exist.
     assert(eventItem);
 
-    if (!botItem.webhookUrl) {
-        // If the bot has no webhook URL then we shouldn't proceed with webhook event
+    if (!botItem.webhook) {
+        // If the bot has no webhook then we shouldn't proceed with webhook event
         // processing.
         return;
     }
 
     if (hasLease) {
-        await actuallyCallBotWebhook(context, botItem.webhookUrl, eventItem, job);
+        await actuallyCallBotWebhook(context, botItem.webhook, eventItem, job);
         return;
     }
 
@@ -196,12 +201,12 @@ function leaseBotWebhookEventItem(
  */
 async function actuallyCallBotWebhook(
     context: Context<ServerSystemActionContextModules & {botWebhook: BotWebhookContextModule}>,
-    webhookUrl: string,
+    webhook: BotWebhook,
     eventItem: BotWebhookEventItem,
     job: CallBotWebhookJobDescription,
 ) {
     const attemptNumber = eventItem.attempt.number;
-    const botWebhookUrl = new URL(webhookUrl);
+    const botWebhookUrl = new URL(webhook.url);
 
     const room = parseApiBotWebhookEventIntoMessageRoom(job.event);
 
@@ -245,6 +250,21 @@ async function actuallyCallBotWebhook(
         eventId: job.eventId,
         event: job.event,
     };
+    const requestBodyString = JSON.stringify(requestBody);
+
+    const requestHeaders: Record<string, string> = {
+        // 1.0.0 is the same version number that's in `api_specification.yaml`. If we
+        // change the API version we should consider changing the user agent here too.
+        "user-agent": "Alpine-API/1.0.0",
+        "content-type": "application/json",
+    };
+
+    if (webhook.secret !== null) {
+        requestHeaders[botWebhookSignatureHeader] = await signBotWebhookRequest({
+            requestBodyString,
+            secret: webhook.secret,
+        });
+    }
 
     const abortController = new AbortController();
 
@@ -276,13 +296,8 @@ async function actuallyCallBotWebhook(
                 route: botWebhookUrl.pathname,
                 signal: abortController.signal,
                 method: "POST",
-                headers: {
-                    // 1.0.0 is the same version number that's in `api_specification.yaml`. If we
-                    // change the API version we should consider changing the user agent here too.
-                    "user-agent": "Alpine-API/1.0.0",
-                    "content-type": "application/json",
-                },
-                body: JSON.stringify(requestBody),
+                headers: requestHeaders,
+                body: requestBodyString,
             },
             async response => {
                 // We don't use the response body. Cancel the stream so if the server returns a big

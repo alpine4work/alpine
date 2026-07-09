@@ -146,6 +146,10 @@ export class ChatGptAgentDurableObject extends AgentDurableObjectBase<
         );
     }
 
+    protected override _getWebhookSecret() {
+        return this._env.CHAT_GPT_WEBHOOK_SECRET ?? null;
+    }
+
     protected override _parseRoute(url: URL): [string, ChatGptAgentRoute] {
         if (url.pathname === "/conversation-state") {
             return ["/conversation-state", "FetchConversationState"];

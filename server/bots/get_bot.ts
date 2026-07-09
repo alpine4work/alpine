@@ -47,6 +47,6 @@ export async function getBotIfExists(
 
     return {
         name: botItem.name,
-        hasWebhookUrl: !!botItem.webhookUrl,
+        hasWebhookUrl: !!botItem.webhook?.url,
     };
 }

@@ -156,6 +156,10 @@ export class CursorAgentDurableObject extends AgentDurableObjectBase<CursorAgent
         );
     }
 
+    protected override _getWebhookSecret() {
+        return this._env.CURSOR_WEBHOOK_SECRET ?? null;
+    }
+
     protected override _parseRoute(url: URL): [string, CursorAgentRoute] {
         if (url.pathname.startsWith("/cloud-agents-webhook/")) {
             const pathnameParts = url.pathname.slice("/cloud-agents-webhook/".length).split("/");

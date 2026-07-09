@@ -179,6 +179,10 @@ export class MockChatGptAgentDurableObject extends MockAgentDurableObjectBase {
             "Missing `MOCK_CHAT_GPT_API_SERVICE_KEY` environment variable",
         );
     }
+
+    protected override _getWebhookSecret() {
+        return this._env.MOCK_CHAT_GPT_WEBHOOK_SECRET ?? null;
+    }
 }
 
 export class MockCursorAgentDurableObject extends MockAgentDurableObjectBase {
@@ -187,5 +191,9 @@ export class MockCursorAgentDurableObject extends MockAgentDurableObjectBase {
             this._env.MOCK_CURSOR_API_SERVICE_KEY,
             "Missing `MOCK_CURSOR_API_SERVICE_KEY` environment variable",
         );
+    }
+
+    protected override _getWebhookSecret() {
+        return this._env.MOCK_CURSOR_WEBHOOK_SECRET ?? null;
     }
 }

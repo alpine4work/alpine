@@ -269,8 +269,11 @@ async function createAppService({
                       agentServiceLocalPort,
                       chatGptLocalUnscopedApiKey: chatGptLocalUnscopedApiKey.trim(),
                       chatGptLocalScopedApiKey: chatGptLocalScopedApiKey.trim(),
+                      chatGptWebhookSecret: options.chatGptWebhookSecret,
                       cursorLocalUnscopedApiKey: cursorLocalUnscopedApiKey.trim(),
+                      cursorWebhookSecret: options.cursorWebhookSecret,
                       mockChatGptLocalUnscopedApiKey: mockChatGptLocalUnscopedApiKey.trim(),
+                      mockChatGptWebhookSecret: options.mockChatGptWebhookSecret,
                   };
               })()
             : null,

@@ -152,6 +152,7 @@ function CreateBotForm({onCreated}: {onCreated: () => void}) {
     const [name, setName] = useState("");
     const [keyName, setKeyName] = useState("");
     const [webhookUrl, setWebhookUrl] = useState("");
+    const [webhookSecret, setWebhookSecret] = useState("");
     const [scopeState, setScopeState] = useState<ScopeState>({type: "Unscoped"});
 
     return (
@@ -161,10 +162,16 @@ function CreateBotForm({onCreated}: {onCreated: () => void}) {
             </Box>
             <TextInput label="Name" value={name} onChange={setName} placeholder="My Bot" />
             <TextInput
-                label="Webhook URL (optional)"
+                label="Webhook URL"
                 value={webhookUrl}
                 onChange={setWebhookUrl}
                 placeholder="https://..."
+            />
+            <TextInput
+                label="Webhook Secret (optional)"
+                value={webhookSecret}
+                onChange={setWebhookSecret}
+                placeholder="Shared webhook signing secret"
             />
             <TextInput
                 label="Key Name (optional)"
@@ -176,12 +183,15 @@ function CreateBotForm({onCreated}: {onCreated: () => void}) {
             <Box>
                 <Button
                     variant="accent"
-                    isDisabled={name.trim().length === 0}
+                    isDisabled={name.trim().length === 0 || webhookUrl.trim().length === 0}
                     pressErrorTitle="Couldn&#x2019;t create bot"
                     onPress={async () => {
                         const {botId} = await createBot(context, {
                             name,
-                            webhookUrl: webhookUrl.trim() || null,
+                            webhook: {
+                                url: webhookUrl.trim(),
+                                secret: webhookSecret.trim() || null,
+                            },
                         });
 
                         switch (scopeState.type) {
@@ -463,13 +473,13 @@ function BotRow({
                         <Box flexGrow="1" position="relative">
                             <TextInput
                                 label="Webhook URL"
-                                value={bot.webhookUrl ?? ""}
+                                value={bot.webhook.url ?? ""}
                                 fontSize="75"
                                 onChange={() => {}}
                                 isReadOnly={true}
                                 placeholder="No webhook URL configured"
                             />
-                            {bot.webhookUrl && (
+                            {bot.webhook.url && (
                                 <Box
                                     position="absolute"
                                     display="flex"
@@ -482,7 +492,9 @@ function BotRow({
                                         type="button"
                                         height="8"
                                         paddingX="3"
-                                        onPress={() => writeTextToClipboard(bot.webhookUrl!)}
+                                        onPress={() =>
+                                            writeTextToClipboard(assertExists(bot.webhook.url))
+                                        }
                                         pressErrorTitle="Couldn&#x2019;t copy webhook URL"
                                     >
                                         <Copy color={iconColor} />

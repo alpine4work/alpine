@@ -72,15 +72,19 @@ export async function expensivelyGetAllBotsForAdminSettingsPage(
     return Array.from(botIdsToBotData.values()).map(botData => {
         assert(botData.item, "Bot item was not found");
 
+        const {webhook} = botData.item;
         return {
             ...createBotFromItem({
                 id: botData.item.botId,
                 createdTime: botData.item.createdTime,
                 name: botData.item.name,
-                hasWebhookUrl: !!botData.item.webhookUrl,
+                hasWebhookUrl: !!webhook?.url,
                 avatar: botData.avatar ?? null,
             }),
-            webhookUrl: botData.item.webhookUrl ?? null,
+            webhook: {
+                url: webhook?.url ?? null,
+                hasSecret: (webhook?.secret ?? null) !== null,
+            },
             apiKeys: botData.apiKeys ?? [],
         };
     });

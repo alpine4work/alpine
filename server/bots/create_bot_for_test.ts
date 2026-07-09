@@ -1,5 +1,6 @@
 import {BotsTable} from "~/server/bots/internal/bots_table.js";
 import {DynamoContext} from "~/server/dynamo/core/dynamo_context.js";
+import {BotWebhook} from "~/shared/bots/bot_schema.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {isTestNodeEnvOrAdminScenariosScript} from "~/shared/helpers/test/is_test_node_env_or_admin_scenarios_script.js";
 import {generateId} from "~/shared/id/id.js";
@@ -7,7 +8,7 @@ import {BotId} from "~/shared/id/types/id_types.js";
 
 export async function createBotForTest(
     context: DynamoContext,
-    {name, webhookUrl}: {name: string; webhookUrl: string},
+    {name, webhook}: {name: string; webhook: BotWebhook | null},
 ) {
     assert(isTestNodeEnvOrAdminScenariosScript);
 
@@ -19,7 +20,7 @@ export async function createBotForTest(
         botId,
         createdTime: new Date(),
         name,
-        webhookUrl,
+        webhook,
     });
 
     return {id: botId};

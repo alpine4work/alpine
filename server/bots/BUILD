@@ -27,6 +27,7 @@ ts_project(
         "//shared/error",
         "//shared/helpers",
         "//shared/id",
+        "//shared/messaging",
         "//shared/schema",
         "//shared/spaces",
         "//shared/tracer",
