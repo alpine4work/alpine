@@ -1,5 +1,5 @@
-import {intoApiTaskQuerySort} from "~/server/api/internal/tasks/internal/into_api_task_query_sort.js";
 import {intoApiTaskQueryFilter} from "~/shared/api/content/closed_source/into_api_task_query_filter.js";
+import {intoApiTaskQuerySort} from "~/shared/api/content/closed_source/into_api_task_query_sort.js";
 import {intoApiThemeColor} from "~/shared/api/content/closed_source/into_api_theme_color.js";
 import {
     ApiTaskCollectionResponse,

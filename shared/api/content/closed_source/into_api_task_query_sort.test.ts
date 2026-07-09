@@ -1,7 +1,7 @@
 import {
     fromApiTaskQuerySort,
     intoApiTaskQuerySort,
-} from "~/server/api/internal/tasks/internal/into_api_task_query_sort.js";
+} from "~/shared/api/content/closed_source/into_api_task_query_sort.js";
 import {ApiTaskQuerySort} from "~/shared/api/specification/types/api_specification_convenience_types.js";
 import {cast} from "~/shared/helpers/control/cast.js";
 import {TaskQuerySort} from "~/shared/tasks/task_query_sort.js";
