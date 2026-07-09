@@ -630,9 +630,12 @@ export async function updateAgentWebTaskCollectionPage(
     // tasks (according to metadata). However, for a page that's not at the end of
     // tasks you can't add the end of tasks marker!
     if (!oldPageMetadata.isEndOfTasks && newPage.isEndOfTasks) {
-        throw new InvalidArgumentError("Can\u2019t change whether this page is the end of tasks", {
-            displayMessage: errorDisplayMessage`Can\u2019t add the \u201CEnd of tasks\u201D marker in an update. Only a \`read\` tool call can tell you whether you\u2019ve seen all of a task collection\u2019s tasks. Try again without adding the \u201CEnd of tasks\u201D marker.`,
-        });
+        throw new InvalidArgumentError(
+            "Can\u2019t change whether this page is the end of tasks or not",
+            {
+                displayMessage: errorDisplayMessage`Can\u2019t add the \u201CEnd of tasks\u201D marker in an update. Only a \`read\` tool call can tell you whether you\u2019re at the end of a task list or not. Try again without adding the \u201CEnd of tasks\u201D marker.`,
+            },
+        );
     }
 
     if (!isDeepEqual(oldPage.tasks, newPage.tasks)) {

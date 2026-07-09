@@ -565,10 +565,16 @@ Tasks in Roadmap. [Next page »](/task-collection/roadmap?after=a1b2c3)
                     collectionPageTask(shipLaunchTaskReference),
                 ],
             },
+            createParseError:
+                "Task collection markdown must start with a name (e.g. `# My Collection`) " +
+                "when creating a collection. Try again with a name.",
         },
         {
             name: "task collection tail page at the end of tasks",
             pageLink: collectionId,
+            createParseError:
+                "Task collection markdown must start with a name (e.g. `# My Collection`) " +
+                "when creating a collection. Try again with a name.",
             markdown: `\
 Tasks in Roadmap.
 
@@ -588,6 +594,9 @@ End of tasks.
         {
             name: "task collection tail page without tasks",
             pageLink: collectionId,
+            createParseError:
+                "Task collection markdown must start with a name (e.g. `# My Collection`) " +
+                "when creating a collection. Try again with a name.",
             markdown: `\
 Tasks in Roadmap.
 
@@ -631,6 +640,9 @@ End of tasks.
             parseError:
                 "Nothing may appear after \u201CEnd of tasks\u201D in task collection markdown. Try " +
                 "again after removing the extra content after \u201CEnd of tasks\u201D on line 5.",
+            createParseError:
+                "Task collection markdown must start with a name (e.g. `# My Collection`) " +
+                "when creating a collection. Try again with a name.",
         },
         {
             name: "unexpected color field in a tail page",
@@ -642,7 +654,11 @@ Color: Red
 `,
             parseError:
                 "Unexpected markdown on line 3. Try again with only a task list (an unordered " +
-                "list where every item is a task link) after the task collection preamble.",
+                "list where every item is a task link) after the line 1 of the task collection " +
+                "markdown.",
+            createParseError:
+                "Task collection markdown must start with a name (e.g. `# My Collection`) " +
+                "when creating a collection. Try again with a name.",
         },
         {
             name: "tail page preamble without a task collection name",
@@ -655,6 +671,9 @@ Tasks near Roadmap.
                 "\u201CMy Collection\u201D is the actual name of the task collection) when reading a " +
                 "later task collection page. Try again with a proper task collection preamble " +
                 "on line 1.",
+            createParseError:
+                "Task collection markdown must start with a name (e.g. `# My Collection`) " +
+                "when creating a collection. Try again with a name.",
         },
         {
             name: "tail page preamble with a next page link without an after cursor",
@@ -672,6 +691,9 @@ Tasks in Roadmap. [Next page »](/task-collection/roadmap)
             parseError:
                 "Expected \u201CNext page »\u201D to link to a task collection page with an " +
                 "`?after` cursor. Try again with a valid task collection pagination link.",
+            createParseError:
+                "Task collection markdown must start with a name (e.g. `# My Collection`) " +
+                "when creating a collection. Try again with a name.",
         },
         {
             name: "next page link without an after cursor",
@@ -1049,6 +1071,9 @@ Color: Red
                 "Task collection markdown must start with the task collection name in a " +
                 "markdown h1 (e.g. `# My Collection`) or \u201CTasks in My Collection\u201D. Try again " +
                 "with a proper start to task collection markdown on line 1.",
+            createParseError:
+                "Task collection markdown must start with a name (e.g. `# My Collection`) " +
+                "when creating a collection. Try again with a name.",
         },
         {
             name: "unknown task collection color",
@@ -1128,9 +1153,10 @@ Color: Red
 Default filters and sorts:
 `,
             parseError:
-                "Expected a code block with URL search params after \u201CDefault filters and " +
-                "sorts\u201D on line 3. Try again with the default filters and sorts in a code " +
-                "block after the label (e.g. `?status=open&sort=-priority,due`).",
+                "Expected a code block with filters and sorts after \u201CDefault filters and " +
+                "sorts\u201D on line 3. Try again with and add filters and sorts (e.g. " +
+                "`status=open&sort=-priority,due`) in a code block after \u201CDefault filters " +
+                "and sorts\u201D.",
         },
         {
             name: "multiple lines in the defaults code block",
@@ -1148,7 +1174,7 @@ sort=-created
             parseError:
                 "Expected a single line of URL search params in the default filters and sorts " +
                 "code block on line 5. Try again with all the default filters and sorts on one " +
-                "line (e.g. `?status=open&sort=-priority,due`).",
+                "line (e.g. `status=open&sort=-priority,due`).",
         },
         {
             name: "unknown status filter in the defaults code block",
@@ -1180,7 +1206,11 @@ Default filters and sorts:
 `,
             parseError:
                 "Unexpected markdown on line 3. Try again with only a task list (an unordered " +
-                "list where every item is a task link) after the task collection preamble.",
+                "list where every item is a task link) after the line 1 of the task collection " +
+                "markdown.",
+            createParseError:
+                "Task collection markdown must start with a name (e.g. `# My Collection`) " +
+                "when creating a collection. Try again with a name.",
         },
         {
             name: "unexpected defaults block after the next page link",

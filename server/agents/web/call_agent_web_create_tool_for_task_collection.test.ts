@@ -281,9 +281,8 @@ test("rejects creating a task collection without a name", async () => {
     await expectInvalidCreateDisplayMessage({
         content: "Color: Red",
         expected:
-            "Task collection markdown must start with a task collection name (e.g. " +
-            "`# My Collection`) when creating a task collection. Try again with a task " +
-            "collection name.",
+            "Task collection markdown must start with a name (e.g. `# My Collection`) " +
+            "when creating a collection. Try again with a name.",
     });
 
     expect(getCreateTaskCollectionRequests()).toHaveLength(0);
@@ -293,9 +292,8 @@ test("rejects creating a later task collection page", async () => {
     await expectInvalidCreateDisplayMessage({
         content: "Tasks in Roadmap.",
         expected:
-            "Task collection markdown must start with a task collection name (e.g. " +
-            "`# My Collection`) when creating a task collection. Try again with a task " +
-            "collection name.",
+            "Task collection markdown must start with a name (e.g. `# My Collection`) " +
+            "when creating a collection. Try again with a name.",
     });
 
     expect(getCreateTaskCollectionRequests()).toHaveLength(0);

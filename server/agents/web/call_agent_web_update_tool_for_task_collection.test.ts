@@ -531,17 +531,15 @@ test("rejects unexpected markdown after the task list", async () => {
     });
 });
 
-test("rejects removing the end of tasks marker", async () => {
+test("makes no API calls when removing the end of tasks marker", async () => {
     await readTaskCollectionPage();
 
-    await expectInvalidUpdateDisplayMessage({
-        updates: [{old: "\n\nEnd of tasks.", new: "", replaceAll: false}],
-        expected:
-            "You can\u2019t update the \u201CEnd of tasks\u201D marker. Only a `read` tool call " +
-            "can tell you whether you\u2019ve seen all of a collection\u2019s tasks. Try " +
-            "again with a more specific update that leaves the \u201CEnd of tasks\u201D marker " +
-            "unchanged.",
-    });
+    await expect(
+        callAgentWebUpdateTool(context, {
+            path: "/task-collection/roadmap",
+            updates: [{old: "\n\nEnd of tasks.", new: "", replaceAll: false}],
+        }),
+    ).resolves.toEqual("Update was successful.\n");
 
     expect(getCollectionPatchRequests()).toHaveLength(0);
 });
@@ -599,10 +597,9 @@ test("rejects adding the end of tasks marker", async () => {
             },
         ],
         expected:
-            "You can\u2019t update the \u201CEnd of tasks\u201D marker. Only a `read` tool call " +
-            "can tell you whether you\u2019ve seen all of a collection\u2019s tasks. Try " +
-            "again with a more specific update that leaves the \u201CEnd of tasks\u201D marker " +
-            "unchanged.",
+            "Can\u2019t add the \u201CEnd of tasks\u201D marker in an update. Only a `read` tool " +
+            "call can tell you whether you\u2019re at the end of a task list or not. Try " +
+            "again without adding the \u201CEnd of tasks\u201D marker.",
     });
 });
 
