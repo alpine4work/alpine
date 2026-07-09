@@ -168,7 +168,7 @@ Color: Magenta
                 "Unexpected task collection color \u201CMagenta\u201D on line 3. Try again with " +
                 "\u201CRed\u201D, \u201COrange\u201D, \u201CYellow\u201D, \u201CGreen\u201D, " +
                 "\u201CCyan\u201D, \u201CBlue\u201D, \u201CIndigo\u201D, \u201CPurple\u201D, " +
-                "\u201CPink\u201D, or \u201CNone\u201D to remove the color.",
+                "\u201CPink\u201D, or remove the color entirely.",
         },
         {
             name: "unknown task collection field",
@@ -248,7 +248,7 @@ Color: Red
 `,
             parseError:
                 "Unexpected markdown in the task list item on line 3. Try again with a single " +
-                "task link (e.g. `- [My Task](/task/my-task)`) in each task list item.",
+                "task link (e.g. `- [My Task (Open)](/task/my-task)`) in each task list item.",
         },
         {
             name: "task list item with extra content after the link",
@@ -260,7 +260,7 @@ Color: Red
 `,
             parseError:
                 "Unexpected markdown in the task list item on line 3. Try again with a single " +
-                "task link (e.g. `- [My Task](/task/my-task)`) in each task list item.",
+                "task link (e.g. `- [My Task (Open)](/task/my-task)`) in each task list item.",
         },
         {
             name: "task list item with multiple links",
@@ -272,7 +272,7 @@ Color: Red
 `,
             parseError:
                 "Unexpected markdown in the task list item on line 3. Try again with a single " +
-                "task link (e.g. `- [My Task](/task/my-task)`) in each task list item.",
+                "task link (e.g. `- [My Task (Open)](/task/my-task)`) in each task list item.",
         },
         {
             name: "unknown task link",
@@ -284,7 +284,7 @@ Color: Red
 `,
             parseError:
                 "Couldn\u2019t find a task for the link \u201CMissing task\u201D on line 3. Try " +
-                "again with a link to a task you\u2019ve seen before (e.g. `[My Task](/task/my-task)`).",
+                "again with a link to a task you\u2019ve seen before (e.g. `[My Task (Open)](/task/my-task)`).",
         },
         {
             name: "task link to another entity type",
@@ -304,7 +304,7 @@ Color: Red
 `,
             parseError:
                 "Couldn\u2019t find a task for the link \u201CAlice\u201D on line 3. Try again " +
-                "with a link to a task you\u2019ve seen before (e.g. `[My Task](/task/my-task)`).",
+                "with a link to a task you\u2019ve seen before (e.g. `[My Task (Open)](/task/my-task)`).",
         },
     ],
 });
