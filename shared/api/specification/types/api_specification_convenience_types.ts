@@ -618,12 +618,6 @@ export type ApiMessageContentPayloadFile =
 export type ApiMessageContentPayloadFileResponse =
     ApiSpecification.components["schemas"]["MessageContentPayloadFile_Response"];
 
-export type ApiMessageContentPayloadFileElement =
-    ApiSpecification.components["schemas"]["MessageContentPayloadFileElement"];
-
-export type ApiMessageContentPayloadFileElementResponse =
-    ApiSpecification.components["schemas"]["MessageContentPayloadFileElement_Response"];
-
 export type ApiMessageContentPayloadPreviewElement =
     ApiSpecification.components["schemas"]["MessageContentPayloadPreviewElement"];
 

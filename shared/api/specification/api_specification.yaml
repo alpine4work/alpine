@@ -3855,7 +3855,7 @@ components:
 
         TaskCollectionItem:
             type: object
-            required: [cursor, collection]
+            required: [collection]
             additionalProperties: false
             properties:
                 collection:
@@ -5042,13 +5042,13 @@ components:
             properties:
                 element:
                     oneOf:
-                        - $ref: "#/components/schemas/MessageContentPayloadFileElement"
-                        - $ref: "#/components/schemas/MessageContentPayloadPreviewElement"
+                        - $ref: "#/components/schemas/ContentFileBlockElement"
+                        - $ref: "#/components/schemas/ContentPreviewBlockElement"
                     discriminator:
                         propertyName: type
                         mapping:
-                            File: "#/components/schemas/MessageContentPayloadFileElement"
-                            Preview: "#/components/schemas/MessageContentPayloadPreviewElement"
+                            File: "#/components/schemas/ContentFileBlockElement"
+                            Preview: "#/components/schemas/ContentPreviewBlockElement"
 
         MessageContentPayloadFile_Response:
             type: object
@@ -5064,48 +5064,13 @@ components:
                     maximum: 1
                 element:
                     oneOf:
-                        - $ref: "#/components/schemas/MessageContentPayloadFileElement_Response"
-                        - $ref: "#/components/schemas/MessageContentPayloadPreviewElement_Response"
+                        - $ref: "#/components/schemas/ContentFileBlockElement_Response_WithoutKeys"
+                        - $ref: "#/components/schemas/ContentPreviewBlockElement_Response_WithoutKeys"
                     discriminator:
                         propertyName: type
                         mapping:
-                            File: "#/components/schemas/MessageContentPayloadFileElement_Response"
-                            Preview: "#/components/schemas/MessageContentPayloadPreviewElement_Response"
-
-        MessageContentPayloadFileElement:
-            type: object
-            required: [type, id]
-            additionalProperties: false
-            properties:
-                type:
-                    const: File
-                id:
-                    $ref: "#/components/schemas/FileId"
-
-        MessageContentPayloadFileElement_Response:
-            type: object
-            required: [type, id, contentType, contentLength]
-            additionalProperties: false
-            properties:
-                type:
-                    const: File
-                id:
-                    $ref: "#/components/schemas/FileId"
-                contentType:
-                    $ref: "#/components/schemas/FileContentType"
-                contentLength:
-                    type: integer
-                    minimum: 0
-                # NOTE(calebmer): Optional so you can pass a `ContentFileBlockElement` into
-                # here. We should document this and mark the field as hidden for the API.
-                key:
-                    $ref: "#/components/schemas/ContentKey"
-                # NOTE(calebmer): Optional so you can pass a `ContentFileBlockElement` into
-                # here. We should document this and mark the field as hidden for the API.
-                marks:
-                    type: array
-                    items:
-                        $ref: "#/components/schemas/ContentCommentMark"
+                            File: "#/components/schemas/ContentFileBlockElement_Response_WithoutKeys"
+                            Preview: "#/components/schemas/ContentPreviewBlockElement_Response_WithoutKeys"
 
         MessageContentPayloadPreviewElement:
             type: object

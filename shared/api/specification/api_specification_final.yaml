@@ -4480,7 +4480,6 @@ components:
         TaskCollectionItem:
             type: object
             required:
-                - cursor
                 - collection
             additionalProperties: false
             properties:
@@ -5735,13 +5734,13 @@ components:
             properties:
                 element:
                     oneOf:
-                        - $ref: "#/components/schemas/MessageContentPayloadFileElement"
-                        - $ref: "#/components/schemas/MessageContentPayloadPreviewElement"
+                        - $ref: "#/components/schemas/ContentFileBlockElement"
+                        - $ref: "#/components/schemas/ContentPreviewBlockElement"
                     discriminator:
                         propertyName: type
                         mapping:
-                            File: "#/components/schemas/MessageContentPayloadFileElement"
-                            Preview: "#/components/schemas/MessageContentPayloadPreviewElement"
+                            File: "#/components/schemas/ContentFileBlockElement"
+                            Preview: "#/components/schemas/ContentPreviewBlockElement"
                 rowIndex:
                     type: integer
                     minimum: 0
@@ -5766,59 +5765,13 @@ components:
                     maximum: 1
                 element:
                     oneOf:
-                        - $ref: "#/components/schemas/MessageContentPayloadFileElement_Response"
-                        - $ref: "#/components/schemas/MessageContentPayloadPreviewElement_Response"
+                        - $ref: "#/components/schemas/ContentFileBlockElement_Response_WithoutKeys"
+                        - $ref: "#/components/schemas/ContentPreviewBlockElement_Response_WithoutKeys"
                     discriminator:
                         propertyName: type
                         mapping:
-                            File: "#/components/schemas/MessageContentPayloadFileElement_Response"
-                            Preview: "#/components/schemas/MessageContentPayloadPreviewElement_Response"
-        MessageContentPayloadFileElement:
-            type: object
-            required:
-                - type
-                - id
-            additionalProperties: false
-            properties:
-                type:
-                    const: File
-                id:
-                    $ref: "#/components/schemas/FileId"
-                contentType:
-                    $ref: "#/components/schemas/FileContentType"
-                contentLength:
-                    type: integer
-                    minimum: 0
-                key:
-                    $ref: "#/components/schemas/ContentKey"
-                marks:
-                    type: array
-                    items:
-                        $ref: "#/components/schemas/ContentCommentMark"
-        MessageContentPayloadFileElement_Response:
-            type: object
-            required:
-                - type
-                - id
-                - contentType
-                - contentLength
-            additionalProperties: false
-            properties:
-                type:
-                    const: File
-                id:
-                    $ref: "#/components/schemas/FileId"
-                contentType:
-                    $ref: "#/components/schemas/FileContentType"
-                contentLength:
-                    type: integer
-                    minimum: 0
-                key:
-                    $ref: "#/components/schemas/ContentKey"
-                marks:
-                    type: array
-                    items:
-                        $ref: "#/components/schemas/ContentCommentMark"
+                            File: "#/components/schemas/ContentFileBlockElement_Response_WithoutKeys"
+                            Preview: "#/components/schemas/ContentPreviewBlockElement_Response_WithoutKeys"
         MessageContentPayloadPreviewElement:
             type: object
             required:
@@ -6723,7 +6676,6 @@ components:
         TaskCollectionItem_Response:
             type: object
             required:
-                - cursor
                 - collection
             additionalProperties: false
             properties:

@@ -4,10 +4,7 @@
 import type {ApiContentKey} from "~/shared/api/specification/types/api_content_key.js";
 import type {DateString} from "~/shared/helpers/date/date_string.js";
 import type {TimeZone} from "~/shared/helpers/intl/time_zone.js";
-import type {
-    ApiTaskCollectionCursor,
-    ApiTaskQueryCursor,
-} from "~/shared/id/types/api_task_cursors.js";
+import type {ApiTaskQueryCursor} from "~/shared/id/types/api_task_cursors.js";
 import type * as IdTypes from "~/shared/id/types/id_types.js";
 
 export namespace ApiSpecification {
@@ -4479,8 +4476,8 @@ export namespace ApiSpecification {
             };
             readonly MessageContentPayloadFile: {
                 readonly element:
-                    | components["schemas"]["MessageContentPayloadFileElement"]
-                    | components["schemas"]["MessageContentPayloadPreviewElement"];
+                    | components["schemas"]["ContentFileBlockElement"]
+                    | components["schemas"]["ContentPreviewBlockElement"];
                 readonly rowIndex?: number;
                 readonly width?: number;
             };
@@ -4488,48 +4485,18 @@ export namespace ApiSpecification {
                 readonly rowIndex: number;
                 readonly width: number;
                 readonly element:
-                    | components["schemas"]["MessageContentPayloadFileElement_Response"]
-                    | components["schemas"]["MessageContentPayloadPreviewElement_Response"];
-            };
-            readonly MessageContentPayloadFileElement: {
-                /**
-                 * @description discriminator enum property added by openapi-typescript @enum
-                 * {string}
-                 */
-                readonly type: "File";
-                readonly id: components["schemas"]["FileId"];
-                readonly contentType?: components["schemas"]["FileContentType"];
-                readonly contentLength?: number;
-                readonly key?: components["schemas"]["ContentKey"];
-                readonly marks?: readonly components["schemas"]["ContentCommentMark"][];
-            };
-            readonly MessageContentPayloadFileElement_Response: {
-                /**
-                 * @description discriminator enum property added by openapi-typescript @enum
-                 * {string}
-                 */
-                readonly type: "File";
-                readonly id: components["schemas"]["FileId"];
-                readonly contentType: components["schemas"]["FileContentType"];
-                readonly contentLength: number;
-                readonly key?: components["schemas"]["ContentKey"];
-                readonly marks?: readonly components["schemas"]["ContentCommentMark"][];
+                    | components["schemas"]["ContentFileBlockElement_Response_WithoutKeys"]
+                    | components["schemas"]["ContentPreviewBlockElement_Response_WithoutKeys"];
             };
             readonly MessageContentPayloadPreviewElement: {
-                /**
-                 * @description discriminator enum property added by openapi-typescript @enum
-                 * {string}
-                 */
+                /** @constant */
                 readonly type: "Preview";
                 readonly reference: components["schemas"]["PreviewReference"];
                 readonly key?: components["schemas"]["ContentKey"];
                 readonly marks?: readonly components["schemas"]["ContentCommentMark"][];
             };
             readonly MessageContentPayloadPreviewElement_Response: {
-                /**
-                 * @description discriminator enum property added by openapi-typescript @enum
-                 * {string}
-                 */
+                /** @constant */
                 readonly type: "Preview";
                 readonly reference: components["schemas"]["PreviewReference_Response"];
                 readonly key?: components["schemas"]["ContentKey"];
