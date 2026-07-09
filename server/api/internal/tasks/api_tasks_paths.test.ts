@@ -4924,7 +4924,7 @@ describe("POST /task-collections/{id}/tasks/query", () => {
         expect(secondPageResponse.body.nextCursor).toBeNull();
     });
 
-    test("uses collection defaults when filters and sorts are omitted", async () => {
+    test("uses default filters when filters are omitted and provided sorts", async () => {
         const space = await TestSpace.create(context);
         const session = await space.createSession({name: "Alice Smith", role: "Admin"});
 
@@ -4932,7 +4932,7 @@ describe("POST /task-collections/{id}/tasks/query", () => {
         const apiKey = await bot.createApiKey(session);
 
         const collection = await TestTaskCollection.create(session, {
-            name: "Default Query Collection",
+            name: "Default Filters Collection",
             access: "Public",
         });
 
@@ -4940,30 +4940,90 @@ describe("POST /task-collections/{id}/tasks/query", () => {
             filters: [
                 {
                     type: "Priority",
-                    operation: {type: "OneOf", priorities: new Set(["High"])},
+                    operation: {type: "OneOf", priorities: new Set(["High", "Urgent"])},
                 },
             ],
-            sorts: [{type: "Priority", direction: "Descending"}],
+            sorts: [{type: "Priority", direction: "Ascending"}],
         });
 
-        const [lowTask, highTask] = await runAllPromises([
+        const [lowTask, highTask, urgentTask] = await runAllPromises([
             TestTask.create(session, {title: "Low Task", priority: "Low"}),
             TestTask.create(session, {title: "High Task", priority: "High"}),
+            TestTask.create(session, {title: "Urgent Task", priority: "Urgent"}),
         ]);
 
         await runAllPromises([
             lowTask.addCollection(session, collection),
             highTask.addCollection(session, collection),
+            urgentTask.addCollection(session, collection),
         ]);
         await ProcessContextModule.waitForTestTasks();
 
         const response = await server.POST(`/task-collections/${collection.id}/tasks/query`, {
             headers: {authorization: `bearer ${apiKey}`},
-            body: {},
+            body: {sorts: [{type: "Priority", direction: "Descending"}]},
         });
 
         expect(response.status).toBe(200);
         expect(response.body.tasks.map(({task}: {task: {id: TaskId}}) => task.id)).toEqual([
+            urgentTask.id,
+            highTask.id,
+        ]);
+    });
+
+    test("uses provided filters and default sorts when sorts are omitted", async () => {
+        const space = await TestSpace.create(context);
+        const session = await space.createSession({name: "Alice Smith", role: "Admin"});
+
+        const bot = await TestBot.createAndInstantiate(session);
+        const apiKey = await bot.createApiKey(session);
+
+        const collection = await TestTaskCollection.create(session, {
+            name: "Default Sorts Collection",
+            access: "Public",
+        });
+
+        await collection.updateDefaults(session, {
+            filters: [
+                {
+                    type: "Priority",
+                    operation: {type: "OneOf", priorities: new Set(["Low"])},
+                },
+            ],
+            sorts: [{type: "Priority", direction: "Descending"}],
+        });
+
+        const [lowTask, highTask, urgentTask] = await runAllPromises([
+            TestTask.create(session, {title: "Low Task", priority: "Low"}),
+            TestTask.create(session, {title: "High Task", priority: "High"}),
+            TestTask.create(session, {title: "Urgent Task", priority: "Urgent"}),
+        ]);
+
+        await runAllPromises([
+            lowTask.addCollection(session, collection),
+            highTask.addCollection(session, collection),
+            urgentTask.addCollection(session, collection),
+        ]);
+        await ProcessContextModule.waitForTestTasks();
+
+        const response = await server.POST(`/task-collections/${collection.id}/tasks/query`, {
+            headers: {authorization: `bearer ${apiKey}`},
+            body: {
+                filters: [
+                    {
+                        type: "Priority",
+                        operation: {
+                            type: "OneOf",
+                            priorities: [{type: "High"}, {type: "Urgent"}],
+                        },
+                    },
+                ],
+            },
+        });
+
+        expect(response.status).toBe(200);
+        expect(response.body.tasks.map(({task}: {task: {id: TaskId}}) => task.id)).toEqual([
+            urgentTask.id,
             highTask.id,
         ]);
     });
