@@ -26,7 +26,11 @@ import {
 } from "~/shared/api/content/zip_or_unzip_keys_from_api_content_response.js";
 import {ApiContentKey} from "~/shared/api/specification/types/api_content_key.js";
 import {ApiContentRange} from "~/shared/api/specification/types/api_content_position.js";
-import {ApiMessageRoomReference} from "~/shared/api/specification/types/api_specification_convenience_types.js";
+import {ApiContentResponseWithoutKeys} from "~/shared/api/specification/types/api_content_response_without_keys.js";
+import {
+    ApiMessageContentPayloadFileResponse,
+    ApiMessageRoomReference,
+} from "~/shared/api/specification/types/api_specification_convenience_types.js";
 import {
     FailedPreconditionError,
     InternalError,
@@ -200,6 +204,8 @@ export async function updateAgentWebMessagingPage<
         const normalizeBlock = (block: AgentWebMessagingPageBlock<never>) => {
             if (block.type === "Time") return block;
 
+            const {content, files} = extractApiMessageFilesFromContent(block.content);
+
             return {
                 type: "Message",
                 idAttribute: block.idAttribute,
@@ -214,7 +220,9 @@ export async function updateAgentWebMessagingPage<
                           previewContent: normalizeApiContent(block.parent.previewContent),
                       }
                     : null,
-                content: normalizeApiContent(block.content),
+                content: normalizeApiContent(content),
+                // Normalize each file separately so we don't merge into `FileGallery`s.
+                files: files.flatMap(file => normalizeApiContent({elements: [file]}).elements),
             };
         };
 
@@ -254,10 +262,16 @@ export async function updateAgentWebMessagingPage<
             }
         }
 
+        if (!isDeepEqual(normalizedOldBlock.files, normalizedNewBlock.files)) {
+            throw new InvalidArgumentError("Can\u2019t change message file attachments", {
+                displayMessage: errorDisplayMessage`You can update the text of your \`<${messageNouns.noun}>\`s. You can\u2019t add, remove, or reorder files attached to an existing \`<${messageNouns.noun}>\`. Try again but leave the file attachments at the end of \`<${messageNouns.noun}${normalizedOldBlock.idAttribute ? ` id="${printAgentWebMessagingPageMessageIndexRange(normalizedOldBlock.idAttribute)}"` : ""}>\` exactly as they appeared.`,
+            });
+        }
+
         if (
             !isDeepEqual(
-                omitObject(normalizedOldBlock, ["content"]),
-                omitObject(normalizedNewBlock, ["content"]),
+                omitObject(normalizedOldBlock, ["content", "files"]),
+                omitObject(normalizedNewBlock, ["content", "files"]),
             )
         ) {
             throw new InvalidArgumentError("Can\u2019t update message created by someone else", {
@@ -369,6 +383,16 @@ export async function updateAgentWebMessagingPage<
             throw new InvalidArgumentError("Can\u2019t set the created time of a new message", {
                 displayMessage: errorDisplayMessage`You can\u2019t add a \`<${messageNouns.noun}>\` with a \`time\` attribute. The creation time of the ${messageNouns.noun} will be decided by the server. Try again without the \`time\` attribute.`,
             });
+        }
+
+        const {content, files} = extractApiMessageFilesFromContent(newBlock.content);
+
+        if (files.length > 0) {
+            // TODO(#agents-web): Implement sending message file attachments from agent web
+            // pages.
+            throw new UnimplementedError(
+                "Sending messages with files as agent isn\u2019t implemented yet",
+            );
         }
 
         let newBlockParentRange: {
@@ -554,7 +578,7 @@ export async function updateAgentWebMessagingPage<
             const {
                 data: {message},
             } = await createApiMessage(context.span, context.api, actualRoom, {
-                content: newBlock.content,
+                content,
             });
 
             const keys =
@@ -650,4 +674,49 @@ export async function updateAgentWebMessagingPage<
     }
 
     return newPageMetadata;
+}
+
+function extractApiMessageFilesFromContent(content: ApiContentResponseWithoutKeys): {
+    content: ApiContentResponseWithoutKeys;
+    files: ReadonlyArray<ApiMessageContentPayloadFileResponse["element"]>;
+} {
+    let endIndex = content.elements.length;
+    const files: Array<ApiMessageContentPayloadFileResponse["element"]> = [];
+
+    while (endIndex > 0) {
+        const element = content.elements[endIndex - 1]!;
+
+        if (element.type === "File" || element.type === "Preview") {
+            files.unshift(element);
+            endIndex--;
+            continue;
+        }
+
+        if (element.type === "FileGallery") {
+            const galleryFiles: Array<ApiMessageContentPayloadFileResponse["element"]> = [];
+
+            for (let rowIndex = 0; rowIndex < element.rows.length; rowIndex++) {
+                const row = element.rows[rowIndex]!;
+
+                for (const item of row.items) {
+                    galleryFiles.push(item.element);
+                }
+            }
+
+            files.unshift(...galleryFiles);
+            endIndex--;
+            continue;
+        }
+
+        break;
+    }
+
+    if (endIndex === content.elements.length) {
+        return {content, files};
+    }
+
+    return {
+        content: {...content, elements: content.elements.slice(0, endIndex)},
+        files,
+    };
 }
