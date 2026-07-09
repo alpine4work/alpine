@@ -34,7 +34,10 @@ coding tools expect to happen?" That answer usually wins.
 - `scroll` / `find` (`call_agent_web_scroll_tool.ts`, `call_agent_web_find_tool.ts`): Paginate and
   regex-search the cached `read` response without re-reading from the API. Useful since `read`
   truncates responses above the provided `limit`.
-- `search` is part of the same tool suite agents see but is implemented outside this package.
+- `search` (`call_agent_web_search_tool.ts`): Searches the space with the Alpine search API and
+  returns the results as Markdown lists of links to follow with the `read` tool. Results that
+  matched a natural language filter (e.g. "documents created yesterday") are grouped into a
+  "Matching results" section per filter.
 
 ### Pages
 

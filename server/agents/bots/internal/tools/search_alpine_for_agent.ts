@@ -42,7 +42,7 @@ export async function searchAlpineForAgent(
             query: {query, limit: agentSearchResultLimit},
         },
     });
-    if (!data || data.results.length === 0) return "No results found";
+    if (!data || data.results.length === 0) return "No results found.";
 
     const results = data.results.filter(
         result => !isApiSearchResultInConversationState(request.room, result),

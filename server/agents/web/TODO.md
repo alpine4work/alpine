@@ -14,7 +14,7 @@ NOCOMMIT: Remove this file
 - [ ] Subtasks
 - [ ] Add default filters to collections and add filter search params
 - [x] Files in messages
-- [ ] Account
+- [x] Account
 - [ ] File (read)
 - [ ] File (write)
 - [x] Search!
