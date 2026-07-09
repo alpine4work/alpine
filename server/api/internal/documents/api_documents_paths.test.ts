@@ -1778,7 +1778,7 @@ test("can create document comment with file attachments", async () => {
                         },
                     ],
                 },
-                files: [{element: {type: "File", id: file.id}}],
+                files: [{element: {type: "File", file: {id: file.id}}}],
             },
         },
     );
@@ -1795,9 +1795,11 @@ test("can create document comment with file attachments", async () => {
                             width: 1,
                             element: {
                                 type: "File",
-                                id: file.id,
-                                contentType: expect.any(String),
-                                contentLength: expect.any(Number),
+                                file: {
+                                    id: file.id,
+                                    contentType: expect.any(String),
+                                    contentLength: expect.any(Number),
+                                },
                             },
                         }),
                     ],
@@ -1831,7 +1833,7 @@ test("document comment with invalid file object returns 400", async () => {
                         },
                     ],
                 },
-                files: [{element: {type: "File", id: "not-a-valid-id"}}],
+                files: [{element: {type: "File", file: {id: "not-a-valid-id"}}}],
             },
         },
     );

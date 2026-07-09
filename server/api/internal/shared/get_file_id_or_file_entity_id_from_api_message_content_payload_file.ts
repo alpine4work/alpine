@@ -11,7 +11,7 @@ export function getFileIdOrFileEntityIdFromApiMessageContentPayloadFile(
 ): FileId | FileEntityId {
     switch (file.element.type) {
         case "File":
-            return file.element.id;
+            return file.element.file.id;
         case "Preview":
             return getFileEntityIdFromApiMessageContentPayloadFile(file.element.reference);
         default:

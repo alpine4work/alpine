@@ -1361,7 +1361,7 @@ test("can create post comment with file attachments", async () => {
                     {type: "Paragraph", elements: [{type: "Text", text: "Comment with file"}]},
                 ],
             },
-            files: [{element: {type: "File", id: file.id}}],
+            files: [{element: {type: "File", file: {id: file.id}}}],
         },
     });
 
@@ -1377,9 +1377,11 @@ test("can create post comment with file attachments", async () => {
                             width: 1,
                             element: {
                                 type: "File",
-                                id: file.id,
-                                contentType: expect.any(String),
-                                contentLength: expect.any(Number),
+                                file: {
+                                    id: file.id,
+                                    contentType: expect.any(String),
+                                    contentLength: expect.any(Number),
+                                },
                             },
                         }),
                     ],
@@ -1498,7 +1500,7 @@ test("post comment with files and previews returns both", async () => {
                 ],
             },
             files: [
-                {element: {type: "File", id: file.id}},
+                {element: {type: "File", file: {id: file.id}}},
                 {
                     element: {type: "Preview", reference: {type: "Document", id: documentId}},
                 },
@@ -1558,7 +1560,7 @@ test("post comment with invalid file object returns 400", async () => {
             content: {
                 elements: [{type: "Paragraph", elements: [{type: "Text", text: "Bad file"}]}],
             },
-            files: [{element: {type: "File", id: "not-a-valid-id"}}],
+            files: [{element: {type: "File", file: {id: "not-a-valid-id"}}}],
         },
     });
 

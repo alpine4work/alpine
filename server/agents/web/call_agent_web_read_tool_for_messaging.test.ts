@@ -18,7 +18,14 @@ import {ApiContentResponse} from "~/shared/api/specification/types/api_specifica
 import {assert} from "~/shared/helpers/control/assert.js";
 import {assertTimeZone, defaultTimeZone} from "~/shared/helpers/intl/time_zone.js";
 import {generateId} from "~/shared/id/id.js";
-import {AccountId, BotId, ChatId, DocumentId, SpaceId} from "~/shared/id/types/id_types.js";
+import {
+    AccountId,
+    BotId,
+    ChatId,
+    DocumentId,
+    FileId,
+    SpaceId,
+} from "~/shared/id/types/id_types.js";
 import {testTracer} from "~/shared/tracer/dev/test_tracer.js";
 
 const spaceId = generateId<SpaceId>();
@@ -100,6 +107,80 @@ test("prints bot messages with bot `from` path", async () => {
 <message id="0" from="[Assistant](/bot/assistant)">
 
 Hello human!
+
+</message>
+
+End of messages.`);
+});
+
+test("prints message files at the end and splits following messages", async () => {
+    const fileId1 = generateId<FileId>();
+    const fileId2 = generateId<FileId>();
+    const fileId3 = generateId<FileId>();
+
+    mockApiGetChat(api, {spaceId, chatId, name: "Incident Response"});
+    mockApiGetChatMessages(api, {
+        spaceId,
+        chatId,
+        from: "End",
+        totalMessageCount: 3,
+        limit: 30,
+        createMessage: index =>
+            createApiMessageMock({
+                index,
+                author: aliceAccount,
+                content:
+                    index === 0
+                        ? "First message."
+                        : index === 1
+                          ? "Second message."
+                          : "Third message.",
+                createdTime: new Date(Date.UTC(2026, 4, 14, 15, index * 2)),
+                files:
+                    index === 1
+                        ? [fileId1, fileId2, fileId3].map((fileId, fileIndex) => ({
+                              rowIndex: 0,
+                              width: 1 / 3,
+                              element: {
+                                  type: "File" as const,
+                                  file: {
+                                      id: fileId,
+                                      contentType: "image/png" as const,
+                                      contentLength: 100 + fileIndex,
+                                  },
+                              },
+                          }))
+                        : [],
+            }),
+    });
+
+    expect(
+        await callAgentWebReadTool(context, {
+            path: "/chat/incident-response",
+            limit: "10kb",
+        }),
+    ).toEqual(`\
+# Incident Response
+
+<time>May 14th at 11:00am EDT</time>
+
+<message id="0-1" from="[Alice](/human/alice)">
+
+First message.
+
+Second message.
+
+<div style="display: flex">
+<img src="/file/image.png" />
+<img src="/file/image-2.png" />
+<img src="/file/image-3.png" />
+</div>
+
+</message>
+
+<message id="2" from="[Alice](/human/alice)">
+
+Third message.
 
 </message>
 

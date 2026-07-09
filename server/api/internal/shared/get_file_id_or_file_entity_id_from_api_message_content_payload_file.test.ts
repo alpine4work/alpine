@@ -7,7 +7,7 @@ test("extracts FileId from a File element", () => {
     const fileId = generateChronologicalId<FileId>();
     expect(
         getFileIdOrFileEntityIdFromApiMessageContentPayloadFile({
-            element: {type: "File", id: fileId},
+            element: {type: "File", file: {id: fileId}},
         }),
     ).toBe(fileId);
 });

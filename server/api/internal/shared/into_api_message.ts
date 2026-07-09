@@ -13,10 +13,8 @@ import {computeApiContentFileRowWidths} from "~/shared/api/content/closed_source
 import {intoApiTaskStatus} from "~/shared/api/content/closed_source/into_api_task_status.js";
 import {getApiMentionReferenceNoun} from "~/shared/api/content/get_api_mention_reference_noun.js";
 import {
-    ApiMessageContentPayloadFileElementResponse,
     ApiMessageContentPayloadFileResponse,
     ApiMessageContentPayloadParentResponse,
-    ApiMessageContentPayloadPreviewElementResponse,
     ApiMessagePayloadResponse,
     ApiMessageResponse,
     ApiPreviewReferenceResponse,
@@ -239,9 +237,7 @@ async function intoApiMessagePayloadFiles(
         fileIds: ReadonlyArray<FileId | FileEntityId>;
     },
 ) {
-    type Element =
-        | ApiMessageContentPayloadFileElementResponse
-        | ApiMessageContentPayloadPreviewElementResponse;
+    type Element = ApiMessageContentPayloadFileResponse["element"];
 
     const fileById = new Map<FileId, FileModelData>();
 
@@ -265,9 +261,11 @@ async function intoApiMessagePayloadFiles(
                 // need to make a change there too.
                 return {
                     type: "File",
-                    id: fileOrEntityId,
-                    contentType: file?.contentType ?? "application/octet-stream",
-                    contentLength: file?.contentLength ?? 0,
+                    file: {
+                        id: fileOrEntityId,
+                        contentType: file?.contentType ?? "application/octet-stream",
+                        contentLength: file?.contentLength ?? 0,
+                    },
                 };
             }
 

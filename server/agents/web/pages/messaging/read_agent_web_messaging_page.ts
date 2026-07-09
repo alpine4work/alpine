@@ -24,10 +24,12 @@ import {intoApiAccountReference} from "~/shared/api/specification/into_api_accou
 import {ApiContentKey} from "~/shared/api/specification/types/api_content_key.js";
 import {
     ApiContentBlockElementResponseWithoutKeys,
+    ApiContentFileGalleryBlockElementRowItemResponseWithoutKeys,
     ApiContentResponseWithoutKeys,
 } from "~/shared/api/specification/types/api_content_response_without_keys.js";
 import {
     ApiContentInlineElementResponse,
+    ApiMessageContentPayloadFileResponse,
     ApiMessageContentPayloadParentContentSnippet,
     ApiMessageResponse,
     ApiMessageRoomReference,
@@ -42,6 +44,7 @@ import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
 import {deserializeDateString} from "~/shared/helpers/date/date_string.js";
 import {defaultLocale} from "~/shared/helpers/intl/locale.js";
 import {formatTimeZoneAbbreviation} from "~/shared/helpers/intl/time_zone.js";
+import {DefaultMap} from "~/shared/helpers/map/default_map.js";
 import {printPrettyNumber} from "~/shared/helpers/number/print_pretty_number.js";
 import {AccountId} from "~/shared/id/types/id_types.js";
 
@@ -574,6 +577,7 @@ function buildAgentWebMessagingPageFromApiMessages<
         firstCreatedTime: Date;
         lastCreatedTime: Date;
         differenceInMinutesSinceLastMessage: number;
+        hasFiles: boolean;
         messages: Array<ApiMessageResponse>;
     } | null = null;
 
@@ -631,6 +635,9 @@ function buildAgentWebMessagingPageFromApiMessages<
             currentBlock.authorId === message.author.id &&
             currentBlock.formattedTimeZone === formattedTimeZone &&
             differenceInMinutesSinceLastMessage < continueBlockBeforeMinutesSinceLastMessage &&
+            // Don't merge if the previous message block had files. This mirrors the UI, where
+            // file attachments always render their own message header.
+            !currentBlock.hasFiles &&
             // Never merge the current bot's messages. This makes it easier when we need to
             // update the current bot's message content.
             message.author.id !== context.botAccount.id &&
@@ -649,6 +656,8 @@ function buildAgentWebMessagingPageFromApiMessages<
 
             currentBlock.messages.push(message);
             currentBlock.lastCreatedTime = createdTime;
+            currentBlock.hasFiles ||=
+                message.payload.type === "Content" && message.payload.files.length > 0;
             continue;
         }
 
@@ -680,6 +689,7 @@ function buildAgentWebMessagingPageFromApiMessages<
             firstCreatedTime: createdTime,
             lastCreatedTime: createdTime,
             differenceInMinutesSinceLastMessage,
+            hasFiles: message.payload.type === "Content" && message.payload.files.length > 0,
             messages: [message],
         };
     }
@@ -876,6 +886,10 @@ function buildAgentWebMessagingPageFromApiMessages<
                     for (const element of content.elements) {
                         elements.push(element);
                     }
+
+                    for (const element of convertApiMessageFilesToElements(message.payload.files)) {
+                        elements.push(element);
+                    }
                     break;
                 }
                 default:
@@ -908,4 +922,25 @@ function convertApiMessageContentPayloadParentContentSnippetToContent(
         : [...parent.elements, {type: "Text", text: " […]"}];
 
     return {elements: [{type: "Paragraph", elements}]};
+}
+
+function convertApiMessageFilesToElements(
+    files: ReadonlyArray<ApiMessageContentPayloadFileResponse>,
+): ReadonlyArray<ApiContentBlockElementResponseWithoutKeys> {
+    if (files.length === 0) return [];
+
+    const rows = new DefaultMap<
+        number,
+        Array<ApiContentFileGalleryBlockElementRowItemResponseWithoutKeys>
+    >(() => []);
+
+    for (const file of files) {
+        rows.getOrSetDefault(file.rowIndex).push({width: file.width, element: file.element});
+    }
+
+    const sortedRows = Array.from(rows.entries())
+        .sort(([rowIndex1], [rowIndex2]) => rowIndex1 - rowIndex2)
+        .map(([, items]) => ({items}));
+
+    return [{type: "FileGallery", rows: sortedRows}];
 }

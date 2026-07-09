@@ -145,7 +145,7 @@ describe("updateTaskNotesFromApi()", () => {
                             {
                                 type: "FileFloat",
                                 side: "Left",
-                                element: {type: "File", id: unknownFileId},
+                                element: {type: "File", file: {id: unknownFileId}},
                             },
                         ],
                     },
@@ -172,7 +172,7 @@ describe("updateTaskNotesFromApi()", () => {
                         {
                             type: "FileFloat",
                             side: "Left",
-                            element: {type: "File", id: unknownFileId},
+                            element: {type: "File", file: {id: unknownFileId}},
                         },
                     ],
                 },

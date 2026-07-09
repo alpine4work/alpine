@@ -588,7 +588,7 @@ test("preserves file and preview block elements", () => {
 
     const content: ApiContent = {
         elements: [
-            {type: "File", id: fileId, contentType: "text/plain"},
+            {type: "File", file: {id: fileId, contentType: "text/plain"}},
             {
                 type: "Preview",
                 target: {type: "Document", id: documentId},
@@ -599,7 +599,7 @@ test("preserves file and preview block elements", () => {
                 rows: [
                     {
                         items: [
-                            {element: {type: "File", id: fileId}},
+                            {element: {type: "File", file: {id: fileId}}},
                             {
                                 element: {
                                     type: "Preview",
@@ -614,7 +614,7 @@ test("preserves file and preview block elements", () => {
             {
                 type: "FileFloat",
                 side: "Left",
-                element: {type: "File", id: fileId},
+                element: {type: "File", file: {id: fileId}},
             },
         ],
     };
