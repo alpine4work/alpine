@@ -8,6 +8,9 @@ NOCOMMIT: Remove this file
 - [ ] Updating tasks in collection
 - [ ] Adding/removing tasks from collection
 - [ ] Files in messages
+- [ ] Account
+- [ ] File (read)
+- [ ] File (write)
 
 ## Access modes
 
