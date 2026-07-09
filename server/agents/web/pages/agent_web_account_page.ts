@@ -75,7 +75,7 @@ export function updateAgentWebAccountPage(
     newPage: AgentWebAccountPage,
 ): never {
     throw new InvalidArgumentError("Can\u2019t update accounts", {
-        displayMessage: errorDisplayMessage`Can\u2019t update accounts using the \`update\` tool. Try updating another page instead.`,
+        displayMessage: errorDisplayMessage`Can\u2019t update humans or bots using the \`update\` tool. Try updating another page instead.`,
     });
 }
 
@@ -152,14 +152,14 @@ export async function parseAgentWebAccountPage(
             name = printMarkdownPhrasingContentText(firstChild.children);
         } else {
             throw new InvalidArgumentError("Missing name in account", {
-                displayMessage: errorDisplayMessage`A name is required for accounts. Try again but make sure the account starts with a markdown h1 (e.g. \`# John Doe\`).`,
+                displayMessage: errorDisplayMessage`Expected a name at the start of the page. Try again with a markdown h1 first (e.g. \`# John Doe\`).`,
             });
         }
     }
 
     const createUnexpectedError = () => {
         return new InvalidArgumentError("Expected account fields", {
-            displayMessage: errorDisplayMessage`Unexpected markdown on line ${root.children[childIndex]?.position?.start.line ?? "unknown"}. Try again with only account fields (an unordered list with items like \`- Role: Member\`).`,
+            displayMessage: errorDisplayMessage`Unexpected markdown on line ${root.children[childIndex]?.position?.start.line ?? "unknown"}. Try again with only fields in an unordered list (e.g. \`- Role: Member\`).`,
         });
     };
 
@@ -190,13 +190,13 @@ export async function parseAgentWebAccountPage(
 
             if (fieldName === null) {
                 throw new InvalidArgumentError("Unknown account field", {
-                    displayMessage: errorDisplayMessage`Unknown account field \u201C${label}\u201D on line ${item.position?.start.line ?? "unknown"}. Try again with \u201CState\u201D, \u201CRole\u201D, or \u201CShort name\u201D.`,
+                    displayMessage: errorDisplayMessage`Unexpected field \u201C${label}\u201D on line ${item.position?.start.line ?? "unknown"}. Try again with \u201CState\u201D, \u201CRole\u201D, or \u201CShort name\u201D.`,
                 });
             }
 
             if (seenFields.has(fieldName)) {
                 throw new InvalidArgumentError("Duplicate account field", {
-                    displayMessage: errorDisplayMessage`Duplicate account field \u201C${label}\u201D on line ${item.position?.start.line ?? "unknown"}. Try again with each account field only present once in the field list.`,
+                    displayMessage: errorDisplayMessage`Field \u201C${label}\u201D appears more than once on line ${item.position?.start.line ?? "unknown"}. Try again with each field only present once in the field list.`,
                 });
             }
 
@@ -204,7 +204,7 @@ export async function parseAgentWebAccountPage(
 
             if (remaining.length > 0) {
                 throw new InvalidArgumentError("Unexpected markdown nested in account field", {
-                    displayMessage: errorDisplayMessage`Unexpected markdown after account field \u201C${label}\u201D on line ${remaining[0]!.position?.start.line ?? item.position?.start.line ?? "unknown"}. Try again with an unordered list item for each account field where the field name is followed by the field value with a colon in between (e.g. \`- Role: Member\`).`,
+                    displayMessage: errorDisplayMessage`Unexpected markdown after field \u201C${label}\u201D on line ${remaining[0]!.position?.start.line ?? item.position?.start.line ?? "unknown"}. Try again with one unordered list item per field where the field name is followed by the field value with a colon in between (e.g. \`- Role: Member\`).`,
                 });
             }
 
@@ -230,7 +230,7 @@ export async function parseAgentWebAccountPage(
 
     if (role === null) {
         throw new InvalidArgumentError("Missing account role", {
-            displayMessage: errorDisplayMessage`A role is required for accounts. Try again with a \`Role\` field (e.g. \`- Role: Member\`).`,
+            displayMessage: errorDisplayMessage`Expected a \u201CRole\u201D field. Try again with a role like \`- Role: Member\`.`,
         });
     }
 
@@ -280,7 +280,7 @@ function parseAgentWebAccountField(item: ListItem) {
 
     const createError = () => {
         return new InvalidArgumentError("Invalid account fields", {
-            displayMessage: errorDisplayMessage`Unexpected markdown on line ${firstChild?.position?.start.line ?? item.position?.start.line ?? "unknown"}. Try again with an unordered list item for each account field where the field name is followed by the field value with a colon in between (e.g. \`- Role: Member\`).`,
+            displayMessage: errorDisplayMessage`Unexpected markdown on line ${firstChild?.position?.start.line ?? item.position?.start.line ?? "unknown"}. Try again with one unordered list item per field where the field name is followed by the field value with a colon in between (e.g. \`- Role: Member\`).`,
         });
     };
 
@@ -325,7 +325,7 @@ function parseAgentWebAccountStateField(
             const quotedValue = quoteMarkdown(value);
 
             throw new InvalidArgumentError("Invalid account state", {
-                displayMessage: errorDisplayMessage`Unexpected account state ${quotedValue} on line ${value[0]?.position?.start.line ?? itemPosition?.start.line ?? "unknown"}. Try again with \u201CRemoved from space\u201D or \u201CInvited, but hasn\u2019t accepted their invite\u201D.`,
+                displayMessage: errorDisplayMessage`Unexpected state ${quotedValue} on line ${value[0]?.position?.start.line ?? itemPosition?.start.line ?? "unknown"}. Try again with \u201CRemoved from space\u201D or \u201CInvited, but hasn\u2019t accepted their invite\u201D.`,
             });
         }
     }
@@ -348,7 +348,7 @@ function parseAgentWebAccountRoleField(
             const quotedValue = quoteMarkdown(value);
 
             throw new InvalidArgumentError("Invalid account role", {
-                displayMessage: errorDisplayMessage`Unexpected account role ${quotedValue} on line ${value[0]?.position?.start.line ?? itemPosition?.start.line ?? "unknown"}. Try again with \u201COwner\u201D, \u201CAdmin\u201D, or \u201CMember\u201D.`,
+                displayMessage: errorDisplayMessage`Unexpected role ${quotedValue} on line ${value[0]?.position?.start.line ?? itemPosition?.start.line ?? "unknown"}. Try again with \u201COwner\u201D, \u201CAdmin\u201D, or \u201CMember\u201D.`,
             });
         }
     }

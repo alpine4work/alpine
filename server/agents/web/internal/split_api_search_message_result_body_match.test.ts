@@ -22,11 +22,7 @@ test("returns the message preview and preserves marks", () => {
     ];
 
     expect(splitApiSearchMessageResultBodyMatch(createTestSearchResult(bodyMatch))).toEqual({
-        preview: [
-            {text: "Hello "},
-            {text: "world", isMatch: true},
-            {text: " test"},
-        ],
+        preview: [{text: "Hello "}, {text: "world", isMatch: true}, {text: " test"}],
         newBodyMatch: [],
     });
 });
@@ -62,10 +58,7 @@ test("continues the preview across body match segments", () => {
 
     expect(splitApiSearchMessageResultBodyMatch(createTestSearchResult(bodyMatch))).toEqual({
         preview: [{text: "a".repeat(60)}, {text: "seco", isMatch: true}],
-        newBodyMatch: [
-            {text: "nd segment", isMatch: true},
-            {text: "third segment"},
-        ],
+        newBodyMatch: [{text: "nd segment", isMatch: true}, {text: "third segment"}],
     });
 });
 
@@ -77,9 +70,7 @@ test("does not expand the word boundary beyond 14 characters", () => {
     ];
 
     expect(splitApiSearchMessageResultBodyMatch(createTestSearchResult(bodyMatch))).toEqual({
-        preview: [
-            {text: "Hello verylongwordthatexceedsthefourteencharacterthresholdbecaus"},
-        ],
+        preview: [{text: "Hello verylongwordthatexceedsthefourteencharacterthresholdbecaus"}],
         newBodyMatch: [{text: "eitsmuchtoolong"}],
     });
 });

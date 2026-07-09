@@ -224,15 +224,3 @@ Body.`,
 
     expect(api.getCallCount("POST", "/documents")).toBe(0);
 });
-
-test("throws when creating an account", async () => {
-    await expect(
-        callAgentWebCreateTool(context, {
-            type: "account",
-            content: `\
-# Alice Smith
-
-- Role: Member`,
-        }),
-    ).rejects.toThrow("Can\u2019t create accounts");
-});

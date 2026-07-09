@@ -38,7 +38,7 @@ export type AgentWebPageStoredLink =
           readonly id: ChatId;
           readonly index: number;
           readonly authorShortName: string;
-          readonly bodySnippet: string;
+          readonly preview: string;
       }
     | {
           readonly type: "DocumentMessage";
@@ -46,21 +46,21 @@ export type AgentWebPageStoredLink =
           readonly threadId: DocumentCommentThreadId;
           readonly index: number;
           readonly authorShortName: string;
-          readonly bodySnippet: string;
+          readonly preview: string;
       }
     | {
           readonly type: "PostMessage";
           readonly id: PostId;
           readonly index: number;
           readonly authorShortName: string;
-          readonly bodySnippet: string;
+          readonly preview: string;
       }
     | {
           readonly type: "TaskMessage";
           readonly id: TaskId;
           readonly index: number;
           readonly authorShortName: string;
-          readonly bodySnippet: string;
+          readonly preview: string;
       }
     | {
           readonly type: "File";
@@ -129,25 +129,25 @@ function actuallyPrintAgentWebPageStoredLinkPathname(
             return `/chat/${slugify(link.title)}${dedupe}`;
         }
         case "ChatMessage": {
-            return `/chat-message/${slugify(link.authorShortName)}-${slugify(link.bodySnippet)}${dedupe}`;
+            return `/chat-message/${slugify(link.authorShortName)}-${slugify(link.preview)}${dedupe}`;
         }
         case "Document": {
             return `/document/${slugify(link.title)}${dedupe}`;
         }
         case "DocumentMessage": {
-            return `/document-comment/${slugify(link.authorShortName)}-${slugify(link.bodySnippet)}${dedupe}`;
+            return `/document-comment/${slugify(link.authorShortName)}-${slugify(link.preview)}${dedupe}`;
         }
         case "Post": {
             return `/post/${slugify(link.title)}${dedupe}`;
         }
         case "PostMessage": {
-            return `/post-comment/${slugify(link.authorShortName)}-${slugify(link.bodySnippet)}${dedupe}`;
+            return `/post-comment/${slugify(link.authorShortName)}-${slugify(link.preview)}${dedupe}`;
         }
         case "Task": {
             return `/task/${slugify(link.title)}${dedupe}`;
         }
         case "TaskMessage": {
-            return `/task-comment/${slugify(link.authorShortName)}-${slugify(link.bodySnippet)}${dedupe}`;
+            return `/task-comment/${slugify(link.authorShortName)}-${slugify(link.preview)}${dedupe}`;
         }
         case "TaskCollection": {
             return `/task-collection/${slugify(link.title)}${dedupe}`;
