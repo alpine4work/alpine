@@ -2423,7 +2423,7 @@ export namespace ApiSpecification {
                                 readonly nextCursor:
                                     | components["schemas"]["TaskQueryCursor"]
                                     | null;
-                                readonly tasks: readonly components["schemas"]["TaskWithoutNotes_Response"][];
+                                readonly tasks: readonly components["schemas"]["TaskQueryItem_Response"][];
                             };
                         };
                     };
@@ -3648,6 +3648,10 @@ export namespace ApiSpecification {
                 };
             };
             readonly TaskQueryCursor: ApiTaskQueryCursor;
+            readonly TaskQueryItem: {
+                readonly cursor: components["schemas"]["TaskQueryCursor"];
+                readonly task: components["schemas"]["TaskWithoutNotes"];
+            };
             readonly TaskCollectionCursor: ApiTaskCollectionCursor;
             readonly Task: {
                 readonly id: components["schemas"]["TaskId"];
@@ -4979,20 +4983,6 @@ export namespace ApiSpecification {
                 readonly cursor: components["schemas"]["TaskCollectionCursor"];
                 readonly collection: components["schemas"]["TaskCollectionPreview_Response"];
             };
-            readonly TaskWithoutNotes_Response: {
-                readonly id: components["schemas"]["TaskId"];
-                readonly creator?: {
-                    readonly id: components["schemas"]["AccountId"];
-                };
-                readonly status: components["schemas"]["TaskStatus"];
-                readonly title: string;
-                readonly assignee?: components["schemas"]["Account_Response"];
-                readonly due?: components["schemas"]["TaskDue"];
-                readonly priority?: components["schemas"]["TaskPriority"];
-                readonly layout?: components["schemas"]["TaskLayout"];
-                readonly parent?: components["schemas"]["TaskParent_Response"];
-                readonly collections?: readonly components["schemas"]["TaskCollectionItem_Response"][];
-            };
             readonly MessageContentPayloadParent_Response:
                 | components["schemas"]["MessageContentPayloadMessageParent_Response"]
                 | components["schemas"]["MessageContentPayloadPostParent_Response"];
@@ -5274,6 +5264,20 @@ export namespace ApiSpecification {
                  */
                 readonly type: "SetParent";
                 readonly parent: components["schemas"]["TaskParent_Response"] | null;
+            };
+            readonly TaskWithoutNotes_Response: {
+                readonly id: components["schemas"]["TaskId"];
+                readonly creator?: {
+                    readonly id: components["schemas"]["AccountId"];
+                };
+                readonly status: components["schemas"]["TaskStatus"];
+                readonly title: string;
+                readonly assignee?: components["schemas"]["Account_Response"];
+                readonly due?: components["schemas"]["TaskDue"];
+                readonly priority?: components["schemas"]["TaskPriority"];
+                readonly layout?: components["schemas"]["TaskLayout"];
+                readonly parent?: components["schemas"]["TaskParent_Response"];
+                readonly collections?: readonly components["schemas"]["TaskCollectionItem_Response"][];
             };
             readonly DirectChat_Response: {
                 /**
@@ -5578,6 +5582,10 @@ export namespace ApiSpecification {
                 | components["schemas"]["TaskAddCollectionPatch_Response"]
                 | components["schemas"]["TaskRemoveCollectionPatch"]
                 | components["schemas"]["TaskMoveInCollectionPatch"];
+            readonly TaskQueryItem_Response: {
+                readonly cursor: components["schemas"]["TaskQueryCursor"];
+                readonly task: components["schemas"]["TaskWithoutNotes_Response"];
+            };
             readonly Chat_Response:
                 | components["schemas"]["DirectChat_Response"]
                 | components["schemas"]["RoomChat"];

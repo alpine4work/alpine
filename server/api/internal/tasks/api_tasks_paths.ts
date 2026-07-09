@@ -790,7 +790,10 @@ export const apiTasksPaths: Pick<
                     spaceId,
                     collection: intoApiTaskCollection(collection),
                     nextCursor,
-                    tasks: tasks.map(({task}) => converter.into(task)),
+                    tasks: tasks.map(({cursor, task}) => ({
+                        cursor: encodeApiTaskQueryCursor(sorts, cursor),
+                        task: converter.into(task),
+                    })),
                 },
             };
         },

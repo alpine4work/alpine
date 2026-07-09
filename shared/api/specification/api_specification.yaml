@@ -1573,7 +1573,7 @@ paths:
                                     tasks:
                                         type: array
                                         items:
-                                            $ref: "#/components/schemas/TaskWithoutNotes"
+                                            $ref: "#/components/schemas/TaskQueryItem"
 
     /files/{id}:
         parameters:
@@ -3656,6 +3656,17 @@ components:
         TaskQueryCursor:
             type: string
 
+        TaskQueryItem:
+            type: object
+            required: [cursor, task]
+            additionalProperties: false
+            properties:
+                cursor:
+                    $ref: "#/components/schemas/TaskQueryCursor"
+                task:
+                    $ref: "#/components/schemas/TaskWithoutNotes"
+
+        # NOCOMMIT: Get rid of this and use `TaskQueryCursor` instead.
         TaskCollectionCursor:
             type: string
 
