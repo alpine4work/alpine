@@ -40,6 +40,7 @@ export type AgentWebTaskFields = {
     readonly parent?: ApiTaskReferenceResponse | null;
     readonly assignee?: ApiAccountReferenceResponse | null;
     readonly collections?: ReadonlyArray<ApiTaskCollectionReferenceResponse> | null;
+    readonly additionalCollectionsCount?: number | null;
     readonly priority?: ApiTaskPriority | null;
     readonly dueDateString?: string | null;
 };
@@ -47,8 +48,15 @@ export type AgentWebTaskFields = {
 /** The name of a task field in `AgentWebTaskFields`. */
 export type AgentWebTaskFieldName = keyof AgentWebTaskFields;
 
+/**
+ * Task fields printed with their own label (e.g. `- Priority: Medium`). Every
+ * field except `additionalCollectionsCount` which prints inside the "Collections"
+ * field value.
+ */
+type AgentWebTaskFieldNameWithLabel = Exclude<AgentWebTaskFieldName, "additionalCollectionsCount">;
+
 /** The canonical labels we print for each task field. */
-const agentWebTaskFieldLabels: {readonly [Name in AgentWebTaskFieldName]: string} = {
+const agentWebTaskFieldLabels: {readonly [Name in AgentWebTaskFieldNameWithLabel]: string} = {
     status: "Status",
     parent: "Parent",
     assignee: "Assignee",
@@ -147,10 +155,22 @@ export function printAgentWebTaskFieldListItems(
                     ),
                 );
 
-                return createAgentWebTaskFieldListItem([
+                const children: Array<PhrasingContent> = [
                     {type: "text", value: "Collections: "},
                     ...interleaveArray(collectionLinks, cast<Text>({type: "text", value: ", "})),
-                ]);
+                ];
+
+                if (
+                    typeof fields.additionalCollectionsCount === "number" &&
+                    fields.additionalCollectionsCount !== 0
+                ) {
+                    children.push({
+                        type: "text",
+                        value: `, and ${fields.additionalCollectionsCount} more`,
+                    });
+                }
+
+                return createAgentWebTaskFieldListItem(children);
             })(),
         );
     }
@@ -206,7 +226,9 @@ export function formatAgentWebTaskDueDateString(
  *
  * Only the `fieldNames` supported by the calling context are accepted. Any other
  * field label is rejected with an error suggesting the supported fields in the
- * order they were provided.
+ * order they were provided. Include `additionalCollectionsCount` in `fieldNames`
+ * to also accept an "and n more" count at the end of the "Collections" field
+ * value.
  */
 export async function parseAgentWebTaskFieldListItems(
     storage: AgentWebSessionStorage,
@@ -219,8 +241,10 @@ export async function parseAgentWebTaskFieldListItems(
     let status: ApiTaskStatus | null = null;
     let parentPromise: Promise<ApiTaskReferenceResponse | null> | null = null;
     let assigneePromise: Promise<ApiAccountReferenceResponse | null> | null = null;
-    let collectionsPromise: Promise<ReadonlyArray<ApiTaskCollectionReferenceResponse>> | null =
-        null;
+    let collectionsPromise: Promise<{
+        collections: ReadonlyArray<ApiTaskCollectionReferenceResponse>;
+        additionalCount: number;
+    }> | null = null;
     let priority: ApiTaskPriority | null = null;
     let dueDateString: string | null = null;
 
@@ -270,12 +294,12 @@ export async function parseAgentWebTaskFieldListItems(
                 break;
             }
             case "collections": {
-                collectionsPromise = parseAgentWebTaskCollectionsField(
-                    storage,
-                    item.position,
+                collectionsPromise = parseAgentWebTaskCollectionsField(storage, {
+                    itemPosition: item.position,
                     value,
                     remaining,
-                );
+                    allowAdditionalCount: allowedFieldNames.has("additionalCollectionsCount"),
+                });
                 break;
             }
             case "priority": {
@@ -291,7 +315,7 @@ export async function parseAgentWebTaskFieldListItems(
         }
     }
 
-    const [parent, assignee, collections] = await runAllPromises([
+    const [parent, assignee, collectionsResult] = await runAllPromises([
         parentPromise,
         assigneePromise,
         collectionsPromise,
@@ -301,13 +325,14 @@ export async function parseAgentWebTaskFieldListItems(
         status,
         parent,
         assignee,
-        collections: collections ?? [],
+        collections: collectionsResult?.collections ?? [],
+        additionalCollectionsCount: collectionsResult?.additionalCount ?? 0,
         priority,
         dueDateString,
     };
 }
 
-function parseAgentWebTaskFieldName(labelKey: string): AgentWebTaskFieldName | null {
+function parseAgentWebTaskFieldName(labelKey: string): AgentWebTaskFieldNameWithLabel | null {
     // The cases here are the field labels after `normalizeAgentWebStaticText()` which
     // stems each word (e.g. "Statuses", "statuses", and "status" all become "statu").
     switch (labelKey) {
@@ -329,7 +354,12 @@ function parseAgentWebTaskFieldName(labelKey: string): AgentWebTaskFieldName | n
 }
 
 function printAgentWebTaskFieldLabelList(fieldNames: ReadonlyArray<AgentWebTaskFieldName>): string {
-    const labels = fieldNames.map(fieldName => `\u201C${agentWebTaskFieldLabels[fieldName]}\u201D`);
+    const labels = fieldNames
+        .filter(
+            (fieldName): fieldName is AgentWebTaskFieldNameWithLabel =>
+                fieldName !== "additionalCollectionsCount",
+        )
+        .map(fieldName => `\u201C${agentWebTaskFieldLabels[fieldName]}\u201D`);
 
     if (labels.length === 1) return labels[0]!;
     if (labels.length === 2) return `${labels[0]} or ${labels[1]}`;
@@ -469,14 +499,63 @@ async function parseAgentWebTaskAssigneeField(
 
 async function parseAgentWebTaskCollectionsField(
     storage: AgentWebSessionStorage,
-    itemPosition: Node["position"],
-    value: ReadonlyArray<PhrasingContent>,
-    remaining: ReadonlyArray<ListItem["children"][number]>,
-): Promise<Array<ApiTaskCollectionReferenceResponse>> {
+    {
+        itemPosition,
+        value,
+        remaining,
+        allowAdditionalCount,
+    }: {
+        itemPosition: Node["position"];
+        value: ReadonlyArray<PhrasingContent>;
+        remaining: ReadonlyArray<ListItem["children"][number]>;
+        allowAdditionalCount: boolean;
+    },
+): Promise<{
+    collections: ReadonlyArray<ApiTaskCollectionReferenceResponse>;
+    additionalCount: number;
+}> {
+    // The collections list may end with an "and n more" count summarizing collections
+    // that aren't shown (e.g.
+    // `- Collections: [My Collection](/task-collection/my-collection), and 2 more`).
+    // Only contexts that print a truncated collections list accept the count.
+    let additionalCount = 0;
+    let additionalCountLine: number | "unknown" = "unknown";
+    let valueNodes: ReadonlyArray<PhrasingContent> = value;
+
+    const lastValueNode = value[value.length - 1];
+
+    if (lastValueNode?.type === "text") {
+        const additionalCountMatch = lastValueNode.value.match(
+            /(?:^|[\s,])and\s+(\d+)\s+more\s*$/i,
+        );
+
+        if (additionalCountMatch) {
+            additionalCount = parseInt(additionalCountMatch[1]!, 10);
+            additionalCountLine =
+                lastValueNode.position?.start.line ?? itemPosition?.start.line ?? "unknown";
+
+            if (!allowAdditionalCount) {
+                throw new InvalidArgumentError(
+                    "Task collections \u201Cand n more\u201D count isn\u2019t supported here",
+                    {
+                        displayMessage: errorDisplayMessage`Can\u2019t use \u201Cand ${additionalCount} more\u201D in the \u201CCollections\u201D task field on line ${additionalCountLine} since we wouldn\u2019t know which collections those are. Try again with a link to every collection (e.g. \`- Collections: [My Collection 1](/task-collection/my-collection-1), [My Collection 2](/task-collection/my-collection-2)\`).`,
+                    },
+                );
+            }
+
+            const lastValueNodeRest = lastValueNode.value.slice(0, additionalCountMatch.index);
+
+            valueNodes =
+                lastValueNodeRest.length > 0
+                    ? [...value.slice(0, -1), {...lastValueNode, value: lastValueNodeRest}]
+                    : value.slice(0, -1);
+        }
+    }
+
     const collectionLinks: Array<Link> = [];
     let hasInlineListSyntax = false;
 
-    for (const node of value) {
+    for (const node of valueNodes) {
         switch (node.type) {
             case "link": {
                 hasInlineListSyntax = true;
@@ -511,8 +590,70 @@ async function parseAgentWebTaskCollectionsField(
 
     // If there were just inline collections, great! Otherwise we'll try to parse a
     // nested collection list.
-    if (remaining.length === 0) {
-        const collectionPromises = collectionLinks.map(async link => {
+    if (remaining.length > 0) {
+        const nestedList = remaining[0];
+
+        if (
+            hasInlineListSyntax ||
+            collectionLinks.length > 0 ||
+            remaining.length !== 1 ||
+            nestedList!.type !== "list" ||
+            nestedList.ordered
+        ) {
+            throw new InvalidArgumentError("Invalid task collections field", {
+                displayMessage: errorDisplayMessage`Unexpected markdown after task collection list on line ${remaining[0]?.position?.start.line ?? itemPosition?.start.line ?? "unknown"}. Try again with a comma separated list of collection links and nothing else after that (e.g. \`- Collections: [My Collection 1](/task-collection/my-collection-1), [My Collection 2](/task-collection/my-collection-2)\`).`,
+            });
+        }
+
+        for (const nestedItem of nestedList.children) {
+            const createError = () => {
+                throw new InvalidArgumentError("Invalid task collections field", {
+                    displayMessage: errorDisplayMessage`Unexpected markdown in task collection list item on line ${nestedItem.position?.start.line ?? "unknown"}. Try again with a single collection link (e.g. \`[My Collection](/task-collection/my-collection)\`) in each nested list item.`,
+                });
+            };
+
+            const paragraph = nestedItem.children[0];
+
+            if (nestedItem.children.length !== 1 || paragraph?.type !== "paragraph") {
+                throw createError();
+            }
+
+            let link: Link | null = null;
+
+            for (const child of paragraph.children) {
+                if (child.type === "link" && link === null) {
+                    link = child;
+                    continue;
+                }
+
+                if (child.type === "text" && child.value.trim().length === 0) {
+                    continue;
+                }
+
+                throw createError();
+            }
+
+            if (link === null) {
+                throw createError();
+            }
+
+            collectionLinks.push(link);
+        }
+    }
+
+    // An "and n more" count with no collection links at all is probably a mistake, so
+    // we reject it instead of silently dropping the count.
+    if (additionalCount > 0 && collectionLinks.length === 0) {
+        throw new InvalidArgumentError(
+            "Task collections field only has an \u201cand n more\u201d count",
+            {
+                displayMessage: errorDisplayMessage`Unexpected \u201cand ${additionalCount} more\u201d without any collection links on line ${additionalCountLine}. Try again with a comma separated list of collection links before the \u201cand ${additionalCount} more\u201d count (e.g. \`- Collections: [My Collection](/task-collection/my-collection), and 2 more\`).`,
+            },
+        );
+    }
+
+    const collections = await runAllPromises(
+        collectionLinks.map(async link => {
             const pageLinkResult = await routeAgentWebPageLinkPathname(storage, link.url);
 
             if (!pageLinkResult || pageLinkResult.pageLink.type !== "TaskCollection") {
@@ -524,75 +665,10 @@ async function parseAgentWebTaskCollectionsField(
             }
 
             return pageLinkResult.pageLink;
-        });
+        }),
+    );
 
-        return await runAllPromises(collectionPromises);
-    }
-
-    const nestedList = remaining[0];
-
-    if (
-        hasInlineListSyntax ||
-        collectionLinks.length > 0 ||
-        remaining.length !== 1 ||
-        nestedList!.type !== "list" ||
-        nestedList.ordered
-    ) {
-        throw new InvalidArgumentError("Invalid task collections field", {
-            displayMessage: errorDisplayMessage`Unexpected markdown after task collection list on line ${remaining[0]?.position?.start.line ?? itemPosition?.start.line ?? "unknown"}. Try again with a comma separated list of collection links and nothing else after that (e.g. \`- Collections: [My Collection 1](/task-collection/my-collection-1), [My Collection 2](/task-collection/my-collection-2)\`).`,
-        });
-    }
-
-    for (const nestedItem of nestedList.children) {
-        const createError = () => {
-            throw new InvalidArgumentError("Invalid task collections field", {
-                displayMessage: errorDisplayMessage`Unexpected markdown in task collection list item on line ${nestedItem.position?.start.line ?? "unknown"}. Try again with a single collection link (e.g. \`[My Collection](/task-collection/my-collection)\`) in each nested list item.`,
-            });
-        };
-
-        const paragraph = nestedItem.children[0];
-
-        if (nestedItem.children.length !== 1 || paragraph?.type !== "paragraph") {
-            throw createError();
-        }
-
-        let link: Link | null = null;
-
-        for (const child of paragraph.children) {
-            if (child.type === "link" && link === null) {
-                link = child;
-                continue;
-            }
-
-            if (child.type === "text" && child.value.trim().length === 0) {
-                continue;
-            }
-
-            throw createError();
-        }
-
-        if (link === null) {
-            throw createError();
-        }
-
-        collectionLinks.push(link);
-    }
-
-    const collectionPromises = collectionLinks.map(async link => {
-        const pageLinkResult = await routeAgentWebPageLinkPathname(storage, link.url);
-
-        if (!pageLinkResult || pageLinkResult.pageLink.type !== "TaskCollection") {
-            const quotedValue = quoteMarkdown([link]);
-
-            throw new InvalidArgumentError("Invalid task fields", {
-                displayMessage: errorDisplayMessage`Unexpected task collection link ${quotedValue} on line ${link.position?.start.line ?? itemPosition?.start.line ?? "unknown"}. Try again with a link to a task collection you\u2019ve seen before (e.g. \`[My Collection](/task-collection/my-collection)\`).`,
-            });
-        }
-
-        return pageLinkResult.pageLink;
-    });
-
-    return await runAllPromises(collectionPromises);
+    return {collections, additionalCount};
 }
 
 function parseAgentWebTaskPriorityField(

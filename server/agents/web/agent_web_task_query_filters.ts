@@ -2,18 +2,14 @@ import {parseDate} from "@internationalized/date";
 import {AgentWebSessionStorage} from "~/server/agents/web/agent_web_session_storage.js";
 import {createAgentWebPageLinkPathname} from "~/server/agents/web/create_agent_web_page_link_pathname.js";
 import {routeAgentWebPageLinkPathname} from "~/server/agents/web/route_agent_web_page_link_pathname.js";
-import {
-    normalizeApiTaskQueryFilters,
-} from "~/shared/api/content/normalize_api_task_query_filters.js";
+import {normalizeApiTaskQueryFilters} from "~/shared/api/content/normalize_api_task_query_filters.js";
 import {intoApiAccountReference} from "~/shared/api/specification/into_api_account_reference.js";
 import {
     ApiTaskCollectionPreviewResponse,
     ApiTaskLayout,
     ApiTaskPriority,
     ApiTaskQueryAccountFilterOperationAccount,
-    ApiTaskQueryAccountFilterOperationAccountResponse,
     ApiTaskQueryFilter,
-    ApiTaskQueryFilterResponse,
     ApiTaskQueryTimeFilterOperationDuration,
     ApiTaskQueryTimeFilterOperationTime,
     ApiTaskStatus,
@@ -102,8 +98,8 @@ import {TaskCollectionId} from "~/shared/id/types/id_types.js";
  *   `open`).
  *
  * Filters are normalized with `normalizeApiTaskQueryFilters()` before printing and
- * `parseAgentWebTaskQueryFilters()` returns exactly the normalized form of whatever was
- * printed.
+ * `parseAgentWebTaskQueryFilters()` returns exactly the normalized form of
+ * whatever was printed.
  *
  * Account and task collection references are printed using the name from their
  * agent web pathnames (e.g. `john-doe` from `/human/john-doe`). Callers must
@@ -228,7 +224,9 @@ async function printAgentWebTaskQueryFilter(
             }[operation.type];
 
             const values = await runAllPromises(
-                operation.accounts.map(account => printAgentWebTaskQueryFilterAccount(storage, account)),
+                operation.accounts.map(account =>
+                    printAgentWebTaskQueryFilterAccount(storage, account),
+                ),
             );
 
             return printAgentWebTaskQueryFilterListValues(key, values);
@@ -273,7 +271,10 @@ async function printAgentWebTaskQueryFilter(
  * with no values (which the task filter editor UI represents as a filter that
  * hasn't been fully configured yet) prints as an empty value (e.g. `status=`).
  */
-function printAgentWebTaskQueryFilterListValues(key: string, values: ReadonlyArray<string>): string {
+function printAgentWebTaskQueryFilterListValues(
+    key: string,
+    values: ReadonlyArray<string>,
+): string {
     return `${key}=${values.join(",")}`;
 }
 
@@ -503,8 +504,9 @@ function printAgentWebTaskQueryFilterDateDurationCount(count: number, unit: stri
 
 /**
  * Parses URL search params into API task filters. This is the inverse of
- * `printAgentWebTaskQueryFilters()`, see that function for the format documentation.
- * The returned filters are always normalized with `normalizeApiTaskQueryFilters()`.
+ * `printAgentWebTaskQueryFilters()`, see that function for the format
+ * documentation. The returned filters are always normalized with
+ * `normalizeApiTaskQueryFilters()`.
  *
  * Every search param parses to its own filter so `&` always means "and". Search
  * params we don't recognize as task filters (like a caller's pagination params)
@@ -701,8 +703,8 @@ async function parseAgentWebTaskQueryFilterSearchParam(
                         accountValue,
                     );
 
-                    // `parseAgentWebTaskQueryFilterAccount()` throws for `creator=none` when `filterKey` is
-                    // `"creator"` so a missing account is impossible here.
+                    // `parseAgentWebTaskQueryFilterAccount()` throws for `creator=none` when
+                    // `filterKey` is `"creator"` so a missing account is impossible here.
                     assert(account.type !== "MissingAccount");
 
                     return account;
@@ -771,8 +773,8 @@ async function parseAgentWebTaskQueryFilterSearchParam(
             };
         }
         default: {
-            // `parseAgentWebTaskQueryFilters()` only parses search params with recognized filter
-            // keys, every other search param is ignored.
+            // `parseAgentWebTaskQueryFilters()` only parses search params with recognized
+            // filter keys, every other search param is ignored.
             throw new InternalError(`Unexpected task filter key \u201c${filterKey}\u201d`);
         }
     }
