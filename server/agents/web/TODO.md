@@ -5,7 +5,7 @@ NOCOMMIT: Remove this file
 ## Agent web pages
 
 - [x] Task fields in collection
-- [ ] Task collections field in pagination (showing 3 more if many collections)
+- [x] Task collections field in pagination (showing 3 more if many collections)
 - [ ] Update task status in collection
 - [ ] Show subtask count in collection
 - [x] Collection pagination
