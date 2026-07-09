@@ -7,6 +7,7 @@ import {TestContext} from "~/server/spaces/test_helpers/test_context.js";
 import {TestSpace} from "~/server/spaces/test_helpers/test_space.js";
 import {TestSpaceSession} from "~/server/spaces/test_helpers/test_space_session.js";
 import {ApiContentKeyDecoder} from "~/shared/api/content/closed_source/api_content_key_encoder.js";
+import {unknownFileId} from "~/shared/api/content/closed_source/unknown_file_id.js";
 import {printApiContentToMarkdown} from "~/shared/api/content/print_api_content_to_markdown.js";
 import {
     ApiMessageRoomPath,
@@ -645,6 +646,44 @@ export function testMessagingApiImplementation(
             expect(printApiContentToMarkdown(response.body.message.payload.content)).toEqual(
                 "Hello, world!\n",
             );
+        });
+
+        test("can\u2019t create message with file in content", async () => {
+            const space = await TestSpace.create(context);
+            const session = await space.createSession({role: "Admin"});
+
+            const botAccount = await TestBot.createAndInstantiate(session);
+            const apiKey = await botAccount.createApiKey(session);
+
+            const {roomPath} = await createPrivateRoom(session, botAccount);
+
+            expect(
+                await server.POST(`${roomPath}/messages`, {
+                    headers: {authorization: `bearer ${apiKey}`},
+                    body: {
+                        content: {
+                            elements: [
+                                {
+                                    type: "File",
+                                    file: {id: unknownFileId},
+                                },
+                            ],
+                        },
+                    },
+                }),
+            ).toEqual({
+                status: 400,
+                headers: expect.objectContaining({"content-type": "application/json"}),
+                body: {
+                    error: expect.objectContaining({
+                        message:
+                            "\`File\` elements aren\u2019t supported in this type of content. Try again without \`File\` elements.",
+                        retry: {
+                            able: false,
+                        },
+                    }),
+                },
+            });
         });
 
         test("can\u2019t send message to room that doesn\u2019t exist", async () => {
@@ -2543,12 +2582,18 @@ export function testMessagingApiImplementation(
                     decoder.decode(part1Element.key),
                     decoder.decode(part2Element.key),
                 ]).toEqual([
-                    {version: 0, pos: 0, nodeSize: baseNode.nodeSize},
-                    {version: 0, pos: baseNode.nodeSize, nodeSize: part1Node.nodeSize},
+                    {version: 0, pos: 0, nodeSize: baseNode.nodeSize, inlineContent: true},
+                    {
+                        version: 0,
+                        pos: baseNode.nodeSize,
+                        nodeSize: part1Node.nodeSize,
+                        inlineContent: true,
+                    },
                     {
                         version: 0,
                         pos: baseNode.nodeSize + part1Node.nodeSize,
                         nodeSize: part2Node.nodeSize,
+                        inlineContent: true,
                     },
                 ]);
             });
