@@ -114,7 +114,7 @@ export type AgentWebTaskCollectionPage = {
 /**
  * The default filters and sorts a task collection applies to its tasks. These are
  * printed after the collection fields as URL search params in a code block (e.g.
- * `?status=open&sort=-priority,due`). A collection without default filters and
+ * `status=open&sort=-priority,due`). A collection without default filters and
  * sorts has `null` defaults.
  */
 export type AgentWebTaskCollectionPageDefaults = {
@@ -913,8 +913,13 @@ async function parseAgentWebTaskCollectionHeadPage(
     storage: AgentWebSessionStorage,
     root: Root,
 ): Promise<AgentWebTaskCollectionPage> {
-    const heading = root.children[0]!;
-    assert(heading.type === "heading" && heading.depth === 1);
+    const heading = root.children[0];
+
+    if (heading?.type !== "heading" || heading.depth !== 1) {
+        throw new InvalidArgumentError("Missing task collection name", {
+            displayMessage: errorDisplayMessage`Task collection markdown must start with a name (e.g. \`# My Collection\`) when creating a collection. Try again with a name.`,
+        });
+    }
 
     const name = printMarkdownPhrasingContentText(heading.children);
 

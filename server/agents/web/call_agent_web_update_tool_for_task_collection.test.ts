@@ -1,14 +1,10 @@
 import {ApiClientMock} from "~/server/agents/api/test_helpers/api_client_mock.js";
 import {AgentWebContext} from "~/server/agents/web/agent_web_context.js";
+import {getAgentWebTaskQueryCursorForHashIfExists} from "~/server/agents/web/agent_web_task_query_cursor_hash.js";
 import {callAgentWebReadTool} from "~/server/agents/web/call_agent_web_read_tool.js";
 import {callAgentWebUpdateTool} from "~/server/agents/web/call_agent_web_update_tool.js";
 import {createAgentWebPageStoredLinkPathname} from "~/server/agents/web/create_agent_web_page_stored_link_pathname.js";
-import {
-    AgentWebTaskCollectionPage,
-    AgentWebTaskCollectionPageMetadata,
-    agentWebTaskCollectionPageApiTasksBatchCount,
-    updateAgentWebTaskCollectionPage,
-} from "~/server/agents/web/pages/agent_web_task_collection_page.js";
+import {agentWebTaskCollectionPageApiTasksBatchCount} from "~/server/agents/web/pages/agent_web_task_collection_page.js";
 import {createAgentWebSessionStorageForTest} from "~/server/agents/web/test_helpers/create_agent_web_session_storage_for_test.js";
 import {
     ApiTaskCollectionColor,
@@ -110,15 +106,16 @@ function getDisplayMessage(error: unknown): ErrorDisplayMessage {
 }
 
 async function expectInvalidUpdateDisplayMessage({
+    path = "/task-collection/roadmap",
     updates,
     expected,
 }: {
+    path?: string;
     updates: ReadonlyArray<UpdateToolUpdate>;
     expected: string;
 }) {
     const result = await captureResultPromise(
-        async () =>
-            await callAgentWebUpdateTool(context, {path: "/task-collection/roadmap", updates}),
+        async () => await callAgentWebUpdateTool(context, {path, updates}),
     );
 
     if (result.ok) {
@@ -152,16 +149,20 @@ async function expectUnimplementedUpdate({
 function mockGetCollectionTasks({
     color = "Red",
     defaults = {filters: [], sorts: []},
+    cursor,
+    nextCursor = null,
 }: {
     color?: ApiTaskCollectionColor | null;
     defaults?: ApiTaskQueryDefaultsResponse;
+    cursor?: ApiTaskQueryCursor;
+    nextCursor?: ApiTaskQueryCursor | null;
 } = {}) {
     api.mockGet("/task-collections/{id}/tasks", {
         params: {
             path: {id: collectionId},
             query: {
                 limit: agentWebTaskCollectionPageApiTasksBatchCount,
-                cursor: undefined,
+                cursor,
             },
         },
         data: {
@@ -172,7 +173,7 @@ function mockGetCollectionTasks({
                 ...(color !== null ? {color} : {}),
                 defaults,
             },
-            nextCursor: null,
+            nextCursor,
             tasks: [
                 {
                     cursor: "task-cursor-0" as ApiTaskQueryCursor,
@@ -218,16 +219,44 @@ function getCollectionPatchRequests() {
 async function readTaskCollectionPage({
     color = "Red",
     defaults,
+    nextCursor,
+    limit = "10kb",
 }: {
     color?: ApiTaskCollectionColor | null;
     defaults?: ApiTaskQueryDefaultsResponse;
+    nextCursor?: ApiTaskQueryCursor | null;
+    limit?: string;
 } = {}) {
-    mockGetCollectionTasks({color, defaults});
+    mockGetCollectionTasks({color, defaults, nextCursor});
 
     return await callAgentWebReadTool(context, {
         path: "/task-collection/roadmap",
-        limit: "10kb",
+        limit,
     });
+}
+
+function getTaskCollectionNextPagePath(response: string): string {
+    const match = response.match(/\[Next page »\]\(([^)]+)\)/);
+
+    if (match === null) throw new InternalError("Expected task collection next page link");
+
+    return match[1]!;
+}
+
+async function getTaskCollectionNextPageCursor(path: string): Promise<ApiTaskQueryCursor> {
+    const cursorHash = new URL(path, "https://agent-web.local").searchParams.get("after");
+
+    if (cursorHash === null) throw new InternalError("Expected task collection cursor hash");
+
+    const cursor = await getAgentWebTaskQueryCursorForHashIfExists(
+        storage,
+        collectionId,
+        cursorHash,
+    );
+
+    if (cursor === undefined) throw new InternalError("Expected task collection cursor");
+
+    return cursor;
 }
 
 test("updates the task collection name", async () => {
@@ -416,8 +445,8 @@ test("throws unimplemented when changing the default filters and sorts", async (
     await expectUnimplementedUpdate({
         updates: [
             {
-                old: "?status=open&sort=-priority,due",
-                new: "?status=open,closed&sort=-priority,due",
+                old: "status=open&sort=-priority,due",
+                new: "status=open,closed&sort=-priority,due",
                 replaceAll: false,
             },
         ],
@@ -433,7 +462,7 @@ test("throws unimplemented when removing the default filters and sorts", async (
     await expectUnimplementedUpdate({
         updates: [
             {
-                old: "\n\nDefault filters and sorts:\n\n```\n?status=open&sort=-priority,due\n```",
+                old: "\n\nDefault filters and sorts:\n\n```\nstatus=open&sort=-priority,due\n```",
                 new: "",
                 replaceAll: false,
             },
@@ -448,7 +477,7 @@ test("rejects an unknown status filter in the default filters", async () => {
     await readTaskCollectionPage({defaults: roadmapDefaults});
 
     await expectInvalidUpdateDisplayMessage({
-        updates: [{old: "?status=open", new: "?status=done", replaceAll: false}],
+        updates: [{old: "status=open", new: "status=done", replaceAll: false}],
         expected:
             "Unexpected task status filter `status=done`. Try again with `open`, " +
             "`open-active`, or `closed` (e.g. `status=open` or `status[not]=closed`).",
@@ -502,34 +531,104 @@ test("rejects unexpected markdown after the task list", async () => {
     });
 });
 
-test("makes no API calls when removing the end of tasks marker", async () => {
+test("rejects removing the end of tasks marker", async () => {
     await readTaskCollectionPage();
 
-    await expect(
-        updateAgentWebTaskCollectionPage(
-            context,
-            {type: "TaskCollection", id: collectionId, tasks: []},
-            oldPage,
-            {...oldPage, pagination: {nextCursorHash: "d4e5f6"}},
-        ),
-    ).rejects.toThrow("Can\u2019t update task collection pagination");
+    await expectInvalidUpdateDisplayMessage({
+        updates: [{old: "\n\nEnd of tasks.", new: "", replaceAll: false}],
+        expected:
+            "You can\u2019t update the \u201CEnd of tasks\u201D marker. Only a `read` tool call " +
+            "can tell you whether you\u2019ve seen all of a collection\u2019s tasks. Try " +
+            "again with a more specific update that leaves the \u201CEnd of tasks\u201D marker " +
+            "unchanged.",
+    });
+
+    expect(getCollectionPatchRequests()).toHaveLength(0);
+});
+
+test("rejects changing the next page link cursor", async () => {
+    const nextCursor = "task-cursor-next" as ApiTaskQueryCursor;
+    const response = await readTaskCollectionPage({nextCursor, limit: "140b"});
+    const nextPagePath = getTaskCollectionNextPagePath(response);
+
+    await expectInvalidUpdateDisplayMessage({
+        updates: [
+            {
+                old: nextPagePath,
+                new: nextPagePath.replace(/after=[^&]+/, "after=d4e5f6"),
+                replaceAll: false,
+            },
+        ],
+        expected:
+            "You can\u2019t update the \u201CNext page \u00bb\u201D link in task collection " +
+            "markdown. Try again with a more specific update that leaves the " +
+            "\u201CNext page \u00bb\u201D link unchanged.",
+    });
 });
 
 test("rejects removing the next page link", async () => {
-    const oldPage = {
-        type: "TaskCollection" as const,
-        name: "Roadmap",
-        color: null,
-        pagination: {nextCursorHash: "a1b2c3"},
-        tasks: [],
-    };
+    const nextCursor = "task-cursor-next" as ApiTaskQueryCursor;
+    const response = await readTaskCollectionPage({nextCursor, limit: "140b"});
+    const nextPagePath = getTaskCollectionNextPagePath(response);
 
-    await expect(
-        updateAgentWebTaskCollectionPage(
-            context,
-            {type: "TaskCollection", id: collectionId, tasks: []},
-            oldPage,
-            {...oldPage, pagination: null},
-        ),
-    ).rejects.toThrow("Can\u2019t update task collection pagination");
+    await expectInvalidUpdateDisplayMessage({
+        updates: [
+            {
+                old: `[Next page »](${nextPagePath})`,
+                new: "",
+                replaceAll: false,
+            },
+        ],
+        expected:
+            "You can\u2019t update the \u201CNext page \u00bb\u201D link in task collection " +
+            "markdown. Try again with a more specific update that leaves the " +
+            "\u201CNext page \u00bb\u201D link unchanged.",
+    });
+});
+
+test("rejects adding the end of tasks marker", async () => {
+    const nextCursor = "task-cursor-next" as ApiTaskQueryCursor;
+    const response = await readTaskCollectionPage({nextCursor, limit: "140b"});
+
+    await expectInvalidUpdateDisplayMessage({
+        updates: [
+            {
+                old: response,
+                new: `${response}\n\nEnd of tasks.`,
+                replaceAll: false,
+            },
+        ],
+        expected:
+            "You can\u2019t update the \u201CEnd of tasks\u201D marker. Only a `read` tool call " +
+            "can tell you whether you\u2019ve seen all of a collection\u2019s tasks. Try " +
+            "again with a more specific update that leaves the \u201CEnd of tasks\u201D marker " +
+            "unchanged.",
+    });
+});
+
+test("rejects renaming the task collection on a later page", async () => {
+    const nextCursor = "task-cursor-next" as ApiTaskQueryCursor;
+    const response = await readTaskCollectionPage({nextCursor, limit: "140b"});
+    const nextPagePath = getTaskCollectionNextPagePath(response);
+    const nextPageCursor = await getTaskCollectionNextPageCursor(nextPagePath);
+
+    mockGetCollectionTasks({cursor: nextPageCursor});
+    await callAgentWebReadTool(context, {path: nextPagePath, limit: "10kb"});
+
+    await expectInvalidUpdateDisplayMessage({
+        path: nextPagePath,
+        updates: [
+            {
+                old: "Tasks in Roadmap.",
+                new: "Tasks in Roadmap 2026.",
+                replaceAll: false,
+            },
+        ],
+        expected:
+            "You can only update the task collection name on the first page of the " +
+            "collection. You must leave the `Tasks in My Collection.` line at the start of " +
+            "the collection markdown in place. Try calling the `read` tool to navigate to " +
+            "the first page of the collection and you can call the `update` tool on that " +
+            "page to update the name.",
+    });
 });

@@ -281,10 +281,9 @@ test("rejects creating a task collection without a name", async () => {
     await expectInvalidCreateDisplayMessage({
         content: "Color: Red",
         expected:
-            "Task collection markdown must start with \u201CTasks in My Collection\u201D (where " +
-            "\u201CMy Collection\u201D is the actual name of the task collection) when reading a " +
-            "later task collection page. Try again with a proper task collection preamble " +
-            "on line 1.",
+            "Task collection markdown must start with a task collection name (e.g. " +
+            "`# My Collection`) when creating a task collection. Try again with a task " +
+            "collection name.",
     });
 
     expect(getCreateTaskCollectionRequests()).toHaveLength(0);

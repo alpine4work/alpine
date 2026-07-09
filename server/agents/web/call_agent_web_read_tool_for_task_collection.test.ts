@@ -344,7 +344,7 @@ Color: Red
 Default filters and sorts:
 
 \`\`\`
-?status=open&sort=-priority,due
+status=open&sort=-priority,due
 \`\`\`
 
 - [Test task 1 (Open)](/task/test-task-1)
@@ -595,7 +595,7 @@ Color: Red
 Default filters:
 
 \`\`\`
-?status=open
+status=open
 \`\`\`
 
 [Next page »](/task-collection/roadmap?after=f55706)
