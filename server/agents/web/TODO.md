@@ -14,3 +14,8 @@ NOCOMMIT: Remove this file
 - [ ] CLI
 - [ ] CLI integration tests
 - [ ] Claude agent
+
+## Misc
+
+- [ ] Rebase
+- [ ] NOCOMMITs
