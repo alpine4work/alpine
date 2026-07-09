@@ -17,3 +17,17 @@ export function intoApiAccountReference(
         bot: account.bot,
     };
 }
+
+/**
+ * Convert a `ApiAccountReference` into a `ApiAccount` (response specialization).
+ */
+export function fromApiAccountReference(
+    account: ApiAccountReferenceResponse,
+): ApiAccountWithoutSpaceResponse {
+    return {
+        id: account.id,
+        name: account.title,
+        shortName: account.shortName,
+        bot: account.bot,
+    };
+}
