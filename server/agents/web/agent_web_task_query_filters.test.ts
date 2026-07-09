@@ -37,7 +37,10 @@ async function expectTaskQueryFilterFormat(
 ): Promise<void> {
     expect({
         printed: await printAgentWebTaskQueryFilters(storage, filters),
-        parsed: await parseAgentWebTaskQueryFilters(storage, new URLSearchParams(searchParamsString)),
+        parsed: await parseAgentWebTaskQueryFilters(
+            storage,
+            new URLSearchParams(searchParamsString),
+        ),
     }).toEqual({
         printed: searchParamsString,
         parsed: intoApiTaskQueryFiltersWithoutResponseData(normalizeApiTaskQueryFilters(filters)),
@@ -112,8 +115,8 @@ async function createAccountForTest(
         space: {role: "Member", addedTime: serializeDateString(new Date())},
     };
 
-    // `printAgentWebTaskQueryFilters()` creates links on demand but tests create them ahead
-    // of time so pathname dedupe numbers are assigned deterministically.
+    // `printAgentWebTaskQueryFilters()` creates links on demand but tests create them
+    // ahead of time so pathname dedupe numbers are assigned deterministically.
     await createAgentWebPageStoredLinkPathname(storage, intoApiAccountReference(account));
 
     return account;
@@ -533,8 +536,8 @@ test("prints an assignee filter creating a link for an unseen account", async ()
         space: {role: "Member", addedTime: serializeDateString(new Date())},
     };
 
-    // `printAgentWebTaskQueryFilters()` creates links for referenced accounts on demand
-    // using the hydrated response data, no link has to exist ahead of time.
+    // `printAgentWebTaskQueryFilters()` creates links for referenced accounts on
+    // demand using the hydrated response data, no link has to exist ahead of time.
     await expectTaskQueryFilterFormat(
         [{type: "Assignee", operation: {type: "OneOf", accounts: [{type: "Account", account}]}}],
         "assignee=anthony-mose",
@@ -681,8 +684,8 @@ test("prints a collection filter", async () => {
 });
 
 test("prints a collection filter creating a link for an unseen collection", async () => {
-    // `printAgentWebTaskQueryFilters()` creates links for referenced task collections on
-    // demand using the hydrated response data, no link has to exist ahead of time.
+    // `printAgentWebTaskQueryFilters()` creates links for referenced task collections
+    // on demand using the hydrated response data, no link has to exist ahead of time.
     await expectTaskQueryFilterFormat(
         [
             {
@@ -1137,7 +1140,10 @@ test("parses a percent-encoded plus in a relative date", async () => {
 
 test("parses percent-encoded square brackets in a filter key", async () => {
     expect(
-        await parseAgentWebTaskQueryFilters(storage, new URLSearchParams("due%5Bbefore%5D=2026-07-12")),
+        await parseAgentWebTaskQueryFilters(
+            storage,
+            new URLSearchParams("due%5Bbefore%5D=2026-07-12"),
+        ),
     ).toEqual([
         {
             type: "Due",
@@ -1150,7 +1156,10 @@ test("parses a full account path in an assignee filter", async () => {
     const account = await createAccountForTest("John Doe");
 
     expect(
-        await parseAgentWebTaskQueryFilters(storage, new URLSearchParams("assignee=/human/john-doe")),
+        await parseAgentWebTaskQueryFilters(
+            storage,
+            new URLSearchParams("assignee=/human/john-doe"),
+        ),
     ).toEqual([
         {
             type: "Assignee",
@@ -1187,7 +1196,9 @@ test("parses repeated identical values into one deduped filter", async () => {
 });
 
 test("parses empty comma segments as no values", async () => {
-    expect(await parseAgentWebTaskQueryFilters(storage, new URLSearchParams("status=,open"))).toEqual([
+    expect(
+        await parseAgentWebTaskQueryFilters(storage, new URLSearchParams("status=,open")),
+    ).toEqual([
         {
             type: "Status",
             operation: {type: "OneOf", statuses: [{type: "Open", isActive: false}]},
@@ -1197,7 +1208,10 @@ test("parses empty comma segments as no values", async () => {
 
 test("parses repeated same-key params as separate filters", async () => {
     expect(
-        await parseAgentWebTaskQueryFilters(storage, new URLSearchParams("status=open&status=open")),
+        await parseAgentWebTaskQueryFilters(
+            storage,
+            new URLSearchParams("status=open&status=open"),
+        ),
     ).toEqual([
         {
             type: "Status",
@@ -1235,12 +1249,17 @@ test("parses each bare due param as its own filter", async () => {
 });
 
 test("ignores unknown search params", async () => {
-    expect(await parseAgentWebTaskQueryFilters(storage, new URLSearchParams("stauts=open"))).toEqual([]);
+    expect(
+        await parseAgentWebTaskQueryFilters(storage, new URLSearchParams("stauts=open")),
+    ).toEqual([]);
 });
 
 test("ignores unknown search params with values", async () => {
     expect(
-        await parseAgentWebTaskQueryFilters(storage, new URLSearchParams("cursor=anything&status=open")),
+        await parseAgentWebTaskQueryFilters(
+            storage,
+            new URLSearchParams("cursor=anything&status=open"),
+        ),
     ).toEqual([
         {
             type: "Status",
