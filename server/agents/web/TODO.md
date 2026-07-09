@@ -2,9 +2,15 @@
 
 NOCOMMIT: Remove this file
 
-Big things left to do:
+## Agent web pages
 
 - [ ] Task fields in collection
 - [ ] Updating tasks in collection
 - [ ] Adding/removing tasks from collection
 - [ ] Files in messages
+
+## Access modes
+
+- [ ] CLI
+- [ ] CLI integration tests
+- [ ] Claude agent
