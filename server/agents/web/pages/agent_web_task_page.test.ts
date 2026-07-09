@@ -855,5 +855,20 @@ Bring logs.
             parseError:
                 "Unexpected task collection link \u201CAlice\u201D on line 6. Try again with a link to a task collection you\u2019ve seen before (e.g. `[My Collection](/task-collection/my-collection)`).",
         },
+        {
+            name: "task page with a collections more count",
+            pageLink: taskId,
+            markdown: `\
+# More collections
+
+- Status: Open
+- Collections: [Engineering](/task-collection/engineering), and 2 more
+`,
+            setupStorage: async storage => {
+                await createAgentWebPageStoredLinkPathname(storage, engineeringReference);
+            },
+            parseError:
+                "Can\u2019t use \u201Cand 2 more\u201D in the \u201CCollections\u201D task field on line 4 since we wouldn\u2019t know which collections those are. Try again with a link to every collection (e.g. `- Collections: [My Collection 1](/task-collection/my-collection-1), [My Collection 2](/task-collection/my-collection-2)`).",
+        },
     ],
 });

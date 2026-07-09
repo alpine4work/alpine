@@ -1,6 +1,6 @@
 import {fromDate, toCalendarDate} from "@internationalized/date";
 import {produce} from "immer";
-import {Link, List, ListItem, Node, PhrasingContent, Root, RootContent} from "mdast";
+import {Code, Link, List, ListItem, Node, PhrasingContent, Root, RootContent} from "mdast";
 import {
     AgentWebContext,
     AgentWebContextWithoutStorage,
@@ -15,6 +15,15 @@ import {
     createAgentWebTaskQueryCursorHash,
     getAgentWebTaskQueryCursorForHashIfExists,
 } from "~/server/agents/web/agent_web_task_query_cursor_hash.js";
+import {
+    ApiTaskQueryFilterResponseWithoutAccountSpace,
+    parseAgentWebTaskQueryFilters,
+    printAgentWebTaskQueryFilters,
+} from "~/server/agents/web/agent_web_task_query_filters.js";
+import {
+    parseAgentWebTaskQuerySorts,
+    printAgentWebTaskQuerySorts,
+} from "~/server/agents/web/agent_web_task_query_sorts.js";
 import {createAgentWebPageStoredLinkPathname} from "~/server/agents/web/create_agent_web_page_stored_link_pathname.js";
 import {normalizeAgentWebPath} from "~/server/agents/web/internal/normalize_agent_web_path.js";
 import {normalizeAgentWebStaticText} from "~/server/agents/web/internal/normalize_agent_web_static_text.js";
@@ -33,15 +42,21 @@ import {
     ApiAccountReferenceResponse,
     ApiTaskCollectionColor,
     ApiTaskCollectionPatch,
+    ApiTaskCollectionReferenceResponse,
     ApiTaskPriority,
+    ApiTaskQueryFilterResponse,
+    ApiTaskQuerySort,
     ApiTaskReferenceResponse,
 } from "~/shared/api/specification/types/api_specification_convenience_types.js";
 import {InvalidArgumentError, UnimplementedError} from "~/shared/error/error.js";
 import {errorDisplayMessage} from "~/shared/error/error_display_message.js";
+import {emptyArray} from "~/shared/helpers/array/empty_array.js";
+import {filterMapArray} from "~/shared/helpers/array/filter_map_array.js";
 import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 import {cast} from "~/shared/helpers/control/cast.js";
+import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
 import {isDeepEqual} from "~/shared/helpers/control/is_deep_equal.js";
 import {reverseIterable} from "~/shared/helpers/iterable/reverse_iterable.js";
 import {getObjectKeysWithKeyofType} from "~/shared/helpers/object/get_object_keys_with_keyof_type.js";
@@ -51,6 +66,13 @@ import {TaskCollectionId} from "~/shared/id/types/id_types.js";
 
 export const agentWebTaskCollectionPageApiTasksBatchCount = 30;
 export const agentWebTaskCollectionPageNextPageLinkText = "Next page »";
+
+/**
+ * The maximum number of collections shown in a task's "Collections" field on a
+ * task collection page. Collections past this count are summarized as "and n more"
+ * at the end of the field.
+ */
+export const agentWebTaskCollectionPageTaskMaxCollectionCount = 3;
 
 export const apiTaskCollectionColors = getObjectKeysWithKeyofType(
     cast<Record<ApiTaskCollectionColor, true>>({
@@ -66,12 +88,38 @@ export const apiTaskCollectionColors = getObjectKeysWithKeyofType(
     }),
 );
 
+/**
+ * The first page of a task collection (`subType: "Head"`) starts with the task
+ * collection name heading and collection fields like the color and the default
+ * filters and sorts. Later pages (`subType: "Tail"`) start with a "Tasks in My
+ * Collection." preamble instead so the collection fields are only printed once.
+ */
 export type AgentWebTaskCollectionPage = {
     readonly type: "TaskCollection";
     readonly name: string;
-    readonly color: ApiTaskCollectionColor | null;
     readonly pagination: AgentWebTaskCollectionPagePagination | null;
     readonly tasks: ReadonlyArray<AgentWebTaskCollectionPageTask>;
+    readonly isEndOfTasks: boolean;
+} & (
+    | {
+          readonly subType: "Head";
+          readonly color: ApiTaskCollectionColor | null;
+          readonly defaults: AgentWebTaskCollectionPageDefaults | null;
+      }
+    | {
+          readonly subType: "Tail";
+      }
+);
+
+/**
+ * The default filters and sorts a task collection applies to its tasks. These are
+ * printed after the collection fields as URL search params in a code block (e.g.
+ * `?status=open&sort=-priority,due`). A collection without default filters and
+ * sorts has `null` defaults.
+ */
+export type AgentWebTaskCollectionPageDefaults = {
+    readonly filters: ReadonlyArray<ApiTaskQueryFilterResponseWithoutAccountSpace>;
+    readonly sorts: ReadonlyArray<ApiTaskQuerySort>;
 };
 
 /**
@@ -93,6 +141,8 @@ export type AgentWebTaskCollectionPageTask = {
     readonly task: ApiTaskReferenceResponse;
     readonly parent: ApiTaskReferenceResponse | null;
     readonly assignee: ApiAccountReferenceResponse | null;
+    readonly collections: ReadonlyArray<ApiTaskCollectionReferenceResponse>;
+    readonly additionalCollectionsCount: number;
     readonly priority: ApiTaskPriority | null;
     readonly dueDateString: string | null;
 };
@@ -100,6 +150,7 @@ export type AgentWebTaskCollectionPageTask = {
 export type AgentWebTaskCollectionPageMetadata = {
     readonly type: "TaskCollection";
     readonly id: TaskCollectionId;
+    readonly isEndOfTasks: boolean;
     readonly tasks: ReadonlyArray<{
         readonly cursor: ApiTaskQueryCursor;
     }>;
@@ -142,6 +193,18 @@ export async function readAgentWebTaskCollectionPage(
     });
 
     const {collection} = initialTasksResult.data;
+
+    // The default filters and sorts, like the color, are only printed on the first
+    // page of a task collection.
+    let defaults: AgentWebTaskCollectionPageDefaults | null = null;
+
+    if (
+        afterCursor === null &&
+        (collection.defaults.filters.length > 0 || collection.defaults.sorts.length > 0)
+    ) {
+        defaults = collection.defaults;
+    }
+
     const tasks: Array<AgentWebTaskCollectionPageTask> = [];
     const taskMetadata: Array<{cursor: ApiTaskQueryCursor}> = [];
     let currentTaskBatch = initialTasksResult.data.tasks;
@@ -149,6 +212,21 @@ export async function readAgentWebTaskCollectionPage(
 
     while (true) {
         for (const {cursor, task} of currentTaskBatch) {
+            // The collection this page is for is implied by the page itself, so it's filtered
+            // out of each task's "Collections" field.
+            const taskCollections = filterMapArray(
+                task.collections ?? emptyArray,
+                ({collection}): ApiTaskCollectionReferenceResponse | undefined => {
+                    if (collection.id === id) return;
+
+                    return {
+                        type: "TaskCollection",
+                        id: collection.id,
+                        title: collection.name,
+                    };
+                },
+            );
+
             tasks.push({
                 task: {type: "Task", id: task.id, title: task.title, status: task.status},
                 parent: task.parent
@@ -160,6 +238,14 @@ export async function readAgentWebTaskCollectionPage(
                       }
                     : null,
                 assignee: task.assignee ? intoApiAccountReference(task.assignee) : null,
+                collections: taskCollections.slice(
+                    0,
+                    agentWebTaskCollectionPageTaskMaxCollectionCount,
+                ),
+                additionalCollectionsCount: Math.max(
+                    taskCollections.length - agentWebTaskCollectionPageTaskMaxCollectionCount,
+                    0,
+                ),
                 priority: task.priority ?? null,
                 dueDateString: task.due
                     ? formatAgentWebTaskDueDateString(context.timeZone, contextDate, task.due)
@@ -168,10 +254,9 @@ export async function readAgentWebTaskCollectionPage(
             taskMetadata.push({cursor});
         }
 
-        const page: AgentWebTaskCollectionPage = {
-            type: "TaskCollection",
+        const pageBase = {
+            type: "TaskCollection" as const,
             name: collection.name,
-            color: collection.color ?? null,
             pagination:
                 nextCursor !== null
                     ? {
@@ -183,6 +268,21 @@ export async function readAgentWebTaskCollectionPage(
                       }
                     : null,
             tasks: tasks.slice(),
+            isEndOfTasks: nextCursor === null,
+        };
+
+        // Only the first page of a task collection prints the collection fields like the
+        // color. Later pages read with an `?after` cursor print a short preamble instead.
+        const page: AgentWebTaskCollectionPage =
+            afterCursor === null
+                ? {...pageBase, subType: "Head", color: collection.color ?? null, defaults}
+                : {...pageBase, subType: "Tail"};
+
+        const metadata: AgentWebTaskCollectionPageMetadata = {
+            type: "TaskCollection",
+            id,
+            isEndOfTasks: nextCursor === null,
+            tasks: taskMetadata,
         };
 
         const response = await printPage(page);
@@ -208,24 +308,17 @@ export async function readAgentWebTaskCollectionPage(
         }
 
         if (response.length <= limitLength) {
-            return {
-                response,
-                metadata: {type: "TaskCollection", id, tasks: taskMetadata},
-            };
+            return {response, metadata};
         }
 
         const truncatedResult = await truncateAgentWebTaskCollectionPage(context.storage, id, {
             page,
-            metadata: {type: "TaskCollection", id, tasks: taskMetadata},
+            metadata,
             limitLength,
             response,
         });
 
-        if (truncatedResult === null)
-            return {
-                response,
-                metadata: {type: "TaskCollection", id, tasks: taskMetadata},
-            };
+        if (truncatedResult === null) return {response, metadata};
 
         return truncatedResult;
     }
@@ -297,6 +390,9 @@ async function truncateAgentWebTaskCollectionPage(
         });
 
         truncateLength +=
+            // We need double newlines when adding after the head page fields and a single
+            // space when adding into the tail page preamble. Given double newlines is the
+            // longer of the two use that in our character count.
             "\n\n[".length +
             agentWebTaskCollectionPageNextPageLinkText.length +
             "](".length +
@@ -344,6 +440,9 @@ async function truncateAgentWebTaskCollectionPage(
         assertExists(metadata.tasks[truncatedTaskCount - 1]).cursor,
     );
 
+    // We're intentionally dropping everything after `truncateTaskEndOffset`. Which
+    // will include the "End of tasks." paragraph. If we're truncating then we're
+    // implicitly not at the end of tasks anymore.
     let truncatedResponse = response.slice(0, truncateTaskEndOffset);
 
     // Update the "Next page" link to reflect the new last task cursor after
@@ -352,21 +451,25 @@ async function truncateAgentWebTaskCollectionPage(
     // If there is no "Next page" link and truncation occurred then we need to add a
     // "Next page" link.
     if (page.pagination !== null) {
+        // The link is in its own paragraph on head pages and at the end of the preamble
+        // paragraph on tail pages. Either way it's a link in a root level paragraph.
         let paginationLink: Link | null = null;
 
         for (const child of responseTree.children) {
-            if (child.type !== "paragraph" || child.children.length !== 1) continue;
+            if (child.type !== "paragraph") continue;
 
-            const linkChild = child.children[0]!;
-
-            if (
-                linkChild.type === "link" &&
-                printMarkdownPhrasingContentText(linkChild.children) ===
-                    agentWebTaskCollectionPageNextPageLinkText
-            ) {
-                paginationLink = linkChild;
-                break;
+            for (const paragraphChild of child.children) {
+                if (
+                    paragraphChild.type === "link" &&
+                    printMarkdownPhrasingContentText(paragraphChild.children) ===
+                        agentWebTaskCollectionPageNextPageLinkText
+                ) {
+                    paginationLink = paragraphChild;
+                    break;
+                }
             }
+
+            if (paginationLink !== null) break;
         }
 
         assert(paginationLink !== null);
@@ -387,26 +490,51 @@ async function truncateAgentWebTaskCollectionPage(
 
         const linkMarkdown = `[${agentWebTaskCollectionPageNextPageLinkText}](${collectionPathname}?after=${nextCursorHash})`;
 
-        // The "Next page" link goes right after the node before the task list (the task
-        // collection name heading or the color field).
-        const taskListIndex = responseTree.children.indexOf(taskList);
-        assert(taskListIndex > 0);
+        switch (page.subType) {
+            case "Head": {
+                // The "Next page" link goes right after the node before the task list (the task
+                // collection name heading or the color field).
+                const taskListIndex = responseTree.children.indexOf(taskList);
+                assert(taskListIndex > 0);
 
-        const insertionOffset = assertExists(
-            responseTree.children[taskListIndex - 1]!.position?.end.offset,
-        );
+                const insertionOffset = assertExists(
+                    responseTree.children[taskListIndex - 1]!.position?.end.offset,
+                );
 
-        truncatedResponse =
-            truncatedResponse.slice(0, insertionOffset) +
-            "\n\n" +
-            linkMarkdown +
-            truncatedResponse.slice(insertionOffset);
+                truncatedResponse =
+                    truncatedResponse.slice(0, insertionOffset) +
+                    "\n\n" +
+                    linkMarkdown +
+                    truncatedResponse.slice(insertionOffset);
+                break;
+            }
+            case "Tail": {
+                // The "Next page" link goes at the end of the "Tasks in My Collection." preamble
+                // paragraph.
+                const preamble = responseTree.children[0];
+                assert(preamble?.type === "paragraph");
+
+                const insertionOffset = assertExists(preamble.position?.end.offset);
+
+                truncatedResponse =
+                    truncatedResponse.slice(0, insertionOffset) +
+                    " " +
+                    linkMarkdown +
+                    truncatedResponse.slice(insertionOffset);
+                break;
+            }
+            default:
+                throw exhaustive(page);
+        }
     }
 
     return {
         response: truncatedResponse,
         metadata: {
             ...metadata,
+            // If we truncated some tasks from the end of the page then we'll never be at the
+            // end of the page anymore.
+            isEndOfTasks: false,
             tasks: metadata.tasks.slice(0, truncatedTaskCount),
         },
     };
@@ -419,10 +547,25 @@ export async function createAgentWebTaskCollectionPage(
     pageMetadata: AgentWebTaskCollectionPageMetadata;
     pageLink: Extract<AgentWebPageStoredLink, {type: "TaskCollection"}>;
 }> {
+    if (newPage.subType !== "Head") {
+        throw new InvalidArgumentError("Can only create task collection head pages", {
+            displayMessage: errorDisplayMessage`Task collection markdown must start with a name (e.g. \`# My Collection\`) when creating a collection. Try again with a name.`,
+        });
+    }
+
     if (newPage.pagination !== null) {
         throw new InvalidArgumentError("Can\u2019t create task collection with pagination", {
             displayMessage: errorDisplayMessage`You can\u2019t include a \u201C${agentWebTaskCollectionPageNextPageLinkText}\u201D link when creating a task collection. Try again without a \u201C${agentWebTaskCollectionPageNextPageLinkText}\u201D link.`,
         });
+    }
+
+    if (newPage.defaults !== null) {
+        // TODO(#agents-web): Set the default filters and sorts while creating a task
+        // collection.
+        throw new UnimplementedError(
+            "Setting the default filters and sorts while creating a task collection " +
+                "hasn\u2019t been implemented yet",
+        );
     }
 
     if (newPage.tasks.length > 0) {
@@ -445,7 +588,7 @@ export async function createAgentWebTaskCollectionPage(
     });
 
     return {
-        pageMetadata: {type: "TaskCollection", id: collection.id, tasks: []},
+        pageMetadata: {type: "TaskCollection", id: collection.id, isEndOfTasks: true, tasks: []},
         pageLink: {type: "TaskCollection", id: collection.id, title: collection.name},
     };
 }
@@ -456,9 +599,39 @@ export async function updateAgentWebTaskCollectionPage(
     oldPage: AgentWebTaskCollectionPage,
     newPage: AgentWebTaskCollectionPage,
 ): Promise<AgentWebTaskCollectionPageMetadata> {
+    switch (oldPage.subType) {
+        case "Head": {
+            if (newPage.subType !== "Head") {
+                throw new InvalidArgumentError("Can\u2019t update task collection preamble", {
+                    displayMessage: errorDisplayMessage`You can\u2019t remove the task collection name markdown h1. Try again with the collection name as a markdown h1 (e.g. \`# My Collection\`) on line 1 of the collection markdown.`,
+                });
+            }
+            break;
+        }
+        case "Tail": {
+            if (newPage.subType !== "Tail" || oldPage.name !== newPage.name) {
+                throw new InvalidArgumentError("Can\u2019t update task collection preamble", {
+                    displayMessage: errorDisplayMessage`You can only update the task collection name on the first page of the collection. You must leave the \`Tasks in My Collection.\` line at the start of the collection markdown in place. Try calling the \`read\` tool to navigate to the first page of the collection and you can call the \`update\` tool on that page to update the name.`,
+                });
+            }
+            break;
+        }
+        default:
+            throw exhaustive(oldPage);
+    }
+
     if (!isDeepEqual(oldPage.pagination, newPage.pagination)) {
         throw new InvalidArgumentError("Can\u2019t update task collection pagination", {
             displayMessage: errorDisplayMessage`You can\u2019t update the \u201C${agentWebTaskCollectionPageNextPageLinkText}\u201D link in task collection markdown. Try again with a more specific update that leaves the \u201C${agentWebTaskCollectionPageNextPageLinkText}\u201D link unchanged.`,
+        });
+    }
+
+    // The end of tasks marker is optional for a page that's actually at the end of
+    // tasks (according to metadata). However, for a page that's not at the end of
+    // tasks you can't add the end of tasks marker!
+    if (!oldPageMetadata.isEndOfTasks && newPage.isEndOfTasks) {
+        throw new InvalidArgumentError("Can\u2019t change whether this page is the end of tasks", {
+            displayMessage: errorDisplayMessage`Can\u2019t add the \u201CEnd of tasks\u201D marker in an update. Only a \`read\` tool call can tell you whether you\u2019ve seen all of a task collection\u2019s tasks. Try again without adding the \u201CEnd of tasks\u201D marker.`,
         });
     }
 
@@ -469,13 +642,29 @@ export async function updateAgentWebTaskCollectionPage(
         );
     }
 
+    if (
+        oldPage.subType === "Head" &&
+        newPage.subType === "Head" &&
+        !isDeepEqual(oldPage.defaults, newPage.defaults)
+    ) {
+        // TODO(#agents-web): Update a task collection's default filters and sorts.
+        throw new UnimplementedError(
+            "Changing the default filters and sorts of a task collection hasn\u2019t been " +
+                "implemented yet",
+        );
+    }
+
     const patches: Array<ApiTaskCollectionPatch> = [];
 
     if (oldPage.name !== newPage.name) {
         patches.push({type: "SetName", name: newPage.name});
     }
 
-    if (oldPage.color !== newPage.color) {
+    if (
+        oldPage.subType === "Head" &&
+        newPage.subType === "Head" &&
+        oldPage.color !== newPage.color
+    ) {
         patches.push({type: "SetColor", color: newPage.color});
     }
 
@@ -498,6 +687,8 @@ export function normalizeAgentWebTaskCollectionPage<Page extends AgentWebTaskCol
                 normalizer.normalizeReference(pageTask.task);
                 if (pageTask.parent) normalizer.normalizeReference(pageTask.parent);
                 if (pageTask.assignee) normalizer.normalizeReference(pageTask.assignee);
+                for (const collection of pageTask.collections)
+                    normalizer.normalizeReference(collection);
             }
         });
     });
@@ -508,46 +699,93 @@ export async function printAgentWebTaskCollectionPage(
     id: TaskCollectionId,
     page: AgentWebTaskCollectionPage,
 ): Promise<Root> {
-    const children: Array<MaybePromise<RootContent>> = [
-        {
-            type: "heading",
-            depth: 1,
-            children: [{type: "text", value: page.name}],
-        },
-    ];
+    const children: Array<MaybePromise<RootContent>> = [];
 
-    if (page.color !== null) {
-        children.push({
-            type: "paragraph",
-            children: [{type: "text", value: `Color: ${page.color}`}],
-        });
-    }
+    switch (page.subType) {
+        case "Head": {
+            children.push({
+                type: "heading",
+                depth: 1,
+                children: [{type: "text", value: page.name}],
+            });
 
-    if (page.pagination !== null) {
-        const {pagination} = page;
-
-        children.push(
-            (async () => {
-                const collectionPathname = await createAgentWebPageStoredLinkPathname(storage, {
-                    type: "TaskCollection",
-                    id,
-                    title: page.name,
+            if (page.color !== null) {
+                children.push({
+                    type: "paragraph",
+                    children: [{type: "text", value: `Color: ${page.color}`}],
                 });
+            }
 
-                return {
+            if (page.defaults !== null) {
+                const {defaults} = page;
+
+                children.push({
                     type: "paragraph",
                     children: [
                         {
-                            type: "link",
-                            url: `${collectionPathname}?after=${pagination.nextCursorHash}`,
-                            children: [
-                                {type: "text", value: agentWebTaskCollectionPageNextPageLinkText},
-                            ],
+                            type: "text",
+                            value: `${printAgentWebTaskCollectionPageDefaultsLabel(defaults)}:`,
                         },
                     ],
-                };
-            })(),
-        );
+                });
+
+                children.push(
+                    (async () => {
+                        const searchParams = [
+                            await printAgentWebTaskQueryFilters(storage, defaults.filters),
+                            printAgentWebTaskQuerySorts(defaults.sorts),
+                        ].filter(searchParams => searchParams.length > 0);
+
+                        return {
+                            type: "code",
+                            lang: null,
+                            value: `${searchParams.join("&")}`,
+                        };
+                    })(),
+                );
+            }
+
+            if (page.pagination !== null) {
+                const {pagination} = page;
+
+                children.push(
+                    (async () => ({
+                        type: "paragraph",
+                        children: [
+                            await printAgentWebTaskCollectionPageNextPageLink(storage, id, {
+                                name: page.name,
+                                pagination,
+                            }),
+                        ],
+                    }))(),
+                );
+            }
+            break;
+        }
+        case "Tail": {
+            children.push(
+                (async () => {
+                    const children: Array<PhrasingContent> = [
+                        {type: "text", value: `Tasks in ${page.name}.`},
+                    ];
+
+                    if (page.pagination !== null) {
+                        children.push(
+                            {type: "text", value: " "},
+                            await printAgentWebTaskCollectionPageNextPageLink(storage, id, {
+                                name: page.name,
+                                pagination: page.pagination,
+                            }),
+                        );
+                    }
+
+                    return {type: "paragraph", children};
+                })(),
+            );
+            break;
+        }
+        default:
+            throw exhaustive(page);
     }
 
     if (page.tasks.length > 0) {
@@ -565,9 +803,52 @@ export async function printAgentWebTaskCollectionPage(
         );
     }
 
+    if (page.isEndOfTasks) {
+        children.push({
+            type: "paragraph",
+            children: [{type: "text", value: "End of tasks."}],
+        });
+    }
+
     return {
         type: "root",
         children: await runAllPromises(children),
+    };
+}
+
+function printAgentWebTaskCollectionPageDefaultsLabel(
+    defaults: AgentWebTaskCollectionPageDefaults,
+): string {
+    // A page with no default filters and no default sorts has `null` defaults.
+    assert(defaults.filters.length > 0 || defaults.sorts.length > 0);
+
+    if (defaults.filters.length === 0) return "Default sorts";
+    if (defaults.sorts.length === 0) return "Default filters";
+
+    return "Default filters and sorts";
+}
+
+async function printAgentWebTaskCollectionPageNextPageLink(
+    storage: AgentWebSessionStorage,
+    id: TaskCollectionId,
+    {
+        name,
+        pagination,
+    }: {
+        name: string;
+        pagination: AgentWebTaskCollectionPagePagination;
+    },
+): Promise<Link> {
+    const collectionPathname = await createAgentWebPageStoredLinkPathname(storage, {
+        type: "TaskCollection",
+        id,
+        title: name,
+    });
+
+    return {
+        type: "link",
+        url: `${collectionPathname}?after=${pagination.nextCursorHash}`,
+        children: [{type: "text", value: agentWebTaskCollectionPageNextPageLinkText}],
     };
 }
 
@@ -619,13 +900,21 @@ export async function parseAgentWebTaskCollectionPage(
     id: TaskCollectionId | null,
     root: Root,
 ): Promise<AgentWebTaskCollectionPage> {
-    const heading = root.children[0];
+    const firstChild = root.children[0];
 
-    if (heading?.type !== "heading" || heading.depth !== 1) {
-        throw new InvalidArgumentError("Missing task collection name", {
-            displayMessage: errorDisplayMessage`A name is required for task collections. Try again but make sure the task collection markdown starts with a markdown h1 (e.g. \`# My Collection\`) on line 1.`,
-        });
+    if (id === null || (firstChild?.type === "heading" && firstChild.depth === 1)) {
+        return await parseAgentWebTaskCollectionHeadPage(storage, root);
     }
+
+    return await parseAgentWebTaskCollectionTailPage(storage, root);
+}
+
+async function parseAgentWebTaskCollectionHeadPage(
+    storage: AgentWebSessionStorage,
+    root: Root,
+): Promise<AgentWebTaskCollectionPage> {
+    const heading = root.children[0]!;
+    assert(heading.type === "heading" && heading.depth === 1);
 
     const name = printMarkdownPhrasingContentText(heading.children);
 
@@ -637,10 +926,23 @@ export async function parseAgentWebTaskCollectionPage(
 
     let color: ApiTaskCollectionColor | null = null;
     let hasColorField = false;
+    let defaultsPromise: Promise<AgentWebTaskCollectionPageDefaults | null> | null = null;
     let paginationPromise: Promise<AgentWebTaskCollectionPagePagination> | null = null;
     let taskList: List | null = null;
+    let isEndOfTasks = false;
 
-    for (const child of root.children.slice(1)) {
+    for (let childIndex = 1; childIndex < root.children.length; childIndex++) {
+        const child = root.children[childIndex]!;
+
+        if (isEndOfTasks) {
+            throw createAgentWebTaskCollectionPageContentAfterEndOfTasksError(child);
+        }
+
+        if (isAgentWebTaskCollectionPageEndOfTasksParagraph(child)) {
+            isEndOfTasks = true;
+            continue;
+        }
+
         const paginationLink = getAgentWebTaskCollectionPagePaginationLinkIfPossible(child);
 
         if (paginationLink !== null && paginationPromise === null && taskList === null) {
@@ -648,6 +950,29 @@ export async function parseAgentWebTaskCollectionPage(
                 storage,
                 paginationLink,
             );
+            continue;
+        }
+
+        const defaultsLabel = getAgentWebTaskCollectionPageDefaultsLabelIfPossible(child);
+
+        if (
+            defaultsLabel !== null &&
+            defaultsPromise === null &&
+            paginationPromise === null &&
+            taskList === null
+        ) {
+            // The default filters and sorts label is followed by a code block holding the
+            // filters and sorts as URL search params.
+            const codeBlock = root.children[childIndex + 1];
+
+            if (codeBlock?.type !== "code") {
+                throw new InvalidArgumentError("Missing task collection defaults code block", {
+                    displayMessage: errorDisplayMessage`Expected a code block with filters and sorts after \u201C${defaultsLabel}\u201D on line ${child.position?.start.line ?? "unknown"}. Try again with and add filters and sorts (e.g. \`status=open&sort=-priority,due\`) in a code block after \u201C${defaultsLabel}\u201D.`,
+                });
+            }
+
+            defaultsPromise = parseAgentWebTaskCollectionPageDefaults(storage, codeBlock);
+            childIndex++;
             continue;
         }
 
@@ -690,7 +1015,8 @@ export async function parseAgentWebTaskCollectionPage(
         throw createUnexpectedError(child);
     }
 
-    const [pagination, tasks] = await runAllPromises([
+    const [defaults, pagination, tasks] = await runAllPromises([
+        defaultsPromise,
         paginationPromise,
         taskList === null
             ? []
@@ -701,7 +1027,179 @@ export async function parseAgentWebTaskCollectionPage(
               ),
     ]);
 
-    return {type: "TaskCollection", name, color, pagination, tasks};
+    return {
+        type: "TaskCollection",
+        subType: "Head",
+        name,
+        color,
+        defaults,
+        pagination,
+        tasks,
+        isEndOfTasks,
+    };
+}
+
+async function parseAgentWebTaskCollectionTailPage(
+    storage: AgentWebSessionStorage,
+    root: Root,
+): Promise<AgentWebTaskCollectionPage> {
+    const firstChild = root.children[0];
+
+    if (firstChild?.type !== "paragraph") {
+        throw new InvalidArgumentError("Invalid task collection preamble", {
+            displayMessage: errorDisplayMessage`Task collection markdown must start with the task collection name in a markdown h1 (e.g. \`# My Collection\`) or \u201CTasks in My Collection\u201D. Try again with a proper start to task collection markdown on line 1.`,
+        });
+    }
+
+    const createUnexpectedError = (node: RootContent) => {
+        return new InvalidArgumentError("Unexpected markdown in task collection", {
+            displayMessage: errorDisplayMessage`Unexpected markdown on line ${node.position?.start.line ?? "unknown"}. Try again with only a task list (an unordered list where every item is a task link) after the line 1 of the task collection markdown.`,
+        });
+    };
+
+    let taskList: List | null = null;
+    let isEndOfTasks = false;
+
+    for (const child of root.children.slice(1)) {
+        if (isEndOfTasks) {
+            throw createAgentWebTaskCollectionPageContentAfterEndOfTasksError(child);
+        }
+
+        if (isAgentWebTaskCollectionPageEndOfTasksParagraph(child)) {
+            isEndOfTasks = true;
+            continue;
+        }
+
+        if (child.type === "list" && !child.ordered && taskList === null) {
+            taskList = child;
+            continue;
+        }
+
+        throw createUnexpectedError(child);
+    }
+
+    const [{name, pagination}, tasks] = await runAllPromises([
+        parseAgentWebTaskCollectionTailPagePreamble(storage, firstChild),
+        taskList === null
+            ? []
+            : runAllPromises(
+                  taskList.children.map(taskListItem =>
+                      parseAgentWebTaskCollectionPageTask(storage, taskListItem),
+                  ),
+              ),
+    ]);
+
+    return {type: "TaskCollection", subType: "Tail", name, pagination, tasks, isEndOfTasks};
+}
+
+async function parseAgentWebTaskCollectionTailPagePreamble(
+    storage: AgentWebSessionStorage,
+    paragraph: Extract<RootContent, {type: "paragraph"}>,
+): Promise<{
+    name: string;
+    pagination: AgentWebTaskCollectionPagePagination | null;
+}> {
+    let children = paragraph.children;
+    let pagination: AgentWebTaskCollectionPagePagination | null = null;
+
+    const lastChild = children[children.length - 1];
+    if (
+        lastChild?.type === "link" &&
+        printMarkdownPhrasingContentText(lastChild.children) ===
+            agentWebTaskCollectionPageNextPageLinkText
+    ) {
+        pagination = await parseAgentWebTaskCollectionPagePaginationLink(storage, lastChild);
+        children = children.slice(0, -1);
+
+        const lastText = children[children.length - 1];
+        if (lastText?.type === "text" && lastText.value.endsWith(" ")) {
+            children = [
+                ...children.slice(0, -1),
+                {...lastText, value: lastText.value.slice(0, -1)},
+            ];
+        }
+    }
+
+    const text = printMarkdownPhrasingContentText(children);
+    const match = text.match(/^Tasks in (.*?)(?:\.)?$/);
+
+    if (!match) {
+        throw new InvalidArgumentError("Invalid task collection preamble", {
+            displayMessage: errorDisplayMessage`Task collection markdown must start with \u201CTasks in My Collection\u201D (where \u201CMy Collection\u201D is the actual name of the task collection) when reading a later task collection page. Try again with a proper task collection preamble on line 1.`,
+        });
+    }
+
+    return {name: match[1]!, pagination};
+}
+
+function isAgentWebTaskCollectionPageEndOfTasksParagraph(node: RootContent): boolean {
+    return (
+        node.type === "paragraph" &&
+        /^End of tasks\.?$/.test(printMarkdownPhrasingContentText(node.children))
+    );
+}
+
+function createAgentWebTaskCollectionPageContentAfterEndOfTasksError(node: RootContent) {
+    return new InvalidArgumentError("Content after end of task collection tasks", {
+        displayMessage: errorDisplayMessage`Nothing may appear after \u201CEnd of tasks\u201D in task collection markdown. Try again after removing the extra content after \u201CEnd of tasks\u201D on line ${node.position?.start.line ?? "unknown"}.`,
+    });
+}
+
+/**
+ * Returns the label text of a default filters and sorts label paragraph (e.g.
+ * "Default filters and sorts:") or `null` if the node is some other markdown. The
+ * trailing colon is optional and the label is matched leniently with
+ * `normalizeAgentWebStaticText()`.
+ */
+function getAgentWebTaskCollectionPageDefaultsLabelIfPossible(node: RootContent): string | null {
+    if (node.type !== "paragraph") return null;
+
+    const match = printMarkdownPhrasingContentText(node.children).match(/^([A-Za-z ]+):?$/);
+
+    if (!match) return null;
+
+    const label = match[1]!;
+
+    switch (normalizeAgentWebStaticText(label)) {
+        case "default":
+        case "default-filter":
+        case "default-sort":
+        case "default-filter-and-sort":
+        case "default-sort-and-filter":
+            return label;
+        default:
+            return null;
+    }
+}
+
+/**
+ * Parses the URL search params in a default filters and sorts code block into the
+ * page's API task filters and sorts. Returns `null` for an empty code block (a
+ * collection without default filters and sorts).
+ */
+async function parseAgentWebTaskCollectionPageDefaults(
+    storage: AgentWebSessionStorage,
+    codeBlock: Code,
+): Promise<AgentWebTaskCollectionPageDefaults | null> {
+    const content = codeBlock.value.trim();
+
+    if (content.includes("\n")) {
+        throw new InvalidArgumentError("Multiple lines in task collection defaults", {
+            displayMessage: errorDisplayMessage`Expected a single line of URL search params in the default filters and sorts code block on line ${codeBlock.position?.start.line ?? "unknown"}. Try again with all the default filters and sorts on one line (e.g. \`status=open&sort=-priority,due\`).`,
+        });
+    }
+
+    const searchParamsString = content.startsWith("?") ? content.slice(1) : content;
+
+    const searchParams = new URLSearchParams(searchParamsString);
+    const [filters, sorts] = await runAllPromises([
+        parseAgentWebTaskQueryFilters(storage, searchParams),
+        parseAgentWebTaskQuerySorts(searchParams),
+    ]);
+
+    if (filters.length === 0 && sorts.length === 0) return null;
+
+    return {filters, sorts};
 }
 
 function getAgentWebTaskCollectionPagePaginationLinkIfPossible(node: RootContent): Link | null {
@@ -812,6 +1310,8 @@ async function parseAgentWebTaskCollectionPageTask(
             ? parseAgentWebTaskFieldListItems(storage, fieldList.children, [
                   "parent",
                   "assignee",
+                  "collections",
+                  "additionalCollectionsCount",
                   "priority",
                   "dueDateString",
               ])
@@ -830,6 +1330,8 @@ async function parseAgentWebTaskCollectionPageTask(
         task: pageLinkResult.pageLink,
         parent: fields?.parent ?? null,
         assignee: fields?.assignee ?? null,
+        collections: fields?.collections ?? [],
+        additionalCollectionsCount: fields?.additionalCollectionsCount ?? 0,
         priority: fields?.priority ?? null,
         dueDateString: fields?.dueDateString ?? null,
     };

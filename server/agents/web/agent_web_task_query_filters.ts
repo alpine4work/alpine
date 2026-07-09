@@ -3,13 +3,16 @@ import {AgentWebSessionStorage} from "~/server/agents/web/agent_web_session_stor
 import {createAgentWebPageLinkPathname} from "~/server/agents/web/create_agent_web_page_link_pathname.js";
 import {routeAgentWebPageLinkPathname} from "~/server/agents/web/route_agent_web_page_link_pathname.js";
 import {normalizeApiTaskQueryFilters} from "~/shared/api/content/normalize_api_task_query_filters.js";
-import {intoApiAccountReference} from "~/shared/api/specification/into_api_account_reference.js";
+import {
+    fromApiAccountReference,
+    intoApiAccountReference,
+} from "~/shared/api/specification/into_api_account_reference.js";
 import {
     ApiTaskCollectionPreviewResponse,
     ApiTaskLayout,
     ApiTaskPriority,
-    ApiTaskQueryAccountFilterOperationAccount,
-    ApiTaskQueryFilter,
+    ApiTaskQueryAccountFilterOperationAccountResponse,
+    ApiTaskQueryFilterResponse,
     ApiTaskQueryTimeFilterOperationDuration,
     ApiTaskQueryTimeFilterOperationTime,
     ApiTaskStatus,
@@ -20,7 +23,23 @@ import {ErrorDisplayMessage} from "~/shared/error/types/error_display_message_ty
 import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
+import {JsonScalarValue} from "~/shared/helpers/types/json_value.js";
 import {TaskCollectionId} from "~/shared/id/types/id_types.js";
+
+type RemoveSpace<Value> = Value extends JsonScalarValue | undefined
+    ? Value
+    : Value extends ReadonlyArray<infer Item>
+      ? ReadonlyArray<RemoveSpace<Item>>
+      : Value extends {space?: unknown}
+        ? Omit<Value, "space">
+        : Value extends object
+          ? {readonly [Key in keyof Value]: RemoveSpace<Value[Key]>}
+          : Value;
+
+export type ApiTaskQueryFilterResponseWithoutAccountSpace = RemoveSpace<ApiTaskQueryFilterResponse>;
+
+export type ApiTaskQueryAccountFilterOperationAccountResponseWithoutAccountSpace =
+    RemoveSpace<ApiTaskQueryAccountFilterOperationAccountResponse>;
 
 /**
  * Prints a list of API task filters as URL search params for the agent web. The
@@ -112,7 +131,7 @@ import {TaskCollectionId} from "~/shared/id/types/id_types.js";
  */
 export async function printAgentWebTaskQueryFilters(
     storage: AgentWebSessionStorage,
-    filters: ReadonlyArray<ApiTaskQueryFilterResponse>,
+    filters: ReadonlyArray<ApiTaskQueryFilterResponseWithoutAccountSpace>,
 ): Promise<string> {
     filters = normalizeApiTaskQueryFilters(filters);
 
@@ -125,7 +144,7 @@ export async function printAgentWebTaskQueryFilters(
 
 async function printAgentWebTaskQueryFilter(
     storage: AgentWebSessionStorage,
-    filter: ApiTaskQueryFilterResponse,
+    filter: ApiTaskQueryFilterResponseWithoutAccountSpace,
 ): Promise<string> {
     switch (filter.type) {
         case "Status": {
@@ -406,7 +425,7 @@ function escapeAgentWebTaskQueryFilterText(text: string): string {
 
 async function printAgentWebTaskQueryFilterAccount(
     storage: AgentWebSessionStorage,
-    account: ApiTaskQueryAccountFilterOperationAccountResponse,
+    account: ApiTaskQueryAccountFilterOperationAccountResponseWithoutAccountSpace,
 ): Promise<string> {
     switch (account.type) {
         case "Account": {
@@ -520,8 +539,8 @@ function printAgentWebTaskQueryFilterDateDurationCount(count: number, unit: stri
 export async function parseAgentWebTaskQueryFilters(
     storage: AgentWebSessionStorage,
     searchParams: URLSearchParams,
-): Promise<ReadonlyArray<ApiTaskQueryFilter>> {
-    const filterPromises: Array<Promise<ApiTaskQueryFilter>> = [];
+): Promise<ReadonlyArray<ApiTaskQueryFilterResponseWithoutAccountSpace>> {
+    const filterPromises: Array<Promise<ApiTaskQueryFilterResponseWithoutAccountSpace>> = [];
 
     for (const [key, value] of searchParams.entries()) {
         const keyMatch = key.match(/^([a-z]+)\[([a-z]+)\]$/);
@@ -567,7 +586,7 @@ async function parseAgentWebTaskQueryFilterSearchParam(
         operator: string | null;
         value: string;
     },
-): Promise<ApiTaskQueryFilter> {
+): Promise<ApiTaskQueryFilterResponseWithoutAccountSpace> {
     switch (filterKey) {
         case "status": {
             if (operator !== null && operator !== "not") {
@@ -855,7 +874,7 @@ async function parseAgentWebTaskQueryFilterCollections(
     storage: AgentWebSessionStorage,
     operator: "all" | "not" | null,
     values: ReadonlyArray<string>,
-): Promise<ApiTaskQueryFilter> {
+): Promise<ApiTaskQueryFilterResponse> {
     // In a bare `collection` param the `none` value is a "tasks in no collections"
     // filter of its own. It can't be combined with collections in the same filter
     // since a filter matches tasks with any of its values and a task with no
@@ -878,18 +897,16 @@ async function parseAgentWebTaskQueryFilterCollections(
               : "ExcludesAllOf";
 
     const collections = await runAllPromises(
-        values.map(async value => ({
-            id: await parseAgentWebTaskQueryFilterCollectionId(storage, value),
-        })),
+        values.map(async value => await parseAgentWebTaskQueryFilterCollection(storage, value)),
     );
 
     return {type: "Collections", operation: {type: operationType, collections}};
 }
 
-async function parseAgentWebTaskQueryFilterCollectionId(
+async function parseAgentWebTaskQueryFilterCollection(
     storage: AgentWebSessionStorage,
     value: string,
-): Promise<TaskCollectionId> {
+): Promise<{id: TaskCollectionId; name: string}> {
     // Accept both short task collection names (e.g. `roadmap`) and full task
     // collection paths (e.g. `/task-collection/roadmap`).
     const pathname = value.startsWith("/") ? value : `/task-collection/${value}`;
@@ -901,14 +918,14 @@ async function parseAgentWebTaskQueryFilterCollectionId(
         });
     }
 
-    return pageLinkResult.pageLink.id;
+    return {id: pageLinkResult.pageLink.id, name: pageLinkResult.pageLink.title};
 }
 
 async function parseAgentWebTaskQueryFilterAccount(
     storage: AgentWebSessionStorage,
     filterKey: "assignee" | "creator" | "assigner",
     value: string,
-): Promise<ApiTaskQueryAccountFilterOperationAccount> {
+): Promise<ApiTaskQueryAccountFilterOperationAccountResponseWithoutAccountSpace> {
     if (value === "me") {
         return {type: "CurrentAccount"};
     }
@@ -942,7 +959,7 @@ async function parseAgentWebTaskQueryFilterAccount(
         });
     }
 
-    return {type: "Account", account: {id: pageLinkResult.pageLink.id}};
+    return {type: "Account", account: fromApiAccountReference(pageLinkResult.pageLink)};
 }
 
 function parseAgentWebTaskQueryFilterTime(

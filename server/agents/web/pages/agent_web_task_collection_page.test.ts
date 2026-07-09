@@ -51,6 +51,12 @@ const engineeringReference: ApiTaskCollectionReferenceResponse = {
     title: "Engineering",
 };
 
+const designReference: ApiTaskCollectionReferenceResponse = {
+    type: "TaskCollection",
+    id: generateId<TaskCollectionId>(),
+    title: "Design",
+};
+
 function collectionPageTask(
     task: ApiTaskReferenceResponse,
     fields: Partial<Omit<AgentWebTaskCollectionPageTask, "task">> = {},
@@ -59,6 +65,8 @@ function collectionPageTask(
         task,
         parent: null,
         assignee: null,
+        collections: [],
+        additionalCollectionsCount: 0,
         priority: null,
         dueDateString: null,
         ...fields,
@@ -84,9 +92,12 @@ Color: Red
 `,
             page: {
                 type: "TaskCollection",
+                subType: "Head",
                 name: "Roadmap",
                 color: "Red",
+                defaults: null,
                 pagination: null,
+                isEndOfTasks: false,
                 tasks: [
                     collectionPageTask(writeSpecTaskReference),
                     collectionPageTask(shipLaunchTaskReference),
@@ -103,9 +114,12 @@ Color: Red
 `,
             page: {
                 type: "TaskCollection",
+                subType: "Head",
                 name: "Roadmap",
                 color: null,
+                defaults: null,
                 pagination: null,
+                isEndOfTasks: false,
                 tasks: [collectionPageTask(writeSpecTaskReference)],
             },
         },
@@ -119,9 +133,12 @@ Color: Blue
 `,
             page: {
                 type: "TaskCollection",
+                subType: "Head",
                 name: "Roadmap",
                 color: "Blue",
+                defaults: null,
                 pagination: null,
+                isEndOfTasks: false,
                 tasks: [],
             },
         },
@@ -133,9 +150,12 @@ Color: Blue
 `,
             page: {
                 type: "TaskCollection",
+                subType: "Head",
                 name: "Roadmap",
                 color: null,
+                defaults: null,
                 pagination: null,
+                isEndOfTasks: false,
                 tasks: [],
             },
         },
@@ -152,9 +172,12 @@ Color: None
 `,
             page: {
                 type: "TaskCollection",
+                subType: "Head",
                 name: "Roadmap",
                 color: null,
+                defaults: null,
                 pagination: null,
+                isEndOfTasks: false,
                 tasks: [],
             },
         },
@@ -173,9 +196,224 @@ Color: Red
 `,
             page: {
                 type: "TaskCollection",
+                subType: "Head",
                 name: "Roadmap",
                 color: "Red",
+                defaults: null,
                 pagination: null,
+                isEndOfTasks: false,
+                tasks: [],
+            },
+        },
+        {
+            name: "task collection page with default filters and sorts",
+            pageLink: collectionId,
+            markdown: `\
+# Roadmap
+
+Color: Red
+
+Default filters and sorts:
+
+\`\`\`
+status=open&sort=-priority,due
+\`\`\`
+
+- [Write spec (Open)](/task/write-spec)
+`,
+            page: {
+                type: "TaskCollection",
+                subType: "Head",
+                name: "Roadmap",
+                color: "Red",
+                defaults: {
+                    filters: [
+                        {
+                            type: "Status",
+                            operation: {
+                                type: "OneOf",
+                                statuses: [{type: "Open", isActive: false}],
+                            },
+                        },
+                    ],
+                    sorts: [
+                        {type: "Priority", direction: "Descending"},
+                        {type: "Due", direction: "Ascending"},
+                    ],
+                },
+                pagination: null,
+                isEndOfTasks: false,
+                tasks: [collectionPageTask(writeSpecTaskReference)],
+            },
+        },
+        {
+            name: "task collection page with only default filters",
+            pageLink: collectionId,
+            markdown: `\
+# Roadmap
+
+Default filters:
+
+\`\`\`
+status=open,closed&priority=high
+\`\`\`
+`,
+            page: {
+                type: "TaskCollection",
+                subType: "Head",
+                name: "Roadmap",
+                color: null,
+                defaults: {
+                    filters: [
+                        {
+                            type: "Status",
+                            operation: {
+                                type: "OneOf",
+                                statuses: [{type: "Open", isActive: false}, {type: "Closed"}],
+                            },
+                        },
+                        {
+                            type: "Priority",
+                            operation: {
+                                type: "OneOf",
+                                priorities: [{type: "High"}],
+                            },
+                        },
+                    ],
+                    sorts: [],
+                },
+                pagination: null,
+                isEndOfTasks: false,
+                tasks: [],
+            },
+        },
+        {
+            name: "task collection page with only default sorts",
+            pageLink: collectionId,
+            markdown: `\
+# Roadmap
+
+Default sorts:
+
+\`\`\`
+sort=-created
+\`\`\`
+`,
+            page: {
+                type: "TaskCollection",
+                subType: "Head",
+                name: "Roadmap",
+                color: null,
+                defaults: {
+                    filters: [],
+                    sorts: [{type: "CreatedTime", direction: "Descending"}],
+                },
+                pagination: null,
+                isEndOfTasks: false,
+                tasks: [],
+            },
+        },
+        {
+            name: "default filters print before default sorts",
+            pageLink: collectionId,
+            markdown: `\
+# Roadmap
+
+Default filters and sorts:
+
+\`\`\`
+sort=-created&status=open
+\`\`\`
+`,
+            printMarkdown: `\
+# Roadmap
+
+Default filters and sorts:
+
+\`\`\`
+status=open&sort=-created
+\`\`\`
+`,
+            page: {
+                type: "TaskCollection",
+                subType: "Head",
+                name: "Roadmap",
+                color: null,
+                defaults: {
+                    filters: [
+                        {
+                            type: "Status",
+                            operation: {
+                                type: "OneOf",
+                                statuses: [{type: "Open", isActive: false}],
+                            },
+                        },
+                    ],
+                    sorts: [{type: "CreatedTime", direction: "Descending"}],
+                },
+                pagination: null,
+                isEndOfTasks: false,
+                tasks: [],
+            },
+        },
+        {
+            name: "lowercase defaults label without a search params prefix",
+            pageLink: collectionId,
+            markdown: `\
+# Roadmap
+
+default sorts
+
+\`\`\`
+?sort=-created
+\`\`\`
+`,
+            printMarkdown: `\
+# Roadmap
+
+Default sorts:
+
+\`\`\`
+sort=-created
+\`\`\`
+`,
+            page: {
+                type: "TaskCollection",
+                subType: "Head",
+                name: "Roadmap",
+                color: null,
+                defaults: {
+                    filters: [],
+                    sorts: [{type: "CreatedTime", direction: "Descending"}],
+                },
+                pagination: null,
+                isEndOfTasks: false,
+                tasks: [],
+            },
+        },
+        {
+            name: "empty default filters and sorts are hidden when printed",
+            pageLink: collectionId,
+            markdown: `\
+# Roadmap
+
+Default filters and sorts:
+
+\`\`\`
+?
+\`\`\`
+`,
+            printMarkdown: `\
+# Roadmap
+`,
+            page: {
+                type: "TaskCollection",
+                subType: "Head",
+                name: "Roadmap",
+                color: null,
+                defaults: null,
+                pagination: null,
+                isEndOfTasks: false,
                 tasks: [],
             },
         },
@@ -187,9 +425,12 @@ Color: Red
 `,
             page: {
                 type: "TaskCollection",
+                subType: "Head",
                 name: "",
                 color: null,
+                defaults: null,
                 pagination: null,
+                isEndOfTasks: false,
                 tasks: [],
             },
         },
@@ -209,9 +450,12 @@ Color: Red
 `,
             page: {
                 type: "TaskCollection",
+                subType: "Head",
                 name: "Roadmap",
                 color: "Red",
+                defaults: null,
                 pagination: {nextCursorHash: "a1b2c3"},
+                isEndOfTasks: false,
                 tasks: [
                     collectionPageTask(writeSpecTaskReference),
                     collectionPageTask(shipLaunchTaskReference),
@@ -230,9 +474,12 @@ Color: Red
 `,
             page: {
                 type: "TaskCollection",
+                subType: "Head",
                 name: "Roadmap",
                 color: null,
+                defaults: null,
                 pagination: {nextCursorHash: "a1b2c3"},
+                isEndOfTasks: false,
                 tasks: [collectionPageTask(writeSpecTaskReference)],
             },
         },
@@ -246,11 +493,185 @@ Color: Red
 `,
             page: {
                 type: "TaskCollection",
+                subType: "Head",
                 name: "Roadmap",
                 color: null,
+                defaults: null,
                 pagination: {nextCursorHash: "a1b2c3"},
+                isEndOfTasks: false,
                 tasks: [],
             },
+        },
+        {
+            name: "task collection page with the end of tasks marker",
+            pageLink: collectionId,
+            markdown: `\
+# Roadmap
+
+Color: Red
+
+- [Write spec (Open)](/task/write-spec)
+
+End of tasks.
+`,
+            page: {
+                type: "TaskCollection",
+                subType: "Head",
+                name: "Roadmap",
+                color: "Red",
+                defaults: null,
+                pagination: null,
+                isEndOfTasks: true,
+                tasks: [collectionPageTask(writeSpecTaskReference)],
+            },
+        },
+        {
+            name: "empty task collection page with the end of tasks marker",
+            pageLink: collectionId,
+            markdown: `\
+# Roadmap
+
+End of tasks.
+`,
+            page: {
+                type: "TaskCollection",
+                subType: "Head",
+                name: "Roadmap",
+                color: null,
+                defaults: null,
+                pagination: null,
+                isEndOfTasks: true,
+                tasks: [],
+            },
+        },
+        {
+            name: "task collection tail page with a next page link",
+            pageLink: collectionId,
+            markdown: `\
+Tasks in Roadmap. [Next page »](/task-collection/roadmap?after=a1b2c3)
+
+- [Write spec (Open)](/task/write-spec)
+
+- [Ship launch (Closed)](/task/ship-launch)
+`,
+            page: {
+                type: "TaskCollection",
+                subType: "Tail",
+                name: "Roadmap",
+                pagination: {nextCursorHash: "a1b2c3"},
+                isEndOfTasks: false,
+                tasks: [
+                    collectionPageTask(writeSpecTaskReference),
+                    collectionPageTask(shipLaunchTaskReference),
+                ],
+            },
+        },
+        {
+            name: "task collection tail page at the end of tasks",
+            pageLink: collectionId,
+            markdown: `\
+Tasks in Roadmap.
+
+- [Write spec (Open)](/task/write-spec)
+
+End of tasks.
+`,
+            page: {
+                type: "TaskCollection",
+                subType: "Tail",
+                name: "Roadmap",
+                pagination: null,
+                isEndOfTasks: true,
+                tasks: [collectionPageTask(writeSpecTaskReference)],
+            },
+        },
+        {
+            name: "task collection tail page without tasks",
+            pageLink: collectionId,
+            markdown: `\
+Tasks in Roadmap.
+
+End of tasks.
+`,
+            page: {
+                type: "TaskCollection",
+                subType: "Tail",
+                name: "Roadmap",
+                pagination: null,
+                isEndOfTasks: true,
+                tasks: [],
+            },
+        },
+        {
+            name: "unexpected markdown after the end of tasks marker",
+            pageLink: collectionId,
+            markdown: `\
+# Roadmap
+
+- [Write spec (Open)](/task/write-spec)
+
+End of tasks.
+
+Color: Red
+`,
+            parseError:
+                "Nothing may appear after \u201CEnd of tasks\u201D in task collection markdown. Try " +
+                "again after removing the extra content after \u201CEnd of tasks\u201D on line 7.",
+        },
+        {
+            name: "unexpected markdown after the end of tasks marker in a tail page",
+            pageLink: collectionId,
+            markdown: `\
+Tasks in Roadmap.
+
+End of tasks.
+
+- [Write spec (Open)](/task/write-spec)
+`,
+            parseError:
+                "Nothing may appear after \u201CEnd of tasks\u201D in task collection markdown. Try " +
+                "again after removing the extra content after \u201CEnd of tasks\u201D on line 5.",
+        },
+        {
+            name: "unexpected color field in a tail page",
+            pageLink: collectionId,
+            markdown: `\
+Tasks in Roadmap.
+
+Color: Red
+`,
+            parseError:
+                "Unexpected markdown on line 3. Try again with only a task list (an unordered " +
+                "list where every item is a task link) after the task collection preamble.",
+        },
+        {
+            name: "tail page preamble without a task collection name",
+            pageLink: collectionId,
+            markdown: `\
+Tasks near Roadmap.
+`,
+            parseError:
+                "Task collection markdown must start with \u201CTasks in My Collection\u201D (where " +
+                "\u201CMy Collection\u201D is the actual name of the task collection) when reading a " +
+                "later task collection page. Try again with a proper task collection preamble " +
+                "on line 1.",
+        },
+        {
+            name: "tail page preamble with a next page link without an after cursor",
+            pageLink: collectionId,
+            setupStorage: async storage => {
+                await createAgentWebPageStoredLinkPathname(storage, {
+                    type: "TaskCollection",
+                    id: collectionId,
+                    title: "Roadmap",
+                });
+            },
+            markdown: `\
+Tasks in Roadmap. [Next page »](/task-collection/roadmap)
+`,
+            parseError:
+                "Expected \u201CNext page »\u201D to link to a task collection page with an " +
+                "`?after` cursor. Try again with a valid task collection pagination link.",
         },
         {
             name: "next page link without an after cursor",
@@ -376,6 +797,7 @@ Color: Red
 - [Write spec (Open)](/task/write-spec)
   - Parent: [Ship launch](/task/ship-launch)
   - Assignee: [Alice](/human/alice)
+  - Collections: [Engineering](/task-collection/engineering), [Design](/task-collection/design)
   - Priority: High
   - Due date: July 12th, 2027
 
@@ -383,17 +805,108 @@ Color: Red
 `,
             page: {
                 type: "TaskCollection",
+                subType: "Head",
                 name: "Roadmap",
                 color: "Red",
+                defaults: null,
                 pagination: null,
+                isEndOfTasks: false,
                 tasks: [
                     collectionPageTask(writeSpecTaskReference, {
                         parent: shipLaunchTaskReference,
                         assignee: aliceReference,
+                        collections: [engineeringReference, designReference],
                         priority: {type: "High"},
                         dueDateString: "July 12th, 2027",
                     }),
                     collectionPageTask(shipLaunchTaskReference),
+                ],
+            },
+        },
+        {
+            name: "task collection page with a collections more count",
+            pageLink: collectionId,
+            markdown: `\
+# Roadmap
+
+- [Write spec (Open)](/task/write-spec)
+  - Collections: [Engineering](/task-collection/engineering), [Design](/task-collection/design), and 4 more
+`,
+            page: {
+                type: "TaskCollection",
+                subType: "Head",
+                name: "Roadmap",
+                color: null,
+                defaults: null,
+                pagination: null,
+                isEndOfTasks: false,
+                tasks: [
+                    collectionPageTask(writeSpecTaskReference, {
+                        collections: [engineeringReference, designReference],
+                        additionalCollectionsCount: 4,
+                    }),
+                ],
+            },
+        },
+        {
+            name: "collections more count without a comma is supported",
+            pageLink: collectionId,
+            markdown: `\
+# Roadmap
+
+- [Write spec (Open)](/task/write-spec)
+  - Collections: [Engineering](/task-collection/engineering) and 2 more
+`,
+            printMarkdown: `\
+# Roadmap
+
+- [Write spec (Open)](/task/write-spec)
+  - Collections: [Engineering](/task-collection/engineering), and 2 more
+`,
+            page: {
+                type: "TaskCollection",
+                subType: "Head",
+                name: "Roadmap",
+                color: null,
+                defaults: null,
+                pagination: null,
+                isEndOfTasks: false,
+                tasks: [
+                    collectionPageTask(writeSpecTaskReference, {
+                        collections: [engineeringReference],
+                        additionalCollectionsCount: 2,
+                    }),
+                ],
+            },
+        },
+        {
+            name: "collections more count is case insensitive",
+            pageLink: collectionId,
+            markdown: `\
+# Roadmap
+
+- [Write spec (Open)](/task/write-spec)
+  - Collections: [Engineering](/task-collection/engineering), AND 2 MORE
+`,
+            printMarkdown: `\
+# Roadmap
+
+- [Write spec (Open)](/task/write-spec)
+  - Collections: [Engineering](/task-collection/engineering), and 2 more
+`,
+            page: {
+                type: "TaskCollection",
+                subType: "Head",
+                name: "Roadmap",
+                color: null,
+                defaults: null,
+                pagination: null,
+                isEndOfTasks: false,
+                tasks: [
+                    collectionPageTask(writeSpecTaskReference, {
+                        collections: [engineeringReference],
+                        additionalCollectionsCount: 2,
+                    }),
                 ],
             },
         },
@@ -411,9 +924,12 @@ Color: Red
 `,
             page: {
                 type: "TaskCollection",
+                subType: "Head",
                 name: "Roadmap",
                 color: null,
+                defaults: null,
                 pagination: null,
+                isEndOfTasks: false,
                 tasks: [
                     collectionPageTask(writeSpecTaskReference, {
                         parent: planLaunchTaskReference,
@@ -443,9 +959,12 @@ Color: Red
 `,
             page: {
                 type: "TaskCollection",
+                subType: "Head",
                 name: "Roadmap",
                 color: null,
+                defaults: null,
                 pagination: null,
+                isEndOfTasks: false,
                 tasks: [
                     collectionPageTask(writeSpecTaskReference, {
                         assignee: aliceReference,
@@ -475,9 +994,12 @@ Color: Red
 `,
             page: {
                 type: "TaskCollection",
+                subType: "Head",
                 name: "Roadmap",
                 color: null,
+                defaults: null,
                 pagination: null,
+                isEndOfTasks: false,
                 tasks: [
                     collectionPageTask(writeSpecTaskReference, {
                         assignee: aliceReference,
@@ -506,9 +1028,12 @@ Color: Red
 `,
             page: {
                 type: "TaskCollection",
+                subType: "Head",
                 name: "Roadmap",
                 color: null,
+                defaults: null,
                 pagination: null,
+                isEndOfTasks: false,
                 tasks: [collectionPageTask(writeSpecTaskReference)],
             },
         },
@@ -521,8 +1046,9 @@ Color: Red
 Color: Red
 `,
             parseError:
-                "A name is required for task collections. Try again but make sure the task " +
-                "collection markdown starts with a markdown h1 (e.g. `# My Collection`) on line 1.",
+                "Task collection markdown must start with the task collection name in a " +
+                "markdown h1 (e.g. `# My Collection`) or \u201CTasks in My Collection\u201D. Try again " +
+                "with a proper start to task collection markdown on line 1.",
         },
         {
             name: "unknown task collection color",
@@ -590,6 +1116,110 @@ Color: Red
 `,
             parseError:
                 "Unexpected markdown on line 5. Try again with only a color (e.g. `Color: Red`) " +
+                "followed by a task list (an unordered list where every item is a task link) " +
+                "after the task collection name.",
+        },
+        {
+            name: "defaults label without a code block",
+            pageLink: collectionId,
+            markdown: `\
+# Roadmap
+
+Default filters and sorts:
+`,
+            parseError:
+                "Expected a code block with URL search params after \u201CDefault filters and " +
+                "sorts\u201D on line 3. Try again with the default filters and sorts in a code " +
+                "block after the label (e.g. `?status=open&sort=-priority,due`).",
+        },
+        {
+            name: "multiple lines in the defaults code block",
+            pageLink: collectionId,
+            markdown: `\
+# Roadmap
+
+Default filters and sorts:
+
+\`\`\`
+?status=open
+sort=-created
+\`\`\`
+`,
+            parseError:
+                "Expected a single line of URL search params in the default filters and sorts " +
+                "code block on line 5. Try again with all the default filters and sorts on one " +
+                "line (e.g. `?status=open&sort=-priority,due`).",
+        },
+        {
+            name: "unknown status filter in the defaults code block",
+            pageLink: collectionId,
+            markdown: `\
+# Roadmap
+
+Default filters:
+
+\`\`\`
+?status=done
+\`\`\`
+`,
+            parseError:
+                "Unexpected task status filter `status=done`. Try again with `open`, " +
+                "`open-active`, or `closed` (e.g. `status=open` or `status[not]=closed`).",
+        },
+        {
+            name: "unexpected defaults block in a tail page",
+            pageLink: collectionId,
+            markdown: `\
+Tasks in Roadmap.
+
+Default filters and sorts:
+
+\`\`\`
+?status=open
+\`\`\`
+`,
+            parseError:
+                "Unexpected markdown on line 3. Try again with only a task list (an unordered " +
+                "list where every item is a task link) after the task collection preamble.",
+        },
+        {
+            name: "unexpected defaults block after the next page link",
+            pageLink: collectionId,
+            setupStorage: async storage => {
+                await createAgentWebPageStoredLinkPathname(storage, {
+                    type: "TaskCollection",
+                    id: collectionId,
+                    title: "Roadmap",
+                });
+            },
+            markdown: `\
+# Roadmap
+
+[Next page »](/task-collection/roadmap?after=a1b2c3)
+
+Default filters:
+
+\`\`\`
+?status=open
+\`\`\`
+`,
+            parseError:
+                "Unexpected markdown on line 5. Try again with only a color (e.g. `Color: Red`) " +
+                "followed by a task list (an unordered list where every item is a task link) " +
+                "after the task collection name.",
+        },
+        {
+            name: "unexpected code block without a defaults label",
+            pageLink: collectionId,
+            markdown: `\
+# Roadmap
+
+\`\`\`
+?status=open
+\`\`\`
+`,
+            parseError:
+                "Unexpected markdown on line 3. Try again with only a color (e.g. `Color: Red`) " +
                 "followed by a task list (an unordered list where every item is a task link) " +
                 "after the task collection name.",
         },
@@ -716,10 +1346,47 @@ Color: Red
 `,
             parseError:
                 "Unknown task field \u201CStatus\u201D on line 4. Try again with one of " +
-                "\u201CParent\u201D, \u201CAssignee\u201D, \u201CPriority\u201D, or \u201CDue date\u201D.",
+                "\u201CParent\u201D, \u201CAssignee\u201D, \u201CCollections\u201D, " +
+                "\u201CPriority\u201D, or \u201CDue date\u201D.",
         },
         {
-            name: "collections task field isn\u2019t allowed in a task collection",
+            name: "task collection link to another entity type in a task list item",
+            pageLink: collectionId,
+            setupStorage: async storage => {
+                await createAgentWebPageStoredLinkPathname(storage, writeSpecTaskReference);
+                await createAgentWebPageStoredLinkPathname(storage, aliceReference);
+            },
+            markdown: `\
+# Roadmap
+
+- [Write spec (Open)](/task/write-spec)
+  - Collections: [Alice](/human/alice)
+`,
+            parseError:
+                "Unexpected task collection link \u201CAlice\u201D on line 4. Try again with a " +
+                "link to a task collection you\u2019ve seen before " +
+                "(e.g. `[My Collection](/task-collection/my-collection)`).",
+        },
+        {
+            name: "collections more count without any collection links",
+            pageLink: collectionId,
+            setupStorage: async storage => {
+                await createAgentWebPageStoredLinkPathname(storage, writeSpecTaskReference);
+            },
+            markdown: `\
+# Roadmap
+
+- [Write spec (Open)](/task/write-spec)
+  - Collections: and 3 more
+`,
+            parseError:
+                "Unexpected \u201Cand 3 more\u201D without any collection links on line 4. Try " +
+                "again with a comma separated list of collection links before the \u201Cand 3 " +
+                "more\u201D count (e.g. `- Collections: " +
+                "[My Collection](/task-collection/my-collection), and 2 more`).",
+        },
+        {
+            name: "collections more count must be a number",
             pageLink: collectionId,
             setupStorage: async storage => {
                 await createAgentWebPageStoredLinkPathname(storage, writeSpecTaskReference);
@@ -729,11 +1396,32 @@ Color: Red
 # Roadmap
 
 - [Write spec (Open)](/task/write-spec)
-  - Collections: [Engineering](/task-collection/engineering)
+  - Collections: [Engineering](/task-collection/engineering), and two more
 `,
             parseError:
-                "Unknown task field \u201CCollections\u201D on line 4. Try again with one of " +
-                "\u201CParent\u201D, \u201CAssignee\u201D, \u201CPriority\u201D, or \u201CDue date\u201D.",
+                "Unexpected markdown for task collections field on line 4. Try again with a " +
+                "comma separated list of collection links (e.g. `- Collections: " +
+                "[My Collection 1](/task-collection/my-collection-1), " +
+                "[My Collection 2](/task-collection/my-collection-2)`).",
+        },
+        {
+            name: "collections more count before the collection links",
+            pageLink: collectionId,
+            setupStorage: async storage => {
+                await createAgentWebPageStoredLinkPathname(storage, writeSpecTaskReference);
+                await createAgentWebPageStoredLinkPathname(storage, engineeringReference);
+            },
+            markdown: `\
+# Roadmap
+
+- [Write spec (Open)](/task/write-spec)
+  - Collections: and 2 more, [Engineering](/task-collection/engineering)
+`,
+            parseError:
+                "Unexpected markdown for task collections field on line 4. Try again with a " +
+                "comma separated list of collection links (e.g. `- Collections: " +
+                "[My Collection 1](/task-collection/my-collection-1), " +
+                "[My Collection 2](/task-collection/my-collection-2)`).",
         },
         {
             name: "unknown task field in a task list item",
@@ -749,7 +1437,8 @@ Color: Red
 `,
             parseError:
                 "Unknown task field \u201CSubtasks\u201D on line 4. Try again with one of " +
-                "\u201CParent\u201D, \u201CAssignee\u201D, \u201CPriority\u201D, or \u201CDue date\u201D.",
+                "\u201CParent\u201D, \u201CAssignee\u201D, \u201CCollections\u201D, " +
+                "\u201CPriority\u201D, or \u201CDue date\u201D.",
         },
         {
             name: "duplicate task field in a task list item",

@@ -530,7 +530,7 @@ export async function createAgentWebChannelPage(
 }> {
     if (newPage.subType !== "Head") {
         throw new InvalidArgumentError("Can only create channel head pages", {
-            displayMessage: errorDisplayMessage`Channel markdown must start with a channel title (e.g. \`# General\`) when creating a channel. Try again with a channel title.`,
+            displayMessage: errorDisplayMessage`Channel markdown must start with a title (e.g. \`# General\`) when creating a channel. Try again with a title.`,
         });
     }
 

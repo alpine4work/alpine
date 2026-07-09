@@ -136,13 +136,16 @@ async function expectInvalidCreateDisplayMessage({
     expect(result.error).toBeInstanceOf(InvalidArgumentError);
 }
 
-test("creates a task collection with a name", async () => {
+test.each([
+    ["without", ""],
+    ["with", "\n\nEnd of tasks."],
+])("creates a task collection %s the end of tasks marker", async (_name, endOfTasksMarker) => {
     mockCreateTaskCollection({name: "Roadmap"});
 
     await expect(
         callAgentWebCreateTool(context, {
             type: "task-collection",
-            content: "# Roadmap",
+            content: `# Roadmap${endOfTasksMarker}`,
         }),
     ).resolves.toEqual(
         "Create was successful. New task collection: [Roadmap](/task-collection/roadmap).\n",
@@ -245,12 +248,55 @@ Color: Red
     expect(getCreateTaskCollectionRequests()).toHaveLength(0);
 });
 
+test("throws unimplemented when creating a task collection with default filters and sorts", async () => {
+    const result = await captureResultPromise(
+        async () =>
+            await callAgentWebCreateTool(context, {
+                type: "task-collection",
+                content: `\
+# Roadmap
+
+Default filters and sorts:
+
+\`\`\`
+?status=open&sort=-priority,due
+\`\`\``,
+            }),
+    );
+
+    if (result.ok) {
+        throw new InternalError("Expected create tool call to throw");
+    }
+
+    expect(result.error).toBeInstanceOf(UnimplementedError);
+    expect(result.error).toHaveProperty(
+        "message",
+        "Setting the default filters and sorts while creating a task collection " +
+            "hasn\u2019t been implemented yet",
+    );
+    expect(getCreateTaskCollectionRequests()).toHaveLength(0);
+});
+
 test("rejects creating a task collection without a name", async () => {
     await expectInvalidCreateDisplayMessage({
         content: "Color: Red",
         expected:
-            "A name is required for task collections. Try again but make sure the task " +
-            "collection markdown starts with a markdown h1 (e.g. `# My Collection`) on line 1.",
+            "Task collection markdown must start with \u201CTasks in My Collection\u201D (where " +
+            "\u201CMy Collection\u201D is the actual name of the task collection) when reading a " +
+            "later task collection page. Try again with a proper task collection preamble " +
+            "on line 1.",
+    });
+
+    expect(getCreateTaskCollectionRequests()).toHaveLength(0);
+});
+
+test("rejects creating a later task collection page", async () => {
+    await expectInvalidCreateDisplayMessage({
+        content: "Tasks in Roadmap.",
+        expected:
+            "Task collection markdown must start with a task collection name (e.g. " +
+            "`# My Collection`) when creating a task collection. Try again with a task " +
+            "collection name.",
     });
 
     expect(getCreateTaskCollectionRequests()).toHaveLength(0);
