@@ -2,6 +2,7 @@ import {parseApiContentResponseFromMarkdownForTest} from "~/shared/api/content/t
 import {
     ApiAccount,
     ApiContentResponse,
+    ApiMessageContentPayloadFileResponse,
     ApiMessageContentPayloadParentContentSnippet,
     ApiMessageResponse,
 } from "~/shared/api/specification/types/api_specification_convenience_types.js";
@@ -23,6 +24,7 @@ export function createApiMessageMock({
     createdTime = new Date(Date.UTC(2026, 4, 14, 15, index * 5)),
     createdTimeZone = defaultTimeZone,
     parent,
+    files = [],
 }: {
     index: number;
     author: ApiAccount | ReadonlyArray<ApiAccount>;
@@ -30,6 +32,7 @@ export function createApiMessageMock({
     createdTime?: DateString | Date;
     createdTimeZone?: TimeZone;
     parent?: ApiMessageMockParent;
+    files?: ReadonlyArray<ApiMessageContentPayloadFileResponse>;
 }): ApiMessageResponse {
     return {
         index,
@@ -58,7 +61,7 @@ export function createApiMessageMock({
                               : parent.contentSnippet,
                   }
                 : undefined,
-            files: [],
+            files,
         },
     };
 }
