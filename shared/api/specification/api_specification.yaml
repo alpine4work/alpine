@@ -1575,6 +1575,63 @@ paths:
                                         items:
                                             $ref: "#/components/schemas/TaskQueryItem"
 
+    # NOTE(calebmer): `/query` refers to the upcoming HTTP `QUERY` method, not
+    # `TaskQuery`. Eventually we should add `QUERY /task-collections/{id}/tasks`
+    # and keep this endpoint around for backwards compatibility.
+    /task-collections/{id}/tasks/query:
+        parameters:
+            - name: id
+              in: path
+              required: true
+              schema: {$ref: "#/components/schemas/TaskCollectionId"}
+        post:
+            requestBody:
+                required: true
+                content:
+                    application/json:
+                        schema:
+                            type: object
+                            required: []
+                            additionalProperties: false
+                            properties:
+                                limit:
+                                    type: integer
+                                    minimum: 1
+                                    maximum: 100
+                                    default: 10
+                                cursor:
+                                    $ref: "#/components/schemas/TaskQueryCursor"
+                                filters:
+                                    type: array
+                                    items:
+                                        $ref: "#/components/schemas/TaskQueryFilter"
+                                sorts:
+                                    type: array
+                                    items:
+                                        $ref: "#/components/schemas/TaskQuerySort"
+            responses:
+                default: {$ref: "#/components/responses/Error"}
+                "200":
+                    content:
+                        application/json:
+                            schema:
+                                type: object
+                                required: [spaceId, collection, nextCursor, tasks]
+                                additionalProperties: false
+                                properties:
+                                    spaceId:
+                                        $ref: "#/components/schemas/SpaceId"
+                                    collection:
+                                        $ref: "#/components/schemas/TaskCollection"
+                                    nextCursor:
+                                        oneOf:
+                                            - $ref: "#/components/schemas/TaskQueryCursor"
+                                            - type: "null"
+                                    tasks:
+                                        type: array
+                                        items:
+                                            $ref: "#/components/schemas/TaskQueryItem"
+
     /files/{id}:
         parameters:
             - name: id
@@ -3669,7 +3726,7 @@ components:
         Task:
             type: object
             # NOCOMMIT: Make notes optional. If notes is empty the object shouldn't be present
-            required: [id, status, title, notes]
+            required: [id, status, title, subtasks, notes]
             additionalProperties: false
             properties:
                 id:
@@ -3700,12 +3757,14 @@ components:
                     type: array
                     items:
                         $ref: "#/components/schemas/TaskCollectionItem"
+                subtasks:
+                    $ref: "#/components/schemas/TaskSubtasks"
                 notes:
                     $ref: "#/components/schemas/TaskNotes"
 
         TaskWithoutNotes:
             type: object
-            required: [id, status, title]
+            required: [id, status, title, subtasks]
             additionalProperties: false
             properties:
                 id:
@@ -3736,6 +3795,20 @@ components:
                     type: array
                     items:
                         $ref: "#/components/schemas/TaskCollectionItem"
+                subtasks:
+                    $ref: "#/components/schemas/TaskSubtasks"
+
+        TaskSubtasks:
+            type: object
+            required: [openTaskCount, closedTaskCount]
+            additionalProperties: false
+            properties:
+                openTaskCount:
+                    type: integer
+                    minimum: 0
+                closedTaskCount:
+                    type: integer
+                    minimum: 0
 
         TaskPreview:
             type: object

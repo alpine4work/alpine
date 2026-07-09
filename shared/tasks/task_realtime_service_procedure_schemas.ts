@@ -12,8 +12,10 @@ import {TaskCollectionModel} from "~/shared/tasks/model/task_collection_model.js
 import {TaskModel} from "~/shared/tasks/model/task_model.js";
 import {TaskGridViewExpansionStateSchema} from "~/shared/tasks/task_grid_view_expansion_state.js";
 import {TaskQueryEvaluationContextSchema} from "~/shared/tasks/task_query_evaluation_context.js";
+import {TaskQueryFiltersSchema} from "~/shared/tasks/task_query_filters_schema.js";
 import {TaskQueryNormalizedFiltersSchema} from "~/shared/tasks/task_query_normalized_filters.js";
 import {TaskQueryNormalizedSortSchema} from "~/shared/tasks/task_query_normalized_sort.js";
+import {TaskQuerySortsSchema} from "~/shared/tasks/task_query_sorts_schema.js";
 import {
     TaskQuerySortCursorSchema,
     TaskRealtimeQueryLoadedStateSchema,
@@ -48,6 +50,8 @@ export const TaskRealtimeLoadQueriesInputQuerySchema = Schema.union({
         type: Schema.value("Collection"),
         limit: Schema.integer,
         collectionId: Schema.id<TaskCollectionId>(),
+        filters: TaskQueryFiltersSchema.optional(),
+        sorts: TaskQuerySortsSchema.optional(),
         evaluationContext: TaskQueryEvaluationContextSchema,
 
         // Notes:

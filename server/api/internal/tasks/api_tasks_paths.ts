@@ -1,4 +1,4 @@
-import {parseDate, today} from "@internationalized/date";
+import {parseDate} from "@internationalized/date";
 import {createAccessPolicyForContentCreatedByBot} from "~/server/access/create_access_policy_for_content_created_by_bot.js";
 import {ApiPaths} from "~/server/api/internal/shared/api_paths_type.js";
 import {fromApiMessageContentPayloadParent} from "~/server/api/internal/shared/from_api_message_content_payload_parent.js";
@@ -14,8 +14,8 @@ import {createIntoApiTaskCommentContentPayloadParent} from "~/server/api/interna
 import {createTaskFromApi} from "~/server/api/internal/tasks/internal/create_task_from_api.js";
 import {fromApiTaskLayout} from "~/server/api/internal/tasks/internal/from_api_task_layout.js";
 import {getApiTaskNotes} from "~/server/api/internal/tasks/internal/get_api_task_notes.js";
-import {getTasksInRealtimeQueryLoadedRangeForApi} from "~/server/api/internal/tasks/internal/get_tasks_in_realtime_query_loaded_range_for_api.js";
 import {intoApiTaskCollection} from "~/server/api/internal/tasks/internal/into_api_task_collection.js";
+import {loadTaskCollectionTasksFromApi} from "~/server/api/internal/tasks/internal/load_task_collection_tasks_from_api.js";
 import {updateTaskCollectionFromApi} from "~/server/api/internal/tasks/internal/update_task_collection_from_api.js";
 import {updateTaskNotesFromApi} from "~/server/api/internal/tasks/internal/update_task_notes_from_api.js";
 import {updateTaskWithoutNotesFromApi} from "~/server/api/internal/tasks/internal/update_task_without_notes_from_api.js";
@@ -36,33 +36,26 @@ import {ApiContentKeyEncoder} from "~/shared/api/content/closed_source/api_conte
 import {extractFileIdsFromApiContent} from "~/shared/api/content/closed_source/extract_file_ids_from_api_content.js";
 import {fromApiContent} from "~/shared/api/content/closed_source/from_api_content.js";
 import {fromApiThemeColor} from "~/shared/api/content/closed_source/from_api_theme_color.js";
+import {fromApiTaskQueryFilter} from "~/shared/api/content/closed_source/into_api_task_query_filter.js";
+import {fromApiTaskQuerySort} from "~/shared/api/content/closed_source/into_api_task_query_sort.js";
 import {intoApiTaskStatus} from "~/shared/api/content/closed_source/into_api_task_status.js";
 import {
     MessageContentProsemirrorSchema,
     assertMessageContent,
 } from "~/shared/content/message_content_schema.js";
-import {InternalError} from "~/shared/error/error.js";
 import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
 import {HybridLogicalClock} from "~/shared/helpers/clock/hybrid_logical_clock.js";
 import {unsynchronizedSystemClock} from "~/shared/helpers/clock/unsynchronized_system_clock.js";
-import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 import {unwrapResult} from "~/shared/helpers/control/capture_result.js";
 import {captureResultPromise} from "~/shared/helpers/control/capture_result_promise.js";
-import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
 import {serializeDateString} from "~/shared/helpers/date/date_string.js";
 import {defaultTimeZone} from "~/shared/helpers/intl/time_zone.js";
-import {findMapIterable} from "~/shared/helpers/iterable/find_map_iterable.js";
 import {emptyMap} from "~/shared/helpers/map/empty_map.js";
 import {generateId} from "~/shared/id/id.js";
-import {ApiTaskQueryCursor} from "~/shared/id/types/api_task_query_cursor.js";
 import {TaskCollectionId, TaskId} from "~/shared/id/types/id_types.js";
 import {MessageContentPayload} from "~/shared/messaging/message_schema.js";
 import {MessagingRealtimeBroadcastNewMessageRequestSchema} from "~/shared/messaging/messaging_realtime_protocol.js";
 import {emptyReactionSet} from "~/shared/reactions/reaction_set.js";
-import {
-    decodeApiTaskQueryCursor,
-    encodeApiTaskQueryCursor,
-} from "~/shared/tasks/model/api_task_query_cursor_encoder.js";
 import {TaskActor} from "~/shared/tasks/task_creator.js";
 import {
     TaskNotesContentProsemirrorSchema,
@@ -695,107 +688,23 @@ export const apiTasksPaths: Pick<
 
     "/task-collections/{id}/tasks": {
         get: async (context, {pathParameters, queryParameters}) => {
-            const limit = queryParameters.limit ?? 10;
-            const collectionId = pathParameters.id;
-            const spaceId = context.actor.getSpaceId();
-
-            // NOCOMMIT: Bring filters back! How?
-
-            const {queries, updateEvent} = await context.tasks.loadQueries(
-                context.actor.getSpaceId(),
-                {
-                    queries: [
-                        {
-                            type: "Collection",
-                            limit,
-                            collectionId,
-                            evaluationContext: {
-                                currentAccountId: null,
-                                currentDate: today(defaultTimeZone),
-                            },
-                            expensivelyAfterCursorForApi: queryParameters.cursor,
-                        },
-                    ],
-                    taskIds: [],
-                    collectionIds: [collectionId],
-                },
-                {consistency: "StrongWithinCache"},
-            );
-
-            const query = assertExists(queries[0]);
-
-            const collection = assertExists(
-                findMapIterable(updateEvent.backfillCollections, backfillCollection =>
-                    backfillCollection.type === "Authorized" &&
-                    backfillCollection.collection.id === collectionId
-                        ? backfillCollection.collection
-                        : undefined,
-                ),
-            );
-
-            const {loadedState, sorts} = query;
-
-            const afterCursor =
-                queryParameters.cursor !== undefined
-                    ? decodeApiTaskQueryCursor(sorts, queryParameters.cursor)
-                    : null;
-
-            const tasks = getTasksInRealtimeQueryLoadedRangeForApi({
-                query,
-                updateEvent,
-                afterCursor,
+            return await loadTaskCollectionTasksFromApi(context, {
+                collectionId: pathParameters.id,
+                limit: queryParameters.limit ?? 10,
+                cursor: queryParameters.cursor,
             });
+        },
+    },
 
-            let nextCursor: ApiTaskQueryCursor | null;
-
-            switch (loadedState.type) {
-                case "Full": {
-                    nextCursor = null;
-                    break;
-                }
-                case "Partial": {
-                    // NOTE(calebmer): I'll be honest, I don't think `endCursor` null should be
-                    // possible here but I'm not 100% sure. There may be a rare edge case in here where
-                    // we call `loadQuery()` which then queries OpenSearch which then returns `limit`
-                    // items but then when we apply the recent action history ALL `limit` tasks move so
-                    // they're out of the loaded range. But even in that case wouldn't then `endCursor`
-                    // be the end of the loaded range? Anyway, I'm not sure. ([This is the case I'm
-                    // thinking of.][1])
-                    //
-                    // What I do know is that the API doesn't support expressing "has next page but we
-                    // don't have a cursor". So throw for now. Let's see if this error actually happens
-                    // in practice. Another solution idea is to retry the query. If this is the result
-                    // of an edge case where tasks have recently moved then retrying the query on an
-                    // exponential backoff until we get data should work? _Shrug_
-                    //
-                    // [1]:
-                    //     https://github.com/cyberworlds/cyberworlds/blob/cb7c5fa0445a72db694b2a2973f8a20eb3fd9d23/server/tasks/realtime/task_realtime_query.ts#L470-L480
-                    if (loadedState.endCursor === null) {
-                        throw new InternalError(
-                            "Expected non-null `endCursor` for `Partial` loaded state",
-                        );
-                    }
-
-                    nextCursor = encodeApiTaskQueryCursor(sorts, loadedState.endCursor);
-                    break;
-                }
-                default:
-                    throw exhaustive(loadedState);
-            }
-
-            const converter = new ApiTaskConverter(updateEvent);
-
-            return {
-                content: {
-                    spaceId,
-                    collection: intoApiTaskCollection(collection),
-                    nextCursor,
-                    tasks: tasks.map(({cursor, task}) => ({
-                        cursor: encodeApiTaskQueryCursor(sorts, cursor),
-                        task: converter.into(task),
-                    })),
-                },
-            };
+    "/task-collections/{id}/tasks/query": {
+        post: async (context, {pathParameters, requestBody}) => {
+            return await loadTaskCollectionTasksFromApi(context, {
+                collectionId: pathParameters.id,
+                limit: requestBody.limit ?? 10,
+                cursor: requestBody.cursor,
+                filters: requestBody.filters?.map(fromApiTaskQueryFilter),
+                sorts: requestBody.sorts?.map(fromApiTaskQuerySort),
+            });
         },
     },
 };

@@ -133,26 +133,27 @@ export class ApiTaskConverter {
                     },
                 };
             })(),
-            collections: filterMapArray(
-                task.getCollections().getArray(),
-                ({collectionId}) => {
-                    const backfillCollection = assertExists(
-                        this.#backfillCollectionById.get(collectionId),
-                    );
+            collections: filterMapArray(task.getCollections().getArray(), ({collectionId}) => {
+                const backfillCollection = assertExists(
+                    this.#backfillCollectionById.get(collectionId),
+                );
 
-                    // Hide collections you don't have access to from the API.
-                    if (backfillCollection.type === "Unauthorized") return;
+                // Hide collections you don't have access to from the API.
+                if (backfillCollection.type === "Unauthorized") return;
 
-                    const {collection} = backfillCollection;
+                const {collection} = backfillCollection;
 
-                    return {
-                        collection: {
-                            id: collectionId,
-                            name: collection.getName(),
-                        },
-                    };
-                },
-            ),
+                return {
+                    collection: {
+                        id: collectionId,
+                        name: collection.getName(),
+                    },
+                };
+            }),
+            subtasks: {
+                openTaskCount: task.getOpenChildTaskCount(),
+                closedTaskCount: task.getClosedChildTaskCount(),
+            },
         };
     }
 }

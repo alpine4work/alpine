@@ -234,6 +234,9 @@ export async function loadTaskRealtimeQueries(
                     {consistency},
                 );
 
+                const inputFilters = query.filters ?? defaults.filters;
+                const inputSorts = query.sorts ?? defaults.sorts;
+
                 filtersResult = normalizeTaskQueryFilters(
                     [
                         {
@@ -243,7 +246,7 @@ export async function loadTaskRealtimeQueries(
                                 collectionIds: new Set([query.collectionId]),
                             },
                         },
-                        ...defaults.filters,
+                        ...inputFilters,
                     ],
                     query.evaluationContext,
                 );
@@ -252,7 +255,7 @@ export async function loadTaskRealtimeQueries(
                 // collection position. Otherwise a filtered view automatically applies a sort so
                 // newly created tasks land somewhere predictable.
                 sorts =
-                    defaults.filters.length === 0 && defaults.sorts.length === 0
+                    inputFilters.length === 0 && inputSorts.length === 0
                         ? [
                               {
                                   type: "CollectionPosition",
@@ -266,7 +269,7 @@ export async function loadTaskRealtimeQueries(
                                   missing: "Last",
                               },
                           ]
-                        : normalizeTaskQuerySorts(defaults.sorts);
+                        : normalizeTaskQuerySorts(inputSorts);
 
                 if (query.expensivelyAfterCursorForApi === undefined) {
                     expensivelyAfterCursor = null;

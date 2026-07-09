@@ -66,6 +66,7 @@ test("ApiTaskConverter serializes a fully populated task", async () => {
             },
         },
         collections: [{collection: {id: collection.id, name: "Projects"}}],
+        subtasks: {openTaskCount: 0, closedTaskCount: 0},
     });
 });
 
@@ -95,5 +96,6 @@ test("ApiTaskConverter omits optional fields for a minimal task", async () => {
         layout: undefined,
         parent: undefined,
         collections: [],
+        subtasks: {openTaskCount: 0, closedTaskCount: 0},
     });
 });

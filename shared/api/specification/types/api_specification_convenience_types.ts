@@ -299,6 +299,8 @@ export type ApiTask = ApiSpecification.components["schemas"]["Task"];
 
 export type ApiTaskWithoutNotes = ApiSpecification.components["schemas"]["TaskWithoutNotes"];
 
+export type ApiTaskSubtasks = ApiSpecification.components["schemas"]["TaskSubtasks"];
+
 export type ApiTaskPreview = ApiSpecification.components["schemas"]["TaskPreview"];
 
 export type ApiTaskDue = ApiSpecification.components["schemas"]["TaskDue"];
@@ -990,14 +992,14 @@ export type ApiTaskNotesResponse = ApiSpecification.components["schemas"]["TaskN
 export type ApiContentInlineElementResponse =
     ApiSpecification.components["schemas"]["ContentInlineElement_Response"];
 
+export type ApiTaskQueryCollectionsFilterResponse =
+    ApiSpecification.components["schemas"]["TaskQueryCollectionsFilter_Response"];
+
 export type ApiMessageStreamContentPartPayloadResponse =
     ApiSpecification.components["schemas"]["MessageStreamContentPartPayload_Response"];
 
 export type ApiMessageStreamReasoningPartPayloadResponse =
     ApiSpecification.components["schemas"]["MessageStreamReasoningPartPayload_Response"];
-
-export type ApiTaskQueryCollectionsFilterResponse =
-    ApiSpecification.components["schemas"]["TaskQueryCollectionsFilter_Response"];
 
 export type ApiMessageStreamToolCallPartPayloadCallResponse =
     ApiSpecification.components["schemas"]["MessageStreamToolCallPartPayloadCall_Response"];
@@ -1029,11 +1031,11 @@ export type ApiContentTableBlockElementRowResponseWithoutKeys =
 export type ApiContentListBlockElementResponseWithoutKeys =
     ApiSpecification.components["schemas"]["ContentListBlockElement_Response_WithoutKeys"];
 
-export type ApiMessageStreamPartPayloadResponse =
-    ApiSpecification.components["schemas"]["MessageStreamPartPayload_Response"];
-
 export type ApiTaskQueryFilterResponse =
     ApiSpecification.components["schemas"]["TaskQueryFilter_Response"];
+
+export type ApiMessageStreamPartPayloadResponse =
+    ApiSpecification.components["schemas"]["MessageStreamPartPayload_Response"];
 
 export type ApiMessageStreamToolCallPartPayloadResponse =
     ApiSpecification.components["schemas"]["MessageStreamToolCallPartPayload_Response"];

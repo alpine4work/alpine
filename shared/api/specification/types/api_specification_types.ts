@@ -2435,6 +2435,62 @@ export namespace ApiSpecification {
             readonly patch?: never;
             readonly trace?: never;
         };
+        readonly "/task-collections/{id}/tasks/query": {
+            readonly parameters: {
+                readonly query?: never;
+                readonly header?: never;
+                readonly path: {
+                    readonly id: components["schemas"]["TaskCollectionId"];
+                };
+                readonly cookie?: never;
+            };
+            readonly get?: never;
+            readonly put?: never;
+            readonly post: {
+                readonly parameters: {
+                    readonly query?: never;
+                    readonly header?: never;
+                    readonly path: {
+                        readonly id: components["schemas"]["TaskCollectionId"];
+                    };
+                    readonly cookie?: never;
+                };
+                readonly requestBody: {
+                    readonly content: {
+                        readonly "application/json": {
+                            /** @default 10 */
+                            readonly limit?: number;
+                            readonly cursor?: components["schemas"]["TaskQueryCursor"];
+                            readonly filters?: readonly components["schemas"]["TaskQueryFilter"][];
+                            readonly sorts?: readonly components["schemas"]["TaskQuerySort"][];
+                        };
+                    };
+                };
+                readonly responses: {
+                    readonly 200: {
+                        headers: {
+                            readonly [name: string]: unknown;
+                        };
+                        content: {
+                            readonly "application/json": {
+                                readonly spaceId: components["schemas"]["SpaceId"];
+                                readonly collection: components["schemas"]["TaskCollection_Response"];
+                                readonly nextCursor:
+                                    | components["schemas"]["TaskQueryCursor"]
+                                    | null;
+                                readonly tasks: readonly components["schemas"]["TaskQueryItem_Response"][];
+                            };
+                        };
+                    };
+                    readonly default: components["responses"]["Error"];
+                };
+            };
+            readonly delete?: never;
+            readonly options?: never;
+            readonly head?: never;
+            readonly patch?: never;
+            readonly trace?: never;
+        };
         readonly "/files/{id}": {
             readonly parameters: {
                 readonly query?: never;
@@ -3662,6 +3718,7 @@ export namespace ApiSpecification {
                 readonly layout?: components["schemas"]["TaskLayout"];
                 readonly parent?: components["schemas"]["TaskParent"];
                 readonly collections?: readonly components["schemas"]["TaskCollectionItem"][];
+                readonly subtasks: components["schemas"]["TaskSubtasks"];
                 readonly notes: components["schemas"]["TaskNotes"];
             };
             readonly TaskWithoutNotes: {
@@ -3677,6 +3734,11 @@ export namespace ApiSpecification {
                 readonly layout?: components["schemas"]["TaskLayout"];
                 readonly parent?: components["schemas"]["TaskParent"];
                 readonly collections?: readonly components["schemas"]["TaskCollectionItem"][];
+                readonly subtasks: components["schemas"]["TaskSubtasks"];
+            };
+            readonly TaskSubtasks: {
+                readonly openTaskCount: number;
+                readonly closedTaskCount: number;
             };
             readonly TaskPreview: {
                 readonly id: components["schemas"]["TaskId"];
@@ -4963,6 +5025,7 @@ export namespace ApiSpecification {
                 readonly layout?: components["schemas"]["TaskLayout"];
                 readonly parent?: components["schemas"]["TaskParent_Response"];
                 readonly collections?: readonly components["schemas"]["TaskCollectionItem_Response"][];
+                readonly subtasks: components["schemas"]["TaskSubtasks"];
                 readonly notes: components["schemas"]["TaskNotes_Response"];
             };
             readonly Message_Response: {
@@ -5242,6 +5305,7 @@ export namespace ApiSpecification {
                 readonly layout?: components["schemas"]["TaskLayout"];
                 readonly parent?: components["schemas"]["TaskParent_Response"];
                 readonly collections?: readonly components["schemas"]["TaskCollectionItem_Response"][];
+                readonly subtasks: components["schemas"]["TaskSubtasks"];
             };
             readonly DirectChat_Response: {
                 /**
@@ -5732,6 +5796,14 @@ export namespace ApiSpecification {
                 | components["schemas"]["ContentTextInlineElement"]
                 | components["schemas"]["ContentBreakInlineElement"]
                 | components["schemas"]["ContentMentionInlineElement_Response"];
+            readonly TaskQueryCollectionsFilter_Response: {
+                /**
+                 * @description discriminator enum property added by openapi-typescript @enum
+                 * {string}
+                 */
+                readonly type: "Collections";
+                readonly operation: components["schemas"]["TaskQueryCollectionsFilterOperation_Response"];
+            };
             readonly MessageStreamContentPartPayload_Response: {
                 /**
                  * @description discriminator enum property added by openapi-typescript @enum
@@ -5747,14 +5819,6 @@ export namespace ApiSpecification {
                  */
                 readonly type: "Reasoning";
                 readonly content: components["schemas"]["Content_Response"];
-            };
-            readonly TaskQueryCollectionsFilter_Response: {
-                /**
-                 * @description discriminator enum property added by openapi-typescript @enum
-                 * {string}
-                 */
-                readonly type: "Collections";
-                readonly operation: components["schemas"]["TaskQueryCollectionsFilterOperation_Response"];
             };
             readonly MessageStreamToolCallPartPayloadCall_Response:
                 | components["schemas"]["MessageStreamToolCallPartPayloadReadCall_Response"]
@@ -5815,10 +5879,6 @@ export namespace ApiSpecification {
                 | components["schemas"]["ContentUnorderedListBlockElement_Response_WithoutKeys"]
                 | components["schemas"]["ContentOrderedListBlockElement_Response_WithoutKeys"]
                 | components["schemas"]["ContentCheckListBlockElement_Response_WithoutKeys"];
-            readonly MessageStreamPartPayload_Response:
-                | components["schemas"]["MessageStreamContentPartPayload_Response"]
-                | components["schemas"]["MessageStreamToolCallPartPayload_Response"]
-                | components["schemas"]["MessageStreamReasoningPartPayload_Response"];
             readonly TaskQueryFilter_Response:
                 | components["schemas"]["TaskQueryStatusFilter"]
                 | components["schemas"]["TaskQueryCollectionsFilter_Response"]
@@ -5833,6 +5893,10 @@ export namespace ApiSpecification {
                 | components["schemas"]["TaskQueryAssignedTimeFilter"]
                 | components["schemas"]["TaskQueryClosedTimeFilter"]
                 | components["schemas"]["TaskQueryActivatedTimeFilter"];
+            readonly MessageStreamPartPayload_Response:
+                | components["schemas"]["MessageStreamContentPartPayload_Response"]
+                | components["schemas"]["MessageStreamToolCallPartPayload_Response"]
+                | components["schemas"]["MessageStreamReasoningPartPayload_Response"];
             readonly MessageStreamToolCallPartPayload_Response: {
                 /**
                  * @description discriminator enum property added by openapi-typescript @enum

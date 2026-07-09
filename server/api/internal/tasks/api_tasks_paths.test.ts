@@ -170,6 +170,50 @@ test("can read task information", async () => {
     });
 });
 
+test("returns open and closed subtask counts", async () => {
+    const space = await TestSpace.create(context);
+    const session = await space.createSession({name: "Alice Smith", role: "Admin"});
+
+    const bot = await TestBot.createAndInstantiate(session);
+    const apiKey = await bot.createApiKey(session);
+    const collection = await TestTaskCollection.create(session, {
+        name: "Tasks with subtasks",
+        access: "Public",
+    });
+    const parentTask = await TestTask.create(session, {
+        title: "Parent task",
+        collections: [collection],
+    });
+
+    await TestTask.create(session, {title: "Open subtask", parent: parentTask});
+    await TestTask.create(session, {
+        title: "Closed subtask 1",
+        status: "Closed",
+        parent: parentTask,
+    });
+    await TestTask.create(session, {
+        title: "Closed subtask 2",
+        status: "Closed",
+        parent: parentTask,
+    });
+    await ProcessContextModule.waitForTestTasks();
+
+    const taskResponse = await server.GET(`/tasks/${parentTask.id}`, {
+        headers: {authorization: `bearer ${apiKey}`},
+    });
+    const taskCollectionResponse = await server.GET(`/task-collections/${collection.id}/tasks`, {
+        headers: {authorization: `bearer ${apiKey}`},
+    });
+
+    expect({
+        task: taskResponse.body.task.subtasks,
+        taskWithoutNotes: taskCollectionResponse.body.tasks[0].task.subtasks,
+    }).toEqual({
+        task: {openTaskCount: 1, closedTaskCount: 2},
+        taskWithoutNotes: {openTaskCount: 1, closedTaskCount: 2},
+    });
+});
+
 test("can read task with notes content", async () => {
     const space = await TestSpace.create(context);
     const session = await space.createSession({name: "Alice Smith", role: "Admin"});
@@ -602,6 +646,7 @@ test("can create an empty task", async () => {
                 status: {type: "Open", isActive: false},
                 title: "",
                 collections: [],
+                subtasks: {openTaskCount: 0, closedTaskCount: 0},
                 notes: {
                     version: 0,
                     content: {
@@ -3559,6 +3604,7 @@ describe("/task-collections/{id}/tasks", () => {
                             id: task1.id,
                             title: "First Task",
                             status: {type: "Open", isActive: false},
+                            subtasks: {openTaskCount: 0, closedTaskCount: 0},
                             collections: [
                                 {
                                     collection: {id: collection.id, name: "Public Collection"},
@@ -3573,6 +3619,7 @@ describe("/task-collections/{id}/tasks", () => {
                             id: task2.id,
                             title: "Second Task",
                             status: {type: "Open", isActive: false},
+                            subtasks: {openTaskCount: 0, closedTaskCount: 0},
                             collections: [
                                 {
                                     collection: {id: collection.id, name: "Public Collection"},
@@ -3671,6 +3718,7 @@ describe("/task-collections/{id}/tasks", () => {
                                 date: "2025-12-31",
                             },
                             priority: {type: "High"},
+                            subtasks: {openTaskCount: 0, closedTaskCount: 0},
                             collections: [
                                 {
                                     collection: {
@@ -4792,5 +4840,131 @@ describe("/task-collections/{id}/tasks", () => {
                 ],
             }),
         });
+    });
+});
+
+describe("POST /task-collections/{id}/tasks/query", () => {
+    test("applies explicit filters and sorts while paginating", async () => {
+        const space = await TestSpace.create(context);
+        const session = await space.createSession({name: "Alice Smith", role: "Admin"});
+
+        const bot = await TestBot.createAndInstantiate(session);
+        const apiKey = await bot.createApiKey(session);
+
+        const collection = await TestTaskCollection.create(session, {
+            name: "Queried Collection",
+            access: "Public",
+        });
+
+        await collection.updateDefaults(session, {
+            filters: [
+                {
+                    type: "Priority",
+                    operation: {type: "OneOf", priorities: new Set(["Low"])},
+                },
+            ],
+            sorts: [{type: "Priority", direction: "Ascending"}],
+        });
+
+        const [lowTask, highTask, urgentTask] = await runAllPromises([
+            TestTask.create(session, {title: "Low Task", priority: "Low"}),
+            TestTask.create(session, {title: "High Task", priority: "High"}),
+            TestTask.create(session, {title: "Urgent Task", priority: "Urgent"}),
+        ]);
+
+        await runAllPromises([
+            lowTask.addCollection(session, collection),
+            highTask.addCollection(session, collection),
+            urgentTask.addCollection(session, collection),
+        ]);
+        await ProcessContextModule.waitForTestTasks();
+
+        const body = {
+            filters: [
+                {
+                    type: "Priority",
+                    operation: {
+                        type: "OneOf",
+                        priorities: [{type: "High"}, {type: "Urgent"}],
+                    },
+                },
+            ],
+            sorts: [{type: "Priority", direction: "Descending"}],
+        };
+        const firstPageResponse = await server.POST(
+            `/task-collections/${collection.id}/tasks/query`,
+            {
+                headers: {authorization: `bearer ${apiKey}`},
+                body: {...body, limit: 1},
+            },
+        );
+
+        expect(firstPageResponse.status).toBe(200);
+        expect(firstPageResponse.body.tasks.map(({task}: {task: {id: TaskId}}) => task.id)).toEqual(
+            [urgentTask.id],
+        );
+        expect(firstPageResponse.body.nextCursor).toEqual(expect.any(String));
+
+        const secondPageResponse = await server.POST(
+            `/task-collections/${collection.id}/tasks/query`,
+            {
+                headers: {authorization: `bearer ${apiKey}`},
+                body: {
+                    ...body,
+                    limit: 1,
+                    cursor: firstPageResponse.body.nextCursor,
+                },
+            },
+        );
+
+        expect(secondPageResponse.status).toBe(200);
+        expect(
+            secondPageResponse.body.tasks.map(({task}: {task: {id: TaskId}}) => task.id),
+        ).toEqual([highTask.id]);
+        expect(secondPageResponse.body.nextCursor).toBeNull();
+    });
+
+    test("uses collection defaults when filters and sorts are omitted", async () => {
+        const space = await TestSpace.create(context);
+        const session = await space.createSession({name: "Alice Smith", role: "Admin"});
+
+        const bot = await TestBot.createAndInstantiate(session);
+        const apiKey = await bot.createApiKey(session);
+
+        const collection = await TestTaskCollection.create(session, {
+            name: "Default Query Collection",
+            access: "Public",
+        });
+
+        await collection.updateDefaults(session, {
+            filters: [
+                {
+                    type: "Priority",
+                    operation: {type: "OneOf", priorities: new Set(["High"])},
+                },
+            ],
+            sorts: [{type: "Priority", direction: "Descending"}],
+        });
+
+        const [lowTask, highTask] = await runAllPromises([
+            TestTask.create(session, {title: "Low Task", priority: "Low"}),
+            TestTask.create(session, {title: "High Task", priority: "High"}),
+        ]);
+
+        await runAllPromises([
+            lowTask.addCollection(session, collection),
+            highTask.addCollection(session, collection),
+        ]);
+        await ProcessContextModule.waitForTestTasks();
+
+        const response = await server.POST(`/task-collections/${collection.id}/tasks/query`, {
+            headers: {authorization: `bearer ${apiKey}`},
+            body: {},
+        });
+
+        expect(response.status).toBe(200);
+        expect(response.body.tasks.map(({task}: {task: {id: TaskId}}) => task.id)).toEqual([
+            highTask.id,
+        ]);
     });
 });

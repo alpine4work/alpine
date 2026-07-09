@@ -1733,6 +1733,65 @@ paths:
                                             $ref: "#/components/schemas/TaskQueryItem_Response"
                 default:
                     $ref: "#/components/responses/Error"
+    /task-collections/{id}/tasks/query:
+        parameters:
+            - name: id
+              in: path
+              required: true
+              schema:
+                  $ref: "#/components/schemas/TaskCollectionId"
+        post:
+            requestBody:
+                required: true
+                content:
+                    application/json:
+                        schema:
+                            type: object
+                            required: []
+                            additionalProperties: false
+                            properties:
+                                limit:
+                                    type: integer
+                                    minimum: 1
+                                    maximum: 100
+                                    default: 10
+                                cursor:
+                                    $ref: "#/components/schemas/TaskQueryCursor"
+                                filters:
+                                    type: array
+                                    items:
+                                        $ref: "#/components/schemas/TaskQueryFilter"
+                                sorts:
+                                    type: array
+                                    items:
+                                        $ref: "#/components/schemas/TaskQuerySort"
+            responses:
+                "200":
+                    content:
+                        application/json:
+                            schema:
+                                type: object
+                                required:
+                                    - spaceId
+                                    - collection
+                                    - nextCursor
+                                    - tasks
+                                additionalProperties: false
+                                properties:
+                                    spaceId:
+                                        $ref: "#/components/schemas/SpaceId"
+                                    collection:
+                                        $ref: "#/components/schemas/TaskCollection_Response"
+                                    nextCursor:
+                                        oneOf:
+                                            - $ref: "#/components/schemas/TaskQueryCursor"
+                                            - type: "null"
+                                    tasks:
+                                        type: array
+                                        items:
+                                            $ref: "#/components/schemas/TaskQueryItem_Response"
+                default:
+                    $ref: "#/components/responses/Error"
     /files/{id}:
         parameters:
             - name: id
@@ -4284,6 +4343,7 @@ components:
                 - id
                 - status
                 - title
+                - subtasks
                 - notes
             additionalProperties: false
             properties:
@@ -4316,6 +4376,8 @@ components:
                     type: array
                     items:
                         $ref: "#/components/schemas/TaskCollectionItem"
+                subtasks:
+                    $ref: "#/components/schemas/TaskSubtasks"
                 notes:
                     $ref: "#/components/schemas/TaskNotes"
         TaskWithoutNotes:
@@ -4324,6 +4386,7 @@ components:
                 - id
                 - status
                 - title
+                - subtasks
             additionalProperties: false
             properties:
                 id:
@@ -4355,6 +4418,21 @@ components:
                     type: array
                     items:
                         $ref: "#/components/schemas/TaskCollectionItem"
+                subtasks:
+                    $ref: "#/components/schemas/TaskSubtasks"
+        TaskSubtasks:
+            type: object
+            required:
+                - openTaskCount
+                - closedTaskCount
+            additionalProperties: false
+            properties:
+                openTaskCount:
+                    type: integer
+                    minimum: 0
+                closedTaskCount:
+                    type: integer
+                    minimum: 0
         TaskPreview:
             type: object
             required:
@@ -6696,6 +6774,7 @@ components:
                 - id
                 - status
                 - title
+                - subtasks
                 - notes
             additionalProperties: false
             properties:
@@ -6728,6 +6807,8 @@ components:
                     type: array
                     items:
                         $ref: "#/components/schemas/TaskCollectionItem_Response"
+                subtasks:
+                    $ref: "#/components/schemas/TaskSubtasks"
                 notes:
                     $ref: "#/components/schemas/TaskNotes_Response"
         Message_Response:
@@ -7392,6 +7473,7 @@ components:
                 - id
                 - status
                 - title
+                - subtasks
             additionalProperties: false
             properties:
                 id:
@@ -7423,6 +7505,8 @@ components:
                     type: array
                     items:
                         $ref: "#/components/schemas/TaskCollectionItem_Response"
+                subtasks:
+                    $ref: "#/components/schemas/TaskSubtasks"
         DirectChat_Response:
             type: object
             required:
@@ -8446,6 +8530,17 @@ components:
                     Text: "#/components/schemas/ContentTextInlineElement"
                     Break: "#/components/schemas/ContentBreakInlineElement"
                     Mention: "#/components/schemas/ContentMentionInlineElement_Response"
+        TaskQueryCollectionsFilter_Response:
+            type: object
+            required:
+                - type
+                - operation
+            additionalProperties: false
+            properties:
+                type:
+                    const: Collections
+                operation:
+                    $ref: "#/components/schemas/TaskQueryCollectionsFilterOperation_Response"
         MessageStreamContentPartPayload_Response:
             type: object
             required:
@@ -8468,17 +8563,6 @@ components:
                     const: Reasoning
                 content:
                     $ref: "#/components/schemas/Content_Response"
-        TaskQueryCollectionsFilter_Response:
-            type: object
-            required:
-                - type
-                - operation
-            additionalProperties: false
-            properties:
-                type:
-                    const: Collections
-                operation:
-                    $ref: "#/components/schemas/TaskQueryCollectionsFilterOperation_Response"
         MessageStreamToolCallPartPayloadCall_Response:
             oneOf:
                 - $ref: "#/components/schemas/MessageStreamToolCallPartPayloadReadCall_Response"
@@ -8610,17 +8694,6 @@ components:
                         outKeys"
                     CheckList: "#/components/schemas/ContentCheckListBlockElement_Response_WithoutK\
                         eys"
-        MessageStreamPartPayload_Response:
-            oneOf:
-                - $ref: "#/components/schemas/MessageStreamContentPartPayload_Response"
-                - $ref: "#/components/schemas/MessageStreamToolCallPartPayload_Response"
-                - $ref: "#/components/schemas/MessageStreamReasoningPartPayload_Response"
-            discriminator:
-                propertyName: type
-                mapping:
-                    Content: "#/components/schemas/MessageStreamContentPartPayload_Response"
-                    ToolCall: "#/components/schemas/MessageStreamToolCallPartPayload_Response"
-                    Reasoning: "#/components/schemas/MessageStreamReasoningPartPayload_Response"
         TaskQueryFilter_Response:
             oneOf:
                 - $ref: "#/components/schemas/TaskQueryStatusFilter"
@@ -8652,6 +8725,17 @@ components:
                     AssignedTime: "#/components/schemas/TaskQueryAssignedTimeFilter"
                     ClosedTime: "#/components/schemas/TaskQueryClosedTimeFilter"
                     ActivatedTime: "#/components/schemas/TaskQueryActivatedTimeFilter"
+        MessageStreamPartPayload_Response:
+            oneOf:
+                - $ref: "#/components/schemas/MessageStreamContentPartPayload_Response"
+                - $ref: "#/components/schemas/MessageStreamToolCallPartPayload_Response"
+                - $ref: "#/components/schemas/MessageStreamReasoningPartPayload_Response"
+            discriminator:
+                propertyName: type
+                mapping:
+                    Content: "#/components/schemas/MessageStreamContentPartPayload_Response"
+                    ToolCall: "#/components/schemas/MessageStreamToolCallPartPayload_Response"
+                    Reasoning: "#/components/schemas/MessageStreamReasoningPartPayload_Response"
         MessageStreamToolCallPartPayload_Response:
             type: object
             required:
