@@ -4,11 +4,16 @@ import {callAgentWebReadTool} from "~/server/agents/web/call_agent_web_read_tool
 import {callAgentWebUpdateTool} from "~/server/agents/web/call_agent_web_update_tool.js";
 import {createAgentWebPageStoredLinkPathname} from "~/server/agents/web/create_agent_web_page_stored_link_pathname.js";
 import {
+    AgentWebTaskCollectionPage,
+    AgentWebTaskCollectionPageMetadata,
     agentWebTaskCollectionPageApiTasksBatchCount,
     updateAgentWebTaskCollectionPage,
 } from "~/server/agents/web/pages/agent_web_task_collection_page.js";
 import {createAgentWebSessionStorageForTest} from "~/server/agents/web/test_helpers/create_agent_web_session_storage_for_test.js";
-import {ApiTaskCollectionColor} from "~/shared/api/specification/types/api_specification_convenience_types.js";
+import {
+    ApiTaskCollectionColor,
+    ApiTaskQueryDefaultsResponse,
+} from "~/shared/api/specification/types/api_specification_convenience_types.js";
 import {
     ErrorBase,
     InternalError,
@@ -146,8 +151,10 @@ async function expectUnimplementedUpdate({
 
 function mockGetCollectionTasks({
     color = "Red",
+    defaults = {filters: [], sorts: []},
 }: {
     color?: ApiTaskCollectionColor | null;
+    defaults?: ApiTaskQueryDefaultsResponse;
 } = {}) {
     api.mockGet("/task-collections/{id}/tasks", {
         params: {
@@ -163,7 +170,7 @@ function mockGetCollectionTasks({
                 id: collectionId,
                 name: "Roadmap",
                 ...(color !== null ? {color} : {}),
-                defaults: {filters: [], sorts: []},
+                defaults,
             },
             nextCursor: null,
             tasks: [
@@ -210,10 +217,12 @@ function getCollectionPatchRequests() {
 
 async function readTaskCollectionPage({
     color = "Red",
+    defaults,
 }: {
     color?: ApiTaskCollectionColor | null;
+    defaults?: ApiTaskQueryDefaultsResponse;
 } = {}) {
-    mockGetCollectionTasks({color});
+    mockGetCollectionTasks({color, defaults});
 
     return await callAgentWebReadTool(context, {
         path: "/task-collection/roadmap",
@@ -388,6 +397,64 @@ test("throws unimplemented when reordering tasks", async () => {
     });
 });
 
+const roadmapDefaults: ApiTaskQueryDefaultsResponse = {
+    filters: [
+        {
+            type: "Status",
+            operation: {type: "OneOf", statuses: [{type: "Open", isActive: false}]},
+        },
+    ],
+    sorts: [
+        {type: "Priority", direction: "Descending"},
+        {type: "Due", direction: "Ascending"},
+    ],
+};
+
+test("throws unimplemented when changing the default filters and sorts", async () => {
+    await readTaskCollectionPage({defaults: roadmapDefaults});
+
+    await expectUnimplementedUpdate({
+        updates: [
+            {
+                old: "?status=open&sort=-priority,due",
+                new: "?status=open,closed&sort=-priority,due",
+                replaceAll: false,
+            },
+        ],
+        expected:
+            "Changing the default filters and sorts of a task collection hasn\u2019t been " +
+            "implemented yet",
+    });
+});
+
+test("throws unimplemented when removing the default filters and sorts", async () => {
+    await readTaskCollectionPage({defaults: roadmapDefaults});
+
+    await expectUnimplementedUpdate({
+        updates: [
+            {
+                old: "\n\nDefault filters and sorts:\n\n```\n?status=open&sort=-priority,due\n```",
+                new: "",
+                replaceAll: false,
+            },
+        ],
+        expected:
+            "Changing the default filters and sorts of a task collection hasn\u2019t been " +
+            "implemented yet",
+    });
+});
+
+test("rejects an unknown status filter in the default filters", async () => {
+    await readTaskCollectionPage({defaults: roadmapDefaults});
+
+    await expectInvalidUpdateDisplayMessage({
+        updates: [{old: "?status=open", new: "?status=done", replaceAll: false}],
+        expected:
+            "Unexpected task status filter `status=done`. Try again with `open`, " +
+            "`open-active`, or `closed` (e.g. `status=open` or `status[not]=closed`).",
+    });
+});
+
 test("rejects changing a task link to an unknown task", async () => {
     await readTaskCollectionPage();
 
@@ -424,7 +491,7 @@ test("rejects unexpected markdown after the task list", async () => {
         updates: [
             {
                 old: "- [Spec task (Open)](/task/spec-task)",
-                new: "- [Spec task (Open)](/task/spec-task)\n\nEnd of tasks.",
+                new: "- [Spec task (Open)](/task/spec-task)\n\nThe end.",
                 replaceAll: false,
             },
         ],
@@ -435,14 +502,8 @@ test("rejects unexpected markdown after the task list", async () => {
     });
 });
 
-test("rejects changing the next page link cursor", async () => {
-    const oldPage = {
-        type: "TaskCollection" as const,
-        name: "Roadmap",
-        color: null,
-        pagination: {nextCursorHash: "a1b2c3"},
-        tasks: [],
-    };
+test("makes no API calls when removing the end of tasks marker", async () => {
+    await readTaskCollectionPage();
 
     await expect(
         updateAgentWebTaskCollectionPage(

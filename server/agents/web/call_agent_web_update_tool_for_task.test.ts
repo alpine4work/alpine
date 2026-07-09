@@ -1214,3 +1214,25 @@ test("does not patch task when collections are reordered", async () => {
 
     expect(getTaskPatchRequests()).toHaveLength(0);
 });
+
+test("rejects a collections more count on update without calling the API", async () => {
+    const {path} = await readTask({
+        title: "Collection task",
+        collectionIds: [engineeringCollectionId],
+    });
+
+    await expectUpdateDisplayMessage({
+        path,
+        updates: [
+            {
+                old: "- Collections: [Engineering](/task-collection/engineering)",
+                new: "- Collections: [Engineering](/task-collection/engineering), and 2 more",
+                replaceAll: false,
+            },
+        ],
+        expected:
+            "Can\u2019t use \u201Cand 2 more\u201D in the \u201CCollections\u201D task field on line 4 since we wouldn\u2019t know which collections those are. Try again with a link to every collection (e.g. `- Collections: [My Collection 1](/task-collection/my-collection-1), [My Collection 2](/task-collection/my-collection-2)`).",
+    });
+
+    expect(getTaskPatchRequests()).toHaveLength(0);
+});
