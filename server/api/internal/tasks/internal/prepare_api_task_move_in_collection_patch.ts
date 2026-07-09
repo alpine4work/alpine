@@ -14,7 +14,7 @@ import {ApiTaskQueryCursor} from "~/shared/id/types/api_task_query_cursor.js";
 import {SpaceId, TaskCollectionId, TaskId} from "~/shared/id/types/id_types.js";
 import {decodeApiTaskQueryCursor} from "~/shared/tasks/model/api_task_query_cursor_encoder.js";
 import {TaskModel} from "~/shared/tasks/model/task_model.js";
-import {TaskPosition} from "~/shared/tasks/task_position.js";
+import {TaskPosition, compareTaskPosition} from "~/shared/tasks/task_position.js";
 import {
     TaskQueryNormalizedFilters,
     assertNonEmptyReadonlyMap,
@@ -145,7 +145,12 @@ export async function prepareApiTaskMoveInCollectionPatch(
                 });
             }
 
-            if (cursorComparison < 0) {
+            const positionComparison = compareTaskPosition(
+                afterCursor.collectionPosition,
+                beforeCursor.collectionPosition,
+            );
+
+            if (positionComparison < 0) {
                 return {
                     type: "Between",
                     afterPosition: afterCursor.collectionPosition,
