@@ -12,7 +12,8 @@ NOCOMMIT: Remove this file
 - [ ] Updating tasks in collection
 - [ ] Adding/removing tasks from collection
 - [ ] Subtasks
-- [ ] Add default filters to collections and add filter search params
+- [x] Add default filters to collections
+- [ ] Add filter search params
 - [x] Files in messages
 - [x] Account
 - [ ] File (read)
