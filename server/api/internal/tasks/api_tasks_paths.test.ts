@@ -1921,14 +1921,16 @@ describe("MoveInCollection patch", () => {
 
         expect(response.status).toBe(200);
 
-        const tasks: ReadonlyArray<{
-            id: TaskId;
-            collections: ReadonlyArray<{cursor: string}>;
+        const items: ReadonlyArray<{
+            task: {
+                id: TaskId;
+                collections: ReadonlyArray<{cursor: string}>;
+            };
         }> = response.body.tasks;
 
         return {
-            taskIds: tasks.map(task => task.id),
-            cursors: tasks.map(task => task.collections[0]!.cursor),
+            taskIds: items.map(({task}) => task.id),
+            cursors: items.map(({task}) => task.collections[0]!.cursor),
         };
     }
 
@@ -3457,16 +3459,19 @@ describe("/task-collections/{id}/tasks", () => {
         body: {
             nextCursor: string | null;
             tasks: ReadonlyArray<{
-                id: TaskId;
-                collections?: ReadonlyArray<{
-                    cursor: string;
-                }>;
+                cursor: string;
+                task: {
+                    id: TaskId;
+                    collections?: ReadonlyArray<{
+                        cursor: string;
+                    }>;
+                };
             }>;
         };
     };
 
     function getTaskCollectionTaskIds(response: TaskCollectionTasksResponse): Array<TaskId> {
-        return response.body.tasks.map(task => task.id);
+        return response.body.tasks.map(({task}) => task.id);
     }
 
     function getTaskCollectionNextCursor(response: TaskCollectionTasksResponse): string {
@@ -3478,7 +3483,7 @@ describe("/task-collections/{id}/tasks", () => {
         response: TaskCollectionTasksResponse,
     ): Array<string> {
         return response.body.tasks.flatMap(
-            task => task.collections?.map(({cursor}) => cursor) ?? [],
+            ({task}) => task.collections?.map(({cursor}) => cursor) ?? [],
         );
     }
 
@@ -3558,28 +3563,34 @@ describe("/task-collections/{id}/tasks", () => {
                 spaceId: space.id,
                 tasks: [
                     {
-                        creator: {id: session.account.id},
-                        id: task1.id,
-                        title: "First Task",
-                        status: {type: "Open", isActive: false},
-                        collections: [
-                            {
-                                cursor: expect.any(String),
-                                collection: {id: collection.id, name: "Public Collection"},
-                            },
-                        ],
+                        cursor: expect.any(String),
+                        task: {
+                            creator: {id: session.account.id},
+                            id: task1.id,
+                            title: "First Task",
+                            status: {type: "Open", isActive: false},
+                            collections: [
+                                {
+                                    cursor: expect.any(String),
+                                    collection: {id: collection.id, name: "Public Collection"},
+                                },
+                            ],
+                        },
                     },
                     {
-                        creator: {id: session.account.id},
-                        id: task2.id,
-                        title: "Second Task",
-                        status: {type: "Open", isActive: false},
-                        collections: [
-                            {
-                                cursor: expect.any(String),
-                                collection: {id: collection.id, name: "Public Collection"},
-                            },
-                        ],
+                        cursor: expect.any(String),
+                        task: {
+                            creator: {id: session.account.id},
+                            id: task2.id,
+                            title: "Second Task",
+                            status: {type: "Open", isActive: false},
+                            collections: [
+                                {
+                                    cursor: expect.any(String),
+                                    collection: {id: collection.id, name: "Public Collection"},
+                                },
+                            ],
+                        },
                     },
                 ],
                 nextCursor: null,
@@ -3653,29 +3664,35 @@ describe("/task-collections/{id}/tasks", () => {
                 spaceId: space.id,
                 tasks: [
                     {
-                        creator: {id: session1.account.id},
-                        id: task.id,
-                        title: "Detailed Task",
-                        status: {type: "Open", isActive: false},
-                        assignee: {
-                            id: session2.account.id,
-                            name: "Bob Johnson",
-                            shortName: "Bob",
-                            space: {
-                                addedTime: expect.any(String),
-                                role: "Member",
+                        cursor: expect.any(String),
+                        task: {
+                            creator: {id: session1.account.id},
+                            id: task.id,
+                            title: "Detailed Task",
+                            status: {type: "Open", isActive: false},
+                            assignee: {
+                                id: session2.account.id,
+                                name: "Bob Johnson",
+                                shortName: "Bob",
+                                space: {
+                                    addedTime: expect.any(String),
+                                    role: "Member",
+                                },
                             },
-                        },
-                        due: {
-                            date: "2025-12-31",
-                        },
-                        priority: {type: "High"},
-                        collections: [
-                            {
-                                cursor: expect.any(String),
-                                collection: {id: collection.id, name: "Collection with Details"},
+                            due: {
+                                date: "2025-12-31",
                             },
-                        ],
+                            priority: {type: "High"},
+                            collections: [
+                                {
+                                    cursor: expect.any(String),
+                                    collection: {
+                                        id: collection.id,
+                                        name: "Collection with Details",
+                                    },
+                                },
+                            ],
+                        },
                     },
                 ],
                 nextCursor: null,
@@ -3727,24 +3744,27 @@ describe("/task-collections/{id}/tasks", () => {
                 },
                 tasks: [
                     expect.objectContaining({
-                        id: task.id,
-                        title: "Task with mixed collection references",
-                        collections: [
-                            {
-                                cursor: expect.any(String),
-                                collection: {
-                                    id: mainCollection.id,
-                                    name: "Main Collection",
+                        cursor: expect.any(String),
+                        task: expect.objectContaining({
+                            id: task.id,
+                            title: "Task with mixed collection references",
+                            collections: [
+                                {
+                                    cursor: expect.any(String),
+                                    collection: {
+                                        id: mainCollection.id,
+                                        name: "Main Collection",
+                                    },
                                 },
-                            },
-                            {
-                                cursor: expect.any(String),
-                                collection: {
-                                    id: publicCollection.id,
-                                    name: "Public Collection",
+                                {
+                                    cursor: expect.any(String),
+                                    collection: {
+                                        id: publicCollection.id,
+                                        name: "Public Collection",
+                                    },
                                 },
-                            },
-                        ],
+                            ],
+                        }),
                     }),
                 ],
                 nextCursor: null,
@@ -3790,21 +3810,24 @@ describe("/task-collections/{id}/tasks", () => {
                 },
                 tasks: [
                     expect.objectContaining({
-                        id: childTask.id,
-                        title: "Child Task",
-                        parent: {
-                            task: {
-                                id: parentTask.id,
-                                title: "Private task",
-                                status: {type: "Closed"},
+                        cursor: expect.any(String),
+                        task: expect.objectContaining({
+                            id: childTask.id,
+                            title: "Child Task",
+                            parent: {
+                                task: {
+                                    id: parentTask.id,
+                                    title: "Private task",
+                                    status: {type: "Closed"},
+                                },
                             },
-                        },
-                        collections: [
-                            {
-                                cursor: expect.any(String),
-                                collection: {id: collection.id, name: "Public Collection"},
-                            },
-                        ],
+                            collections: [
+                                {
+                                    cursor: expect.any(String),
+                                    collection: {id: collection.id, name: "Public Collection"},
+                                },
+                            ],
+                        }),
                     }),
                 ],
                 nextCursor: null,
@@ -4234,8 +4257,11 @@ describe("/task-collections/{id}/tasks", () => {
                 spaceId: space.id,
                 tasks: [
                     expect.objectContaining({
-                        id: task.id,
-                        title: "Only Task",
+                        cursor: expect.any(String),
+                        task: expect.objectContaining({
+                            id: task.id,
+                            title: "Only Task",
+                        }),
                     }),
                 ],
                 nextCursor: null,
@@ -4277,7 +4303,12 @@ describe("/task-collections/{id}/tasks", () => {
             headers: expect.objectContaining({"content-type": "application/json"}),
             body: expect.objectContaining({
                 spaceId: space.id,
-                tasks: [expect.objectContaining({id: task1.id, title: "Task 1"})],
+                tasks: [
+                    expect.objectContaining({
+                        cursor: expect.any(String),
+                        task: expect.objectContaining({id: task1.id, title: "Task 1"}),
+                    }),
+                ],
                 nextCursor: expect.any(String),
             }),
         });
@@ -4462,14 +4493,17 @@ describe("/task-collections/{id}/tasks", () => {
             body: expect.objectContaining({
                 tasks: [
                     expect.objectContaining({
-                        id: childTask.id,
-                        parent: {
-                            task: {
-                                id: parentTask.id,
-                                title: "Parent Task",
-                                status: {type: "Open", isActive: false},
+                        cursor: expect.any(String),
+                        task: expect.objectContaining({
+                            id: childTask.id,
+                            parent: {
+                                task: {
+                                    id: parentTask.id,
+                                    title: "Parent Task",
+                                    status: {type: "Open", isActive: false},
+                                },
                             },
-                        },
+                        }),
                     }),
                 ],
                 nextCursor: null,
@@ -4522,14 +4556,17 @@ describe("/task-collections/{id}/tasks", () => {
             body: expect.objectContaining({
                 tasks: [
                     expect.objectContaining({
-                        id: childTask.id,
-                        parent: {
-                            task: {
-                                id: parentTask.id,
-                                title: "Parent Task",
-                                status: {type: "Open", isActive: false},
+                        cursor: expect.any(String),
+                        task: expect.objectContaining({
+                            id: childTask.id,
+                            parent: {
+                                task: {
+                                    id: parentTask.id,
+                                    title: "Parent Task",
+                                    status: {type: "Open", isActive: false},
+                                },
                             },
-                        },
+                        }),
                     }),
                 ],
                 nextCursor: null,
@@ -4570,14 +4607,17 @@ describe("/task-collections/{id}/tasks", () => {
             body: expect.objectContaining({
                 tasks: [
                     expect.objectContaining({
-                        id: childTask.id,
-                        parent: {
-                            task: {
-                                id: parentTask.id,
-                                title: "Parent Task",
-                                status: {type: "Open", isActive: false},
+                        cursor: expect.any(String),
+                        task: expect.objectContaining({
+                            id: childTask.id,
+                            parent: {
+                                task: {
+                                    id: parentTask.id,
+                                    title: "Parent Task",
+                                    status: {type: "Open", isActive: false},
+                                },
                             },
-                        },
+                        }),
                     }),
                 ],
                 nextCursor: expect.any(String),
@@ -4752,13 +4792,19 @@ describe("/task-collections/{id}/tasks", () => {
                 spaceId: space.id,
                 tasks: [
                     expect.objectContaining({
-                        id: task.id,
-                        collections: [
-                            {
-                                cursor: expect.any(String),
-                                collection: {id: activeCollection.id, name: "Active Collection"},
-                            },
-                        ],
+                        cursor: expect.any(String),
+                        task: expect.objectContaining({
+                            id: task.id,
+                            collections: [
+                                {
+                                    cursor: expect.any(String),
+                                    collection: {
+                                        id: activeCollection.id,
+                                        name: "Active Collection",
+                                    },
+                                },
+                            ],
+                        }),
                     }),
                 ],
             }),
