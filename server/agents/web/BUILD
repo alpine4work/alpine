@@ -29,7 +29,6 @@ ts_project(
         "//:node_modules/prettier",
         "//:node_modules/pretty-bytes",
         "//:node_modules/stemmer",
-        "//:node_modules/unicode-default-word-boundary",
         "//server/agents/api",
         "//shared/api/content",
         "//shared/api/content/closed_source",
