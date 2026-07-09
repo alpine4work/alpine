@@ -3666,10 +3666,6 @@ components:
                 task:
                     $ref: "#/components/schemas/TaskWithoutNotes"
 
-        # NOCOMMIT: Get rid of this and use `TaskQueryCursor` instead.
-        TaskCollectionCursor:
-            type: string
-
         Task:
             type: object
             # NOCOMMIT: Make notes optional. If notes is empty the object shouldn't be present
@@ -3862,8 +3858,6 @@ components:
             required: [cursor, collection]
             additionalProperties: false
             properties:
-                cursor:
-                    $ref: "#/components/schemas/TaskCollectionCursor"
                 collection:
                     $ref: "#/components/schemas/TaskCollectionPreview"
 
@@ -4041,9 +4035,9 @@ components:
                 type:
                     const: Between
                 afterCursor:
-                    $ref: "#/components/schemas/TaskCollectionCursor"
+                    $ref: "#/components/schemas/TaskQueryCursor"
                 beforeCursor:
-                    $ref: "#/components/schemas/TaskCollectionCursor"
+                    $ref: "#/components/schemas/TaskQueryCursor"
 
         TaskCollectionPatch:
             oneOf:

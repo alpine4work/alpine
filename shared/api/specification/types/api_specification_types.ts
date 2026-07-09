@@ -3652,7 +3652,6 @@ export namespace ApiSpecification {
                 readonly cursor: components["schemas"]["TaskQueryCursor"];
                 readonly task: components["schemas"]["TaskWithoutNotes"];
             };
-            readonly TaskCollectionCursor: ApiTaskCollectionCursor;
             readonly Task: {
                 readonly id: components["schemas"]["TaskId"];
                 readonly creator?: {
@@ -3745,7 +3744,6 @@ export namespace ApiSpecification {
                 };
             };
             readonly TaskCollectionItem: {
-                readonly cursor: components["schemas"]["TaskCollectionCursor"];
                 readonly collection: components["schemas"]["TaskCollectionPreview"];
             };
             readonly TaskPatch:
@@ -3864,8 +3862,8 @@ export namespace ApiSpecification {
                  * {string}
                  */
                 readonly type: "Between";
-                readonly afterCursor: components["schemas"]["TaskCollectionCursor"];
-                readonly beforeCursor: components["schemas"]["TaskCollectionCursor"];
+                readonly afterCursor: components["schemas"]["TaskQueryCursor"];
+                readonly beforeCursor: components["schemas"]["TaskQueryCursor"];
             };
             readonly TaskCollectionPatch:
                 | components["schemas"]["TaskCollectionSetNamePatch"]
@@ -4980,7 +4978,6 @@ export namespace ApiSpecification {
                 };
             };
             readonly TaskCollectionItem_Response: {
-                readonly cursor: components["schemas"]["TaskCollectionCursor"];
                 readonly collection: components["schemas"]["TaskCollectionPreview_Response"];
             };
             readonly MessageContentPayloadParent_Response:

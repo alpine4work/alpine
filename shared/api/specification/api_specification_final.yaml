@@ -4278,8 +4278,6 @@ components:
                     $ref: "#/components/schemas/TaskQueryCursor"
                 task:
                     $ref: "#/components/schemas/TaskWithoutNotes"
-        TaskCollectionCursor:
-            type: string
         Task:
             type: object
             required:
@@ -4486,8 +4484,6 @@ components:
                 - collection
             additionalProperties: false
             properties:
-                cursor:
-                    $ref: "#/components/schemas/TaskCollectionCursor"
                 collection:
                     $ref: "#/components/schemas/TaskCollectionPreview"
         TaskPatch:
@@ -4676,9 +4672,9 @@ components:
                 type:
                     const: Between
                 afterCursor:
-                    $ref: "#/components/schemas/TaskCollectionCursor"
+                    $ref: "#/components/schemas/TaskQueryCursor"
                 beforeCursor:
-                    $ref: "#/components/schemas/TaskCollectionCursor"
+                    $ref: "#/components/schemas/TaskQueryCursor"
         TaskCollectionPatch:
             oneOf:
                 - $ref: "#/components/schemas/TaskCollectionSetNamePatch"
@@ -6731,8 +6727,6 @@ components:
                 - collection
             additionalProperties: false
             properties:
-                cursor:
-                    $ref: "#/components/schemas/TaskCollectionCursor"
                 collection:
                     $ref: "#/components/schemas/TaskCollectionPreview_Response"
         MessageContentPayloadParent_Response:
