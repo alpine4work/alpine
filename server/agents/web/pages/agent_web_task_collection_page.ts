@@ -98,7 +98,7 @@ export async function readAgentWebTaskCollectionPage(
             type: "TaskCollection",
             name: collection.name,
             color: collection.color ?? null,
-            tasks,
+            tasks: tasks.slice(),
             metadata: {type: "TaskCollection", id},
         };
 
