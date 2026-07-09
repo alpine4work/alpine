@@ -294,6 +294,73 @@ export async function loadTaskRealtimeQueries(
                 }
                 break;
             }
+            case "Subtasks": {
+                await server.authorizeTaskAccess(originalContext, spaceId, query.taskId, "View", {
+                    consistency,
+                });
+
+                const inputFilters = query.filters ?? [];
+                const inputSorts = query.sorts ?? [];
+
+                filtersResult = normalizeTaskQueryFilters(
+                    [
+                        {
+                            type: "DisplayStatus",
+                            operation: {
+                                type: "OneOf",
+                                displayStatuses: new Set(["OpenInactive", "OpenActive", "Closed"]),
+                            },
+                        },
+                        ...inputFilters,
+                    ],
+                    query.evaluationContext,
+                );
+
+                if (filtersResult.type === "Possible") {
+                    filtersResult = {
+                        type: "Possible",
+                        normalizedFilters: {
+                            ...filtersResult.normalizedFilters,
+                            parentFilter: {parentTaskId: query.taskId},
+                        },
+                    };
+                }
+
+                sorts =
+                    inputFilters.length === 0 && inputSorts.length === 0
+                        ? [
+                              {
+                                  type: "ParentPosition",
+                                  direction: "Ascending",
+                                  missing: "Last",
+                              },
+                              {
+                                  type: "CreatedTime",
+                                  direction: "Ascending",
+                                  missing: "Last",
+                              },
+                          ]
+                        : normalizeTaskQuerySorts(inputSorts);
+
+                if (query.expensivelyAfterCursorForApi === undefined) {
+                    expensivelyAfterCursor = null;
+                } else {
+                    try {
+                        expensivelyAfterCursor = decodeApiTaskQueryCursor(
+                            sorts,
+                            query.expensivelyAfterCursorForApi,
+                        );
+                    } catch (error) {
+                        throw InvalidArgumentError.from(error, undefined, {
+                            // Throw an error with a nice display message for API clients.
+                            //
+                            // NOCOMMIT: Test that we throw this error message.
+                            displayMessage: errorDisplayMessage`Invalid task query cursor for this task. Try again with a task query cursor that matches the requested sorts.`,
+                        });
+                    }
+                }
+                break;
+            }
             default:
                 throw exhaustive(query);
         }

@@ -67,6 +67,17 @@ export const TaskRealtimeLoadQueriesInputQuerySchema = Schema.union({
         //   `TaskRealtimeService`.
         expensivelyAfterCursorForApi: Schema.stringAs<ApiTaskQueryCursor>().optional(),
     }),
+    Subtasks: Schema.object({
+        type: Schema.value("Subtasks"),
+        limit: Schema.integer,
+        taskId: Schema.id<TaskId>(),
+        filters: TaskQueryFiltersSchema.optional(),
+        sorts: TaskQuerySortsSchema.optional(),
+        evaluationContext: TaskQueryEvaluationContextSchema,
+
+        // See the notes for `Collection.expensivelyAfterCursorForApi`.
+        expensivelyAfterCursorForApi: Schema.stringAs<ApiTaskQueryCursor>().optional(),
+    }),
 }).defaultVariant("Normalized");
 
 export type TaskRealtimeLoadQueriesInput = SchemaType<typeof TaskRealtimeLoadQueriesInputSchema>;
