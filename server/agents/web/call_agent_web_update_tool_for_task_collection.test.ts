@@ -17,7 +17,6 @@ import {captureResultPromise} from "~/shared/helpers/control/capture_result_prom
 import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
 import {defaultTimeZone} from "~/shared/helpers/intl/time_zone.js";
 import {generateId} from "~/shared/id/id.js";
-import {ApiTaskQueryCursor} from "~/shared/id/types/api_task_cursors.js";
 import {AccountId, BotId, SpaceId, TaskCollectionId, TaskId} from "~/shared/id/types/id_types.js";
 import {testTracer} from "~/shared/tracer/dev/test_tracer.js";
 
@@ -146,63 +145,51 @@ function mockGetCollectionTasks({
 }: {
     color?: ApiTaskCollectionColor | null;
 } = {}) {
-    api.mockGet(
-        "/task-collections/{id}/tasks",
-        {
-            data: {
-                spaceId,
-                collection: {
-                    id: collectionId,
-                    name: "Roadmap",
-                    ...(color !== null ? {color} : {}),
-                    defaults: {filters: [], sorts: []},
-                },
-                nextCursor: null,
-                tasks: [
-                    {
-                        cursor: "task-cursor-0" as ApiTaskQueryCursor,
-                        task: {
-                            id: launchTaskId,
-                            title: "Launch task",
-                            status: {type: "Open" as const, isActive: false},
-                        },
-                    },
-                    {
-                        cursor: "task-cursor-1" as ApiTaskQueryCursor,
-                        task: {
-                            id: specTaskId,
-                            title: "Spec task",
-                            status: {type: "Open" as const, isActive: false},
-                        },
-                    },
-                ],
-            },
-        },
-        {
+    api.mockGet("/task-collections/{id}/tasks", {
+        params: {
             path: {id: collectionId},
             query: {
                 limit: agentWebTaskCollectionPageApiTasksBatchCount,
                 cursor: undefined,
             },
         },
-    );
+        data: {
+            spaceId,
+            collection: {
+                id: collectionId,
+                name: "Roadmap",
+                ...(color !== null ? {color} : {}),
+                defaults: {filters: [], sorts: []},
+            },
+            nextCursor: null,
+            tasks: [
+                {
+                    id: launchTaskId,
+                    title: "Launch task",
+                    status: {type: "Open" as const, isActive: false},
+                },
+                {
+                    id: specTaskId,
+                    title: "Spec task",
+                    status: {type: "Open" as const, isActive: false},
+                },
+            ],
+        },
+    });
 }
 
 function mockCollectionPatch() {
-    api.mockPatch(
-        "/task-collections/{id}",
-        {
-            data: {
-                spaceId,
-                collection: {
-                    id: collectionId,
-                    name: "Roadmap",
-                    defaults: {filters: [], sorts: []},
-                },
+    api.mockPatch("/task-collections/{id}", {
+        params: {path: {id: collectionId}},
+        data: {
+            spaceId,
+            collection: {
+                id: collectionId,
+                name: "Roadmap",
+                defaults: {filters: [], sorts: []},
             },
         },
-        {path: {id: collectionId}},
-    );
+    });
 }
 
 function getCollectionPatchRequests() {
@@ -404,7 +391,7 @@ test("rejects changing a task link to an unknown task", async () => {
         ],
         expected:
             "Couldn\u2019t find a task for the link \u201CMissing task\u201D on line 7. Try again " +
-            "with a link to a task you\u2019ve seen before (e.g. `[My Task](/task/my-task)`).",
+            "with a link to a task you\u2019ve seen before (e.g. `[My Task (Open)](/task/my-task)`).",
     });
 });
 
@@ -416,8 +403,7 @@ test("rejects an unexpected task collection color", async () => {
         expected:
             "Unexpected task collection color \u201CMagenta\u201D on line 3. Try again with " +
             "\u201CRed\u201D, \u201COrange\u201D, \u201CYellow\u201D, \u201CGreen\u201D, \u201CCyan\u201D, " +
-            "\u201CBlue\u201D, \u201CIndigo\u201D, \u201CPurple\u201D, \u201CPink\u201D, or \u201CNone\u201D " +
-            "to remove the color.",
+            "\u201CBlue\u201D, \u201CIndigo\u201D, \u201CPurple\u201D, \u201CPink\u201D, or remove the color entirely.",
     });
 });
 

@@ -64,6 +64,7 @@ function mockCreateTaskCollection({
     color?: ApiTaskCollectionColor;
 }) {
     api.mockPost("/task-collections", {
+        params: "Any",
         data: {
             spaceId,
             collection: {
@@ -205,12 +206,12 @@ Color: None`,
     });
 });
 
-test("creates a task collection with the collection type alias", async () => {
+test("creates a task collection with the normalized task collect type", async () => {
     mockCreateTaskCollection({name: "Roadmap"});
 
     await expect(
         callAgentWebCreateTool(context, {
-            type: "collection",
+            type: "task-collect",
             content: "# Roadmap",
         }),
     ).resolves.toEqual(
@@ -264,8 +265,7 @@ Color: Magenta`,
         expected:
             "Unexpected task collection color \u201CMagenta\u201D on line 3. Try again with " +
             "\u201CRed\u201D, \u201COrange\u201D, \u201CYellow\u201D, \u201CGreen\u201D, \u201CCyan\u201D, " +
-            "\u201CBlue\u201D, \u201CIndigo\u201D, \u201CPurple\u201D, \u201CPink\u201D, or \u201CNone\u201D " +
-            "to remove the color.",
+            "\u201CBlue\u201D, \u201CIndigo\u201D, \u201CPurple\u201D, \u201CPink\u201D, or remove the color entirely.",
     });
 
     expect(getCreateTaskCollectionRequests()).toHaveLength(0);
@@ -279,7 +279,7 @@ test("rejects creating a task collection with an unknown task link", async () =>
 - [Missing task](/task/missing-task)`,
         expected:
             "Couldn\u2019t find a task for the link \u201CMissing task\u201D on line 3. Try again " +
-            "with a link to a task you\u2019ve seen before (e.g. `[My Task](/task/my-task)`).",
+            "with a link to a task you\u2019ve seen before (e.g. `[My Task (Open)](/task/my-task)`).",
     });
 
     expect(getCreateTaskCollectionRequests()).toHaveLength(0);

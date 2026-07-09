@@ -126,12 +126,16 @@ function contentFromCommentedText(text: string): ApiContentResponse {
     return contentFromBlockElements([paragraph([commentedText(text)])]);
 }
 
-function commentedFile(contentType: ApiContentFileBlockElementResponseWithoutKeys["contentType"]) {
+function commentedFile(
+    contentType: ApiContentFileBlockElementResponseWithoutKeys["file"]["contentType"],
+) {
     return {
         type: "File" as const,
-        id: generateChronologicalId<FileId>(),
-        contentType,
-        contentLength: 100,
+        file: {
+            id: generateChronologicalId<FileId>(),
+            contentType,
+            contentLength: 100,
+        },
         marks: [commentMark()],
     };
 }
