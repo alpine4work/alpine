@@ -112,6 +112,22 @@ export const ApiContentTextArbitrary = fc.oneof(
             fc.constant("Previous page »"),
             fc.constant("« Previous page"),
             fc.constant("See more »"),
+
+            // Ocassionally intentionally insert HTML character escapes to make sure they're
+            // printed/parsed correctly everywhere.
+            fc
+                .tuple(
+                    fc.oneof(
+                        {arbitrary: fc.string({unit: "grapheme-ascii"}), weight: 1000},
+                        {arbitrary: fc.string({unit: "grapheme"}), weight: 100},
+                    ),
+                    fc.constantFrom("&quot;", "&#34;", "&#x22;", "&amp;"),
+                    fc.oneof(
+                        {arbitrary: fc.string({unit: "grapheme-ascii"}), weight: 1000},
+                        {arbitrary: fc.string({unit: "grapheme"}), weight: 100},
+                    ),
+                )
+                .map(parts => parts.join("")),
         ),
         weight: 1,
     },
@@ -138,7 +154,7 @@ export const ApiDocumentReferenceArbitrary: fc.Arbitrary<ApiDocumentReferenceRes
 export const ApiTaskStatusArbitrary: fc.Arbitrary<ApiTaskStatus> = fc.oneof(
     fc.constant({type: "Open", isActive: false}),
     fc.constant({type: "Open", isActive: true}),
-    fc.constant({type: "Closed", isActive: false}),
+    fc.constant({type: "Closed"}),
 );
 
 export const ApiTaskReferenceArbitrary: fc.Arbitrary<ApiTaskReferenceResponse> = fc.record({
