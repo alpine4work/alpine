@@ -1261,6 +1261,20 @@ snake\\_case\\_variable
 `,
                 },
                 {
+                    description: "character references in text",
+                    content: {
+                        elements: [
+                            {
+                                type: "Paragraph",
+                                elements: [{type: "Text", text: "&quot; &#34; &#x22;"}],
+                            },
+                        ],
+                    },
+                    expectedMarkdown: `\
+\\&quot; \\&#34; \\&#x22;
+`,
+                },
+                {
                     description: "less than in link URL",
                     content: {
                         elements: [
@@ -1274,6 +1288,108 @@ snake\\_case\\_variable
                     },
                     expectedMarkdown: `\
 [ ](\\<)
+`,
+                },
+                {
+                    description: "query params and character references in link URL",
+                    content: {
+                        elements: [
+                            {
+                                type: "Paragraph",
+                                elements: [
+                                    {
+                                        type: "Text",
+                                        text: "link",
+                                        marks: [
+                                            {
+                                                type: "Link",
+                                                url: "/tasks?after=a1b2c3&status=open&sort=-priority,due&literal=&quot;",
+                                            },
+                                        ],
+                                    },
+                                ],
+                            },
+                        ],
+                    },
+                    expectedMarkdown: `\
+[link](/tasks?after=a1b2c3&status=open&sort=-priority,due&literal=&quot\\;)
+`,
+                },
+                {
+                    description: "multiple character references in link URL",
+                    content: {
+                        elements: [
+                            {
+                                type: "Paragraph",
+                                elements: [
+                                    {
+                                        type: "Text",
+                                        text: "link",
+                                        marks: [
+                                            {
+                                                type: "Link",
+                                                url: "/tasks?literal=&quot;&amp;&#34;&#x22;",
+                                            },
+                                        ],
+                                    },
+                                ],
+                            },
+                        ],
+                    },
+                    expectedMarkdown: `\
+[link](/tasks?literal=&quot\\;&amp\\;&#34\\;&#x22\\;)
+`,
+                },
+                {
+                    // NOTE(calebmer): A character reference can occur in the middle of a destination,
+                    // not only immediately before the closing parenthesis.
+                    description: "character reference in middle of link URL",
+                    content: {
+                        elements: [
+                            {
+                                type: "Paragraph",
+                                elements: [
+                                    {
+                                        type: "Text",
+                                        text: "link",
+                                        marks: [
+                                            {
+                                                type: "Link",
+                                                url: "/tasks?literal=before&quot;after&status=open",
+                                            },
+                                        ],
+                                    },
+                                ],
+                            },
+                        ],
+                    },
+                    expectedMarkdown: `\
+[link](/tasks?literal=before&quot\\;after&status=open)
+`,
+                },
+                {
+                    description: "character references in link URL with spaces",
+                    content: {
+                        elements: [
+                            {
+                                type: "Paragraph",
+                                elements: [
+                                    {
+                                        type: "Text",
+                                        text: "link",
+                                        marks: [
+                                            {
+                                                type: "Link",
+                                                url: "/task collection?literal=&quot;",
+                                            },
+                                        ],
+                                    },
+                                ],
+                            },
+                        ],
+                    },
+                    expectedMarkdown: `\
+[link](</task collection?literal=&quot\\;>)
 `,
                 },
                 {
@@ -10308,8 +10424,7 @@ a
                         elements: [
                             {
                                 type: "File",
-                                file: {id: fileId,
-                                contentType: "image/png"},
+                                file: {id: fileId, contentType: "image/png"},
                             },
                         ],
                     },
@@ -10324,8 +10439,7 @@ a
                         elements: [
                             {
                                 type: "File",
-                                file: {id: fileId,
-                                contentType: "video/mp4"},
+                                file: {id: fileId, contentType: "video/mp4"},
                             },
                         ],
                     },
@@ -10340,8 +10454,7 @@ a
                         elements: [
                             {
                                 type: "File",
-                                file: {id: fileId,
-                                contentType: "audio/mpeg"},
+                                file: {id: fileId, contentType: "audio/mpeg"},
                             },
                         ],
                     },
@@ -10356,8 +10469,7 @@ a
                         elements: [
                             {
                                 type: "File",
-                                file: {id: fileId,
-                                contentType: "application/pdf"},
+                                file: {id: fileId, contentType: "application/pdf"},
                             },
                         ],
                     },
@@ -10913,8 +11025,7 @@ caption
                                                 width: 0.5,
                                                 element: {
                                                     type: "File",
-                                                    file: {id: fileId,
-                                                    contentType: "video/mp4"},
+                                                    file: {id: fileId, contentType: "video/mp4"},
                                                 },
                                             },
                                             {
@@ -10947,8 +11058,7 @@ caption
                                                 width: 0.5,
                                                 element: {
                                                     type: "File",
-                                                    file: {id: fileId,
-                                                    contentType: "audio/mpeg"},
+                                                    file: {id: fileId, contentType: "audio/mpeg"},
                                                 },
                                             },
                                             {
@@ -10981,8 +11091,10 @@ caption
                                                 width: 0.5,
                                                 element: {
                                                     type: "File",
-                                                    file: {id: fileId,
-                                                    contentType: "application/pdf"},
+                                                    file: {
+                                                        id: fileId,
+                                                        contentType: "application/pdf",
+                                                    },
                                                 },
                                             },
                                             {
@@ -11026,8 +11138,7 @@ caption
                                                 width: 0.6,
                                                 element: {
                                                     type: "File",
-                                                    file: {id: fileId,
-                                                    contentType: "video/mp4"},
+                                                    file: {id: fileId, contentType: "video/mp4"},
                                                 },
                                             },
                                         ],
@@ -11091,16 +11202,14 @@ caption
                                                 width: 0.33,
                                                 element: {
                                                     type: "File",
-                                                    file: {id: fileId,
-                                                    contentType: "audio/mpeg"},
+                                                    file: {id: fileId, contentType: "audio/mpeg"},
                                                 },
                                             },
                                             {
                                                 width: 0.33,
                                                 element: {
                                                     type: "File",
-                                                    file: {id: fileId,
-                                                    contentType: "video/mp4"},
+                                                    file: {id: fileId, contentType: "video/mp4"},
                                                 },
                                             },
                                             {
@@ -11171,8 +11280,7 @@ caption
                         elements: [
                             {
                                 type: "File",
-                                file: {id: fileId,
-                                contentType: "video/mp4"},
+                                file: {id: fileId, contentType: "video/mp4"},
                                 marks: [
                                     {
                                         type: "Comment",
@@ -11244,8 +11352,7 @@ caption
                         elements: [
                             {
                                 type: "File",
-                                file: {id: fileId,
-                                contentType: "video/mp4"},
+                                file: {id: fileId, contentType: "video/mp4"},
                                 marks: [
                                     {
                                         type: "Comment",
@@ -11297,8 +11404,7 @@ caption
                                             {
                                                 element: {
                                                     type: "File",
-                                                    file: {id: fileId2,
-                                                    contentType: "video/mp4"},
+                                                    file: {id: fileId2, contentType: "video/mp4"},
                                                     marks: [
                                                         {type: "Comment", thread: {id: threadId3}},
                                                     ],
@@ -11354,8 +11460,7 @@ caption
                                             {
                                                 element: {
                                                     type: "File",
-                                                    file: {id: fileId2,
-                                                    contentType: "video/mp4"},
+                                                    file: {id: fileId2, contentType: "video/mp4"},
                                                     marks: [
                                                         {type: "Comment", thread: {id: threadId}},
                                                         {type: "Comment", thread: {id: threadId2}},
@@ -11441,8 +11546,7 @@ caption
                                 side: "Right",
                                 element: {
                                     type: "File",
-                                    file: {id: fileId,
-                                    contentType: "video/mp4"},
+                                    file: {id: fileId, contentType: "video/mp4"},
                                     marks: [
                                         {
                                             type: "Comment",

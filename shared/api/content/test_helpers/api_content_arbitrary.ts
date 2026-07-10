@@ -113,8 +113,8 @@ export const ApiContentTextArbitrary = fc.oneof(
             fc.constant("« Previous page"),
             fc.constant("See more »"),
 
-            // NOTE(calebmer): Occasionally insert HTML character references to make sure
-            // they are printed and parsed correctly everywhere.
+            // NOTE(calebmer): Occasionally insert HTML character references to make sure they
+            // are printed and parsed correctly everywhere.
             fc
                 .tuple(
                     fc.oneof(
