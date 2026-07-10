@@ -14,6 +14,7 @@ import {
     ApiTaskQueryDefaultsResponse,
     ApiTaskReferenceResponse,
     ApiTaskStatus,
+    ApiTaskSubtasks,
 } from "~/shared/api/specification/types/api_specification_convenience_types.js";
 import {
     ErrorBase,
@@ -188,6 +189,7 @@ function mockGetCollectionTasks({
     nextCursor = null,
     launchTaskTitle = "Launch task",
     specTaskStatus = {type: "Open", isActive: false},
+    specTaskSubtasks = {openTaskCount: 0, closedTaskCount: 0},
     specTaskParent = null,
     specTaskAssignee = null,
     specTaskCollections = [],
@@ -200,6 +202,7 @@ function mockGetCollectionTasks({
     nextCursor?: ApiTaskQueryCursor | null;
     launchTaskTitle?: string;
     specTaskStatus?: ApiTaskStatus;
+    specTaskSubtasks?: ApiTaskSubtasks;
     specTaskParent?: ApiTaskReferenceResponse | null;
     specTaskAssignee?: ApiAccountReferenceResponse | null;
     specTaskCollections?: ReadonlyArray<ApiTaskCollectionReferenceResponse>;
@@ -230,6 +233,7 @@ function mockGetCollectionTasks({
                         id: launchTaskId,
                         title: launchTaskTitle,
                         status: {type: "Open" as const, isActive: false},
+                        subtasks: {openTaskCount: 0, closedTaskCount: 0},
                     },
                 },
                 {
@@ -238,6 +242,7 @@ function mockGetCollectionTasks({
                         id: specTaskId,
                         title: "Spec task",
                         status: specTaskStatus,
+                        subtasks: specTaskSubtasks,
                         ...(specTaskParent
                             ? {
                                   parent: {
@@ -902,6 +907,31 @@ test("updates only task collections while leaving its other fields unchanged", a
             patches: [{type: "AddCollection", item: {collection: designCollectionReference}}],
         },
     ]);
+});
+
+test("rejects updating task subtask counts", async () => {
+    mockGetCollectionTasks({
+        specTaskSubtasks: {openTaskCount: 3, closedTaskCount: 4},
+    });
+    await callAgentWebReadTool(context, {
+        path: "/task-collection/roadmap",
+        limit: "10kb",
+    });
+
+    await expectInvalidUpdateDisplayMessage({
+        updates: [
+            {
+                old: "Subtasks: 3 open, 4 closed",
+                new: "Subtasks: 2 open, 5 closed",
+                replaceAll: false,
+            },
+        ],
+        expected:
+            "Can\u2019t change the \u201CSpec task\u201D task\u2019s subtasks by updating " +
+            "\u201CSubtasks: 3 open, 4 closed\u201D to \u201CSubtasks: 2 open, 5 closed\u201D since we don\u2019t " +
+            "know which underlying subtasks you\u2019re trying to add, remove, open, or close. " +
+            "Try again with an update that leaves the `Subtasks` field unchanged.",
+    });
 });
 
 test("throws unimplemented when removing a task", async () => {
