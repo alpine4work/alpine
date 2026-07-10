@@ -193,7 +193,7 @@ export function printAgentWebPageStoredLinkLabel(link: ApiMentionReferenceRespon
             // Intentionally not including whether the task is active in this label. Keeping
             // things simple for the agent. The agent can read the task to see whether it's
             // active.
-            return `${link.title} ${link.status.type === "Open" ? "(Open)" : "(Closed)"}`;
+            return `${link.title} ${link.status.type === "Open" ? (link.status.isActive ? "(Open, active)" : "(Open)") : "(Closed)"}`;
         }
         default:
             throw exhaustive(link);
