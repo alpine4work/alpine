@@ -1,6 +1,6 @@
 import {ApiServiceBotActionContext} from "~/server/api/internal/shared/api_service_context.js";
 import {
-    ApiTaskMovePreparedPosition,
+    PreparedApiTaskMovePatch,
     prepareApiTaskMovePatch,
 } from "~/server/api/internal/tasks/internal/prepare_api_task_move_patch.js";
 import {ApiTaskMoveInCollectionPatch} from "~/shared/api/specification/types/api_specification_convenience_types.js";
@@ -18,7 +18,7 @@ export async function prepareApiTaskMoveInCollectionPatch(
     context: ApiServiceBotActionContext,
     spaceId: SpaceId,
     patch: ApiTaskMoveInCollectionPatch,
-): Promise<ApiTaskMovePreparedPosition> {
+): Promise<PreparedApiTaskMovePatch> {
     const {collectionId, position} = patch;
     const queryInput = createCollectionPositionQueryInput(collectionId);
 

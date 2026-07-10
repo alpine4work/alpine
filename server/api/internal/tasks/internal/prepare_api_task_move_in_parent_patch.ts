@@ -1,6 +1,6 @@
 import {ApiServiceBotActionContext} from "~/server/api/internal/shared/api_service_context.js";
 import {
-    ApiTaskMovePreparedPosition,
+    PreparedApiTaskMovePatch,
     prepareApiTaskMovePatch,
 } from "~/server/api/internal/tasks/internal/prepare_api_task_move_patch.js";
 import {ApiTaskMoveInParentPatch} from "~/shared/api/specification/types/api_specification_convenience_types.js";
@@ -16,7 +16,7 @@ export async function prepareApiTaskMoveInParentPatch(
     spaceId: SpaceId,
     parentTaskId: TaskId,
     patch: ApiTaskMoveInParentPatch,
-): Promise<ApiTaskMovePreparedPosition> {
+): Promise<PreparedApiTaskMovePatch> {
     const queryInput = createParentPositionQueryInput(parentTaskId);
 
     return await prepareApiTaskMovePatch(context, {

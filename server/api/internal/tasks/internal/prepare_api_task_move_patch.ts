@@ -26,7 +26,7 @@ import {
 } from "~/shared/tasks/task_query_sort_cursor.js";
 
 /** Query data needed to generate task actions for an API task move patch. */
-export type ApiTaskMovePreparedPosition =
+export type PreparedApiTaskMovePatch =
     // A fresh `orderTime` with the initial `orderKey` sorts below every existing
     // position, so moving to the end never needs query data.
     | {type: "End"}
@@ -67,7 +67,7 @@ export async function prepareApiTaskMovePatch(
         patchDisplayName: ErrorDisplayMessage;
         cursorDestinationDescription: ErrorDisplayMessage;
     },
-): Promise<ApiTaskMovePreparedPosition> {
+): Promise<PreparedApiTaskMovePatch> {
     switch (position.type) {
         case "End": {
             return {type: "End"};
@@ -200,7 +200,7 @@ async function prepareApiTaskMovePatchForTiedPositions(
         tiedPosition: TaskPosition;
         afterCursor: TaskQuerySortCursor;
     },
-): Promise<ApiTaskMovePreparedPosition> {
+): Promise<PreparedApiTaskMovePatch> {
     const tiedTasksToUpdate: Array<TaskModel> = [];
 
     const expectedFirstCursorValue = [
