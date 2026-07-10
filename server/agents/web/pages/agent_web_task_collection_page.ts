@@ -33,6 +33,7 @@ import {
     formatAgentWebTaskDueDateString,
     parseAgentWebTaskFieldListItems,
     printAgentWebTaskFieldListItems,
+    printAgentWebTaskSubtasksFieldValue,
 } from "~/server/agents/web/pages/agent_web_task_fields.js";
 import {parseAgentWebTaskPageDueDateStringForUpdate} from "~/server/agents/web/pages/agent_web_task_page.js";
 import {printMarkdownPhrasingContentText} from "~/server/agents/web/print_markdown_phrasing_content_text.js";
@@ -50,6 +51,7 @@ import {
     ApiTaskQuerySort,
     ApiTaskReferenceResponse,
     ApiTaskStatus,
+    ApiTaskSubtasks,
 } from "~/shared/api/specification/types/api_specification_convenience_types.js";
 import {InvalidArgumentError, UnimplementedError} from "~/shared/error/error.js";
 import {errorDisplayMessage} from "~/shared/error/error_display_message.js";
@@ -254,6 +256,7 @@ export async function readAgentWebTaskCollectionPage(
                           status: task.parent.task.status,
                       }
                     : null,
+                subtasks: task.subtasks,
                 assignee: task.assignee ? intoApiAccountReference(task.assignee) : null,
                 collections: taskCollections.slice(
                     0,
@@ -704,6 +707,14 @@ export async function updateAgentWebTaskCollectionPage(
             );
         }
 
+        if (!isDeepEqual(oldPageTask.subtasks, newPageTask.subtasks)) {
+            const quotedTitle = quoteMarkdown([{type: "text", value: oldPageTask.title}]);
+
+            throw new InvalidArgumentError("Can\u2019t change task subtasks by updating counts", {
+                displayMessage: errorDisplayMessage`Can\u2019t change the ${quotedTitle} task\u2019s subtasks by updating \u201CSubtasks: ${oldPageTask.subtasks.openTaskCount} open, ${oldPageTask.subtasks.closedTaskCount} closed\u201D to \u201CSubtasks: ${newPageTask.subtasks.openTaskCount} open, ${newPageTask.subtasks.closedTaskCount} closed\u201D since we don\u2019t know which underlying subtasks you\u2019re trying to add, remove, open, or close. Try again with an update that leaves the \`Subtasks\` field unchanged.`,
+            });
+        }
+
         // Force the agent to set an assignee if they're marking a task as active. By
         // default our API sets the bot as active when they make the task active if there's
         // no assignee, we want the agent to make this choice explicitly.
@@ -1078,6 +1089,7 @@ async function printAgentWebTaskCollectionPageTaskListItem(
         runAllPromises(
             printAgentWebTaskFieldListItems(storage, {
                 parent: pageTask.parent,
+                subtasks: pageTask.subtasks,
                 assignee: pageTask.assignee,
                 collections: pageTask.collections,
                 additionalCollectionsCount: pageTask.additionalCollectionsCount,
@@ -1547,6 +1559,7 @@ async function parseAgentWebTaskCollectionPageTask(
         fieldList !== null
             ? parseAgentWebTaskFieldListItems(storage, fieldList.children, [
                   "parent",
+                  "subtasks",
                   "assignee",
                   "collections",
                   "additionalCollectionsCount",
@@ -1600,6 +1613,7 @@ async function parseAgentWebTaskCollectionPageTask(
         title: statusMatch[1]!,
         status,
         parent: fields?.parent ?? null,
+        subtasks: fields?.subtasks ?? {openTaskCount: 0, closedTaskCount: 0},
         assignee: fields?.assignee ?? null,
         collections: fields?.collections ?? [],
         additionalCollectionsCount: fields?.additionalCollectionsCount ?? 0,

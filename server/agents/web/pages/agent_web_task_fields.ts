@@ -14,6 +14,7 @@ import {
     ApiTaskPriority,
     ApiTaskReferenceResponse,
     ApiTaskStatus,
+    ApiTaskSubtasks,
 } from "~/shared/api/specification/types/api_specification_convenience_types.js";
 import {formatPrettyAbsoluteDateWithoutFullTimeTooltip} from "~/shared/design/format_pretty_absolute_date_without_full_time_tooltip.js";
 import {InvalidArgumentError} from "~/shared/error/error.js";
@@ -38,6 +39,7 @@ import {MaybePromise} from "~/shared/helpers/types/maybe_promise.js";
 export type AgentWebTaskFields = {
     readonly status?: ApiTaskStatus | null;
     readonly parent?: ApiTaskReferenceResponse | null;
+    readonly subtasks?: ApiTaskSubtasks | null;
     readonly assignee?: ApiAccountReferenceResponse | null;
     readonly collections?: ReadonlyArray<ApiTaskCollectionReferenceResponse> | null;
     readonly additionalCollectionsCount?: number | null;
@@ -59,6 +61,7 @@ type AgentWebTaskFieldNameWithLabel = Exclude<AgentWebTaskFieldName, "additional
 const agentWebTaskFieldLabels: {readonly [Name in AgentWebTaskFieldNameWithLabel]: string} = {
     status: "Status",
     parent: "Parent",
+    subtasks: "Subtasks",
     assignee: "Assignee",
     collections: "Collections",
     priority: "Priority",
@@ -109,6 +112,20 @@ export function printAgentWebTaskFieldListItems(
                         ],
                     },
                 ]))(),
+        );
+    }
+
+    if (
+        fields.subtasks &&
+        (fields.subtasks.openTaskCount > 0 || fields.subtasks.closedTaskCount > 0)
+    ) {
+        listItemPromises.push(
+            createAgentWebTaskFieldListItem([
+                {
+                    type: "text",
+                    value: `Subtasks: ${printAgentWebTaskSubtasksFieldValue(fields.subtasks)}`,
+                },
+            ]),
         );
     }
 
@@ -220,6 +237,16 @@ export function formatAgentWebTaskDueDateString(
     );
 }
 
+/** Formats the counts printed in a task's read-only "Subtasks" field. */
+export function printAgentWebTaskSubtasksFieldValue(subtasks: ApiTaskSubtasks): string {
+    const counts: Array<string> = [];
+
+    if (subtasks.openTaskCount > 0) counts.push(`${subtasks.openTaskCount} open`);
+    if (subtasks.closedTaskCount > 0) counts.push(`${subtasks.closedTaskCount} closed`);
+
+    return counts.join(", ");
+}
+
 /**
  * Parses task fields from the items of a markdown unordered list. Fields may
  * appear in any order but each field may only appear once.
@@ -240,6 +267,7 @@ export async function parseAgentWebTaskFieldListItems(
 
     let status: ApiTaskStatus | null = null;
     let parentPromise: Promise<ApiTaskReferenceResponse | null> | null = null;
+    let subtasks: ApiTaskSubtasks = {openTaskCount: 0, closedTaskCount: 0};
     let assigneePromise: Promise<ApiAccountReferenceResponse | null> | null = null;
     let collectionsPromise: Promise<{
         collections: ReadonlyArray<ApiTaskCollectionReferenceResponse>;
@@ -289,6 +317,10 @@ export async function parseAgentWebTaskFieldListItems(
                 parentPromise = parseAgentWebTaskParentField(storage, item.position, value);
                 break;
             }
+            case "subtasks": {
+                subtasks = parseAgentWebTaskSubtasksField(item.position, value);
+                break;
+            }
             case "assignee": {
                 assigneePromise = parseAgentWebTaskAssigneeField(storage, item.position, value);
                 break;
@@ -324,6 +356,7 @@ export async function parseAgentWebTaskFieldListItems(
     return {
         status,
         parent,
+        subtasks,
         assignee,
         collections: collectionsResult?.collections ?? [],
         additionalCollectionsCount: collectionsResult?.additionalCount ?? 0,
@@ -340,6 +373,8 @@ function parseAgentWebTaskFieldName(labelKey: string): AgentWebTaskFieldNameWith
             return "status";
         case "parent":
             return "parent";
+        case "subtask":
+            return "subtasks";
         case "assigne":
             return "assignee";
         case "collect":
@@ -351,6 +386,27 @@ function parseAgentWebTaskFieldName(labelKey: string): AgentWebTaskFieldNameWith
         default:
             return null;
     }
+}
+
+function parseAgentWebTaskSubtasksField(
+    itemPosition: Node["position"],
+    value: ReadonlyArray<PhrasingContent>,
+): ApiTaskSubtasks {
+    const text = printMarkdownPhrasingContentText(value).trim();
+    const match = text.match(/^(?:(\d+) open(?:, (\d+) closed)?|(\d+) closed)$/i);
+
+    if (match) {
+        return {
+            openTaskCount: Number(match[1] ?? 0),
+            closedTaskCount: Number(match[2] ?? match[3] ?? 0),
+        };
+    }
+
+    const quotedValue = quoteMarkdown(value);
+
+    throw new InvalidArgumentError("Invalid task subtasks", {
+        displayMessage: errorDisplayMessage`Unexpected task subtask counts ${quotedValue} on line ${value[0]?.position?.start.line ?? itemPosition?.start.line ?? "unknown"}. Try again with open and closed task counts (e.g. \u201C3 open, 4 closed\u201D, \u201C3 open\u201D, or \u201C4 closed\u201D).`,
+    });
 }
 
 function printAgentWebTaskFieldLabelList(fieldNames: ReadonlyArray<AgentWebTaskFieldName>): string {

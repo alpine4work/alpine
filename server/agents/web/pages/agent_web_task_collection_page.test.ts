@@ -73,6 +73,7 @@ function collectionPageTask(
         title: task.title,
         status: task.status,
         parent: null,
+        subtasks: {openTaskCount: 0, closedTaskCount: 0},
         assignee: null,
         collections: [],
         additionalCollectionsCount: 0,
@@ -936,6 +937,7 @@ Color: Red
 
 - [Write spec (Open)](/task/write-spec)
   - Parent: [Ship launch](/task/ship-launch)
+  - Subtasks: 3 open, 4 closed
   - Assignee: [Alice](/human/alice)
   - Collections: [Engineering](/task-collection/engineering), [Design](/task-collection/design)
   - Priority: High
@@ -954,12 +956,61 @@ Color: Red
                 tasks: [
                     collectionPageTask(writeSpecTaskReference, {
                         parent: shipLaunchTaskReference,
+                        subtasks: {openTaskCount: 3, closedTaskCount: 4},
                         assignee: aliceReference,
                         collections: [engineeringReference, designReference],
                         priority: {type: "High"},
                         dueDateString: "July 12th, 2027",
                     }),
                     collectionPageTask(shipLaunchTaskReference),
+                ],
+            },
+        },
+        {
+            name: "task collection task with only open subtasks",
+            pageLink: collectionId,
+            markdown: `\
+# Roadmap
+
+- [Write spec (Open)](/task/write-spec)
+  - Subtasks: 3 open
+`,
+            page: {
+                type: "TaskCollection",
+                subType: "Head",
+                name: "Roadmap",
+                color: null,
+                defaults: null,
+                pagination: null,
+                isEndOfTasks: false,
+                tasks: [
+                    collectionPageTask(writeSpecTaskReference, {
+                        subtasks: {openTaskCount: 3, closedTaskCount: 0},
+                    }),
+                ],
+            },
+        },
+        {
+            name: "task collection task with only closed subtasks",
+            pageLink: collectionId,
+            markdown: `\
+# Roadmap
+
+- [Write spec (Open)](/task/write-spec)
+  - Subtasks: 4 closed
+`,
+            page: {
+                type: "TaskCollection",
+                subType: "Head",
+                name: "Roadmap",
+                color: null,
+                defaults: null,
+                pagination: null,
+                isEndOfTasks: false,
+                tasks: [
+                    collectionPageTask(writeSpecTaskReference, {
+                        subtasks: {openTaskCount: 0, closedTaskCount: 4},
+                    }),
                 ],
             },
         },
@@ -1528,7 +1579,7 @@ Default filters:
 `,
             parseError:
                 "Unknown task field \u201CStatus\u201D on line 4. Try again with one of " +
-                "\u201CParent\u201D, \u201CAssignee\u201D, \u201CCollections\u201D, " +
+                "\u201CParent\u201D, \u201CSubtasks\u201D, \u201CAssignee\u201D, \u201CCollections\u201D, " +
                 "\u201CPriority\u201D, or \u201CDue date\u201D.",
         },
         {
@@ -1615,11 +1666,11 @@ Default filters:
 # Roadmap
 
 - [Write spec (Open)](/task/write-spec)
-  - Subtasks: 5 open
+  - Checklist: 5 open
 `,
             parseError:
-                "Unknown task field \u201CSubtasks\u201D on line 4. Try again with one of " +
-                "\u201CParent\u201D, \u201CAssignee\u201D, \u201CCollections\u201D, " +
+                "Unknown task field \u201CChecklist\u201D on line 4. Try again with one of " +
+                "\u201CParent\u201D, \u201CSubtasks\u201D, \u201CAssignee\u201D, \u201CCollections\u201D, " +
                 "\u201CPriority\u201D, or \u201CDue date\u201D.",
         },
         {
