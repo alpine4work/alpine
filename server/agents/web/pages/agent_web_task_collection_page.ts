@@ -33,7 +33,6 @@ import {
     formatAgentWebTaskDueDateString,
     parseAgentWebTaskFieldListItems,
     printAgentWebTaskFieldListItems,
-    printAgentWebTaskSubtasksFieldValue,
 } from "~/server/agents/web/pages/agent_web_task_fields.js";
 import {parseAgentWebTaskPageDueDateStringForUpdate} from "~/server/agents/web/pages/agent_web_task_page.js";
 import {printMarkdownPhrasingContentText} from "~/server/agents/web/print_markdown_phrasing_content_text.js";
@@ -46,6 +45,7 @@ import {
     ApiTaskCollectionColor,
     ApiTaskCollectionPatch,
     ApiTaskCollectionReferenceResponse,
+    ApiTaskMoveInQueryPatchPosition,
     ApiTaskPatch,
     ApiTaskPriority,
     ApiTaskQuerySort,
@@ -69,7 +69,7 @@ import {MaybePromise} from "~/shared/helpers/types/maybe_promise.js";
 import {ApiTaskQueryCursor} from "~/shared/id/types/api_task_query_cursor.js";
 import {TaskCollectionId, TaskId} from "~/shared/id/types/id_types.js";
 
-export const agentWebTaskCollectionPageApiTasksBatchCount = 30;
+export const agentWebTaskCollectionPageApiTasksBatchCount = 31;
 export const agentWebTaskCollectionPageNextPageLinkText = "Next page »";
 
 /**
@@ -155,6 +155,7 @@ export type AgentWebTaskCollectionPageTask = {
     readonly title: string;
     readonly status: ApiTaskStatus;
     readonly parent: ApiTaskReferenceResponse | null;
+    readonly subtasks: ApiTaskSubtasks;
     readonly assignee: ApiAccountReferenceResponse | null;
     readonly collections: ReadonlyArray<ApiTaskCollectionReferenceResponse>;
     readonly additionalCollectionsCount: number;
@@ -1573,7 +1574,7 @@ async function parseAgentWebTaskCollectionPageTask(
         const quotedValue = quoteMarkdown([link]);
 
         throw new InvalidArgumentError("Unknown task link in task collection", {
-            displayMessage: errorDisplayMessage`Couldn\u2019t find a task for the link ${quotedValue} on line ${link.position?.start.line ?? taskListItem.position?.start.line ?? "unknown"}. Try again with a link to a task you\u2019ve seen before (e.g. \`[My Task (Open)](/task/my-task)\`).`,
+            displayMessage: errorDisplayMessage`Couldn\u2019t find a task for the link ${quotedValue} on line ${link.position?.start.line ?? taskListItem.position?.start.line ?? "unknown"}. You may only add a task you\u2019ve previously seen to a collection. Try calling the \`create\` tool to create a new task and then add that new task to the collection, or try calling the \`search\` tool to find an existing task you want to add to the collection.`,
         });
     }
 
