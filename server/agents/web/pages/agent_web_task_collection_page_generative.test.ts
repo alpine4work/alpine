@@ -53,6 +53,10 @@ const AgentWebTaskCollectionPageTaskArbitrary: Arbitrary<AgentWebTaskCollectionP
         fc.record({
             task: ApiTaskReferenceArbitrary,
             parent: fc.oneof(ApiTaskReferenceArbitrary, fc.constant(null)),
+            subtasks: fc.record({
+                openTaskCount: fc.nat({max: 20}),
+                closedTaskCount: fc.nat({max: 20}),
+            }),
             assignee: fc.oneof(ApiAccountReferenceArbitrary, fc.constant(null)),
             priority: fc.oneof(ApiTaskPriorityArbitrary, fc.constant(null)),
             dueDateString: fc.oneof(
