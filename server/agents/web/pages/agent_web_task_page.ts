@@ -35,6 +35,7 @@ import {
 } from "~/shared/api/specification/types/api_specification_convenience_types.js";
 import {InvalidArgumentError} from "~/shared/error/error.js";
 import {errorDisplayMessage} from "~/shared/error/error_display_message.js";
+import {ErrorDisplayMessage} from "~/shared/error/types/error_display_message_type.js";
 import {emptyArray} from "~/shared/helpers/array/empty_array.js";
 import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
 import {assert} from "~/shared/helpers/control/assert.js";
@@ -337,9 +338,10 @@ export async function updateAgentWebTaskPage(
     return oldPageMetadata;
 }
 
-function parseAgentWebTaskPageDueDateStringForUpdate(
+export function parseAgentWebTaskPageDueDateStringForUpdate(
     contextDate: CalendarDate,
     dueDateString: string,
+    additionalDetail: () => ErrorDisplayMessage = () => errorDisplayMessage``,
 ) {
     const matches = parseCalendarDates(dueDateString, contextDate.year);
 
@@ -352,7 +354,7 @@ function parseAgentWebTaskPageDueDateStringForUpdate(
         const quotedValue = quoteMarkdown([{type: "text", value: dueDateString}]);
 
         throw new InvalidArgumentError("Invalid task due date", {
-            displayMessage: errorDisplayMessage`Unexpected task due date ${quotedValue}. Try again with a date like \u201CJuly 12, 2027\u201D (not including the time, just the date).`,
+            displayMessage: errorDisplayMessage`Unexpected task due date ${quotedValue}${additionalDetail()}. Try again with a date like \u201CJuly 12, 2027\u201D (not including the time, just the date).`,
         });
     }
 
