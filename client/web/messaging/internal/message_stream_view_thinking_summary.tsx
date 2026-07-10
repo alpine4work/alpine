@@ -47,7 +47,9 @@ export function MessageStreamViewThinkingSummary({
     const thinkingEndTime = section.contentStartTime ?? streamCompletedTime;
 
     const nonContentParts = useMemo(() => {
-        const nonContentParts: Array<Exclude<MessageStreamPartPayload, {type: "Content"}>> = [];
+        const nonContentParts: Array<
+            Exclude<MessageStreamPartPayload, {type: "Content" | "ExperimentalApprovals"}>
+        > = [];
 
         for (const part of section.nonContentParts) {
             const previousPart = nonContentParts[nonContentParts.length - 1];
@@ -252,7 +254,9 @@ function MessageStreamSectionThinkingProgressSummary({
     nonContentParts,
 }: {
     references: ContentReferences;
-    nonContentParts: ReadonlyArray<Exclude<MessageStreamPartPayload, {type: "Content"}>>;
+    nonContentParts: ReadonlyArray<
+        Exclude<MessageStreamPartPayload, {type: "Content" | "ExperimentalApprovals"}>
+    >;
 }) {
     const [actualProgress, setProgress] = useState<{index: number; displayTime: number} | null>(
         null,

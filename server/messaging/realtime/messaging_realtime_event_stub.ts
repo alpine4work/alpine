@@ -43,6 +43,7 @@ export type MessagingRealtimeEventStub =
               readonly createdTime: Date;
           };
           readonly referencedIds: ContentReferencedIds;
+          readonly completedTime: Date | null;
       }
     | {
           readonly type: "CompleteMessageStream";

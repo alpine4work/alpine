@@ -1,10 +1,12 @@
 import {Memo, ReactElement, ReactNode, cloneElement} from "react";
 import {Spacer} from "~/client/web/design/spacer.js";
+import {MessageStreamApprovalSessionNoun} from "~/client/web/messaging/internal/message_stream_view_approvals.js";
 import {MessageEditing} from "~/client/web/messaging/message_editing.js";
 import {MessageList, MessageListItem} from "~/client/web/messaging/message_list.js";
 import {MessageListMessageShimmer} from "~/client/web/messaging/message_list_message_shimmer.js";
 import {MessageView} from "~/client/web/messaging/message_view.js";
 import {MessagingTypingIndicators} from "~/client/web/messaging/messaging_typing_indicators.js";
+import {OnPutMessageApprovalDecisionsFunction} from "~/client/web/messaging/on_put_message_approval_decisions_function.js";
 import {
     OnDeleteMessageReactionFunction,
     OnSetMessageReactionFunction,
@@ -57,6 +59,8 @@ export function renderMessageListItem<
     onSetMessageReaction,
     onDeleteMessageReaction,
     onUpdateMessagesOptimistically,
+    onPutMessageApprovalDecisions,
+    approvalSessionNoun,
     roomDisplayedCreatedTime,
     shouldAddMarginTop = index === 0,
     shouldAddMarginBottom = false,
@@ -81,6 +85,8 @@ export function renderMessageListItem<
     onSetMessageReaction: Memo<OnSetMessageReactionFunction<RoomKey>>;
     onDeleteMessageReaction: Memo<OnDeleteMessageReactionFunction<RoomKey>>;
     onUpdateMessagesOptimistically: Memo<OnUpdateMessagesOptimisticallyFunction<RoomKey, Message>>;
+    onPutMessageApprovalDecisions?: Memo<OnPutMessageApprovalDecisionsFunction<RoomKey>>;
+    approvalSessionNoun: MessageStreamApprovalSessionNoun;
     roomDisplayedCreatedTime?: Date | undefined;
     shouldAddMarginTop?: boolean | Spacing;
     shouldAddMarginBottom?: boolean | string;
@@ -135,6 +141,8 @@ export function renderMessageListItem<
                         onSetMessageReaction={onSetMessageReaction}
                         onDeleteMessageReaction={onDeleteMessageReaction}
                         onUpdateMessagesOptimistically={onUpdateMessagesOptimistically}
+                        onPutMessageApprovalDecisions={onPutMessageApprovalDecisions}
+                        approvalSessionNoun={approvalSessionNoun}
                         disableExpensiveFeaturesDuringScroll={disableExpensiveFeaturesDuringScroll}
                         getMessageUrl={getMessageUrl}
                         roomDisplayedCreatedTime={roomDisplayedCreatedTime}

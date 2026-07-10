@@ -30,6 +30,7 @@ import {useMessageEditing} from "~/client/web/messaging/message_editing.js";
 import {MessageList, MessageListItem} from "~/client/web/messaging/message_list.js";
 import {bufferedMessageViewHeight} from "~/client/web/messaging/message_view.js";
 import {MessagingViewPointerToolbar} from "~/client/web/messaging/messaging_view_pointer_toolbar.js";
+import {OnPutMessageApprovalDecisionsFunction} from "~/client/web/messaging/on_put_message_approval_decisions_function.js";
 import {renderMessageListItem} from "~/client/web/messaging/render_message_list_item.js";
 import {
     OnDeleteMessageReactionFunction,
@@ -802,6 +803,21 @@ function DocumentCommentThreadListView(
         [setTreeOptimistically],
     );
 
+    const handlePutMessageApprovalDecisions: Memo<
+        OnPutMessageApprovalDecisionsFunction<DocumentCommentRoomKey>
+    > = useCallback(
+        async (roomKey, input) => {
+            const [, commentThreadId] = decodeDocumentCommentRoomKey(roomKey);
+
+            await procedures.putCommentApprovalDecisions({
+                commentThreadId,
+                commentIndex: input.messageIndex,
+                payload: input.payload,
+            });
+        },
+        [procedures],
+    );
+
     const renderItem: VirtualizedScrollViewRenderItem = useCallback(
         index => {
             const actualIndex = index;
@@ -1004,6 +1020,8 @@ function DocumentCommentThreadListView(
                         onSetMessageReaction: handleSetMessageReaction,
                         onDeleteMessageReaction: handleDeleteMessageReaction,
                         onUpdateMessagesOptimistically: handleUpdateMessagesOptimistically,
+                        onPutMessageApprovalDecisions: handlePutMessageApprovalDecisions,
+                        approvalSessionNoun: "thread",
                         shouldAddMarginBottom:
                             isSingleCommentThreadWithPinnedCommentInput &&
                             // -2 instead of -1 since when `isSingleCommentThreadWithPinnedCommentInput` is
@@ -1226,6 +1244,7 @@ function DocumentCommentThreadListView(
             handleSetMessageReaction,
             handleDeleteMessageReaction,
             handleUpdateMessagesOptimistically,
+            handlePutMessageApprovalDecisions,
             isNativeMobileTabBarHidden,
             backgroundSlopBottomIfPinnedCommentInput,
             inputParentByCommentThreadId,

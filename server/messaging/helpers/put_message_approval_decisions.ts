@@ -8,11 +8,8 @@ import {FailedPreconditionError} from "~/shared/error/error.js";
 import {errorDisplayMessage} from "~/shared/error/error_display_message.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 import {generateChronologicalId} from "~/shared/id/chronological_id.js";
-import {AccountId, BotId, BotWebhookEventId, SpaceId} from "~/shared/id/types/id_types.js";
-import {
-    ApplyMessageApprovalDecisionUpdatesResult,
-    applyMessageApprovalDecisionUpdates,
-} from "~/shared/messaging/apply_message_approval_decision_updates.js";
+import {BotWebhookEventId, SpaceId} from "~/shared/id/types/id_types.js";
+import {applyMessageApprovalDecisionUpdates} from "~/shared/messaging/apply_message_approval_decision_updates.js";
 import {
     createMessageApprovalNotFoundError,
     createMessageApprovalRequiresMessageStreamError,
@@ -96,118 +93,99 @@ export async function putMessageApprovalDecisions(
     partIndex: number;
     version: number;
     createdTime: Date;
+    completedTime: Date | null;
 }> {
     // The decider is always the authenticated actor (a human session through the
     // realtime procedures or a bot through the API). Deriving it here makes it
     // impossible for a decision to be attributed to an account that didn't make it.
     const deciderAccountId = assertExists(context.actor.getPossiblyBotAccountIdIfExists());
 
-    const {
-        result,
-        spaceId,
-        requestedByBotAccountId,
-        requestedByBotId,
-        partIndex,
-        version,
-        createdTime,
-    } = await context.dynamo.retryTransaction(
-        async (
-            context,
-        ): Promise<{
-            spaceId: SpaceId;
-            requestedByBotAccountId: AccountId;
-            requestedByBotId: BotId;
-            result: ApplyMessageApprovalDecisionUpdatesResult;
-            partIndex: number;
-            version: number;
-            createdTime: Date;
-        }> => {
-            const {spaceId, message, putMessageApprovalPartPayloadWithDecisionValues} =
-                await readApprovalStreamPart(context, {consistency});
+    const response = await context.dynamo.retryTransaction(async context => {
+        const {spaceId, message, putMessageApprovalPartPayloadWithDecisionValues} =
+            await readApprovalStreamPart(context, {consistency});
 
-            if (!message.stream) throw createMessageApprovalRequiresMessageStreamError();
+        if (!message.stream) throw createMessageApprovalRequiresMessageStreamError();
 
-            const requestedByBotAccountId = message.authorId;
-            const botId = assertExists(
-                await getSpaceAccountBotIdIfExists(context, spaceId, requestedByBotAccountId),
-            );
+        const requestedByBotAccountId = message.authorId;
+        const botId = assertExists(
+            await getSpaceAccountBotIdIfExists(context, spaceId, requestedByBotAccountId),
+        );
 
-            const {hasWebhookUrl} = await getBot(context, botId, {consistency});
+        const {hasWebhookUrl} = await getBot(context, botId, {consistency});
 
-            // If the bot doesn't have a webhook URL, then we can't send the approval decision
-            // back to the bot. Instead, we throw an error with a display message so that the
-            // user can configure the bot and try to approve/reject the approval again.
-            if (!hasWebhookUrl) {
-                throw new FailedPreconditionError(
-                    "Can\u2019t approve a message stream approval if the bot doesn\u2019t have a webhook URL",
-                    {
-                        // TODO(#approvals): Add link to bot settings page after bot settings workstream
-                        // completes.
-                        displayMessage: errorDisplayMessage`Can\u2019t approve a message stream approval if the \
+        // If the bot doesn't have a webhook URL, then we can't send the approval decision
+        // back to the bot. Instead, we throw an error with a display message so that the
+        // user can configure the bot and try to approve/reject the approval again.
+        if (!hasWebhookUrl) {
+            throw new FailedPreconditionError(
+                "Can\u2019t approve a message stream approval if the bot doesn\u2019t have a webhook URL",
+                {
+                    // TODO(#approvals): Add link to bot settings page after bot settings workstream
+                    // completes.
+                    displayMessage: errorDisplayMessage`Can\u2019t approve a message stream approval if the \
                     bot doesn\u2019t have a webhook URL. Go to the bots setting page and make sure the webook URL is set.`,
-                    },
-                );
-            }
-
-            const lastPartIndex = message.stream.parts.length - 1;
-            const lastStreamPart = assertExists(message.stream.parts[lastPartIndex]);
-
-            // Approvals are always the stream's final part. If the last part is something else
-            // the message simply has no decidable approvals — a caller-facing not-found, not
-            // an internal invariant.
-            const currentStreamPartPayload = lastStreamPart.payload;
-            if (currentStreamPartPayload.type !== "ExperimentalApprovals") {
-                throw createMessageApprovalNotFoundError();
-            }
-
-            const decisions = payload.decisions.map(({index, value}) => ({
-                index,
-                value: {...value, decider: {account: {id: deciderAccountId}}},
-            }));
-
-            const result = applyMessageApprovalDecisionUpdates(currentStreamPartPayload, {
-                decisions,
-                shouldExpandScopeKeys: true,
-            });
-
-            if (result.decisionUpdates.length === 0) {
-                return {
-                    spaceId,
-                    requestedByBotAccountId,
-                    requestedByBotId: botId,
-                    result,
-                    partIndex: lastPartIndex,
-                    version: lastStreamPart.version,
-                    createdTime: lastStreamPart.createdTime,
-                };
-            }
-
-            validateMessageStreamApprovalStatusUpdate(
-                currentStreamPartPayload,
-                result.approvalPayload,
+                },
             );
+        }
 
-            const {version} = await putMessageApprovalPartPayloadWithDecisionValues({
-                ...lastStreamPart,
-                partIndex: lastPartIndex,
-                nextPayload: result.approvalPayload,
-            });
+        const lastPartIndex = message.stream.parts.length - 1;
+        const lastStreamPart = assertExists(message.stream.parts[lastPartIndex]);
 
+        // Approvals are always the stream's final part. If the last part is something else
+        // the message simply has no decidable approvals — a caller-facing not-found, not
+        // an internal invariant.
+        const currentStreamPartPayload = lastStreamPart.payload;
+        if (currentStreamPartPayload.type !== "ExperimentalApprovals") {
+            throw createMessageApprovalNotFoundError();
+        }
+
+        const decisions = payload.decisions.map(({index, value}) => ({
+            index,
+            value: {...value, decider: {account: {id: deciderAccountId}}},
+        }));
+
+        const result = applyMessageApprovalDecisionUpdates(currentStreamPartPayload, {
+            decisions,
+            shouldExpandScopeKeys: true,
+        });
+
+        if (result.decisionUpdates.length === 0) {
             return {
                 spaceId,
                 requestedByBotAccountId,
                 requestedByBotId: botId,
                 result,
                 partIndex: lastPartIndex,
-                version,
+                version: lastStreamPart.version,
                 createdTime: lastStreamPart.createdTime,
+                completedTime: message.stream.completedTime,
             };
-        },
-    );
+        }
 
+        validateMessageStreamApprovalStatusUpdate(currentStreamPartPayload, result.approvalPayload);
+
+        const {version} = await putMessageApprovalPartPayloadWithDecisionValues({
+            ...lastStreamPart,
+            partIndex: lastPartIndex,
+            nextPayload: result.approvalPayload,
+        });
+
+        return {
+            spaceId,
+            requestedByBotAccountId,
+            requestedByBotId: botId,
+            result,
+            partIndex: lastPartIndex,
+            version,
+            createdTime: lastStreamPart.createdTime,
+            completedTime: message.stream.completedTime,
+        };
+    });
+
+    const {spaceId, result, partIndex, version, createdTime, completedTime} = response;
     const approvals = result.approvalPayload.approvals;
     if (result.decisionUpdates.length === 0) {
-        return {spaceId, approvals, partIndex, version, createdTime};
+        return {spaceId, approvals, partIndex, version, createdTime, completedTime};
     }
 
     // NOTE(ifitzsimmons, 2026-06-26): We can end up in a weird state if the webhook
@@ -224,8 +202,8 @@ export async function putMessageApprovalDecisions(
         async (context, span) => {
             span.addPropagatedData({
                 context: {
-                    botId: requestedByBotId,
-                    botAccountId: requestedByBotAccountId,
+                    botId: response.requestedByBotId,
+                    botAccountId: response.requestedByBotAccountId,
                 },
             });
 
@@ -240,8 +218,8 @@ export async function putMessageApprovalDecisions(
                 type: "CallBotWebhook",
                 spaceId,
                 eventId: generateChronologicalId<BotWebhookEventId>(),
-                botId: requestedByBotId,
-                botAccountId: requestedByBotAccountId,
+                botId: response.requestedByBotId,
+                botAccountId: response.requestedByBotAccountId,
                 event: {
                     type: "UpdatedMessageStreamExperimentalApprovalsPart",
                     room,
@@ -252,5 +230,5 @@ export async function putMessageApprovalDecisions(
         },
     );
 
-    return {spaceId, approvals, partIndex, version, createdTime};
+    return {spaceId, approvals, partIndex, version, createdTime, completedTime};
 }

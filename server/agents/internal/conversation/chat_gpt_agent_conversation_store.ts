@@ -3,6 +3,7 @@ import {AgentConversationStore} from "~/server/agents/internal/conversation/agen
 import {DurableObjectStorageCollection} from "~/server/agents/internal/durable_object_storage_collection.js";
 import {ApiMentionResponse} from "~/shared/api/specification/types/api_specification_convenience_types.js";
 import {TimeZone} from "~/shared/helpers/intl/time_zone.js";
+import {emptySet} from "~/shared/helpers/set/empty_set.js";
 import {OrderKey, generateOrderKeyBetween} from "~/shared/helpers/sort/order_key.js";
 
 export type ChatGptAgentMessageApprovalScope = "Write";
@@ -37,11 +38,6 @@ export const ChatGptAgentConversationItemCollection = new DurableObjectStorageCo
     ChatGptAgentConversationItem
 >("a2");
 
-// TODO(ifitzsimmons, #approvals): Remove this and use `emptySet` after merging the
-// client changes. This will ensure that all write requests are approved until
-// there's an approval UI in place
-const defaultAllowedMessageApprovalScopes = new Set<ChatGptAgentMessageApprovalScope>(["Write"]);
-
 export class ChatGptAgentConversationStore extends AgentConversationStore<ChatGptAgentConversationState> {
     private _state: ChatGptAgentConversationState;
 
@@ -60,7 +56,7 @@ export class ChatGptAgentConversationStore extends AgentConversationStore<ChatGp
             timeZone: initialTimeZone,
             startTime: new Date(),
             currentlyViewingTarget: null,
-            allowedMessageApprovalScopes: defaultAllowedMessageApprovalScopes,
+            allowedMessageApprovalScopes: emptySet,
         };
 
         return new ChatGptAgentConversationStore(state);

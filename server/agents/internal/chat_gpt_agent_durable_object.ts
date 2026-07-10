@@ -1398,7 +1398,9 @@ async function callChatGptAgentFunction({
                 type: "NeedsApproval",
                 functionCallId: functionCall.call_id,
                 approval: {
-                    summary: {elements: [{type: "Text", text: `Create document: ${title}`}]},
+                    summary: {
+                        elements: [{type: "Text", text: `Create document \u201C${title}\u201D`}],
+                    },
                     options: [
                         {type: "Approved"},
                         {type: "Rejected"},
@@ -1409,7 +1411,7 @@ async function callChatGptAgentFunction({
                                 elements: [
                                     {
                                         type: "Text",
-                                        text: "Approve all writes for this session.",
+                                        text: "all writes",
                                     },
                                 ],
                             },

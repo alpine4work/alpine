@@ -413,7 +413,7 @@ export const apiChatPaths: Pick<ApiPaths, keyof ApiPaths & `/chats/${string}`> =
             };
         },
         patch: async (context, {pathParameters, requestBody}) => {
-            const {spaceId, approvals, partIndex, version, createdTime} =
+            const {spaceId, approvals, partIndex, version, createdTime, completedTime} =
                 await putChatMessageApprovalDecisions(context, {
                     chatId: pathParameters.id,
                     messageIndex: pathParameters.index,
@@ -434,6 +434,7 @@ export const apiChatPaths: Pick<ApiPaths, keyof ApiPaths & `/chats/${string}`> =
                 version,
                 payload: {type: "ExperimentalApprovals", approvals},
                 createdTime,
+                completedTime,
             });
 
             const referenceContext = context.dynamo.unexpectStrongReadConsistency();

@@ -30,7 +30,12 @@ import {
     collectContentReferencedIdsForStreamPart,
     getMessageReferencedIds,
 } from "~/shared/messaging/message_references.js";
-import {MessageContentPayloadParent, MessagePayload} from "~/shared/messaging/message_schema.js";
+import {
+    MessageContentPayloadParent,
+    MessageExperimentalApproval,
+    MessagePayload,
+    MessageStreamPartPayload,
+} from "~/shared/messaging/message_schema.js";
 import {
     MessagingRealtimeBroadcastCompleteMessageStreamRequest,
     MessagingRealtimeBroadcastNewMessageRequest,
@@ -38,6 +43,7 @@ import {
     MessagingRealtimeEvent,
     MessagingTypingState,
 } from "~/shared/messaging/messaging_realtime_protocol.js";
+import {PutMessageApprovalDecisionsPayload} from "~/shared/messaging/put_message_approval_decisions_payload_schema.js";
 import {Reaction} from "~/shared/reactions/reaction.js";
 import {emptyReactionSet} from "~/shared/reactions/reaction_set.js";
 import {getAccount} from "~/shared/rpc/accounts_rpc_definitions.js";
@@ -123,6 +129,30 @@ export type DeleteMessageReactionFunction<RoomKey extends string> = (
     },
 ) => Promise<{
     version: number;
+}>;
+
+/**
+ * Record the current account's decisions on a message stream's approval requests.
+ * Returns the updated approvals along with the approvals part's coordinates so the
+ * connection can emit a `PutMessageStreamPart` event with the new part.
+ *
+ * The `payload` union is forwarded opaquely, the shared approval decisions engine
+ * owns unwrapping it. This way new payload variants don't require realtime
+ * connection changes.
+ */
+export type PutMessageApprovalDecisionsFunction<RoomKey extends string> = (
+    context: WorkerSessionActionContext,
+    options: {
+        roomKey: RoomKey;
+        messageIndex: number;
+        payload: PutMessageApprovalDecisionsPayload;
+    },
+) => Promise<{
+    approvals: ReadonlyArray<MessageExperimentalApproval>;
+    partIndex: number;
+    version: number;
+    createdTime: Date;
+    completedTime: Date | null;
 }>;
 
 /**
@@ -234,6 +264,7 @@ export class MessagingRealtimeConnection<
     private readonly _deleteMessage: DeleteMessageFunction<RoomKey>;
     private readonly _setMessageReaction: SetMessageReactionFunction<RoomKey>;
     private readonly _deleteMessageReaction: DeleteMessageReactionFunction<RoomKey>;
+    private readonly _putMessageApprovalDecisions: PutMessageApprovalDecisionsFunction<RoomKey>;
     private readonly _backfillMessages: BackfillMessagesFunction<
         RoomKey,
         Message,
@@ -276,6 +307,7 @@ export class MessagingRealtimeConnection<
         deleteMessage,
         setMessageReaction,
         deleteMessageReaction,
+        putMessageApprovalDecisions,
         backfillMessages,
         getMessageAtVersion,
         getMessageReferences,
@@ -301,6 +333,7 @@ export class MessagingRealtimeConnection<
         deleteMessage: DeleteMessageFunction<RoomKey>;
         setMessageReaction: SetMessageReactionFunction<RoomKey>;
         deleteMessageReaction: DeleteMessageReactionFunction<RoomKey>;
+        putMessageApprovalDecisions: PutMessageApprovalDecisionsFunction<RoomKey>;
         backfillMessages: BackfillMessagesFunction<RoomKey, Message, BackfillMessagesExtra>;
         getMessageAtVersion: GetMessageAtVersionFunction<RoomKey, Message>;
         getMessageReferences: GetMessageReferencesFunction<RoomKey>;
@@ -318,6 +351,7 @@ export class MessagingRealtimeConnection<
         this._deleteMessage = deleteMessage;
         this._setMessageReaction = setMessageReaction;
         this._deleteMessageReaction = deleteMessageReaction;
+        this._putMessageApprovalDecisions = putMessageApprovalDecisions;
         this._backfillMessages = backfillMessages;
         this._getMessageAtVersion = getMessageAtVersion;
         this._getMessageReferences = getMessageReferences;
@@ -793,6 +827,50 @@ export class MessagingRealtimeConnection<
         return {};
     }
 
+    public async putMessageApprovalDecisions(
+        context: WorkerSessionActionContext,
+        {
+            messageIndex,
+            payload: decisionsPayload,
+        }: {
+            messageIndex: number;
+            payload: PutMessageApprovalDecisionsPayload;
+        },
+    ): Promise<{}> {
+        assert(this.accountId === context.actor.getAccountId());
+
+        const {approvals, partIndex, version, createdTime, completedTime} =
+            await this._putMessageApprovalDecisions(context, {
+                roomKey: this.roomKey,
+                messageIndex,
+                payload: decisionsPayload,
+            });
+
+        const payload: MessageStreamPartPayload = {type: "ExperimentalApprovals", approvals};
+
+        const eventStub: MessagingRealtimeEventStub = {
+            type: "PutMessageStreamPart",
+            index: messageIndex,
+            partIndex,
+            part: {version, payload, createdTime},
+            referencedIds: collectContentReferencedIdsForStreamPart(payload),
+            completedTime,
+        };
+
+        const sendOurEventPromise = this._sendEvent(context, eventStub);
+
+        for (const connection of this._iterateOtherConnections()) {
+            connection._sendEvent(context, eventStub);
+        }
+
+        // Wait until we send our stream part event before finishing the RPC. This
+        // guarantees the calling client receives the decided approvals part before its
+        // procedure promise resolves.
+        await sendOurEventPromise;
+
+        return {};
+    }
+
     public async startTypingInMessageInput(
         context: WorkerSessionActionContext,
         // eslint-disable-next-line @typescript-eslint/no-unused-vars
@@ -946,6 +1024,7 @@ export class MessagingRealtimeConnection<
                 partIndex: request.partIndex,
                 part: request.part,
                 referencedIds: collectContentReferencedIdsForStreamPart(request.part.payload),
+                completedTime: request.completedTime,
             });
         }
     }
@@ -1028,6 +1107,7 @@ export class MessagingRealtimeConnection<
                     partIndex: eventStub.partIndex,
                     part: eventStub.part,
                     references: contentReferences,
+                    completedTime: eventStub.completedTime,
                 };
             }
             case "CompleteMessageStream": {

@@ -48,7 +48,9 @@ export function MessageStreamViewThinkingExpanded({
     thinkingEndTime,
 }: {
     ref: Ref<HTMLDivElement | null>;
-    nonContentParts: ReadonlyArray<Exclude<MessageStreamPartPayload, {type: "Content"}>>;
+    nonContentParts: ReadonlyArray<
+        Exclude<MessageStreamPartPayload, {type: "Content" | "ExperimentalApprovals"}>
+    >;
     content: MessageContentWithReferences;
     thinkingEndTime: Date | null;
 }) {
@@ -93,7 +95,7 @@ function MessageStreamViewThinkingExpandedItem({
 }: {
     references: ContentReferences;
     part:
-        | Exclude<MessageStreamPartPayload, {type: "Content"}>
+        | Exclude<MessageStreamPartPayload, {type: "Content" | "ExperimentalApprovals"}>
         | {type: "Done"}
         | {type: "Thinking"};
     isFirstItem: boolean;

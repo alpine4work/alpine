@@ -1,0 +1,374 @@
+import {uploadDemoSpaceBotAvatar} from "~/admin/environment/demo_space/upload_demo_space_bot_avatar.js";
+import {TestActualContext} from "~/admin/environment/test/unit/with_unit_test_environment.js";
+import {ScreenshotTestRunner} from "~/app/screenshot_tests/helpers/run_screenshot_test.js";
+import {TestBot} from "~/server/bots/test_helpers/test_bot.js";
+import {TestChat} from "~/server/chat/test_helpers/test_chat.js";
+import {TestChannel} from "~/server/forum/test_helpers/test_channel.js";
+import {
+    TestMessageRoomBase,
+    TestMessagingRoomBase,
+} from "~/server/messaging/test_helpers/test_messaging_room_base.js";
+import {TestSession} from "~/server/spaces/test_helpers/test_session.js";
+import {createSimpleMessageContent} from "~/shared/content/message_content_schema.js";
+import {
+    MessageExperimentalApproval,
+    MessageStreamPartPayload,
+} from "~/shared/messaging/message_schema.js";
+
+export async function run(context: TestActualContext, runner: ScreenshotTestRunner) {
+    const {accounts} = await runner.createDemoSpace(context);
+
+    // Create a bot without a webhook so it never responds to the messages we seed. We
+    // seed the bot's approval requests ourselves.
+    const bot = await TestBot.create(context, {name: "ChatGPT", webhookUrl: null});
+    const botAccount = await bot.instantiate(accounts.cassCade);
+
+    // Rose has internal access which allows her to upload the known bot avatar.
+    await uploadDemoSpaceBotAvatar(
+        runner.services.getAppServiceTokenAgent(),
+        accounts.roseCompas,
+        bot.id,
+        "chatGpt",
+    );
+
+    // It's October 15, 2025: tables shipped today (universe week 6) and Cass is using
+    // the agent to wrap up the launch.
+    const launchDayTime = new Date("2025-10-15T18:00:00.000Z");
+    const fixedTime = new Date("2025-10-15T18:30:00.000Z");
+
+    let nextMessageTimeOffsetMinutes = 0;
+    function nextMessageTime() {
+        return new Date(launchDayTime.getTime() + nextMessageTimeOffsetMinutes++ * 60_000);
+    }
+
+    async function sendBotApprovalMessage(
+        room: TestMessageRoomBase,
+        {
+            content,
+            approvals,
+            botScope,
+        }: {
+            content: string;
+            approvals: ReadonlyArray<MessageExperimentalApproval>;
+
+            /**
+             * The bot writes with the room's scope by default which carries view-equivalent
+             * access. Pass the session of the account the bot is acting for when the bot needs
+             * that account's access to write (e.g. commenting in a view-only channel).
+             */
+            botScope?: TestSession;
+        },
+    ) {
+        const botContext = botAccount.action(botScope ?? room.getBotScope());
+        const messageTime = nextMessageTime();
+
+        // Stream parts can only be written while the stream is fresh
+        // (`hasMessageStreamDefinitelyTimedOut()`) and we seed messages in the past. Mock
+        // `Date.now()` to the seeded time while writing the stream, the same way
+        // `testMessagingImplementation()` tests do.
+        const realDateNow = Date.now;
+        Date.now = () => messageTime.getTime();
+        try {
+            const message = await TestMessagingRoomBase.createMessage(
+                room,
+                botContext,
+                {isStream: true},
+                {overrideCreatedTime: messageTime},
+            );
+
+            await message.putStreamPart(botContext, 0, content, {
+                overrideCreatedTime: messageTime,
+            });
+
+            // An `ExperimentalApprovals` part must be the last part of the stream and putting
+            // one completes the stream.
+            const approvalsPart: MessageStreamPartPayload = {
+                type: "ExperimentalApprovals",
+                approvals,
+            };
+            await message.putStreamPart(botContext, 1, approvalsPart, {
+                overrideCreatedTime: messageTime,
+            });
+
+            return message;
+        } finally {
+            Date.now = realDateNow;
+        }
+    }
+
+    // A 1:1 chat between Cass and the agent with two undecided approval requests. The
+    // first uses the default Approved/Rejected options ("Allow"/"Cancel" buttons). The
+    // second has session scoped options which render as a checkbox with a dropdown.
+    {
+        const chat = await TestChat.get(accounts.cassCade, botAccount);
+
+        await chat.sendMessage(
+            accounts.cassCade,
+            "tables is live! can you post the launch announcement to the forum? holly already published the help doc",
+            {overrideCreatedTime: nextMessageTime()},
+        );
+
+        await sendBotApprovalMessage(chat, {
+            content:
+                "I drafted the announcement from Holly\u2019s help doc and Mason\u2019s ship " +
+                "notes. It covers cell selection, keyboard navigation, and the new column " +
+                "resizing behavior. Ready to post when you are.",
+            approvals: [
+                {
+                    // Long enough to wrap onto a second line so the screenshot covers the summary's
+                    // hanging indent (wrapped lines align with the text, not the badge).
+                    summary: createSimpleMessageContent(
+                        "Post \u201CTables are here\u201D to the forum with the launch " +
+                            "summary, the keyboard shortcuts, and a link to Holly\u2019s " +
+                            "help doc",
+                    ),
+                    decision: {
+                        schema: {options: [{type: "Approved"}, {type: "Rejected"}]},
+                    },
+                },
+            ],
+        });
+
+        await runner.goto(accounts.cassCade, `/chat/${chat.id}`, {fixedTime});
+        await runner.screenshot("a0", "pending");
+
+        await chat.sendMessage(
+            accounts.cassCade,
+            "perfect. also can you clean up the sprint board? lots of stale tasks left over from the tables work",
+            {overrideCreatedTime: nextMessageTime()},
+        );
+
+        await sendBotApprovalMessage(chat, {
+            content:
+                "There are 6 tasks in the Tables sprint that haven\u2019t been touched in over " +
+                "two weeks. I can archive them once, or you can approve archiving for a while " +
+                "and I\u2019ll keep the board tidy as the launch wraps up.",
+            approvals: [
+                {
+                    summary: createSimpleMessageContent(
+                        "Archive 6 stale tasks in the Tables sprint",
+                    ),
+                    decision: {
+                        schema: {
+                            options: [
+                                {type: "Approved"},
+                                {
+                                    type: "ApprovedForSession",
+                                    scope: {value: "tasks.archive"},
+                                    durationMinutes: null,
+                                },
+                                {
+                                    type: "ApprovedForSession",
+                                    scope: {value: "tasks.archive"},
+                                    durationMinutes: 30,
+                                },
+                                {type: "Rejected"},
+                            ],
+                        },
+                    },
+                },
+            ],
+        });
+
+        await runner.goto(accounts.cassCade, `/chat/${chat.id}`, {fixedTime});
+        await runner.screenshot("a1", "pending-session-options");
+
+        await runner.getByRole("button", {name: "More approval options"}).click();
+        await runner.mouse.move(0, 0);
+        await runner.screenshot("a2", "pending-session-options-menu");
+    }
+
+    // A group chat where approvals have already been decided. From Cass's perspective
+    // one approval was approved by Holly and another was rejected by Cass herself ("by
+    // you").
+    {
+        const chat = await TestChat.get(accounts.cassCade, accounts.hollyEvergreen, botAccount);
+
+        await chat.sendMessage(
+            accounts.hollyEvergreen,
+            "Asked ChatGPT to schedule the launch thread so we don\u2019t have to babysit it tomorrow",
+            {overrideCreatedTime: nextMessageTime()},
+        );
+
+        await sendBotApprovalMessage(chat, {
+            content:
+                "Scheduled. The thread will go out tomorrow at 9am ET — I\u2019ll post " +
+                "engagement numbers here once it\u2019s live.",
+            approvals: [
+                {
+                    summary: createSimpleMessageContent(
+                        "Schedule the launch thread for Oct 16, 9:00 AM ET",
+                    ),
+                    decision: {
+                        schema: {options: [{type: "Approved"}, {type: "Rejected"}]},
+                        value: {
+                            type: "Approved",
+                            decider: {account: {id: accounts.hollyEvergreen.account.id}},
+                        },
+                    },
+                },
+            ],
+        });
+
+        await chat.sendMessage(
+            accounts.cassCade,
+            "can you also add the beta customers to the tables rollout list?",
+            {overrideCreatedTime: nextMessageTime()},
+        );
+
+        await sendBotApprovalMessage(chat, {
+            content:
+                "I can add the 12 beta customers to the rollout list. This changes who gets " +
+                "the feature immediately, so I need a sign-off first.",
+            approvals: [
+                {
+                    summary: createSimpleMessageContent(
+                        "Add 12 beta customers to the Tables rollout",
+                    ),
+                    decision: {
+                        schema: {options: [{type: "Approved"}, {type: "Rejected"}]},
+                        value: {
+                            type: "Rejected",
+                            decider: {account: {id: accounts.cassCade.account.id}},
+                        },
+                    },
+                },
+            ],
+        });
+
+        await runner.goto(accounts.cassCade, `/chat/${chat.id}`, {fixedTime});
+        await runner.screenshot("a3", "decided");
+    }
+
+    // Back in the 1:1 chat: one agent message asking for sign-off on three launch
+    // wrap-up actions. Multiple approvals page inside a single card. Cass already
+    // approved the first, so the card opens on the first undecided approval (2 of 3)
+    // and the header arrows page between them.
+    {
+        const chat = await TestChat.get(accounts.cassCade, botAccount);
+
+        await chat.sendMessage(
+            accounts.cassCade,
+            "last thing — can you wrap up the launch? changelog, support heads up, and close out the war room",
+            {overrideCreatedTime: nextMessageTime()},
+        );
+
+        await sendBotApprovalMessage(chat, {
+            content:
+                "Three things left to wrap up the launch. Sign off on each and " +
+                "I\u2019ll get going.",
+            approvals: [
+                {
+                    summary: createSimpleMessageContent("Publish the Tables changelog entry"),
+                    decision: {
+                        schema: {options: [{type: "Approved"}, {type: "Rejected"}]},
+                        value: {
+                            type: "Approved",
+                            decider: {account: {id: accounts.cassCade.account.id}},
+                        },
+                    },
+                },
+                {
+                    // Long enough to wrap next to the pagination controls.
+                    summary: createSimpleMessageContent(
+                        "Post a heads-up in the support channel about the launch " +
+                            "and the new keyboard shortcuts help doc",
+                    ),
+                    decision: {
+                        schema: {options: [{type: "Approved"}, {type: "Rejected"}]},
+                    },
+                },
+                {
+                    summary: createSimpleMessageContent("Archive the launch war room chat"),
+                    decision: {
+                        schema: {options: [{type: "Approved"}, {type: "Rejected"}]},
+                    },
+                },
+            ],
+        });
+
+        await runner.goto(accounts.cassCade, `/chat/${chat.id}`, {fixedTime});
+        await runner.screenshot("a4", "paginated-first-undecided");
+
+        await runner.getByRole("button", {name: "Next approval"}).click();
+        await runner.mouse.move(0, 0);
+        await runner.screenshot("a5", "paginated-last");
+
+        await runner.getByRole("button", {name: "Previous approval"}).click();
+        await runner.getByRole("button", {name: "Previous approval"}).click();
+        await runner.mouse.move(0, 0);
+        await runner.screenshot("a6", "paginated-decided");
+    }
+
+    // An announcements channel where only Rose can write: everyone else gets read-only
+    // access. From Cass's perspective the bot's approval cards have no decision
+    // buttons — one approval was already allowed by Rose and the other renders as
+    // "Waiting for approval".
+    {
+        const channel = await TestChannel.create(accounts.roseCompas, {
+            name: "Announcements",
+            access: {
+                type: "Local",
+                accountGrantById: new Map([
+                    [accounts.roseCompas.account.id, {level: "Manage", generation: 0}],
+                ]),
+                defaultGrant: {level: "View"},
+                urlGrant: null,
+            },
+        });
+
+        const post = await channel.createPost(
+            accounts.roseCompas,
+            "Tables is live. Six weeks from first commit to launch — congratulations to " +
+                "Mason, Elle, and Matt for the build and to Holly for the docs and the " +
+                "announcement. Investor update goes out Friday.",
+            {overrideCreatedTime: nextMessageTime()},
+        );
+
+        await post.sendMessage(
+            accounts.roseCompas,
+            "ChatGPT, handle the follow-ups: draft the investor update and keep this post " +
+                "pinned through launch week",
+            {overrideCreatedTime: nextMessageTime()},
+        );
+
+        await sendBotApprovalMessage(post, {
+            botScope: accounts.roseCompas,
+            content:
+                "Drafted the investor update from the launch metrics and the week 6 ship " +
+                "notes. It leads with tables adoption in the beta cohort.",
+            approvals: [
+                {
+                    summary: createSimpleMessageContent(
+                        "Send the investor update draft to Rose for review",
+                    ),
+                    decision: {
+                        schema: {options: [{type: "Approved"}, {type: "Rejected"}]},
+                        value: {
+                            type: "Approved",
+                            decider: {account: {id: accounts.roseCompas.account.id}},
+                        },
+                    },
+                },
+            ],
+        });
+
+        await sendBotApprovalMessage(post, {
+            botScope: accounts.roseCompas,
+            content: "I can also pin this announcement to the top of the channel.",
+            approvals: [
+                {
+                    summary: createSimpleMessageContent(
+                        "Pin this announcement until Friday, Oct 17",
+                    ),
+                    decision: {
+                        schema: {options: [{type: "Approved"}, {type: "Rejected"}]},
+                    },
+                },
+            ],
+        });
+
+        await runner.goto(accounts.cassCade, `/post/${post.id}`, {fixedTime});
+        await runner.screenshot("a7", "read-only-post");
+    }
+}

@@ -362,14 +362,6 @@ async function fetchFromDurableObjectWithId(
     return await durableObjectStub.fetch(request);
 }
 
-// Every webhook event for the same message room must map to the same durable
-// object name. A conversation's state (including pending approval records) lives
-// in one durable object, so if two event types derived different names for the
-// same room the conversation would split across instances. This happened with
-// `NewPost` deriving its name from the bare post ID while the follow-up
-// `UpdatedMessageStreamExperimentalApprovalsPart` event used the room path:
-// approval decisions landed on an empty durable object and were rejected as not
-// found.
 function getDurableObjectIdFromApiBotWebhookEvent(request: ApiBotWebhookRequestBody) {
     switch (request.event.type) {
         case "UpdatedMessageStreamExperimentalApprovalsPart":

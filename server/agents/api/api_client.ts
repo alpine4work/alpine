@@ -495,13 +495,6 @@ export async function putApiMessageStreamPart(
     }
 }
 
-/**
- * Applies one decision value to every approval in the message that is still
- * undecided. Which approvals are pending is resolved server side against current
- * state, so this is safe to call with a stale local view of the approvals — an
- * approval decided concurrently is skipped, not failed — and it no-ops when
- * nothing is pending.
- */
 export async function patchApiMessageApprovals(
     tracer: TracerBase,
     apiClient: ApiClient,

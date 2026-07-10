@@ -582,6 +582,7 @@ export async function putPostCommentMessageApprovalDecisions(
     partIndex: number;
     version: number;
     createdTime: Date;
+    completedTime: Date | null;
 }> {
     return await putMessageApprovalDecisions(context, {
         room: {type: "Post", id: postId},
@@ -697,7 +698,9 @@ export function putPostCommentStreamPart(
             displayMessage: errorDisplayMessage`Only the bot who created the stream can update it.`,
         });
 
-        if (item.completedTime !== null) {
+        let completedTime = item.completedTime;
+
+        if (completedTime !== null) {
             // If the stream is already completed then noop.
             if (isTimeoutErrorCompletion) return {spaceId, createdTime: new Date()};
 
@@ -716,6 +719,11 @@ export function putPostCommentStreamPart(
 
         // Use `Date.now()` so tests can mock the `Date.now()` function.
         const currentTime = new Date(Date.now());
+
+        completedTime ??=
+            isTimeoutErrorCompletion || payload.type === "ExperimentalApprovals"
+                ? currentTime
+                : null;
 
         const lastPingTime =
             item.lastPingTime && currentTime <= item.lastPingTime
@@ -775,10 +783,7 @@ export function putPostCommentStreamPart(
             await DynamoTableSchema.executeTransaction(context, [
                 ForumTable.transactionDirectlyUpdateItem({
                     ...item,
-                    completedTime:
-                        isTimeoutErrorCompletion || payload.type === "ExperimentalApprovals"
-                            ? currentTime
-                            : null,
+                    completedTime,
                     partCount: partIndex + 1,
                     lastPartUpdateLockVersion: 0,
                     lastPartCreatedTime: createdTime,
@@ -877,6 +882,7 @@ export function putPostCommentStreamPart(
             version,
             payload,
             createdTime,
+            completedTime,
         });
 
         return {spaceId, createdTime};
@@ -897,6 +903,7 @@ export function broadcastPutPostCommentStreamPart(
         version,
         payload,
         createdTime,
+        completedTime,
     }: {
         postId: PostId;
         commentIndex: number;
@@ -904,6 +911,7 @@ export function broadcastPutPostCommentStreamPart(
         version: number;
         payload: MessageStreamPartPayload;
         createdTime: Date;
+        completedTime: Date | null;
     },
 ) {
     // NOTE(calebmer): If the process dies after committing to DynamoDB but before
@@ -924,6 +932,7 @@ export function broadcastPutPostCommentStreamPart(
                     index: commentIndex,
                     partIndex,
                     part: {version, payload, createdTime},
+                    completedTime,
                 }),
             },
         ),

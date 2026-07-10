@@ -160,6 +160,8 @@ function NewChatMessagingView(
             deleteMessage={procedures.deleteMessage}
             setMessageReaction={procedures.setMessageReaction}
             deleteMessageReaction={procedures.deleteMessageReaction}
+            putMessageApprovalDecisions={procedures.putMessageApprovalDecisions}
+            approvalSessionNoun="chat"
             messageDraftSurface={draftSurface}
             messageDraft={messageDraft}
             startTypingInMessageInput={useCallback(

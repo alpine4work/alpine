@@ -62,6 +62,7 @@ import {MessageList} from "~/client/web/messaging/message_list.js";
 import {MessageListMessageShimmer} from "~/client/web/messaging/message_list_message_shimmer.js";
 import {MessagingTypingIndicators} from "~/client/web/messaging/messaging_typing_indicators.js";
 import {MessagingViewPointerToolbar} from "~/client/web/messaging/messaging_view_pointer_toolbar.js";
+import {OnPutMessageApprovalDecisionsFunction} from "~/client/web/messaging/on_put_message_approval_decisions_function.js";
 import {
     OnDeleteMessageReactionFunction,
     OnSetMessageReactionFunction,
@@ -1168,6 +1169,17 @@ function PostListView(
         [],
     );
 
+    const handlePutMessageApprovalDecisions: Memo<OnPutMessageApprovalDecisionsFunction<PostId>> =
+        useCallback(async (postId, input) => {
+            const procedures = proceduresByPostIdRef.current.get(postId);
+            if (!procedures) throw new InternalError("Post comment input isn\u2019t mounted");
+
+            await procedures.putCommentApprovalDecisions({
+                commentIndex: input.messageIndex,
+                payload: input.payload,
+            });
+        }, []);
+
     const hasCommentAccessLevelByChannel = useMemo(
         () =>
             new DefaultWeakMap<ChannelPreviewModel, Store<boolean>>(channel => {
@@ -1513,6 +1525,9 @@ function PostListView(
                                     }
                                     onSetMessageReaction={handleSetMessageReaction}
                                     onDeleteMessageReaction={handleDeleteMessageReaction}
+                                    onPutMessageApprovalDecisions={
+                                        handlePutMessageApprovalDecisions
+                                    }
                                     onUpdatePostCommentsOptimistically={
                                         onUpdatePostCommentsOptimistically
                                     }
@@ -2096,6 +2111,7 @@ function PostListView(
             jumpToPostRange,
             handleSetMessageReaction,
             handleDeleteMessageReaction,
+            handlePutMessageApprovalDecisions,
             hasCommentAccessLevelByChannel,
             onUpdatePostCommentsOptimistically,
             header,

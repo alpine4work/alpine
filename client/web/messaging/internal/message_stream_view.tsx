@@ -3,6 +3,11 @@ import {Memo, ReactNode, RefObject, createRef, useMemo, useRef, useState} from "
 import {flushNavigationBarScrollEventEmitter} from "~/client/web/design/navigation_bar_helpers.js";
 import {useLayoutEffectWithoutServerSideWarning} from "~/client/web/helpers/lifecycle/use_layout_effect_without_server_side_warning.js";
 import {
+    MessageStreamApprovalSessionNoun,
+    MessageStreamViewApprovals,
+    PutMessageStreamApprovalDecisionsFunction,
+} from "~/client/web/messaging/internal/message_stream_view_approvals.js";
+import {
     MessageStreamSection,
     MessageStreamViewSection,
 } from "~/client/web/messaging/internal/message_stream_view_section.js";
@@ -13,6 +18,7 @@ import {isContentBodyEmpty} from "~/shared/content/is_content_empty.js";
 import {MessageContentWithReferences} from "~/shared/content/message_content_schema.js";
 import {convertRemLengthToPx} from "~/shared/design/core/spacing.js";
 import {scheduleMicrotask} from "~/shared/helpers/async/schedule_microtask.js";
+import {assert} from "~/shared/helpers/control/assert.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 import {LazyMap} from "~/shared/helpers/control/lazy_map.js";
 import {emptySet} from "~/shared/helpers/set/empty_set.js";
@@ -20,6 +26,7 @@ import {MessageModel, OptimisticMessageModel} from "~/shared/messaging/message_m
 import {
     MessageStream,
     MessageStreamContentPartPayload,
+    MessageStreamExperimentalApprovalsPartPayload,
     MessageStreamPartPayload,
 } from "~/shared/messaging/message_schema.js";
 import {AccountModel} from "~/shared/spaces/account_model.js";
@@ -59,6 +66,8 @@ export function MessageStreamView({
     withUserSelectNone,
     getClipboardSerializerAuthorPrefix,
     jumpAnimation,
+    approvalSessionNoun,
+    putApprovalDecisions,
 }: {
     message: MessageModel<string> | OptimisticMessageModel;
     isLastMessage: boolean;
@@ -67,6 +76,8 @@ export function MessageStreamView({
     withUserSelectNone: boolean;
     getClipboardSerializerAuthorPrefix: Memo<() => AccountModel | null>;
     jumpAnimation: Memo<{from: number | null; to: number | null; startTime: Date}> | null;
+    approvalSessionNoun: MessageStreamApprovalSessionNoun;
+    putApprovalDecisions: Memo<PutMessageStreamApprovalDecisionsFunction> | null;
 }) {
     const orderedListItemNumberByNode = useMemo(() => {
         const orderedListItemNumberByNode = new Map<Node, number>();
@@ -92,7 +103,9 @@ export function MessageStreamView({
         let currentSection: {
             posAttributeOffset: number;
             startTime: Date;
-            nonContentParts: Array<Exclude<MessageStreamPartPayload, {type: "Content"}>>;
+            nonContentParts: Array<
+                Exclude<MessageStreamPartPayload, {type: "Content" | "ExperimentalApprovals"}>
+            >;
             contentStartTime: Date | null;
             contentParts: Array<MessageStreamContentPartPayload>;
         } = {
@@ -110,9 +123,8 @@ export function MessageStreamView({
         }
 
         for (const part of stream.parts) {
-            // TODO(ifitzsimmons, #approvals): Render an interactive approval card. Until that
-            // ships, skip these parts instead of letting the non-content part renderer throw
-            // and crash the whole message stream.
+            // Approvals don't render inline with the stream's thinking sections. They render
+            // as interactive cards at the bottom of the message instead.
             if (part.payload.type === "ExperimentalApprovals") continue;
 
             if (part.payload.type === "Content") {
@@ -202,6 +214,24 @@ export function MessageStreamView({
     const [expandedRefBySectionIndex] = useState(
         () => new LazyMap<number, RefObject<HTMLDivElement | null>>(() => createRef()),
     );
+
+    const approvalPart = useMemo(() => {
+        const approvalParts = stream.parts.filter(
+            (
+                part,
+            ): part is {
+                version: number;
+                payload: MessageStreamExperimentalApprovalsPartPayload;
+                createdTime: Date;
+            } => part.payload.type === "ExperimentalApprovals",
+        );
+
+        if (approvalParts.length === 0) return null;
+
+        // An approval part completes the stream, so there can't be more than one.
+        assert(approvalParts.length === 1);
+        return assertExists(approvalParts[0]);
+    }, [stream.parts]);
 
     const children: Array<ReactNode> = [];
 
@@ -367,7 +397,20 @@ export function MessageStreamView({
         };
     }, [expandedRefBySectionIndex, expandedSectionIndexes, isLastMessage, sections.length, stream]);
 
-    return <div ref={containerRef}>{children}</div>;
+    return (
+        <div ref={containerRef}>
+            {children}
+            {approvalPart && (
+                <MessageStreamViewApprovals
+                    part={approvalPart.payload}
+                    references={content.references}
+                    author={message.author}
+                    approvalSessionNoun={approvalSessionNoun}
+                    putApprovalDecisions={putApprovalDecisions}
+                />
+            )}
+        </div>
+    );
 }
 
 function findScrollElement(element: HTMLElement): HTMLElement | null {

@@ -21,8 +21,12 @@ import {
     MessageReferencedIdsSchema,
     MessageReferencesSchema,
 } from "~/shared/messaging/message_references.js";
-import {MessageContentPayloadParentSchema} from "~/shared/messaging/message_schema.js";
+import {
+    MessageContentPayloadParentSchema,
+    MessageExperimentalApprovalSchema,
+} from "~/shared/messaging/message_schema.js";
 import {createMessageUpdatesBackfillResultSchema} from "~/shared/messaging/messaging_realtime_protocol.js";
+import {PutMessageApprovalDecisionsPayloadSchema} from "~/shared/messaging/put_message_approval_decisions_payload_schema.js";
 import {ReactionOrGenericLikeSchema} from "~/shared/reactions/reaction_schema.js";
 import {defineRpc} from "~/shared/rpc/internal/define_rpc.js";
 import {HybridLogicalTimeSchema} from "~/shared/schema/helpers/hybrid_logical_time_schema.js";
@@ -320,6 +324,23 @@ export const deleteTaskCommentReaction = defineRpc({
     },
     output: {
         version: Schema.integer,
+    },
+});
+
+export const putTaskCommentMessageApprovalDecisions = defineRpc({
+    name: "putTaskCommentMessageApprovalDecisions",
+    isIdempotent: true,
+    input: {
+        taskId: Schema.id<TaskId>(),
+        commentIndex: Schema.integer.min(0),
+        payload: PutMessageApprovalDecisionsPayloadSchema,
+    },
+    output: {
+        approvals: Schema.array(MessageExperimentalApprovalSchema),
+        partIndex: Schema.integer.min(0),
+        version: Schema.integer.min(0),
+        createdTime: Schema.date,
+        completedTime: Schema.date.nullable().default(null),
     },
 });
 

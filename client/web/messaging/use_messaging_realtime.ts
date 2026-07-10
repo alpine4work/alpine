@@ -86,7 +86,18 @@ export function useMessagingRealtime<
                 break;
             }
             case "PutMessageStreamPart": {
-                onUpdateMessages(messages => messages.putMessageStreamPart(event), null);
+                onUpdateMessages(messages => {
+                    messages = messages.putMessageStreamPart(event);
+
+                    if (!event.completedTime) return messages;
+
+                    // In some cases, the stream part completes the stream. When that happens, we
+                    // should complete the stream in the realtime protocol.
+                    return messages.completeMessageStream({
+                        index: event.index,
+                        completedTime: event.completedTime,
+                    });
+                }, null);
                 break;
             }
             case "CompleteMessageStream": {

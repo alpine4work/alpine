@@ -270,6 +270,7 @@ export async function putTaskCommentMessageApprovalDecisions(
     partIndex: number;
     version: number;
     createdTime: Date;
+    completedTime: Date | null;
 }> {
     return await putMessageApprovalDecisions(context, {
         room: {type: "Task", id: taskId},
@@ -1545,7 +1546,9 @@ export function putTaskCommentStreamPart(
             displayMessage: errorDisplayMessage`Only the bot who created the stream can update it.`,
         });
 
-        if (item.completedTime !== null) {
+        let completedTime = item.completedTime;
+
+        if (completedTime !== null) {
             // If the stream is already completed then noop.
             if (isTimeoutErrorCompletion) return {spaceId, createdTime: new Date()};
 
@@ -1564,6 +1567,11 @@ export function putTaskCommentStreamPart(
 
         // Use `Date.now()` so tests can mock the `Date.now()` function.
         const currentTime = new Date(Date.now());
+
+        completedTime ??=
+            isTimeoutErrorCompletion || payload.type === "ExperimentalApprovals"
+                ? currentTime
+                : null;
 
         const lastPingTime =
             item.lastPingTime && currentTime <= item.lastPingTime
@@ -1623,10 +1631,7 @@ export function putTaskCommentStreamPart(
             await DynamoTableSchema.executeTransaction(context, [
                 TaskTable.transactionDirectlyUpdateItem({
                     ...item,
-                    completedTime:
-                        isTimeoutErrorCompletion || payload.type === "ExperimentalApprovals"
-                            ? currentTime
-                            : null,
+                    completedTime,
                     partCount: partIndex + 1,
                     lastPartUpdateLockVersion: 0,
                     lastPartCreatedTime: createdTime,
@@ -1725,6 +1730,7 @@ export function putTaskCommentStreamPart(
             version,
             payload,
             createdTime,
+            completedTime,
         });
 
         return {spaceId, createdTime};
@@ -1745,6 +1751,7 @@ export function broadcastPutTaskCommentStreamPart(
         version,
         payload,
         createdTime,
+        completedTime,
     }: {
         taskId: TaskId;
         commentIndex: number;
@@ -1752,6 +1759,7 @@ export function broadcastPutTaskCommentStreamPart(
         version: number;
         payload: MessageStreamPartPayload;
         createdTime: Date;
+        completedTime: Date | null;
     },
 ) {
     // NOTE(calebmer): If the process dies after committing to DynamoDB but before
@@ -1772,6 +1780,7 @@ export function broadcastPutTaskCommentStreamPart(
                     index: commentIndex,
                     partIndex,
                     part: {version, payload, createdTime},
+                    completedTime,
                 }),
             },
         ),

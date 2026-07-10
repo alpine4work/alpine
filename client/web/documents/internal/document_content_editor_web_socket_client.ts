@@ -82,6 +82,7 @@ export class DocumentContentEditorWebSocketClient {
         "deleteComment",
         "setCommentReaction",
         "deleteCommentReaction",
+        "putCommentApprovalDecisions",
         "startTypingInCommentInput",
         "stopTypingInCommentInput",
         "getCommentThreadAndInitialCommentsIfExists",

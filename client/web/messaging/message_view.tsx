@@ -61,6 +61,10 @@ import {getMessageViewMarginBottom} from "~/client/web/messaging/internal/get_me
 import {MessageDeleteConfirmationDialog} from "~/client/web/messaging/internal/message_delete_confirmation_dialog.js";
 import {MessageStreamView} from "~/client/web/messaging/internal/message_stream_view.js";
 import {
+    MessageStreamApprovalSessionNoun,
+    PutMessageStreamApprovalDecisionsFunction,
+} from "~/client/web/messaging/internal/message_stream_view_approvals.js";
+import {
     MessageViewEditor,
     MessageViewEditorRef,
 } from "~/client/web/messaging/internal/message_view_editor.js";
@@ -70,6 +74,7 @@ import {shouldMergeMessages} from "~/client/web/messaging/internal/should_merge_
 import {MessageEditing} from "~/client/web/messaging/message_editing.js";
 import {MessageList} from "~/client/web/messaging/message_list.js";
 import {MessageViewTouchMenu} from "~/client/web/messaging/message_view_touch_menu.js";
+import {OnPutMessageApprovalDecisionsFunction} from "~/client/web/messaging/on_put_message_approval_decisions_function.js";
 import {
     OnDeleteMessageReactionFunction,
     OnSetMessageReactionFunction,
@@ -202,6 +207,8 @@ export function MessageView<RoomKey extends string, Message extends MessageModel
     onSetMessageReaction,
     onDeleteMessageReaction,
     onUpdateMessagesOptimistically,
+    onPutMessageApprovalDecisions,
+    approvalSessionNoun,
     roomDisplayedCreatedTime,
     isReadOnly = false,
 }: {
@@ -226,6 +233,14 @@ export function MessageView<RoomKey extends string, Message extends MessageModel
     onSetMessageReaction: Memo<OnSetMessageReactionFunction<RoomKey>>;
     onDeleteMessageReaction: Memo<OnDeleteMessageReactionFunction<RoomKey>>;
     onUpdateMessagesOptimistically: Memo<OnUpdateMessagesOptimisticallyFunction<RoomKey, Message>>;
+    onPutMessageApprovalDecisions?: Memo<OnPutMessageApprovalDecisionsFunction<RoomKey>>;
+
+    /**
+     * The noun approval cards use for session scoped approval options, e.g. "Allow for
+     * this chat". Should name the room the message is in.
+     */
+    approvalSessionNoun: MessageStreamApprovalSessionNoun;
+
     roomDisplayedCreatedTime?: Date;
     isReadOnly?: boolean;
 }) {
@@ -1199,6 +1214,25 @@ export function MessageView<RoomKey extends string, Message extends MessageModel
         space.id,
     ]);
 
+    // Bind the room's approval decisions callback to this message so the stream's
+    // approval cards only need to know about their decisions. `null` when the current
+    // account can't record approval decisions from this view.
+    const putApprovalDecisions = useMemo((): PutMessageStreamApprovalDecisionsFunction | null => {
+        if (!onPutMessageApprovalDecisions) return null;
+        if (message.isOptimistic) return null;
+        if (isReadOnly) return null;
+
+        const roomKey = message.getRoomKey();
+        const messageIndex = message.index;
+
+        return async decisions => {
+            await onPutMessageApprovalDecisions(roomKey, {
+                messageIndex,
+                payload: {type: "ExperimentalDecisions", decisions},
+            });
+        };
+    }, [isReadOnly, message, onPutMessageApprovalDecisions]);
+
     const streamNode = useMemo(() => {
         if (message.payload.type !== "Content") return null;
         if (!message.stream) return null;
@@ -1212,14 +1246,18 @@ export function MessageView<RoomKey extends string, Message extends MessageModel
                 withUserSelectNone={!canPrimaryInputHover}
                 getClipboardSerializerAuthorPrefix={events.getClipboardSerializerAuthorPrefix}
                 jumpAnimation={jumpAnimation}
+                approvalSessionNoun={approvalSessionNoun}
+                putApprovalDecisions={putApprovalDecisions}
             />
         );
     }, [
+        approvalSessionNoun,
         canPrimaryInputHover,
         events.getClipboardSerializerAuthorPrefix,
         isLastMessage,
         jumpAnimation,
         message,
+        putApprovalDecisions,
     ]);
 
     const deletedPayloadNode = useMemo(() => {

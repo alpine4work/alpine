@@ -20,11 +20,13 @@ import {useScrollToAvoidBottomBarsAndMobileKeyboard} from "~/client/web/design/u
 import {useEvent} from "~/client/web/helpers/lifecycle/use_event.js";
 import {useErrorState} from "~/client/web/helpers/use_error_state.js";
 import {useStateWithOptimisticUpdates} from "~/client/web/helpers/use_state_with_optimistic_updates.js";
+import {MessageStreamApprovalSessionNoun} from "~/client/web/messaging/internal/message_stream_view_approvals.js";
 import {useMessageEditing} from "~/client/web/messaging/message_editing.js";
 import {MessageInput} from "~/client/web/messaging/message_input.js";
 import {MessageList, MessageListItem} from "~/client/web/messaging/message_list.js";
 import {bufferedMessageViewHeight} from "~/client/web/messaging/message_view.js";
 import {MessagingViewPointerToolbar} from "~/client/web/messaging/messaging_view_pointer_toolbar.js";
+import {OnPutMessageApprovalDecisionsFunction} from "~/client/web/messaging/on_put_message_approval_decisions_function.js";
 import {
     getMessageListItemKey,
     renderMessageListItem,
@@ -71,6 +73,7 @@ import {
     DeleteMessageProcedure,
     DeleteMessageReactionProcedure,
     MessagingRealtimeEvent,
+    PutMessageApprovalDecisionsProcedure,
     SetMessageReactionProcedure,
     StartTypingInMessageInputProcedure,
     StopTypingInMessageInputProcedure,
@@ -222,6 +225,8 @@ function MessagingView<RoomKey extends string, Message extends MessageModel<Room
         deleteMessage,
         setMessageReaction,
         deleteMessageReaction,
+        putMessageApprovalDecisions,
+        approvalSessionNoun,
         startTypingInMessageInput,
         stopTypingInMessageInput,
         messageDraftSurface,
@@ -247,6 +252,12 @@ function MessagingView<RoomKey extends string, Message extends MessageModel<Room
         // `messageCopy` object, or something, with every string rendered by this UI for
         // translating.
         messageNoun?: string;
+
+        /**
+         * The noun for the approval session. This is used to determine the language for
+         * approval cards (e.g. "Allow all writes for this chat/post/task/thread").
+         */
+        approvalSessionNoun: MessageStreamApprovalSessionNoun;
 
         /**
          * What we call messages in UI copy at the start of sentences. By default this is
@@ -369,6 +380,13 @@ function MessagingView<RoomKey extends string, Message extends MessageModel<Room
          * Delete a reaction on a message.
          */
         deleteMessageReaction: Memo<DeleteMessageReactionProcedure>;
+
+        /**
+         * Record the current account's decisions on a message stream's approval requests.
+         * Optional since not every messaging room supports agent approvals. When omitted,
+         * approval cards render in a read-only "waiting" state.
+         */
+        putMessageApprovalDecisions?: Memo<PutMessageApprovalDecisionsProcedure>;
 
         /**
          * Show a typing indicator to other connected clients for this user.
@@ -662,6 +680,14 @@ function MessagingView<RoomKey extends string, Message extends MessageModel<Room
         [setMessagesOptimistically],
     );
 
+    const handlePutMessageApprovalDecisions: Memo<OnPutMessageApprovalDecisionsFunction<RoomKey>> =
+        useCallback(
+            async (roomKey, input) => {
+                await assertExists(putMessageApprovalDecisions)(input);
+            },
+            [putMessageApprovalDecisions],
+        );
+
     const renderItem: VirtualizedScrollViewRenderItem = useCallback(
         (index: number) => {
             const item = state.getItem(index);
@@ -710,6 +736,10 @@ function MessagingView<RoomKey extends string, Message extends MessageModel<Room
                         onSetMessageReaction: handleSetMessageReaction,
                         onDeleteMessageReaction: handleDeleteMessageReaction,
                         onUpdateMessagesOptimistically: handleUpdateMessagesOptimistically,
+                        onPutMessageApprovalDecisions: putMessageApprovalDecisions
+                            ? handlePutMessageApprovalDecisions
+                            : undefined,
+                        approvalSessionNoun,
                         roomDisplayedCreatedTime,
                         shouldAddMarginTop: index === 0,
                         shouldAddMarginBottom: index === state.getItemCount() - 1,
@@ -719,10 +749,12 @@ function MessagingView<RoomKey extends string, Message extends MessageModel<Room
             }
         },
         [
+            approvalSessionNoun,
             deleteMessage,
             fileAttachmentTarget,
             getMessageUrl,
             handleDeleteMessageReaction,
+            handlePutMessageApprovalDecisions,
             handleSetMessageReaction,
             handleUpdateMessagesOptimistically,
             isReadOnly,
@@ -731,6 +763,7 @@ function MessagingView<RoomKey extends string, Message extends MessageModel<Room
             messageEditing,
             messageNoun,
             messageStartOfSentenceNoun,
+            putMessageApprovalDecisions,
             randomSeedForShimmer,
             roomDisplayedCreatedTime,
             spacingScale,

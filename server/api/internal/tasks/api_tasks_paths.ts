@@ -770,7 +770,7 @@ export const apiTasksPaths: Pick<
             };
         },
         patch: async (context, {pathParameters, requestBody}) => {
-            const {spaceId, approvals, partIndex, version, createdTime} =
+            const {spaceId, approvals, partIndex, version, createdTime, completedTime} =
                 await putTaskCommentMessageApprovalDecisions(context, {
                     taskId: pathParameters.id,
                     commentIndex: pathParameters.index,
@@ -791,6 +791,7 @@ export const apiTasksPaths: Pick<
                 version,
                 payload: {type: "ExperimentalApprovals", approvals},
                 createdTime,
+                completedTime,
             });
 
             const referenceContext = context.dynamo.unexpectStrongReadConsistency();

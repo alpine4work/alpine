@@ -26,7 +26,6 @@ import {ContentReferences} from "~/shared/content/content_references.js";
 import {getContentSnippet} from "~/shared/content/get_content_snippet.js";
 import {RouteLayout} from "~/shared/design/core/route_layout.js";
 import {SpacingScale} from "~/shared/design/core/spacing_scale.js";
-import {UnimplementedError} from "~/shared/error/error.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
 import {HtmlElementGenerator, HtmlTextGenerator} from "~/shared/helpers/html/html_generator.js";
@@ -53,7 +52,7 @@ const Box = null;
 function renderMessageStreamNonContentPart(
     get: <Value>(store: Store<Value>) => Value,
     references: ContentReferences,
-    part: Exclude<MessageStreamPartPayload, {type: "Content"}>,
+    part: Exclude<MessageStreamPartPayload, {type: "Content" | "ExperimentalApprovals"}>,
     {
         accountRegistry,
         searchEntityRegistry,
@@ -143,10 +142,6 @@ function renderMessageStreamNonContentPart(
                     throw exhaustive(part.call);
             }
         }
-        case "ExperimentalApprovals": {
-            // TODO(ifitzsimmons, #approvals)
-            throw new UnimplementedError("ExperimentalApprovals are not supported");
-        }
         default: {
             throw exhaustive(part);
         }
@@ -219,7 +214,7 @@ export function MessageStreamViewNonContentPart({
     part,
 }: {
     references: ContentReferences;
-    part: Exclude<MessageStreamPartPayload, {type: "Content"}>;
+    part: Exclude<MessageStreamPartPayload, {type: "Content" | "ExperimentalApprovals"}>;
 }) {
     const accountRegistry = useAccountRegistry();
     const searchEntityRegistry = useSearchEntityRegistry();

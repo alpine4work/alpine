@@ -18,6 +18,7 @@ import {
     getTaskCommentAtVersion,
     getTaskCommentsFromEnd,
     getTaskCommentsFromStart,
+    putTaskCommentMessageApprovalDecisions,
     setTaskCommentReaction,
     updateTaskCommentContent,
 } from "~/server/tasks/data/task_messaging.js";
@@ -287,6 +288,20 @@ export default implementRpcs(definitions, {
         visibility: ["TaskNotesCollaborationService"],
         execute: (context, input) => {
             return deleteTaskCommentReaction(context.actor.authorizeSession(), input);
+        },
+    },
+
+    putTaskCommentMessageApprovalDecisions: {
+        visibility: ["TaskNotesCollaborationService"],
+        execute: async (context, input) => {
+            const sessionContext = context.actor.authorizeSession();
+            const {approvals, partIndex, version, createdTime, completedTime} =
+                await putTaskCommentMessageApprovalDecisions(sessionContext, {
+                    taskId: input.taskId,
+                    commentIndex: input.commentIndex,
+                    payload: input.payload,
+                });
+            return {approvals, partIndex, version, createdTime, completedTime};
         },
     },
 

@@ -5313,7 +5313,9 @@ export function putDocumentCommentStreamPart(
             displayMessage: errorDisplayMessage`Only the bot who created the stream can update it.`,
         });
 
-        if (item.completedTime !== null) {
+        let completedTime = item.completedTime;
+
+        if (completedTime !== null) {
             // If the stream is already completed then noop.
             if (isTimeoutErrorCompletion) return {spaceId, createdTime: new Date()};
 
@@ -5332,6 +5334,11 @@ export function putDocumentCommentStreamPart(
 
         // Use `Date.now()` so tests can mock the `Date.now()` function.
         const currentTime = new Date(Date.now());
+
+        completedTime ??=
+            isTimeoutErrorCompletion || payload.type === "ExperimentalApprovals"
+                ? currentTime
+                : null;
 
         const lastPingTime =
             item.lastPingTime && currentTime <= item.lastPingTime
@@ -5393,10 +5400,7 @@ export function putDocumentCommentStreamPart(
             await DynamoTableSchema.executeTransaction(context, [
                 DocumentsTable.transactionDirectlyUpdateItem({
                     ...item,
-                    completedTime:
-                        isTimeoutErrorCompletion || payload.type === "ExperimentalApprovals"
-                            ? currentTime
-                            : null,
+                    completedTime,
                     partCount: partIndex + 1,
                     lastPartUpdateLockVersion: 0,
                     lastPartCreatedTime: createdTime,
@@ -5498,6 +5502,7 @@ export function putDocumentCommentStreamPart(
             version,
             payload,
             createdTime,
+            completedTime,
         });
 
         return {spaceId, createdTime};
@@ -5520,6 +5525,7 @@ export function broadcastPutDocumentCommentStreamPart(
         version,
         payload,
         createdTime,
+        completedTime,
     }: {
         documentId: DocumentId;
         commentThreadId: DocumentCommentThreadId;
@@ -5528,6 +5534,7 @@ export function broadcastPutDocumentCommentStreamPart(
         version: number;
         payload: MessageStreamPartPayload;
         createdTime: Date;
+        completedTime: Date | null;
     },
 ) {
     // NOTE(calebmer): If the process dies after committing to DynamoDB but before
@@ -5548,6 +5555,7 @@ export function broadcastPutDocumentCommentStreamPart(
                     index: commentIndex,
                     partIndex,
                     part: {version, payload, createdTime},
+                    completedTime,
                 }),
             },
         ),
@@ -6103,6 +6111,7 @@ export async function putDocumentCommentMessageApprovalDecisions(
     partIndex: number;
     version: number;
     createdTime: Date;
+    completedTime: Date | null;
 }> {
     return await putMessageApprovalDecisions(context, {
         room: {type: "DocumentCommentThread", id: documentId, threadId: commentThreadId},
