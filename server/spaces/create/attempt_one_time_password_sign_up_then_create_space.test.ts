@@ -1365,25 +1365,26 @@ describe("Invite email addresses after sign up", () => {
         await expectMissingSpaceAccount(inviteEmailAddressWithSameDomain, firstSession.space.id);
     });
 
-    test("invite email failures are escalated from sign up invite step", async () => {
+    test("invite email failures do not block sign up", async () => {
         const {emailAddress, oneTimePassword} =
             await testPersonalSignUpUntilAttemptOneTimePasswordSignUp();
         const inviteEmailAddress = generatePersonalTestEmailAddress();
 
-        await expect(
-            attemptOneTimePasswordSignUpThenCreateSpace(
-                context.unknownAnonymousAction().clone({
-                    email: new TestFailingEmailContextModule(),
-                }),
-                {
-                    emailAddress: emailAddress,
-                    oneTimePassword: oneTimePassword,
-                    inviteEmailAddresses: [validateEmailAddress(inviteEmailAddress)],
-                    ipAddress: null,
-                    userAgent: null,
-                },
-            ),
-        ).rejects.toThrow("Couldn\u2019t invite email addresses after sign up");
+        const {open, personalSpaceId} = await attemptOneTimePasswordSignUpThenCreateSpace(
+            context.unknownAnonymousAction().clone({
+                email: new TestFailingEmailContextModule(),
+            }),
+            {
+                emailAddress: emailAddress,
+                oneTimePassword: oneTimePassword,
+                inviteEmailAddresses: [validateEmailAddress(inviteEmailAddress)],
+                ipAddress: null,
+                userAgent: null,
+            },
+        );
+
+        expectActiveOpen(open, personalSpaceId);
+        await expectSpaceAccountWithInvitePendingState(inviteEmailAddress, personalSpaceId);
     });
 });
 

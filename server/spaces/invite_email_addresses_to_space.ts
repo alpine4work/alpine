@@ -85,6 +85,9 @@ export async function inviteEmailAddressesToSpace(
 }> {
     await authorizeSpaceAccess(context, spaceId, "Member");
 
+    // Make sure `emailAddresses` are unique! Otherwise we'll get unexpected failures.
+    emailAddresses = Array.from(new Set(emailAddresses));
+
     return await context.tracer.withSpan(
         "Invite email addresses to space",
         async (context, span) => {
