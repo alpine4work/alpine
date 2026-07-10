@@ -141,7 +141,7 @@ patchedDependencies:
     hash: wkqkvugwhsvjvwdram2habj464
     path: admin/patches/mdast-util-gfm-table@2.0.0.patch
   mdast-util-to-markdown@2.1.2:
-    hash: cedwq4nopic5y2gqnyx7d4wjya
+    hash: kslkzovfsmigcvypkrmgxtcdn4
     path: admin/patches/mdast-util-to-markdown@2.1.2.patch
   media-query-parser@2.0.2:
     hash: saj64dz6s226nfs27aiqrqatfi
@@ -957,7 +957,7 @@ importers:
         version: 3.0.0(supports-color@10.2.2)
       mdast-util-to-markdown:
         specifier: ^2.1.2
-        version: 2.1.2(patch_hash=cedwq4nopic5y2gqnyx7d4wjya)
+        version: 2.1.2(patch_hash=kslkzovfsmigcvypkrmgxtcdn4)
       media-query-parser:
         specifier: 2.0.2
         version: 2.0.2(patch_hash=saj64dz6s226nfs27aiqrqatfi)
@@ -19196,7 +19196,7 @@ snapshots:
       devlop: 1.1.0
       escape-string-regexp: 5.0.0
       mdast-util-from-markdown: 2.0.0(patch_hash=tbhowsz5xuqgvuutx4xlivemd4)(supports-color@10.2.2)
-      mdast-util-to-markdown: 2.1.2(patch_hash=cedwq4nopic5y2gqnyx7d4wjya)
+      mdast-util-to-markdown: 2.1.2(patch_hash=kslkzovfsmigcvypkrmgxtcdn4)
       micromark-extension-frontmatter: 2.0.0
     transitivePeerDependencies:
       - supports-color
@@ -19205,7 +19205,7 @@ snapshots:
     dependencies:
       '@types/mdast': 4.0.3
       mdast-util-from-markdown: 2.0.0(patch_hash=tbhowsz5xuqgvuutx4xlivemd4)(supports-color@10.2.2)
-      mdast-util-to-markdown: 2.1.2(patch_hash=cedwq4nopic5y2gqnyx7d4wjya)
+      mdast-util-to-markdown: 2.1.2(patch_hash=kslkzovfsmigcvypkrmgxtcdn4)
     transitivePeerDependencies:
       - supports-color
 
@@ -19215,7 +19215,7 @@ snapshots:
       devlop: 1.1.0
       markdown-table: 3.0.4
       mdast-util-from-markdown: 2.0.0(patch_hash=tbhowsz5xuqgvuutx4xlivemd4)(supports-color@10.2.2)
-      mdast-util-to-markdown: 2.1.2(patch_hash=cedwq4nopic5y2gqnyx7d4wjya)
+      mdast-util-to-markdown: 2.1.2(patch_hash=kslkzovfsmigcvypkrmgxtcdn4)
     transitivePeerDependencies:
       - supports-color
 
@@ -19224,7 +19224,7 @@ snapshots:
       '@types/mdast': 4.0.3
       devlop: 1.1.0
       mdast-util-from-markdown: 2.0.0(patch_hash=tbhowsz5xuqgvuutx4xlivemd4)(supports-color@10.2.2)
-      mdast-util-to-markdown: 2.1.2(patch_hash=cedwq4nopic5y2gqnyx7d4wjya)
+      mdast-util-to-markdown: 2.1.2(patch_hash=kslkzovfsmigcvypkrmgxtcdn4)
     transitivePeerDependencies:
       - supports-color
 
@@ -19235,7 +19235,7 @@ snapshots:
       devlop: 1.1.0
       longest-streak: 3.0.1
       mdast-util-from-markdown: 2.0.0(patch_hash=tbhowsz5xuqgvuutx4xlivemd4)(supports-color@10.2.2)
-      mdast-util-to-markdown: 2.1.2(patch_hash=cedwq4nopic5y2gqnyx7d4wjya)
+      mdast-util-to-markdown: 2.1.2(patch_hash=kslkzovfsmigcvypkrmgxtcdn4)
       unist-util-remove-position: 5.0.0
     transitivePeerDependencies:
       - supports-color
@@ -19313,7 +19313,7 @@ snapshots:
       unist-util-visit: 4.1.1
       zwitch: 2.0.2
 
-  mdast-util-to-markdown@2.1.2(patch_hash=cedwq4nopic5y2gqnyx7d4wjya):
+  mdast-util-to-markdown@2.1.2(patch_hash=kslkzovfsmigcvypkrmgxtcdn4):
     dependencies:
       '@types/mdast': 4.0.3
       '@types/unist': 3.0.2
