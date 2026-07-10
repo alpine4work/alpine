@@ -1238,6 +1238,39 @@ paths:
                 default:
                     $ref: "#/components/responses/Error"
     /tasks:
+        patch:
+            requestBody:
+                required: true
+                content:
+                    application/json:
+                        schema:
+                            type: object
+                            required:
+                                - spaceId
+                                - patches
+                            additionalProperties: false
+                            properties:
+                                spaceId:
+                                    $ref: "#/components/schemas/SpaceId"
+                                patches:
+                                    type: array
+                                    minItems: 1
+                                    items:
+                                        type: object
+                                        required:
+                                            - id
+                                            - patch
+                                        additionalProperties: false
+                                        properties:
+                                            id:
+                                                $ref: "#/components/schemas/TaskId"
+                                            patch:
+                                                $ref: "#/components/schemas/TaskPatch"
+            responses:
+                "200":
+                    $ref: "#/components/responses/PatchTasks"
+                default:
+                    $ref: "#/components/responses/Error"
         post:
             requestBody:
                 required: true
@@ -1323,7 +1356,7 @@ paths:
                                         $ref: "#/components/schemas/TaskPatch"
             responses:
                 "200":
-                    $ref: "#/components/responses/GetTask"
+                    $ref: "#/components/responses/PatchTask"
                 default:
                     $ref: "#/components/responses/Error"
         get:
@@ -2071,6 +2104,50 @@ components:
                                 $ref: "#/components/schemas/SpaceId"
                             task:
                                 $ref: "#/components/schemas/Task_Response"
+        PatchTask:
+            content:
+                application/json:
+                    schema:
+                        type: object
+                        required:
+                            - spaceId
+                            - task
+                        additionalProperties: false
+                        properties:
+                            spaceId:
+                                $ref: "#/components/schemas/SpaceId"
+                            task:
+                                $ref: "#/components/schemas/Task_Response"
+                            collections:
+                                type: array
+                                items:
+                                    $ref: "#/components/schemas/PatchTaskResponseCollection"
+        PatchTasks:
+            content:
+                application/json:
+                    schema:
+                        type: object
+                        required:
+                            - tasks
+                        additionalProperties: false
+                        properties:
+                            spaceId:
+                                $ref: "#/components/schemas/SpaceId"
+                            tasks:
+                                type: array
+                                items:
+                                    type: object
+                                    required:
+                                        - task
+                                        - collections
+                                    additionalProperties: false
+                                    properties:
+                                        task:
+                                            $ref: "#/components/schemas/Task_Response"
+                                        collections:
+                                            type: array
+                                            items:
+                                                $ref: "#/components/schemas/PatchTaskResponseCollection"
         GetTaskNotes:
             content:
                 application/json:
@@ -4669,6 +4746,22 @@ components:
             properties:
                 collection:
                     $ref: "#/components/schemas/TaskCollectionPreview"
+        PatchTaskResponseCollection:
+            type: object
+            required:
+                - collection
+            additionalProperties: false
+            properties:
+                movedCursor:
+                    $ref: "#/components/schemas/TaskQueryCursor"
+                collection:
+                    type: object
+                    required:
+                        - id
+                    additionalProperties: false
+                    properties:
+                        id:
+                            $ref: "#/components/schemas/TaskCollectionId"
         TaskPatch:
             oneOf:
                 - $ref: "#/components/schemas/TaskSetTitlePatch"

@@ -1839,7 +1839,29 @@ export namespace ApiSpecification {
             readonly delete?: never;
             readonly options?: never;
             readonly head?: never;
-            readonly patch?: never;
+            readonly patch: {
+                readonly parameters: {
+                    readonly query?: never;
+                    readonly header?: never;
+                    readonly path?: never;
+                    readonly cookie?: never;
+                };
+                readonly requestBody: {
+                    readonly content: {
+                        readonly "application/json": {
+                            readonly spaceId: components["schemas"]["SpaceId"];
+                            readonly patches: readonly {
+                                readonly id: components["schemas"]["TaskId"];
+                                readonly patch: components["schemas"]["TaskPatch"];
+                            }[];
+                        };
+                    };
+                };
+                readonly responses: {
+                    readonly 200: components["responses"]["PatchTasks"];
+                    readonly default: components["responses"]["Error"];
+                };
+            };
             readonly trace?: never;
         };
         readonly "/tasks/{id}": {
@@ -1891,7 +1913,7 @@ export namespace ApiSpecification {
                     };
                 };
                 readonly responses: {
-                    readonly 200: components["responses"]["GetTask"];
+                    readonly 200: components["responses"]["PatchTask"];
                     readonly default: components["responses"]["Error"];
                 };
             };
@@ -3909,6 +3931,12 @@ export namespace ApiSpecification {
             };
             readonly TaskCollectionItem: {
                 readonly collection: components["schemas"]["TaskCollectionPreview"];
+            };
+            readonly PatchTaskResponseCollection: {
+                readonly movedCursor?: components["schemas"]["TaskQueryCursor"];
+                readonly collection: {
+                    readonly id: components["schemas"]["TaskCollectionId"];
+                };
             };
             readonly TaskPatch:
                 | components["schemas"]["TaskSetTitlePatch"]
@@ -6132,6 +6160,32 @@ export namespace ApiSpecification {
                     readonly "application/json": {
                         readonly spaceId: components["schemas"]["SpaceId"];
                         readonly task: components["schemas"]["Task_Response"];
+                    };
+                };
+            };
+            readonly PatchTask: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": {
+                        readonly spaceId: components["schemas"]["SpaceId"];
+                        readonly task: components["schemas"]["Task_Response"];
+                        readonly collections?: readonly components["schemas"]["PatchTaskResponseCollection"][];
+                    };
+                };
+            };
+            readonly PatchTasks: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": {
+                        readonly spaceId?: components["schemas"]["SpaceId"];
+                        readonly tasks: readonly {
+                            readonly task: components["schemas"]["Task_Response"];
+                            readonly collections: readonly components["schemas"]["PatchTaskResponseCollection"][];
+                        }[];
                     };
                 };
             };

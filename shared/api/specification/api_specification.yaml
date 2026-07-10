@@ -1136,6 +1136,33 @@ paths:
                                         $ref: "#/components/schemas/SiteReference"
 
     /tasks:
+        patch:
+            requestBody:
+                required: true
+                content:
+                    application/json:
+                        schema:
+                            type: object
+                            required: [spaceId, patches]
+                            additionalProperties: false
+                            properties:
+                                spaceId:
+                                    $ref: "#/components/schemas/SpaceId"
+                                patches:
+                                    type: array
+                                    minItems: 1
+                                    items:
+                                        type: object
+                                        required: [id, patch]
+                                        additionalProperties: false
+                                        properties:
+                                            id:
+                                                $ref: "#/components/schemas/TaskId"
+                                            patch:
+                                                $ref: "#/components/schemas/TaskPatch"
+            responses:
+                default: {$ref: "#/components/responses/Error"}
+                "200": {$ref: "#/components/responses/PatchTasks"}
         post:
             requestBody:
                 required: true
@@ -1214,7 +1241,7 @@ paths:
                                         $ref: "#/components/schemas/TaskPatch"
             responses:
                 default: {$ref: "#/components/responses/Error"}
-                "200": {$ref: "#/components/responses/GetTask"}
+                "200": {$ref: "#/components/responses/PatchTask"}
         get:
             responses:
                 default: {$ref: "#/components/responses/Error"}
@@ -1885,6 +1912,47 @@ components:
                                 $ref: "#/components/schemas/SpaceId"
                             task:
                                 $ref: "#/components/schemas/Task"
+
+        PatchTask:
+            content:
+                application/json:
+                    schema:
+                        type: object
+                        required: [spaceId, task]
+                        additionalProperties: false
+                        properties:
+                            spaceId:
+                                $ref: "#/components/schemas/SpaceId"
+                            task:
+                                $ref: "#/components/schemas/Task"
+                            collections:
+                                type: array
+                                items:
+                                    $ref: "#/components/schemas/PatchTaskResponseCollection"
+
+        PatchTasks:
+            content:
+                application/json:
+                    schema:
+                        type: object
+                        required: [tasks]
+                        additionalProperties: false
+                        properties:
+                            spaceId:
+                                $ref: "#/components/schemas/SpaceId"
+                            tasks:
+                                type: array
+                                items:
+                                    type: object
+                                    required: [task, collections]
+                                    additionalProperties: false
+                                    properties:
+                                        task:
+                                            $ref: "#/components/schemas/Task"
+                                        collections:
+                                            type: array
+                                            items:
+                                                $ref: "#/components/schemas/PatchTaskResponseCollection"
 
         GetTaskNotes:
             content:
@@ -4033,6 +4101,21 @@ components:
             properties:
                 collection:
                     $ref: "#/components/schemas/TaskCollectionPreview"
+
+        PatchTaskResponseCollection:
+            type: object
+            required: [collection]
+            additionalProperties: false
+            properties:
+                movedCursor:
+                    $ref: "#/components/schemas/TaskQueryCursor"
+                collection:
+                    type: object
+                    required: [id]
+                    additionalProperties: false
+                    properties:
+                        id:
+                            $ref: "#/components/schemas/TaskCollectionId"
 
         TaskPatch:
             oneOf:
