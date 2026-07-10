@@ -24,6 +24,13 @@ const writeSpecTaskReference: ApiTaskReferenceResponse = {
     status: {type: "Open", isActive: false},
 };
 
+const activeWriteSpecTaskReference: ApiTaskReferenceResponse = {
+    type: "Task",
+    id: generateId<TaskId>(),
+    title: "Write spec",
+    status: {type: "Open", isActive: true},
+};
+
 const shipLaunchTaskReference: ApiTaskReferenceResponse = {
     type: "Task",
     id: generateId<TaskId>(),
@@ -59,10 +66,12 @@ const designReference: ApiTaskCollectionReferenceResponse = {
 
 function collectionPageTask(
     task: ApiTaskReferenceResponse,
-    fields: Partial<Omit<AgentWebTaskCollectionPageTask, "task">> = {},
+    fields: Partial<Omit<AgentWebTaskCollectionPageTask, "taskId" | "title" | "status">> = {},
 ): AgentWebTaskCollectionPageTask {
     return {
-        task,
+        taskId: task.id,
+        title: task.title,
+        status: task.status,
         parent: null,
         assignee: null,
         collections: [],
@@ -108,6 +117,54 @@ Color: Red
             name: "task collection page without color",
             pageLink: collectionId,
             markdown: `\
+# Roadmap
+
+- [Write spec (Open)](/task/write-spec)
+`,
+            page: {
+                type: "TaskCollection",
+                subType: "Head",
+                name: "Roadmap",
+                color: null,
+                defaults: null,
+                pagination: null,
+                isEndOfTasks: false,
+                tasks: [collectionPageTask(writeSpecTaskReference)],
+            },
+        },
+        {
+            name: "active task status is parsed case insensitively",
+            pageLink: collectionId,
+            markdown: `\
+# Roadmap
+
+- [Write spec (oPeN, AcTiVe)](/task/write-spec)
+`,
+            printMarkdown: `\
+# Roadmap
+
+- [Write spec (Open, active)](/task/write-spec)
+`,
+            page: {
+                type: "TaskCollection",
+                subType: "Head",
+                name: "Roadmap",
+                color: null,
+                defaults: null,
+                pagination: null,
+                isEndOfTasks: false,
+                tasks: [collectionPageTask(activeWriteSpecTaskReference)],
+            },
+        },
+        {
+            name: "explicit inactive task status",
+            pageLink: collectionId,
+            markdown: `\
+# Roadmap
+
+- [Write spec (Open, inactive)](/task/write-spec)
+`,
+            printMarkdown: `\
 # Roadmap
 
 - [Write spec (Open)](/task/write-spec)
@@ -490,6 +547,42 @@ Color: Red
             },
         },
         {
+            name: "task collection page with a filtered and sorted next page link",
+            pageLink: collectionId,
+            markdown: `\
+# Roadmap
+
+[Next page »](/task-collection/roadmap?after=a1b2c3&status=open&sort=-priority,due)
+`,
+            page: {
+                type: "TaskCollection",
+                subType: "Head",
+                name: "Roadmap",
+                color: null,
+                defaults: null,
+                pagination: {
+                    nextCursorHash: "a1b2c3",
+                    query: {
+                        filters: [
+                            {
+                                type: "Status",
+                                operation: {
+                                    type: "OneOf",
+                                    statuses: [{type: "Open", isActive: false}],
+                                },
+                            },
+                        ],
+                        sorts: [
+                            {type: "Priority", direction: "Descending"},
+                            {type: "Due", direction: "Ascending"},
+                        ],
+                    },
+                },
+                isEndOfTasks: false,
+                tasks: [],
+            },
+        },
+        {
             name: "task collection page with only a next page link",
             pageLink: collectionId,
             markdown: `\
@@ -503,7 +596,10 @@ Color: Red
                 name: "Roadmap",
                 color: null,
                 defaults: null,
-                pagination: {nextCursorHash: "a1b2c3"},
+                pagination: {
+                    nextCursorHash: "a1b2c3",
+                    query: {filters: [], sorts: []},
+                },
                 isEndOfTasks: false,
                 tasks: [],
             },
@@ -564,7 +660,10 @@ Tasks in Roadmap. [Next page »](/task-collection/roadmap?after=a1b2c3)
                 type: "TaskCollection",
                 subType: "Tail",
                 name: "Roadmap",
-                pagination: {nextCursorHash: "a1b2c3"},
+                pagination: {
+                    nextCursorHash: "a1b2c3",
+                    query: {filters: [], sorts: []},
+                },
                 isEndOfTasks: false,
                 tasks: [
                     collectionPageTask(writeSpecTaskReference),
@@ -1340,6 +1439,39 @@ Default filters:
                 "Unexpected markdown in the task list item on line 3. Try again with a single " +
                 "task link (e.g. `- [My Task (Open)](/task/my-task)`) in each task list item, " +
                 "optionally followed by a nested list of task fields (e.g. `- Priority: Medium`).",
+        },
+        {
+            name: "task link label without a status",
+            pageLink: collectionId,
+            setupStorage: async storage => {
+                await createAgentWebPageStoredLinkPathname(storage, writeSpecTaskReference);
+            },
+            markdown: `\
+# Roadmap
+
+- [Write spec](/task/write-spec)
+`,
+            parseError:
+                "Missing status at the end of task link label on line 3. Task link labels must " +
+                "end with \u201C (Open)\u201D, \u201C (Open, active)\u201D, or \u201C (Closed)\u201D. Try again " +
+                "with a task link like " +
+                "`[My Task (Open)](/task/my-task)`.",
+        },
+        {
+            name: "task link label with an unexpected status",
+            pageLink: collectionId,
+            setupStorage: async storage => {
+                await createAgentWebPageStoredLinkPathname(storage, writeSpecTaskReference);
+            },
+            markdown: `\
+# Roadmap
+
+- [Write spec (Pending)](/task/write-spec)
+`,
+            parseError:
+                "Missing status at the end of task link label on line 3. Task link labels must " +
+                "end with \u201C (Open)\u201D, \u201C (Open, active)\u201D, or \u201C (Closed)\u201D. Try again " +
+                "with a task link like `[My Task (Open)](/task/my-task)`.",
         },
         {
             name: "unknown task link",
