@@ -732,7 +732,6 @@ export async function updateAgentWebTaskCollectionPage(
                     },
                 );
             } else {
-                // NOCOMMIT: Test this error message
                 throw new InvalidArgumentError("Can\u2019t remove assignee from an active task", {
                     displayMessage: errorDisplayMessage`Can\u2019t remove the assignee from the active ${quotedTitle} task. An active task implies someone is currently working on the task and so an assignee is required so we know who that is. Try again but set the task as inactive first (e.g. \`(Open)\`).`,
                 });
@@ -745,7 +744,6 @@ export async function updateAgentWebTaskCollectionPage(
             taskPatches.push({type: "SetTitle", title: newPageTask.title});
         }
 
-        // NOCOMMIT: Does this actually work?? I'm really not sure
         if (
             oldPageTask.status.type !== newPageTask.status.type ||
             (oldPageTask.status.type === "Open" &&
