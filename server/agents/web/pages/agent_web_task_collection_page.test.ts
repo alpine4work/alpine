@@ -289,7 +289,10 @@ status=open&sort=-priority,due
                             type: "Status",
                             operation: {
                                 type: "OneOf",
-                                statuses: [{type: "Open", isActive: false}],
+                                statuses: [
+                                    {type: "Open", isActive: false},
+                                    {type: "Open", isActive: true},
+                                ],
                             },
                         },
                     ],
@@ -326,7 +329,11 @@ status=open,closed&priority=high
                             type: "Status",
                             operation: {
                                 type: "OneOf",
-                                statuses: [{type: "Open", isActive: false}, {type: "Closed"}],
+                                statuses: [
+                                    {type: "Open", isActive: false},
+                                    {type: "Open", isActive: true},
+                                    {type: "Closed"},
+                                ],
                             },
                         },
                         {
@@ -402,7 +409,10 @@ status=open&sort=-created
                             type: "Status",
                             operation: {
                                 type: "OneOf",
-                                statuses: [{type: "Open", isActive: false}],
+                                statuses: [
+                                    {type: "Open", isActive: false},
+                                    {type: "Open", isActive: true},
+                                ],
                             },
                         },
                     ],
@@ -568,7 +578,10 @@ Color: Red
                                 type: "Status",
                                 operation: {
                                     type: "OneOf",
-                                    statuses: [{type: "Open", isActive: false}],
+                                    statuses: [
+                                        {type: "Open", isActive: false},
+                                        {type: "Open", isActive: true},
+                                    ],
                                 },
                             },
                         ],
@@ -1295,7 +1308,8 @@ Default filters:
 `,
             parseError:
                 "Unexpected task status filter `status=done`. Try again with `open`, " +
-                "`open-active`, or `closed` (e.g. `status=open` or `status[not]=closed`).",
+                "`open-inactive`, `open-active`, or `closed` (e.g. `status=open` or " +
+                "`status[not]=closed`).",
         },
         {
             name: "unexpected defaults block in a tail page",
