@@ -185,10 +185,28 @@ test("prints no search params for no filters", async () => {
     await expectTaskQueryFilterFormat([], "");
 });
 
-test("prints an open status filter", async () => {
+test("prints an all-open status filter", async () => {
+    await expectTaskQueryFilterFormat(
+        [
+            {
+                type: "Status",
+                operation: {
+                    type: "OneOf",
+                    statuses: [
+                        {type: "Open", isActive: false},
+                        {type: "Open", isActive: true},
+                    ],
+                },
+            },
+        ],
+        "status=open",
+    );
+});
+
+test("prints an inactive status filter", async () => {
     await expectTaskQueryFilterFormat(
         [{type: "Status", operation: {type: "OneOf", statuses: [{type: "Open", isActive: false}]}}],
-        "status=open",
+        "status=open-inactive",
     );
 });
 
@@ -220,8 +238,28 @@ test("prints a status filter with multiple statuses", async () => {
                 },
             },
         ],
-        "status=open,open-active",
+        "status=open",
     );
+});
+
+test("parses the expanded all-open status filter", async () => {
+    expect(
+        await parseAgentWebTaskQueryFilters(
+            storage,
+            new URLSearchParams("status=open-inactive,open-active"),
+        ),
+    ).toEqual([
+        {
+            type: "Status",
+            operation: {
+                type: "OneOf",
+                statuses: [
+                    {type: "Open", isActive: false},
+                    {type: "Open", isActive: true},
+                ],
+            },
+        },
+    ]);
 });
 
 test("prints a status filter deduping repeated statuses", async () => {
@@ -239,7 +277,7 @@ test("prints a status filter deduping repeated statuses", async () => {
                 },
             },
         ],
-        "status=open,closed",
+        "status=open-inactive,closed",
     );
 });
 
@@ -288,7 +326,7 @@ test("prints positive and negated status filters together", async () => {
             },
             {type: "Status", operation: {type: "NoneOf", statuses: [{type: "Closed"}]}},
         ],
-        "status=open&status[not]=closed",
+        "status=open-inactive&status[not]=closed",
     );
 });
 
@@ -301,7 +339,7 @@ test("prints two status filters of the same kind as separate params", async () =
             },
             {type: "Status", operation: {type: "OneOf", statuses: [{type: "Closed"}]}},
         ],
-        "status=open&status=closed",
+        "status=open-inactive&status=closed",
     );
 });
 
@@ -1024,7 +1062,7 @@ test("prints a combined set of filters", async () => {
                 },
             },
         ],
-        "status=open&priority=high,urgent&due[before]=today+1w",
+        "status=open-inactive&priority=high,urgent&due[before]=today+1w",
     );
 });
 
@@ -1038,7 +1076,7 @@ test("prints status filters separated by another filter", async () => {
             {type: "Title", operation: {type: "Includes", titleQuery: "launch"}},
             {type: "Status", operation: {type: "OneOf", statuses: [{type: "Closed"}]}},
         ],
-        "status=open&title=launch&status=closed",
+        "status=open-inactive&title=launch&status=closed",
     );
 });
 
@@ -1190,7 +1228,13 @@ test("parses repeated identical values into one deduped filter", async () => {
     ).toEqual([
         {
             type: "Status",
-            operation: {type: "OneOf", statuses: [{type: "Open", isActive: false}]},
+            operation: {
+                type: "OneOf",
+                statuses: [
+                    {type: "Open", isActive: false},
+                    {type: "Open", isActive: true},
+                ],
+            },
         },
     ]);
 });
@@ -1201,7 +1245,13 @@ test("parses empty comma segments as no values", async () => {
     ).toEqual([
         {
             type: "Status",
-            operation: {type: "OneOf", statuses: [{type: "Open", isActive: false}]},
+            operation: {
+                type: "OneOf",
+                statuses: [
+                    {type: "Open", isActive: false},
+                    {type: "Open", isActive: true},
+                ],
+            },
         },
     ]);
 });
@@ -1215,11 +1265,23 @@ test("parses repeated same-key params as separate filters", async () => {
     ).toEqual([
         {
             type: "Status",
-            operation: {type: "OneOf", statuses: [{type: "Open", isActive: false}]},
+            operation: {
+                type: "OneOf",
+                statuses: [
+                    {type: "Open", isActive: false},
+                    {type: "Open", isActive: true},
+                ],
+            },
         },
         {
             type: "Status",
-            operation: {type: "OneOf", statuses: [{type: "Open", isActive: false}]},
+            operation: {
+                type: "OneOf",
+                statuses: [
+                    {type: "Open", isActive: false},
+                    {type: "Open", isActive: true},
+                ],
+            },
         },
     ]);
 });
@@ -1234,7 +1296,13 @@ test("parses negated and positive filters in order", async () => {
         {type: "Status", operation: {type: "NoneOf", statuses: [{type: "Closed"}]}},
         {
             type: "Status",
-            operation: {type: "OneOf", statuses: [{type: "Open", isActive: false}]},
+            operation: {
+                type: "OneOf",
+                statuses: [
+                    {type: "Open", isActive: false},
+                    {type: "Open", isActive: true},
+                ],
+            },
         },
     ]);
 });
@@ -1263,7 +1331,13 @@ test("ignores unknown search params with values", async () => {
     ).toEqual([
         {
             type: "Status",
-            operation: {type: "OneOf", statuses: [{type: "Open", isActive: false}]},
+            operation: {
+                type: "OneOf",
+                statuses: [
+                    {type: "Open", isActive: false},
+                    {type: "Open", isActive: true},
+                ],
+            },
         },
     ]);
 });
@@ -1277,7 +1351,13 @@ test("ignores unknown search params between filter params", async () => {
     ).toEqual([
         {
             type: "Status",
-            operation: {type: "OneOf", statuses: [{type: "Open", isActive: false}]},
+            operation: {
+                type: "OneOf",
+                statuses: [
+                    {type: "Open", isActive: false},
+                    {type: "Open", isActive: true},
+                ],
+            },
         },
         {type: "Status", operation: {type: "OneOf", statuses: [{type: "Closed"}]}},
     ]);
@@ -1354,7 +1434,8 @@ test("throws when parsing an unknown status", async () => {
     await expectParseTaskQueryFiltersDisplayMessage(
         "status=done",
         "Unexpected task status filter `status=done`. Try again with `open`, " +
-            "`open-active`, or `closed` (e.g. `status=open` or `status[not]=closed`).",
+            "`open-inactive`, `open-active`, or `closed` (e.g. `status=open` or " +
+            "`status[not]=closed`).",
     );
 });
 
@@ -1362,7 +1443,8 @@ test("throws when parsing an uppercase status", async () => {
     await expectParseTaskQueryFiltersDisplayMessage(
         "status=Open",
         "Unexpected task status filter `status=Open`. Try again with `open`, " +
-            "`open-active`, or `closed` (e.g. `status=open` or `status[not]=closed`).",
+            "`open-inactive`, `open-active`, or `closed` (e.g. `status=open` or " +
+            "`status[not]=closed`).",
     );
 });
 

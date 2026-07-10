@@ -62,7 +62,9 @@ export type ApiTaskQueryAccountFilterOperationAccountResponseWithoutAccountSpace
  *
  * Each filter value is one search param:
  *
- * - `status=open`, `status=open-active`, or `status=closed`
+ * - `status=open` for all open tasks, `status=open-inactive` or
+ *   `status=open-active` for only inactive or active tasks, or `status=closed`
+ *   (`status=open` is shorthand for `status=open-inactive,open-active`)
  *
  * - `priority=low`, `medium`, `high`, `urgent`, or `none` for no priority
  *
@@ -155,10 +157,21 @@ async function printAgentWebTaskQueryFilter(
                 NoneOf: "status[not]",
             }[operation.type];
 
-            return printAgentWebTaskQueryFilterListValues(
-                key,
-                operation.statuses.map(printAgentWebTaskQueryFilterStatus),
-            );
+            const statuses = operation.statuses.map(printAgentWebTaskQueryFilterStatus);
+
+            const values = statuses.flatMap((status, index) => {
+                if (status === "open-inactive" && statuses[index + 1] === "open-active") {
+                    return ["open"];
+                }
+
+                if (status === "open-active" && statuses[index - 1] === "open-inactive") {
+                    return [];
+                }
+
+                return [status];
+            });
+
+            return printAgentWebTaskQueryFilterListValues(key, values);
         }
         case "Collections": {
             const {operation} = filter;
@@ -300,7 +313,7 @@ function printAgentWebTaskQueryFilterListValues(
 function printAgentWebTaskQueryFilterStatus(status: ApiTaskStatus): string {
     switch (status.type) {
         case "Open":
-            return status.isActive ? "open-active" : "open";
+            return status.isActive ? "open-active" : "open-inactive";
         case "Closed":
             return "closed";
         default:
@@ -600,7 +613,7 @@ async function parseAgentWebTaskQueryFilterSearchParam(
                 type: "Status",
                 operation: {
                     type: operator === "not" ? "NoneOf" : "OneOf",
-                    statuses: splitAgentWebTaskQueryFilterListValue(value).map(
+                    statuses: splitAgentWebTaskQueryFilterListValue(value).flatMap(
                         parseAgentWebTaskQueryFilterStatus,
                     ),
                 },
@@ -818,17 +831,22 @@ function splitAgentWebTaskQueryFilterListValue(value: string): Array<string> {
     return value.split(",").filter(segment => segment.length > 0);
 }
 
-function parseAgentWebTaskQueryFilterStatus(value: string): ApiTaskStatus {
+function parseAgentWebTaskQueryFilterStatus(value: string): ReadonlyArray<ApiTaskStatus> {
     switch (value) {
         case "open":
-            return {type: "Open", isActive: false};
+            return [
+                {type: "Open", isActive: false},
+                {type: "Open", isActive: true},
+            ];
+        case "open-inactive":
+            return [{type: "Open", isActive: false}];
         case "open-active":
-            return {type: "Open", isActive: true};
+            return [{type: "Open", isActive: true}];
         case "closed":
-            return {type: "Closed"};
+            return [{type: "Closed"}];
         default: {
             throw new InvalidArgumentError("Unexpected task status filter value", {
-                displayMessage: errorDisplayMessage`Unexpected task status filter \`status=${value}\`. Try again with \`open\`, \`open-active\`, or \`closed\` (e.g. \`status=open\` or \`status[not]=closed\`).`,
+                displayMessage: errorDisplayMessage`Unexpected task status filter \`status=${value}\`. Try again with \`open\`, \`open-inactive\`, \`open-active\`, or \`closed\` (e.g. \`status=open\` or \`status[not]=closed\`).`,
             });
         }
     }
