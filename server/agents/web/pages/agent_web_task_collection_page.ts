@@ -1,4 +1,4 @@
-import {CalendarDate, fromDate, toCalendarDate} from "@internationalized/date";
+import {fromDate, toCalendarDate} from "@internationalized/date";
 import {produce} from "immer";
 import {Code, Link, List, ListItem, Node, PhrasingContent, Root, RootContent} from "mdast";
 import {
@@ -47,7 +47,6 @@ import {
     ApiTaskCollectionReferenceResponse,
     ApiTaskPatch,
     ApiTaskPriority,
-    ApiTaskQueryFilterResponse,
     ApiTaskQuerySort,
     ApiTaskReferenceResponse,
 } from "~/shared/api/specification/types/api_specification_convenience_types.js";
@@ -61,7 +60,6 @@ import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 import {cast} from "~/shared/helpers/control/cast.js";
 import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
 import {isDeepEqual} from "~/shared/helpers/control/is_deep_equal.js";
-import {parseCalendarDates} from "~/shared/helpers/date/parse_calendar_dates.js";
 import {reverseIterable} from "~/shared/helpers/iterable/reverse_iterable.js";
 import {getObjectKeysWithKeyofType} from "~/shared/helpers/object/get_object_keys_with_keyof_type.js";
 import {MaybePromise} from "~/shared/helpers/types/maybe_promise.js";
