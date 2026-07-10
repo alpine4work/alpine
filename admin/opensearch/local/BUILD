@@ -41,3 +41,14 @@ js_library(
         "@opensearch_local",
     ],
 )
+
+sh_binary(
+    name = "gui",
+    srcs = ["opensearch_dashboards_local.sh"],
+    data = [
+        "//:env_files",
+        "//:node",
+        "@opensearch_dashboards_local",
+    ],
+    deps = ["@bazel_tools//tools/bash/runfiles"],
+)

@@ -11,6 +11,8 @@ source "${RUNFILES_DIR:-/dev/null}/$f" 2>/dev/null || \
     { echo>&2 "ERROR: cannot find $f"; exit 1; }; f=; set -e
 # --- end runfiles.bash initialization v3 ---
 
+source "$(rlocation cyberworlds/.env.development)"
+
 # Apply the developer's local overrides (e.g. per-worktree port offsets and
 # `DEV_ENV_PATHS_NAME_SUFFIX`) the same way `parseDotenv()` does, so the GUI
 # connects to the same local OpenSearch instance that `dev` started instead of
@@ -22,9 +24,21 @@ if [ -n "${BUILD_WORKSPACE_DIRECTORY:-}" ] &&
     source "${BUILD_WORKSPACE_DIRECTORY}/.env.development.local"
 fi
 
-HOST=localhost \
-    PORT="$DYNAMO_LOCAL_GUI_PORT" \
-    DYNAMO_ENDPOINT="http://localhost:$DYNAMO_LOCAL_PORT" \
-    AWS_ACCESS_KEY_ID=local \
-    AWS_REGION=us-east-1 \
-    "$(rlocation cyberworlds/admin/dynamo/local/dynamodb_admin.sh)"
+platform_name="$(uname -s | tr '[:upper:]' '[:lower:]')"
+arch_name="$(uname -m)"
+if [ "$arch_name" = "x86_64" ]; then
+    arch_name="amd64"
+fi
+if [ "$arch_name" = "aarch64" ]; then
+    arch_name="arm64"
+fi
+
+node="$(rlocation "nodejs_${platform_name}_${arch_name}/bin/node")"
+export OSD_NODE_HOME="$(cd "$(dirname "$node")/.." && pwd)"
+
+opensearch_dashboards_bin="$(rlocation opensearch_dashboards_local/bin/opensearch-dashboards)"
+
+exec "$opensearch_dashboards_bin" \
+    -H localhost \
+    -p "$OPENSEARCH_DASHBOARDS_LOCAL_PORT" \
+    --opensearch "http://localhost:${OPENSEARCH_LOCAL_PORT}"

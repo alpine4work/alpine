@@ -824,6 +824,7 @@ ${
 }\
 • Logs are available at: ${chalk.underline(devEnvPaths.log)}
 • Start DynamoDB GUI with: ${chalk.dim("$")} bazel run //admin/dynamo/local:gui
+• Start OpenSearch Dashboards GUI with: ${chalk.dim("$")} bazel run //admin/opensearch/local:gui
 
 
 `);
