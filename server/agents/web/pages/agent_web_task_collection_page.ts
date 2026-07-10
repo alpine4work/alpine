@@ -49,6 +49,7 @@ import {
     ApiTaskPriority,
     ApiTaskQuerySort,
     ApiTaskReferenceResponse,
+    ApiTaskStatus,
 } from "~/shared/api/specification/types/api_specification_convenience_types.js";
 import {InvalidArgumentError, UnimplementedError} from "~/shared/error/error.js";
 import {errorDisplayMessage} from "~/shared/error/error_display_message.js";
