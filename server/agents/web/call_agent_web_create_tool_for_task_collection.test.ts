@@ -232,7 +232,7 @@ test("throws unimplemented when creating a task collection with tasks", async ()
 
 Color: Red
 
-- [Launch task](/task/launch-task)`,
+- [Launch task (Open)](/task/launch-task)`,
             }),
     );
 
