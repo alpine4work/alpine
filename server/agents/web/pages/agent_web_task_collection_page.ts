@@ -148,7 +148,9 @@ export type AgentWebTaskCollectionPageQuery = {
  * sub-list.
  */
 export type AgentWebTaskCollectionPageTask = {
-    readonly task: ApiTaskReferenceResponse;
+    readonly taskId: TaskId;
+    readonly title: string;
+    readonly status: ApiTaskStatus;
     readonly parent: ApiTaskReferenceResponse | null;
     readonly assignee: ApiAccountReferenceResponse | null;
     readonly collections: ReadonlyArray<ApiTaskCollectionReferenceResponse>;
@@ -240,7 +242,9 @@ export async function readAgentWebTaskCollectionPage(
             );
 
             tasks.push({
-                task: {type: "Task", id: task.id, title: task.title, status: task.status},
+                taskId: task.id,
+                title: task.title,
+                status: task.status,
                 parent: task.parent
                     ? {
                           type: "Task",
@@ -668,8 +672,8 @@ export async function updateAgentWebTaskCollectionPage(
         );
     }
 
-    const oldTaskIds = oldPage.tasks.map(pageTask => pageTask.task.id);
-    const newTaskIds = newPage.tasks.map(pageTask => pageTask.task.id);
+    const oldTaskIds = oldPage.tasks.map(pageTask => pageTask.taskId);
+    const newTaskIds = newPage.tasks.map(pageTask => pageTask.taskId);
     const hasSameTaskOrder =
         oldTaskIds.length === newTaskIds.length &&
         oldTaskIds.every((id, index) => id === newTaskIds[index]);
@@ -688,13 +692,13 @@ export async function updateAgentWebTaskCollectionPage(
         const newPageTask = newPage.tasks[index]!;
 
         if (oldPageTask.additionalCollectionsCount !== newPageTask.additionalCollectionsCount) {
-            const quotedTitle = quoteMarkdown([{type: "text", value: oldPageTask.task.title}]);
+            const quotedTitle = quoteMarkdown([{type: "text", value: oldPageTask.title}]);
 
             // NOCOMMIT: Make sure this error message is tested
             throw new InvalidArgumentError(
                 "Can\u2019t change task collections by updating additional count",
                 {
-                    displayMessage: errorDisplayMessage`Can\u2019t change a task's collections by updating "and ${oldPageTask.additionalCollectionsCount} more" to "and ${newPageTask.additionalCollectionsCount} more" since we don't know which underlying collections you're trying to ${oldPageTask.additionalCollectionsCount < newPageTask.additionalCollectionsCount ? "add" : "remove"}. Instead call the \`read\` tool for the ${quotedTitle} task which will give you the full collection list for the task which you can update with the \`update\` tool.`,
+                    displayMessage: errorDisplayMessage`Can\u2019t change a task\u2019s collections by updating \u201Cand ${oldPageTask.additionalCollectionsCount} more\u201D to \u201Cand ${newPageTask.additionalCollectionsCount} more\u201D since we don\u2019t know which underlying collections you\u2019re trying to ${oldPageTask.additionalCollectionsCount < newPageTask.additionalCollectionsCount ? "add" : "remove"}. Instead call the \`read\` tool for the ${quotedTitle} task which will give you the full collection list for the task which you can update with the \`update\` tool.`,
                 },
             );
         }
@@ -707,11 +711,11 @@ export async function updateAgentWebTaskCollectionPage(
         // when the task is already assigned to another account. Also that the bot can
         // update a task to active and update the assignee at the same time.
         if (
-            newPageTask.task.status.type === "Open" &&
-            newPageTask.task.status.isActive &&
+            newPageTask.status.type === "Open" &&
+            newPageTask.status.isActive &&
             !newPageTask.assignee
         ) {
-            const quotedTitle = quoteMarkdown([{type: "text", value: oldPageTask.task.title}]);
+            const quotedTitle = quoteMarkdown([{type: "text", value: oldPageTask.title}]);
 
             const assigneeLink: Link = {
                 type: "link",
@@ -719,8 +723,7 @@ export async function updateAgentWebTaskCollectionPage(
                 children: [{type: "text", value: context.botAccount.shortName}],
             };
 
-            if (oldPageTask.task.status.type !== "Open" || !oldPageTask.task.status.isActive) {
-                // NOCOMMIT: Test this error message
+            if (oldPageTask.status.type !== "Open" || !oldPageTask.status.isActive) {
                 throw new InvalidArgumentError(
                     "Can\u2019t set task as active if there\u2019s no assignee",
                     {
@@ -737,18 +740,18 @@ export async function updateAgentWebTaskCollectionPage(
 
         const taskPatches: Array<ApiTaskPatch> = [];
 
-        if (oldPageTask.task.title !== newPageTask.task.title) {
-            taskPatches.push({type: "SetTitle", title: newPageTask.task.title});
+        if (oldPageTask.title !== newPageTask.title) {
+            taskPatches.push({type: "SetTitle", title: newPageTask.title});
         }
 
         // NOCOMMIT: Does this actually work?? I'm really not sure
         if (
-            oldPageTask.task.status.type !== newPageTask.task.status.type ||
-            (oldPageTask.task.status.type === "Open" &&
-                newPageTask.task.status.type === "Open" &&
-                oldPageTask.task.status.isActive !== newPageTask.task.status.isActive)
+            oldPageTask.status.type !== newPageTask.status.type ||
+            (oldPageTask.status.type === "Open" &&
+                newPageTask.status.type === "Open" &&
+                oldPageTask.status.isActive !== newPageTask.status.isActive)
         ) {
-            taskPatches.push({type: "SetStatus", status: newPageTask.task.status});
+            taskPatches.push({type: "SetStatus", status: newPageTask.status});
         }
 
         if (oldPageTask.parent?.id !== newPageTask.parent?.id) {
@@ -771,7 +774,7 @@ export async function updateAgentWebTaskCollectionPage(
                     newPageTask.dueDateString,
                     () => {
                         const quotedTitle = quoteMarkdown([
-                            {type: "text", value: oldPageTask.task.title},
+                            {type: "text", value: oldPageTask.title},
                         ]);
 
                         // NOCOMMIT: Test and make sure this additional detail shows up!
@@ -803,7 +806,7 @@ export async function updateAgentWebTaskCollectionPage(
         }
 
         if (taskPatches.length > 0) {
-            taskPatchRequests.push({id: oldPageTask.task.id, patches: taskPatches});
+            taskPatchRequests.push({id: oldPageTask.taskId, patches: taskPatches});
         }
     }
 
@@ -860,7 +863,6 @@ export function normalizeAgentWebTaskCollectionPage<Page extends AgentWebTaskCol
     return produce(page, page => {
         withApiContentNormalizerForAgentWebMarkdown(normalizer => {
             for (const pageTask of page.tasks) {
-                normalizer.normalizeReference(pageTask.task);
                 if (pageTask.parent) normalizer.normalizeReference(pageTask.parent);
                 if (pageTask.assignee) normalizer.normalizeReference(pageTask.assignee);
                 for (const collection of pageTask.collections)
@@ -1065,9 +1067,25 @@ async function printAgentWebTaskCollectionPageTaskListItem(
     storage: AgentWebSessionStorage,
     pageTask: AgentWebTaskCollectionPageTask,
 ): Promise<ListItem> {
+    const taskReference: ApiTaskReferenceResponse = {
+        type: "Task",
+        id: pageTask.taskId,
+        title: pageTask.title,
+        status: pageTask.status,
+    };
+
     const [taskPathname, fieldListItems] = await runAllPromises([
-        createAgentWebPageStoredLinkPathname(storage, pageTask.task),
-        runAllPromises(printAgentWebTaskFieldListItems(storage, pageTask)),
+        createAgentWebPageStoredLinkPathname(storage, taskReference),
+        runAllPromises(
+            printAgentWebTaskFieldListItems(storage, {
+                parent: pageTask.parent,
+                assignee: pageTask.assignee,
+                collections: pageTask.collections,
+                additionalCollectionsCount: pageTask.additionalCollectionsCount,
+                priority: pageTask.priority,
+                dueDateString: pageTask.dueDateString,
+            }),
+        ),
     ]);
 
     const children: ListItem["children"] = [
@@ -1080,7 +1098,7 @@ async function printAgentWebTaskCollectionPageTaskListItem(
                     children: [
                         {
                             type: "text",
-                            value: printAgentWebPageStoredLinkLabel(pageTask.task),
+                            value: printAgentWebPageStoredLinkLabel(taskReference),
                         },
                     ],
                 },
@@ -1335,7 +1353,7 @@ async function parseAgentWebTaskCollectionTailPagePreamble(
     }
 
     const text = printMarkdownPhrasingContentText(children);
-    const match = text.match(/^Tasks in (.*?)(?:\.)?$/);
+    const match = text.match(/^Tasks in ([\s\S]*?)(?:\.)?$/);
 
     if (!match) {
         throw new InvalidArgumentError("Invalid task collection preamble", {
@@ -1548,7 +1566,7 @@ async function parseAgentWebTaskCollectionPageTask(
     }
 
     const label = printMarkdownPhrasingContentText(link.children);
-    const statusMatch = label.match(/^(.*) \((open|open, active|open, inactive|closed)\)$/i);
+    const statusMatch = label.match(/^([\s\S]*) \((open|open, active|open, inactive|closed)\)$/i);
 
     if (statusMatch === null) {
         throw new InvalidArgumentError("Missing status in task collection task link label", {
@@ -1579,7 +1597,9 @@ async function parseAgentWebTaskCollectionPageTask(
     }
 
     return {
-        task: {...pageLinkResult.pageLink, title: statusMatch[1]!, status},
+        taskId: pageLinkResult.pageLink.id,
+        title: statusMatch[1]!,
+        status,
         parent: fields?.parent ?? null,
         assignee: fields?.assignee ?? null,
         collections: fields?.collections ?? [],

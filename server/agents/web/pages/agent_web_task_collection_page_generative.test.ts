@@ -62,7 +62,17 @@ const AgentWebTaskCollectionPageTaskArbitrary: Arbitrary<AgentWebTaskCollectionP
         }),
         AgentWebTaskCollectionPageTaskCollectionsArbitrary,
     )
-    .map(([pageTask, collections]) => ({...pageTask, ...collections}));
+    .map(([pageTask, collections]) => {
+        const {task, ...fields} = pageTask;
+
+        return {
+            taskId: task.id,
+            title: task.title,
+            status: task.status,
+            ...fields,
+            ...collections,
+        };
+    });
 
 const ApiTaskQueryFilterResponsesArbitrary: Arbitrary<ReadonlyArray<ApiTaskQueryFilterResponse>> =
     fc.constantFrom(
