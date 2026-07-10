@@ -925,15 +925,29 @@ export async function printAgentWebTaskCollectionPage(
                 const {pagination} = page;
 
                 children.push(
-                    (async () => ({
-                        type: "paragraph",
-                        children: [
-                            await printAgentWebTaskCollectionPageNextPageLink(storage, id, {
+                    (async () => {
+                        const {pathname, search} =
+                            await printAgentWebTaskCollectionPageNextPagePath(storage, id, {
                                 name: page.name,
                                 pagination,
-                            }),
-                        ],
-                    }))(),
+                            });
+
+                        return {
+                            type: "paragraph",
+                            children: [
+                                {
+                                    type: "link",
+                                    url: `${pathname}?${search}`,
+                                    children: [
+                                        {
+                                            type: "text",
+                                            value: agentWebTaskCollectionPageNextPageLinkText,
+                                        },
+                                    ],
+                                },
+                            ],
+                        };
+                    })(),
                 );
             }
             break;
@@ -946,12 +960,24 @@ export async function printAgentWebTaskCollectionPage(
                     ];
 
                     if (page.pagination !== null) {
-                        children.push(
-                            {type: "text", value: " "},
-                            await printAgentWebTaskCollectionPageNextPageLink(storage, id, {
+                        const {pathname, search} =
+                            await printAgentWebTaskCollectionPageNextPagePath(storage, id, {
                                 name: page.name,
                                 pagination: page.pagination,
-                            }),
+                            });
+
+                        children.push(
+                            {type: "text", value: " "},
+                            {
+                                type: "link",
+                                url: `${pathname}?${search}`,
+                                children: [
+                                    {
+                                        type: "text",
+                                        value: agentWebTaskCollectionPageNextPageLinkText,
+                                    },
+                                ],
+                            },
                         );
                     }
 
