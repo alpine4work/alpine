@@ -10,7 +10,9 @@ import {
     ApiAccountReferenceResponse,
     ApiTaskCollectionColor,
     ApiTaskCollectionReferenceResponse,
+    ApiTaskPriority,
     ApiTaskQueryDefaultsResponse,
+    ApiTaskReferenceResponse,
     ApiTaskStatus,
 } from "~/shared/api/specification/types/api_specification_convenience_types.js";
 import {
@@ -61,6 +63,12 @@ const otherCollectionReference: ApiTaskCollectionReferenceResponse = {
     title: "Other collection",
 };
 
+const designCollectionReference: ApiTaskCollectionReferenceResponse = {
+    type: "TaskCollection",
+    id: generateId<TaskCollectionId>(),
+    title: "Design",
+};
+
 const {span} = testTracer.startSpan("call_agent_web_update_tool_for_task_collection.test.ts");
 const api = new ApiClientMock();
 const storage = createAgentWebSessionStorageForTest(spaceId);
@@ -95,6 +103,7 @@ beforeEach(async () => {
     await createAgentWebPageStoredLinkPathname(storage, aliceReference);
     await createAgentWebPageStoredLinkPathname(storage, bobReference);
     await createAgentWebPageStoredLinkPathname(storage, otherCollectionReference);
+    await createAgentWebPageStoredLinkPathname(storage, designCollectionReference);
 });
 
 function printDisplayMessage(displayMessage: ErrorDisplayMessage): string {
@@ -179,7 +188,11 @@ function mockGetCollectionTasks({
     nextCursor = null,
     launchTaskTitle = "Launch task",
     specTaskStatus = {type: "Open", isActive: false},
+    specTaskParent = null,
     specTaskAssignee = null,
+    specTaskCollections = [],
+    specTaskPriority = null,
+    specTaskDueDate = null,
 }: {
     color?: ApiTaskCollectionColor | null;
     defaults?: ApiTaskQueryDefaultsResponse;
@@ -187,7 +200,11 @@ function mockGetCollectionTasks({
     nextCursor?: ApiTaskQueryCursor | null;
     launchTaskTitle?: string;
     specTaskStatus?: ApiTaskStatus;
+    specTaskParent?: ApiTaskReferenceResponse | null;
     specTaskAssignee?: ApiAccountReferenceResponse | null;
+    specTaskCollections?: ReadonlyArray<ApiTaskCollectionReferenceResponse>;
+    specTaskPriority?: ApiTaskPriority | null;
+    specTaskDueDate?: string | null;
 } = {}) {
     api.mockGet("/task-collections/{id}/tasks", {
         params: {
@@ -221,6 +238,17 @@ function mockGetCollectionTasks({
                         id: specTaskId,
                         title: "Spec task",
                         status: specTaskStatus,
+                        ...(specTaskParent
+                            ? {
+                                  parent: {
+                                      task: {
+                                          id: specTaskParent.id,
+                                          title: specTaskParent.title,
+                                          status: specTaskParent.status,
+                                      },
+                                  },
+                              }
+                            : {}),
                         ...(specTaskAssignee
                             ? {
                                   assignee: {
@@ -231,6 +259,11 @@ function mockGetCollectionTasks({
                                   },
                               }
                             : {}),
+                        collections: specTaskCollections.map(collection => ({
+                            collection: {id: collection.id, name: collection.title},
+                        })),
+                        ...(specTaskPriority ? {priority: specTaskPriority} : {}),
+                        ...(specTaskDueDate ? {due: {date: specTaskDueDate}} : {}),
                     },
                 },
             ],
@@ -296,6 +329,30 @@ async function readTaskCollectionPage({
     return await callAgentWebReadTool(context, {
         path: "/task-collection/roadmap",
         limit,
+    });
+}
+
+async function readTaskCollectionPageWithPopulatedSpecTask() {
+    mockGetCollectionTasks({
+        specTaskParent: otherTaskReference,
+        specTaskAssignee: aliceReference,
+        specTaskCollections: [otherCollectionReference],
+        specTaskPriority: {type: "High"},
+        specTaskDueDate: "2027-07-12",
+    });
+
+    return await callAgentWebReadTool(context, {
+        path: "/task-collection/roadmap",
+        limit: "10kb",
+    });
+}
+
+async function updateSpecTaskField({old, new: newValue}: {old: string; new: string}) {
+    mockTaskPatch(specTaskId);
+
+    await callAgentWebUpdateTool(context, {
+        path: "/task-collection/roadmap",
+        updates: [{old, new: newValue, replaceAll: false}],
     });
 }
 
@@ -782,6 +839,67 @@ test("updates task fields", async () => {
                 {type: "SetPriority", priority: {type: "High"}},
                 {type: "AddCollection", item: {collection: otherCollectionReference}},
             ],
+        },
+    ]);
+});
+
+test("updates only a task parent while leaving its other fields unchanged", async () => {
+    await readTaskCollectionPageWithPopulatedSpecTask();
+    await updateSpecTaskField({
+        old: "Parent: [Other task](/task/other-task)",
+        new: "Parent: [Launch task](/task/launch-task)",
+    });
+
+    expect(getTaskPatchRequests().map(request => request.body)).toEqual([
+        {patches: [{type: "SetParent", parent: {task: {id: launchTaskId}}}]},
+    ]);
+});
+
+test("updates only a task assignee while leaving its other fields unchanged", async () => {
+    await readTaskCollectionPageWithPopulatedSpecTask();
+    await updateSpecTaskField({
+        old: "Assignee: [Alice](/human/alice)",
+        new: "Assignee: [Bob](/human/bob)",
+    });
+
+    expect(getTaskPatchRequests().map(request => request.body)).toEqual([
+        {patches: [{type: "SetAssignee", assignee: bobReference}]},
+    ]);
+});
+
+test("updates only a task due date while leaving its other fields unchanged", async () => {
+    await readTaskCollectionPageWithPopulatedSpecTask();
+    await updateSpecTaskField({
+        old: "Due date: July 12th, 2027",
+        new: "Due date: July 14th, 2027",
+    });
+
+    expect(getTaskPatchRequests().map(request => request.body)).toEqual([
+        {patches: [{type: "SetDue", due: {date: "2027-07-14"}}]},
+    ]);
+});
+
+test("updates only a task priority while leaving its other fields unchanged", async () => {
+    await readTaskCollectionPageWithPopulatedSpecTask();
+    await updateSpecTaskField({old: "Priority: High", new: "Priority: Low"});
+
+    expect(getTaskPatchRequests().map(request => request.body)).toEqual([
+        {patches: [{type: "SetPriority", priority: {type: "Low"}}]},
+    ]);
+});
+
+test("updates only task collections while leaving its other fields unchanged", async () => {
+    await readTaskCollectionPageWithPopulatedSpecTask();
+    await updateSpecTaskField({
+        old: "Collections: [Other collection](/task-collection/other-collection)",
+        new:
+            "Collections: [Other collection](/task-collection/other-collection), " +
+            "[Design](/task-collection/design)",
+    });
+
+    expect(getTaskPatchRequests().map(request => request.body)).toEqual([
+        {
+            patches: [{type: "AddCollection", item: {collection: designCollectionReference}}],
         },
     ]);
 });
