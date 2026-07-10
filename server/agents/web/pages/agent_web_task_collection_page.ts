@@ -166,7 +166,24 @@ export type AgentWebTaskCollectionPageTask = {
 export type AgentWebTaskCollectionPageMetadata = {
     readonly type: "TaskCollection";
     readonly id: TaskCollectionId;
-    readonly isEndOfTasks: boolean;
+
+    /**
+     * The cursor immediately before the first visible task on a later page.
+     */
+    readonly afterCursor: ApiTaskQueryCursor | null;
+
+    /**
+     * The cursor for the first hidden task immediately after this page. `isEndOfTasks`
+     * is also the same as `beforeCursor === null`.
+     */
+    readonly beforeCursor: ApiTaskQueryCursor | null;
+
+    /**
+     * Is this task collection manually ordered? That means there's no automatic sorts
+     * and you can freely drag-and-drop to reorder tasks.
+     */
+    readonly isManuallyOrdered: boolean;
+
     readonly tasks: ReadonlyArray<{
         readonly cursor: ApiTaskQueryCursor;
     }>;
@@ -229,7 +246,14 @@ export async function readAgentWebTaskCollectionPage(
 
         const {collection, nextCursor, tasks: currentTaskBatch} = tasksResult.data;
 
-        for (const {cursor, task} of currentTaskBatch) {
+        const lookaheadTask =
+            nextCursor === null
+                ? null
+                : assertExists(currentTaskBatch[currentTaskBatch.length - 1]);
+        const visibleTaskBatch =
+            lookaheadTask === null ? currentTaskBatch : currentTaskBatch.slice(0, -1);
+
+        function appendTask({cursor: taskCursor, task}: (typeof currentTaskBatch)[number]): void {
             // The collection this page is for is implied by the page itself, so it's filtered
             // out of each task's "Collections" field.
             const taskCollections = filterMapArray(
@@ -272,25 +296,32 @@ export async function readAgentWebTaskCollectionPage(
                     ? formatAgentWebTaskDueDateString(context.timeZone, contextDate, task.due)
                     : null,
             });
-            taskMetadata.push({cursor});
+            taskMetadata.push({cursor: taskCursor});
         }
+
+        for (const task of visibleTaskBatch) appendTask(task);
+
+        const pageNextCursor =
+            lookaheadTask === null
+                ? null
+                : assertExists(assertExists(taskMetadata[taskMetadata.length - 1]).cursor);
 
         const pageBase = {
             type: "TaskCollection" as const,
             name: collection.name,
             pagination:
-                nextCursor !== null
+                pageNextCursor !== null
                     ? {
                           nextCursorHash: await createAgentWebTaskQueryCursorHash(
                               context.storage,
                               id,
-                              nextCursor,
+                              pageNextCursor,
                           ),
                           query,
                       }
                     : null,
             tasks: tasks.slice(),
-            isEndOfTasks: nextCursor === null,
+            isEndOfTasks: lookaheadTask === null,
         };
 
         // Only the first page of a task collection prints the collection fields like the
@@ -312,13 +343,20 @@ export async function readAgentWebTaskCollectionPage(
         const metadata: AgentWebTaskCollectionPageMetadata = {
             type: "TaskCollection",
             id,
-            isEndOfTasks: nextCursor === null,
+            afterCursor,
+            beforeCursor: lookaheadTask?.cursor ?? null,
+            isManuallyOrdered:
+                query.sorts.length === 0 &&
+                collection.defaults.filters.length === 0 &&
+                collection.defaults.sorts.length === 0,
             tasks: taskMetadata,
         };
 
         const response = await printPage(page);
 
-        if (nextCursor !== null && response.length < limitLength) {
+        if (lookaheadTask !== null && response.length < limitLength) {
+            assert(nextCursor !== null);
+            appendTask(lookaheadTask);
             cursor = nextCursor;
             continue;
         }
@@ -568,9 +606,10 @@ async function truncateAgentWebTaskCollectionPage(
         response: truncatedResponse,
         metadata: {
             ...metadata,
-            // If we truncated some tasks from the end of the page then we'll never be at the
-            // end of the page anymore.
-            isEndOfTasks: false,
+            // Keep the first discarded task's cursor as the boundary after the page, but don't
+            // expose the task itself.
+            beforeCursor: assertExists(metadata.tasks[truncatedTaskCount]).cursor,
+
             tasks: metadata.tasks.slice(0, truncatedTaskCount),
         },
     };
@@ -624,7 +663,14 @@ export async function createAgentWebTaskCollectionPage(
     });
 
     return {
-        pageMetadata: {type: "TaskCollection", id: collection.id, isEndOfTasks: true, tasks: []},
+        pageMetadata: {
+            type: "TaskCollection",
+            id: collection.id,
+            afterCursor: null,
+            beforeCursor: null,
+            isManuallyOrdered: true,
+            tasks: [],
+        },
         pageLink: {type: "TaskCollection", id: collection.id, title: collection.name},
     };
 }
