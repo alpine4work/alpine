@@ -2,6 +2,7 @@ import fc, {Arbitrary} from "fast-check";
 import {
     AgentWebTaskCollectionPage,
     AgentWebTaskCollectionPageDefaults,
+    AgentWebTaskCollectionPagePagination,
     AgentWebTaskCollectionPageTask,
     apiTaskCollectionColors,
     normalizeAgentWebTaskCollectionPage,
@@ -63,13 +64,6 @@ const AgentWebTaskCollectionPageTaskArbitrary: Arbitrary<AgentWebTaskCollectionP
     )
     .map(([pageTask, collections]) => ({...pageTask, ...collections}));
 
-const AgentWebTaskCollectionPagePaginationArbitrary: Arbitrary<{nextCursorHash: string}> =
-    fc.record({
-        nextCursorHash: fc
-            .integer({min: 0, max: 0xffffff})
-            .map(hashNumber => hashNumber.toString(16).padStart(6, "0")),
-    });
-
 const ApiTaskQueryFilterResponsesArbitrary: Arbitrary<ReadonlyArray<ApiTaskQueryFilterResponse>> =
     fc.constantFrom(
         [],
@@ -112,6 +106,19 @@ const ApiTaskQuerySortsArbitrary: Arbitrary<ReadonlyArray<ApiTaskQuerySort>> = f
     ],
     [{type: "CreatedTime", direction: "Ascending"}],
 );
+
+const AgentWebTaskCollectionPagePaginationArbitrary: Arbitrary<AgentWebTaskCollectionPagePagination> =
+    fc.oneof(
+        fc.record({
+            nextCursorHash: fc
+                .integer({min: 0, max: 0xffffff})
+                .map(hashNumber => hashNumber.toString(16).padStart(6, "0")),
+            query: fc.record({
+                filters: ApiTaskQueryFilterResponsesArbitrary,
+                sorts: ApiTaskQuerySortsArbitrary,
+            }),
+        }),
+    );
 
 // Filters that reference accounts or task collections are left to the task query
 // filter generative test since they need stored links to print.

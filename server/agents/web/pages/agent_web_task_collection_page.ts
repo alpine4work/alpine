@@ -1,4 +1,4 @@
-import {fromDate, toCalendarDate} from "@internationalized/date";
+import {CalendarDate, fromDate, toCalendarDate} from "@internationalized/date";
 import {produce} from "immer";
 import {Code, Link, List, ListItem, Node, PhrasingContent, Root, RootContent} from "mdast";
 import {
@@ -34,15 +34,18 @@ import {
     parseAgentWebTaskFieldListItems,
     printAgentWebTaskFieldListItems,
 } from "~/server/agents/web/pages/agent_web_task_fields.js";
+import {parseAgentWebTaskPageDueDateStringForUpdate} from "~/server/agents/web/pages/agent_web_task_page.js";
 import {printMarkdownPhrasingContentText} from "~/server/agents/web/print_markdown_phrasing_content_text.js";
 import {routeAgentWebPageLinkPathname} from "~/server/agents/web/route_agent_web_page_link_pathname.js";
 import {parseMarkdownTree} from "~/shared/api/content/parse_api_content_from_markdown.js";
+import {printMarkdownTree} from "~/shared/api/content/print_api_content_to_markdown.js";
 import {intoApiAccountReference} from "~/shared/api/specification/into_api_account_reference.js";
 import {
     ApiAccountReferenceResponse,
     ApiTaskCollectionColor,
     ApiTaskCollectionPatch,
     ApiTaskCollectionReferenceResponse,
+    ApiTaskPatch,
     ApiTaskPriority,
     ApiTaskQueryFilterResponse,
     ApiTaskQuerySort,
@@ -58,11 +61,12 @@ import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 import {cast} from "~/shared/helpers/control/cast.js";
 import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
 import {isDeepEqual} from "~/shared/helpers/control/is_deep_equal.js";
+import {parseCalendarDates} from "~/shared/helpers/date/parse_calendar_dates.js";
 import {reverseIterable} from "~/shared/helpers/iterable/reverse_iterable.js";
 import {getObjectKeysWithKeyofType} from "~/shared/helpers/object/get_object_keys_with_keyof_type.js";
 import {MaybePromise} from "~/shared/helpers/types/maybe_promise.js";
 import {ApiTaskQueryCursor} from "~/shared/id/types/api_task_query_cursor.js";
-import {TaskCollectionId} from "~/shared/id/types/id_types.js";
+import {TaskCollectionId, TaskId} from "~/shared/id/types/id_types.js";
 
 export const agentWebTaskCollectionPageApiTasksBatchCount = 30;
 export const agentWebTaskCollectionPageNextPageLinkText = "Next page »";
@@ -126,10 +130,18 @@ export type AgentWebTaskCollectionPageDefaults = {
  * Pagination for a task collection page which is printed as a "Next page »" link
  * between the collection fields and the task list. `nextCursorHash` is the short
  * hash for the full `ApiTaskQueryCursor` of the last task on the page (see
- * `createAgentWebTaskQueryCursorHash()`).
+ * `createAgentWebTaskQueryCursorHash()`). A custom `query` is preserved in the
+ * next page link so filtered and sorted task collection reads can paginate.
  */
 export type AgentWebTaskCollectionPagePagination = {
     readonly nextCursorHash: string;
+    readonly query: AgentWebTaskCollectionPageQuery;
+};
+
+/** Custom filters and sorts from a task collection page's URL search params. */
+export type AgentWebTaskCollectionPageQuery = {
+    readonly filters: ReadonlyArray<ApiTaskQueryFilterResponseWithoutAccountSpace>;
+    readonly sorts: ReadonlyArray<ApiTaskQuerySort>;
 };
 
 /**
@@ -176,41 +188,43 @@ export async function readAgentWebTaskCollectionPage(
     const contextTime = new Date();
     const contextDate = toCalendarDate(fromDate(contextTime, context.timeZone));
 
-    const afterCursor = await parseAgentWebTaskCollectionPageSearchParams(
+    // NOCOMMIT: Add an integration test when a bot tries to use a `cursor` with
+    // different `sorts`. Or when an agent tries to use a `cursor` when the default
+    // sorts change from underneath them.
+    const {afterCursor, query} = await parseAgentWebTaskCollectionPageSearchParams(
         context.storage,
         id,
         searchParams,
     );
 
-    const initialTasksResult = await context.api.get(context.span, "/task-collections/{id}/tasks", {
-        params: {
-            path: {id},
-            query: {
-                limit: agentWebTaskCollectionPageApiTasksBatchCount,
-                cursor: afterCursor ?? undefined,
-            },
-        },
-    });
-
-    const {collection} = initialTasksResult.data;
-
-    // The default filters and sorts, like the color, are only printed on the first
-    // page of a task collection.
-    let defaults: AgentWebTaskCollectionPageDefaults | null = null;
-
-    if (
-        afterCursor === null &&
-        (collection.defaults.filters.length > 0 || collection.defaults.sorts.length > 0)
-    ) {
-        defaults = collection.defaults;
-    }
-
     const tasks: Array<AgentWebTaskCollectionPageTask> = [];
     const taskMetadata: Array<{cursor: ApiTaskQueryCursor}> = [];
-    let currentTaskBatch = initialTasksResult.data.tasks;
-    let nextCursor = initialTasksResult.data.nextCursor;
+    let cursor = afterCursor ?? undefined;
 
     while (true) {
+        const tasksResult =
+            query.filters.length === 0 && query.sorts.length === 0
+                ? await context.api.get(context.span, "/task-collections/{id}/tasks", {
+                      params: {
+                          path: {id},
+                          query: {
+                              limit: agentWebTaskCollectionPageApiTasksBatchCount,
+                              cursor,
+                          },
+                      },
+                  })
+                : await context.api.post(context.span, "/task-collections/{id}/tasks/query", {
+                      params: {path: {id}},
+                      body: {
+                          limit: agentWebTaskCollectionPageApiTasksBatchCount,
+                          cursor,
+                          filters: query.filters,
+                          sorts: query.sorts,
+                      },
+                  });
+
+        const {collection, nextCursor, tasks: currentTaskBatch} = tasksResult.data;
+
         for (const {cursor, task} of currentTaskBatch) {
             // The collection this page is for is implied by the page itself, so it's filtered
             // out of each task's "Collections" field.
@@ -265,6 +279,7 @@ export async function readAgentWebTaskCollectionPage(
                               id,
                               nextCursor,
                           ),
+                          query,
                       }
                     : null,
             tasks: tasks.slice(),
@@ -275,7 +290,16 @@ export async function readAgentWebTaskCollectionPage(
         // color. Later pages read with an `?after` cursor print a short preamble instead.
         const page: AgentWebTaskCollectionPage =
             afterCursor === null
-                ? {...pageBase, subType: "Head", color: collection.color ?? null, defaults}
+                ? {
+                      ...pageBase,
+                      subType: "Head",
+                      color: collection.color ?? null,
+                      defaults:
+                          collection.defaults.filters.length > 0 ||
+                          collection.defaults.sorts.length > 0
+                              ? collection.defaults
+                              : null,
+                  }
                 : {...pageBase, subType: "Tail"};
 
         const metadata: AgentWebTaskCollectionPageMetadata = {
@@ -288,22 +312,7 @@ export async function readAgentWebTaskCollectionPage(
         const response = await printPage(page);
 
         if (nextCursor !== null && response.length < limitLength) {
-            const nextTasksResult = await context.api.get(
-                context.span,
-                "/task-collections/{id}/tasks",
-                {
-                    params: {
-                        path: {id},
-                        query: {
-                            limit: agentWebTaskCollectionPageApiTasksBatchCount,
-                            cursor: nextCursor,
-                        },
-                    },
-                },
-            );
-
-            currentTaskBatch = nextTasksResult.data.tasks;
-            nextCursor = nextTasksResult.data.nextCursor;
+            cursor = nextCursor;
             continue;
         }
 
@@ -314,6 +323,7 @@ export async function readAgentWebTaskCollectionPage(
         const truncatedResult = await truncateAgentWebTaskCollectionPage(context.storage, id, {
             page,
             metadata,
+            query,
             limitLength,
             response,
         });
@@ -328,26 +338,38 @@ async function parseAgentWebTaskCollectionPageSearchParams(
     storage: AgentWebSessionStorage,
     id: TaskCollectionId,
     searchParams: URLSearchParams,
-): Promise<ApiTaskQueryCursor | null> {
-    // TODO(#agents-web): Task filter search params. Until then URL search params other
-    // than `after` are ignored.
+): Promise<{
+    afterCursor: ApiTaskQueryCursor | null;
+    query: AgentWebTaskCollectionPageQuery;
+}> {
     const afterCursorHash = searchParams.get("after");
 
-    if (afterCursorHash === null) return null;
+    const [afterCursor, filters, sorts] = await runAllPromises([
+        (async () => {
+            if (afterCursorHash === null) return null;
 
-    const afterCursor = await getAgentWebTaskQueryCursorForHashIfExists(
-        storage,
-        id,
-        afterCursorHash,
-    );
+            const storedAfterCursor = await getAgentWebTaskQueryCursorForHashIfExists(
+                storage,
+                id,
+                afterCursorHash,
+            );
 
-    if (afterCursor === undefined) {
-        throw new InvalidArgumentError("Expected `after` search param to be a cursor", {
-            displayMessage: errorDisplayMessage`Expected \`?after\` URL search param to be a cursor from a task collection page \u201C${agentWebTaskCollectionPageNextPageLinkText}\u201D link. Try again with a \u201C${agentWebTaskCollectionPageNextPageLinkText}\u201D link you\u2019ve seen before or omit \`?after\`.`,
-        });
-    }
+            if (storedAfterCursor === undefined) {
+                throw new InvalidArgumentError("Expected `after` search param to be a cursor", {
+                    displayMessage: errorDisplayMessage`Expected \`?after\` URL search param to be a cursor from a task collection page \u201C${agentWebTaskCollectionPageNextPageLinkText}\u201D link. Try again with a \u201C${agentWebTaskCollectionPageNextPageLinkText}\u201D link you\u2019ve seen before or omit \`?after\`.`,
+                });
+            }
 
-    return afterCursor;
+            return storedAfterCursor;
+        })(),
+        parseAgentWebTaskQueryFilters(storage, searchParams),
+        parseAgentWebTaskQuerySorts(searchParams),
+    ]);
+
+    return {
+        afterCursor,
+        query: {filters, sorts},
+    };
 }
 
 async function truncateAgentWebTaskCollectionPage(
@@ -356,11 +378,13 @@ async function truncateAgentWebTaskCollectionPage(
     {
         page,
         metadata,
+        query,
         limitLength,
         response,
     }: {
         page: AgentWebTaskCollectionPage;
         metadata: AgentWebTaskCollectionPageMetadata;
+        query: AgentWebTaskCollectionPageQuery;
         limitLength: number;
         response: string;
     },
@@ -378,15 +402,17 @@ async function truncateAgentWebTaskCollectionPage(
     assert(taskList.children.length === page.tasks.length);
 
     let truncateLength = limitLengthDifference;
-    let collectionPathname: string | null = null;
+    let addedPaginationPath: {pathname: string; search: string} | null = null;
 
     // Edge case: if we need to add a pagination link then expect more to be truncated
     // so we can add the pagination link while still fitting into `limitLength`.
     if (page.pagination === null) {
-        collectionPathname = await createAgentWebPageStoredLinkPathname(storage, {
-            type: "TaskCollection",
-            id,
-            title: page.name,
+        addedPaginationPath = await printAgentWebTaskCollectionPageNextPagePath(storage, id, {
+            name: page.name,
+            pagination: {
+                nextCursorHash: "0".repeat(agentWebTaskQueryCursorHashLength),
+                query,
+            },
         });
 
         truncateLength +=
@@ -396,9 +422,9 @@ async function truncateAgentWebTaskCollectionPage(
             "\n\n[".length +
             agentWebTaskCollectionPageNextPageLinkText.length +
             "](".length +
-            collectionPathname.length +
-            "?after=".length +
-            agentWebTaskQueryCursorHashLength +
+            addedPaginationPath.pathname.length +
+            "?".length +
+            addedPaginationPath.search.length +
             ")".length;
     }
 
@@ -483,12 +509,15 @@ async function truncateAgentWebTaskCollectionPage(
             truncatedResponse.slice(0, linkStartOffset) +
             response
                 .slice(linkStartOffset, linkEndOffset)
-                .replace(/\?after=[^)]+/, `?after=${nextCursorHash}`) +
+                .replace(/([?&]after=)[^&)]+/, `$1${nextCursorHash}`) +
             truncatedResponse.slice(linkEndOffset);
     } else {
-        assert(collectionPathname !== null);
+        assert(addedPaginationPath !== null);
+        assert(addedPaginationPath.search.startsWith("after=000000"));
 
-        const linkMarkdown = `[${agentWebTaskCollectionPageNextPageLinkText}](${collectionPathname}?after=${nextCursorHash})`;
+        const path = `${addedPaginationPath.pathname}?after=${nextCursorHash}${addedPaginationPath.search.slice("after=000000".length)}`;
+
+        const linkMarkdown = `[${agentWebTaskCollectionPageNextPageLinkText}](${path})`;
 
         switch (page.subType) {
             case "Head": {
@@ -599,6 +628,9 @@ export async function updateAgentWebTaskCollectionPage(
     oldPage: AgentWebTaskCollectionPage,
     newPage: AgentWebTaskCollectionPage,
 ): Promise<AgentWebTaskCollectionPageMetadata> {
+    const contextTime = new Date();
+    const contextDate = toCalendarDate(fromDate(contextTime, context.timeZone));
+
     switch (oldPage.subType) {
         case "Head": {
             if (newPage.subType !== "Head") {
@@ -638,11 +670,143 @@ export async function updateAgentWebTaskCollectionPage(
         );
     }
 
-    if (!isDeepEqual(oldPage.tasks, newPage.tasks)) {
+    const oldTaskIds = oldPage.tasks.map(pageTask => pageTask.task.id);
+    const newTaskIds = newPage.tasks.map(pageTask => pageTask.task.id);
+    const hasSameTaskOrder =
+        oldTaskIds.length === newTaskIds.length &&
+        oldTaskIds.every((id, index) => id === newTaskIds[index]);
+
+    if (!hasSameTaskOrder) {
         // TODO(#agents-web): Add, remove, and reorder tasks from a task collection page.
         throw new UnimplementedError(
-            "Changing the tasks in a task collection hasn\u2019t been implemented yet",
+            "Adding, removing, or reordering the tasks in a task collection hasn\u2019t been implemented yet",
         );
+    }
+
+    const taskPatchRequests: Array<{id: TaskId; patches: Array<ApiTaskPatch>}> = [];
+
+    for (let index = 0; index < oldPage.tasks.length; index++) {
+        const oldPageTask = oldPage.tasks[index]!;
+        const newPageTask = newPage.tasks[index]!;
+
+        if (oldPageTask.additionalCollectionsCount !== newPageTask.additionalCollectionsCount) {
+            const quotedTitle = quoteMarkdown([{type: "text", value: oldPageTask.task.title}]);
+
+            // NOCOMMIT: Make sure this error message is tested
+            throw new InvalidArgumentError(
+                "Can\u2019t change task collections by updating additional count",
+                {
+                    displayMessage: errorDisplayMessage`Can\u2019t change a task's collections by updating "and ${oldPageTask.additionalCollectionsCount} more" to "and ${newPageTask.additionalCollectionsCount} more" since we don't know which underlying collections you're trying to ${oldPageTask.additionalCollectionsCount < newPageTask.additionalCollectionsCount ? "add" : "remove"}. Instead call the \`read\` tool for the ${quotedTitle} task which will give you the full collection list for the task which you can update with the \`update\` tool.`,
+                },
+            );
+        }
+
+        // Force the agent to set an assignee if they're marking a task as active. By
+        // default our API sets the bot as active when they make the task active if there's
+        // no assignee, we want the agent to make this choice explicitly.
+        //
+        // NOCOMMIT: Integration test that makes sure the bot can update a task to active
+        // when the task is already assigned to another account. Also that the bot can
+        // update a task to active and update the assignee at the same time.
+        if (
+            newPageTask.task.status.type === "Open" &&
+            newPageTask.task.status.isActive &&
+            !newPageTask.assignee
+        ) {
+            const quotedTitle = quoteMarkdown([{type: "text", value: oldPageTask.task.title}]);
+
+            const assigneeLink: Link = {
+                type: "link",
+                url: context.botAccount.pathname,
+                children: [{type: "text", value: context.botAccount.shortName}],
+            };
+
+            if (oldPageTask.task.status.type !== "Open" || !oldPageTask.task.status.isActive) {
+                // NOCOMMIT: Test this error message
+                throw new InvalidArgumentError(
+                    "Can\u2019t set task as active if there\u2019s no assignee",
+                    {
+                        displayMessage: errorDisplayMessage`Can\u2019t set ${quotedTitle} task as active if there\u2019s no assignee. We don\u2019t recommend setting a task as active unless you\u2019re about to work on the task or you know someone else is currently working on the task. Try again and either set the task as open but inactive (e.g. \`- Status: Open\`) or set an assignee (e.g. \`- Assignee: ${printMarkdownTree(assigneeLink).trim()}\`).`,
+                    },
+                );
+            } else {
+                // NOCOMMIT: Test this error message
+                throw new InvalidArgumentError("Can\u2019t remove assignee from an active task", {
+                    displayMessage: errorDisplayMessage`Can\u2019t remove the assignee from the active ${quotedTitle} task. An active task implies someone is currently working on the task and so an assignee is required so we know who that is. Try again but set the task as inactive first (e.g. \`- Status: Open\`).`,
+                });
+            }
+        }
+
+        const taskPatches: Array<ApiTaskPatch> = [];
+
+        if (oldPageTask.task.title !== newPageTask.task.title) {
+            taskPatches.push({type: "SetTitle", title: newPageTask.task.title});
+        }
+
+        // NOCOMMIT: Does this actually work?? I'm really not sure
+        if (
+            oldPageTask.task.status.type !== newPageTask.task.status.type ||
+            (oldPageTask.task.status.type === "Open" &&
+                newPageTask.task.status.type === "Open" &&
+                oldPageTask.task.status.isActive !== newPageTask.task.status.isActive)
+        ) {
+            taskPatches.push({type: "SetStatus", status: newPageTask.task.status});
+        }
+
+        if (oldPageTask.parent?.id !== newPageTask.parent?.id) {
+            taskPatches.push({
+                type: "SetParent",
+                parent: newPageTask.parent ? {task: {id: newPageTask.parent.id}} : null,
+            });
+        }
+
+        if (oldPageTask.assignee?.id !== newPageTask.assignee?.id) {
+            taskPatches.push({type: "SetAssignee", assignee: newPageTask.assignee ?? null});
+        }
+
+        if (oldPageTask.dueDateString !== newPageTask.dueDateString) {
+            if (newPageTask.dueDateString === null) {
+                taskPatches.push({type: "SetDue", due: null});
+            } else {
+                const date = parseAgentWebTaskPageDueDateStringForUpdate(
+                    contextDate,
+                    newPageTask.dueDateString,
+                    () => {
+                        const quotedTitle = quoteMarkdown([
+                            {type: "text", value: oldPageTask.task.title},
+                        ]);
+
+                        // NOCOMMIT: Test and make sure this additional detail shows up!
+                        return errorDisplayMessage`for task ${quotedTitle}`;
+                    },
+                ).toString();
+
+                taskPatches.push({type: "SetDue", due: {date}});
+            }
+        }
+
+        if (oldPageTask.priority?.type !== newPageTask.priority?.type) {
+            taskPatches.push({type: "SetPriority", priority: newPageTask.priority});
+        }
+
+        const oldCollectionIds = new Set(oldPageTask.collections.map(collection => collection.id));
+        const newCollectionIds = new Set(newPageTask.collections.map(collection => collection.id));
+
+        for (const collection of oldPageTask.collections) {
+            if (!newCollectionIds.has(collection.id)) {
+                taskPatches.push({type: "RemoveCollection", collectionId: collection.id});
+            }
+        }
+
+        for (const collection of newPageTask.collections) {
+            if (!oldCollectionIds.has(collection.id)) {
+                taskPatches.push({type: "AddCollection", item: {collection}});
+            }
+        }
+
+        if (taskPatches.length > 0) {
+            taskPatchRequests.push({id: oldPageTask.task.id, patches: taskPatches});
+        }
     }
 
     if (
@@ -671,12 +835,23 @@ export async function updateAgentWebTaskCollectionPage(
         patches.push({type: "SetColor", color: newPage.color});
     }
 
-    if (patches.length > 0) {
-        await context.api.patch(context.span, "/task-collections/{id}", {
-            params: {path: {id: oldPageMetadata.id}},
+    const patchPromises: Array<Promise<unknown>> = taskPatchRequests.map(({id, patches}) =>
+        context.api.patch(context.span, "/tasks/{id}", {
+            params: {path: {id}},
             body: {patches},
-        });
+        }),
+    );
+
+    if (patches.length > 0) {
+        patchPromises.push(
+            context.api.patch(context.span, "/task-collections/{id}", {
+                params: {path: {id: oldPageMetadata.id}},
+                body: {patches},
+            }),
+        );
     }
+
+    await runAllPromises(patchPromises);
 
     return oldPageMetadata;
 }
@@ -831,7 +1006,7 @@ function printAgentWebTaskCollectionPageDefaultsLabel(
     return "Default filters and sorts";
 }
 
-async function printAgentWebTaskCollectionPageNextPageLink(
+async function printAgentWebTaskCollectionPageNextPagePath(
     storage: AgentWebSessionStorage,
     id: TaskCollectionId,
     {
@@ -841,18 +1016,25 @@ async function printAgentWebTaskCollectionPageNextPageLink(
         name: string;
         pagination: AgentWebTaskCollectionPagePagination;
     },
-): Promise<Link> {
-    const collectionPathname = await createAgentWebPageStoredLinkPathname(storage, {
-        type: "TaskCollection",
-        id,
-        title: name,
-    });
+): Promise<{pathname: string; search: string}> {
+    const [pathname, search] = await runAllPromises([
+        createAgentWebPageStoredLinkPathname(storage, {
+            type: "TaskCollection",
+            id,
+            title: name,
+        }),
+        printAgentWebTaskQueryFilters(storage, pagination.query.filters).then(filters => {
+            return [
+                `after=${pagination.nextCursorHash}`,
+                filters,
+                printAgentWebTaskQuerySorts(pagination.query.sorts),
+            ]
+                .filter(searchParams => searchParams.length > 0)
+                .join("&");
+        }),
+    ]);
 
-    return {
-        type: "link",
-        url: `${collectionPathname}?after=${pagination.nextCursorHash}`,
-        children: [{type: "text", value: agentWebTaskCollectionPageNextPageLinkText}],
-    };
+    return {pathname, search};
 }
 
 async function printAgentWebTaskCollectionPageTaskListItem(
@@ -1233,7 +1415,11 @@ async function parseAgentWebTaskCollectionPagePaginationLink(
     const {pathname, searchParams} = normalizeAgentWebPath(link.url);
     const nextCursorHash = searchParams.get("after");
 
-    const pageLinkResult = await routeAgentWebPageLinkPathname(storage, pathname);
+    const [pageLinkResult, filters, sorts] = await runAllPromises([
+        routeAgentWebPageLinkPathname(storage, pathname),
+        parseAgentWebTaskQueryFilters(storage, searchParams),
+        parseAgentWebTaskQuerySorts(searchParams),
+    ]);
 
     if (
         !pageLinkResult ||
@@ -1245,7 +1431,10 @@ async function parseAgentWebTaskCollectionPagePaginationLink(
         });
     }
 
-    return {nextCursorHash};
+    return {
+        nextCursorHash,
+        query: {filters, sorts},
+    };
 }
 
 function parseAgentWebTaskCollectionPageColor(
