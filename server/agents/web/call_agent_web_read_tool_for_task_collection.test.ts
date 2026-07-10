@@ -336,7 +336,13 @@ test("reads a task collection page with default filters and sorts", async () => 
             filters: [
                 {
                     type: "Status",
-                    operation: {type: "OneOf", statuses: [{type: "Open", isActive: false}]},
+                    operation: {
+                        type: "OneOf",
+                        statuses: [
+                            {type: "Open", isActive: false},
+                            {type: "Open", isActive: true},
+                        ],
+                    },
                 },
             ],
             sorts: [
@@ -371,7 +377,13 @@ test("does not print the default filters and sorts on a later page", async () =>
             filters: [
                 {
                     type: "Status",
-                    operation: {type: "OneOf", statuses: [{type: "Open", isActive: false}]},
+                    operation: {
+                        type: "OneOf",
+                        statuses: [
+                            {type: "Open", isActive: false},
+                            {type: "Open", isActive: true},
+                        ],
+                    },
                 },
             ],
             sorts: [],
@@ -590,7 +602,13 @@ test("adds a next page link after the default filters and sorts when truncating"
             filters: [
                 {
                     type: "Status",
-                    operation: {type: "OneOf", statuses: [{type: "Open", isActive: false}]},
+                    operation: {
+                        type: "OneOf",
+                        statuses: [
+                            {type: "Open", isActive: false},
+                            {type: "Open", isActive: true},
+                        ],
+                    },
                 },
             ],
             sorts: [],
@@ -755,7 +773,13 @@ test("queries a task collection with custom filters and sorts", async () => {
         filters: [
             {
                 type: "Status",
-                operation: {type: "OneOf", statuses: [{type: "Open", isActive: false}]},
+                operation: {
+                    type: "OneOf",
+                    statuses: [
+                        {type: "Open", isActive: false},
+                        {type: "Open", isActive: true},
+                    ],
+                },
             },
         ],
         sorts: [{type: "Priority", direction: "Descending"}],
@@ -800,7 +824,13 @@ test("paginates custom task collection filters and sorts with after", async () =
         filters: [
             {
                 type: "Status",
-                operation: {type: "OneOf", statuses: [{type: "Open", isActive: false}]},
+                operation: {
+                    type: "OneOf",
+                    statuses: [
+                        {type: "Open", isActive: false},
+                        {type: "Open", isActive: true},
+                    ],
+                },
             },
         ],
         sorts: [{type: "Priority", direction: "Descending"}],
@@ -856,4 +886,153 @@ End of tasks.`,
             },
         ],
     });
+});
+
+test("truncation adds a pagination link with custom filters", async () => {
+    const query: ApiTaskQueryDefaultsResponse = {
+        filters: [
+            {
+                type: "Priority",
+                operation: {type: "OneOf", priorities: [{type: "High"}]},
+            },
+        ],
+        sorts: [],
+    };
+    mockCollectionTasks({totalTaskCount: 4, query});
+
+    expect(
+        await callAgentWebReadTool(context, {
+            path: "/task-collection/roadmap?priority=high",
+            limit: "200b",
+        }),
+    ).toEqual(`\
+# Roadmap
+
+Color: Red
+
+[Next page »](/task-collection/roadmap?after=15a526&priority=high)
+
+- [Test task 1 (Open)](/task/test-task-1)
+
+- [Test task 2 (Open)](/task/test-task-2)`);
+});
+
+test("truncation updates a pagination link with custom filters and sorts", async () => {
+    const query: ApiTaskQueryDefaultsResponse = {
+        filters: [
+            {
+                type: "Priority",
+                operation: {type: "OneOf", priorities: [{type: "High"}]},
+            },
+        ],
+        sorts: [{type: "Created", direction: "Descending"}],
+    };
+    mockCollectionTasks({totalTaskCount: 35, query});
+
+    const expectedTasks = Array.from(
+        {length: 27},
+        (_, index) => `- [Test task ${index + 1} (Open)](/task/test-task-${index + 1})`,
+    ).join("\n\n");
+
+    expect(
+        await callAgentWebReadTool(context, {
+            path: "/task-collection/roadmap?priority=high&sort=-created",
+            limit: "1300b",
+        }),
+    ).toEqual(`\
+# Roadmap
+
+Color: Red
+
+[Next page »](/task-collection/roadmap?after=a2c595&priority=high&sort=-created)
+
+${expectedTasks}`);
+});
+
+test("shows exactly 30 custom-query tasks when the limit is the exact response size", async () => {
+    const query: ApiTaskQueryDefaultsResponse = {
+        filters: [
+            {
+                type: "Priority",
+                operation: {type: "OneOf", priorities: [{type: "High"}]},
+            },
+        ],
+        sorts: [{type: "Created", direction: "Descending"}],
+    };
+    mockCollectionTasks({totalTaskCount: 35, query});
+
+    const expectedTasks = Array.from(
+        {length: 30},
+        (_, index) => `- [Test task ${index + 1} (Open)](/task/test-task-${index + 1})`,
+    ).join("\n\n");
+    const expectedResponse = `\
+# Roadmap
+
+Color: Red
+
+[Next page »](/task-collection/roadmap?after=ee09e6&priority=high&sort=-created)
+
+${expectedTasks}`;
+
+    expect(
+        await callAgentWebReadTool(context, {
+            path: "/task-collection/roadmap?priority=high&sort=-created",
+            limit: `${expectedResponse.length}b`,
+        }),
+    ).toEqual(expectedResponse);
+});
+
+test("truncation adds a pagination link with custom filters and sorts on a later page", async () => {
+    const query: ApiTaskQueryDefaultsResponse = {
+        filters: [
+            {
+                type: "Priority",
+                operation: {type: "OneOf", priorities: [{type: "High"}]},
+            },
+        ],
+        sorts: [{type: "Created", direction: "Descending"}],
+    };
+    mockCollectionTasks({cursor: getTaskQueryCursor(29), totalTaskCount: 35, query});
+
+    await createAgentWebTaskQueryCursorHash(storage, collectionId, getTaskQueryCursor(29));
+
+    expect(
+        await callAgentWebReadTool(context, {
+            path: "/task-collection/roadmap?after=ee09e6&priority=high&sort=-created",
+            limit: "200b",
+        }),
+    ).toEqual(`\
+Tasks in Roadmap. [Next page »](/task-collection/roadmap?after=fe8f0b&priority=high&sort=-created)
+
+- [Test task 31 (Open)](/task/test-task-31)`);
+});
+
+test("truncation updates a pagination link with custom filters and sorts on a later page", async () => {
+    const query: ApiTaskQueryDefaultsResponse = {
+        filters: [
+            {
+                type: "Priority",
+                operation: {type: "OneOf", priorities: [{type: "High"}]},
+            },
+        ],
+        sorts: [{type: "Created", direction: "Descending"}],
+    };
+    mockCollectionTasks({cursor: getTaskQueryCursor(29), totalTaskCount: 65, query});
+
+    await createAgentWebTaskQueryCursorHash(storage, collectionId, getTaskQueryCursor(29));
+
+    const expectedTasks = Array.from(
+        {length: 26},
+        (_, index) => `- [Test task ${index + 31} (Open)](/task/test-task-${index + 31})`,
+    ).join("\n\n");
+
+    expect(
+        await callAgentWebReadTool(context, {
+            path: "/task-collection/roadmap?after=ee09e6&priority=high&sort=-created",
+            limit: "1300b",
+        }),
+    ).toEqual(`\
+Tasks in Roadmap. [Next page »](/task-collection/roadmap?after=5a16d7&priority=high&sort=-created)
+
+${expectedTasks}`);
 });
