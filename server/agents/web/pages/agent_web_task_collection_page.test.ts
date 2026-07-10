@@ -454,7 +454,10 @@ Color: Red
                 name: "Roadmap",
                 color: "Red",
                 defaults: null,
-                pagination: {nextCursorHash: "a1b2c3"},
+                pagination: {
+                    nextCursorHash: "a1b2c3",
+                    query: {filters: [], sorts: []},
+                },
                 isEndOfTasks: false,
                 tasks: [
                     collectionPageTask(writeSpecTaskReference),
@@ -478,7 +481,10 @@ Color: Red
                 name: "Roadmap",
                 color: null,
                 defaults: null,
-                pagination: {nextCursorHash: "a1b2c3"},
+                pagination: {
+                    nextCursorHash: "a1b2c3",
+                    query: {filters: [], sorts: []},
+                },
                 isEndOfTasks: false,
                 tasks: [collectionPageTask(writeSpecTaskReference)],
             },

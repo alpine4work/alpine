@@ -724,13 +724,13 @@ export async function updateAgentWebTaskCollectionPage(
                 throw new InvalidArgumentError(
                     "Can\u2019t set task as active if there\u2019s no assignee",
                     {
-                        displayMessage: errorDisplayMessage`Can\u2019t set ${quotedTitle} task as active if there\u2019s no assignee. We don\u2019t recommend setting a task as active unless you\u2019re about to work on the task or you know someone else is currently working on the task. Try again and either set the task as open but inactive (e.g. \`- Status: Open\`) or set an assignee (e.g. \`- Assignee: ${printMarkdownTree(assigneeLink).trim()}\`).`,
+                        displayMessage: errorDisplayMessage`Can\u2019t set ${quotedTitle} task as active if there\u2019s no assignee. We don\u2019t recommend setting a task as active unless you\u2019re about to work on the task or you know someone else is currently working on the task. Try again and either set the task as open but inactive (e.g. \`(Open)\`) or set an assignee (e.g. \`- Assignee: ${printMarkdownTree(assigneeLink).trim()}\`).`,
                     },
                 );
             } else {
                 // NOCOMMIT: Test this error message
                 throw new InvalidArgumentError("Can\u2019t remove assignee from an active task", {
-                    displayMessage: errorDisplayMessage`Can\u2019t remove the assignee from the active ${quotedTitle} task. An active task implies someone is currently working on the task and so an assignee is required so we know who that is. Try again but set the task as inactive first (e.g. \`- Status: Open\`).`,
+                    displayMessage: errorDisplayMessage`Can\u2019t remove the assignee from the active ${quotedTitle} task. An active task implies someone is currently working on the task and so an assignee is required so we know who that is. Try again but set the task as inactive first (e.g. \`(Open)\`).`,
                 });
             }
         }
@@ -1547,8 +1547,39 @@ async function parseAgentWebTaskCollectionPageTask(
         });
     }
 
+    const label = printMarkdownPhrasingContentText(link.children);
+    const statusMatch = label.match(/^(.*) \((open|open, active|open, inactive|closed)\)$/i);
+
+    if (statusMatch === null) {
+        throw new InvalidArgumentError("Missing status in task collection task link label", {
+            displayMessage: errorDisplayMessage`Missing status at the end of task link label on line ${link.position?.start.line ?? taskListItem.position?.start.line ?? "unknown"}. Task link labels must end with \u201C (Open)\u201D, \u201C (Open, active)\u201D, or \u201C (Closed)\u201D. Try again with a task link like \`[My Task (Open)](/task/my-task)\`.`,
+        });
+    }
+
+    const statusText = statusMatch[2]!.toLowerCase() as
+        | "open"
+        | "open, active"
+        | "open, inactive"
+        | "closed";
+    let status: ApiTaskStatus;
+
+    switch (statusText) {
+        case "open":
+        case "open, inactive":
+            status = {type: "Open", isActive: false};
+            break;
+        case "open, active":
+            status = {type: "Open", isActive: true};
+            break;
+        case "closed":
+            status = {type: "Closed"};
+            break;
+        default:
+            throw exhaustive(statusText);
+    }
+
     return {
-        task: pageLinkResult.pageLink,
+        task: {...pageLinkResult.pageLink, title: statusMatch[1]!, status},
         parent: fields?.parent ?? null,
         assignee: fields?.assignee ?? null,
         collections: fields?.collections ?? [],
