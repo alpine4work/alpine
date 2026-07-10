@@ -49,17 +49,19 @@ beforeEach(async () => {
     });
 });
 
-function mockGetCollectionTasks({
+function mockCollectionTasks({
     cursor,
     totalTaskCount,
     color = "Red",
     defaults = {filters: [], sorts: []},
+    query,
     getTitle = getTaskTitle,
 }: {
     cursor?: ApiTaskQueryCursor;
     totalTaskCount: number;
     color?: ApiTaskCollectionColor | null;
     defaults?: ApiTaskQueryDefaultsResponse;
+    query?: ApiTaskQueryDefaultsResponse;
     getTitle?: (index: number) => string;
 }) {
     const startIndex =
@@ -70,37 +72,46 @@ function mockGetCollectionTasks({
     );
     const returnedTaskCount = Math.max(endIndex - startIndex + 1, 0);
 
-    api.mockGet("/task-collections/{id}/tasks", {
-        params: {
-            path: {id: collectionId},
-            query: {
-                limit: agentWebTaskCollectionPageApiTasksBatchCount,
-                cursor,
-            },
+    const data = {
+        spaceId,
+        collection: {
+            id: collectionId,
+            name: "Roadmap",
+            ...(color !== null ? {color} : {}),
+            defaults,
         },
-        data: {
-            spaceId,
-            collection: {
-                id: collectionId,
-                name: "Roadmap",
-                ...(color !== null ? {color} : {}),
-                defaults,
-            },
-            nextCursor: endIndex < totalTaskCount - 1 ? getTaskQueryCursor(endIndex) : null,
-            tasks: Array.from({length: returnedTaskCount}, (_, index) => {
-                const taskIndex = startIndex + index;
+        nextCursor: endIndex < totalTaskCount - 1 ? getTaskQueryCursor(endIndex) : null,
+        tasks: Array.from({length: returnedTaskCount}, (_, index) => {
+            const taskIndex = startIndex + index;
 
-                return {
-                    cursor: getTaskQueryCursor(taskIndex),
-                    task: {
-                        id: getTaskId(taskIndex),
-                        title: getTitle(taskIndex),
-                        status: {type: "Open" as const, isActive: false},
-                    },
-                };
-            }),
-        },
-    });
+            return {
+                cursor: getTaskQueryCursor(taskIndex),
+                task: {
+                    id: getTaskId(taskIndex),
+                    title: getTitle(taskIndex),
+                    status: {type: "Open" as const, isActive: false},
+                },
+            };
+        }),
+    };
+
+    if (query === undefined) {
+        api.mockGet("/task-collections/{id}/tasks", {
+            params: {
+                path: {id: collectionId},
+                query: {
+                    limit: agentWebTaskCollectionPageApiTasksBatchCount,
+                    cursor,
+                },
+            },
+            data,
+        });
+    } else {
+        api.mockPost("/task-collections/{id}/tasks/query", {
+            params: {path: {id: collectionId}},
+            data,
+        });
+    }
 }
 
 function getTaskQueryCursor(index: number): ApiTaskQueryCursor {
@@ -127,7 +138,7 @@ function getTaskTitle(index: number): string {
 }
 
 test("reads a task collection page with tasks", async () => {
-    mockGetCollectionTasks({totalTaskCount: 2});
+    mockCollectionTasks({totalTaskCount: 2});
 
     expect(await callAgentWebReadTool(context, {path: "/task-collection/roadmap", limit: "10kb"}))
         .toEqual(`\
@@ -307,7 +318,7 @@ Color: Red
 });
 
 test("reads a task collection page without a color", async () => {
-    mockGetCollectionTasks({totalTaskCount: 1, color: null});
+    mockCollectionTasks({totalTaskCount: 1, color: null});
 
     expect(await callAgentWebReadTool(context, {path: "/task-collection/roadmap", limit: "10kb"}))
         .toEqual(`\
@@ -319,7 +330,7 @@ End of tasks.`);
 });
 
 test("reads a task collection page with default filters and sorts", async () => {
-    mockGetCollectionTasks({
+    mockCollectionTasks({
         totalTaskCount: 1,
         defaults: {
             filters: [
@@ -353,7 +364,7 @@ End of tasks.`);
 });
 
 test("does not print the default filters and sorts on a later page", async () => {
-    mockGetCollectionTasks({
+    mockCollectionTasks({
         cursor: getTaskQueryCursor(29),
         totalTaskCount: 35,
         defaults: {
@@ -393,7 +404,7 @@ End of tasks.`);
 });
 
 test("reads a task collection page without tasks", async () => {
-    mockGetCollectionTasks({totalTaskCount: 0});
+    mockCollectionTasks({totalTaskCount: 0});
 
     expect(await callAgentWebReadTool(context, {path: "/task-collection/roadmap", limit: "10kb"}))
         .toEqual(`\
@@ -405,8 +416,8 @@ End of tasks.`);
 });
 
 test("loads more task pages while the response is still under the limit", async () => {
-    mockGetCollectionTasks({totalTaskCount: 35});
-    mockGetCollectionTasks({cursor: getTaskQueryCursor(29), totalTaskCount: 35});
+    mockCollectionTasks({totalTaskCount: 35});
+    mockCollectionTasks({cursor: getTaskQueryCursor(29), totalTaskCount: 35});
 
     const response = await callAgentWebReadTool(context, {
         path: "/task-collection/roadmap",
@@ -482,7 +493,7 @@ End of tasks.`,
 });
 
 test("does not load more or truncate when the response is exactly at the limit", async () => {
-    mockGetCollectionTasks({totalTaskCount: 35});
+    mockCollectionTasks({totalTaskCount: 35});
 
     const expectedResponse = `\
 # Roadmap
@@ -547,7 +558,7 @@ Color: Red
 });
 
 test("truncates tasks and adds a next page link when the response is over the limit", async () => {
-    mockGetCollectionTasks({totalTaskCount: 4});
+    mockCollectionTasks({totalTaskCount: 4});
 
     expect(await callAgentWebReadTool(context, {path: "/task-collection/roadmap", limit: "160b"}))
         .toEqual(`\
@@ -561,7 +572,7 @@ Color: Red
 });
 
 test("adds a next page link after the name when truncating without a color", async () => {
-    mockGetCollectionTasks({totalTaskCount: 4, color: null});
+    mockCollectionTasks({totalTaskCount: 4, color: null});
 
     expect(await callAgentWebReadTool(context, {path: "/task-collection/roadmap", limit: "160b"}))
         .toEqual(`\
@@ -573,7 +584,7 @@ test("adds a next page link after the name when truncating without a color", asy
 });
 
 test("adds a next page link after the default filters and sorts when truncating", async () => {
-    mockGetCollectionTasks({
+    mockCollectionTasks({
         totalTaskCount: 4,
         defaults: {
             filters: [
@@ -604,7 +615,7 @@ status=open
 });
 
 test("updates the next page link cursor when truncating tasks", async () => {
-    mockGetCollectionTasks({totalTaskCount: 35});
+    mockCollectionTasks({totalTaskCount: 35});
 
     const expectedTasks = Array.from(
         {length: 27},
@@ -623,8 +634,8 @@ ${expectedTasks}`);
 });
 
 test("reads the next page of tasks with an after cursor", async () => {
-    mockGetCollectionTasks({totalTaskCount: 35});
-    mockGetCollectionTasks({cursor: getTaskQueryCursor(26), totalTaskCount: 35});
+    mockCollectionTasks({totalTaskCount: 35});
+    mockCollectionTasks({cursor: getTaskQueryCursor(26), totalTaskCount: 35});
 
     // The first read truncates the task list and stores the full cursor for the short
     // hash printed in its "Next page »" link.
@@ -663,9 +674,9 @@ test("paginates through multiple pages with different task counts per page", asy
     const getTitle = (index: number) =>
         index < 2 ? `${getTaskTitle(index)} ${"x".repeat(30)}` : getTaskTitle(index);
 
-    mockGetCollectionTasks({totalTaskCount: 6, getTitle});
-    mockGetCollectionTasks({cursor: getTaskQueryCursor(0), totalTaskCount: 6, getTitle});
-    mockGetCollectionTasks({cursor: getTaskQueryCursor(2), totalTaskCount: 6, getTitle});
+    mockCollectionTasks({totalTaskCount: 6, getTitle});
+    mockCollectionTasks({cursor: getTaskQueryCursor(0), totalTaskCount: 6, getTitle});
+    mockCollectionTasks({cursor: getTaskQueryCursor(2), totalTaskCount: 6, getTitle});
 
     const responses = [
         await callAgentWebReadTool(context, {path: "/task-collection/roadmap", limit: "250b"}),
@@ -708,7 +719,7 @@ End of tasks.`,
 });
 
 test("updates the next page link cursor when truncating a later page", async () => {
-    mockGetCollectionTasks({cursor: getTaskQueryCursor(29), totalTaskCount: 65});
+    mockCollectionTasks({cursor: getTaskQueryCursor(29), totalTaskCount: 65});
 
     // Store the full cursor for the `?after` hash like the read that printed the "Next
     // page »" link would have.
@@ -739,20 +750,110 @@ test("rejects an after cursor that is not from a next page link", async () => {
     ).rejects.toThrow("Expected `after` search param to be a cursor");
 });
 
-test("ignores task collection search parameters other than after", async () => {
-    mockGetCollectionTasks({totalTaskCount: 1});
+test("queries a task collection with custom filters and sorts", async () => {
+    const query: ApiTaskQueryDefaultsResponse = {
+        filters: [
+            {
+                type: "Status",
+                operation: {type: "OneOf", statuses: [{type: "Open", isActive: false}]},
+            },
+        ],
+        sorts: [{type: "Priority", direction: "Descending"}],
+    };
+    mockCollectionTasks({totalTaskCount: 1, query});
 
-    expect(
-        await callAgentWebReadTool(context, {
-            path: "/task-collection/roadmap?status=open",
-            limit: "10kb",
-        }),
-    ).toEqual(`\
+    const response = await callAgentWebReadTool(context, {
+        path: "/task-collection/roadmap?status=open&sort=-priority",
+        limit: "10kb",
+    });
+    const queryRequests = api
+        .getRequestHistory()
+        .filter(
+            request =>
+                request.method === "POST" && request.path === "/task-collections/{id}/tasks/query",
+        );
+
+    expect({response, queryRequests}).toEqual({
+        response: `\
 # Roadmap
 
 Color: Red
 
 - [Test task 1 (Open)](/task/test-task-1)
 
-End of tasks.`);
+End of tasks.`,
+        queryRequests: [
+            expect.objectContaining({
+                params: {path: {id: collectionId}},
+                body: {
+                    limit: agentWebTaskCollectionPageApiTasksBatchCount,
+                    cursor: undefined,
+                    ...query,
+                },
+            }),
+        ],
+    });
+});
+
+test("paginates custom task collection filters and sorts with after", async () => {
+    const query: ApiTaskQueryDefaultsResponse = {
+        filters: [
+            {
+                type: "Status",
+                operation: {type: "OneOf", statuses: [{type: "Open", isActive: false}]},
+            },
+        ],
+        sorts: [{type: "Priority", direction: "Descending"}],
+    };
+    mockCollectionTasks({totalTaskCount: 4, query});
+    mockCollectionTasks({cursor: getTaskQueryCursor(0), totalTaskCount: 4, query});
+
+    const firstResponse = await callAgentWebReadTool(context, {
+        path: "/task-collection/roadmap?status=open&sort=-priority",
+        limit: "200b",
+    });
+    const secondResponse = await callAgentWebReadTool(context, {
+        path: "/task-collection/roadmap?after=f55706&status=open&sort=-priority",
+        limit: "10kb",
+    });
+    const queryRequestBodies = api
+        .getRequestHistory()
+        .filter(
+            request =>
+                request.method === "POST" && request.path === "/task-collections/{id}/tasks/query",
+        )
+        .map(request => request.body);
+
+    expect({firstResponse, secondResponse, queryRequestBodies}).toEqual({
+        firstResponse: `\
+# Roadmap
+
+Color: Red
+
+[Next page »](/task-collection/roadmap?after=f55706&status=open&sort=-priority)
+
+- [Test task 1 (Open)](/task/test-task-1)`,
+        secondResponse: `\
+Tasks in Roadmap.
+
+- [Test task 2 (Open)](/task/test-task-2)
+
+- [Test task 3 (Open)](/task/test-task-3)
+
+- [Test task 4 (Open)](/task/test-task-4)
+
+End of tasks.`,
+        queryRequestBodies: [
+            {
+                limit: agentWebTaskCollectionPageApiTasksBatchCount,
+                cursor: undefined,
+                ...query,
+            },
+            {
+                limit: agentWebTaskCollectionPageApiTasksBatchCount,
+                cursor: getTaskQueryCursor(0),
+                ...query,
+            },
+        ],
+    });
 });
