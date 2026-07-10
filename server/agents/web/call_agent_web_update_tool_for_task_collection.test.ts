@@ -7,8 +7,11 @@ import {createAgentWebPageStoredLinkPathname} from "~/server/agents/web/create_a
 import {agentWebTaskCollectionPageApiTasksBatchCount} from "~/server/agents/web/pages/agent_web_task_collection_page.js";
 import {createAgentWebSessionStorageForTest} from "~/server/agents/web/test_helpers/create_agent_web_session_storage_for_test.js";
 import {
+    ApiAccountReferenceResponse,
     ApiTaskCollectionColor,
+    ApiTaskCollectionReferenceResponse,
     ApiTaskQueryDefaultsResponse,
+    ApiTaskStatus,
 } from "~/shared/api/specification/types/api_specification_convenience_types.js";
 import {
     ErrorBase,
@@ -36,6 +39,26 @@ const otherTaskReference = {
     id: otherTaskId,
     title: "Other task",
     status: {type: "Open" as const, isActive: false},
+};
+
+const aliceReference: ApiAccountReferenceResponse = {
+    type: "Account",
+    id: generateId<AccountId>(),
+    title: "Alice",
+    shortName: "Alice",
+};
+
+const bobReference: ApiAccountReferenceResponse = {
+    type: "Account",
+    id: generateId<AccountId>(),
+    title: "Bob",
+    shortName: "Bob",
+};
+
+const otherCollectionReference: ApiTaskCollectionReferenceResponse = {
+    type: "TaskCollection",
+    id: generateId<TaskCollectionId>(),
+    title: "Other collection",
 };
 
 const {span} = testTracer.startSpan("call_agent_web_update_tool_for_task_collection.test.ts");
@@ -69,6 +92,9 @@ beforeEach(async () => {
         title: "Roadmap",
     });
     await createAgentWebPageStoredLinkPathname(storage, otherTaskReference);
+    await createAgentWebPageStoredLinkPathname(storage, aliceReference);
+    await createAgentWebPageStoredLinkPathname(storage, bobReference);
+    await createAgentWebPageStoredLinkPathname(storage, otherCollectionReference);
 });
 
 function printDisplayMessage(displayMessage: ErrorDisplayMessage): string {
@@ -151,11 +177,17 @@ function mockGetCollectionTasks({
     defaults = {filters: [], sorts: []},
     cursor,
     nextCursor = null,
+    launchTaskTitle = "Launch task",
+    specTaskStatus = {type: "Open", isActive: false},
+    specTaskAssignee = null,
 }: {
     color?: ApiTaskCollectionColor | null;
     defaults?: ApiTaskQueryDefaultsResponse;
     cursor?: ApiTaskQueryCursor;
     nextCursor?: ApiTaskQueryCursor | null;
+    launchTaskTitle?: string;
+    specTaskStatus?: ApiTaskStatus;
+    specTaskAssignee?: ApiAccountReferenceResponse | null;
 } = {}) {
     api.mockGet("/task-collections/{id}/tasks", {
         params: {
@@ -179,7 +211,7 @@ function mockGetCollectionTasks({
                     cursor: "task-cursor-0" as ApiTaskQueryCursor,
                     task: {
                         id: launchTaskId,
-                        title: "Launch task",
+                        title: launchTaskTitle,
                         status: {type: "Open" as const, isActive: false},
                     },
                 },
@@ -188,7 +220,17 @@ function mockGetCollectionTasks({
                     task: {
                         id: specTaskId,
                         title: "Spec task",
-                        status: {type: "Open" as const, isActive: false},
+                        status: specTaskStatus,
+                        ...(specTaskAssignee
+                            ? {
+                                  assignee: {
+                                      id: specTaskAssignee.id,
+                                      name: specTaskAssignee.title,
+                                      shortName: specTaskAssignee.shortName,
+                                      bot: specTaskAssignee.bot,
+                                  },
+                              }
+                            : {}),
                     },
                 },
             ],
@@ -210,10 +252,32 @@ function mockCollectionPatch() {
     });
 }
 
+function mockTaskPatch(id: TaskId) {
+    api.mockPatch("/tasks/{id}", {
+        params: {path: {id}},
+        data: {
+            spaceId,
+            task: {
+                id,
+                title: "ignored",
+                status: {type: "Open", isActive: false},
+                collections: [],
+                notes: {version: 0, content: {elements: []}},
+            },
+        } as any,
+    });
+}
+
 function getCollectionPatchRequests() {
     return api
         .getRequestHistory()
         .filter(request => request.method === "PATCH" && request.path === "/task-collections/{id}");
+}
+
+function getTaskPatchRequests() {
+    return api
+        .getRequestHistory()
+        .filter(request => request.method === "PATCH" && request.path === "/tasks/{id}");
 }
 
 async function readTaskCollectionPage({
@@ -362,8 +426,9 @@ test("updates the task collection name and color together", async () => {
     });
 });
 
-test("makes no API calls when only a task link label changes", async () => {
+test("updates a task title in its link label", async () => {
     await readTaskCollectionPage();
+    mockTaskPatch(launchTaskId);
 
     await expect(
         callAgentWebUpdateTool(context, {
@@ -371,14 +436,354 @@ test("makes no API calls when only a task link label changes", async () => {
             updates: [
                 {
                     old: "[Launch task (Open)](/task/launch-task)",
-                    new: "[Renamed task](/task/launch-task)",
+                    new: "[Renamed task (Open)](/task/launch-task)",
                     replaceAll: false,
                 },
             ],
         }),
     ).resolves.toEqual("Update was successful.\n");
 
-    expect(getCollectionPatchRequests()).toHaveLength(0);
+    expect(getTaskPatchRequests().map(request => request.body)).toEqual([
+        {patches: [{type: "SetTitle", title: "Renamed task"}]},
+    ]);
+});
+
+test("updates a 200 character task title without truncating it", async () => {
+    const oldTitle = "a".repeat(200);
+    const newTitle = "b".repeat(200);
+    const taskPath = `/task/${"a".repeat(50)}`;
+
+    mockGetCollectionTasks({launchTaskTitle: oldTitle});
+    await callAgentWebReadTool(context, {
+        path: "/task-collection/roadmap",
+        limit: "10kb",
+    });
+    mockTaskPatch(launchTaskId);
+
+    await expect(
+        callAgentWebUpdateTool(context, {
+            path: "/task-collection/roadmap",
+            updates: [
+                {
+                    old: `[${oldTitle} (Open)](${taskPath})`,
+                    new: `[${newTitle} (Open)](${taskPath})`,
+                    replaceAll: false,
+                },
+            ],
+        }),
+    ).resolves.toEqual("Update was successful.\n");
+
+    expect(getTaskPatchRequests().map(request => request.body)).toEqual([
+        {patches: [{type: "SetTitle", title: newTitle}]},
+    ]);
+});
+
+test("updates a task status in its link label", async () => {
+    await readTaskCollectionPage();
+    mockTaskPatch(specTaskId);
+
+    await expect(
+        callAgentWebUpdateTool(context, {
+            path: "/task-collection/roadmap",
+            updates: [
+                {
+                    old: "[Spec task (Open)](/task/spec-task)",
+                    new: "[Spec task (Closed)](/task/spec-task)",
+                    replaceAll: false,
+                },
+            ],
+        }),
+    ).resolves.toEqual("Update was successful.\n");
+
+    expect(getTaskPatchRequests().map(request => request.body)).toEqual([
+        {patches: [{type: "SetStatus", status: {type: "Closed"}}]},
+    ]);
+});
+
+test("sets an assigned open task as active", async () => {
+    mockGetCollectionTasks({specTaskAssignee: aliceReference});
+    await callAgentWebReadTool(context, {
+        path: "/task-collection/roadmap",
+        limit: "10kb",
+    });
+    mockTaskPatch(specTaskId);
+
+    await expect(
+        callAgentWebUpdateTool(context, {
+            path: "/task-collection/roadmap",
+            updates: [
+                {
+                    old: "[Spec task (Open)](/task/spec-task)",
+                    new: "[Spec task (Open, active)](/task/spec-task)",
+                    replaceAll: false,
+                },
+            ],
+        }),
+    ).resolves.toEqual("Update was successful.\n");
+
+    expect(getTaskPatchRequests().map(request => request.body)).toEqual([
+        {patches: [{type: "SetStatus", status: {type: "Open", isActive: true}}]},
+    ]);
+});
+
+test("sets an open task as active while assigning it", async () => {
+    await readTaskCollectionPage();
+    mockTaskPatch(specTaskId);
+
+    await expect(
+        callAgentWebUpdateTool(context, {
+            path: "/task-collection/roadmap",
+            updates: [
+                {
+                    old: "- [Spec task (Open)](/task/spec-task)",
+                    new:
+                        "- [Spec task (Open, active)](/task/spec-task)\n" +
+                        "  - Assignee: [Alice](/human/alice)",
+                    replaceAll: false,
+                },
+            ],
+        }),
+    ).resolves.toEqual("Update was successful.\n");
+
+    expect(getTaskPatchRequests().map(request => request.body)).toEqual([
+        {
+            patches: [
+                {type: "SetStatus", status: {type: "Open", isActive: true}},
+                {type: "SetAssignee", assignee: aliceReference},
+            ],
+        },
+    ]);
+});
+
+test("rejects setting an unassigned open task as active", async () => {
+    await readTaskCollectionPage();
+
+    await expectInvalidUpdateDisplayMessage({
+        updates: [
+            {
+                old: "[Spec task (Open)](/task/spec-task)",
+                new: "[Spec task (Open, active)](/task/spec-task)",
+                replaceAll: false,
+            },
+        ],
+        expected:
+            "Can\u2019t set \u201CSpec task\u201D task as active if there\u2019s no assignee. We don\u2019t " +
+            "recommend setting a task as active unless you\u2019re about to work on the task or " +
+            "you know someone else is currently working on the task. Try again and either " +
+            "set the task as open but inactive (e.g. `(Open)`) or set an assignee " +
+            "(e.g. `- Assignee: [ChatGPT](/bot/chatgpt)`).",
+    });
+});
+
+test("preserves active status when updating a task title in its link label", async () => {
+    mockGetCollectionTasks({
+        specTaskStatus: {type: "Open", isActive: true},
+        specTaskAssignee: aliceReference,
+    });
+    await callAgentWebReadTool(context, {
+        path: "/task-collection/roadmap",
+        limit: "10kb",
+    });
+    mockTaskPatch(specTaskId);
+
+    await expect(
+        callAgentWebUpdateTool(context, {
+            path: "/task-collection/roadmap",
+            updates: [
+                {
+                    old: "[Spec task (Open, active)](/task/spec-task)",
+                    new: "[Renamed spec task (Open, active)](/task/spec-task)",
+                    replaceAll: false,
+                },
+            ],
+        }),
+    ).resolves.toEqual("Update was successful.\n");
+
+    expect(getTaskPatchRequests().map(request => request.body)).toEqual([
+        {patches: [{type: "SetTitle", title: "Renamed spec task"}]},
+    ]);
+});
+
+test("sets an active task as inactive", async () => {
+    mockGetCollectionTasks({
+        specTaskStatus: {type: "Open", isActive: true},
+        specTaskAssignee: aliceReference,
+    });
+    await callAgentWebReadTool(context, {
+        path: "/task-collection/roadmap",
+        limit: "10kb",
+    });
+    mockTaskPatch(specTaskId);
+
+    await expect(
+        callAgentWebUpdateTool(context, {
+            path: "/task-collection/roadmap",
+            updates: [
+                {
+                    old: "[Spec task (Open, active)](/task/spec-task)",
+                    new: "[Spec task (Open, inactive)](/task/spec-task)",
+                    replaceAll: false,
+                },
+            ],
+        }),
+    ).resolves.toEqual("Update was successful.\n");
+
+    expect(getTaskPatchRequests().map(request => request.body)).toEqual([
+        {patches: [{type: "SetStatus", status: {type: "Open", isActive: false}}]},
+    ]);
+});
+
+test("rejects removing the assignee from an active task", async () => {
+    mockGetCollectionTasks({
+        specTaskStatus: {type: "Open", isActive: true},
+        specTaskAssignee: aliceReference,
+    });
+    await callAgentWebReadTool(context, {
+        path: "/task-collection/roadmap",
+        limit: "10kb",
+    });
+
+    await expectInvalidUpdateDisplayMessage({
+        updates: [
+            {
+                old: "\n  - Assignee: [Alice](/human/alice)",
+                new: "",
+                replaceAll: false,
+            },
+        ],
+        expected:
+            "Can\u2019t remove the assignee from the active \u201CSpec task\u201D task. An active task " +
+            "implies someone is currently working on the task and so an assignee is required " +
+            "so we know who that is. Try again but set the task as inactive first (e.g. " +
+            "`(Open)`).",
+    });
+});
+
+test("changes the assignee of an active task", async () => {
+    mockGetCollectionTasks({
+        specTaskStatus: {type: "Open", isActive: true},
+        specTaskAssignee: aliceReference,
+    });
+    await callAgentWebReadTool(context, {
+        path: "/task-collection/roadmap",
+        limit: "10kb",
+    });
+    mockTaskPatch(specTaskId);
+
+    await expect(
+        callAgentWebUpdateTool(context, {
+            path: "/task-collection/roadmap",
+            updates: [
+                {
+                    old: "[Alice](/human/alice)",
+                    new: "[Bob](/human/bob)",
+                    replaceAll: false,
+                },
+            ],
+        }),
+    ).resolves.toEqual("Update was successful.\n");
+
+    expect(getTaskPatchRequests().map(request => request.body)).toEqual([
+        {patches: [{type: "SetAssignee", assignee: bobReference}]},
+    ]);
+});
+
+test("sets an active task as inactive while removing its assignee", async () => {
+    mockGetCollectionTasks({
+        specTaskStatus: {type: "Open", isActive: true},
+        specTaskAssignee: aliceReference,
+    });
+    await callAgentWebReadTool(context, {
+        path: "/task-collection/roadmap",
+        limit: "10kb",
+    });
+    mockTaskPatch(specTaskId);
+
+    await expect(
+        callAgentWebUpdateTool(context, {
+            path: "/task-collection/roadmap",
+            updates: [
+                {
+                    old:
+                        "- [Spec task (Open, active)](/task/spec-task)\n" +
+                        "  - Assignee: [Alice](/human/alice)",
+                    new: "- [Spec task (Open, inactive)](/task/spec-task)",
+                    replaceAll: false,
+                },
+            ],
+        }),
+    ).resolves.toEqual("Update was successful.\n");
+
+    expect(getTaskPatchRequests().map(request => request.body)).toEqual([
+        {
+            patches: [
+                {type: "SetStatus", status: {type: "Open", isActive: false}},
+                {type: "SetAssignee", assignee: null},
+            ],
+        },
+    ]);
+});
+
+test("reopens a task as inactive from its link label", async () => {
+    mockGetCollectionTasks({specTaskStatus: {type: "Closed"}});
+    await callAgentWebReadTool(context, {
+        path: "/task-collection/roadmap",
+        limit: "10kb",
+    });
+    mockTaskPatch(specTaskId);
+
+    await expect(
+        callAgentWebUpdateTool(context, {
+            path: "/task-collection/roadmap",
+            updates: [
+                {
+                    old: "[Spec task (Closed)](/task/spec-task)",
+                    new: "[Spec task (Open)](/task/spec-task)",
+                    replaceAll: false,
+                },
+            ],
+        }),
+    ).resolves.toEqual("Update was successful.\n");
+
+    expect(getTaskPatchRequests().map(request => request.body)).toEqual([
+        {patches: [{type: "SetStatus", status: {type: "Open", isActive: false}}]},
+    ]);
+});
+
+test("updates task fields", async () => {
+    await readTaskCollectionPage();
+    mockTaskPatch(launchTaskId);
+
+    await expect(
+        callAgentWebUpdateTool(context, {
+            path: "/task-collection/roadmap",
+            updates: [
+                {
+                    old: "- [Launch task (Open)](/task/launch-task)",
+                    new:
+                        "- [Launch task (Open)](/task/launch-task)\n" +
+                        "  - Parent: [Other task](/task/other-task)\n" +
+                        "  - Assignee: [Alice](/human/alice)\n" +
+                        "  - Collections: [Other collection](/task-collection/other-collection)\n" +
+                        "  - Priority: High\n" +
+                        "  - Due date: July 12, 2027",
+                    replaceAll: false,
+                },
+            ],
+        }),
+    ).resolves.toEqual("Update was successful.\n");
+
+    expect(getTaskPatchRequests().map(request => request.body)).toEqual([
+        {
+            patches: [
+                {type: "SetParent", parent: {task: {id: otherTaskId}}},
+                {type: "SetAssignee", assignee: aliceReference},
+                {type: "SetDue", due: {date: "2027-07-12"}},
+                {type: "SetPriority", priority: {type: "High"}},
+                {type: "AddCollection", item: {collection: otherCollectionReference}},
+            ],
+        },
+    ]);
 });
 
 test("throws unimplemented when removing a task", async () => {
@@ -392,7 +797,9 @@ test("throws unimplemented when removing a task", async () => {
                 replaceAll: false,
             },
         ],
-        expected: "Changing the tasks in a task collection hasn\u2019t been implemented yet",
+        expected:
+            "Adding, removing, or reordering the tasks in a task collection hasn\u2019t " +
+            "been implemented yet",
     });
 });
 
@@ -403,11 +810,15 @@ test("throws unimplemented when adding a task", async () => {
         updates: [
             {
                 old: "- [Spec task (Open)](/task/spec-task)",
-                new: "- [Spec task (Open)](/task/spec-task)\n\n- [Other task](/task/other-task)",
+                new:
+                    "- [Spec task (Open)](/task/spec-task)\n\n" +
+                    "- [Other task (Open)](/task/other-task)",
                 replaceAll: false,
             },
         ],
-        expected: "Changing the tasks in a task collection hasn\u2019t been implemented yet",
+        expected:
+            "Adding, removing, or reordering the tasks in a task collection hasn\u2019t " +
+            "been implemented yet",
     });
 });
 
@@ -422,7 +833,9 @@ test("throws unimplemented when reordering tasks", async () => {
                 replaceAll: false,
             },
         ],
-        expected: "Changing the tasks in a task collection hasn\u2019t been implemented yet",
+        expected:
+            "Adding, removing, or reordering the tasks in a task collection hasn\u2019t " +
+            "been implemented yet",
     });
 });
 
@@ -430,7 +843,13 @@ const roadmapDefaults: ApiTaskQueryDefaultsResponse = {
     filters: [
         {
             type: "Status",
-            operation: {type: "OneOf", statuses: [{type: "Open", isActive: false}]},
+            operation: {
+                type: "OneOf",
+                statuses: [
+                    {type: "Open", isActive: false},
+                    {type: "Open", isActive: true},
+                ],
+            },
         },
     ],
     sorts: [
@@ -480,7 +899,8 @@ test("rejects an unknown status filter in the default filters", async () => {
         updates: [{old: "status=open", new: "status=done", replaceAll: false}],
         expected:
             "Unexpected task status filter `status=done`. Try again with `open`, " +
-            "`open-active`, or `closed` (e.g. `status=open` or `status[not]=closed`).",
+            "`open-inactive`, `open-active`, or `closed` (e.g. `status=open` or " +
+            "`status[not]=closed`).",
     });
 });
 
@@ -498,6 +918,23 @@ test("rejects changing a task link to an unknown task", async () => {
         expected:
             "Couldn\u2019t find a task for the link \u201CMissing task\u201D on line 7. Try again " +
             "with a link to a task you\u2019ve seen before (e.g. `[My Task (Open)](/task/my-task)`).",
+    });
+});
+
+test("throws unimplemented when replacing a task link path", async () => {
+    await readTaskCollectionPage();
+
+    await expectUnimplementedUpdate({
+        updates: [
+            {
+                old: "[Launch task (Open)](/task/launch-task)",
+                new: "[Launch task (Open)](/task/spec-task)",
+                replaceAll: false,
+            },
+        ],
+        expected:
+            "Adding, removing, or reordering the tasks in a task collection hasn\u2019t " +
+            "been implemented yet",
     });
 });
 
