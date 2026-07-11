@@ -1,0 +1,34 @@
+---
+title: Errors
+description: Every operation's default response is the same error envelope.
+tags: [api, error, status code]
+---
+
+When a request fails you get a non-2xx status and this JSON body. It's the same
+envelope for every operation (the spec's `default` response).
+
+## The error object
+
+<Schema errorEnvelope />
+
+## Example
+
+```json
+{
+  "error": {
+    "message": "The document version is out of date.",
+    "retry": { "able": true }
+  }
+}
+```
+
+## Retrying
+
+The nested `retry.able` flag tells you whether the same request is expected to
+succeed on a second attempt. Retry transient failures with exponential backoff;
+do not blindly retry when `able` is false.
+
+<Callout type="info" title="One envelope, everywhere">
+    Because the shape is identical across all endpoints, you can centralize error
+    handling in one place in your client.
+</Callout>

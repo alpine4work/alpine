@@ -1,0 +1,20 @@
+---
+title: Webhooks
+description: Alpine delivers events to your bot over a single webhook. Respond with a 200 to acknowledge receipt.
+tags: [api, webhook, event, bot]
+---
+
+## The bot webhook
+
+Alpine sends a `POST` to your endpoint. The payload carries an `accessToken` the
+bot uses to call back into the API, plus the `event`, a union of
+<TypeLink name="BotWebhookEvent" /> variants.
+
+## Payload
+
+<Schema webhookPayload />
+
+<Callout type="tip" title="Acknowledge fast">
+    Return 200 immediately and process asynchronously. Alpine retries delivery
+    until it receives a 200.
+</Callout>

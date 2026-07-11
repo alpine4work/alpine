@@ -45,7 +45,7 @@ import {
     ApiContentTableBlockElementCell,
     ApiContentTableBlockElementCellBlockElement,
 } from "~/shared/api/specification/types/api_specification_convenience_types.js";
-import {InvalidArgumentError, UnimplementedError} from "~/shared/error/error.js";
+import {InternalError, InvalidArgumentError, UnimplementedError} from "~/shared/error/error.js";
 import {errorDisplayMessage} from "~/shared/error/error_display_message.js";
 import {createArrayWithLength} from "~/shared/helpers/array/create_array_with_length.js";
 import {assert} from "~/shared/helpers/control/assert.js";
@@ -67,6 +67,17 @@ type ApiContentMarkdownParserDefinitions = {
     readonly futureDefinitionsByIdentifier: Map<string, Array<DefinitionContent>>;
     readonly pastDefinitionsByIdentifier: Map<string, Array<DefinitionContent>>;
 };
+
+type ApiContentMarkdownBlockContent =
+    | BlockContent
+    | DefinitionContent
+    | {readonly type: "mdxFlowExpression"}
+    | {readonly type: "mdxJsxFlowElement"};
+
+type ApiContentMarkdownPhrasingContent =
+    | PhrasingContent
+    | {readonly type: "mdxTextExpression"}
+    | {readonly type: "mdxJsxTextElement"};
 
 // TODO(calebmer, #public-api): Clearly document backwards compatibility commitment
 // for Markdown printing vs parsing. We're committing to always printing the same
@@ -233,7 +244,7 @@ function mergeAdjacentFileElements(elements: Array<ApiContentBlockElement>) {
 }
 
 function* parseApiContentBlockElementsFromMarkdown(
-    contents: Array<BlockContent | DefinitionContent>,
+    contents: Array<ApiContentMarkdownBlockContent>,
     definitions: ApiContentMarkdownParserDefinitions,
     // Required option so caller must make a choice on whether to enable this property
     // or not.
@@ -344,7 +355,7 @@ for (const [language, extensions] of getObjectEntriesWithKeyofType(
 const inlineHtmlMediaTagPattern = /^<(video|audio|object)\b/i;
 
 function* parseApiContentBlockElementFromMarkdown(
-    content: BlockContent | DefinitionContent,
+    content: ApiContentMarkdownBlockContent,
     definitions: ApiContentMarkdownParserDefinitions,
     tableState: ApiContentBlockElementsMarkdownTableState | null,
 ): IterableIterator<ApiContentBlockElement> {
@@ -1676,6 +1687,10 @@ function* parseApiContentBlockElementFromMarkdown(
             // Footnotes are ignored for now.
             break;
         }
+        case "mdxFlowExpression":
+        case "mdxJsxFlowElement": {
+            throw new InternalError("Unreachable, Markdown parser doesn\u2019t use MDX plugin");
+        }
         // @ts-expect-error: `mdast-util-frontmatter` doesn't seem to add the `yaml`
         // node type to the Markdown AST.
         case "yaml": {
@@ -1977,7 +1992,7 @@ class ApiContentBlockElementsMarkdownTableState {
 }
 
 function* parseAndMergeApiContentInlineElementsFromMarkdown(
-    contents: Array<PhrasingContent>,
+    contents: Array<ApiContentMarkdownPhrasingContent>,
     definitions: ApiContentMarkdownParserDefinitions,
     callbacks?: {
         onSpanDataWidth?: (width: number | null) => void;
@@ -2064,7 +2079,7 @@ class ApiContentInlineElementsMarkdownParserMarkStack {
 }
 
 function* parseApiContentInlineElementsFromMarkdown(
-    contents: Array<PhrasingContent>,
+    contents: Array<ApiContentMarkdownPhrasingContent>,
     definitions: ApiContentMarkdownParserDefinitions,
     markStack: ApiContentInlineElementsMarkdownParserMarkStack,
     callbacks?: {
@@ -2249,7 +2264,7 @@ function* parseApiContentInlineElementsFromMarkdown(
 }
 
 function* parseApiContentInlineElementFromMarkdown(
-    content: PhrasingContent,
+    content: ApiContentMarkdownPhrasingContent,
     definitions: ApiContentMarkdownParserDefinitions,
     markStack: ApiContentInlineElementsMarkdownParserMarkStack,
     callbacks:
@@ -2702,6 +2717,10 @@ function* parseApiContentInlineElementFromMarkdown(
         case "footnoteReference": {
             // Ignore image references and footnotes for now.
             break;
+        }
+        case "mdxTextExpression":
+        case "mdxJsxTextElement": {
+            throw new InternalError("Unreachable, Markdown parser doesn\u2019t use MDX plugin");
         }
         default:
             throw exhaustive(content);

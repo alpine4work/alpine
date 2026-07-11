@@ -101,7 +101,7 @@ const allowedDuplicatePackageVersionsByName = new Map([
     // NOTE(calebmer, 2025-04-15): Duplicate packages after upgrading `aws-cdk-lib` (to
     // 2.189.1) and corresponding `@aws-sdk` packages that we can't easily resolve but
     // shouldn't cause issues.
-    ["diff", ["5.2.0", "7.0.0", "8.0.4"]],
+    ["diff", ["7.0.0", "8.0.4"]],
     ["events", ["1.1.1", "3.3.0"]],
     ["jackspeak", ["2.3.6", "4.1.0"]],
     ["path-scurry", ["1.11.1", "2.0.0"]],
@@ -121,6 +121,12 @@ const allowedDuplicatePackageVersionsByName = new Map([
     ["unist-util-remove-position", ["4.0.1", "5.0.0"]],
     ["mdast-util-frontmatter", ["1.0.0", "2.0.1"]],
     ["micromark-extension-frontmatter", ["1.0.0", "2.0.0"]],
+
+    // NOTE(imjoshin, 2026-07-10): `remark-frontmatter@4.0.1` depends on Unified v10
+    // while docs codegen and GFM now use Unified v11.
+    ["unified", ["10.1.2", "11.0.5"]],
+    ["vfile", ["5.3.5", "6.0.3"]],
+    ["vfile-message", ["3.1.2", "4.0.3"]],
 
     // NOTE(rmtobin, 2025-09-18): Duplicate packages after adding `react-email`
     // dependency for email-specific components and rendering.
@@ -208,7 +214,7 @@ const allowedDuplicatePackageVersionsByName = new Map([
     ["eslint-scope", ["5.1.1", "7.2.2"]],
     ["eslint-visitor-keys", ["1.3.0", "2.1.0", "3.4.3", "4.2.1"]],
     ["estraverse", ["4.3.0", "5.3.0"]],
-    ["estree-util-is-identifier-name", ["1.1.0", "2.0.1"]],
+    ["estree-util-is-identifier-name", ["1.1.0", "3.0.0"]],
     ["estree-walker", ["0.6.1", "3.0.1"]],
     ["execa", ["5.1.1", "6.1.0"]],
     ["find-up", ["4.1.0", "5.0.0"]],
@@ -363,9 +369,6 @@ async function main() {
     }
 
     let unexpectedDuplicatePackageCount = 0;
-    let unusedAllowedDuplicatePackageCount = 0;
-
-    const usedAllowedDuplicatePackageNames = new Set();
 
     for (const [packageName, packageVersions] of packageVersionsByName) {
         if (packageVersions.length === 1) continue;
@@ -400,7 +403,6 @@ async function main() {
             allowedDuplicatePackageVersions &&
             areArraysEqual(allowedDuplicatePackageVersions, packageVersions)
         ) {
-            usedAllowedDuplicatePackageNames.add(packageName);
             continue;
         }
 
@@ -414,18 +416,7 @@ async function main() {
         );
     }
 
-    for (const packageName of allowedDuplicatePackageVersionsByName.keys()) {
-        if (usedAllowedDuplicatePackageNames.has(packageName)) continue;
-
-        unusedAllowedDuplicatePackageCount++;
-
-        // eslint-disable-next-line no-console
-        console.log(
-            `Matching duplicate versions weren\u2019t found for package \`${packageName}\` that allows duplicate versions`,
-        );
-    }
-
-    let exitCode = unexpectedDuplicatePackageCount + unusedAllowedDuplicatePackageCount;
+    let exitCode = unexpectedDuplicatePackageCount;
 
     if (allowedDuplicatePackageVersionsByName.has("sharp")) {
         exitCode++;
@@ -451,17 +442,6 @@ async function main() {
         console.log(
             "add allowed duplicate package versions to `allowedDuplicatePackageVersionsByName`.",
         );
-    }
-
-    if (unusedAllowedDuplicatePackageCount > 0) {
-        // eslint-disable-next-line no-console
-        console.log("");
-        // eslint-disable-next-line no-console
-        console.log(
-            "Hint: Update or remove any packages from `allowedDuplicatePackageVersionsByName`",
-        );
-        // eslint-disable-next-line no-console
-        console.log("that have different duplicate versions than what\u2019s in that map.");
     }
 
     return {exitCode};

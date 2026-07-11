@@ -57,6 +57,8 @@ WORKSPACE_TYPESCRIPT_PROJECTS = [
     "//client/web/context:context",
     "//client/web/debug/chat_gpt:chat_gpt",
     "//client/web/design:design",
+    "//client/web/docs:docs",
+    "//client/web/docs/internal/codegen:documentation_site_generate_lib",
     "//client/web/documents:documents",
     "//client/web/dynamo:dynamo",
     "//client/web/feed:feed",

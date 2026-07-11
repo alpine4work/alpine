@@ -1,4 +1,5 @@
 import {PhrasingContent} from "mdast";
+import {InternalError} from "~/shared/error/error.js";
 import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
 
 export function printMarkdownPhrasingContentText(contents: ReadonlyArray<PhrasingContent>): string {
@@ -13,6 +14,8 @@ export function printMarkdownPhrasingContentText(contents: ReadonlyArray<Phrasin
             // just on this Bazel package. Make the two environments consistent by adding a
             // stub type here.
             | {type: "inlineMath"; value: string}
+            | {type: "mdxTextExpression"}
+            | {type: "mdxJsxTextElement"}
         >,
     ) => {
         for (const content of contents) {
@@ -37,6 +40,12 @@ export function printMarkdownPhrasingContentText(contents: ReadonlyArray<Phrasin
                 case "image":
                 case "imageReference": {
                     break;
+                }
+                case "mdxTextExpression":
+                case "mdxJsxTextElement": {
+                    throw new InternalError(
+                        "Unreachable, Markdown parser doesn\u2019t use MDX plugin",
+                    );
                 }
                 default:
                     throw exhaustive(content);
