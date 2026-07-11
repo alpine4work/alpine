@@ -31,7 +31,7 @@ import {isPlainObject} from "~/shared/helpers/object/is_plain_object.js";
 // Node.js ESM interop (#node-esm-migration)
 const Fuse = typeof _Fuse === "function" ? _Fuse : _Fuse.default;
 
-export type DocumentationSearchEntryType = "page" | "api";
+export type DocumentationSearchEntryType = "page" | "blog" | "api";
 
 export type DocumentationSearchEntry = {
     type: DocumentationSearchEntryType;
@@ -105,7 +105,7 @@ export function parseDocumentationSearchEntries(value: unknown): Array<Documenta
         if (!isPlainObject(item)) continue;
         const {type, title, url, tags, description} = item;
         if (
-            (type === "page" || type === "api") &&
+            (type === "page" || type === "blog" || type === "api") &&
             typeof title === "string" &&
             typeof url === "string" &&
             Array.isArray(tags)
@@ -170,9 +170,9 @@ export function getApiMethodSearchTags(method: DocumentationApiMethod): Array<st
 }
 
 /**
- * Filter and rank docs entries for a query. Markdown pages always rank above API
- * docs; within each, title matches rank above tag-only matches. Empty queries
- * return no results.
+ * Filter and rank docs entries for a query. Guides rank above blog posts, and blog
+ * posts rank above API docs. Within each, title matches rank above tag-only
+ * matches. Empty queries return no results.
  */
 export function searchDocumentationEntries(
     index: DocumentationSearchIndex,
@@ -197,14 +197,16 @@ export function searchDocumentationEntries(
     return results.slice(0, limit).map(({entry, matchedTitle}) => ({entry, matchedTitle}));
 }
 
+/**
+ * Sort search results by surface, match quality, and title.
+ */
 function compareDocumentationSearchResults(
     result1: DocumentationSearchResult & {score: number},
     result2: DocumentationSearchResult & {score: number},
 ): number {
-    // API docs always sort last.
-    const isApi1 = result1.entry.type === "api" ? 1 : 0;
-    const isApi2 = result2.entry.type === "api" ? 1 : 0;
-    if (isApi1 !== isApi2) return isApi1 - isApi2;
+    const typeRank1 = getDocumentationSearchEntryTypeRank(result1.entry.type);
+    const typeRank2 = getDocumentationSearchEntryTypeRank(result2.entry.type);
+    if (typeRank1 !== typeRank2) return typeRank1 - typeRank2;
 
     // Then title matches before tag-only matches.
     const titleRank1 = result1.matchedTitle ? 0 : 1;
@@ -216,4 +218,20 @@ function compareDocumentationSearchResults(
 
     // Stable, readable order within a tier.
     return result1.entry.title.localeCompare(result2.entry.title);
+}
+
+/**
+ * Rank search result surfaces for the docs search dialog.
+ */
+function getDocumentationSearchEntryTypeRank(type: DocumentationSearchEntryType): number {
+    switch (type) {
+        case "page":
+            return 0;
+        case "blog":
+            return 1;
+        case "api":
+            return 2;
+        default:
+            return 3;
+    }
 }

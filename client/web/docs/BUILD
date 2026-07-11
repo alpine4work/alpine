@@ -6,7 +6,10 @@ load("//admin/typescript:typescript.bzl", "ts_project")
 # the docs navigation, so the glob is recursive.
 copy_to_bin(
     name = "docs_content",
-    srcs = glob(["content/**/*.mdx"]),
+    srcs = glob([
+        "content/**/*.json",
+        "content/**/*.mdx",
+    ]) + glob(["content/**/*.md"], allow_empty = True),
     visibility = [
         "//app:__subpackages__",
         "//client/web/docs:__subpackages__",

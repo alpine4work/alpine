@@ -4,16 +4,17 @@ import {runfilesPath} from "~/server/helpers/node/runfiles_path.js";
 
 // The pre-rendered markdown tree built by
 // `//client/web/docs/internal/codegen:docs_markdown`. Files mirror their page URL,
-// so a `/docs/....md` request maps straight to a file.
+// so a `/docs/....md` or `/blog/....md` request maps straight to a file.
 const documentationMarkdownDirectory = join(
     runfilesPath,
     "cyberworlds/client/web/docs/internal/codegen/pages",
 );
 
 /**
- * The rendered markdown for a `/docs/....md` request path, or `null` when there is
- * no such page. The request path only ever resolves to a file inside the generated
- * markdown directory, so a traversal like `/docs/../../secret.md` can't escape it.
+ * The rendered markdown for a `/docs/....md` or `/blog/....md` request path, or
+ * `null` when there is no such page. The request path only ever resolves to a file
+ * inside the generated markdown directory, so a traversal like
+ * `/docs/../../secret.md` can't escape it.
  */
 export function loadDocumentationMarkdown(pathname: string): Promise<string | null> {
     // Decode the path so percent-encoded request paths match their file on disk. A
@@ -21,8 +22,13 @@ export function loadDocumentationMarkdown(pathname: string): Promise<string | nu
     const decoded = decodeDocumentationMarkdownPathname(pathname);
     if (decoded === null) return Promise.resolve(null);
 
-    // `/docs.md` is an alias for the overview page.
-    const requestPath = decoded === "/docs.md" ? "/docs/overview.md" : decoded;
+    // `/docs.md` aliases the overview page; `/blog.md` aliases the blog index.
+    const requestPath =
+        decoded === "/docs.md"
+            ? "/docs/overview.md"
+            : decoded === "/blog.md"
+              ? "/blog.md"
+              : decoded;
     const filePath = normalize(
         join(documentationMarkdownDirectory, requestPath.replace(/^\/+/, "")),
     );

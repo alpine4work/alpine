@@ -12,17 +12,33 @@ the same artifacts.
 - `api_model.json`: the parsed API model derived from
   `shared/api/specification/api_specification_final.yaml`.
 - `api_nav.json`: API support pages, endpoint groups, and schema names.
-- `search_metadata.json`: the current placeholder search index.
-- `pages/**/*.json`: compiled MDX page payloads keyed by docs URL.
+- `blog/blog_authors.json`: blog author metadata from `content/blog/blog_authors.json`, with
+  generated avatar URLs.
+- `blog/posts.json`: the date-sorted blog index data.
+- `search_metadata.json`: the current placeholder search index for guides, blog posts, and API
+  reference records.
+- `pages/**/*.json`: compiled MDX page payloads keyed by public URL, including `/docs/**`,
+  `/docs/api/**`, and `/blog/<slug>`.
 
 `generate_documentation_markdown_main.ts` writes markdown mirrors under
-`client/web/docs/internal/codegen/pages`. These power `/docs/*.md` requests so agents and other
-non-browser readers can read the same docs without interactive React UI.
+`client/web/docs/internal/codegen/pages`. These power `/docs/*.md` and `/blog/*.md` requests so
+agents and other non-browser readers can read the same docs and blog posts without interactive React
+UI.
 
 ## Inputs
 
 Generic support docs live in `client/web/docs/content/guides`. API support docs live in
 `client/web/docs/content/api`. Both are MDX, and filename numeric prefixes control ordering.
+
+Blog content lives in `client/web/docs/content/blog`:
+
+- `blog_authors.json` defines the allowed author IDs and social links.
+- `*.md` and `*.mdx` files in this directory are authored blog posts. Frontmatter should include
+  `title`, `slug`, `publishDate`, `author`, `tags`, `summary`, and optional
+  `heroImage`/`heroImageAlt`. The `slug` is the stable `/blog/<slug>` URL segment and must be
+  lowercase kebab-case. It is not inferred from the title or filename.
+- Blog posts are sorted by `publishDate` descending during codegen. Each generated post page also
+  gets `previousArticle` and `nextArticle` links from that sorted order.
 
 API endpoint and schema reference docs are generated from the final OpenAPI YAML at
 `shared/api/specification/api_specification_final.yaml`. The parser in
@@ -49,6 +65,11 @@ For API docs, update the API implementation and OpenAPI source. Changes flow thr
 `api_specification_final.yaml`, then codegen refreshes endpoint pages, schema pages, navigation,
 markdown, and search metadata from that model.
 
+For blog posts, add or edit a Markdown or MDX file directly under `content/blog` and update
+`content/blog/blog_authors.json` only when author metadata changes. Blog images should use public
+static paths, such as `/blog/images/<name>`, backed by files in `app/static/files/blog`. Markdown
+mirrors are served at `/blog.md` for the index and `/blog/<slug>.md` for individual posts.
+
 Search is intentionally simple for now. It is one generated JSON file with titles, URLs,
-descriptions, and tags. A richer search backend can replace it later without changing the generated
-page payloads.
+descriptions, and tags for guides, blog posts, and API records. A richer search backend can replace
+it later without changing the generated page payloads.

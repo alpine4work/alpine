@@ -14,6 +14,7 @@ export function DocumentationLink({
     style,
     ariaLabel,
     ariaCurrent,
+    className,
     children,
 }: {
     url: string;
@@ -21,8 +22,11 @@ export function DocumentationLink({
     style?: CSSProperties;
     ariaLabel?: string;
     ariaCurrent?: "page";
+    className?: string;
     children: ReactNode;
 }) {
+    const sprinklesClassName = sprinkles(box ?? {});
+
     return (
         <FocusRing>
             <Link
@@ -30,7 +34,7 @@ export function DocumentationLink({
                 prefetch="intent"
                 aria-label={ariaLabel}
                 aria-current={ariaCurrent}
-                className={sprinkles(box ?? {})}
+                className={className ? `${className} ${sprinklesClassName}` : sprinklesClassName}
                 style={{textDecoration: "none", color: "inherit", ...style}}
             >
                 {children}

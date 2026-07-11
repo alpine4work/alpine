@@ -3,7 +3,7 @@ import "~/server/helpers/node/register_noop_react_refresh.js";
 
 import {compile} from "@mdx-js/mdx";
 import fs from "fs/promises";
-import {dirname, join} from "path";
+import {dirname, extname, join} from "path";
 import remarkGfm from "remark-gfm";
 import {parse} from "yaml";
 import {createDocumentationApiPageUrl} from "~/client/web/docs/create_documentation_api_page_url.js";
@@ -24,6 +24,13 @@ import {
     parseDocumentationOrderPrefix,
 } from "~/client/web/docs/documentation_nav.js";
 import {GeneratedDocumentationApiNav} from "~/client/web/docs/generated_documentation.js";
+import {BlogAuthorById, BlogAuthorId} from "~/client/web/docs/internal/blog_author.js";
+import {
+    BlogPostAdjacentArticle,
+    BlogPostListItem,
+    BlogPostPageData,
+    createBlogPostUrl,
+} from "~/client/web/docs/internal/blog_post.js";
 import {extractDocumentationMdxToc} from "~/client/web/docs/internal/codegen/extract_documentation_mdx_toc.js";
 import {parseDocumentationApiModel} from "~/client/web/docs/internal/codegen/parse_api_documentation_model.js";
 import {
@@ -32,6 +39,7 @@ import {
     getApiMethodSearchTags,
 } from "~/client/web/docs/search_documentation_entries.js";
 import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
+import {assert} from "~/shared/helpers/control/assert.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 import {isPlainObject} from "~/shared/helpers/object/is_plain_object.js";
 
@@ -40,6 +48,8 @@ const runfilesPath = assertExists(process.env.RUNFILES);
 const contentDirectoryPath = join(runfilesPath, "cyberworlds/client/web/docs/content");
 const guidesDirectoryPath = join(contentDirectoryPath, "guides");
 const apiDirectoryPath = join(contentDirectoryPath, "api");
+const blogDirectoryPath = join(contentDirectoryPath, "blog");
+const blogAuthorsPath = join(blogDirectoryPath, "blog_authors.json");
 const specificationPath = join(
     runfilesPath,
     "cyberworlds/shared/api/specification/api_specification_final.yaml",
@@ -56,6 +66,16 @@ type DocumentationContentSourceFile = {
     body: string;
 };
 
+type BlogPostSourceFile = {
+    sourceName: string;
+    frontmatter: {[key: string]: unknown};
+    body: string;
+};
+
+type BlogPostContentData = BlogPostListItem & {
+    mdxCode: string;
+};
+
 /**
  * Generate all browser-facing docs JSON artifacts from MDX and OpenAPI inputs.
  */
@@ -64,15 +84,22 @@ async function main() {
 
     // Read the expensive source inputs once, then fan out to independent writers so
     // Bazel sees one deterministic output tree for docs, API data, and search.
-    const [model, guideFiles, apiFiles] = await runAllPromises([
+    const [model, guideFiles, apiFiles, blogAuthors, blogFiles] = await runAllPromises([
         fs.readFile(specificationPath, "utf8").then(parseDocumentationApiModel),
         readContentFiles(guidesDirectoryPath, ""),
         readContentFiles(apiDirectoryPath, "").then(orderApiContentFiles),
+        readBlogAuthors(),
+        readBlogPostFiles(),
     ]);
+    const blogPosts = await runAllPromises(blogFiles.map(createBlogPostPage));
+    blogPosts.sort(compareBlogPosts);
+    assertUniqueBlogPostSlugs(blogPosts);
+
     await runAllPromises([
         writeGuideArtifacts(guideFiles),
         writeApiArtifacts(model, apiFiles),
-        writeSearchMetadataArtifact({model, guideFiles, apiFiles}),
+        writeBlogArtifacts(blogAuthors, blogPosts),
+        writeSearchMetadataArtifact({model, guideFiles, apiFiles, blogPosts}),
     ]);
 }
 
@@ -148,16 +175,43 @@ async function writeApiArtifacts(
 }
 
 /**
+ * Write generated blog authors, list data, and compiled post pages.
+ */
+async function writeBlogArtifacts(
+    authors: BlogAuthorById,
+    posts: Array<BlogPostContentData>,
+): Promise<void> {
+    const postPages = posts.map((post, index) =>
+        toBlogPostPageData({
+            post,
+            previousArticle: posts[index + 1] ?? null,
+            nextArticle: posts[index - 1] ?? null,
+        }),
+    );
+
+    await runAllPromises([
+        writeJsonFile("blog/blog_authors.json", authors),
+        writeJsonFile(
+            "blog/posts.json",
+            posts.map(post => toBlogPostListItem(post)),
+        ),
+        ...postPages.map(post => writePageJson(createBlogPostUrl(post.slug), post)),
+    ]);
+}
+
+/**
  * Write the prebuilt Fuse search index used by the docs search dialog.
  */
 async function writeSearchMetadataArtifact({
     model,
     guideFiles,
     apiFiles,
+    blogPosts,
 }: {
     model: DocumentationApiModel;
     guideFiles: Array<DocumentationContentSourceFile>;
     apiFiles: Array<DocumentationContentSourceFile>;
+    blogPosts: Array<BlogPostContentData>;
 }): Promise<void> {
     const navTree = parseDocumentationNavTree(
         guideFiles.map(file => ({relativePath: file.relativePath, title: navTitleForFile(file)})),
@@ -190,6 +244,10 @@ async function writeSearchMetadataArtifact({
             tags: tagsForFile(file),
             ...(description !== null ? {description} : {}),
         });
+    }
+
+    for (const post of blogPosts) {
+        entries.push(toBlogSearchEntry(post));
     }
 
     for (const operation of Object.values(model.operationsBySlug)) {
@@ -277,6 +335,80 @@ async function readContentFiles(
 }
 
 /**
+ * Read and validate blog author configuration.
+ */
+async function readBlogAuthors(): Promise<BlogAuthorById> {
+    const value: unknown = JSON.parse(await fs.readFile(blogAuthorsPath, "utf8"));
+    assert(isPlainObject(value), "Expected blog authors JSON object");
+
+    const authors: Partial<BlogAuthorById> = {};
+    for (const id of ["josh", "caleb", "rachel", "ian"] as const) {
+        const author = value[id];
+        assert(isPlainObject(author), `Expected blog author ${id}`);
+        assert(typeof author.name === "string", `Expected blog author ${id} name`);
+        assert(isPlainObject(author.socials), `Expected blog author ${id} socials`);
+
+        authors[id] = {
+            id,
+            name: author.name,
+            socials: {
+                x: nullableString(author.socials.x),
+                bluesky: nullableString(author.socials.bluesky),
+                linkedin: nullableString(author.socials.linkedin),
+                email: nullableString(author.socials.email),
+            },
+            avatarUrl: `/blog/authors/${id}.avif`,
+        };
+    }
+
+    return authors as BlogAuthorById;
+}
+
+/**
+ * Read authored blog posts from Markdown or MDX files.
+ */
+async function readBlogPostFiles(): Promise<Array<BlogPostSourceFile>> {
+    const entries = await fs.readdir(blogDirectoryPath, {withFileTypes: true});
+    const files: Array<BlogPostSourceFile> = [];
+
+    for (const entry of entries) {
+        const extension = extname(entry.name);
+        if (extension !== ".md" && extension !== ".mdx") continue;
+
+        const source = await fs.readFile(join(blogDirectoryPath, entry.name), "utf8");
+        const {frontmatter, body} = splitDocumentationFrontmatter(source);
+        files.push({
+            sourceName: entry.name,
+            frontmatter,
+            body,
+        });
+    }
+
+    return files;
+}
+
+/**
+ * Compile a blog post from frontmatter and MDX body.
+ */
+async function createBlogPostPage(file: BlogPostSourceFile): Promise<BlogPostContentData> {
+    const slug = slugForFile(file);
+    const authorId = stringFrontmatter(file, "author");
+    assert(isBlogAuthorId(authorId), `Expected valid author for ${file.sourceName}`);
+
+    return {
+        slug,
+        title: stringFrontmatter(file, "title") ?? humanizeBlogSlug(slug),
+        summary: stringFrontmatter(file, "summary") ?? "",
+        publishDate: publishDateForFile(file),
+        authorId,
+        tags: tagsForFile(file),
+        heroImage: stringFrontmatter(file, "heroImage"),
+        heroImageAlt: stringFrontmatter(file, "heroImageAlt"),
+        mdxCode: await compileMdxContent(file.body),
+    };
+}
+
+/**
  * Resolve the display title for a content file.
  */
 function titleForFile(file: DocumentationContentSourceFile): string {
@@ -303,7 +435,7 @@ function descriptionForFile(file: DocumentationContentSourceFile): string | null
 /**
  * Resolve comma-separated or array frontmatter tags for search metadata.
  */
-function tagsForFile(file: DocumentationContentSourceFile): Array<string> {
+function tagsForFile(file: {frontmatter: {[key: string]: unknown}}): Array<string> {
     const {tags} = file.frontmatter;
     if (Array.isArray(tags)) return tags.filter((tag): tag is string => typeof tag === "string");
     if (typeof tags !== "string") return [];
@@ -311,6 +443,150 @@ function tagsForFile(file: DocumentationContentSourceFile): Array<string> {
         .split(",")
         .map(tag => tag.trim())
         .filter(tag => tag.length > 0);
+}
+
+/**
+ * Read and validate a blog post publish date from frontmatter.
+ */
+function publishDateForFile(file: BlogPostSourceFile): string {
+    const publishDate = stringFrontmatter(file, "publishDate");
+    assert(
+        publishDate !== null && /^\d{4}-\d{2}-\d{2}$/.test(publishDate),
+        `Expected publishDate YYYY-MM-DD for ${file.sourceName}`,
+    );
+    return publishDate;
+}
+
+/**
+ * Read and validate the stable public slug from blog post frontmatter.
+ */
+function slugForFile(file: BlogPostSourceFile): string {
+    const slug = stringFrontmatter(file, "slug");
+    assert(slug !== null, `Expected slug frontmatter for ${file.sourceName}`);
+    assert(
+        /^[a-z0-9]+(?:-[a-z0-9]+)*$/.test(slug),
+        `Expected lowercase kebab-case slug for ${file.sourceName}`,
+    );
+    return slug;
+}
+
+/**
+ * Convert full blog post content into the compact index card payload.
+ */
+function toBlogPostListItem(post: BlogPostContentData): BlogPostListItem {
+    return {
+        slug: post.slug,
+        title: post.title,
+        summary: post.summary,
+        publishDate: post.publishDate,
+        authorId: post.authorId,
+        tags: post.tags,
+        heroImage: post.heroImage,
+        heroImageAlt: post.heroImageAlt,
+    };
+}
+
+/**
+ * Build the generated page payload with codegened adjacent article links.
+ */
+function toBlogPostPageData({
+    post,
+    previousArticle,
+    nextArticle,
+}: {
+    post: BlogPostContentData;
+    previousArticle: BlogPostContentData | null;
+    nextArticle: BlogPostContentData | null;
+}): BlogPostPageData {
+    return {
+        ...post,
+        previousArticle: toBlogPostAdjacentArticle(previousArticle),
+        nextArticle: toBlogPostAdjacentArticle(nextArticle),
+    };
+}
+
+/**
+ * Convert a full blog post into the compact previous/next article payload.
+ */
+function toBlogPostAdjacentArticle(
+    post: BlogPostContentData | null,
+): BlogPostAdjacentArticle | null {
+    if (post === null) return null;
+
+    return {
+        slug: post.slug,
+        title: post.title,
+        summary: post.summary,
+        publishDate: post.publishDate,
+    };
+}
+
+/**
+ * Convert a blog post into a shared documentation search record.
+ */
+function toBlogSearchEntry(post: BlogPostContentData): DocumentationSearchEntry {
+    return {
+        type: "blog",
+        title: post.title,
+        url: createBlogPostUrl(post.slug),
+        tags: post.tags,
+        description: post.summary,
+    };
+}
+
+/**
+ * Sort blog posts by newest publish date, then slug for deterministic ties.
+ */
+function compareBlogPosts(post1: BlogPostContentData, post2: BlogPostContentData): number {
+    const dateOrder = post2.publishDate.localeCompare(post1.publishDate);
+    return dateOrder !== 0 ? dateOrder : post1.slug.localeCompare(post2.slug);
+}
+
+/**
+ * Assert that no two generated blog posts claim the same public slug.
+ */
+function assertUniqueBlogPostSlugs(posts: Array<BlogPostContentData>): void {
+    const slugs = new Set<string>();
+    for (const post of posts) {
+        assert(!slugs.has(post.slug), `Duplicate blog post slug: ${post.slug}`);
+        slugs.add(post.slug);
+    }
+}
+
+/**
+ * Read a non-empty string frontmatter value.
+ */
+function stringFrontmatter(
+    file: {frontmatter: {[key: string]: unknown}},
+    key: string,
+): string | null {
+    const value = file.frontmatter[key];
+    return typeof value === "string" && value.length > 0 ? value : null;
+}
+
+/**
+ * Normalize optional string JSON values into nullable strings.
+ */
+function nullableString(value: unknown): string | null {
+    return typeof value === "string" && value.length > 0 ? value : null;
+}
+
+/**
+ * Check whether a frontmatter author value is one of the configured author IDs.
+ */
+function isBlogAuthorId(value: unknown): value is BlogAuthorId {
+    return value === "josh" || value === "caleb" || value === "rachel" || value === "ian";
+}
+
+/**
+ * Derive a readable title fallback from a blog slug.
+ */
+function humanizeBlogSlug(slug: string): string {
+    return slug
+        .split("-")
+        .filter(word => word.length > 0)
+        .map(word => word.charAt(0).toUpperCase() + word.slice(1))
+        .join(" ");
 }
 
 /**

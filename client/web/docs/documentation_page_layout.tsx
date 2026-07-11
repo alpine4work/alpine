@@ -1,5 +1,5 @@
 import {useLocation} from "@remix-run/react";
-import {ReactNode, useState} from "react";
+import {ReactNode} from "react";
 import {Box} from "~/client/web/design/box.js";
 import {useScrollbar} from "~/client/web/design/scrollbar.js";
 import {
@@ -7,6 +7,7 @@ import {
     DocumentationSurface,
 } from "~/client/web/docs/internal/documentation_header.js";
 import {DocumentationSearchIndex} from "~/client/web/docs/search_documentation_entries.js";
+import {spacing} from "~/shared/design/core/spacing.js";
 import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
 
 const documentationHeaderHeight = 56;
@@ -17,8 +18,6 @@ const documentationHeaderHeight = 56;
 // ~1100px and the left sidebar collapses into a drawer under ~860px.
 const documentationLayoutCss = `
 .documentationLayoutGrid { grid-template-columns: 264px minmax(0, 1fr) 300px; }
-.documentationDrawerButton { display: none; }
-.documentationSearchStub { display: flex; }
 .documentationCodeGuide { grid-template-columns: minmax(220px, 0.42fr) minmax(0, 1fr); }
 @media (max-width: 1100px) {
     .documentationLayoutGrid { grid-template-columns: 264px minmax(0, 1fr); }
@@ -27,8 +26,10 @@ const documentationLayoutCss = `
 @media (max-width: 860px) {
     .documentationLayoutGrid { grid-template-columns: minmax(0, 1fr); }
     .documentationSidebar { display: none; }
-    .documentationSearchStub { display: none; }
-    .documentationDrawerButton { display: inline-flex; }
+    .documentationMainContent {
+        padding-left: ${spacing["6"]};
+        padding-right: ${spacing["6"]};
+    }
     .documentationCodeGuide { grid-template-columns: minmax(0, 1fr); }
 }
 `;
@@ -54,12 +55,10 @@ export function DocumentationPageLayout({
     contentWidth: "prose" | "reference";
     children: ReactNode;
 }) {
-    const [drawerOpen, setDrawerOpen] = useState(false);
     const {pathname} = useLocation();
 
     const sidebarScrollbarRef = useScrollbar<HTMLElement>();
     const rightRailScrollbarRef = useScrollbar<HTMLElement>();
-    const drawerScrollbarRef = useScrollbar<HTMLElement>();
 
     let contentStyle;
     switch (contentWidth) {
@@ -96,7 +95,7 @@ export function DocumentationPageLayout({
             <DocumentationHeader
                 surface={surface}
                 searchIndex={searchIndex}
-                onOpenDrawer={() => setDrawerOpen(true)}
+                mobileMenuContent={sidebar}
             />
 
             <Box
@@ -134,6 +133,7 @@ export function DocumentationPageLayout({
 
                 <Box
                     as="main"
+                    className="documentationMainContent"
                     id="docs-content"
                     minWidth="flex-fit"
                     paddingX="13"
@@ -169,39 +169,6 @@ export function DocumentationPageLayout({
                     </Box>
                 </Box>
             </Box>
-
-            {drawerOpen ? (
-                <Box position="fixed" inset="0" zIndex="90">
-                    <Box
-                        position="absolute"
-                        inset="0"
-                        onClick={() => setDrawerOpen(false)}
-                        style={{background: "rgb(0 0 0 / 0.4)"}}
-                    />
-                    <Box
-                        as="aside"
-                        position="absolute"
-                        top="0"
-                        bottom="0"
-                        left="0"
-                        backgroundColor="grey-0"
-                        borderRight="grey-5"
-                        style={{width: 280}}
-                    >
-                        <Box
-                            ref={drawerScrollbarRef}
-                            position="relative"
-                            overflowY="auto"
-                            height="full"
-                            paddingX="4"
-                            paddingTop="5"
-                            paddingBottom="16"
-                        >
-                            {sidebar}
-                        </Box>
-                    </Box>
-                </Box>
-            ) : null}
         </Box>
     );
 }

@@ -4,7 +4,7 @@ import "~/server/helpers/node/register_noop_react_refresh.js";
 
 import {compile} from "@mdx-js/mdx";
 import fs from "fs/promises";
-import {dirname, join} from "path";
+import {dirname, extname, join} from "path";
 import remarkGfm from "remark-gfm";
 import {parse} from "yaml";
 import {buildDocumentationApiCodeSamples} from "~/client/web/docs/build_api_documentation_code_samples.js";
@@ -20,6 +20,7 @@ import {
     parseDocumentationNavTree,
     parseDocumentationOrderPrefix,
 } from "~/client/web/docs/documentation_nav.js";
+import {createBlogPostUrl} from "~/client/web/docs/internal/blog_post.js";
 import {parseDocumentationApiModel} from "~/client/web/docs/internal/codegen/parse_api_documentation_model.js";
 import {
     createDocumentationMdxMarkdownComponents,
@@ -31,6 +32,7 @@ import {
 } from "~/client/web/docs/internal/markdown/render_api_documentation_to_markdown.js";
 import {renderDocumentationMdxToMarkdown} from "~/client/web/docs/internal/markdown/render_documentation_mdx_to_markdown.js";
 import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
+import {assert} from "~/shared/helpers/control/assert.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 import {isPlainObject} from "~/shared/helpers/object/is_plain_object.js";
 
@@ -39,6 +41,8 @@ const runfilesPath = assertExists(process.env.RUNFILES);
 const contentDirectoryPath = join(runfilesPath, "cyberworlds/client/web/docs/content");
 const guidesDirectoryPath = join(contentDirectoryPath, "guides");
 const apiDirectoryPath = join(contentDirectoryPath, "api");
+const blogDirectoryPath = join(contentDirectoryPath, "blog");
+const blogAuthorsPath = join(blogDirectoryPath, "blog_authors.json");
 const specificationPath = join(
     runfilesPath,
     "cyberworlds/shared/api/specification/api_specification_final.yaml",
@@ -55,7 +59,11 @@ type DocumentationMarkdownPage = {url: string; markdown: string};
  * Generate markdown mirrors for every docs page that agents may read.
  */
 async function main() {
-    const pages = [...(await buildDocumentationMdxPages()), ...(await buildApiPages())];
+    const pages = [
+        ...(await buildDocumentationMdxPages()),
+        ...(await buildApiPages()),
+        ...(await buildBlogPages()),
+    ];
     await runAllPromises(pages.map(writeMarkdownPage));
 }
 
@@ -143,12 +151,64 @@ async function buildApiPages(): Promise<Array<DocumentationMarkdownPage>> {
     return pages;
 }
 
+/**
+ * Build markdown mirrors for the blog index and individual blog posts.
+ */
+async function buildBlogPages(): Promise<Array<DocumentationMarkdownPage>> {
+    const [authors, postFiles] = await runAllPromises([readBlogAuthors(), readBlogPostFiles()]);
+    const posts = await runAllPromises(
+        postFiles.map(file => createBlogMarkdownPost({file, authors})),
+    );
+    posts.sort(compareBlogMarkdownPosts);
+    assertUniqueBlogPostSlugs(posts);
+
+    return [
+        {url: "/blog", markdown: renderBlogIndexMarkdown(posts)},
+        ...posts.map((post, index) => ({
+            url: createBlogPostUrl(post.slug),
+            markdown: renderBlogPostMarkdown({
+                post,
+                previousPost: posts[index + 1] ?? null,
+                nextPost: posts[index - 1] ?? null,
+            }),
+        })),
+    ];
+}
+
 type DocumentationContentSourceFile = {
     relativePath: string;
     name: string;
     frontmatter: {[key: string]: unknown};
     body: string;
 };
+
+type BlogMarkdownPostSourceFile = {
+    sourceName: string;
+    frontmatter: {[key: string]: unknown};
+    body: string;
+};
+
+type BlogMarkdownPost = {
+    slug: string;
+    title: string;
+    summary: string;
+    publishDate: string;
+    author: BlogMarkdownAuthor | null;
+    tags: Array<string>;
+    body: string;
+};
+
+type BlogMarkdownAuthor = {
+    name: string;
+    socials: {
+        x: string | null;
+        bluesky: string | null;
+        linkedin: string | null;
+        email: string | null;
+    };
+};
+
+type BlogMarkdownAuthors = Map<string, BlogMarkdownAuthor>;
 
 /**
  * Compile a content file's MDX and render it with markdown component variants.
@@ -206,12 +266,259 @@ async function readContentFiles(
 }
 
 /**
+ * Read authored blog Markdown and MDX files directly under `content/blog`.
+ */
+async function readBlogPostFiles(): Promise<Array<BlogMarkdownPostSourceFile>> {
+    const entries = await fs.readdir(blogDirectoryPath, {withFileTypes: true});
+    const files: Array<BlogMarkdownPostSourceFile> = [];
+
+    for (const entry of entries) {
+        const extension = extname(entry.name);
+        if (extension !== ".md" && extension !== ".mdx") continue;
+
+        const source = await fs.readFile(join(blogDirectoryPath, entry.name), "utf8");
+        const {frontmatter, body} = splitDocumentationFrontmatter(source);
+        files.push({sourceName: entry.name, frontmatter, body});
+    }
+
+    return files;
+}
+
+/**
+ * Read blog author data used by markdown-rendered posts.
+ */
+async function readBlogAuthors(): Promise<BlogMarkdownAuthors> {
+    const value: unknown = JSON.parse(await fs.readFile(blogAuthorsPath, "utf8"));
+    assert(isPlainObject(value), "Expected blog authors JSON object");
+
+    const authors: BlogMarkdownAuthors = new Map();
+    for (const [id, author] of Object.entries(value)) {
+        assert(isPlainObject(author), `Expected blog author ${id}`);
+        assert(typeof author.name === "string", `Expected blog author ${id} name`);
+        assert(isPlainObject(author.socials), `Expected blog author ${id} socials`);
+
+        authors.set(id, {
+            name: author.name,
+            socials: {
+                x: nullableString(author.socials.x),
+                bluesky: nullableString(author.socials.bluesky),
+                linkedin: nullableString(author.socials.linkedin),
+                email: nullableString(author.socials.email),
+            },
+        });
+    }
+
+    return authors;
+}
+
+/**
  * Resolve the navigation title for slug generation.
  */
 function navTitleForFile(file: DocumentationContentSourceFile): string {
     if (typeof file.frontmatter.navTitle === "string") return file.frontmatter.navTitle;
     if (typeof file.frontmatter.title === "string") return file.frontmatter.title;
     return humanizeDocumentationName(file.name);
+}
+
+/**
+ * Build the markdown-side representation of one blog post.
+ */
+async function createBlogMarkdownPost({
+    file,
+    authors,
+}: {
+    file: BlogMarkdownPostSourceFile;
+    authors: BlogMarkdownAuthors;
+}): Promise<BlogMarkdownPost> {
+    const authorId = stringFrontmatter(file, "author");
+
+    return {
+        slug: slugForBlogPostFile(file),
+        title: stringFrontmatter(file, "title") ?? humanizeDocumentationName(file.sourceName),
+        summary: stringFrontmatter(file, "summary") ?? "",
+        publishDate: publishDateForBlogPostFile(file),
+        author: authorId === null ? null : (authors.get(authorId) ?? null),
+        tags: tagsForFile(file),
+        body: await renderBlogPostBodyMarkdown(file.body),
+    };
+}
+
+/**
+ * Render a blog MDX body through the documentation markdown component map.
+ */
+async function renderBlogPostBodyMarkdown(body: string): Promise<string> {
+    const compiled = await compile(body, {
+        outputFormat: "function-body",
+        development: false,
+        remarkPlugins: [remarkGfm],
+    });
+    return renderDocumentationMdxToMarkdown(String(compiled), documentationMdxMarkdownComponents);
+}
+
+/**
+ * Render the blog index markdown mirror.
+ */
+function renderBlogIndexMarkdown(posts: Array<BlogMarkdownPost>): string {
+    return [
+        "# Alpine Blog",
+        "Notes on building collaborative work, AI-native teams, and the product craft behind Alpine.",
+        ...posts.map(post =>
+            [
+                `## [${post.title}](${createBlogPostUrl(post.slug)}.md)`,
+                `${post.publishDate}${post.author !== null ? ` · ${post.author.name}` : ""}`,
+                post.summary,
+            ]
+                .filter(part => part.length > 0)
+                .join("\n\n"),
+        ),
+    ].join("\n\n");
+}
+
+/**
+ * Render an individual blog post markdown mirror.
+ */
+function renderBlogPostMarkdown({
+    post,
+    previousPost,
+    nextPost,
+}: {
+    post: BlogMarkdownPost;
+    previousPost: BlogMarkdownPost | null;
+    nextPost: BlogMarkdownPost | null;
+}): string {
+    return [
+        `# ${post.title}`,
+        renderBlogPostMetadataMarkdown(post),
+        post.body,
+        renderBlogPostLinksMarkdown({previousPost, nextPost}),
+    ]
+        .filter(part => part.length > 0)
+        .join("\n\n");
+}
+
+/**
+ * Render tag and author metadata for an individual markdown blog post.
+ */
+function renderBlogPostMetadataMarkdown(post: BlogMarkdownPost): string {
+    return [
+        ...(post.tags.length > 0 ? ["Tags:", post.tags.map(tag => `- ${tag}`).join("\n")] : []),
+        ...(post.author === null
+            ? []
+            : [`Author: ${post.author.name}`, renderBlogAuthorLinks(post.author)]),
+    ]
+        .filter(part => part.length > 0)
+        .join("\n\n");
+}
+
+/**
+ * Render markdown links for the configured social profiles on an author.
+ */
+function renderBlogAuthorLinks(author: BlogMarkdownAuthor): string {
+    return [
+        author.socials.x === null ? null : `- [X](${author.socials.x})`,
+        author.socials.bluesky === null ? null : `- [BlueSky](${author.socials.bluesky})`,
+        author.socials.linkedin === null ? null : `- [LinkedIn](${author.socials.linkedin})`,
+        author.socials.email === null ? null : `- [Email](mailto:${author.socials.email})`,
+    ]
+        .filter((link): link is string => link !== null)
+        .join("\n");
+}
+
+/**
+ * Render the generated next, previous, and home links for a markdown post.
+ */
+function renderBlogPostLinksMarkdown({
+    previousPost,
+    nextPost,
+}: {
+    previousPost: BlogMarkdownPost | null;
+    nextPost: BlogMarkdownPost | null;
+}): string {
+    return [
+        "# Links",
+        "- [Blog home](/blog.md)",
+        ...(previousPost === null
+            ? []
+            : [`- [Previous: ${previousPost.title}](${createBlogPostUrl(previousPost.slug)}.md)`]),
+        ...(nextPost === null
+            ? []
+            : [`- [Next: ${nextPost.title}](${createBlogPostUrl(nextPost.slug)}.md)`]),
+    ].join("\n");
+}
+
+/**
+ * Read and validate a blog publish date for markdown generation.
+ */
+function publishDateForBlogPostFile(file: BlogMarkdownPostSourceFile): string {
+    const publishDate = stringFrontmatter(file, "publishDate");
+    assert(
+        publishDate !== null && /^\d{4}-\d{2}-\d{2}$/.test(publishDate),
+        `Expected publishDate YYYY-MM-DD for ${file.sourceName}`,
+    );
+    return publishDate;
+}
+
+/**
+ * Read and validate the stable public slug for markdown generation.
+ */
+function slugForBlogPostFile(file: BlogMarkdownPostSourceFile): string {
+    const slug = stringFrontmatter(file, "slug");
+    assert(slug !== null, `Expected slug frontmatter for ${file.sourceName}`);
+    assert(
+        /^[a-z0-9]+(?:-[a-z0-9]+)*$/.test(slug),
+        `Expected lowercase kebab-case slug for ${file.sourceName}`,
+    );
+    return slug;
+}
+
+/**
+ * Resolve comma-separated or array frontmatter tags for markdown output.
+ */
+function tagsForFile(file: {frontmatter: {[key: string]: unknown}}): Array<string> {
+    const {tags} = file.frontmatter;
+    if (Array.isArray(tags)) return tags.filter((tag): tag is string => typeof tag === "string");
+    if (typeof tags !== "string") return [];
+    return tags
+        .split(",")
+        .map(tag => tag.trim())
+        .filter(tag => tag.length > 0);
+}
+
+/**
+ * Read a non-empty string frontmatter value.
+ */
+function stringFrontmatter(
+    file: {frontmatter: {[key: string]: unknown}},
+    key: string,
+): string | null {
+    const value = file.frontmatter[key];
+    return typeof value === "string" && value.length > 0 ? value : null;
+}
+
+/**
+ * Normalize optional string JSON values into nullable strings.
+ */
+function nullableString(value: unknown): string | null {
+    return typeof value === "string" && value.length > 0 ? value : null;
+}
+
+/**
+ * Sort markdown blog posts by newest publish date, then slug.
+ */
+function compareBlogMarkdownPosts(post1: BlogMarkdownPost, post2: BlogMarkdownPost): number {
+    const dateOrder = post2.publishDate.localeCompare(post1.publishDate);
+    return dateOrder !== 0 ? dateOrder : post1.slug.localeCompare(post2.slug);
+}
+
+/**
+ * Assert that no two markdown blog posts claim the same public slug.
+ */
+function assertUniqueBlogPostSlugs(posts: Array<BlogMarkdownPost>): void {
+    const slugs = new Set<string>();
+    for (const post of posts) {
+        assert(!slugs.has(post.slug), `Duplicate blog post slug: ${post.slug}`);
+        slugs.add(post.slug);
+    }
 }
 
 /**

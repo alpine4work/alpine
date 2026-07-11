@@ -574,6 +574,9 @@ async function createAppService({
         process.env.NODE_ENV,
     );
 
+    /**
+     * Handle a Remix request with loader context, tracing, and session cookie setup.
+     */
     function handleRemixRequest(
         request: Request,
         url: URL,
@@ -720,16 +723,23 @@ async function createAppService({
         url => {
             if (url.pathname === "/api/internal/healthcheck") return [url.pathname, "HealthCheck"];
 
-            // React Router splats can't match a suffix like `/docs/*.md`, so route nested docs
-            // markdown requests through a Remix resource route with an internal URL. The
-            // loader still receives the original request URL and owns markdown/404 response
+            // React Router splats can't match a suffix like `/docs/*.md` or `/blog/*.md`, so
+            // route nested markdown requests through Remix resource routes with internal URLs.
+            // The loaders still receive the original request URL and own markdown/404 response
             // behavior.
-            const documentationMarkdownUrl = getDocumentationMarkdownRouteUrl(url);
-            if (documentationMarkdownUrl !== null) {
-                const matches = handleRequest.matchServerRoutes(documentationMarkdownUrl);
+            const documentationMarkdownRoute = getDocumentationMarkdownRoute(url);
+            if (documentationMarkdownRoute !== null) {
+                const matches = handleRequest.matchServerRoutes(documentationMarkdownRoute.url);
                 assert(matches !== null, "Expected documentation markdown route");
 
-                return ["/docs/*", {matches, route: "/docs/*", url: documentationMarkdownUrl}];
+                return [
+                    documentationMarkdownRoute.route,
+                    {
+                        matches,
+                        route: documentationMarkdownRoute.route,
+                        url: documentationMarkdownRoute.url,
+                    },
+                ];
             }
 
             // Add route when running integration tests...
@@ -808,10 +818,20 @@ function createActorContextModule(
     });
 }
 
-function getDocumentationMarkdownRouteUrl(url: URL): URL | null {
-    if (!url.pathname.endsWith(".md") || !url.pathname.startsWith("/docs/")) return null;
+function getDocumentationMarkdownRoute(url: URL): {route: string; url: URL} | null {
+    if (!url.pathname.endsWith(".md")) return null;
 
-    const documentationMarkdownUrl = new URL(url);
-    documentationMarkdownUrl.pathname = `/docs-markdown/${url.pathname.slice("/docs/".length)}`;
-    return documentationMarkdownUrl;
+    if (url.pathname.startsWith("/docs/")) {
+        const documentationMarkdownUrl = new URL(url);
+        documentationMarkdownUrl.pathname = `/docs-markdown/${url.pathname.slice("/docs/".length)}`;
+        return {route: "/docs/*", url: documentationMarkdownUrl};
+    }
+
+    if (url.pathname.startsWith("/blog/")) {
+        const documentationMarkdownUrl = new URL(url);
+        documentationMarkdownUrl.pathname = `/blog-markdown/${url.pathname.slice("/blog/".length)}`;
+        return {route: "/blog/*", url: documentationMarkdownUrl};
+    }
+
+    return null;
 }

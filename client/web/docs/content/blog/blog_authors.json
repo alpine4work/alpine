@@ -1,0 +1,38 @@
+{
+    "josh": {
+        "name": "Josh Johnson",
+        "socials": {
+            "x": "https://x.com/imjosh_in",
+            "bluesky": null,
+            "linkedin": "https://www.linkedin.com/in/imjoshin/",
+            "email": "josh@alpine.inc"
+        }
+    },
+    "caleb": {
+        "name": "Caleb Meredith",
+        "socials": {
+            "x": "https://x.com/calebmer",
+            "bluesky": null,
+            "linkedin": "https://www.linkedin.com/in/caleb-meredith-3a266bb3/",
+            "email": "caleb@alpine.inc"
+        }
+    },
+    "rachel": {
+        "name": "Rachel Date",
+        "socials": {
+            "x": null,
+            "bluesky": null,
+            "linkedin": "https://www.linkedin.com/in/rachel-date/",
+            "email": "rachel@alpine.inc"
+        }
+    },
+    "ian": {
+        "name": "Ian Fitzsimmons",
+        "socials": {
+            "x": null,
+            "bluesky": null,
+            "linkedin": "https://www.linkedin.com/in/ian-fitzsimmons-35137b156/",
+            "email": "ian@alpine.inc"
+        }
+    }
+}

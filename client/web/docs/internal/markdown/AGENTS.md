@@ -1,14 +1,14 @@
 # Docs markdown
 
-A markdown rendering of every docs page, served at `<path>.md` (for example `/docs/guides/tasks.md`
-and `/docs/api/post/tasks.md`) so the docs are consumable by tooling and LLMs, not just the HTML
-site.
+A markdown rendering of every docs and blog page, served at `<path>.md` (for example
+`/docs/guides/tasks.md`, `/docs/api/post/tasks.md`, and `/blog/attention-is-a-product-surface.md`)
+so the public content is consumable by tooling and LLMs, not just the HTML site.
 
 ## How it works
 
-`//client/web/docs/internal/codegen:docs_markdown` renders every page into the
+`//client/web/docs/internal/codegen:docs_markdown` renders every docs and blog page into the
 `internal/codegen/pages/` TreeArtifact, one file per page mirroring its URL
-(`pages/docs/guides/tasks.md`, …):
+(`pages/docs/guides/tasks.md`, `pages/blog/attention-is-a-product-surface.md`, …):
 
 - **Authored MDX** is rendered through each component's markdown variant
   (`render_documentation_mdx_to_markdown.ts` + the `.markdown` variants on
@@ -17,10 +17,13 @@ site.
   variants from `createDocumentationMdxMarkdownComponents`.
 - **API reference** pages are serialized from the OpenAPI model
   (`render_api_documentation_to_markdown.ts`): endpoints, schemas, and the static pages.
+- **Blog posts** are rendered from authored Markdown/MDX under `client/web/docs/content/blog`.
+  `/blog.md` is a generated index, and each post is available at `/blog/<slug>.md`.
 
 `pages/` is a **generated build artifact** (like the search index), not committed. It rebuilds
 whenever the content, the spec, or the docs components change, so the dev server always serves
-current markdown. The `.md` docs route reads the rendered file straight from this directory.
+current markdown. The `.md` public content route reads the rendered file straight from this
+directory.
 
 Do not edit the generated files by hand. To regenerate locally:
 
@@ -34,7 +37,8 @@ Every component that can appear in docs MDX must live in `internal/markdown/comp
 `documentationComponent` framework. That framework requires both renderers:
 
 - `react`: the browser/UI version used by the docs site.
-- `markdown`: the plain markdown version used by `/docs/*.md` output for agents and tooling.
+- `markdown`: the plain markdown version used by `/docs/*.md` and `/blog/*.md` output for agents and
+  tooling.
 
 After creating `documentation_foo.tsx`, export it from
 `internal/markdown/components/documentation_mdx_components.tsx` by adding it to

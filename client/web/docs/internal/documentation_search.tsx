@@ -20,6 +20,9 @@ export function DocumentationSearch({searchIndex}: {searchIndex: DocumentationSe
     const [open, setOpen] = useState(false);
 
     useEffect(() => {
+        /**
+         * Open docs search from the global keyboard shortcut.
+         */
         function onKeyDown(event: KeyboardEvent) {
             if ((event.metaKey || event.ctrlKey) && event.key.toLowerCase() === "k") {
                 event.preventDefault();
@@ -43,6 +46,9 @@ export function DocumentationSearch({searchIndex}: {searchIndex: DocumentationSe
     );
 }
 
+/**
+ * Render the compact header control that opens docs search.
+ */
 function DocumentationSearchTrigger({onOpen}: {onOpen: () => void}) {
     return (
         <DocumentationUnstyledButton
@@ -120,6 +126,9 @@ function DocumentationSearchDialog({
         [navigate, onClose],
     );
 
+    /**
+     * Move the active result or open it from the search input keyboard controls.
+     */
     function onInputKeyDown(event: React.KeyboardEvent<HTMLInputElement>) {
         switch (event.key) {
             case "ArrowDown":
@@ -229,9 +238,9 @@ function DocumentationSearchDialog({
 }
 
 /**
- * Group the (already page-then-API ordered) results under "Guides" and "API
- * Reference" headings. Rows keep their flat index into `results` so the shared
- * keyboard selection still works across both sections.
+ * Group the ordered results under "Guides", "Blog", and "API Reference" headings.
+ * Rows keep their flat index into `results` so the shared keyboard selection still
+ * works across sections.
  */
 function DocumentationSearchResultSections({
     results,
@@ -244,9 +253,11 @@ function DocumentationSearchResultSections({
     onHover: (index: number) => void;
     onSelect: (result: DocumentationSearchResult) => void;
 }) {
-    const firstApiIndex = results.findIndex(result => result.entry.type === "api");
-    const pageResults = firstApiIndex === -1 ? results : results.slice(0, firstApiIndex);
-    const apiResults = firstApiIndex === -1 ? [] : results.slice(firstApiIndex);
+    const pageResults = results.filter(result => result.entry.type === "page");
+    const blogResults = results.filter(result => result.entry.type === "blog");
+    const apiResults = results.filter(result => result.entry.type === "api");
+    const blogIndexOffset = pageResults.length;
+    const apiIndexOffset = blogIndexOffset + blogResults.length;
 
     return (
         <>
@@ -260,11 +271,21 @@ function DocumentationSearchResultSections({
                     onSelect={onSelect}
                 />
             ) : null}
+            {blogResults.length > 0 ? (
+                <DocumentationSearchResultSection
+                    title="Blog"
+                    results={blogResults}
+                    indexOffset={blogIndexOffset}
+                    activeIndex={activeIndex}
+                    onHover={onHover}
+                    onSelect={onSelect}
+                />
+            ) : null}
             {apiResults.length > 0 ? (
                 <DocumentationSearchResultSection
                     title="API Reference"
                     results={apiResults}
-                    indexOffset={pageResults.length}
+                    indexOffset={apiIndexOffset}
                     activeIndex={activeIndex}
                     onHover={onHover}
                     onSelect={onSelect}
@@ -274,6 +295,9 @@ function DocumentationSearchResultSections({
     );
 }
 
+/**
+ * Render one labeled group of docs search results.
+ */
 function DocumentationSearchResultSection({
     title,
     results,
@@ -290,7 +314,7 @@ function DocumentationSearchResultSection({
     onSelect: (result: DocumentationSearchResult) => void;
 }) {
     return (
-        <Box marginBottom="1">
+        <Box marginBottom="1" paddingTop="2">
             <DocumentationSectionLabel>{title}</DocumentationSectionLabel>
             {results.map((result, offset) => {
                 const index = indexOffset + offset;
@@ -308,6 +332,9 @@ function DocumentationSearchResultSection({
     );
 }
 
+/**
+ * Render one selectable docs search result row.
+ */
 function DocumentationSearchResultRow({
     result,
     active,
@@ -364,22 +391,6 @@ function DocumentationSearchResultRow({
                     </Box>
                 ) : null}
             </Box>
-            {result.entry.type === "api" ? (
-                <Box
-                    as="span"
-                    fontSize="25"
-                    fontStyle="bold"
-                    color="grey-40"
-                    backgroundColor="grey-1"
-                    border="grey-5"
-                    borderRadius="full"
-                    paddingX="1.5"
-                    flexShrink="0"
-                    style={{textTransform: "uppercase", letterSpacing: "0.04em"}}
-                >
-                    API
-                </Box>
-            ) : null}
         </button>
     );
 }
