@@ -1,5 +1,6 @@
 import {uploadDemoSpaceBotAvatar} from "~/admin/environment/demo_space/upload_demo_space_bot_avatar.js";
 import {TestActualContext} from "~/admin/environment/test/unit/with_unit_test_environment.js";
+import {clearAccountInbox} from "~/app/screenshot_tests/helpers/clear_account_inbox.js";
 import {ScreenshotTestRunner} from "~/app/screenshot_tests/helpers/run_screenshot_test.js";
 import {TestBot} from "~/server/bots/test_helpers/test_bot.js";
 import {TestChat} from "~/server/chat/test_helpers/test_chat.js";
@@ -9,6 +10,7 @@ import {
     TestMessagingRoomBase,
 } from "~/server/messaging/test_helpers/test_messaging_room_base.js";
 import {TestSession} from "~/server/spaces/test_helpers/test_session.js";
+import {TestSpaceSession} from "~/server/spaces/test_helpers/test_space_session.js";
 import {createSimpleMessageContent} from "~/shared/content/message_content_schema.js";
 import {
     MessageExperimentalApproval,
@@ -90,6 +92,7 @@ export async function run(context: TestActualContext, runner: ScreenshotTestRunn
                 overrideCreatedTime: messageTime,
             });
 
+            await runner.drainBackgroundWork();
             return message;
         } finally {
             Date.now = realDateNow;
@@ -129,8 +132,11 @@ export async function run(context: TestActualContext, runner: ScreenshotTestRunn
             ],
         });
 
-        await runner.goto(accounts.cassCade, `/chat/${chat.id}`, {fixedTime});
-        await runner.screenshot("a0", "pending");
+        await screenshotMessages(accounts.cassCade, runner, "pending", {
+            path: `/chat/${chat.id}`,
+            orderKey: "a0",
+            fixedTime,
+        });
 
         await chat.sendMessage(
             accounts.cassCade,
@@ -170,12 +176,18 @@ export async function run(context: TestActualContext, runner: ScreenshotTestRunn
             ],
         });
 
-        await runner.goto(accounts.cassCade, `/chat/${chat.id}`, {fixedTime});
-        await runner.screenshot("a1", "pending-session-options");
+        await screenshotMessages(accounts.cassCade, runner, "pending-session-options", {
+            path: `/chat/${chat.id}`,
+            orderKey: "a1",
+            fixedTime,
+        });
 
         await runner.getByRole("button", {name: "More approval options"}).click();
         await runner.mouse.move(0, 0);
-        await runner.screenshot("a2", "pending-session-options-menu");
+        await screenshotMessages(accounts.cassCade, runner, "pending-session-options-menu", {
+            orderKey: "a2",
+            fixedTime,
+        });
     }
 
     // A group chat where approvals have already been decided. From Cass's perspective
@@ -236,8 +248,11 @@ export async function run(context: TestActualContext, runner: ScreenshotTestRunn
             ],
         });
 
-        await runner.goto(accounts.cassCade, `/chat/${chat.id}`, {fixedTime});
-        await runner.screenshot("a3", "decided");
+        await screenshotMessages(accounts.cassCade, runner, "decided", {
+            path: `/chat/${chat.id}`,
+            orderKey: "a3",
+            fixedTime,
+        });
     }
 
     // Back in the 1:1 chat: one agent message asking for sign-off on three launch
@@ -287,17 +302,27 @@ export async function run(context: TestActualContext, runner: ScreenshotTestRunn
             ],
         });
 
-        await runner.goto(accounts.cassCade, `/chat/${chat.id}`, {fixedTime});
-        await runner.screenshot("a4", "paginated-first-undecided");
+        await screenshotMessages(accounts.cassCade, runner, "paginated-first-undecided", {
+            path: `/chat/${chat.id}`,
+            orderKey: "a4",
+            fixedTime,
+        });
 
         await runner.getByRole("button", {name: "Next approval"}).click();
         await runner.mouse.move(0, 0);
-        await runner.screenshot("a5", "paginated-last");
+        await screenshotMessages(accounts.cassCade, runner, "paginated-last", {
+            orderKey: "a5",
+            fixedTime,
+        });
 
         await runner.getByRole("button", {name: "Previous approval"}).click();
         await runner.getByRole("button", {name: "Previous approval"}).click();
         await runner.mouse.move(0, 0);
-        await runner.screenshot("a6", "paginated-decided");
+
+        await screenshotMessages(accounts.cassCade, runner, "paginated-decided", {
+            orderKey: "a6",
+            fixedTime,
+        });
     }
 
     // An announcements channel where only Rose can write: everyone else gets read-only
@@ -368,7 +393,32 @@ export async function run(context: TestActualContext, runner: ScreenshotTestRunn
             ],
         });
 
-        await runner.goto(accounts.cassCade, `/post/${post.id}`, {fixedTime});
-        await runner.screenshot("a7", "read-only-post");
+        await screenshotMessages(accounts.cassCade, runner, "read-only-post", {
+            path: `/post/${post.id}`,
+            orderKey: "a7",
+            fixedTime,
+        });
     }
+}
+
+async function screenshotMessages(
+    session: TestSpaceSession,
+    runner: ScreenshotTestRunner,
+    name: string,
+    {
+        path,
+        orderKey,
+        fixedTime,
+    }: {
+        path?: string;
+        orderKey: string;
+        fixedTime: Date;
+    },
+) {
+    await clearAccountInbox(session);
+
+    if (path) {
+        await runner.goto(session, path, {fixedTime});
+    }
+    await runner.screenshot(orderKey, name);
 }
