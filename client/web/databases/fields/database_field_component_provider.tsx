@@ -1,6 +1,7 @@
 import type {Icon} from "phosphor-react";
 import type {ComponentType, Ref} from "react";
 
+import type {DatabaseGridViewField} from "~/client/web/databases/use_grid_view_fields.js";
 import type {MenuActions} from "~/client/web/design/menu.js";
 import {
     DatabaseFieldConfig,
@@ -8,7 +9,7 @@ import {
     DatabaseFieldType,
     DatabaseFieldValue,
 } from "~/shared/databases/fields/all_database_field_providers.js";
-import type {DatabaseFieldId, DatabaseRowId, DatabaseTableId} from "~/shared/id/types/id_types.js";
+import type {DatabaseRowId, DatabaseTableId} from "~/shared/id/types/id_types.js";
 
 // -- Grid view cell props -----------------------------------------------------
 
@@ -17,9 +18,7 @@ import type {DatabaseFieldId, DatabaseRowId, DatabaseTableId} from "~/shared/id/
  */
 export type DatabaseGridViewCellContentProps<Type extends DatabaseFieldType> = {
     ref?: Ref<HTMLElement>;
-    fieldName: string;
-    config: DatabaseFieldConfig<Type>;
-    linkedTableReadAccess: boolean | null;
+    field: DatabaseGridViewField & {config: DatabaseFieldConfig<Type>};
     value: DatabaseFieldValue<Type>;
     commitValue: (value: DatabaseFieldValue<Type>) => void;
     onCellClick: () => void;
@@ -31,10 +30,8 @@ export type DatabaseGridViewCellContentProps<Type extends DatabaseFieldType> = {
 export type DatabaseGridViewCellEditorOverlayProps<Type extends DatabaseFieldType> = {
     ref?: Ref<HTMLElement>;
     tableId: DatabaseTableId;
-    fieldId: DatabaseFieldId;
+    field: DatabaseGridViewField & {config: DatabaseFieldConfig<Type>};
     rowId: DatabaseRowId;
-    config: DatabaseFieldConfig<Type>;
-    linkedTableReadAccess: boolean | null;
     /** The current typed value of the cell. */
     initialValue: DatabaseFieldValue<Type>;
     /**

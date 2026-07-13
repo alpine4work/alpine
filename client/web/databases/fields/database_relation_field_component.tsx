@@ -18,11 +18,12 @@ import type {DatabaseRowId} from "~/shared/id/types/id_types.js";
 
 function DatabaseRelationGridViewCellContent({
     ref,
+    field,
     value,
-    linkedTableReadAccess,
     onCellClick,
 }: DatabaseGridViewCellContentProps<"relation">) {
     const links = Array.isArray(value) ? value : [];
+    const noAccess = field.linkedTableReadAccess === false;
     return (
         <Box
             ref={ref as React.Ref<HTMLDivElement>}
@@ -36,11 +37,7 @@ function DatabaseRelationGridViewCellContent({
             onClick={onCellClick}
         >
             {links.slice(0, 3).map(link => (
-                <DatabaseRelationChip
-                    key={link.id}
-                    name={link.name}
-                    noAccess={linkedTableReadAccess === false}
-                />
+                <DatabaseRelationChip key={link.id} name={link.name} noAccess={noAccess} />
             ))}
             {links.length > 3 ? (
                 <Box fontSize="75" color="grey-50" flexShrink="0">
@@ -54,14 +51,15 @@ function DatabaseRelationGridViewCellContent({
 function DatabaseRelationGridViewCellEditorOverlay({
     ref,
     tableId,
-    fieldId,
+    field,
     rowId,
     initialValue,
-    linkedTableReadAccess,
     onClose,
 }: DatabaseGridViewCellEditorOverlayProps<"relation">) {
     const conn = useDatabaseConnection();
     const reporter = useReporter();
+    const fieldId = field.id;
+    const noAccess = field.linkedTableReadAccess === false;
     const linkableRowsResult = useReactiveDatabaseAction({
         name: "listLinkableRows",
         input: useMemo(() => ({tableId, fieldId, rowId}), [tableId, fieldId, rowId]),
@@ -110,7 +108,7 @@ function DatabaseRelationGridViewCellEditorOverlay({
                     {links.map(link => (
                         <DatabaseRelationEditableChip
                             key={link.id}
-                            name={linkedTableReadAccess === false ? "No access" : link.name}
+                            name={noAccess ? "No access" : link.name}
                             onRemove={() => removeLink(link.id)}
                         />
                     ))}
