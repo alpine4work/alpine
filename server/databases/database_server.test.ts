@@ -105,7 +105,7 @@ const testContext = {
     },
     actor: {
         // A `System` actor with a trusted (`Test`) provenance: it passes the
-        // internal-action gate (see `canRunInternalDatabaseActions`) and, being a system
+        // internal-action gate (see `isInternalDatabaseServiceActor`) and, being a system
         // actor, runs unrestricted by per-table access — the stand-in for privileged
         // internal setup. Per-account tests use `createSessionContext` instead.
         type: "System",
@@ -985,7 +985,7 @@ describe("DatabaseServer", () => {
 
     describe("executeAction — internal actions", () => {
         // The allowlisted first-party backend services may run internal schema actions.
-        for (const serviceName of ["AppService", "JobQueueService"] as const) {
+        for (const serviceName of ["AppService", "JobQueueService", "ApiService"] as const) {
             test(`allows the internal ${serviceName} to run internal actions`, async () => {
                 const server = await createServerWithSchema();
                 const internalContext = {
@@ -1004,16 +1004,10 @@ describe("DatabaseServer", () => {
         }
 
         // Everyone else is rejected: `AppClient` (a public session actor), `EdgeService`
-        // (how a public request is re-signed when forwarded through the edge), another
-        // backend service that has no business mutating schema (`ApiService`), and the
+        // (how a public request is re-signed when forwarded through the edge), and the
         // durable object's own service name (`DatabaseGroupService`) — proving it is not a
         // privilege-escalation path even though it holds the durable object's key.
-        for (const serviceName of [
-            "AppClient",
-            "EdgeService",
-            "ApiService",
-            "DatabaseGroupService",
-        ] as const) {
+        for (const serviceName of ["AppClient", "EdgeService", "DatabaseGroupService"] as const) {
             test(`rejects the non-allowlisted ${serviceName} from running internal actions`, async () => {
                 const server = await createServerWithSchema();
                 const deniedContext = {

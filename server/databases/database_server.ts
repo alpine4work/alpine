@@ -1,7 +1,7 @@
 import type {Database as SqliteDatabase} from "~/external/sqlite/ext/wasm/jswasm/sqlite3.mjs";
 import type {WorkerActionContext} from "~/server/cloudflare/context/worker_action_context.js";
-import {canRunInternalDatabaseActions} from "~/server/databases/can_run_internal_database_actions.js";
 import type {DatabaseServerStorage} from "~/server/databases/database_server_storage.js";
+import {isInternalDatabaseServiceActor} from "~/server/databases/is_internal_database_service_actor.js";
 import {
     type AccessLevel,
     type LocalAccessPolicy,
@@ -159,9 +159,9 @@ export class DatabaseServer {
     ): DatabaseServerActionResult<N> {
         // `internalOnly` actions are schema/metadata mutations reserved for internal
         // server code, which authorized the operation before forwarding it — gate them on
-        // the actor's provenance (see {@link canRunInternalDatabaseActions}).
+        // the actor's provenance (see {@link isInternalDatabaseServiceActor}).
         const action = databaseActions[actionObject.name];
-        if (action.internalOnly && !canRunInternalDatabaseActions(context.actor)) {
+        if (action.internalOnly && !isInternalDatabaseServiceActor(context.actor)) {
             throw new PermissionDeniedError(
                 `Database action ${actionObject.name} is internal-only`,
             );

@@ -10,8 +10,6 @@ import {
 import {createDurableObject} from "~/server/cloudflare/create_durable_object.js";
 import {BrowserPageTracker} from "~/server/databases/browser_page_tracker.js";
 import {buildDatabasePageDiffs} from "~/server/databases/build_database_page_diffs.js";
-import {canBroadcastDatabaseTableMetadata} from "~/server/databases/can_broadcast_database_table_metadata.js";
-import {canRunInternalDatabaseActions} from "~/server/databases/can_run_internal_database_actions.js";
 import {
     DatabaseDurableObjectConnection,
     DatabaseRealtimeEventStub,
@@ -19,6 +17,7 @@ import {
 import {runDatabaseDurableObjectSqlMigrations} from "~/server/databases/database_durable_object_sql_migrations.js";
 import {DatabaseDurableObjectStorage} from "~/server/databases/database_durable_object_storage.js";
 import {DatabaseServer} from "~/server/databases/database_server.js";
+import {isInternalDatabaseServiceActor} from "~/server/databases/is_internal_database_service_actor.js";
 import {WebSocketServer} from "~/server/web_socket/web_socket_server.js";
 import {DatabaseActionFetchResponseSchema} from "~/shared/databases/database_action_fetch_schema.js";
 import {DatabaseActionObjectSchema} from "~/shared/databases/database_actions.js";
@@ -185,7 +184,7 @@ class DatabaseGroupDurableObject {
         context: WorkerActionContext,
         request: Request,
     ): Promise<Response> {
-        if (!canBroadcastDatabaseTableMetadata(context.actor)) {
+        if (!isInternalDatabaseServiceActor(context.actor)) {
             throw new PermissionDeniedError(
                 "Only some services can broadcast database table metadata realtime events",
             );
@@ -213,7 +212,7 @@ class DatabaseGroupDurableObject {
         // reaches the durable object with EdgeService-issued tokens — the edge forwards
         // any subpath — and must use the WebSocket protocol, whose connection-level
         // authorization and per-account enforcement this route has no equivalent of.
-        if (!canRunInternalDatabaseActions(context.actor)) {
+        if (!isInternalDatabaseServiceActor(context.actor)) {
             throw new PermissionDeniedError(
                 "Database actions over HTTP are restricted to internal services",
             );
