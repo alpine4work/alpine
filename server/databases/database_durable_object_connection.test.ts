@@ -34,8 +34,8 @@ beforeEach(() => {
 });
 
 // Websocket connections are always browser sessions, so the procedures always
-// enforce per-table access. These page-mechanics tests aren't about access, so they
-// pair this session context with `fullAccessServerMock` to grant every table.
+// enforce per-table access. These page-mechanics tests aren't about access, so
+// they pair this session context with `fullAccessServerMock` to grant every table.
 // Access filtering itself has dedicated tests (see `createUntrustedContext`).
 const sessionTestContext = {
     actor: {
