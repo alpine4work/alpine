@@ -236,21 +236,24 @@ describe("Database — createTrackedExecution", () => {
         `);
         let runCount = 0;
 
-        const execution = database.createTrackedExecution(() => {
-            runCount++;
-            return database.executeSql(
-                sql`
-                    SELECT
-                        COUNT(*) AS count
-                    FROM
-                        items
-                `,
-                {
-                    allowWrites: "none",
-                    getTableAccessLevel: allowAllTableAccess,
-                },
-            ).rows[0]!.count;
-        }, {getTableAccessLevel: allowAllTableAccess});
+        const execution = database.createTrackedExecution(
+            () => {
+                runCount++;
+                return database.executeSql(
+                    sql`
+                        SELECT
+                            COUNT(*) AS count
+                        FROM
+                            items
+                    `,
+                    {
+                        allowWrites: "none",
+                        getTableAccessLevel: allowAllTableAccess,
+                    },
+                ).rows[0]!.count;
+            },
+            {getTableAccessLevel: allowAllTableAccess},
+        );
 
         expect(runCount).toBe(0);
         expect(execution.getSnapshot()).toBe(0);
@@ -270,23 +273,26 @@ describe("Database — createTrackedExecution", () => {
         );
         let runCount = 0;
 
-        const execution = database.createTrackedExecution(() => {
-            runCount++;
-            return database.executeSql(
-                sql`
-                    SELECT
-                        name
-                    FROM
-                        items
-                    WHERE
-                        id = 1
-                `,
-                {
-                    allowWrites: "none",
-                    getTableAccessLevel: allowAllTableAccess,
-                },
-            ).rows[0]!.name;
-        }, {getTableAccessLevel: allowAllTableAccess});
+        const execution = database.createTrackedExecution(
+            () => {
+                runCount++;
+                return database.executeSql(
+                    sql`
+                        SELECT
+                            name
+                        FROM
+                            items
+                        WHERE
+                            id = 1
+                    `,
+                    {
+                        allowWrites: "none",
+                        getTableAccessLevel: allowAllTableAccess,
+                    },
+                ).rows[0]!.name;
+            },
+            {getTableAccessLevel: allowAllTableAccess},
+        );
 
         expect(execution.getSnapshot()).toBe("before");
         expect(runCount).toBe(1);
@@ -414,17 +420,20 @@ describe("Database — createTrackedExecution", () => {
         const {database} = await createDatabaseWithSchema(sql`
             CREATE TABLE items (id INTEGER PRIMARY KEY)
         `);
-        const execution = database.createTrackedExecution(() => {
-            database.executeSql(
-                sql`
-                    INSERT INTO
-                        items
-                    VALUES
-                        (1)
-                `,
-                {allowWrites: "data", getTableAccessLevel: allowAllTableAccess},
-            );
-        }, {getTableAccessLevel: allowAllTableAccess});
+        const execution = database.createTrackedExecution(
+            () => {
+                database.executeSql(
+                    sql`
+                        INSERT INTO
+                            items
+                        VALUES
+                            (1)
+                    `,
+                    {allowWrites: "data", getTableAccessLevel: allowAllTableAccess},
+                );
+            },
+            {getTableAccessLevel: allowAllTableAccess},
+        );
 
         expect(() => execution.getSnapshot()).toThrow(
             "nested execute cannot use broader write permissions than its parent",

@@ -162,15 +162,15 @@ export interface DatabaseTrackedExecution<Value> {
 interface DatabaseExecutionScope {
     /**
      * Per-execution table access, from {@link Database.execute}'s required
-     * `getTableAccessLevel` option. Callers grant unrestricted access explicitly
-     * with `allowAllTableAccess`. Enforced by the authorizer for every statement
-     * except internal attach SQL.
+     * `getTableAccessLevel` option. Callers grant unrestricted access explicitly with
+     * `allowAllTableAccess`. Enforced by the authorizer for every statement except
+     * internal attach SQL.
      */
     readonly getTableAccessLevel: (tableId: DatabaseTableId) => AccessLevel | null;
     /**
      * The account this execution runs as, or `null` when it has none. Read by
-     * server-only actions via `serverContext.getCurrentAccountId`. A nested
-     * `execute` that doesn't name an account inherits its parent's.
+     * server-only actions via `serverContext.getCurrentAccountId`. A nested `execute`
+     * that doesn't name an account inherits its parent's.
      */
     readonly accountId: AccountId | null;
 }
@@ -186,8 +186,8 @@ interface DatabaseExecutionScope {
  */
 interface DatabaseTrackedRunFrame {
     /**
-     * Pages read while this frame was innermost, from VFS reads and the
-     * page-access hook (which also captures pager-cache hits).
+     * Pages read while this frame was innermost, from VFS reads and the page-access
+     * hook (which also captures pager-cache hits).
      */
     readonly readPages: Map<DatabaseTableId, Set<number>>;
     /** Pages buffered by writes while this frame was innermost. */
@@ -195,8 +195,8 @@ interface DatabaseTrackedRunFrame {
     /**
      * The last denial issued by the per-table authorizer layer, used to convert
      * SQLite's generic "not authorized" error into a typed {@link
-     * PermissionDeniedError} naming the table. Mutated out of band by the
-     * authorizer callback while this frame's SQL runs.
+     * PermissionDeniedError} naming the table. Mutated out of band by the authorizer
+     * callback while this frame's SQL runs.
      */
     tableAccessDenial: {action: string; schemaName: string} | null;
     readonly parent: DatabaseTrackedRunFrame | null;

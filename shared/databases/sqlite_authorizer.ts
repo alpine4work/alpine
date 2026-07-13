@@ -80,9 +80,13 @@ export function sqliteAuthorizerActionName(code: number): SqliteActionName | und
 }
 
 /**
- * Returns whether {@link action} is allowed at the given {@link writeLevel}. Pass
- * `null` for idle/setup contexts (e.g. running PRAGMAs at startup) where
- * everything except attach/detach should be allowed.
+ * Returns whether {@link action} is allowed at the given {@link writeLevel}.
+ *
+ * A `null` `writeLevel` means no execution is in flight: SQL that reaches the
+ * authorizer outside `Database.execute()`, i.e. `Database`'s own setup SQL (the
+ * open PRAGMAs at construction) or raw-handle SQL in tests. Idle SQL is trusted
+ * and unrestricted — except ATTACH/DETACH, which are only ever allowed under the
+ * internal `"attach"` level so no SQL path can introduce an untracked schema.
  *
  * `actionArg` is the third argument SQLite hands the authorizer. For DML it is the
  * target table name; for attach/detach it is the filename, with `""` indicating
