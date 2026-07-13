@@ -18,6 +18,7 @@ ts_project(
         "//shared/helpers",
         "//shared/id",
         "//shared/spaces/test_helpers",
+        "//shared/tasks",
         "//shared/tracer",
     ],
 )

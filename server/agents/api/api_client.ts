@@ -9,7 +9,7 @@ import {
 } from "openapi-typescript-helpers";
 import {
     ApiContent,
-    ApiErrorResponseBody,
+    ApiErrorResponse,
     ApiMentionReference,
     ApiMentionReferenceResponse,
     ApiMessageContentPayloadParent,
@@ -30,6 +30,8 @@ import {isIdentifier} from "~/shared/helpers/string/is_identifier.js";
 import {TestCheckpoint} from "~/shared/helpers/test/test_checkpoint.js";
 import {fetchWithTracer} from "~/shared/tracer/fetch_with_tracer.js";
 import {TracerBase} from "~/shared/tracer/tracer_base.js";
+
+type ApiErrorResponseBody = ApiErrorResponse["content"]["application/json"];
 
 type ApiClientMethod<Paths extends {}, Method extends HttpMethod, Media extends MediaType> = <
     Path extends PathsWithMethod<Paths, Method>,
@@ -68,7 +70,7 @@ export function createApiClient({
 }: {
     baseUrl: string;
     apiKey: string;
-    accessToken: string;
+    accessToken?: string;
 }): ApiClient {
     const routeBySchemaPath = new DefaultMap<string, string>(schemaPath => {
         // Convert path params from the OpenAPI format (`/hello/{name}`) to the format
@@ -98,16 +100,17 @@ export function createApiClient({
     const apiClient: Client<ApiSpecification.paths> = createClient({
         baseUrl,
         headers: {
-            authorization: `bearer ${apiKey}~${accessToken}`,
+            authorization: `bearer ${apiKey}${accessToken === undefined ? "" : `~${accessToken}`}`,
         },
     });
 
     let currentTracer: TracerBase | null = null;
 
     apiClient.use({
-        onRequest: ({request, schemaPath, options}) => {
+        onRequest: async ({request, schemaPath, options}) => {
             const tracer = assertExists(currentTracer);
             currentTracer = null;
+            const requestBody = request.body === null ? null : await request.arrayBuffer();
 
             // Define the fetch operation
             return retryWithExponentialBackoff(
@@ -120,7 +123,7 @@ export function createApiClient({
                             route: routeBySchemaPath.getOrSetDefault(schemaPath),
                             method: request.method,
                             headers: request.headers,
-                            body: request.body,
+                            body: requestBody,
                             signal: request.signal,
                         },
                         async response => {
