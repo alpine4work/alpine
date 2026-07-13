@@ -1,5 +1,4 @@
 import sqlite3InitModule from "~/external/sqlite/ext/wasm/jswasm/sqlite3.mjs";
-import {emptyDatabaseTableAccessPolicy} from "~/shared/databases/database_table_access_policy.js";
 import {formatUniqueTableName} from "~/shared/databases/format_unique_table_name.js";
 import {hashWithPrivateSalt} from "~/shared/databases/hash_with_private_salt.js";
 import type {DatabaseFieldModel} from "~/shared/databases/model/database_field_model.js";
@@ -65,7 +64,6 @@ function createTable(model: DatabaseModel, tableId: DatabaseTableId, name: strin
     return model.createTable(tableId, {
         name,
         tableName,
-        accessPolicy: emptyDatabaseTableAccessPolicy,
     });
 }
 

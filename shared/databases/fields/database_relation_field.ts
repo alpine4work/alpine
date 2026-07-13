@@ -1,3 +1,4 @@
+import {hasAccessLevel} from "~/shared/access/access_policy.js";
 import {getDatabaseFieldProvider} from "~/shared/databases/fields/all_database_field_providers.js";
 import {DatabaseFieldProviderBase} from "~/shared/databases/fields/base/database_field_provider_base.js";
 import type {DatabaseFieldModelOfType} from "~/shared/databases/model/database_field_model.js";
@@ -56,7 +57,7 @@ export class DatabaseRelationFieldProvider extends DatabaseFieldProviderBase<
         // or which isn't replicated at all (client). Both sides decide from the same
         // server-computed access state, so local execution and server fallback return the
         // same shape.
-        if (!field.root.ctx.getTableAccess(relation.linkedTableId).read) {
+        if (!hasAccessLevel(field.root.ctx.getTableAccessLevel(relation.linkedTableId), "View")) {
             return sql`
                 (
                     SELECT
@@ -124,7 +125,7 @@ export class DatabaseRelationFieldProvider extends DatabaseFieldProviderBase<
         const joinRow = sql.identifier(`_join_${field.id}`);
 
         // See `_selectColumn`: ids-only when the linked table isn't readable.
-        if (!field.root.ctx.getTableAccess(relation.linkedTableId).read) {
+        if (!hasAccessLevel(field.root.ctx.getTableAccessLevel(relation.linkedTableId), "View")) {
             return sql`
                 (
                     SELECT

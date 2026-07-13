@@ -1,11 +1,13 @@
+import {resolveDatabaseTableAccessPolicyForDurableObject} from "~/server/databases/data/resolve_database_table_access_policy_for_durable_object.js";
 import {DynamoKeyAttributeSchema} from "~/server/dynamo/core/dynamo_key_attribute_schema.js";
 import {RynamoTableItemType, RynamoTableSchema} from "~/server/rynamo/rynamo_table_schema.js";
-import {AccessPolicySchema} from "~/shared/access/access_policy.js";
+import {AccessPolicySchema, type LocalAccessPolicy} from "~/shared/access/access_policy.js";
 import {DatabaseTableMetadataBroadcastRealtimeEventsSchema} from "~/shared/databases/database_realtime_protocol.js";
 import {DatabaseTableMetadataModel} from "~/shared/databases/database_table_metadata_model.js";
 import {RynamoEventStub} from "~/shared/dynamo/rynamo_types.js";
 import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
+import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
 import {mapIterable} from "~/shared/helpers/iterable/map_iterable.js";
 import {getOrSetDefaultMapValue} from "~/shared/helpers/map/get_or_set_default_map_value.js";
 import type {DatabaseGroupId, DatabaseTableId, SpaceId} from "~/shared/id/types/id_types.js";
@@ -54,16 +56,44 @@ export const DatabaseTablesTable = RynamoTableSchema.new({
     },
     broadcastEvents: async (context, events) => {
         const eventsByDatabaseGroupId = new Map<DatabaseGroupId, Array<RynamoEventStub>>();
+        const resolvedAccessPolicyByTableIdByDatabaseGroupId = new Map<
+            DatabaseGroupId,
+            Map<DatabaseTableId, LocalAccessPolicy | null>
+        >();
 
-        for (const {itemKey, eventStub} of events) {
-            if (itemKey.partitionType !== "DatabaseGroup") continue;
+        await runAllPromises(
+            events.map(async ({itemKey, eventStub, getEvent}) => {
+                if (itemKey.partitionType !== "DatabaseGroup") return;
 
-            getOrSetDefaultMapValue(
-                eventsByDatabaseGroupId,
-                itemKey.databaseGroupId,
-                () => [],
-            ).push(eventStub);
-        }
+                const event = await getEvent(context);
+                let resolvedAccessPolicy: LocalAccessPolicy | null;
+                switch (event.type) {
+                    case "PutItem":
+                        resolvedAccessPolicy =
+                            await resolveDatabaseTableAccessPolicyForDurableObject(
+                                context,
+                                event.item.model.accessPolicy,
+                            );
+                        break;
+                    case "DeleteItem":
+                        resolvedAccessPolicy = null;
+                        break;
+                    default:
+                        throw exhaustive(event);
+                }
+
+                getOrSetDefaultMapValue(
+                    eventsByDatabaseGroupId,
+                    itemKey.databaseGroupId,
+                    () => [],
+                ).push(eventStub);
+                getOrSetDefaultMapValue(
+                    resolvedAccessPolicyByTableIdByDatabaseGroupId,
+                    itemKey.databaseGroupId,
+                    () => new Map(),
+                ).set(itemKey.tableId, resolvedAccessPolicy);
+            }),
+        );
 
         await runAllPromises(
             mapIterable(eventsByDatabaseGroupId, async ([databaseGroupId, eventsForGroup]) => {
@@ -76,6 +106,9 @@ export const DatabaseTablesTable = RynamoTableSchema.new({
                         route: "/api/durable-objects/database-groups/:databaseGroupId/broadcast-table-metadata-realtime-event-transaction",
                         body: DatabaseTableMetadataBroadcastRealtimeEventsSchema.serialize({
                             events: eventsForGroup,
+                            resolvedAccessPolicyByTableId: assertExists(
+                                resolvedAccessPolicyByTableIdByDatabaseGroupId.get(databaseGroupId),
+                            ),
                         }),
                     },
                 );

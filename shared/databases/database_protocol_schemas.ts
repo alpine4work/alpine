@@ -1,3 +1,4 @@
+import {AccessLevelSchema} from "~/shared/access/access_policy.js";
 import {
     type DatabaseActionInput,
     type DatabaseActionName,
@@ -116,28 +117,20 @@ export type DatabasePageVersionsByIndex = SchemaType<typeof DatabasePageVersions
 // -- Table access levels --------------------------------------------------------
 
 /**
- * Wire-level summary of the receiving account's access to one table file, derived
- * server-side from the replicated access policies (`"write"` = Edit or above,
- * `"read"` = View/Comment, `"none"` = no access).
+ * The receiving account's access to each table file, derived server-side from the
+ * durable object's policy copies. `null` means no access.
  *
- * The client can't compute this itself: a table's policy lives inside its own
- * file, which never replicates to accounts without access — so the server pushes
- * the complete map in `ensureCacheIsUpToDate` responses and per-table deltas on
- * `TableMetadataChanged` events. The client uses it to _plan_ (e.g. relation
- * fields render "No access" chips instead of joining into a file it can't read);
- * the authoritative enforcement is the server's per-statement authorizer.
+ * The client can't compute this itself because policy copies remain server-side,
+ * so the server pushes the complete map in `ensureCacheIsUpToDate` responses and
+ * per-table deltas on `TableMetadataChanged` events. The client uses it to _plan_
+ * (e.g. relation fields render "No access" chips instead of joining into a file it
+ * can't read); the authoritative enforcement is the server's per-statement
+ * authorizer.
  */
-export const DatabaseTableAccessLevelSchema = Schema.enum(["none", "read", "write"]);
-
-export type DatabaseTableAccessLevel = SchemaType<typeof DatabaseTableAccessLevelSchema>;
-
-/** Per-table {@link DatabaseTableAccessLevelSchema} map. */
 export const DatabaseTableAccessLevelsSchema = Schema.map(
     Schema.id<DatabaseTableId>(),
-    DatabaseTableAccessLevelSchema,
+    AccessLevelSchema.nullable(),
 );
-
-export type DatabaseTableAccessLevels = SchemaType<typeof DatabaseTableAccessLevelsSchema>;
 
 /**
  * Result config for `ensureCacheIsUpToDate`.

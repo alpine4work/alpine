@@ -1,11 +1,8 @@
 import type {OpfsDirectoryHandle} from "~/client/web/databases/worker/opfs.js";
 import {OpfsDatabaseStorage} from "~/client/web/databases/worker/opfs_database_storage.js";
 import type {OpfsPageStore} from "~/client/web/databases/worker/opfs_page_store.js";
-import {
-    Database,
-    type DatabaseTableAccessResolver,
-    type DatabaseTrackedExecution,
-} from "~/shared/databases/database.js";
+import type {AccessLevel} from "~/shared/access/access_policy.js";
+import {Database, type DatabaseTrackedExecution} from "~/shared/databases/database.js";
 import {DatabaseActionRequiresServerError} from "~/shared/databases/database_action_requires_server_error.js";
 import {
     type DatabaseActionName,
@@ -21,8 +18,6 @@ import type {
     DatabasePageIndexes,
     DatabasePageVersionsByIndex,
     DatabasePages,
-    DatabaseTableAccessLevel,
-    DatabaseTableAccessLevels,
     ReadonlyDatabasePageSet,
 } from "~/shared/databases/database_protocol_schemas.js";
 import {
@@ -30,14 +25,12 @@ import {
     diffPage,
     shouldIgnorePageInvalidation,
 } from "~/shared/databases/page_diff.js";
-import {deniedSqliteTableAccess} from "~/shared/databases/sqlite_authorizer.js";
 import {databaseMainTableId} from "~/shared/databases/sqlite_constants.js";
 import {type SqliteMigration} from "~/shared/databases/sqlite_migrations.js";
 import {TableNotAttachedError} from "~/shared/databases/table_not_attached_error.js";
 import {PermissionDeniedError} from "~/shared/error/error.js";
 import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
 import {assert} from "~/shared/helpers/control/assert.js";
-import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
 import type {Result} from "~/shared/helpers/control/result.js";
 import {getOrSetDefaultMapValue} from "~/shared/helpers/map/get_or_set_default_map_value.js";
 import {generateId} from "~/shared/id/id.js";
@@ -95,7 +88,7 @@ export class DatabaseClient {
      * the client's only source of "exists but no access", e.g. for rendering a
      * relation into a table this account can't read.
      */
-    private tableAccessLevelByTableId = new Map<DatabaseTableId, DatabaseTableAccessLevel>();
+    private tableAccessLevelByTableId = new Map<DatabaseTableId, AccessLevel | null>();
 
     private constructor(database: Database, storage: OpfsDatabaseStorage) {
         this.database = database;
@@ -231,7 +224,9 @@ export class DatabaseClient {
      * Merge a `TableMetadataChanged` access delta into the map (see {@link
      * tableAccessLevelByTableId}) and purge any table the delta revoked.
      */
-    async applyTableAccessLevels(tableAccess: DatabaseTableAccessLevels): Promise<void> {
+    async applyTableAccessLevels(
+        tableAccess: ReadonlyMap<DatabaseTableId, AccessLevel | null>,
+    ): Promise<void> {
         for (const [tableId, level] of tableAccess) {
             this.tableAccessLevelByTableId.set(tableId, level);
         }
@@ -239,9 +234,9 @@ export class DatabaseClient {
     }
 
     /**
-     * Best-effort local purge of every cached table the access map now reports
-     * `"none"` for: detach its per-table file from SQLite (dropping buffered writes to
-     * it), delete its pages from OPFS, and re-run reactive queries that read them. The
+     * Best-effort local purge of every cached table the access map now reports `null`
+     * for: detach its per-table file from SQLite (dropping buffered writes to it),
+     * delete its pages from OPFS, and re-run reactive queries that read them. The
      * server stops replicating a revoked table on its own; this removes the copies
      * that already reached this device.
      *
@@ -253,7 +248,7 @@ export class DatabaseClient {
         const dirRemovals: Array<Promise<void>> = [];
         for (const [tableId, store] of [...this.storage]) {
             if (tableId === databaseMainTableId) continue;
-            if (this.getTableAccessLevel(tableId) !== "none") continue;
+            if (this.getTableAccessLevel(tableId) !== null) continue;
             if (!this.database.detachTableIfAttached(tableId)) continue;
             for (const {pageIndex} of store.pageEntries()) {
                 this.addPageToInvalidate(tableId, pageIndex);
@@ -272,38 +267,17 @@ export class DatabaseClient {
     }
 
     /**
-     * Per-execution table access derived from the server-pushed map, installed on
-     * every local action execution. Keeps the client's decisions — most importantly a
-     * relation field's ids-only projection when the linked table isn't readable —
-     * deterministic with the server's authorizer, which evaluates the same policies.
-     * Local statements that would be denied server-side fail fast here instead of
-     * optimistically applying and being rolled back.
-     */
-    private readonly tableAccessResolver: DatabaseTableAccessResolver = tableId => {
-        const level = this.getTableAccessLevel(tableId);
-        switch (level) {
-            case "write":
-                return "unrestricted";
-            case "read":
-                return {read: true, write: false, schema: false};
-            case "none":
-                return deniedSqliteTableAccess;
-            default:
-                throw exhaustive(level);
-        }
-    };
-
-    /**
      * The account's access to `tableId` per the server-pushed map. Tables absent from
-     * the map report `"write"`: trusted internal connections (tests, tools) receive
+     * the map report `Manage`: trusted internal connections (tests, tools) receive
      * empty maps, and a real client's map is complete for every registered table — so
      * absence means unrestricted or brand-new, and the server's authorizer is the
      * enforcement either way.
      */
-    getTableAccessLevel(tableId: DatabaseTableId): DatabaseTableAccessLevel {
-        if (tableId === databaseMainTableId) return "write";
-        return this.tableAccessLevelByTableId.get(tableId) ?? "write";
-    }
+    readonly getTableAccessLevel = (tableId: DatabaseTableId): AccessLevel | null => {
+        if (tableId === databaseMainTableId) return "Manage";
+        const accessLevel = this.tableAccessLevelByTableId.get(tableId);
+        return accessLevel === undefined ? "Manage" : accessLevel;
+    };
 
     /**
      * Attach open per-table stores whose header page is cached, up to the attach
@@ -358,7 +332,7 @@ export class DatabaseClient {
         let writtenPages: ReadonlyDatabasePageSet;
         try {
             const executed = this.database.executeAction(actionObject, {
-                tableAccessResolver: this.tableAccessResolver,
+                getTableAccessLevel: this.getTableAccessLevel,
             });
             output = executed.result;
             writtenPages = executed.writtenPages;
@@ -437,7 +411,7 @@ export class DatabaseClient {
         actionObject: DatabaseActionObject<N>,
     ): {output: DatabaseActionOutput<N>; readPages: ReadonlyDatabasePageSet} {
         const {result, readPages, writtenPages} = this.database.executeAction(actionObject, {
-            tableAccessResolver: this.tableAccessResolver,
+            getTableAccessLevel: this.getTableAccessLevel,
         });
         assert(writtenPages.size === 0, "executeActionWithTracking does not support writes");
         return {output: result, readPages};
@@ -693,7 +667,7 @@ export class DatabaseClient {
         this.optimisticQueue = this.optimisticQueue.filter(mutation => {
             try {
                 const {writtenPages} = this.database.executeAction(mutation.action, {
-                    tableAccessResolver: this.tableAccessResolver,
+                    getTableAccessLevel: this.getTableAccessLevel,
                 });
                 if (this.markWrittenPages(writtenPages)) {
                     anyInvalidated = true;

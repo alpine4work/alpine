@@ -9,10 +9,10 @@ import {DatabaseDurableObjectStorage} from "~/server/databases/database_durable_
 import {DatabaseServer} from "~/server/databases/database_server.js";
 import {isTrustedDatabaseServiceActor} from "~/server/databases/is_trusted_database_service_actor.js";
 import {WebSocketConnectionProcedures} from "~/server/web_socket/web_socket_server.js";
+import type {AccessLevel} from "~/shared/access/access_policy.js";
 import {databaseActions} from "~/shared/databases/database_actions.js";
 import type {
     DatabasePageDiffs,
-    DatabaseTableAccessLevel,
     DatabaseTablePageDiffs,
     DatabaseTablePages,
 } from "~/shared/databases/database_protocol_schemas.js";
@@ -179,11 +179,10 @@ export class DatabaseDurableObjectConnection {
         ensureCacheIsUpToDate: async (context, input) => {
             // Trusted internal connections are unrestricted; browser connections get per-table
             // withholding plus the complete access map (their only source of "exists but no
-            // access" — an inaccessible table's policy lives inside a file that never
-            // replicates to them).
+            // access" because policy copies remain server-side).
             const isTrustedActor = isTrustedDatabaseServiceActor(context.actor);
             const tableAccess = isTrustedActor
-                ? new Map<DatabaseTableId, DatabaseTableAccessLevel>()
+                ? new Map<DatabaseTableId, AccessLevel | null>()
                 : this._server.getTableAccessLevelsForAccount(
                       context.actor.getPossiblyBotAccountIdIfExists(),
                   );
@@ -209,7 +208,7 @@ export class DatabaseDurableObjectConnection {
                 // Withhold tables the account can't read. Omitting the table also wipes its
                 // per-browser tracker state below — correct, since no pages will be sent while
                 // access is missing.
-                if (!isTrustedActor && (tableAccess.get(tableId) ?? "none") === "none") {
+                if (!isTrustedActor && (tableAccess.get(tableId) ?? null) === null) {
                     continue;
                 }
                 const updatedPages = new Map<number, {version: number; data: Uint8Array}>();
@@ -292,12 +291,12 @@ export class DatabaseDurableObjectConnection {
 
     public async authorize(context: WorkerSessionActionContext): Promise<void> {
         // Space-level gate: every database group belongs to exactly one space, and all
-        // per-table checks downstream (the authorizer's access resolver, realtime
-        // filtering) evaluate replicated policies _assuming_ space access — this is the
-        // async check that assumption rests on. The websocket wrapper re-runs it roughly
-        // every two minutes, so a revoked space membership closes the socket within that
-        // bound (plus the ~15s server-side membership cache) — the same staleness Alpine
-        // accepts for documents and chat.
+        // per-table checks downstream (the authorizer's access lookup, realtime filtering)
+        // evaluate local policy copies _assuming_ space access — this is the async check
+        // that assumption rests on. The websocket wrapper re-runs it roughly every two
+        // minutes, so a revoked space membership closes the socket within that bound (plus
+        // the ~15s server-side membership cache) — the same staleness Alpine accepts for
+        // documents and chat.
         await authorizeDatabaseGroupAccess(context, {databaseGroupId: this._databaseGroupId});
     }
 
@@ -317,7 +316,7 @@ export class DatabaseDurableObjectConnection {
                 for (const [tableId, diffs] of eventStub.pageDiffs) {
                     if (
                         tableId === databaseMainTableId ||
-                        this._server.getTableAccessLevelForAccount(tableId, accountId) !== "none"
+                        this._server.getTableAccessLevelForAccount(tableId, accountId) !== null
                     ) {
                         pageDiffs.set(tableId, diffs);
                     }
@@ -333,9 +332,9 @@ export class DatabaseDurableObjectConnection {
                     },
                 );
                 // Access-map delta for every table the batch touched: visible events report the
-                // account's current level from the replicated policies, denied ones report "none"
+                // account's current level from the local policy copies; denied ones report null
                 // (the revocation signal). Trusted connections are unrestricted and get no map.
-                const tableAccess = new Map<DatabaseTableId, DatabaseTableAccessLevel>();
+                const tableAccess = new Map<DatabaseTableId, AccessLevel | null>();
                 if (!isTrustedActor) {
                     const accountId = context.actor.getPossiblyBotAccountIdIfExists();
                     for (const event of events) {
@@ -347,7 +346,7 @@ export class DatabaseDurableObjectConnection {
                         );
                     }
                     for (const tableId of deniedTableIds ?? []) {
-                        tableAccess.set(tableId, "none");
+                        tableAccess.set(tableId, null);
                     }
                 }
                 return {

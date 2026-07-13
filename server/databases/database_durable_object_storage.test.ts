@@ -1,5 +1,9 @@
 import {DurableObjectStorage} from "@miniflare/durable-objects";
 import {MemoryStorage} from "@miniflare/storage-memory";
+import {
+    databaseDurableObjectSqlMigrations,
+    runDatabaseDurableObjectSqlMigrations,
+} from "~/server/databases/database_durable_object_sql_migrations.js";
 import {DatabaseDurableObjectStorage} from "~/server/databases/database_durable_object_storage.js";
 import {noTruncates} from "~/server/databases/test_helpers/no_truncates.js";
 import {truncateFor} from "~/server/databases/test_helpers/truncate_for.js";
@@ -12,9 +16,60 @@ let storage: any;
 
 beforeEach(() => {
     storage = new DurableObjectStorage(new MemoryStorage());
+    runDatabaseDurableObjectSqlMigrations(storage);
 });
 
 describe("DatabaseDurableObjectStorage", () => {
+    test("runs and records built-in SQLite migrations", () => {
+        const version = storage.sql.exec("SELECT MAX(version) AS version FROM _migrations").next()
+            .value.version;
+        expect({
+            version,
+            tableNames: [...storage.sql.exec("SELECT name FROM sqlite_master")].map(
+                ({name}: {name: string}) => name,
+            ),
+            pageForeignKeys: [
+                ...storage.sql.exec("PRAGMA foreign_key_list(database_table_pages)"),
+            ].map(({table}: {table: string}) => table),
+        }).toEqual({
+            version: databaseDurableObjectSqlMigrations.length,
+            tableNames: expect.arrayContaining([
+                "_migrations",
+                "database_tables",
+                "database_table_pages",
+            ]),
+            pageForeignKeys: ["database_tables"],
+        });
+    });
+
+    test("does not rerun recorded built-in SQLite migrations", () => {
+        runDatabaseDurableObjectSqlMigrations(storage);
+
+        expect([...storage.sql.exec("SELECT version FROM _migrations")]).toEqual([{version: 1}]);
+    });
+
+    test("stores, updates, and removes table access policies", () => {
+        const doStorage = new DatabaseDurableObjectStorage(storage);
+        const tableId = generateChronologicalId<DatabaseTableId>();
+        const firstPolicy = {
+            type: "Local" as const,
+            accountGrantById: new Map(),
+            defaultGrant: {level: "View" as const},
+            urlGrant: null,
+        };
+        const secondPolicy = {...firstPolicy, defaultGrant: {level: "Edit" as const}};
+
+        doStorage.setDatabaseTableAccessPolicy(tableId, firstPolicy);
+        doStorage.setDatabaseTableAccessPolicy(tableId, secondPolicy);
+        const storedPolicy = doStorage.getDatabaseTableAccessPolicy(tableId);
+        doStorage.setDatabaseTableAccessPolicy(tableId, null);
+
+        expect({
+            storedPolicy,
+            removedPolicy: doStorage.getDatabaseTableAccessPolicy(tableId),
+        }).toEqual({storedPolicy: secondPolicy, removedPolicy: null});
+    });
+
     test("construct, write pages, read them back", () => {
         const doStorage = new DatabaseDurableObjectStorage(storage);
 
@@ -258,15 +313,12 @@ describe("DatabaseDurableObjectStorage", () => {
         // tombstone for page 1 directly.
         const reloaded = new DatabaseDurableObjectStorage(storage);
         const sqliteIdRow = storage.sql
-            .exec(
-                "SELECT sqlite_id FROM database_table_ids WHERE database_table_id = ?",
-                databaseMainTableId,
-            )
+            .exec("SELECT sqlite_id FROM database_tables WHERE table_id = ?", databaseMainTableId)
             .next();
         expect(sqliteIdRow.done).toBe(false);
         const sqliteId = sqliteIdRow.value.sqlite_id;
         storage.sql.exec(
-            "INSERT INTO pages (sqlite_id, page_index, version, data) VALUES (?, ?, ?, NULL)",
+            "INSERT INTO database_table_pages (sqlite_id, page_index, version, data) VALUES (?, ?, ?, NULL)",
             sqliteId,
             1,
             999_999,
@@ -351,7 +403,7 @@ describe("DatabaseDurableObjectStorage", () => {
         expect(doStorage.readPage(unknown, 0)).toBeNull();
 
         const cursor = storage.sql.exec(
-            "SELECT COUNT(*) AS c FROM database_table_ids WHERE database_table_id = ?",
+            "SELECT COUNT(*) AS c FROM database_tables WHERE table_id = ?",
             unknown,
         );
         expect(cursor.next().value.c).toBe(0);

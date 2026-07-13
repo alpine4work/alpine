@@ -1,5 +1,6 @@
 import type {Sqlite3Static, WasmPointer} from "~/external/sqlite/ext/wasm/jswasm/sqlite3.mjs";
 import sqlite3InitModule from "~/external/sqlite/ext/wasm/jswasm/sqlite3.mjs";
+import type {AccessLevel} from "~/shared/access/access_policy.js";
 import type {DatabaseActionServerContext} from "~/shared/databases/database_action_context.js";
 import {
     type DatabaseActionName,
@@ -22,13 +23,10 @@ import {
 import {SqliteDatabase, trySqlite3WasmLoader} from "~/shared/databases/sqlite.js";
 import {
     type InternalSqliteWriteLevel,
-    type SqliteTableAccess,
     type SqliteWriteLevel,
-    deniedSqliteTableAccess,
     isSqliteActionAllowed,
     isSqliteActionAllowedForSchemaAccess,
     sqliteAuthorizerActionName,
-    unrestrictedSqliteTableAccess,
 } from "~/shared/databases/sqlite_authorizer.js";
 import {
     databaseMainTableId,
@@ -154,20 +152,6 @@ export interface DatabaseTrackedExecution<Value> {
 }
 
 /**
- * Resolves a table's {@link SqliteTableAccess} capabilities for the current
- * execution's account. Installed per execution (see {@link Database.execute});
- * executions without a resolver are unrestricted (internal server code, service
- * actors, and — until per-account enforcement ships there — the client).
- *
- * Returning `"unrestricted"` grants everything; resolvers should reserve it for
- * schemas outside the permission model and return explicit capability flags for
- * real tables.
- */
-export type DatabaseTableAccessResolver = (
-    tableId: DatabaseTableId,
-) => SqliteTableAccess | "unrestricted";
-
-/**
  * SQLite database that buffers writes in memory.
  *
  * Built around a {@link ReadonlyDatabaseStorage}: every write goes into an
@@ -202,11 +186,13 @@ export class Database {
     private writeLevel: InternalSqliteWriteLevel | null = null;
     /**
      * Per-execution table access, installed via {@link execute}'s
-     * `tableAccessResolver` option; `null` runs unrestricted. Enforced by the
+     * `getTableAccessLevel` option; `null` runs unrestricted. Enforced by the
      * authorizer for every statement except internal SQL (attach recovery and the
      * `"attach"` write level).
      */
-    private tableAccessResolver: DatabaseTableAccessResolver | null = null;
+    private getTableAccessLevelForExecution:
+        | ((tableId: DatabaseTableId) => AccessLevel | null)
+        | null = null;
     /**
      * The last denial issued by the per-table authorizer layer, used to convert
      * SQLite's generic "not authorized" error into a typed {@link
@@ -231,9 +217,8 @@ export class Database {
     private readonly trackedExecutions = new Set<DatabaseTrackedExecutionImpl<any>>();
     /**
      * Server-only hook invoked after every successful {@link attach}. The durable
-     * object uses it to load the freshly attached file's access-policy metadata,
-     * maintaining the invariant that every attached schema has a cached policy the
-     * authorizer's table-access resolver can consult synchronously.
+     * object uses it to cache the attached table's kind and, for join tables, its
+     * topology before a restricted statement can touch the schema.
      */
     private serverTableAttachHook: ((tableId: DatabaseTableId) => void) | null = null;
     private currentActionAccountId: AccountId | null = null;
@@ -323,7 +308,7 @@ export class Database {
                 // `user_version` asserts, and change-capture trigger DDL that must succeed
                 // regardless of the ambient account's access).
                 if (
-                    this.tableAccessResolver !== null &&
+                    this.getTableAccessLevelForExecution !== null &&
                     this.writeLevel !== "attach" &&
                     !this.inAttachRecovery
                 ) {
@@ -392,22 +377,22 @@ export class Database {
      * point; {@link executeSql} and {@link executeAction} are thin wrappers.
      *
      * `allowWrites` controls which classes of statement the authorizer permits while
-     * `fn` runs. `tableAccessResolver` additionally restricts which attached table
-     * files those statements may touch (see {@link DatabaseTableAccessResolver}); omit
-     * it to inherit the ambient resolver, pass `null` to run unrestricted. On the
-     * canonical (server) database, a schema change also triggers `PRAGMA optimize`
-     * inside the same tracked call (see {@link maybeOptimizeAfterWrites}).
+     * `fn` runs. `getTableAccessLevel` additionally restricts which attached table
+     * files those statements may touch; omit it to inherit the ambient lookup, pass
+     * `null` to run unrestricted. On the canonical (server) database, a schema change
+     * also triggers `PRAGMA optimize` inside the same tracked call (see {@link
+     * maybeOptimizeAfterWrites}).
      */
     execute<T>(
         fn: (db: SqliteDatabase) => T,
         options: {
             allowWrites: SqliteWriteLevel;
-            tableAccessResolver?: DatabaseTableAccessResolver | null;
+            getTableAccessLevel?: ((tableId: DatabaseTableId) => AccessLevel | null) | null;
         },
     ): {result: T; readPages: ReadonlyDatabasePageSet; writtenPages: ReadonlyDatabasePageSet} {
-        const previousResolver = this.tableAccessResolver;
-        if (options.tableAccessResolver !== undefined) {
-            this.tableAccessResolver = options.tableAccessResolver;
+        const previousGetTableAccessLevel = this.getTableAccessLevelForExecution;
+        if (options.getTableAccessLevel !== undefined) {
+            this.getTableAccessLevelForExecution = options.getTableAccessLevel;
         }
         try {
             return this.runTracked(options.allowWrites, db => {
@@ -416,21 +401,21 @@ export class Database {
                 return result;
             });
         } finally {
-            this.tableAccessResolver = previousResolver;
+            this.getTableAccessLevelForExecution = previousGetTableAccessLevel;
         }
     }
 
     /**
      * Run a {@link SqlQuery} (built with the {@link sql} tagged template) against the
      * database. `allowWrites` controls which classes of statement the authorizer
-     * permits; `tableAccessResolver` restricts which attached table files it may touch
+     * permits; `getTableAccessLevel` restricts which attached table files it may touch
      * (see {@link execute}).
      */
     executeSql(
         query: SqlQuery,
         options: {
             allowWrites: SqliteWriteLevel;
-            tableAccessResolver?: DatabaseTableAccessResolver | null;
+            getTableAccessLevel?: ((tableId: DatabaseTableId) => AccessLevel | null) | null;
         },
     ): DatabaseExecuteResult {
         const {result, readPages, writtenPages} = this.execute(
@@ -448,7 +433,7 @@ export class Database {
         actionObject: DatabaseActionObject<N>,
         options?: {
             currentAccountId?: AccountId | null;
-            tableAccessResolver?: DatabaseTableAccessResolver | null;
+            getTableAccessLevel?: ((tableId: DatabaseTableId) => AccessLevel | null) | null;
         },
     ): DatabaseExecuteActionResult<N> {
         const previousActionAccountId = this.currentActionAccountId;
@@ -458,13 +443,13 @@ export class Database {
             const ctx = createDatabaseActionContext(
                 this.db,
                 this.serverContext,
-                this.getTableAccessForCurrentExecution,
+                this.getTableAccessLevel,
             );
             const {result, readPages, writtenPages} = this.execute(
                 () => executeDatabaseAction(actionObject, ctx),
                 {
                     allowWrites: action.writeLevel,
-                    tableAccessResolver: options?.tableAccessResolver,
+                    getTableAccessLevel: options?.getTableAccessLevel,
                 },
             );
             return {result: result as DatabaseActionOutput<N>, readPages, writtenPages};
@@ -474,17 +459,14 @@ export class Database {
     }
 
     /**
-     * The current execution's capabilities on `tableId`, resolved from the installed
-     * {@link DatabaseTableAccessResolver} (everything when none is installed). Handed
-     * to action contexts so shared action code — e.g. relation fields deciding whether
-     * they may join into a linked table — sees the same verdicts the authorizer
-     * enforces.
+     * The current execution's access level on `tableId`, resolved from the installed
+     * lookup (`Manage` when none is installed). Handed to action contexts so shared
+     * action code — e.g. relation fields deciding whether they may join into a linked
+     * table — sees the same verdicts the authorizer enforces.
      */
-    readonly getTableAccessForCurrentExecution = (tableId: DatabaseTableId): SqliteTableAccess => {
-        const resolver = this.tableAccessResolver;
-        if (resolver === null) return unrestrictedSqliteTableAccess;
-        const access = resolver(tableId);
-        return access === "unrestricted" ? unrestrictedSqliteTableAccess : access;
+    readonly getTableAccessLevel = (tableId: DatabaseTableId): AccessLevel | null => {
+        const getTableAccessLevel = this.getTableAccessLevelForExecution;
+        return getTableAccessLevel === null ? "Manage" : getTableAccessLevel(tableId);
     };
 
     /**
@@ -727,8 +709,8 @@ export class Database {
         // updated `aDb[]` and covers it too.
         this.installPageAccessHook();
 
-        // Let the server load the new file's access-policy metadata while the attach is
-        // fresh — before any statement can touch the schema under a restricted resolver.
+        // Let the server cache the new schema's access metadata before a restricted
+        // statement can touch it.
         this.serverTableAttachHook?.(tableId);
     }
 
@@ -779,19 +761,17 @@ export class Database {
     }
 
     /**
-     * Maps an authorizer schema name to the current execution's capabilities. `main`
+     * Maps an authorizer schema name to the current execution's access level. `main`
      * (the public ID-only registry) and SQLite's `temp` schema sit outside the
      * per-table permission model; unknown schemas fail closed.
      */
-    private readonly resolveSchemaAccess = (
-        schemaName: string,
-    ): SqliteTableAccess | "unrestricted" => {
-        if (schemaName === "main" || schemaName === "temp") return "unrestricted";
+    private readonly resolveSchemaAccess = (schemaName: string): AccessLevel | null => {
+        if (schemaName === "main" || schemaName === "temp") return "Manage";
         const tableId = this.schemaToTable.get(schemaName);
-        if (tableId === undefined) return deniedSqliteTableAccess;
-        const resolver = this.tableAccessResolver;
-        assert(resolver !== null, "resolveSchemaAccess requires an installed resolver");
-        return resolver(tableId);
+        if (tableId === undefined) return null;
+        const getTableAccessLevel = this.getTableAccessLevelForExecution;
+        assert(getTableAccessLevel !== null, "resolveSchemaAccess requires an access lookup");
+        return getTableAccessLevel(tableId);
     };
 
     /**

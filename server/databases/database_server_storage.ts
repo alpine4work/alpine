@@ -1,3 +1,4 @@
+import type {LocalAccessPolicy} from "~/shared/access/access_policy.js";
 import type {ReadonlyDatabaseStorage} from "~/shared/databases/database.js";
 import type {DatabaseTableId} from "~/shared/id/types/id_types.js";
 
@@ -15,6 +16,12 @@ import type {DatabaseTableId} from "~/shared/id/types/id_types.js";
  */
 export interface DatabaseServerStorage extends ReadonlyDatabaseStorage {
     transactionSync<T>(fn: () => T): T;
+
+    getDatabaseTableAccessPolicy(tableId: DatabaseTableId): LocalAccessPolicy | null;
+    setDatabaseTableAccessPolicy(
+        tableId: DatabaseTableId,
+        accessPolicy: LocalAccessPolicy | null,
+    ): void;
 
     /**
      * Apply a batch of buffered writes atomically.
