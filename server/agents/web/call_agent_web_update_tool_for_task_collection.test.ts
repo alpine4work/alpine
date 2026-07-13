@@ -1756,6 +1756,84 @@ test("adds a task at the start of a manually ordered collection", async () => {
     ]);
 });
 
+test("adds a task in the middle of a manually ordered collection", async () => {
+    const {collection} = mockGetApiTaskCollectionTasks(api, {
+        spaceId,
+        totalTaskCount: 5,
+        limit: 31,
+        createTask: index => createApiTaskMock({index}),
+    });
+    const newTask = createApiTaskMock({index: 5});
+
+    api.mockPatch("/tasks", {
+        params: "Any",
+        data: {
+            spaceId,
+            tasks: [
+                {
+                    task: newTask,
+                    collections: [{movedCursor: printApiTaskQueryCursorMock(5), collection}],
+                },
+            ],
+        },
+    });
+
+    await storeAgentWebPageLinkForTest(storage, [collection, newTask]);
+
+    await callAgentWebReadTool(context, {
+        path: "/task-collection/test-task-collection",
+        limit: "50kb",
+    });
+
+    await expect(
+        callAgentWebUpdateTool(context, {
+            path: "/task-collection/test-task-collection",
+            updates: [
+                {
+                    old: "- [Test Task 1 (Open)](/task/test-task-1)",
+                    new:
+                        "- [Test Task 1 (Open)](/task/test-task-1)\n\n" +
+                        "- [Test Task 5 (Open)](/task/test-task-5)",
+                    replaceAll: false,
+                },
+            ],
+        }),
+    ).resolves.toEqual("Update was successful.\n");
+
+    expect(getApiPatchTasksRequestHistory()).toEqual([
+        {
+            spaceId,
+            patches: [
+                {
+                    id: newTask.id,
+                    patch: {
+                        type: "AddCollection",
+                        item: {
+                            collection: {
+                                type: "TaskCollection",
+                                id: collection.id,
+                                title: "Test Task Collection",
+                            },
+                        },
+                    },
+                },
+                {
+                    id: newTask.id,
+                    patch: {
+                        type: "MoveInCollection",
+                        collectionId: collection.id,
+                        position: {
+                            type: "Between",
+                            afterCursor: printApiTaskQueryCursorMock(1),
+                            beforeCursor: printApiTaskQueryCursorMock(2),
+                        },
+                    },
+                },
+            ],
+        },
+    ]);
+});
+
 test("moves a task to the end of a manually ordered collection", async () => {
     const firstTask = createApiTaskMock({index: 0});
     const secondTask = createApiTaskMock({index: 1});
@@ -1860,7 +1938,9 @@ test("moves a task to the end of a manually ordered collection with many tasks",
                 },
                 {
                     old: "- [Test Task 4 (Open)](/task/test-task-4)\n\n",
-                    new: "- [Test Task 4 (Open)](/task/test-task-4)\n\n- [Test Task 0 (Open)](/task/test-task-0)",
+                    new:
+                        "- [Test Task 4 (Open)](/task/test-task-4)\n\n" +
+                        "- [Test Task 0 (Open)](/task/test-task-0)\n\n",
                     replaceAll: false,
                 },
             ],
@@ -1898,7 +1978,7 @@ test("moves a task to the start of a manually ordered collection with many tasks
             spaceId,
             tasks: [
                 {
-                    task: createApiTaskMock({index: 0}),
+                    task: createApiTaskMock({index: 4}),
                     collections: [{movedCursor: printApiTaskQueryCursorMock(5), collection}],
                 },
             ],
@@ -1940,6 +2020,216 @@ test("moves a task to the start of a manually ordered collection with many tasks
                         type: "MoveInCollection",
                         collectionId: collection.id,
                         position: {type: "Start"},
+                    },
+                },
+            ],
+        },
+    ]);
+});
+
+test("moves the last task near the middle of a large manually ordered collection", async () => {
+    const {collection} = mockGetApiTaskCollectionTasks(api, {
+        spaceId,
+        totalTaskCount: 20,
+        limit: 31,
+        createTask: index => createApiTaskMock({index}),
+    });
+    const movedTask = createApiTaskMock({index: 19});
+
+    api.mockPatch("/tasks", {
+        params: "Any",
+        data: {
+            spaceId,
+            tasks: [
+                {
+                    task: movedTask,
+                    collections: [{movedCursor: printApiTaskQueryCursorMock(20), collection}],
+                },
+            ],
+        },
+    });
+
+    await storeAgentWebPageLinkForTest(storage, collection);
+
+    await callAgentWebReadTool(context, {
+        path: "/task-collection/test-task-collection",
+        limit: "50kb",
+    });
+
+    await expect(
+        callAgentWebUpdateTool(context, {
+            path: "/task-collection/test-task-collection",
+            updates: [
+                {
+                    old: "\n\n- [Test Task 19 (Open)](/task/test-task-19)",
+                    new: "",
+                    replaceAll: false,
+                },
+                {
+                    old: "- [Test Task 9 (Open)](/task/test-task-9)",
+                    new:
+                        "- [Test Task 9 (Open)](/task/test-task-9)\n\n" +
+                        "- [Test Task 19 (Open)](/task/test-task-19)",
+                    replaceAll: false,
+                },
+            ],
+        }),
+    ).resolves.toEqual("Update was successful.\n");
+
+    expect(getApiPatchTasksRequestHistory()).toEqual([
+        {
+            spaceId,
+            patches: [
+                {
+                    id: movedTask.id,
+                    patch: {
+                        type: "MoveInCollection",
+                        collectionId: collection.id,
+                        position: {
+                            type: "Between",
+                            afterCursor: printApiTaskQueryCursorMock(9),
+                            beforeCursor: printApiTaskQueryCursorMock(10),
+                        },
+                    },
+                },
+            ],
+        },
+    ]);
+});
+
+test("moves a task from the bottom fourth to the top fourth of a large collection", async () => {
+    const {collection} = mockGetApiTaskCollectionTasks(api, {
+        spaceId,
+        totalTaskCount: 20,
+        limit: 31,
+        createTask: index => createApiTaskMock({index}),
+    });
+    const movedTask = createApiTaskMock({index: 16});
+
+    api.mockPatch("/tasks", {
+        params: "Any",
+        data: {
+            spaceId,
+            tasks: [
+                {
+                    task: movedTask,
+                    collections: [{movedCursor: printApiTaskQueryCursorMock(20), collection}],
+                },
+            ],
+        },
+    });
+
+    await storeAgentWebPageLinkForTest(storage, collection);
+
+    await callAgentWebReadTool(context, {
+        path: "/task-collection/test-task-collection",
+        limit: "50kb",
+    });
+
+    await expect(
+        callAgentWebUpdateTool(context, {
+            path: "/task-collection/test-task-collection",
+            updates: [
+                {
+                    old: "- [Test Task 16 (Open)](/task/test-task-16)\n\n",
+                    new: "",
+                    replaceAll: false,
+                },
+                {
+                    old: "- [Test Task 3 (Open)](/task/test-task-3)",
+                    new:
+                        "- [Test Task 3 (Open)](/task/test-task-3)\n\n" +
+                        "- [Test Task 16 (Open)](/task/test-task-16)",
+                    replaceAll: false,
+                },
+            ],
+        }),
+    ).resolves.toEqual("Update was successful.\n");
+
+    expect(getApiPatchTasksRequestHistory()).toEqual([
+        {
+            spaceId,
+            patches: [
+                {
+                    id: movedTask.id,
+                    patch: {
+                        type: "MoveInCollection",
+                        collectionId: collection.id,
+                        position: {
+                            type: "Between",
+                            afterCursor: printApiTaskQueryCursorMock(3),
+                            beforeCursor: printApiTaskQueryCursorMock(4),
+                        },
+                    },
+                },
+            ],
+        },
+    ]);
+});
+
+test("moves a task from the top fourth to the bottom fourth of a large collection", async () => {
+    const {collection} = mockGetApiTaskCollectionTasks(api, {
+        spaceId,
+        totalTaskCount: 20,
+        limit: 31,
+        createTask: index => createApiTaskMock({index}),
+    });
+    const movedTask = createApiTaskMock({index: 3});
+
+    api.mockPatch("/tasks", {
+        params: "Any",
+        data: {
+            spaceId,
+            tasks: [
+                {
+                    task: movedTask,
+                    collections: [{movedCursor: printApiTaskQueryCursorMock(20), collection}],
+                },
+            ],
+        },
+    });
+
+    await storeAgentWebPageLinkForTest(storage, collection);
+
+    await callAgentWebReadTool(context, {
+        path: "/task-collection/test-task-collection",
+        limit: "50kb",
+    });
+
+    await expect(
+        callAgentWebUpdateTool(context, {
+            path: "/task-collection/test-task-collection",
+            updates: [
+                {
+                    old: "- [Test Task 3 (Open)](/task/test-task-3)\n\n",
+                    new: "",
+                    replaceAll: false,
+                },
+                {
+                    old: "- [Test Task 15 (Open)](/task/test-task-15)",
+                    new:
+                        "- [Test Task 15 (Open)](/task/test-task-15)\n\n" +
+                        "- [Test Task 3 (Open)](/task/test-task-3)",
+                    replaceAll: false,
+                },
+            ],
+        }),
+    ).resolves.toEqual("Update was successful.\n");
+
+    expect(getApiPatchTasksRequestHistory()).toEqual([
+        {
+            spaceId,
+            patches: [
+                {
+                    id: movedTask.id,
+                    patch: {
+                        type: "MoveInCollection",
+                        collectionId: collection.id,
+                        position: {
+                            type: "Between",
+                            afterCursor: printApiTaskQueryCursorMock(15),
+                            beforeCursor: printApiTaskQueryCursorMock(16),
+                        },
                     },
                 },
             ],
@@ -2089,6 +2379,235 @@ test("moves a task to the end of a manually ordered tail page", async () => {
     ]);
 });
 
+test("moves a task past four other tasks to the end of a manually ordered tail page", async () => {
+    const afterCursor = printApiTaskQueryCursorMock(0);
+    const {collection} = mockGetApiTaskCollectionTasks(api, {
+        spaceId,
+        totalTaskCount: 6,
+        limit: 31,
+        cursor: afterCursor,
+        createTask: index => createApiTaskMock({index}),
+    });
+    const movedTask = createApiTaskMock({index: 1});
+    const afterCursorHash = await createAgentWebTaskQueryCursorHash(
+        storage,
+        collection.id,
+        afterCursor,
+    );
+    const path = `/task-collection/test-task-collection?after=${afterCursorHash}`;
+
+    api.mockPatch("/tasks", {
+        params: "Any",
+        data: {
+            spaceId,
+            tasks: [
+                {
+                    task: movedTask,
+                    collections: [{movedCursor: printApiTaskQueryCursorMock(6), collection}],
+                },
+            ],
+        },
+    });
+
+    await storeAgentWebPageLinkForTest(storage, collection);
+
+    await callAgentWebReadTool(context, {path, limit: "50kb"});
+
+    await expect(
+        callAgentWebUpdateTool(context, {
+            path,
+            updates: [
+                {
+                    old: "- [Test Task 1 (Open)](/task/test-task-1)\n\n",
+                    new: "",
+                    replaceAll: false,
+                },
+                {
+                    old: "- [Test Task 5 (Open)](/task/test-task-5)",
+                    new:
+                        "- [Test Task 5 (Open)](/task/test-task-5)\n\n" +
+                        "- [Test Task 1 (Open)](/task/test-task-1)",
+                    replaceAll: false,
+                },
+            ],
+        }),
+    ).resolves.toEqual("Update was successful.\n");
+
+    expect(getApiPatchTasksRequestHistory()).toEqual([
+        {
+            spaceId,
+            patches: [
+                {
+                    id: movedTask.id,
+                    patch: {
+                        type: "MoveInCollection",
+                        collectionId: collection.id,
+                        position: {type: "End"},
+                    },
+                },
+            ],
+        },
+    ]);
+});
+
+test("moves a task into the middle of a manually ordered tail page", async () => {
+    const afterCursor = printApiTaskQueryCursorMock(4);
+    const {collection} = mockGetApiTaskCollectionTasks(api, {
+        spaceId,
+        totalTaskCount: 10,
+        limit: 31,
+        cursor: afterCursor,
+        createTask: index => createApiTaskMock({index}),
+    });
+    const movedTask = createApiTaskMock({index: 9});
+    const afterCursorHash = await createAgentWebTaskQueryCursorHash(
+        storage,
+        collection.id,
+        afterCursor,
+    );
+    const path = `/task-collection/test-task-collection?after=${afterCursorHash}`;
+
+    api.mockPatch("/tasks", {
+        params: "Any",
+        data: {
+            spaceId,
+            tasks: [
+                {
+                    task: movedTask,
+                    collections: [{movedCursor: printApiTaskQueryCursorMock(10), collection}],
+                },
+            ],
+        },
+    });
+
+    await storeAgentWebPageLinkForTest(storage, collection);
+
+    await callAgentWebReadTool(context, {path, limit: "50kb"});
+
+    await expect(
+        callAgentWebUpdateTool(context, {
+            path,
+            updates: [
+                {
+                    old: "\n\n- [Test Task 9 (Open)](/task/test-task-9)",
+                    new: "",
+                    replaceAll: false,
+                },
+                {
+                    old: "- [Test Task 6 (Open)](/task/test-task-6)",
+                    new:
+                        "- [Test Task 6 (Open)](/task/test-task-6)\n\n" +
+                        "- [Test Task 9 (Open)](/task/test-task-9)",
+                    replaceAll: false,
+                },
+            ],
+        }),
+    ).resolves.toEqual("Update was successful.\n");
+
+    expect(getApiPatchTasksRequestHistory()).toEqual([
+        {
+            spaceId,
+            patches: [
+                {
+                    id: movedTask.id,
+                    patch: {
+                        type: "MoveInCollection",
+                        collectionId: collection.id,
+                        position: {
+                            type: "Between",
+                            afterCursor: printApiTaskQueryCursorMock(6),
+                            beforeCursor: printApiTaskQueryCursorMock(7),
+                        },
+                    },
+                },
+            ],
+        },
+    ]);
+});
+
+test("moves a task to the end of a manually ordered tail page with a next page", async () => {
+    const afterCursor = printApiTaskQueryCursorMock(9);
+    const {collection} = mockGetApiTaskCollectionTasks(api, {
+        spaceId,
+        totalTaskCount: 42,
+        limit: 31,
+        cursor: afterCursor,
+        createTask: index => createApiTaskMock({index}),
+    });
+    const movedTask = createApiTaskMock({index: 10});
+    const afterCursorHash = await createAgentWebTaskQueryCursorHash(
+        storage,
+        collection.id,
+        afterCursor,
+    );
+    const path = `/task-collection/test-task-collection?after=${afterCursorHash}`;
+
+    api.mockPatch("/tasks", {
+        params: "Any",
+        data: {
+            spaceId,
+            tasks: [
+                {
+                    task: movedTask,
+                    collections: [{movedCursor: printApiTaskQueryCursorMock(42), collection}],
+                },
+            ],
+        },
+    });
+
+    await storeAgentWebPageLinkForTest(storage, collection);
+
+    const response = await callAgentWebReadTool(context, {path, limit: "1446b"});
+
+    const updateResponse = await callAgentWebUpdateTool(context, {
+        path,
+        updates: [
+            {
+                old: "- [Test Task 10 (Open)](/task/test-task-10)\n\n",
+                new: "",
+                replaceAll: false,
+            },
+            {
+                old: "- [Test Task 39 (Open)](/task/test-task-39)",
+                new:
+                    "- [Test Task 39 (Open)](/task/test-task-39)\n\n" +
+                    "- [Test Task 10 (Open)](/task/test-task-10)",
+                replaceAll: false,
+            },
+        ],
+    });
+
+    expect({
+        responseLength: response.length,
+        hasNextPageLink: response.includes("[Next page »]"),
+        updateResponse,
+        patchRequests: getApiPatchTasksRequestHistory(),
+    }).toEqual({
+        responseLength: 1446,
+        hasNextPageLink: true,
+        updateResponse: "Update was successful.\n",
+        patchRequests: [
+            {
+                spaceId,
+                patches: [
+                    {
+                        id: movedTask.id,
+                        patch: {
+                            type: "MoveInCollection",
+                            collectionId: collection.id,
+                            position: {
+                                type: "Between",
+                                afterCursor: printApiTaskQueryCursorMock(39),
+                                beforeCursor: printApiTaskQueryCursorMock(40),
+                            },
+                        },
+                    },
+                ],
+            },
+        ],
+    });
+});
+
 test("moves a task to the end of a truncated manually ordered page", async () => {
     const firstTask = createApiTaskMock({index: 0});
     const secondTask = createApiTaskMock({index: 1});
@@ -2162,6 +2681,346 @@ test("moves a task to the end of a truncated manually ordered page", async () =>
             ],
         },
     ]);
+});
+
+test("moves a task past five other tasks to the end of a truncated page", async () => {
+    const {collection} = mockGetApiTaskCollectionTasks(api, {
+        spaceId,
+        totalTaskCount: 10,
+        limit: 31,
+        createTask: index => createApiTaskMock({index}),
+    });
+    const movedTask = createApiTaskMock({index: 0});
+
+    api.mockPatch("/tasks", {
+        params: "Any",
+        data: {
+            spaceId,
+            tasks: [
+                {
+                    task: movedTask,
+                    collections: [{movedCursor: printApiTaskQueryCursorMock(10), collection}],
+                },
+            ],
+        },
+    });
+
+    await storeAgentWebPageLinkForTest(storage, collection);
+
+    const response = await callAgentWebReadTool(context, {
+        path: "/task-collection/test-task-collection",
+        limit: "400b",
+    });
+
+    const updateResponse = await callAgentWebUpdateTool(context, {
+        path: "/task-collection/test-task-collection",
+        updates: [
+            {
+                old: "- [Test Task 0 (Open)](/task/test-task-0)\n\n",
+                new: "",
+                replaceAll: false,
+            },
+            {
+                old: "- [Test Task 5 (Open)](/task/test-task-5)",
+                new:
+                    "- [Test Task 5 (Open)](/task/test-task-5)\n\n" +
+                    "- [Test Task 0 (Open)](/task/test-task-0)",
+                replaceAll: false,
+            },
+        ],
+    });
+
+    expect({
+        includesLastVisibleTask: response.includes("- [Test Task 5 (Open)](/task/test-task-5)"),
+        includesFirstHiddenTask: response.includes("- [Test Task 6 (Open)](/task/test-task-6)"),
+        hasNextPageLink: response.includes("[Next page »]"),
+        updateResponse,
+        patchRequests: getApiPatchTasksRequestHistory(),
+    }).toEqual({
+        includesLastVisibleTask: true,
+        includesFirstHiddenTask: false,
+        hasNextPageLink: true,
+        updateResponse: "Update was successful.\n",
+        patchRequests: [
+            {
+                spaceId,
+                patches: [
+                    {
+                        id: movedTask.id,
+                        patch: {
+                            type: "MoveInCollection",
+                            collectionId: collection.id,
+                            position: {
+                                type: "Between",
+                                afterCursor: printApiTaskQueryCursorMock(5),
+                                beforeCursor: printApiTaskQueryCursorMock(6),
+                            },
+                        },
+                    },
+                ],
+            },
+        ],
+    });
+});
+
+test("moves a task past five other tasks to the end of a truncated tail page", async () => {
+    const afterCursor = printApiTaskQueryCursorMock(4);
+    const {collection} = mockGetApiTaskCollectionTasks(api, {
+        spaceId,
+        totalTaskCount: 15,
+        limit: 31,
+        cursor: afterCursor,
+        createTask: index => createApiTaskMock({index}),
+    });
+    const movedTask = createApiTaskMock({index: 5});
+    const afterCursorHash = await createAgentWebTaskQueryCursorHash(
+        storage,
+        collection.id,
+        afterCursor,
+    );
+    const path = `/task-collection/test-task-collection?after=${afterCursorHash}`;
+
+    api.mockPatch("/tasks", {
+        params: "Any",
+        data: {
+            spaceId,
+            tasks: [
+                {
+                    task: movedTask,
+                    collections: [{movedCursor: printApiTaskQueryCursorMock(15), collection}],
+                },
+            ],
+        },
+    });
+
+    await storeAgentWebPageLinkForTest(storage, collection);
+
+    const response = await callAgentWebReadTool(context, {path, limit: "400b"});
+
+    const updateResponse = await callAgentWebUpdateTool(context, {
+        path,
+        updates: [
+            {
+                old: "- [Test Task 5 (Open)](/task/test-task-5)\n\n",
+                new: "",
+                replaceAll: false,
+            },
+            {
+                old: "- [Test Task 10 (Open)](/task/test-task-10)",
+                new:
+                    "- [Test Task 10 (Open)](/task/test-task-10)\n\n" +
+                    "- [Test Task 5 (Open)](/task/test-task-5)",
+                replaceAll: false,
+            },
+        ],
+    });
+
+    expect({
+        includesLastVisibleTask: response.includes("- [Test Task 10 (Open)](/task/test-task-10)"),
+        includesFirstHiddenTask: response.includes("- [Test Task 11 (Open)](/task/test-task-11)"),
+        hasNextPageLink: response.includes("[Next page »]"),
+        updateResponse,
+        patchRequests: getApiPatchTasksRequestHistory(),
+    }).toEqual({
+        includesLastVisibleTask: true,
+        includesFirstHiddenTask: false,
+        hasNextPageLink: true,
+        updateResponse: "Update was successful.\n",
+        patchRequests: [
+            {
+                spaceId,
+                patches: [
+                    {
+                        id: movedTask.id,
+                        patch: {
+                            type: "MoveInCollection",
+                            collectionId: collection.id,
+                            position: {
+                                type: "Between",
+                                afterCursor: printApiTaskQueryCursorMock(10),
+                                beforeCursor: printApiTaskQueryCursorMock(11),
+                            },
+                        },
+                    },
+                ],
+            },
+        ],
+    });
+});
+
+test("moves a task to the end of a page that exactly meets the read limit", async () => {
+    const {collection} = mockGetApiTaskCollectionTasks(api, {
+        spaceId,
+        totalTaskCount: 32,
+        limit: 31,
+        createTask: index => createApiTaskMock({index}),
+    });
+    const movedTask = createApiTaskMock({index: 0});
+
+    api.mockPatch("/tasks", {
+        params: "Any",
+        data: {
+            spaceId,
+            tasks: [
+                {
+                    task: movedTask,
+                    collections: [{movedCursor: printApiTaskQueryCursorMock(32), collection}],
+                },
+            ],
+        },
+    });
+
+    await storeAgentWebPageLinkForTest(storage, collection);
+
+    const response = await callAgentWebReadTool(context, {
+        path: "/task-collection/test-task-collection",
+        limit: "1419b",
+    });
+
+    const updateResponse = await callAgentWebUpdateTool(context, {
+        path: "/task-collection/test-task-collection",
+        updates: [
+            {
+                old: "- [Test Task 0 (Open)](/task/test-task-0)\n\n",
+                new: "",
+                replaceAll: false,
+            },
+            {
+                old: "- [Test Task 29 (Open)](/task/test-task-29)",
+                new:
+                    "- [Test Task 29 (Open)](/task/test-task-29)\n\n" +
+                    "- [Test Task 0 (Open)](/task/test-task-0)",
+                replaceAll: false,
+            },
+        ],
+    });
+
+    expect({
+        responseLength: response.length,
+        hasNextPageLink: response.includes("[Next page »]"),
+        includesInvisibleTask: response.includes("- [Test Task 30 (Open)](/task/test-task-30)"),
+        updateResponse,
+        patchRequests: getApiPatchTasksRequestHistory(),
+    }).toEqual({
+        responseLength: 1419,
+        hasNextPageLink: true,
+        includesInvisibleTask: false,
+        updateResponse: "Update was successful.\n",
+        patchRequests: [
+            {
+                spaceId,
+                patches: [
+                    {
+                        id: movedTask.id,
+                        patch: {
+                            type: "MoveInCollection",
+                            collectionId: collection.id,
+                            position: {
+                                type: "Between",
+                                afterCursor: printApiTaskQueryCursorMock(29),
+                                beforeCursor: printApiTaskQueryCursorMock(30),
+                            },
+                        },
+                    },
+                ],
+            },
+        ],
+    });
+});
+
+test("moves a task to the end after loading and truncating more than thirty tasks", async () => {
+    const {collection} = mockGetApiTaskCollectionTasks(api, {
+        spaceId,
+        totalTaskCount: 62,
+        limit: 31,
+        createTask: index => createApiTaskMock({index}),
+    });
+    mockGetApiTaskCollectionTasks(api, {
+        spaceId,
+        id: collection.id,
+        totalTaskCount: 62,
+        limit: 31,
+        cursor: printApiTaskQueryCursorMock(30),
+        createTask: index => createApiTaskMock({index}),
+    });
+    const movedTask = createApiTaskMock({index: 0});
+
+    api.mockPatch("/tasks", {
+        params: "Any",
+        data: {
+            spaceId,
+            tasks: [
+                {
+                    task: movedTask,
+                    collections: [{movedCursor: printApiTaskQueryCursorMock(62), collection}],
+                },
+            ],
+        },
+    });
+
+    await storeAgentWebPageLinkForTest(storage, collection);
+
+    const response = await callAgentWebReadTool(context, {
+        path: "/task-collection/test-task-collection",
+        limit: "2500b",
+    });
+
+    const updateResponse = await callAgentWebUpdateTool(context, {
+        path: "/task-collection/test-task-collection",
+        updates: [
+            {
+                old: "- [Test Task 0 (Open)](/task/test-task-0)\n\n",
+                new: "",
+                replaceAll: false,
+            },
+            {
+                old: "- [Test Task 52 (Open)](/task/test-task-52)",
+                new:
+                    "- [Test Task 52 (Open)](/task/test-task-52)\n\n" +
+                    "- [Test Task 0 (Open)](/task/test-task-0)",
+                replaceAll: false,
+            },
+        ],
+    });
+
+    expect({
+        collectionTaskGetCount: api
+            .getRequestHistory()
+            .filter(
+                request =>
+                    request.method === "GET" && request.path === "/task-collections/{id}/tasks",
+            ).length,
+        includesLastVisibleTask: response.includes("- [Test Task 52 (Open)](/task/test-task-52)"),
+        includesFirstHiddenTask: response.includes("- [Test Task 53 (Open)](/task/test-task-53)"),
+        hasNextPageLink: response.includes("[Next page »]"),
+        updateResponse,
+        patchRequests: getApiPatchTasksRequestHistory(),
+    }).toEqual({
+        collectionTaskGetCount: 2,
+        includesLastVisibleTask: true,
+        includesFirstHiddenTask: false,
+        hasNextPageLink: true,
+        updateResponse: "Update was successful.\n",
+        patchRequests: [
+            {
+                spaceId,
+                patches: [
+                    {
+                        id: movedTask.id,
+                        patch: {
+                            type: "MoveInCollection",
+                            collectionId: collection.id,
+                            position: {
+                                type: "Between",
+                                afterCursor: printApiTaskQueryCursorMock(52),
+                                beforeCursor: printApiTaskQueryCursorMock(53),
+                            },
+                        },
+                    },
+                ],
+            },
+        ],
+    });
 });
 
 test("atomically moves tasks with the same position in page order", async () => {
@@ -2254,6 +3113,179 @@ test("atomically moves tasks with the same position in page order", async () => 
         ],
         individualRequestCount: 0,
     });
+});
+
+test("atomically moves multiple tasks into the middle in page order", async () => {
+    const {collection} = mockGetApiTaskCollectionTasks(api, {
+        spaceId,
+        totalTaskCount: 10,
+        limit: 31,
+        createTask: index => createApiTaskMock({index}),
+    });
+    const firstMovedTask = createApiTaskMock({index: 7});
+    const secondMovedTask = createApiTaskMock({index: 8});
+
+    api.mockPatch("/tasks", {
+        params: "Any",
+        data: {
+            spaceId,
+            tasks: [
+                {
+                    task: firstMovedTask,
+                    collections: [{movedCursor: printApiTaskQueryCursorMock(10), collection}],
+                },
+                {
+                    task: secondMovedTask,
+                    collections: [{movedCursor: printApiTaskQueryCursorMock(11), collection}],
+                },
+            ],
+        },
+    });
+
+    await storeAgentWebPageLinkForTest(storage, collection);
+
+    await callAgentWebReadTool(context, {
+        path: "/task-collection/test-task-collection",
+        limit: "50kb",
+    });
+
+    await expect(
+        callAgentWebUpdateTool(context, {
+            path: "/task-collection/test-task-collection",
+            updates: [
+                {
+                    old: "- [Test Task 7 (Open)](/task/test-task-7)\n\n",
+                    new: "",
+                    replaceAll: false,
+                },
+                {
+                    old: "- [Test Task 8 (Open)](/task/test-task-8)\n\n",
+                    new: "",
+                    replaceAll: false,
+                },
+                {
+                    old: "- [Test Task 2 (Open)](/task/test-task-2)",
+                    new:
+                        "- [Test Task 2 (Open)](/task/test-task-2)\n\n" +
+                        "- [Test Task 7 (Open)](/task/test-task-7)\n\n" +
+                        "- [Test Task 8 (Open)](/task/test-task-8)",
+                    replaceAll: false,
+                },
+            ],
+        }),
+    ).resolves.toEqual("Update was successful.\n");
+
+    const position = {
+        type: "Between",
+        afterCursor: printApiTaskQueryCursorMock(2),
+        beforeCursor: printApiTaskQueryCursorMock(3),
+    };
+
+    expect(getApiPatchTasksRequestHistory()).toEqual([
+        {
+            spaceId,
+            patches: [
+                {
+                    id: firstMovedTask.id,
+                    patch: {
+                        type: "MoveInCollection",
+                        collectionId: collection.id,
+                        position,
+                    },
+                },
+                {
+                    id: secondMovedTask.id,
+                    patch: {
+                        type: "MoveInCollection",
+                        collectionId: collection.id,
+                        position,
+                    },
+                },
+            ],
+        },
+    ]);
+});
+
+test("atomically moves multiple tasks to the start in page order", async () => {
+    const {collection} = mockGetApiTaskCollectionTasks(api, {
+        spaceId,
+        totalTaskCount: 8,
+        limit: 31,
+        createTask: index => createApiTaskMock({index}),
+    });
+    const firstMovedTask = createApiTaskMock({index: 6});
+    const secondMovedTask = createApiTaskMock({index: 7});
+
+    api.mockPatch("/tasks", {
+        params: "Any",
+        data: {
+            spaceId,
+            tasks: [
+                {
+                    task: firstMovedTask,
+                    collections: [{movedCursor: printApiTaskQueryCursorMock(8), collection}],
+                },
+                {
+                    task: secondMovedTask,
+                    collections: [{movedCursor: printApiTaskQueryCursorMock(9), collection}],
+                },
+            ],
+        },
+    });
+
+    await storeAgentWebPageLinkForTest(storage, collection);
+
+    await callAgentWebReadTool(context, {
+        path: "/task-collection/test-task-collection",
+        limit: "50kb",
+    });
+
+    await expect(
+        callAgentWebUpdateTool(context, {
+            path: "/task-collection/test-task-collection",
+            updates: [
+                {
+                    old:
+                        "\n\n- [Test Task 6 (Open)](/task/test-task-6)\n\n" +
+                        "- [Test Task 7 (Open)](/task/test-task-7)",
+                    new: "",
+                    replaceAll: false,
+                },
+                {
+                    old: "- [Test Task 0 (Open)](/task/test-task-0)",
+                    new:
+                        "- [Test Task 6 (Open)](/task/test-task-6)\n\n" +
+                        "- [Test Task 7 (Open)](/task/test-task-7)\n\n" +
+                        "- [Test Task 0 (Open)](/task/test-task-0)",
+                    replaceAll: false,
+                },
+            ],
+        }),
+    ).resolves.toEqual("Update was successful.\n");
+
+    expect(getApiPatchTasksRequestHistory()).toEqual([
+        {
+            spaceId,
+            patches: [
+                {
+                    id: firstMovedTask.id,
+                    patch: {
+                        type: "MoveInCollection",
+                        collectionId: collection.id,
+                        position: {type: "Start"},
+                    },
+                },
+                {
+                    id: secondMovedTask.id,
+                    patch: {
+                        type: "MoveInCollection",
+                        collectionId: collection.id,
+                        position: {type: "Start"},
+                    },
+                },
+            ],
+        },
+    ]);
 });
 
 test("moves only task 4 when moving it after task 8", async () => {
