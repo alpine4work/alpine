@@ -1761,22 +1761,14 @@ describe("DatabaseServer — table access levels", () => {
         server1.close();
 
         // A fresh server on the same storage attaches nothing at bootstrap (both tables
-        // are migration-current); the access map reads policies straight from storage.
+        // are migration-current); access levels read policies straight from storage.
         const server2 = await DatabaseServer.create(storage);
         openServers.push(server2);
 
-        expect(
-            server2.getTableAccessLevelsForAccount(
-                [readable.tableId, hidden.tableId, databaseMainTableId],
-                viewer,
-            ),
-        ).toEqual(
-            new Map([
-                [readable.tableId, "View"],
-                [hidden.tableId, null],
-                [databaseMainTableId, "Manage"],
-            ]),
-        );
+        expect({
+            readable: server2.getTableAccessLevelForAccount(readable.tableId, viewer),
+            hidden: server2.getTableAccessLevelForAccount(hidden.tableId, viewer),
+        }).toEqual({readable: "View", hidden: null});
     });
 
     test("owners report write access", async () => {
@@ -1787,10 +1779,6 @@ describe("DatabaseServer — table access levels", () => {
             input: createTableInputForTest("Tasks"),
         });
 
-        expect(
-            server
-                .getTableAccessLevelsForAccount([result.tableId], testAccountId)
-                .get(result.tableId),
-        ).toBe("Manage");
+        expect(server.getTableAccessLevelForAccount(result.tableId, testAccountId)).toBe("Manage");
     });
 });

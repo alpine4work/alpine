@@ -151,9 +151,6 @@ export const databaseActions = {
         input: Schema.object({
             tableId: Schema.id<DatabaseTableId>(),
             name: LabelStringSchema,
-            // The table store only ever holds resolved `Local` policies — the RPC layer
-            // resolves `Site` policies before issuing this action (see
-            // `resolveDatabaseTableAccessPolicyForDurableObject`).
             accessPolicy: LocalAccessPolicySchema,
         }),
         output: Schema.object({
@@ -186,7 +183,6 @@ export const databaseActions = {
         input: Schema.object({
             tableId: Schema.id<DatabaseTableId>(),
             name: LabelStringSchema,
-            // See `createTable` — only resolved `Local` policies reach the table store.
             accessPolicy: LocalAccessPolicySchema,
         }),
         output: Schema.object({

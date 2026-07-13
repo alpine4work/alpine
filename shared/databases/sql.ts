@@ -60,16 +60,77 @@ class SqlQuery {
     ) {}
 
     /**
-     * Execute and return all result rows, deserialized in a single pass by stepping
-     * through the prepared statement column-by-column.
+     * Execute and return all result rows.
+     *
+     * Pass a config object of per-column schemas to deserialize in a single pass by
+     * stepping through the prepared statement column-by-column, or a whole-row {@link
+     * Schema} (e.g. a discriminated `Schema.unionWithKey`) to deserialize each
+     * complete row object through it.
      */
     selectAll<Config extends ObjectSchemaConfigBase>(
         db: SqliteDatabase | SqlStorageLike,
         config: Config,
-    ): Array<ObjectSchemaConfigType<Config>> {
+    ): Array<ObjectSchemaConfigType<Config>>;
+    selectAll<Value>(db: SqliteDatabase | SqlStorageLike, schema: Schema<Value>): Array<Value>;
+    selectAll(
+        db: SqliteDatabase | SqlStorageLike,
+        config: ObjectSchemaConfigBase | Schema<unknown>,
+    ): Array<any> {
+        return this._selectAll(db, config);
+    }
+
+    /** Execute and return exactly one row (asserts). */
+    selectOne<Config extends ObjectSchemaConfigBase>(
+        db: SqliteDatabase | SqlStorageLike,
+        config: Config,
+    ): ObjectSchemaConfigType<Config>;
+    selectOne<Value>(db: SqliteDatabase | SqlStorageLike, schema: Schema<Value>): Value;
+    selectOne(
+        db: SqliteDatabase | SqlStorageLike,
+        config: ObjectSchemaConfigBase | Schema<unknown>,
+    ): any {
+        const rows = this._selectAll(db, config);
+        assert(rows.length === 1, `Expected 1 row, got ${rows.length}`);
+        return rows[0]!;
+    }
+
+    /**
+     * Execute and return at most one row. Returns `null` when zero rows match.
+     */
+    selectOneOrNone<Config extends ObjectSchemaConfigBase>(
+        db: SqliteDatabase | SqlStorageLike,
+        config: Config,
+    ): ObjectSchemaConfigType<Config> | null;
+    selectOneOrNone<Value>(
+        db: SqliteDatabase | SqlStorageLike,
+        schema: Schema<Value>,
+    ): Value | null;
+    selectOneOrNone(
+        db: SqliteDatabase | SqlStorageLike,
+        config: ObjectSchemaConfigBase | Schema<unknown>,
+    ): any {
+        const rows = this._selectAll(db, config);
+        assert(rows.length <= 1, `Expected at most 1 row, got ${rows.length}`);
+        return rows[0] ?? null;
+    }
+
+    /**
+     * See {@link selectAll} — shared row-reading core behind its two config shapes.
+     */
+    private _selectAll(
+        db: SqliteDatabase | SqlStorageLike,
+        config: ObjectSchemaConfigBase | Schema<unknown>,
+    ): Array<any> {
+        // A whole-row schema deserializes each complete row object; the optimized
+        // per-column path below stays untouched for config objects.
+        if (config instanceof Schema) {
+            return this.selectAllUnknown(db).map(row =>
+                config.deserialize(row as SchemaSerializedValue),
+            );
+        }
         if (isSqlStorage(db)) {
             const propertyByColumnName = configColumnMapping(config);
-            const rows: Array<ObjectSchemaConfigType<Config>> = [];
+            const rows: Array<Record<string, unknown>> = [];
             for (const cursorRow of this.execCursor(db)) {
                 const row: Record<string, unknown> = {};
                 for (const [columnName, value] of Object.entries(cursorRow)) {
@@ -77,7 +138,7 @@ class SqlQuery {
                     if (col == null) continue;
                     row[col[0]] = col[1].deserialize(cursorValue(value));
                 }
-                rows.push(row as ObjectSchemaConfigType<Config>);
+                rows.push(row);
             }
             return rows;
         }
@@ -91,7 +152,7 @@ class SqlQuery {
             const propertyByColumnName = configColumnMapping(config);
             const columns = columnNames.map(name => propertyByColumnName.get(name) ?? null);
 
-            const rows: Array<ObjectSchemaConfigType<Config>> = [];
+            const rows: Array<Record<string, unknown>> = [];
             while (stmt.step()) {
                 const row: Record<string, unknown> = {};
                 for (let i = 0; i < columns.length; i++) {
@@ -99,34 +160,12 @@ class SqlQuery {
                     if (col == null) continue;
                     row[col[0]] = col[1].deserialize(stmt.get(i) as SchemaSerializedValue);
                 }
-                rows.push(row as ObjectSchemaConfigType<Config>);
+                rows.push(row);
             }
             return rows;
         } finally {
             stmt.finalize();
         }
-    }
-
-    /** Execute and return exactly one row (asserts). */
-    selectOne<Config extends ObjectSchemaConfigBase>(
-        db: SqliteDatabase | SqlStorageLike,
-        config: Config,
-    ): ObjectSchemaConfigType<Config> {
-        const rows = this.selectAll(db, config);
-        assert(rows.length === 1, `Expected 1 row, got ${rows.length}`);
-        return rows[0]!;
-    }
-
-    /**
-     * Execute and return at most one row. Returns `null` when zero rows match.
-     */
-    selectOneOrNone<Config extends ObjectSchemaConfigBase>(
-        db: SqliteDatabase | SqlStorageLike,
-        config: Config,
-    ): ObjectSchemaConfigType<Config> | null {
-        const rows = this.selectAll(db, config);
-        assert(rows.length <= 1, `Expected at most 1 row, got ${rows.length}`);
-        return rows[0] ?? null;
     }
 
     /**

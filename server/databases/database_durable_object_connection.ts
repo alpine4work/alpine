@@ -180,14 +180,13 @@ export class DatabaseDurableObjectConnection {
             // Trusted internal connections are unrestricted; browser connections get per-table
             // withholding plus an access map covering the tables they asked about (and, for
             // join files, the joined sides — their only source of "exists but no access"
-            // because policy copies remain server-side).
+            // because policy copies remain server-side). Both are resolved inline as the loop
+            // below walks the client's cache map.
             const isTrustedActor = isTrustedDatabaseServiceActor(context.actor);
-            const tableAccess = isTrustedActor
-                ? new Map<DatabaseTableId, AccessLevel | null>()
-                : this._server.getTableAccessLevelsForAccount(
-                      input.pageVersionsByIndex.keys(),
-                      context.actor.getPossiblyBotAccountIdIfExists(),
-                  );
+            const accountId = isTrustedActor
+                ? null
+                : context.actor.getPossiblyBotAccountIdIfExists();
+            const tableAccess = new Map<DatabaseTableId, AccessLevel | null>();
 
             // Mutable builder for the readonly `DatabaseEnsureCacheIsUpToDateResult["tables"]`
             // return type; `updatedPages` reuses the wire type.
@@ -207,11 +206,32 @@ export class DatabaseDurableObjectConnection {
             const pendingPagesByTable = new Map<DatabaseTableId, Iterable<number>>();
 
             for (const [tableId, tableVersions] of input.pageVersionsByIndex) {
-                // Withhold tables the account can't read. Omitting the table also wipes its
-                // per-browser tracker state below — correct, since no pages will be sent while
-                // access is missing.
-                if (!isTrustedActor && (tableAccess.get(tableId) ?? null) === null) {
-                    continue;
+                if (!isTrustedActor) {
+                    const accessLevel =
+                        tableId === databaseMainTableId
+                            ? "Manage"
+                            : this._server.getTableAccessLevelForAccount(tableId, accountId);
+                    tableAccess.set(tableId, accessLevel);
+
+                    // A requested join file also reports its two sides: their levels are what the
+                    // join's own level derives from, and a client holding a join file renders
+                    // relations into both sides.
+                    const entry = this._durableObjectStorage.getDatabaseTableAccessEntry(tableId);
+                    if (entry !== null && entry.kind === "join") {
+                        for (const sideTableId of [entry.sourceTableId, entry.targetTableId]) {
+                            tableAccess.set(
+                                sideTableId,
+                                this._server.getTableAccessLevelForAccount(sideTableId, accountId),
+                            );
+                        }
+                    }
+
+                    // Withhold tables the account can't read. Omitting the table also wipes its
+                    // per-browser tracker state below — correct, since no pages will be sent while
+                    // access is missing.
+                    if (accessLevel === null) {
+                        continue;
+                    }
                 }
                 const updatedPages = new Map<number, {version: number; data: Uint8Array}>();
                 const stalePageIndexes: Array<number> = [];

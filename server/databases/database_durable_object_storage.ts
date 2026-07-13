@@ -7,7 +7,6 @@ import type {DatabaseServerTableRegistration} from "~/shared/databases/database_
 import {sql} from "~/shared/databases/sql.js";
 import {sqlitePageSize} from "~/shared/databases/sqlite_constants.js";
 import {assert} from "~/shared/helpers/control/assert.js";
-import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
 import type {DatabaseTableId} from "~/shared/id/types/id_types.js";
 import {Schema, type SchemaSerializedValue} from "~/shared/schema/schema.js";
@@ -90,6 +89,9 @@ export class DatabaseDurableObjectStorage implements DatabaseServerStorage {
     }
 
     getDatabaseTableAccessEntry(tableId: DatabaseTableId): DatabaseServerTableAccessEntry | null {
+        // `kind IS NOT NULL` drops unregistered rows (created by a bare page write or an
+        // early policy push) — they resolve to no entry, fail closed, same as a missing
+        // row.
         const row = sql`
             SELECT
                 kind,
@@ -100,32 +102,16 @@ export class DatabaseDurableObjectStorage implements DatabaseServerStorage {
                 database_tables
             WHERE
                 table_id = ${tableId}
-        `.selectOneOrNone(this.sql, {
-            kind: Schema.enum(["table", "join"]).nullable(),
-            accessPolicy: Schema.string.nullable().originalPropertyKey("access_policy"),
-            sourceTableId: Schema.id<DatabaseTableId>()
-                .nullable()
-                .originalPropertyKey("source_table_id"),
-            targetTableId: Schema.id<DatabaseTableId>()
-                .nullable()
-                .originalPropertyKey("target_table_id"),
-        });
+                AND kind IS NOT NULL
+        `.selectOneOrNone(this.sql, databaseTableRowSchema);
         if (row === null) return null;
         switch (row.kind) {
-            // A row without a registration (created by a bare page write or an early policy
-            // push) resolves to no entry — fail closed.
-            case null:
-                return null;
             case "table":
                 return {kind: "table", accessPolicy: deserializeAccessPolicy(row.accessPolicy)};
             case "join":
-                return {
-                    kind: "join",
-                    sourceTableId: assertExists(row.sourceTableId),
-                    targetTableId: assertExists(row.targetTableId),
-                };
+                return row;
             default:
-                throw exhaustive(row.kind);
+                throw exhaustive(row);
         }
     }
 
@@ -414,6 +400,23 @@ export class DatabaseDurableObjectStorage implements DatabaseServerStorage {
         return sqliteId;
     }
 }
+
+/**
+ * Row shape for {@link DatabaseDurableObjectStorage.getDatabaseTableAccessEntry},
+ * discriminated on the registration `kind` (the CHECK constraint in
+ * `database_durable_object_sql_migrations.ts` guarantees each variant's columns).
+ */
+const databaseTableRowSchema = Schema.unionWithKey("kind", {
+    table: Schema.object({
+        kind: Schema.value("table"),
+        accessPolicy: Schema.string.nullable().originalPropertyKey("access_policy"),
+    }),
+    join: Schema.object({
+        kind: Schema.value("join"),
+        sourceTableId: Schema.id<DatabaseTableId>().originalPropertyKey("source_table_id"),
+        targetTableId: Schema.id<DatabaseTableId>().originalPropertyKey("target_table_id"),
+    }),
+});
 
 function serializeAccessPolicy(accessPolicy: LocalAccessPolicy | null): string | null {
     if (accessPolicy === null) return null;
