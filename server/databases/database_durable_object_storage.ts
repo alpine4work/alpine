@@ -1,7 +1,13 @@
 import type {DatabaseServerStorage} from "~/server/databases/database_server_storage.js";
+import {runDatabaseDurableObjectSqlMigrations} from "~/server/databases/database_durable_object_sql_migrations.js";
+import {
+    type LocalAccessPolicy,
+    LocalAccessPolicySchema,
+} from "~/shared/access/access_policy.js";
 import {sqlitePageSize} from "~/shared/databases/sqlite_constants.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import type {DatabaseTableId} from "~/shared/id/types/id_types.js";
+import type {SchemaSerializedValue} from "~/shared/schema/schema.js";
 
 /**
  * {@link DatabaseServerStorage} implementation backed by a Cloudflare Durable
@@ -35,25 +41,44 @@ export class DatabaseDurableObjectStorage implements DatabaseServerStorage {
     constructor(storage: DurableObjectStorage) {
         this.storage = storage;
         this.sql = storage.sql;
-        this.sql.exec(
-            `CREATE TABLE IF NOT EXISTS database_table_ids (
-                sqlite_id INTEGER PRIMARY KEY,
-                database_table_id TEXT NOT NULL UNIQUE
-            )`,
-        );
-        this.sql.exec(
-            `CREATE TABLE IF NOT EXISTS pages (
-                sqlite_id INTEGER NOT NULL,
-                page_index INTEGER NOT NULL,
-                version INTEGER NOT NULL,
-                data BLOB,
-                PRIMARY KEY (sqlite_id, page_index, version)
-            ) WITHOUT ROWID`,
-        );
+        runDatabaseDurableObjectSqlMigrations(storage);
     }
 
     transactionSync<T>(fn: () => T): T {
         return this.storage.transactionSync(fn);
+    }
+
+    getDatabaseTableAccessPolicy(tableId: DatabaseTableId): LocalAccessPolicy | null {
+        const result = this.sql.exec<{access_policy: string}>(
+            "SELECT access_policy FROM database_table_access_policies WHERE database_table_id = ?",
+            tableId,
+        );
+        const row = result.next();
+        if (row.done) return null;
+        assert(result.next().done);
+        return LocalAccessPolicySchema.deserialize(
+            JSON.parse(row.value.access_policy) as SchemaSerializedValue,
+        );
+    }
+
+    setDatabaseTableAccessPolicy(
+        tableId: DatabaseTableId,
+        accessPolicy: LocalAccessPolicy | null,
+    ): void {
+        if (accessPolicy === null) {
+            this.sql.exec(
+                "DELETE FROM database_table_access_policies WHERE database_table_id = ?",
+                tableId,
+            );
+            return;
+        }
+        this.sql.exec(
+            `INSERT INTO database_table_access_policies (database_table_id, access_policy)
+             VALUES (?, ?)
+             ON CONFLICT (database_table_id) DO UPDATE SET access_policy = excluded.access_policy`,
+            tableId,
+            JSON.stringify(LocalAccessPolicySchema.serialize(accessPolicy)),
+        );
     }
 
     readPage(
