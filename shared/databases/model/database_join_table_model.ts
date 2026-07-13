@@ -63,7 +63,7 @@ export class DatabaseJoinTableModel extends DatabaseSchemaScopedBaseModel {
         const sourceName = this.root.getTable(this.sourceTableId).getField(this.sourceFieldId).name;
         const targetName = this.root.getTable(this.targetTableId).getField(this.targetFieldId).name;
 
-        const {tableName: joinTableName, tableNameHash} = formatUniqueTableName({
+        const joinTableName = formatUniqueTableName({
             model: this.root,
             name: `${sourceName} ${targetName}`,
             excludeTableId: this.id,
@@ -83,7 +83,9 @@ export class DatabaseJoinTableModel extends DatabaseSchemaScopedBaseModel {
             WHERE
                 id = ${this.id}
         `.exec(this.db);
-        this.root.writeTableNameHash(this.id, tableNameHash);
+        // Keep the server table store's name-uniqueness probe in the same transaction as
+        // the rename itself.
+        this.ctx.server().tables.setTableName(this.id, joinTableName);
     }
 
     ensureColumnNamesAreUpToDate() {

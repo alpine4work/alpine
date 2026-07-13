@@ -63,20 +63,19 @@ export class DatabaseTableModel extends DatabaseSchemaScopedBaseModel {
     }
 
     /**
-     * `tableName`/`tableNameHash` are resolved by the calling action via
-     * `formatUniqueTableName` (with this table as `excludeTableId`, so a rename to a
-     * slug variant of the current name is a no-op on the SQL identifier).
+     * `tableName` is resolved by the calling action via `formatUniqueTableName` (with
+     * this table as `excludeTableId`, so a rename to a slug variant of the current
+     * name is a no-op on the SQL identifier).
      */
-    updateName(
-        name: string,
-        {tableName: newTableName, tableNameHash}: {tableName: string; tableNameHash: string},
-    ) {
+    updateName(name: string, {tableName: newTableName}: {tableName: string}) {
         if (newTableName !== this.tableName) {
             sql`
                 ALTER TABLE ${this.tableRef}
                 RENAME TO ${sql.identifier(newTableName)}
             `.exec(this.db);
-            this.root.writeTableNameHash(this.id, tableNameHash);
+            // Keep the server table store's name-uniqueness probe in the same transaction as
+            // the rename itself.
+            this.ctx.server().tables.setTableName(this.id, newTableName);
         }
         sql`
             UPDATE ${this.schema}._alpine_table

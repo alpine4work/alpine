@@ -3,6 +3,7 @@ import {type SqlQuery, sql} from "~/shared/databases/sql.js";
 import {databaseMainTableId, sqlitePageSize} from "~/shared/databases/sqlite_constants.js";
 import {runMainMigrations, runTableMigrations} from "~/shared/databases/sqlite_migrations.js";
 import {TableNotAttachedError} from "~/shared/databases/table_not_attached_error.js";
+import {InMemoryDatabaseServerTableStore} from "~/shared/databases/test_helpers/in_memory_database_server_table_store.js";
 import {InternalError} from "~/shared/error/error.js";
 import {generateChronologicalId} from "~/shared/id/chronological_id.js";
 import type {DatabaseTableId} from "~/shared/id/types/id_types.js";
@@ -86,7 +87,10 @@ function commit(database: Database, storage: InMemoryStorage): void {
 }
 
 const openDatabases: Array<Database> = [];
-const testPrivateSalt = new Uint8Array(32).fill(7);
+
+function testServerOptions(): {tables: InMemoryDatabaseServerTableStore} {
+    return {tables: new InMemoryDatabaseServerTableStore()};
+}
 
 afterEach(() => {
     while (openDatabases.length > 0) {
@@ -823,7 +827,7 @@ describe("Database — unattached per-db file detection", () => {
 
     test("the server surfaces the raw SQL error, not TableNotAttachedError", async () => {
         const storage = new InMemoryStorage();
-        const database = await Database.create(storage, {server: {privateSalt: testPrivateSalt}});
+        const database = await Database.create(storage, {server: testServerOptions()});
         openDatabases.push(database);
         const tableId = generateChronologicalId<DatabaseTableId>();
 
@@ -861,7 +865,7 @@ async function createServerDatabaseWithTables(
 ): Promise<{database: Database; storage: InMemoryStorage; tableIds: Array<DatabaseTableId>}> {
     const storage = new InMemoryStorage();
     const database = await Database.create(storage, {
-        server: {privateSalt: testPrivateSalt},
+        server: testServerOptions(),
         attachEvictionThresholdForTests,
     });
     openDatabases.push(database);
@@ -876,13 +880,9 @@ async function createServerDatabaseWithTables(
             db => {
                 sql`
                     INSERT INTO
-                        main._alpine_tables (id, kind, table_name_hash)
+                        main._alpine_tables (id, kind)
                     VALUES
-                        (
-                            ${tableId},
-                            'table',
-                            ${`test-hash-${tableId}`}
-                        )
+                        (${tableId}, 'table')
                 `.exec(db);
                 database.attach(tableId);
                 runTableMigrations(db, tableId);
@@ -969,13 +969,9 @@ describe("Database — LRU eviction at the attach threshold", () => {
         database.executeSql(
             sql`
                 INSERT INTO
-                    main._alpine_tables (id, kind, table_name_hash)
+                    main._alpine_tables (id, kind)
                 VALUES
-                    (
-                        ${staleTableId},
-                        'table',
-                        'test-stale-table-name-hash'
-                    )
+                    (${staleTableId}, 'table')
             `,
             {allowWrites: "schema+data"},
         );

@@ -20,6 +20,7 @@ import {databaseTableAccessPolicyForCreator} from "~/shared/databases/database_t
 import {SqlQuery, sql} from "~/shared/databases/sql.js";
 import {databaseViewTargetRowsPerPage} from "~/shared/databases/sqlite_constants.js";
 import {runMainMigrations} from "~/shared/databases/sqlite_migrations.js";
+import {InMemoryDatabaseServerTableStore} from "~/shared/databases/test_helpers/in_memory_database_server_table_store.js";
 import {InternalError} from "~/shared/error/error.js";
 import {
     generateChronologicalId,
@@ -171,7 +172,7 @@ async function buildSchemaSeed(
 ): Promise<{seedPages: DatabasePages; viewId: string; tableName: string}> {
     const fake = await Database.create(
         {readPage: () => null, getFileSize: () => 0},
-        {server: {privateSalt: new Uint8Array(32).fill(7)}},
+        {server: {tables: new InMemoryDatabaseServerTableStore()}},
     );
     fake.execute(db => runMainMigrations(db), {allowWrites: "schema+data"});
     const creatorId = generateId<AccountId>();

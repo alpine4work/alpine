@@ -81,12 +81,13 @@ export class DatabaseClient {
     private optimisticQueue: Array<OptimisticMutation> = [];
     private nextTestCommitVersion = 0;
     /**
-     * The account's per-table access map, pushed by the server: replaced with the
-     * complete map on every {@link ensureCacheIsUpToDate} and merged with the deltas
-     * carried on `TableMetadataChanged` events (see {@link applyTableAccessLevels}).
-     * Advisory — the server's per-statement authorizer is the enforcement — but it's
-     * the client's only source of "exists but no access", e.g. for rendering a
-     * relation into a table this account can't read.
+     * The account's per-table access map, pushed by the server: merged from every
+     * {@link ensureCacheIsUpToDate} response (which covers the tables this client
+     * asked about, plus the joined sides of any join file among them) and from the
+     * deltas carried on `TableMetadataChanged` events (see {@link
+     * applyTableAccessLevels}). Advisory — the server's per-statement authorizer is
+     * the enforcement — but it's the client's only source of "exists but no access",
+     * e.g. for rendering a relation into a table this account can't read.
      */
     private tableAccessLevelByTableId = new Map<DatabaseTableId, AccessLevel | null>();
 
@@ -166,8 +167,9 @@ export class DatabaseClient {
 
         const {tables, tableAccess} = await conn.ensureCacheIsUpToDate(pageVersionsByIndex);
         if (tableAccess.size > 0) {
-            this.tableAccessLevelByTableId = new Map(tableAccess);
-            await this.purgeRevokedTables();
+            // The response covers every table this client has cached (it asked about all of
+            // them), so merging still surfaces each revocation as an explicit `null`.
+            await this.applyTableAccessLevels(tableAccess);
         }
 
         // From here through `replayOptimisticQueue()` runs synchronously — no `await` — so
@@ -269,9 +271,9 @@ export class DatabaseClient {
     /**
      * The account's access to `tableId` per the server-pushed map. Tables absent from
      * the map report `Manage`: trusted internal connections (tests, tools) receive
-     * empty maps, and a real client's map is complete for every registered table — so
-     * absence means unrestricted or brand-new, and the server's authorizer is the
-     * enforcement either way.
+     * empty maps, and a real client's map covers every table it has cached or been
+     * told about — so absence means the client never touched the table, an attempt is
+     * the way to learn, and the server's authorizer is the enforcement either way.
      */
     readonly getTableAccessLevel = (tableId: DatabaseTableId): AccessLevel | null => {
         if (tableId === databaseMainTableId) return "Manage";

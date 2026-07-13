@@ -37,12 +37,6 @@ type DatabaseGroupDurableObjectRoute =
     | "BroadcastTableMetadataRealtimeEvents"
     | "NotFound";
 
-/**
- * Durable-object KV key holding the group's private salt. Distinct namespace from
- * {@link DatabaseDurableObjectStorage}, which stores pages in its own SQL tables.
- */
-const databasePrivateSaltStorageKey = "alpine_database_private_salt";
-
 class DatabaseGroupDurableObject {
     public static readonly serviceName = "DatabaseGroupService";
 
@@ -74,19 +68,7 @@ class DatabaseGroupDurableObject {
         const databaseGroupId = idName as DatabaseGroupId;
         runDatabaseDurableObjectSqlMigrations(storage);
         const durableObjectStorage = new DatabaseDurableObjectStorage(storage);
-
-        // The group's private salt keys the registry's `table_name_hash` index (see
-        // `hashWithPrivateSalt`). It lives only in this durable object's key-value storage
-        // — never in the replicated SQLite pages — so group members can't
-        // dictionary-attack the name hashes. Generated once at the group's first boot;
-        // losing it is recoverable (rotate + re-hash every table's name).
-        let privateSalt = await storage.get<Uint8Array>(databasePrivateSaltStorageKey);
-        if (privateSalt === undefined) {
-            privateSalt = crypto.getRandomValues(new Uint8Array(32));
-            await storage.put(databasePrivateSaltStorageKey, privateSalt);
-        }
-
-        const server = await DatabaseServer.create(durableObjectStorage, privateSalt);
+        const server = await DatabaseServer.create(durableObjectStorage);
         return new DatabaseGroupDurableObject({
             processContext,
             databaseGroupId,

@@ -2,7 +2,10 @@ import type {Sqlite3Static, WasmPointer} from "~/external/sqlite/ext/wasm/jswasm
 import sqlite3InitModule from "~/external/sqlite/ext/wasm/jswasm/sqlite3.mjs";
 import type {AccessLevel} from "~/shared/access/access_policy.js";
 import {allowAllTableAccess} from "~/shared/databases/allow_all_table_access.js";
-import type {DatabaseActionServerContext} from "~/shared/databases/database_action_context.js";
+import type {
+    DatabaseActionServerContext,
+    DatabaseServerTableStore,
+} from "~/shared/databases/database_action_context.js";
 import {
     type DatabaseActionName,
     type DatabaseActionObject,
@@ -12,7 +15,6 @@ import {
     executeDatabaseAction,
 } from "~/shared/databases/database_actions.js";
 import type {ReadonlyDatabasePageSet} from "~/shared/databases/database_protocol_schemas.js";
-import {hashWithPrivateSalt} from "~/shared/databases/hash_with_private_salt.js";
 import type {InstalledVfs, VfsFile} from "~/shared/databases/install_vfs.js";
 import {installVfs} from "~/shared/databases/install_vfs.js";
 import {
@@ -217,12 +219,6 @@ export class Database {
      */
     private inAttachRecovery = false;
     private readonly trackedExecutions = new Set<DatabaseTrackedExecutionImpl<any>>();
-    /**
-     * Server-only hook invoked after every successful {@link attach}. The durable
-     * object uses it to cache the attached table's kind and, for join tables, its
-     * topology before a restricted statement can touch the schema.
-     */
-    private serverTableAttachHook: ((tableId: DatabaseTableId) => void) | null = null;
     private currentActionAccountId: AccountId | null = null;
     /**
      * Server-only action capabilities, or `null` on the client. Lets server-only
@@ -235,19 +231,17 @@ export class Database {
         sqlite3: Sqlite3Static,
         storage: ReadonlyDatabaseStorage,
         {
-            isServer,
             attachEvictionThreshold,
-            privateSalt,
-        }: {isServer: boolean; attachEvictionThreshold: number; privateSalt?: Uint8Array},
+            serverTables,
+        }: {attachEvictionThreshold: number; serverTables: DatabaseServerTableStore | null},
     ) {
         this.storage = storage;
         this.attachEvictionThreshold = attachEvictionThreshold;
-        if (isServer) {
-            assert(privateSalt !== undefined, "a server database requires a private salt");
+        if (serverTables !== null) {
             this.serverContext = {
                 attach: tableId => this.attachIfNeeded(tableId),
                 getCurrentAccountId: () => this.currentActionAccountId,
-                hashWithPrivateSalt: value => hashWithPrivateSalt(privateSalt, value),
+                tables: serverTables,
             };
         } else {
             this.serverContext = null;
@@ -345,15 +339,15 @@ export class Database {
     }
 
     /**
-     * Open a {@link Database} backed by `storage`. Pass `server` (with the group's
-     * private salt) to grant server-only action capabilities — attaching per-table
-     * files and salted name hashing; the client leaves it off so its actions can't
-     * attach.
+     * Open a {@link Database} backed by `storage`. Pass `server` (with the durable
+     * object's table store) to grant server-only action capabilities — attaching
+     * per-table files and table-store reads/writes; the client leaves it off so its
+     * actions can't attach.
      */
     static async create(
         storage: ReadonlyDatabaseStorage,
         options?: {
-            server?: {privateSalt: Uint8Array};
+            server?: {tables: DatabaseServerTableStore};
             attachEvictionThresholdForTests?: number;
         },
     ): Promise<Database> {
@@ -366,10 +360,9 @@ export class Database {
         }
         const sqlite3 = await sqlite3Promise;
         return new Database(sqlite3, storage, {
-            isServer: options?.server !== undefined,
             attachEvictionThreshold:
                 options?.attachEvictionThresholdForTests ?? sqliteAttachEvictionThreshold,
-            privateSalt: options?.server?.privateSalt,
+            serverTables: options?.server?.tables ?? null,
         });
     }
 
@@ -477,43 +470,6 @@ export class Database {
         const getTableAccessLevel = this.getTableAccessLevelForExecution;
         return getTableAccessLevel === null ? "Manage" : getTableAccessLevel(tableId);
     };
-
-    /**
-     * Server-only: install a hook invoked after every successful {@link attach} with
-     * the attached table's id. See {@link serverTableAttachHook}. The hook may run its
-     * own SQL via {@link \_runServerMetadataRead} and may attach further tables (e.g.
-     * a join file's two joined tables).
-     */
-    _installServerTableAttachHook(hook: (tableId: DatabaseTableId) => void): void {
-        assert(this.serverContext !== null, "table attach hook is server-only");
-        this.serverTableAttachHook = hook;
-    }
-
-    /**
-     * Server-only: run internal metadata reads against the raw SQLite handle, outside
-     * the current execution's authorization and page tracking. The per-table
-     * authorizer layer is bypassed (the reads consult metadata the ambient account may
-     * not have access to — that's the point) and page reads stay out of the tracked
-     * read set so they never leak into a user execution's `readPages` broadcast.
-     */
-    _runServerMetadataRead<T>(fn: (db: SqliteDatabase) => T): T {
-        assert(this.serverContext !== null, "server metadata reads are server-only");
-        const previousInAttachRecovery = this.inAttachRecovery;
-        const previousReadSet = this.currentReadSet;
-        const previousWriteSet = this.currentWriteSet;
-        // `inAttachRecovery` doubles as the authorizer's internal-SQL bypass and disables
-        // attach-on-miss recursion in the patched `prepare`.
-        this.inAttachRecovery = true;
-        this.currentReadSet = null;
-        this.currentWriteSet = null;
-        try {
-            return fn(this.db);
-        } finally {
-            this.inAttachRecovery = previousInAttachRecovery;
-            this.currentReadSet = previousReadSet;
-            this.currentWriteSet = previousWriteSet;
-        }
-    }
 
     /**
      * Create a cached execution backed by database page dependencies.
@@ -717,10 +673,6 @@ export class Database {
         // The new pager exists now; re-install the hook so the C side loops over the
         // updated `aDb[]` and covers it too.
         this.installPageAccessHook();
-
-        // Let the server cache the new schema's access metadata before a restricted
-        // statement can touch it.
-        this.serverTableAttachHook?.(tableId);
     }
 
     /**

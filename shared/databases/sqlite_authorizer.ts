@@ -202,7 +202,7 @@ export function isSqliteActionAllowedForSchemaAccess({
     const accessLevel = resolveSchemaAccess(targetSchemaName);
 
     // Restricted executions may never insert or delete the singleton table metadata
-    // row. Name/column-name updates (e.g. `renameTable`) stay allowed.
+    // row. Name/column-name updates (e.g. a rename) stay allowed.
     if (arg1 === "_alpine_table") {
         if (action === "insert" || action === "delete") return false;
     }

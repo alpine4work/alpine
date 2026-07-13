@@ -1,7 +1,51 @@
-import type {AccessLevel} from "~/shared/access/access_policy.js";
+import type {AccessLevel, LocalAccessPolicy} from "~/shared/access/access_policy.js";
 import type {DatabaseModel} from "~/shared/databases/model/database_root_model.js";
 import type {SqliteDatabase} from "~/shared/databases/sqlite.js";
 import type {AccountId, DatabaseTableId} from "~/shared/id/types/id_types.js";
+
+/**
+ * A table's registration in the server's durable-object table store — everything
+ * the server must know about a per-table file without attaching it: its kind, its
+ * plaintext SQLite `table_name` (backing the name-uniqueness probe), and its
+ * access metadata (a policy for user tables, the joined table ids for join files,
+ * whose access derives from their sides).
+ */
+export type DatabaseServerTableRegistration =
+    | {kind: "table"; tableName: string; accessPolicy: LocalAccessPolicy}
+    | {
+          kind: "join";
+          tableName: string;
+          sourceTableId: DatabaseTableId;
+          targetTableId: DatabaseTableId;
+      };
+
+/**
+ * Server-side store of per-table metadata, backed by the durable object's own
+ * storage — never replicated to clients, which is what lets it hold plaintext
+ * table names and policy copies. Writes participate in the surrounding action's
+ * storage transaction, so they roll back with the action.
+ */
+export interface DatabaseServerTableStore {
+    /**
+     * Record a newly created table. Create flows call this before attaching +
+     * migrating the file, so the authorizer can resolve the new schema's access from
+     * the moment any statement can touch it.
+     */
+    registerTable(tableId: DatabaseTableId, registration: DatabaseServerTableRegistration): void;
+    /**
+     * Record a rename's resolved SQLite `table_name`, keeping the uniqueness probe
+     * current.
+     */
+    setTableName(tableId: DatabaseTableId, tableName: string): void;
+    /** Overwrite a user table's resolved policy copy (see `syncTableMetadata`). */
+    setTableAccessPolicy(tableId: DatabaseTableId, accessPolicy: LocalAccessPolicy): void;
+    /**
+     * Whether any registered table's SQLite `table_name` equals `tableName`. Backs
+     * `formatUniqueTableName`'s uniqueness probe; pass `excludeTableId` when renaming
+     * so the table's own row doesn't count.
+     */
+    isTableNameTaken(tableName: string, excludeTableId?: DatabaseTableId): boolean;
+}
 
 /**
  * Server-only capabilities. Accessing these on the client causes the action to
@@ -15,13 +59,10 @@ export interface DatabaseActionServerContext {
     attach(tableId: DatabaseTableId): void;
     getCurrentAccountId(): AccountId | null;
     /**
-     * HMAC of `value` keyed by the database group's private salt (see
-     * `hashWithPrivateSalt` in `shared/databases`). Server-only because the salt never
-     * leaves the group's durable object. Maintains the registry's `table_name_hash`
-     * uniqueness index without disclosing table names to group members who lack access
-     * to the table.
+     * The durable object's table store. Server-only because the store holds plaintext
+     * table names and policy copies that must never replicate to clients.
      */
-    hashWithPrivateSalt(value: string): string;
+    tables: DatabaseServerTableStore;
 }
 
 /**

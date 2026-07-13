@@ -1,15 +1,23 @@
 import {DatabaseServer} from "~/server/databases/database_server.js";
-import type {DatabaseServerStorage} from "~/server/databases/database_server_storage.js";
+import type {
+    DatabaseServerStorage,
+    DatabaseServerTableAccessEntry,
+} from "~/server/databases/database_server_storage.js";
 import type {AccessLevel, LocalAccessPolicy} from "~/shared/access/access_policy.js";
+import type {DatabaseServerTableRegistration} from "~/shared/databases/database_action_context.js";
 import {databaseTableAccessPolicyForCreator} from "~/shared/databases/database_table_access_policy.js";
-import {hashWithPrivateSalt} from "~/shared/databases/hash_with_private_salt.js";
 import {type SqlQuery, databaseTableSchemaName, sql} from "~/shared/databases/sql.js";
 import {databaseMainTableId, sqlitePageSize} from "~/shared/databases/sqlite_constants.js";
 import {tableSqliteMigrations} from "~/shared/databases/sqlite_migrations.js";
 import {InternalError} from "~/shared/error/error.js";
 import {generateChronologicalId} from "~/shared/id/chronological_id.js";
 import {generateId} from "~/shared/id/id.js";
-import type {AccountId, DatabaseRowId, DatabaseTableId} from "~/shared/id/types/id_types.js";
+import type {
+    AccountId,
+    DatabaseFieldId,
+    DatabaseRowId,
+    DatabaseTableId,
+} from "~/shared/id/types/id_types.js";
 import {Schema} from "~/shared/schema/schema.js";
 
 interface InMemoryTable {
@@ -20,10 +28,54 @@ interface InMemoryTable {
 class InMemoryStorage implements DatabaseServerStorage {
     private tables = new Map<DatabaseTableId, InMemoryTable>();
     private accessPolicyByTableId = new Map<DatabaseTableId, LocalAccessPolicy>();
+    private registrations = new Map<
+        DatabaseTableId,
+        DatabaseServerTableRegistration & {schemaVersion: number}
+    >();
     private lastWriteVersion = 0;
 
     transactionSync<T>(fn: () => T): T {
         return fn();
+    }
+
+    registerDatabaseTable(
+        tableId: DatabaseTableId,
+        registration: DatabaseServerTableRegistration & {schemaVersion: number},
+    ): void {
+        this.registrations.set(tableId, registration);
+        if (registration.kind === "table") {
+            this.accessPolicyByTableId.set(tableId, registration.accessPolicy);
+        }
+    }
+
+    getDatabaseTableAccessEntry(tableId: DatabaseTableId): DatabaseServerTableAccessEntry | null {
+        const registration = this.registrations.get(tableId);
+        if (registration === undefined) return null;
+        switch (registration.kind) {
+            case "table":
+                return {
+                    kind: "table",
+                    accessPolicy: this.accessPolicyByTableId.get(tableId) ?? null,
+                };
+            case "join":
+                return {
+                    kind: "join",
+                    sourceTableId: registration.sourceTableId,
+                    targetTableId: registration.targetTableId,
+                };
+        }
+    }
+
+    listDatabaseTables(): Array<{
+        tableId: DatabaseTableId;
+        kind: "table" | "join";
+        schemaVersion: number;
+    }> {
+        return [...this.registrations].map(([tableId, registration]) => ({
+            tableId,
+            kind: registration.kind,
+            schemaVersion: registration.schemaVersion,
+        }));
     }
 
     getDatabaseTableAccessPolicy(tableId: DatabaseTableId): LocalAccessPolicy | null {
@@ -38,6 +90,27 @@ class InMemoryStorage implements DatabaseServerStorage {
             this.accessPolicyByTableId.delete(tableId);
         } else {
             this.accessPolicyByTableId.set(tableId, accessPolicy);
+        }
+    }
+
+    setDatabaseTableName(tableId: DatabaseTableId, tableName: string): void {
+        const registration = this.registrations.get(tableId);
+        if (registration !== undefined) {
+            this.registrations.set(tableId, {...registration, tableName});
+        }
+    }
+
+    isDatabaseTableNameTaken(tableName: string, excludeTableId?: DatabaseTableId): boolean {
+        for (const [tableId, registration] of this.registrations) {
+            if (registration.tableName === tableName && tableId !== excludeTableId) return true;
+        }
+        return false;
+    }
+
+    setDatabaseTableSchemaVersion(tableId: DatabaseTableId, schemaVersion: number): void {
+        const registration = this.registrations.get(tableId);
+        if (registration !== undefined) {
+            this.registrations.set(tableId, {...registration, schemaVersion});
         }
     }
 
@@ -95,7 +168,6 @@ class InMemoryStorage implements DatabaseServerStorage {
 // individual tests don't have to call `server.close()` themselves.
 const openServers: Array<DatabaseServer> = [];
 const testAccountId = generateId<AccountId>();
-const testPrivateSalt = new Uint8Array(32).fill(7);
 const testContext = {
     process: {
         waitUntil: () => {},
@@ -135,7 +207,7 @@ afterEach(() => {
 });
 
 async function createServerWithSchema(...statements: Array<SqlQuery>): Promise<DatabaseServer> {
-    const server = await DatabaseServer.create(new InMemoryStorage(), testPrivateSalt);
+    const server = await DatabaseServer.create(new InMemoryStorage());
     openServers.push(server);
     const db = server.unsafeGetDbForTests();
     for (const stmt of statements) {
@@ -169,6 +241,39 @@ describe("DatabaseServer — storage failure recovery", () => {
             this.inner.setDatabaseTableAccessPolicy(tableId, accessPolicy);
         }
 
+        registerDatabaseTable(
+            tableId: DatabaseTableId,
+            registration: DatabaseServerTableRegistration & {schemaVersion: number},
+        ): void {
+            this.inner.registerDatabaseTable(tableId, registration);
+        }
+
+        getDatabaseTableAccessEntry(
+            tableId: DatabaseTableId,
+        ): DatabaseServerTableAccessEntry | null {
+            return this.inner.getDatabaseTableAccessEntry(tableId);
+        }
+
+        listDatabaseTables(): Array<{
+            tableId: DatabaseTableId;
+            kind: "table" | "join";
+            schemaVersion: number;
+        }> {
+            return this.inner.listDatabaseTables();
+        }
+
+        setDatabaseTableName(tableId: DatabaseTableId, tableName: string): void {
+            this.inner.setDatabaseTableName(tableId, tableName);
+        }
+
+        isDatabaseTableNameTaken(tableName: string, excludeTableId?: DatabaseTableId): boolean {
+            return this.inner.isDatabaseTableNameTaken(tableName, excludeTableId);
+        }
+
+        setDatabaseTableSchemaVersion(tableId: DatabaseTableId, schemaVersion: number): void {
+            this.inner.setDatabaseTableSchemaVersion(tableId, schemaVersion);
+        }
+
         readPage(
             databaseTableId: DatabaseTableId,
             index: number,
@@ -194,7 +299,7 @@ describe("DatabaseServer — storage failure recovery", () => {
 
     test("a failed buffer drain does not wedge later executes", async () => {
         const storage = new FlakyStorage();
-        const server = await DatabaseServer.create(storage, testPrivateSalt);
+        const server = await DatabaseServer.create(storage);
         openServers.push(server);
         server.execute(testContext, sql`CREATE TABLE items (id INTEGER PRIMARY KEY)`, {
             allowWrites: "schema+data",
@@ -243,7 +348,7 @@ describe("DatabaseServer", () => {
             calls.push("after");
             return result;
         };
-        const server = await DatabaseServer.create(storage, testPrivateSalt);
+        const server = await DatabaseServer.create(storage);
         openServers.push(server);
 
         server.execute(
@@ -652,7 +757,7 @@ describe("DatabaseServer", () => {
     describe("storage integration", () => {
         test("writes go through to storage", async () => {
             const storage = new InMemoryStorage();
-            const server = await DatabaseServer.create(storage, testPrivateSalt);
+            const server = await DatabaseServer.create(storage);
             openServers.push(server);
             const db = server.unsafeGetDbForTests();
 
@@ -671,7 +776,7 @@ describe("DatabaseServer", () => {
 
         test("page data from execute matches what storage has", async () => {
             const storage = new InMemoryStorage();
-            const server = await DatabaseServer.create(storage, testPrivateSalt);
+            const server = await DatabaseServer.create(storage);
             openServers.push(server);
             const db = server.unsafeGetDbForTests();
 
@@ -797,7 +902,7 @@ describe("DatabaseServer", () => {
 
         test("before snapshot matches pre-mutation storage state", async () => {
             const storage = new InMemoryStorage();
-            const server = await DatabaseServer.create(storage, testPrivateSalt);
+            const server = await DatabaseServer.create(storage);
             openServers.push(server);
             const db = server.unsafeGetDbForTests();
             sql`CREATE TABLE items (id INTEGER PRIMARY KEY)`.exec(db);
@@ -834,7 +939,7 @@ describe("DatabaseServer", () => {
 
         test("after snapshot matches post-mutation storage state", async () => {
             const storage = new InMemoryStorage();
-            const server = await DatabaseServer.create(storage, testPrivateSalt);
+            const server = await DatabaseServer.create(storage);
             openServers.push(server);
             const db = server.unsafeGetDbForTests();
             sql`CREATE TABLE items (id INTEGER PRIMARY KEY)`.exec(db);
@@ -921,7 +1026,7 @@ describe("DatabaseServer", () => {
         // shrink.
         test("VACUUM that shrinks the file drains without error", async () => {
             const storage = new InMemoryStorage();
-            const server = await DatabaseServer.create(storage, testPrivateSalt);
+            const server = await DatabaseServer.create(storage);
             openServers.push(server);
             const db = server.unsafeGetDbForTests();
             sql`CREATE TABLE items (id INTEGER PRIMARY KEY, BLOB TEXT NOT NULL)`.exec(db);
@@ -1140,7 +1245,7 @@ describe("DatabaseServer", () => {
 
 describe("DatabaseServer — per-table storage", () => {
     test("a fresh group has no tables", async () => {
-        const server = await DatabaseServer.create(new InMemoryStorage(), testPrivateSalt);
+        const server = await DatabaseServer.create(new InMemoryStorage());
         openServers.push(server);
 
         const tables = sql`
@@ -1153,7 +1258,7 @@ describe("DatabaseServer — per-table storage", () => {
     });
 
     test("createTable stores public main metadata plus its own per-db file", async () => {
-        const server = await DatabaseServer.create(new InMemoryStorage(), testPrivateSalt);
+        const server = await DatabaseServer.create(new InMemoryStorage());
         openServers.push(server);
         const {result} = server.executeAction<"createTable">(testContext, {
             name: "createTable",
@@ -1161,8 +1266,8 @@ describe("DatabaseServer — per-table storage", () => {
         });
         const db = server.unsafeGetDbForTests();
 
-        // Main holds only public routing metadata — no name, no table_name; the table's
-        // name appears only as a salted hash.
+        // Main holds only public routing metadata — no name, no table_name; those live in
+        // the per-db file and the server-only table store.
         const tables = sql`
             SELECT
                 *
@@ -1173,8 +1278,6 @@ describe("DatabaseServer — per-table storage", () => {
             {
                 id: result.tableId,
                 kind: "table",
-                schema_version: tableSqliteMigrations(result.tableId).length,
-                table_name_hash: hashWithPrivateSalt(testPrivateSalt, "tasks"),
             },
         ]);
 
@@ -1190,7 +1293,7 @@ describe("DatabaseServer — per-table storage", () => {
 
     test("re-attaches and serves an existing table after reopening", async () => {
         const storage = new InMemoryStorage();
-        const server1 = await DatabaseServer.create(storage, testPrivateSalt);
+        const server1 = await DatabaseServer.create(storage);
         const {result} = server1.executeAction<"createTable">(testContext, {
             name: "createTable",
             input: createTableInputForTest("Tasks"),
@@ -1199,7 +1302,7 @@ describe("DatabaseServer — per-table storage", () => {
 
         // Reopen on the same storage; the table must stay queryable (bootstrap skips
         // migration-current files, so this exercises attach-on-miss).
-        const server2 = await DatabaseServer.create(storage, testPrivateSalt);
+        const server2 = await DatabaseServer.create(storage);
         openServers.push(server2);
         const name = sql`
             SELECT
@@ -1212,7 +1315,7 @@ describe("DatabaseServer — per-table storage", () => {
 
     test("bootstrap skips attaching migration-current tables", async () => {
         const storage = new InMemoryStorage();
-        const server1 = await DatabaseServer.create(storage, testPrivateSalt);
+        const server1 = await DatabaseServer.create(storage);
         const {result} = server1.executeAction<"createTable">(testContext, {
             name: "createTable",
             input: createTableInputForTest("Tasks"),
@@ -1221,7 +1324,7 @@ describe("DatabaseServer — per-table storage", () => {
 
         // The registry's schema_version says the file is current, so bootstrap never
         // attaches it — cold starts cost O(stale tables), not O(tables).
-        const server2 = await DatabaseServer.create(storage, testPrivateSalt);
+        const server2 = await DatabaseServer.create(storage);
         openServers.push(server2);
         const attachedSchemaNames = sql`PRAGMA database_list`
             .selectAllUnknown(server2.unsafeGetDbForTests())
@@ -1230,56 +1333,43 @@ describe("DatabaseServer — per-table storage", () => {
         expect(attachedSchemaNames).not.toContain(databaseTableSchemaName(result.tableId));
     });
 
-    test("bootstrap migrates a table whose registry schema_version is stale", async () => {
+    test("bootstrap migrates a table whose stored schema_version is stale", async () => {
         const storage = new InMemoryStorage();
-        const server1 = await DatabaseServer.create(storage, testPrivateSalt);
+        const server1 = await DatabaseServer.create(storage);
         const {result} = server1.executeAction<"createTable">(testContext, {
             name: "createTable",
             input: createTableInputForTest("Tasks"),
         });
-        // Zero the registry mirror — the state every pre-existing table is in right after
-        // the ALTER TABLE backfill migration.
-        sql`
-            UPDATE _alpine_tables
-            SET
-                schema_version = 0
-            WHERE
-                id = ${result.tableId}
-        `.exec(server1.unsafeGetDbForTests());
-        server1.commitBufferForTests();
+        // Zero the stored mirror — the state a pre-existing table is in when new per-table
+        // migrations ship.
+        storage.setDatabaseTableSchemaVersion(result.tableId, 0);
         server1.close();
 
         // Bootstrap must attach the "stale" table, run its (no-op) migrations, and repair
-        // the registry mirror so the next cold start skips it again.
-        const server2 = await DatabaseServer.create(storage, testPrivateSalt);
+        // the stored mirror so the next cold start skips it again.
+        const server2 = await DatabaseServer.create(storage);
         openServers.push(server2);
-        const db = server2.unsafeGetDbForTests();
         const attachedSchemaNames = sql`PRAGMA database_list`
-            .selectAllUnknown(db)
+            .selectAllUnknown(server2.unsafeGetDbForTests())
             .map(row => row.name);
-        const registryVersion = sql`
-            SELECT
-                schema_version
-            FROM
-                _alpine_tables
-            WHERE
-                id = ${result.tableId}
-        `.selectValue(db, Schema.integer);
+        const storedVersion = storage
+            .listDatabaseTables()
+            .find(table => table.tableId === result.tableId)?.schemaVersion;
 
         expect({
             attachedAfterBootstrap: attachedSchemaNames.includes(
                 databaseTableSchemaName(result.tableId),
             ),
-            registryVersion,
+            storedVersion,
         }).toEqual({
             attachedAfterBootstrap: true,
-            registryVersion: tableSqliteMigrations(result.tableId).length,
+            storedVersion: tableSqliteMigrations(result.tableId).length,
         });
     });
 
     test("re-attaches and serves an existing relation join table after reopening", async () => {
         const storage = new InMemoryStorage();
-        const server1 = await DatabaseServer.create(storage, testPrivateSalt);
+        const server1 = await DatabaseServer.create(storage);
         const source = server1.executeAction<"createTable">(testContext, {
             name: "createTable",
             input: createTableInputForTest("Tasks"),
@@ -1300,7 +1390,7 @@ describe("DatabaseServer — per-table storage", () => {
         }).result;
         server1.close();
 
-        const server2 = await DatabaseServer.create(storage, testPrivateSalt);
+        const server2 = await DatabaseServer.create(storage);
         openServers.push(server2);
         const joinTableId = sql`
             SELECT
@@ -1336,7 +1426,7 @@ describe("DatabaseServer — per-table access", () => {
     }
 
     async function createServer(): Promise<DatabaseServer> {
-        const server = await DatabaseServer.create(new InMemoryStorage(), testPrivateSalt);
+        const server = await DatabaseServer.create(new InMemoryStorage());
         openServers.push(server);
         return server;
     }
@@ -1401,12 +1491,19 @@ describe("DatabaseServer — per-table access", () => {
             localPolicyWithGrants([[viewer, "View"]]),
         );
 
+        // `createField` writes field metadata and then ALTERs the data table to add its
+        // column; the denial fires on the first write it attempts.
         expect(() =>
             server.executeAction(createSessionContext(viewer), {
-                name: "renameTable",
-                input: {tableId, name: "Renamed"},
+                name: "createField",
+                input: {
+                    fieldId: generateChronologicalId<DatabaseFieldId>(),
+                    tableId,
+                    name: "Notes",
+                    config: {type: "plainText"},
+                },
             }),
-        ).toThrow(`Permission denied for alter-table on database table ${tableId}`);
+        ).toThrow(`Permission denied for insert on database table ${tableId}`);
     });
 
     test("allows schema changes at Edit level", async () => {
@@ -1418,12 +1515,17 @@ describe("DatabaseServer — per-table access", () => {
             localPolicyWithGrants([[editor, "Edit"]]),
         );
 
-        const {result} = server.executeAction<"renameTable">(createSessionContext(editor), {
-            name: "renameTable",
-            input: {tableId, name: "Renamed"},
-        });
-
-        expect(result.tableName).toBe("renamed");
+        expect(() =>
+            server.executeAction(createSessionContext(editor), {
+                name: "createField",
+                input: {
+                    fieldId: generateChronologicalId<DatabaseFieldId>(),
+                    tableId,
+                    name: "Notes",
+                    config: {type: "plainText"},
+                },
+            }),
+        ).not.toThrow();
     });
 
     test("system actors bypass per-table access", async () => {
@@ -1745,7 +1847,7 @@ describe("DatabaseServer — per-table access", () => {
 describe("DatabaseServer — table access levels", () => {
     test("returns the complete map, loading policies for never-attached tables", async () => {
         const storage = new InMemoryStorage();
-        const server1 = await DatabaseServer.create(storage, testPrivateSalt);
+        const server1 = await DatabaseServer.create(storage);
         openServers.push(server1);
         const viewer = generateId<AccountId>();
         const readable = server1.executeAction<"createTable">(testContext, {
@@ -1772,29 +1874,24 @@ describe("DatabaseServer — table access levels", () => {
         server1.close();
 
         // A fresh server on the same storage attaches nothing at bootstrap (both tables
-        // are migration-current); the access map must load their policies on demand.
-        const server2 = await DatabaseServer.create(storage, testPrivateSalt);
+        // are migration-current); access levels read policies straight from storage.
+        const server2 = await DatabaseServer.create(storage);
         openServers.push(server2);
 
-        expect(server2.getTableAccessLevelsForAccount(viewer)).toEqual(
-            new Map([
-                [readable.tableId, "View"],
-                [hidden.tableId, null],
-                [databaseMainTableId, "Manage"],
-            ]),
-        );
+        expect({
+            readable: server2.getTableAccessLevelForAccount(readable.tableId, viewer),
+            hidden: server2.getTableAccessLevelForAccount(hidden.tableId, viewer),
+        }).toEqual({readable: "View", hidden: null});
     });
 
     test("owners report write access", async () => {
-        const server = await DatabaseServer.create(new InMemoryStorage(), testPrivateSalt);
+        const server = await DatabaseServer.create(new InMemoryStorage());
         openServers.push(server);
         const {result} = server.executeAction<"createTable">(testContext, {
             name: "createTable",
             input: createTableInputForTest("Tasks"),
         });
 
-        expect(server.getTableAccessLevelsForAccount(testAccountId).get(result.tableId)).toBe(
-            "Manage",
-        );
+        expect(server.getTableAccessLevelForAccount(result.tableId, testAccountId)).toBe("Manage");
     });
 });

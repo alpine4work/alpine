@@ -12,17 +12,13 @@ import {
     type DatabaseFieldConfig,
     DatabaseFieldConfigSqlSchema,
 } from "~/shared/databases/fields/all_database_field_providers.js";
-import {hashWithPrivateSalt} from "~/shared/databases/hash_with_private_salt.js";
 import {DatabaseModel} from "~/shared/databases/model/database_root_model.js";
 import {databaseTableSchemaName, sql} from "~/shared/databases/sql.js";
 import {SqliteDatabase} from "~/shared/databases/sqlite.js";
 import {databaseViewDefaultColumnWidth} from "~/shared/databases/sqlite_constants.js";
 import {registerSqliteCustomFunctions} from "~/shared/databases/sqlite_custom_functions.js";
-import {
-    joinTableSqliteMigrations,
-    runMainMigrations,
-    tableSqliteMigrations,
-} from "~/shared/databases/sqlite_migrations.js";
+import {runMainMigrations} from "~/shared/databases/sqlite_migrations.js";
+import {InMemoryDatabaseServerTableStore} from "~/shared/databases/test_helpers/in_memory_database_server_table_store.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {type OrderKey, generateOrderKeyBetween} from "~/shared/helpers/sort/order_key.js";
 import {generateChronologicalId} from "~/shared/id/chronological_id.js";
@@ -39,7 +35,6 @@ import {Schema} from "~/shared/schema/schema.js";
 const sqlite3Promise = sqlite3InitModule();
 let dbCounter = 0;
 const testAccountId = generateId<AccountId>();
-const testPrivateSalt = new Uint8Array(32).fill(7);
 
 async function createDb(): Promise<SqliteDatabase> {
     const sqlite3 = await sqlite3Promise;
@@ -55,12 +50,21 @@ function attachTableDb(db: SqliteDatabase, tableId: DatabaseTableId): void {
     );
 }
 
+// One table store per test handle: the store carries the name-uniqueness state
+// across the multiple actions a test runs against the same db.
+const tableStores = new WeakMap<SqliteDatabase, InMemoryDatabaseServerTableStore>();
+
 /**
  * Action context for the raw test handle. There's no VFS here, so a table's per-db
  * file is simulated with an in-memory attached database under the table id's
  * schema.
  */
 function makeCtx(db: SqliteDatabase): DatabaseActionContext {
+    let tables = tableStores.get(db);
+    if (tables === undefined) {
+        tables = new InMemoryDatabaseServerTableStore();
+        tableStores.set(db, tables);
+    }
     return createDatabaseActionContext(db, {
         attach(tableId) {
             attachTableDb(db, tableId);
@@ -68,9 +72,7 @@ function makeCtx(db: SqliteDatabase): DatabaseActionContext {
         getCurrentAccountId() {
             return testAccountId;
         },
-        hashWithPrivateSalt(value) {
-            return hashWithPrivateSalt(testPrivateSalt, value);
-        },
+        tables,
     });
 }
 
@@ -110,8 +112,6 @@ describe("createTable", () => {
             {
                 id: tableId,
                 kind: "table",
-                schema_version: tableSqliteMigrations(tableId).length,
-                table_name_hash: hashWithPrivateSalt(testPrivateSalt, "tasks"),
             },
         ]);
         db.close();
@@ -734,13 +734,9 @@ describe("listTableIds", () => {
 
         sql`
             INSERT INTO
-                _alpine_tables (id, kind, table_name_hash)
+                _alpine_tables (id, kind)
             VALUES
-                (
-                    ${joinTableId},
-                    'join',
-                    'test-join-table-name-hash'
-                )
+                (${joinTableId}, 'join')
         `.exec(db);
 
         const {tableIds} = run(db, "listTableIds", {});
@@ -866,8 +862,6 @@ describe("createRelationField", () => {
             registryRow: {
                 id: result.joinTableId,
                 kind: "join",
-                schema_version: joinTableSqliteMigrations(result.joinTableId).length,
-                table_name_hash: hashWithPrivateSalt(testPrivateSalt, "project_tasks"),
             },
             joinRow: {
                 id: result.joinTableId,
@@ -1514,14 +1508,28 @@ describe("createAndLinkRow", () => {
     });
 });
 
-describe("renameTable", () => {
+// Renames flow through `syncTableMetadata` (the only rename path — driven by the
+// Dynamo metadata sync).
+function renameTableForTest(
+    db: Database,
+    tableId: DatabaseTableId,
+    name: string,
+): DatabaseActionOutput<"syncTableMetadata"> {
+    return run(db, "syncTableMetadata", {
+        tableId,
+        name,
+        accessPolicy: databaseTableAccessPolicyForCreator(testAccountId),
+    });
+}
+
+describe("syncTableMetadata", () => {
     test("relabels without changing tableName when slug is unchanged", async () => {
         const db = await createDb();
         const {tableId, tableName: original} = createTableForTest(db, "Tasks");
 
         // "Tasks" and "Tasks!" both slugify to "tasks", so the SQL table name should not
         // change — only the label.
-        const {tableName} = run(db, "renameTable", {tableId, name: "Tasks!"});
+        const {tableName} = renameTableForTest(db, tableId, "Tasks!");
 
         expect(tableName).toBe(original);
         const rows = sql`
@@ -1545,7 +1553,7 @@ describe("renameTable", () => {
                 ('keep me')
         `.exec(db);
 
-        const {tableName} = run(db, "renameTable", {tableId, name: "Projects"});
+        const {tableName} = renameTableForTest(db, tableId, "Projects");
 
         expect(tableName).toBe("projects");
         // Data survives the rename.
@@ -1569,29 +1577,23 @@ describe("renameTable", () => {
         createTableForTest(db, "Tasks");
         const {tableId} = createTableForTest(db, "Projects");
 
-        const {tableName} = run(db, "renameTable", {tableId, name: "Tasks"});
+        const {tableName} = renameTableForTest(db, tableId, "Tasks");
 
         expect(tableName).toBe("tasks_2");
         db.close();
     });
 
-    test("rename keeps the registry\u2019s salted name hash current", async () => {
+    test("rename keeps the table store\u2019s name-uniqueness probe current", async () => {
         const db = await createDb();
         const {tableId} = createTableForTest(db, "Tasks");
 
-        run(db, "renameTable", {tableId, name: "Projects"});
+        renameTableForTest(db, tableId, "Projects");
 
-        // The hash is the uniqueness index future creates and renames probe; a stale value
-        // would let a new "Projects" table collide (or block "Tasks" forever).
-        const tableNameHash = sql`
-            SELECT
-                table_name_hash
-            FROM
-                _alpine_tables
-            WHERE
-                id = ${tableId}
-        `.selectValue(db, Schema.string);
-        expect(tableNameHash).toBe(hashWithPrivateSalt(testPrivateSalt, "projects"));
+        // The store's table_name is the uniqueness index future creates and renames probe;
+        // a stale value would let a new "Projects" table collide (or block "Tasks"
+        // forever).
+        const collision = createTableForTest(db, "Projects");
+        expect(collision.tableName).toBe("projects_2");
         db.close();
     });
 });

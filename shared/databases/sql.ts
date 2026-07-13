@@ -3,12 +3,30 @@ import {SqliteDatabase} from "~/shared/databases/sqlite.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import type {DatabaseTableId} from "~/shared/id/types/id_types.js";
 import {
+    JsonStringifiableUint8Array,
     ObjectPropertySchema,
     type ObjectSchemaConfigBase,
     type ObjectSchemaConfigType,
     Schema,
     type SchemaSerializedValue,
 } from "~/shared/schema/schema.js";
+
+/**
+ * Minimal structural surface of Cloudflare's `SqlStorage` — a durable object's
+ * built-in SQLite. Declared structurally rather than importing workers types so
+ * this shared module stays platform-neutral; the real `SqlStorage` and the
+ * miniflare test polyfill both satisfy it. {@link SqlQuery}'s execution helpers
+ * accept it anywhere they accept a wasm {@link SqliteDatabase}.
+ */
+export interface SqlStorageLike {
+    exec(query: string, ...bind: Array<unknown>): SqlStorageLikeCursor;
+}
+
+/** See {@link SqlStorageLike}. */
+export interface SqlStorageLikeCursor {
+    columnNames: Array<string>;
+    [Symbol.iterator](): IterableIterator<Record<string, unknown>>;
+}
 
 /**
  * A SQL query with parameter bindings and typed execution helpers. Constructed via
@@ -31,6 +49,9 @@ import {
  * // query: "SELECT * FROM t WHERE id IN (SELECT id FROM other WHERE x = ?)"
  * // bind:  [42]
  * ```
+ *
+ * Every execution helper runs against either a wasm {@link SqliteDatabase} or a
+ * durable object's {@link SqlStorageLike}.
  */
 class SqlQuery {
     constructor(
@@ -39,55 +60,36 @@ class SqlQuery {
     ) {}
 
     /**
-     * Execute and return all result rows, deserialized in a single pass by stepping
-     * through the prepared statement column-by-column.
+     * Execute and return all result rows.
+     *
+     * Pass a config object of per-column schemas to deserialize in a single pass by
+     * stepping through the prepared statement column-by-column, or a whole-row {@link
+     * Schema} (e.g. a discriminated `Schema.unionWithKey`) to deserialize each
+     * complete row object through it.
      */
     selectAll<Config extends ObjectSchemaConfigBase>(
-        db: SqliteDatabase,
+        db: SqliteDatabase | SqlStorageLike,
         config: Config,
-    ): Array<ObjectSchemaConfigType<Config>> {
-        const stmt = db.prepare(this.query);
-        try {
-            if (this.bind.length > 0) stmt.bind(this.bind as Array<BindableValue>);
-
-            // Map each SQL column index to its config key and value schema for single-pass
-            // deserialization.
-            const columnNames = stmt.getColumnNames();
-            const propertyByColumnName = new Map<string, [string, Schema<unknown>]>();
-            for (const [key, schema] of Object.entries(config)) {
-                if (schema instanceof ObjectPropertySchema) {
-                    propertyByColumnName.set(schema.serializedKey ?? key, [
-                        key,
-                        schema.valueSchema,
-                    ]);
-                } else {
-                    propertyByColumnName.set(key, [key, schema]);
-                }
-            }
-            const columns = columnNames.map(name => propertyByColumnName.get(name) ?? null);
-
-            const rows: Array<ObjectSchemaConfigType<Config>> = [];
-            while (stmt.step()) {
-                const row: Record<string, unknown> = {};
-                for (let i = 0; i < columns.length; i++) {
-                    const col = columns[i];
-                    if (col == null) continue;
-                    row[col[0]] = col[1].deserialize(stmt.get(i) as SchemaSerializedValue);
-                }
-                rows.push(row as ObjectSchemaConfigType<Config>);
-            }
-            return rows;
-        } finally {
-            stmt.finalize();
-        }
+    ): Array<ObjectSchemaConfigType<Config>>;
+    selectAll<Value>(db: SqliteDatabase | SqlStorageLike, schema: Schema<Value>): Array<Value>;
+    selectAll(
+        db: SqliteDatabase | SqlStorageLike,
+        config: ObjectSchemaConfigBase | Schema<unknown>,
+    ): Array<any> {
+        return this._selectAll(db, config);
     }
 
     /** Execute and return exactly one row (asserts). */
     selectOne<Config extends ObjectSchemaConfigBase>(
-        db: SqliteDatabase,
+        db: SqliteDatabase | SqlStorageLike,
         config: Config,
-    ): ObjectSchemaConfigType<Config> {
-        const rows = this.selectAll(db, config);
+    ): ObjectSchemaConfigType<Config>;
+    selectOne<Value>(db: SqliteDatabase | SqlStorageLike, schema: Schema<Value>): Value;
+    selectOne(
+        db: SqliteDatabase | SqlStorageLike,
+        config: ObjectSchemaConfigBase | Schema<unknown>,
+    ): any {
+        const rows = this._selectAll(db, config);
         assert(rows.length === 1, `Expected 1 row, got ${rows.length}`);
         return rows[0]!;
     }
@@ -96,19 +98,86 @@ class SqlQuery {
      * Execute and return at most one row. Returns `null` when zero rows match.
      */
     selectOneOrNone<Config extends ObjectSchemaConfigBase>(
-        db: SqliteDatabase,
+        db: SqliteDatabase | SqlStorageLike,
         config: Config,
-    ): ObjectSchemaConfigType<Config> | null {
-        const rows = this.selectAll(db, config);
+    ): ObjectSchemaConfigType<Config> | null;
+    selectOneOrNone<Value>(
+        db: SqliteDatabase | SqlStorageLike,
+        schema: Schema<Value>,
+    ): Value | null;
+    selectOneOrNone(
+        db: SqliteDatabase | SqlStorageLike,
+        config: ObjectSchemaConfigBase | Schema<unknown>,
+    ): any {
+        const rows = this._selectAll(db, config);
         assert(rows.length <= 1, `Expected at most 1 row, got ${rows.length}`);
         return rows[0] ?? null;
+    }
+
+    /**
+     * See {@link selectAll} — shared row-reading core behind its two config shapes.
+     */
+    private _selectAll(
+        db: SqliteDatabase | SqlStorageLike,
+        config: ObjectSchemaConfigBase | Schema<unknown>,
+    ): Array<any> {
+        // A whole-row schema deserializes each complete row object; the optimized
+        // per-column path below stays untouched for config objects.
+        if (config instanceof Schema) {
+            return this.selectAllUnknown(db).map(row =>
+                config.deserialize(row as SchemaSerializedValue),
+            );
+        }
+        if (isSqlStorage(db)) {
+            const propertyByColumnName = configColumnMapping(config);
+            const rows: Array<Record<string, unknown>> = [];
+            for (const cursorRow of this.execCursor(db)) {
+                const row: Record<string, unknown> = {};
+                for (const [columnName, value] of Object.entries(cursorRow)) {
+                    const col = propertyByColumnName.get(columnName);
+                    if (col == null) continue;
+                    row[col[0]] = col[1].deserialize(cursorValue(value));
+                }
+                rows.push(row);
+            }
+            return rows;
+        }
+        const stmt = db.prepare(this.query);
+        try {
+            if (this.bind.length > 0) stmt.bind(this.bind as Array<BindableValue>);
+
+            // Map each SQL column index to its config key and value schema for single-pass
+            // deserialization.
+            const columnNames = stmt.getColumnNames();
+            const propertyByColumnName = configColumnMapping(config);
+            const columns = columnNames.map(name => propertyByColumnName.get(name) ?? null);
+
+            const rows: Array<Record<string, unknown>> = [];
+            while (stmt.step()) {
+                const row: Record<string, unknown> = {};
+                for (let i = 0; i < columns.length; i++) {
+                    const col = columns[i];
+                    if (col == null) continue;
+                    row[col[0]] = col[1].deserialize(stmt.get(i) as SchemaSerializedValue);
+                }
+                rows.push(row);
+            }
+            return rows;
+        } finally {
+            stmt.finalize();
+        }
     }
 
     /**
      * Execute and return a single scalar value. Asserts exactly one row with one
      * column.
      */
-    selectValue<Value>(db: SqliteDatabase, schema: Schema<Value>): Value {
+    selectValue<Value>(db: SqliteDatabase | SqlStorageLike, schema: Schema<Value>): Value {
+        if (isSqlStorage(db)) {
+            const values = this.selectValues(db, schema);
+            assert(values.length === 1, `Expected 1 row, got ${values.length}`);
+            return values[0]!;
+        }
         const stmt = db.prepare(this.query);
         try {
             if (this.bind.length > 0) stmt.bind(this.bind as Array<BindableValue>);
@@ -126,7 +195,15 @@ class SqlQuery {
      * Execute and return a single scalar value if it exists. Asserts one or no rows
      * with one column.
      */
-    selectValueIfExists<Value>(db: SqliteDatabase, schema: Schema<Value>): Value | null {
+    selectValueIfExists<Value>(
+        db: SqliteDatabase | SqlStorageLike,
+        schema: Schema<Value>,
+    ): Value | null {
+        if (isSqlStorage(db)) {
+            const values = this.selectValues(db, schema);
+            assert(values.length <= 1, `Expected 1 or 0 rows, got ${values.length}`);
+            return values[0] ?? null;
+        }
         const stmt = db.prepare(this.query);
         try {
             if (this.bind.length > 0) stmt.bind(this.bind as Array<BindableValue>);
@@ -145,7 +222,18 @@ class SqlQuery {
      * Execute and return every row's single column as an array of values, deserialized
      * through `schema`. Asserts the query selects exactly one column.
      */
-    selectValues<Value>(db: SqliteDatabase, schema: Schema<Value>): Array<Value> {
+    selectValues<Value>(db: SqliteDatabase | SqlStorageLike, schema: Schema<Value>): Array<Value> {
+        if (isSqlStorage(db)) {
+            const cursor = this.execCursor(db);
+            const columnCount = cursor.columnNames.length;
+            assert(columnCount === 1, `Expected 1 column, got ${columnCount}`);
+            const columnName = cursor.columnNames[0]!;
+            const values: Array<Value> = [];
+            for (const row of cursor) {
+                values.push(schema.deserialize(cursorValue(row[columnName])));
+            }
+            return values;
+        }
         const stmt = db.prepare(this.query);
         try {
             if (this.bind.length > 0) stmt.bind(this.bind as Array<BindableValue>);
@@ -164,7 +252,18 @@ class SqlQuery {
      * Execute and return all rows as untyped objects. Use when the result schema is
      * not known statically (e.g. user-provided SQL).
      */
-    selectAllUnknown(db: SqliteDatabase): Array<Record<string, unknown>> {
+    selectAllUnknown(db: SqliteDatabase | SqlStorageLike): Array<Record<string, unknown>> {
+        if (isSqlStorage(db)) {
+            const rows: Array<Record<string, unknown>> = [];
+            for (const cursorRow of this.execCursor(db)) {
+                const row: Record<string, unknown> = {};
+                for (const [columnName, value] of Object.entries(cursorRow)) {
+                    row[columnName] = cursorValue(value);
+                }
+                rows.push(row);
+            }
+            return rows;
+        }
         const stmt = db.prepare(this.query);
         try {
             if (this.bind.length > 0) stmt.bind(this.bind as Array<BindableValue>);
@@ -187,9 +286,23 @@ class SqlQuery {
      * like {@link selectAll}).
      */
     selectAllArrays(
-        db: SqliteDatabase,
+        db: SqliteDatabase | SqlStorageLike,
         schemas: ReadonlyArray<Schema<unknown>>,
     ): Array<Array<unknown>> {
+        if (isSqlStorage(db)) {
+            const cursor = this.execCursor(db);
+            const rows: Array<Array<unknown>> = [];
+            for (const cursorRow of cursor) {
+                const row: Array<unknown> = [];
+                for (let i = 0; i < schemas.length; i++) {
+                    row.push(
+                        schemas[i]!.deserialize(cursorValue(cursorRow[cursor.columnNames[i]!])),
+                    );
+                }
+                rows.push(row);
+            }
+            return rows;
+        }
         const stmt = db.prepare(this.query);
         try {
             if (this.bind.length > 0) stmt.bind(this.bind as Array<BindableValue>);
@@ -208,9 +321,74 @@ class SqlQuery {
     }
 
     /** Execute without returning results (INSERT/UPDATE/DELETE/DDL). */
-    exec(db: SqliteDatabase): void {
+    exec(db: SqliteDatabase | SqlStorageLike): void {
+        if (isSqlStorage(db)) {
+            // Drain the cursor so lazily-executed statements complete before we return.
+            const iterator = this.execCursor(db)[Symbol.iterator]();
+            while (!iterator.next().done) {
+                // Nothing to do with the rows.
+            }
+            return;
+        }
         db.exec(this.query, {bind: this.bind as Array<BindableValue>});
     }
+
+    /**
+     * Run this query against a durable object's SQL storage, binding parameters.
+     */
+    private execCursor(db: SqlStorageLike): SqlStorageLikeCursor {
+        return db.exec(this.query, ...this.bind.map(storageBindValue));
+    }
+}
+
+/**
+ * Whether `db` is a durable object's SQL storage rather than a wasm SQLite handle
+ * (which is the only one of the two with a prepared-statement API).
+ */
+function isSqlStorage(db: SqliteDatabase | SqlStorageLike): db is SqlStorageLike {
+    return !("prepare" in db);
+}
+
+/**
+ * Map each SQL column name to its config key and value schema, honoring {@link
+ * ObjectPropertySchema} column renames.
+ */
+function configColumnMapping(
+    config: ObjectSchemaConfigBase,
+): Map<string, [string, Schema<unknown>]> {
+    const propertyByColumnName = new Map<string, [string, Schema<unknown>]>();
+    for (const [key, schema] of Object.entries(config)) {
+        if (schema instanceof ObjectPropertySchema) {
+            propertyByColumnName.set(schema.serializedKey ?? key, [key, schema.valueSchema]);
+        } else {
+            propertyByColumnName.set(key, [key, schema]);
+        }
+    }
+    return propertyByColumnName;
+}
+
+/**
+ * Convert a {@link SqlQuery} binding to what `SqlStorage.exec` accepts: it takes
+ * `ArrayBuffer` for blobs where the wasm API takes `Uint8Array`. A view over a
+ * whole buffer passes that buffer through without copying (the page-write hot
+ * path); a partial view must be sliced out.
+ */
+function storageBindValue(value: BindableValue): unknown {
+    if (value instanceof Uint8Array) {
+        return value.byteOffset === 0 && value.byteLength === value.buffer.byteLength
+            ? value.buffer
+            : value.buffer.slice(value.byteOffset, value.byteOffset + value.byteLength);
+    }
+    return value;
+}
+
+/**
+ * Normalize a `SqlStorage` result value for schema deserialization: blobs come
+ * back as `ArrayBuffer`s where the wasm API produces `Uint8Array`s.
+ */
+function cursorValue(value: unknown): SchemaSerializedValue {
+    if (value instanceof ArrayBuffer) return new JsonStringifiableUint8Array(value);
+    return value as SchemaSerializedValue;
 }
 
 /**
@@ -227,7 +405,7 @@ class SqlQuery {
  */
 function sql(
     strings: TemplateStringsArray,
-    ...values: Array<SchemaSerializedValue | SqlQuery>
+    ...values: Array<SchemaSerializedValue | Uint8Array | SqlQuery>
 ): SqlQuery {
     let query = "";
     const bind: Array<BindableValue> = [];

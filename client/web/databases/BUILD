@@ -5,6 +5,7 @@ ts_project(
     test_deps = [
         "//:node_modules/@jest/globals",
         "//client/web/databases/test_helpers",
+        "//shared/databases/test_helpers",
     ],
     visibility = [
         "//app:__subpackages__",

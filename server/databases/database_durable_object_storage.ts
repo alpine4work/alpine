@@ -1,9 +1,15 @@
-import type {DatabaseServerStorage} from "~/server/databases/database_server_storage.js";
+import type {
+    DatabaseServerStorage,
+    DatabaseServerTableAccessEntry,
+} from "~/server/databases/database_server_storage.js";
 import {type LocalAccessPolicy, LocalAccessPolicySchema} from "~/shared/access/access_policy.js";
+import type {DatabaseServerTableRegistration} from "~/shared/databases/database_action_context.js";
+import {sql} from "~/shared/databases/sql.js";
 import {sqlitePageSize} from "~/shared/databases/sqlite_constants.js";
 import {assert} from "~/shared/helpers/control/assert.js";
+import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
 import type {DatabaseTableId} from "~/shared/id/types/id_types.js";
-import type {SchemaSerializedValue} from "~/shared/schema/schema.js";
+import {Schema, type SchemaSerializedValue} from "~/shared/schema/schema.js";
 
 /**
  * {@link DatabaseServerStorage} implementation backed by a Cloudflare Durable
@@ -12,8 +18,10 @@ import type {SchemaSerializedValue} from "~/shared/schema/schema.js";
  * Pages are partitioned by {@link DatabaseTableId} so one Durable Object can host
  * many SQLite databases. Storage uses two data tables:
  *
- * - `database_tables(sqlite_id, table_id, access_policy)` maps each external
- *   string id to a small integer and stores its resolved local access policy.
+ * - `database_tables(sqlite_id, table_id, kind, table_name, schema_version, access_policy, source_table_id, target_table_id)`
+ *   maps each external string id to a small integer and stores the table's
+ *   registration — see the migration in
+ *   `database_durable_object_sql_migrations.ts` for the column semantics.
  * - `database_table_pages(sqlite_id, page_index, version, data)` stores versioned
  *   pages keyed by `(sqlite_id, page_index, version)`. A `NULL` `data` marks a
  *   tombstone (left behind by truncates) which is surfaced as a missing page at
@@ -42,32 +50,160 @@ export class DatabaseDurableObjectStorage implements DatabaseServerStorage {
         return this.storage.transactionSync(fn);
     }
 
+    registerDatabaseTable(
+        tableId: DatabaseTableId,
+        registration: DatabaseServerTableRegistration & {schemaVersion: number},
+    ): void {
+        sql`
+            INSERT INTO
+                database_tables (
+                    table_id,
+                    kind,
+                    table_name,
+                    schema_version,
+                    access_policy,
+                    source_table_id,
+                    target_table_id
+                )
+            VALUES
+                (
+                    ${tableId},
+                    ${registration.kind},
+                    ${registration.tableName},
+                    ${registration.schemaVersion},
+                    ${registration.kind === "table"
+                ? serializeAccessPolicy(registration.accessPolicy)
+                : null},
+                    ${registration.kind === "join" ? registration.sourceTableId : null},
+                    ${registration.kind === "join" ? registration.targetTableId : null}
+                )
+            ON CONFLICT (table_id) DO UPDATE
+            SET
+                kind = excluded.kind,
+                table_name = excluded.table_name,
+                schema_version = excluded.schema_version,
+                access_policy = excluded.access_policy,
+                source_table_id = excluded.source_table_id,
+                target_table_id = excluded.target_table_id
+        `.exec(this.sql);
+    }
+
+    getDatabaseTableAccessEntry(tableId: DatabaseTableId): DatabaseServerTableAccessEntry | null {
+        // `kind IS NOT NULL` drops unregistered rows (created by a bare page write or an
+        // early policy push) — they resolve to no entry, fail closed, same as a missing
+        // row.
+        const row = sql`
+            SELECT
+                kind,
+                access_policy,
+                source_table_id,
+                target_table_id
+            FROM
+                database_tables
+            WHERE
+                table_id = ${tableId}
+                AND kind IS NOT NULL
+        `.selectOneOrNone(this.sql, databaseTableRowSchema);
+        if (row === null) return null;
+        switch (row.kind) {
+            case "table":
+                return {kind: "table", accessPolicy: deserializeAccessPolicy(row.accessPolicy)};
+            case "join":
+                return row;
+            default:
+                throw exhaustive(row);
+        }
+    }
+
+    listDatabaseTables(): Array<{
+        tableId: DatabaseTableId;
+        kind: "table" | "join";
+        schemaVersion: number;
+    }> {
+        return sql`
+            SELECT
+                table_id,
+                kind,
+                schema_version
+            FROM
+                database_tables
+            WHERE
+                kind IS NOT NULL
+            ORDER BY
+                table_id
+        `.selectAll(this.sql, {
+            tableId: Schema.id<DatabaseTableId>().originalPropertyKey("table_id"),
+            kind: Schema.enum(["table", "join"]),
+            schemaVersion: Schema.integer.originalPropertyKey("schema_version"),
+        });
+    }
+
     getDatabaseTableAccessPolicy(tableId: DatabaseTableId): LocalAccessPolicy | null {
-        const result = this.sql.exec<{access_policy: string | null}>(
-            "SELECT access_policy FROM database_tables WHERE table_id = ?",
-            tableId,
-        );
-        const row = result.next();
-        if (row.done || row.value.access_policy === null) return null;
-        assert(result.next().done);
-        return LocalAccessPolicySchema.deserialize(
-            JSON.parse(row.value.access_policy) as SchemaSerializedValue,
-        );
+        const accessPolicy = sql`
+            SELECT
+                access_policy
+            FROM
+                database_tables
+            WHERE
+                table_id = ${tableId}
+        `.selectValueIfExists(this.sql, Schema.string.nullable());
+        return deserializeAccessPolicy(accessPolicy ?? null);
     }
 
     setDatabaseTableAccessPolicy(
         tableId: DatabaseTableId,
         accessPolicy: LocalAccessPolicy | null,
     ): void {
-        this.sql.exec(
-            `INSERT INTO database_tables (table_id, access_policy)
-             VALUES (?, ?)
-             ON CONFLICT (table_id) DO UPDATE SET access_policy = excluded.access_policy`,
-            tableId,
-            accessPolicy === null
-                ? null
-                : JSON.stringify(LocalAccessPolicySchema.serialize(accessPolicy)),
+        sql`
+            INSERT INTO
+                database_tables (table_id, access_policy)
+            VALUES
+                (
+                    ${tableId},
+                    ${serializeAccessPolicy(accessPolicy)}
+                )
+            ON CONFLICT (table_id) DO UPDATE
+            SET
+                access_policy = excluded.access_policy
+        `.exec(this.sql);
+    }
+
+    setDatabaseTableName(tableId: DatabaseTableId, tableName: string): void {
+        const updated = sql`
+            UPDATE database_tables
+            SET
+                table_name = ${tableName}
+            WHERE
+                table_id = ${tableId}
+            RETURNING
+                1
+        `.selectValueIfExists(this.sql, Schema.integer);
+        assert(updated !== null, `setDatabaseTableName: unknown table ${tableId}`);
+    }
+
+    isDatabaseTableNameTaken(tableName: string, excludeTableId?: DatabaseTableId): boolean {
+        const excludeClause =
+            excludeTableId === undefined ? sql`` : sql` AND table_id != ${excludeTableId} `;
+        return (
+            sql`
+                SELECT
+                    1
+                FROM
+                    database_tables
+                WHERE
+                    table_name = ${tableName} ${excludeClause}
+            `.selectValueIfExists(this.sql, Schema.integer) !== null
         );
+    }
+
+    setDatabaseTableSchemaVersion(tableId: DatabaseTableId, schemaVersion: number): void {
+        sql`
+            UPDATE database_tables
+            SET
+                schema_version = ${schemaVersion}
+            WHERE
+                table_id = ${tableId}
+        `.exec(this.sql);
     }
 
     readPage(
@@ -78,30 +214,29 @@ export class DatabaseDurableObjectStorage implements DatabaseServerStorage {
         if (sqliteId === undefined) {
             return null;
         }
-        const result = this.sql.exec<{
-            data: ArrayBuffer | null;
-            version: number;
-        }>(
-            "SELECT data, version FROM database_table_pages WHERE sqlite_id = ? AND page_index = ? ORDER BY version DESC LIMIT 1",
-            sqliteId,
-            index,
-        );
-        const row = result.next();
-        if (row.done) {
-            return null;
-        }
-
-        assert(result.next().done);
+        const row = sql`
+            SELECT
+                data,
+                version
+            FROM
+                database_table_pages
+            WHERE
+                sqlite_id = ${sqliteId}
+                AND page_index = ${index}
+            ORDER BY
+                version DESC
+            LIMIT
+                1
+        `.selectOneOrNone(this.sql, {
+            data: Schema.bytes.nullable(),
+            version: Schema.integer,
+        });
         // Tombstones (data IS NULL) surface as missing pages — the underlying file size
-        // already shrank past them via {@link truncate}, so no caller needs to
-        // distinguish.
-        if (row.value.data === null) {
+        // already shrank past them via truncation, so no caller needs to distinguish.
+        if (row === null || row.data === null) {
             return null;
         }
-        return {
-            data: new Uint8Array(row.value.data),
-            version: row.value.version,
-        };
+        return {data: row.data, version: row.version};
     }
 
     writePages(
@@ -117,17 +252,27 @@ export class DatabaseDurableObjectStorage implements DatabaseServerStorage {
         for (const [databaseTableId, size] of truncates) {
             const sqliteId = this.getOrCreateSqliteId(databaseTableId);
             const maxPageIndex = Math.floor(size / sqlitePageSize);
-            for (const {page_index} of this.sql.exec<{page_index: number}>(
-                "SELECT DISTINCT page_index FROM database_table_pages WHERE sqlite_id = ? AND page_index >= ?",
-                sqliteId,
-                maxPageIndex,
-            )) {
-                this.sql.exec(
-                    "INSERT INTO database_table_pages (sqlite_id, page_index, version, data) VALUES (?, ?, ?, NULL)",
-                    sqliteId,
-                    page_index,
-                    version,
-                );
+            const pageIndexes = sql`
+                SELECT DISTINCT
+                    page_index
+                FROM
+                    database_table_pages
+                WHERE
+                    sqlite_id = ${sqliteId}
+                    AND page_index >= ${maxPageIndex}
+            `.selectValues(this.sql, Schema.integer);
+            for (const pageIndex of pageIndexes) {
+                sql`
+                    INSERT INTO
+                        database_table_pages (sqlite_id, page_index, version, data)
+                    VALUES
+                        (
+                            ${sqliteId},
+                            ${pageIndex},
+                            ${version},
+                            NULL
+                        )
+                `.exec(this.sql);
             }
             this.fileSizes.set(databaseTableId, size);
         }
@@ -135,13 +280,17 @@ export class DatabaseDurableObjectStorage implements DatabaseServerStorage {
         for (const [databaseTableId, tablePages] of pages) {
             const sqliteId = this.getOrCreateSqliteId(databaseTableId);
             for (const [index, data] of tablePages) {
-                this.sql.exec(
-                    "INSERT INTO database_table_pages (sqlite_id, page_index, version, data) VALUES (?, ?, ?, ?)",
-                    sqliteId,
-                    index,
-                    version,
-                    data.buffer,
-                );
+                sql`
+                    INSERT INTO
+                        database_table_pages (sqlite_id, page_index, version, data)
+                    VALUES
+                        (
+                            ${sqliteId},
+                            ${index},
+                            ${version},
+                            ${data}
+                        )
+                `.exec(this.sql);
                 const end = (index + 1) * sqlitePageSize;
                 if (end > this.getFileSize(databaseTableId)) {
                     this.fileSizes.set(databaseTableId, end);
@@ -162,26 +311,29 @@ export class DatabaseDurableObjectStorage implements DatabaseServerStorage {
             this.fileSizes.set(databaseTableId, 0);
             return 0;
         }
-        const result = this.sql.exec<{page_index: number}>(
-            `SELECT p.page_index FROM database_table_pages p
-             WHERE p.sqlite_id = ?
-               AND p.version = (
-                   SELECT MAX(p2.version) FROM database_table_pages p2
-                   WHERE p2.sqlite_id = ? AND p2.page_index = p.page_index
-               )
-               AND p.data IS NOT NULL
-             ORDER BY p.page_index DESC
-             LIMIT 1`,
-            sqliteId,
-            sqliteId,
-        );
-        const row = result.next();
-        if (row.done) {
-            this.fileSizes.set(databaseTableId, 0);
-            return 0;
-        }
-        assert(result.next().done);
-        const size = (row.value.page_index + 1) * sqlitePageSize;
+        const lastPageIndex = sql`
+            SELECT
+                p.page_index
+            FROM
+                database_table_pages p
+            WHERE
+                p.sqlite_id = ${sqliteId}
+                AND p.version = (
+                    SELECT
+                        MAX(p2.version)
+                    FROM
+                        database_table_pages p2
+                    WHERE
+                        p2.sqlite_id = ${sqliteId}
+                        AND p2.page_index = p.page_index
+                )
+                AND p.data IS NOT NULL
+            ORDER BY
+                p.page_index DESC
+            LIMIT
+                1
+        `.selectValueIfExists(this.sql, Schema.integer);
+        const size = lastPageIndex === null ? 0 : (lastPageIndex + 1) * sqlitePageSize;
         this.fileSizes.set(databaseTableId, size);
         return size;
     }
@@ -190,11 +342,13 @@ export class DatabaseDurableObjectStorage implements DatabaseServerStorage {
         if (this.lastWriteVersion === undefined) {
             // Cold load: recover MAX(version) across every table so the next stamp is strictly
             // greater than anything already persisted.
-            const result = this.sql.exec<{v: number | null}>(
-                "SELECT MAX(version) AS v FROM database_table_pages",
-            );
-            const row = result.next();
-            this.lastWriteVersion = row.done || row.value.v === null ? 0 : row.value.v;
+            this.lastWriteVersion =
+                sql`
+                    SELECT
+                        MAX(version)
+                    FROM
+                        database_table_pages
+                `.selectValue(this.sql, Schema.integer.nullable()) ?? 0;
         }
         this.lastWriteVersion++;
         return this.lastWriteVersion;
@@ -210,17 +364,19 @@ export class DatabaseDurableObjectStorage implements DatabaseServerStorage {
         if (cached !== undefined) {
             return cached;
         }
-        const result = this.sql.exec<{sqlite_id: number}>(
-            "SELECT sqlite_id FROM database_tables WHERE table_id = ?",
-            databaseTableId,
-        );
-        const row = result.next();
-        if (row.done) {
+        const sqliteId = sql`
+            SELECT
+                sqlite_id
+            FROM
+                database_tables
+            WHERE
+                table_id = ${databaseTableId}
+        `.selectValueIfExists(this.sql, Schema.integer);
+        if (sqliteId === null) {
             return undefined;
         }
-        assert(result.next().done);
-        this.sqliteIds.set(databaseTableId, row.value.sqlite_id);
-        return row.value.sqlite_id;
+        this.sqliteIds.set(databaseTableId, sqliteId);
+        return sqliteId;
     }
 
     /**
@@ -232,14 +388,42 @@ export class DatabaseDurableObjectStorage implements DatabaseServerStorage {
         if (existing !== undefined) {
             return existing;
         }
-        const result = this.sql.exec<{sqlite_id: number}>(
-            "INSERT INTO database_tables (table_id) VALUES (?) RETURNING sqlite_id",
-            databaseTableId,
-        );
-        const row = result.next();
-        assert(!row.done);
-        assert(result.next().done);
-        this.sqliteIds.set(databaseTableId, row.value.sqlite_id);
-        return row.value.sqlite_id;
+        const sqliteId = sql`
+            INSERT INTO
+                database_tables (table_id)
+            VALUES
+                (${databaseTableId})
+            RETURNING
+                sqlite_id
+        `.selectValue(this.sql, Schema.integer);
+        this.sqliteIds.set(databaseTableId, sqliteId);
+        return sqliteId;
     }
+}
+
+/**
+ * Row shape for {@link DatabaseDurableObjectStorage.getDatabaseTableAccessEntry},
+ * discriminated on the registration `kind` (the CHECK constraint in
+ * `database_durable_object_sql_migrations.ts` guarantees each variant's columns).
+ */
+const databaseTableRowSchema = Schema.unionWithKey("kind", {
+    table: Schema.object({
+        kind: Schema.value("table"),
+        accessPolicy: Schema.string.nullable().originalPropertyKey("access_policy"),
+    }),
+    join: Schema.object({
+        kind: Schema.value("join"),
+        sourceTableId: Schema.id<DatabaseTableId>().originalPropertyKey("source_table_id"),
+        targetTableId: Schema.id<DatabaseTableId>().originalPropertyKey("target_table_id"),
+    }),
+});
+
+function serializeAccessPolicy(accessPolicy: LocalAccessPolicy | null): string | null {
+    if (accessPolicy === null) return null;
+    return JSON.stringify(LocalAccessPolicySchema.serialize(accessPolicy));
+}
+
+function deserializeAccessPolicy(accessPolicy: string | null): LocalAccessPolicy | null {
+    if (accessPolicy === null) return null;
+    return LocalAccessPolicySchema.deserialize(JSON.parse(accessPolicy) as SchemaSerializedValue);
 }
