@@ -55,14 +55,18 @@ import {
 } from "~/shared/api/specification/types/api_specification_convenience_types.js";
 import {InvalidArgumentError, UnimplementedError} from "~/shared/error/error.js";
 import {errorDisplayMessage} from "~/shared/error/error_display_message.js";
+import {createArrayWithLength} from "~/shared/helpers/array/create_array_with_length.js";
 import {emptyArray} from "~/shared/helpers/array/empty_array.js";
 import {filterMapArray} from "~/shared/helpers/array/filter_map_array.js";
+import {partitionArray} from "~/shared/helpers/array/partition_array.js";
 import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 import {cast} from "~/shared/helpers/control/cast.js";
 import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
 import {isDeepEqual} from "~/shared/helpers/control/is_deep_equal.js";
+import {filterIterable} from "~/shared/helpers/iterable/filter_iterable.js";
+import {partitionIterable} from "~/shared/helpers/iterable/partition_iterable.js";
 import {reverseIterable} from "~/shared/helpers/iterable/reverse_iterable.js";
 import {getObjectKeysWithKeyofType} from "~/shared/helpers/object/get_object_keys_with_keyof_type.js";
 import {MaybePromise} from "~/shared/helpers/types/maybe_promise.js";
@@ -714,7 +718,7 @@ export async function updateAgentWebTaskCollectionPage(
     // The end of tasks marker is optional for a page that's actually at the end of
     // tasks (according to metadata). However, for a page that's not at the end of
     // tasks you can't add the end of tasks marker!
-    if (!oldPageMetadata.isEndOfTasks && newPage.isEndOfTasks) {
+    if (oldPageMetadata.beforeCursor !== null && newPage.isEndOfTasks) {
         throw new InvalidArgumentError(
             "Can\u2019t change whether this page is the end of tasks or not",
             {
@@ -723,24 +727,126 @@ export async function updateAgentWebTaskCollectionPage(
         );
     }
 
-    const oldTaskIds = oldPage.tasks.map(pageTask => pageTask.taskId);
-    const newTaskIds = newPage.tasks.map(pageTask => pageTask.taskId);
-    const hasSameTaskOrder =
-        oldTaskIds.length === newTaskIds.length &&
-        oldTaskIds.every((id, index) => id === newTaskIds[index]);
+    const oldTaskIdSet = new Set<TaskId>();
+    const newTaskIdSet = new Set<TaskId>();
 
-    if (!hasSameTaskOrder) {
-        // TODO(#agents-web): Add, remove, and reorder tasks from a task collection page.
-        throw new UnimplementedError(
-            "Adding, removing, or reordering the tasks in a task collection hasn\u2019t been implemented yet",
+    // NOCOMMIT: Integration test where we shuffle task collection tasks and make sure
+    // after the API calls the resulting task order is correct with another read.
+    //
+    // NOCOMMIT: Lots of integration tests for moving tasks then also adding tasks at
+    // the same time (nearby). Also moving tasks in one `update` call and then making
+    // another `update` call that makes more moves.
+    for (const oldTask of oldPage.tasks) {
+        // We expect the old page to be well formed and only list each task once.
+        assert(!oldTaskIdSet.has(oldTask.taskId));
+        oldTaskIdSet.add(oldTask.taskId);
+    }
+
+    for (const newTask of newPage.tasks) {
+        if (!newTaskIdSet.has(newTask.taskId)) {
+            newTaskIdSet.add(newTask.taskId);
+            continue;
+        }
+
+        const quotedTitle = quoteMarkdown([{type: "text", value: newTask.title}]);
+
+        throw new InvalidArgumentError("Duplicate task in new task collection page", {
+            // NOCOMMIT: Test???
+            displayMessage: errorDisplayMessage`The ${quotedTitle} task appears more than once on this task collection page. Each task may only appear once. Try again after removing the duplicate task link.`,
+        });
+    }
+
+    const oldTaskIds = Array.from(oldTaskIdSet);
+    const newTaskIds = Array.from(newTaskIdSet);
+
+    const [oldCommonTaskIds, removedTaskIds] = partitionArray(oldTaskIds, taskId =>
+        newTaskIdSet.has(taskId),
+    );
+    const [newCommonTaskIds, addedTaskIds] = partitionArray(newTaskIds, taskId =>
+        oldTaskIdSet.has(taskId),
+    );
+
+    // Find the longest common task subsequence. Tasks outside the subsequence are the
+    // smallest set of existing tasks that must move to produce the new order.
+    const commonSubsequenceLengths = createArrayWithLength(oldCommonTaskIds.length + 1, () =>
+        createArrayWithLength(newCommonTaskIds.length + 1, () => 0),
+    );
+
+    // NOTE(calebmer): This was written by GPT-5.6 and I'll be honest, I don't fully
+    // understand the algorithm. But it works to produce the minimal set of move
+    // patches and even though it's O(n^2) n will be small in this context.
+    for (let oldIndex = oldCommonTaskIds.length - 1; oldIndex >= 0; oldIndex--) {
+        for (let newIndex = newCommonTaskIds.length - 1; newIndex >= 0; newIndex--) {
+            commonSubsequenceLengths[oldIndex]![newIndex] =
+                oldCommonTaskIds[oldIndex] === newCommonTaskIds[newIndex]
+                    ? commonSubsequenceLengths[oldIndex + 1]![newIndex + 1]! + 1
+                    : Math.max(
+                          commonSubsequenceLengths[oldIndex + 1]![newIndex]!,
+                          commonSubsequenceLengths[oldIndex]![newIndex + 1]!,
+                      );
+        }
+    }
+
+    const stableTaskIds = new Set<TaskId>();
+    let oldCommonTaskIndex = 0;
+    let newCommonTaskIndex = 0;
+
+    while (
+        oldCommonTaskIndex < oldCommonTaskIds.length &&
+        newCommonTaskIndex < newCommonTaskIds.length
+    ) {
+        const oldTaskId = oldCommonTaskIds[oldCommonTaskIndex]!;
+        const newTaskId = newCommonTaskIds[newCommonTaskIndex]!;
+
+        if (oldTaskId === newTaskId) {
+            stableTaskIds.add(oldTaskId);
+            oldCommonTaskIndex++;
+            newCommonTaskIndex++;
+        } else if (
+            commonSubsequenceLengths[oldCommonTaskIndex + 1]![newCommonTaskIndex]! >=
+            commonSubsequenceLengths[oldCommonTaskIndex]![newCommonTaskIndex + 1]!
+        ) {
+            oldCommonTaskIndex++;
+        } else {
+            newCommonTaskIndex++;
+        }
+    }
+
+    const movedTaskIds = newCommonTaskIds.filter(taskId => !stableTaskIds.has(taskId));
+    const hasTaskListChanges =
+        removedTaskIds.length > 0 || addedTaskIds.length > 0 || movedTaskIds.length > 0;
+
+    // NOCOMMIT: Allow adding/removing tasks in an automatically sorted collection.
+    //
+    // NOCOMMIT: What to do when adding tasks with fields?
+    if (hasTaskListChanges && !oldPageMetadata.isManuallyOrdered) {
+        throw new InvalidArgumentError(
+            "Can\u2019t change tasks in an automatically ordered collection",
+            {
+                // NOCOMMIT: Test error message
+                displayMessage: errorDisplayMessage`Tasks may only be added, removed, or reordered when a task collection is sorted manually. A collection is manually sorted when no automatic sorts are applied. That means there are no default filters/sorts and there is no \`?sort\` in the path passed to the \`read\` tool. To reorder tasks in an automatically sorted collection, look at the collection's sorts and update the task's fields to reorder it (for example, if a collection is sorted by \`?sort=priority\` then updating a task's priority will move it). If you are updating a task's fields in an automatically sorted collection, you don't have to move the task yourself with the \`update\` tool. The task will be moved automatically, you can call the \`read\` tool again with the collection to see the new order. Try again without reordering, adding, or removing tasks.`,
+            },
         );
     }
 
-    const taskPatchRequests: Array<{id: TaskId; patches: Array<ApiTaskPatch>}> = [];
+    assert(oldPageMetadata.tasks.length === oldPage.tasks.length);
 
-    for (let index = 0; index < oldPage.tasks.length; index++) {
-        const oldPageTask = oldPage.tasks[index]!;
-        const newPageTask = newPage.tasks[index]!;
+    const oldTaskCursorById = new Map(
+        oldPage.tasks.map((pageTask, index) => [
+            pageTask.taskId,
+            assertExists(oldPageMetadata.tasks[index]).cursor,
+        ]),
+    );
+    const oldPageTaskById = new Map(oldPage.tasks.map(pageTask => [pageTask.taskId, pageTask]));
+    const taskPatchInputs: Array<{id: TaskId; patch: ApiTaskPatch}> = [];
+
+    for (const newPageTask of newPage.tasks) {
+        const oldPageTask = oldPageTaskById.get(newPageTask.taskId);
+
+        // A newly added task only gets the collection membership and position patches
+        // below. Its other task fields weren't present on the old collection page, so
+        // there is no trustworthy old value to diff them against.
+        if (oldPageTask === undefined) continue;
 
         if (oldPageTask.additionalCollectionsCount !== newPageTask.additionalCollectionsCount) {
             const quotedTitle = quoteMarkdown([{type: "text", value: oldPageTask.title}]);
@@ -862,9 +968,8 @@ export async function updateAgentWebTaskCollectionPage(
             }
         }
 
-        if (taskPatches.length > 0) {
-            taskPatchRequests.push({id: oldPageTask.taskId, patches: taskPatches});
-        }
+        for (const taskPatch of taskPatches)
+            taskPatchInputs.push({id: oldPageTask.taskId, patch: taskPatch});
     }
 
     if (
@@ -879,10 +984,101 @@ export async function updateAgentWebTaskCollectionPage(
         );
     }
 
-    const patches: Array<ApiTaskCollectionPatch> = [];
+    for (const removedTaskId of removedTaskIds) {
+        taskPatchInputs.push({
+            id: removedTaskId,
+            patch: {
+                type: "RemoveCollection",
+                collectionId: oldPageMetadata.id,
+            },
+        });
+    }
+
+    const collectionReference: ApiTaskCollectionReferenceResponse = {
+        type: "TaskCollection",
+        id: oldPageMetadata.id,
+        title: oldPage.name,
+    };
+
+    for (const addedTaskId of addedTaskIds) {
+        taskPatchInputs.push({
+            id: addedTaskId,
+            patch: {
+                type: "AddCollection",
+                item: {collection: collectionReference},
+            },
+        });
+    }
+
+    const repositionedTaskIds = new Set([...addedTaskIds, ...movedTaskIds]);
+
+    // The batch tasks endpoint preserves the request order for moves with identical
+    // positions. Add movement patches in the page's new order so a group moved between
+    // the same cursors ends up in the same order the agent wrote.
+    for (let taskIndex = 0; taskIndex < newTaskIds.length; taskIndex++) {
+        const taskId = newTaskIds[taskIndex]!;
+        if (!repositionedTaskIds.has(taskId)) continue;
+
+        let afterCursor: ApiTaskQueryCursor | null = null;
+
+        for (let index = taskIndex - 1; index >= 0; index--) {
+            const previousTaskId = newTaskIds[index]!;
+            if (!stableTaskIds.has(previousTaskId)) continue;
+
+            const previousTaskCursor = oldTaskCursorById.get(previousTaskId);
+            if (previousTaskCursor === undefined) continue;
+
+            afterCursor = previousTaskCursor;
+            break;
+        }
+
+        if (afterCursor === null && oldPage.subType === "Tail") {
+            afterCursor = assertExists(oldPageMetadata.afterCursor);
+        }
+
+        let beforeCursor: ApiTaskQueryCursor | null = null;
+
+        for (let index = taskIndex + 1; index < newTaskIds.length; index++) {
+            const nextTaskId = newTaskIds[index]!;
+            if (!stableTaskIds.has(nextTaskId)) continue;
+
+            const nextTaskCursor = oldTaskCursorById.get(nextTaskId);
+            if (nextTaskCursor === undefined) continue;
+
+            beforeCursor = nextTaskCursor;
+            break;
+        }
+
+        if (beforeCursor === null && oldPageMetadata.beforeCursor !== null) {
+            beforeCursor = assertExists(oldPageMetadata.beforeCursor);
+        }
+
+        let position: ApiTaskMoveInQueryPatchPosition;
+
+        if (afterCursor === null) {
+            assert(oldPage.subType === "Head");
+            position = {type: "Start"};
+        } else if (beforeCursor === null) {
+            assert(oldPageMetadata.beforeCursor === null);
+            position = {type: "End"};
+        } else {
+            position = {type: "Between", afterCursor, beforeCursor};
+        }
+
+        taskPatchInputs.push({
+            id: taskId,
+            patch: {
+                type: "MoveInCollection",
+                collectionId: oldPageMetadata.id,
+                position,
+            },
+        });
+    }
+
+    const collectionPatches: Array<ApiTaskCollectionPatch> = [];
 
     if (oldPage.name !== newPage.name) {
-        patches.push({type: "SetName", name: newPage.name});
+        collectionPatches.push({type: "SetName", name: newPage.name});
     }
 
     if (
@@ -890,28 +1086,44 @@ export async function updateAgentWebTaskCollectionPage(
         newPage.subType === "Head" &&
         oldPage.color !== newPage.color
     ) {
-        patches.push({type: "SetColor", color: newPage.color});
+        collectionPatches.push({type: "SetColor", color: newPage.color});
     }
 
-    const patchPromises: Array<Promise<unknown>> = taskPatchRequests.map(({id, patches}) =>
-        context.api.patch(context.span, "/tasks/{id}", {
-            params: {path: {id}},
-            body: {patches},
-        }),
-    );
+    const [taskPatchResponse] = await runAllPromises([
+        taskPatchInputs.length === 0
+            ? Promise.resolve(null)
+            : context.api.patch(context.span, "/tasks", {
+                  body: {spaceId: context.spaceId, patches: taskPatchInputs},
+              }),
+        collectionPatches.length === 0
+            ? Promise.resolve(null)
+            : context.api.patch(context.span, "/task-collections/{id}", {
+                  params: {path: {id: oldPageMetadata.id}},
+                  body: {patches: collectionPatches},
+              }),
+    ]);
 
-    if (patches.length > 0) {
-        patchPromises.push(
-            context.api.patch(context.span, "/task-collections/{id}", {
-                params: {path: {id: oldPageMetadata.id}},
-                body: {patches},
-            }),
-        );
+    const movedCursorByTaskId = new Map<TaskId, ApiTaskQueryCursor>();
+
+    if (taskPatchResponse !== null) {
+        for (const {task, collections} of taskPatchResponse.data.tasks) {
+            if (!repositionedTaskIds.has(task.id)) continue;
+
+            const movedCollection = assertExists(
+                collections.find(({collection}) => collection.id === oldPageMetadata.id),
+            );
+            movedCursorByTaskId.set(task.id, assertExists(movedCollection.movedCursor));
+        }
     }
 
-    await runAllPromises(patchPromises);
-
-    return oldPageMetadata;
+    return {
+        ...oldPageMetadata,
+        tasks: newTaskIds.map(taskId => ({
+            cursor: repositionedTaskIds.has(taskId)
+                ? assertExists(movedCursorByTaskId.get(taskId))
+                : assertExists(oldTaskCursorById.get(taskId)),
+        })),
+    };
 }
 
 export function normalizeAgentWebTaskCollectionPage<Page extends AgentWebTaskCollectionPage>(
