@@ -38,7 +38,7 @@ import {type ObjectSchema, Schema, type SchemaType} from "~/shared/schema/schema
 export function createDatabaseActionContext(
     db: SqliteDatabase,
     server: DatabaseActionServerContext | null,
-    getTableAccessLevel?: (tableId: DatabaseTableId) => AccessLevel | null,
+    getTableAccessLevel: (tableId: DatabaseTableId) => AccessLevel | null,
 ): DatabaseActionContext {
     return new DatabaseModel(db, server, getTableAccessLevel).ctx;
 }

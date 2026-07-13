@@ -36,8 +36,8 @@ export class DatabaseModel {
 
     constructor(
         db: SqliteDatabase,
-        server: DatabaseActionServerContext | null = null,
-        getTableAccessLevel: (tableId: DatabaseTableId) => AccessLevel | null = () => "Manage",
+        server: DatabaseActionServerContext | null,
+        getTableAccessLevel: (tableId: DatabaseTableId) => AccessLevel | null,
     ) {
         this.ctx = {
             db,

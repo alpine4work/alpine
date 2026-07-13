@@ -1,7 +1,6 @@
 import type {Sqlite3Static, WasmPointer} from "~/external/sqlite/ext/wasm/jswasm/sqlite3.mjs";
 import sqlite3InitModule from "~/external/sqlite/ext/wasm/jswasm/sqlite3.mjs";
 import type {AccessLevel} from "~/shared/access/access_policy.js";
-import {allowAllTableAccess} from "~/shared/databases/allow_all_table_access.js";
 import type {
     DatabaseActionServerContext,
     DatabaseServerTableStore,
@@ -47,7 +46,7 @@ import {
 import {installTracing} from "~/shared/databases/sqlite_tracing.js";
 import {TableNotAttachedError} from "~/shared/databases/table_not_attached_error.js";
 import {VfsTempFile} from "~/shared/databases/vfs_temp_file.js";
-import {PermissionDeniedError} from "~/shared/error/error.js";
+import {InternalError, PermissionDeniedError} from "~/shared/error/error.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {captureResult, unwrapResult} from "~/shared/helpers/control/capture_result.js";
 import type {Result} from "~/shared/helpers/control/result.js";
@@ -155,6 +154,55 @@ export interface DatabaseTrackedExecution<Value> {
 }
 
 /**
+ * State scoped to a single {@link Database.execute} call. Held in one nullable
+ * field so "inside an execution" is a single check rather than several parallel
+ * nullable fields kept in sync; `null` outside any execution. Nested `execute`
+ * calls swap in their own scope and restore the parent's on exit.
+ */
+interface DatabaseExecutionScope {
+    /**
+     * Per-execution table access, from {@link Database.execute}'s required
+     * `getTableAccessLevel` option. Callers grant unrestricted access explicitly with
+     * `allowAllTableAccess`. Enforced by the authorizer for every statement except
+     * internal attach SQL.
+     */
+    readonly getTableAccessLevel: (tableId: DatabaseTableId) => AccessLevel | null;
+    /**
+     * The account this execution runs as, or `null` when it has none. Read by
+     * server-only actions via `serverContext.getCurrentAccountId`. A nested `execute`
+     * that doesn't name an account inherits its parent's.
+     */
+    readonly accountId: AccountId | null;
+}
+
+/**
+ * State scoped to a single {@link Database.runTracked} frame. Frames nest — a
+ * tracked execution can recompute inside an outer `execute` — and `parent` links
+ * the enclosing frame, so entering/leaving a frame is one pointer swap and
+ * `parent === null` marks the top-level frame.
+ *
+ * `Database.writeLevel` deliberately lives outside the frame: attach/detach flip
+ * it to the internal `"attach"` level at sites that can run outside any frame.
+ */
+interface DatabaseTrackedRunFrame {
+    /**
+     * Pages read while this frame was innermost, from VFS reads and the page-access
+     * hook (which also captures pager-cache hits).
+     */
+    readonly readPages: Map<DatabaseTableId, Set<number>>;
+    /** Pages buffered by writes while this frame was innermost. */
+    readonly writtenPages: Map<DatabaseTableId, Set<number>>;
+    /**
+     * The last denial issued by the per-table authorizer layer, used to convert
+     * SQLite's generic "not authorized" error into a typed {@link
+     * PermissionDeniedError} naming the table. Mutated out of band by the authorizer
+     * callback while this frame's SQL runs.
+     */
+    tableAccessDenial: {action: string; schemaName: string} | null;
+    readonly parent: DatabaseTrackedRunFrame | null;
+}
+
+/**
  * SQLite database that buffers writes in memory.
  *
  * Built around a {@link ReadonlyDatabaseStorage}: every write goes into an
@@ -188,24 +236,15 @@ export class Database {
     private readonly schemaToTable = new Map<string, DatabaseTableId>();
     private writeLevel: InternalSqliteWriteLevel | null = null;
     /**
-     * Per-execution table access, installed via {@link execute}'s
-     * `getTableAccessLevel` option; `null` means no scoped lookup is installed
-     * (internal SQL — attach recovery and the `"attach"` write level), which runs
-     * unrestricted. Callers grant unrestricted access explicitly with
-     * `allowAllTableAccess`. Enforced by the authorizer for every statement.
+     * State scoped to the current {@link execute} call, or `null` outside any
+     * execution. See {@link DatabaseExecutionScope}.
      */
-    private getTableAccessLevelForExecution:
-        | ((tableId: DatabaseTableId) => AccessLevel | null)
-        | null = null;
+    private executionScope: DatabaseExecutionScope | null = null;
     /**
-     * The last denial issued by the per-table authorizer layer, used to convert
-     * SQLite's generic "not authorized" error into a typed {@link
-     * PermissionDeniedError} naming the table. Cleared at the start of each tracked
-     * run.
+     * The innermost {@link runTracked} frame, or `null` outside any tracked run.
+     * Frames nest via {@link DatabaseTrackedRunFrame.parent}.
      */
-    private tableAccessDenial: {action: string; schemaName: string} | null = null;
-    private currentReadSet: Map<DatabaseTableId, Set<number>> | null = null;
-    private currentWriteSet: Map<DatabaseTableId, Set<number>> | null = null;
+    private trackedRunFrame: DatabaseTrackedRunFrame | null = null;
     /**
      * Monotonic clock for LRU eviction: bumped on every page access and attach,
      * stamped into {@link DatabaseTableState.lastTouchedAt}.
@@ -219,7 +258,6 @@ export class Database {
      */
     private inAttachRecovery = false;
     private readonly trackedExecutions = new Set<DatabaseTrackedExecutionImpl<any>>();
-    private currentActionAccountId: AccountId | null = null;
     /**
      * Server-only action capabilities, or `null` on the client. Lets server-only
      * schema actions (e.g. createTable) attach their own per-table file mid-execute;
@@ -240,7 +278,7 @@ export class Database {
         if (serverTables !== null) {
             this.serverContext = {
                 attach: tableId => this.attachIfNeeded(tableId),
-                getCurrentAccountId: () => this.currentActionAccountId,
+                getCurrentAccountId: () => this.executionScope?.accountId ?? null,
                 tables: serverTables,
             };
         } else {
@@ -304,7 +342,7 @@ export class Database {
                 // `user_version` asserts, and change-capture trigger DDL that must succeed
                 // regardless of the ambient account's access).
                 if (
-                    this.getTableAccessLevelForExecution !== null &&
+                    this.executionScope !== null &&
                     this.writeLevel !== "attach" &&
                     !this.inAttachRecovery
                 ) {
@@ -317,10 +355,12 @@ export class Database {
                         resolveSchemaAccess: this.resolveSchemaAccess,
                     });
                     if (!allowed) {
-                        this.tableAccessDenial = {
-                            action,
-                            schemaName: (action === "alter-table" ? arg : schemaName) ?? "",
-                        };
+                        if (this.trackedRunFrame !== null) {
+                            this.trackedRunFrame.tableAccessDenial = {
+                                action,
+                                schemaName: (action === "alter-table" ? arg : schemaName) ?? "",
+                            };
+                        }
                         return capi.SQLITE_DENY;
                     }
                 }
@@ -373,29 +413,28 @@ export class Database {
      *
      * `allowWrites` controls which classes of statement the authorizer permits while
      * `fn` runs. `getTableAccessLevel` additionally restricts which attached table
-     * files those statements may touch; omit it to inherit the ambient lookup, or pass
-     * `allowAllTableAccess` to run unrestricted. On the canonical (server) database, a
-     * schema change also triggers `PRAGMA optimize` inside the same tracked call (see
-     * {@link maybeOptimizeAfterWrites}).
+     * files those statements may touch; pass `allowAllTableAccess` to run
+     * unrestricted. `currentAccountId` names the account the execution runs as;
+     * leaving it out inherits the enclosing execution's account (if any). On the
+     * canonical (server) database, a schema change also triggers `PRAGMA optimize`
+     * inside the same tracked call (see {@link maybeOptimizeAfterWrites}).
      */
     execute<T>(
         fn: (db: SqliteDatabase) => T,
         options: {
             allowWrites: SqliteWriteLevel;
-            getTableAccessLevel?: (tableId: DatabaseTableId) => AccessLevel | null;
+            getTableAccessLevel: (tableId: DatabaseTableId) => AccessLevel | null;
+            currentAccountId?: AccountId | null;
         },
     ): {result: T; readPages: ReadonlyDatabasePageSet; writtenPages: ReadonlyDatabasePageSet} {
-        const previousGetTableAccessLevel = this.getTableAccessLevelForExecution;
-        if (options.getTableAccessLevel !== undefined) {
-            // `allowAllTableAccess` is the explicit "no enforcement" signal — install it as
-            // the `null` (no-lookup) state so the authorizer skips the per-table layer
-            // outright. That's required for statements touching schemas not yet mapped (e.g. a
-            // table mid-creation), which the layer would otherwise fail closed on.
-            this.getTableAccessLevelForExecution =
-                options.getTableAccessLevel === allowAllTableAccess
-                    ? null
-                    : options.getTableAccessLevel;
-        }
+        const parentScope = this.executionScope;
+        this.executionScope = {
+            getTableAccessLevel: options.getTableAccessLevel,
+            accountId:
+                options.currentAccountId !== undefined
+                    ? options.currentAccountId
+                    : (parentScope?.accountId ?? null),
+        };
         try {
             return this.runTracked(options.allowWrites, db => {
                 const result = fn(db);
@@ -403,7 +442,7 @@ export class Database {
                 return result;
             });
         } finally {
-            this.getTableAccessLevelForExecution = previousGetTableAccessLevel;
+            this.executionScope = parentScope;
         }
     }
 
@@ -417,7 +456,7 @@ export class Database {
         query: SqlQuery,
         options: {
             allowWrites: SqliteWriteLevel;
-            getTableAccessLevel?: (tableId: DatabaseTableId) => AccessLevel | null;
+            getTableAccessLevel: (tableId: DatabaseTableId) => AccessLevel | null;
         },
     ): DatabaseExecuteResult {
         const {result, readPages, writtenPages} = this.execute(
@@ -433,42 +472,39 @@ export class Database {
      */
     executeAction<N extends DatabaseActionName>(
         actionObject: DatabaseActionObject<N>,
-        options?: {
+        options: {
             currentAccountId?: AccountId | null;
-            getTableAccessLevel?: (tableId: DatabaseTableId) => AccessLevel | null;
+            getTableAccessLevel: (tableId: DatabaseTableId) => AccessLevel | null;
         },
     ): DatabaseExecuteActionResult<N> {
-        const previousActionAccountId = this.currentActionAccountId;
-        this.currentActionAccountId = options?.currentAccountId ?? null;
-        try {
-            const action = databaseActions[actionObject.name];
-            const ctx = createDatabaseActionContext(
-                this.db,
-                this.serverContext,
-                this.getTableAccessLevel,
-            );
-            const {result, readPages, writtenPages} = this.execute(
-                () => executeDatabaseAction(actionObject, ctx),
-                {
-                    allowWrites: action.writeLevel,
-                    getTableAccessLevel: options?.getTableAccessLevel,
-                },
-            );
-            return {result: result as DatabaseActionOutput<N>, readPages, writtenPages};
-        } finally {
-            this.currentActionAccountId = previousActionAccountId;
-        }
+        const action = databaseActions[actionObject.name];
+        const ctx = createDatabaseActionContext(
+            this.db,
+            this.serverContext,
+            this.getTableAccessLevel,
+        );
+        const {result, readPages, writtenPages} = this.execute(
+            () => executeDatabaseAction(actionObject, ctx),
+            {
+                allowWrites: action.writeLevel,
+                getTableAccessLevel: options.getTableAccessLevel,
+                currentAccountId: options.currentAccountId ?? null,
+            },
+        );
+        return {result: result as DatabaseActionOutput<N>, readPages, writtenPages};
     }
 
     /**
-     * The current execution's access level on `tableId`, resolved from the installed
-     * lookup (`Manage` when none is installed). Handed to action contexts so shared
-     * action code — e.g. relation fields deciding whether they may join into a linked
-     * table — sees the same verdicts the authorizer enforces.
+     * The current execution's access level on `tableId`. Handed to action contexts so
+     * shared action code — e.g. relation fields deciding whether they may join into a
+     * linked table — sees the same verdicts the authorizer enforces.
      */
     readonly getTableAccessLevel = (tableId: DatabaseTableId): AccessLevel | null => {
-        const getTableAccessLevel = this.getTableAccessLevelForExecution;
-        return getTableAccessLevel === null ? "Manage" : getTableAccessLevel(tableId);
+        const scope = this.executionScope;
+        if (scope === null) {
+            throw new InternalError("Database table access requested outside an execution");
+        }
+        return scope.getTableAccessLevel(tableId);
     };
 
     /**
@@ -476,14 +512,19 @@ export class Database {
      *
      * The function runs under read-only database permissions when `getSnapshot()` is
      * first called or when a previous read set has been invalidated by overlapping
-     * page writes. This object deliberately has no listener API: clients that need
-     * notifications can wrap it in a Store, while server callers can use it directly
-     * as an always-fresh cached computation.
+     * page writes. Each recompute runs as its own execution under
+     * `getTableAccessLevel`, so the per-table authorizer verdicts stay in force no
+     * matter where the recompute is triggered from. This object deliberately has no
+     * listener API: clients that need notifications can wrap it in a Store, while
+     * server callers can use it directly as an always-fresh cached computation.
      */
-    createTrackedExecution<Value>(fn: () => Value): DatabaseTrackedExecution<Value> {
+    createTrackedExecution<Value>(
+        fn: () => Value,
+        options: {getTableAccessLevel: (tableId: DatabaseTableId) => AccessLevel | null},
+    ): DatabaseTrackedExecution<Value> {
         const execution = new DatabaseTrackedExecutionImpl(
             fn,
-            this.runTrackedExecution,
+            trackedFn => this.runTrackedExecution(trackedFn, options.getTableAccessLevel),
             this.recordTrackedReadPages,
             value => {
                 this.trackedExecutions.delete(value);
@@ -710,29 +751,21 @@ export class Database {
     // -- Internal -----------------------------------------------------------
 
     /**
-     * Read-and-clear the last per-table authorizer denial. A method (rather than a
-     * direct field read) so TypeScript doesn't narrow the field to the `null` it was
-     * reset to before the statement ran — the authorizer callback mutates it out of
-     * band.
-     */
-    private takeTableAccessDenial(): {action: string; schemaName: string} | null {
-        const denial = this.tableAccessDenial;
-        this.tableAccessDenial = null;
-        return denial;
-    }
-
-    /**
      * Maps an authorizer schema name to the current execution's access level. `main`
-     * (the public ID-only registry) and SQLite's `temp` schema sit outside the
-     * per-table permission model; unknown schemas fail closed.
+     * (the public ID-only registry), SQLite's `temp` schema, and the transient schema
+     * SQLite creates internally during `VACUUM` sit outside the per-table permission
+     * model; unknown schemas fail closed.
      */
     private readonly resolveSchemaAccess = (schemaName: string): AccessLevel | null => {
-        if (schemaName === "main" || schemaName === "temp") return "Manage";
+        // Public SQL cannot spoof either transient schema: ATTACH and DETACH are denied
+        // outside Database's private attach mode, and table schemas always use the
+        // `_alpine_schema_` prefix.
+        if (schemaName === "main" || schemaName === "temp" || schemaName.startsWith("vacuum_")) {
+            return "Manage";
+        }
         const tableId = this.schemaToTable.get(schemaName);
         if (tableId === undefined) return null;
-        const getTableAccessLevel = this.getTableAccessLevelForExecution;
-        assert(getTableAccessLevel !== null, "resolveSchemaAccess requires an access lookup");
-        return getTableAccessLevel(tableId);
+        return this.getTableAccessLevel(tableId);
     };
 
     /**
@@ -753,9 +786,9 @@ export class Database {
             state.lastTouchedAt = ++this.touchCounter;
         }
         if (flags !== pageAccessFlagRead) return;
-        const readSet = this.currentReadSet;
-        if (readSet === null) return;
-        addToTablePageSet(readSet, tableId, pgno - 1);
+        const frame = this.trackedRunFrame;
+        if (frame === null) return;
+        addToTablePageSet(frame.readPages, tableId, pgno - 1);
     };
 
     /**
@@ -948,25 +981,22 @@ export class Database {
         writtenPages: Map<DatabaseTableId, Set<number>>;
     } {
         assertNestedWriteLevelIsAllowed(this.writeLevel, writeLevel);
-        const readPages = new Map<DatabaseTableId, Set<number>>();
-        const writtenPages = new Map<DatabaseTableId, Set<number>>();
-        const parentReadSet = this.currentReadSet;
-        const parentWriteSet = this.currentWriteSet;
+        const frame: DatabaseTrackedRunFrame = {
+            readPages: new Map(),
+            writtenPages: new Map(),
+            tableAccessDenial: null,
+            parent: this.trackedRunFrame,
+        };
         const previousWriteLevel = this.writeLevel;
-        const isTopLevel = previousWriteLevel === null;
         this.writeLevel = writeLevel;
-        this.currentReadSet = readPages;
-        this.currentWriteSet = writtenPages;
-        this.tableAccessDenial = null;
+        this.trackedRunFrame = frame;
         try {
             const result = fn(this.db);
-            if (parentReadSet !== null) {
-                mergeTablePageSets(parentReadSet, readPages);
+            if (frame.parent !== null) {
+                mergeTablePageSets(frame.parent.readPages, frame.readPages);
+                mergeTablePageSets(frame.parent.writtenPages, frame.writtenPages);
             }
-            if (parentWriteSet !== null) {
-                mergeTablePageSets(parentWriteSet, writtenPages);
-            }
-            return {result, readPages, writtenPages};
+            return {result, readPages: frame.readPages, writtenPages: frame.writtenPages};
         } catch (error) {
             const stashed = this.vfs.takeError();
             if (stashed !== null) {
@@ -980,7 +1010,7 @@ export class Database {
             // denials at prepare time); convert it into a typed error naming the table so
             // callers (and tests) can distinguish a permission denial from other SQL failures.
             // Global write-level denials leave no marker and surface as-is.
-            const denial = this.takeTableAccessDenial();
+            const denial = frame.tableAccessDenial;
             if (
                 denial !== null &&
                 error instanceof Error &&
@@ -1016,26 +1046,29 @@ export class Database {
             throw error;
         } finally {
             this.writeLevel = previousWriteLevel;
-            this.currentReadSet = parentReadSet;
-            this.currentWriteSet = parentWriteSet;
-            if (isTopLevel) {
+            this.trackedRunFrame = frame.parent;
+            if (frame.parent === null) {
                 this.vfs.takeError();
                 this.tempFiles.clear();
             }
         }
     }
 
-    private readonly runTrackedExecution = <Value>(
+    private runTrackedExecution<Value>(
         fn: () => Value,
-    ): {result: Result<Value>; readPages: ReadonlyDatabasePageSet} => {
-        const {result, readPages, writtenPages} = this.runTracked("none", () => captureResult(fn));
+        getTableAccessLevel: (tableId: DatabaseTableId) => AccessLevel | null,
+    ): {result: Result<Value>; readPages: ReadonlyDatabasePageSet} {
+        const {result, readPages, writtenPages} = this.execute(() => captureResult(fn), {
+            allowWrites: "none",
+            getTableAccessLevel,
+        });
         assert(writtenPages.size === 0, "tracked database executions must be read-only");
         return {result, readPages};
-    };
+    }
 
     private readonly recordTrackedReadPages = (readPages: ReadonlyDatabasePageSet | null): void => {
-        if (readPages !== null && this.currentReadSet !== null) {
-            mergeTablePageSets(this.currentReadSet, readPages);
+        if (readPages !== null && this.trackedRunFrame !== null) {
+            mergeTablePageSets(this.trackedRunFrame.readPages, readPages);
         }
     };
 
@@ -1064,8 +1097,8 @@ export class Database {
                 const buffered = state.bufferedPages.get(pageIndex);
                 if (buffered !== undefined) {
                     data.set(buffered.subarray(pageOffset, pageOffset + data.byteLength));
-                    if (this.currentReadSet !== null) {
-                        addToTablePageSet(this.currentReadSet, tableId, pageIndex);
+                    if (this.trackedRunFrame !== null) {
+                        addToTablePageSet(this.trackedRunFrame.readPages, tableId, pageIndex);
                     }
                     return true;
                 }
@@ -1084,8 +1117,8 @@ export class Database {
                     return false;
                 }
                 data.set(page.data.subarray(pageOffset, pageOffset + data.byteLength));
-                if (this.currentReadSet !== null) {
-                    addToTablePageSet(this.currentReadSet, tableId, pageIndex);
+                if (this.trackedRunFrame !== null) {
+                    addToTablePageSet(this.trackedRunFrame.readPages, tableId, pageIndex);
                 }
                 return true;
             },
@@ -1105,8 +1138,8 @@ export class Database {
                 // so the post-truncate file is what this write extends. The truncate stays
                 // buffered so its shrinking effect (zeroing pages between the truncate boundary
                 // and this write) is preserved.
-                if (this.currentWriteSet !== null) {
-                    addToTablePageSet(this.currentWriteSet, tableId, pageIndex);
+                if (this.trackedRunFrame !== null) {
+                    addToTablePageSet(this.trackedRunFrame.writtenPages, tableId, pageIndex);
                 }
             },
 

@@ -5,12 +5,13 @@
  */
 
 import {type AccessLevel, hasAccessLevel} from "~/shared/access/access_policy.js";
+import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
 
 /**
  * Controls which SQL operations are permitted in normal execution paths:
  *
  * - `"none"` — read-only: select, read, transaction, function, recursive.
- * - `"data"` — above + DML: insert, update, delete, savepoint.
+ * - `"data"` — above + DML on non-`_` tables: insert, update, delete, savepoint.
  * - `"schema+data"` — above + DDL + pragma.
  *
  * `ATTACH` / `DETACH` are NOT permitted at any of these levels; they're gated
@@ -67,43 +68,35 @@ const actionNames = [
     "recursive",           // 33 SQLITE_RECURSIVE
 ] as const;
 
+/** A human-readable SQLite authorizer action name. */
+export type SqliteActionName = Exclude<(typeof actionNames)[number], undefined>;
+
 /**
  * Maps a numeric SQLite authorizer action code to its human-readable name, or
  * `undefined` if the code is unrecognized.
  */
-export function sqliteAuthorizerActionName(code: number): string | undefined {
+export function sqliteAuthorizerActionName(code: number): SqliteActionName | undefined {
     return actionNames[code];
 }
 
 /**
- * Returns whether {@link action} is allowed at the given {@link writeLevel}. Pass
- * `null` for idle/setup contexts (e.g. running PRAGMAs at startup) where
- * everything except attach/detach should be allowed.
+ * Returns whether {@link action} is allowed at the given {@link writeLevel}.
  *
- * `actionArg` is the third argument SQLite hands the authorizer (per-action
- * context — for attach/detach it's the filename, with `""` indicating VACUUM's
- * internal attach).
+ * A `null` `writeLevel` means no execution is in flight: SQL that reaches the
+ * authorizer outside `Database.execute()`, i.e. `Database`'s own setup SQL (the
+ * open PRAGMAs at construction) or raw-handle SQL in tests. Idle SQL is trusted
+ * and unrestricted — except ATTACH/DETACH, which are only ever allowed under the
+ * internal `"attach"` level so no SQL path can introduce an untracked schema.
+ *
+ * `actionArg` is the third argument SQLite hands the authorizer. For DML it is the
+ * target table name; for attach/detach it is the filename, with `""` indicating
+ * VACUUM's internal attach.
  */
 export function isSqliteActionAllowed(
-    action: string,
+    action: SqliteActionName,
     actionArg: string | null,
     writeLevel: InternalSqliteWriteLevel | null,
 ): boolean {
-    // `attach` / `detach` are reserved for the internal `"attach"` write level used by
-    // `Database.attach()`. Banning them everywhere else keeps user-supplied SQL from
-    // sneaking in a schema we don't track. The one exception is the empty-filename
-    // attach SQLite performs internally during `VACUUM` — that one rides on whatever
-    // `schema+data` already authorized.
-    if (action === "attach" || action === "detach") {
-        if (actionArg === "") {
-            return writeLevel === "schema+data";
-        }
-        return writeLevel === "attach";
-    }
-    // Conversely, attach mode allows only the universally- permitted set below — plus
-    // `pragma` so the caller can pin per-attach configuration like page_size before
-    // the new file is written. No DML/DDL, so an action lifting writeLevel to "attach"
-    // can't also smuggle in arbitrary writes.
     switch (action) {
         case "read":
         case "select":
@@ -111,36 +104,57 @@ export function isSqliteActionAllowed(
         case "function":
         case "recursive":
             return true;
-    }
-    if (writeLevel === "attach") {
-        return action === "pragma";
-    }
-    if (writeLevel === null) {
-        return true;
-    }
-    if (writeLevel === "none") {
-        return false;
-    }
-    switch (action) {
+        case "attach":
+        case "detach":
+            // Public ATTACH/DETACH would let SQL introduce an untracked schema. The empty
+            // filename is SQLite's internal VACUUM attach, which instead inherits the
+            // schema-write requirement.
+            return actionArg === "" ? writeLevel === "schema+data" : writeLevel === "attach";
+        case "pragma":
+            // Attach mode needs schema-qualified page-size PRAGMAs, and SQLite may issue
+            // PRAGMAs internally while applying DDL.
+            return writeLevel === null || writeLevel === "attach" || writeLevel === "schema+data";
         case "insert":
         case "update":
         case "delete":
+            // `_` tables are Alpine/SQLite metadata. Mutating one is a schema-level operation
+            // even though SQLite reports it as ordinary DML.
+            if (actionArg?.startsWith("_") === true) {
+                return writeLevel === null || writeLevel === "schema+data";
+            }
+            return writeLevel === null || writeLevel === "data" || writeLevel === "schema+data";
         case "savepoint":
-            return true;
+            return writeLevel === null || writeLevel === "data" || writeLevel === "schema+data";
+        case "create-index":
+        case "create-table":
+        case "create-temp-index":
+        case "create-temp-table":
+        case "create-temp-trigger":
+        case "create-temp-view":
+        case "create-trigger":
+        case "create-view":
+        case "drop-index":
+        case "drop-table":
+        case "drop-temp-index":
+        case "drop-temp-table":
+        case "drop-temp-trigger":
+        case "drop-temp-view":
+        case "drop-trigger":
+        case "drop-view":
+        case "alter-table":
+        case "reindex":
+        case "analyze":
+        case "create-vtable":
+        case "drop-vtable":
+            return writeLevel === null || writeLevel === "schema+data";
+        default:
+            throw exhaustive(action);
     }
-    if (writeLevel === "data") {
-        return false;
-    }
-    // "schema+data" — allow everything. Pragmas must be allowed here because SQLite
-    // fires them internally during DDL (e.g. ALTER TABLE).
-    return true;
 }
 
 /**
  * Per-table access enforced by the authorizer within a single execution. Resolved
- * per attached schema from the current account's access level (see
- * `getAccountAccessLevelAssumingSpaceAccess`); an execution with no resolver
- * installed (internal server code, service actors) is unrestricted.
+ * per attached schema from the current execution's required access resolver.
  *
  * The join-table add-vs-remove asymmetry (adding a link needs `View` on the linked
  * table, removing one doesn't) is _not_ modelled here. Adding a link reads the
@@ -155,9 +169,7 @@ export type SqliteSchemaAccessResolver = (schemaName: string) => AccessLevel | n
  * isSqliteActionAllowed}'s global write level. Returns whether `action` is allowed
  * given the capabilities the resolver grants on the target schema.
  *
- * Only called for restricted executions (a per-table access resolver is
- * installed); internal SQL — attach recovery, migrations, service-actor actions —
- * bypasses this layer entirely.
+ * Internal attach/recovery SQL bypasses this layer.
  *
  * Argument mapping follows sqlite3_set_authorizer: for most table-scoped actions
  * `arg1` is the object name and `schemaName` (the callback's 5th parameter) is the
@@ -171,7 +183,7 @@ export function isSqliteActionAllowedForSchemaAccess({
     schemaName,
     resolveSchemaAccess,
 }: {
-    action: string;
+    action: SqliteActionName;
     arg1: string | null;
     arg2: string | null;
     schemaName: string | null;
@@ -201,28 +213,6 @@ export function isSqliteActionAllowedForSchemaAccess({
 
     const accessLevel = resolveSchemaAccess(targetSchemaName);
 
-    // Restricted executions may never insert or delete the singleton table metadata
-    // row. Name/column-name updates (e.g. a rename) stay allowed.
-    if (arg1 === "_alpine_table") {
-        if (action === "insert" || action === "delete") return false;
-    }
-    // Same reasoning for a join file's metadata row: the four id columns drive the
-    // join table's derived access level. `createRelationField` (a user action)
-    // legitimately inserts the row and renames update the name columns, so only the id
-    // columns and row deletion are locked down.
-    if (arg1 === "_alpine_join_table") {
-        if (action === "delete") return false;
-        if (
-            action === "update" &&
-            (arg2 === "source_table_id" ||
-                arg2 === "source_field_id" ||
-                arg2 === "target_table_id" ||
-                arg2 === "target_field_id")
-        ) {
-            return false;
-        }
-    }
-
     return hasAccessLevel(accessLevel, requirement);
 }
 
@@ -230,7 +220,7 @@ export function isSqliteActionAllowedForSchemaAccess({
  * The access level an action requires on its target schema, or `null` for actions
  * that aren't schema-scoped (gated by the global write level only).
  */
-function sqliteSchemaAccessRequirement(action: string): AccessLevel | null {
+function sqliteSchemaAccessRequirement(action: SqliteActionName): AccessLevel | null {
     switch (action) {
         case "read":
             return "View";
@@ -261,9 +251,15 @@ function sqliteSchemaAccessRequirement(action: string): AccessLevel | null {
         case "analyze":
         case "pragma":
             return "Edit";
-        default:
-            // select / transaction / savepoint / function / recursive / attach / detach — not
-            // schema-scoped at this layer.
+        case "select":
+        case "transaction":
+        case "savepoint":
+        case "function":
+        case "recursive":
+        case "attach":
+        case "detach":
             return null;
+        default:
+            throw exhaustive(action);
     }
 }

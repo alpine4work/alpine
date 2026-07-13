@@ -74,6 +74,13 @@ beforeEach(() => {
         VALUES
             (1, 'a')
     `.query);
+    db.exec(sql`CREATE TABLE _metadata (id INTEGER PRIMARY KEY, name TEXT)`.query);
+    db.exec(sql`
+        INSERT INTO
+            _metadata
+        VALUES
+            (1, 'a')
+    `.query);
 });
 
 afterEach(() => {
@@ -149,6 +156,42 @@ const matrix: ReadonlyArray<{
         `,
         none: "reject",
         data: "allow",
+        schemaData: "allow",
+    },
+    {
+        name: "INSERT into _ table",
+        query: sql`
+            INSERT INTO
+                _metadata
+            VALUES
+                (2, 'b')
+        `,
+        none: "reject",
+        data: "reject",
+        schemaData: "allow",
+    },
+    {
+        name: "UPDATE _ table",
+        query: sql`
+            UPDATE _metadata
+            SET
+                name = 'x'
+            WHERE
+                id = 1
+        `,
+        none: "reject",
+        data: "reject",
+        schemaData: "allow",
+    },
+    {
+        name: "DELETE from _ table",
+        query: sql`
+            DELETE FROM _metadata
+            WHERE
+                id = 1
+        `,
+        none: "reject",
+        data: "reject",
         schemaData: "allow",
     },
     {
@@ -538,122 +581,5 @@ describe("per-table schema access matrix (real SQLite)", () => {
                 null,
             ),
         ).toThrow(/not authorized|is prohibited/);
-    });
-});
-
-describe("replicated metadata guards (real SQLite)", () => {
-    /** Seed simplified `_alpine_table` / `_alpine_join_table` rows inside `_t1`. */
-    function createMetadataTables(): void {
-        attachTestSchema();
-        db.exec(sql` CREATE TABLE _t1._alpine_table (id TEXT PRIMARY KEY, name TEXT NOT NULL) `
-            .query);
-        db.exec(sql`
-            INSERT INTO
-                _t1._alpine_table
-            VALUES
-                ('t1', 'Table')
-        `.query);
-        db.exec(sql`
-            CREATE TABLE _t1._alpine_join_table (
-                id TEXT PRIMARY KEY,
-                table_name TEXT NOT NULL,
-                source_table_id TEXT NOT NULL,
-                target_table_id TEXT NOT NULL
-            )
-        `.query);
-        db.exec(sql`
-            INSERT INTO
-                _t1._alpine_join_table
-            VALUES
-                ('j1', 'join', 'a', 'b')
-        `.query);
-    }
-
-    test("_alpine_table name updates are allowed with full access", () => {
-        createMetadataTables();
-        expect(() =>
-            runWithTableAccess(
-                sql`
-                    UPDATE _t1._alpine_table
-                    SET
-                        name = 'renamed'
-                `,
-                "Manage",
-            ),
-        ).not.toThrow();
-    });
-
-    test("_alpine_table row inserts are denied even with full access", () => {
-        createMetadataTables();
-        expect(() =>
-            runWithTableAccess(
-                sql`
-                    INSERT INTO
-                        _t1._alpine_table
-                    VALUES
-                        ('t2', 'Bogus')
-                `,
-                "Manage",
-            ),
-        ).toThrow("not authorized");
-    });
-
-    test("_alpine_table row deletes are denied even with full access", () => {
-        createMetadataTables();
-        expect(() => runWithTableAccess(sql`DELETE FROM _t1._alpine_table`, "Manage")).toThrow(
-            "not authorized",
-        );
-    });
-
-    test("_alpine_join_table name updates are allowed with full access", () => {
-        createMetadataTables();
-        expect(() =>
-            runWithTableAccess(
-                sql`
-                    UPDATE _t1._alpine_join_table
-                    SET
-                        table_name = 'renamed'
-                `,
-                "Manage",
-            ),
-        ).not.toThrow();
-    });
-
-    test("_alpine_join_table id column updates are denied even with full access", () => {
-        createMetadataTables();
-        expect(() =>
-            runWithTableAccess(
-                sql`
-                    UPDATE _t1._alpine_join_table
-                    SET
-                        source_table_id = 'hijacked'
-                `,
-                "Manage",
-            ),
-        ).toThrow("not authorized");
-    });
-
-    test("_alpine_join_table row inserts are allowed with full access", () => {
-        createMetadataTables();
-        // `createRelationField` is a user action and must be able to register a fresh join
-        // file's metadata row.
-        expect(() =>
-            runWithTableAccess(
-                sql`
-                    INSERT INTO
-                        _t1._alpine_join_table
-                    VALUES
-                        ('j2', 'join2', 'a', 'b')
-                `,
-                "Manage",
-            ),
-        ).not.toThrow();
-    });
-
-    test("_alpine_join_table row deletes are denied even with full access", () => {
-        createMetadataTables();
-        expect(() => runWithTableAccess(sql`DELETE FROM _t1._alpine_join_table`, "Manage")).toThrow(
-            "not authorized",
-        );
     });
 });

@@ -459,6 +459,7 @@ export class DatabaseClient {
 
         const execution = this.database.createTrackedExecution(
             () => this.executeReadOnly(actionObject).output,
+            {getTableAccessLevel: this.getTableAccessLevel},
         );
         let reExecuting = false;
 
