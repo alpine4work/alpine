@@ -27,6 +27,7 @@ import {InvalidArgumentError, NotFoundError, PermissionDeniedError} from "~/shar
 import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
 import {generateId} from "~/shared/id/id.js";
 import type {BrowserId, DatabaseGroupId, DatabaseMutationId} from "~/shared/id/types/id_types.js";
+import {authorizeDatabaseGroupAccess} from "~/shared/rpc/database_tables_rpc_definitions.js";
 import {SchemaSerializedValue} from "~/shared/schema/schema.js";
 
 type DatabaseGroupDurableObjectRoute =
@@ -189,6 +190,16 @@ class DatabaseGroupDurableObject {
                 "Database actions over HTTP are restricted to internal services",
             );
         }
+
+        // Internal-service provenance only establishes that the request came through a
+        // trusted server transport; it does not authorize the forwarded actor to read this
+        // database group. Re-run the same space-level check used by WebSocket connections
+        // before executing any action. In particular, the per-table policy copies
+        // intentionally use `getAccountAccessLevelAssumingSpaceAccess`, so they must never
+        // be evaluated until this prerequisite has been established.
+        await authorizeDatabaseGroupAccess(context, {
+            databaseGroupId: this._databaseGroupId,
+        });
 
         const actionObject = DatabaseActionObjectSchema.deserialize(
             (await request.json()) as SchemaSerializedValue,

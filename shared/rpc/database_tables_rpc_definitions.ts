@@ -1,4 +1,4 @@
-import {AccessPolicySchema} from "~/shared/access/access_policy.js";
+import {CreateOrUpdateAccessPolicySchema} from "~/shared/access/model/create_or_update_access_policy_schema.js";
 import {DatabaseTableMetadataRealtimeEventSchema} from "~/shared/databases/database_realtime_protocol.js";
 import {DatabaseTableMetadataModel} from "~/shared/databases/database_table_metadata_model.js";
 import {RynamoEventStubSchema, createRynamoItemSchema} from "~/shared/dynamo/rynamo_types.js";
@@ -33,7 +33,7 @@ export const updateDatabaseTableAccessPolicy = defineRpc({
     input: {
         spaceId: Schema.id<SpaceId>(),
         tableId: Schema.id<DatabaseTableId>(),
-        accessPolicy: AccessPolicySchema,
+        accessPolicy: CreateOrUpdateAccessPolicySchema,
     },
     output: {
         events: Schema.array(DatabaseTableMetadataRealtimeEventSchema),
