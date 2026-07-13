@@ -4,12 +4,12 @@ import type {
 } from "~/server/databases/database_server_storage.js";
 import {type LocalAccessPolicy, LocalAccessPolicySchema} from "~/shared/access/access_policy.js";
 import type {DatabaseServerTableRegistration} from "~/shared/databases/database_action_context.js";
+import {SqlJsonSchema} from "~/shared/databases/model/sqlite_schema.js";
 import {sql} from "~/shared/databases/sql.js";
 import {sqlitePageSize} from "~/shared/databases/sqlite_constants.js";
 import {assert} from "~/shared/helpers/control/assert.js";
-import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
 import type {DatabaseTableId} from "~/shared/id/types/id_types.js";
-import {Schema, type SchemaSerializedValue} from "~/shared/schema/schema.js";
+import {Schema} from "~/shared/schema/schema.js";
 
 /**
  * {@link DatabaseServerStorage} implementation backed by a Cloudflare Durable
@@ -71,9 +71,9 @@ export class DatabaseDurableObjectStorage implements DatabaseServerStorage {
                     ${registration.kind},
                     ${registration.tableName},
                     ${registration.schemaVersion},
-                    ${registration.kind === "table"
-                ? serializeAccessPolicy(registration.accessPolicy)
-                : null},
+                    ${accessPolicyColumnSchema.serialize(
+                registration.kind === "table" ? registration.accessPolicy : null,
+            )},
                     ${registration.kind === "join" ? registration.sourceTableId : null},
                     ${registration.kind === "join" ? registration.targetTableId : null}
                 )
@@ -92,7 +92,7 @@ export class DatabaseDurableObjectStorage implements DatabaseServerStorage {
         // `kind IS NOT NULL` drops unregistered rows (created by a bare page write or an
         // early policy push) — they resolve to no entry, fail closed, same as a missing
         // row.
-        const row = sql`
+        return sql`
             SELECT
                 kind,
                 access_policy,
@@ -104,15 +104,6 @@ export class DatabaseDurableObjectStorage implements DatabaseServerStorage {
                 table_id = ${tableId}
                 AND kind IS NOT NULL
         `.selectOneOrNone(this.sql, databaseTableRowSchema);
-        if (row === null) return null;
-        switch (row.kind) {
-            case "table":
-                return {kind: "table", accessPolicy: deserializeAccessPolicy(row.accessPolicy)};
-            case "join":
-                return row;
-            default:
-                throw exhaustive(row);
-        }
     }
 
     listDatabaseTables(): Array<{
@@ -139,15 +130,16 @@ export class DatabaseDurableObjectStorage implements DatabaseServerStorage {
     }
 
     getDatabaseTableAccessPolicy(tableId: DatabaseTableId): LocalAccessPolicy | null {
-        const accessPolicy = sql`
-            SELECT
-                access_policy
-            FROM
-                database_tables
-            WHERE
-                table_id = ${tableId}
-        `.selectValueIfExists(this.sql, Schema.string.nullable());
-        return deserializeAccessPolicy(accessPolicy ?? null);
+        return (
+            sql`
+                SELECT
+                    access_policy
+                FROM
+                    database_tables
+                WHERE
+                    table_id = ${tableId}
+            `.selectValueIfExists(this.sql, accessPolicyColumnSchema) ?? null
+        );
     }
 
     setDatabaseTableAccessPolicy(
@@ -160,7 +152,7 @@ export class DatabaseDurableObjectStorage implements DatabaseServerStorage {
             VALUES
                 (
                     ${tableId},
-                    ${serializeAccessPolicy(accessPolicy)}
+                    ${accessPolicyColumnSchema.serialize(accessPolicy)}
                 )
             ON CONFLICT (table_id) DO UPDATE
             SET
@@ -402,6 +394,11 @@ export class DatabaseDurableObjectStorage implements DatabaseServerStorage {
 }
 
 /**
+ * The `access_policy` column: a resolved local policy copy stored as JSON text.
+ */
+const accessPolicyColumnSchema = SqlJsonSchema(LocalAccessPolicySchema).nullable();
+
+/**
  * Row shape for {@link DatabaseDurableObjectStorage.getDatabaseTableAccessEntry},
  * discriminated on the registration `kind` (the CHECK constraint in
  * `database_durable_object_sql_migrations.ts` guarantees each variant's columns).
@@ -409,7 +406,7 @@ export class DatabaseDurableObjectStorage implements DatabaseServerStorage {
 const databaseTableRowSchema = Schema.unionWithKey("kind", {
     table: Schema.object({
         kind: Schema.value("table"),
-        accessPolicy: Schema.string.nullable().originalPropertyKey("access_policy"),
+        accessPolicy: accessPolicyColumnSchema.originalPropertyKey("access_policy"),
     }),
     join: Schema.object({
         kind: Schema.value("join"),
@@ -417,13 +414,3 @@ const databaseTableRowSchema = Schema.unionWithKey("kind", {
         targetTableId: Schema.id<DatabaseTableId>().originalPropertyKey("target_table_id"),
     }),
 });
-
-function serializeAccessPolicy(accessPolicy: LocalAccessPolicy | null): string | null {
-    if (accessPolicy === null) return null;
-    return JSON.stringify(LocalAccessPolicySchema.serialize(accessPolicy));
-}
-
-function deserializeAccessPolicy(accessPolicy: string | null): LocalAccessPolicy | null {
-    if (accessPolicy === null) return null;
-    return LocalAccessPolicySchema.deserialize(JSON.parse(accessPolicy) as SchemaSerializedValue);
-}
