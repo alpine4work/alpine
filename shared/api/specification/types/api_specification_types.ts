@@ -44,6 +44,44 @@ export namespace ApiSpecification {
             readonly patch?: never;
             readonly trace?: never;
         };
+        readonly "/accounts/me/reference": {
+            readonly parameters: {
+                readonly query?: never;
+                readonly header?: never;
+                readonly path?: never;
+                readonly cookie?: never;
+            };
+            readonly get: {
+                readonly parameters: {
+                    readonly query?: never;
+                    readonly header?: never;
+                    readonly path?: never;
+                    readonly cookie?: never;
+                };
+                readonly requestBody?: never;
+                readonly responses: {
+                    readonly 200: {
+                        headers: {
+                            readonly [name: string]: unknown;
+                        };
+                        content: {
+                            readonly "application/json": {
+                                readonly spaceId: components["schemas"]["SpaceId"];
+                                readonly reference: components["schemas"]["AccountReference_Response"];
+                            };
+                        };
+                    };
+                    readonly default: components["responses"]["Error"];
+                };
+            };
+            readonly put?: never;
+            readonly post?: never;
+            readonly delete?: never;
+            readonly options?: never;
+            readonly head?: never;
+            readonly patch?: never;
+            readonly trace?: never;
+        };
         readonly "/accounts/{id}": {
             readonly parameters: {
                 readonly query?: never;
@@ -3816,7 +3854,7 @@ export namespace ApiSpecification {
                 readonly priority?: components["schemas"]["TaskPriority"];
                 readonly layout?: components["schemas"]["TaskLayout"];
                 readonly parent?: components["schemas"]["TaskParent"];
-                readonly collections?: readonly components["schemas"]["TaskCollectionItem"][];
+                readonly collections: readonly components["schemas"]["TaskCollectionItem"][];
                 readonly subtasks: components["schemas"]["TaskSubtasks"];
                 readonly notes: components["schemas"]["TaskNotes"];
             };
@@ -3832,7 +3870,7 @@ export namespace ApiSpecification {
                 readonly priority?: components["schemas"]["TaskPriority"];
                 readonly layout?: components["schemas"]["TaskLayout"];
                 readonly parent?: components["schemas"]["TaskParent"];
-                readonly collections?: readonly components["schemas"]["TaskCollectionItem"][];
+                readonly collections: readonly components["schemas"]["TaskCollectionItem"][];
                 readonly subtasks: components["schemas"]["TaskSubtasks"];
             };
             readonly TaskSubtasks: {
@@ -5135,7 +5173,7 @@ export namespace ApiSpecification {
                 readonly priority?: components["schemas"]["TaskPriority"];
                 readonly layout?: components["schemas"]["TaskLayout"];
                 readonly parent?: components["schemas"]["TaskParent_Response"];
-                readonly collections?: readonly components["schemas"]["TaskCollectionItem_Response"][];
+                readonly collections: readonly components["schemas"]["TaskCollectionItem_Response"][];
                 readonly subtasks: components["schemas"]["TaskSubtasks"];
                 readonly notes: components["schemas"]["TaskNotes_Response"];
             };
@@ -5418,7 +5456,7 @@ export namespace ApiSpecification {
                 readonly priority?: components["schemas"]["TaskPriority"];
                 readonly layout?: components["schemas"]["TaskLayout"];
                 readonly parent?: components["schemas"]["TaskParent_Response"];
-                readonly collections?: readonly components["schemas"]["TaskCollectionItem_Response"][];
+                readonly collections: readonly components["schemas"]["TaskCollectionItem_Response"][];
                 readonly subtasks: components["schemas"]["TaskSubtasks"];
             };
             readonly DirectChat_Response: {

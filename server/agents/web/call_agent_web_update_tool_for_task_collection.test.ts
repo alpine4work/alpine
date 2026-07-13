@@ -1,10 +1,12 @@
 import {ApiClientMock} from "~/server/agents/api/test_helpers/api_client_mock.js";
 import {AgentWebContext} from "~/server/agents/web/agent_web_context.js";
-import {getAgentWebTaskQueryCursorForHashIfExists} from "~/server/agents/web/agent_web_task_query_cursor_hash.js";
+import {
+    createAgentWebTaskQueryCursorHash,
+    getAgentWebTaskQueryCursorForHashIfExists,
+} from "~/server/agents/web/agent_web_task_query_cursor_hash.js";
 import {callAgentWebReadTool} from "~/server/agents/web/call_agent_web_read_tool.js";
 import {callAgentWebUpdateTool} from "~/server/agents/web/call_agent_web_update_tool.js";
 import {createAgentWebPageStoredLinkPathname} from "~/server/agents/web/create_agent_web_page_stored_link_pathname.js";
-import {agentWebTaskCollectionPageApiTasksBatchCount} from "~/server/agents/web/pages/agent_web_task_collection_page.js";
 import {createAgentWebSessionStorageForTest} from "~/server/agents/web/test_helpers/create_agent_web_session_storage_for_test.js";
 import {
     ApiAccountReferenceResponse,
@@ -36,11 +38,53 @@ const collectionId = generateId<TaskCollectionId>();
 const launchTaskId = generateId<TaskId>();
 const specTaskId = generateId<TaskId>();
 const otherTaskId = generateId<TaskId>();
+const reviewTaskId = generateId<TaskId>();
+const qaTaskId = generateId<TaskId>();
+const task6Id = generateId<TaskId>();
+const task7Id = generateId<TaskId>();
+const task8Id = generateId<TaskId>();
+
+const agentWebTaskCollectionPageApiTasksBatchCount = 31;
 
 const otherTaskReference = {
     type: "Task" as const,
     id: otherTaskId,
     title: "Other task",
+    status: {type: "Open" as const, isActive: false},
+};
+
+const reviewTaskReference = {
+    type: "Task" as const,
+    id: reviewTaskId,
+    title: "Review task",
+    status: {type: "Open" as const, isActive: false},
+};
+
+const qaTaskReference = {
+    type: "Task" as const,
+    id: qaTaskId,
+    title: "QA task",
+    status: {type: "Open" as const, isActive: false},
+};
+
+const task6Reference = {
+    type: "Task" as const,
+    id: task6Id,
+    title: "Task 6",
+    status: {type: "Open" as const, isActive: false},
+};
+
+const task7Reference = {
+    type: "Task" as const,
+    id: task7Id,
+    title: "Task 7",
+    status: {type: "Open" as const, isActive: false},
+};
+
+const task8Reference = {
+    type: "Task" as const,
+    id: task8Id,
+    title: "Task 8",
     status: {type: "Open" as const, isActive: false},
 };
 
@@ -101,6 +145,8 @@ beforeEach(async () => {
         title: "Roadmap",
     });
     await createAgentWebPageStoredLinkPathname(storage, otherTaskReference);
+    await createAgentWebPageStoredLinkPathname(storage, reviewTaskReference);
+    await createAgentWebPageStoredLinkPathname(storage, qaTaskReference);
     await createAgentWebPageStoredLinkPathname(storage, aliceReference);
     await createAgentWebPageStoredLinkPathname(storage, bobReference);
     await createAgentWebPageStoredLinkPathname(storage, otherCollectionReference);
@@ -188,6 +234,10 @@ function mockGetCollectionTasks({
     cursor,
     nextCursor = null,
     launchTaskTitle = "Launch task",
+    specTaskTitle = "Spec task",
+    includeOtherTask = false,
+    otherTaskTitle = otherTaskReference.title,
+    additionalTasks = [],
     specTaskStatus = {type: "Open", isActive: false},
     specTaskSubtasks = {openTaskCount: 0, closedTaskCount: 0},
     specTaskParent = null,
@@ -201,6 +251,10 @@ function mockGetCollectionTasks({
     cursor?: ApiTaskQueryCursor;
     nextCursor?: ApiTaskQueryCursor | null;
     launchTaskTitle?: string;
+    specTaskTitle?: string;
+    includeOtherTask?: boolean;
+    otherTaskTitle?: string;
+    additionalTasks?: ReadonlyArray<ApiTaskReferenceResponse>;
     specTaskStatus?: ApiTaskStatus;
     specTaskSubtasks?: ApiTaskSubtasks;
     specTaskParent?: ApiTaskReferenceResponse | null;
@@ -240,7 +294,7 @@ function mockGetCollectionTasks({
                     cursor: "task-cursor-1" as ApiTaskQueryCursor,
                     task: {
                         id: specTaskId,
-                        title: "Spec task",
+                        title: specTaskTitle,
                         status: specTaskStatus,
                         subtasks: specTaskSubtasks,
                         ...(specTaskParent
@@ -271,6 +325,54 @@ function mockGetCollectionTasks({
                         ...(specTaskDueDate ? {due: {date: specTaskDueDate}} : {}),
                     },
                 },
+                ...[
+                    ...(includeOtherTask ? [{...otherTaskReference, title: otherTaskTitle}] : []),
+                    ...additionalTasks,
+                ].map((task, index) => ({
+                    cursor: `task-cursor-${index + 2}` as ApiTaskQueryCursor,
+                    task: {
+                        id: task.id,
+                        title: task.title,
+                        status: task.status,
+                        subtasks: {openTaskCount: 0, closedTaskCount: 0},
+                    },
+                })),
+            ],
+        },
+    });
+}
+
+function mockQueryCollectionTasks(): void {
+    api.mockPost("/task-collections/{id}/tasks/query", {
+        params: {path: {id: collectionId}},
+        data: {
+            spaceId,
+            collection: {
+                id: collectionId,
+                name: "Roadmap",
+                color: "Red",
+                defaults: {filters: [], sorts: []},
+            },
+            nextCursor: null,
+            tasks: [
+                {
+                    cursor: "task-cursor-0" as ApiTaskQueryCursor,
+                    task: {
+                        id: launchTaskId,
+                        title: "Launch task",
+                        status: {type: "Open" as const, isActive: false},
+                        subtasks: {openTaskCount: 0, closedTaskCount: 0},
+                    },
+                },
+                {
+                    cursor: "task-cursor-1" as ApiTaskQueryCursor,
+                    task: {
+                        id: specTaskId,
+                        title: "Spec task",
+                        status: {type: "Open" as const, isActive: false},
+                        subtasks: {openTaskCount: 0, closedTaskCount: 0},
+                    },
+                },
             ],
         },
     });
@@ -290,18 +392,30 @@ function mockCollectionPatch() {
     });
 }
 
-function mockTaskPatch(id: TaskId) {
-    api.mockPatch("/tasks/{id}", {
-        params: {path: {id}},
+function createMovedTaskCursor(id: TaskId): ApiTaskQueryCursor {
+    return `moved-task-cursor-${id}` as ApiTaskQueryCursor;
+}
+
+function mockTaskPatch(...ids: ReadonlyArray<TaskId>) {
+    api.mockPatch("/tasks", {
+        params: "Any",
         data: {
             spaceId,
-            task: {
-                id,
-                title: "ignored",
-                status: {type: "Open", isActive: false},
-                collections: [],
-                notes: {version: 0, content: {elements: []}},
-            },
+            tasks: ids.map(id => ({
+                task: {
+                    id,
+                    title: "ignored",
+                    status: {type: "Open", isActive: false},
+                    collections: [],
+                    notes: {version: 0, content: {elements: []}},
+                },
+                collections: [
+                    {
+                        collection: {id: collectionId},
+                        movedCursor: createMovedTaskCursor(id),
+                    },
+                ],
+            })),
         } as any,
     });
 }
@@ -312,10 +426,31 @@ function getCollectionPatchRequests() {
         .filter(request => request.method === "PATCH" && request.path === "/task-collections/{id}");
 }
 
-function getTaskPatchRequests() {
+function getBatchTaskPatchRequests() {
     return api
         .getRequestHistory()
-        .filter(request => request.method === "PATCH" && request.path === "/tasks/{id}");
+        .filter(request => request.method === "PATCH" && request.path === "/tasks");
+}
+
+function getTaskPatchRequests() {
+    return getBatchTaskPatchRequests().flatMap(request => {
+        const patchesByTaskId = new Map<TaskId, Array<unknown>>();
+
+        for (const {id, patch} of request.body.patches) {
+            const patches = patchesByTaskId.get(id);
+
+            if (patches === undefined) {
+                patchesByTaskId.set(id, [patch]);
+            } else {
+                patches.push(patch);
+            }
+        }
+
+        return Array.from(patchesByTaskId, ([, patches]) => ({
+            ...request,
+            body: {patches},
+        }));
+    });
 }
 
 async function readTaskCollectionPage({
@@ -383,6 +518,16 @@ async function getTaskCollectionNextPageCursor(path: string): Promise<ApiTaskQue
     if (cursor === undefined) throw new InternalError("Expected task collection cursor");
 
     return cursor;
+}
+
+async function createTaskCollectionTailPagePath(afterCursor: ApiTaskQueryCursor): Promise<string> {
+    const afterCursorHash = await createAgentWebTaskQueryCursorHash(
+        storage,
+        collectionId,
+        afterCursor,
+    );
+
+    return `/task-collection/roadmap?after=${afterCursorHash}`;
 }
 
 test("updates the task collection name", async () => {
@@ -934,57 +1079,466 @@ test("rejects updating task subtask counts", async () => {
     });
 });
 
-test("throws unimplemented when removing a task", async () => {
+test("removes a task from a manually ordered collection", async () => {
     await readTaskCollectionPage();
+    mockTaskPatch(specTaskId);
 
-    await expectUnimplementedUpdate({
-        updates: [
+    await expect(
+        callAgentWebUpdateTool(context, {
+            path: "/task-collection/roadmap",
+            updates: [
+                {
+                    old: "\n\n- [Spec task (Open)](/task/spec-task)",
+                    new: "",
+                    replaceAll: false,
+                },
+            ],
+        }),
+    ).resolves.toEqual("Update was successful.\n");
+
+    expect(getTaskPatchRequests().map(request => request.body)).toEqual([
+        {patches: [{type: "RemoveCollection", collectionId}]},
+    ]);
+});
+
+test("adds a task at the end of a manually ordered collection", async () => {
+    await readTaskCollectionPage();
+    mockTaskPatch(otherTaskId);
+
+    await expect(
+        callAgentWebUpdateTool(context, {
+            path: "/task-collection/roadmap",
+            updates: [
+                {
+                    old: "- [Spec task (Open)](/task/spec-task)",
+                    new:
+                        "- [Spec task (Open)](/task/spec-task)\n\n" +
+                        "- [Other task (Open)](/task/other-task)",
+                    replaceAll: false,
+                },
+            ],
+        }),
+    ).resolves.toEqual("Update was successful.\n");
+
+    expect(getTaskPatchRequests().map(request => request.body)).toEqual([
+        {
+            patches: [
+                {
+                    type: "AddCollection",
+                    item: {
+                        collection: {
+                            type: "TaskCollection",
+                            id: collectionId,
+                            title: "Roadmap",
+                        },
+                    },
+                },
+                {
+                    type: "MoveInCollection",
+                    collectionId,
+                    position: {type: "End"},
+                },
+            ],
+        },
+    ]);
+});
+
+test("adds a task at the start of a manually ordered collection", async () => {
+    await readTaskCollectionPage();
+    mockTaskPatch(otherTaskId);
+
+    await expect(
+        callAgentWebUpdateTool(context, {
+            path: "/task-collection/roadmap",
+            updates: [
+                {
+                    old: "- [Launch task (Open)](/task/launch-task)",
+                    new:
+                        "- [Other task (Open)](/task/other-task)\n\n" +
+                        "- [Launch task (Open)](/task/launch-task)",
+                    replaceAll: false,
+                },
+            ],
+        }),
+    ).resolves.toEqual("Update was successful.\n");
+
+    expect(getTaskPatchRequests().map(request => request.body)).toEqual([
+        {
+            patches: [
+                {
+                    type: "AddCollection",
+                    item: {
+                        collection: {
+                            type: "TaskCollection",
+                            id: collectionId,
+                            title: "Roadmap",
+                        },
+                    },
+                },
+                {
+                    type: "MoveInCollection",
+                    collectionId,
+                    position: {type: "Start"},
+                },
+            ],
+        },
+    ]);
+});
+
+test("moves a task to the end of a manually ordered collection", async () => {
+    await readTaskCollectionPage();
+    mockTaskPatch(launchTaskId);
+
+    await expect(
+        callAgentWebUpdateTool(context, {
+            path: "/task-collection/roadmap",
+            updates: [
+                {
+                    old: "- [Launch task (Open)](/task/launch-task)\n\n- [Spec task (Open)](/task/spec-task)",
+                    new: "- [Spec task (Open)](/task/spec-task)\n\n- [Launch task (Open)](/task/launch-task)",
+                    replaceAll: false,
+                },
+            ],
+        }),
+    ).resolves.toEqual("Update was successful.\n");
+
+    expect(getTaskPatchRequests().map(request => request.body)).toEqual([
+        {
+            patches: [
+                {
+                    type: "MoveInCollection",
+                    collectionId,
+                    position: {type: "End"},
+                },
+            ],
+        },
+    ]);
+});
+
+test("moves a task to the start of a manually ordered tail page", async () => {
+    const afterCursor = "page-after-cursor" as ApiTaskQueryCursor;
+    const path = await createTaskCollectionTailPagePath(afterCursor);
+    mockGetCollectionTasks({cursor: afterCursor, includeOtherTask: true});
+    await callAgentWebReadTool(context, {path, limit: "10kb"});
+    mockTaskPatch(otherTaskId);
+
+    await expect(
+        callAgentWebUpdateTool(context, {
+            path,
+            updates: [
+                {
+                    old:
+                        "- [Launch task (Open)](/task/launch-task)\n\n" +
+                        "- [Spec task (Open)](/task/spec-task)\n\n" +
+                        "- [Other task (Open)](/task/other-task)",
+                    new:
+                        "- [Other task (Open)](/task/other-task)\n\n" +
+                        "- [Launch task (Open)](/task/launch-task)\n\n" +
+                        "- [Spec task (Open)](/task/spec-task)",
+                    replaceAll: false,
+                },
+            ],
+        }),
+    ).resolves.toEqual("Update was successful.\n");
+
+    expect(getTaskPatchRequests().map(request => request.body)).toEqual([
+        {
+            patches: [
+                {
+                    type: "MoveInCollection",
+                    collectionId,
+                    position: {
+                        type: "Between",
+                        afterCursor,
+                        beforeCursor: "task-cursor-0",
+                    },
+                },
+            ],
+        },
+    ]);
+});
+
+test("moves a task to the end of a manually ordered tail page", async () => {
+    const afterCursor = "page-after-cursor" as ApiTaskQueryCursor;
+    const path = await createTaskCollectionTailPagePath(afterCursor);
+    mockGetCollectionTasks({cursor: afterCursor});
+    await callAgentWebReadTool(context, {path, limit: "10kb"});
+    mockTaskPatch(launchTaskId);
+
+    await expect(
+        callAgentWebUpdateTool(context, {
+            path,
+            updates: [
+                {
+                    old: "- [Launch task (Open)](/task/launch-task)\n\n- [Spec task (Open)](/task/spec-task)",
+                    new: "- [Spec task (Open)](/task/spec-task)\n\n- [Launch task (Open)](/task/launch-task)",
+                    replaceAll: false,
+                },
+            ],
+        }),
+    ).resolves.toEqual("Update was successful.\n");
+
+    expect(getTaskPatchRequests().map(request => request.body)).toEqual([
+        {
+            patches: [
+                {
+                    type: "MoveInCollection",
+                    collectionId,
+                    position: {type: "End"},
+                },
+            ],
+        },
+    ]);
+});
+
+test("moves a task to the end of a truncated manually ordered page", async () => {
+    mockGetCollectionTasks({
+        includeOtherTask: true,
+        otherTaskTitle: "X".repeat(160),
+    });
+    const response = await callAgentWebReadTool(context, {
+        path: "/task-collection/roadmap",
+        limit: "230b",
+    });
+
+    expect(response).toContain("- [Spec task (Open)](/task/spec-task)");
+    expect(response).not.toContain("X".repeat(160));
+
+    mockTaskPatch(launchTaskId);
+
+    await expect(
+        callAgentWebUpdateTool(context, {
+            path: "/task-collection/roadmap",
+            updates: [
+                {
+                    old: "- [Launch task (Open)](/task/launch-task)\n\n- [Spec task (Open)](/task/spec-task)",
+                    new: "- [Spec task (Open)](/task/spec-task)\n\n- [Launch task (Open)](/task/launch-task)",
+                    replaceAll: false,
+                },
+            ],
+        }),
+    ).resolves.toEqual("Update was successful.\n");
+
+    expect(getTaskPatchRequests().map(request => request.body)).toEqual([
+        {
+            patches: [
+                {
+                    type: "MoveInCollection",
+                    collectionId,
+                    position: {
+                        type: "Between",
+                        afterCursor: "task-cursor-1",
+                        beforeCursor: "task-cursor-2",
+                    },
+                },
+            ],
+        },
+    ]);
+});
+
+test("atomically moves tasks with the same position in page order", async () => {
+    mockGetCollectionTasks({
+        includeOtherTask: true,
+        additionalTasks: [reviewTaskReference],
+    });
+    await callAgentWebReadTool(context, {
+        path: "/task-collection/roadmap",
+        limit: "10kb",
+    });
+    mockTaskPatch(launchTaskId, specTaskId);
+
+    await expect(
+        callAgentWebUpdateTool(context, {
+            path: "/task-collection/roadmap",
+            updates: [
+                {
+                    old:
+                        "- [Launch task (Open)](/task/launch-task)\n\n" +
+                        "- [Spec task (Open)](/task/spec-task)\n\n" +
+                        "- [Other task (Open)](/task/other-task)\n\n" +
+                        "- [Review task (Open)](/task/review-task)",
+                    new:
+                        "- [Other task (Open)](/task/other-task)\n\n" +
+                        "- [Review task (Open)](/task/review-task)\n\n" +
+                        "- [Launch task (Open)](/task/launch-task)\n\n" +
+                        "- [Spec task (Open)](/task/spec-task)",
+                    replaceAll: false,
+                },
+            ],
+        }),
+    ).resolves.toEqual("Update was successful.\n");
+
+    expect({
+        batchRequestBodies: getBatchTaskPatchRequests().map(request => request.body),
+        individualRequestCount: api
+            .getRequestHistory()
+            .filter(request => request.path === "/tasks/{id}").length,
+    }).toEqual({
+        batchRequestBodies: [
             {
-                old: "\n\n- [Spec task (Open)](/task/spec-task)",
-                new: "",
-                replaceAll: false,
+                spaceId,
+                patches: [
+                    {
+                        id: launchTaskId,
+                        patch: {
+                            type: "MoveInCollection",
+                            collectionId,
+                            position: {type: "End"},
+                        },
+                    },
+                    {
+                        id: specTaskId,
+                        patch: {
+                            type: "MoveInCollection",
+                            collectionId,
+                            position: {type: "End"},
+                        },
+                    },
+                ],
             },
         ],
-        expected:
-            "Adding, removing, or reordering the tasks in a task collection hasn\u2019t " +
-            "been implemented yet",
+        individualRequestCount: 0,
     });
 });
 
-test("throws unimplemented when adding a task", async () => {
-    await readTaskCollectionPage();
-
-    await expectUnimplementedUpdate({
-        updates: [
-            {
-                old: "- [Spec task (Open)](/task/spec-task)",
-                new:
-                    "- [Spec task (Open)](/task/spec-task)\n\n" +
-                    "- [Other task (Open)](/task/other-task)",
-                replaceAll: false,
-            },
+test("moves only task 4 when moving it after task 8", async () => {
+    mockGetCollectionTasks({
+        launchTaskTitle: "Task 1",
+        specTaskTitle: "Task 2",
+        additionalTasks: [
+            {...otherTaskReference, title: "Task 3"},
+            {...reviewTaskReference, title: "Task 4"},
+            {...qaTaskReference, title: "Task 5"},
+            task6Reference,
+            task7Reference,
+            task8Reference,
         ],
-        expected:
-            "Adding, removing, or reordering the tasks in a task collection hasn\u2019t " +
-            "been implemented yet",
     });
+    const response = await callAgentWebReadTool(context, {
+        path: "/task-collection/roadmap",
+        limit: "10kb",
+    });
+    mockTaskPatch(reviewTaskId);
+
+    const taskListItems = response.split("\n").filter(line => line.startsWith("- [Task "));
+    if (taskListItems.length !== 8) throw new InternalError("Expected eight task list items");
+
+    await expect(
+        callAgentWebUpdateTool(context, {
+            path: "/task-collection/roadmap",
+            updates: [
+                {
+                    old: `${taskListItems[3]!}\n\n`,
+                    new: "",
+                    replaceAll: false,
+                },
+                {
+                    old: taskListItems[7]!,
+                    new: `${taskListItems[7]!}\n\n${taskListItems[3]!}`,
+                    replaceAll: false,
+                },
+            ],
+        }),
+    ).resolves.toEqual("Update was successful.\n");
+
+    expect(getBatchTaskPatchRequests().map(request => request.body)).toEqual([
+        {
+            spaceId,
+            patches: [
+                {
+                    id: reviewTaskId,
+                    patch: {
+                        type: "MoveInCollection",
+                        collectionId,
+                        position: {type: "End"},
+                    },
+                },
+            ],
+        },
+    ]);
 });
 
-test("throws unimplemented when reordering tasks", async () => {
-    await readTaskCollectionPage();
-
-    await expectUnimplementedUpdate({
-        updates: [
-            {
-                old: "- [Launch task (Open)](/task/launch-task)\n\n- [Spec task (Open)](/task/spec-task)",
-                new: "- [Spec task (Open)](/task/spec-task)\n\n- [Launch task (Open)](/task/launch-task)",
-                replaceAll: false,
-            },
-        ],
-        expected:
-            "Adding, removing, or reordering the tasks in a task collection hasn\u2019t " +
-            "been implemented yet",
+test("uses a moved cursor in a later task move", async () => {
+    mockGetCollectionTasks({
+        includeOtherTask: true,
+        additionalTasks: [reviewTaskReference, qaTaskReference],
     });
+    await callAgentWebReadTool(context, {
+        path: "/task-collection/roadmap",
+        limit: "10kb",
+    });
+    mockTaskPatch(specTaskId);
+
+    const initialTaskList =
+        "- [Launch task (Open)](/task/launch-task)\n\n" +
+        "- [Spec task (Open)](/task/spec-task)\n\n" +
+        "- [Other task (Open)](/task/other-task)\n\n" +
+        "- [Review task (Open)](/task/review-task)\n\n" +
+        "- [QA task (Open)](/task/qa-task)";
+    const taskListAfterFirstMove =
+        "- [Launch task (Open)](/task/launch-task)\n\n" +
+        "- [Other task (Open)](/task/other-task)\n\n" +
+        "- [Review task (Open)](/task/review-task)\n\n" +
+        "- [QA task (Open)](/task/qa-task)\n\n" +
+        "- [Spec task (Open)](/task/spec-task)";
+
+    await callAgentWebUpdateTool(context, {
+        path: "/task-collection/roadmap",
+        updates: [{old: initialTaskList, new: taskListAfterFirstMove, replaceAll: false}],
+    });
+
+    mockTaskPatch(launchTaskId);
+
+    await expect(
+        callAgentWebUpdateTool(context, {
+            path: "/task-collection/roadmap",
+            updates: [
+                {
+                    old: taskListAfterFirstMove,
+                    new:
+                        "- [Other task (Open)](/task/other-task)\n\n" +
+                        "- [Review task (Open)](/task/review-task)\n\n" +
+                        "- [QA task (Open)](/task/qa-task)\n\n" +
+                        "- [Launch task (Open)](/task/launch-task)\n\n" +
+                        "- [Spec task (Open)](/task/spec-task)",
+                    replaceAll: false,
+                },
+            ],
+        }),
+    ).resolves.toEqual("Update was successful.\n");
+
+    expect(getBatchTaskPatchRequests().map(request => request.body)).toEqual([
+        {
+            spaceId,
+            patches: [
+                {
+                    id: specTaskId,
+                    patch: {
+                        type: "MoveInCollection",
+                        collectionId,
+                        position: {type: "End"},
+                    },
+                },
+            ],
+        },
+        {
+            spaceId,
+            patches: [
+                {
+                    id: launchTaskId,
+                    patch: {
+                        type: "MoveInCollection",
+                        collectionId,
+                        position: {
+                            type: "Between",
+                            afterCursor: "task-cursor-4",
+                            beforeCursor: createMovedTaskCursor(specTaskId),
+                        },
+                    },
+                },
+            ],
+        },
+    ]);
 });
 
 const roadmapDefaults: ApiTaskQueryDefaultsResponse = {
@@ -1005,6 +1559,47 @@ const roadmapDefaults: ApiTaskQueryDefaultsResponse = {
         {type: "Due", direction: "Ascending"},
     ],
 };
+
+test("rejects removing a task from a collection with default filters and sorts", async () => {
+    await readTaskCollectionPage({defaults: roadmapDefaults});
+
+    await expectInvalidUpdateDisplayMessage({
+        updates: [
+            {
+                old: "\n\n- [Spec task (Open)](/task/spec-task)",
+                new: "",
+                replaceAll: false,
+            },
+        ],
+        expected:
+            "Tasks may only be added, removed, or reordered on a manually ordered " +
+            "collection page. A collection is manually ordered when the page URL has no " +
+            "sorts and the collection has no default filters or sorts. Try again on a " +
+            "manually ordered collection page.",
+    });
+});
+
+test("rejects removing a task from a collection page with URL sorts", async () => {
+    const path = "/task-collection/roadmap?sort=created";
+    mockQueryCollectionTasks();
+    await callAgentWebReadTool(context, {path, limit: "10kb"});
+
+    await expectInvalidUpdateDisplayMessage({
+        path,
+        updates: [
+            {
+                old: "\n\n- [Spec task (Open)](/task/spec-task)",
+                new: "",
+                replaceAll: false,
+            },
+        ],
+        expected:
+            "Tasks may only be added, removed, or reordered on a manually ordered " +
+            "collection page. A collection is manually ordered when the page URL has no " +
+            "sorts and the collection has no default filters or sorts. Try again on a " +
+            "manually ordered collection page.",
+    });
+});
 
 test("throws unimplemented when changing the default filters and sorts", async () => {
     await readTaskCollectionPage({defaults: roadmapDefaults});
@@ -1064,25 +1659,34 @@ test("rejects changing a task link to an unknown task", async () => {
             },
         ],
         expected:
-            "Couldn\u2019t find a task for the link \u201CMissing task\u201D on line 7. Try again " +
-            "with a link to a task you\u2019ve seen before (e.g. `[My Task (Open)](/task/my-task)`).",
+            "Couldn\u2019t find a task for the link \u201CMissing task\u201D on line 7. You may only " +
+            "add a task you\u2019ve previously seen to a collection. Try calling the `create` " +
+            "tool to create a new task and then add that new task to the collection, or " +
+            "try calling the `search` tool to find an existing task you want to add to " +
+            "the collection.",
     });
 });
 
-test("throws unimplemented when replacing a task link path", async () => {
+test("rejects replacing a task link path with a duplicate task", async () => {
     await readTaskCollectionPage();
 
-    await expectUnimplementedUpdate({
+    await expectInvalidUpdateDisplayMessage({
         updates: [
             {
-                old: "[Launch task (Open)](/task/launch-task)",
-                new: "[Launch task (Open)](/task/spec-task)",
+                old:
+                    "- [Launch task (Open)](/task/launch-task)\n\n" +
+                    "- [Spec task (Open)](/task/spec-task)\n\n" +
+                    "End of tasks.",
+                new:
+                    "- [Launch task (Open)](/task/spec-task)\n\n" +
+                    "- [Spec task (Open)](/task/spec-task)",
                 replaceAll: false,
             },
         ],
         expected:
-            "Adding, removing, or reordering the tasks in a task collection hasn\u2019t " +
-            "been implemented yet",
+            "The \u201CSpec task\u201D task appears more than once on this task collection page. " +
+            "Each task may only appear once. Try again after removing the duplicate task " +
+            "link.",
     });
 });
 
@@ -1131,7 +1735,7 @@ test("makes no API calls when removing the end of tasks marker", async () => {
 
 test("rejects changing the next page link cursor", async () => {
     const nextCursor = "task-cursor-next" as ApiTaskQueryCursor;
-    const response = await readTaskCollectionPage({nextCursor, limit: "140b"});
+    const response = await readTaskCollectionPage({nextCursor, limit: "100b"});
     const nextPagePath = getTaskCollectionNextPagePath(response);
 
     await expectInvalidUpdateDisplayMessage({
@@ -1151,7 +1755,7 @@ test("rejects changing the next page link cursor", async () => {
 
 test("rejects removing the next page link", async () => {
     const nextCursor = "task-cursor-next" as ApiTaskQueryCursor;
-    const response = await readTaskCollectionPage({nextCursor, limit: "140b"});
+    const response = await readTaskCollectionPage({nextCursor, limit: "100b"});
     const nextPagePath = getTaskCollectionNextPagePath(response);
 
     await expectInvalidUpdateDisplayMessage({
@@ -1171,13 +1775,13 @@ test("rejects removing the next page link", async () => {
 
 test("rejects adding the end of tasks marker", async () => {
     const nextCursor = "task-cursor-next" as ApiTaskQueryCursor;
-    const response = await readTaskCollectionPage({nextCursor, limit: "140b"});
+    await readTaskCollectionPage({nextCursor, limit: "100b"});
 
     await expectInvalidUpdateDisplayMessage({
         updates: [
             {
-                old: response,
-                new: `${response}\n\nEnd of tasks.`,
+                old: "- [Launch task (Open)](/task/launch-task)",
+                new: "- [Launch task (Open)](/task/launch-task)\n\nEnd of tasks.",
                 replaceAll: false,
             },
         ],
@@ -1190,7 +1794,7 @@ test("rejects adding the end of tasks marker", async () => {
 
 test("rejects renaming the task collection on a later page", async () => {
     const nextCursor = "task-cursor-next" as ApiTaskQueryCursor;
-    const response = await readTaskCollectionPage({nextCursor, limit: "140b"});
+    const response = await readTaskCollectionPage({nextCursor, limit: "100b"});
     const nextPagePath = getTaskCollectionNextPagePath(response);
     const nextPageCursor = await getTaskCollectionNextPageCursor(nextPagePath);
 

@@ -16,6 +16,25 @@ paths:
                         application/yaml: {}
                 default:
                     $ref: "#/components/responses/Error"
+    /accounts/me/reference:
+        get:
+            responses:
+                "200":
+                    content:
+                        application/json:
+                            schema:
+                                type: object
+                                required:
+                                    - spaceId
+                                    - reference
+                                additionalProperties: false
+                                properties:
+                                    spaceId:
+                                        $ref: "#/components/schemas/SpaceId"
+                                    reference:
+                                        $ref: "#/components/schemas/AccountReference_Response"
+                default:
+                    $ref: "#/components/responses/Error"
     /accounts/{id}:
         parameters:
             - name: id
@@ -4506,6 +4525,7 @@ components:
                 - id
                 - status
                 - title
+                - collections
                 - subtasks
                 - notes
             additionalProperties: false
@@ -4549,6 +4569,7 @@ components:
                 - id
                 - status
                 - title
+                - collections
                 - subtasks
             additionalProperties: false
             properties:
@@ -6957,6 +6978,7 @@ components:
                 - id
                 - status
                 - title
+                - collections
                 - subtasks
                 - notes
             additionalProperties: false
@@ -7665,6 +7687,7 @@ components:
                 - id
                 - status
                 - title
+                - collections
                 - subtasks
             additionalProperties: false
             properties:

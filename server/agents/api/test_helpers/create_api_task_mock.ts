@@ -40,20 +40,7 @@ export function createApiTaskMockStatus(status: ApiTaskStatusMock): ApiTaskStatu
     }
 }
 
-export function createApiTaskMock({
-    index,
-    id = typeof index === "number" ? createApiTaskIdMock(index) : generateId<TaskId>(),
-    title = typeof index === "number" ? `Test Task ${index}` : "Test Task",
-    status = {type: "Open", isActive: false},
-    assignee,
-    due,
-    priority,
-    layout,
-    parent,
-    collections,
-    subtasks,
-    notes,
-}: {
+export type ApiTaskMockOptions = {
     index?: number;
     id?: TaskId;
     title?: string;
@@ -75,7 +62,22 @@ export function createApiTaskMock({
     >;
     subtasks?: Partial<ApiTaskSubtasks>;
     notes?: string | ApiContentResponse | ApiTaskNotesResponse;
-}): ApiTaskResponse {
+};
+
+export function createApiTaskMock({
+    index,
+    id = typeof index === "number" ? createApiTaskIdMock(index) : generateId<TaskId>(),
+    title = typeof index === "number" ? `Test Task ${index}` : "Test Task",
+    status = {type: "Open", isActive: false},
+    assignee,
+    due,
+    priority,
+    layout,
+    parent,
+    collections,
+    subtasks,
+    notes,
+}: ApiTaskMockOptions): ApiTaskResponse {
     const task: WritableShallow<ApiTaskResponse> = {
         id,
         title,

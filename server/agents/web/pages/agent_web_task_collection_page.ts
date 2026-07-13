@@ -73,15 +73,15 @@ import {MaybePromise} from "~/shared/helpers/types/maybe_promise.js";
 import {ApiTaskQueryCursor} from "~/shared/id/types/api_task_query_cursor.js";
 import {TaskCollectionId, TaskId} from "~/shared/id/types/id_types.js";
 
-export const agentWebTaskCollectionPageApiTasksBatchCount = 31;
-export const agentWebTaskCollectionPageNextPageLinkText = "Next page »";
+const agentWebTaskCollectionPageApiTasksBatchCount = 31;
+const agentWebTaskCollectionPageNextPageLinkText = "Next page »";
 
 /**
  * The maximum number of collections shown in a task's "Collections" field on a
  * task collection page. Collections past this count are summarized as "and n more"
  * at the end of the field.
  */
-export const agentWebTaskCollectionPageTaskMaxCollectionCount = 3;
+const agentWebTaskCollectionPageTaskMaxCollectionCount = 3;
 
 export const apiTaskCollectionColors = getObjectKeysWithKeyofType(
     cast<Record<ApiTaskCollectionColor, true>>({
