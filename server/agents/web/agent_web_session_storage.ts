@@ -195,12 +195,7 @@ export interface AgentWebSessionStorage {
      */
     readonly readResponseByPath: AgentWebSessionStorageCollection<
         string,
-        {
-            readonly expirationTime: Date;
-            readonly pageMetadata: AgentWebPageMetadata;
-            readonly response: string;
-            readonly newlineIndexes: ReadonlyArray<number>;
-        }
+        AgentWebSessionStorageReadResponse
     >;
 
     /**
@@ -209,6 +204,13 @@ export interface AgentWebSessionStorage {
      */
     readonly readResponseMutexByPath: Map<string, Mutex>;
 }
+
+export type AgentWebSessionStorageReadResponse = {
+    readonly expirationTime: Date;
+    readonly pageMetadata: AgentWebPageMetadata;
+    readonly response: string;
+    readonly newlineIndexes: ReadonlyArray<number>;
+};
 
 /**
  * Normalizes an agent web pathname into the key format for

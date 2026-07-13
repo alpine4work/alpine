@@ -49,6 +49,10 @@ export type ApiMentionReference = ApiSpecification.components["schemas"]["Mentio
 
 export type ApiPreviewReference = ApiSpecification.components["schemas"]["PreviewReference"];
 
+export type ApiAuth = ApiSpecification.components["schemas"]["Auth"];
+
+export type ApiBotAccountAuth = ApiSpecification.components["schemas"]["BotAccountAuth"];
+
 export type ApiContent = ApiSpecification.components["schemas"]["Content"];
 
 export type ApiContentBlockElement = ApiSpecification.components["schemas"]["ContentBlockElement"];
@@ -216,6 +220,10 @@ export type ApiSpace = ApiSpecification.components["schemas"]["Space"];
 export type ApiAccount = ApiSpecification.components["schemas"]["Account"];
 
 export type ApiAccountResponse = ApiSpecification.components["schemas"]["Account_Response"];
+
+export type ApiBotAccount = ApiSpecification.components["schemas"]["BotAccount"];
+
+export type ApiBotAccountResponse = ApiSpecification.components["schemas"]["BotAccount_Response"];
 
 export type ApiAccountSpace = ApiSpecification.components["schemas"]["AccountSpace"];
 
@@ -781,6 +789,9 @@ export type ApiPostResponse = ApiSpecification.components["schemas"]["Post_Respo
 export type ApiPreviewReferenceResponse =
     ApiSpecification.components["schemas"]["PreviewReference_Response"];
 
+export type ApiBotAccountAuthResponse =
+    ApiSpecification.components["schemas"]["BotAccountAuth_Response"];
+
 export type ApiInboxChatEntryResponse =
     ApiSpecification.components["schemas"]["InboxChatEntry_Response"];
 
@@ -902,6 +913,8 @@ export type ApiContentFileGalleryBlockElementRowItemResponseWithoutKeys =
 
 export type ApiContentTableBlockElementCellBlockElementResponseWithoutKeys =
     ApiSpecification.components["schemas"]["ContentTableBlockElementCellBlockElement_Response_WithoutKeys"];
+
+export type ApiAuthResponse = ApiSpecification.components["schemas"]["Auth_Response"];
 
 export type ApiInboxEntryResponse = ApiSpecification.components["schemas"]["InboxEntry_Response"];
 

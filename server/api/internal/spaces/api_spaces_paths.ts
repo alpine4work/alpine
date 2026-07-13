@@ -15,6 +15,7 @@ import {getSpace} from "~/server/spaces/get_space.js";
 import {getAccountShortNameWithoutFullNameTooltip} from "~/shared/accounts/get_account_short_name_without_full_name_tooltip.js";
 import {DynamoIndexCursorSchema} from "~/shared/dynamo/dynamo_opaque_strings.js";
 import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
+import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 import {isNonNullable} from "~/shared/helpers/control/is_non_nullable.js";
 import {defaultTimeZone} from "~/shared/helpers/intl/time_zone.js";
 import {omitObject} from "~/shared/helpers/object/omit_object.js";
@@ -23,8 +24,32 @@ import {standardSearchOptions} from "~/shared/search/search_options.js";
 
 export const apiSpacesPaths: Pick<
     ApiPaths,
-    keyof ApiPaths & (`/spaces/${string}` | `/accounts/${string}`)
+    keyof ApiPaths & ("/auth" | `/spaces/${string}` | `/accounts/${string}`)
 > = {
+    "/auth": {
+        get: async context => {
+            const spaceId = context.actor.getSpaceId();
+            const accountId = context.actor.getBotAccountId();
+
+            const account = await getApiAccount(context, spaceId, accountId, {
+                consistency: "StrongWithinCache",
+            });
+
+            return {
+                content: {
+                    auth: {
+                        type: "BotAccount",
+                        spaceId,
+                        botAccount: {
+                            ...account,
+                            bot: assertExists(account.bot),
+                        },
+                    },
+                },
+            };
+        },
+    },
+
     "/accounts/{id}": {
         get: async (context, {pathParameters}) => {
             // We load the account data using the `SpaceId` the bot is instantiated in. So if
@@ -37,6 +62,11 @@ export const apiSpacesPaths: Pick<
             );
 
             return {
+                // IMPORTANT: We don't include the `SpaceId` since we want to allow the flexibility
+                // for this endpoint to be spaceless in the future. Since accounts aren't "owned"
+                // by any one space. For now every bot actor is within a space but that may not be
+                // the case forever.
+
                 content: {
                     account: omitObject(account, ["space"]),
                 },
@@ -56,13 +86,17 @@ export const apiSpacesPaths: Pick<
 
             return {
                 content: {
-                    spaceId,
+                    // IMPORTANT: We don't include the `SpaceId` since we want to allow the flexibility
+                    // for this endpoint to be spaceless in the future. Since accounts aren't "owned"
+                    // by any one space. For now every bot actor is within a space but that may not be
+                    // the case forever.
+
                     reference: {
                         type: "Account",
                         id: pathParameters.id,
                         title: account.name,
                         shortName: getAccountShortNameWithoutFullNameTooltip(account),
-                        botId: account.botId ?? undefined,
+                        bot: account.botId === null ? undefined : {id: account.botId},
                     },
                 },
             };

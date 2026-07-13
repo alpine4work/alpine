@@ -44,7 +44,7 @@ export namespace ApiSpecification {
             readonly patch?: never;
             readonly trace?: never;
         };
-        readonly "/accounts/me/reference": {
+        readonly "/auth": {
             readonly parameters: {
                 readonly query?: never;
                 readonly header?: never;
@@ -66,8 +66,7 @@ export namespace ApiSpecification {
                         };
                         content: {
                             readonly "application/json": {
-                                readonly spaceId: components["schemas"]["SpaceId"];
-                                readonly reference: components["schemas"]["AccountReference_Response"];
+                                readonly auth: components["schemas"]["Auth_Response"];
                             };
                         };
                     };
@@ -149,7 +148,6 @@ export namespace ApiSpecification {
                         };
                         content: {
                             readonly "application/json": {
-                                readonly spaceId: components["schemas"]["SpaceId"];
                                 readonly reference: components["schemas"]["AccountReference_Response"];
                             };
                         };
@@ -3036,6 +3034,16 @@ export namespace ApiSpecification {
                 | components["schemas"]["TaskReference"]
                 | components["schemas"]["TaskCollectionReference"]
                 | components["schemas"]["SiteReference"];
+            readonly Auth: components["schemas"]["BotAccountAuth"];
+            readonly BotAccountAuth: {
+                /**
+                 * @description discriminator enum property added by openapi-typescript @enum
+                 * {string}
+                 */
+                readonly type: "BotAccount";
+                readonly spaceId: components["schemas"]["SpaceId"];
+                readonly botAccount: components["schemas"]["BotAccount"];
+            };
             readonly Content: {
                 readonly elements: readonly components["schemas"]["ContentBlockElement"][];
             };
@@ -3517,6 +3525,16 @@ export namespace ApiSpecification {
                 readonly name: components["schemas"]["LabelString"];
                 readonly shortName: components["schemas"]["LabelString"];
                 readonly bot?: {
+                    readonly id: components["schemas"]["BotId"];
+                };
+                readonly space: components["schemas"]["AccountSpace"];
+            };
+            readonly BotAccount: components["schemas"]["Account"];
+            readonly BotAccount_Response: {
+                readonly id: components["schemas"]["AccountId"];
+                readonly name: components["schemas"]["LabelString"];
+                readonly shortName: components["schemas"]["LabelString"];
+                readonly bot: {
                     readonly id: components["schemas"]["BotId"];
                 };
                 readonly space: components["schemas"]["AccountSpace"];
@@ -5206,6 +5224,15 @@ export namespace ApiSpecification {
                 | components["schemas"]["TaskReference_Response"]
                 | components["schemas"]["TaskCollectionReference_Response"]
                 | components["schemas"]["SiteReference_Response"];
+            readonly BotAccountAuth_Response: {
+                /**
+                 * @description discriminator enum property added by openapi-typescript @enum
+                 * {string}
+                 */
+                readonly type: "BotAccount";
+                readonly spaceId: components["schemas"]["SpaceId"];
+                readonly botAccount: components["schemas"]["BotAccount_Response"];
+            };
             readonly InboxChatEntry_Response: {
                 readonly title: readonly components["schemas"]["InboxEntryTitleItem_Response"][];
                 readonly preview?: string;
@@ -5725,6 +5752,7 @@ export namespace ApiSpecification {
                 | components["schemas"]["ContentCodeBlockElement_Response_WithoutKeys"]
                 | components["schemas"]["ContentFileBlockElement_Response_WithoutKeys"]
                 | components["schemas"]["ContentPreviewBlockElement_Response_WithoutKeys"];
+            readonly Auth_Response: components["schemas"]["BotAccountAuth_Response"];
             readonly InboxEntry_Response:
                 | components["schemas"]["InboxChatEntry_Response"]
                 | components["schemas"]["InboxCreatedChannelPostsEntry_Response"]

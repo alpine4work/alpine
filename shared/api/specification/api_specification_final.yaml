@@ -16,7 +16,7 @@ paths:
                         application/yaml: {}
                 default:
                     $ref: "#/components/responses/Error"
-    /accounts/me/reference:
+    /auth:
         get:
             responses:
                 "200":
@@ -25,14 +25,11 @@ paths:
                             schema:
                                 type: object
                                 required:
-                                    - spaceId
-                                    - reference
+                                    - auth
                                 additionalProperties: false
                                 properties:
-                                    spaceId:
-                                        $ref: "#/components/schemas/SpaceId"
-                                    reference:
-                                        $ref: "#/components/schemas/AccountReference_Response"
+                                    auth:
+                                        $ref: "#/components/schemas/Auth_Response"
                 default:
                     $ref: "#/components/responses/Error"
     /accounts/{id}:
@@ -72,12 +69,9 @@ paths:
                             schema:
                                 type: object
                                 required:
-                                    - spaceId
                                     - reference
                                 additionalProperties: false
                                 properties:
-                                    spaceId:
-                                        $ref: "#/components/schemas/SpaceId"
                                     reference:
                                         $ref: "#/components/schemas/AccountReference_Response"
                 default:
@@ -2715,6 +2709,27 @@ components:
                     Task: "#/components/schemas/TaskReference"
                     TaskCollection: "#/components/schemas/TaskCollectionReference"
                     Site: "#/components/schemas/SiteReference"
+        Auth:
+            oneOf:
+                - $ref: "#/components/schemas/BotAccountAuth"
+            discriminator:
+                propertyName: type
+                mapping:
+                    BotAccount: "#/components/schemas/BotAccountAuth"
+        BotAccountAuth:
+            type: object
+            additionalProperties: false
+            required:
+                - type
+                - spaceId
+                - botAccount
+            properties:
+                type:
+                    const: BotAccount
+                spaceId:
+                    $ref: "#/components/schemas/SpaceId"
+                botAccount:
+                    $ref: "#/components/schemas/BotAccount"
         Content:
             type: object
             additionalProperties: false
@@ -3662,6 +3677,34 @@ components:
                 - id
                 - name
                 - shortName
+                - space
+            additionalProperties: false
+            properties:
+                id:
+                    $ref: "#/components/schemas/AccountId"
+                name:
+                    $ref: "#/components/schemas/LabelString"
+                shortName:
+                    $ref: "#/components/schemas/LabelString"
+                bot:
+                    type: object
+                    required:
+                        - id
+                    additionalProperties: false
+                    properties:
+                        id:
+                            $ref: "#/components/schemas/BotId"
+                space:
+                    $ref: "#/components/schemas/AccountSpace"
+        BotAccount:
+            $ref: "#/components/schemas/Account"
+        BotAccount_Response:
+            type: object
+            required:
+                - id
+                - name
+                - shortName
+                - bot
                 - space
             additionalProperties: false
             properties:
@@ -7096,6 +7139,20 @@ components:
                     Task: "#/components/schemas/TaskReference_Response"
                     TaskCollection: "#/components/schemas/TaskCollectionReference_Response"
                     Site: "#/components/schemas/SiteReference_Response"
+        BotAccountAuth_Response:
+            type: object
+            additionalProperties: false
+            required:
+                - type
+                - spaceId
+                - botAccount
+            properties:
+                type:
+                    const: BotAccount
+                spaceId:
+                    $ref: "#/components/schemas/SpaceId"
+                botAccount:
+                    $ref: "#/components/schemas/BotAccount_Response"
         InboxChatEntry_Response:
             type: object
             required:
@@ -8236,6 +8293,13 @@ components:
                     Code: "#/components/schemas/ContentCodeBlockElement_Response_WithoutKeys"
                     File: "#/components/schemas/ContentFileBlockElement_Response_WithoutKeys"
                     Preview: "#/components/schemas/ContentPreviewBlockElement_Response_WithoutKeys"
+        Auth_Response:
+            oneOf:
+                - $ref: "#/components/schemas/BotAccountAuth_Response"
+            discriminator:
+                propertyName: type
+                mapping:
+                    BotAccount: "#/components/schemas/BotAccountAuth_Response"
         InboxEntry_Response:
             oneOf:
                 - $ref: "#/components/schemas/InboxChatEntry_Response"

@@ -50,7 +50,7 @@ paths:
                     content:
                         application/yaml: {}
 
-    /accounts/me/reference:
+    /auth:
         get:
             responses:
                 default: {$ref: "#/components/responses/Error"}
@@ -59,13 +59,11 @@ paths:
                         application/json:
                             schema:
                                 type: object
-                                required: [spaceId, reference]
+                                required: [auth]
                                 additionalProperties: false
                                 properties:
-                                    spaceId:
-                                        $ref: "#/components/schemas/SpaceId"
-                                    reference:
-                                        $ref: "#/components/schemas/AccountReference"
+                                    auth:
+                                        $ref: "#/components/schemas/Auth"
 
     # TODO(calebmer, #public-api): Document that if you have a bot and the bot is
     # trying to read an account that was a former member of the space you'll get
@@ -104,11 +102,9 @@ paths:
                         application/json:
                             schema:
                                 type: object
-                                required: [spaceId, reference]
+                                required: [reference]
                                 additionalProperties: false
                                 properties:
-                                    spaceId:
-                                        $ref: "#/components/schemas/SpaceId"
                                     reference:
                                         $ref: "#/components/schemas/AccountReference"
 
@@ -2445,6 +2441,30 @@ components:
                     Site: "#/components/schemas/SiteReference"
 
         # =========================================================================== #
+        #                                    Auth                                     #
+        # =========================================================================== #
+
+        Auth:
+            oneOf:
+                - $ref: "#/components/schemas/BotAccountAuth"
+            discriminator:
+                propertyName: type
+                mapping:
+                    BotAccount: "#/components/schemas/BotAccountAuth"
+
+        BotAccountAuth:
+            type: object
+            additionalProperties: false
+            required: [type, spaceId, botAccount]
+            properties:
+                type:
+                    const: BotAccount
+                spaceId:
+                    $ref: "#/components/schemas/SpaceId"
+                botAccount:
+                    $ref: "#/components/schemas/BotAccount"
+
+        # =========================================================================== #
         #                                   Content                                   #
         # =========================================================================== #
 
@@ -3291,7 +3311,7 @@ components:
             type: object
             required: [id, name, shortName, space]
             additionalProperties: false
-            properties:
+            properties: &accountResponseProperties
                 id:
                     $ref: "#/components/schemas/AccountId"
                 name:
@@ -3307,6 +3327,18 @@ components:
                             $ref: "#/components/schemas/BotId"
                 space:
                     $ref: "#/components/schemas/AccountSpace"
+
+        BotAccount:
+            $ref: "#/components/schemas/Account"
+
+        BotAccount_Response:
+            type: object
+            # The only difference between `BotAccount_Response` and `Account_Response` is
+            # that `bot` is required in `BotAccount_Response`.
+            required: [id, name, shortName, bot, space]
+            additionalProperties: false
+            properties:
+                <<: *accountResponseProperties
 
         AccountSpace:
             type: object
