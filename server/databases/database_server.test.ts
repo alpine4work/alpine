@@ -104,6 +104,11 @@ const testContext = {
         execute: async () => ({ok: true as const}),
     },
     actor: {
+        // A `System` actor with a trusted (`Test`) provenance: it passes the
+        // internal-action gate (see `canRunInternalDatabaseActions`) and, being a system
+        // actor, runs unrestricted by per-table access — the stand-in for privileged
+        // internal setup. Per-account tests use `createSessionContext` instead.
+        type: "System",
         serviceName: "Test",
         getPossiblyBotAccountIdIfExists: () => testAccountId,
     },
@@ -1397,9 +1402,10 @@ describe("DatabaseServer — per-table access", () => {
         expect(result.tableName).toBe("renamed");
     });
 
-    test("internal actors bypass per-table access", async () => {
+    test("system actors bypass per-table access", async () => {
         const server = await createServer();
-        // A policy granting nobody anything; the Test service actor must still read.
+        // A policy granting nobody anything; a `System` actor (holding space-wide
+        // authority and no account) must still read.
         const {tableName} = createTableWithPolicy(server, "Tasks", localPolicyWithGrants([]));
 
         const {result} = server.executeAction<"readonlyRawSql">(
