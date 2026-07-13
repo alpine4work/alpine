@@ -2,6 +2,8 @@ import {assert} from "~/shared/helpers/control/assert.js";
 
 type DatabaseDurableObjectSqlMigration = (sql: SqlStorage) => void;
 
+const databaseDurableObjectSqlVersionStorageKey = "alpine_database_sql_version";
+
 /** Ordered migrations for the database-group durable object's built-in SQLite. */
 export const databaseDurableObjectSqlMigrations: ReadonlyArray<DatabaseDurableObjectSqlMigration> = [
     sql => {
@@ -20,29 +22,27 @@ export const databaseDurableObjectSqlMigrations: ReadonlyArray<DatabaseDurableOb
         ) WITHOUT ROWID`);
     },
     sql => {
-        sql.exec(`CREATE TABLE database_table_access_policies (
+        sql.exec(`CREATE TABLE IF NOT EXISTS database_table_access_policies (
             database_table_id TEXT PRIMARY KEY,
             access_policy TEXT NOT NULL
         ) WITHOUT ROWID`);
     },
 ];
 
-export function runDatabaseDurableObjectSqlMigrations(storage: DurableObjectStorage): void {
-    const sql = storage.sql;
-    const versionResult = sql.exec<{user_version: number}>("PRAGMA user_version");
-    const versionRow = versionResult.next();
-    assert(!versionRow.done);
-    assert(versionResult.next().done);
-    const version = versionRow.value.user_version;
+export async function runDatabaseDurableObjectSqlMigrations(
+    storage: DurableObjectStorage,
+): Promise<void> {
+    const version = (await storage.get<number>(databaseDurableObjectSqlVersionStorageKey)) ?? 0;
     assert(
         version <= databaseDurableObjectSqlMigrations.length,
         `database durable object user_version (${version}) is ahead of known migrations (${databaseDurableObjectSqlMigrations.length})`,
     );
 
     for (let i = version; i < databaseDurableObjectSqlMigrations.length; i++) {
-        storage.transactionSync(() => {
-            databaseDurableObjectSqlMigrations[i]!(sql);
-            sql.exec(`PRAGMA user_version = ${i + 1}`);
-        });
+        // SQL DDL and legacy KV can't commit atomically. Migrations must therefore be
+        // idempotent: if the object stops after the SQL but before this version write,
+        // the same migration runs again on its next initialization.
+        databaseDurableObjectSqlMigrations[i]!(storage.sql);
+        await storage.put(databaseDurableObjectSqlVersionStorageKey, i + 1);
     }
 }

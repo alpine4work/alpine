@@ -1,5 +1,4 @@
 import type {DatabaseServerStorage} from "~/server/databases/database_server_storage.js";
-import {runDatabaseDurableObjectSqlMigrations} from "~/server/databases/database_durable_object_sql_migrations.js";
 import {
     type LocalAccessPolicy,
     LocalAccessPolicySchema,
@@ -41,7 +40,6 @@ export class DatabaseDurableObjectStorage implements DatabaseServerStorage {
     constructor(storage: DurableObjectStorage) {
         this.storage = storage;
         this.sql = storage.sql;
-        runDatabaseDurableObjectSqlMigrations(storage);
     }
 
     transactionSync<T>(fn: () => T): T {
