@@ -10,7 +10,8 @@ test("create document", async () => {
         await cli.run(`\
 alpine create document '# YouTube launch
 
-YouTube launched on February 14, 2005.'`),
+YouTube launched on February 14, 2005.'
+`),
     ).toEqual(`\
 Create was successful. New document: [YouTube launch](/document/youtube-launch).
 `);
@@ -20,12 +21,14 @@ test("read document created by the CLI", async () => {
     await cli.run(`\
 alpine create document '# YouTube overview
 
-YouTube is an American online video sharing and social media platform headquartered in San Bruno, California.'`);
+YouTube is an American online video sharing and social media platform headquartered in San Bruno, California.'
+`);
 
     expect(await cli.run("alpine read /document/youtube-overview")).toEqual(`\
 # YouTube overview
 
-YouTube is an American online video sharing and social media platform headquartered in San Bruno, California.`);
+YouTube is an American online video sharing and social media platform headquartered in San Bruno, California.
+`);
 });
 
 test("search for and read document created by a test helper", async () => {
@@ -52,7 +55,8 @@ test("search for and read document created by a test helper", async () => {
         `\
 # Me at the zoo
 
-The first video, “Me at the zoo,” was uploaded on April 23, 2005.`,
+The first video, “Me at the zoo,” was uploaded on April 23, 2005.
+`,
     ]);
 });
 
@@ -62,7 +66,9 @@ alpine create document '# YouTube acquisition
 
 Google bought YouTube for $1.65 billion in October 2006.
 
-The acquisition expanded the platform beyond advertising.'`);
+The acquisition expanded the platform beyond advertising.'
+`);
+
     await cli.run("alpine read /document/youtube-acquisition");
 
     expect(await cli.run("alpine scroll /document/youtube-acquisition 0")).toEqual(`\
@@ -72,13 +78,17 @@ Google bought YouTube for $1.65 billion in October 2006.
 
 The acquisition expanded the platform beyond advertising.
 
-(End of file. Showing lines 1-5 of 5.)`);
+(End of file. Showing lines 1-5 of 5.)
+`);
 });
 
 test("find in document", async () => {
-    await cli.run(`alpine create document '# YouTube founders
+    await cli.run(`\
+alpine create document '# YouTube founders
 
-YouTube was founded by Steve Chen, Chad Hurley, and Jawed Karim.'`);
+YouTube was founded by Steve Chen, Chad Hurley, and Jawed Karim.'
+`);
+
     await cli.run("alpine read /document/youtube-founders");
 
     expect(await cli.run("alpine find /document/youtube-founders 'Jawed Karim' --match-limit=80b"))
@@ -96,9 +106,12 @@ YouTube was founded by Steve Chen, Chad Hurley, and Jawed Karim.
 });
 
 test("update document", async () => {
-    await cli.run(`alpine create document '# YouTube advertising revenue
+    await cli.run(`\
+alpine create document '# YouTube advertising revenue
 
-YouTube’s annual advertising revenue increased to $28.8 billion in 2021.'`);
+YouTube’s annual advertising revenue increased to $28.8 billion in 2021.'
+`);
+
     await cli.run("alpine read /document/youtube-advertising-revenue");
 
     expect([
@@ -111,6 +124,7 @@ Update was successful.
         `\
 # YouTube advertising revenue
 
-YouTube’s annual advertising revenue increased to $28.8 billion in 2022.`,
+YouTube’s annual advertising revenue increased to $28.8 billion in 2022.
+`,
     ]);
 });
