@@ -22,8 +22,11 @@ if [ -n "${BUILD_WORKSPACE_DIRECTORY:-}" ] &&
     source "${BUILD_WORKSPACE_DIRECTORY}/.env.development.local"
 fi
 
+# Run the GUI on the port immediately after the local DynamoDB instance.
+dynamo_local_gui_port=$((DYNAMO_LOCAL_PORT + 1))
+
 HOST=localhost \
-    PORT="$DYNAMO_LOCAL_GUI_PORT" \
+    PORT="$dynamo_local_gui_port" \
     DYNAMO_ENDPOINT="http://localhost:$DYNAMO_LOCAL_PORT" \
     AWS_ACCESS_KEY_ID=local \
     AWS_REGION=us-east-1 \

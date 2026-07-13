@@ -38,7 +38,10 @@ export OSD_NODE_HOME="$(cd "$(dirname "$node")/.." && pwd)"
 
 opensearch_dashboards_bin="$(rlocation opensearch_dashboards_local/bin/opensearch-dashboards)"
 
+# Run the GUI on the port immediately after the local OpenSearch instance.
+opensearch_dashboards_local_port=$((OPENSEARCH_LOCAL_PORT + 1))
+
 exec "$opensearch_dashboards_bin" \
     -H localhost \
-    -p "$OPENSEARCH_DASHBOARDS_LOCAL_PORT" \
+    -p "$opensearch_dashboards_local_port" \
     --opensearch "http://localhost:${OPENSEARCH_LOCAL_PORT}"
