@@ -335,6 +335,7 @@ export class DatabaseClient {
         try {
             const executed = this.database.executeAction(actionObject, {
                 getTableAccessLevel: this.getTableAccessLevel,
+                enforceTableAccess: true,
             });
             output = executed.result;
             writtenPages = executed.writtenPages;
@@ -414,6 +415,7 @@ export class DatabaseClient {
     ): {output: DatabaseActionOutput<N>; readPages: ReadonlyDatabasePageSet} {
         const {result, readPages, writtenPages} = this.database.executeAction(actionObject, {
             getTableAccessLevel: this.getTableAccessLevel,
+            enforceTableAccess: true,
         });
         assert(writtenPages.size === 0, "executeActionWithTracking does not support writes");
         return {output: result, readPages};
@@ -670,6 +672,7 @@ export class DatabaseClient {
             try {
                 const {writtenPages} = this.database.executeAction(mutation.action, {
                     getTableAccessLevel: this.getTableAccessLevel,
+                    enforceTableAccess: true,
                 });
                 if (this.markWrittenPages(writtenPages)) {
                     anyInvalidated = true;

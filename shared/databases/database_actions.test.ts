@@ -1,4 +1,5 @@
 import sqlite3InitModule, {Database} from "~/external/sqlite/ext/wasm/jswasm/sqlite3.mjs";
+import {allowAllTableAccess} from "~/shared/databases/allow_all_table_access.js";
 import type {DatabaseActionContext} from "~/shared/databases/database_action_context.js";
 import {
     type DatabaseActionInput,
@@ -65,15 +66,19 @@ function makeCtx(db: SqliteDatabase): DatabaseActionContext {
         tables = new InMemoryDatabaseServerTableStore();
         tableStores.set(db, tables);
     }
-    return createDatabaseActionContext(db, {
-        attach(tableId) {
-            attachTableDb(db, tableId);
+    return createDatabaseActionContext(
+        db,
+        {
+            attach(tableId) {
+                attachTableDb(db, tableId);
+            },
+            getCurrentAccountId() {
+                return testAccountId;
+            },
+            tables,
         },
-        getCurrentAccountId() {
-            return testAccountId;
-        },
-        tables,
-    });
+        allowAllTableAccess,
+    );
 }
 
 /** Run an action with a freshly-built context. */
@@ -597,7 +602,7 @@ function readLinks(
     db: SqliteDatabase,
     joinTableId: DatabaseTableId,
 ): Array<{sourceRowId: DatabaseRowId; targetRowId: DatabaseRowId}> {
-    const joinTable = new DatabaseModel(db).getJoinTable(joinTableId);
+    const joinTable = new DatabaseModel(db, null, allowAllTableAccess).getJoinTable(joinTableId);
     return sql`
         SELECT
             ${joinTable.sourceRowIdColumn()} AS source_row_id,

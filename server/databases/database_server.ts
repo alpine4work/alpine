@@ -136,7 +136,15 @@ export class DatabaseServer {
         options: {allowWrites: SqliteWriteLevel},
     ): DatabaseServerResult {
         const {result, readPages, changedPages, writeVersion} = this._runAndPersist(context, () => {
-            const {rows, readPages} = this.database.executeSql(query, options);
+            const currentAccountId = context.actor.getPossiblyBotAccountIdIfExists();
+            const {rows, readPages} = this.database.executeSql(query, {
+                ...options,
+                getTableAccessLevel:
+                    context.actor.type === "System"
+                        ? allowAllTableAccess
+                        : tableId => this.getTableAccessLevelForAccount(tableId, currentAccountId),
+                enforceTableAccess: context.actor.type !== "System",
+            });
             return {result: rows, readPages};
         });
         return {rows: result, readPages, changedPages, writeVersion};
@@ -174,10 +182,12 @@ export class DatabaseServer {
                 ? allowAllTableAccess
                 : (tableId: DatabaseTableId) =>
                       this.getTableAccessLevelForAccount(tableId, currentAccountId);
+        const enforceTableAccess = !action.internalOnly && context.actor.type !== "System";
         return this._runAndPersist(context, () =>
             this.database.executeAction(actionObject, {
                 currentAccountId,
                 getTableAccessLevel,
+                enforceTableAccess,
             }),
         );
     }
@@ -261,7 +271,11 @@ export class DatabaseServer {
                 db.exec("PRAGMA quick_check");
                 runMainMigrations(db);
             },
-            {allowWrites: "schema+data"},
+            {
+                allowWrites: "schema+data",
+                getTableAccessLevel: allowAllTableAccess,
+                enforceTableAccess: false,
+            },
         );
         this._persistBuffer();
 
@@ -294,7 +308,11 @@ export class DatabaseServer {
                             throw exhaustive(table.kind);
                     }
                 },
-                {allowWrites: "schema+data"},
+                {
+                    allowWrites: "schema+data",
+                    getTableAccessLevel: allowAllTableAccess,
+                    enforceTableAccess: false,
+                },
             );
             this._persistBuffer();
             // Repair the mirror only after the migrated pages are durable — a crash in between

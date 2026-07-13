@@ -1,7 +1,6 @@
 import type {Sqlite3Static, WasmPointer} from "~/external/sqlite/ext/wasm/jswasm/sqlite3.mjs";
 import sqlite3InitModule from "~/external/sqlite/ext/wasm/jswasm/sqlite3.mjs";
 import type {AccessLevel} from "~/shared/access/access_policy.js";
-import {allowAllTableAccess} from "~/shared/databases/allow_all_table_access.js";
 import type {
     DatabaseActionServerContext,
     DatabaseServerTableStore,
@@ -47,7 +46,7 @@ import {
 import {installTracing} from "~/shared/databases/sqlite_tracing.js";
 import {TableNotAttachedError} from "~/shared/databases/table_not_attached_error.js";
 import {VfsTempFile} from "~/shared/databases/vfs_temp_file.js";
-import {PermissionDeniedError} from "~/shared/error/error.js";
+import {InternalError, PermissionDeniedError} from "~/shared/error/error.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {captureResult, unwrapResult} from "~/shared/helpers/control/capture_result.js";
 import type {Result} from "~/shared/helpers/control/result.js";
@@ -188,15 +187,16 @@ export class Database {
     private readonly schemaToTable = new Map<string, DatabaseTableId>();
     private writeLevel: InternalSqliteWriteLevel | null = null;
     /**
-     * Per-execution table access, installed via {@link execute}'s
-     * `getTableAccessLevel` option; `null` means no scoped lookup is installed
-     * (internal SQL — attach recovery and the `"attach"` write level), which runs
-     * unrestricted. Callers grant unrestricted access explicitly with
-     * `allowAllTableAccess`. Enforced by the authorizer for every statement.
+     * Per-execution table access, installed via {@link execute}'s required
+     * `getTableAccessLevel` option. Callers grant unrestricted access explicitly with
+     * `allowAllTableAccess`. Enforced by the authorizer for every statement except
+     * internal attach SQL.
      */
-    private getTableAccessLevelForExecution:
-        | ((tableId: DatabaseTableId) => AccessLevel | null)
-        | null = null;
+    private getTableAccessLevelForExecution: (tableId: DatabaseTableId) => AccessLevel | null =
+        () => {
+            throw new InternalError("Database table access requested outside an execution");
+        };
+    private enforceTableAccessForExecution = true;
     /**
      * The last denial issued by the per-table authorizer layer, used to convert
      * SQLite's generic "not authorized" error into a typed {@link
@@ -304,7 +304,7 @@ export class Database {
                 // `user_version` asserts, and change-capture trigger DDL that must succeed
                 // regardless of the ambient account's access).
                 if (
-                    this.getTableAccessLevelForExecution !== null &&
+                    this.enforceTableAccessForExecution &&
                     this.writeLevel !== "attach" &&
                     !this.inAttachRecovery
                 ) {
@@ -373,29 +373,23 @@ export class Database {
      *
      * `allowWrites` controls which classes of statement the authorizer permits while
      * `fn` runs. `getTableAccessLevel` additionally restricts which attached table
-     * files those statements may touch; omit it to inherit the ambient lookup, or pass
-     * `allowAllTableAccess` to run unrestricted. On the canonical (server) database, a
-     * schema change also triggers `PRAGMA optimize` inside the same tracked call (see
-     * {@link maybeOptimizeAfterWrites}).
+     * files those statements may touch; pass `allowAllTableAccess` to run
+     * unrestricted. On the canonical (server) database, a schema change also triggers
+     * `PRAGMA optimize` inside the same tracked call (see {@link
+     * maybeOptimizeAfterWrites}).
      */
     execute<T>(
         fn: (db: SqliteDatabase) => T,
         options: {
             allowWrites: SqliteWriteLevel;
-            getTableAccessLevel?: (tableId: DatabaseTableId) => AccessLevel | null;
+            getTableAccessLevel: (tableId: DatabaseTableId) => AccessLevel | null;
+            enforceTableAccess: boolean;
         },
     ): {result: T; readPages: ReadonlyDatabasePageSet; writtenPages: ReadonlyDatabasePageSet} {
         const previousGetTableAccessLevel = this.getTableAccessLevelForExecution;
-        if (options.getTableAccessLevel !== undefined) {
-            // `allowAllTableAccess` is the explicit "no enforcement" signal — install it as
-            // the `null` (no-lookup) state so the authorizer skips the per-table layer
-            // outright. That's required for statements touching schemas not yet mapped (e.g. a
-            // table mid-creation), which the layer would otherwise fail closed on.
-            this.getTableAccessLevelForExecution =
-                options.getTableAccessLevel === allowAllTableAccess
-                    ? null
-                    : options.getTableAccessLevel;
-        }
+        const previousEnforceTableAccess = this.enforceTableAccessForExecution;
+        this.getTableAccessLevelForExecution = options.getTableAccessLevel;
+        this.enforceTableAccessForExecution = options.enforceTableAccess;
         try {
             return this.runTracked(options.allowWrites, db => {
                 const result = fn(db);
@@ -404,6 +398,7 @@ export class Database {
             });
         } finally {
             this.getTableAccessLevelForExecution = previousGetTableAccessLevel;
+            this.enforceTableAccessForExecution = previousEnforceTableAccess;
         }
     }
 
@@ -417,7 +412,8 @@ export class Database {
         query: SqlQuery,
         options: {
             allowWrites: SqliteWriteLevel;
-            getTableAccessLevel?: (tableId: DatabaseTableId) => AccessLevel | null;
+            getTableAccessLevel: (tableId: DatabaseTableId) => AccessLevel | null;
+            enforceTableAccess: boolean;
         },
     ): DatabaseExecuteResult {
         const {result, readPages, writtenPages} = this.execute(
@@ -433,13 +429,14 @@ export class Database {
      */
     executeAction<N extends DatabaseActionName>(
         actionObject: DatabaseActionObject<N>,
-        options?: {
+        options: {
             currentAccountId?: AccountId | null;
-            getTableAccessLevel?: (tableId: DatabaseTableId) => AccessLevel | null;
+            getTableAccessLevel: (tableId: DatabaseTableId) => AccessLevel | null;
+            enforceTableAccess: boolean;
         },
     ): DatabaseExecuteActionResult<N> {
         const previousActionAccountId = this.currentActionAccountId;
-        this.currentActionAccountId = options?.currentAccountId ?? null;
+        this.currentActionAccountId = options.currentAccountId ?? null;
         try {
             const action = databaseActions[actionObject.name];
             const ctx = createDatabaseActionContext(
@@ -451,7 +448,8 @@ export class Database {
                 () => executeDatabaseAction(actionObject, ctx),
                 {
                     allowWrites: action.writeLevel,
-                    getTableAccessLevel: options?.getTableAccessLevel,
+                    getTableAccessLevel: options.getTableAccessLevel,
+                    enforceTableAccess: options.enforceTableAccess,
                 },
             );
             return {result: result as DatabaseActionOutput<N>, readPages, writtenPages};
@@ -461,15 +459,12 @@ export class Database {
     }
 
     /**
-     * The current execution's access level on `tableId`, resolved from the installed
-     * lookup (`Manage` when none is installed). Handed to action contexts so shared
-     * action code — e.g. relation fields deciding whether they may join into a linked
-     * table — sees the same verdicts the authorizer enforces.
+     * The current execution's access level on `tableId`. Handed to action contexts so
+     * shared action code — e.g. relation fields deciding whether they may join into a
+     * linked table — sees the same verdicts the authorizer enforces.
      */
-    readonly getTableAccessLevel = (tableId: DatabaseTableId): AccessLevel | null => {
-        const getTableAccessLevel = this.getTableAccessLevelForExecution;
-        return getTableAccessLevel === null ? "Manage" : getTableAccessLevel(tableId);
-    };
+    readonly getTableAccessLevel = (tableId: DatabaseTableId): AccessLevel | null =>
+        this.getTableAccessLevelForExecution(tableId);
 
     /**
      * Create a cached execution backed by database page dependencies.
@@ -730,9 +725,7 @@ export class Database {
         if (schemaName === "main" || schemaName === "temp") return "Manage";
         const tableId = this.schemaToTable.get(schemaName);
         if (tableId === undefined) return null;
-        const getTableAccessLevel = this.getTableAccessLevelForExecution;
-        assert(getTableAccessLevel !== null, "resolveSchemaAccess requires an access lookup");
-        return getTableAccessLevel(tableId);
+        return this.getTableAccessLevelForExecution(tableId);
     };
 
     /**

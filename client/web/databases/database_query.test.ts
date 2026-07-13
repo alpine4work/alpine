@@ -8,6 +8,7 @@ import type {DatabaseQueryRow} from "~/client/web/databases/database_query_row.j
 import {createInMemoryOpfsDirectoryHandle} from "~/client/web/databases/test_helpers/in_memory_opfs.js";
 import {makeDatabaseClientConnection} from "~/client/web/databases/test_helpers/make_database_client_connection.js";
 import {DatabaseClient} from "~/client/web/databases/worker/database_client.js";
+import {allowAllTableAccess} from "~/shared/databases/allow_all_table_access.js";
 import {Database} from "~/shared/databases/database.js";
 import type {
     DatabaseActionInput,
@@ -174,7 +175,10 @@ async function buildSchemaSeed(
         {readPage: () => null, getFileSize: () => 0},
         {server: {tables: new InMemoryDatabaseServerTableStore()}},
     );
-    fake.execute(db => runMainMigrations(db), {allowWrites: "schema+data"});
+    fake.execute(db => runMainMigrations(db), {
+        allowWrites: "schema+data",
+        getTableAccessLevel: allowAllTableAccess, enforceTableAccess: false,
+    });
     const creatorId = generateId<AccountId>();
     const {result} = fake.executeAction<"createTable">(
         {
@@ -185,7 +189,7 @@ async function buildSchemaSeed(
                 accessPolicy: databaseTableAccessPolicyForCreator(creatorId),
             },
         },
-        {currentAccountId: creatorId},
+        {currentAccountId: creatorId, getTableAccessLevel: allowAllTableAccess, enforceTableAccess: false},
     );
 
     const buffered = fake.getBufferedWrites();

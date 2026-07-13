@@ -1,3 +1,4 @@
+import {allowAllTableAccess} from "~/shared/databases/allow_all_table_access.js";
 import {Database, type ReadonlyDatabaseStorage} from "~/shared/databases/database.js";
 import {type SqlQuery, sql} from "~/shared/databases/sql.js";
 import {databaseMainTableId, sqlitePageSize} from "~/shared/databases/sqlite_constants.js";
@@ -115,7 +116,10 @@ async function createDatabaseWithSchema(
 ): Promise<{database: Database; storage: InMemoryStorage}> {
     const {database, storage} = await createDatabase();
     for (const stmt of statements) {
-        database.executeSql(stmt, {allowWrites: "schema+data"});
+        database.executeSql(stmt, {
+            allowWrites: "schema+data",
+            getTableAccessLevel: allowAllTableAccess, enforceTableAccess: false,
+        });
     }
     commit(database, storage);
     return {database, storage};
@@ -138,6 +142,7 @@ describe("Database — execute", () => {
             `,
             {
                 allowWrites: "none",
+                getTableAccessLevel: allowAllTableAccess, enforceTableAccess: false,
             },
         );
 
@@ -168,6 +173,7 @@ describe("Database — execute", () => {
             `,
             {
                 allowWrites: "none",
+                getTableAccessLevel: allowAllTableAccess, enforceTableAccess: false,
             },
         );
 
@@ -191,6 +197,7 @@ describe("Database — execute", () => {
             `,
             {
                 allowWrites: "data",
+                getTableAccessLevel: allowAllTableAccess, enforceTableAccess: false,
             },
         );
 
@@ -214,6 +221,7 @@ describe("Database — execute", () => {
             `,
             {
                 allowWrites: "data",
+                getTableAccessLevel: allowAllTableAccess, enforceTableAccess: false,
             },
         );
 
@@ -239,6 +247,7 @@ describe("Database — createTrackedExecution", () => {
                 `,
                 {
                     allowWrites: "none",
+                    getTableAccessLevel: allowAllTableAccess, enforceTableAccess: false,
                 },
             ).rows[0]!.count;
         });
@@ -274,6 +283,7 @@ describe("Database — createTrackedExecution", () => {
                 `,
                 {
                     allowWrites: "none",
+                    getTableAccessLevel: allowAllTableAccess, enforceTableAccess: false,
                 },
             ).rows[0]!.name;
         });
@@ -292,6 +302,7 @@ describe("Database — createTrackedExecution", () => {
             `,
             {
                 allowWrites: "none",
+                getTableAccessLevel: allowAllTableAccess, enforceTableAccess: false,
             },
         ).readPages;
 
@@ -305,6 +316,7 @@ describe("Database — createTrackedExecution", () => {
             `,
             {
                 allowWrites: "data",
+                getTableAccessLevel: allowAllTableAccess, enforceTableAccess: false,
             },
         );
         expect(execution.invalidateForPages(invalidatedPages)).toBe(true);
@@ -328,10 +340,13 @@ describe("Database — createTrackedExecution", () => {
 
         const execution = database.createTrackedExecution(
             () =>
-                database.executeAction<"readonlyRawSql">({
-                    name: "readonlyRawSql",
-                    input: {sql: "SELECT COUNT(*) AS count FROM items"},
-                }).result.rows[0] as {count: number},
+                database.executeAction<"readonlyRawSql">(
+                    {
+                        name: "readonlyRawSql",
+                        input: {sql: "SELECT COUNT(*) AS count FROM items"},
+                    },
+                    {getTableAccessLevel: allowAllTableAccess, enforceTableAccess: false},
+                ).result.rows[0] as {count: number},
         );
 
         expect(execution.getSnapshot()).toEqual({count: 1});
@@ -360,6 +375,7 @@ describe("Database — createTrackedExecution", () => {
                     `,
                     {
                         allowWrites: "none",
+                        getTableAccessLevel: allowAllTableAccess, enforceTableAccess: false,
                     },
                 ).rows[0]!.count as number,
         );
@@ -374,7 +390,7 @@ describe("Database — createTrackedExecution", () => {
                         (${count})
                 `.exec(db);
             },
-            {allowWrites: "data"},
+            {allowWrites: "data", getTableAccessLevel: allowAllTableAccess, enforceTableAccess: false},
         );
         commit(database, storage);
 
@@ -386,7 +402,7 @@ describe("Database — createTrackedExecution", () => {
                     FROM
                         destination
                 `,
-                {allowWrites: "none"},
+                {allowWrites: "none", getTableAccessLevel: allowAllTableAccess, enforceTableAccess: false},
             ).rows,
         ).toEqual([{value: 1}]);
         execution.destroy();
@@ -404,7 +420,7 @@ describe("Database — createTrackedExecution", () => {
                     VALUES
                         (1)
                 `,
-                {allowWrites: "data"},
+                {allowWrites: "data", getTableAccessLevel: allowAllTableAccess, enforceTableAccess: false},
             );
         });
 
@@ -420,7 +436,10 @@ describe("Database — authorizer", () => {
         const {database} = await createDatabase();
 
         expect(() =>
-            database.executeSql(sql`CREATE TABLE t (id INTEGER)`, {allowWrites: "data"}),
+            database.executeSql(sql`CREATE TABLE t (id INTEGER)`, {
+                allowWrites: "data",
+                getTableAccessLevel: allowAllTableAccess, enforceTableAccess: false,
+            }),
         ).toThrow();
     });
 
@@ -437,7 +456,7 @@ describe("Database — authorizer", () => {
                     VALUES
                         (1)
                 `,
-                {allowWrites: "none"},
+                {allowWrites: "none", getTableAccessLevel: allowAllTableAccess, enforceTableAccess: false},
             ),
         ).toThrow();
     });
@@ -463,6 +482,7 @@ describe("Database — authorizer", () => {
                 `,
                 {
                     allowWrites: level,
+                    getTableAccessLevel: allowAllTableAccess, enforceTableAccess: false,
                 },
             );
             expect(result.rows).toEqual([{id: 1}]);
@@ -474,7 +494,10 @@ describe("Database — authorizer", () => {
 
         for (const level of ["none", "data", "schema+data"] as const) {
             expect(() =>
-                database.executeSql(sql`ATTACH DATABASE '/foo' AS foo`, {allowWrites: level}),
+                database.executeSql(sql`ATTACH DATABASE '/foo' AS foo`, {
+                    allowWrites: level,
+                    getTableAccessLevel: allowAllTableAccess, enforceTableAccess: false,
+                }),
             ).toThrow();
         }
     });
@@ -499,7 +522,7 @@ describe("Database — per-table access", () => {
         database.attach(otherTableId);
         database.executeSql(
             sql`CREATE TABLE ${sql.tableRef(otherTableId, "things")} (id INTEGER PRIMARY KEY)`,
-            {allowWrites: "schema+data"},
+            {allowWrites: "schema+data", getTableAccessLevel: allowAllTableAccess, enforceTableAccess: false},
         );
         database.executeSql(
             sql`
@@ -508,7 +531,7 @@ describe("Database — per-table access", () => {
                 VALUES
                     (1)
             `,
-            {allowWrites: "data"},
+            {allowWrites: "data", getTableAccessLevel: allowAllTableAccess, enforceTableAccess: false},
         );
         return {database, otherTableId};
     }
@@ -525,7 +548,7 @@ describe("Database — per-table access", () => {
                     FROM
                         ${sql.tableRef(otherTableId, "things")}
                 `,
-                {allowWrites: "none", getTableAccessLevel: denyAll},
+                {allowWrites: "none", getTableAccessLevel: denyAll, enforceTableAccess: true},
             ),
         ).toThrow(`Permission denied for read on database table ${otherTableId}`);
     });
@@ -541,7 +564,7 @@ describe("Database — per-table access", () => {
                 FROM
                     ${sql.tableRef(otherTableId, "things")}
             `,
-            {allowWrites: "none", getTableAccessLevel: readOnly},
+            {allowWrites: "none", getTableAccessLevel: readOnly, enforceTableAccess: true},
         );
 
         expect(result.rows).toEqual([{id: 1}]);
@@ -560,7 +583,7 @@ describe("Database — per-table access", () => {
                     WHERE
                         id = 1
                 `,
-                {allowWrites: "data", getTableAccessLevel: readOnly},
+                {allowWrites: "data", getTableAccessLevel: readOnly, enforceTableAccess: true},
             ),
         ).toThrow(`Permission denied for update on database table ${otherTableId}`);
     });
@@ -584,7 +607,7 @@ describe("Database — per-table access", () => {
                 FROM
                     items
             `,
-            {allowWrites: "none", getTableAccessLevel: denyAll},
+            {allowWrites: "none", getTableAccessLevel: denyAll, enforceTableAccess: true},
         );
 
         expect(result.rows).toEqual([{id: 1}]);
@@ -595,16 +618,30 @@ describe("Database — per-table access", () => {
 
         const {result} = database.execute(() => database.getTableAccessLevel(otherTableId), {
             allowWrites: "none",
-            getTableAccessLevel: () => null,
+            getTableAccessLevel: () => null, enforceTableAccess: true,
         });
 
         expect(result).toBeNull();
     });
 
-    test("getTableAccessLevel returns Manage without an installed lookup", async () => {
+    test("getTableAccessLevel uses an explicit unrestricted lookup", async () => {
         const {database, otherTableId} = await createDatabaseWithAttachedTable();
 
-        expect(database.getTableAccessLevel(otherTableId)).toBe("Manage");
+        const unrestricted = () => allowAllTableAccess();
+        const {result} = database.execute(() => database.getTableAccessLevel(otherTableId), {
+            allowWrites: "none",
+            getTableAccessLevel: unrestricted, enforceTableAccess: true,
+        });
+
+        expect(result).toBe("Manage");
+    });
+
+    test("getTableAccessLevel rejects calls outside an execution", async () => {
+        const {database, otherTableId} = await createDatabaseWithAttachedTable();
+
+        expect(() => database.getTableAccessLevel(otherTableId)).toThrow(
+            "Database table access requested outside an execution",
+        );
     });
 });
 
@@ -619,7 +656,7 @@ describe("Database — attach", () => {
         // must flow through the same VFS / hook plumbing as the main table.
         database.executeSql(
             sql`CREATE TABLE ${sql.tableRef(otherTableId, "items")} (id INTEGER PRIMARY KEY)`,
-            {allowWrites: "schema+data"},
+            {allowWrites: "schema+data", getTableAccessLevel: allowAllTableAccess, enforceTableAccess: false},
         );
         database.executeSql(
             sql`
@@ -630,6 +667,7 @@ describe("Database — attach", () => {
             `,
             {
                 allowWrites: "data",
+                getTableAccessLevel: allowAllTableAccess, enforceTableAccess: false,
             },
         );
         commit(database, storage);
@@ -641,7 +679,7 @@ describe("Database — attach", () => {
                 FROM
                     ${sql.tableRef(otherTableId, "items")}
             `,
-            {allowWrites: "none"},
+            {allowWrites: "none", getTableAccessLevel: allowAllTableAccess, enforceTableAccess: false},
         );
 
         expect(result.rows).toEqual([{id: 1}]);
@@ -674,6 +712,7 @@ describe("Database — attach", () => {
                 sql`ATTACH DATABASE ${`/${yetAnother}`} AS ${sql.identifier(yetAnother)}`,
                 {
                     allowWrites: "schema+data",
+                    getTableAccessLevel: allowAllTableAccess, enforceTableAccess: false,
                 },
             ),
         ).toThrow();
@@ -698,7 +737,7 @@ describe("Database — attach", () => {
                         (1)
                 `.exec(db);
             },
-            {allowWrites: "schema+data"},
+            {allowWrites: "schema+data", getTableAccessLevel: allowAllTableAccess, enforceTableAccess: false},
         );
         commit(database, storage);
 
@@ -709,7 +748,7 @@ describe("Database — attach", () => {
                 FROM
                     ${sql.tableRef(otherTableId, "items")}
             `,
-            {allowWrites: "none"},
+            {allowWrites: "none", getTableAccessLevel: allowAllTableAccess, enforceTableAccess: false},
         );
 
         expect(result.rows).toEqual([{id: 1}]);
@@ -726,7 +765,7 @@ describe("Database — attach", () => {
                     CREATE TABLE ${sql.tableRef(otherTableId, "items")} (id INTEGER PRIMARY KEY)
                 `.exec(db);
             },
-            {allowWrites: "schema+data"},
+            {allowWrites: "schema+data", getTableAccessLevel: allowAllTableAccess, enforceTableAccess: false},
         );
 
         expect(writtenPages.get(otherTableId)?.size).toBeGreaterThan(0);
@@ -748,7 +787,7 @@ describe("Database — attach", () => {
         database.attach(otherTableId);
         database.executeSql(
             sql`CREATE TABLE ${sql.tableRef(otherTableId, "items")} (id INTEGER PRIMARY KEY)`,
-            {allowWrites: "schema+data"},
+            {allowWrites: "schema+data", getTableAccessLevel: allowAllTableAccess, enforceTableAccess: false},
         );
 
         const detached = database.detachTableIfAttached(otherTableId);
@@ -785,7 +824,7 @@ describe("Database — unattached per-db file detection", () => {
                     FROM
                         ${sql.tableRef(tableId, "_alpine_table")}
                 `,
-                {allowWrites: "none"},
+                {allowWrites: "none", getTableAccessLevel: allowAllTableAccess, enforceTableAccess: false},
             ),
         ).toThrow(TableNotAttachedError);
     });
@@ -799,6 +838,7 @@ describe("Database — unattached per-db file detection", () => {
         expect(() =>
             database.executeSql(sql`CREATE INDEX ${sql.tableRef(tableId, "i")} ON items (x)`, {
                 allowWrites: "schema+data",
+                getTableAccessLevel: allowAllTableAccess, enforceTableAccess: false,
             }),
         ).toThrow(TableNotAttachedError);
     });
@@ -820,7 +860,7 @@ describe("Database — unattached per-db file detection", () => {
                     FROM
                         ${sql.tableRef(tableId, "_alpine_table")}
                 `,
-                {allowWrites: "none"},
+                {allowWrites: "none", getTableAccessLevel: allowAllTableAccess, enforceTableAccess: false},
             ),
         ).toThrow("no such table");
     });
@@ -841,7 +881,7 @@ describe("Database — unattached per-db file detection", () => {
                     FROM
                         ${sql.tableRef(tableId, "_alpine_table")}
                 `,
-                {allowWrites: "none"},
+                {allowWrites: "none", getTableAccessLevel: allowAllTableAccess, enforceTableAccess: false},
             ),
         ).toThrow("no such table");
     });
@@ -869,7 +909,10 @@ async function createServerDatabaseWithTables(
         attachEvictionThresholdForTests,
     });
     openDatabases.push(database);
-    database.execute(db => runMainMigrations(db), {allowWrites: "schema+data"});
+    database.execute(db => runMainMigrations(db), {
+        allowWrites: "schema+data",
+        getTableAccessLevel: allowAllTableAccess, enforceTableAccess: false,
+    });
     commit(database, storage);
 
     const tableIds: Array<DatabaseTableId> = [];
@@ -896,7 +939,7 @@ async function createServerDatabaseWithTables(
                         (${i})
                 `.exec(db);
             },
-            {allowWrites: "schema+data"},
+            {allowWrites: "schema+data", getTableAccessLevel: allowAllTableAccess, enforceTableAccess: false},
         );
         commit(database, storage);
     }
@@ -932,7 +975,7 @@ describe("Database — LRU eviction at the attach threshold", () => {
                 FROM
                     ${sql.tableRef(tableA, "items")}
             `,
-            {allowWrites: "none"},
+            {allowWrites: "none", getTableAccessLevel: allowAllTableAccess, enforceTableAccess: false},
         );
 
         expect({rows: result.rows, reattached: database.isAttached(tableA)}).toEqual({
@@ -955,7 +998,7 @@ describe("Database — LRU eviction at the attach threshold", () => {
                     FROM
                         ${sql.tableRef(unregisteredTableId, "items")}
                 `,
-                {allowWrites: "none"},
+                {allowWrites: "none", getTableAccessLevel: allowAllTableAccess, enforceTableAccess: false},
             ),
         ).toThrow("no such table");
         expect(database.isAttached(unregisteredTableId)).toBe(false);
@@ -973,7 +1016,7 @@ describe("Database — LRU eviction at the attach threshold", () => {
                 VALUES
                     (${staleTableId}, 'table')
             `,
-            {allowWrites: "schema+data"},
+            {allowWrites: "schema+data", getTableAccessLevel: allowAllTableAccess, enforceTableAccess: false},
         );
 
         expect(() =>
@@ -984,7 +1027,7 @@ describe("Database — LRU eviction at the attach threshold", () => {
                     FROM
                         ${sql.tableRef(staleTableId, "items")}
                 `,
-                {allowWrites: "none"},
+                {allowWrites: "none", getTableAccessLevel: allowAllTableAccess, enforceTableAccess: false},
             ),
         ).toThrow("attach-on-miss found table");
     });
@@ -1003,7 +1046,7 @@ describe("Database — LRU eviction at the attach threshold", () => {
                 VALUES
                     (100)
             `,
-            {allowWrites: "data"},
+            {allowWrites: "data", getTableAccessLevel: allowAllTableAccess, enforceTableAccess: false},
         );
         // tableB was touched after tableA's insert; make tableA the LRU candidate again by
         // touching tableB even later.
@@ -1014,7 +1057,7 @@ describe("Database — LRU eviction at the attach threshold", () => {
                 FROM
                     ${sql.tableRef(tableB, "items")}
             `,
-            {allowWrites: "none"},
+            {allowWrites: "none", getTableAccessLevel: allowAllTableAccess, enforceTableAccess: false},
         );
         database.attach(generateChronologicalId<DatabaseTableId>());
 
@@ -1045,7 +1088,7 @@ describe("Database — LRU eviction at the attach threshold", () => {
                 database.attach(tableB);
                 db.exec("COMMIT");
             },
-            {allowWrites: "schema+data"},
+            {allowWrites: "schema+data", getTableAccessLevel: allowAllTableAccess, enforceTableAccess: false},
         );
 
         expect({a: database.isAttached(tableA), b: database.isAttached(tableB)}).toEqual({
@@ -1065,7 +1108,7 @@ describe("Database — client attach-on-miss", () => {
         first.attach(tableId);
         first.executeSql(
             sql`CREATE TABLE ${sql.tableRef(tableId, "items")} (id INTEGER PRIMARY KEY)`,
-            {allowWrites: "schema+data"},
+            {allowWrites: "schema+data", getTableAccessLevel: allowAllTableAccess, enforceTableAccess: false},
         );
         first.executeSql(
             sql`
@@ -1074,7 +1117,7 @@ describe("Database — client attach-on-miss", () => {
                 VALUES
                     (7)
             `,
-            {allowWrites: "data"},
+            {allowWrites: "data", getTableAccessLevel: allowAllTableAccess, enforceTableAccess: false},
         );
         commit(first, storage);
 
@@ -1090,7 +1133,7 @@ describe("Database — client attach-on-miss", () => {
                 FROM
                     ${sql.tableRef(tableId, "items")}
             `,
-            {allowWrites: "none"},
+            {allowWrites: "none", getTableAccessLevel: allowAllTableAccess, enforceTableAccess: false},
         );
 
         expect({rows: result.rows, attached: second.isAttached(tableId)}).toEqual({
@@ -1104,7 +1147,12 @@ describe("Database — error handling", () => {
     test("invalid SQL throws", async () => {
         const {database} = await createDatabase();
 
-        expect(() => database.executeSql(sql`NOT VALID SQL`, {allowWrites: "none"})).toThrow();
+        expect(() =>
+            database.executeSql(sql`NOT VALID SQL`, {
+                allowWrites: "none",
+                getTableAccessLevel: allowAllTableAccess, enforceTableAccess: false,
+            }),
+        ).toThrow();
     });
 
     test("reference to non-existent table throws", async () => {
@@ -1118,7 +1166,7 @@ describe("Database — error handling", () => {
                     FROM
                         nonexistent
                 `,
-                {allowWrites: "none"},
+                {allowWrites: "none", getTableAccessLevel: allowAllTableAccess, enforceTableAccess: false},
             ),
         ).toThrow();
     });
@@ -1142,7 +1190,7 @@ describe("Database — error handling", () => {
                     VALUES
                         (1)
                 `,
-                {allowWrites: "data"},
+                {allowWrites: "data", getTableAccessLevel: allowAllTableAccess, enforceTableAccess: false},
             ),
         ).toThrow();
     });
@@ -1160,7 +1208,10 @@ describe("Database — error handling", () => {
 
         // Hit several failure modes in succession.
         expect(() =>
-            database.executeSql(sql`CREATE TABLE x (id INTEGER)`, {allowWrites: "data"}),
+            database.executeSql(sql`CREATE TABLE x (id INTEGER)`, {
+                allowWrites: "data",
+                getTableAccessLevel: allowAllTableAccess, enforceTableAccess: false,
+            }),
         ).toThrow();
         expect(() =>
             database.executeSql(
@@ -1170,7 +1221,7 @@ describe("Database — error handling", () => {
                     FROM
                         nope
                 `,
-                {allowWrites: "none"},
+                {allowWrites: "none", getTableAccessLevel: allowAllTableAccess, enforceTableAccess: false},
             ),
         ).toThrow();
         expect(() =>
@@ -1181,7 +1232,7 @@ describe("Database — error handling", () => {
                     VALUES
                         (1)
                 `,
-                {allowWrites: "data"},
+                {allowWrites: "data", getTableAccessLevel: allowAllTableAccess, enforceTableAccess: false},
             ),
         ).toThrow();
 
@@ -1197,6 +1248,7 @@ describe("Database — error handling", () => {
             `,
             {
                 allowWrites: "none",
+                getTableAccessLevel: allowAllTableAccess, enforceTableAccess: false,
             },
         );
         expect(before.rows).toEqual([{id: 1}]);
@@ -1208,7 +1260,7 @@ describe("Database — error handling", () => {
                 VALUES
                     (2)
             `,
-            {allowWrites: "data"},
+            {allowWrites: "data", getTableAccessLevel: allowAllTableAccess, enforceTableAccess: false},
         );
         commit(database, storage);
         const after = database.executeSql(
@@ -1222,6 +1274,7 @@ describe("Database — error handling", () => {
             `,
             {
                 allowWrites: "none",
+                getTableAccessLevel: allowAllTableAccess, enforceTableAccess: false,
             },
         );
         expect(after.rows).toEqual([{id: 1}, {id: 2}]);
@@ -1241,7 +1294,7 @@ describe("Database — error handling", () => {
                     SELECT
                         1
                 `,
-                {allowWrites: "none"},
+                {allowWrites: "none", getTableAccessLevel: allowAllTableAccess, enforceTableAccess: false},
             );
             return (result.rows[0] as {"1": number})["1"];
         });
@@ -1252,7 +1305,7 @@ describe("Database — error handling", () => {
                     SELECT
                         reenter () AS value
                 `,
-                {allowWrites: "none"},
+                {allowWrites: "none", getTableAccessLevel: allowAllTableAccess, enforceTableAccess: false},
             ).rows,
         ).toEqual([{value: 1}]);
     });
@@ -1271,7 +1324,7 @@ describe("Database — error handling", () => {
                     VALUES
                         (1)
                 `,
-                {allowWrites: "data"},
+                {allowWrites: "data", getTableAccessLevel: allowAllTableAccess, enforceTableAccess: false},
             );
             return 0;
         });
@@ -1282,7 +1335,7 @@ describe("Database — error handling", () => {
                     SELECT
                         reenter ()
                 `,
-                {allowWrites: "none"},
+                {allowWrites: "none", getTableAccessLevel: allowAllTableAccess, enforceTableAccess: false},
             ),
         ).toThrow("nested execute cannot use broader write permissions than its parent");
     });
@@ -1300,7 +1353,7 @@ describe("Database — error handling", () => {
                     VALUES
                         (1)
                 `,
-                {allowWrites: "data"},
+                {allowWrites: "data", getTableAccessLevel: allowAllTableAccess, enforceTableAccess: false},
             );
             return 0;
         });
@@ -1311,7 +1364,7 @@ describe("Database — error handling", () => {
                     SELECT
                         reenter ()
                 `,
-                {allowWrites: "none"},
+                {allowWrites: "none", getTableAccessLevel: allowAllTableAccess, enforceTableAccess: false},
             ),
         ).toThrow("nested execute cannot use broader write permissions than its parent");
 
@@ -1325,6 +1378,7 @@ describe("Database — error handling", () => {
             `,
             {
                 allowWrites: "none",
+                getTableAccessLevel: allowAllTableAccess, enforceTableAccess: false,
             },
         );
         expect(read.rows).toEqual([{n: 0}]);
@@ -1336,7 +1390,7 @@ describe("Database — error handling", () => {
                 VALUES
                     (1)
             `,
-            {allowWrites: "data"},
+            {allowWrites: "data", getTableAccessLevel: allowAllTableAccess, enforceTableAccess: false},
         );
         commit(database, storage);
         const after = database.executeSql(
@@ -1348,6 +1402,7 @@ describe("Database — error handling", () => {
             `,
             {
                 allowWrites: "none",
+                getTableAccessLevel: allowAllTableAccess, enforceTableAccess: false,
             },
         );
         expect(after.rows).toEqual([{n: 1}]);
@@ -1364,7 +1419,7 @@ describe("Database — getBufferedWrites", () => {
                 SELECT
                     1
             `,
-            {allowWrites: "none"},
+            {allowWrites: "none", getTableAccessLevel: allowAllTableAccess, enforceTableAccess: false},
         );
         expect(database.getBufferedWrites()).toBeNull();
     });
@@ -1374,6 +1429,7 @@ describe("Database — getBufferedWrites", () => {
 
         database.executeSql(sql`CREATE TABLE t (id INTEGER PRIMARY KEY)`, {
             allowWrites: "schema+data",
+            getTableAccessLevel: allowAllTableAccess, enforceTableAccess: false,
         });
         database.executeSql(
             sql`
@@ -1382,7 +1438,7 @@ describe("Database — getBufferedWrites", () => {
                 VALUES
                     (1)
             `,
-            {allowWrites: "data"},
+            {allowWrites: "data", getTableAccessLevel: allowAllTableAccess, enforceTableAccess: false},
         );
 
         const buffered = database.getBufferedWrites();
@@ -1397,6 +1453,7 @@ describe("Database — getBufferedWrites", () => {
 
         database.executeSql(sql`CREATE TABLE t (id INTEGER PRIMARY KEY)`, {
             allowWrites: "schema+data",
+            getTableAccessLevel: allowAllTableAccess, enforceTableAccess: false,
         });
 
         const pages = database.getBufferedWrites()!.pages.get(databaseMainTableId)!;
@@ -1410,6 +1467,7 @@ describe("Database — getBufferedWrites", () => {
 
         database.executeSql(sql`CREATE TABLE t (id INTEGER PRIMARY KEY)`, {
             allowWrites: "schema+data",
+            getTableAccessLevel: allowAllTableAccess, enforceTableAccess: false,
         });
         commit(database, storage);
 
@@ -1421,6 +1479,7 @@ describe("Database — getBufferedWrites", () => {
 
         database.executeSql(sql`CREATE TABLE t (id INTEGER PRIMARY KEY)`, {
             allowWrites: "schema+data",
+            getTableAccessLevel: allowAllTableAccess, enforceTableAccess: false,
         });
         database.discardBuffer();
 
@@ -1434,6 +1493,7 @@ describe("Database — getBufferedWrites", () => {
         const {database} = await createDatabase();
         database.executeSql(sql`CREATE TABLE t (id INTEGER PRIMARY KEY)`, {
             allowWrites: "schema+data",
+            getTableAccessLevel: allowAllTableAccess, enforceTableAccess: false,
         });
 
         const first = database.getBufferedWrites();
@@ -1452,6 +1512,7 @@ describe("Database — getBufferedWrites", () => {
 
         database.executeSql(sql`CREATE TABLE t (id INTEGER PRIMARY KEY)`, {
             allowWrites: "schema+data",
+            getTableAccessLevel: allowAllTableAccess, enforceTableAccess: false,
         });
         const afterCreate = database.getBufferedWrites()!.pages.get(databaseMainTableId)!.size;
 
@@ -1462,7 +1523,7 @@ describe("Database — getBufferedWrites", () => {
                 VALUES
                     (1)
             `,
-            {allowWrites: "data"},
+            {allowWrites: "data", getTableAccessLevel: allowAllTableAccess, enforceTableAccess: false},
         );
         database.executeSql(
             sql`
@@ -1471,7 +1532,7 @@ describe("Database — getBufferedWrites", () => {
                 VALUES
                     (2)
             `,
-            {allowWrites: "data"},
+            {allowWrites: "data", getTableAccessLevel: allowAllTableAccess, enforceTableAccess: false},
         );
         const afterInserts = database.getBufferedWrites()!.pages.get(databaseMainTableId)!.size;
 
@@ -1485,6 +1546,7 @@ describe("Database — markCommitted", () => {
 
         database.executeSql(sql`CREATE TABLE t (id INTEGER PRIMARY KEY, val TEXT)`, {
             allowWrites: "schema+data",
+            getTableAccessLevel: allowAllTableAccess, enforceTableAccess: false,
         });
         database.executeSql(
             sql`
@@ -1493,7 +1555,7 @@ describe("Database — markCommitted", () => {
                 VALUES
                     (1, 'hello')
             `,
-            {allowWrites: "data"},
+            {allowWrites: "data", getTableAccessLevel: allowAllTableAccess, enforceTableAccess: false},
         );
         commit(database, storage);
 
@@ -1505,7 +1567,7 @@ describe("Database — markCommitted", () => {
                 FROM
                     t
             `,
-            {allowWrites: "none"},
+            {allowWrites: "none", getTableAccessLevel: allowAllTableAccess, enforceTableAccess: false},
         );
         expect(result.rows).toEqual([{id: 1, val: "hello"}]);
     });
@@ -1522,6 +1584,7 @@ describe("Database — markCommitted", () => {
         const {database, storage} = await createDatabase();
         database.executeSql(sql`CREATE TABLE t (id INTEGER PRIMARY KEY)`, {
             allowWrites: "schema+data",
+            getTableAccessLevel: allowAllTableAccess, enforceTableAccess: false,
         });
         commit(database, storage);
 
@@ -1534,6 +1597,7 @@ describe("Database — markCommitted", () => {
 
         database.executeSql(sql`CREATE TABLE t (id INTEGER PRIMARY KEY)`, {
             allowWrites: "schema+data",
+            getTableAccessLevel: allowAllTableAccess, enforceTableAccess: false,
         });
         commit(database, storage);
 
@@ -1544,7 +1608,7 @@ describe("Database — markCommitted", () => {
                 VALUES
                     (1)
             `,
-            {allowWrites: "data"},
+            {allowWrites: "data", getTableAccessLevel: allowAllTableAccess, enforceTableAccess: false},
         );
         const buffered = database.getBufferedWrites();
         expect(buffered).not.toBeNull();
@@ -1566,6 +1630,7 @@ describe("Database — discardBuffer", () => {
         const {database} = await createDatabase();
         database.executeSql(sql`CREATE TABLE t (id INTEGER PRIMARY KEY)`, {
             allowWrites: "schema+data",
+            getTableAccessLevel: allowAllTableAccess, enforceTableAccess: false,
         });
         database.discardBuffer();
         expect(() => database.discardBuffer()).not.toThrow();
@@ -1577,6 +1642,7 @@ describe("Database — discardBuffer", () => {
 
         database.executeSql(sql`CREATE TABLE t (id INTEGER PRIMARY KEY)`, {
             allowWrites: "schema+data",
+            getTableAccessLevel: allowAllTableAccess, enforceTableAccess: false,
         });
         database.discardBuffer();
 
@@ -1588,7 +1654,7 @@ describe("Database — discardBuffer", () => {
                     FROM
                         t
                 `,
-                {allowWrites: "none"},
+                {allowWrites: "none", getTableAccessLevel: allowAllTableAccess, enforceTableAccess: false},
             ),
         ).toThrow();
     });
@@ -1611,7 +1677,7 @@ describe("Database — discardBuffer", () => {
                 VALUES
                     (2)
             `,
-            {allowWrites: "data"},
+            {allowWrites: "data", getTableAccessLevel: allowAllTableAccess, enforceTableAccess: false},
         );
         database.executeSql(
             sql`
@@ -1620,7 +1686,7 @@ describe("Database — discardBuffer", () => {
                 VALUES
                     (3)
             `,
-            {allowWrites: "data"},
+            {allowWrites: "data", getTableAccessLevel: allowAllTableAccess, enforceTableAccess: false},
         );
         database.discardBuffer();
 
@@ -1633,6 +1699,7 @@ describe("Database — discardBuffer", () => {
             `,
             {
                 allowWrites: "none",
+                getTableAccessLevel: allowAllTableAccess, enforceTableAccess: false,
             },
         );
         expect(result.rows).toEqual([{n: 1}]);
@@ -1665,6 +1732,7 @@ describe("Database — discardBuffer", () => {
             `,
             {
                 allowWrites: "none",
+                getTableAccessLevel: allowAllTableAccess, enforceTableAccess: false,
             },
         );
         expect(before.rows).toEqual([{n: 1}]);
@@ -1679,7 +1747,7 @@ describe("Database — discardBuffer", () => {
                 VALUES
                     (2)
             `,
-            {allowWrites: "data"},
+            {allowWrites: "data", getTableAccessLevel: allowAllTableAccess, enforceTableAccess: false},
         );
         commit(db2, storage);
         db2.close();
@@ -1698,6 +1766,7 @@ describe("Database — discardBuffer", () => {
             `,
             {
                 allowWrites: "none",
+                getTableAccessLevel: allowAllTableAccess, enforceTableAccess: false,
             },
         );
         expect(after.rows).toEqual([{id: 1}, {id: 2}]);
@@ -1734,6 +1803,7 @@ describe("Database — discardBuffer", () => {
         const {database: db1} = await createDatabase(storage);
         db1.executeSql(sql`CREATE TABLE t (id INTEGER PRIMARY KEY, v INTEGER NOT NULL)`, {
             allowWrites: "schema+data",
+            getTableAccessLevel: allowAllTableAccess, enforceTableAccess: false,
         });
         // Spread rows across multiple pages so the target row sits past the schema page.
         for (let i = 1; i <= 200; i++) {
@@ -1747,7 +1817,7 @@ describe("Database — discardBuffer", () => {
                             ${i}
                         )
                 `,
-                {allowWrites: "data"},
+                {allowWrites: "data", getTableAccessLevel: allowAllTableAccess, enforceTableAccess: false},
             );
         }
         commit(db1, storage);
@@ -1766,6 +1836,7 @@ describe("Database — discardBuffer", () => {
             `,
             {
                 allowWrites: "data",
+                getTableAccessLevel: allowAllTableAccess, enforceTableAccess: false,
             },
         );
 
@@ -1782,6 +1853,7 @@ describe("Database — discardBuffer", () => {
             `,
             {
                 allowWrites: "none",
+                getTableAccessLevel: allowAllTableAccess, enforceTableAccess: false,
             },
         );
         expect(buffered.rows).toEqual([{v: -1}]);
@@ -1800,6 +1872,7 @@ describe("Database — discardBuffer", () => {
             `,
             {
                 allowWrites: "data",
+                getTableAccessLevel: allowAllTableAccess, enforceTableAccess: false,
             },
         );
         commit(db2, storage);
@@ -1824,6 +1897,7 @@ describe("Database — discardBuffer", () => {
             `,
             {
                 allowWrites: "none",
+                getTableAccessLevel: allowAllTableAccess, enforceTableAccess: false,
             },
         );
         // Server's value wins — discardBuffer dropped both the local buffer and the stale
@@ -1847,6 +1921,7 @@ describe("Database — discardBuffer", () => {
             `,
             {
                 allowWrites: "none",
+                getTableAccessLevel: allowAllTableAccess, enforceTableAccess: false,
             },
         );
         // The discarded local value wins because SQLite's cached change counter (N+1)
@@ -1873,6 +1948,7 @@ describe("Database — read path edge cases", () => {
             `,
             {
                 allowWrites: "none",
+                getTableAccessLevel: allowAllTableAccess, enforceTableAccess: false,
             },
         );
         expect(result.rows).toEqual([]);
@@ -1900,6 +1976,7 @@ describe("Database — read path edge cases", () => {
             `,
             {
                 allowWrites: "data",
+                getTableAccessLevel: allowAllTableAccess, enforceTableAccess: false,
             },
         );
 
@@ -1911,7 +1988,7 @@ describe("Database — read path edge cases", () => {
                 FROM
                     t
             `,
-            {allowWrites: "none"},
+            {allowWrites: "none", getTableAccessLevel: allowAllTableAccess, enforceTableAccess: false},
         );
         expect(buffered.rows).toEqual([{val: "after"}]);
 
@@ -1926,6 +2003,7 @@ describe("Database — read path edge cases", () => {
             `,
             {
                 allowWrites: "none",
+                getTableAccessLevel: allowAllTableAccess, enforceTableAccess: false,
             },
         );
         expect(fromStorage.rows).toEqual([{val: "before"}]);
@@ -1940,6 +2018,7 @@ describe("Database — read path edge cases", () => {
         const {database: setup, storage} = await createDatabase();
         setup.executeSql(sql`CREATE TABLE t (id INTEGER PRIMARY KEY, padding TEXT)`, {
             allowWrites: "schema+data",
+            getTableAccessLevel: allowAllTableAccess, enforceTableAccess: false,
         });
         for (let i = 1; i <= 50; i++) {
             setup.executeSql(
@@ -1954,6 +2033,7 @@ describe("Database — read path edge cases", () => {
                 `,
                 {
                     allowWrites: "data",
+                    getTableAccessLevel: allowAllTableAccess, enforceTableAccess: false,
                 },
             );
         }
@@ -1991,7 +2071,7 @@ describe("Database — read path edge cases", () => {
                     FROM
                         t
                 `,
-                {allowWrites: "none"},
+                {allowWrites: "none", getTableAccessLevel: allowAllTableAccess, enforceTableAccess: false},
             ),
         ).toThrow("storage failure");
     });
@@ -2003,6 +2083,7 @@ describe("Database — read path edge cases", () => {
         const {database: setup, storage} = await createDatabase();
         setup.executeSql(sql`CREATE TABLE t (id INTEGER PRIMARY KEY, padding TEXT)`, {
             allowWrites: "schema+data",
+            getTableAccessLevel: allowAllTableAccess, enforceTableAccess: false,
         });
         for (let i = 1; i <= 50; i++) {
             setup.executeSql(
@@ -2017,6 +2098,7 @@ describe("Database — read path edge cases", () => {
                 `,
                 {
                     allowWrites: "data",
+                    getTableAccessLevel: allowAllTableAccess, enforceTableAccess: false,
                 },
             );
         }
@@ -2049,7 +2131,7 @@ describe("Database — read path edge cases", () => {
                     FROM
                         t
                 `,
-                {allowWrites: "none"},
+                {allowWrites: "none", getTableAccessLevel: allowAllTableAccess, enforceTableAccess: false},
             );
         } catch (error) {
             caught = error;
@@ -2084,7 +2166,10 @@ describe("Database — truncate semantics", () => {
 
         const sizeBefore = storage.getFileSize(databaseMainTableId);
 
-        database.executeSql(sql`VACUUM`, {allowWrites: "schema+data"});
+        database.executeSql(sql`VACUUM`, {
+            allowWrites: "schema+data",
+            getTableAccessLevel: allowAllTableAccess, enforceTableAccess: false,
+        });
 
         const buffered = database.getBufferedWrites();
         expect(buffered).not.toBeNull();
@@ -2101,6 +2186,7 @@ describe("Database — truncate semantics", () => {
 
         database.executeSql(sql`CREATE TABLE t (id INTEGER PRIMARY KEY, padding TEXT)`, {
             allowWrites: "schema+data",
+            getTableAccessLevel: allowAllTableAccess, enforceTableAccess: false,
         });
         for (let i = 1; i <= 50; i++) {
             database.executeSql(
@@ -2115,6 +2201,7 @@ describe("Database — truncate semantics", () => {
                 `,
                 {
                     allowWrites: "data",
+                    getTableAccessLevel: allowAllTableAccess, enforceTableAccess: false,
                 },
             );
         }
@@ -2126,9 +2213,12 @@ describe("Database — truncate semantics", () => {
                 WHERE
                     id > 5
             `,
-            {allowWrites: "data"},
+            {allowWrites: "data", getTableAccessLevel: allowAllTableAccess, enforceTableAccess: false},
         );
-        database.executeSql(sql`VACUUM`, {allowWrites: "schema+data"});
+        database.executeSql(sql`VACUUM`, {
+            allowWrites: "schema+data",
+            getTableAccessLevel: allowAllTableAccess, enforceTableAccess: false,
+        });
         commit(database, storage);
 
         const result = database.executeSql(
@@ -2140,6 +2230,7 @@ describe("Database — truncate semantics", () => {
             `,
             {
                 allowWrites: "none",
+                getTableAccessLevel: allowAllTableAccess, enforceTableAccess: false,
             },
         );
         expect(result.rows).toEqual([{n: 5}]);
@@ -2150,6 +2241,7 @@ describe("Database — truncate semantics", () => {
         const {database, storage} = await createDatabase();
         database.executeSql(sql`CREATE TABLE t (id INTEGER PRIMARY KEY, padding TEXT)`, {
             allowWrites: "schema+data",
+            getTableAccessLevel: allowAllTableAccess, enforceTableAccess: false,
         });
         for (let i = 1; i <= 20; i++) {
             database.executeSql(
@@ -2164,6 +2256,7 @@ describe("Database — truncate semantics", () => {
                 `,
                 {
                     allowWrites: "data",
+                    getTableAccessLevel: allowAllTableAccess, enforceTableAccess: false,
                 },
             );
         }
@@ -2181,7 +2274,7 @@ describe("Database — truncate semantics", () => {
                 VALUES
                     (1000, 'tail')
             `,
-            {allowWrites: "data"},
+            {allowWrites: "data", getTableAccessLevel: allowAllTableAccess, enforceTableAccess: false},
         );
         // The tail insert buffers some pages near the end.
         database.executeSql(
@@ -2190,9 +2283,12 @@ describe("Database — truncate semantics", () => {
                 WHERE
                     id != 1000
             `,
-            {allowWrites: "data"},
+            {allowWrites: "data", getTableAccessLevel: allowAllTableAccess, enforceTableAccess: false},
         );
-        database.executeSql(sql`VACUUM`, {allowWrites: "schema+data"});
+        database.executeSql(sql`VACUUM`, {
+            allowWrites: "schema+data",
+            getTableAccessLevel: allowAllTableAccess, enforceTableAccess: false,
+        });
 
         const buffered = database.getBufferedWrites();
         expect(buffered).not.toBeNull();
@@ -2230,7 +2326,10 @@ describe("Database — truncate semantics", () => {
             sql`DELETE FROM t`,
         );
 
-        const result = database.executeSql(sql`VACUUM`, {allowWrites: "schema+data"});
+        const result = database.executeSql(sql`VACUUM`, {
+            allowWrites: "schema+data",
+            getTableAccessLevel: allowAllTableAccess, enforceTableAccess: false,
+        });
 
         // Truncate did happen — observable via the buffer.
         const buffered = database.getBufferedWrites();
@@ -2268,7 +2367,7 @@ describe("Database — page tracking", () => {
                 FROM
                     items
             `,
-            {allowWrites: "none"},
+            {allowWrites: "none", getTableAccessLevel: allowAllTableAccess, enforceTableAccess: false},
         );
         const pages = result.readPages.get(databaseMainTableId);
         expect(pages).toBeDefined();
@@ -2293,7 +2392,7 @@ describe("Database — page tracking", () => {
                 FROM
                     items
             `,
-            {allowWrites: "none"},
+            {allowWrites: "none", getTableAccessLevel: allowAllTableAccess, enforceTableAccess: false},
         );
         expect(result.writtenPages.size).toBe(0);
     });
@@ -2312,6 +2411,7 @@ describe("Database — page tracking", () => {
             `,
             {
                 allowWrites: "data",
+                getTableAccessLevel: allowAllTableAccess, enforceTableAccess: false,
             },
         );
         const pages = result.writtenPages.get(databaseMainTableId);
@@ -2339,7 +2439,7 @@ describe("Database — page tracking", () => {
                 FROM
                     items
             `,
-            {allowWrites: "none"},
+            {allowWrites: "none", getTableAccessLevel: allowAllTableAccess, enforceTableAccess: false},
         );
         const r2 = database.executeSql(
             sql`
@@ -2348,7 +2448,7 @@ describe("Database — page tracking", () => {
                 FROM
                     items
             `,
-            {allowWrites: "none"},
+            {allowWrites: "none", getTableAccessLevel: allowAllTableAccess, enforceTableAccess: false},
         );
 
         const p1 = [...(r1.readPages.get(databaseMainTableId) ?? [])].sort();
@@ -2375,7 +2475,7 @@ describe("Database — page tracking", () => {
                 FROM
                     items
             `,
-            {allowWrites: "none"},
+            {allowWrites: "none", getTableAccessLevel: allowAllTableAccess, enforceTableAccess: false},
         );
 
         // Second read likely serves from the pager cache — xRead may not fire — but the
@@ -2387,7 +2487,7 @@ describe("Database — page tracking", () => {
                 FROM
                     items
             `,
-            {allowWrites: "none"},
+            {allowWrites: "none", getTableAccessLevel: allowAllTableAccess, enforceTableAccess: false},
         );
         const pages = result.readPages.get(databaseMainTableId);
         expect(pages).toBeDefined();
@@ -2410,6 +2510,7 @@ describe("Database — page tracking", () => {
             `,
             {
                 allowWrites: "data",
+                getTableAccessLevel: allowAllTableAccess, enforceTableAccess: false,
             },
         );
         const second = database.executeSql(
@@ -2419,7 +2520,7 @@ describe("Database — page tracking", () => {
                 FROM
                     b
             `,
-            {allowWrites: "none"},
+            {allowWrites: "none", getTableAccessLevel: allowAllTableAccess, enforceTableAccess: false},
         );
 
         // The second call should not include any writes.
@@ -2445,20 +2546,23 @@ describe("Database — executeAction", () => {
             `,
         );
 
-        const {result} = database.executeAction<"rawSql">({
-            name: "rawSql",
-            input: {
-                sql: sql`
-                    SELECT
-                        id,
-                        name
-                    FROM
-                        items
-                    ORDER BY
-                        id
-                `.query,
+        const {result} = database.executeAction<"rawSql">(
+            {
+                name: "rawSql",
+                input: {
+                    sql: sql`
+                        SELECT
+                            id,
+                            name
+                        FROM
+                            items
+                        ORDER BY
+                            id
+                    `.query,
+                },
             },
-        });
+            {getTableAccessLevel: allowAllTableAccess, enforceTableAccess: false},
+        );
 
         expect(result.rows).toEqual([
             {id: 1, name: "alpha"},
@@ -2470,10 +2574,13 @@ describe("Database — executeAction", () => {
         const {database} = await createDatabase();
 
         expect(() =>
-            database.executeAction({
-                name: "rawSql",
-                input: {sql: sql`CREATE TABLE bad (id INTEGER)`.query},
-            }),
+            database.executeAction(
+                {
+                    name: "rawSql",
+                    input: {sql: sql`CREATE TABLE bad (id INTEGER)`.query},
+                },
+                {getTableAccessLevel: allowAllTableAccess, enforceTableAccess: false},
+            ),
         ).toThrow();
     });
 
@@ -2483,17 +2590,20 @@ describe("Database — executeAction", () => {
         `);
 
         expect(() =>
-            database.executeAction({
-                name: "readonlyRawSql",
-                input: {
-                    sql: sql`
-                        INSERT INTO
-                            items
-                        VALUES
-                            (1)
-                    `.query,
+            database.executeAction(
+                {
+                    name: "readonlyRawSql",
+                    input: {
+                        sql: sql`
+                            INSERT INTO
+                                items
+                            VALUES
+                                (1)
+                        `.query,
+                    },
                 },
-            }),
+                {getTableAccessLevel: allowAllTableAccess, enforceTableAccess: false},
+            ),
         ).toThrow();
     });
 
@@ -2508,17 +2618,20 @@ describe("Database — executeAction", () => {
             `,
         );
 
-        const {readPages} = database.executeAction({
-            name: "readonlyRawSql",
-            input: {
-                sql: sql`
-                    SELECT
-                        *
-                    FROM
-                        items
-                `.query,
+        const {readPages} = database.executeAction(
+            {
+                name: "readonlyRawSql",
+                input: {
+                    sql: sql`
+                        SELECT
+                            *
+                        FROM
+                            items
+                    `.query,
+                },
             },
-        });
+            {getTableAccessLevel: allowAllTableAccess, enforceTableAccess: false},
+        );
 
         expect(readPages.get(databaseMainTableId)?.size ?? 0).toBeGreaterThan(0);
     });
@@ -2552,7 +2665,7 @@ describe("Database — independence between instances", () => {
                 FROM
                     t
             `,
-            {allowWrites: "none"},
+            {allowWrites: "none", getTableAccessLevel: allowAllTableAccess, enforceTableAccess: false},
         );
         const r2 = db2.executeSql(
             sql`
@@ -2561,7 +2674,7 @@ describe("Database — independence between instances", () => {
                 FROM
                     t
             `,
-            {allowWrites: "none"},
+            {allowWrites: "none", getTableAccessLevel: allowAllTableAccess, enforceTableAccess: false},
         );
         expect(r1.rows).toEqual([{v: "one"}]);
         expect(r2.rows).toEqual([{v: "two"}]);
@@ -2574,6 +2687,7 @@ describe("Database — independence between instances", () => {
         const {database: db1} = await createDatabase(storage);
         db1.executeSql(sql`CREATE TABLE t (id INTEGER PRIMARY KEY)`, {
             allowWrites: "schema+data",
+            getTableAccessLevel: allowAllTableAccess, enforceTableAccess: false,
         });
         commit(db1, storage);
 
@@ -2586,7 +2700,7 @@ describe("Database — independence between instances", () => {
                 VALUES
                     (1)
             `,
-            {allowWrites: "data"},
+            {allowWrites: "data", getTableAccessLevel: allowAllTableAccess, enforceTableAccess: false},
         );
         // db1's insert is only in its in-memory buffer.
 
@@ -2599,6 +2713,7 @@ describe("Database — independence between instances", () => {
             `,
             {
                 allowWrites: "none",
+                getTableAccessLevel: allowAllTableAccess, enforceTableAccess: false,
             },
         );
         expect(result.rows).toEqual([{n: 0}]);
@@ -2610,6 +2725,7 @@ describe("Database — close", () => {
         const {database} = await createDatabase();
         database.executeSql(sql`CREATE TABLE t (id INTEGER PRIMARY KEY)`, {
             allowWrites: "schema+data",
+            getTableAccessLevel: allowAllTableAccess, enforceTableAccess: false,
         });
         expect(() => database.close()).not.toThrow();
     });
