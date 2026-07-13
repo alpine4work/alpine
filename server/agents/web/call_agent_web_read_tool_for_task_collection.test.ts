@@ -429,7 +429,7 @@ End of tasks.`);
 
 test("loads more task pages while the response is still under the limit", async () => {
     mockCollectionTasks({totalTaskCount: 35});
-    mockCollectionTasks({cursor: getTaskQueryCursor(29), totalTaskCount: 35});
+    mockCollectionTasks({cursor: getTaskQueryCursor(30), totalTaskCount: 35});
 
     const response = await callAgentWebReadTool(context, {
         path: "/task-collection/roadmap",
@@ -455,7 +455,7 @@ test("loads more task pages while the response is still under the limit", async 
                 path: {id: collectionId},
                 query: {
                     limit: agentWebTaskCollectionPageApiTasksBatchCount,
-                    cursor: getTaskQueryCursor(29),
+                    cursor: getTaskQueryCursor(30),
                 },
             },
         ],
