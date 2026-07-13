@@ -36,6 +36,8 @@ test("search for and read document created by a test helper", async () => {
     });
 
     // New documents are indexed after the production document-indexing throttle.
+    //
+    // NOCOMMIT: Uh oh! Not good!
     await new Promise(resolve => setTimeout(resolve, 10 * 1000));
 
     expect([
