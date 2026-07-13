@@ -143,7 +143,6 @@ export class DatabaseServer {
                     context.actor.type === "System"
                         ? allowAllTableAccess
                         : tableId => this.getTableAccessLevelForAccount(tableId, currentAccountId),
-                enforceTableAccess: context.actor.type !== "System",
             });
             return {result: rows, readPages};
         });
@@ -182,12 +181,10 @@ export class DatabaseServer {
                 ? allowAllTableAccess
                 : (tableId: DatabaseTableId) =>
                       this.getTableAccessLevelForAccount(tableId, currentAccountId);
-        const enforceTableAccess = !action.internalOnly && context.actor.type !== "System";
         return this._runAndPersist(context, () =>
             this.database.executeAction(actionObject, {
                 currentAccountId,
                 getTableAccessLevel,
-                enforceTableAccess,
             }),
         );
     }
@@ -274,7 +271,6 @@ export class DatabaseServer {
             {
                 allowWrites: "schema+data",
                 getTableAccessLevel: allowAllTableAccess,
-                enforceTableAccess: false,
             },
         );
         this._persistBuffer();
@@ -311,7 +307,6 @@ export class DatabaseServer {
                 {
                     allowWrites: "schema+data",
                     getTableAccessLevel: allowAllTableAccess,
-                    enforceTableAccess: false,
                 },
             );
             this._persistBuffer();

@@ -56,6 +56,7 @@ beforeEach(() => {
                     arg2: typeof actionArg2 === "string" ? actionArg2 : null,
                     schemaName: typeof schemaArg === "string" ? schemaArg : null,
                     resolveSchemaAccess: schemaAccessResolver,
+                    allowProtectedMetadataMutations: false,
                 });
                 if (!allowed) return sqlite3.capi.SQLITE_DENY;
             }

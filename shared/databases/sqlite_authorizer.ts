@@ -138,9 +138,7 @@ export function isSqliteActionAllowed(
 
 /**
  * Per-table access enforced by the authorizer within a single execution. Resolved
- * per attached schema from the current account's access level (see
- * `getAccountAccessLevelAssumingSpaceAccess`); an execution with no resolver
- * installed (internal server code, service actors) is unrestricted.
+ * per attached schema from the current execution's required access resolver.
  *
  * The join-table add-vs-remove asymmetry (adding a link needs `View` on the linked
  * table, removing one doesn't) is _not_ modelled here. Adding a link reads the
@@ -155,9 +153,9 @@ export type SqliteSchemaAccessResolver = (schemaName: string) => AccessLevel | n
  * isSqliteActionAllowed}'s global write level. Returns whether `action` is allowed
  * given the capabilities the resolver grants on the target schema.
  *
- * Only called for restricted executions (a per-table access resolver is
- * installed); internal SQL — attach recovery, migrations, service-actor actions —
- * bypasses this layer entirely.
+ * Internal attach/recovery SQL bypasses this layer. Internal-only actions still
+ * pass through it with an unrestricted resolver, but may opt into the narrow
+ * protected metadata mutations needed to create or delete tables.
  *
  * Argument mapping follows sqlite3_set_authorizer: for most table-scoped actions
  * `arg1` is the object name and `schemaName` (the callback's 5th parameter) is the
@@ -170,12 +168,14 @@ export function isSqliteActionAllowedForSchemaAccess({
     arg2,
     schemaName,
     resolveSchemaAccess,
+    allowProtectedMetadataMutations,
 }: {
     action: string;
     arg1: string | null;
     arg2: string | null;
     schemaName: string | null;
     resolveSchemaAccess: SqliteSchemaAccessResolver;
+    allowProtectedMetadataMutations: boolean;
 }): boolean {
     const requirement = sqliteSchemaAccessRequirement(action);
     if (requirement === null) return true;
@@ -203,14 +203,14 @@ export function isSqliteActionAllowedForSchemaAccess({
 
     // Restricted executions may never insert or delete the singleton table metadata
     // row. Name/column-name updates (e.g. a rename) stay allowed.
-    if (arg1 === "_alpine_table") {
+    if (!allowProtectedMetadataMutations && arg1 === "_alpine_table") {
         if (action === "insert" || action === "delete") return false;
     }
     // Same reasoning for a join file's metadata row: the four id columns drive the
     // join table's derived access level. `createRelationField` (a user action)
     // legitimately inserts the row and renames update the name columns, so only the id
     // columns and row deletion are locked down.
-    if (arg1 === "_alpine_join_table") {
+    if (!allowProtectedMetadataMutations && arg1 === "_alpine_join_table") {
         if (action === "delete") return false;
         if (
             action === "update" &&

@@ -196,7 +196,8 @@ export class Database {
         () => {
             throw new InternalError("Database table access requested outside an execution");
         };
-    private enforceTableAccessForExecution = true;
+    private isExecutionActive = false;
+    private allowProtectedMetadataMutationsForExecution = false;
     /**
      * The last denial issued by the per-table authorizer layer, used to convert
      * SQLite's generic "not authorized" error into a typed {@link
@@ -304,7 +305,7 @@ export class Database {
                 // `user_version` asserts, and change-capture trigger DDL that must succeed
                 // regardless of the ambient account's access).
                 if (
-                    this.enforceTableAccessForExecution &&
+                    this.isExecutionActive &&
                     this.writeLevel !== "attach" &&
                     !this.inAttachRecovery
                 ) {
@@ -315,6 +316,8 @@ export class Database {
                         arg2: typeof actionArg2 === "string" ? actionArg2 : null,
                         schemaName,
                         resolveSchemaAccess: this.resolveSchemaAccess,
+                        allowProtectedMetadataMutations:
+                            this.allowProtectedMetadataMutationsForExecution,
                     });
                     if (!allowed) {
                         this.tableAccessDenial = {
@@ -383,13 +386,12 @@ export class Database {
         options: {
             allowWrites: SqliteWriteLevel;
             getTableAccessLevel: (tableId: DatabaseTableId) => AccessLevel | null;
-            enforceTableAccess: boolean;
         },
     ): {result: T; readPages: ReadonlyDatabasePageSet; writtenPages: ReadonlyDatabasePageSet} {
         const previousGetTableAccessLevel = this.getTableAccessLevelForExecution;
-        const previousEnforceTableAccess = this.enforceTableAccessForExecution;
+        const previousIsExecutionActive = this.isExecutionActive;
         this.getTableAccessLevelForExecution = options.getTableAccessLevel;
-        this.enforceTableAccessForExecution = options.enforceTableAccess;
+        this.isExecutionActive = true;
         try {
             return this.runTracked(options.allowWrites, db => {
                 const result = fn(db);
@@ -398,7 +400,7 @@ export class Database {
             });
         } finally {
             this.getTableAccessLevelForExecution = previousGetTableAccessLevel;
-            this.enforceTableAccessForExecution = previousEnforceTableAccess;
+            this.isExecutionActive = previousIsExecutionActive;
         }
     }
 
@@ -413,7 +415,6 @@ export class Database {
         options: {
             allowWrites: SqliteWriteLevel;
             getTableAccessLevel: (tableId: DatabaseTableId) => AccessLevel | null;
-            enforceTableAccess: boolean;
         },
     ): DatabaseExecuteResult {
         const {result, readPages, writtenPages} = this.execute(
@@ -432,13 +433,15 @@ export class Database {
         options: {
             currentAccountId?: AccountId | null;
             getTableAccessLevel: (tableId: DatabaseTableId) => AccessLevel | null;
-            enforceTableAccess: boolean;
         },
     ): DatabaseExecuteActionResult<N> {
         const previousActionAccountId = this.currentActionAccountId;
+        const previousAllowProtectedMetadataMutations =
+            this.allowProtectedMetadataMutationsForExecution;
         this.currentActionAccountId = options.currentAccountId ?? null;
+        const action = databaseActions[actionObject.name];
+        this.allowProtectedMetadataMutationsForExecution = action.internalOnly;
         try {
-            const action = databaseActions[actionObject.name];
             const ctx = createDatabaseActionContext(
                 this.db,
                 this.serverContext,
@@ -449,12 +452,13 @@ export class Database {
                 {
                     allowWrites: action.writeLevel,
                     getTableAccessLevel: options.getTableAccessLevel,
-                    enforceTableAccess: options.enforceTableAccess,
                 },
             );
             return {result: result as DatabaseActionOutput<N>, readPages, writtenPages};
         } finally {
             this.currentActionAccountId = previousActionAccountId;
+            this.allowProtectedMetadataMutationsForExecution =
+                previousAllowProtectedMetadataMutations;
         }
     }
 
@@ -718,11 +722,17 @@ export class Database {
 
     /**
      * Maps an authorizer schema name to the current execution's access level. `main`
-     * (the public ID-only registry) and SQLite's `temp` schema sit outside the
-     * per-table permission model; unknown schemas fail closed.
+     * (the public ID-only registry), SQLite's `temp` schema, and the transient schema
+     * SQLite creates internally during `VACUUM` sit outside the per-table permission
+     * model; unknown schemas fail closed.
      */
     private readonly resolveSchemaAccess = (schemaName: string): AccessLevel | null => {
-        if (schemaName === "main" || schemaName === "temp") return "Manage";
+        // Public SQL cannot spoof either transient schema: ATTACH and DETACH are denied
+        // outside Database's private attach mode, and table schemas always use the
+        // `_alpine_schema_` prefix.
+        if (schemaName === "main" || schemaName === "temp" || schemaName.startsWith("vacuum_")) {
+            return "Manage";
+        }
         const tableId = this.schemaToTable.get(schemaName);
         if (tableId === undefined) return null;
         return this.getTableAccessLevelForExecution(tableId);

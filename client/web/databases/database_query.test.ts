@@ -177,7 +177,7 @@ async function buildSchemaSeed(
     );
     fake.execute(db => runMainMigrations(db), {
         allowWrites: "schema+data",
-        getTableAccessLevel: allowAllTableAccess, enforceTableAccess: false,
+        getTableAccessLevel: allowAllTableAccess,
     });
     const creatorId = generateId<AccountId>();
     const {result} = fake.executeAction<"createTable">(
@@ -189,7 +189,7 @@ async function buildSchemaSeed(
                 accessPolicy: databaseTableAccessPolicyForCreator(creatorId),
             },
         },
-        {currentAccountId: creatorId, getTableAccessLevel: allowAllTableAccess, enforceTableAccess: false},
+        {currentAccountId: creatorId, getTableAccessLevel: allowAllTableAccess},
     );
 
     const buffered = fake.getBufferedWrites();
