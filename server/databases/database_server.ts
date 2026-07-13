@@ -19,6 +19,7 @@ import {
     databaseActions,
 } from "~/shared/databases/database_actions.js";
 import type {ReadonlyDatabasePageSet} from "~/shared/databases/database_protocol_schemas.js";
+import {executeSqliteTransaction} from "~/shared/databases/execute_sqlite_transaction.js";
 import {SqlJsonSchema} from "~/shared/databases/model/sqlite_schema.js";
 import {type SqlQuery, sql} from "~/shared/databases/sql.js";
 import {type SqliteWriteLevel} from "~/shared/databases/sqlite_authorizer.js";
@@ -678,11 +679,14 @@ export class DatabaseServer {
 
     private _bootstrap(): void {
         // Bootstrap writes flow through the buffer like any other execute; each batch
-        // drains to storage right after.
+        // drains to storage right after. Migration runners open no transaction of their
+        // own, so wrap each run in one here — a failed migration then rolls back
+        // atomically with its `user_version` bump instead of leaving the pager
+        // half-migrated.
         this.database.execute(
             db => {
                 db.exec("PRAGMA quick_check");
-                runMainMigrations(db);
+                executeSqliteTransaction(db, () => runMainMigrations(db));
             },
             {allowWrites: "schema+data"},
         );
@@ -706,16 +710,18 @@ export class DatabaseServer {
             this.database.execute(
                 db => {
                     this.database.attachIfNeeded(table.tableId);
-                    switch (table.kind) {
-                        case "table":
-                            runTableMigrations(db, table.tableId);
-                            break;
-                        case "join":
-                            runJoinTableMigrations(db, table.tableId);
-                            break;
-                        default:
-                            throw exhaustive(table.kind);
-                    }
+                    executeSqliteTransaction(db, () => {
+                        switch (table.kind) {
+                            case "table":
+                                runTableMigrations(db, table.tableId);
+                                break;
+                            case "join":
+                                runJoinTableMigrations(db, table.tableId);
+                                break;
+                            default:
+                                throw exhaustive(table.kind);
+                        }
+                    });
                 },
                 {allowWrites: "schema+data"},
             );

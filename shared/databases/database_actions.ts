@@ -8,6 +8,7 @@ import type {
     DatabaseActionServerContext,
 } from "~/shared/databases/database_action_context.js";
 import {DatabaseActionRequiresServerError} from "~/shared/databases/database_action_requires_server_error.js";
+import {executeSqliteTransaction} from "~/shared/databases/execute_sqlite_transaction.js";
 import {
     DatabaseFieldConfigSchema,
     getDatabaseFieldProvider,
@@ -53,37 +54,19 @@ function defineDatabaseAction<Input, Output>(def: {
     input: ObjectSchema<Input>;
     output: ObjectSchema<Output>;
     writeLevel: SqliteWriteLevel;
-    transactionMode?: "automatic" | "manual";
     internalOnly?: boolean;
     run: (ctx: DatabaseActionContext, input: Input) => any;
 }): {
     input: ObjectSchema<Input>;
     output: ObjectSchema<Output>;
     writeLevel: SqliteWriteLevel;
-    transactionMode: "automatic" | "manual";
     internalOnly: boolean;
     run: (ctx: DatabaseActionContext, input: Input) => Output;
 } {
     return {
-        transactionMode: "automatic",
         internalOnly: false,
         ...def,
     };
-}
-
-function executeDatabaseActionTransaction<T>(db: SqliteDatabase, fn: () => T): T {
-    sql`BEGIN`.exec(db);
-    let result;
-    try {
-        result = fn();
-    } catch (error) {
-        // Roll back so a failed action doesn't leave the transaction open, which would
-        // make every subsequent action fail on its `BEGIN`.
-        sql`ROLLBACK`.exec(db);
-        throw error;
-    }
-    sql`COMMIT`.exec(db);
-    return result;
 }
 
 function now() {
@@ -104,10 +87,13 @@ export function executeDatabaseAction<N extends DatabaseActionName>(
         // eslint-disable-next-line no-console
         console.group(`[executeDatabaseAction] ${actionObject.name}`);
         const run = () => action.run(ctx, actionObject.input as any) as DatabaseActionOutput<N>;
-        if (action.writeLevel === "none" || action.transactionMode === "manual") {
+        // Read-only actions run bare — each statement is its own implicit transaction.
+        // Write actions commit atomically. Anything an action calls mid-run (`ATTACH`,
+        // migrations) must therefore not open a transaction of its own.
+        if (action.writeLevel === "none") {
             return run();
         }
-        return executeDatabaseActionTransaction(ctx.db, run);
+        return executeSqliteTransaction(ctx.db, run);
     } catch (error) {
         if (error instanceof DatabaseActionRequiresServerError) {
             // eslint-disable-next-line no-console
@@ -160,7 +146,6 @@ export const databaseActions = {
             viewId: Schema.id<DatabaseViewId>(),
         }),
         writeLevel: "schema+data",
-        transactionMode: "manual",
         internalOnly: true,
         run({db, server, model}, {tableId, name, accessPolicy}) {
             // Resolve the unique SQLite table name before registering the new table.
@@ -172,9 +157,7 @@ export const databaseActions = {
             server().attach(tableId);
             runTableMigrations(db, tableId);
 
-            const {table, defaultView} = executeDatabaseActionTransaction(db, () =>
-                model.createTable(tableId, {name, tableName}),
-            );
+            const {table, defaultView} = model.createTable(tableId, {name, tableName});
 
             return {tableId: table.id, tableName: table.tableName, viewId: defaultView.id};
         },
@@ -191,22 +174,18 @@ export const databaseActions = {
             viewId: Schema.id<DatabaseViewId>(),
         }),
         writeLevel: "schema+data",
-        transactionMode: "manual",
         internalOnly: true,
-        run({db, server, model}, {tableId, name, accessPolicy}) {
+        run({server, model}, {tableId, name, accessPolicy}) {
             server().tables.setTableAccessPolicy(tableId, accessPolicy);
-            const {table, viewId} = executeDatabaseActionTransaction(db, () => {
-                // Resolve the unique SQLite table name before renaming, excluding this table so a
-                // rename to a slug variant of its current name resolves to that name.
-                const tableName = formatUniqueTableName({
-                    model,
-                    name,
-                    excludeTableId: tableId,
-                });
-                const table = model.getTable(tableId).updateName(name, {tableName});
-                return {table: model.getTable(tableId), viewId: table.getFirstView().id};
+            // Resolve the unique SQLite table name before renaming, excluding this table so a
+            // rename to a slug variant of its current name resolves to that name.
+            const tableName = formatUniqueTableName({
+                model,
+                name,
+                excludeTableId: tableId,
             });
-            return {tableName: table.tableName, viewId};
+            const table = model.getTable(tableId).updateName(name, {tableName});
+            return {tableName: model.getTable(tableId).tableName, viewId: table.getFirstView().id};
         },
     }),
 
@@ -499,7 +478,6 @@ export const databaseActions = {
             targetFieldId: Schema.id<DatabaseFieldId>(),
         }),
         writeLevel: "schema+data",
-        transactionMode: "manual",
         run(
             {db, model, server},
             {joinTableId, sourceTableId, sourceFieldName, targetTableId, cardinality},
@@ -530,33 +508,27 @@ export const databaseActions = {
             server().attach(joinTableId);
             runJoinTableMigrations(db, joinTableId);
 
-            const {sourceField, targetField, joinTable} = executeDatabaseActionTransaction(
-                db,
-                () => {
-                    const sourceField = sourceTable.createField(sourceFieldId, sourceFieldName, {
-                        type: "relation",
-                        joinTableId,
-                        side: "source",
-                        cardinality,
-                        linkedTableId: targetTable.id,
-                    });
-                    sourceTable.appendFieldToAllViews(sourceField);
+            const sourceField = sourceTable.createField(sourceFieldId, sourceFieldName, {
+                type: "relation",
+                joinTableId,
+                side: "source",
+                cardinality,
+                linkedTableId: targetTable.id,
+            });
+            sourceTable.appendFieldToAllViews(sourceField);
 
-                    const targetField = targetTable.createField(targetFieldId, sourceTable.name, {
-                        type: "relation",
-                        joinTableId,
-                        side: "target",
-                        cardinality: "many",
-                        linkedTableId: sourceTable.id,
-                    });
-                    targetTable.appendFieldToAllViews(targetField);
+            const targetField = targetTable.createField(targetFieldId, sourceTable.name, {
+                type: "relation",
+                joinTableId,
+                side: "target",
+                cardinality: "many",
+                linkedTableId: sourceTable.id,
+            });
+            targetTable.appendFieldToAllViews(targetField);
 
-                    const joinTable = model.createJoinTable(sourceField, targetField, {
-                        tableName: joinTableName,
-                    });
-                    return {sourceField, targetField, joinTable};
-                },
-            );
+            const joinTable = model.createJoinTable(sourceField, targetField, {
+                tableName: joinTableName,
+            });
 
             return {
                 joinTableId: joinTable.id,

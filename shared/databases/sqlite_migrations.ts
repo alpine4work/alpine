@@ -150,6 +150,11 @@ export function joinTableSqliteMigrations(
 /**
  * Runs any pending {@link mainSqliteMigrations} against the main database. Uses
  * `PRAGMA user_version` to track which migrations have already been applied.
+ *
+ * Opens no transaction of its own: the caller decides whether to wrap the run in
+ * one (statements autocommit otherwise). This lets migrations run inside an
+ * already-open transaction — e.g. a database action's automatic transaction —
+ * where a nested `BEGIN` would fail.
  */
 export function runMainMigrations(db: Database, migrationLimitForTest?: number): void {
     if (migrationLimitForTest) {
@@ -164,13 +169,11 @@ export function runMainMigrations(db: Database, migrationLimitForTest?: number):
     );
     for (let i = version; i < migrationLimit; i++) {
         const migration = mainSqliteMigrations[i]!;
-        sql`BEGIN`.exec(db);
         if (migration instanceof SqlQuery) {
             migration.exec(db);
         } else {
             migration(db);
         }
-        sql`COMMIT`.exec(db);
     }
     if (version < migrationLimit) {
         db.exec(`PRAGMA user_version = ${migrationLimit}`);
@@ -186,6 +189,8 @@ export function runMainMigrations(db: Database, migrationLimitForTest?: number):
  * applied version per table so server bootstrap can tell which files need
  * migrating without attaching them; keeping that mirror current is the caller's
  * job (registration stamps it, bootstrap repairs it after migrating).
+ *
+ * Opens no transaction of its own — see {@link runMainMigrations}.
  *
  * Runs server-side only: the server is canonical for schema, and clients trust the
  * pages it syncs.
@@ -234,13 +239,11 @@ function runSchemaMigrations(
 
     for (let i = version; i < migrationLimit; i++) {
         const migration = migrations[i]!;
-        sql`BEGIN`.exec(db);
         if (migration instanceof SqlQuery) {
             migration.exec(db);
         } else {
             migration(db);
         }
-        sql`COMMIT`.exec(db);
     }
 
     if (version < migrationLimit) {
