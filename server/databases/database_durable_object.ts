@@ -14,8 +14,6 @@ import {
     DatabaseDurableObjectConnection,
     DatabaseRealtimeEventStub,
 } from "~/server/databases/database_durable_object_connection.js";
-import {runDatabaseDurableObjectSqlMigrations} from "~/server/databases/database_durable_object_sql_migrations.js";
-import {DatabaseDurableObjectStorage} from "~/server/databases/database_durable_object_storage.js";
 import {DatabaseServer} from "~/server/databases/database_server.js";
 import {isInternalDatabaseServiceActor} from "~/server/databases/is_internal_database_service_actor.js";
 import {WebSocketServer} from "~/server/web_socket/web_socket_server.js";
@@ -41,7 +39,6 @@ class DatabaseGroupDurableObject {
     public static readonly serviceName = "DatabaseGroupService";
 
     private readonly _server: DatabaseServer;
-    private readonly _durableObjectStorage: DatabaseDurableObjectStorage;
     private readonly _processContext: WorkerProcessContext;
     private readonly _databaseGroupId: DatabaseGroupId;
     private readonly _browserPageTracker = new BrowserPageTracker();
@@ -66,14 +63,11 @@ class DatabaseGroupDurableObject {
         storage: DurableObjectStorage;
     }): Promise<DatabaseGroupDurableObject> {
         const databaseGroupId = idName as DatabaseGroupId;
-        runDatabaseDurableObjectSqlMigrations(storage);
-        const durableObjectStorage = new DatabaseDurableObjectStorage(storage);
-        const server = await DatabaseServer.create(durableObjectStorage);
+        const server = await DatabaseServer.create(storage);
         return new DatabaseGroupDurableObject({
             processContext,
             databaseGroupId,
             server,
-            durableObjectStorage,
         });
     }
 
@@ -81,17 +75,14 @@ class DatabaseGroupDurableObject {
         processContext,
         databaseGroupId,
         server,
-        durableObjectStorage,
     }: {
         processContext: WorkerProcessContext;
         databaseGroupId: DatabaseGroupId;
         server: DatabaseServer;
-        durableObjectStorage: DatabaseDurableObjectStorage;
     }) {
         this._processContext = processContext;
         this._databaseGroupId = databaseGroupId;
         this._server = server;
-        this._durableObjectStorage = durableObjectStorage;
 
         this._webSocketServer = new WebSocketServer<
             WorkerProcessContextModules,
@@ -110,7 +101,6 @@ class DatabaseGroupDurableObject {
                 const trackPages = searchParams.get("trackPages") !== "false";
                 return new DatabaseDurableObjectConnection({
                     processContext: this._processContext,
-                    durableObjectStorage: this._durableObjectStorage,
                     server: this._server,
                     sendEventToAll: (context, event) => {
                         this._webSocketServer.sendEventToAll(context, event);
@@ -175,9 +165,9 @@ class DatabaseGroupDurableObject {
         const {events, resolvedAccessPolicyByTableId} =
             DatabaseTableMetadataBroadcastRealtimeEventsSchema.deserialize(await request.json());
 
-        this._durableObjectStorage.transactionSync(() => {
+        this._server.transactionSync(() => {
             for (const [tableId, accessPolicy] of resolvedAccessPolicyByTableId) {
-                this._durableObjectStorage.setDatabaseTableAccessPolicy(tableId, accessPolicy);
+                this._server.setDatabaseTableAccessPolicy(tableId, accessPolicy);
             }
         });
 

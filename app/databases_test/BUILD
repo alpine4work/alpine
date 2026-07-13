@@ -17,5 +17,6 @@ ts_project(
         "//shared/databases",
         "//shared/helpers",
         "//shared/id",
+        "//shared/schema",
     ],
 )

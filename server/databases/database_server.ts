@@ -1,15 +1,17 @@
 import type {Database as SqliteDatabase} from "~/external/sqlite/ext/wasm/jswasm/sqlite3.mjs";
 import type {WorkerActionContext} from "~/server/cloudflare/context/worker_action_context.js";
-import type {DatabaseServerStorage} from "~/server/databases/database_server_storage.js";
+import {runDatabaseDurableObjectSqlMigrations} from "~/server/databases/database_durable_object_sql_migrations.js";
 import {isInternalDatabaseServiceActor} from "~/server/databases/is_internal_database_service_actor.js";
 import {
     type AccessLevel,
     type LocalAccessPolicy,
+    LocalAccessPolicySchema,
     getAccountAccessLevelAssumingSpaceAccess,
     maxAccessLevel,
 } from "~/shared/access/access_policy.js";
 import {allowAllTableAccess} from "~/shared/databases/allow_all_table_access.js";
 import {Database, type DatabaseTrackedExecution} from "~/shared/databases/database.js";
+import type {DatabaseServerTableRegistration} from "~/shared/databases/database_action_context.js";
 import {
     type DatabaseActionName,
     type DatabaseActionObject,
@@ -17,7 +19,8 @@ import {
     databaseActions,
 } from "~/shared/databases/database_actions.js";
 import type {ReadonlyDatabasePageSet} from "~/shared/databases/database_protocol_schemas.js";
-import {type SqlQuery} from "~/shared/databases/sql.js";
+import {SqlJsonSchema} from "~/shared/databases/model/sqlite_schema.js";
+import {type SqlQuery, sql} from "~/shared/databases/sql.js";
 import {type SqliteWriteLevel} from "~/shared/databases/sqlite_authorizer.js";
 import {sqlitePageSize} from "~/shared/databases/sqlite_constants.js";
 import {
@@ -31,6 +34,7 @@ import {PermissionDeniedError} from "~/shared/error/error.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
 import type {AccountId, DatabaseTableId} from "~/shared/id/types/id_types.js";
+import {Schema} from "~/shared/schema/schema.js";
 
 export interface DatabaseServerPageChange {
     before: Uint8Array;
@@ -76,32 +80,69 @@ export type DatabaseServerActionResult<N extends DatabaseActionName> = {
 };
 
 /**
- * Canonical SQLite database backed by a {@link DatabaseServerStorage}
- * implementation.
+ * A registered table's access metadata, read synchronously by the SQLite
+ * authorizer's per-statement lookup. `null` policies (a table whose policy copy
+ * hasn't arrived) evaluate to no access — fail closed.
+ */
+export type DatabaseServerTableAccessEntry =
+    | {kind: "table"; accessPolicy: LocalAccessPolicy | null}
+    | {kind: "join"; sourceTableId: DatabaseTableId; targetTableId: DatabaseTableId};
+
+/**
+ * Canonical SQLite database backed by a Cloudflare Durable Object's {@link
+ * SqlStorage}.
  *
  * Wraps a {@link Database}: SQL execution, page tracking, authorization, and the
  * in-memory write buffer all live there. The server's job is to glue that buffer
  * to durable storage — every {@link execute}/{@link executeAction} call captures
- * pre-mutation page snapshots, drains the buffer to {@link DatabaseServerStorage},
+ * pre-mutation page snapshots, drains the buffer to the durable object's SQLite,
  * and surfaces `readPages` (with full page data + version) and `changedPages`
  * (before/after, partitioned by table) for the realtime layer to broadcast.
  *
+ * Pages are partitioned by {@link DatabaseTableId} so one Durable Object can host
+ * many SQLite databases. Storage uses two data tables:
+ *
+ * - `database_tables(sqlite_id, table_id, kind, table_name, schema_version, access_policy, source_table_id, target_table_id)`
+ *   maps each external string id to a small integer and stores the table's
+ *   registration — see the migration in
+ *   `database_durable_object_sql_migrations.ts` for the column semantics.
+ * - `database_table_pages(sqlite_id, page_index, version, data)` stores versioned
+ *   pages keyed by `(sqlite_id, page_index, version)`. A `NULL` `data` marks a
+ *   tombstone (left behind by truncates) which is surfaced as a missing page from
+ *   {@link readPage}.
+ *
+ * The `sqlite_id` is purely an internal storage optimization and never leaks out
+ * of this class.
+ *
+ * Versions are global across tables: a single counter is bumped once per {@link
+ * writePages} call, and every row inserted by that call is stamped with the new
+ * value.
+ *
  * All per-table access metadata (kind, policy copies, join topology) lives in the
- * storage's table store, written by create flows through the server action context
- * and read back synchronously by the authorizer's per-statement lookup — there is
- * no in-memory copy to keep fresh.
+ * `database_tables` store, written by create flows through the server action
+ * context and read back synchronously by the authorizer's per-statement lookup —
+ * there is no in-memory copy to keep fresh. This store never replicates to
+ * clients, which is what allows plaintext names and policies in it.
  */
 export class DatabaseServer {
-    private readonly database: Database;
-    private readonly storage: DatabaseServerStorage;
+    // Assigned in `create` right after construction: `Database.create` reads pages
+    // through this instance, so the instance must exist before the database does.
+    private database!: Database;
+    private readonly storage: DurableObjectStorage;
+    private readonly sql: SqlStorage;
+    private readonly sqliteIds = new Map<DatabaseTableId, number>();
+    private readonly fileSizes = new Map<DatabaseTableId, number>();
+    private lastWriteVersion: number | undefined;
 
-    private constructor(database: Database, storage: DatabaseServerStorage) {
-        this.database = database;
+    private constructor(storage: DurableObjectStorage) {
         this.storage = storage;
+        this.sql = storage.sql;
     }
 
-    static async create(storage: DatabaseServerStorage): Promise<DatabaseServer> {
-        const database = await Database.create(storage, {
+    static async create(storage: DurableObjectStorage): Promise<DatabaseServer> {
+        runDatabaseDurableObjectSqlMigrations(storage);
+        const server = new DatabaseServer(storage);
+        server.database = await Database.create(server, {
             server: {
                 tables: {
                     // Stamp the registration with the migration count its create flow is about to
@@ -109,7 +150,7 @@ export class DatabaseServer {
                     // the same action (and the same storage transaction), so the mirror is correct the
                     // moment the action commits.
                     registerTable: (tableId, registration) =>
-                        storage.registerDatabaseTable(tableId, {
+                        server._registerDatabaseTable(tableId, {
                             ...registration,
                             schemaVersion:
                                 registration.kind === "table"
@@ -117,15 +158,14 @@ export class DatabaseServer {
                                     : joinTableSqliteMigrations(tableId).length,
                         }),
                     setTableName: (tableId, tableName) =>
-                        storage.setDatabaseTableName(tableId, tableName),
+                        server._setDatabaseTableName(tableId, tableName),
                     setTableAccessPolicy: (tableId, accessPolicy) =>
-                        storage.setDatabaseTableAccessPolicy(tableId, accessPolicy),
+                        server.setDatabaseTableAccessPolicy(tableId, accessPolicy),
                     isTableNameTaken: (tableName, excludeTableId) =>
-                        storage.isDatabaseTableNameTaken(tableName, excludeTableId),
+                        server._isDatabaseTableNameTaken(tableName, excludeTableId),
                 },
             },
         });
-        const server = new DatabaseServer(database, storage);
         server._bootstrap();
         return server;
     }
@@ -198,7 +238,7 @@ export class DatabaseServer {
         tableId: DatabaseTableId,
         accountId: AccountId | null,
     ): AccessLevel | null {
-        const entry = this.storage.getDatabaseTableAccessEntry(tableId);
+        const entry = this.getDatabaseTableAccessEntry(tableId);
         if (entry === null) return null;
         switch (entry.kind) {
             case "table":
@@ -231,7 +271,7 @@ export class DatabaseServer {
      * Test-only: drain any buffered writes accumulated by direct {@link
      * unsafeGetDbForTests} use to durable storage. Production paths drain
      * automatically as part of {@link execute}/{@link executeAction}; tests that write
-     * through the raw handle and then inspect `storage` directly need this to
+     * through the raw handle and then inspect storage directly need this to
      * materialize the writes first.
      */
     commitBufferForTests(): void {
@@ -239,7 +279,390 @@ export class DatabaseServer {
         this._persistBuffer();
     }
 
+    // -- Durable storage ------------------------------------------------------
+
+    transactionSync<T>(fn: () => T): T {
+        return this.storage.transactionSync(fn);
+    }
+
+    /**
+     * A registered table's access metadata, or `null` when the id is unknown or not
+     * yet registered (callers fail closed).
+     */
+    getDatabaseTableAccessEntry(tableId: DatabaseTableId): DatabaseServerTableAccessEntry | null {
+        // `kind IS NOT NULL` drops unregistered rows (created by a bare page write or an
+        // early policy push) — they resolve to no entry, fail closed, same as a missing
+        // row.
+        return sql`
+            SELECT
+                kind,
+                access_policy,
+                source_table_id,
+                target_table_id
+            FROM
+                database_tables
+            WHERE
+                table_id = ${tableId}
+                AND kind IS NOT NULL
+        `.selectOneOrNone(this.sql, databaseTableRowSchema);
+    }
+
+    /**
+     * Every registered table, for access-map building and the bootstrap migration
+     * sweep.
+     */
+    listDatabaseTables(): Array<{
+        tableId: DatabaseTableId;
+        kind: "table" | "join";
+        schemaVersion: number;
+    }> {
+        return sql`
+            SELECT
+                table_id,
+                kind,
+                schema_version
+            FROM
+                database_tables
+            WHERE
+                kind IS NOT NULL
+            ORDER BY
+                table_id
+        `.selectAll(this.sql, {
+            tableId: Schema.id<DatabaseTableId>().originalPropertyKey("table_id"),
+            kind: Schema.enum(["table", "join"]),
+            schemaVersion: Schema.integer.originalPropertyKey("schema_version"),
+        });
+    }
+
+    getDatabaseTableAccessPolicy(tableId: DatabaseTableId): LocalAccessPolicy | null {
+        return (
+            sql`
+                SELECT
+                    access_policy
+                FROM
+                    database_tables
+                WHERE
+                    table_id = ${tableId}
+            `.selectValueIfExists(this.sql, accessPolicyColumnSchema) ?? null
+        );
+    }
+
+    setDatabaseTableAccessPolicy(
+        tableId: DatabaseTableId,
+        accessPolicy: LocalAccessPolicy | null,
+    ): void {
+        sql`
+            INSERT INTO
+                database_tables (table_id, access_policy)
+            VALUES
+                (
+                    ${tableId},
+                    ${accessPolicyColumnSchema.serialize(accessPolicy)}
+                )
+            ON CONFLICT (table_id) DO UPDATE
+            SET
+                access_policy = excluded.access_policy
+        `.exec(this.sql);
+    }
+
+    /**
+     * Update the mirrored migration version after the bootstrap sweep migrates a file.
+     */
+    setDatabaseTableSchemaVersion(tableId: DatabaseTableId, schemaVersion: number): void {
+        sql`
+            UPDATE database_tables
+            SET
+                schema_version = ${schemaVersion}
+            WHERE
+                table_id = ${tableId}
+        `.exec(this.sql);
+    }
+
+    readPage(
+        databaseTableId: DatabaseTableId,
+        index: number,
+    ): {data: Uint8Array; version: number} | null {
+        const sqliteId = this._lookupSqliteId(databaseTableId);
+        if (sqliteId === undefined) {
+            return null;
+        }
+        const row = sql`
+            SELECT
+                data,
+                version
+            FROM
+                database_table_pages
+            WHERE
+                sqlite_id = ${sqliteId}
+                AND page_index = ${index}
+            ORDER BY
+                version DESC
+            LIMIT
+                1
+        `.selectOneOrNone(this.sql, {
+            data: Schema.bytes.nullable(),
+            version: Schema.integer,
+        });
+        // Tombstones (data IS NULL) surface as missing pages — the underlying file size
+        // already shrank past them via truncation, so no caller needs to distinguish.
+        if (row === null || row.data === null) {
+            return null;
+        }
+        return {data: row.data, version: row.version};
+    }
+
+    /**
+     * Apply a batch of buffered writes atomically.
+     *
+     * - `pages` — page after-images keyed by table, then by zero-based page index.
+     * - `truncates` — post-truncate file sizes in bytes, keyed by table. Every page at
+     *   or past the boundary becomes a tombstone at the same version stamped on the
+     *   batch's writes.
+     *
+     * Truncates are applied before page writes so a write past a truncate boundary
+     * correctly re-extends the file. Returns the monotonically increasing version
+     * stamped on every row touched in this batch.
+     */
+    writePages(
+        pages: ReadonlyMap<DatabaseTableId, ReadonlyMap<number, Uint8Array>>,
+        truncates: ReadonlyMap<DatabaseTableId, number>,
+    ): number {
+        const version = this._nextVersion();
+
+        // Truncates first: tombstone every page at or past each table's new boundary. A
+        // subsequent write to a page in this batch that falls past the boundary re-extends
+        // the file naturally — the boundary write just becomes the latest row at the same
+        // version.
+        for (const [databaseTableId, size] of truncates) {
+            const sqliteId = this._getOrCreateSqliteId(databaseTableId);
+            const maxPageIndex = Math.floor(size / sqlitePageSize);
+            const pageIndexes = sql`
+                SELECT DISTINCT
+                    page_index
+                FROM
+                    database_table_pages
+                WHERE
+                    sqlite_id = ${sqliteId}
+                    AND page_index >= ${maxPageIndex}
+            `.selectValues(this.sql, Schema.integer);
+            for (const pageIndex of pageIndexes) {
+                sql`
+                    INSERT INTO
+                        database_table_pages (sqlite_id, page_index, version, data)
+                    VALUES
+                        (
+                            ${sqliteId},
+                            ${pageIndex},
+                            ${version},
+                            NULL
+                        )
+                `.exec(this.sql);
+            }
+            this.fileSizes.set(databaseTableId, size);
+        }
+
+        for (const [databaseTableId, tablePages] of pages) {
+            const sqliteId = this._getOrCreateSqliteId(databaseTableId);
+            for (const [index, data] of tablePages) {
+                sql`
+                    INSERT INTO
+                        database_table_pages (sqlite_id, page_index, version, data)
+                    VALUES
+                        (
+                            ${sqliteId},
+                            ${index},
+                            ${version},
+                            ${data}
+                        )
+                `.exec(this.sql);
+                const end = (index + 1) * sqlitePageSize;
+                if (end > this.getFileSize(databaseTableId)) {
+                    this.fileSizes.set(databaseTableId, end);
+                }
+            }
+        }
+
+        return version;
+    }
+
+    getFileSize(databaseTableId: DatabaseTableId): number {
+        const cached = this.fileSizes.get(databaseTableId);
+        if (cached !== undefined) {
+            return cached;
+        }
+        const sqliteId = this._lookupSqliteId(databaseTableId);
+        if (sqliteId === undefined) {
+            this.fileSizes.set(databaseTableId, 0);
+            return 0;
+        }
+        const lastPageIndex = sql`
+            SELECT
+                p.page_index
+            FROM
+                database_table_pages p
+            WHERE
+                p.sqlite_id = ${sqliteId}
+                AND p.version = (
+                    SELECT
+                        MAX(p2.version)
+                    FROM
+                        database_table_pages p2
+                    WHERE
+                        p2.sqlite_id = ${sqliteId}
+                        AND p2.page_index = p.page_index
+                )
+                AND p.data IS NOT NULL
+            ORDER BY
+                p.page_index DESC
+            LIMIT
+                1
+        `.selectValueIfExists(this.sql, Schema.integer);
+        const size = lastPageIndex === null ? 0 : (lastPageIndex + 1) * sqlitePageSize;
+        this.fileSizes.set(databaseTableId, size);
+        return size;
+    }
+
     // -- Internal -----------------------------------------------------------
+
+    /**
+     * Record a newly created table's registration. Upserts: the row may already exist
+     * from an earlier page write or policy push.
+     */
+    private _registerDatabaseTable(
+        tableId: DatabaseTableId,
+        registration: DatabaseServerTableRegistration & {schemaVersion: number},
+    ): void {
+        sql`
+            INSERT INTO
+                database_tables (
+                    table_id,
+                    kind,
+                    table_name,
+                    schema_version,
+                    access_policy,
+                    source_table_id,
+                    target_table_id
+                )
+            VALUES
+                (
+                    ${tableId},
+                    ${registration.kind},
+                    ${registration.tableName},
+                    ${registration.schemaVersion},
+                    ${accessPolicyColumnSchema.serialize(
+                registration.kind === "table" ? registration.accessPolicy : null,
+            )},
+                    ${registration.kind === "join" ? registration.sourceTableId : null},
+                    ${registration.kind === "join" ? registration.targetTableId : null}
+                )
+            ON CONFLICT (table_id) DO UPDATE
+            SET
+                kind = excluded.kind,
+                table_name = excluded.table_name,
+                schema_version = excluded.schema_version,
+                access_policy = excluded.access_policy,
+                source_table_id = excluded.source_table_id,
+                target_table_id = excluded.target_table_id
+        `.exec(this.sql);
+    }
+
+    /** Record a rename's resolved SQLite `table_name`. */
+    private _setDatabaseTableName(tableId: DatabaseTableId, tableName: string): void {
+        const updated = sql`
+            UPDATE database_tables
+            SET
+                table_name = ${tableName}
+            WHERE
+                table_id = ${tableId}
+            RETURNING
+                1
+        `.selectValueIfExists(this.sql, Schema.integer);
+        assert(updated !== null, `setDatabaseTableName: unknown table ${tableId}`);
+    }
+
+    /**
+     * Whether any table's `table_name` equals `tableName`, optionally excluding one
+     * id.
+     */
+    private _isDatabaseTableNameTaken(
+        tableName: string,
+        excludeTableId?: DatabaseTableId,
+    ): boolean {
+        const excludeClause =
+            excludeTableId === undefined ? sql`` : sql` AND table_id != ${excludeTableId} `;
+        return (
+            sql`
+                SELECT
+                    1
+                FROM
+                    database_tables
+                WHERE
+                    table_name = ${tableName} ${excludeClause}
+            `.selectValueIfExists(this.sql, Schema.integer) !== null
+        );
+    }
+
+    private _nextVersion(): number {
+        if (this.lastWriteVersion === undefined) {
+            // Cold load: recover MAX(version) across every table so the next stamp is strictly
+            // greater than anything already persisted.
+            this.lastWriteVersion =
+                sql`
+                    SELECT
+                        MAX(version)
+                    FROM
+                        database_table_pages
+                `.selectValue(this.sql, Schema.integer.nullable()) ?? 0;
+        }
+        this.lastWriteVersion++;
+        return this.lastWriteVersion;
+    }
+
+    /**
+     * Resolve `databaseTableId` to its internal `sqlite_id`, returning `undefined` if
+     * no row exists yet. Used by read paths so an unwritten table doesn't silently
+     * register a `sqlite_id`.
+     */
+    private _lookupSqliteId(databaseTableId: DatabaseTableId): number | undefined {
+        const cached = this.sqliteIds.get(databaseTableId);
+        if (cached !== undefined) {
+            return cached;
+        }
+        const sqliteId = sql`
+            SELECT
+                sqlite_id
+            FROM
+                database_tables
+            WHERE
+                table_id = ${databaseTableId}
+        `.selectValueIfExists(this.sql, Schema.integer);
+        if (sqliteId === null) {
+            return undefined;
+        }
+        this.sqliteIds.set(databaseTableId, sqliteId);
+        return sqliteId;
+    }
+
+    /**
+     * Resolve `databaseTableId` to its internal `sqlite_id`, inserting a fresh row in
+     * `database_tables` on first write.
+     */
+    private _getOrCreateSqliteId(databaseTableId: DatabaseTableId): number {
+        const existing = this._lookupSqliteId(databaseTableId);
+        if (existing !== undefined) {
+            return existing;
+        }
+        const sqliteId = sql`
+            INSERT INTO
+                database_tables (table_id)
+            VALUES
+                (${databaseTableId})
+            RETURNING
+                sqlite_id
+        `.selectValue(this.sql, Schema.integer);
+        this.sqliteIds.set(databaseTableId, sqliteId);
+        return sqliteId;
+    }
 
     /**
      * A joined table's access level for `accountId`, `null` when denied/unknown.
@@ -248,7 +671,7 @@ export class DatabaseServer {
         tableId: DatabaseTableId,
         accountId: AccountId | null,
     ): AccessLevel | null {
-        const entry = this.storage.getDatabaseTableAccessEntry(tableId);
+        const entry = this.getDatabaseTableAccessEntry(tableId);
         if (entry === null || entry.kind !== "table") return null;
         return accessLevelForPolicy(entry.accessPolicy, accountId);
     }
@@ -274,7 +697,7 @@ export class DatabaseServer {
         // — Database only evicts tables with an empty buffer, and for groups with more
         // stale tables than the attach threshold the sweep relies on that LRU eviction to
         // stay under SQLite's limit.
-        for (const table of this.storage.listDatabaseTables()) {
+        for (const table of this.listDatabaseTables()) {
             const migrationCount =
                 table.kind === "table"
                     ? tableSqliteMigrations(table.tableId).length
@@ -300,7 +723,7 @@ export class DatabaseServer {
             // Repair the mirror only after the migrated pages are durable — a crash in between
             // re-runs an already-applied (no-op) migration next boot rather than skipping a
             // stale file.
-            this.storage.setDatabaseTableSchemaVersion(table.tableId, migrationCount);
+            this.setDatabaseTableSchemaVersion(table.tableId, migrationCount);
         }
     }
 
@@ -318,7 +741,7 @@ export class DatabaseServer {
         // belonging to a prior (forgotten) drain.
         this.database.assertBufferIsEmpty("_runAndPersist");
         try {
-            return this.storage.transactionSync(() => {
+            return this.transactionSync(() => {
                 const {result, readPages} = run();
                 return this._persistAndBuildResult(result, readPages);
             });
@@ -366,7 +789,7 @@ export class DatabaseServer {
             for (const [tableId, tablePages] of buffered.pages) {
                 const pages = new Map<number, DatabaseServerPageChange>();
                 for (const [pageIndex, after] of tablePages) {
-                    const stored = this.storage.readPage(tableId, pageIndex);
+                    const stored = this.readPage(tableId, pageIndex);
                     const before = stored !== null ? stored.data : new Uint8Array(sqlitePageSize);
                     pages.set(pageIndex, {
                         before: new Uint8Array(before),
@@ -402,7 +825,7 @@ export class DatabaseServer {
                         version: postWriteVersion,
                     });
                 } else {
-                    const page = this.storage.readPage(tableId, pageIndex);
+                    const page = this.readPage(tableId, pageIndex);
                     // A read page that reads back `null` post-drain was truncated away by this same
                     // batch: the VFS only adds a page to the read set when the read returned real
                     // data, so `null` here means the batch's truncate tombstoned it. The server
@@ -445,7 +868,7 @@ export class DatabaseServer {
         // it fetched over the wire without the header page.
         for (const [tableId, tableMap] of readPages) {
             if (tableMap.has(0)) continue;
-            const page0 = this.storage.readPage(tableId, 0);
+            const page0 = this.readPage(tableId, 0);
             if (page0 !== null) {
                 tableMap.set(0, {
                     data: new Uint8Array(page0.data),
@@ -464,7 +887,7 @@ export class DatabaseServer {
     private _persistBuffer(): number {
         const buffered = this.database.getBufferedWrites();
         if (buffered === null) return 0;
-        const version = this.storage.writePages(buffered.pages, buffered.truncates);
+        const version = this.writePages(buffered.pages, buffered.truncates);
         this.database.markCommitted();
         return version;
     }
@@ -486,3 +909,25 @@ function accessLevelForPolicy(
     if (accessPolicy === null) return null;
     return getAccountAccessLevelAssumingSpaceAccess(accessPolicy, accountId);
 }
+
+/**
+ * The `access_policy` column: a resolved local policy copy stored as JSON text.
+ */
+const accessPolicyColumnSchema = SqlJsonSchema(LocalAccessPolicySchema).nullable();
+
+/**
+ * Row shape for {@link DatabaseServer.getDatabaseTableAccessEntry}, discriminated
+ * on the registration `kind` (the CHECK constraint in
+ * `database_durable_object_sql_migrations.ts` guarantees each variant's columns).
+ */
+const databaseTableRowSchema = Schema.unionWithKey("kind", {
+    table: Schema.object({
+        kind: Schema.value("table"),
+        accessPolicy: accessPolicyColumnSchema.originalPropertyKey("access_policy"),
+    }),
+    join: Schema.object({
+        kind: Schema.value("join"),
+        sourceTableId: Schema.id<DatabaseTableId>().originalPropertyKey("source_table_id"),
+        targetTableId: Schema.id<DatabaseTableId>().originalPropertyKey("target_table_id"),
+    }),
+});

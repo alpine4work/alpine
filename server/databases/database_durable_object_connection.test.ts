@@ -1,9 +1,9 @@
+import {jest} from "@jest/globals";
 import {DurableObjectStorage} from "@miniflare/durable-objects";
 import {MemoryStorage} from "@miniflare/storage-memory";
 import {BrowserPageTracker} from "~/server/databases/browser_page_tracker.js";
 import {DatabaseDurableObjectConnection} from "~/server/databases/database_durable_object_connection.js";
-import {runDatabaseDurableObjectSqlMigrations} from "~/server/databases/database_durable_object_sql_migrations.js";
-import {DatabaseDurableObjectStorage} from "~/server/databases/database_durable_object_storage.js";
+import {DatabaseServer} from "~/server/databases/database_server.js";
 import {truncateFor} from "~/server/databases/test_helpers/truncate_for.js";
 import {writePagesFor} from "~/server/databases/test_helpers/write_pages_for.js";
 import type {AccessLevel} from "~/shared/access/access_policy.js";
@@ -26,17 +26,27 @@ import type {
     WebSocketConnectionId,
 } from "~/shared/id/types/id_types.js";
 
-let storage: any;
+let server: DatabaseServer;
+// A per-test table id standing in for one per-db file. Bootstrap writes real pages
+// for the main registry file, so page-mechanics tests write to a fresh id instead
+// of `databaseMainTableId` — its page set is theirs alone.
+let tableId: DatabaseTableId;
 
-beforeEach(() => {
-    storage = new DurableObjectStorage(new MemoryStorage());
-    runDatabaseDurableObjectSqlMigrations(storage);
+beforeEach(async () => {
+    server = await DatabaseServer.create(new DurableObjectStorage(new MemoryStorage()) as any);
+    tableId = generateChronologicalId<DatabaseTableId>();
+    // These page-mechanics tests aren't about access, so grant every table. Access
+    // filtering itself has dedicated tests (see `createUntrustedContext`).
+    jest.spyOn(server, "getTableAccessLevelForAccount").mockReturnValue("Manage");
+});
+
+afterEach(() => {
+    server.close();
 });
 
 // Websocket connections are always browser sessions, so the procedures always
-// enforce per-table access. These page-mechanics tests aren't about access, so
-// they pair this session context with `fullAccessServerMock` to grant every table.
-// Access filtering itself has dedicated tests (see `createUntrustedContext`).
+// enforce per-table access. The full-access spy in `beforeEach` grants every table
+// without enumerating the dynamically-generated table ids these tests use.
 const sessionTestContext = {
     actor: {
         serviceName: "EdgeService",
@@ -44,18 +54,9 @@ const sessionTestContext = {
     },
 } as any;
 
-// Server stand-in granting `Manage` on every table, so nothing is withheld. Avoids
-// enumerating the dynamically-generated table ids these tests use.
-const fullAccessServerMock = {
-    getTableAccessLevelsForAccount: () =>
-        ({get: () => "Manage"}) as unknown as Map<DatabaseTableId, AccessLevel | null>,
-    getTableAccessLevelForAccount: () => "Manage" as AccessLevel,
-} as any;
-
-function createConnection(doStorage: DatabaseDurableObjectStorage) {
+function createConnection() {
     return new DatabaseDurableObjectConnection({
-        server: fullAccessServerMock,
-        durableObjectStorage: doStorage,
+        server,
         processContext: null as any,
         sendEventToAll: () => {},
         sendEventToSelf: () => {},
@@ -73,11 +74,11 @@ async function ensureCacheIsUpToDate(
 ) {
     const result = await conn.procedures.ensureCacheIsUpToDate(
         sessionTestContext,
-        {pageVersionsByIndex: new Map([[databaseMainTableId, pageVersionsByIndex]])},
+        {pageVersionsByIndex: new Map([[tableId, pageVersionsByIndex]])},
         null as any,
     );
     return (
-        result.tables.get(databaseMainTableId) ?? {
+        result.tables.get(tableId) ?? {
             updatedPages: new Map<number, {version: number; data: Uint8Array}>(),
             stalePageIndexes: [] as ReadonlyArray<number>,
             fileSizeInPages: 0,
@@ -91,7 +92,7 @@ async function acknowledgePages(
 ) {
     return conn.procedures.acknowledgePages(
         sessionTestContext,
-        {pageIndexes: new Map([[databaseMainTableId, pageIndexes]])},
+        {pageIndexes: new Map([[tableId, pageIndexes]])},
         null as any,
     );
 }
@@ -104,10 +105,9 @@ function makePage(marker: number): Uint8Array {
 
 describe("ensureCacheIsUpToDate", () => {
     test("returns empty when all pages are up to date", async () => {
-        const doStorage = new DatabaseDurableObjectStorage(storage);
-        writePagesFor(doStorage, databaseMainTableId, new Map([[0, makePage(0xaa)]]));
-        const ts = doStorage.readPage(databaseMainTableId, 0)!.version;
-        const conn = createConnection(doStorage);
+        writePagesFor(server, tableId, new Map([[0, makePage(0xaa)]]));
+        const ts = server.readPage(tableId, 0)!.version;
+        const conn = createConnection();
 
         const result = await ensureCacheIsUpToDate(conn, new Map([[0, ts]]));
 
@@ -116,17 +116,16 @@ describe("ensureCacheIsUpToDate", () => {
     });
 
     test("returns updated pages when few are stale", async () => {
-        const doStorage = new DatabaseDurableObjectStorage(storage);
         writePagesFor(
-            doStorage,
-            databaseMainTableId,
+            server,
+            tableId,
             new Map([
                 [0, makePage(0xaa)],
                 [1, makePage(0xbb)],
             ]),
         );
-        const version0 = doStorage.readPage(databaseMainTableId, 0)!.version;
-        const conn = createConnection(doStorage);
+        const version0 = server.readPage(tableId, 0)!.version;
+        const conn = createConnection();
 
         // Page 0 matches, page 1 has stale client version
         const result = await ensureCacheIsUpToDate(
@@ -144,10 +143,9 @@ describe("ensureCacheIsUpToDate", () => {
     });
 
     test("returns stale indexes for pages not on server", async () => {
-        const doStorage = new DatabaseDurableObjectStorage(storage);
-        writePagesFor(doStorage, databaseMainTableId, new Map([[0, makePage(0xaa)]]));
-        const version0 = doStorage.readPage(databaseMainTableId, 0)!.version;
-        const conn = createConnection(doStorage);
+        writePagesFor(server, tableId, new Map([[0, makePage(0xaa)]]));
+        const version0 = server.readPage(tableId, 0)!.version;
+        const conn = createConnection();
 
         // Page 5 doesn't exist on the server
         const result = await ensureCacheIsUpToDate(
@@ -163,9 +161,8 @@ describe("ensureCacheIsUpToDate", () => {
     });
 
     test("mixes updated pages and stale indexes", async () => {
-        const doStorage = new DatabaseDurableObjectStorage(storage);
-        writePagesFor(doStorage, databaseMainTableId, new Map([[0, makePage(0xaa)]]));
-        const conn = createConnection(doStorage);
+        writePagesFor(server, tableId, new Map([[0, makePage(0xaa)]]));
+        const conn = createConnection();
 
         // Page 0 is stale (mismatched ts), page 5 is missing on the server entirely.
         const result = await ensureCacheIsUpToDate(
@@ -182,15 +179,13 @@ describe("ensureCacheIsUpToDate", () => {
     });
 
     test("falls back to all stale indexes when over limit", async () => {
-        const doStorage = new DatabaseDurableObjectStorage(storage);
-
         // Write exactly cacheUpdateStalePageLimit pages
         const pages = new Map<number, Uint8Array>();
         for (let i = 0; i < cacheUpdateStalePageLimit; i++) {
             pages.set(i, makePage(i & 0xff));
         }
-        writePagesFor(doStorage, databaseMainTableId, pages);
-        const conn = createConnection(doStorage);
+        writePagesFor(server, tableId, pages);
+        const conn = createConnection();
 
         // All pages are stale (client has ts=0 for each)
         const clientVersions = new Map<number, number>();
@@ -208,15 +203,13 @@ describe("ensureCacheIsUpToDate", () => {
     });
 
     test("under limit returns all as updated pages", async () => {
-        const doStorage = new DatabaseDurableObjectStorage(storage);
-
         const count = cacheUpdateStalePageLimit - 1;
         const pages = new Map<number, Uint8Array>();
         for (let i = 0; i < count; i++) {
             pages.set(i, makePage(i & 0xff));
         }
-        writePagesFor(doStorage, databaseMainTableId, pages);
-        const conn = createConnection(doStorage);
+        writePagesFor(server, tableId, pages);
+        const conn = createConnection();
 
         // All pages stale
         const clientVersions = new Map<number, number>();
@@ -231,22 +224,21 @@ describe("ensureCacheIsUpToDate", () => {
     });
 
     test("returns stale indexes for tombstoned pages", async () => {
-        const doStorage = new DatabaseDurableObjectStorage(storage);
         writePagesFor(
-            doStorage,
-            databaseMainTableId,
+            server,
+            tableId,
             new Map([
                 [0, makePage(0xaa)],
                 [1, makePage(0xbb)],
             ]),
         );
-        const version0 = doStorage.readPage(databaseMainTableId, 0)!.version;
-        const version1 = doStorage.readPage(databaseMainTableId, 1)!.version;
+        const version0 = server.readPage(tableId, 0)!.version;
+        const version1 = server.readPage(tableId, 1)!.version;
 
         // Truncate page 1 away.
-        truncateFor(doStorage, databaseMainTableId, 1 * sqlitePageSize);
+        truncateFor(server, tableId, 1 * sqlitePageSize);
 
-        const conn = createConnection(doStorage);
+        const conn = createConnection();
         const result = await ensureCacheIsUpToDate(
             conn,
             new Map([
@@ -261,16 +253,14 @@ describe("ensureCacheIsUpToDate", () => {
     });
 
     test("over limit with trailing pages puts everything in stale indexes", async () => {
-        const doStorage = new DatabaseDurableObjectStorage(storage);
-
         // Write one more than the limit
         const count = cacheUpdateStalePageLimit + 1;
         const pages = new Map<number, Uint8Array>();
         for (let i = 0; i < count; i++) {
             pages.set(i, makePage(i & 0xff));
         }
-        writePagesFor(doStorage, databaseMainTableId, pages);
-        const conn = createConnection(doStorage);
+        writePagesFor(server, tableId, pages);
+        const conn = createConnection();
 
         const clientVersions = new Map<number, number>();
         for (let i = 0; i < count; i++) {
@@ -294,15 +284,13 @@ describe("ensureCacheIsUpToDate", () => {
 // ---
 
 function createTrackedConnection(
-    doStorage: DatabaseDurableObjectStorage,
     tracker: BrowserPageTracker,
     browserId: BrowserId,
     {trackPages = true}: {trackPages?: boolean} = {},
 ) {
     const connectionId = generateId<WebSocketConnectionId>();
     return new DatabaseDurableObjectConnection({
-        server: fullAccessServerMock,
-        durableObjectStorage: doStorage,
+        server,
         processContext: null as any,
         sendEventToAll: () => {},
         sendEventToSelf: () => {},
@@ -316,10 +304,9 @@ function createTrackedConnection(
 
 describe("per-browser page tracking", () => {
     test("acknowledgePages ignores pages for tables the server never sent", async () => {
-        const doStorage = new DatabaseDurableObjectStorage(storage);
         const tracker = new BrowserPageTracker();
         const browserId = generateId<BrowserId>();
-        const conn = createTrackedConnection(doStorage, tracker, browserId);
+        const conn = createTrackedConnection(tracker, browserId);
 
         // A client fabricates a tableId it was never sent and acknowledges pages for it.
         // The server must not create tracker state for an unknown table — otherwise an
@@ -335,37 +322,35 @@ describe("per-browser page tracking", () => {
     });
 
     test("acknowledgePages ignores page indexes the server never sent", async () => {
-        const doStorage = new DatabaseDurableObjectStorage(storage);
         const tracker = new BrowserPageTracker();
         const browserId = generateId<BrowserId>();
-        const conn = createTrackedConnection(doStorage, tracker, browserId);
+        const conn = createTrackedConnection(tracker, browserId);
 
         // The server sent only page 0. A client acks page 0 plus a never-sent index; the
         // unsent page must not be tracked — otherwise an untrusted client can grow the
         // per-browser page map with out-of-range indexes.
-        tracker.addPendingPages(browserId, new Map([[databaseMainTableId, [0]]]));
+        tracker.addPendingPages(browserId, new Map([[tableId, [0]]]));
         await acknowledgePages(conn, [0, 999]);
 
-        expect(tracker.clientMightHavePage(browserId, databaseMainTableId, 999)).toBe(false);
+        expect(tracker.clientMightHavePage(browserId, tableId, 999)).toBe(false);
     });
 
     test("ensureCacheIsUpToDate sets matching pages as confirmed in tracker", async () => {
-        const doStorage = new DatabaseDurableObjectStorage(storage);
         writePagesFor(
-            doStorage,
-            databaseMainTableId,
+            server,
+            tableId,
             new Map([
                 [0, makePage(0xaa)],
                 [1, makePage(0xbb)],
                 [2, makePage(0xcc)],
             ]),
         );
-        const version0 = doStorage.readPage(databaseMainTableId, 0)!.version;
-        const version1 = doStorage.readPage(databaseMainTableId, 1)!.version;
+        const version0 = server.readPage(tableId, 0)!.version;
+        const version1 = server.readPage(tableId, 1)!.version;
 
         const tracker = new BrowserPageTracker();
         const browserId = generateId<BrowserId>();
-        const conn = createTrackedConnection(doStorage, tracker, browserId);
+        const conn = createTrackedConnection(tracker, browserId);
 
         // Page 0 and 1 match, page 2 is stale (wrong ts)
         await ensureCacheIsUpToDate(
@@ -381,7 +366,7 @@ describe("per-browser page tracking", () => {
         // updatedPages → pending (not skipped by filterReadPages).
         const allPages = new Map([
             [
-                databaseMainTableId,
+                tableId,
                 new Map([
                     [0, {version: 1, data: new Uint8Array(1)}],
                     [1, {version: 1, data: new Uint8Array(1)}],
@@ -390,25 +375,24 @@ describe("per-browser page tracking", () => {
             ],
         ]);
         const filtered = tracker.filterReadPages(browserId, allPages);
-        expect(filtered.get(databaseMainTableId)?.size).toBe(1);
-        expect(filtered.get(databaseMainTableId)?.has(2)).toBe(true);
+        expect(filtered.get(tableId)?.size).toBe(1);
+        expect(filtered.get(tableId)?.has(2)).toBe(true);
     });
 
     test("ensureCacheIsUpToDate marks updatedPages as pending in tracker", async () => {
-        const doStorage = new DatabaseDurableObjectStorage(storage);
         writePagesFor(
-            doStorage,
-            databaseMainTableId,
+            server,
+            tableId,
             new Map([
                 [0, makePage(0xaa)],
                 [1, makePage(0xbb)],
             ]),
         );
-        const version0 = doStorage.readPage(databaseMainTableId, 0)!.version;
+        const version0 = server.readPage(tableId, 0)!.version;
 
         const tracker = new BrowserPageTracker();
         const browserId = generateId<BrowserId>();
-        const conn = createTrackedConnection(doStorage, tracker, browserId);
+        const conn = createTrackedConnection(tracker, browserId);
 
         // Page 0 matches, page 1 is stale
         await ensureCacheIsUpToDate(
@@ -426,7 +410,7 @@ describe("per-browser page tracking", () => {
         // Now page 1 is confirmed (skipped)
         const allPages = new Map([
             [
-                databaseMainTableId,
+                tableId,
                 new Map([
                     [0, {version: 1, data: new Uint8Array(1)}],
                     [1, {version: 1, data: new Uint8Array(1)}],
@@ -437,20 +421,19 @@ describe("per-browser page tracking", () => {
     });
 
     test("acknowledgePages confirms pages in tracker", async () => {
-        const doStorage = new DatabaseDurableObjectStorage(storage);
         const tracker = new BrowserPageTracker();
         const browserId = generateId<BrowserId>();
-        const conn = createTrackedConnection(doStorage, tracker, browserId);
+        const conn = createTrackedConnection(tracker, browserId);
 
         // The server sends these pages first (marking them pending) before the client can
         // acknowledge them — acks for never-sent pages are ignored.
-        tracker.addPendingPages(browserId, new Map([[databaseMainTableId, [5, 6, 7]]]));
+        tracker.addPendingPages(browserId, new Map([[tableId, [5, 6, 7]]]));
         await acknowledgePages(conn, [5, 6, 7]);
 
         // Acknowledged pages are confirmed — skipped by filterReadPages
         const pages = new Map([
             [
-                databaseMainTableId,
+                tableId,
                 new Map([
                     [5, {version: 1, data: new Uint8Array(1)}],
                     [6, {version: 1, data: new Uint8Array(1)}],
@@ -459,21 +442,20 @@ describe("per-browser page tracking", () => {
             ],
         ]);
         const filtered = tracker.filterReadPages(browserId, pages);
-        expect(filtered.get(databaseMainTableId)?.size).toBe(1);
-        expect(filtered.get(databaseMainTableId)?.has(8)).toBe(true);
+        expect(filtered.get(tableId)?.size).toBe(1);
+        expect(filtered.get(tableId)?.has(8)).toBe(true);
     });
 
     test("ensureCacheIsUpToDate confirms pages for every client table, not just the main table", async () => {
-        const doStorage = new DatabaseDurableObjectStorage(storage);
         const attachedTableId = generateChronologicalId<DatabaseTableId>();
-        writePagesFor(doStorage, databaseMainTableId, new Map([[0, makePage(0xaa)]]));
-        writePagesFor(doStorage, attachedTableId, new Map([[0, makePage(0xbb)]]));
-        const mainVersion0 = doStorage.readPage(databaseMainTableId, 0)!.version;
-        const attachedVersion0 = doStorage.readPage(attachedTableId, 0)!.version;
+        writePagesFor(server, databaseMainTableId, new Map([[0, makePage(0xaa)]]));
+        writePagesFor(server, attachedTableId, new Map([[0, makePage(0xbb)]]));
+        const mainVersion0 = server.readPage(databaseMainTableId, 0)!.version;
+        const attachedVersion0 = server.readPage(attachedTableId, 0)!.version;
 
         const tracker = new BrowserPageTracker();
         const browserId = generateId<BrowserId>();
-        const conn = createTrackedConnection(doStorage, tracker, browserId);
+        const conn = createTrackedConnection(tracker, browserId);
 
         // The client validates pages for both its main table and an attached table in a
         // single call. Both tables' matching pages must be confirmed in the tracker —
@@ -498,38 +480,34 @@ describe("per-browser page tracking", () => {
     });
 
     test("handleClose unregisters connection from tracker", () => {
-        const doStorage = new DatabaseDurableObjectStorage(storage);
         const tracker = new BrowserPageTracker();
         const browserId = generateId<BrowserId>();
-        const conn = createTrackedConnection(doStorage, tracker, browserId);
+        const conn = createTrackedConnection(tracker, browserId);
 
-        tracker.setPages(browserId, new Map([[databaseMainTableId, [0, 1]]]));
+        tracker.setPages(browserId, new Map([[tableId, [0, 1]]]));
         conn.handleClose();
 
         // After close, entry should be deleted (last connection). filterReadPages returns
         // everything for an unknown browser.
-        const pages = new Map([
-            [databaseMainTableId, new Map([[0, {version: 1, data: new Uint8Array(1)}]])],
-        ]);
+        const pages = new Map([[tableId, new Map([[0, {version: 1, data: new Uint8Array(1)}]])]]);
         expect(tracker.filterReadPages(browserId, pages)).toEqual(pages);
     });
 
     test("two connections from same browser share page set", async () => {
-        const doStorage = new DatabaseDurableObjectStorage(storage);
         const tracker = new BrowserPageTracker();
         const browserId = generateId<BrowserId>();
-        const conn1 = createTrackedConnection(doStorage, tracker, browserId);
-        const conn2 = createTrackedConnection(doStorage, tracker, browserId);
+        const conn1 = createTrackedConnection(tracker, browserId);
+        const conn2 = createTrackedConnection(tracker, browserId);
 
         // The server sends these pages first (marking them pending) before either
         // connection acknowledges them.
-        tracker.addPendingPages(browserId, new Map([[databaseMainTableId, [0, 1, 2, 3]]]));
+        tracker.addPendingPages(browserId, new Map([[tableId, [0, 1, 2, 3]]]));
         await acknowledgePages(conn1, [0, 1]);
         await acknowledgePages(conn2, [2, 3]);
 
         const pages = new Map([
             [
-                databaseMainTableId,
+                tableId,
                 new Map([
                     [0, {version: 1, data: new Uint8Array(1)}],
                     [1, {version: 1, data: new Uint8Array(1)}],
@@ -540,24 +518,23 @@ describe("per-browser page tracking", () => {
             ],
         ]);
         const filtered = tracker.filterReadPages(browserId, pages);
-        expect(filtered.get(databaseMainTableId)?.size).toBe(1);
-        expect(filtered.get(databaseMainTableId)?.has(4)).toBe(true);
+        expect(filtered.get(tableId)?.size).toBe(1);
+        expect(filtered.get(tableId)?.has(4)).toBe(true);
     });
 
     test("closing one of two connections preserves page set", () => {
-        const doStorage = new DatabaseDurableObjectStorage(storage);
         const tracker = new BrowserPageTracker();
         const browserId = generateId<BrowserId>();
-        const conn1 = createTrackedConnection(doStorage, tracker, browserId);
-        createTrackedConnection(doStorage, tracker, browserId);
+        const conn1 = createTrackedConnection(tracker, browserId);
+        createTrackedConnection(tracker, browserId);
 
-        tracker.setPages(browserId, new Map([[databaseMainTableId, [0, 1]]]));
+        tracker.setPages(browserId, new Map([[tableId, [0, 1]]]));
         conn1.handleClose();
 
         // Entry should still exist — conn2 is still open
         const pages = new Map([
             [
-                databaseMainTableId,
+                tableId,
                 new Map([
                     [0, {version: 1, data: new Uint8Array(1)}],
                     [1, {version: 1, data: new Uint8Array(1)}],
@@ -568,22 +545,21 @@ describe("per-browser page tracking", () => {
     });
 
     test("transformEvent forwards pages even when tracker does not know them", async () => {
-        const doStorage = new DatabaseDurableObjectStorage(storage);
         writePagesFor(
-            doStorage,
-            databaseMainTableId,
+            server,
+            tableId,
             new Map([
                 [0, makePage(0xaa)],
                 [1, makePage(0xbb)],
                 [2, makePage(0xcc)],
             ]),
         );
-        const version0 = doStorage.readPage(databaseMainTableId, 0)!.version;
-        const version1 = doStorage.readPage(databaseMainTableId, 1)!.version;
+        const version0 = server.readPage(tableId, 0)!.version;
+        const version1 = server.readPage(tableId, 1)!.version;
 
         const tracker = new BrowserPageTracker();
         const browserId = generateId<BrowserId>();
-        const conn = createTrackedConnection(doStorage, tracker, browserId);
+        const conn = createTrackedConnection(tracker, browserId);
 
         // Client has pages 0 and 1 confirmed
         await ensureCacheIsUpToDate(
@@ -599,7 +575,7 @@ describe("per-browser page tracking", () => {
             type: "PagesChanged" as const,
             pageDiffs: new Map([
                 [
-                    databaseMainTableId,
+                    tableId,
                     {
                         diffs: new Map([
                             [0, {previousVersion: 0, version: 1, diff: []}],
@@ -615,25 +591,24 @@ describe("per-browser page tracking", () => {
         const event = await conn.transformEvent(sessionTestContext, eventStub);
         assert(event.type === "PagesChanged", "expected PagesChanged event");
 
-        const main = event.pageDiffs.get(databaseMainTableId);
-        expect([...(main?.diffs.keys() ?? [])]).toEqual([0, 1, 3]);
+        const table = event.pageDiffs.get(tableId);
+        expect([...(table?.diffs.keys() ?? [])]).toEqual([0, 1, 3]);
     });
 
     test("transformEvent includes pending pages", async () => {
-        const doStorage = new DatabaseDurableObjectStorage(storage);
         writePagesFor(
-            doStorage,
-            databaseMainTableId,
+            server,
+            tableId,
             new Map([
                 [0, makePage(0xaa)],
                 [1, makePage(0xbb)],
             ]),
         );
-        const version0 = doStorage.readPage(databaseMainTableId, 0)!.version;
+        const version0 = server.readPage(tableId, 0)!.version;
 
         const tracker = new BrowserPageTracker();
         const browserId = generateId<BrowserId>();
-        const conn = createTrackedConnection(doStorage, tracker, browserId);
+        const conn = createTrackedConnection(tracker, browserId);
 
         // Page 0 matches (confirmed), page 1 stale (pending)
         await ensureCacheIsUpToDate(
@@ -648,7 +623,7 @@ describe("per-browser page tracking", () => {
             type: "PagesChanged" as const,
             pageDiffs: new Map([
                 [
-                    databaseMainTableId,
+                    tableId,
                     {
                         diffs: new Map([
                             [0, {previousVersion: 0, version: 1, diff: []}],
@@ -664,21 +639,20 @@ describe("per-browser page tracking", () => {
         assert(event.type === "PagesChanged", "expected PagesChanged event");
 
         // Both included: page 0 confirmed, page 1 pending
-        const main = event.pageDiffs.get(databaseMainTableId);
-        expect([...(main?.diffs.keys() ?? [])]).toEqual([0, 1]);
+        const table = event.pageDiffs.get(tableId);
+        expect([...(table?.diffs.keys() ?? [])]).toEqual([0, 1]);
     });
 
     test("transformEvent forwards tables when tracker has no pages", async () => {
-        const doStorage = new DatabaseDurableObjectStorage(storage);
         const tracker = new BrowserPageTracker();
         const browserId = generateId<BrowserId>();
-        const conn = createTrackedConnection(doStorage, tracker, browserId);
+        const conn = createTrackedConnection(tracker, browserId);
 
         const eventStub = {
             type: "PagesChanged" as const,
             pageDiffs: new Map([
                 [
-                    databaseMainTableId,
+                    tableId,
                     {
                         diffs: new Map([
                             [0, {previousVersion: 0, version: 1, diff: []}],
@@ -693,26 +667,25 @@ describe("per-browser page tracking", () => {
         const event = await conn.transformEvent(sessionTestContext, eventStub);
         assert(event.type === "PagesChanged", "expected PagesChanged event");
 
-        const main = event.pageDiffs.get(databaseMainTableId);
-        expect([...(main?.diffs.keys() ?? [])]).toEqual([0, 1]);
+        const table = event.pageDiffs.get(tableId);
+        expect([...(table?.diffs.keys() ?? [])]).toEqual([0, 1]);
     });
 
     test("ensureCacheIsUpToDate replaces page set on each call", async () => {
-        const doStorage = new DatabaseDurableObjectStorage(storage);
         writePagesFor(
-            doStorage,
-            databaseMainTableId,
+            server,
+            tableId,
             new Map([
                 [0, makePage(0xaa)],
                 [1, makePage(0xbb)],
             ]),
         );
-        const version0 = doStorage.readPage(databaseMainTableId, 0)!.version;
-        const version1 = doStorage.readPage(databaseMainTableId, 1)!.version;
+        const version0 = server.readPage(tableId, 0)!.version;
+        const version1 = server.readPage(tableId, 1)!.version;
 
         const tracker = new BrowserPageTracker();
         const browserId = generateId<BrowserId>();
-        const conn = createTrackedConnection(doStorage, tracker, browserId);
+        const conn = createTrackedConnection(tracker, browserId);
 
         // First sync: both pages match
         await ensureCacheIsUpToDate(
@@ -729,7 +702,7 @@ describe("per-browser page tracking", () => {
         // Tracker should only know about page 0 now
         const pages = new Map([
             [
-                databaseMainTableId,
+                tableId,
                 new Map([
                     [0, {version: 1, data: new Uint8Array(1)}],
                     [1, {version: 1, data: new Uint8Array(1)}],
@@ -737,29 +710,26 @@ describe("per-browser page tracking", () => {
             ],
         ]);
         const filtered = tracker.filterReadPages(browserId, pages);
-        expect(filtered.get(databaseMainTableId)?.size).toBe(1);
-        expect(filtered.get(databaseMainTableId)?.has(1)).toBe(true);
+        expect(filtered.get(tableId)?.size).toBe(1);
+        expect(filtered.get(tableId)?.has(1)).toBe(true);
     });
 
     test("trackPages false does not register the browser for page tracking", () => {
-        const doStorage = new DatabaseDurableObjectStorage(storage);
         const tracker = new BrowserPageTracker();
         const browserId = generateId<BrowserId>();
-        createTrackedConnection(doStorage, tracker, browserId, {trackPages: false});
+        createTrackedConnection(tracker, browserId, {trackPages: false});
 
-        tracker.setPages(browserId, new Map([[databaseMainTableId, [0]]]));
+        tracker.setPages(browserId, new Map([[tableId, [0]]]));
 
-        expect(tracker.clientMightHavePage(browserId, databaseMainTableId, 0)).toBe(false);
+        expect(tracker.clientMightHavePage(browserId, tableId, 0)).toBe(false);
     });
 
     test("transformEvent resolves table metadata events", async () => {
-        const doStorage = new DatabaseDurableObjectStorage(storage);
         const tracker = new BrowserPageTracker();
         const browserId = generateId<BrowserId>();
         const databaseGroupId = generateId<DatabaseGroupId>();
         const conn = new DatabaseDurableObjectConnection({
-            server: fullAccessServerMock,
-            durableObjectStorage: doStorage,
+            server,
             processContext: null as any,
             sendEventToAll: () => {},
             sendEventToSelf: () => {},
@@ -817,12 +787,10 @@ describe("per-browser page tracking", () => {
     });
 
     test("authorize checks space access for the database group", async () => {
-        const doStorage = new DatabaseDurableObjectStorage(storage);
         const tracker = new BrowserPageTracker();
         const databaseGroupId = generateId<DatabaseGroupId>();
         const conn = new DatabaseDurableObjectConnection({
-            server: null as any,
-            durableObjectStorage: doStorage,
+            server,
             processContext: null as any,
             sendEventToAll: () => {},
             sendEventToSelf: () => {},
@@ -849,13 +817,9 @@ describe("per-browser page tracking", () => {
     });
 
     test("authorize propagates a space access denial", async () => {
-        const doStorage = new DatabaseDurableObjectStorage(storage);
-        const conn = createTrackedConnection(
-            doStorage,
-            new BrowserPageTracker(),
-            generateId<BrowserId>(),
-            {trackPages: false},
-        );
+        const conn = createTrackedConnection(new BrowserPageTracker(), generateId<BrowserId>(), {
+            trackPages: false,
+        });
         const context = {
             ...sessionTestContext,
             rpc: {
@@ -871,13 +835,12 @@ describe("per-browser page tracking", () => {
     });
 
     test("transformEvent rejects table metadata events without access", async () => {
-        const doStorage = new DatabaseDurableObjectStorage(storage);
         const tracker = new BrowserPageTracker();
         const eventStub: RynamoEventStub = {
             type: "PutItem",
             item: {key: "table-key" as any, version: 1},
         };
-        const conn = createTrackedConnection(doStorage, tracker, generateId<BrowserId>(), {
+        const conn = createTrackedConnection(tracker, generateId<BrowserId>(), {
             trackPages: false,
         });
         const context = {
@@ -900,7 +863,7 @@ describe("per-browser page tracking", () => {
 
 describe("per-table realtime filtering", () => {
     // An EdgeService-issued (browser) actor: untrusted, so per-table filtering
-    // applies. The server mock answers access-level lookups.
+    // applies. The server's access-level lookup is re-spied per test.
     function createUntrustedContext() {
         return {
             actor: {
@@ -913,12 +876,12 @@ describe("per-table realtime filtering", () => {
     function createFilteringConnection(
         levelByTableId: ReadonlyMap<DatabaseTableId, AccessLevel | null>,
     ) {
+        // Replace the full-access spy from `beforeEach` with the test's access matrix.
+        jest.spyOn(server, "getTableAccessLevelForAccount").mockImplementation(
+            (lookupTableId: DatabaseTableId) => levelByTableId.get(lookupTableId) ?? null,
+        );
         return new DatabaseDurableObjectConnection({
-            server: {
-                getTableAccessLevelForAccount: (tableId: DatabaseTableId) =>
-                    levelByTableId.get(tableId) ?? null,
-            } as any,
-            durableObjectStorage: new DatabaseDurableObjectStorage(storage),
+            server,
             processContext: null as any,
             sendEventToAll: () => {},
             sendEventToSelf: () => {},

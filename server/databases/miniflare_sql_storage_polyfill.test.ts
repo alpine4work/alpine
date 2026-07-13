@@ -2,7 +2,7 @@
  * Tests for the `SqlStorage` and `transactionSync` polyfill patched into
  * `@miniflare/durable-objects`. Verifies that our better-sqlite3-backed
  * implementation matches the Cloudflare `SqlStorage` API surface used by {@link
- * DatabaseDurableObjectStorage}.
+ * DatabaseServer}.
  */
 
 import {DurableObjectStorage} from "@miniflare/durable-objects";

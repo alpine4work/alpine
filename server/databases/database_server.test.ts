@@ -1,10 +1,15 @@
+import {jest} from "@jest/globals";
+import {DurableObjectStorage} from "@miniflare/durable-objects";
+import {MemoryStorage} from "@miniflare/storage-memory";
+import {
+    databaseDurableObjectSqlMigrations,
+    runDatabaseDurableObjectSqlMigrations,
+} from "~/server/databases/database_durable_object_sql_migrations.js";
 import {DatabaseServer} from "~/server/databases/database_server.js";
-import type {
-    DatabaseServerStorage,
-    DatabaseServerTableAccessEntry,
-} from "~/server/databases/database_server_storage.js";
+import {noTruncates} from "~/server/databases/test_helpers/no_truncates.js";
+import {truncateFor} from "~/server/databases/test_helpers/truncate_for.js";
+import {writePagesFor} from "~/server/databases/test_helpers/write_pages_for.js";
 import type {AccessLevel, LocalAccessPolicy} from "~/shared/access/access_policy.js";
-import type {DatabaseServerTableRegistration} from "~/shared/databases/database_action_context.js";
 import {databaseTableAccessPolicyForCreator} from "~/shared/databases/database_table_access_policy.js";
 import {type SqlQuery, databaseTableSchemaName, sql} from "~/shared/databases/sql.js";
 import {databaseMainTableId, sqlitePageSize} from "~/shared/databases/sqlite_constants.js";
@@ -20,148 +25,11 @@ import type {
 } from "~/shared/id/types/id_types.js";
 import {Schema} from "~/shared/schema/schema.js";
 
-interface InMemoryTable {
-    pages: Map<number, {data: Uint8Array; version: number}>;
-    fileSize: number;
-}
-
-class InMemoryStorage implements DatabaseServerStorage {
-    private tables = new Map<DatabaseTableId, InMemoryTable>();
-    private accessPolicyByTableId = new Map<DatabaseTableId, LocalAccessPolicy>();
-    private registrations = new Map<
-        DatabaseTableId,
-        DatabaseServerTableRegistration & {schemaVersion: number}
-    >();
-    private lastWriteVersion = 0;
-
-    transactionSync<T>(fn: () => T): T {
-        return fn();
-    }
-
-    registerDatabaseTable(
-        tableId: DatabaseTableId,
-        registration: DatabaseServerTableRegistration & {schemaVersion: number},
-    ): void {
-        this.registrations.set(tableId, registration);
-        if (registration.kind === "table") {
-            this.accessPolicyByTableId.set(tableId, registration.accessPolicy);
-        }
-    }
-
-    getDatabaseTableAccessEntry(tableId: DatabaseTableId): DatabaseServerTableAccessEntry | null {
-        const registration = this.registrations.get(tableId);
-        if (registration === undefined) return null;
-        switch (registration.kind) {
-            case "table":
-                return {
-                    kind: "table",
-                    accessPolicy: this.accessPolicyByTableId.get(tableId) ?? null,
-                };
-            case "join":
-                return {
-                    kind: "join",
-                    sourceTableId: registration.sourceTableId,
-                    targetTableId: registration.targetTableId,
-                };
-        }
-    }
-
-    listDatabaseTables(): Array<{
-        tableId: DatabaseTableId;
-        kind: "table" | "join";
-        schemaVersion: number;
-    }> {
-        return [...this.registrations].map(([tableId, registration]) => ({
-            tableId,
-            kind: registration.kind,
-            schemaVersion: registration.schemaVersion,
-        }));
-    }
-
-    getDatabaseTableAccessPolicy(tableId: DatabaseTableId): LocalAccessPolicy | null {
-        return this.accessPolicyByTableId.get(tableId) ?? null;
-    }
-
-    setDatabaseTableAccessPolicy(
-        tableId: DatabaseTableId,
-        accessPolicy: LocalAccessPolicy | null,
-    ): void {
-        if (accessPolicy === null) {
-            this.accessPolicyByTableId.delete(tableId);
-        } else {
-            this.accessPolicyByTableId.set(tableId, accessPolicy);
-        }
-    }
-
-    setDatabaseTableName(tableId: DatabaseTableId, tableName: string): void {
-        const registration = this.registrations.get(tableId);
-        if (registration !== undefined) {
-            this.registrations.set(tableId, {...registration, tableName});
-        }
-    }
-
-    isDatabaseTableNameTaken(tableName: string, excludeTableId?: DatabaseTableId): boolean {
-        for (const [tableId, registration] of this.registrations) {
-            if (registration.tableName === tableName && tableId !== excludeTableId) return true;
-        }
-        return false;
-    }
-
-    setDatabaseTableSchemaVersion(tableId: DatabaseTableId, schemaVersion: number): void {
-        const registration = this.registrations.get(tableId);
-        if (registration !== undefined) {
-            this.registrations.set(tableId, {...registration, schemaVersion});
-        }
-    }
-
-    private getTable(databaseTableId: DatabaseTableId): InMemoryTable {
-        let table = this.tables.get(databaseTableId);
-        if (table === undefined) {
-            table = {pages: new Map(), fileSize: 0};
-            this.tables.set(databaseTableId, table);
-        }
-        return table;
-    }
-
-    readPage(
-        databaseTableId: DatabaseTableId,
-        index: number,
-    ): {data: Uint8Array; version: number} | null {
-        const table = this.tables.get(databaseTableId);
-        return table?.pages.get(index) ?? null;
-    }
-
-    writePages(
-        pages: ReadonlyMap<DatabaseTableId, ReadonlyMap<number, Uint8Array>>,
-        truncates: ReadonlyMap<DatabaseTableId, number>,
-    ): number {
-        const version = ++this.lastWriteVersion;
-        for (const [databaseTableId, size] of truncates) {
-            const table = this.getTable(databaseTableId);
-            table.fileSize = size;
-            const maxPageIndex = Math.floor(size / sqlitePageSize);
-            for (const [index] of table.pages) {
-                if (index >= maxPageIndex) {
-                    table.pages.delete(index);
-                }
-            }
-        }
-        for (const [databaseTableId, tablePages] of pages) {
-            const table = this.getTable(databaseTableId);
-            for (const [index, data] of tablePages) {
-                table.pages.set(index, {data: new Uint8Array(data), version});
-                const end = (index + 1) * sqlitePageSize;
-                if (end > table.fileSize) {
-                    table.fileSize = end;
-                }
-            }
-        }
-        return version;
-    }
-
-    getFileSize(databaseTableId: DatabaseTableId): number {
-        return this.tables.get(databaseTableId)?.fileSize ?? 0;
-    }
+// In-memory durable object storage, as patched by our Miniflare polyfill. The
+// polyfill's `sql`/`transactionSync` aren't in the upstream .d.ts TypeScript
+// resolves for the global `DurableObjectStorage` type — cast through `any`.
+function createStorage(): any {
+    return new DurableObjectStorage(new MemoryStorage());
 }
 
 // Servers created during a test are tracked here and closed in `afterEach` so
@@ -207,7 +75,7 @@ afterEach(() => {
 });
 
 async function createServerWithSchema(...statements: Array<SqlQuery>): Promise<DatabaseServer> {
-    const server = await DatabaseServer.create(new InMemoryStorage());
+    const server = await DatabaseServer.create(createStorage());
     openServers.push(server);
     const db = server.unsafeGetDbForTests();
     for (const stmt of statements) {
@@ -220,94 +88,18 @@ async function createServerWithSchema(...statements: Array<SqlQuery>): Promise<D
 }
 
 describe("DatabaseServer — storage failure recovery", () => {
-    // A storage that delegates to an in-memory store but can be armed to throw from
-    // `writePages`, simulating a durable-storage failure during the buffer drain.
-    class FlakyStorage implements DatabaseServerStorage {
-        private readonly inner = new InMemoryStorage();
-        failNextWritePages = false;
-
-        transactionSync<T>(fn: () => T): T {
-            return this.inner.transactionSync(fn);
-        }
-
-        getDatabaseTableAccessPolicy(tableId: DatabaseTableId): LocalAccessPolicy | null {
-            return this.inner.getDatabaseTableAccessPolicy(tableId);
-        }
-
-        setDatabaseTableAccessPolicy(
-            tableId: DatabaseTableId,
-            accessPolicy: LocalAccessPolicy | null,
-        ): void {
-            this.inner.setDatabaseTableAccessPolicy(tableId, accessPolicy);
-        }
-
-        registerDatabaseTable(
-            tableId: DatabaseTableId,
-            registration: DatabaseServerTableRegistration & {schemaVersion: number},
-        ): void {
-            this.inner.registerDatabaseTable(tableId, registration);
-        }
-
-        getDatabaseTableAccessEntry(
-            tableId: DatabaseTableId,
-        ): DatabaseServerTableAccessEntry | null {
-            return this.inner.getDatabaseTableAccessEntry(tableId);
-        }
-
-        listDatabaseTables(): Array<{
-            tableId: DatabaseTableId;
-            kind: "table" | "join";
-            schemaVersion: number;
-        }> {
-            return this.inner.listDatabaseTables();
-        }
-
-        setDatabaseTableName(tableId: DatabaseTableId, tableName: string): void {
-            this.inner.setDatabaseTableName(tableId, tableName);
-        }
-
-        isDatabaseTableNameTaken(tableName: string, excludeTableId?: DatabaseTableId): boolean {
-            return this.inner.isDatabaseTableNameTaken(tableName, excludeTableId);
-        }
-
-        setDatabaseTableSchemaVersion(tableId: DatabaseTableId, schemaVersion: number): void {
-            this.inner.setDatabaseTableSchemaVersion(tableId, schemaVersion);
-        }
-
-        readPage(
-            databaseTableId: DatabaseTableId,
-            index: number,
-        ): {data: Uint8Array; version: number} | null {
-            return this.inner.readPage(databaseTableId, index);
-        }
-
-        getFileSize(databaseTableId: DatabaseTableId): number {
-            return this.inner.getFileSize(databaseTableId);
-        }
-
-        writePages(
-            pages: ReadonlyMap<DatabaseTableId, ReadonlyMap<number, Uint8Array>>,
-            truncates: ReadonlyMap<DatabaseTableId, number>,
-        ): number {
-            if (this.failNextWritePages) {
-                this.failNextWritePages = false;
-                throw new InternalError("simulated storage failure");
-            }
-            return this.inner.writePages(pages, truncates);
-        }
-    }
-
     test("a failed buffer drain does not wedge later executes", async () => {
-        const storage = new FlakyStorage();
-        const server = await DatabaseServer.create(storage);
+        const server = await DatabaseServer.create(createStorage());
         openServers.push(server);
         server.execute(testContext, sql`CREATE TABLE items (id INTEGER PRIMARY KEY)`, {
             allowWrites: "schema+data",
         });
 
         // Arm a storage failure: the drain (`writePages`) throws after `execute` has
-        // already buffered its write.
-        storage.failNextWritePages = true;
+        // already buffered its write. Later calls fall through to the real implementation.
+        jest.spyOn(server, "writePages").mockImplementationOnce(() => {
+            throw new InternalError("simulated storage failure");
+        });
         expect(() =>
             server.execute(
                 testContext,
@@ -339,17 +131,19 @@ describe("DatabaseServer — storage failure recovery", () => {
 });
 
 describe("DatabaseServer", () => {
-    test("execute runs inside configured transactionSync", async () => {
+    test("execute runs inside the storage transactionSync", async () => {
         const calls: Array<string> = [];
-        const storage = new InMemoryStorage();
-        storage.transactionSync = fn => {
+        const storage = createStorage();
+        const server = await DatabaseServer.create(storage);
+        openServers.push(server);
+        // Wrap after create — bootstrap and migrations would otherwise add noise.
+        const transactionSync = storage.transactionSync.bind(storage);
+        storage.transactionSync = (fn: () => unknown) => {
             calls.push("before");
-            const result = fn();
+            const result = transactionSync(fn);
             calls.push("after");
             return result;
         };
-        const server = await DatabaseServer.create(storage);
-        openServers.push(server);
 
         server.execute(
             testContext,
@@ -756,10 +550,12 @@ describe("DatabaseServer", () => {
 
     describe("storage integration", () => {
         test("writes go through to storage", async () => {
-            const storage = new InMemoryStorage();
-            const server = await DatabaseServer.create(storage);
+            const server = await DatabaseServer.create(createStorage());
             openServers.push(server);
             const db = server.unsafeGetDbForTests();
+            // Bootstrap already wrote main's migration pages, so assert on the schema page's
+            // version bumping rather than the file merely existing.
+            const versionBefore = server.readPage(databaseMainTableId, 0)!.version;
 
             sql`CREATE TABLE items (id INTEGER PRIMARY KEY)`.exec(db);
             sql`
@@ -770,13 +566,11 @@ describe("DatabaseServer", () => {
             `.exec(db);
             server.commitBufferForTests();
 
-            // Storage should have been written to.
-            expect(storage.getFileSize(databaseMainTableId)).toBeGreaterThan(0);
+            expect(server.readPage(databaseMainTableId, 0)!.version).toBeGreaterThan(versionBefore);
         });
 
         test("page data from execute matches what storage has", async () => {
-            const storage = new InMemoryStorage();
-            const server = await DatabaseServer.create(storage);
+            const server = await DatabaseServer.create(createStorage());
             openServers.push(server);
             const db = server.unsafeGetDbForTests();
 
@@ -802,7 +596,11 @@ describe("DatabaseServer", () => {
 
             // Each page in the result should match what storage returns for that page index.
             for (const [pageIndex, pageData] of result.readPages.get(databaseMainTableId)!) {
-                expect(pageData).toEqual(storage.readPage(databaseMainTableId, pageIndex));
+                const stored = server.readPage(databaseMainTableId, pageIndex)!;
+                expect(pageData).toEqual({
+                    data: new Uint8Array(stored.data),
+                    version: stored.version,
+                });
             }
         });
     });
@@ -901,8 +699,7 @@ describe("DatabaseServer", () => {
         });
 
         test("before snapshot matches pre-mutation storage state", async () => {
-            const storage = new InMemoryStorage();
-            const server = await DatabaseServer.create(storage);
+            const server = await DatabaseServer.create(createStorage());
             openServers.push(server);
             const db = server.unsafeGetDbForTests();
             sql`CREATE TABLE items (id INTEGER PRIMARY KEY)`.exec(db);
@@ -916,8 +713,8 @@ describe("DatabaseServer", () => {
 
             // Snapshot storage state before the mutation.
             const prePages = new Map<number, Uint8Array>();
-            for (let i = 0; i < storage.getFileSize(databaseMainTableId) / sqlitePageSize; i++) {
-                prePages.set(i, new Uint8Array(storage.readPage(databaseMainTableId, i)!.data));
+            for (let i = 0; i < server.getFileSize(databaseMainTableId) / sqlitePageSize; i++) {
+                prePages.set(i, new Uint8Array(server.readPage(databaseMainTableId, i)!.data));
             }
 
             const result = server.execute(
@@ -938,8 +735,7 @@ describe("DatabaseServer", () => {
         });
 
         test("after snapshot matches post-mutation storage state", async () => {
-            const storage = new InMemoryStorage();
-            const server = await DatabaseServer.create(storage);
+            const server = await DatabaseServer.create(createStorage());
             openServers.push(server);
             const db = server.unsafeGetDbForTests();
             sql`CREATE TABLE items (id INTEGER PRIMARY KEY)`.exec(db);
@@ -964,7 +760,7 @@ describe("DatabaseServer", () => {
 
             for (const [pageIndex, change] of result.changedPages.get(databaseMainTableId)!.pages) {
                 expect(change.after).toEqual(
-                    storage.readPage(databaseMainTableId, pageIndex)!.data,
+                    new Uint8Array(server.readPage(databaseMainTableId, pageIndex)!.data),
                 );
             }
         });
@@ -1025,8 +821,7 @@ describe("DatabaseServer", () => {
         // Regression guard: VACUUM that shrinks the file must drain cleanly and actually
         // shrink.
         test("VACUUM that shrinks the file drains without error", async () => {
-            const storage = new InMemoryStorage();
-            const server = await DatabaseServer.create(storage);
+            const server = await DatabaseServer.create(createStorage());
             openServers.push(server);
             const db = server.unsafeGetDbForTests();
             sql`CREATE TABLE items (id INTEGER PRIMARY KEY, BLOB TEXT NOT NULL)`.exec(db);
@@ -1042,11 +837,11 @@ describe("DatabaseServer", () => {
             }
             sql`DELETE FROM items`.exec(db);
             server.commitBufferForTests();
-            const sizeBefore = storage.getFileSize(databaseMainTableId);
+            const sizeBefore = server.getFileSize(databaseMainTableId);
 
             server.execute(testContext, sql`VACUUM`, {allowWrites: "schema+data"});
 
-            expect(storage.getFileSize(databaseMainTableId)).toBeLessThan(sizeBefore);
+            expect(server.getFileSize(databaseMainTableId)).toBeLessThan(sizeBefore);
         });
     });
 
@@ -1245,7 +1040,7 @@ describe("DatabaseServer", () => {
 
 describe("DatabaseServer — per-table storage", () => {
     test("a fresh group has no tables", async () => {
-        const server = await DatabaseServer.create(new InMemoryStorage());
+        const server = await DatabaseServer.create(createStorage());
         openServers.push(server);
 
         const tables = sql`
@@ -1258,7 +1053,7 @@ describe("DatabaseServer — per-table storage", () => {
     });
 
     test("createTable stores public main metadata plus its own per-db file", async () => {
-        const server = await DatabaseServer.create(new InMemoryStorage());
+        const server = await DatabaseServer.create(createStorage());
         openServers.push(server);
         const {result} = server.executeAction<"createTable">(testContext, {
             name: "createTable",
@@ -1292,7 +1087,7 @@ describe("DatabaseServer — per-table storage", () => {
     });
 
     test("re-attaches and serves an existing table after reopening", async () => {
-        const storage = new InMemoryStorage();
+        const storage = createStorage();
         const server1 = await DatabaseServer.create(storage);
         const {result} = server1.executeAction<"createTable">(testContext, {
             name: "createTable",
@@ -1314,7 +1109,7 @@ describe("DatabaseServer — per-table storage", () => {
     });
 
     test("bootstrap skips attaching migration-current tables", async () => {
-        const storage = new InMemoryStorage();
+        const storage = createStorage();
         const server1 = await DatabaseServer.create(storage);
         const {result} = server1.executeAction<"createTable">(testContext, {
             name: "createTable",
@@ -1334,7 +1129,7 @@ describe("DatabaseServer — per-table storage", () => {
     });
 
     test("bootstrap migrates a table whose stored schema_version is stale", async () => {
-        const storage = new InMemoryStorage();
+        const storage = createStorage();
         const server1 = await DatabaseServer.create(storage);
         const {result} = server1.executeAction<"createTable">(testContext, {
             name: "createTable",
@@ -1342,7 +1137,7 @@ describe("DatabaseServer — per-table storage", () => {
         });
         // Zero the stored mirror — the state a pre-existing table is in when new per-table
         // migrations ship.
-        storage.setDatabaseTableSchemaVersion(result.tableId, 0);
+        server1.setDatabaseTableSchemaVersion(result.tableId, 0);
         server1.close();
 
         // Bootstrap must attach the "stale" table, run its (no-op) migrations, and repair
@@ -1352,7 +1147,7 @@ describe("DatabaseServer — per-table storage", () => {
         const attachedSchemaNames = sql`PRAGMA database_list`
             .selectAllUnknown(server2.unsafeGetDbForTests())
             .map(row => row.name);
-        const storedVersion = storage
+        const storedVersion = server2
             .listDatabaseTables()
             .find(table => table.tableId === result.tableId)?.schemaVersion;
 
@@ -1368,7 +1163,7 @@ describe("DatabaseServer — per-table storage", () => {
     });
 
     test("re-attaches and serves an existing relation join table after reopening", async () => {
-        const storage = new InMemoryStorage();
+        const storage = createStorage();
         const server1 = await DatabaseServer.create(storage);
         const source = server1.executeAction<"createTable">(testContext, {
             name: "createTable",
@@ -1426,7 +1221,7 @@ describe("DatabaseServer — per-table access", () => {
     }
 
     async function createServer(): Promise<DatabaseServer> {
-        const server = await DatabaseServer.create(new InMemoryStorage());
+        const server = await DatabaseServer.create(createStorage());
         openServers.push(server);
         return server;
     }
@@ -1846,7 +1641,7 @@ describe("DatabaseServer — per-table access", () => {
 
 describe("DatabaseServer — table access levels", () => {
     test("returns the complete map, loading policies for never-attached tables", async () => {
-        const storage = new InMemoryStorage();
+        const storage = createStorage();
         const server1 = await DatabaseServer.create(storage);
         openServers.push(server1);
         const viewer = generateId<AccountId>();
@@ -1885,7 +1680,7 @@ describe("DatabaseServer — table access levels", () => {
     });
 
     test("owners report write access", async () => {
-        const server = await DatabaseServer.create(new InMemoryStorage());
+        const server = await DatabaseServer.create(createStorage());
         openServers.push(server);
         const {result} = server.executeAction<"createTable">(testContext, {
             name: "createTable",
@@ -1893,5 +1688,421 @@ describe("DatabaseServer — table access levels", () => {
         });
 
         expect(server.getTableAccessLevelForAccount(result.tableId, testAccountId)).toBe("Manage");
+    });
+});
+
+describe("DatabaseServer — built-in SQLite migrations", () => {
+    test("runs and records built-in SQLite migrations", () => {
+        const storage = createStorage();
+
+        runDatabaseDurableObjectSqlMigrations(storage);
+
+        const version = storage.sql.exec("SELECT MAX(version) AS version FROM _migrations").next()
+            .value.version;
+        expect({
+            version,
+            tableNames: [...storage.sql.exec("SELECT name FROM sqlite_master")].map(
+                ({name}: {name: string}) => name,
+            ),
+            pageForeignKeys: [
+                ...storage.sql.exec("PRAGMA foreign_key_list(database_table_pages)"),
+            ].map(({table}: {table: string}) => table),
+        }).toEqual({
+            version: databaseDurableObjectSqlMigrations.length,
+            tableNames: expect.arrayContaining([
+                "_migrations",
+                "database_tables",
+                "database_table_pages",
+            ]),
+            pageForeignKeys: ["database_tables"],
+        });
+    });
+
+    test("does not rerun recorded built-in SQLite migrations", () => {
+        const storage = createStorage();
+
+        runDatabaseDurableObjectSqlMigrations(storage);
+        runDatabaseDurableObjectSqlMigrations(storage);
+
+        expect([...storage.sql.exec("SELECT version FROM _migrations")]).toEqual([{version: 1}]);
+    });
+});
+
+// These pin the durable page-store contract (versioning, tombstones, per-table
+// isolation) directly through the storage methods, bypassing SQL execution. They
+// use fresh generated table ids — bootstrap writes real pages for the main
+// registry file, so tests can't assume it starts empty.
+describe("DatabaseServer — durable page storage", () => {
+    async function createServer(): Promise<DatabaseServer> {
+        const server = await DatabaseServer.create(createStorage());
+        openServers.push(server);
+        return server;
+    }
+
+    test("stores, updates, and removes table access policies", async () => {
+        const server = await createServer();
+        const tableId = generateChronologicalId<DatabaseTableId>();
+        const firstPolicy = {
+            type: "Local" as const,
+            accountGrantById: new Map(),
+            defaultGrant: {level: "View" as const},
+            urlGrant: null,
+        };
+        const secondPolicy = {...firstPolicy, defaultGrant: {level: "Edit" as const}};
+
+        server.setDatabaseTableAccessPolicy(tableId, firstPolicy);
+        server.setDatabaseTableAccessPolicy(tableId, secondPolicy);
+        const storedPolicy = server.getDatabaseTableAccessPolicy(tableId);
+        server.setDatabaseTableAccessPolicy(tableId, null);
+
+        expect({
+            storedPolicy,
+            removedPolicy: server.getDatabaseTableAccessPolicy(tableId),
+        }).toEqual({storedPolicy: secondPolicy, removedPolicy: null});
+    });
+
+    test("write pages, read them back", async () => {
+        const server = await createServer();
+        const tableId = generateChronologicalId<DatabaseTableId>();
+
+        const page = new Uint8Array(sqlitePageSize);
+        page[0] = 0xab;
+        page[sqlitePageSize - 1] = 0xcd;
+
+        writePagesFor(server, tableId, new Map([[0, page]]));
+
+        const {data: read, version} = server.readPage(tableId, 0)!;
+
+        expect(read[0]).toBe(0xab);
+        expect(read[sqlitePageSize - 1]).toBe(0xcd);
+        expect(read.byteLength).toBe(sqlitePageSize);
+        expect(version).toBeGreaterThan(0);
+    });
+
+    test("readPage returns null for unwritten index", async () => {
+        const server = await createServer();
+        const tableId = generateChronologicalId<DatabaseTableId>();
+
+        expect(server.readPage(tableId, 99)).toBeNull();
+    });
+
+    test("getFileSize reflects written pages", async () => {
+        const server = await createServer();
+        const tableId = generateChronologicalId<DatabaseTableId>();
+
+        expect(server.getFileSize(tableId)).toBe(0);
+
+        writePagesFor(
+            server,
+            tableId,
+            new Map([
+                [0, new Uint8Array(sqlitePageSize)],
+                [2, new Uint8Array(sqlitePageSize)],
+            ]),
+        );
+
+        expect(server.getFileSize(tableId)).toBe(3 * sqlitePageSize);
+    });
+
+    test("truncate makes pages at or beyond the threshold disappear", async () => {
+        const server = await createServer();
+        const tableId = generateChronologicalId<DatabaseTableId>();
+
+        writePagesFor(
+            server,
+            tableId,
+            new Map([
+                [0, new Uint8Array(sqlitePageSize)],
+                [1, new Uint8Array(sqlitePageSize)],
+                [2, new Uint8Array(sqlitePageSize)],
+            ]),
+        );
+
+        truncateFor(server, tableId, 1 * sqlitePageSize);
+
+        // Pages 1 and 2 are tombstoned internally; they surface as missing from readPage.
+        // Page 0 survives.
+        expect(server.readPage(tableId, 0)).not.toBeNull();
+        expect(server.readPage(tableId, 1)).toBeNull();
+        expect(server.readPage(tableId, 2)).toBeNull();
+
+        expect(server.getFileSize(tableId)).toBe(1 * sqlitePageSize);
+    });
+
+    test("readPage returns null after truncate", async () => {
+        const server = await createServer();
+        const tableId = generateChronologicalId<DatabaseTableId>();
+
+        writePagesFor(server, tableId, new Map([[0, new Uint8Array(sqlitePageSize)]]));
+        truncateFor(server, tableId, 0);
+
+        expect(server.readPage(tableId, 0)).toBeNull();
+    });
+
+    test("getFileSize is correct after truncate", async () => {
+        const server = await createServer();
+        const tableId = generateChronologicalId<DatabaseTableId>();
+
+        writePagesFor(
+            server,
+            tableId,
+            new Map([
+                [0, new Uint8Array(sqlitePageSize)],
+                [1, new Uint8Array(sqlitePageSize)],
+                [2, new Uint8Array(sqlitePageSize)],
+            ]),
+        );
+
+        expect(server.getFileSize(tableId)).toBe(3 * sqlitePageSize);
+        truncateFor(server, tableId, 2 * sqlitePageSize);
+        expect(server.getFileSize(tableId)).toBe(2 * sqlitePageSize);
+    });
+
+    test("writePages after truncate correctly extends file size", async () => {
+        const server = await createServer();
+        const tableId = generateChronologicalId<DatabaseTableId>();
+
+        writePagesFor(
+            server,
+            tableId,
+            new Map([
+                [0, new Uint8Array(sqlitePageSize)],
+                [1, new Uint8Array(sqlitePageSize)],
+            ]),
+        );
+        truncateFor(server, tableId, 1 * sqlitePageSize);
+        expect(server.getFileSize(tableId)).toBe(1 * sqlitePageSize);
+
+        // Write a page beyond the current file size.
+        writePagesFor(server, tableId, new Map([[3, new Uint8Array(sqlitePageSize)]]));
+        expect(server.getFileSize(tableId)).toBe(4 * sqlitePageSize);
+    });
+
+    test("writePages and truncate in the same call share a single version", async () => {
+        // Pin the contract that one writePages call produces exactly one version,
+        // regardless of whether it carries pages, truncates, or both.
+        const server = await createServer();
+        const tableId = generateChronologicalId<DatabaseTableId>();
+
+        writePagesFor(server, tableId, new Map([[0, new Uint8Array(sqlitePageSize)]]));
+
+        const batchVersion = server.writePages(
+            new Map([[tableId, new Map([[2, new Uint8Array(sqlitePageSize)]])]]),
+            new Map([[tableId, 1 * sqlitePageSize]]),
+        );
+
+        // Page 2 (written) and any tombstones from the truncate of pages >= 1 share the
+        // same version.
+        expect(server.readPage(tableId, 2)!.version).toBe(batchVersion);
+    });
+
+    test("writePages returns the version it stamped onto the rows", async () => {
+        const server = await createServer();
+        const tableId = generateChronologicalId<DatabaseTableId>();
+
+        const returned = writePagesFor(
+            server,
+            tableId,
+            new Map([[0, new Uint8Array(sqlitePageSize)]]),
+        );
+
+        const {version} = server.readPage(tableId, 0)!;
+        expect(returned).toBe(version);
+    });
+
+    test("consecutive writes have strictly increasing versions", async () => {
+        const server = await createServer();
+        const tableId = generateChronologicalId<DatabaseTableId>();
+
+        const versions: Array<number> = [];
+        for (let i = 0; i < 50; i++) {
+            versions.push(
+                writePagesFor(server, tableId, new Map([[i, new Uint8Array(sqlitePageSize)]])),
+            );
+        }
+
+        for (let i = 1; i < versions.length; i++) {
+            expect(versions[i]!).toBe(versions[i - 1]! + 1);
+        }
+    });
+
+    test("truncate version is strictly greater than prior writePages version", async () => {
+        const server = await createServer();
+        const tableId = generateChronologicalId<DatabaseTableId>();
+
+        const writeVersion = writePagesFor(
+            server,
+            tableId,
+            new Map([
+                [0, new Uint8Array(sqlitePageSize)],
+                [1, new Uint8Array(sqlitePageSize)],
+            ]),
+        );
+        const truncateVersion = truncateFor(server, tableId, 0);
+        expect(truncateVersion).toBeGreaterThan(writeVersion);
+    });
+
+    test("readPage returns the latest version when a page is rewritten", async () => {
+        const server = await createServer();
+        const tableId = generateChronologicalId<DatabaseTableId>();
+
+        const first = new Uint8Array(sqlitePageSize);
+        first[0] = 0x11;
+        const second = new Uint8Array(sqlitePageSize);
+        second[0] = 0x22;
+
+        writePagesFor(server, tableId, new Map([[0, first]]));
+        writePagesFor(server, tableId, new Map([[0, second]]));
+
+        const {data} = server.readPage(tableId, 0)!;
+        expect(data[0]).toBe(0x22);
+    });
+
+    test("nextVersion recovers MAX(version) on cold load", async () => {
+        // Seed the underlying storage via one server, then create a fresh server over the
+        // same storage (simulating a Durable Object restart). The next write must produce
+        // a version strictly greater than the previously-persisted one.
+        const storage = createStorage();
+        const tableId = generateChronologicalId<DatabaseTableId>();
+        const first = await DatabaseServer.create(storage);
+        openServers.push(first);
+        const seedVersion = writePagesFor(
+            first,
+            tableId,
+            new Map([[0, new Uint8Array(sqlitePageSize)]]),
+        );
+
+        const reloaded = await DatabaseServer.create(storage);
+        openServers.push(reloaded);
+        const nextVersion = writePagesFor(
+            reloaded,
+            tableId,
+            new Map([[1, new Uint8Array(sqlitePageSize)]]),
+        );
+
+        expect(nextVersion).toBeGreaterThan(seedVersion);
+    });
+
+    test("getFileSize ignores tombstones in the interior of the file", async () => {
+        const storage = createStorage();
+        const tableId = generateChronologicalId<DatabaseTableId>();
+        const server = await DatabaseServer.create(storage);
+        openServers.push(server);
+
+        // Write three pages, then tombstone the middle page by writing a tombstone row
+        // directly so we can probe the size query without going through truncate (which
+        // would tombstone the trailing pages too).
+        writePagesFor(
+            server,
+            tableId,
+            new Map([
+                [0, new Uint8Array(sqlitePageSize)],
+                [1, new Uint8Array(sqlitePageSize)],
+                [2, new Uint8Array(sqlitePageSize)],
+            ]),
+        );
+
+        // Force a fresh `getFileSize` query (don't trust the fileSizes cache) by creating
+        // a new server over the same backing storage. Then write a tombstone for page 1
+        // directly.
+        const reloaded = await DatabaseServer.create(storage);
+        openServers.push(reloaded);
+        const sqliteIdRow = storage.sql
+            .exec("SELECT sqlite_id FROM database_tables WHERE table_id = ?", tableId)
+            .next();
+        expect(sqliteIdRow.done).toBe(false);
+        const sqliteId = sqliteIdRow.value.sqlite_id;
+        storage.sql.exec(
+            "INSERT INTO database_table_pages (sqlite_id, page_index, version, data) VALUES (?, ?, ?, NULL)",
+            sqliteId,
+            1,
+            999_999,
+        );
+
+        // Page 2 is still the highest live page — file size should still reflect three
+        // pages, not one.
+        expect(reloaded.getFileSize(tableId)).toBe(3 * sqlitePageSize);
+    });
+
+    test("pages from different tables are isolated", async () => {
+        const server = await createServer();
+        const tableA = generateChronologicalId<DatabaseTableId>();
+        const tableB = generateChronologicalId<DatabaseTableId>();
+
+        const pageA = new Uint8Array(sqlitePageSize);
+        pageA[0] = 0xa1;
+        const pageB = new Uint8Array(sqlitePageSize);
+        pageB[0] = 0xb2;
+
+        writePagesFor(server, tableA, new Map([[0, pageA]]));
+        writePagesFor(server, tableB, new Map([[0, pageB]]));
+
+        expect(server.readPage(tableA, 0)!.data[0]).toBe(0xa1);
+        expect(server.readPage(tableB, 0)!.data[0]).toBe(0xb2);
+    });
+
+    test("file size is tracked per table", async () => {
+        const server = await createServer();
+        const tableA = generateChronologicalId<DatabaseTableId>();
+        const tableB = generateChronologicalId<DatabaseTableId>();
+
+        writePagesFor(
+            server,
+            tableA,
+            new Map([
+                [0, new Uint8Array(sqlitePageSize)],
+                [1, new Uint8Array(sqlitePageSize)],
+            ]),
+        );
+        writePagesFor(server, tableB, new Map([[0, new Uint8Array(sqlitePageSize)]]));
+
+        expect(server.getFileSize(tableA)).toBe(2 * sqlitePageSize);
+        expect(server.getFileSize(tableB)).toBe(1 * sqlitePageSize);
+    });
+
+    test("versions are global across tables", async () => {
+        const server = await createServer();
+        const tableA = generateChronologicalId<DatabaseTableId>();
+        const tableB = generateChronologicalId<DatabaseTableId>();
+
+        const a1 = writePagesFor(server, tableA, new Map([[0, new Uint8Array(sqlitePageSize)]]));
+        const a2 = writePagesFor(server, tableA, new Map([[1, new Uint8Array(sqlitePageSize)]]));
+        const b1 = writePagesFor(server, tableB, new Map([[0, new Uint8Array(sqlitePageSize)]]));
+
+        // Strictly monotonic across the entire database, not partitioned per table.
+        expect(a2).toBe(a1 + 1);
+        expect(b1).toBe(a2 + 1);
+    });
+
+    test("multi-table writePages stamps every page with the same version", async () => {
+        const server = await createServer();
+        const tableA = generateChronologicalId<DatabaseTableId>();
+        const tableB = generateChronologicalId<DatabaseTableId>();
+
+        const version = server.writePages(
+            new Map([
+                [tableA, new Map([[0, new Uint8Array(sqlitePageSize)]])],
+                [tableB, new Map([[0, new Uint8Array(sqlitePageSize)]])],
+            ]),
+            noTruncates,
+        );
+
+        expect(server.readPage(tableA, 0)!.version).toBe(version);
+        expect(server.readPage(tableB, 0)!.version).toBe(version);
+    });
+
+    test("readPage on unknown table returns null without registering an id", async () => {
+        const storage = createStorage();
+        const server = await DatabaseServer.create(storage);
+        openServers.push(server);
+        const unknown = generateChronologicalId<DatabaseTableId>();
+
+        expect(server.readPage(unknown, 0)).toBeNull();
+
+        const cursor = storage.sql.exec(
+            "SELECT COUNT(*) AS c FROM database_tables WHERE table_id = ?",
+            unknown,
+        );
+        expect(cursor.next().value.c).toBe(0);
     });
 });

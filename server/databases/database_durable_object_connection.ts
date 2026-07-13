@@ -5,7 +5,6 @@ import {
 import {WorkerProcessContext} from "~/server/cloudflare/context/worker_process_context.js";
 import {BrowserPageTracker} from "~/server/databases/browser_page_tracker.js";
 import {buildDatabasePageDiffs} from "~/server/databases/build_database_page_diffs.js";
-import {DatabaseDurableObjectStorage} from "~/server/databases/database_durable_object_storage.js";
 import {DatabaseServer} from "~/server/databases/database_server.js";
 import {WebSocketConnectionProcedures} from "~/server/web_socket/web_socket_server.js";
 import type {AccessLevel} from "~/shared/access/access_policy.js";
@@ -52,7 +51,6 @@ export type DatabaseRealtimeEventStub =
 
 export class DatabaseDurableObjectConnection {
     private readonly _server: DatabaseServer;
-    private readonly _durableObjectStorage: DatabaseDurableObjectStorage;
     private readonly _sendEventToAll: (
         context: WorkerProcessContext,
         event: DatabaseRealtimeEventStub,
@@ -70,7 +68,6 @@ export class DatabaseDurableObjectConnection {
 
     constructor({
         server,
-        durableObjectStorage,
         processContext,
         sendEventToAll,
         sendEventToSelf,
@@ -81,7 +78,6 @@ export class DatabaseDurableObjectConnection {
         trackPages,
     }: {
         server: DatabaseServer;
-        durableObjectStorage: DatabaseDurableObjectStorage;
         processContext: WorkerProcessContext;
         sendEventToAll: (context: WorkerProcessContext, event: DatabaseRealtimeEventStub) => void;
         sendEventToSelf: (context: WorkerProcessContext, event: DatabaseRealtimeEventStub) => void;
@@ -92,7 +88,6 @@ export class DatabaseDurableObjectConnection {
         trackPages: boolean;
     }) {
         this._server = server;
-        this._durableObjectStorage = durableObjectStorage;
         this._processContext = processContext;
         this._sendEventToAll = sendEventToAll;
         this._sendEventToSelf = sendEventToSelf;
@@ -162,7 +157,7 @@ export class DatabaseDurableObjectConnection {
                 for (const tableId of filteredReadPages.keys()) {
                     fileSizesInPages.set(
                         tableId,
-                        this._durableObjectStorage.getFileSize(tableId) / sqlitePageSize,
+                        this._server.getFileSize(tableId) / sqlitePageSize,
                     );
                 }
             }
@@ -210,7 +205,7 @@ export class DatabaseDurableObjectConnection {
                 // A requested join file also reports its two sides: their levels are what the
                 // join's own level derives from, and a client holding a join file renders
                 // relations into both sides.
-                const entry = this._durableObjectStorage.getDatabaseTableAccessEntry(tableId);
+                const entry = this._server.getDatabaseTableAccessEntry(tableId);
                 if (entry !== null && entry.kind === "join") {
                     for (const sideTableId of [entry.sourceTableId, entry.targetTableId]) {
                         tableAccess.set(
@@ -231,7 +226,7 @@ export class DatabaseDurableObjectConnection {
                 let overLimit = false;
 
                 for (const [pageIndex, clientVersion] of tableVersions) {
-                    const page = this._durableObjectStorage.readPage(tableId, pageIndex);
+                    const page = this._server.readPage(tableId, pageIndex);
 
                     // Page matches — skip.
                     if (page !== null && page.version === clientVersion) continue;
@@ -256,7 +251,7 @@ export class DatabaseDurableObjectConnection {
 
                 // Always include page 0 so the client has the schema.
                 if (!updatedPages.has(0)) {
-                    const page0 = this._durableObjectStorage.readPage(tableId, 0);
+                    const page0 = this._server.readPage(tableId, 0);
                     if (page0 !== null) {
                         const clientVersion = tableVersions.get(0);
                         if (clientVersion === undefined || clientVersion !== page0.version) {
@@ -280,8 +275,7 @@ export class DatabaseDurableObjectConnection {
                     pendingPagesByTable.set(tableId, updatedPages.keys());
                 }
 
-                const fileSizeInPages =
-                    this._durableObjectStorage.getFileSize(tableId) / sqlitePageSize;
+                const fileSizeInPages = this._server.getFileSize(tableId) / sqlitePageSize;
                 tables.set(tableId, {updatedPages, stalePageIndexes, fileSizeInPages});
             }
 

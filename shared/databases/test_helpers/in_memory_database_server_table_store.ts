@@ -6,8 +6,8 @@ import type {DatabaseTableId} from "~/shared/id/types/id_types.js";
 
 /**
  * In-memory {@link DatabaseServerTableStore} for tests that exercise server-only
- * action paths against a raw SQLite handle (no {@link DatabaseServerStorage}
- * backing). Registrations are kept for assertions via {@link registrations}.
+ * action paths against a raw SQLite handle (no durable storage backing).
+ * Registrations are kept for assertions via {@link registrations}.
  */
 export class InMemoryDatabaseServerTableStore implements DatabaseServerTableStore {
     readonly registrations = new Map<DatabaseTableId, DatabaseServerTableRegistration>();

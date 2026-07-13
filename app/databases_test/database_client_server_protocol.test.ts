@@ -9,7 +9,7 @@ import {
 import type {OpfsDirectoryHandle} from "~/client/web/databases/worker/opfs.js";
 import {createTestWorkerContext} from "~/server/cloudflare/test_helpers/create_test_worker_context.js";
 import {DatabaseGroupDurableObject} from "~/server/databases/database_durable_object.js";
-import {DatabaseDurableObjectStorage} from "~/server/databases/database_durable_object_storage.js";
+import type {DatabaseServer} from "~/server/databases/database_server.js";
 import {TestSpace} from "~/server/spaces/test_helpers/test_space.js";
 import {DatabaseActionFetchResponseSchema} from "~/shared/databases/database_action_fetch_schema.js";
 import {
@@ -23,7 +23,7 @@ import {
 import type {DatabasePages} from "~/shared/databases/database_protocol_schemas.js";
 import {databaseTableAccessPolicyForCreator} from "~/shared/databases/database_table_access_policy.js";
 import {sql} from "~/shared/databases/sql.js";
-import {databaseMainTableId, sqlitePageSize} from "~/shared/databases/sqlite_constants.js";
+import {databaseMainTableId} from "~/shared/databases/sqlite_constants.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {generateChronologicalId} from "~/shared/id/chronological_id.js";
 import {generateId} from "~/shared/id/id.js";
@@ -36,8 +36,9 @@ import type {
     DatabaseRowId,
     DatabaseTableId,
 } from "~/shared/id/types/id_types.js";
+import {Schema} from "~/shared/schema/schema.js";
 
-type DatabaseDurableStorage = ConstructorParameters<typeof DatabaseDurableObjectStorage>[0];
+type DatabaseDurableStorage = Parameters<typeof DatabaseServer.create>[0];
 
 const context = createTestWorkerContext();
 const durableObjectStorages = new Map<string, DatabaseDurableStorage>();
@@ -941,17 +942,41 @@ function extractServerPages(
         durableObjectStorage !== undefined,
         `no durable object storage for group ${databaseGroupId}`,
     );
-    const storage = new DatabaseDurableObjectStorage(durableObjectStorage);
 
+    // Read each table's latest live page rows straight out of the durable object's
+    // page store (see the schema in `database_durable_object_sql_migrations.ts`).
+    // Tombstoned pages (`data IS NULL`) are skipped, same as
+    // `DatabaseServer.readPage`.
     const pages = new Map<DatabaseTableId, Map<number, {version: number; data: Uint8Array}>>();
     for (const tableId of tableIds) {
+        const rows = sql`
+            SELECT
+                p.page_index,
+                p.version,
+                p.data
+            FROM
+                database_table_pages p
+                JOIN database_tables t ON t.sqlite_id = p.sqlite_id
+            WHERE
+                t.table_id = ${tableId}
+                AND p.version = (
+                    SELECT
+                        MAX(p2.version)
+                    FROM
+                        database_table_pages p2
+                    WHERE
+                        p2.sqlite_id = p.sqlite_id
+                        AND p2.page_index = p.page_index
+                )
+                AND p.data IS NOT NULL
+        `.selectAll(durableObjectStorage.sql, {
+            pageIndex: Schema.integer.originalPropertyKey("page_index"),
+            version: Schema.integer,
+            data: Schema.bytes,
+        });
         const tablePages = new Map<number, {version: number; data: Uint8Array}>();
-        const fileSizeInPages = storage.getFileSize(tableId) / sqlitePageSize;
-        for (let pageIndex = 0; pageIndex < fileSizeInPages; pageIndex++) {
-            const page = storage.readPage(tableId, pageIndex);
-            if (page !== null) {
-                tablePages.set(pageIndex, {version: page.version, data: page.data});
-            }
+        for (const row of rows) {
+            tablePages.set(row.pageIndex, {version: row.version, data: row.data});
         }
         pages.set(tableId, tablePages);
     }

@@ -7,6 +7,7 @@ ts_project(
         "//server:__subpackages__",
     ],
     test_deps = [
+        "//:node_modules/@jest/globals",
         "//:node_modules/@miniflare/durable-objects",
         "//:node_modules/@miniflare/storage-memory",
         "//:node_modules/better-sqlite3",
