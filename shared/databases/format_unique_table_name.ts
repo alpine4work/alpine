@@ -22,12 +22,12 @@ export function formatUniqueTableName({
     model: DatabaseModel;
     name: string;
     excludeTableId?: DatabaseTableId;
-}): {tableName: string} {
+}): string {
     const {tables} = model.ctx.server();
     const slug = slugifySqlName(name);
-    if (!tables.isTableNameTaken(slug, excludeTableId)) return {tableName: slug};
+    if (!tables.isTableNameTaken(slug, excludeTableId)) return slug;
     for (let i = 2; ; i++) {
         const candidate = `${slug}_${i}`;
-        if (!tables.isTableNameTaken(candidate, excludeTableId)) return {tableName: candidate};
+        if (!tables.isTableNameTaken(candidate, excludeTableId)) return candidate;
     }
 }

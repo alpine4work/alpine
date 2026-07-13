@@ -56,7 +56,7 @@ function attachTableDb(db: SqliteDatabase, tableId: DatabaseTableId): void {
 function createTable(model: DatabaseModel, tableId: DatabaseTableId, name: string) {
     // Mirrors the createTable action: resolve the unique name, register the table,
     // migrate the per-table file, then create the metadata.
-    const {tableName} = formatUniqueTableName({model, name});
+    const tableName = formatUniqueTableName({model, name});
     model.registerTable(tableId, {
         kind: "table",
         tableName,
@@ -79,7 +79,7 @@ function createJoinTableWithUniqueName(
     sourceField: DatabaseFieldModel,
     targetField: DatabaseFieldModel,
 ) {
-    const {tableName} = formatUniqueTableName({
+    const tableName = formatUniqueTableName({
         model,
         name: `${sourceField.name} ${targetField.name}`,
     });
@@ -273,14 +273,13 @@ describe("DatabaseModel", () => {
                 )
         `.exec(db);
 
-        target.updateName(
-            "Milestones",
-            formatUniqueTableName({
+        target.updateName("Milestones", {
+            tableName: formatUniqueTableName({
                 model,
                 name: "Milestones",
                 excludeTableId: target.id,
             }),
-        );
+        });
 
         const updatedJoinTable = model.getJoinTable(joinTable.id);
         const row = sql`

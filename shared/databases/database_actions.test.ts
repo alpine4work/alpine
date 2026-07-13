@@ -1246,14 +1246,28 @@ describe("listLinkableRows", () => {
     });
 });
 
-describe("renameTable", () => {
+// Renames flow through `syncTableMetadata` (the only rename path — driven by the
+// Dynamo metadata sync).
+function renameTableForTest(
+    db: Database,
+    tableId: DatabaseTableId,
+    name: string,
+): DatabaseActionOutput<"syncTableMetadata"> {
+    return run(db, "syncTableMetadata", {
+        tableId,
+        name,
+        accessPolicy: databaseTableAccessPolicyForCreator(testAccountId),
+    });
+}
+
+describe("syncTableMetadata", () => {
     test("relabels without changing tableName when slug is unchanged", async () => {
         const db = await createDb();
         const {tableId, tableName: original} = createTableForTest(db, "Tasks");
 
         // "Tasks" and "Tasks!" both slugify to "tasks", so the SQL table name should not
         // change — only the label.
-        const {tableName} = run(db, "renameTable", {tableId, name: "Tasks!"});
+        const {tableName} = renameTableForTest(db, tableId, "Tasks!");
 
         expect(tableName).toBe(original);
         const rows = sql`
@@ -1277,7 +1291,7 @@ describe("renameTable", () => {
                 ('keep me')
         `.exec(db);
 
-        const {tableName} = run(db, "renameTable", {tableId, name: "Projects"});
+        const {tableName} = renameTableForTest(db, tableId, "Projects");
 
         expect(tableName).toBe("projects");
         // Data survives the rename.
@@ -1301,7 +1315,7 @@ describe("renameTable", () => {
         createTableForTest(db, "Tasks");
         const {tableId} = createTableForTest(db, "Projects");
 
-        const {tableName} = run(db, "renameTable", {tableId, name: "Tasks"});
+        const {tableName} = renameTableForTest(db, tableId, "Tasks");
 
         expect(tableName).toBe("tasks_2");
         db.close();
@@ -1311,7 +1325,7 @@ describe("renameTable", () => {
         const db = await createDb();
         const {tableId} = createTableForTest(db, "Tasks");
 
-        run(db, "renameTable", {tableId, name: "Projects"});
+        renameTableForTest(db, tableId, "Projects");
 
         // The store's table_name is the uniqueness index future creates and renames probe;
         // a stale value would let a new "Projects" table collide (or block "Tasks"

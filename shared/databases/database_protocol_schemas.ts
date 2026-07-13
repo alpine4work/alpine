@@ -121,11 +121,11 @@ export type DatabasePageVersionsByIndex = SchemaType<typeof DatabasePageVersions
  * durable object's policy copies. `null` means no access.
  *
  * The client can't compute this itself because policy copies remain server-side,
- * so the server pushes the complete map in `ensureCacheIsUpToDate` responses and
- * per-table deltas on `TableMetadataChanged` events. The client uses it to _plan_
- * (e.g. relation fields render "No access" chips instead of joining into a file it
- * can't read); the authoritative enforcement is the server's per-statement
- * authorizer.
+ * so the server pushes per-table entries in `ensureCacheIsUpToDate` responses
+ * (covering the tables the client asked about) and per-table deltas on
+ * `TableMetadataChanged` events. The client uses it to _plan_ (e.g. relation
+ * fields render "No access" chips instead of joining into a file it can't read);
+ * the authoritative enforcement is the server's per-statement authorizer.
  */
 export const DatabaseTableAccessLevelsSchema = Schema.map(
     Schema.id<DatabaseTableId>(),
@@ -157,10 +157,11 @@ export const DatabaseEnsureCacheIsUpToDateResultConfig = {
         }),
     ),
     /**
-     * The complete access map for every table registered in the group (plus the main
-     * registry), regardless of what the client requested — this is the client's only
-     * source of "exists but no access". Empty for trusted internal connections, which
-     * are unrestricted.
+     * The access map for the tables the client asked about (the request's
+     * `pageVersionsByIndex` keys), plus — for join files among them — the joined
+     * sides, whose levels the client needs to render relations ("exists but no
+     * access"). Withheld and unknown tables report `null`. Empty for trusted internal
+     * connections, which are unrestricted.
      */
     tableAccess: DatabaseTableAccessLevelsSchema,
 };

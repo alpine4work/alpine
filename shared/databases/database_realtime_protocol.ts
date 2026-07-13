@@ -54,8 +54,8 @@ export const DatabaseRealtimeProtocol = defineWebSocketProtocol({
             events: Schema.array(DatabaseTableMetadataRealtimeEventSchema),
             /**
              * Access-map delta covering every table this batch touched. The client merges it
-             * over the complete map it received from `ensureCacheIsUpToDate`. Empty for
-             * trusted internal connections.
+             * over the entries it accumulated from `ensureCacheIsUpToDate`. Empty for trusted
+             * internal connections.
              */
             tableAccess: DatabaseTableAccessLevelsSchema,
         }),

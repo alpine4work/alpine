@@ -63,7 +63,7 @@ export class DatabaseJoinTableModel extends DatabaseSchemaScopedBaseModel {
         const sourceName = this.root.getTable(this.sourceTableId).getField(this.sourceFieldId).name;
         const targetName = this.root.getTable(this.targetTableId).getField(this.targetFieldId).name;
 
-        const {tableName: joinTableName} = formatUniqueTableName({
+        const joinTableName = formatUniqueTableName({
             model: this.root,
             name: `${sourceName} ${targetName}`,
             excludeTableId: this.id,

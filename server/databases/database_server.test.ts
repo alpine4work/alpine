@@ -12,7 +12,12 @@ import {tableSqliteMigrations} from "~/shared/databases/sqlite_migrations.js";
 import {InternalError} from "~/shared/error/error.js";
 import {generateChronologicalId} from "~/shared/id/chronological_id.js";
 import {generateId} from "~/shared/id/id.js";
-import type {AccountId, DatabaseRowId, DatabaseTableId} from "~/shared/id/types/id_types.js";
+import type {
+    AccountId,
+    DatabaseFieldId,
+    DatabaseRowId,
+    DatabaseTableId,
+} from "~/shared/id/types/id_types.js";
 import {Schema} from "~/shared/schema/schema.js";
 
 interface InMemoryTable {
@@ -1416,12 +1421,19 @@ describe("DatabaseServer — per-table access", () => {
             localPolicyWithGrants([[viewer, "View"]]),
         );
 
+        // `createField` writes field metadata and then ALTERs the data table to add its
+        // column; the denial fires on the first write it attempts.
         expect(() =>
             server.executeAction(createSessionContext(viewer), {
-                name: "renameTable",
-                input: {tableId, name: "Renamed"},
+                name: "createField",
+                input: {
+                    fieldId: generateChronologicalId<DatabaseFieldId>(),
+                    tableId,
+                    name: "Notes",
+                    config: {type: "plainText"},
+                },
             }),
-        ).toThrow(`Permission denied for alter-table on database table ${tableId}`);
+        ).toThrow(`Permission denied for insert on database table ${tableId}`);
     });
 
     test("allows schema changes at Edit level", async () => {
@@ -1433,12 +1445,17 @@ describe("DatabaseServer — per-table access", () => {
             localPolicyWithGrants([[editor, "Edit"]]),
         );
 
-        const {result} = server.executeAction<"renameTable">(createSessionContext(editor), {
-            name: "renameTable",
-            input: {tableId, name: "Renamed"},
-        });
-
-        expect(result.tableName).toBe("renamed");
+        expect(() =>
+            server.executeAction(createSessionContext(editor), {
+                name: "createField",
+                input: {
+                    fieldId: generateChronologicalId<DatabaseFieldId>(),
+                    tableId,
+                    name: "Notes",
+                    config: {type: "plainText"},
+                },
+            }),
+        ).not.toThrow();
     });
 
     test("internal actors bypass per-table access", async () => {
@@ -1744,11 +1761,16 @@ describe("DatabaseServer — table access levels", () => {
         server1.close();
 
         // A fresh server on the same storage attaches nothing at bootstrap (both tables
-        // are migration-current); the access map must load their policies on demand.
+        // are migration-current); the access map reads policies straight from storage.
         const server2 = await DatabaseServer.create(storage);
         openServers.push(server2);
 
-        expect(server2.getTableAccessLevelsForAccount(viewer)).toEqual(
+        expect(
+            server2.getTableAccessLevelsForAccount(
+                [readable.tableId, hidden.tableId, databaseMainTableId],
+                viewer,
+            ),
+        ).toEqual(
             new Map([
                 [readable.tableId, "View"],
                 [hidden.tableId, null],
@@ -1765,8 +1787,10 @@ describe("DatabaseServer — table access levels", () => {
             input: createTableInputForTest("Tasks"),
         });
 
-        expect(server.getTableAccessLevelsForAccount(testAccountId).get(result.tableId)).toBe(
-            "Manage",
-        );
+        expect(
+            server
+                .getTableAccessLevelsForAccount([result.tableId], testAccountId)
+                .get(result.tableId),
+        ).toBe("Manage");
     });
 });

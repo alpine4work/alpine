@@ -178,12 +178,14 @@ export class DatabaseDurableObjectConnection {
         },
         ensureCacheIsUpToDate: async (context, input) => {
             // Trusted internal connections are unrestricted; browser connections get per-table
-            // withholding plus the complete access map (their only source of "exists but no
-            // access" because policy copies remain server-side).
+            // withholding plus an access map covering the tables they asked about (and, for
+            // join files, the joined sides — their only source of "exists but no access"
+            // because policy copies remain server-side).
             const isTrustedActor = isTrustedDatabaseServiceActor(context.actor);
             const tableAccess = isTrustedActor
                 ? new Map<DatabaseTableId, AccessLevel | null>()
                 : this._server.getTableAccessLevelsForAccount(
+                      input.pageVersionsByIndex.keys(),
                       context.actor.getPossiblyBotAccountIdIfExists(),
                   );
 

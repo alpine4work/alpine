@@ -1,6 +1,6 @@
 import {
     type AccessLevel,
-    AccessPolicySchema,
+    LocalAccessPolicySchema,
     hasAccessLevel,
 } from "~/shared/access/access_policy.js";
 import type {
@@ -151,7 +151,10 @@ export const databaseActions = {
         input: Schema.object({
             tableId: Schema.id<DatabaseTableId>(),
             name: LabelStringSchema,
-            accessPolicy: AccessPolicySchema,
+            // The table store only ever holds resolved `Local` policies — the RPC layer
+            // resolves `Site` policies before issuing this action (see
+            // `resolveDatabaseTableAccessPolicyForDurableObject`).
+            accessPolicy: LocalAccessPolicySchema,
         }),
         output: Schema.object({
             tableId: Schema.id<DatabaseTableId>(),
@@ -163,12 +166,7 @@ export const databaseActions = {
         internalOnly: true,
         run({db, server, model}, {tableId, name, accessPolicy}) {
             // Resolve the unique SQLite table name before registering the new table.
-            const {tableName} = formatUniqueTableName({model, name});
-
-            // The table store only ever holds resolved `Local` policies — the RPC layer
-            // resolves `Site` policies before issuing this action (see
-            // `resolveDatabaseTableAccessPolicyForDurableObject`).
-            assert(accessPolicy.type === "Local");
+            const tableName = formatUniqueTableName({model, name});
 
             // Register the table, then attach + migrate its per-db file before writing any of
             // the table's data or metadata into it. `attach` is a no-op if already attached.
@@ -188,7 +186,8 @@ export const databaseActions = {
         input: Schema.object({
             tableId: Schema.id<DatabaseTableId>(),
             name: LabelStringSchema,
-            accessPolicy: AccessPolicySchema,
+            // See `createTable` — only resolved `Local` policies reach the table store.
+            accessPolicy: LocalAccessPolicySchema,
         }),
         output: Schema.object({
             tableName: Schema.string,
@@ -198,12 +197,11 @@ export const databaseActions = {
         transactionMode: "manual",
         internalOnly: true,
         run({db, server, model}, {tableId, name, accessPolicy}) {
-            // See `createTable` — only resolved `Local` policies reach the table store.
-            assert(accessPolicy.type === "Local");
             server().tables.setTableAccessPolicy(tableId, accessPolicy);
             const {table, viewId} = executeDatabaseActionTransaction(db, () => {
-                // Resolve the unique SQLite table name before renaming, same as `renameTable`.
-                const {tableName} = formatUniqueTableName({
+                // Resolve the unique SQLite table name before renaming, excluding this table so a
+                // rename to a slug variant of its current name resolves to that name.
+                const tableName = formatUniqueTableName({
                     model,
                     name,
                     excludeTableId: tableId,
@@ -212,28 +210,6 @@ export const databaseActions = {
                 return {table: model.getTable(tableId), viewId: table.getFirstView().id};
             });
             return {tableName: table.tableName, viewId};
-        },
-    }),
-
-    renameTable: defineDatabaseAction({
-        input: Schema.object({
-            tableId: Schema.id<DatabaseTableId>(),
-            name: LabelStringSchema,
-        }),
-        output: Schema.object({
-            tableName: Schema.string,
-        }),
-        writeLevel: "schema+data",
-        run({model}, {tableId, name}) {
-            const table = model.getTable(tableId);
-            const {tableName} = formatUniqueTableName({
-                model,
-                name,
-                excludeTableId: tableId,
-            });
-            const updated = table.updateName(name, {tableName});
-
-            return {tableName: updated.tableName};
         },
     }),
 
@@ -540,7 +516,7 @@ export const databaseActions = {
             // The join table is named after its two relation fields, created below as
             // `sourceFieldName` and the source table's name. Resolved before the join table is
             // registered so the uniqueness probe doesn't see its own row.
-            const {tableName: joinTableName} = formatUniqueTableName({
+            const joinTableName = formatUniqueTableName({
                 model,
                 name: `${sourceFieldName} ${sourceTable.name}`,
             });

@@ -174,6 +174,8 @@ export function runMainMigrations(db: Database, migrationLimitForTest?: number):
     }
     if (version < migrationLimit) {
         db.exec(`PRAGMA user_version = ${migrationLimit}`);
+        // Refresh query-planner statistics now that migrations changed the schema.
+        db.exec("PRAGMA main.optimize");
     }
 }
 
@@ -243,5 +245,7 @@ function runSchemaMigrations(
 
     if (version < migrationLimit) {
         sql` PRAGMA ${schema}.user_version = ${sql.raw(String(migrationLimit))} `.exec(db);
+        // Refresh query-planner statistics now that migrations changed the schema.
+        sql` PRAGMA ${schema}.optimize `.exec(db);
     }
 }

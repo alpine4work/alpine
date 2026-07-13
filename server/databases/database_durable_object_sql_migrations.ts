@@ -9,14 +9,14 @@ export const databaseDurableObjectSqlMigrations: ReadonlyArray<DatabaseDurableOb
     [
         sql => {
             // A `database_tables` row exists for every table id pages have been written for.
-            // The registration columns (`kind` onward) are populated when the table is
-            // registered by its create flow; they stay NULL for rows created by bare page
-            // writes (the main registry file, or a policy pushed ahead of creation) and access
-            // resolution fails closed on them. `source_table_id`/ `target_table_id` are the
-            // join topology, set only for `kind = 'join'`; `access_policy` is the resolved
-            // local policy copy, set only for `kind = 'table'`; `schema_version` mirrors the
-            // file's `user_version` so server bootstrap can tell which files need migrating
-            // without attaching them.
+            // The CHECK spells out the three row shapes: unregistered (kind NULL — created by
+            // a bare page write for the main registry file, or a policy pushed ahead of the
+            // table's creation; access resolution fails closed on these), user tables (policy
+            // copy, no topology), and join files (topology, whose access derives from the two
+            // sides, so no policy of their own). `schema_version` mirrors the file's
+            // `user_version` so server bootstrap can tell which files need migrating without
+            // attaching them.
+            /* eslint-disable cyberworlds/string-quotes -- SQL string literals */
             sql.exec(`CREATE TABLE database_tables (
             sqlite_id INTEGER PRIMARY KEY,
             table_id TEXT NOT NULL UNIQUE,
@@ -25,8 +25,30 @@ export const databaseDurableObjectSqlMigrations: ReadonlyArray<DatabaseDurableOb
             schema_version INTEGER,
             access_policy TEXT,
             source_table_id TEXT,
-            target_table_id TEXT
+            target_table_id TEXT,
+            CHECK (
+                CASE kind
+                    WHEN 'table' THEN
+                        table_name IS NOT NULL
+                        AND schema_version IS NOT NULL
+                        AND source_table_id IS NULL
+                        AND target_table_id IS NULL
+                    WHEN 'join' THEN
+                        table_name IS NOT NULL
+                        AND schema_version IS NOT NULL
+                        AND access_policy IS NULL
+                        AND source_table_id IS NOT NULL
+                        AND target_table_id IS NOT NULL
+                    ELSE
+                        kind IS NULL
+                        AND table_name IS NULL
+                        AND schema_version IS NULL
+                        AND source_table_id IS NULL
+                        AND target_table_id IS NULL
+                END
+            )
         )`);
+            /* eslint-enable cyberworlds/string-quotes */
             sql.exec(`CREATE TABLE database_table_pages (
             sqlite_id INTEGER NOT NULL,
             page_index INTEGER NOT NULL,
@@ -56,6 +78,11 @@ export function runDatabaseDurableObjectSqlMigrations(storage: DurableObjectStor
         for (let i = version; i < databaseDurableObjectSqlMigrations.length; i++) {
             databaseDurableObjectSqlMigrations[i]!(storage.sql);
             storage.sql.exec("INSERT INTO _migrations (version) VALUES (?)", i + 1);
+        }
+
+        // Refresh query-planner statistics when migrations changed the schema.
+        if (version < databaseDurableObjectSqlMigrations.length) {
+            storage.sql.exec("PRAGMA optimize");
         }
     });
 }

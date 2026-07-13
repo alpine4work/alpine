@@ -199,19 +199,51 @@ export class DatabaseServer {
     }
 
     /**
-     * `accountId`'s wire-level access to every table registered in the group, plus the
-     * main registry (public by design). This is the complete map
-     * `ensureCacheIsUpToDate` pushes to clients — their only source of "exists but no
-     * access", since policy copies remain server-side.
+     * `accountId`'s wire-level access to each of `tableIds` — the tables a client
+     * request asked about, not the whole registry. For a requested join file the two
+     * joined sides are reported alongside it: the join's level derives from them, and
+     * a client holding a join file renders relations into both sides — the sides'
+     * levels are its only source of "exists but no access", since policy copies remain
+     * server-side. Unknown/unregistered ids report `null` (fail closed); the main
+     * registry is public by design.
      */
     getTableAccessLevelsForAccount(
+        tableIds: Iterable<DatabaseTableId>,
         accountId: AccountId | null,
     ): Map<DatabaseTableId, AccessLevel | null> {
         const levels = new Map<DatabaseTableId, AccessLevel | null>();
-        for (const {tableId} of this.storage.listDatabaseTables()) {
-            levels.set(tableId, this.getTableAccessLevelForAccount(tableId, accountId));
+        for (const tableId of tableIds) {
+            if (tableId === databaseMainTableId) {
+                levels.set(tableId, "Manage");
+                continue;
+            }
+            const entry = this.storage.getDatabaseTableAccessEntry(tableId);
+            if (entry === null) {
+                levels.set(tableId, null);
+                continue;
+            }
+            switch (entry.kind) {
+                case "table":
+                    levels.set(tableId, accessLevelForPolicy(entry.accessPolicy, accountId));
+                    break;
+                case "join": {
+                    const sourceLevel = this._getSideTableAccessLevel(
+                        entry.sourceTableId,
+                        accountId,
+                    );
+                    const targetLevel = this._getSideTableAccessLevel(
+                        entry.targetTableId,
+                        accountId,
+                    );
+                    levels.set(entry.sourceTableId, sourceLevel);
+                    levels.set(entry.targetTableId, targetLevel);
+                    levels.set(tableId, maxAccessLevel(sourceLevel, targetLevel));
+                    break;
+                }
+                default:
+                    throw exhaustive(entry);
+            }
         }
-        levels.set(databaseMainTableId, "Manage");
         return levels;
     }
 
