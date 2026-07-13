@@ -1,7 +1,9 @@
 import {AgentWebPageStoredLink} from "~/server/agents/web/agent_web_page_stored_link.js";
 import {AgentWebSessionStorage} from "~/server/agents/web/agent_web_session_storage.js";
 import {createAgentWebPageStoredLinkPathname} from "~/server/agents/web/create_agent_web_page_stored_link_pathname.js";
+import {intoApiAccountReference} from "~/shared/api/specification/into_api_account_reference.js";
 import {
+    ApiAccountResponse,
     ApiTaskCollectionResponse,
     ApiTaskWithoutNotesResponse,
 } from "~/shared/api/specification/types/api_specification_convenience_types.js";
@@ -15,6 +17,7 @@ import {mapIterable} from "~/shared/helpers/iterable/map_iterable.js";
 import {MaybeReadonlyArray} from "~/shared/helpers/types/maybe_array.js";
 
 export type StoreAgentWebPageLinkForTestTarget =
+    | ApiAccountResponse
     | ApiTaskCollectionResponse
     | ApiTaskWithoutNotesResponse;
 
@@ -31,7 +34,9 @@ export async function storeAgentWebPageLinkForTest(
     const pageLinks = mapIterable(
         flatMapIterable(targets, target => (isReadonlyArray(target) ? target : [target])),
         (target): AgentWebPageStoredLink => {
-            if ("collections" in target) {
+            if ("shortName" in target) {
+                return intoApiAccountReference(target);
+            } else if ("collections" in target) {
                 return {
                     type: "Task",
                     id: target.id,
