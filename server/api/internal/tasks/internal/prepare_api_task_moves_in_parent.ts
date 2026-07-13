@@ -1,27 +1,27 @@
 import {ApiServiceBotActionContext} from "~/server/api/internal/shared/api_service_context.js";
 import {
-    PreparedApiTaskMovePatch,
-    prepareApiTaskMovePatch,
-} from "~/server/api/internal/tasks/internal/prepare_api_task_move_patch.js";
-import {ApiTaskMoveInParentPatch} from "~/shared/api/specification/types/api_specification_convenience_types.js";
+    ApiTaskMoveInScope,
+    ApiTaskPreparedMoves,
+    prepareApiTaskMovesInScope,
+} from "~/server/api/internal/tasks/internal/prepare_api_task_moves_in_scope.js";
 import {errorDisplayMessage} from "~/shared/error/error_display_message.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 import {SpaceId, TaskId} from "~/shared/id/types/id_types.js";
 import {TaskQueryNormalizedFilters} from "~/shared/tasks/task_query_normalized_filters.js";
 import {TaskQueryNormalizedSort} from "~/shared/tasks/task_query_normalized_sort.js";
 
-/** Resolves query data needed to generate actions for `MoveInParent`. */
-export async function prepareApiTaskMoveInParentPatch(
+/** Resolves the destination positions for a batch's `MoveInParent` patches. */
+export async function prepareApiTaskMovesInParent(
     context: ApiServiceBotActionContext,
     spaceId: SpaceId,
     parentTaskId: TaskId,
-    patch: ApiTaskMoveInParentPatch,
-): Promise<PreparedApiTaskMovePatch> {
+    moves: ReadonlyArray<ApiTaskMoveInScope>,
+): Promise<ApiTaskPreparedMoves> {
     const queryInput = createParentPositionQueryInput(parentTaskId);
 
-    return await prepareApiTaskMovePatch(context, {
+    return await prepareApiTaskMovesInScope(context, {
         spaceId,
-        position: patch.position,
+        moves,
         filters: queryInput.filters,
         sorts: queryInput.sorts,
         getTaskPosition: task => assertExists(task.getParent()).position,

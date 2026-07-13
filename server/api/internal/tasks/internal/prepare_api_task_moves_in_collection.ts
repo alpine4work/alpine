@@ -1,9 +1,9 @@
 import {ApiServiceBotActionContext} from "~/server/api/internal/shared/api_service_context.js";
 import {
-    PreparedApiTaskMovePatch,
-    prepareApiTaskMovePatch,
-} from "~/server/api/internal/tasks/internal/prepare_api_task_move_patch.js";
-import {ApiTaskMoveInCollectionPatch} from "~/shared/api/specification/types/api_specification_convenience_types.js";
+    ApiTaskMoveInScope,
+    ApiTaskPreparedMoves,
+    prepareApiTaskMovesInScope,
+} from "~/server/api/internal/tasks/internal/prepare_api_task_moves_in_scope.js";
 import {errorDisplayMessage} from "~/shared/error/error_display_message.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 import {SpaceId, TaskCollectionId} from "~/shared/id/types/id_types.js";
@@ -13,18 +13,20 @@ import {
 } from "~/shared/tasks/task_query_normalized_filters.js";
 import {TaskQueryNormalizedSort} from "~/shared/tasks/task_query_normalized_sort.js";
 
-/** Resolves query data needed to generate actions for `MoveInCollection`. */
-export async function prepareApiTaskMoveInCollectionPatch(
+/**
+ * Resolves the destination positions for a batch's `MoveInCollection` patches.
+ */
+export async function prepareApiTaskMovesInCollection(
     context: ApiServiceBotActionContext,
     spaceId: SpaceId,
-    patch: ApiTaskMoveInCollectionPatch,
-): Promise<PreparedApiTaskMovePatch> {
-    const {collectionId, position} = patch;
+    collectionId: TaskCollectionId,
+    moves: ReadonlyArray<ApiTaskMoveInScope>,
+): Promise<ApiTaskPreparedMoves> {
     const queryInput = createCollectionPositionQueryInput(collectionId);
 
-    return await prepareApiTaskMovePatch(context, {
+    return await prepareApiTaskMovesInScope(context, {
         spaceId,
-        position,
+        moves,
         filters: queryInput.filters,
         sorts: queryInput.sorts,
         getTaskPosition: task => assertExists(task.getCollectionPosition(collectionId)),

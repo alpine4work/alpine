@@ -1,15 +1,13 @@
 import {parseDate} from "@internationalized/date";
 import {findSpans} from "unicode-default-word-boundary";
 import {ApiServiceBotActionContext} from "~/server/api/internal/shared/api_service_context.js";
-import {
-    ApiTaskMovePreparedPositionStateShared as PreparedApiTaskMovePatchSharedState,
-    ApiTaskMovePreparedPositionState as PreparedApiTaskMovePatchState,
-    createApiTaskMovePositionUpdates as createApiTaskMovePatchUpdates,
-} from "~/server/api/internal/tasks/internal/create_api_task_move_position_updates.js";
 import {fromApiTaskLayout} from "~/server/api/internal/tasks/internal/from_api_task_layout.js";
-import {prepareApiTaskMoveInCollectionPatch} from "~/server/api/internal/tasks/internal/prepare_api_task_move_in_collection_patch.js";
-import {prepareApiTaskMoveInParentPatch} from "~/server/api/internal/tasks/internal/prepare_api_task_move_in_parent_patch.js";
-import {PreparedApiTaskMovePatch} from "~/server/api/internal/tasks/internal/prepare_api_task_move_patch.js";
+import {prepareApiTaskMovesInCollection} from "~/server/api/internal/tasks/internal/prepare_api_task_moves_in_collection.js";
+import {prepareApiTaskMovesInParent} from "~/server/api/internal/tasks/internal/prepare_api_task_moves_in_parent.js";
+import {
+    ApiTaskMoveInScope,
+    ApiTaskResolvedMove,
+} from "~/server/api/internal/tasks/internal/prepare_api_task_moves_in_scope.js";
 import {getAccount} from "~/server/spaces/get_account.js";
 import {commitTaskActionTransaction} from "~/server/tasks/data/commit_task_action_transaction.js";
 import {ApiTaskPatch} from "~/shared/api/specification/types/api_specification_convenience_types.js";
@@ -17,20 +15,24 @@ import {InvalidArgumentError} from "~/shared/error/error.js";
 import {errorDisplayMessage} from "~/shared/error/error_display_message.js";
 import {filterMapArray} from "~/shared/helpers/array/filter_map_array.js";
 import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
-import {HybridLogicalClock} from "~/shared/helpers/clock/hybrid_logical_clock.js";
+import {
+    HybridLogicalClock,
+    HybridLogicalTime,
+} from "~/shared/helpers/clock/hybrid_logical_clock.js";
 import {unsynchronizedSystemClock} from "~/shared/helpers/clock/unsynchronized_system_clock.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
 import {diff} from "~/shared/helpers/diff/diff.js";
 import {defaultTimeZone} from "~/shared/helpers/intl/time_zone.js";
 import {getOrSetDefaultMapValue} from "~/shared/helpers/map/get_or_set_default_map_value.js";
-import {generateOrderKeyBetween} from "~/shared/helpers/sort/order_key.js";
+import {generateOrderKeyBetween, initialOrderKey} from "~/shared/helpers/sort/order_key.js";
 import {AccountId, SpaceId, TaskCollectionId, TaskId} from "~/shared/id/types/id_types.js";
 import {collectReferencedIdsFromTaskAction} from "~/shared/tasks/actions/collect_referenced_ids_from_task_action.js";
 import {TaskAction, TaskUpdateTaskAction} from "~/shared/tasks/actions/task_action.js";
 import {TaskModel} from "~/shared/tasks/model/task_model.js";
 import {TaskActor} from "~/shared/tasks/task_creator.js";
 import {TaskFilterableTime} from "~/shared/tasks/task_filterable_time.js";
+import {TaskPosition} from "~/shared/tasks/task_position.js";
 import {TaskRealtimeUpdateEvent} from "~/shared/tasks/task_realtime_protocol.js";
 import {TaskSortableAccount} from "~/shared/tasks/task_sortable_account.js";
 import {randomlyGenerateTaskTitleClientId} from "~/shared/tasks/title/task_title.js";
@@ -39,6 +41,13 @@ export type ApiTaskIdPatch = {
     readonly id: TaskId;
     readonly patch: ApiTaskPatch;
 };
+
+/**
+ * A scope tasks move within: one collection's tasks or one parent's subtasks.
+ */
+type ApiTaskMoveScope =
+    | {type: "Collection"; collectionId: TaskCollectionId; moves: Array<ApiTaskMoveInScope>}
+    | {type: "Parent"; parentTaskId: TaskId; moves: Array<ApiTaskMoveInScope>};
 
 /**
  * Applies API task metadata patches, commits the resulting task actions, and
@@ -139,99 +148,90 @@ export async function updateTasksWithoutNotesFromApi(
         assertExists(backfillAuthorizedTaskById.get(taskId)),
     );
 
-    // `MoveInParent` uses the parent established by preceding patches for the same
-    // task. Resolve those destinations before preparing moves in parallel.
+    // `MoveInParent` moves within the parent established by preceding patches for the
+    // same task. Resolve those destinations before preparing moves.
     const parentTaskIdByTaskId = new Map(
         initialTasks.map(task => [task.id, task.getParent()?.taskId ?? null]),
     );
 
-    const preparedPromiseByKey = new Map<
-        string,
-        {
-            shared: PreparedApiTaskMovePatchSharedState;
-            promise: Promise<PreparedApiTaskMovePatch>;
-        }
-    >();
-    const movedTaskIdsByScopeKey = new Map<string, Set<TaskId>>();
+    // Group the move patches by the scope they move within. Each scope resolves its
+    // moves together so moves to the same destination land in patch order and tied
+    // destinations are re-keyed exactly once.
+    const moveScopeByKey = new Map<string, ApiTaskMoveScope>();
 
-    const preparedStates = await runAllPromises(
-        patches.map(({id, patch}): Promise<PreparedApiTaskMovePatchState> | null => {
-            if (patch.type === "SetParent") {
+    patches.forEach(({id, patch}, patchIndex) => {
+        switch (patch.type) {
+            case "SetParent": {
                 parentTaskIdByTaskId.set(id, patch.parent?.task.id ?? null);
-                return null;
+                break;
             }
-
-            if (patch.type === "MoveInCollection") {
-                const scopeKey = JSON.stringify(["Collection", patch.collectionId]);
-                const movedTaskIdsInScope = getOrSetDefaultMapValue(
-                    movedTaskIdsByScopeKey,
-                    scopeKey,
-                    () => new Set<TaskId>(),
+            case "MoveInCollection": {
+                const moveScope = getOrSetDefaultMapValue(
+                    moveScopeByKey,
+                    JSON.stringify(["Collection", patch.collectionId]),
+                    (): ApiTaskMoveScope => ({
+                        type: "Collection",
+                        collectionId: patch.collectionId,
+                        moves: [],
+                    }),
                 );
-                movedTaskIdsInScope.add(id);
 
-                const key = JSON.stringify(["Collection", patch.collectionId, patch.position]);
-
-                const preparedPromise = getOrSetDefaultMapValue(preparedPromiseByKey, key, () => ({
-                    shared: {
-                        count: 0,
-                        orderKeys: null,
-                        hasUpdatedTiedTasks: false,
-                        movedTaskIdsInScope,
-                    },
-                    promise: prepareApiTaskMoveInCollectionPatch(context, spaceId, patch),
-                }));
-
-                const index = preparedPromise.shared.count++;
-
-                return preparedPromise.promise.then(position => ({
-                    index,
-                    shared: preparedPromise.shared,
-                    position,
-                }));
+                moveScope.moves.push({patchIndex, taskId: id, position: patch.position});
+                break;
             }
+            case "MoveInParent": {
+                const parentTaskId = parentTaskIdByTaskId.get(id);
 
-            if (patch.type === "MoveInParent") {
-                const moveParentTaskId = parentTaskIdByTaskId.get(id);
-                if (moveParentTaskId == null) return null;
+                // Without a parent there's no scope to move within. Generating actions for this
+                // patch below throws the request error.
+                if (parentTaskId == null) break;
 
-                const scopeKey = JSON.stringify(["Parent", moveParentTaskId]);
-                const movedTaskIdsInScope = getOrSetDefaultMapValue(
-                    movedTaskIdsByScopeKey,
-                    scopeKey,
-                    () => new Set<TaskId>(),
+                const moveScope = getOrSetDefaultMapValue(
+                    moveScopeByKey,
+                    JSON.stringify(["Parent", parentTaskId]),
+                    (): ApiTaskMoveScope => ({type: "Parent", parentTaskId, moves: []}),
                 );
-                movedTaskIdsInScope.add(id);
 
-                const key = JSON.stringify(["Parent", moveParentTaskId, patch.position]);
+                moveScope.moves.push({patchIndex, taskId: id, position: patch.position});
+                break;
+            }
+            default:
+                break;
+        }
+    });
 
-                const preparedPromise = getOrSetDefaultMapValue(preparedPromiseByKey, key, () => ({
-                    shared: {
-                        count: 0,
-                        orderKeys: null,
-                        hasUpdatedTiedTasks: false,
-                        movedTaskIdsInScope,
-                    },
-                    promise: prepareApiTaskMoveInParentPatch(
+    const preparedMoves = await runAllPromises(
+        Array.from(moveScopeByKey.values(), moveScope => {
+            switch (moveScope.type) {
+                case "Collection": {
+                    return prepareApiTaskMovesInCollection(
                         context,
                         spaceId,
-                        moveParentTaskId,
-                        patch,
-                    ),
-                }));
-
-                const index = preparedPromise.shared.count++;
-
-                return preparedPromise.promise.then(position => ({
-                    index,
-                    shared: preparedPromise.shared,
-                    position,
-                }));
+                        moveScope.collectionId,
+                        moveScope.moves,
+                    );
+                }
+                case "Parent": {
+                    return prepareApiTaskMovesInParent(
+                        context,
+                        spaceId,
+                        moveScope.parentTaskId,
+                        moveScope.moves,
+                    );
+                }
+                default:
+                    throw exhaustive(moveScope);
             }
-
-            return null;
         }),
     );
+
+    const resolvedMoveByPatchIndex = new Map<number, ApiTaskResolvedMove>();
+
+    for (const preparedMovesInScope of preparedMoves) {
+        for (const [patchIndex, resolvedMove] of preparedMovesInScope.resolvedMoveByPatchIndex) {
+            resolvedMoveByPatchIndex.set(patchIndex, resolvedMove);
+        }
+    }
 
     // Make sure all times we generate are higher than the times in the tasks we're
     // updating. That includes tasks sharing a position with a move destination since
@@ -239,11 +239,9 @@ export async function updateTasksWithoutNotesFromApi(
     {
         for (const initialTask of initialTasks) initialTask.tick(clock);
 
-        for (const preparedState of preparedStates) {
-            if (preparedState?.position.type !== "BetweenTied") continue;
-
-            for (const tiedTask of preparedState.position.tiedTasksToUpdate) {
-                tiedTask.tick(clock);
+        for (const preparedMovesInScope of preparedMoves) {
+            for (const taskToUpdate of preparedMovesInScope.tasksToUpdate) {
+                taskToUpdate.tick(clock);
             }
         }
     }
@@ -576,9 +574,13 @@ export async function updateTasksWithoutNotesFromApi(
                     );
                 }
 
-                const preparedState = assertExists(preparedStates[patchIndex]);
+                const resolvedMove = assertExists(resolvedMoveByPatchIndex.get(patchIndex));
 
-                for (const update of createApiTaskMovePatchUpdates(taskId, preparedState, clock)) {
+                for (const update of createApiTaskMovePositionUpdates(
+                    taskId,
+                    resolvedMove,
+                    clock,
+                )) {
                     actions.push({
                         type: "UpdateTask",
                         time: update.time,
@@ -600,9 +602,13 @@ export async function updateTasksWithoutNotesFromApi(
                     });
                 }
 
-                const preparedState = assertExists(preparedStates[patchIndex]);
+                const resolvedMove = assertExists(resolvedMoveByPatchIndex.get(patchIndex));
 
-                for (const update of createApiTaskMovePatchUpdates(taskId, preparedState, clock)) {
+                for (const update of createApiTaskMovePositionUpdates(
+                    taskId,
+                    resolvedMove,
+                    clock,
+                )) {
                     actions.push({
                         type: "UpdateTask",
                         time: update.time,
@@ -725,6 +731,46 @@ export async function updateTasksWithoutNotesFromApi(
         updatedTasks,
         updateEvent,
     };
+}
+
+/**
+ * Converts a resolved move into the position updates to commit: the moved task's
+ * new position followed by re-keys for the tasks that shared a `TaskPosition` with
+ * a move destination.
+ */
+function createApiTaskMovePositionUpdates(
+    taskId: TaskId,
+    resolvedMove: ApiTaskResolvedMove,
+    clock: HybridLogicalClock,
+): Array<{taskId: TaskId; time: HybridLogicalTime; position: TaskPosition}> {
+    const time = clock.now();
+
+    let position: TaskPosition;
+
+    switch (resolvedMove.position.type) {
+        case "FreshOrderTime": {
+            // A fresh `orderTime` with the initial `orderKey` sorts below every existing
+            // position. Reusing the action time keeps later moves in the same batch sorted
+            // below earlier ones.
+            position = {orderTime: time, orderKey: initialOrderKey};
+            break;
+        }
+        case "Assigned": {
+            position = resolvedMove.position.position;
+            break;
+        }
+        default:
+            throw exhaustive(resolvedMove.position);
+    }
+
+    return [
+        {taskId, time, position},
+        ...resolvedMove.followingUpdates.map(followingUpdate => ({
+            taskId: followingUpdate.taskId,
+            time: clock.now(),
+            position: followingUpdate.position,
+        })),
+    ];
 }
 
 /**

@@ -291,14 +291,14 @@ for (const testSuite of testSuites) {
                 expect(oldBody.tasks).toHaveLength(tasks.length);
                 expect(oldBody.nextCursor).toBeNull();
 
-                const patches: Array<{taskId: TaskId; patch: ApiTaskPatch}> = [];
+                const patches: Array<{id: TaskId; patch: ApiTaskPatch}> = [];
 
                 for (const move of moves) {
                     const task = tasks[move.from]!;
 
                     if (move.to === 0) {
                         patches.push({
-                            taskId: task.id,
+                            id: task.id,
                             patch: {
                                 type: "MoveInCollection",
                                 collectionId: collection.id,
@@ -307,7 +307,7 @@ for (const testSuite of testSuites) {
                         });
                     } else if (move.to === taskCount) {
                         patches.push({
-                            taskId: task.id,
+                            id: task.id,
                             patch: {
                                 type: "MoveInCollection",
                                 collectionId: collection.id,
@@ -316,26 +316,34 @@ for (const testSuite of testSuites) {
                         });
                     } else {
                         patches.push({
-                            taskId: task.id,
+                            id: task.id,
                             patch: {
                                 type: "MoveInCollection",
                                 collectionId: collection.id,
                                 position: {
                                     type: "Between",
-                                    beforeCursor: oldBody.tasks[move.to - 1]!.cursor,
-                                    afterCursor: oldBody.tasks[move.to]!.cursor,
+                                    afterCursor: oldBody.tasks[move.to - 1]!.cursor,
+                                    beforeCursor: oldBody.tasks[move.to]!.cursor,
                                 },
                             },
                         });
                     }
                 }
 
-                await server.PATCH("/tasks", {
+                const patchResponse = await server.PATCH("/tasks", {
                     headers: {authorization: `bearer ${apiKey}`},
                     body: {
                         spaceId: space.id,
                         patches,
                     },
+                });
+
+                expect({
+                    status: patchResponse.status,
+                    error: patchResponse.body.error,
+                }).toEqual({
+                    status: 200,
+                    error: undefined,
                 });
 
                 const {
