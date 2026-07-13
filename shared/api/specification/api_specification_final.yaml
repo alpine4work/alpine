@@ -1847,29 +1847,7 @@ paths:
                       $ref: "#/components/schemas/TaskQueryCursor"
             responses:
                 "200":
-                    content:
-                        application/json:
-                            schema:
-                                type: object
-                                required:
-                                    - spaceId
-                                    - collection
-                                    - nextCursor
-                                    - tasks
-                                additionalProperties: false
-                                properties:
-                                    spaceId:
-                                        $ref: "#/components/schemas/SpaceId"
-                                    collection:
-                                        $ref: "#/components/schemas/TaskCollection_Response"
-                                    nextCursor:
-                                        oneOf:
-                                            - $ref: "#/components/schemas/TaskQueryCursor"
-                                            - type: "null"
-                                    tasks:
-                                        type: array
-                                        items:
-                                            $ref: "#/components/schemas/TaskQueryItem_Response"
+                    $ref: "#/components/responses/GetTaskCollectionTasks"
                 default:
                     $ref: "#/components/responses/Error"
     /task-collections/{id}/tasks/query:
@@ -1906,29 +1884,7 @@ paths:
                                         $ref: "#/components/schemas/TaskQuerySort"
             responses:
                 "200":
-                    content:
-                        application/json:
-                            schema:
-                                type: object
-                                required:
-                                    - spaceId
-                                    - collection
-                                    - nextCursor
-                                    - tasks
-                                additionalProperties: false
-                                properties:
-                                    spaceId:
-                                        $ref: "#/components/schemas/SpaceId"
-                                    collection:
-                                        $ref: "#/components/schemas/TaskCollection_Response"
-                                    nextCursor:
-                                        oneOf:
-                                            - $ref: "#/components/schemas/TaskQueryCursor"
-                                            - type: "null"
-                                    tasks:
-                                        type: array
-                                        items:
-                                            $ref: "#/components/schemas/TaskQueryItem_Response"
+                    $ref: "#/components/responses/GetTaskCollectionTasks"
                 default:
                     $ref: "#/components/responses/Error"
     /files/{id}:
@@ -2162,6 +2118,30 @@ components:
                                 $ref: "#/components/schemas/SpaceId"
                             notes:
                                 $ref: "#/components/schemas/TaskNotes_Response"
+        GetTaskCollectionTasks:
+            content:
+                application/json:
+                    schema:
+                        type: object
+                        required:
+                            - spaceId
+                            - collection
+                            - nextCursor
+                            - tasks
+                        additionalProperties: false
+                        properties:
+                            spaceId:
+                                $ref: "#/components/schemas/SpaceId"
+                            collection:
+                                $ref: "#/components/schemas/TaskCollection_Response"
+                            nextCursor:
+                                oneOf:
+                                    - $ref: "#/components/schemas/TaskQueryCursor"
+                                    - type: "null"
+                            tasks:
+                                type: array
+                                items:
+                                    $ref: "#/components/schemas/TaskQueryItem_Response"
         GetMessage:
             content:
                 application/json:

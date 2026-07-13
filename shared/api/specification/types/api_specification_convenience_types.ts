@@ -1081,6 +1081,9 @@ export type ApiPatchTasksResponse = ApiSpecification.components["responses"]["Pa
 
 export type ApiGetTaskNotesResponse = ApiSpecification.components["responses"]["GetTaskNotes"];
 
+export type ApiGetTaskCollectionTasksResponse =
+    ApiSpecification.components["responses"]["GetTaskCollectionTasks"];
+
 export type ApiGetMessageResponse = ApiSpecification.components["responses"]["GetMessage"];
 
 export type ApiGetMessagesResponse = ApiSpecification.components["responses"]["GetMessages"];

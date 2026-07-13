@@ -2536,21 +2536,7 @@ export namespace ApiSpecification {
                 };
                 readonly requestBody?: never;
                 readonly responses: {
-                    readonly 200: {
-                        headers: {
-                            readonly [name: string]: unknown;
-                        };
-                        content: {
-                            readonly "application/json": {
-                                readonly spaceId: components["schemas"]["SpaceId"];
-                                readonly collection: components["schemas"]["TaskCollection_Response"];
-                                readonly nextCursor:
-                                    | components["schemas"]["TaskQueryCursor"]
-                                    | null;
-                                readonly tasks: readonly components["schemas"]["TaskQueryItem_Response"][];
-                            };
-                        };
-                    };
+                    readonly 200: components["responses"]["GetTaskCollectionTasks"];
                     readonly default: components["responses"]["Error"];
                 };
             };
@@ -2594,21 +2580,7 @@ export namespace ApiSpecification {
                     };
                 };
                 readonly responses: {
-                    readonly 200: {
-                        headers: {
-                            readonly [name: string]: unknown;
-                        };
-                        content: {
-                            readonly "application/json": {
-                                readonly spaceId: components["schemas"]["SpaceId"];
-                                readonly collection: components["schemas"]["TaskCollection_Response"];
-                                readonly nextCursor:
-                                    | components["schemas"]["TaskQueryCursor"]
-                                    | null;
-                                readonly tasks: readonly components["schemas"]["TaskQueryItem_Response"][];
-                            };
-                        };
-                    };
+                    readonly 200: components["responses"]["GetTaskCollectionTasks"];
                     readonly default: components["responses"]["Error"];
                 };
             };
@@ -6197,6 +6169,19 @@ export namespace ApiSpecification {
                     readonly "application/json": {
                         readonly spaceId: components["schemas"]["SpaceId"];
                         readonly notes: components["schemas"]["TaskNotes_Response"];
+                    };
+                };
+            };
+            readonly GetTaskCollectionTasks: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": {
+                        readonly spaceId: components["schemas"]["SpaceId"];
+                        readonly collection: components["schemas"]["TaskCollection_Response"];
+                        readonly nextCursor: components["schemas"]["TaskQueryCursor"] | null;
+                        readonly tasks: readonly components["schemas"]["TaskQueryItem_Response"][];
                     };
                 };
             };

@@ -1678,29 +1678,7 @@ paths:
                       $ref: "#/components/schemas/TaskQueryCursor"
             responses:
                 default: {$ref: "#/components/responses/Error"}
-                "200":
-                    content:
-                        application/json:
-                            schema:
-                                type: object
-                                required: [spaceId, collection, nextCursor, tasks]
-                                additionalProperties: false
-                                properties:
-                                    spaceId:
-                                        $ref: "#/components/schemas/SpaceId"
-                                    collection:
-                                        $ref: "#/components/schemas/TaskCollection"
-                                    # TODO(calebmer): We should document how if the default sorts change
-                                    # while iterating through this collection an error will be thrown if
-                                    # sorts aren't explicitly specified.
-                                    nextCursor:
-                                        oneOf:
-                                            - $ref: "#/components/schemas/TaskQueryCursor"
-                                            - type: "null"
-                                    tasks:
-                                        type: array
-                                        items:
-                                            $ref: "#/components/schemas/TaskQueryItem"
+                "200": {$ref: "#/components/responses/GetTaskCollectionTasks"}
 
     # NOTE(calebmer): `/query` refers to the upcoming HTTP `QUERY` method, not
     # `TaskQuery`. Eventually we should add `QUERY /task-collections/{id}/tasks`
@@ -1738,26 +1716,7 @@ paths:
                                         $ref: "#/components/schemas/TaskQuerySort"
             responses:
                 default: {$ref: "#/components/responses/Error"}
-                "200":
-                    content:
-                        application/json:
-                            schema:
-                                type: object
-                                required: [spaceId, collection, nextCursor, tasks]
-                                additionalProperties: false
-                                properties:
-                                    spaceId:
-                                        $ref: "#/components/schemas/SpaceId"
-                                    collection:
-                                        $ref: "#/components/schemas/TaskCollection"
-                                    nextCursor:
-                                        oneOf:
-                                            - $ref: "#/components/schemas/TaskQueryCursor"
-                                            - type: "null"
-                                    tasks:
-                                        type: array
-                                        items:
-                                            $ref: "#/components/schemas/TaskQueryItem"
+                "200": {$ref: "#/components/responses/GetTaskCollectionTasks"}
 
     /files/{id}:
         parameters:
@@ -1966,6 +1925,30 @@ components:
                                 $ref: "#/components/schemas/SpaceId"
                             notes:
                                 $ref: "#/components/schemas/TaskNotes"
+
+        GetTaskCollectionTasks:
+            content:
+                application/json:
+                    schema:
+                        type: object
+                        required: [spaceId, collection, nextCursor, tasks]
+                        additionalProperties: false
+                        properties:
+                            spaceId:
+                                $ref: "#/components/schemas/SpaceId"
+                            collection:
+                                $ref: "#/components/schemas/TaskCollection"
+                            # TODO(calebmer): We should document how if the default sorts change
+                            # while iterating through this collection an error will be thrown if
+                            # sorts aren't explicitly specified.
+                            nextCursor:
+                                oneOf:
+                                    - $ref: "#/components/schemas/TaskQueryCursor"
+                                    - type: "null"
+                            tasks:
+                                type: array
+                                items:
+                                    $ref: "#/components/schemas/TaskQueryItem"
 
         GetMessage:
             content:
