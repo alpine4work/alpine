@@ -39,7 +39,7 @@ export default implementRpcs(definitions, {
         visibility: ["DocumentCollaborationService"],
         execute: async (context, input) => {
             const {spaceId} = await authorizeDocumentAccess(
-                context.actor.authorizeSession(),
+                context.actor.authorizeAccount(),
                 input.documentId,
                 input.expectedAccessLevel,
             );
