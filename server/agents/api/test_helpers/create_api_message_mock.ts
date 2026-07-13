@@ -1,6 +1,6 @@
 import {parseApiContentResponseFromMarkdownForTest} from "~/shared/api/content/test_helpers/parse_api_content_response_from_markdown_for_test.js";
 import {
-    ApiAccount,
+    ApiAccountResponse,
     ApiContentResponse,
     ApiMessageContentPayloadFileResponse,
     ApiMessageContentPayloadParentContentSnippet,
@@ -11,7 +11,7 @@ import {DateString, serializeDateString} from "~/shared/helpers/date/date_string
 import {TimeZone, defaultTimeZone} from "~/shared/helpers/intl/time_zone.js";
 
 export type ApiMessageMockParent = {
-    author: ApiAccount;
+    author: ApiAccountResponse;
     index: number;
     endIndex?: number;
     contentSnippet: ApiMessageContentPayloadParentContentSnippet | string;
@@ -27,7 +27,7 @@ export function createApiMessageMock({
     files = [],
 }: {
     index: number;
-    author: ApiAccount | ReadonlyArray<ApiAccount>;
+    author: ApiAccountResponse | ReadonlyArray<ApiAccountResponse>;
     content?: string | ApiContentResponse;
     createdTime?: DateString | Date;
     createdTimeZone?: TimeZone;

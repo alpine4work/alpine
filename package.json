@@ -115,7 +115,6 @@
         "@testing-library/jest-dom": "^6.9.1",
         "@testing-library/react": "^16.3.0",
         "@types/aws-lambda": "^8.10.125",
-        "@types/better-sqlite3": "^7.6.4",
         "@types/bintrees": "^1.0.3",
         "@types/color": "^3.0.3",
         "@types/cookie-session": "^2.0.44",
@@ -253,6 +252,7 @@
         "json-bigint": "^1.0.0",
         "json-stable-stringify": "^1.0.1",
         "lezer-elixir": "^1.1.2",
+        "lmdb": "^3.5.6",
         "looks-same": "9.0.1",
         "mdast-util-from-markdown": "^2.0.0",
         "mdast-util-frontmatter": "^2.0.1",
@@ -515,7 +515,8 @@
             "onnxruntime-node",
             "sharp",
             "utf-8-validate",
-            "better-sqlite3"
+            "better-sqlite3",
+            "lmdb"
         ],
         "packageExtensions": {
             "bufferutil": {
