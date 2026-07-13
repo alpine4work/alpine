@@ -10,7 +10,7 @@ import {type AccessLevel, hasAccessLevel} from "~/shared/access/access_policy.js
  * Controls which SQL operations are permitted in normal execution paths:
  *
  * - `"none"` — read-only: select, read, transaction, function, recursive.
- * - `"data"` — above + DML: insert, update, delete, savepoint.
+ * - `"data"` — above + DML on non-`_` tables: insert, update, delete, savepoint.
  * - `"schema+data"` — above + DDL + pragma.
  *
  * `ATTACH` / `DETACH` are NOT permitted at any of these levels; they're gated
@@ -80,9 +80,9 @@ export function sqliteAuthorizerActionName(code: number): string | undefined {
  * `null` for idle/setup contexts (e.g. running PRAGMAs at startup) where
  * everything except attach/detach should be allowed.
  *
- * `actionArg` is the third argument SQLite hands the authorizer (per-action
- * context — for attach/detach it's the filename, with `""` indicating VACUUM's
- * internal attach).
+ * `actionArg` is the third argument SQLite hands the authorizer. For DML it is the
+ * target table name; for attach/detach it is the filename, with `""` indicating
+ * VACUUM's internal attach.
  */
 export function isSqliteActionAllowed(
     action: string,
@@ -125,6 +125,9 @@ export function isSqliteActionAllowed(
         case "insert":
         case "update":
         case "delete":
+            // `_` tables are Alpine/SQLite metadata. Mutating one is a schema-level operation
+            // even though SQLite reports it as ordinary DML.
+            return actionArg?.startsWith("_") !== true || writeLevel === "schema+data";
         case "savepoint":
             return true;
     }
@@ -153,9 +156,7 @@ export type SqliteSchemaAccessResolver = (schemaName: string) => AccessLevel | n
  * isSqliteActionAllowed}'s global write level. Returns whether `action` is allowed
  * given the capabilities the resolver grants on the target schema.
  *
- * Internal attach/recovery SQL bypasses this layer. Internal-only actions still
- * pass through it with an unrestricted resolver, but may opt into the narrow
- * protected metadata mutations needed to create or delete tables.
+ * Internal attach/recovery SQL bypasses this layer.
  *
  * Argument mapping follows sqlite3_set_authorizer: for most table-scoped actions
  * `arg1` is the object name and `schemaName` (the callback's 5th parameter) is the
@@ -168,14 +169,12 @@ export function isSqliteActionAllowedForSchemaAccess({
     arg2,
     schemaName,
     resolveSchemaAccess,
-    allowProtectedMetadataMutations,
 }: {
     action: string;
     arg1: string | null;
     arg2: string | null;
     schemaName: string | null;
     resolveSchemaAccess: SqliteSchemaAccessResolver;
-    allowProtectedMetadataMutations: boolean;
 }): boolean {
     const requirement = sqliteSchemaAccessRequirement(action);
     if (requirement === null) return true;
@@ -200,28 +199,6 @@ export function isSqliteActionAllowedForSchemaAccess({
     }
 
     const accessLevel = resolveSchemaAccess(targetSchemaName);
-
-    // Restricted executions may never insert or delete the singleton table metadata
-    // row. Name/column-name updates (e.g. a rename) stay allowed.
-    if (!allowProtectedMetadataMutations && arg1 === "_alpine_table") {
-        if (action === "insert" || action === "delete") return false;
-    }
-    // Same reasoning for a join file's metadata row: the four id columns drive the
-    // join table's derived access level. `createRelationField` (a user action)
-    // legitimately inserts the row and renames update the name columns, so only the id
-    // columns and row deletion are locked down.
-    if (!allowProtectedMetadataMutations && arg1 === "_alpine_join_table") {
-        if (action === "delete") return false;
-        if (
-            action === "update" &&
-            (arg2 === "source_table_id" ||
-                arg2 === "source_field_id" ||
-                arg2 === "target_table_id" ||
-                arg2 === "target_field_id")
-        ) {
-            return false;
-        }
-    }
 
     return hasAccessLevel(accessLevel, requirement);
 }

@@ -197,7 +197,6 @@ export class Database {
             throw new InternalError("Database table access requested outside an execution");
         };
     private isExecutionActive = false;
-    private allowProtectedMetadataMutationsForExecution = false;
     /**
      * The last denial issued by the per-table authorizer layer, used to convert
      * SQLite's generic "not authorized" error into a typed {@link
@@ -316,8 +315,6 @@ export class Database {
                         arg2: typeof actionArg2 === "string" ? actionArg2 : null,
                         schemaName,
                         resolveSchemaAccess: this.resolveSchemaAccess,
-                        allowProtectedMetadataMutations:
-                            this.allowProtectedMetadataMutationsForExecution,
                     });
                     if (!allowed) {
                         this.tableAccessDenial = {
@@ -436,11 +433,8 @@ export class Database {
         },
     ): DatabaseExecuteActionResult<N> {
         const previousActionAccountId = this.currentActionAccountId;
-        const previousAllowProtectedMetadataMutations =
-            this.allowProtectedMetadataMutationsForExecution;
         this.currentActionAccountId = options.currentAccountId ?? null;
         const action = databaseActions[actionObject.name];
-        this.allowProtectedMetadataMutationsForExecution = action.internalOnly;
         try {
             const ctx = createDatabaseActionContext(
                 this.db,
@@ -457,8 +451,6 @@ export class Database {
             return {result: result as DatabaseActionOutput<N>, readPages, writtenPages};
         } finally {
             this.currentActionAccountId = previousActionAccountId;
-            this.allowProtectedMetadataMutationsForExecution =
-                previousAllowProtectedMetadataMutations;
         }
     }
 
