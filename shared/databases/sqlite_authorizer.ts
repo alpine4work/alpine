@@ -4,7 +4,7 @@
  * SQL statements.
  */
 
-import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
+import {type AccessLevel, hasAccessLevel} from "~/shared/access/access_policy.js";
 
 /**
  * Controls which SQL operations are permitted in normal execution paths:
@@ -137,50 +137,18 @@ export function isSqliteActionAllowed(
 }
 
 /**
- * Per-table capabilities enforced by the authorizer within a single execution.
- * Resolved per attached schema from the current account's access level (see
+ * Per-table access enforced by the authorizer within a single execution. Resolved
+ * per attached schema from the current account's access level (see
  * `getAccountAccessLevelAssumingSpaceAccess`); an execution with no resolver
  * installed (internal server code, service actors) is unrestricted.
  *
  * The join-table add-vs-remove asymmetry (adding a link needs `View` on the linked
  * table, removing one doesn't) is _not_ modelled here. Adding a link reads the
  * referenced row to verify it exists (`addLink`'s `rowExists` check), so the
- * linked table's `read` capability already gates it; removing a link reads
- * nothing. Write is a single capability.
+ * linked table's `View` requirement already gates it; removing a link reads
+ * nothing.
  */
-export interface SqliteTableAccess {
-    /** SELECT / read of the table file's rows, metadata, and schema. */
-    read: boolean;
-    /** INSERT / UPDATE / DELETE of user data rows. */
-    write: boolean;
-    /**
-     * DDL (CREATE/DROP/ALTER/…), schema-targeted PRAGMAs, and DML against the reserved
-     * `_`-prefixed metadata tables — writing those reshapes the table's structure, so
-     * it's a schema change even when it's technically an UPDATE.
-     */
-    schema: boolean;
-}
-
-/** All capabilities granted — internal executions and `Edit`+ access (v1). */
-export const unrestrictedSqliteTableAccess: SqliteTableAccess = {
-    read: true,
-    write: true,
-    schema: true,
-};
-
-/** No capabilities granted — accounts with no access to the table. */
-export const deniedSqliteTableAccess: SqliteTableAccess = {
-    read: false,
-    write: false,
-    schema: false,
-};
-
-/**
- * Resolves an attached schema name (e.g. `_<tableId>`) to the current execution's
- * capabilities on it. `"unrestricted"` marks schemas outside the per-table
- * permission model (`main` — the public ID-only registry — and `temp`).
- */
-export type SqliteSchemaAccessResolver = (schemaName: string) => SqliteTableAccess | "unrestricted";
+export type SqliteSchemaAccessResolver = (schemaName: string) => AccessLevel | null;
 
 /**
  * The per-table authorization layer, checked _in addition to_ {@link
@@ -231,15 +199,7 @@ export function isSqliteActionAllowedForSchemaAccess({
         return action === "pragma";
     }
 
-    const access = resolveSchemaAccess(targetSchemaName);
-    if (access === "unrestricted") return true;
-
-    // The `_` name prefix is reserved for the tables we manage to represent our own
-    // schema (`_alpine_table`, `_alpine_fields`, `_alpine_views`, …); user tables can
-    // never start with `_` (see `slugifySqlName`). Writing them reshapes the table's
-    // structure or metadata, so DML against them is a schema change, not a data write.
-    const effectiveRequirement =
-        requirement === "write" && arg1 !== null && arg1.startsWith("_") ? "schema" : requirement;
+    const accessLevel = resolveSchemaAccess(targetSchemaName);
 
     // Restricted executions may never reshape a table file's replicated access policy:
     // the durable object and the realtime filters trust these rows, so a user-supplied
@@ -267,31 +227,21 @@ export function isSqliteActionAllowedForSchemaAccess({
         }
     }
 
-    switch (effectiveRequirement) {
-        case "read":
-            return access.read;
-        case "write":
-            return access.write;
-        case "schema":
-            return access.schema;
-        default:
-            throw exhaustive(effectiveRequirement);
-    }
+    return hasAccessLevel(accessLevel, requirement);
 }
 
 /**
- * The {@link SqliteTableAccess} capability an action requires on its target
- * schema, or `null` for actions that aren't schema-scoped (gated by the global
- * write level only).
+ * The access level an action requires on its target schema, or `null` for actions
+ * that aren't schema-scoped (gated by the global write level only).
  */
-function sqliteSchemaAccessRequirement(action: string): "read" | "write" | "schema" | null {
+function sqliteSchemaAccessRequirement(action: string): AccessLevel | null {
     switch (action) {
         case "read":
-            return "read";
+            return "View";
         case "insert":
         case "update":
         case "delete":
-            return "write";
+            return "Edit";
         case "create-index":
         case "create-table":
         case "create-temp-index":
@@ -314,7 +264,7 @@ function sqliteSchemaAccessRequirement(action: string): "read" | "write" | "sche
         case "reindex":
         case "analyze":
         case "pragma":
-            return "schema";
+            return "Edit";
         default:
             // select / transaction / savepoint / function / recursive / attach / detach — not
             // schema-scoped at this layer.

@@ -4,11 +4,11 @@ import type {
     Sqlite3Static,
     WasmPointer,
 } from "~/external/sqlite/ext/wasm/jswasm/sqlite3.mjs";
+import type {AccessLevel} from "~/shared/access/access_policy.js";
 import {SqlQuery, sql} from "~/shared/databases/sql.js";
 import {
     type InternalSqliteWriteLevel,
     type SqliteSchemaAccessResolver,
-    type SqliteTableAccess,
     type SqliteWriteLevel,
     isSqliteActionAllowed,
     isSqliteActionAllowedForSchemaAccess,
@@ -313,12 +313,6 @@ describe("authorizer interaction", () => {
 
 // -- Per-table schema access ---------------------------------------------------
 
-const fullTableAccess: SqliteTableAccess = {
-    read: true,
-    write: true,
-    schema: true,
-};
-
 /**
  * Attach an in-memory `_t1` schema and seed a data table plus a reserved
  * `_`-prefixed metadata table inside it.
@@ -347,10 +341,10 @@ function attachTestSchema(): void {
 }
 
 /**
- * Run `query` at `schema+data` with `access` installed for the `_t1` schema.
+ * Run `query` at `schema+data` with `accessLevel` installed for `_t1`.
  */
-function runWithTableAccess(query: SqlQuery, access: SqliteTableAccess): void {
-    schemaAccessResolver = schemaName => (schemaName === "_t1" ? access : "unrestricted");
+function runWithTableAccess(query: SqlQuery, accessLevel: AccessLevel | null): void {
+    schemaAccessResolver = schemaName => (schemaName === "_t1" ? accessLevel : "Manage");
     writeLevel = "schema+data";
     try {
         db.exec(query.query);
@@ -361,14 +355,14 @@ function runWithTableAccess(query: SqlQuery, access: SqliteTableAccess): void {
 }
 
 describe("per-table schema access matrix (real SQLite)", () => {
-    // Each operation must pass with full access and fail when only its required
-    // capability is withdrawn. Running against real SQLite also pins the authorizer
-    // argument mapping (e.g. `alter-table` reporting the schema in arg1, everything
-    // else in the 5th callback parameter).
+    // Each operation must pass at its required access level and fail below it. Running
+    // against real SQLite also pins the authorizer argument mapping (e.g.
+    // `alter-table` reporting the schema in arg1, everything else in the 5th callback
+    // parameter).
     const matrix: ReadonlyArray<{
         name: string;
         query: SqlQuery;
-        needed: keyof SqliteTableAccess;
+        requiredLevel: Extract<AccessLevel, "View" | "Edit">;
     }> = [
         {
             name: "SELECT",
@@ -378,7 +372,7 @@ describe("per-table schema access matrix (real SQLite)", () => {
                 FROM
                     _t1.things
             `,
-            needed: "read",
+            requiredLevel: "View",
         },
         {
             name: "INSERT",
@@ -388,7 +382,7 @@ describe("per-table schema access matrix (real SQLite)", () => {
                 VALUES
                     (2, 'b')
             `,
-            needed: "write",
+            requiredLevel: "Edit",
         },
         {
             name: "UPDATE",
@@ -399,7 +393,7 @@ describe("per-table schema access matrix (real SQLite)", () => {
                 WHERE
                     id = 1
             `,
-            needed: "write",
+            requiredLevel: "Edit",
         },
         {
             name: "DELETE",
@@ -408,7 +402,7 @@ describe("per-table schema access matrix (real SQLite)", () => {
                 WHERE
                     id = 1
             `,
-            needed: "write",
+            requiredLevel: "Edit",
         },
         // DML against reserved `_`-prefixed metadata tables is a schema change: those rows
         // _are_ the table's structure (fields, views, layout).
@@ -420,7 +414,7 @@ describe("per-table schema access matrix (real SQLite)", () => {
                 VALUES
                     ('f2', 'Status')
             `,
-            needed: "schema",
+            requiredLevel: "Edit",
         },
         {
             name: "UPDATE of _alpine metadata",
@@ -431,7 +425,7 @@ describe("per-table schema access matrix (real SQLite)", () => {
                 WHERE
                     id = 'f1'
             `,
-            needed: "schema",
+            requiredLevel: "Edit",
         },
         {
             name: "DELETE of _alpine metadata",
@@ -440,12 +434,12 @@ describe("per-table schema access matrix (real SQLite)", () => {
                 WHERE
                     id = 'f1'
             `,
-            needed: "schema",
+            requiredLevel: "Edit",
         },
         {
             name: "CREATE INDEX",
             query: sql`CREATE INDEX _t1.idx_things_name ON things (name)`,
-            needed: "schema",
+            requiredLevel: "Edit",
         },
         {
             name: "ALTER TABLE",
@@ -453,37 +447,53 @@ describe("per-table schema access matrix (real SQLite)", () => {
                 ALTER TABLE _t1.things
                 ADD COLUMN extra TEXT
             `,
-            needed: "schema",
+            requiredLevel: "Edit",
         },
         {
             name: "DROP TABLE",
             query: sql`DROP TABLE _t1.things`,
-            needed: "schema",
+            requiredLevel: "Edit",
         },
         {
             name: "PRAGMA",
             query: sql`PRAGMA _t1.user_version`,
-            needed: "schema",
+            requiredLevel: "Edit",
         },
     ];
 
     for (const row of matrix) {
-        test(`${row.name} passes with full access`, () => {
+        test(`${row.name} passes at ${row.requiredLevel}`, () => {
             attachTestSchema();
-            expect(() => runWithTableAccess(row.query, fullTableAccess)).not.toThrow();
+            expect(() => runWithTableAccess(row.query, row.requiredLevel)).not.toThrow();
         });
 
-        test(`${row.name} is denied without ${row.needed}`, () => {
+        test(`${row.name} is denied below ${row.requiredLevel}`, () => {
             attachTestSchema();
             // Read denials surface at prepare time as "access to X is prohibited"; everything
             // else as "not authorized".
-            expect(() =>
-                runWithTableAccess(row.query, {...fullTableAccess, [row.needed]: false}),
-            ).toThrow(/not authorized|is prohibited/);
+            const insufficientLevel = row.requiredLevel === "View" ? null : "Comment";
+            expect(() => runWithTableAccess(row.query, insufficientLevel)).toThrow(
+                /not authorized|is prohibited/,
+            );
         });
     }
 
-    test("metadata DML needs schema, not write", () => {
+    test("Comment access is read-only", () => {
+        attachTestSchema();
+        expect(() =>
+            runWithTableAccess(
+                sql`
+                    SELECT
+                        *
+                    FROM
+                        _t1.things
+                `,
+                "Comment",
+            ),
+        ).not.toThrow();
+    });
+
+    test("Edit access allows metadata writes", () => {
         attachTestSchema();
         expect(() =>
             runWithTableAccess(
@@ -494,7 +504,7 @@ describe("per-table schema access matrix (real SQLite)", () => {
                     WHERE
                         id = 'f1'
                 `,
-                {...fullTableAccess, write: false},
+                "Edit",
             ),
         ).not.toThrow();
     });
@@ -509,7 +519,7 @@ describe("per-table schema access matrix (real SQLite)", () => {
                     FROM
                         items
                 `,
-                {...fullTableAccess, read: false},
+                null,
             ),
         ).not.toThrow();
     });
@@ -525,7 +535,7 @@ describe("per-table schema access matrix (real SQLite)", () => {
                         items
                         JOIN _t1.things ON _t1.things.id = items.id
                 `,
-                {...fullTableAccess, read: false},
+                null,
             ),
         ).toThrow(/not authorized|is prohibited/);
     });
@@ -573,7 +583,7 @@ describe("replicated metadata guards (real SQLite)", () => {
                     SET
                         name = 'renamed'
                 `,
-                fullTableAccess,
+                "Manage",
             ),
         ).not.toThrow();
     });
@@ -587,7 +597,7 @@ describe("replicated metadata guards (real SQLite)", () => {
                     SET
                         access_policy = x'01'
                 `,
-                fullTableAccess,
+                "Manage",
             ),
         ).toThrow("not authorized");
     });
@@ -602,16 +612,16 @@ describe("replicated metadata guards (real SQLite)", () => {
                     VALUES
                         ('t2', 'Bogus', x'00')
                 `,
-                fullTableAccess,
+                "Manage",
             ),
         ).toThrow("not authorized");
     });
 
     test("_alpine_table row deletes are denied even with full access", () => {
         createMetadataTables();
-        expect(() =>
-            runWithTableAccess(sql`DELETE FROM _t1._alpine_table`, fullTableAccess),
-        ).toThrow("not authorized");
+        expect(() => runWithTableAccess(sql`DELETE FROM _t1._alpine_table`, "Manage")).toThrow(
+            "not authorized",
+        );
     });
 
     test("_alpine_join_table name updates are allowed with full access", () => {
@@ -623,7 +633,7 @@ describe("replicated metadata guards (real SQLite)", () => {
                     SET
                         table_name = 'renamed'
                 `,
-                fullTableAccess,
+                "Manage",
             ),
         ).not.toThrow();
     });
@@ -637,7 +647,7 @@ describe("replicated metadata guards (real SQLite)", () => {
                     SET
                         source_table_id = 'hijacked'
                 `,
-                fullTableAccess,
+                "Manage",
             ),
         ).toThrow("not authorized");
     });
@@ -654,15 +664,15 @@ describe("replicated metadata guards (real SQLite)", () => {
                     VALUES
                         ('j2', 'join2', 'a', 'b')
                 `,
-                fullTableAccess,
+                "Manage",
             ),
         ).not.toThrow();
     });
 
     test("_alpine_join_table row deletes are denied even with full access", () => {
         createMetadataTables();
-        expect(() =>
-            runWithTableAccess(sql`DELETE FROM _t1._alpine_join_table`, fullTableAccess),
-        ).toThrow("not authorized");
+        expect(() => runWithTableAccess(sql`DELETE FROM _t1._alpine_join_table`, "Manage")).toThrow(
+            "not authorized",
+        );
     });
 });

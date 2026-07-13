@@ -1,5 +1,6 @@
 import type {Sqlite3Static, WasmPointer} from "~/external/sqlite/ext/wasm/jswasm/sqlite3.mjs";
 import sqlite3InitModule from "~/external/sqlite/ext/wasm/jswasm/sqlite3.mjs";
+import type {AccessLevel} from "~/shared/access/access_policy.js";
 import type {DatabaseActionServerContext} from "~/shared/databases/database_action_context.js";
 import {
     type DatabaseActionName,
@@ -22,13 +23,10 @@ import {
 import {SqliteDatabase, trySqlite3WasmLoader} from "~/shared/databases/sqlite.js";
 import {
     type InternalSqliteWriteLevel,
-    type SqliteTableAccess,
     type SqliteWriteLevel,
-    deniedSqliteTableAccess,
     isSqliteActionAllowed,
     isSqliteActionAllowedForSchemaAccess,
     sqliteAuthorizerActionName,
-    unrestrictedSqliteTableAccess,
 } from "~/shared/databases/sqlite_authorizer.js";
 import {
     databaseMainTableId,
@@ -154,18 +152,11 @@ export interface DatabaseTrackedExecution<Value> {
 }
 
 /**
- * Resolves a table's {@link SqliteTableAccess} capabilities for the current
- * execution's account. Installed per execution (see {@link Database.execute});
- * executions without a resolver are unrestricted (internal server code, service
- * actors, and — until per-account enforcement ships there — the client).
- *
- * Returning `"unrestricted"` grants everything; resolvers should reserve it for
- * schemas outside the permission model and return explicit capability flags for
- * real tables.
+ * Resolves a table's access level for the current execution's account. Installed
+ * per execution (see {@link Database.execute}); executions without a resolver are
+ * unrestricted (internal server code and service actors).
  */
-export type DatabaseTableAccessResolver = (
-    tableId: DatabaseTableId,
-) => SqliteTableAccess | "unrestricted";
+export type DatabaseTableAccessResolver = (tableId: DatabaseTableId) => AccessLevel | null;
 
 /**
  * SQLite database that buffers writes in memory.
@@ -474,17 +465,15 @@ export class Database {
     }
 
     /**
-     * The current execution's capabilities on `tableId`, resolved from the installed
-     * {@link DatabaseTableAccessResolver} (everything when none is installed). Handed
-     * to action contexts so shared action code — e.g. relation fields deciding whether
+     * The current execution's access level on `tableId`, resolved from the installed
+     * {@link DatabaseTableAccessResolver} (`Manage` when none is installed). Handed to
+     * action contexts so shared action code — e.g. relation fields deciding whether
      * they may join into a linked table — sees the same verdicts the authorizer
      * enforces.
      */
-    readonly getTableAccessForCurrentExecution = (tableId: DatabaseTableId): SqliteTableAccess => {
+    readonly getTableAccessForCurrentExecution = (tableId: DatabaseTableId): AccessLevel | null => {
         const resolver = this.tableAccessResolver;
-        if (resolver === null) return unrestrictedSqliteTableAccess;
-        const access = resolver(tableId);
-        return access === "unrestricted" ? unrestrictedSqliteTableAccess : access;
+        return resolver === null ? "Manage" : resolver(tableId);
     };
 
     /**
@@ -779,16 +768,14 @@ export class Database {
     }
 
     /**
-     * Maps an authorizer schema name to the current execution's capabilities. `main`
+     * Maps an authorizer schema name to the current execution's access level. `main`
      * (the public ID-only registry) and SQLite's `temp` schema sit outside the
      * per-table permission model; unknown schemas fail closed.
      */
-    private readonly resolveSchemaAccess = (
-        schemaName: string,
-    ): SqliteTableAccess | "unrestricted" => {
-        if (schemaName === "main" || schemaName === "temp") return "unrestricted";
+    private readonly resolveSchemaAccess = (schemaName: string): AccessLevel | null => {
+        if (schemaName === "main" || schemaName === "temp") return "Manage";
         const tableId = this.schemaToTable.get(schemaName);
-        if (tableId === undefined) return deniedSqliteTableAccess;
+        if (tableId === undefined) return null;
         const resolver = this.tableAccessResolver;
         assert(resolver !== null, "resolveSchemaAccess requires an installed resolver");
         return resolver(tableId);

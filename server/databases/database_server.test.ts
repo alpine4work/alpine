@@ -1625,9 +1625,9 @@ describe("DatabaseServer — table access levels", () => {
 
         expect(server2.getTableAccessLevelsForAccount(viewer)).toEqual(
             new Map([
-                [readable.tableId, "read"],
-                [hidden.tableId, "none"],
-                [databaseMainTableId, "write"],
+                [readable.tableId, "View"],
+                [hidden.tableId, null],
+                [databaseMainTableId, "Manage"],
             ]),
         );
     });
@@ -1641,7 +1641,7 @@ describe("DatabaseServer — table access levels", () => {
         });
 
         expect(server.getTableAccessLevelsForAccount(testAccountId).get(result.tableId)).toBe(
-            "write",
+            "Manage",
         );
     });
 });

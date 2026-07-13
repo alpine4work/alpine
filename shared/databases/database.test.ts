@@ -4,10 +4,6 @@ import {
     type ReadonlyDatabaseStorage,
 } from "~/shared/databases/database.js";
 import {type SqlQuery, sql} from "~/shared/databases/sql.js";
-import {
-    deniedSqliteTableAccess,
-    unrestrictedSqliteTableAccess,
-} from "~/shared/databases/sqlite_authorizer.js";
 import {databaseMainTableId, sqlitePageSize} from "~/shared/databases/sqlite_constants.js";
 import {runMainMigrations, runTableMigrations} from "~/shared/databases/sqlite_migrations.js";
 import {TableNotAttachedError} from "~/shared/databases/table_not_attached_error.js";
@@ -519,7 +515,7 @@ describe("Database — per-table access", () => {
 
     test("a denied read surfaces as a typed permission error naming the table", async () => {
         const {database, otherTableId} = await createDatabaseWithAttachedTable();
-        const denyAll: DatabaseTableAccessResolver = () => deniedSqliteTableAccess;
+        const denyAll: DatabaseTableAccessResolver = () => null;
 
         expect(() =>
             database.executeSql(
@@ -536,10 +532,7 @@ describe("Database — per-table access", () => {
 
     test("a read the resolver grants passes", async () => {
         const {database, otherTableId} = await createDatabaseWithAttachedTable();
-        const readOnly: DatabaseTableAccessResolver = () => ({
-            ...deniedSqliteTableAccess,
-            read: true,
-        });
+        const readOnly: DatabaseTableAccessResolver = () => "View";
 
         const result = database.executeSql(
             sql`
@@ -556,10 +549,7 @@ describe("Database — per-table access", () => {
 
     test("a write is denied when the resolver grants read only", async () => {
         const {database, otherTableId} = await createDatabaseWithAttachedTable();
-        const readOnly: DatabaseTableAccessResolver = () => ({
-            ...deniedSqliteTableAccess,
-            read: true,
-        });
+        const readOnly: DatabaseTableAccessResolver = () => "Comment";
 
         expect(() =>
             database.executeSql(
@@ -585,7 +575,7 @@ describe("Database — per-table access", () => {
                     (1)
             `,
         );
-        const denyAll: DatabaseTableAccessResolver = () => deniedSqliteTableAccess;
+        const denyAll: DatabaseTableAccessResolver = () => null;
 
         const result = database.executeSql(
             sql`
@@ -605,18 +595,16 @@ describe("Database — per-table access", () => {
 
         const {result} = database.execute(
             () => database.getTableAccessForCurrentExecution(otherTableId),
-            {allowWrites: "none", tableAccessResolver: () => deniedSqliteTableAccess},
+            {allowWrites: "none", tableAccessResolver: () => null},
         );
 
-        expect(result).toEqual(deniedSqliteTableAccess);
+        expect(result).toBeNull();
     });
 
     test("getTableAccessForCurrentExecution is unrestricted without a resolver", async () => {
         const {database, otherTableId} = await createDatabaseWithAttachedTable();
 
-        expect(database.getTableAccessForCurrentExecution(otherTableId)).toEqual(
-            unrestrictedSqliteTableAccess,
-        );
+        expect(database.getTableAccessForCurrentExecution(otherTableId)).toBe("Manage");
     });
 });
 

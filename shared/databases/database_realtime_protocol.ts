@@ -47,8 +47,8 @@ export const DatabaseRealtimeProtocol = defineWebSocketProtocol({
             type: Schema.value("TableMetadataChanged"),
             /**
              * Only the events the receiving account may see; events for tables it lacks `View`
-             * on are dropped (their ids surface in `tableAccess` as `"none"` instead — never
-             * as a socket error, since a group mixes accessible and inaccessible tables).
+             * on are dropped (their ids surface in `tableAccess` as `null` instead — never as
+             * a socket error, since a group mixes accessible and inaccessible tables).
              */
             events: Schema.array(DatabaseTableMetadataRealtimeEventSchema),
             /**

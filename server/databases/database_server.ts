@@ -15,18 +15,10 @@ import {
     type DatabaseActionOutput,
     databaseActions,
 } from "~/shared/databases/database_actions.js";
-import type {
-    DatabaseTableAccessLevel,
-    ReadonlyDatabasePageSet,
-} from "~/shared/databases/database_protocol_schemas.js";
+import type {ReadonlyDatabasePageSet} from "~/shared/databases/database_protocol_schemas.js";
 import {DatabaseTableAccessPolicySqlSchema} from "~/shared/databases/database_table_access_policy.js";
 import {type SqlQuery, databaseTableSchemaName, sql} from "~/shared/databases/sql.js";
-import {
-    type SqliteTableAccess,
-    type SqliteWriteLevel,
-    deniedSqliteTableAccess,
-    unrestrictedSqliteTableAccess,
-} from "~/shared/databases/sqlite_authorizer.js";
+import {type SqliteWriteLevel} from "~/shared/databases/sqlite_authorizer.js";
 import {databaseMainTableId, sqlitePageSize} from "~/shared/databases/sqlite_constants.js";
 import {
     joinTableSqliteMigrations,
@@ -35,7 +27,6 @@ import {
     runTableMigrations,
     tableSqliteMigrations,
 } from "~/shared/databases/sqlite_migrations.js";
-import {sqliteTableAccessForAccessLevel} from "~/shared/databases/sqlite_table_access_for_access_level.js";
 import {PermissionDeniedError} from "~/shared/error/error.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {captureResult} from "~/shared/helpers/control/capture_result.js";
@@ -185,7 +176,7 @@ export class DatabaseServer {
                 currentAccountId,
                 tableAccessResolver: isTrustedActor
                     ? null
-                    : tableId => this.getTableAccessForAccount(tableId, currentAccountId),
+                    : tableId => this.getTableAccessLevelForAccount(tableId, currentAccountId),
             }),
         );
         // `syncTableMetadata` is the only action that rewrites a table's replicated access
@@ -200,60 +191,38 @@ export class DatabaseServer {
     }
 
     /**
-     * The capabilities `accountId` has on `tableId`, derived synchronously from the
+     * The access level `accountId` has on `tableId`, derived synchronously from the
      * cached replicated policies (see {@link DatabaseServerTableAccessEntry}).
      *
-     * - User tables map their `LocalAccessPolicy` level through the v1 rules
-     *   (`View`/`Comment` read-only, `Edit`/`Manage` everything).
+     * - User tables use their `LocalAccessPolicy` level directly.
      * - Join files derive from the two joined tables: the max level of either side.
      *   (The add-vs-remove asymmetry — adding a link needs `View` on the linked table
      *   — is enforced by `addLink`'s `rowExists` read, not here; see {@link
-     *   SqliteTableAccess}.)
+     *   AccessLevel}.)
      * - Unknown/uncached tables fail closed. The realtime layer reuses this for page
      *   filtering (milestone 4).
-     */
-    getTableAccessForAccount(
-        tableId: DatabaseTableId,
-        accountId: AccountId | null,
-    ): SqliteTableAccess {
-        if (this.pendingCreatedTableIds.has(tableId)) {
-            // Mid-creation carve-out — see {@link pendingCreatedTableIds}.
-            return unrestrictedSqliteTableAccess;
-        }
-        const entry = this.tableAccessCache.get(tableId);
-        if (entry === undefined) return deniedSqliteTableAccess;
-        switch (entry.kind) {
-            case "table":
-                return sqliteTableAccessForAccessLevel(
-                    accessLevelForPolicy(entry.accessPolicy, accountId),
-                );
-            case "join": {
-                const sourceLevel = this._getSideTableAccessLevel(entry.sourceTableId, accountId);
-                const targetLevel = this._getSideTableAccessLevel(entry.targetTableId, accountId);
-                const combinedLevel =
-                    sourceLevel === null
-                        ? targetLevel
-                        : targetLevel === null
-                          ? sourceLevel
-                          : maxAccessLevel(sourceLevel, targetLevel);
-                return sqliteTableAccessForAccessLevel(combinedLevel);
-            }
-            default:
-                throw exhaustive(entry);
-        }
-    }
-
-    /**
-     * `accountId`'s wire-level access to one table — the per-table delta shape the
-     * realtime layer pushes to clients.
      */
     getTableAccessLevelForAccount(
         tableId: DatabaseTableId,
         accountId: AccountId | null,
-    ): DatabaseTableAccessLevel {
-        return databaseTableAccessLevelForSqliteAccess(
-            this.getTableAccessForAccount(tableId, accountId),
-        );
+    ): AccessLevel | null {
+        if (this.pendingCreatedTableIds.has(tableId)) {
+            // Mid-creation carve-out — see {@link pendingCreatedTableIds}.
+            return "Manage";
+        }
+        const entry = this.tableAccessCache.get(tableId);
+        if (entry === undefined) return null;
+        switch (entry.kind) {
+            case "table":
+                return accessLevelForPolicy(entry.accessPolicy, accountId);
+            case "join": {
+                const sourceLevel = this._getSideTableAccessLevel(entry.sourceTableId, accountId);
+                const targetLevel = this._getSideTableAccessLevel(entry.targetTableId, accountId);
+                return maxAccessLevel(sourceLevel, targetLevel);
+            }
+            default:
+                throw exhaustive(entry);
+        }
     }
 
     /**
@@ -270,7 +239,7 @@ export class DatabaseServer {
      */
     getTableAccessLevelsForAccount(
         accountId: AccountId | null,
-    ): Map<DatabaseTableId, DatabaseTableAccessLevel> {
+    ): Map<DatabaseTableId, AccessLevel | null> {
         const tableIds = this.database._runServerMetadataRead(db =>
             sql`
                 SELECT
@@ -279,14 +248,14 @@ export class DatabaseServer {
                     main._alpine_tables
             `.selectAll(db, {id: Schema.id<DatabaseTableId>()}),
         );
-        const levels = new Map<DatabaseTableId, DatabaseTableAccessLevel>();
+        const levels = new Map<DatabaseTableId, AccessLevel | null>();
         for (const {id} of tableIds) {
             if (!this.tableAccessCache.has(id) && !this.pendingCreatedTableIds.has(id)) {
                 this.database.attachIfNeeded(id);
             }
             levels.set(id, this.getTableAccessLevelForAccount(id, accountId));
         }
-        levels.set(databaseMainTableId, "write");
+        levels.set(databaseMainTableId, "Manage");
         return levels;
     }
 
@@ -721,17 +690,4 @@ function accessLevelForPolicy(
 ): AccessLevel | null {
     if (accessPolicy.type !== "Local") return null;
     return getAccountAccessLevelAssumingSpaceAccess(accessPolicy, accountId);
-}
-
-/**
- * Collapse per-statement capabilities into the coarser wire shape clients consume.
- * `write` and `schema` both report `"write"` — the authoritative per-statement
- * enforcement stays server-side.
- */
-function databaseTableAccessLevelForSqliteAccess(
-    access: SqliteTableAccess,
-): DatabaseTableAccessLevel {
-    if (access.write || access.schema) return "write";
-    if (access.read) return "read";
-    return "none";
 }
