@@ -176,11 +176,9 @@ export class DatabaseDurableObjectConnection {
             };
         },
         ensureCacheIsUpToDate: async (context, input) => {
-            // Websocket connections are always browser sessions (the `Main` route requires
-            // `authorizeSession()`), so per-table access is always enforced against the
-            // connection's account: withhold inaccessible tables' pages, and send the complete
-            // access map (the client's only source of "exists but no access" because policy
-            // copies remain server-side).
+            // Withhold inaccessible tables' pages, and send the complete access map (the
+            // client's only source of "exists but no access" because policy copies remain
+            // server-side).
             const tableAccess = this._server.getTableAccessLevelsForAccount(
                 context.actor.getPossiblyBotAccountIdIfExists(),
             );
@@ -302,9 +300,6 @@ export class DatabaseDurableObjectConnection {
         context: WorkerSessionActionContext,
         eventStub: DatabaseRealtimeEventStub,
     ): Promise<DatabaseRealtimeEvent> {
-        // Websocket connections are always browser sessions (the `Main` route requires
-        // `authorizeSession()`), so page diffs and metadata are always filtered against
-        // the connection's account.
         switch (eventStub.type) {
             case "PagesChanged": {
                 // Withhold page diffs for tables this connection's account can't read; the main

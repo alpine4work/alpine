@@ -10,6 +10,7 @@ import {
 import {createDurableObject} from "~/server/cloudflare/create_durable_object.js";
 import {BrowserPageTracker} from "~/server/databases/browser_page_tracker.js";
 import {buildDatabasePageDiffs} from "~/server/databases/build_database_page_diffs.js";
+import {canBroadcastDatabaseTableMetadata} from "~/server/databases/can_broadcast_database_table_metadata.js";
 import {canRunInternalDatabaseActions} from "~/server/databases/can_run_internal_database_actions.js";
 import {
     DatabaseDurableObjectConnection,
@@ -184,11 +185,7 @@ class DatabaseGroupDurableObject {
         context: WorkerActionContext,
         request: Request,
     ): Promise<Response> {
-        if (
-            context.actor.serviceName !== "AppService" &&
-            context.actor.serviceName !== "JobQueueService" &&
-            context.actor.serviceName !== "ApiService"
-        ) {
+        if (!canBroadcastDatabaseTableMetadata(context.actor)) {
             throw new PermissionDeniedError(
                 "Only some services can broadcast database table metadata realtime events",
             );

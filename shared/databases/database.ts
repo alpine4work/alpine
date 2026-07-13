@@ -1,6 +1,7 @@
 import type {Sqlite3Static, WasmPointer} from "~/external/sqlite/ext/wasm/jswasm/sqlite3.mjs";
 import sqlite3InitModule from "~/external/sqlite/ext/wasm/jswasm/sqlite3.mjs";
 import type {AccessLevel} from "~/shared/access/access_policy.js";
+import {allowAllTableAccess} from "~/shared/databases/allow_all_table_access.js";
 import type {DatabaseActionServerContext} from "~/shared/databases/database_action_context.js";
 import {
     type DatabaseActionName,
@@ -186,9 +187,10 @@ export class Database {
     private writeLevel: InternalSqliteWriteLevel | null = null;
     /**
      * Per-execution table access, installed via {@link execute}'s
-     * `getTableAccessLevel` option; `null` runs unrestricted. Enforced by the
-     * authorizer for every statement except internal SQL (attach recovery and the
-     * `"attach"` write level).
+     * `getTableAccessLevel` option; `null` means no scoped lookup is installed
+     * (internal SQL — attach recovery and the `"attach"` write level), which runs
+     * unrestricted. Callers grant unrestricted access explicitly with
+     * `allowAllTableAccess`. Enforced by the authorizer for every statement.
      */
     private getTableAccessLevelForExecution:
         | ((tableId: DatabaseTableId) => AccessLevel | null)
@@ -378,21 +380,28 @@ export class Database {
      *
      * `allowWrites` controls which classes of statement the authorizer permits while
      * `fn` runs. `getTableAccessLevel` additionally restricts which attached table
-     * files those statements may touch; omit it to inherit the ambient lookup, pass
-     * `null` to run unrestricted. On the canonical (server) database, a schema change
-     * also triggers `PRAGMA optimize` inside the same tracked call (see {@link
-     * maybeOptimizeAfterWrites}).
+     * files those statements may touch; omit it to inherit the ambient lookup, or pass
+     * `allowAllTableAccess` to run unrestricted. On the canonical (server) database, a
+     * schema change also triggers `PRAGMA optimize` inside the same tracked call (see
+     * {@link maybeOptimizeAfterWrites}).
      */
     execute<T>(
         fn: (db: SqliteDatabase) => T,
         options: {
             allowWrites: SqliteWriteLevel;
-            getTableAccessLevel?: ((tableId: DatabaseTableId) => AccessLevel | null) | null;
+            getTableAccessLevel?: (tableId: DatabaseTableId) => AccessLevel | null;
         },
     ): {result: T; readPages: ReadonlyDatabasePageSet; writtenPages: ReadonlyDatabasePageSet} {
         const previousGetTableAccessLevel = this.getTableAccessLevelForExecution;
         if (options.getTableAccessLevel !== undefined) {
-            this.getTableAccessLevelForExecution = options.getTableAccessLevel;
+            // `allowAllTableAccess` is the explicit "no enforcement" signal — install it as
+            // the `null` (no-lookup) state so the authorizer skips the per-table layer
+            // outright. That's required for statements touching schemas not yet mapped (e.g. a
+            // table mid-creation), which the layer would otherwise fail closed on.
+            this.getTableAccessLevelForExecution =
+                options.getTableAccessLevel === allowAllTableAccess
+                    ? null
+                    : options.getTableAccessLevel;
         }
         try {
             return this.runTracked(options.allowWrites, db => {
@@ -415,7 +424,7 @@ export class Database {
         query: SqlQuery,
         options: {
             allowWrites: SqliteWriteLevel;
-            getTableAccessLevel?: ((tableId: DatabaseTableId) => AccessLevel | null) | null;
+            getTableAccessLevel?: (tableId: DatabaseTableId) => AccessLevel | null;
         },
     ): DatabaseExecuteResult {
         const {result, readPages, writtenPages} = this.execute(
@@ -433,7 +442,7 @@ export class Database {
         actionObject: DatabaseActionObject<N>,
         options?: {
             currentAccountId?: AccountId | null;
-            getTableAccessLevel?: ((tableId: DatabaseTableId) => AccessLevel | null) | null;
+            getTableAccessLevel?: (tableId: DatabaseTableId) => AccessLevel | null;
         },
     ): DatabaseExecuteActionResult<N> {
         const previousActionAccountId = this.currentActionAccountId;

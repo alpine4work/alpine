@@ -1068,6 +1068,36 @@ describe("DatabaseServer", () => {
                 }),
             ).not.toThrow();
         });
+
+        test("internalOnly actions bypass per-table access even for a non-system session", async () => {
+            const server = await createServerWithSchema();
+            const creator = generateId<AccountId>();
+            // The production path: `createDatabaseTable` forwards the creator's session with
+            // AppService provenance — a session actor, not `System`. createTable is a schema
+            // mutation that writes the shared registry and a not-yet-mapped file, so it can
+            // only run with a full grant: being `internalOnly` is what grants it, not the
+            // actor type.
+            const appServiceSession = {
+                ...testContext,
+                actor: {
+                    type: "Session",
+                    serviceName: "AppService",
+                    getPossiblyBotAccountIdIfExists: () => creator,
+                },
+            };
+            const tableId = generateChronologicalId<DatabaseTableId>();
+
+            const {result} = server.executeAction<"createTable">(appServiceSession, {
+                name: "createTable",
+                input: {
+                    tableId,
+                    name: "Tasks",
+                    accessPolicy: databaseTableAccessPolicyForCreator(creator),
+                },
+            });
+
+            expect(result.tableId).toBe(tableId);
+        });
     });
 
     describe("create", () => {

@@ -56,7 +56,13 @@ function createTableInputForTest(name: string) {
     return {
         tableId: generateChronologicalId<DatabaseTableId>(),
         name,
-        accessPolicy: databaseTableAccessPolicyForCreator(generateId<AccountId>()),
+        // Grant every space member Manage so the test clients — which connect as ordinary
+        // sessions and are now subject to per-table access — can read and write these
+        // tables. These tests exercise sync mechanics, not access control.
+        accessPolicy: {
+            ...databaseTableAccessPolicyForCreator(generateId<AccountId>()),
+            defaultGrant: {level: "Manage" as const, generation: 0},
+        },
     };
 }
 

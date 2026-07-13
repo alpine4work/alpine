@@ -8,6 +8,7 @@ import {
     getAccountAccessLevelAssumingSpaceAccess,
     maxAccessLevel,
 } from "~/shared/access/access_policy.js";
+import {allowAllTableAccess} from "~/shared/databases/allow_all_table_access.js";
 import {Database, type DatabaseTrackedExecution} from "~/shared/databases/database.js";
 import {
     type DatabaseActionName,
@@ -166,17 +167,24 @@ export class DatabaseServer {
             );
         }
         const currentAccountId = context.actor.getPossiblyBotAccountIdIfExists();
-        // Per-table access is enforced against the acting account for ordinary data
-        // actions — independent of which service forwarded the request, so a session
-        // forwarded by `AppService` (e.g. a server-side-rendered read) is restricted the
-        // same as the equivalent browser read. Enforcement is skipped only for:
+        // Per-table access is enforced against the acting account, independent of
+        // provenance — so a session forwarded by `AppService` (e.g. a server-side-rendered
+        // read) is restricted the same as the equivalent browser read. Two cases run with
+        // a full grant instead:
         //
-        // - `internalOnly` actions, already gated above to internal callers — these are
-        //   privileged schema/metadata operations, not scoped to an account; and
-        // - `System` actors, which hold space-wide authority and carry no account (e.g. a
-        //   background migration or importer). A browser/session never reaches here as a
-        //   `System` actor: the websocket `Main` route requires `authorizeSession()`.
-        const unrestricted = action.internalOnly || context.actor.type === "System";
+        // - `internalOnly` actions (already gated to internal callers above): these are
+        //   schema/registry mutations — creating a table writes the shared registry and a
+        //   file whose schema isn't yet mapped to a per-table policy, which the authorizer
+        //   can only permit by skipping the per-table layer. Being `internalOnly` _is_ the
+        //   signal that an action is a system operation with no per-account scope.
+        // - `System` actors: space-wide authority with no account (e.g. a background job).
+        //   A browser/session never reaches here as `System` — the websocket `Main` route
+        //   requires `authorizeSession()`.
+        const getTableAccessLevel =
+            action.internalOnly || context.actor.type === "System"
+                ? allowAllTableAccess
+                : (tableId: DatabaseTableId) =>
+                      this.getTableAccessLevelForAccount(tableId, currentAccountId);
         const persisted = this._runAndPersist(context, () => {
             if (actionObject.name === "createTable" || actionObject.name === "syncTableMetadata") {
                 const {tableId, accessPolicy} = (
@@ -189,9 +197,7 @@ export class DatabaseServer {
             }
             return this.database.executeAction(actionObject, {
                 currentAccountId,
-                getTableAccessLevel: unrestricted
-                    ? null
-                    : tableId => this.getTableAccessLevelForAccount(tableId, currentAccountId),
+                getTableAccessLevel,
             });
         });
         return persisted;
