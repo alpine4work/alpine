@@ -5,6 +5,7 @@
  */
 
 import {type AccessLevel, hasAccessLevel} from "~/shared/access/access_policy.js";
+import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
 
 /**
  * Controls which SQL operations are permitted in normal execution paths:
@@ -67,11 +68,14 @@ const actionNames = [
     "recursive",           // 33 SQLITE_RECURSIVE
 ] as const;
 
+/** A human-readable SQLite authorizer action name. */
+export type SqliteActionName = Exclude<(typeof actionNames)[number], undefined>;
+
 /**
  * Maps a numeric SQLite authorizer action code to its human-readable name, or
  * `undefined` if the code is unrecognized.
  */
-export function sqliteAuthorizerActionName(code: number): string | undefined {
+export function sqliteAuthorizerActionName(code: number): SqliteActionName | undefined {
     return actionNames[code];
 }
 
@@ -85,25 +89,10 @@ export function sqliteAuthorizerActionName(code: number): string | undefined {
  * VACUUM's internal attach.
  */
 export function isSqliteActionAllowed(
-    action: string,
+    action: SqliteActionName,
     actionArg: string | null,
     writeLevel: InternalSqliteWriteLevel | null,
 ): boolean {
-    // `attach` / `detach` are reserved for the internal `"attach"` write level used by
-    // `Database.attach()`. Banning them everywhere else keeps user-supplied SQL from
-    // sneaking in a schema we don't track. The one exception is the empty-filename
-    // attach SQLite performs internally during `VACUUM` — that one rides on whatever
-    // `schema+data` already authorized.
-    if (action === "attach" || action === "detach") {
-        if (actionArg === "") {
-            return writeLevel === "schema+data";
-        }
-        return writeLevel === "attach";
-    }
-    // Conversely, attach mode allows only the universally- permitted set below — plus
-    // `pragma` so the caller can pin per-attach configuration like page_size before
-    // the new file is written. No DML/DDL, so an action lifting writeLevel to "attach"
-    // can't also smuggle in arbitrary writes.
     switch (action) {
         case "read":
         case "select":
@@ -111,32 +100,52 @@ export function isSqliteActionAllowed(
         case "function":
         case "recursive":
             return true;
-    }
-    if (writeLevel === "attach") {
-        return action === "pragma";
-    }
-    if (writeLevel === null) {
-        return true;
-    }
-    if (writeLevel === "none") {
-        return false;
-    }
-    switch (action) {
+        case "attach":
+        case "detach":
+            // Public ATTACH/DETACH would let SQL introduce an untracked schema. The empty
+            // filename is SQLite's internal VACUUM attach, which instead inherits the
+            // schema-write requirement.
+            return actionArg === "" ? writeLevel === "schema+data" : writeLevel === "attach";
+        case "pragma":
+            // Attach mode needs schema-qualified page-size PRAGMAs, and SQLite may issue
+            // PRAGMAs internally while applying DDL.
+            return writeLevel === null || writeLevel === "attach" || writeLevel === "schema+data";
         case "insert":
         case "update":
         case "delete":
             // `_` tables are Alpine/SQLite metadata. Mutating one is a schema-level operation
             // even though SQLite reports it as ordinary DML.
-            return actionArg?.startsWith("_") !== true || writeLevel === "schema+data";
+            if (actionArg?.startsWith("_") === true) {
+                return writeLevel === null || writeLevel === "schema+data";
+            }
+            return writeLevel === null || writeLevel === "data" || writeLevel === "schema+data";
         case "savepoint":
-            return true;
+            return writeLevel === null || writeLevel === "data" || writeLevel === "schema+data";
+        case "create-index":
+        case "create-table":
+        case "create-temp-index":
+        case "create-temp-table":
+        case "create-temp-trigger":
+        case "create-temp-view":
+        case "create-trigger":
+        case "create-view":
+        case "drop-index":
+        case "drop-table":
+        case "drop-temp-index":
+        case "drop-temp-table":
+        case "drop-temp-trigger":
+        case "drop-temp-view":
+        case "drop-trigger":
+        case "drop-view":
+        case "alter-table":
+        case "reindex":
+        case "analyze":
+        case "create-vtable":
+        case "drop-vtable":
+            return writeLevel === null || writeLevel === "schema+data";
+        default:
+            throw exhaustive(action);
     }
-    if (writeLevel === "data") {
-        return false;
-    }
-    // "schema+data" — allow everything. Pragmas must be allowed here because SQLite
-    // fires them internally during DDL (e.g. ALTER TABLE).
-    return true;
 }
 
 /**
@@ -170,7 +179,7 @@ export function isSqliteActionAllowedForSchemaAccess({
     schemaName,
     resolveSchemaAccess,
 }: {
-    action: string;
+    action: SqliteActionName;
     arg1: string | null;
     arg2: string | null;
     schemaName: string | null;
@@ -207,7 +216,7 @@ export function isSqliteActionAllowedForSchemaAccess({
  * The access level an action requires on its target schema, or `null` for actions
  * that aren't schema-scoped (gated by the global write level only).
  */
-function sqliteSchemaAccessRequirement(action: string): AccessLevel | null {
+function sqliteSchemaAccessRequirement(action: SqliteActionName): AccessLevel | null {
     switch (action) {
         case "read":
             return "View";
@@ -238,9 +247,15 @@ function sqliteSchemaAccessRequirement(action: string): AccessLevel | null {
         case "analyze":
         case "pragma":
             return "Edit";
-        default:
-            // select / transaction / savepoint / function / recursive / attach / detach — not
-            // schema-scoped at this layer.
+        case "select":
+        case "transaction":
+        case "savepoint":
+        case "function":
+        case "recursive":
+        case "attach":
+        case "detach":
             return null;
+        default:
+            throw exhaustive(action);
     }
 }
