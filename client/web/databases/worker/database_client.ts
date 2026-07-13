@@ -267,28 +267,17 @@ export class DatabaseClient {
     }
 
     /**
-     * Per-execution table access derived from the server-pushed map, installed on
-     * every local action execution. Keeps the client's decisions — most importantly a
-     * relation field's ids-only projection when the linked table isn't readable —
-     * deterministic with the server's authorizer, which evaluates the same policies.
-     * Local statements that would be denied server-side fail fast here instead of
-     * optimistically applying and being rolled back.
-     */
-    private readonly getTableAccessLevelForExecution = (tableId: DatabaseTableId) =>
-        this.getTableAccessLevel(tableId);
-
-    /**
      * The account's access to `tableId` per the server-pushed map. Tables absent from
      * the map report `Manage`: trusted internal connections (tests, tools) receive
      * empty maps, and a real client's map is complete for every registered table — so
      * absence means unrestricted or brand-new, and the server's authorizer is the
      * enforcement either way.
      */
-    getTableAccessLevel(tableId: DatabaseTableId): AccessLevel | null {
+    readonly getTableAccessLevel = (tableId: DatabaseTableId): AccessLevel | null => {
         if (tableId === databaseMainTableId) return "Manage";
         const accessLevel = this.tableAccessLevelByTableId.get(tableId);
         return accessLevel === undefined ? "Manage" : accessLevel;
-    }
+    };
 
     /**
      * Attach open per-table stores whose header page is cached, up to the attach
@@ -343,7 +332,7 @@ export class DatabaseClient {
         let writtenPages: ReadonlyDatabasePageSet;
         try {
             const executed = this.database.executeAction(actionObject, {
-                getTableAccessLevel: this.getTableAccessLevelForExecution,
+                getTableAccessLevel: this.getTableAccessLevel,
             });
             output = executed.result;
             writtenPages = executed.writtenPages;
@@ -422,7 +411,7 @@ export class DatabaseClient {
         actionObject: DatabaseActionObject<N>,
     ): {output: DatabaseActionOutput<N>; readPages: ReadonlyDatabasePageSet} {
         const {result, readPages, writtenPages} = this.database.executeAction(actionObject, {
-            getTableAccessLevel: this.getTableAccessLevelForExecution,
+            getTableAccessLevel: this.getTableAccessLevel,
         });
         assert(writtenPages.size === 0, "executeActionWithTracking does not support writes");
         return {output: result, readPages};
@@ -678,7 +667,7 @@ export class DatabaseClient {
         this.optimisticQueue = this.optimisticQueue.filter(mutation => {
             try {
                 const {writtenPages} = this.database.executeAction(mutation.action, {
-                    getTableAccessLevel: this.getTableAccessLevelForExecution,
+                    getTableAccessLevel: this.getTableAccessLevel,
                 });
                 if (this.markWrittenPages(writtenPages)) {
                     anyInvalidated = true;

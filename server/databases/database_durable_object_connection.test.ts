@@ -28,9 +28,9 @@ import type {
 
 let storage: any;
 
-beforeEach(async () => {
+beforeEach(() => {
     storage = new DurableObjectStorage(new MemoryStorage());
-    await runDatabaseDurableObjectSqlMigrations(storage);
+    runDatabaseDurableObjectSqlMigrations(storage);
 });
 
 // Trusted service context: procedures and event transforms treat it as internal

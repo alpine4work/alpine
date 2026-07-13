@@ -14,36 +14,38 @@ import type {DatabaseTableId} from "~/shared/id/types/id_types.js";
 
 let storage: any;
 
-beforeEach(async () => {
+beforeEach(() => {
     storage = new DurableObjectStorage(new MemoryStorage());
-    await runDatabaseDurableObjectSqlMigrations(storage);
+    runDatabaseDurableObjectSqlMigrations(storage);
 });
 
 describe("DatabaseDurableObjectStorage", () => {
-    test("runs and records built-in SQLite migrations", async () => {
+    test("runs and records built-in SQLite migrations", () => {
+        const version = storage.sql.exec("SELECT MAX(version) AS version FROM _migrations").next()
+            .value.version;
         expect({
-            version: await storage.get("alpine_database_sql_version"),
+            version,
             tableNames: [...storage.sql.exec("SELECT name FROM sqlite_master")].map(
                 ({name}: {name: string}) => name,
             ),
+            pageForeignKeys: [
+                ...storage.sql.exec("PRAGMA foreign_key_list(database_table_pages)"),
+            ].map(({table}: {table: string}) => table),
         }).toEqual({
             version: databaseDurableObjectSqlMigrations.length,
             tableNames: expect.arrayContaining([
-                "database_table_ids",
-                "pages",
-                "database_table_access_policies",
+                "_migrations",
+                "database_tables",
+                "database_table_pages",
             ]),
+            pageForeignKeys: ["database_tables"],
         });
     });
 
-    test("reruns built-in SQLite migrations idempotently", async () => {
-        await storage.delete("alpine_database_sql_version");
+    test("does not rerun recorded built-in SQLite migrations", () => {
+        runDatabaseDurableObjectSqlMigrations(storage);
 
-        await runDatabaseDurableObjectSqlMigrations(storage);
-
-        expect(await storage.get("alpine_database_sql_version")).toBe(
-            databaseDurableObjectSqlMigrations.length,
-        );
+        expect([...storage.sql.exec("SELECT version FROM _migrations")]).toEqual([{version: 1}]);
     });
 
     test("stores, updates, and removes table access policies", () => {
@@ -311,15 +313,12 @@ describe("DatabaseDurableObjectStorage", () => {
         // tombstone for page 1 directly.
         const reloaded = new DatabaseDurableObjectStorage(storage);
         const sqliteIdRow = storage.sql
-            .exec(
-                "SELECT sqlite_id FROM database_table_ids WHERE database_table_id = ?",
-                databaseMainTableId,
-            )
+            .exec("SELECT sqlite_id FROM database_tables WHERE table_id = ?", databaseMainTableId)
             .next();
         expect(sqliteIdRow.done).toBe(false);
         const sqliteId = sqliteIdRow.value.sqlite_id;
         storage.sql.exec(
-            "INSERT INTO pages (sqlite_id, page_index, version, data) VALUES (?, ?, ?, NULL)",
+            "INSERT INTO database_table_pages (sqlite_id, page_index, version, data) VALUES (?, ?, ?, NULL)",
             sqliteId,
             1,
             999_999,
@@ -404,7 +403,7 @@ describe("DatabaseDurableObjectStorage", () => {
         expect(doStorage.readPage(unknown, 0)).toBeNull();
 
         const cursor = storage.sql.exec(
-            "SELECT COUNT(*) AS c FROM database_table_ids WHERE database_table_id = ?",
+            "SELECT COUNT(*) AS c FROM database_tables WHERE table_id = ?",
             unknown,
         );
         expect(cursor.next().value.c).toBe(0);

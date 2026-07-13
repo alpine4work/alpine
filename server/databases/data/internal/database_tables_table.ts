@@ -61,39 +61,39 @@ export const DatabaseTablesTable = RynamoTableSchema.new({
             Map<DatabaseTableId, LocalAccessPolicy | null>
         >();
 
-        const resolvedPolicies = await runAllPromises(
-            events.map(async ({getEvent}) => {
+        await runAllPromises(
+            events.map(async ({itemKey, eventStub, getEvent}) => {
+                if (itemKey.partitionType !== "DatabaseGroup") return;
+
                 const event = await getEvent(context);
+                let resolvedAccessPolicy: LocalAccessPolicy | null;
                 switch (event.type) {
                     case "PutItem":
-                        return await resolveDatabaseTableAccessPolicyForDurableObject(
-                            context,
-                            event.item.model.accessPolicy,
-                        );
+                        resolvedAccessPolicy =
+                            await resolveDatabaseTableAccessPolicyForDurableObject(
+                                context,
+                                event.item.model.accessPolicy,
+                            );
+                        break;
                     case "DeleteItem":
-                        return null;
+                        resolvedAccessPolicy = null;
+                        break;
                     default:
                         throw exhaustive(event);
                 }
+
+                getOrSetDefaultMapValue(
+                    eventsByDatabaseGroupId,
+                    itemKey.databaseGroupId,
+                    () => [],
+                ).push(eventStub);
+                getOrSetDefaultMapValue(
+                    resolvedAccessPolicyByTableIdByDatabaseGroupId,
+                    itemKey.databaseGroupId,
+                    () => new Map(),
+                ).set(itemKey.tableId, resolvedAccessPolicy);
             }),
         );
-
-        for (const [{itemKey, eventStub}, resolvedAccessPolicy] of events.map(
-            (event, index) => [event, resolvedPolicies[index]!] as const,
-        )) {
-            if (itemKey.partitionType !== "DatabaseGroup") continue;
-
-            getOrSetDefaultMapValue(
-                eventsByDatabaseGroupId,
-                itemKey.databaseGroupId,
-                () => [],
-            ).push(eventStub);
-            getOrSetDefaultMapValue(
-                resolvedAccessPolicyByTableIdByDatabaseGroupId,
-                itemKey.databaseGroupId,
-                () => new Map(),
-            ).set(itemKey.tableId, resolvedAccessPolicy);
-        }
 
         await runAllPromises(
             mapIterable(eventsByDatabaseGroupId, async ([databaseGroupId, eventsForGroup]) => {

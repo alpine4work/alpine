@@ -104,10 +104,6 @@ export async function updateDatabaseTableAccessPolicy(
         },
     );
 
-    // The table update's existing realtime broadcast updates the durable object's
-    // policy copy. Keep the indexing job because a referenced Site policy can change
-    // without changing this item; its `Site:*` dependency re-runs
-    // `syncDatabaseTableMetadataToDurableObject` in that case.
     context.process.waitUntil(
         context.jobs.sendAndWait({
             type: "IndexSearchEntity",

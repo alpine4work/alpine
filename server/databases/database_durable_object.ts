@@ -72,7 +72,7 @@ class DatabaseGroupDurableObject {
         storage: DurableObjectStorage;
     }): Promise<DatabaseGroupDurableObject> {
         const databaseGroupId = idName as DatabaseGroupId;
-        await runDatabaseDurableObjectSqlMigrations(storage);
+        runDatabaseDurableObjectSqlMigrations(storage);
         const durableObjectStorage = new DatabaseDurableObjectStorage(storage);
 
         // The group's private salt keys the registry's `table_name_hash` index (see

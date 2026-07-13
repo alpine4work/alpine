@@ -10,17 +10,14 @@ import type {SchemaSerializedValue} from "~/shared/schema/schema.js";
  * Object's {@link SqlStorage}.
  *
  * Pages are partitioned by {@link DatabaseTableId} so one Durable Object can host
- * many SQLite databases. Storage uses three tables:
+ * many SQLite databases. Storage uses two data tables:
  *
- * - `database_table_ids(sqlite_id, database_table_id)` — maps each external string
- *   id to a small integer `sqlite_id` (its rowid) used as the partition key in
- *   `pages`. This keeps long ids out of the hot row.
- * - `pages(sqlite_id, page_index, version, data)` — versioned page rows keyed by
- *   `(sqlite_id, page_index, version)`. A `NULL` `data` marks a tombstone (left
- *   behind by truncates) which is surfaced as a missing page at the {@link
- *   DatabaseServerStorage} boundary.
- * - `database_table_access_policies(database_table_id, access_policy)` stores the
- *   resolved local policy used by server-side authorization.
+ * - `database_tables(sqlite_id, table_id, access_policy)` maps each external
+ *   string id to a small integer and stores its resolved local access policy.
+ * - `database_table_pages(sqlite_id, page_index, version, data)` stores versioned
+ *   pages keyed by `(sqlite_id, page_index, version)`. A `NULL` `data` marks a
+ *   tombstone (left behind by truncates) which is surfaced as a missing page at
+ *   the {@link DatabaseServerStorage} boundary.
  *
  * The `sqlite_id` is purely an internal storage optimization and never leaks
  * across the {@link DatabaseServerStorage} boundary.
@@ -46,12 +43,12 @@ export class DatabaseDurableObjectStorage implements DatabaseServerStorage {
     }
 
     getDatabaseTableAccessPolicy(tableId: DatabaseTableId): LocalAccessPolicy | null {
-        const result = this.sql.exec<{access_policy: string}>(
-            "SELECT access_policy FROM database_table_access_policies WHERE database_table_id = ?",
+        const result = this.sql.exec<{access_policy: string | null}>(
+            "SELECT access_policy FROM database_tables WHERE table_id = ?",
             tableId,
         );
         const row = result.next();
-        if (row.done) return null;
+        if (row.done || row.value.access_policy === null) return null;
         assert(result.next().done);
         return LocalAccessPolicySchema.deserialize(
             JSON.parse(row.value.access_policy) as SchemaSerializedValue,
@@ -62,19 +59,14 @@ export class DatabaseDurableObjectStorage implements DatabaseServerStorage {
         tableId: DatabaseTableId,
         accessPolicy: LocalAccessPolicy | null,
     ): void {
-        if (accessPolicy === null) {
-            this.sql.exec(
-                "DELETE FROM database_table_access_policies WHERE database_table_id = ?",
-                tableId,
-            );
-            return;
-        }
         this.sql.exec(
-            `INSERT INTO database_table_access_policies (database_table_id, access_policy)
+            `INSERT INTO database_tables (table_id, access_policy)
              VALUES (?, ?)
-             ON CONFLICT (database_table_id) DO UPDATE SET access_policy = excluded.access_policy`,
+             ON CONFLICT (table_id) DO UPDATE SET access_policy = excluded.access_policy`,
             tableId,
-            JSON.stringify(LocalAccessPolicySchema.serialize(accessPolicy)),
+            accessPolicy === null
+                ? null
+                : JSON.stringify(LocalAccessPolicySchema.serialize(accessPolicy)),
         );
     }
 
@@ -90,7 +82,7 @@ export class DatabaseDurableObjectStorage implements DatabaseServerStorage {
             data: ArrayBuffer | null;
             version: number;
         }>(
-            "SELECT data, version FROM pages WHERE sqlite_id = ? AND page_index = ? ORDER BY version DESC LIMIT 1",
+            "SELECT data, version FROM database_table_pages WHERE sqlite_id = ? AND page_index = ? ORDER BY version DESC LIMIT 1",
             sqliteId,
             index,
         );
@@ -126,12 +118,12 @@ export class DatabaseDurableObjectStorage implements DatabaseServerStorage {
             const sqliteId = this.getOrCreateSqliteId(databaseTableId);
             const maxPageIndex = Math.floor(size / sqlitePageSize);
             for (const {page_index} of this.sql.exec<{page_index: number}>(
-                "SELECT DISTINCT page_index FROM pages WHERE sqlite_id = ? AND page_index >= ?",
+                "SELECT DISTINCT page_index FROM database_table_pages WHERE sqlite_id = ? AND page_index >= ?",
                 sqliteId,
                 maxPageIndex,
             )) {
                 this.sql.exec(
-                    "INSERT INTO pages (sqlite_id, page_index, version, data) VALUES (?, ?, ?, NULL)",
+                    "INSERT INTO database_table_pages (sqlite_id, page_index, version, data) VALUES (?, ?, ?, NULL)",
                     sqliteId,
                     page_index,
                     version,
@@ -144,7 +136,7 @@ export class DatabaseDurableObjectStorage implements DatabaseServerStorage {
             const sqliteId = this.getOrCreateSqliteId(databaseTableId);
             for (const [index, data] of tablePages) {
                 this.sql.exec(
-                    "INSERT INTO pages (sqlite_id, page_index, version, data) VALUES (?, ?, ?, ?)",
+                    "INSERT INTO database_table_pages (sqlite_id, page_index, version, data) VALUES (?, ?, ?, ?)",
                     sqliteId,
                     index,
                     version,
@@ -171,10 +163,10 @@ export class DatabaseDurableObjectStorage implements DatabaseServerStorage {
             return 0;
         }
         const result = this.sql.exec<{page_index: number}>(
-            `SELECT p.page_index FROM pages p
+            `SELECT p.page_index FROM database_table_pages p
              WHERE p.sqlite_id = ?
                AND p.version = (
-                   SELECT MAX(p2.version) FROM pages p2
+                   SELECT MAX(p2.version) FROM database_table_pages p2
                    WHERE p2.sqlite_id = ? AND p2.page_index = p.page_index
                )
                AND p.data IS NOT NULL
@@ -198,7 +190,9 @@ export class DatabaseDurableObjectStorage implements DatabaseServerStorage {
         if (this.lastWriteVersion === undefined) {
             // Cold load: recover MAX(version) across every table so the next stamp is strictly
             // greater than anything already persisted.
-            const result = this.sql.exec<{v: number | null}>("SELECT MAX(version) AS v FROM pages");
+            const result = this.sql.exec<{v: number | null}>(
+                "SELECT MAX(version) AS v FROM database_table_pages",
+            );
             const row = result.next();
             this.lastWriteVersion = row.done || row.value.v === null ? 0 : row.value.v;
         }
@@ -217,7 +211,7 @@ export class DatabaseDurableObjectStorage implements DatabaseServerStorage {
             return cached;
         }
         const result = this.sql.exec<{sqlite_id: number}>(
-            "SELECT sqlite_id FROM database_table_ids WHERE database_table_id = ?",
+            "SELECT sqlite_id FROM database_tables WHERE table_id = ?",
             databaseTableId,
         );
         const row = result.next();
@@ -231,7 +225,7 @@ export class DatabaseDurableObjectStorage implements DatabaseServerStorage {
 
     /**
      * Resolve `databaseTableId` to its internal `sqlite_id`, inserting a fresh row in
-     * `database_table_ids` on first write.
+     * `database_tables` on first write.
      */
     private getOrCreateSqliteId(databaseTableId: DatabaseTableId): number {
         const existing = this.lookupSqliteId(databaseTableId);
@@ -239,7 +233,7 @@ export class DatabaseDurableObjectStorage implements DatabaseServerStorage {
             return existing;
         }
         const result = this.sql.exec<{sqlite_id: number}>(
-            "INSERT INTO database_table_ids (database_table_id) VALUES (?) RETURNING sqlite_id",
+            "INSERT INTO database_tables (table_id) VALUES (?) RETURNING sqlite_id",
             databaseTableId,
         );
         const row = result.next();
