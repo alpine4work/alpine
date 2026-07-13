@@ -118,14 +118,14 @@ export type DatabasePageVersionsByIndex = SchemaType<typeof DatabasePageVersions
 
 /**
  * The receiving account's access to each table file, derived server-side from the
- * replicated access policies. `null` means no access.
+ * durable object's policy copies. `null` means no access.
  *
- * The client can't compute this itself: a table's policy lives inside its own
- * file, which never replicates to accounts without access — so the server pushes
- * the complete map in `ensureCacheIsUpToDate` responses and per-table deltas on
- * `TableMetadataChanged` events. The client uses it to _plan_ (e.g. relation
- * fields render "No access" chips instead of joining into a file it can't read);
- * the authoritative enforcement is the server's per-statement authorizer.
+ * The client can't compute this itself because policy copies remain server-side,
+ * so the server pushes the complete map in `ensureCacheIsUpToDate` responses and
+ * per-table deltas on `TableMetadataChanged` events. The client uses it to _plan_
+ * (e.g. relation fields render "No access" chips instead of joining into a file it
+ * can't read); the authoritative enforcement is the server's per-statement
+ * authorizer.
  */
 export const DatabaseTableAccessLevelsSchema = Schema.map(
     Schema.id<DatabaseTableId>(),

@@ -545,18 +545,13 @@ describe("replicated metadata guards (real SQLite)", () => {
     /** Seed simplified `_alpine_table` / `_alpine_join_table` rows inside `_t1`. */
     function createMetadataTables(): void {
         attachTestSchema();
-        db.exec(sql`
-            CREATE TABLE _t1._alpine_table (
-                id TEXT PRIMARY KEY,
-                name TEXT NOT NULL,
-                access_policy BLOB NOT NULL
-            )
-        `.query);
+        db.exec(sql` CREATE TABLE _t1._alpine_table (id TEXT PRIMARY KEY, name TEXT NOT NULL) `
+            .query);
         db.exec(sql`
             INSERT INTO
                 _t1._alpine_table
             VALUES
-                ('t1', 'Table', x'00')
+                ('t1', 'Table')
         `.query);
         db.exec(sql`
             CREATE TABLE _t1._alpine_join_table (
@@ -588,20 +583,6 @@ describe("replicated metadata guards (real SQLite)", () => {
         ).not.toThrow();
     });
 
-    test("_alpine_table access_policy updates are denied even with full access", () => {
-        createMetadataTables();
-        expect(() =>
-            runWithTableAccess(
-                sql`
-                    UPDATE _t1._alpine_table
-                    SET
-                        access_policy = x'01'
-                `,
-                "Manage",
-            ),
-        ).toThrow("not authorized");
-    });
-
     test("_alpine_table row inserts are denied even with full access", () => {
         createMetadataTables();
         expect(() =>
@@ -610,7 +591,7 @@ describe("replicated metadata guards (real SQLite)", () => {
                     INSERT INTO
                         _t1._alpine_table
                     VALUES
-                        ('t2', 'Bogus', x'00')
+                        ('t2', 'Bogus')
                 `,
                 "Manage",
             ),

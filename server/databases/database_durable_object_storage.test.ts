@@ -1,5 +1,9 @@
 import {DurableObjectStorage} from "@miniflare/durable-objects";
 import {MemoryStorage} from "@miniflare/storage-memory";
+import {
+    databaseDurableObjectSqlMigrations,
+    runDatabaseDurableObjectSqlMigrations,
+} from "~/server/databases/database_durable_object_sql_migrations.js";
 import {DatabaseDurableObjectStorage} from "~/server/databases/database_durable_object_storage.js";
 import {noTruncates} from "~/server/databases/test_helpers/no_truncates.js";
 import {truncateFor} from "~/server/databases/test_helpers/truncate_for.js";
@@ -10,11 +14,60 @@ import type {DatabaseTableId} from "~/shared/id/types/id_types.js";
 
 let storage: any;
 
-beforeEach(() => {
+beforeEach(async () => {
     storage = new DurableObjectStorage(new MemoryStorage());
+    await runDatabaseDurableObjectSqlMigrations(storage);
 });
 
 describe("DatabaseDurableObjectStorage", () => {
+    test("runs and records built-in SQLite migrations", async () => {
+        expect({
+            version: await storage.get("alpine_database_sql_version"),
+            tableNames: [...storage.sql.exec("SELECT name FROM sqlite_master")].map(
+                ({name}: {name: string}) => name,
+            ),
+        }).toEqual({
+            version: databaseDurableObjectSqlMigrations.length,
+            tableNames: expect.arrayContaining([
+                "database_table_ids",
+                "pages",
+                "database_table_access_policies",
+            ]),
+        });
+    });
+
+    test("reruns built-in SQLite migrations idempotently", async () => {
+        await storage.delete("alpine_database_sql_version");
+
+        await runDatabaseDurableObjectSqlMigrations(storage);
+
+        expect(await storage.get("alpine_database_sql_version")).toBe(
+            databaseDurableObjectSqlMigrations.length,
+        );
+    });
+
+    test("stores, updates, and removes table access policies", () => {
+        const doStorage = new DatabaseDurableObjectStorage(storage);
+        const tableId = generateChronologicalId<DatabaseTableId>();
+        const firstPolicy = {
+            type: "Local" as const,
+            accountGrantById: new Map(),
+            defaultGrant: {level: "View" as const},
+            urlGrant: null,
+        };
+        const secondPolicy = {...firstPolicy, defaultGrant: {level: "Edit" as const}};
+
+        doStorage.setDatabaseTableAccessPolicy(tableId, firstPolicy);
+        doStorage.setDatabaseTableAccessPolicy(tableId, secondPolicy);
+        const storedPolicy = doStorage.getDatabaseTableAccessPolicy(tableId);
+        doStorage.setDatabaseTableAccessPolicy(tableId, null);
+
+        expect({
+            storedPolicy,
+            removedPolicy: doStorage.getDatabaseTableAccessPolicy(tableId),
+        }).toEqual({storedPolicy: secondPolicy, removedPolicy: null});
+    });
+
     test("construct, write pages, read them back", () => {
         const doStorage = new DatabaseDurableObjectStorage(storage);
 

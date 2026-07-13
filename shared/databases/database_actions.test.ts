@@ -1,5 +1,4 @@
 import sqlite3InitModule, {Database} from "~/external/sqlite/ext/wasm/jswasm/sqlite3.mjs";
-import {AccessPolicySchema} from "~/shared/access/access_policy.js";
 import type {DatabaseActionContext} from "~/shared/databases/database_action_context.js";
 import {
     type DatabaseActionInput,
@@ -131,30 +130,6 @@ describe("createTable", () => {
         expect(row).toMatchObject([
             {id: tableId, name: "Tasks", table_name: "tasks", name_field_id: expect.any(String)},
         ]);
-        db.close();
-    });
-
-    test("stores creator access policy as JSONB in its per-db file", async () => {
-        const db = await createDb();
-        const {tableId} = createTableForTest(db, "Tasks");
-
-        const row = sql`
-            SELECT
-                TYPEOF(access_policy) AS storage_type,
-                JSON(access_policy) AS access_policy
-            FROM
-                ${sql.tableRef(tableId, "_alpine_table")}
-        `.selectOne(db, {
-            storageType: Schema.string.originalPropertyKey("storage_type"),
-            accessPolicy: Schema.string.originalPropertyKey("access_policy"),
-        });
-
-        expect(row).toEqual({
-            storageType: "blob",
-            accessPolicy: JSON.stringify(
-                AccessPolicySchema.serialize(databaseTableAccessPolicyForCreator(testAccountId)),
-            ),
-        });
         db.close();
     });
 

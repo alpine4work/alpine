@@ -93,8 +93,7 @@ export class DatabaseModel {
                 id,
                 name,
                 table_name,
-                name_field_id,
-                JSON(access_policy) AS access_policy
+                name_field_id
             FROM
                 ${sql.tableRef(tableId, "_alpine_table")}
         `.selectOne(this.db, DatabaseTableRow);
@@ -169,10 +168,7 @@ export class DatabaseModel {
      * `tableName` is resolved by the calling action via `formatUniqueTableName`
      * (alongside the hash it registered the table with).
      */
-    createTable(
-        tableId: DatabaseTableId,
-        {name, tableName}: {name: string; tableName: string},
-    ) {
+    createTable(tableId: DatabaseTableId, {name, tableName}: {name: string; tableName: string}) {
         const defaultViewId = generateChronologicalId<DatabaseViewId>();
         const nameFieldId = generateChronologicalId<DatabaseFieldId>();
 
@@ -181,12 +177,7 @@ export class DatabaseModel {
         // runs.
         sql`
             INSERT INTO
-                ${sql.tableRef(tableId, "_alpine_table")} (
-                    id,
-                    name,
-                    table_name,
-                    name_field_id
-                )
+                ${sql.tableRef(tableId, "_alpine_table")} (id, name, table_name, name_field_id)
             VALUES
                 (
                     ${tableId},

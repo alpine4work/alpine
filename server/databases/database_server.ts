@@ -159,8 +159,8 @@ export class DatabaseServer {
         // Trusted issuers are internal server code that authorized the operation before
         // forwarding it (see {@link isTrustedDatabaseServiceActor}); they run
         // unrestricted. Everyone else — browser traffic over the websocket protocol — may
-        // not run internal actions and gets a per-table access resolver derived from the
-        // replicated policies, enforced per statement by the SQLite authorizer.
+        // not run internal actions and gets a per-table access lookup derived from the
+        // durable object's policy copies, enforced per statement by the SQLite authorizer.
         const isTrustedActor = isTrustedDatabaseServiceActor(context.actor);
         if (databaseActions[actionObject.name].internalOnly && !isTrustedActor) {
             throw new PermissionDeniedError(
@@ -180,7 +180,7 @@ export class DatabaseServer {
             }
             return this.database.executeAction(actionObject, {
                 currentAccountId,
-                tableAccessResolver: isTrustedActor
+                getTableAccessLevel: isTrustedActor
                     ? null
                     : tableId => this.getTableAccessLevelForAccount(tableId, currentAccountId),
             });
@@ -190,7 +190,8 @@ export class DatabaseServer {
 
     /**
      * The access level `accountId` has on `tableId`, derived synchronously from the
-     * cached replicated policies (see {@link DatabaseServerTableAccessEntry}).
+     * policy copy in durable-object storage (see {@link
+     * DatabaseServerTableAccessEntry}).
      *
      * - User tables use their `LocalAccessPolicy` level directly.
      * - Join files derive from the two joined tables: the max level of either side.
@@ -230,8 +231,7 @@ export class DatabaseServer {
      * `accountId`'s wire-level access to every table registered in the group, plus the
      * main registry (public by design). This is the complete map
      * `ensureCacheIsUpToDate` pushes to clients — their only source of "exists but no
-     * access", since an inaccessible table's policy lives inside a file that never
-     * replicates to them.
+     * access", since policy copies remain server-side.
      *
      * Tables whose policies aren't cached yet (registered but never attached since
      * this durable object woke) are attached on demand — the attach hook loads their
@@ -305,16 +305,13 @@ export class DatabaseServer {
     ): AccessLevel | null {
         const entry = this.tableAccessCache.get(tableId);
         if (entry === undefined || entry.kind !== "table") return null;
-        return accessLevelForPolicy(
-            this.storage.getDatabaseTableAccessPolicy(tableId),
-            accountId,
-        );
+        return accessLevelForPolicy(this.storage.getDatabaseTableAccessPolicy(tableId), accountId);
     }
 
     /**
-     * (Re)load `tableId`'s {@link tableAccessCache} entry from its replicated metadata
-     * rows. Runs as an internal metadata read — outside the ambient execution's
-     * authorization and page tracking.
+     * (Re)load `tableId`'s {@link tableAccessCache} entry. Ordinary tables only need a
+     * marker; join tables load their topology from replicated metadata. Runs as an
+     * internal metadata read, outside ambient authorization and page tracking.
      *
      * `allowPendingCreation` marks a metadata-less file as mid-creation (see {@link
      * pendingCreatedTableIds}); only the attach hook passes it — the post-action
@@ -332,10 +329,9 @@ export class DatabaseServer {
                     this.pendingCreatedTableIds.add(tableId);
                 }
             };
-            // `captureResult` throughout: a file mid-creation or pre-`access_policy` migration
-            // is missing tables/columns, and a registry predating the tables migration
-            // (test-only) can't answer at all. All of those resolve to "no entry" — fail
-            // closed — rather than an error.
+            // A registry predating the tables migration (test-only) can't answer this query.
+            // Treat it as no entry and fail closed rather than surfacing a SQLite error from
+            // authorization.
             const kindResult = captureResult(() =>
                 sql`
                     SELECT
@@ -491,9 +487,8 @@ export class DatabaseServer {
                 {allowWrites: "schema+data"},
             );
             this._persistBuffer();
-            // The attach hook loaded this table's access entry against its pre-migration
-            // schema — which may predate the `access_policy` column. Reload now that the file
-            // is current.
+            // The attach hook may have inspected a pre-migration join schema. Reload its
+            // topology now that the file is current.
             this._loadTableAccessCacheEntry(table.id);
         }
         this.pendingCreatedTableIds.clear();
@@ -668,10 +663,10 @@ export class DatabaseServer {
 }
 
 /**
- * Evaluate a replicated table policy for an account. The durable object only ever
+ * Evaluate a table policy copy for an account. The durable object only ever
  * receives `Local` policies (`syncTableMetadata` resolves `Site` policies before
- * syncing — see `resolveDatabaseTableAccessPolicyForDurableObjectSync`); an
- * unresolved `Site` policy fails closed. Space membership was authorized at the
+ * syncing — see `resolveDatabaseTableAccessPolicyForDurableObject`); an unresolved
+ * `Site` policy fails closed. Space membership was authorized at the
  * connection/request boundary, which is exactly the assumption
  * `getAccountAccessLevelAssumingSpaceAccess` requires.
  */

@@ -179,8 +179,7 @@ export class DatabaseDurableObjectConnection {
         ensureCacheIsUpToDate: async (context, input) => {
             // Trusted internal connections are unrestricted; browser connections get per-table
             // withholding plus the complete access map (their only source of "exists but no
-            // access" — an inaccessible table's policy lives inside a file that never
-            // replicates to them).
+            // access" because policy copies remain server-side).
             const isTrustedActor = isTrustedDatabaseServiceActor(context.actor);
             const tableAccess = isTrustedActor
                 ? new Map<DatabaseTableId, AccessLevel | null>()
@@ -292,12 +291,12 @@ export class DatabaseDurableObjectConnection {
 
     public async authorize(context: WorkerSessionActionContext): Promise<void> {
         // Space-level gate: every database group belongs to exactly one space, and all
-        // per-table checks downstream (the authorizer's access resolver, realtime
-        // filtering) evaluate replicated policies _assuming_ space access — this is the
-        // async check that assumption rests on. The websocket wrapper re-runs it roughly
-        // every two minutes, so a revoked space membership closes the socket within that
-        // bound (plus the ~15s server-side membership cache) — the same staleness Alpine
-        // accepts for documents and chat.
+        // per-table checks downstream (the authorizer's access lookup, realtime filtering)
+        // evaluate local policy copies _assuming_ space access — this is the async check
+        // that assumption rests on. The websocket wrapper re-runs it roughly every two
+        // minutes, so a revoked space membership closes the socket within that bound (plus
+        // the ~15s server-side membership cache) — the same staleness Alpine accepts for
+        // documents and chat.
         await authorizeDatabaseGroupAccess(context, {databaseGroupId: this._databaseGroupId});
     }
 
@@ -333,7 +332,7 @@ export class DatabaseDurableObjectConnection {
                     },
                 );
                 // Access-map delta for every table the batch touched: visible events report the
-                // account's current level from the replicated policies, denied ones report null
+                // account's current level from the local policy copies; denied ones report null
                 // (the revocation signal). Trusted connections are unrestricted and get no map.
                 const tableAccess = new Map<DatabaseTableId, AccessLevel | null>();
                 if (!isTrustedActor) {

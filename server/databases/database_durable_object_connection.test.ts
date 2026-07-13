@@ -2,6 +2,7 @@ import {DurableObjectStorage} from "@miniflare/durable-objects";
 import {MemoryStorage} from "@miniflare/storage-memory";
 import {BrowserPageTracker} from "~/server/databases/browser_page_tracker.js";
 import {DatabaseDurableObjectConnection} from "~/server/databases/database_durable_object_connection.js";
+import {runDatabaseDurableObjectSqlMigrations} from "~/server/databases/database_durable_object_sql_migrations.js";
 import {DatabaseDurableObjectStorage} from "~/server/databases/database_durable_object_storage.js";
 import {truncateFor} from "~/server/databases/test_helpers/truncate_for.js";
 import {writePagesFor} from "~/server/databases/test_helpers/write_pages_for.js";
@@ -27,8 +28,9 @@ import type {
 
 let storage: any;
 
-beforeEach(() => {
+beforeEach(async () => {
     storage = new DurableObjectStorage(new MemoryStorage());
+    await runDatabaseDurableObjectSqlMigrations(storage);
 });
 
 // Trusted service context: procedures and event transforms treat it as internal

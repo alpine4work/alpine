@@ -2,11 +2,7 @@ import type {OpfsDirectoryHandle} from "~/client/web/databases/worker/opfs.js";
 import {OpfsDatabaseStorage} from "~/client/web/databases/worker/opfs_database_storage.js";
 import type {OpfsPageStore} from "~/client/web/databases/worker/opfs_page_store.js";
 import type {AccessLevel} from "~/shared/access/access_policy.js";
-import {
-    Database,
-    type DatabaseTableAccessResolver,
-    type DatabaseTrackedExecution,
-} from "~/shared/databases/database.js";
+import {Database, type DatabaseTrackedExecution} from "~/shared/databases/database.js";
 import {DatabaseActionRequiresServerError} from "~/shared/databases/database_action_requires_server_error.js";
 import {
     type DatabaseActionName,
@@ -278,7 +274,7 @@ export class DatabaseClient {
      * Local statements that would be denied server-side fail fast here instead of
      * optimistically applying and being rolled back.
      */
-    private readonly tableAccessResolver: DatabaseTableAccessResolver = tableId =>
+    private readonly getTableAccessLevelForExecution = (tableId: DatabaseTableId) =>
         this.getTableAccessLevel(tableId);
 
     /**
@@ -347,7 +343,7 @@ export class DatabaseClient {
         let writtenPages: ReadonlyDatabasePageSet;
         try {
             const executed = this.database.executeAction(actionObject, {
-                tableAccessResolver: this.tableAccessResolver,
+                getTableAccessLevel: this.getTableAccessLevelForExecution,
             });
             output = executed.result;
             writtenPages = executed.writtenPages;
@@ -426,7 +422,7 @@ export class DatabaseClient {
         actionObject: DatabaseActionObject<N>,
     ): {output: DatabaseActionOutput<N>; readPages: ReadonlyDatabasePageSet} {
         const {result, readPages, writtenPages} = this.database.executeAction(actionObject, {
-            tableAccessResolver: this.tableAccessResolver,
+            getTableAccessLevel: this.getTableAccessLevelForExecution,
         });
         assert(writtenPages.size === 0, "executeActionWithTracking does not support writes");
         return {output: result, readPages};
@@ -682,7 +678,7 @@ export class DatabaseClient {
         this.optimisticQueue = this.optimisticQueue.filter(mutation => {
             try {
                 const {writtenPages} = this.database.executeAction(mutation.action, {
-                    tableAccessResolver: this.tableAccessResolver,
+                    getTableAccessLevel: this.getTableAccessLevelForExecution,
                 });
                 if (this.markWrittenPages(writtenPages)) {
                     anyInvalidated = true;

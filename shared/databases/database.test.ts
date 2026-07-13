@@ -1,8 +1,4 @@
-import {
-    Database,
-    type DatabaseTableAccessResolver,
-    type ReadonlyDatabaseStorage,
-} from "~/shared/databases/database.js";
+import {Database, type ReadonlyDatabaseStorage} from "~/shared/databases/database.js";
 import {type SqlQuery, sql} from "~/shared/databases/sql.js";
 import {databaseMainTableId, sqlitePageSize} from "~/shared/databases/sqlite_constants.js";
 import {runMainMigrations, runTableMigrations} from "~/shared/databases/sqlite_migrations.js";
@@ -515,7 +511,7 @@ describe("Database — per-table access", () => {
 
     test("a denied read surfaces as a typed permission error naming the table", async () => {
         const {database, otherTableId} = await createDatabaseWithAttachedTable();
-        const denyAll: DatabaseTableAccessResolver = () => null;
+        const denyAll = () => null;
 
         expect(() =>
             database.executeSql(
@@ -525,14 +521,14 @@ describe("Database — per-table access", () => {
                     FROM
                         ${sql.tableRef(otherTableId, "things")}
                 `,
-                {allowWrites: "none", tableAccessResolver: denyAll},
+                {allowWrites: "none", getTableAccessLevel: denyAll},
             ),
         ).toThrow(`Permission denied for read on database table ${otherTableId}`);
     });
 
     test("a read the resolver grants passes", async () => {
         const {database, otherTableId} = await createDatabaseWithAttachedTable();
-        const readOnly: DatabaseTableAccessResolver = () => "View";
+        const readOnly = () => "View" as const;
 
         const result = database.executeSql(
             sql`
@@ -541,7 +537,7 @@ describe("Database — per-table access", () => {
                 FROM
                     ${sql.tableRef(otherTableId, "things")}
             `,
-            {allowWrites: "none", tableAccessResolver: readOnly},
+            {allowWrites: "none", getTableAccessLevel: readOnly},
         );
 
         expect(result.rows).toEqual([{id: 1}]);
@@ -549,7 +545,7 @@ describe("Database — per-table access", () => {
 
     test("a write is denied when the resolver grants read only", async () => {
         const {database, otherTableId} = await createDatabaseWithAttachedTable();
-        const readOnly: DatabaseTableAccessResolver = () => "Comment";
+        const readOnly = () => "Comment" as const;
 
         expect(() =>
             database.executeSql(
@@ -560,7 +556,7 @@ describe("Database — per-table access", () => {
                     WHERE
                         id = 1
                 `,
-                {allowWrites: "data", tableAccessResolver: readOnly},
+                {allowWrites: "data", getTableAccessLevel: readOnly},
             ),
         ).toThrow(`Permission denied for update on database table ${otherTableId}`);
     });
@@ -575,7 +571,7 @@ describe("Database — per-table access", () => {
                     (1)
             `,
         );
-        const denyAll: DatabaseTableAccessResolver = () => null;
+        const denyAll = () => null;
 
         const result = database.executeSql(
             sql`
@@ -584,27 +580,27 @@ describe("Database — per-table access", () => {
                 FROM
                     items
             `,
-            {allowWrites: "none", tableAccessResolver: denyAll},
+            {allowWrites: "none", getTableAccessLevel: denyAll},
         );
 
         expect(result.rows).toEqual([{id: 1}]);
     });
 
-    test("getTableAccessForCurrentExecution reflects the installed resolver", async () => {
+    test("getTableAccessLevel reflects the installed lookup", async () => {
         const {database, otherTableId} = await createDatabaseWithAttachedTable();
 
-        const {result} = database.execute(
-            () => database.getTableAccessForCurrentExecution(otherTableId),
-            {allowWrites: "none", tableAccessResolver: () => null},
-        );
+        const {result} = database.execute(() => database.getTableAccessLevel(otherTableId), {
+            allowWrites: "none",
+            getTableAccessLevel: () => null,
+        });
 
         expect(result).toBeNull();
     });
 
-    test("getTableAccessForCurrentExecution is unrestricted without a resolver", async () => {
+    test("getTableAccessLevel returns Manage without an installed lookup", async () => {
         const {database, otherTableId} = await createDatabaseWithAttachedTable();
 
-        expect(database.getTableAccessForCurrentExecution(otherTableId)).toBe("Manage");
+        expect(database.getTableAccessLevel(otherTableId)).toBe("Manage");
     });
 });
 

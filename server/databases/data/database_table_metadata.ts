@@ -9,7 +9,7 @@ import {
     getDatabaseGroupIdForSpace,
     getExistingDatabaseGroupIdForSpace,
 } from "~/server/spaces/get_database_group_id_for_space.js";
-import {type AccessPolicy, type LocalAccessPolicy} from "~/shared/access/access_policy.js";
+import type {AccessPolicy} from "~/shared/access/access_policy.js";
 import {databaseTableAccessPolicyForCreator} from "~/shared/databases/database_table_access_policy.js";
 import {DatabaseTableMetadataModel} from "~/shared/databases/database_table_metadata_model.js";
 import type {RynamoEvent, RynamoEventStub, RynamoItem} from "~/shared/dynamo/rynamo_types.js";
@@ -104,12 +104,10 @@ export async function updateDatabaseTableAccessPolicy(
         },
     );
 
-    // The durable object's replica is synced by the `IndexSearchEntity` job below:
-    // indexing a `DatabaseTable` entity re-runs
-    // `syncDatabaseTableMetadataToDurableObject` as an additional write (see
-    // `getDatabaseTableSearchEntity`). That's the same route Site-policy changes
-    // propagate through (the entity's `Site:*` dependency), so direct policy updates
-    // share its delivery guarantees and latency.
+    // The table update's existing realtime broadcast updates the durable object's
+    // policy copy. Keep the indexing job because a referenced Site policy can change
+    // without changing this item; its `Site:*` dependency re-runs
+    // `syncDatabaseTableMetadataToDurableObject` in that case.
     context.process.waitUntil(
         context.jobs.sendAndWait({
             type: "IndexSearchEntity",

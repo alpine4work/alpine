@@ -19,10 +19,26 @@ interface InMemoryTable {
 
 class InMemoryStorage implements DatabaseServerStorage {
     private tables = new Map<DatabaseTableId, InMemoryTable>();
+    private accessPolicyByTableId = new Map<DatabaseTableId, LocalAccessPolicy>();
     private lastWriteVersion = 0;
 
     transactionSync<T>(fn: () => T): T {
         return fn();
+    }
+
+    getDatabaseTableAccessPolicy(tableId: DatabaseTableId): LocalAccessPolicy | null {
+        return this.accessPolicyByTableId.get(tableId) ?? null;
+    }
+
+    setDatabaseTableAccessPolicy(
+        tableId: DatabaseTableId,
+        accessPolicy: LocalAccessPolicy | null,
+    ): void {
+        if (accessPolicy === null) {
+            this.accessPolicyByTableId.delete(tableId);
+        } else {
+            this.accessPolicyByTableId.set(tableId, accessPolicy);
+        }
     }
 
     private getTable(databaseTableId: DatabaseTableId): InMemoryTable {
@@ -135,6 +151,17 @@ describe("DatabaseServer — storage failure recovery", () => {
 
         transactionSync<T>(fn: () => T): T {
             return this.inner.transactionSync(fn);
+        }
+
+        getDatabaseTableAccessPolicy(tableId: DatabaseTableId): LocalAccessPolicy | null {
+            return this.inner.getDatabaseTableAccessPolicy(tableId);
+        }
+
+        setDatabaseTableAccessPolicy(
+            tableId: DatabaseTableId,
+            accessPolicy: LocalAccessPolicy | null,
+        ): void {
+            this.inner.setDatabaseTableAccessPolicy(tableId, accessPolicy);
         }
 
         readPage(

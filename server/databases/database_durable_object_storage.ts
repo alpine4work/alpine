@@ -1,8 +1,5 @@
 import type {DatabaseServerStorage} from "~/server/databases/database_server_storage.js";
-import {
-    type LocalAccessPolicy,
-    LocalAccessPolicySchema,
-} from "~/shared/access/access_policy.js";
+import {type LocalAccessPolicy, LocalAccessPolicySchema} from "~/shared/access/access_policy.js";
 import {sqlitePageSize} from "~/shared/databases/sqlite_constants.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import type {DatabaseTableId} from "~/shared/id/types/id_types.js";
@@ -13,7 +10,7 @@ import type {SchemaSerializedValue} from "~/shared/schema/schema.js";
  * Object's {@link SqlStorage}.
  *
  * Pages are partitioned by {@link DatabaseTableId} so one Durable Object can host
- * many SQLite databases. Storage uses two tables:
+ * many SQLite databases. Storage uses three tables:
  *
  * - `database_table_ids(sqlite_id, database_table_id)` — maps each external string
  *   id to a small integer `sqlite_id` (its rowid) used as the partition key in
@@ -22,6 +19,8 @@ import type {SchemaSerializedValue} from "~/shared/schema/schema.js";
  *   `(sqlite_id, page_index, version)`. A `NULL` `data` marks a tombstone (left
  *   behind by truncates) which is surfaced as a missing page at the {@link
  *   DatabaseServerStorage} boundary.
+ * - `database_table_access_policies(database_table_id, access_policy)` stores the
+ *   resolved local policy used by server-side authorization.
  *
  * The `sqlite_id` is purely an internal storage optimization and never leaks
  * across the {@link DatabaseServerStorage} boundary.

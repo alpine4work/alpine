@@ -14,8 +14,8 @@ import {
     DatabaseDurableObjectConnection,
     DatabaseRealtimeEventStub,
 } from "~/server/databases/database_durable_object_connection.js";
-import {DatabaseDurableObjectStorage} from "~/server/databases/database_durable_object_storage.js";
 import {runDatabaseDurableObjectSqlMigrations} from "~/server/databases/database_durable_object_sql_migrations.js";
+import {DatabaseDurableObjectStorage} from "~/server/databases/database_durable_object_storage.js";
 import {DatabaseServer} from "~/server/databases/database_server.js";
 import {isTrustedDatabaseServiceActor} from "~/server/databases/is_trusted_database_service_actor.js";
 import {WebSocketServer} from "~/server/web_socket/web_socket_server.js";
