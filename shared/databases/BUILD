@@ -3,8 +3,10 @@ load("//admin/typescript:typescript.bzl", "ts_project")
 ts_project(
     name = "databases",
     visibility = ["//visibility:public"],
+    test_deps = [
+        "//shared/databases/test_helpers",
+    ],
     deps = [
-        "//:node_modules/@noble/hashes",
         "//:node_modules/prettier",
         "//:node_modules/prettier-plugin-sql",
         "@sqlite",

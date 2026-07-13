@@ -161,15 +161,18 @@ export const databaseActions = {
         writeLevel: "schema+data",
         transactionMode: "manual",
         internalOnly: true,
-        run({db, server, model}, {tableId, name}) {
-            // Resolve the unique SQLite table name (and its salted registry hash) before
-            // registering the new table.
-            const {tableName, tableNameHash} = formatUniqueTableName({model, name});
+        run({db, server, model}, {tableId, name, accessPolicy}) {
+            // Resolve the unique SQLite table name before registering the new table.
+            const {tableName} = formatUniqueTableName({model, name});
 
-            // Register the table (at schema_version 0), then attach + migrate its per-db file
-            // before writing any of the table's data or metadata into it. `attach` is a no-op
-            // if already attached.
-            model.registerTable(tableId, {kind: "table", tableNameHash});
+            // The table store only ever holds resolved `Local` policies — the RPC layer
+            // resolves `Site` policies before issuing this action (see
+            // `resolveDatabaseTableAccessPolicyForDurableObject`).
+            assert(accessPolicy.type === "Local");
+
+            // Register the table, then attach + migrate its per-db file before writing any of
+            // the table's data or metadata into it. `attach` is a no-op if already attached.
+            model.registerTable(tableId, {kind: "table", tableName, accessPolicy});
             server().attach(tableId);
             runTableMigrations(db, tableId);
 
@@ -194,16 +197,18 @@ export const databaseActions = {
         writeLevel: "schema+data",
         transactionMode: "manual",
         internalOnly: true,
-        run({db, model}, {tableId, name}) {
+        run({db, server, model}, {tableId, name, accessPolicy}) {
+            // See `createTable` — only resolved `Local` policies reach the table store.
+            assert(accessPolicy.type === "Local");
+            server().tables.setTableAccessPolicy(tableId, accessPolicy);
             const {table, viewId} = executeDatabaseActionTransaction(db, () => {
-                // Resolve the unique SQLite table name (and its salted registry hash) before
-                // renaming, same as `renameTable`.
-                const {tableName, tableNameHash} = formatUniqueTableName({
+                // Resolve the unique SQLite table name before renaming, same as `renameTable`.
+                const {tableName} = formatUniqueTableName({
                     model,
                     name,
                     excludeTableId: tableId,
                 });
-                const table = model.getTable(tableId).updateName(name, {tableName, tableNameHash});
+                const table = model.getTable(tableId).updateName(name, {tableName});
                 return {table: model.getTable(tableId), viewId: table.getFirstView().id};
             });
             return {tableName: table.tableName, viewId};
@@ -221,12 +226,12 @@ export const databaseActions = {
         writeLevel: "schema+data",
         run({model}, {tableId, name}) {
             const table = model.getTable(tableId);
-            const {tableName, tableNameHash} = formatUniqueTableName({
+            const {tableName} = formatUniqueTableName({
                 model,
                 name,
                 excludeTableId: tableId,
             });
-            const updated = table.updateName(name, {tableName, tableNameHash});
+            const updated = table.updateName(name, {tableName});
 
             return {tableName: updated.tableName};
         },
@@ -535,12 +540,20 @@ export const databaseActions = {
             // The join table is named after its two relation fields, created below as
             // `sourceFieldName` and the source table's name. Resolved before the join table is
             // registered so the uniqueness probe doesn't see its own row.
-            const {tableName: joinTableName, tableNameHash} = formatUniqueTableName({
+            const {tableName: joinTableName} = formatUniqueTableName({
                 model,
                 name: `${sourceFieldName} ${sourceTable.name}`,
             });
 
-            model.registerTable(joinTableId, {kind: "join", tableNameHash});
+            // Registering the topology first lets the authorizer derive the join schema's
+            // access from its two sides while this action's own statements (migrations, the
+            // `_alpine_join_table` insert) touch it.
+            model.registerTable(joinTableId, {
+                kind: "join",
+                tableName: joinTableName,
+                sourceTableId,
+                targetTableId,
+            });
             server().attach(joinTableId);
             runJoinTableMigrations(db, joinTableId);
 

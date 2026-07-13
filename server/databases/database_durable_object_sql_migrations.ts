@@ -8,10 +8,24 @@ type DatabaseDurableObjectSqlMigration = (sql: SqlStorage) => void;
 export const databaseDurableObjectSqlMigrations: ReadonlyArray<DatabaseDurableObjectSqlMigration> =
     [
         sql => {
+            // A `database_tables` row exists for every table id pages have been written for.
+            // The registration columns (`kind` onward) are populated when the table is
+            // registered by its create flow; they stay NULL for rows created by bare page
+            // writes (the main registry file, or a policy pushed ahead of creation) and access
+            // resolution fails closed on them. `source_table_id`/ `target_table_id` are the
+            // join topology, set only for `kind = 'join'`; `access_policy` is the resolved
+            // local policy copy, set only for `kind = 'table'`; `schema_version` mirrors the
+            // file's `user_version` so server bootstrap can tell which files need migrating
+            // without attaching them.
             sql.exec(`CREATE TABLE database_tables (
             sqlite_id INTEGER PRIMARY KEY,
             table_id TEXT NOT NULL UNIQUE,
-            access_policy TEXT
+            kind TEXT,
+            table_name TEXT UNIQUE,
+            schema_version INTEGER,
+            access_policy TEXT,
+            source_table_id TEXT,
+            target_table_id TEXT
         )`);
             sql.exec(`CREATE TABLE database_table_pages (
             sqlite_id INTEGER NOT NULL,

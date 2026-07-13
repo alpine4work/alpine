@@ -1,7 +1,13 @@
-import type {DatabaseServerStorage} from "~/server/databases/database_server_storage.js";
+import type {
+    DatabaseServerStorage,
+    DatabaseServerTableAccessEntry,
+} from "~/server/databases/database_server_storage.js";
 import {type LocalAccessPolicy, LocalAccessPolicySchema} from "~/shared/access/access_policy.js";
+import type {DatabaseServerTableRegistration} from "~/shared/databases/database_action_context.js";
 import {sqlitePageSize} from "~/shared/databases/sqlite_constants.js";
+import {InternalError} from "~/shared/error/error.js";
 import {assert} from "~/shared/helpers/control/assert.js";
+import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 import type {DatabaseTableId} from "~/shared/id/types/id_types.js";
 import type {SchemaSerializedValue} from "~/shared/schema/schema.js";
 
@@ -12,8 +18,10 @@ import type {SchemaSerializedValue} from "~/shared/schema/schema.js";
  * Pages are partitioned by {@link DatabaseTableId} so one Durable Object can host
  * many SQLite databases. Storage uses two data tables:
  *
- * - `database_tables(sqlite_id, table_id, access_policy)` maps each external
- *   string id to a small integer and stores its resolved local access policy.
+ * - `database_tables(sqlite_id, table_id, kind, table_name, schema_version, access_policy, source_table_id, target_table_id)`
+ *   maps each external string id to a small integer and stores the table's
+ *   registration — see the migration in
+ *   `database_durable_object_sql_migrations.ts` for the column semantics.
  * - `database_table_pages(sqlite_id, page_index, version, data)` stores versioned
  *   pages keyed by `(sqlite_id, page_index, version)`. A `NULL` `data` marks a
  *   tombstone (left behind by truncates) which is surfaced as a missing page at
@@ -42,17 +50,97 @@ export class DatabaseDurableObjectStorage implements DatabaseServerStorage {
         return this.storage.transactionSync(fn);
     }
 
+    registerDatabaseTable(
+        tableId: DatabaseTableId,
+        registration: DatabaseServerTableRegistration & {schemaVersion: number},
+    ): void {
+        this.sql.exec(
+            `INSERT INTO database_tables (table_id, kind, table_name, schema_version, access_policy, source_table_id, target_table_id)
+             VALUES (?, ?, ?, ?, ?, ?, ?)
+             ON CONFLICT (table_id) DO UPDATE SET
+                 kind = excluded.kind,
+                 table_name = excluded.table_name,
+                 schema_version = excluded.schema_version,
+                 access_policy = COALESCE(excluded.access_policy, access_policy),
+                 source_table_id = excluded.source_table_id,
+                 target_table_id = excluded.target_table_id`,
+            tableId,
+            registration.kind,
+            registration.tableName,
+            registration.schemaVersion,
+            registration.kind === "table" ? serializeAccessPolicy(registration.accessPolicy) : null,
+            registration.kind === "join" ? registration.sourceTableId : null,
+            registration.kind === "join" ? registration.targetTableId : null,
+        );
+    }
+
+    getDatabaseTableAccessEntry(tableId: DatabaseTableId): DatabaseServerTableAccessEntry | null {
+        const result = this.sql.exec<{
+            kind: string | null;
+            access_policy: string | null;
+            source_table_id: string | null;
+            target_table_id: string | null;
+        }>(
+            "SELECT kind, access_policy, source_table_id, target_table_id FROM database_tables WHERE table_id = ?",
+            tableId,
+        );
+        const row = result.next();
+        if (row.done) return null;
+        assert(result.next().done);
+        switch (row.value.kind) {
+            // A row without a registration (created by a bare page write or an early policy
+            // push) resolves to no entry — fail closed.
+            case null:
+                return null;
+            case "table":
+                return {
+                    kind: "table",
+                    accessPolicy: deserializeAccessPolicy(row.value.access_policy),
+                };
+            case "join":
+                return {
+                    kind: "join",
+                    sourceTableId: assertExists(row.value.source_table_id) as DatabaseTableId,
+                    targetTableId: assertExists(row.value.target_table_id) as DatabaseTableId,
+                };
+            default:
+                throw new InternalError(`unknown database table kind: ${row.value.kind}`);
+        }
+    }
+
+    listDatabaseTables(): Array<{
+        tableId: DatabaseTableId;
+        kind: "table" | "join";
+        schemaVersion: number;
+    }> {
+        const rows = this.sql.exec<{table_id: string; kind: string; schema_version: number}>(
+            "SELECT table_id, kind, schema_version FROM database_tables WHERE kind IS NOT NULL ORDER BY table_id",
+        );
+        const tables: Array<{
+            tableId: DatabaseTableId;
+            kind: "table" | "join";
+            schemaVersion: number;
+        }> = [];
+        for (const row of rows) {
+            assert(row.kind === "table" || row.kind === "join");
+            tables.push({
+                tableId: row.table_id as DatabaseTableId,
+                kind: row.kind,
+                schemaVersion: row.schema_version,
+            });
+        }
+        return tables;
+    }
+
     getDatabaseTableAccessPolicy(tableId: DatabaseTableId): LocalAccessPolicy | null {
         const result = this.sql.exec<{access_policy: string | null}>(
             "SELECT access_policy FROM database_tables WHERE table_id = ?",
             tableId,
         );
         const row = result.next();
-        if (row.done || row.value.access_policy === null) return null;
+        if (row.done) return null;
         assert(result.next().done);
-        return LocalAccessPolicySchema.deserialize(
-            JSON.parse(row.value.access_policy) as SchemaSerializedValue,
-        );
+        return deserializeAccessPolicy(row.value.access_policy);
     }
 
     setDatabaseTableAccessPolicy(
@@ -64,9 +152,36 @@ export class DatabaseDurableObjectStorage implements DatabaseServerStorage {
              VALUES (?, ?)
              ON CONFLICT (table_id) DO UPDATE SET access_policy = excluded.access_policy`,
             tableId,
-            accessPolicy === null
-                ? null
-                : JSON.stringify(LocalAccessPolicySchema.serialize(accessPolicy)),
+            serializeAccessPolicy(accessPolicy),
+        );
+    }
+
+    setDatabaseTableName(tableId: DatabaseTableId, tableName: string): void {
+        const cursor = this.sql.exec(
+            "UPDATE database_tables SET table_name = ? WHERE table_id = ?",
+            tableName,
+            tableId,
+        );
+        assert(cursor.rowsWritten === 1, `setDatabaseTableName: unknown table ${tableId}`);
+    }
+
+    isDatabaseTableNameTaken(tableName: string, excludeTableId?: DatabaseTableId): boolean {
+        const result =
+            excludeTableId === undefined
+                ? this.sql.exec("SELECT 1 FROM database_tables WHERE table_name = ?", tableName)
+                : this.sql.exec(
+                      "SELECT 1 FROM database_tables WHERE table_name = ? AND table_id != ?",
+                      tableName,
+                      excludeTableId,
+                  );
+        return !result.next().done;
+    }
+
+    setDatabaseTableSchemaVersion(tableId: DatabaseTableId, schemaVersion: number): void {
+        this.sql.exec(
+            "UPDATE database_tables SET schema_version = ? WHERE table_id = ?",
+            schemaVersion,
+            tableId,
         );
     }
 
@@ -242,4 +357,14 @@ export class DatabaseDurableObjectStorage implements DatabaseServerStorage {
         this.sqliteIds.set(databaseTableId, row.value.sqlite_id);
         return row.value.sqlite_id;
     }
+}
+
+function serializeAccessPolicy(accessPolicy: LocalAccessPolicy | null): string | null {
+    if (accessPolicy === null) return null;
+    return JSON.stringify(LocalAccessPolicySchema.serialize(accessPolicy));
+}
+
+function deserializeAccessPolicy(accessPolicy: string | null): LocalAccessPolicy | null {
+    if (accessPolicy === null) return null;
+    return LocalAccessPolicySchema.deserialize(JSON.parse(accessPolicy) as SchemaSerializedValue);
 }

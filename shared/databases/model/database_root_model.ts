@@ -2,6 +2,7 @@ import type {AccessLevel} from "~/shared/access/access_policy.js";
 import type {
     DatabaseActionContext,
     DatabaseActionServerContext,
+    DatabaseServerTableRegistration,
 } from "~/shared/databases/database_action_context.js";
 import {DatabaseActionRequiresServerError} from "~/shared/databases/database_action_requires_server_error.js";
 import {formatUniqueSqlName} from "~/shared/databases/internal/format_unique_sql_name.js";
@@ -105,63 +106,26 @@ export class DatabaseModel {
     }
 
     /**
-     * Whether any registered table's salted `table_name_hash` equals `tableNameHash`.
-     * Backs `formatUniqueTableName`'s uniqueness probe; pass `excludeTableId` when
-     * renaming so the table's own row doesn't count.
+     * Register a table id in main's `_alpine_tables` and in the server's table store.
+     * Create flows call this _before_ attaching + migrating the per-table file: the
+     * main row is what attach validates against, and the store row is what the
+     * authorizer resolves the new schema's access from — both must exist by the time
+     * any statement can touch the schema. The registration carries the resolved SQLite
+     * `tableName` (see `formatUniqueTableName`), so the name-uniqueness probe covers
+     * the table from this moment, plus the table's access metadata (a policy copy, or
+     * a join file's two sides).
      */
-    isTableNameHashTaken(tableNameHash: string, excludeTableId?: DatabaseTableId) {
-        const excludeClause =
-            excludeTableId === undefined ? sql`` : sql` AND id != ${excludeTableId} `;
-        return (
-            sql`
-                SELECT
-                    1
-                FROM
-                    _alpine_tables
-                WHERE
-                    table_name_hash = ${tableNameHash} ${excludeClause}
-            `.selectValueIfExists(this.db, SqlBooleanSchema) !== null
-        );
-    }
-
-    /**
-     * Record a table's salted name hash in its registry row, keeping the uniqueness
-     * index in the same buffer batch as the rename that set the name. Call from every
-     * site that renames a `table_name` (creation writes the hash via the migration
-     * runner's registration instead).
-     */
-    writeTableNameHash(tableId: DatabaseTableId, tableNameHash: string) {
-        sql`
-            UPDATE _alpine_tables
-            SET
-                table_name_hash = ${tableNameHash}
-            WHERE
-                id = ${tableId}
-        `.exec(this.db);
-    }
-
-    /**
-     * Register a table id in main's `_alpine_tables`, at `schema_version` 0. Create
-     * flows call this _before_ attaching + migrating the per-table file — the
-     * migration runner assumes the row exists and only mirrors the applied version
-     * into it. `tableNameHash` is the salted hash of the table's resolved SQLite name
-     * (see `formatUniqueTableName`), so the name-uniqueness index covers the table
-     * from the moment it is visible to probes.
-     */
-    registerTable(
-        tableId: DatabaseTableId,
-        {kind, tableNameHash}: {kind: DatabaseTableKind; tableNameHash: string},
-    ) {
+    registerTable(tableId: DatabaseTableId, registration: DatabaseServerTableRegistration) {
         sql`
             INSERT INTO
-                _alpine_tables (id, kind, table_name_hash)
+                _alpine_tables (id, kind)
             VALUES
                 (
                     ${tableId},
-                    ${kind},
-                    ${tableNameHash}
+                    ${registration.kind}
                 )
         `.exec(this.db);
+        this.ctx.server().tables.registerTable(tableId, registration);
     }
 
     /**

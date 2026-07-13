@@ -1,6 +1,6 @@
 import sqlite3InitModule from "~/external/sqlite/ext/wasm/jswasm/sqlite3.mjs";
+import {databaseTableAccessPolicyForCreator} from "~/shared/databases/database_table_access_policy.js";
 import {formatUniqueTableName} from "~/shared/databases/format_unique_table_name.js";
-import {hashWithPrivateSalt} from "~/shared/databases/hash_with_private_salt.js";
 import type {DatabaseFieldModel} from "~/shared/databases/model/database_field_model.js";
 import {DatabaseModel} from "~/shared/databases/model/database_root_model.js";
 import {databaseTableSchemaName, sql} from "~/shared/databases/sql.js";
@@ -12,8 +12,11 @@ import {
     runMainMigrations,
     runTableMigrations,
 } from "~/shared/databases/sqlite_migrations.js";
+import {InMemoryDatabaseServerTableStore} from "~/shared/databases/test_helpers/in_memory_database_server_table_store.js";
 import {generateChronologicalId} from "~/shared/id/chronological_id.js";
+import {generateId} from "~/shared/id/id.js";
 import type {
+    AccountId,
     DatabaseFieldId,
     DatabaseRowId,
     DatabaseTableId,
@@ -22,21 +25,17 @@ import type {
 
 const sqlite3Promise = sqlite3InitModule();
 let dbCounter = 0;
-const testPrivateSalt = new Uint8Array(32).fill(7);
+const testAccountId = generateId<AccountId>();
 
-function testHashWithPrivateSalt(value: string): string {
-    return hashWithPrivateSalt(testPrivateSalt, value);
-}
-
-// Test stand-in for the action server context: `formatUniqueTableName` reaches the
-// salted name hasher through `model.ctx.server()`.
+// Test stand-in for the action server context: `formatUniqueTableName` and
+// `registerTable` reach the table store through `model.ctx.server()`.
 function createTestModel(db: SqliteDatabase): DatabaseModel {
     return new DatabaseModel(db, {
         attach() {},
         getCurrentAccountId() {
             return null;
         },
-        hashWithPrivateSalt: testHashWithPrivateSalt,
+        tables: new InMemoryDatabaseServerTableStore(),
     });
 }
 
@@ -55,10 +54,14 @@ function attachTableDb(db: SqliteDatabase, tableId: DatabaseTableId): void {
 }
 
 function createTable(model: DatabaseModel, tableId: DatabaseTableId, name: string) {
-    // Mirrors the createTable action: resolve the unique name, register the table with
-    // its salted hash, migrate the per-table file, then create the metadata.
-    const {tableName, tableNameHash} = formatUniqueTableName({model, name});
-    model.registerTable(tableId, {kind: "table", tableNameHash});
+    // Mirrors the createTable action: resolve the unique name, register the table,
+    // migrate the per-table file, then create the metadata.
+    const {tableName} = formatUniqueTableName({model, name});
+    model.registerTable(tableId, {
+        kind: "table",
+        tableName,
+        accessPolicy: databaseTableAccessPolicyForCreator(testAccountId),
+    });
     attachTableDb(model.db, tableId);
     runTableMigrations(model.db, tableId);
     return model.createTable(tableId, {
@@ -68,7 +71,7 @@ function createTable(model: DatabaseModel, tableId: DatabaseTableId, name: strin
 }
 
 // Mirrors the createRelationField action: resolve the join table's unique name,
-// register the join table with the salted hash, migrate its file, then create the
+// register the join table with its topology, migrate its file, then create the
 // join table metadata.
 function createJoinTableWithUniqueName(
     model: DatabaseModel,
@@ -76,11 +79,16 @@ function createJoinTableWithUniqueName(
     sourceField: DatabaseFieldModel,
     targetField: DatabaseFieldModel,
 ) {
-    const {tableName, tableNameHash} = formatUniqueTableName({
+    const {tableName} = formatUniqueTableName({
         model,
         name: `${sourceField.name} ${targetField.name}`,
     });
-    model.registerTable(joinTableId, {kind: "join", tableNameHash});
+    model.registerTable(joinTableId, {
+        kind: "join",
+        tableName,
+        sourceTableId: sourceField.table.id,
+        targetTableId: targetField.table.id,
+    });
     runJoinTableMigrations(model.db, joinTableId);
     return model.createJoinTable(sourceField, targetField, {tableName});
 }

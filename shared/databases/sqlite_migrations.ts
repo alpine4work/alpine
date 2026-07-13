@@ -14,29 +14,24 @@ function sqlStringLiteral(value: string): SqlQuery {
 /**
  * Ordered migrations for the **main** database — the one SQLite opens as schema
  * `main`. It is treated as public and holds **no real information**, only opaque
- * IDs and migration bookkeeping:
+ * IDs:
  *
- * - `_alpine_tables(id, kind, schema_version, table_name_hash)` — registry of
- *   every table id. `schema_version` mirrors the per-table file's `user_version`
- *   (the number of applied per-table migrations) so server bootstrap can tell
- *   which files need migrating without attaching the current ones.
- *   `table_name_hash` is a salted hash of the table's SQLite `table_name` (see
- *   `hashWithPrivateSalt`) so name-uniqueness checks don't read per-table files
- *   either.
+ * - `_alpine_tables(id, kind)` — registry of every table id, so clients can
+ *   enumerate the group's tables and the server can validate attach-on-miss.
  * - `_alpine_views(id, table_id)` — view→table routing index so a bare view id
  *   from a URL resolves to its owning table without attaching every table.
  *
  * All human-readable, table-scoped metadata (names, fields, view layout) lives in
  * each table's own `ATTACH`-ed per-db file instead — see {@link
- * tableSqliteMigrations}.
+ * tableSqliteMigrations}. Server-only bookkeeping (each file's applied migration
+ * version, its plaintext SQLite `table_name`, policy copies, join topology) lives
+ * in the durable object's table store, which never replicates.
  */
 export const mainSqliteMigrations: ReadonlyArray<SqliteMigration> = [
     sql`
         CREATE TABLE _alpine_tables (
             id TEXT PRIMARY KEY,
             kind TEXT NOT NULL,
-            schema_version INTEGER NOT NULL DEFAULT 0,
-            table_name_hash TEXT NOT NULL,
             CHECK (is_id (id)),
             CHECK (kind IN ('table', 'join'))
         ) STRICT,
@@ -185,15 +180,13 @@ export function runMainMigrations(db: Database, migrationLimitForTest?: number):
 /**
  * Runs any pending {@link tableSqliteMigrations} against `tableId`'s `ATTACH`-ed
  * per-table database. Tracks progress with that schema's own
- * `PRAGMA "_{tableId}".user_version`, mirrored into main's
- * `_alpine_tables.schema_version` registry column.
+ * `PRAGMA "_{tableId}".user_version`. The durable object's table store mirrors the
+ * applied version per table so server bootstrap can tell which files need
+ * migrating without attaching them; keeping that mirror current is the caller's
+ * job (registration stamps it, bootstrap repairs it after migrating).
  *
  * Runs server-side only: the server is canonical for schema, and clients trust the
  * pages it syncs.
- *
- * The table must already be registered in main's `_alpine_tables` (see
- * `DatabaseModel.registerTable`) — the runner only mirrors the applied version
- * into the row's `schema_version`.
  */
 export function runTableMigrations(
     db: Database,
@@ -251,21 +244,4 @@ function runSchemaMigrations(
     if (version < migrationLimit) {
         sql` PRAGMA ${schema}.user_version = ${sql.raw(String(migrationLimit))} `.exec(db);
     }
-
-    // Mirror the applied version into main's registry so server bootstrap can tell
-    // which files need migrating without attaching the current ones, in the same
-    // buffer batch as the migrations themselves. The row always exists already: create
-    // flows register the table (at version 0, see `DatabaseModel.registerTable`)
-    // before attaching + migrating, and bootstrap iterates registered rows.
-    sql`
-        UPDATE main._alpine_tables
-        SET
-            schema_version = ${migrationLimit}
-        WHERE
-            id = ${tableId}
-    `.exec(db);
-    assert(
-        db.changes() === 1,
-        `${description} ${tableId} is not registered in main._alpine_tables`,
-    );
 }
