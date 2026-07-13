@@ -32,7 +32,7 @@ jobs:
               run: |
                   # Pull out PR title
                   set -euo pipefail
-                  new_ci=false
+                  new_ci=true
                   skip_ci=false
                   write_outputs() {
                       echo "new_ci=$new_ci" >> "$GITHUB_OUTPUT"
@@ -77,9 +77,10 @@ jobs:
                       skip_ci=true
                   fi
 
-                  if [[ "$pr_title" == *\[NEW\ CI\]* ]]; then
-                      echo "PR title contains [NEW CI], enabling new CI."
-                      new_ci=true
+                  # TODO: Delete the [OLD CI] flag and legacy branches after the rollout.
+                  if [[ "$pr_title" == *\[OLD\ CI\]* ]]; then
+                      echo "PR title contains [OLD CI], enabling old CI."
+                      new_ci=false
                   fi
 
                   write_outputs
@@ -314,7 +315,7 @@ jobs:
             # are flaky. We run them after all other tests have passed and break them into
             # deterministic buckets to run in parallel.
             #
-            # In `[NEW CI]`, keep running after failures so the aggregate check
+            # In the new CI, keep running after failures so the aggregate check
             # can report every target status and all available failure logs.
             - name: Integration tests
               run: |
