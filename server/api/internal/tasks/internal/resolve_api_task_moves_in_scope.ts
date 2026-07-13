@@ -33,27 +33,29 @@ import {
 } from "~/shared/tasks/task_query_sort_cursor.js";
 
 /**
- * A task move patch to resolve within a single scope: the tasks of one collection
- * or the subtasks of one parent task. Moves must be provided in patch order.
+ * A move patch that hasn't been resolved to a destination `TaskPosition` yet,
+ * within a single scope: the tasks of one collection or the subtasks of one parent
+ * task. Moves must be provided in patch order.
  */
-export type ApiTaskMoveInScope = {
+export type ApiTaskUnresolvedMove = {
     readonly patchIndex: number;
     readonly taskId: TaskId;
     readonly position: ApiTaskMoveInQueryPatchPosition;
 };
 
-/** The resolved position updates to commit for one move patch. */
+/** The position updates to commit for one resolved move patch. */
 export type ApiTaskResolvedMove = {
     readonly position: ApiTaskResolvedMovePosition;
 
     /**
-     * Position updates for other tasks that shared a `TaskPosition` with a move
-     * destination, to commit directly after this move's action. They're attached to
-     * the last move into the tied destination so the tied tasks are re-keyed exactly
-     * once and the batch's action order lists every moved task first.
+     * New positions for tasks that were tied with a move destination, to commit
+     * directly after this move's action. They're attached to the batch's last move
+     * into the tied destination so the tied tasks are re-keyed exactly once and the
+     * batch's action order lists every moved task first. The caller must tick its
+     * action clock past these tasks' times so the updates win.
      */
-    readonly followingUpdates: ReadonlyArray<{
-        readonly taskId: TaskId;
+    readonly tiedTaskUpdates: ReadonlyArray<{
+        readonly task: TaskModel;
         readonly position: TaskPosition;
     }>;
 };
@@ -66,28 +68,12 @@ export type ApiTaskResolvedMovePosition =
     // A position computed from the move destination's query data.
     | {type: "Assigned"; position: TaskPosition};
 
-/** The resolved moves for one scope. */
-export type ApiTaskPreparedMoves = {
-    readonly resolvedMoveByPatchIndex: ReadonlyMap<number, ApiTaskResolvedMove>;
-
-    /**
-     * The tasks re-keyed by `followingUpdates`. The caller must tick its action clock
-     * past these tasks' times so the re-key updates win.
-     */
-    readonly tasksToUpdate: ReadonlyArray<TaskModel>;
-};
-
-/** A decoded `Between` move in the group sharing its `afterCursor` position. */
-type ApiTaskBetweenMove = {
-    readonly move: ApiTaskMoveInScope;
+/** A `Between` move with its cursors decoded, before it's resolved. */
+type ApiTaskUnresolvedBetweenMove = {
+    readonly move: ApiTaskUnresolvedMove;
     readonly afterCursor: TaskQuerySortCursor;
+    readonly afterPosition: TaskPosition;
     readonly beforePosition: TaskPosition;
-};
-
-/** All the `Between` moves whose `afterCursor` shares one snapshot position. */
-type ApiTaskBetweenMoveGroup = {
-    readonly position: TaskPosition;
-    readonly moves: Array<ApiTaskBetweenMove>;
 };
 
 /**
@@ -101,12 +87,14 @@ type ApiTaskBetweenMoveGroup = {
  * the same destination land in patch order.
  *
  * Moving between two tasks with an equal `TaskPosition` is the tricky case: no
- * order key fits between two equal order keys. We load the whole run of tasks tied
- * with the destination and re-key the ones after each insertion point, preserving
- * their order, to make room. All moves into the same tied run resolve together so
- * the moved tasks and re-keyed tasks interleave into one ordered key sequence.
+ * order key fits between two equal order keys. We make room by also re-keying the
+ * tasks tied with the destination that sort after the insertion point, preserving
+ * their order. Since one shared position only has one range of open order keys
+ * above it, all the moves after that position must be resolved together so the
+ * moved and re-keyed tasks interleave into one ordered key sequence. That's why
+ * `Between` moves are grouped by their `afterCursor` position below.
  */
-export async function prepareApiTaskMovesInScope(
+export async function resolveApiTaskMovesInScope(
     context: ApiServiceBotActionContext,
     {
         spaceId,
@@ -118,17 +106,17 @@ export async function prepareApiTaskMovesInScope(
         cursorDestinationDescription,
     }: {
         spaceId: SpaceId;
-        moves: ReadonlyArray<ApiTaskMoveInScope>;
+        moves: ReadonlyArray<ApiTaskUnresolvedMove>;
         filters: TaskQueryNormalizedFilters;
         sorts: ReadonlyArray<TaskQueryNormalizedSort>;
         getTaskPosition: (task: TaskModel) => TaskPosition;
         patchDisplayName: ErrorDisplayMessage;
         cursorDestinationDescription: ErrorDisplayMessage;
     },
-): Promise<ApiTaskPreparedMoves> {
+): Promise<ReadonlyMap<number, ApiTaskResolvedMove>> {
     const resolvedMoveByPatchIndex = new Map<number, ApiTaskResolvedMove>();
-    const startMoves: Array<ApiTaskMoveInScope> = [];
-    const betweenMoveGroupByPositionKey = new Map<string, ApiTaskBetweenMoveGroup>();
+    const startMoves: Array<ApiTaskUnresolvedMove> = [];
+    const betweenMovesByAfterPositionKey = new Map<string, Array<ApiTaskUnresolvedBetweenMove>>();
 
     for (const move of moves) {
         const {position} = move;
@@ -139,7 +127,7 @@ export async function prepareApiTaskMovesInScope(
                 // position, so moving to the end never needs query data.
                 resolvedMoveByPatchIndex.set(move.patchIndex, {
                     position: {type: "FreshOrderTime"},
-                    followingUpdates: [],
+                    tiedTaskUpdates: [],
                 });
                 break;
             }
@@ -188,21 +176,19 @@ export async function prepareApiTaskMovesInScope(
                     );
                 }
 
-                const betweenMoveGroup = getOrSetDefaultMapValue(
-                    betweenMoveGroupByPositionKey,
+                const betweenMoves = getOrSetDefaultMapValue(
+                    betweenMovesByAfterPositionKey,
                     JSON.stringify([
                         afterCursor.taskPosition.orderTime,
                         afterCursor.taskPosition.orderKey,
                     ]),
-                    (): ApiTaskBetweenMoveGroup => ({
-                        position: afterCursor.taskPosition,
-                        moves: [],
-                    }),
+                    (): Array<ApiTaskUnresolvedBetweenMove> => [],
                 );
 
-                betweenMoveGroup.moves.push({
+                betweenMoves.push({
                     move,
                     afterCursor: afterCursor.cursor,
+                    afterPosition: afterCursor.taskPosition,
                     beforePosition: beforeCursor.taskPosition,
                 });
                 break;
@@ -213,12 +199,12 @@ export async function prepareApiTaskMovesInScope(
     }
 
     // Tasks moved in this scope get their final position from their own move, so don't
-    // also re-key them when they sit in a tied destination run.
+    // also re-key them when they were tied with a move destination.
     const movedTaskIds = new Set(moves.map(move => move.taskId));
 
-    const resolvedGroups = await runAllPromises([
+    const resolvedMoveMaps = await runAllPromises([
         startMoves.length > 0
-            ? resolveApiTaskMovesAtStart(context, {
+            ? resolveApiTaskStartMoves(context, {
                   spaceId,
                   filters,
                   sorts,
@@ -226,37 +212,33 @@ export async function prepareApiTaskMovesInScope(
                   startMoves,
               })
             : null,
-        ...Array.from(betweenMoveGroupByPositionKey.values(), betweenMoveGroup =>
-            resolveApiTaskMovesBetween(context, {
+        ...Array.from(betweenMovesByAfterPositionKey.values(), betweenMoves =>
+            resolveApiTaskBetweenMoves(context, {
                 spaceId,
                 filters,
                 sorts,
-                betweenMoveGroup,
+                betweenMoves,
                 movedTaskIds,
             }),
         ),
     ]);
 
-    const tasksToUpdate: Array<TaskModel> = [];
+    for (const resolvedMoveMap of resolvedMoveMaps) {
+        if (resolvedMoveMap === null) continue;
 
-    for (const resolvedGroup of resolvedGroups) {
-        if (resolvedGroup === null) continue;
-
-        for (const [patchIndex, resolvedMove] of resolvedGroup.resolvedMoveByPatchIndex) {
+        for (const [patchIndex, resolvedMove] of resolvedMoveMap) {
             resolvedMoveByPatchIndex.set(patchIndex, resolvedMove);
         }
-
-        for (const task of resolvedGroup.tasksToUpdate) tasksToUpdate.push(task);
     }
 
-    return {resolvedMoveByPatchIndex, tasksToUpdate};
+    return resolvedMoveByPatchIndex;
 }
 
 /**
  * Moves to `Start` insert above the first task in the scope, so load the first
  * task once and generate order keys below its position in patch order.
  */
-async function resolveApiTaskMovesAtStart(
+async function resolveApiTaskStartMoves(
     context: ApiServiceBotActionContext,
     {
         spaceId,
@@ -269,9 +251,9 @@ async function resolveApiTaskMovesAtStart(
         filters: TaskQueryNormalizedFilters;
         sorts: ReadonlyArray<TaskQueryNormalizedSort>;
         getTaskPosition: (task: TaskModel) => TaskPosition;
-        startMoves: ReadonlyArray<ApiTaskMoveInScope>;
+        startMoves: ReadonlyArray<ApiTaskUnresolvedMove>;
     },
-): Promise<ApiTaskPreparedMoves> {
+): Promise<Map<number, ApiTaskResolvedMove>> {
     const firstTaskPosition = await retryWithExponentialBackoff(async retry => {
         const {queries, updateEvent} = await context.tasks.loadQueries(
             spaceId,
@@ -310,11 +292,11 @@ async function resolveApiTaskMovesAtStart(
         for (const startMove of startMoves) {
             resolvedMoveByPatchIndex.set(startMove.patchIndex, {
                 position: {type: "FreshOrderTime"},
-                followingUpdates: [],
+                tiedTaskUpdates: [],
             });
         }
 
-        return {resolvedMoveByPatchIndex, tasksToUpdate: []};
+        return resolvedMoveByPatchIndex;
     }
 
     const orderKeys = generateOrderKeysBetween(null, firstTaskPosition.orderKey, startMoves.length);
@@ -328,67 +310,58 @@ async function resolveApiTaskMovesAtStart(
                     orderKey: assertExists(orderKeys[index]),
                 },
             },
-            followingUpdates: [],
+            tiedTaskUpdates: [],
         });
     });
 
-    return {resolvedMoveByPatchIndex, tasksToUpdate: []};
+    return resolvedMoveByPatchIndex;
 }
 
 /**
- * Resolves every `Between` move whose `afterCursor` shares one snapshot position.
+ * Resolves every `Between` move whose `afterCursor` shares one snapshot
+ * `TaskPosition`. The moved tasks all receive order keys above that shared
+ * position and below the next occupied order key.
  *
- * The moved tasks all receive order keys above the shared position. When a
- * `beforeCursor` ties the shared position we also load the run of tasks at the
- * tied position and re-key the ones after each insertion point to make room. One
- * balanced key sequence covers the moved and re-keyed tasks together so every
- * insertion point in the run stays correctly ordered.
+ * When a `beforeCursor` also has the shared position, the move lands between tied
+ * tasks and we must re-key the tied tasks after the insertion point to make room.
+ * The moved and re-keyed tasks are laid out in their final relative order and
+ * keyed with one balanced sequence.
+ *
+ * For example: take tied tasks A, B, C, D all at the shared position, one move of
+ * X between A and B, and one move of Y between C and D. We load the tied tasks
+ * after the earliest `afterCursor` (task A), giving [B, C, D], then lay out the
+ * new order [X, B, C, Y, D]. A keeps its order key and everything in the new order
+ * receives a fresh key above A's, so the scope reads A, X, B, C, Y, D.
  */
-async function resolveApiTaskMovesBetween(
+async function resolveApiTaskBetweenMoves(
     context: ApiServiceBotActionContext,
     {
         spaceId,
         filters,
         sorts,
-        betweenMoveGroup,
+        betweenMoves,
         movedTaskIds,
     }: {
         spaceId: SpaceId;
         filters: TaskQueryNormalizedFilters;
         sorts: ReadonlyArray<TaskQueryNormalizedSort>;
-        betweenMoveGroup: ApiTaskBetweenMoveGroup;
+        betweenMoves: ReadonlyArray<ApiTaskUnresolvedBetweenMove>;
         movedTaskIds: ReadonlySet<TaskId>;
     },
-): Promise<ApiTaskPreparedMoves> {
-    const groupPosition = betweenMoveGroup.position;
+): Promise<Map<number, ApiTaskResolvedMove>> {
+    // Every move in this group shares its `afterCursor` position.
+    const afterPosition = assertExists(betweenMoves[0]).afterPosition;
 
-    // Moves that share an `afterCursor` insert at the same anchor point in patch
-    // order. Sort the anchors in cursor order so the moved tasks interleave with the
-    // destination run the way the cursors describe.
-    const anchors: Array<{
-        cursor: TaskQuerySortCursor;
-        moves: Array<ApiTaskBetweenMove>;
-    }> = [];
-
-    for (const betweenMove of betweenMoveGroup.moves) {
-        const anchor = anchors.find(
-            existingAnchor =>
-                compareTaskQuerySortCursors(
-                    sorts,
-                    existingAnchor.cursor,
-                    betweenMove.afterCursor,
-                ) === 0,
-        );
-
-        if (anchor) {
-            anchor.moves.push(betweenMove);
-        } else {
-            anchors.push({cursor: betweenMove.afterCursor, moves: [betweenMove]});
-        }
-    }
-
-    anchors.sort((anchor1, anchor2) =>
-        compareTaskQuerySortCursors(sorts, anchor1.cursor, anchor2.cursor),
+    // Each move inserts directly after its `afterCursor` task, so resolve the moves in
+    // cursor order. Moves that share an `afterCursor` insert at the same place in
+    // patch order.
+    const sortedBetweenMoves = [...betweenMoves].sort(
+        (betweenMove1, betweenMove2) =>
+            compareTaskQuerySortCursors(
+                sorts,
+                betweenMove1.afterCursor,
+                betweenMove2.afterCursor,
+            ) || betweenMove1.move.patchIndex - betweenMove2.move.patchIndex,
     );
 
     // The generated order keys must stay below every `beforeCursor` order key sharing
@@ -397,15 +370,15 @@ async function resolveApiTaskMovesBetween(
     let upperOrderKey: OrderKey | null = null;
     let hasTiedBeforeCursor = false;
 
-    for (const betweenMove of betweenMoveGroup.moves) {
-        if (compareTaskPosition(groupPosition, betweenMove.beforePosition) === 0) {
+    for (const betweenMove of betweenMoves) {
+        if (compareTaskPosition(afterPosition, betweenMove.beforePosition) === 0) {
             hasTiedBeforeCursor = true;
             continue;
         }
 
         if (
             !areHybridLogicalTimesEqual(
-                groupPosition.orderTime,
+                afterPosition.orderTime,
                 betweenMove.beforePosition.orderTime,
             )
         ) {
@@ -419,22 +392,23 @@ async function resolveApiTaskMovesBetween(
         }
     }
 
-    // Equal order keys have no space between them, so when a move lands inside a tied
-    // run the tasks after the insertion point must be re-keyed. Load the run once for
-    // the whole group, starting at the earliest anchor: tied tasks before it keep
-    // their position and keep sorting first.
+    // When a move lands between tied tasks, the tied tasks after the insertion point
+    // must be re-keyed since there's no room between two equal order keys. Load them
+    // once for the whole group, starting after the earliest `afterCursor`. Tied tasks
+    // at or before the earliest `afterCursor` keep their key and still sort first
+    // because every key we generate is above the shared order key.
     let tiedTasks: Array<{cursor: TaskQuerySortCursor; task: TaskModel}> = [];
 
     if (hasTiedBeforeCursor) {
         const tiedRun = await context.tracer.withSpan(
-            "Prepare API task moves for tied positions",
+            "Resolve API task moves between tied positions",
             async context =>
-                await loadApiTaskMoveTiedRun(context, {
+                await loadApiTaskMoveTiedTasks(context, {
                     spaceId,
                     filters,
                     sorts,
-                    tiedPosition: groupPosition,
-                    afterCursor: assertExists(anchors[0]).cursor,
+                    tiedPosition: afterPosition,
+                    afterCursor: assertExists(sortedBetweenMoves[0]).afterCursor,
                 }),
         );
 
@@ -449,84 +423,91 @@ async function resolveApiTaskMovesBetween(
         }
     }
 
-    // Lay out the final order of every task that receives a new key at the
-    // destination: walk the anchors in cursor order and keep tied tasks at or before
-    // an anchor ahead of the anchor's moved tasks, since a move inserts directly after
-    // its `afterCursor` task.
-    const slots: Array<
-        {type: "Move"; move: ApiTaskMoveInScope} | {type: "TiedTask"; task: TaskModel}
+    // Lay out the new relative order of every task that receives an order key at the
+    // destination. A move inserts directly after its `afterCursor` task, so the tied
+    // tasks up to and including that task stay ahead of the moved task. (A move's
+    // `afterCursor` task is itself in `tiedTasks` when an earlier move in the group
+    // inserts before it.) Tied tasks after the last insertion point follow at the end,
+    // preserving their order.
+    const newTaskOrder: Array<
+        {type: "MovedTask"; move: ApiTaskUnresolvedMove} | {type: "TiedTask"; task: TaskModel}
     > = [];
 
     let tiedTaskIndex = 0;
 
-    for (const anchor of anchors) {
+    for (const betweenMove of sortedBetweenMoves) {
         while (
             tiedTaskIndex < tiedTasks.length &&
             compareTaskQuerySortCursors(
                 sorts,
                 assertExists(tiedTasks[tiedTaskIndex]).cursor,
-                anchor.cursor,
+                betweenMove.afterCursor,
             ) <= 0
         ) {
-            slots.push({type: "TiedTask", task: assertExists(tiedTasks[tiedTaskIndex]).task});
+            newTaskOrder.push({
+                type: "TiedTask",
+                task: assertExists(tiedTasks[tiedTaskIndex]).task,
+            });
             tiedTaskIndex++;
         }
 
-        for (const {move} of anchor.moves) {
-            slots.push({type: "Move", move});
-        }
+        newTaskOrder.push({type: "MovedTask", move: betweenMove.move});
     }
 
     for (; tiedTaskIndex < tiedTasks.length; tiedTaskIndex++) {
-        slots.push({type: "TiedTask", task: assertExists(tiedTasks[tiedTaskIndex]).task});
+        newTaskOrder.push({type: "TiedTask", task: assertExists(tiedTasks[tiedTaskIndex]).task});
     }
 
-    const orderKeys = generateOrderKeysBetween(groupPosition.orderKey, upperOrderKey, slots.length);
+    const orderKeys = generateOrderKeysBetween(
+        afterPosition.orderKey,
+        upperOrderKey,
+        newTaskOrder.length,
+    );
 
     const resolvedMoveByPatchIndex = new Map<number, ApiTaskResolvedMove>();
-    const followingUpdates: Array<{taskId: TaskId; position: TaskPosition}> = [];
+    const tiedTaskUpdates: Array<{task: TaskModel; position: TaskPosition}> = [];
 
-    slots.forEach((slot, index) => {
+    newTaskOrder.forEach((newTaskOrderItem, index) => {
         const position: TaskPosition = {
-            orderTime: groupPosition.orderTime,
+            orderTime: afterPosition.orderTime,
             orderKey: assertExists(orderKeys[index]),
         };
 
-        switch (slot.type) {
-            case "Move": {
-                resolvedMoveByPatchIndex.set(slot.move.patchIndex, {
+        switch (newTaskOrderItem.type) {
+            case "MovedTask": {
+                resolvedMoveByPatchIndex.set(newTaskOrderItem.move.patchIndex, {
                     position: {type: "Assigned", position},
-                    followingUpdates: [],
+                    tiedTaskUpdates: [],
                 });
                 break;
             }
             case "TiedTask": {
-                followingUpdates.push({taskId: slot.task.id, position});
+                tiedTaskUpdates.push({task: newTaskOrderItem.task, position});
                 break;
             }
             default:
-                throw exhaustive(slot);
+                throw exhaustive(newTaskOrderItem);
         }
     });
 
-    // Commit the tied task re-keys after the group's last move so the batch's action
-    // order lists every moved task before the re-keyed tasks.
-    const lastMovePatchIndex = betweenMoveGroup.moves
-        .map(({move}) => move.patchIndex)
-        .reduce((a, b) => Math.max(a, b), 0);
+    // Commit the tied task updates after the group's last move so the batch's action
+    // order lists every moved task before the re-keyed tied tasks.
+    const lastMovePatchIndex = Math.max(
+        ...betweenMoves.map(betweenMove => betweenMove.move.patchIndex),
+    );
 
     const lastResolvedMove = assertExists(resolvedMoveByPatchIndex.get(lastMovePatchIndex));
-    resolvedMoveByPatchIndex.set(lastMovePatchIndex, {...lastResolvedMove, followingUpdates});
+    resolvedMoveByPatchIndex.set(lastMovePatchIndex, {...lastResolvedMove, tiedTaskUpdates});
 
-    return {resolvedMoveByPatchIndex, tasksToUpdate: tiedTasks.map(({task}) => task)};
+    return resolvedMoveByPatchIndex;
 }
 
 /**
  * Loads every task sharing the tied position after `afterCursor`, in query order,
  * plus the next order key at the same order time (the exclusive upper bound for
- * the keys generated to fit the run).
+ * the keys generated to fit the tied tasks).
  */
-async function loadApiTaskMoveTiedRun(
+async function loadApiTaskMoveTiedTasks(
     context: ApiServiceBotActionContext,
     {
         spaceId,

@@ -2,12 +2,12 @@ import {parseDate} from "@internationalized/date";
 import {findSpans} from "unicode-default-word-boundary";
 import {ApiServiceBotActionContext} from "~/server/api/internal/shared/api_service_context.js";
 import {fromApiTaskLayout} from "~/server/api/internal/tasks/internal/from_api_task_layout.js";
-import {prepareApiTaskMovesInCollection} from "~/server/api/internal/tasks/internal/prepare_api_task_moves_in_collection.js";
-import {prepareApiTaskMovesInParent} from "~/server/api/internal/tasks/internal/prepare_api_task_moves_in_parent.js";
+import {resolveApiTaskMovesInCollection} from "~/server/api/internal/tasks/internal/resolve_api_task_moves_in_collection.js";
+import {resolveApiTaskMovesInParent} from "~/server/api/internal/tasks/internal/resolve_api_task_moves_in_parent.js";
 import {
-    ApiTaskMoveInScope,
     ApiTaskResolvedMove,
-} from "~/server/api/internal/tasks/internal/prepare_api_task_moves_in_scope.js";
+    ApiTaskUnresolvedMove,
+} from "~/server/api/internal/tasks/internal/resolve_api_task_moves_in_scope.js";
 import {getAccount} from "~/server/spaces/get_account.js";
 import {commitTaskActionTransaction} from "~/server/tasks/data/commit_task_action_transaction.js";
 import {ApiTaskPatch} from "~/shared/api/specification/types/api_specification_convenience_types.js";
@@ -46,8 +46,8 @@ export type ApiTaskIdPatch = {
  * A scope tasks move within: one collection's tasks or one parent's subtasks.
  */
 type ApiTaskMoveScope =
-    | {type: "Collection"; collectionId: TaskCollectionId; moves: Array<ApiTaskMoveInScope>}
-    | {type: "Parent"; parentTaskId: TaskId; moves: Array<ApiTaskMoveInScope>};
+    | {type: "Collection"; collectionId: TaskCollectionId; moves: Array<ApiTaskUnresolvedMove>}
+    | {type: "Parent"; parentTaskId: TaskId; moves: Array<ApiTaskUnresolvedMove>};
 
 /**
  * Applies API task metadata patches, commits the resulting task actions, and
@@ -200,11 +200,11 @@ export async function updateTasksWithoutNotesFromApi(
         }
     });
 
-    const preparedMoves = await runAllPromises(
+    const resolvedMoveMaps = await runAllPromises(
         Array.from(moveScopeByKey.values(), moveScope => {
             switch (moveScope.type) {
                 case "Collection": {
-                    return prepareApiTaskMovesInCollection(
+                    return resolveApiTaskMovesInCollection(
                         context,
                         spaceId,
                         moveScope.collectionId,
@@ -212,7 +212,7 @@ export async function updateTasksWithoutNotesFromApi(
                     );
                 }
                 case "Parent": {
-                    return prepareApiTaskMovesInParent(
+                    return resolveApiTaskMovesInParent(
                         context,
                         spaceId,
                         moveScope.parentTaskId,
@@ -227,21 +227,21 @@ export async function updateTasksWithoutNotesFromApi(
 
     const resolvedMoveByPatchIndex = new Map<number, ApiTaskResolvedMove>();
 
-    for (const preparedMovesInScope of preparedMoves) {
-        for (const [patchIndex, resolvedMove] of preparedMovesInScope.resolvedMoveByPatchIndex) {
+    for (const resolvedMoveMap of resolvedMoveMaps) {
+        for (const [patchIndex, resolvedMove] of resolvedMoveMap) {
             resolvedMoveByPatchIndex.set(patchIndex, resolvedMove);
         }
     }
 
     // Make sure all times we generate are higher than the times in the tasks we're
-    // updating. That includes tasks sharing a position with a move destination since
-    // we update their positions too.
+    // updating. That includes tasks that were tied with a move destination since we
+    // update their positions too.
     {
         for (const initialTask of initialTasks) initialTask.tick(clock);
 
-        for (const preparedMovesInScope of preparedMoves) {
-            for (const taskToUpdate of preparedMovesInScope.tasksToUpdate) {
-                taskToUpdate.tick(clock);
+        for (const resolvedMove of resolvedMoveByPatchIndex.values()) {
+            for (const tiedTaskUpdate of resolvedMove.tiedTaskUpdates) {
+                tiedTaskUpdate.task.tick(clock);
             }
         }
     }
@@ -765,10 +765,10 @@ function createApiTaskMovePositionUpdates(
 
     return [
         {taskId, time, position},
-        ...resolvedMove.followingUpdates.map(followingUpdate => ({
-            taskId: followingUpdate.taskId,
+        ...resolvedMove.tiedTaskUpdates.map(tiedTaskUpdate => ({
+            taskId: tiedTaskUpdate.task.id,
             time: clock.now(),
-            position: followingUpdate.position,
+            position: tiedTaskUpdate.position,
         })),
     ];
 }

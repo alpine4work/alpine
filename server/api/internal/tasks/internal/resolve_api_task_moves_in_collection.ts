@@ -1,9 +1,9 @@
 import {ApiServiceBotActionContext} from "~/server/api/internal/shared/api_service_context.js";
 import {
-    ApiTaskMoveInScope,
-    ApiTaskPreparedMoves,
-    prepareApiTaskMovesInScope,
-} from "~/server/api/internal/tasks/internal/prepare_api_task_moves_in_scope.js";
+    ApiTaskResolvedMove,
+    ApiTaskUnresolvedMove,
+    resolveApiTaskMovesInScope,
+} from "~/server/api/internal/tasks/internal/resolve_api_task_moves_in_scope.js";
 import {errorDisplayMessage} from "~/shared/error/error_display_message.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 import {SpaceId, TaskCollectionId} from "~/shared/id/types/id_types.js";
@@ -16,15 +16,15 @@ import {TaskQueryNormalizedSort} from "~/shared/tasks/task_query_normalized_sort
 /**
  * Resolves the destination positions for a batch's `MoveInCollection` patches.
  */
-export async function prepareApiTaskMovesInCollection(
+export async function resolveApiTaskMovesInCollection(
     context: ApiServiceBotActionContext,
     spaceId: SpaceId,
     collectionId: TaskCollectionId,
-    moves: ReadonlyArray<ApiTaskMoveInScope>,
-): Promise<ApiTaskPreparedMoves> {
+    moves: ReadonlyArray<ApiTaskUnresolvedMove>,
+): Promise<ReadonlyMap<number, ApiTaskResolvedMove>> {
     const queryInput = createCollectionPositionQueryInput(collectionId);
 
-    return await prepareApiTaskMovesInScope(context, {
+    return await resolveApiTaskMovesInScope(context, {
         spaceId,
         moves,
         filters: queryInput.filters,
