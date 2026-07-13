@@ -1,4 +1,4 @@
-/* eslint-disable cyberworlds/string-quotes -- CLI fixtures require shell quotes. */
+/* eslint-disable cyberworlds/string-quotes */
 
 import {setupCliIntegrationTests} from "~/server/agents/cli/integration_tests/setup_cli_integration_tests.js";
 import {TestDocument} from "~/server/documents/test_helpers/test_document.js";
