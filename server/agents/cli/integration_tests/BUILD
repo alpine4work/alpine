@@ -11,7 +11,7 @@ ts_project(
         "tags": ["cpu:4", "integration_test"],
     },
     data = [
-        "//admin/environment/test/integration:integration_data_without_app_or_agent_service",
+        "//admin/environment/test/integration:integration_data_without_agent_service",
         "//server/agents/cli",
     ],
     deps = [
