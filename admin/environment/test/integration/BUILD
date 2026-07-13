@@ -3,9 +3,8 @@ load("//admin/typescript:typescript.bzl", "ts_project")
 # Not included in the `integration` `ts_project()`'s `data` so we don't need to
 # build it when running `dev check`. Depend on this separately.
 filegroup(
-    name = "integration_data_without_agent_service",
+    name = "integration_data_without_app_or_agent_service",
     srcs = [
-        "//app:app_test",
         "//server/api",
         "//server/apns:apns_development_certificates",
         "//server/edge",
@@ -25,7 +24,8 @@ filegroup(
 filegroup(
     name = "integration_data",
     srcs = [
-        ":integration_data_without_agent_service",
+        ":integration_data_without_app_or_agent_service",
+        "//app:app_test",
         "//server/agents/bots",
         "//server/agents/bots:agents_d1_local_data",
     ],
