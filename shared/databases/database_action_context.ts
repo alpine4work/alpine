@@ -1,6 +1,6 @@
+import type {AccessLevel} from "~/shared/access/access_policy.js";
 import type {DatabaseModel} from "~/shared/databases/model/database_root_model.js";
 import type {SqliteDatabase} from "~/shared/databases/sqlite.js";
-import type {SqliteTableAccess} from "~/shared/databases/sqlite_authorizer.js";
 import type {AccountId, DatabaseTableId} from "~/shared/id/types/id_types.js";
 
 /**
@@ -41,12 +41,12 @@ export interface DatabaseActionContext {
     /** The database schema */
     model: DatabaseModel;
     /**
-     * The current execution's capabilities on `tableId` — the same verdicts the SQLite
+     * The current execution's access level on `tableId` — the same value the SQLite
      * authorizer enforces per statement. Everything is granted when the execution runs
      * unrestricted (internal server code, service actors). Action code uses this to
      * _plan around_ denials the authorizer would otherwise hard- error on, e.g.
      * relation fields emitting an ids-only projection instead of joining into a linked
      * table the account can't read.
      */
-    getTableAccess: (tableId: DatabaseTableId) => SqliteTableAccess;
+    getTableAccessLevel: (tableId: DatabaseTableId) => AccessLevel | null;
 }

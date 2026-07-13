@@ -11,6 +11,7 @@ import type {
     OpfsFileHandle,
     OpfsSyncAccessHandle,
 } from "~/client/web/databases/worker/opfs.js";
+import type {AccessLevel} from "~/shared/access/access_policy.js";
 import type {
     DatabaseActionObject,
     DatabaseActionResult,
@@ -775,7 +776,7 @@ describe("ensureCacheIsUpToDate", () => {
                     fileSizeInPages: number;
                 }
             >;
-            tableAccess: Map<DatabaseTableId, "none" | "read" | "write">;
+            tableAccess: Map<DatabaseTableId, AccessLevel | null>;
         }) => void;
         const validationGate = new Promise<{
             tables: Map<
@@ -786,7 +787,7 @@ describe("ensureCacheIsUpToDate", () => {
                     fileSizeInPages: number;
                 }
             >;
-            tableAccess: Map<DatabaseTableId, "none" | "read" | "write">;
+            tableAccess: Map<DatabaseTableId, AccessLevel | null>;
         }>(resolve => {
             resolveValidation = resolve;
         });
@@ -1807,21 +1808,21 @@ describe("DatabaseClient — table access levels", () => {
             ensureCacheIsUpToDate: () =>
                 Promise.resolve({
                     tables: new Map(),
-                    tableAccess: new Map<DatabaseTableId, "none" | "read" | "write">([
-                        [readableTableId, "read"],
-                        [hiddenTableId, "none"],
+                    tableAccess: new Map<DatabaseTableId, AccessLevel | null>([
+                        [readableTableId, "View"],
+                        [hiddenTableId, null],
                     ]),
                 }),
         });
         await client.ensureCacheIsUpToDate(conn);
 
-        await client.applyTableAccessLevels(new Map([[hiddenTableId, "write"]]));
+        await client.applyTableAccessLevels(new Map([[hiddenTableId, "Edit"]]));
 
         expect({
             readable: client.getTableAccessLevel(readableTableId),
             granted: client.getTableAccessLevel(hiddenTableId),
             unknown: client.getTableAccessLevel(generateChronologicalId<DatabaseTableId>()),
-        }).toEqual({readable: "read", granted: "write", unknown: "write"});
+        }).toEqual({readable: "View", granted: "Edit", unknown: "Manage"});
 
         client.close();
     });
@@ -1829,7 +1830,7 @@ describe("DatabaseClient — table access levels", () => {
     test("a denied optimistic write fails fast without contacting the server", async () => {
         const client = await DatabaseClient.create(createInMemoryOpfsDirectoryHandle());
         const tableId = await attachItemsTable(client);
-        await client.applyTableAccessLevels(new Map([[tableId, "read"]]));
+        await client.applyTableAccessLevels(new Map([[tableId, "Comment"]]));
 
         let serverCalled = false;
         const conn = makeDatabaseClientConnection({
@@ -1860,7 +1861,7 @@ describe("DatabaseClient — table access levels", () => {
         const client = await DatabaseClient.create(groupDir);
         const tableId = await attachItemsTable(client);
 
-        await client.applyTableAccessLevels(new Map([[tableId, "none"]]));
+        await client.applyTableAccessLevels(new Map([[tableId, null]]));
 
         const opfsEntries: Array<string> = [];
         for await (const name of groupDir.keys()) {
@@ -1905,9 +1906,7 @@ describe("DatabaseClient — table access levels", () => {
             ensureCacheIsUpToDate: () =>
                 Promise.resolve({
                     tables: new Map(),
-                    tableAccess: new Map<DatabaseTableId, "none" | "read" | "write">([
-                        [tableId, "none"],
-                    ]),
+                    tableAccess: new Map<DatabaseTableId, AccessLevel | null>([[tableId, null]]),
                 }),
         });
         await client.ensureCacheIsUpToDate(conn);

@@ -14,7 +14,7 @@ import {databaseNumberFieldProvider} from "~/shared/databases/fields/database_nu
 
 function DatabaseNumberGridViewCellContent({
     ref,
-    config,
+    field,
     value,
     onCellClick,
 }: DatabaseGridViewCellContentProps<"number">) {
@@ -31,7 +31,7 @@ function DatabaseNumberGridViewCellContent({
             color="grey-100"
             onClick={onCellClick}
         >
-            {databaseNumberFieldProvider.valueToString(value, config)}
+            {databaseNumberFieldProvider.valueToString(value, field.config)}
         </Box>
     );
 }

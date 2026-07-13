@@ -14,6 +14,7 @@ import {
     DatabaseDurableObjectConnection,
     DatabaseRealtimeEventStub,
 } from "~/server/databases/database_durable_object_connection.js";
+import {runDatabaseDurableObjectSqlMigrations} from "~/server/databases/database_durable_object_sql_migrations.js";
 import {DatabaseDurableObjectStorage} from "~/server/databases/database_durable_object_storage.js";
 import {DatabaseServer} from "~/server/databases/database_server.js";
 import {isTrustedDatabaseServiceActor} from "~/server/databases/is_trusted_database_service_actor.js";
@@ -71,6 +72,7 @@ class DatabaseGroupDurableObject {
         storage: DurableObjectStorage;
     }): Promise<DatabaseGroupDurableObject> {
         const databaseGroupId = idName as DatabaseGroupId;
+        runDatabaseDurableObjectSqlMigrations(storage);
         const durableObjectStorage = new DatabaseDurableObjectStorage(storage);
 
         // The group's private salt keys the registry's `table_name_hash` index (see
@@ -192,9 +194,14 @@ class DatabaseGroupDurableObject {
             );
         }
 
-        const {events} = DatabaseTableMetadataBroadcastRealtimeEventsSchema.deserialize(
-            await request.json(),
-        );
+        const {events, resolvedAccessPolicyByTableId} =
+            DatabaseTableMetadataBroadcastRealtimeEventsSchema.deserialize(await request.json());
+
+        this._durableObjectStorage.transactionSync(() => {
+            for (const [tableId, accessPolicy] of resolvedAccessPolicyByTableId) {
+                this._durableObjectStorage.setDatabaseTableAccessPolicy(tableId, accessPolicy);
+            }
+        });
 
         this._webSocketServer.sendEventToAll(context, {
             type: "TableMetadataChanged",

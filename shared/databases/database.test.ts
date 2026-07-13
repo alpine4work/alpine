@@ -1,13 +1,5 @@
-import {
-    Database,
-    type DatabaseTableAccessResolver,
-    type ReadonlyDatabaseStorage,
-} from "~/shared/databases/database.js";
+import {Database, type ReadonlyDatabaseStorage} from "~/shared/databases/database.js";
 import {type SqlQuery, sql} from "~/shared/databases/sql.js";
-import {
-    deniedSqliteTableAccess,
-    unrestrictedSqliteTableAccess,
-} from "~/shared/databases/sqlite_authorizer.js";
 import {databaseMainTableId, sqlitePageSize} from "~/shared/databases/sqlite_constants.js";
 import {runMainMigrations, runTableMigrations} from "~/shared/databases/sqlite_migrations.js";
 import {TableNotAttachedError} from "~/shared/databases/table_not_attached_error.js";
@@ -519,7 +511,7 @@ describe("Database — per-table access", () => {
 
     test("a denied read surfaces as a typed permission error naming the table", async () => {
         const {database, otherTableId} = await createDatabaseWithAttachedTable();
-        const denyAll: DatabaseTableAccessResolver = () => deniedSqliteTableAccess;
+        const denyAll = () => null;
 
         expect(() =>
             database.executeSql(
@@ -529,17 +521,14 @@ describe("Database — per-table access", () => {
                     FROM
                         ${sql.tableRef(otherTableId, "things")}
                 `,
-                {allowWrites: "none", tableAccessResolver: denyAll},
+                {allowWrites: "none", getTableAccessLevel: denyAll},
             ),
         ).toThrow(`Permission denied for read on database table ${otherTableId}`);
     });
 
     test("a read the resolver grants passes", async () => {
         const {database, otherTableId} = await createDatabaseWithAttachedTable();
-        const readOnly: DatabaseTableAccessResolver = () => ({
-            ...deniedSqliteTableAccess,
-            read: true,
-        });
+        const readOnly = () => "View" as const;
 
         const result = database.executeSql(
             sql`
@@ -548,7 +537,7 @@ describe("Database — per-table access", () => {
                 FROM
                     ${sql.tableRef(otherTableId, "things")}
             `,
-            {allowWrites: "none", tableAccessResolver: readOnly},
+            {allowWrites: "none", getTableAccessLevel: readOnly},
         );
 
         expect(result.rows).toEqual([{id: 1}]);
@@ -556,10 +545,7 @@ describe("Database — per-table access", () => {
 
     test("a write is denied when the resolver grants read only", async () => {
         const {database, otherTableId} = await createDatabaseWithAttachedTable();
-        const readOnly: DatabaseTableAccessResolver = () => ({
-            ...deniedSqliteTableAccess,
-            read: true,
-        });
+        const readOnly = () => "Comment" as const;
 
         expect(() =>
             database.executeSql(
@@ -570,7 +556,7 @@ describe("Database — per-table access", () => {
                     WHERE
                         id = 1
                 `,
-                {allowWrites: "data", tableAccessResolver: readOnly},
+                {allowWrites: "data", getTableAccessLevel: readOnly},
             ),
         ).toThrow(`Permission denied for update on database table ${otherTableId}`);
     });
@@ -585,7 +571,7 @@ describe("Database — per-table access", () => {
                     (1)
             `,
         );
-        const denyAll: DatabaseTableAccessResolver = () => deniedSqliteTableAccess;
+        const denyAll = () => null;
 
         const result = database.executeSql(
             sql`
@@ -594,29 +580,27 @@ describe("Database — per-table access", () => {
                 FROM
                     items
             `,
-            {allowWrites: "none", tableAccessResolver: denyAll},
+            {allowWrites: "none", getTableAccessLevel: denyAll},
         );
 
         expect(result.rows).toEqual([{id: 1}]);
     });
 
-    test("getTableAccessForCurrentExecution reflects the installed resolver", async () => {
+    test("getTableAccessLevel reflects the installed lookup", async () => {
         const {database, otherTableId} = await createDatabaseWithAttachedTable();
 
-        const {result} = database.execute(
-            () => database.getTableAccessForCurrentExecution(otherTableId),
-            {allowWrites: "none", tableAccessResolver: () => deniedSqliteTableAccess},
-        );
+        const {result} = database.execute(() => database.getTableAccessLevel(otherTableId), {
+            allowWrites: "none",
+            getTableAccessLevel: () => null,
+        });
 
-        expect(result).toEqual(deniedSqliteTableAccess);
+        expect(result).toBeNull();
     });
 
-    test("getTableAccessForCurrentExecution is unrestricted without a resolver", async () => {
+    test("getTableAccessLevel returns Manage without an installed lookup", async () => {
         const {database, otherTableId} = await createDatabaseWithAttachedTable();
 
-        expect(database.getTableAccessForCurrentExecution(otherTableId)).toEqual(
-            unrestrictedSqliteTableAccess,
-        );
+        expect(database.getTableAccessLevel(otherTableId)).toBe("Manage");
     });
 });
 
@@ -1072,88 +1056,6 @@ describe("Database — LRU eviction at the attach threshold", () => {
             a: true,
             b: true,
         });
-    });
-
-    test("change-capture triggers survive evict + re-attach", async () => {
-        const {database, storage, tableIds} = await createServerDatabaseWithTables(3, 3);
-        const tableA = tableIds[0]!;
-        const fieldId = generateChronologicalId<DatabaseTableId>();
-
-        // Give the evicted table an `_alpine_table` row (re-attach it via a direct write —
-        // attach-on-miss covers writes too) and install change capture.
-        database.executeSql(
-            sql`
-                INSERT INTO
-                    ${sql.tableRef(tableA, "_alpine_fields")} (id, name, column_name, config)
-                VALUES
-                    (
-                        ${fieldId},
-                        'Name',
-                        'name',
-                        jsonb ('{}')
-                    )
-            `,
-            {allowWrites: "schema+data"},
-        );
-        database.executeSql(
-            sql`
-                INSERT INTO
-                    ${sql.tableRef(tableA, "_alpine_table")} (
-                        id,
-                        name,
-                        table_name,
-                        name_field_id,
-                        access_policy
-                    )
-                VALUES
-                    (
-                        ${tableA},
-                        'Table A',
-                        'items',
-                        ${fieldId},
-                        jsonb ('{}')
-                    )
-            `,
-            {allowWrites: "schema+data"},
-        );
-        commit(database, storage);
-
-        const changedTableIds: Array<DatabaseTableId> = [];
-        database._installServerTableChangeCapture(tableId => changedTableIds.push(tableId));
-
-        // Evict tableA again (it's warm from the writes above), then update its
-        // `_alpine_table` row: attach-on-miss must recreate the change-capture triggers
-        // before the update runs, not leave the dead post-DETACH ones.
-        database.executeSql(
-            sql`
-                SELECT
-                    id
-                FROM
-                    ${sql.tableRef(tableIds[1]!, "items")}
-            `,
-            {allowWrites: "none"},
-        );
-        database.executeSql(
-            sql`
-                SELECT
-                    id
-                FROM
-                    ${sql.tableRef(tableIds[2]!, "items")}
-            `,
-            {allowWrites: "none"},
-        );
-        expect(database.isAttached(tableA)).toBe(false);
-
-        database.executeSql(
-            sql`
-                UPDATE ${sql.tableRef(tableA, "_alpine_table")}
-                SET
-                    name = 'Renamed'
-            `,
-            {allowWrites: "schema+data"},
-        );
-
-        expect(changedTableIds).toContain(tableA);
     });
 });
 

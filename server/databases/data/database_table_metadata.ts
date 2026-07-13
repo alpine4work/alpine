@@ -2,13 +2,14 @@ import {evaluateAccessPolicy} from "~/server/access/evaluate_access_policy.js";
 import type {ServerActionContext} from "~/server/context/server_action_context.js";
 import {fetchDatabaseGroupAction} from "~/server/databases/data/fetch_database_action.js";
 import {DatabaseTablesTable} from "~/server/databases/data/internal/database_tables_table.js";
+import {resolveDatabaseTableAccessPolicyForDurableObject} from "~/server/databases/data/resolve_database_table_access_policy_for_durable_object.js";
 import {DynamoItem} from "~/server/dynamo/core/dynamo_table_schema.js";
 import {authorizeSpaceAccess} from "~/server/spaces/authorize_space_access.js";
 import {
     getDatabaseGroupIdForSpace,
     getExistingDatabaseGroupIdForSpace,
 } from "~/server/spaces/get_database_group_id_for_space.js";
-import {type AccessPolicy, type LocalAccessPolicy} from "~/shared/access/access_policy.js";
+import type {AccessPolicy} from "~/shared/access/access_policy.js";
 import {databaseTableAccessPolicyForCreator} from "~/shared/databases/database_table_access_policy.js";
 import {DatabaseTableMetadataModel} from "~/shared/databases/database_table_metadata_model.js";
 import type {RynamoEvent, RynamoEventStub, RynamoItem} from "~/shared/dynamo/rynamo_types.js";
@@ -87,7 +88,6 @@ export async function updateDatabaseTableAccessPolicy(
     await authorizeSpaceAccess(sessionContext, spaceId, "Member");
 
     const databaseGroupId = await getExistingDatabaseGroupIdForSpace(sessionContext, spaceId);
-    let tableName: string | null = null;
 
     const {getEvent} = await DatabaseTablesTable.updateItem(
         context,
@@ -100,19 +100,9 @@ export async function updateDatabaseTableAccessPolicy(
                 throw new NotFoundError(`Database table ${tableId} not found`);
             }
 
-            tableName = item.name;
             return item.update({accessPolicy});
         },
     );
-
-    assert(tableName !== null);
-
-    await syncDatabaseTableMetadataToDurableObject(context, {
-        spaceId,
-        tableId,
-        name: tableName,
-        accessPolicy,
-    });
 
     context.process.waitUntil(
         context.jobs.sendAndWait({
@@ -247,7 +237,7 @@ export async function syncDatabaseTableMetadataToDurableObject(
     },
 ): Promise<void> {
     const databaseGroupId = await getExistingDatabaseGroupIdForSpace(context, spaceId);
-    const localAccessPolicy = await resolveDatabaseTableAccessPolicyForDurableObjectSync(
+    const localAccessPolicy = await resolveDatabaseTableAccessPolicyForDurableObject(
         context,
         accessPolicy,
     );
@@ -293,26 +283,4 @@ export async function createDatabaseTableMetadataForTest(
                 accessPolicy,
             }),
     );
-}
-
-async function resolveDatabaseTableAccessPolicyForDurableObjectSync(
-    context: ServerActionContext,
-    accessPolicy: AccessPolicy,
-): Promise<LocalAccessPolicy> {
-    switch (accessPolicy.type) {
-        case "Local": {
-            const localAccessPolicy: LocalAccessPolicy = accessPolicy;
-            return localAccessPolicy;
-        }
-        case "Site": {
-            const localAccessPolicy: LocalAccessPolicy =
-                await context.sitesInjection.dangerouslyGetSiteAccessPolicyWithoutAuthorization(
-                    accessPolicy.siteId,
-                    {consistency: "StrongWithinCache"},
-                );
-            return localAccessPolicy;
-        }
-        default:
-            throw exhaustive(accessPolicy);
-    }
 }

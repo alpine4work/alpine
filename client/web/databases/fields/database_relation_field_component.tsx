@@ -51,10 +51,12 @@ import type {DatabaseRowId} from "~/shared/id/types/id_types.js";
 
 function DatabaseRelationGridViewCellContent({
     ref,
+    field,
     value,
     onCellClick,
 }: DatabaseGridViewCellContentProps<"relation">) {
     const links = Array.isArray(value) ? value : [];
+    const noAccess = field.linkedTableReadAccess === false;
     return (
         <Box
             ref={ref as React.Ref<HTMLDivElement>}
@@ -68,11 +70,7 @@ function DatabaseRelationGridViewCellContent({
             onClick={onCellClick}
         >
             {links.slice(0, 3).map(link => (
-                <DatabaseRelationChip
-                    key={link.id}
-                    name={link.name}
-                    noAccess={link.noAccess === true}
-                />
+                <DatabaseRelationChip key={link.id} name={link.name} noAccess={noAccess} />
             ))}
             {links.length > 3 ? (
                 <Box fontSize="75" color="grey-50" flexShrink="0">
@@ -101,13 +99,15 @@ type DatabaseRelationCandidateRow = {
 function DatabaseRelationGridViewCellEditorOverlay({
     ref,
     tableId,
-    fieldId,
+    field,
     rowId,
     initialEditString,
     onClose,
 }: DatabaseGridViewCellEditorOverlayProps<"relation">) {
     const conn = useDatabaseConnection();
     const reporter = useReporter();
+    const fieldId = field.id;
+    const noAccess = field.linkedTableReadAccess === false;
 
     // Seed the search box if the editor was opened by typing a character.
     const [search, setSearch] = useState(initialEditString ?? "");
@@ -341,6 +341,7 @@ function DatabaseRelationGridViewCellEditorOverlay({
                     <input
                         {...inputProps}
                         ref={searchInputRef}
+                        disabled={noAccess}
                         className={sprinkles({
                             display: "block",
                             width: "full",
@@ -349,7 +350,7 @@ function DatabaseRelationGridViewCellEditorOverlay({
                             fontSize: "75",
                         })}
                         style={{border: "none", outline: "none", padding: 0, minWidth: 0}}
-                        placeholder="Search…"
+                        placeholder={noAccess ? "No access" : "Search…"}
                         onKeyDown={event => {
                             // Let the container handle Escape (clear search / close).
                             if (event.key === "Escape") return;
@@ -391,6 +392,7 @@ function DatabaseRelationGridViewCellEditorOverlay({
                 {!isSearching && linkedRows.length > 0 ? (
                     <DatabaseRelationLinkedList
                         linkedRows={linkedRows}
+                        noAccess={noAccess}
                         onRemove={removeLink}
                         onReorder={moveLink}
                     />
@@ -419,7 +421,7 @@ function DatabaseRelationGridViewCellEditorOverlay({
                 />
             </Box>
 
-            {isSearching ? (
+            {isSearching && !noAccess ? (
                 <DatabaseRelationCreateRow
                     query={trimmedSearch}
                     onPress={() => createAndLink(trimmedSearch)}
@@ -431,10 +433,12 @@ function DatabaseRelationGridViewCellEditorOverlay({
 
 function DatabaseRelationLinkedList({
     linkedRows,
+    noAccess,
     onRemove,
     onReorder,
 }: {
     linkedRows: ReadonlyArray<DatabaseRelationLinkedRow>;
+    noAccess: boolean;
     onRemove: (linkedRowId: DatabaseRowId) => void;
     onReorder: (linkedRowId: DatabaseRowId, position: OrderKey) => void;
 }) {
@@ -462,11 +466,12 @@ function DatabaseRelationLinkedList({
             }}
         >
             <SortableContext items={ids}>
-                <DatabaseRelationLinkedDragOverlay linkedRows={linkedRows} />
+                <DatabaseRelationLinkedDragOverlay linkedRows={linkedRows} noAccess={noAccess} />
                 {linkedRows.map(row => (
                     <DatabaseRelationLinkedRow
                         key={row.id}
                         row={row}
+                        noAccess={noAccess}
                         isDragOverlay={false}
                         onRemove={() => onRemove(row.id)}
                     />
@@ -500,8 +505,10 @@ function computeReorderPosition(
 
 function DatabaseRelationLinkedDragOverlay({
     linkedRows,
+    noAccess,
 }: {
     linkedRows: ReadonlyArray<DatabaseRelationLinkedRow>;
+    noAccess: boolean;
 }) {
     const {active, activatorEvent} = useDndContext();
 
@@ -525,6 +532,7 @@ function DatabaseRelationLinkedDragOverlay({
                     <DragOverlay zIndex={70}>
                         <DatabaseRelationLinkedRow
                             row={activeRow}
+                            noAccess={noAccess}
                             isDragOverlay={true}
                             onRemove={() => {}}
                         />
@@ -537,10 +545,12 @@ function DatabaseRelationLinkedDragOverlay({
 
 function DatabaseRelationLinkedRow({
     row,
+    noAccess,
     isDragOverlay,
     onRemove,
 }: {
     row: DatabaseRelationLinkedRow;
+    noAccess: boolean;
     isDragOverlay: boolean;
     onRemove: () => void;
 }) {
@@ -568,7 +578,7 @@ function DatabaseRelationLinkedRow({
             <button
                 {...attributes}
                 {...listeners}
-                aria-label={`Reorder ${databaseRelationRowLabel(row.name)}`}
+                aria-label={`Reorder ${noAccess ? "No access" : databaseRelationRowLabel(row.name)}`}
                 className={sprinkles({
                     width: "4",
                     height: "4",
@@ -584,11 +594,11 @@ function DatabaseRelationLinkedRow({
                 <DotsSixVertical size={14} />
             </button>
             <Box flexGrow="1" fontSize="75" fontStyle="truncate" color="grey-100">
-                <DatabaseRelationRowName name={row.name} />
+                {noAccess ? "No access" : <DatabaseRelationRowName name={row.name} />}
             </Box>
             <Box flexShrink="0">
                 <IconButton
-                    description={`Remove ${databaseRelationRowLabel(row.name)}`}
+                    description={`Remove ${noAccess ? "No access" : databaseRelationRowLabel(row.name)}`}
                     size="xs"
                     variant="quiet"
                     onPress={onRemove}

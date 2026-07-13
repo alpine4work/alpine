@@ -19,10 +19,26 @@ interface InMemoryTable {
 
 class InMemoryStorage implements DatabaseServerStorage {
     private tables = new Map<DatabaseTableId, InMemoryTable>();
+    private accessPolicyByTableId = new Map<DatabaseTableId, LocalAccessPolicy>();
     private lastWriteVersion = 0;
 
     transactionSync<T>(fn: () => T): T {
         return fn();
+    }
+
+    getDatabaseTableAccessPolicy(tableId: DatabaseTableId): LocalAccessPolicy | null {
+        return this.accessPolicyByTableId.get(tableId) ?? null;
+    }
+
+    setDatabaseTableAccessPolicy(
+        tableId: DatabaseTableId,
+        accessPolicy: LocalAccessPolicy | null,
+    ): void {
+        if (accessPolicy === null) {
+            this.accessPolicyByTableId.delete(tableId);
+        } else {
+            this.accessPolicyByTableId.set(tableId, accessPolicy);
+        }
     }
 
     private getTable(databaseTableId: DatabaseTableId): InMemoryTable {
@@ -135,6 +151,17 @@ describe("DatabaseServer — storage failure recovery", () => {
 
         transactionSync<T>(fn: () => T): T {
             return this.inner.transactionSync(fn);
+        }
+
+        getDatabaseTableAccessPolicy(tableId: DatabaseTableId): LocalAccessPolicy | null {
+            return this.inner.getDatabaseTableAccessPolicy(tableId);
+        }
+
+        setDatabaseTableAccessPolicy(
+            tableId: DatabaseTableId,
+            accessPolicy: LocalAccessPolicy | null,
+        ): void {
+            this.inner.setDatabaseTableAccessPolicy(tableId, accessPolicy);
         }
 
         readPage(
@@ -1038,35 +1065,6 @@ describe("DatabaseServer", () => {
         });
     });
 
-    describe("executeAction — changed tables", () => {
-        test("captures table metadata changes without capturing row changes", async () => {
-            const server = await createServerWithSchema();
-
-            const created = server.executeAction<"createTable">(testContext, {
-                name: "createTable",
-                input: createTableInputForTest("Tasks"),
-            });
-            const tableId = created.result.tableId;
-
-            expect(created.changedTables).toEqual(new Set([tableId]));
-
-            const renamed = server.executeAction<"renameTable">(testContext, {
-                name: "renameTable",
-                input: {tableId, name: "Projects"},
-            });
-
-            expect(renamed.changedTables).toEqual(new Set([tableId]));
-
-            const rowId = generateChronologicalId<DatabaseRowId>();
-            const rowCreated = server.executeAction<"createRow">(testContext, {
-                name: "createRow",
-                input: {tableId, rowId},
-            });
-
-            expect(rowCreated.changedTables).toEqual(new Set());
-        });
-    });
-
     describe("create", () => {
         test("multiple servers can coexist", async () => {
             const server1 = await createServerWithSchema(
@@ -1611,9 +1609,64 @@ describe("DatabaseServer — per-table access", () => {
         );
 
         const fieldIndex = result.fieldIndexes.get(scenario.relation.sourceFieldId)!;
-        expect(result.rows[0]![fieldIndex]).toEqual([
-            {id: scenario.personRowId, name: null, noAccess: true},
-        ]);
+        expect(result.rows[0]![fieldIndex]).toEqual([{id: scenario.personRowId, name: null}]);
+    });
+
+    test("view schema reports linked-table read access on the relation field", async () => {
+        const scenario = await createLinkedTablesScenario();
+
+        const {result} = scenario.server.executeAction<"getViewSchema">(
+            createSessionContext(scenario.noPeople),
+            {
+                name: "getViewSchema",
+                input: {tableOrViewId: scenario.tasks.tableId},
+            },
+        );
+
+        const relationField = result.fields.find(
+            field => field.id === scenario.relation.sourceFieldId,
+        );
+        expect(relationField?.linkedTableReadAccess).toBe(false);
+    });
+
+    test("listLinkedRows redacts linked records when the linked table is unreadable", async () => {
+        const scenario = await createLinkedTablesScenario();
+        scenario.server.executeAction(
+            createSessionContext(scenario.viewPeople),
+            addLinkAction(scenario),
+        );
+
+        const {result} = scenario.server.executeAction<"listLinkedRows">(
+            createSessionContext(scenario.noPeople),
+            {
+                name: "listLinkedRows",
+                input: {
+                    tableId: scenario.tasks.tableId,
+                    fieldId: scenario.relation.sourceFieldId,
+                    rowId: scenario.taskRowId,
+                },
+            },
+        );
+
+        expect(result.rows).toEqual([{id: scenario.personRowId, name: null, position: "a0"}]);
+    });
+
+    test("listLinkableRows hides candidates when the linked table is unreadable", async () => {
+        const scenario = await createLinkedTablesScenario();
+
+        const {result} = scenario.server.executeAction<"listLinkableRows">(
+            createSessionContext(scenario.noPeople),
+            {
+                name: "listLinkableRows",
+                input: {
+                    tableId: scenario.tasks.tableId,
+                    fieldId: scenario.relation.sourceFieldId,
+                    rowId: scenario.taskRowId,
+                },
+            },
+        );
+
+        expect(result).toEqual({linkedTableName: "No access", rows: []});
     });
 
     test("view rows include linked record names when the linked table is readable", async () => {
@@ -1637,7 +1690,7 @@ describe("DatabaseServer — per-table access", () => {
 
         const fieldIndex = result.fieldIndexes.get(scenario.relation.sourceFieldId)!;
         expect(result.rows[0]![fieldIndex]).toEqual([
-            {id: scenario.personRowId, name: "", position: "a0", noAccess: false},
+            {id: scenario.personRowId, name: "", position: "a0"},
         ]);
     });
 
@@ -1695,9 +1748,9 @@ describe("DatabaseServer — table access levels", () => {
 
         expect(server2.getTableAccessLevelsForAccount(viewer)).toEqual(
             new Map([
-                [readable.tableId, "read"],
-                [hidden.tableId, "none"],
-                [databaseMainTableId, "write"],
+                [readable.tableId, "View"],
+                [hidden.tableId, null],
+                [databaseMainTableId, "Manage"],
             ]),
         );
     });
@@ -1711,7 +1764,7 @@ describe("DatabaseServer — table access levels", () => {
         });
 
         expect(server.getTableAccessLevelsForAccount(testAccountId).get(result.tableId)).toBe(
-            "write",
+            "Manage",
         );
     });
 });

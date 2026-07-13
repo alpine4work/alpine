@@ -1,10 +1,13 @@
-import {AccessPolicySchema} from "~/shared/access/access_policy.js";
+import {
+    type AccessLevel,
+    AccessPolicySchema,
+    hasAccessLevel,
+} from "~/shared/access/access_policy.js";
 import type {
     DatabaseActionContext,
     DatabaseActionServerContext,
 } from "~/shared/databases/database_action_context.js";
 import {DatabaseActionRequiresServerError} from "~/shared/databases/database_action_requires_server_error.js";
-import {DatabaseTableAccessPolicySqlSchema} from "~/shared/databases/database_table_access_policy.js";
 import {
     DatabaseFieldConfigSchema,
     getDatabaseFieldProvider,
@@ -17,7 +20,7 @@ import {DatabaseModel} from "~/shared/databases/model/database_root_model.js";
 import {SqlBooleanSchema} from "~/shared/databases/model/sqlite_schema.js";
 import {type SqlQuery, sql} from "~/shared/databases/sql.js";
 import {SqliteDatabase} from "~/shared/databases/sqlite.js";
-import type {SqliteTableAccess, SqliteWriteLevel} from "~/shared/databases/sqlite_authorizer.js";
+import type {SqliteWriteLevel} from "~/shared/databases/sqlite_authorizer.js";
 import {runJoinTableMigrations, runTableMigrations} from "~/shared/databases/sqlite_migrations.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {generateChronologicalId} from "~/shared/id/chronological_id.js";
@@ -34,9 +37,9 @@ import {type ObjectSchema, Schema, type SchemaType} from "~/shared/schema/schema
 export function createDatabaseActionContext(
     db: SqliteDatabase,
     server: DatabaseActionServerContext | null,
-    getTableAccess?: (tableId: DatabaseTableId) => SqliteTableAccess,
+    getTableAccessLevel?: (tableId: DatabaseTableId) => AccessLevel | null,
 ): DatabaseActionContext {
-    return new DatabaseModel(db, server, getTableAccess).ctx;
+    return new DatabaseModel(db, server, getTableAccessLevel).ctx;
 }
 
 /**
@@ -159,7 +162,7 @@ export const databaseActions = {
         writeLevel: "schema+data",
         transactionMode: "manual",
         internalOnly: true,
-        run({db, server, model}, {tableId, name, accessPolicy}) {
+        run({db, server, model}, {tableId, name}) {
             // Resolve the unique SQLite table name (and its salted registry hash) before
             // registering the new table.
             const {tableName, tableNameHash} = formatUniqueTableName({model, name});
@@ -172,7 +175,7 @@ export const databaseActions = {
             runTableMigrations(db, tableId);
 
             const {table, defaultView} = executeDatabaseActionTransaction(db, () =>
-                model.createTable(tableId, {name, tableName, accessPolicy}),
+                model.createTable(tableId, {name, tableName}),
             );
 
             return {tableId: table.id, tableName: table.tableName, viewId: defaultView.id};
@@ -192,7 +195,7 @@ export const databaseActions = {
         writeLevel: "schema+data",
         transactionMode: "manual",
         internalOnly: true,
-        run({db, model}, {tableId, name, accessPolicy}) {
+        run({db, model}, {tableId, name}) {
             const {table, viewId} = executeDatabaseActionTransaction(db, () => {
                 // Resolve the unique SQLite table name (and its salted registry hash) before
                 // renaming, same as `renameTable`.
@@ -202,15 +205,6 @@ export const databaseActions = {
                     excludeTableId: tableId,
                 });
                 const table = model.getTable(tableId).updateName(name, {tableName, tableNameHash});
-                sql`
-                    UPDATE ${table.schema}._alpine_table
-                    SET
-                        access_policy = jsonb (${DatabaseTableAccessPolicySqlSchema.serialize(
-                        accessPolicy,
-                    )})
-                    WHERE
-                        id = ${tableId}
-                `.exec(db);
                 return {table: model.getTable(tableId), viewId: table.getFirstView().id};
             });
             return {tableName: table.tableName, viewId};
@@ -313,13 +307,20 @@ export const databaseActions = {
                     position: OrderKeySchema,
                     width: Schema.integer,
                     hidden: SqlBooleanSchema,
+                    linkedTableReadAccess: Schema.boolean.nullable(),
                 }),
             ),
         }),
         writeLevel: "none",
-        run({model}, {tableOrViewId}) {
+        run({model, getTableAccessLevel}, {tableOrViewId}) {
             const {table, view} = model.resolveTableOrViewId(tableOrViewId);
-            const fields = view.getFieldsWithViewMetadata();
+            const fields = view.getFieldsWithViewMetadata().map(field => {
+                const linkedTableReadAccess =
+                    field.config.type === "relation"
+                        ? hasAccessLevel(getTableAccessLevel(field.config.linkedTableId), "View")
+                        : null;
+                return {...field, linkedTableReadAccess};
+            });
 
             return {
                 tableId: table.id,
@@ -664,7 +665,7 @@ export const databaseActions = {
             ),
         }),
         writeLevel: "none",
-        run({db, model}, {tableId, fieldId, rowId, search}) {
+        run({db, model, getTableAccessLevel}, {tableId, fieldId, rowId, search}) {
             const table = model.getTable(tableId);
             const field = table.getField(fieldId);
             assert(field.isType("relation"));
@@ -673,6 +674,9 @@ export const databaseActions = {
 
             assert(table.rowExists(rowId), "row not found");
 
+            if (!hasAccessLevel(getTableAccessLevel(relation.linkedTableId), "View")) {
+                return {linkedTableName: "No access", rows: []};
+            }
             const linkedTable = model.getTable(relation.linkedTableId);
             const linkedNameField = linkedTable.getNameField();
             const linkedNameProvider = getUnknownDatabaseFieldProvider(linkedNameField.config.type);
@@ -739,7 +743,7 @@ export const databaseActions = {
             ),
         }),
         writeLevel: "none",
-        run({db, model}, {tableId, fieldId, rowId}) {
+        run({db, model, getTableAccessLevel}, {tableId, fieldId, rowId}) {
             const table = model.getTable(tableId);
             const field = table.getField(fieldId);
             assert(field.isType("relation"));
@@ -748,6 +752,23 @@ export const databaseActions = {
 
             assert(table.rowExists(rowId), "row not found");
 
+            if (!hasAccessLevel(getTableAccessLevel(relation.linkedTableId), "View")) {
+                const rows = sql`
+                    SELECT
+                        link_row.${relation.their.rowIdColumn} AS id,
+                        link_row.${relation.our.positionColumn} AS position
+                    FROM
+                        ${relation.joinTable.tableRef} AS link_row
+                    WHERE
+                        link_row.${relation.our.rowIdColumn} = ${rowId}
+                    ORDER BY
+                        link_row.${relation.our.positionColumn}
+                `.selectAll(db, {
+                    id: Schema.id<DatabaseRowId>(),
+                    position: OrderKeySchema,
+                });
+                return {rows: rows.map(row => ({...row, name: null}))};
+            }
             const linkedTable = model.getTable(relation.linkedTableId);
             const linkedNameField = linkedTable.getNameField();
             const linkedNameProvider = getUnknownDatabaseFieldProvider(linkedNameField.config.type);

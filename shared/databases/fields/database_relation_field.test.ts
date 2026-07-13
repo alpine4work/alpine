@@ -10,31 +10,19 @@ describe("databaseRelationFieldProvider", () => {
                 id: generateChronologicalId<DatabaseRowId>(),
                 name: "Alpha",
                 position: assertOrderKey("a0"),
-                noAccess: false,
             },
             {
                 id: generateChronologicalId<DatabaseRowId>(),
                 name: null,
                 position: assertOrderKey("a1"),
-                noAccess: false,
             },
             {
                 id: generateChronologicalId<DatabaseRowId>(),
                 name: "Beta",
                 position: assertOrderKey("a2"),
-                noAccess: false,
             },
         ];
 
         expect(databaseRelationFieldProvider.valueToString(value)).toBe("Alpha, Untitled, Beta");
-    });
-
-    test("formats links to an unreadable table as no access", () => {
-        const value = [
-            {id: generateChronologicalId<DatabaseRowId>(), name: "Alpha", noAccess: false},
-            {id: generateChronologicalId<DatabaseRowId>(), name: null, noAccess: true},
-        ];
-
-        expect(databaseRelationFieldProvider.valueToString(value)).toBe("Alpha, No access");
     });
 });

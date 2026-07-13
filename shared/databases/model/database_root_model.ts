@@ -1,10 +1,9 @@
-import type {AccessPolicy} from "~/shared/access/access_policy.js";
+import type {AccessLevel} from "~/shared/access/access_policy.js";
 import type {
     DatabaseActionContext,
     DatabaseActionServerContext,
 } from "~/shared/databases/database_action_context.js";
 import {DatabaseActionRequiresServerError} from "~/shared/databases/database_action_requires_server_error.js";
-import {DatabaseTableAccessPolicySqlSchema} from "~/shared/databases/database_table_access_policy.js";
 import {formatUniqueSqlName} from "~/shared/databases/internal/format_unique_sql_name.js";
 import type {DatabaseFieldModel} from "~/shared/databases/model/database_field_model.js";
 import {DatabaseJoinTableModel} from "~/shared/databases/model/database_join_table_model.js";
@@ -17,10 +16,6 @@ import {DatabaseTableModel} from "~/shared/databases/model/database_table_model.
 import {SqlBooleanSchema} from "~/shared/databases/model/sqlite_schema.js";
 import {databaseTableSchemaName, sql} from "~/shared/databases/sql.js";
 import {SqliteDatabase} from "~/shared/databases/sqlite.js";
-import {
-    type SqliteTableAccess,
-    unrestrictedSqliteTableAccess,
-} from "~/shared/databases/sqlite_authorizer.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 import {generateChronologicalId} from "~/shared/id/chronological_id.js";
@@ -41,8 +36,7 @@ export class DatabaseModel {
     constructor(
         db: SqliteDatabase,
         server: DatabaseActionServerContext | null = null,
-        getTableAccess: (tableId: DatabaseTableId) => SqliteTableAccess = () =>
-            unrestrictedSqliteTableAccess,
+        getTableAccessLevel: (tableId: DatabaseTableId) => AccessLevel | null = () => "Manage",
     ) {
         this.ctx = {
             db,
@@ -53,7 +47,7 @@ export class DatabaseModel {
                 return server;
             },
             model: this,
-            getTableAccess,
+            getTableAccessLevel,
         };
     }
 
@@ -99,8 +93,7 @@ export class DatabaseModel {
                 id,
                 name,
                 table_name,
-                name_field_id,
-                JSON(access_policy) AS access_policy
+                name_field_id
             FROM
                 ${sql.tableRef(tableId, "_alpine_table")}
         `.selectOne(this.db, DatabaseTableRow);
@@ -175,14 +168,7 @@ export class DatabaseModel {
      * `tableName` is resolved by the calling action via `formatUniqueTableName`
      * (alongside the hash it registered the table with).
      */
-    createTable(
-        tableId: DatabaseTableId,
-        {
-            name,
-            tableName,
-            accessPolicy,
-        }: {name: string; tableName: string; accessPolicy: AccessPolicy},
-    ) {
+    createTable(tableId: DatabaseTableId, {name, tableName}: {name: string; tableName: string}) {
         const defaultViewId = generateChronologicalId<DatabaseViewId>();
         const nameFieldId = generateChronologicalId<DatabaseFieldId>();
 
@@ -191,20 +177,13 @@ export class DatabaseModel {
         // runs.
         sql`
             INSERT INTO
-                ${sql.tableRef(tableId, "_alpine_table")} (
-                    id,
-                    name,
-                    table_name,
-                    name_field_id,
-                    access_policy
-                )
+                ${sql.tableRef(tableId, "_alpine_table")} (id, name, table_name, name_field_id)
             VALUES
                 (
                     ${tableId},
                     ${name},
                     ${tableName},
-                    ${nameFieldId},
-                    jsonb (${DatabaseTableAccessPolicySqlSchema.serialize(accessPolicy)})
+                    ${nameFieldId}
                 )
         `.exec(this.db);
 

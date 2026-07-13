@@ -1,3 +1,4 @@
+import {LocalAccessPolicySchema} from "~/shared/access/access_policy.js";
 import {
     DatabaseEnsureCacheIsUpToDateResultConfig,
     DatabaseExecuteActionInputConfig,
@@ -9,7 +10,7 @@ import {
 } from "~/shared/databases/database_protocol_schemas.js";
 import {DatabaseTableMetadataModel} from "~/shared/databases/database_table_metadata_model.js";
 import {RynamoEventStubSchema, createRynamoEventSchema} from "~/shared/dynamo/rynamo_types.js";
-import type {DatabaseMutationId} from "~/shared/id/types/id_types.js";
+import type {DatabaseMutationId, DatabaseTableId} from "~/shared/id/types/id_types.js";
 import {Schema} from "~/shared/schema/schema.js";
 import {
     WebSocketProtocolEventType,
@@ -47,8 +48,8 @@ export const DatabaseRealtimeProtocol = defineWebSocketProtocol({
             type: Schema.value("TableMetadataChanged"),
             /**
              * Only the events the receiving account may see; events for tables it lacks `View`
-             * on are dropped (their ids surface in `tableAccess` as `"none"` instead — never
-             * as a socket error, since a group mixes accessible and inaccessible tables).
+             * on are dropped (their ids surface in `tableAccess` as `null` instead — never as
+             * a socket error, since a group mixes accessible and inaccessible tables).
              */
             events: Schema.array(DatabaseTableMetadataRealtimeEventSchema),
             /**
@@ -63,4 +64,8 @@ export const DatabaseRealtimeProtocol = defineWebSocketProtocol({
 
 export const DatabaseTableMetadataBroadcastRealtimeEventsSchema = Schema.object({
     events: Schema.array(RynamoEventStubSchema),
+    resolvedAccessPolicyByTableId: Schema.map(
+        Schema.id<DatabaseTableId>(),
+        LocalAccessPolicySchema.nullable(),
+    ),
 });

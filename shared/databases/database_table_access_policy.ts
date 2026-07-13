@@ -1,5 +1,4 @@
-import {AccessPolicySchema, type LocalAccessPolicy} from "~/shared/access/access_policy.js";
-import {SqlJsonSchema} from "~/shared/databases/model/sqlite_schema.js";
+import type {LocalAccessPolicy} from "~/shared/access/access_policy.js";
 import {emptyMap} from "~/shared/helpers/map/empty_map.js";
 import type {AccountId} from "~/shared/id/types/id_types.js";
 
@@ -18,5 +17,3 @@ export function databaseTableAccessPolicyForCreator(accountId: AccountId): Local
         urlGrant: null,
     };
 }
-
-export const DatabaseTableAccessPolicySqlSchema = SqlJsonSchema(AccessPolicySchema);

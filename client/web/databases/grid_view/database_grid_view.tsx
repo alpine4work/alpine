@@ -728,9 +728,8 @@ function DatabaseGridViewCell({
     const editorOverlay = EditorOverlay ? (
         <EditorOverlay
             tableId={tableId}
-            fieldId={field.id}
+            field={field}
             rowId={rowId}
-            config={field.config}
             initialValue={optimisticValue as DatabaseFieldValue}
             initialEditString={initialEditValue}
             commitValue={commitValue}
@@ -764,8 +763,7 @@ function DatabaseGridViewCell({
             >
                 <provider.GridViewCellContent
                     ref={cellRef}
-                    fieldName={field.name}
-                    config={field.config}
+                    field={field}
                     value={optimisticValue as DatabaseFieldValue}
                     commitValue={commitValue}
                     onCellClick={() => dispatch({type: "click", rowId, fieldId: field.id})}

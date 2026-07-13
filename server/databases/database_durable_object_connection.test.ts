@@ -2,9 +2,11 @@ import {DurableObjectStorage} from "@miniflare/durable-objects";
 import {MemoryStorage} from "@miniflare/storage-memory";
 import {BrowserPageTracker} from "~/server/databases/browser_page_tracker.js";
 import {DatabaseDurableObjectConnection} from "~/server/databases/database_durable_object_connection.js";
+import {runDatabaseDurableObjectSqlMigrations} from "~/server/databases/database_durable_object_sql_migrations.js";
 import {DatabaseDurableObjectStorage} from "~/server/databases/database_durable_object_storage.js";
 import {truncateFor} from "~/server/databases/test_helpers/truncate_for.js";
 import {writePagesFor} from "~/server/databases/test_helpers/write_pages_for.js";
+import type {AccessLevel} from "~/shared/access/access_policy.js";
 import type {DatabaseTableMetadataModel} from "~/shared/databases/database_table_metadata_model.js";
 import {
     cacheUpdateStalePageLimit,
@@ -28,6 +30,7 @@ let storage: any;
 
 beforeEach(() => {
     storage = new DurableObjectStorage(new MemoryStorage());
+    runDatabaseDurableObjectSqlMigrations(storage);
 });
 
 // Trusted service context: procedures and event transforms treat it as internal
@@ -897,12 +900,12 @@ describe("per-table realtime filtering", () => {
     }
 
     function createFilteringConnection(
-        levelByTableId: ReadonlyMap<DatabaseTableId, "none" | "read" | "write">,
+        levelByTableId: ReadonlyMap<DatabaseTableId, AccessLevel | null>,
     ) {
         return new DatabaseDurableObjectConnection({
             server: {
                 getTableAccessLevelForAccount: (tableId: DatabaseTableId) =>
-                    levelByTableId.get(tableId) ?? "none",
+                    levelByTableId.get(tableId) ?? null,
             } as any,
             durableObjectStorage: new DatabaseDurableObjectStorage(storage),
             processContext: null as any,
@@ -919,7 +922,7 @@ describe("per-table realtime filtering", () => {
     test("PagesChanged withholds diffs for tables without read access", async () => {
         const readableTableId = generateChronologicalId<DatabaseTableId>();
         const hiddenTableId = generateChronologicalId<DatabaseTableId>();
-        const conn = createFilteringConnection(new Map([[readableTableId, "read"]]));
+        const conn = createFilteringConnection(new Map([[readableTableId, "View"]]));
         const mutationId = generateId<DatabaseMutationId>();
 
         const event = await conn.transformEvent(createUntrustedContext(), {
@@ -945,7 +948,7 @@ describe("per-table realtime filtering", () => {
     test("TableMetadataChanged carries the access delta", async () => {
         const visibleTableId = generateChronologicalId<DatabaseTableId>();
         const deniedTableId = generateChronologicalId<DatabaseTableId>();
-        const conn = createFilteringConnection(new Map([[visibleTableId, "write"]]));
+        const conn = createFilteringConnection(new Map([[visibleTableId, "Edit"]]));
         const visibleEvent = {
             type: "PutItem",
             item: {key: "table-key" as any, version: 1, model: {tableId: visibleTableId}},
@@ -967,8 +970,8 @@ describe("per-table realtime filtering", () => {
         expect({events: event.events, tableAccess: event.tableAccess}).toEqual({
             events: [visibleEvent],
             tableAccess: new Map([
-                [visibleTableId, "write"],
-                [deniedTableId, "none"],
+                [visibleTableId, "Edit"],
+                [deniedTableId, null],
             ]),
         });
     });

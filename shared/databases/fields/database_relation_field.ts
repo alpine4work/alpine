@@ -1,3 +1,4 @@
+import {hasAccessLevel} from "~/shared/access/access_policy.js";
 import {getDatabaseFieldProvider} from "~/shared/databases/fields/all_database_field_providers.js";
 import {DatabaseFieldProviderBase} from "~/shared/databases/fields/base/database_field_provider_base.js";
 import type {DatabaseFieldModelOfType} from "~/shared/databases/model/database_field_model.js";
@@ -27,13 +28,6 @@ export const DatabaseRelationFieldValueSchema = Schema.array(
         // file alone (see `_selectColumn`), which carries the order key but the no-access
         // branch doesn't emit it. Present for readable rows.
         position: OrderKeySchema.optional(),
-        /**
-         * True when the account can't read the linked table: the link and its row id are
-         * visible (they live in the join file, which either side's access unlocks), but
-         * the linked row's name isn't. Distinguishes "no access" from a linked row whose
-         * name is simply empty (`name: null`).
-         */
-        noAccess: Schema.boolean.default(false),
     }),
 );
 export type DatabaseRelationFieldValue = SchemaType<typeof DatabaseRelationFieldValueSchema>;
@@ -56,9 +50,7 @@ export class DatabaseRelationFieldProvider extends DatabaseFieldProviderBase<
     }
 
     override valueToString(value: DatabaseRelationFieldValue) {
-        return value
-            .map(link => (link.noAccess ? "No access" : (link.name ?? "Untitled")))
-            .join(", ");
+        return value.map(link => link.name ?? "Untitled").join(", ");
     }
 
     _selectColumn(field: DatabaseFieldModelOfType<"relation">, dataRow: SqlQuery) {
@@ -70,7 +62,7 @@ export class DatabaseRelationFieldProvider extends DatabaseFieldProviderBase<
         // or which isn't replicated at all (client). Both sides decide from the same
         // server-computed access state, so local execution and server fallback return the
         // same shape.
-        if (!field.root.ctx.getTableAccess(relation.linkedTableId).read) {
+        if (!hasAccessLevel(field.root.ctx.getTableAccessLevel(relation.linkedTableId), "View")) {
             return sql`
                 (
                     SELECT
@@ -81,9 +73,7 @@ export class DatabaseRelationFieldProvider extends DatabaseFieldProviderBase<
                                         'id',
                                         ${joinRow}.${relation.their.rowIdColumn},
                                         'name',
-                                        NULL,
-                                        'noAccess',
-                                        jsonb ('true')
+                                        NULL
                                     )
                                     ORDER BY
                                         ${joinRow}.${relation.our.positionColumn}
@@ -142,7 +132,7 @@ export class DatabaseRelationFieldProvider extends DatabaseFieldProviderBase<
         const joinRow = sql.identifier(`_join_${field.id}`);
 
         // See `_selectColumn`: ids-only when the linked table isn't readable.
-        if (!field.root.ctx.getTableAccess(relation.linkedTableId).read) {
+        if (!hasAccessLevel(field.root.ctx.getTableAccessLevel(relation.linkedTableId), "View")) {
             return sql`
                 (
                     SELECT
