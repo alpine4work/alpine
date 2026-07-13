@@ -523,6 +523,9 @@ importers:
       '@types/aws-lambda':
         specifier: ^8.10.125
         version: 8.10.125
+      '@types/better-sqlite3':
+        specifier: ^7.6.4
+        version: 7.6.4
       '@types/bintrees':
         specifier: ^1.0.3
         version: 1.0.3

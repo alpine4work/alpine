@@ -3,11 +3,9 @@ load("//admin/typescript:typescript.bzl", "ts_project")
 # Not included in the `integration` `ts_project()`'s `data` so we don't need to
 # build it when running `dev check`. Depend on this separately.
 filegroup(
-    name = "integration_data",
+    name = "integration_data_without_agent_service",
     srcs = [
         "//app:app_test",
-        "//server/agents/bots",
-        "//server/agents/bots:agents_d1_local_data",
         "//server/api",
         "//server/apns:apns_development_certificates",
         "//server/edge",
@@ -15,6 +13,21 @@ filegroup(
         "//server/jobs/queue",
         "//server/language_models/all_mini_lm_l6_v2:all_mini_lm_l6_v2_data",
         "//server/tasks/realtime",
+    ],
+    visibility = [
+        "//admin:__subpackages__",
+        "//app/integration_tests:__pkg__",
+        "//app/screenshot_tests:__pkg__",
+        "//server/agents/cli/integration_tests:__pkg__",
+    ],
+)
+
+filegroup(
+    name = "integration_data",
+    srcs = [
+        ":integration_data_without_agent_service",
+        "//server/agents/bots",
+        "//server/agents/bots:agents_d1_local_data",
     ],
     visibility = [
         "//admin:__subpackages__",
@@ -29,6 +42,7 @@ ts_project(
         "//admin:__subpackages__",
         "//app/integration_tests:__pkg__",
         "//app/screenshot_tests:__pkg__",
+        "//server/agents/cli/integration_tests:__pkg__",
     ],
     deps = [
         "//:node_modules/@types/fs-extra",
