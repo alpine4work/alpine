@@ -250,7 +250,7 @@ describe("Database — createTrackedExecution", () => {
                     getTableAccessLevel: allowAllTableAccess,
                 },
             ).rows[0]!.count;
-        });
+        }, {getTableAccessLevel: allowAllTableAccess});
 
         expect(runCount).toBe(0);
         expect(execution.getSnapshot()).toBe(0);
@@ -286,7 +286,7 @@ describe("Database — createTrackedExecution", () => {
                     getTableAccessLevel: allowAllTableAccess,
                 },
             ).rows[0]!.name;
-        });
+        }, {getTableAccessLevel: allowAllTableAccess});
 
         expect(execution.getSnapshot()).toBe("before");
         expect(runCount).toBe(1);
@@ -347,6 +347,7 @@ describe("Database — createTrackedExecution", () => {
                     },
                     {getTableAccessLevel: allowAllTableAccess},
                 ).result.rows[0] as {count: number},
+            {getTableAccessLevel: allowAllTableAccess},
         );
 
         expect(execution.getSnapshot()).toEqual({count: 1});
@@ -378,6 +379,7 @@ describe("Database — createTrackedExecution", () => {
                         getTableAccessLevel: allowAllTableAccess,
                     },
                 ).rows[0]!.count as number,
+            {getTableAccessLevel: allowAllTableAccess},
         );
 
         database.execute(
@@ -422,7 +424,7 @@ describe("Database — createTrackedExecution", () => {
                 `,
                 {allowWrites: "data", getTableAccessLevel: allowAllTableAccess},
             );
-        });
+        }, {getTableAccessLevel: allowAllTableAccess});
 
         expect(() => execution.getSnapshot()).toThrow(
             "nested execute cannot use broader write permissions than its parent",
@@ -655,6 +657,18 @@ describe("Database — per-table access", () => {
         expect(() => database.getTableAccessLevel(otherTableId)).toThrow(
             "Database table access requested outside an execution",
         );
+    });
+
+    test("tracked executions recompute under their own table access function", async () => {
+        const {database, otherTableId} = await createDatabaseWithAttachedTable();
+
+        const execution = database.createTrackedExecution(
+            () => database.getTableAccessLevel(otherTableId),
+            {getTableAccessLevel: () => null},
+        );
+
+        expect(execution.getSnapshot()).toBeNull();
+        execution.destroy();
     });
 });
 

@@ -220,8 +220,11 @@ export class DatabaseServer {
         }
     }
 
-    createTrackedExecution<Value>(fn: () => Value): DatabaseTrackedExecution<Value> {
-        return this.database.createTrackedExecution(fn);
+    createTrackedExecution<Value>(
+        fn: () => Value,
+        options: {getTableAccessLevel: (tableId: DatabaseTableId) => AccessLevel | null},
+    ): DatabaseTrackedExecution<Value> {
+        return this.database.createTrackedExecution(fn, options);
     }
 
     close(): void {
