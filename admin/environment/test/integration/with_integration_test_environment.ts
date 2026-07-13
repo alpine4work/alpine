@@ -154,7 +154,6 @@ export async function withIntegrationTestEnvironment<Value>(
     options: {
         undeclaredOutputsDirectoryPath: string;
         createTemporaryDirectoryPath: () => Promise<string>;
-        shouldStartAppService?: boolean;
         shouldStartAgentService?: boolean;
     },
     action: (context: TestActualContext, services: TestServices) => Promise<Value>,
@@ -237,12 +236,10 @@ export function actuallyCreateIntegrationTestEnvironment(
     {
         undeclaredOutputsDirectoryPath,
         createTemporaryDirectoryPath,
-        shouldStartAppService = true,
         shouldStartAgentService = true,
     }: {
         undeclaredOutputsDirectoryPath: string;
         createTemporaryDirectoryPath: () => Promise<string>;
-        shouldStartAppService?: boolean;
         shouldStartAgentService?: boolean;
     },
 ): {
@@ -651,84 +648,82 @@ export function actuallyCreateIntegrationTestEnvironment(
         const resourceServiceUrl =
             env.RESOURCE_SERVICE_URL ?? `http://localhost:${edgeServicePort}`;
 
-        if (shouldStartAppService) {
-            appServiceSubprocess = spawn(
-                joinPath(runfilesPath, "cyberworlds/app/app_test.sh"),
-                [
-                    `--port=${appServicePort}`,
-                    `--edgeServiceUrl=http://localhost:${edgeServicePort}`,
-                    `--taskRealtimeServiceLocalPort=${taskRealtimeServicePort}`,
-                    `--appServicePublicKey=${appServicePublicKeyPath}`,
-                    `--edgeServiceFamilyPublicKey=${edgeServiceFamilyPublicKeyPath}`,
-                    `--taskRealtimeServicePublicKey=${taskRealtimeServicePublicKeyPath}`,
-                    `--jobQueueServicePublicKey=${jobQueueServicePublicKeyPath}`,
-                    `--fileProcessorServicePublicKey=${fileProcessorServicePublicKeyPath}`,
-                    `--apiServicePublicKey=${apiServicePublicKeyPath}`,
-                    `--resourceServicePublicKey=${resourceServicePublicKeyPath}`,
-                    `--importerServicePublicKey=${importerServicePublicKeyPath}`,
-                    `--servicePrivateKey=${appServicePrivateKeyPath}`,
-                    `--tokenAgentSecret=${tokenAgentSecretPath}`,
-                    `--ensureLocalCachePath=${ensureLocalCachePath}`,
-                    `--dynamoLocalPort=${context.getDynamoLocalPort()}`,
-                    `--opensearchLocalPort=${context.getOpensearchLocalPort()}`,
-                    `--jobQueueUrl=${context.getSqsLocalJobQueueUrl()}`,
-                    // TODO(ifitzsimmons, 2025-07-30, #file-processor-service-migration): Remove
-                    // original job queue url
-                    `--fileProcessorJobQueueUrl=${context.getSqsLocalFileProcessorJobQueueUrl()}`,
-                    `--fileProcessorLightJobQueueUrl=${context.getSqsLocalFileProcessorLightJobQueueUrl()}`,
-                    `--fileProcessorHeavyJobQueueUrl=${context.getSqsLocalFileProcessorHeavyJobQueueUrl()}`,
-                    `--allMiniLmL6V2LanguageModel=${allMiniLmL6V2LanguageModelPath}`,
-                    `--apnsCertificate=${apnsCertificatePath}`,
-                    `--apnsCertificatePrivateKey=${apnsCertificatePrivateKeyPath}`,
-                    `--webPushVapidPublicKey=${webPushVapidPublicKeyPath}`,
-                    `--webPushVapidPrivateKey=${webPushVapidPrivateKeyPath}`,
-                    `--cloudflareR2LocalDataPath=${cloudflareR2LocalDataPath}`,
-                    `--importerLocalUploadPathForTest=${importerLocalUploadPath}`,
-                    `--fileProcessorServiceUrl=http://localhost:${fileProcessorServicePort}`,
-                    `--agentServiceUrl=http://localhost:${agentServicePort}`,
-                    `--resourceServiceUrl=${resourceServiceUrl}`,
-                    `--cookieNameSuffix=${cookieNameSuffix}`,
-                ],
-                {
-                    env: process.env,
-                    stdio: ["ignore", "pipe", "pipe"],
-                },
-            );
+        appServiceSubprocess = spawn(
+            joinPath(runfilesPath, "cyberworlds/app/app_test.sh"),
+            [
+                `--port=${appServicePort}`,
+                `--edgeServiceUrl=http://localhost:${edgeServicePort}`,
+                `--taskRealtimeServiceLocalPort=${taskRealtimeServicePort}`,
+                `--appServicePublicKey=${appServicePublicKeyPath}`,
+                `--edgeServiceFamilyPublicKey=${edgeServiceFamilyPublicKeyPath}`,
+                `--taskRealtimeServicePublicKey=${taskRealtimeServicePublicKeyPath}`,
+                `--jobQueueServicePublicKey=${jobQueueServicePublicKeyPath}`,
+                `--fileProcessorServicePublicKey=${fileProcessorServicePublicKeyPath}`,
+                `--apiServicePublicKey=${apiServicePublicKeyPath}`,
+                `--resourceServicePublicKey=${resourceServicePublicKeyPath}`,
+                `--importerServicePublicKey=${importerServicePublicKeyPath}`,
+                `--servicePrivateKey=${appServicePrivateKeyPath}`,
+                `--tokenAgentSecret=${tokenAgentSecretPath}`,
+                `--ensureLocalCachePath=${ensureLocalCachePath}`,
+                `--dynamoLocalPort=${context.getDynamoLocalPort()}`,
+                `--opensearchLocalPort=${context.getOpensearchLocalPort()}`,
+                `--jobQueueUrl=${context.getSqsLocalJobQueueUrl()}`,
+                // TODO(ifitzsimmons, 2025-07-30, #file-processor-service-migration): Remove
+                // original job queue url
+                `--fileProcessorJobQueueUrl=${context.getSqsLocalFileProcessorJobQueueUrl()}`,
+                `--fileProcessorLightJobQueueUrl=${context.getSqsLocalFileProcessorLightJobQueueUrl()}`,
+                `--fileProcessorHeavyJobQueueUrl=${context.getSqsLocalFileProcessorHeavyJobQueueUrl()}`,
+                `--allMiniLmL6V2LanguageModel=${allMiniLmL6V2LanguageModelPath}`,
+                `--apnsCertificate=${apnsCertificatePath}`,
+                `--apnsCertificatePrivateKey=${apnsCertificatePrivateKeyPath}`,
+                `--webPushVapidPublicKey=${webPushVapidPublicKeyPath}`,
+                `--webPushVapidPrivateKey=${webPushVapidPrivateKeyPath}`,
+                `--cloudflareR2LocalDataPath=${cloudflareR2LocalDataPath}`,
+                `--importerLocalUploadPathForTest=${importerLocalUploadPath}`,
+                `--fileProcessorServiceUrl=http://localhost:${fileProcessorServicePort}`,
+                `--agentServiceUrl=http://localhost:${agentServicePort}`,
+                `--resourceServiceUrl=${resourceServiceUrl}`,
+                `--cookieNameSuffix=${cookieNameSuffix}`,
+            ],
+            {
+                env: process.env,
+                stdio: ["ignore", "pipe", "pipe"],
+            },
+        );
 
-            // For whatever reason, `inherit` doesn't seem to work in Playwright? Manually
-            // write data to stdout/stderr.
-            appServiceSubprocess.stdout.on("data", chunk => {
-                const chunkString = chunk.toString();
+        // For whatever reason, `inherit` doesn't seem to work in Playwright? Manually
+        // write data to stdout/stderr.
+        appServiceSubprocess.stdout.on("data", chunk => {
+            const chunkString = chunk.toString();
 
-                {
-                    const oneTimePasswordMatch = chunkString.match(
-                        /The one time password for `([^`]+)` is `([^`]+)`/,
-                    );
-                    if (oneTimePasswordMatch) {
-                        oneTimePasswords.push({
-                            emailAddress: oneTimePasswordMatch[1],
-                            oneTimePassword: oneTimePasswordMatch[2],
-                        });
-                    }
+            {
+                const oneTimePasswordMatch = chunkString.match(
+                    /The one time password for `([^`]+)` is `([^`]+)`/,
+                );
+                if (oneTimePasswordMatch) {
+                    oneTimePasswords.push({
+                        emailAddress: oneTimePasswordMatch[1],
+                        oneTimePassword: oneTimePasswordMatch[2],
+                    });
                 }
+            }
 
-                {
-                    const inviteUrlMatch = chunkString.match(
-                        /Accept the invite for `([^`]+)` in `([^`]+)` here: `([^`]+)`/,
-                    );
-                    if (inviteUrlMatch) {
-                        inviteUrls.push({
-                            emailAddress: inviteUrlMatch[1],
-                            inviteUrl: inviteUrlMatch[3],
-                        });
-                    }
+            {
+                const inviteUrlMatch = chunkString.match(
+                    /Accept the invite for `([^`]+)` in `([^`]+)` here: `([^`]+)`/,
+                );
+                if (inviteUrlMatch) {
+                    inviteUrls.push({
+                        emailAddress: inviteUrlMatch[1],
+                        inviteUrl: inviteUrlMatch[3],
+                    });
                 }
+            }
 
-                process.stdout.write(chunkString);
-            });
+            process.stdout.write(chunkString);
+        });
 
-            appServiceSubprocess.stderr.on("data", chunk => process.stderr.write(chunk));
-        }
+        appServiceSubprocess.stderr.on("data", chunk => process.stderr.write(chunk));
 
         edgeServiceSubprocess = spawn(
             joinPath(runfilesPath, "cyberworlds/server/edge/edge.sh"),
@@ -954,7 +949,7 @@ export function actuallyCreateIntegrationTestEnvironment(
         }
 
         await runAllPromises([
-            ...(appServiceSubprocess ? [waitForProcessSpawn(appServiceSubprocess)] : []),
+            waitForProcessSpawn(appServiceSubprocess),
             waitForProcessSpawn(edgeServiceSubprocess),
             waitForProcessSpawn(taskRealtimeServiceSubprocess),
             waitForProcessSpawn(jobQueueServiceSubprocess).then(() => {
@@ -968,17 +963,11 @@ export function actuallyCreateIntegrationTestEnvironment(
         ]);
 
         await runAllPromises([
-            ...(appServiceSubprocess
-                ? [
-                      waitForServiceHttpServer(
-                          appServicePort,
-                          "AppService",
-                          appServiceSubprocess,
-                      ).then(() => {
-                          debug("`AppService` is ready");
-                      }),
-                  ]
-                : []),
+            waitForServiceHttpServer(appServicePort, "AppService", appServiceSubprocess).then(
+                () => {
+                    debug("`AppService` is ready");
+                },
+            ),
             waitForServiceHttpServer(
                 taskRealtimeServicePort,
                 "TaskRealtimeService",
@@ -1011,8 +1000,9 @@ export function actuallyCreateIntegrationTestEnvironment(
                 : []),
         ]);
 
-        // When `AppService` is running, wait for it before testing `EdgeService` since the
-        // readiness request will be proxied to `AppService`.
+        // Wait for `appPort` to be ready before testing `edgePort`. Since testing
+        // `edgePort` will forward the request to `appPort` since the edge service proxies
+        // our app service.
         await waitForServiceHttpServer(edgeServicePort, "EdgeService", edgeServiceSubprocess).then(
             () => {
                 debug("`EdgeService` is ready");
