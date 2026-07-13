@@ -1,10 +1,9 @@
-import type {AccessLevel, AccessPolicy} from "~/shared/access/access_policy.js";
+import type {AccessLevel} from "~/shared/access/access_policy.js";
 import type {
     DatabaseActionContext,
     DatabaseActionServerContext,
 } from "~/shared/databases/database_action_context.js";
 import {DatabaseActionRequiresServerError} from "~/shared/databases/database_action_requires_server_error.js";
-import {DatabaseTableAccessPolicySqlSchema} from "~/shared/databases/database_table_access_policy.js";
 import {formatUniqueSqlName} from "~/shared/databases/internal/format_unique_sql_name.js";
 import type {DatabaseFieldModel} from "~/shared/databases/model/database_field_model.js";
 import {DatabaseJoinTableModel} from "~/shared/databases/model/database_join_table_model.js";
@@ -172,11 +171,7 @@ export class DatabaseModel {
      */
     createTable(
         tableId: DatabaseTableId,
-        {
-            name,
-            tableName,
-            accessPolicy,
-        }: {name: string; tableName: string; accessPolicy: AccessPolicy},
+        {name, tableName}: {name: string; tableName: string},
     ) {
         const defaultViewId = generateChronologicalId<DatabaseViewId>();
         const nameFieldId = generateChronologicalId<DatabaseFieldId>();
@@ -190,16 +185,14 @@ export class DatabaseModel {
                     id,
                     name,
                     table_name,
-                    name_field_id,
-                    access_policy
+                    name_field_id
                 )
             VALUES
                 (
                     ${tableId},
                     ${name},
                     ${tableName},
-                    ${nameFieldId},
-                    jsonb (${DatabaseTableAccessPolicySqlSchema.serialize(accessPolicy)})
+                    ${nameFieldId}
                 )
         `.exec(this.db);
 

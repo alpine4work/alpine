@@ -201,14 +201,10 @@ export function isSqliteActionAllowedForSchemaAccess({
 
     const accessLevel = resolveSchemaAccess(targetSchemaName);
 
-    // Restricted executions may never reshape a table file's replicated access policy:
-    // the durable object and the realtime filters trust these rows, so a user-supplied
-    // statement rewriting them would be a privilege escalation. Internal writers
-    // (`createTable` migrations, `syncTableMetadata`) are `internalOnly` and run
-    // without a resolver. Name/column-name updates (e.g. `renameTable`) stay allowed.
+    // Restricted executions may never insert or delete the singleton table metadata
+    // row. Name/column-name updates (e.g. `renameTable`) stay allowed.
     if (arg1 === "_alpine_table") {
         if (action === "insert" || action === "delete") return false;
-        if (action === "update" && arg2 === "access_policy") return false;
     }
     // Same reasoning for a join file's metadata row: the four id columns drive the
     // join table's derived access level. `createRelationField` (a user action)

@@ -51,10 +51,6 @@ export class DatabaseTableModel extends DatabaseSchemaScopedBaseModel {
     get nameFieldId() {
         return this.row.nameFieldId;
     }
-    get accessPolicy() {
-        return this.row.accessPolicy;
-    }
-
     rowExists(rowId: DatabaseRowId) {
         return sql`
             SELECT

@@ -4,7 +4,6 @@ import type {
     DatabaseActionServerContext,
 } from "~/shared/databases/database_action_context.js";
 import {DatabaseActionRequiresServerError} from "~/shared/databases/database_action_requires_server_error.js";
-import {DatabaseTableAccessPolicySqlSchema} from "~/shared/databases/database_table_access_policy.js";
 import {
     DatabaseFieldConfigSchema,
     getDatabaseFieldProvider,
@@ -158,7 +157,7 @@ export const databaseActions = {
         writeLevel: "schema+data",
         transactionMode: "manual",
         internalOnly: true,
-        run({db, server, model}, {tableId, name, accessPolicy}) {
+        run({db, server, model}, {tableId, name}) {
             // Resolve the unique SQLite table name (and its salted registry hash) before
             // registering the new table.
             const {tableName, tableNameHash} = formatUniqueTableName({model, name});
@@ -171,7 +170,7 @@ export const databaseActions = {
             runTableMigrations(db, tableId);
 
             const {table, defaultView} = executeDatabaseActionTransaction(db, () =>
-                model.createTable(tableId, {name, tableName, accessPolicy}),
+                model.createTable(tableId, {name, tableName}),
             );
 
             return {tableId: table.id, tableName: table.tableName, viewId: defaultView.id};
@@ -191,7 +190,7 @@ export const databaseActions = {
         writeLevel: "schema+data",
         transactionMode: "manual",
         internalOnly: true,
-        run({db, model}, {tableId, name, accessPolicy}) {
+        run({db, model}, {tableId, name}) {
             const {table, viewId} = executeDatabaseActionTransaction(db, () => {
                 // Resolve the unique SQLite table name (and its salted registry hash) before
                 // renaming, same as `renameTable`.
@@ -201,15 +200,6 @@ export const databaseActions = {
                     excludeTableId: tableId,
                 });
                 const table = model.getTable(tableId).updateName(name, {tableName, tableNameHash});
-                sql`
-                    UPDATE ${table.schema}._alpine_table
-                    SET
-                        access_policy = jsonb (${DatabaseTableAccessPolicySqlSchema.serialize(
-                        accessPolicy,
-                    )})
-                    WHERE
-                        id = ${tableId}
-                `.exec(db);
                 return {table: model.getTable(tableId), viewId: table.getFirstView().id};
             });
             return {tableName: table.tableName, viewId};

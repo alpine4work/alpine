@@ -4,7 +4,7 @@ import type {DatabaseServerStorage} from "~/server/databases/database_server_sto
 import {isTrustedDatabaseServiceActor} from "~/server/databases/is_trusted_database_service_actor.js";
 import {
     type AccessLevel,
-    type AccessPolicy,
+    type LocalAccessPolicy,
     getAccountAccessLevelAssumingSpaceAccess,
     maxAccessLevel,
 } from "~/shared/access/access_policy.js";
@@ -16,7 +16,6 @@ import {
     databaseActions,
 } from "~/shared/databases/database_actions.js";
 import type {ReadonlyDatabasePageSet} from "~/shared/databases/database_protocol_schemas.js";
-import {DatabaseTableAccessPolicySqlSchema} from "~/shared/databases/database_table_access_policy.js";
 import {type SqlQuery, databaseTableSchemaName, sql} from "~/shared/databases/sql.js";
 import {type SqliteWriteLevel} from "~/shared/databases/sqlite_authorizer.js";
 import {databaseMainTableId, sqlitePageSize} from "~/shared/databases/sqlite_constants.js";
@@ -78,19 +77,17 @@ export type DatabaseServerActionResult<N extends DatabaseActionName> = {
 };
 
 /**
- * Cached access metadata for one table file, sourced from the file's own
- * replicated rows (`_alpine_table.access_policy` for user tables,
- * `_alpine_join_table`'s joined-table ids for join files).
+ * Cached access metadata for registered files. User-table policies live in the
+ * durable object's server-only SQLite and are read synchronously from storage;
+ * join files cache their joined-table ids from `_alpine_join_table`.
  *
  * The cache upholds the invariant _attached ⟹ cached_: entries load in the attach
  * hook — the moment a schema becomes reachable by any statement — so the
- * authorizer's synchronous resolver never has to touch SQLite. Table policies only
- * change through `syncTableMetadata` (after which `executeAction` reloads the
- * entry explicitly), and a join's table ids are immutable (the authorizer denies
- * updating them), so entries stay valid even across LRU detach.
+ * authorizer's synchronous resolver never has to query an attached table file. A
+ * join's table ids are immutable, so entries stay valid even across LRU detach.
  */
 type DatabaseServerTableAccessEntry =
-    | {kind: "table"; accessPolicy: AccessPolicy}
+    | {kind: "table"}
     | {kind: "join"; sourceTableId: DatabaseTableId; targetTableId: DatabaseTableId};
 
 /**
@@ -171,22 +168,23 @@ export class DatabaseServer {
             );
         }
         const currentAccountId = context.actor.getPossiblyBotAccountIdIfExists();
-        const persisted = this._runAndPersist(context, () =>
-            this.database.executeAction(actionObject, {
+        const persisted = this._runAndPersist(context, () => {
+            if (actionObject.name === "createTable" || actionObject.name === "syncTableMetadata") {
+                const {tableId, accessPolicy} = (
+                    actionObject as
+                        | DatabaseActionObject<"createTable">
+                        | DatabaseActionObject<"syncTableMetadata">
+                ).input;
+                assert(accessPolicy.type === "Local");
+                this.storage.setDatabaseTableAccessPolicy(tableId, accessPolicy);
+            }
+            return this.database.executeAction(actionObject, {
                 currentAccountId,
                 tableAccessResolver: isTrustedActor
                     ? null
                     : tableId => this.getTableAccessLevelForAccount(tableId, currentAccountId),
-            }),
-        );
-        // `syncTableMetadata` is the only action that rewrites a table's replicated access
-        // policy (the authorizer's `_alpine_table` guard denies every restricted
-        // execution, and no other internal action touches `access_policy`), so the access
-        // cache refreshes here instead of tracking `_alpine_table` writes on every action.
-        if (actionObject.name === "syncTableMetadata") {
-            const {tableId} = (actionObject as DatabaseActionObject<"syncTableMetadata">).input;
-            this._loadTableAccessCacheEntry(tableId);
-        }
+            });
+        });
         return persisted;
     }
 
@@ -214,7 +212,10 @@ export class DatabaseServer {
         if (entry === undefined) return null;
         switch (entry.kind) {
             case "table":
-                return accessLevelForPolicy(entry.accessPolicy, accountId);
+                return accessLevelForPolicy(
+                    this.storage.getDatabaseTableAccessPolicy(tableId),
+                    accountId,
+                );
             case "join": {
                 const sourceLevel = this._getSideTableAccessLevel(entry.sourceTableId, accountId);
                 const targetLevel = this._getSideTableAccessLevel(entry.targetTableId, accountId);
@@ -240,18 +241,26 @@ export class DatabaseServer {
     getTableAccessLevelsForAccount(
         accountId: AccountId | null,
     ): Map<DatabaseTableId, AccessLevel | null> {
-        const tableIds = this.database._runServerMetadataRead(db =>
+        const tables = this.database._runServerMetadataRead(db =>
             sql`
                 SELECT
-                    id
+                    id,
+                    kind
                 FROM
                     main._alpine_tables
-            `.selectAll(db, {id: Schema.id<DatabaseTableId>()}),
+            `.selectAll(db, {
+                id: Schema.id<DatabaseTableId>(),
+                kind: Schema.enum(["table", "join"]),
+            }),
         );
         const levels = new Map<DatabaseTableId, AccessLevel | null>();
-        for (const {id} of tableIds) {
+        for (const {id, kind} of tables) {
             if (!this.tableAccessCache.has(id) && !this.pendingCreatedTableIds.has(id)) {
-                this.database.attachIfNeeded(id);
+                if (kind === "table") {
+                    this._loadTableAccessCacheEntry(id);
+                } else {
+                    this.database.attachIfNeeded(id);
+                }
             }
             levels.set(id, this.getTableAccessLevelForAccount(id, accountId));
         }
@@ -296,7 +305,10 @@ export class DatabaseServer {
     ): AccessLevel | null {
         const entry = this.tableAccessCache.get(tableId);
         if (entry === undefined || entry.kind !== "table") return null;
-        return accessLevelForPolicy(entry.accessPolicy, accountId);
+        return accessLevelForPolicy(
+            this.storage.getDatabaseTableAccessPolicy(tableId),
+            accountId,
+        );
     }
 
     /**
@@ -344,25 +356,7 @@ export class DatabaseServer {
             const schema = sql.identifier(databaseTableSchemaName(tableId));
             switch (kindResult.value) {
                 case "table": {
-                    // `JSON(...)` converts the stored JSONB blob to text for the schema.
-                    const policyResult = captureResult(() =>
-                        sql`
-                            SELECT
-                                JSON(access_policy)
-                            FROM
-                                ${schema}._alpine_table
-                            WHERE
-                                id = ${tableId}
-                        `.selectValueIfExists(db, DatabaseTableAccessPolicySqlSchema),
-                    );
-                    if (!policyResult.ok || policyResult.value === null) {
-                        missing();
-                        return;
-                    }
-                    this.tableAccessCache.set(tableId, {
-                        kind: "table",
-                        accessPolicy: policyResult.value,
-                    });
+                    this.tableAccessCache.set(tableId, {kind: "table"});
                     this.pendingCreatedTableIds.delete(tableId);
                     return;
                 }
@@ -416,10 +410,7 @@ export class DatabaseServer {
 
     /**
      * Success-path cache maintenance: resolve mid-creation tables into real entries
-     * now that their metadata rows are committed. Policy _updates_ don't need
-     * per-action tracking — `syncTableMetadata` is the only action that can rewrite a
-     * replicated policy (the authorizer denies `_alpine_table` writes to every
-     * restricted execution), and {@link executeAction} reloads its entry explicitly.
+     * now that their metadata rows are committed.
      */
     private _resolvePendingCreatedTableAccess(): void {
         const tableIds = [...this.pendingCreatedTableIds];
@@ -685,9 +676,9 @@ export class DatabaseServer {
  * `getAccountAccessLevelAssumingSpaceAccess` requires.
  */
 function accessLevelForPolicy(
-    accessPolicy: AccessPolicy,
+    accessPolicy: LocalAccessPolicy | null,
     accountId: AccountId | null,
 ): AccessLevel | null {
-    if (accessPolicy.type !== "Local") return null;
+    if (accessPolicy === null) return null;
     return getAccountAccessLevelAssumingSpaceAccess(accessPolicy, accountId);
 }

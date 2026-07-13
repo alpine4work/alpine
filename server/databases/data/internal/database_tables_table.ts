@@ -1,4 +1,5 @@
 import {DynamoKeyAttributeSchema} from "~/server/dynamo/core/dynamo_key_attribute_schema.js";
+import {resolveDatabaseTableAccessPolicyForDurableObject} from "~/server/databases/data/resolve_database_table_access_policy_for_durable_object.js";
 import {RynamoTableItemType, RynamoTableSchema} from "~/server/rynamo/rynamo_table_schema.js";
 import {AccessPolicySchema} from "~/shared/access/access_policy.js";
 import {DatabaseTableMetadataBroadcastRealtimeEventsSchema} from "~/shared/databases/database_realtime_protocol.js";
@@ -6,6 +7,7 @@ import {DatabaseTableMetadataModel} from "~/shared/databases/database_table_meta
 import {RynamoEventStub} from "~/shared/dynamo/rynamo_types.js";
 import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
+import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
 import {mapIterable} from "~/shared/helpers/iterable/map_iterable.js";
 import {getOrSetDefaultMapValue} from "~/shared/helpers/map/get_or_set_default_map_value.js";
 import type {DatabaseGroupId, DatabaseTableId, SpaceId} from "~/shared/id/types/id_types.js";
@@ -54,8 +56,31 @@ export const DatabaseTablesTable = RynamoTableSchema.new({
     },
     broadcastEvents: async (context, events) => {
         const eventsByDatabaseGroupId = new Map<DatabaseGroupId, Array<RynamoEventStub>>();
+        const resolvedAccessPolicyByTableIdByDatabaseGroupId = new Map<
+            DatabaseGroupId,
+            Map<DatabaseTableId, LocalAccessPolicy | null>
+        >();
 
-        for (const {itemKey, eventStub} of events) {
+        const resolvedPolicies = await runAllPromises(
+            events.map(async ({getEvent}) => {
+                const event = await getEvent(context);
+                switch (event.type) {
+                    case "PutItem":
+                        return await resolveDatabaseTableAccessPolicyForDurableObject(
+                            context,
+                            event.item.model.accessPolicy,
+                        );
+                    case "DeleteItem":
+                        return null;
+                    default:
+                        throw exhaustive(event);
+                }
+            }),
+        );
+
+        for (const [{itemKey, eventStub}, resolvedAccessPolicy] of events.map(
+            (event, index) => [event, resolvedPolicies[index]!] as const,
+        )) {
             if (itemKey.partitionType !== "DatabaseGroup") continue;
 
             getOrSetDefaultMapValue(
@@ -63,6 +88,11 @@ export const DatabaseTablesTable = RynamoTableSchema.new({
                 itemKey.databaseGroupId,
                 () => [],
             ).push(eventStub);
+            getOrSetDefaultMapValue(
+                resolvedAccessPolicyByTableIdByDatabaseGroupId,
+                itemKey.databaseGroupId,
+                () => new Map(),
+            ).set(itemKey.tableId, resolvedAccessPolicy);
         }
 
         await runAllPromises(
@@ -76,6 +106,9 @@ export const DatabaseTablesTable = RynamoTableSchema.new({
                         route: "/api/durable-objects/database-groups/:databaseGroupId/broadcast-table-metadata-realtime-event-transaction",
                         body: DatabaseTableMetadataBroadcastRealtimeEventsSchema.serialize({
                             events: eventsForGroup,
+                            resolvedAccessPolicyByTableId: assertExists(
+                                resolvedAccessPolicyByTableIdByDatabaseGroupId.get(databaseGroupId),
+                            ),
                         }),
                     },
                 );

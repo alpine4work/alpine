@@ -192,9 +192,14 @@ class DatabaseGroupDurableObject {
             );
         }
 
-        const {events} = DatabaseTableMetadataBroadcastRealtimeEventsSchema.deserialize(
-            await request.json(),
-        );
+        const {events, resolvedAccessPolicyByTableId} =
+            DatabaseTableMetadataBroadcastRealtimeEventsSchema.deserialize(await request.json());
+
+        this._durableObjectStorage.transactionSync(() => {
+            for (const [tableId, accessPolicy] of resolvedAccessPolicyByTableId) {
+                this._durableObjectStorage.setDatabaseTableAccessPolicy(tableId, accessPolicy);
+            }
+        });
 
         this._webSocketServer.sendEventToAll(context, {
             type: "TableMetadataChanged",

@@ -63,4 +63,9 @@ export const DatabaseRealtimeProtocol = defineWebSocketProtocol({
 
 export const DatabaseTableMetadataBroadcastRealtimeEventsSchema = Schema.object({
     events: Schema.array(RynamoEventStubSchema),
+    resolvedAccessPolicyByTableId: Schema.map(
+        Schema.id<DatabaseTableId>(),
+        LocalAccessPolicySchema.nullable(),
+    ),
 });
+import {LocalAccessPolicySchema} from "~/shared/access/access_policy.js";
