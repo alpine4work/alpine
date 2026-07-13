@@ -8,6 +8,7 @@ import {assert} from "~/shared/helpers/control/assert.js";
 import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
 import {Result} from "~/shared/helpers/control/result.js";
 import type {DatabaseRowId, DatabaseTableId} from "~/shared/id/types/id_types.js";
+import {OrderKeySchema} from "~/shared/schema/helpers/order_key_schema.js";
 import {Schema, type SchemaType} from "~/shared/schema/schema.js";
 
 export const DatabaseRelationFieldConfigSchema = Schema.object({
@@ -23,6 +24,10 @@ export const DatabaseRelationFieldValueSchema = Schema.array(
     Schema.object({
         id: Schema.id<DatabaseRowId>(),
         name: Schema.string.nullable(),
+        // Absent for links to an unreadable table: those rows are projected from the join
+        // file alone (see `_selectColumn`), which carries the order key but the no-access
+        // branch doesn't emit it. Present for readable rows.
+        position: OrderKeySchema.optional(),
     }),
 );
 export type DatabaseRelationFieldValue = SchemaType<typeof DatabaseRelationFieldValueSchema>;
@@ -102,7 +107,9 @@ export class DatabaseRelationFieldProvider extends DatabaseFieldProviderBase<
                                     'id',
                                     ${linkedRow}._id,
                                     'name',
-                                    ${linkedNameColumnSql}
+                                    ${linkedNameColumnSql},
+                                    'position',
+                                    ${joinRow}.${relation.our.positionColumn}
                                 )
                                 ORDER BY
                                     ${joinRow}.${relation.our.positionColumn}

@@ -1,7 +1,31 @@
 /* eslint-disable react-refresh/only-export-components -- provider pattern */
 
-import {LinkSimple, Plus, X} from "phosphor-react";
-import {startTransition, useEffect, useMemo} from "react";
+import {
+    DndContext,
+    DragOverlay,
+    PointerSensor,
+    closestCenter,
+    useDndContext,
+    useSensor,
+    useSensors,
+} from "@dnd-kit/core";
+import {SortableContext, useSortable} from "@dnd-kit/sortable";
+import {setInteractionModality} from "@react-aria/interactions";
+import type {Node} from "@react-types/shared";
+import {DotsSixVertical, LinkSimple, MagnifyingGlass, Plus, X, XCircle} from "phosphor-react";
+import {
+    type Key,
+    type RefObject,
+    startTransition,
+    useCallback,
+    useEffect,
+    useMemo,
+    useRef,
+    useState,
+} from "react";
+import {type AriaListBoxOptions, useComboBox, useListBox, useOption} from "react-aria";
+import {createPortal} from "react-dom";
+import {type ComboBoxState, Item, type ListState, useListState} from "react-stately";
 
 import {useDatabaseConnection} from "~/client/web/databases/database_connection_context.js";
 import {
@@ -9,11 +33,20 @@ import {
     type DatabaseGridViewCellEditorOverlayProps,
     defineDatabaseFieldComponentProvider,
 } from "~/client/web/databases/fields/database_field_component_provider.js";
+import {gridRowHeight} from "~/client/web/databases/grid_view/database_grid_view_constants.js";
 import {useReactiveDatabaseAction} from "~/client/web/databases/use_reactive_database_action.js";
 import {Box} from "~/client/web/design/box.js";
+import {useOutsideInteraction} from "~/client/web/design/helpers/use_outside_interaction.js";
+import {IconButton} from "~/client/web/design/icon_button.js";
 import {useReporter} from "~/client/web/design/reporter.js";
 import {useEvent} from "~/client/web/helpers/lifecycle/use_event.js";
+import {useMergedRefs} from "~/client/web/helpers/refs/use_merged_refs.js";
+import {sprinkles} from "~/client/web/styles/styles.js";
 import {databaseRelationFieldProvider} from "~/shared/databases/fields/database_relation_field.js";
+import {noop} from "~/shared/helpers/control/noop.js";
+import {iterableFirst} from "~/shared/helpers/iterable/iterable_first.js";
+import {type OrderKey, generateOrderKeyBetween} from "~/shared/helpers/sort/order_key.js";
+import {generateChronologicalId} from "~/shared/id/chronological_id.js";
 import type {DatabaseRowId} from "~/shared/id/types/id_types.js";
 
 function DatabaseRelationGridViewCellContent({
@@ -48,34 +81,86 @@ function DatabaseRelationGridViewCellContent({
     );
 }
 
+/** An ordered linked record, as returned by the `listLinkedRows` action. */
+type DatabaseRelationLinkedRow = {
+    id: DatabaseRowId;
+    name: string | null;
+    position: OrderKey;
+};
+
+/**
+ * A linkable candidate record, as returned by the `listLinkableRows` action.
+ */
+type DatabaseRelationCandidateRow = {
+    id: DatabaseRowId;
+    name: string | null;
+};
+
 function DatabaseRelationGridViewCellEditorOverlay({
     ref,
     tableId,
     field,
     rowId,
-    initialValue,
+    initialEditString,
     onClose,
 }: DatabaseGridViewCellEditorOverlayProps<"relation">) {
     const conn = useDatabaseConnection();
     const reporter = useReporter();
     const fieldId = field.id;
     const noAccess = field.linkedTableReadAccess === false;
-    const linkableRowsResult = useReactiveDatabaseAction({
-        name: "listLinkableRows",
+
+    // Seed the search box if the editor was opened by typing a character.
+    const [search, setSearch] = useState(initialEditString ?? "");
+    const trimmedSearch = search.trim();
+    const isSearching = trimmedSearch !== "";
+
+    const searchInputRef = useRef<HTMLInputElement>(null);
+    useEffect(() => {
+        searchInputRef.current?.focus();
+    }, []);
+
+    // The currently-linked records, ordered by position. Reactive so add / remove /
+    // reorder update the list live while the editor stays open.
+    const linkedRowsResult = useReactiveDatabaseAction({
+        name: "listLinkedRows",
         input: useMemo(() => ({tableId, fieldId, rowId}), [tableId, fieldId, rowId]),
     });
-    const links = Array.isArray(initialValue) ? initialValue : [];
+
+    // The candidate records to link, filtered by the search text. Also carries the
+    // linked table's name for the picker header.
+    const linkableRowsResult = useReactiveDatabaseAction({
+        name: "listLinkableRows",
+        input: useMemo(
+            () => ({tableId, fieldId, rowId, search: isSearching ? trimmedSearch : undefined}),
+            [tableId, fieldId, rowId, isSearching, trimmedSearch],
+        ),
+    });
 
     useEffect(() => {
+        if (linkedRowsResult != null && !linkedRowsResult.ok) {
+            reporter.logErrorWithoutDisplaying(
+                "Could not load linked records",
+                linkedRowsResult.error,
+            );
+        }
         if (linkableRowsResult != null && !linkableRowsResult.ok) {
             reporter.logErrorWithoutDisplaying(
                 "Could not load linked record options",
                 linkableRowsResult.error,
             );
         }
-    }, [linkableRowsResult, reporter]);
+    }, [linkedRowsResult, linkableRowsResult, reporter]);
+
+    const linkedRows: ReadonlyArray<DatabaseRelationLinkedRow> = linkedRowsResult?.ok
+        ? linkedRowsResult.value.rows
+        : [];
+    const candidateRows: ReadonlyArray<DatabaseRelationCandidateRow> = linkableRowsResult?.ok
+        ? linkableRowsResult.value.rows
+        : [];
+    const linkedTableName = linkableRowsResult?.ok ? linkableRowsResult.value.linkedTableName : "";
 
     const addLink = useEvent((linkedRowId: DatabaseRowId) => {
+        setSearch("");
         startTransition(async () => {
             await conn.executeAction("addLink", {tableId, fieldId, rowId, linkedRowId});
         });
@@ -87,50 +172,463 @@ function DatabaseRelationGridViewCellEditorOverlay({
         });
     });
 
+    const moveLink = useEvent((linkedRowId: DatabaseRowId, position: OrderKey) => {
+        startTransition(async () => {
+            await conn.executeAction("moveLink", {tableId, fieldId, rowId, linkedRowId, position});
+        });
+    });
+
+    const createAndLink = useEvent((name: string) => {
+        setSearch("");
+        const linkedRowId = generateChronologicalId<DatabaseRowId>();
+        startTransition(async () => {
+            await conn.executeAction("createAndLinkRow", {
+                tableId,
+                fieldId,
+                rowId,
+                linkedRowId,
+                name,
+            });
+        });
+    });
+
+    // Wire the candidate options up as a react-aria combobox listbox so the search
+    // input drives keyboard navigation (arrows, Home / End, typeahead) over the
+    // options while focus stays in the input. Selecting an option links the record.
+    const renderCandidate = useCallback(
+        (row: DatabaseRelationCandidateRow) => (
+            <Item key={row.id} textValue={databaseRelationRowLabel(row.name)}>
+                <DatabaseRelationRowName name={row.name} />
+            </Item>
+        ),
+        [],
+    );
+
+    // Keep the listbox selection empty so every activation (click or Enter) fires
+    // `onSelectionChange`, even when re-linking a record that was just unlinked and
+    // would otherwise still be marked selected.
+    const emptySelection = useMemo(() => [] as Array<DatabaseRowId>, []);
+
+    const {collection, selectionManager, disabledKeys} = useListState({
+        items: candidateRows,
+        children: renderCandidate,
+        selectedKeys: emptySelection,
+        selectionMode: "single",
+        onSelectionChange: selectedKeys => {
+            if (selectedKeys === "all") return;
+            const linkedRowId = iterableFirst(selectedKeys);
+            if (linkedRowId == null) return;
+            addLink(linkedRowId as DatabaseRowId);
+        },
+    });
+
+    const listState = useMemo(
+        (): ListState<DatabaseRelationCandidateRow> => ({
+            collection,
+            disabledKeys,
+            selectionManager,
+        }),
+        [collection, disabledKeys, selectionManager],
+    );
+
+    const listScrollRef = useRef<HTMLDivElement>(null);
+    const popoverRef = useRef<HTMLDivElement>(null);
+    const listBoxRef = useRef<HTMLUListElement>(null);
+
+    const comboBoxState: ComboBoxState<DatabaseRelationCandidateRow> = {
+        inputValue: search,
+        setInputValue: setSearch,
+
+        commit: () => {
+            const focusedKey = selectionManager.focusedKey;
+            if (focusedKey == null) return;
+            selectionManager.select(focusedKey);
+        },
+        revert: () => setSearch(""),
+
+        // Always open — the listbox is part of the cell editor, not a popover.
+        isOpen: true,
+        setOpen: noop,
+        open: noop,
+        close: noop,
+        toggle: noop,
+        focusStrategy: "first",
+
+        isFocused: selectionManager.isFocused,
+        setFocused: isFocused => selectionManager.setFocused(isFocused),
+
+        // Activation adds a link rather than persisting a selection, so there is never a
+        // real selection — `react-aria` only reads these when a value is actually
+        // selected, so mirror the currently focused option.
+        selectedKey: selectionManager.focusedKey as Key,
+        selectedItem: collection.getItem(
+            selectionManager.focusedKey as Key,
+        ) as Node<DatabaseRelationCandidateRow>,
+        setSelectedKey: key => selectionManager.select(key!),
+
+        collection,
+        selectionManager,
+        disabledKeys,
+    };
+
+    const {inputProps, listBoxProps} = useComboBox(
+        {
+            "aria-label": "Search records",
+            // @ts-expect-error: NOTE(calebmer, #react-v19-upgrade): `react-aria` handles
+            // the ref correctly but the type is wrong after upgrading to React v19.
+            inputRef: searchInputRef,
+            // @ts-expect-error: NOTE(calebmer, #react-v19-upgrade): `react-aria` handles
+            // the ref correctly but the type is wrong after upgrading to React v19.
+            popoverRef,
+            // @ts-expect-error: NOTE(calebmer, #react-v19-upgrade): `react-aria` handles
+            // the ref correctly but the type is wrong after upgrading to React v19.
+            listBoxRef,
+            autoFocus: false,
+            shouldFocusWrap: false,
+            items: candidateRows,
+            onKeyDown: event => {
+                switch (event.key) {
+                    case "ArrowDown":
+                    case "ArrowUp":
+                    case "Home":
+                    case "End": {
+                        setInteractionModality("keyboard");
+                        break;
+                    }
+                }
+            },
+        },
+        comboBoxState,
+    );
+
+    // Close the picker when the account presses (or moves focus) outside of it, merged
+    // with the positioning ref the `Overlay` provides.
+    const rootRef = useMergedRefs(ref as React.Ref<HTMLDivElement>, useOutsideInteraction(onClose));
+
     return (
         <Box
-            ref={ref as React.Ref<HTMLDivElement>}
+            ref={rootRef}
             border="theme-40-const"
             backgroundColor="grey-0"
-            boxShadow="elevation-20"
-            padding="1"
+            display="flex"
+            flexDirection="column"
             onKeyDown={event => {
                 if (event.key === "Escape") {
                     event.preventDefault();
-                    onClose();
+                    // Escape clears the search first, then closes the editor.
+                    if (isSearching) {
+                        setSearch("");
+                    } else {
+                        onClose();
+                    }
                 }
                 event.stopPropagation();
             }}
-            style={{minWidth: 240, maxWidth: 360}}
+            style={{minWidth: 280, maxWidth: 360}}
         >
-            {links.length > 0 ? (
-                <Box display="flex" flexWrap="wrap" gap="1" padding="1" borderBottom="grey-5">
-                    {links.map(link => (
-                        <DatabaseRelationEditableChip
-                            key={link.id}
-                            name={noAccess ? "No access" : link.name}
-                            onRemove={() => removeLink(link.id)}
-                        />
-                    ))}
+            <Box
+                display="flex"
+                alignItems="center"
+                gap="1.5"
+                paddingX="2"
+                flexShrink="0"
+                height={gridRowHeight}
+            >
+                <Box color="grey-40" display="flex" alignItems="center" flexShrink="0">
+                    <MagnifyingGlass size={16} />
                 </Box>
-            ) : null}
-            <Box paddingTop="1">
-                {linkableRowsResult == null ? null : linkableRowsResult.ok ? (
-                    linkableRowsResult.value.rows.map(row => (
-                        <DatabaseRelationRowOption
-                            key={row.id}
-                            name={row.name}
-                            onPress={() => addLink(row.id)}
-                        />
-                    ))
-                ) : (
-                    <Box padding="1.5" fontSize="75" color="grey-50">
-                        Could not load records
+                <Box flexGrow="1" style={{minWidth: 0}}>
+                    <input
+                        {...inputProps}
+                        ref={searchInputRef}
+                        disabled={noAccess}
+                        className={sprinkles({
+                            display: "block",
+                            width: "full",
+                            backgroundColor: "transparent",
+                            color: "grey-100",
+                            fontSize: "75",
+                        })}
+                        style={{border: "none", outline: "none", padding: 0, minWidth: 0}}
+                        placeholder={noAccess ? "No access" : "Search…"}
+                        onKeyDown={event => {
+                            // Let the container handle Escape (clear search / close).
+                            if (event.key === "Escape") return;
+                            // Without a focused option, don't let `react-aria` commit on Enter (which would be
+                            // a confusing no-op).
+                            if (event.key === "Enter" && selectionManager.focusedKey == null) {
+                                return;
+                            }
+                            inputProps.onKeyDown?.(event);
+                        }}
+                    />
+                </Box>
+                {isSearching ? (
+                    <Box flexShrink="0">
+                        <IconButton
+                            description="Clear search"
+                            size="xs"
+                            variant="quiet"
+                            onPress={() => setSearch("")}
+                        >
+                            <XCircle />
+                        </IconButton>
                     </Box>
+                ) : null}
+                {linkedTableName !== "" ? (
+                    <Box
+                        fontSize="75"
+                        fontStyle="truncate-semi-bold"
+                        color="grey-70"
+                        flexShrink="0"
+                        style={{maxWidth: 140}}
+                    >
+                        {linkedTableName}
+                    </Box>
+                ) : null}
+            </Box>
+
+            <Box borderTop="grey-5" ref={listScrollRef} style={{maxHeight: 320, overflowY: "auto"}}>
+                {!isSearching && linkedRows.length > 0 ? (
+                    <DatabaseRelationLinkedList
+                        linkedRows={linkedRows}
+                        noAccess={noAccess}
+                        onRemove={removeLink}
+                        onReorder={moveLink}
+                    />
+                ) : null}
+
+                {!isSearching && linkedRows.length > 0 && candidateRows.length > 0 ? (
+                    <Box
+                        fontSize="50"
+                        fontStyle="semi-bold"
+                        color="grey-50"
+                        paddingX="2"
+                        paddingTop="2"
+                        paddingBottom="1"
+                    >
+                        Add more
+                    </Box>
+                ) : null}
+
+                <DatabaseRelationCandidateListBox
+                    listState={listState}
+                    listBoxRef={listBoxRef}
+                    popoverRef={popoverRef}
+                    scrollRef={listScrollRef}
+                    listBoxProps={listBoxProps}
+                    showEmptyState={isSearching}
+                />
+            </Box>
+
+            {isSearching && !noAccess ? (
+                <DatabaseRelationCreateRow
+                    query={trimmedSearch}
+                    onPress={() => createAndLink(trimmedSearch)}
+                />
+            ) : null}
+        </Box>
+    );
+}
+
+function DatabaseRelationLinkedList({
+    linkedRows,
+    noAccess,
+    onRemove,
+    onReorder,
+}: {
+    linkedRows: ReadonlyArray<DatabaseRelationLinkedRow>;
+    noAccess: boolean;
+    onRemove: (linkedRowId: DatabaseRowId) => void;
+    onReorder: (linkedRowId: DatabaseRowId, position: OrderKey) => void;
+}) {
+    const ids = useMemo(() => linkedRows.map(row => row.id), [linkedRows]);
+
+    const pointerSensor = useSensor(
+        PointerSensor,
+        useMemo(() => ({activationConstraint: {distance: 2}}), []),
+    );
+    const sensors = useSensors(pointerSensor);
+
+    return (
+        <DndContext
+            sensors={sensors}
+            collisionDetection={closestCenter}
+            onDragEnd={event => {
+                const {active, over} = event;
+                if (!over || active.id === over.id) return;
+                const position = computeReorderPosition(
+                    active.id as DatabaseRowId,
+                    over.id as DatabaseRowId,
+                    linkedRows,
+                );
+                onReorder(active.id as DatabaseRowId, position);
+            }}
+        >
+            <SortableContext items={ids}>
+                <DatabaseRelationLinkedDragOverlay linkedRows={linkedRows} noAccess={noAccess} />
+                {linkedRows.map(row => (
+                    <DatabaseRelationLinkedRow
+                        key={row.id}
+                        row={row}
+                        noAccess={noAccess}
+                        isDragOverlay={false}
+                        onRemove={() => onRemove(row.id)}
+                    />
+                ))}
+            </SortableContext>
+        </DndContext>
+    );
+}
+
+/**
+ * Computes the order key for a linked record dropped onto another one. Uses the
+ * list's current ordering to decide whether the record moved up or down.
+ */
+function computeReorderPosition(
+    activeId: DatabaseRowId,
+    overId: DatabaseRowId,
+    linkedRows: ReadonlyArray<DatabaseRelationLinkedRow>,
+): OrderKey {
+    const activeIndex = linkedRows.findIndex(row => row.id === activeId);
+    const overIndex = linkedRows.findIndex(row => row.id === overId);
+    const movingDown = activeIndex < overIndex;
+
+    if (movingDown) {
+        const next = overIndex < linkedRows.length - 1 ? linkedRows[overIndex + 1]!.position : null;
+        return generateOrderKeyBetween(linkedRows[overIndex]!.position, next);
+    } else {
+        const prev = overIndex > 0 ? linkedRows[overIndex - 1]!.position : null;
+        return generateOrderKeyBetween(prev, linkedRows[overIndex]!.position);
+    }
+}
+
+function DatabaseRelationLinkedDragOverlay({
+    linkedRows,
+    noAccess,
+}: {
+    linkedRows: ReadonlyArray<DatabaseRelationLinkedRow>;
+    noAccess: boolean;
+}) {
+    const {active, activatorEvent} = useDndContext();
+
+    const isPointerDragging =
+        active && (activatorEvent instanceof PointerEvent || activatorEvent instanceof MouseEvent);
+
+    const activeRow = useMemo(
+        () => (active ? (linkedRows.find(row => row.id === active.id) ?? null) : null),
+        [active, linkedRows],
+    );
+
+    return (
+        <>
+            {isPointerDragging &&
+                createPortal(
+                    <Box position="absolute" inset="0" zIndex="80" cursor="grabbing" />,
+                    document.body,
                 )}
+            {activeRow &&
+                createPortal(
+                    <DragOverlay zIndex={70}>
+                        <DatabaseRelationLinkedRow
+                            row={activeRow}
+                            noAccess={noAccess}
+                            isDragOverlay={true}
+                            onRemove={() => {}}
+                        />
+                    </DragOverlay>,
+                    document.body,
+                )}
+        </>
+    );
+}
+
+function DatabaseRelationLinkedRow({
+    row,
+    noAccess,
+    isDragOverlay,
+    onRemove,
+}: {
+    row: DatabaseRelationLinkedRow;
+    noAccess: boolean;
+    isDragOverlay: boolean;
+    onRemove: () => void;
+}) {
+    const {attributes, listeners, setNodeRef, transform, transition, isDragging} = useSortable({
+        id: row.id,
+        disabled: isDragOverlay,
+    });
+
+    return (
+        <Box
+            ref={setNodeRef}
+            display="flex"
+            alignItems="center"
+            gap="1"
+            paddingX="1.5"
+            paddingY="1"
+            backgroundColor={isDragOverlay ? "grey-0" : undefined}
+            boxShadow={isDragOverlay ? "elevation-30" : undefined}
+            style={{
+                transform: transform ? `translate(${transform.x}px, ${transform.y}px)` : undefined,
+                transition,
+                opacity: isDragging ? 0 : undefined,
+            }}
+        >
+            <button
+                {...attributes}
+                {...listeners}
+                aria-label={`Reorder ${noAccess ? "No access" : databaseRelationRowLabel(row.name)}`}
+                className={sprinkles({
+                    width: "4",
+                    height: "4",
+                    display: "flex",
+                    justifyContent: "center",
+                    alignItems: "center",
+                    cursor: "grab",
+                    color: "grey-40",
+                    flexShrink: "0",
+                })}
+                tabIndex={-1}
+            >
+                <DotsSixVertical size={14} />
+            </button>
+            <Box flexGrow="1" fontSize="75" fontStyle="truncate" color="grey-100">
+                {noAccess ? "No access" : <DatabaseRelationRowName name={row.name} />}
+            </Box>
+            <Box flexShrink="0">
+                <IconButton
+                    description={`Remove ${noAccess ? "No access" : databaseRelationRowLabel(row.name)}`}
+                    size="xs"
+                    variant="quiet"
+                    onPress={onRemove}
+                >
+                    <X />
+                </IconButton>
             </Box>
         </Box>
     );
+}
+
+/**
+ * The accessible label / typeahead text for a linked record, falling back to
+ * "Untitled" when the record has no meaningful name (`null`, empty, or
+ * whitespace-only).
+ */
+function databaseRelationRowLabel(name: string | null): string {
+    return name != null && name.trim() !== "" ? name : "Untitled";
+}
+
+/**
+ * Renders a linked record's name, falling back to a muted "Untitled" when the
+ * record has no meaningful name (`null`, empty, or whitespace-only). Preserves the
+ * name's whitespace with `white-space: pre` so names aren't silently collapsed.
+ */
+function DatabaseRelationRowName({name}: {name: string | null}) {
+    if (name == null || name.trim() === "") {
+        return <span className={sprinkles({color: "grey-50"})}>Untitled</span>;
+    }
+    return <span style={{whiteSpace: "pre"}}>{name}</span>;
 }
 
 function DatabaseRelationChip({name, noAccess}: {name: string | null; noAccess?: boolean}) {
@@ -146,77 +644,134 @@ function DatabaseRelationChip({name, noAccess}: {name: string | null; noAccess?:
             color={noAccess === true ? "grey-50" : "grey-100"}
             style={{maxWidth: 120}}
         >
-            <Box fontStyle="truncate">{noAccess === true ? "No access" : (name ?? "Untitled")}</Box>
+            <Box fontStyle="truncate">
+                {noAccess === true ? "No access" : <DatabaseRelationRowName name={name} />}
+            </Box>
         </Box>
     );
 }
 
-function DatabaseRelationEditableChip({
-    name,
-    onRemove,
+function DatabaseRelationCandidateListBox({
+    listState,
+    listBoxRef,
+    popoverRef,
+    scrollRef,
+    listBoxProps: ariaListBoxProps,
+    showEmptyState,
 }: {
-    name: string | null;
-    onRemove: () => void;
+    listState: ListState<DatabaseRelationCandidateRow>;
+    listBoxRef: RefObject<HTMLUListElement | null>;
+    popoverRef: RefObject<HTMLDivElement | null>;
+    scrollRef: RefObject<HTMLDivElement | null>;
+    listBoxProps: AriaListBoxOptions<DatabaseRelationCandidateRow>;
+    showEmptyState: boolean;
 }) {
+    const {listBoxProps} = useListBox(
+        {
+            ...ariaListBoxProps,
+            autoFocus: false,
+            // @ts-expect-error: NOTE(calebmer, #react-v19-upgrade): `react-aria` handles
+            // the ref correctly but the type is wrong after upgrading to React v19.
+            scrollRef,
+        },
+        listState,
+        listBoxRef,
+    );
+
     return (
-        <Box
-            display="flex"
-            alignItems="center"
-            gap="0.5"
-            backgroundColor="grey-5"
-            borderRadius="1"
-            paddingLeft="1"
-            paddingRight="0.5"
-            fontSize="75"
-            color="grey-100"
-        >
-            <Box fontStyle="truncate" style={{maxWidth: 160}}>
-                {name ?? "Untitled"}
-            </Box>
-            <Box
-                role="button"
-                aria-label={`Remove ${name ?? "Untitled"}`}
-                tabIndex={0}
-                display="flex"
-                alignItems="center"
-                color="grey-50"
-                cursor="pointer"
-                onMouseDown={event => event.preventDefault()}
-                onClick={event => {
-                    event.stopPropagation();
-                    onRemove();
-                }}
-            >
-                <X size={12} />
-            </Box>
+        <Box ref={popoverRef}>
+            <ul {...listBoxProps} ref={listBoxRef}>
+                {listState.collection.size === 0
+                    ? showEmptyState && (
+                          <Box padding="2" fontSize="75" color="grey-50">
+                              No matching records
+                          </Box>
+                      )
+                    : Array.from(listState.collection, item => (
+                          <DatabaseRelationCandidateOption
+                              key={item.key}
+                              listState={listState}
+                              item={item}
+                          />
+                      ))}
+            </ul>
         </Box>
     );
 }
 
-function DatabaseRelationRowOption({name, onPress}: {name: string | null; onPress: () => void}) {
+function DatabaseRelationCandidateOption({
+    listState,
+    item,
+}: {
+    listState: ListState<DatabaseRelationCandidateRow>;
+    item: Node<DatabaseRelationCandidateRow>;
+}) {
+    const optionRef = useRef<HTMLLIElement>(null);
+    const {optionProps, isFocused, isPressed, isHovered} = useOption(
+        {
+            key: item.key,
+            // Don't let a press that started on the input drag onto an option to select it,
+            // matching our other comboboxes.
+            disallowsDifferentPressOrigin: true,
+        },
+        listState,
+        // @ts-expect-error: NOTE(calebmer, #react-v19-upgrade): `react-aria` handles
+        // the ref correctly but the type is wrong after upgrading to React v19.
+        optionRef,
+    );
+
+    return (
+        <li
+            {...optionProps}
+            ref={optionRef}
+            className={sprinkles({
+                display: "flex",
+                alignItems: "center",
+                paddingX: "2",
+                paddingY: "1.5",
+                cursor: "pointer",
+                backgroundColor: isPressed
+                    ? "grey-10"
+                    : isFocused || isHovered
+                      ? "grey-5"
+                      : undefined,
+            })}
+        >
+            <Box flexGrow="1" fontSize="75" fontStyle="truncate" color="grey-100">
+                {item.rendered}
+            </Box>
+        </li>
+    );
+}
+
+function DatabaseRelationCreateRow({query, onPress}: {query: string; onPress: () => void}) {
     return (
         <Box
             role="button"
-            aria-label={`Link ${name ?? "Untitled"}`}
+            aria-label={`Create ${query}`}
             tabIndex={0}
             display="flex"
             alignItems="center"
             gap="1.5"
-            padding="1.5"
-            borderRadius="1"
+            paddingX="2"
+            borderTop="grey-5"
+            flexShrink="0"
             fontSize="75"
             color="grey-100"
             cursor="pointer"
+            style={{height: 40}}
             onMouseDown={event => event.preventDefault()}
             onClick={event => {
                 event.stopPropagation();
                 onPress();
             }}
         >
-            <Box color="grey-50" display="flex" alignItems="center">
-                <Plus size={14} />
+            <Box flexGrow="1" fontStyle="truncate">
+                Create &#x201C;{query}&#x201D;
             </Box>
-            <Box fontStyle="truncate">{name ?? "Untitled"}</Box>
+            <Box color="grey-50" display="flex" alignItems="center" flexShrink="0">
+                <Plus size={16} />
+            </Box>
         </Box>
     );
 }

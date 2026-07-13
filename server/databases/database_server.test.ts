@@ -176,6 +176,11 @@ const testContext = {
         execute: async () => ({ok: true as const}),
     },
     actor: {
+        // A `System` actor with a trusted (`Test`) provenance: it passes the
+        // internal-action gate (see `isInternalDatabaseServiceActor`) and, being a system
+        // actor, runs unrestricted by per-table access — the stand-in for privileged
+        // internal setup. Per-account tests use `createSessionContext` instead.
+        type: "System",
         serviceName: "Test",
         getPossiblyBotAccountIdIfExists: () => testAccountId,
     },
@@ -1084,25 +1089,60 @@ describe("DatabaseServer", () => {
     });
 
     describe("executeAction — internal actions", () => {
-        test("rejects client-only table metadata action requests", async () => {
+        // The allowlisted first-party backend services may run internal schema actions.
+        for (const serviceName of ["AppService", "JobQueueService", "ApiService"] as const) {
+            test(`allows the internal ${serviceName} to run internal actions`, async () => {
+                const server = await createServerWithSchema();
+                const internalContext = {
+                    ...testContext,
+                    actor: {...testContext.actor, serviceName},
+                };
+
+                const input = createTableInputForTest("Tasks");
+                const {result} = server.executeAction<"createTable">(internalContext, {
+                    name: "createTable",
+                    input,
+                });
+
+                expect(result.tableId).toBe(input.tableId);
+            });
+        }
+
+        // Everyone else is rejected: `AppClient` (a public session actor), `EdgeService`
+        // (how a public request is re-signed when forwarded through the edge), and the
+        // durable object's own service name (`DatabaseGroupService`) — proving it is not a
+        // privilege-escalation path even though it holds the durable object's key.
+        for (const serviceName of ["AppClient", "EdgeService", "DatabaseGroupService"] as const) {
+            test(`rejects the non-allowlisted ${serviceName} from running internal actions`, async () => {
+                const server = await createServerWithSchema();
+                const deniedContext = {
+                    ...testContext,
+                    actor: {...testContext.actor, serviceName},
+                };
+
+                expect(() =>
+                    server.executeAction(deniedContext, {
+                        name: "createTable",
+                        input: createTableInputForTest("Tasks"),
+                    }),
+                ).toThrow("Database action createTable is internal-only");
+            });
+        }
+
+        // The gate keys off the action's `internalOnly` flag, not the action name: a
+        // rejected service can't reach any internal action, `syncTableMetadata` included.
+        test("rejects a non-allowlisted service from every internal action", async () => {
             const server = await createServerWithSchema();
-            const tableId = generateChronologicalId<DatabaseTableId>();
-            const appClientContext = {
+            const deniedContext = {
                 ...testContext,
                 actor: {...testContext.actor, serviceName: "AppClient"},
             };
 
             expect(() =>
-                server.executeAction(appClientContext, {
-                    name: "createTable",
-                    input: createTableInputForTest("Tasks"),
-                }),
-            ).toThrow("Database action createTable is internal-only");
-            expect(() =>
-                server.executeAction(appClientContext, {
+                server.executeAction(deniedContext, {
                     name: "syncTableMetadata",
                     input: {
-                        tableId,
+                        tableId: generateChronologicalId<DatabaseTableId>(),
                         name: "Tasks",
                         accessPolicy: databaseTableAccessPolicyForCreator(testAccountId),
                     },
@@ -1126,6 +1166,36 @@ describe("DatabaseServer", () => {
                     input: createTableInputForTest("Tasks"),
                 }),
             ).not.toThrow();
+        });
+
+        test("internalOnly actions bypass per-table access even for a non-system session", async () => {
+            const server = await createServerWithSchema();
+            const creator = generateId<AccountId>();
+            // The production path: `createDatabaseTable` forwards the creator's session with
+            // AppService provenance — a session actor, not `System`. createTable is a schema
+            // mutation that writes the shared registry and a not-yet-mapped file, so it can
+            // only run with a full grant: being `internalOnly` is what grants it, not the
+            // actor type.
+            const appServiceSession = {
+                ...testContext,
+                actor: {
+                    type: "Session",
+                    serviceName: "AppService",
+                    getPossiblyBotAccountIdIfExists: () => creator,
+                },
+            };
+            const tableId = generateChronologicalId<DatabaseTableId>();
+
+            const {result} = server.executeAction<"createTable">(appServiceSession, {
+                name: "createTable",
+                input: {
+                    tableId,
+                    name: "Tasks",
+                    accessPolicy: databaseTableAccessPolicyForCreator(creator),
+                },
+            });
+
+            expect(result.tableId).toBe(tableId);
         });
     });
 
@@ -1458,9 +1528,10 @@ describe("DatabaseServer — per-table access", () => {
         ).not.toThrow();
     });
 
-    test("internal actors bypass per-table access", async () => {
+    test("system actors bypass per-table access", async () => {
         const server = await createServer();
-        // A policy granting nobody anything; the Test service actor must still read.
+        // A policy granting nobody anything; a `System` actor (holding space-wide
+        // authority and no account) must still read.
         const {tableName} = createTableWithPolicy(server, "Tasks", localPolicyWithGrants([]));
 
         const {result} = server.executeAction<"readonlyRawSql">(
@@ -1690,6 +1761,46 @@ describe("DatabaseServer — per-table access", () => {
         expect(relationField?.linkedTableReadAccess).toBe(false);
     });
 
+    test("listLinkedRows redacts linked records when the linked table is unreadable", async () => {
+        const scenario = await createLinkedTablesScenario();
+        scenario.server.executeAction(
+            createSessionContext(scenario.viewPeople),
+            addLinkAction(scenario),
+        );
+
+        const {result} = scenario.server.executeAction<"listLinkedRows">(
+            createSessionContext(scenario.noPeople),
+            {
+                name: "listLinkedRows",
+                input: {
+                    tableId: scenario.tasks.tableId,
+                    fieldId: scenario.relation.sourceFieldId,
+                    rowId: scenario.taskRowId,
+                },
+            },
+        );
+
+        expect(result.rows).toEqual([{id: scenario.personRowId, name: null, position: "a0"}]);
+    });
+
+    test("listLinkableRows hides candidates when the linked table is unreadable", async () => {
+        const scenario = await createLinkedTablesScenario();
+
+        const {result} = scenario.server.executeAction<"listLinkableRows">(
+            createSessionContext(scenario.noPeople),
+            {
+                name: "listLinkableRows",
+                input: {
+                    tableId: scenario.tasks.tableId,
+                    fieldId: scenario.relation.sourceFieldId,
+                    rowId: scenario.taskRowId,
+                },
+            },
+        );
+
+        expect(result).toEqual({linkedTableName: "No access", rows: []});
+    });
+
     test("view rows include linked record names when the linked table is readable", async () => {
         const scenario = await createLinkedTablesScenario();
         scenario.server.executeAction(
@@ -1710,7 +1821,9 @@ describe("DatabaseServer — per-table access", () => {
         );
 
         const fieldIndex = result.fieldIndexes.get(scenario.relation.sourceFieldId)!;
-        expect(result.rows[0]![fieldIndex]).toEqual([{id: scenario.personRowId, name: ""}]);
+        expect(result.rows[0]![fieldIndex]).toEqual([
+            {id: scenario.personRowId, name: "", position: "a0"},
+        ]);
     });
 
     test("createRelationField is denied with only View on the target", async () => {

@@ -33,18 +33,28 @@ beforeEach(() => {
     runDatabaseDurableObjectSqlMigrations(storage);
 });
 
-// Trusted service context: procedures and event transforms treat it as internal
-// server code, bypassing per-table access (which has its own dedicated tests).
-const trustedTestContext = {
+// Websocket connections are always browser sessions, so the procedures always
+// enforce per-table access. These page-mechanics tests aren't about access, so
+// they pair this session context with `fullAccessServerMock` to grant every table.
+// Access filtering itself has dedicated tests (see `createUntrustedContext`).
+const sessionTestContext = {
     actor: {
-        serviceName: "Test",
+        serviceName: "EdgeService",
         getPossiblyBotAccountIdIfExists: () => null,
     },
 } as any;
 
+// Server stand-in granting `Manage` on every table, so nothing is withheld. Avoids
+// enumerating the dynamically-generated table ids these tests use.
+const fullAccessServerMock = {
+    getTableAccessLevelsForAccount: () =>
+        ({get: () => "Manage"}) as unknown as Map<DatabaseTableId, AccessLevel | null>,
+    getTableAccessLevelForAccount: () => "Manage" as AccessLevel,
+} as any;
+
 function createConnection(doStorage: DatabaseDurableObjectStorage) {
     return new DatabaseDurableObjectConnection({
-        server: null as any,
+        server: fullAccessServerMock,
         durableObjectStorage: doStorage,
         processContext: null as any,
         sendEventToAll: () => {},
@@ -62,7 +72,7 @@ async function ensureCacheIsUpToDate(
     pageVersionsByIndex: ReadonlyMap<number, number>,
 ) {
     const result = await conn.procedures.ensureCacheIsUpToDate(
-        trustedTestContext,
+        sessionTestContext,
         {pageVersionsByIndex: new Map([[databaseMainTableId, pageVersionsByIndex]])},
         null as any,
     );
@@ -80,7 +90,7 @@ async function acknowledgePages(
     pageIndexes: ReadonlyArray<number>,
 ) {
     return conn.procedures.acknowledgePages(
-        trustedTestContext,
+        sessionTestContext,
         {pageIndexes: new Map([[databaseMainTableId, pageIndexes]])},
         null as any,
     );
@@ -291,7 +301,7 @@ function createTrackedConnection(
 ) {
     const connectionId = generateId<WebSocketConnectionId>();
     return new DatabaseDurableObjectConnection({
-        server: null as any,
+        server: fullAccessServerMock,
         durableObjectStorage: doStorage,
         processContext: null as any,
         sendEventToAll: () => {},
@@ -316,7 +326,7 @@ describe("per-browser page tracking", () => {
         // untrusted client can grow the per-browser page map without bound.
         const bogusTableId = generateChronologicalId<DatabaseTableId>();
         await conn.procedures.acknowledgePages(
-            trustedTestContext,
+            sessionTestContext,
             {pageIndexes: new Map([[bogusTableId, [0, 1, 2]]])},
             null as any,
         );
@@ -469,7 +479,7 @@ describe("per-browser page tracking", () => {
         // single call. Both tables' matching pages must be confirmed in the tracker —
         // validating the main table must not wipe the attached table's state.
         await conn.procedures.ensureCacheIsUpToDate(
-            trustedTestContext,
+            sessionTestContext,
             {
                 pageVersionsByIndex: new Map([
                     [databaseMainTableId, new Map([[0, mainVersion0]])],
@@ -602,7 +612,7 @@ describe("per-browser page tracking", () => {
             ]),
             mutationId: generateId<DatabaseMutationId>(),
         };
-        const event = await conn.transformEvent(trustedTestContext, eventStub);
+        const event = await conn.transformEvent(sessionTestContext, eventStub);
         assert(event.type === "PagesChanged", "expected PagesChanged event");
 
         const main = event.pageDiffs.get(databaseMainTableId);
@@ -650,7 +660,7 @@ describe("per-browser page tracking", () => {
             ]),
             mutationId: generateId<DatabaseMutationId>(),
         };
-        const event = await conn.transformEvent(trustedTestContext, eventStub);
+        const event = await conn.transformEvent(sessionTestContext, eventStub);
         assert(event.type === "PagesChanged", "expected PagesChanged event");
 
         // Both included: page 0 confirmed, page 1 pending
@@ -680,7 +690,7 @@ describe("per-browser page tracking", () => {
             ]),
             mutationId: generateId<DatabaseMutationId>(),
         };
-        const event = await conn.transformEvent(trustedTestContext, eventStub);
+        const event = await conn.transformEvent(sessionTestContext, eventStub);
         assert(event.type === "PagesChanged", "expected PagesChanged event");
 
         const main = event.pageDiffs.get(databaseMainTableId);
@@ -748,7 +758,7 @@ describe("per-browser page tracking", () => {
         const browserId = generateId<BrowserId>();
         const databaseGroupId = generateId<DatabaseGroupId>();
         const conn = new DatabaseDurableObjectConnection({
-            server: null as any,
+            server: fullAccessServerMock,
             durableObjectStorage: doStorage,
             processContext: null as any,
             sendEventToAll: () => {},
@@ -781,7 +791,7 @@ describe("per-browser page tracking", () => {
             indexes: new Map(),
         };
         const context = {
-            ...trustedTestContext,
+            ...sessionTestContext,
             rpc: {
                 execute: async (_definition: any, _callId: unknown, input: unknown) => {
                     expect(input).toMatchObject({
@@ -801,7 +811,8 @@ describe("per-browser page tracking", () => {
         expect(event).toEqual({
             type: "TableMetadataChanged",
             events: [resolvedEvent],
-            tableAccess: new Map(),
+            // Access delta for the touched table, resolved against the session's account.
+            tableAccess: new Map([[resolvedEvent.item.model.tableId, "Manage"]]),
         });
     });
 
@@ -823,7 +834,7 @@ describe("per-browser page tracking", () => {
         });
         const authorizedInputs: Array<unknown> = [];
         const context = {
-            ...trustedTestContext,
+            ...sessionTestContext,
             rpc: {
                 execute: async (_definition: any, _callId: unknown, input: unknown) => {
                     authorizedInputs.push(input);
@@ -846,7 +857,7 @@ describe("per-browser page tracking", () => {
             {trackPages: false},
         );
         const context = {
-            ...trustedTestContext,
+            ...sessionTestContext,
             rpc: {
                 execute: async () => {
                     throw new PermissionDeniedError("Actor doesn\u2019t have access to the space");
@@ -870,7 +881,7 @@ describe("per-browser page tracking", () => {
             trackPages: false,
         });
         const context = {
-            ...trustedTestContext,
+            ...sessionTestContext,
             rpc: {
                 execute: async () => {
                     throw new PermissionDeniedError("Actor doesn\u2019t have View access level");

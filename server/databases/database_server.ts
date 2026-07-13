@@ -1,13 +1,14 @@
 import type {Database as SqliteDatabase} from "~/external/sqlite/ext/wasm/jswasm/sqlite3.mjs";
 import type {WorkerActionContext} from "~/server/cloudflare/context/worker_action_context.js";
 import type {DatabaseServerStorage} from "~/server/databases/database_server_storage.js";
-import {isTrustedDatabaseServiceActor} from "~/server/databases/is_trusted_database_service_actor.js";
+import {isInternalDatabaseServiceActor} from "~/server/databases/is_internal_database_service_actor.js";
 import {
     type AccessLevel,
     type LocalAccessPolicy,
     getAccountAccessLevelAssumingSpaceAccess,
     maxAccessLevel,
 } from "~/shared/access/access_policy.js";
+import {allowAllTableAccess} from "~/shared/databases/allow_all_table_access.js";
 import {Database, type DatabaseTrackedExecution} from "~/shared/databases/database.js";
 import {
     type DatabaseActionName,
@@ -145,24 +146,38 @@ export class DatabaseServer {
         context: WorkerActionContext,
         actionObject: DatabaseActionObject<N>,
     ): DatabaseServerActionResult<N> {
-        // Trusted issuers are internal server code that authorized the operation before
-        // forwarding it (see {@link isTrustedDatabaseServiceActor}); they run
-        // unrestricted. Everyone else — browser traffic over the websocket protocol — may
-        // not run internal actions and gets a per-table access lookup derived from the
-        // storage's table store, enforced per statement by the SQLite authorizer.
-        const isTrustedActor = isTrustedDatabaseServiceActor(context.actor);
-        if (databaseActions[actionObject.name].internalOnly && !isTrustedActor) {
+        // `internalOnly` actions are schema/metadata mutations reserved for internal
+        // server code, which authorized the operation before forwarding it — gate them on
+        // the actor's provenance (see {@link isInternalDatabaseServiceActor}).
+        const action = databaseActions[actionObject.name];
+        if (action.internalOnly && !isInternalDatabaseServiceActor(context.actor)) {
             throw new PermissionDeniedError(
                 `Database action ${actionObject.name} is internal-only`,
             );
         }
         const currentAccountId = context.actor.getPossiblyBotAccountIdIfExists();
+        // Per-table access is enforced against the acting account, independent of
+        // provenance — so a session forwarded by `AppService` (e.g. a server-side-rendered
+        // read) is restricted the same as the equivalent browser read. Two cases run with
+        // a full grant instead:
+        //
+        // - `internalOnly` actions (already gated to internal callers above): these are
+        //   schema/registry mutations — creating a table writes the shared registry and a
+        //   file whose schema isn't yet mapped to a per-table policy, which the authorizer
+        //   can only permit by skipping the per-table layer. Being `internalOnly` _is_ the
+        //   signal that an action is a system operation with no per-account scope.
+        // - `System` actors: space-wide authority with no account (e.g. a background job).
+        //   A browser/session never reaches here as `System` — the websocket `Main` route
+        //   requires `authorizeSession()`.
+        const getTableAccessLevel =
+            action.internalOnly || context.actor.type === "System"
+                ? allowAllTableAccess
+                : (tableId: DatabaseTableId) =>
+                      this.getTableAccessLevelForAccount(tableId, currentAccountId);
         return this._runAndPersist(context, () =>
             this.database.executeAction(actionObject, {
                 currentAccountId,
-                getTableAccessLevel: isTrustedActor
-                    ? null
-                    : tableId => this.getTableAccessLevelForAccount(tableId, currentAccountId),
+                getTableAccessLevel,
             }),
         );
     }

@@ -7,7 +7,6 @@ import {BrowserPageTracker} from "~/server/databases/browser_page_tracker.js";
 import {buildDatabasePageDiffs} from "~/server/databases/build_database_page_diffs.js";
 import {DatabaseDurableObjectStorage} from "~/server/databases/database_durable_object_storage.js";
 import {DatabaseServer} from "~/server/databases/database_server.js";
-import {isTrustedDatabaseServiceActor} from "~/server/databases/is_trusted_database_service_actor.js";
 import {WebSocketConnectionProcedures} from "~/server/web_socket/web_socket_server.js";
 import type {AccessLevel} from "~/shared/access/access_policy.js";
 import {databaseActions} from "~/shared/databases/database_actions.js";
@@ -177,15 +176,11 @@ export class DatabaseDurableObjectConnection {
             };
         },
         ensureCacheIsUpToDate: async (context, input) => {
-            // Trusted internal connections are unrestricted; browser connections get per-table
-            // withholding plus an access map covering the tables they asked about (and, for
-            // join files, the joined sides — their only source of "exists but no access"
-            // because policy copies remain server-side). Both are resolved inline as the loop
-            // below walks the client's cache map.
-            const isTrustedActor = isTrustedDatabaseServiceActor(context.actor);
-            const accountId = isTrustedActor
-                ? null
-                : context.actor.getPossiblyBotAccountIdIfExists();
+            // Withhold inaccessible tables' pages, and send an access map covering the tables
+            // they asked about (and, for join files, the joined sides — their only source of
+            // "exists but no access" because policy copies remain server-side). Resolve both
+            // inline as the loop walks the client's cache map.
+            const accountId = context.actor.getPossiblyBotAccountIdIfExists();
             const tableAccess = new Map<DatabaseTableId, AccessLevel | null>();
 
             // Mutable builder for the readonly `DatabaseEnsureCacheIsUpToDateResult["tables"]`
@@ -206,32 +201,30 @@ export class DatabaseDurableObjectConnection {
             const pendingPagesByTable = new Map<DatabaseTableId, Iterable<number>>();
 
             for (const [tableId, tableVersions] of input.pageVersionsByIndex) {
-                if (!isTrustedActor) {
-                    const accessLevel =
-                        tableId === databaseMainTableId
-                            ? "Manage"
-                            : this._server.getTableAccessLevelForAccount(tableId, accountId);
-                    tableAccess.set(tableId, accessLevel);
+                const accessLevel =
+                    tableId === databaseMainTableId
+                        ? "Manage"
+                        : this._server.getTableAccessLevelForAccount(tableId, accountId);
+                tableAccess.set(tableId, accessLevel);
 
-                    // A requested join file also reports its two sides: their levels are what the
-                    // join's own level derives from, and a client holding a join file renders
-                    // relations into both sides.
-                    const entry = this._durableObjectStorage.getDatabaseTableAccessEntry(tableId);
-                    if (entry !== null && entry.kind === "join") {
-                        for (const sideTableId of [entry.sourceTableId, entry.targetTableId]) {
-                            tableAccess.set(
-                                sideTableId,
-                                this._server.getTableAccessLevelForAccount(sideTableId, accountId),
-                            );
-                        }
+                // A requested join file also reports its two sides: their levels are what the
+                // join's own level derives from, and a client holding a join file renders
+                // relations into both sides.
+                const entry = this._durableObjectStorage.getDatabaseTableAccessEntry(tableId);
+                if (entry !== null && entry.kind === "join") {
+                    for (const sideTableId of [entry.sourceTableId, entry.targetTableId]) {
+                        tableAccess.set(
+                            sideTableId,
+                            this._server.getTableAccessLevelForAccount(sideTableId, accountId),
+                        );
                     }
+                }
 
-                    // Withhold tables the account can't read. Omitting the table also wipes its
-                    // per-browser tracker state below — correct, since no pages will be sent while
-                    // access is missing.
-                    if (accessLevel === null) {
-                        continue;
-                    }
+                // Withhold tables the account can't read. Omitting the table also wipes its
+                // per-browser tracker state below — correct, since no pages will be sent while
+                // access is missing.
+                if (accessLevel === null) {
+                    continue;
                 }
                 const updatedPages = new Map<number, {version: number; data: Uint8Array}>();
                 const stalePageIndexes: Array<number> = [];
@@ -326,10 +319,8 @@ export class DatabaseDurableObjectConnection {
         context: WorkerSessionActionContext,
         eventStub: DatabaseRealtimeEventStub,
     ): Promise<DatabaseRealtimeEvent> {
-        const isTrustedActor = isTrustedDatabaseServiceActor(context.actor);
         switch (eventStub.type) {
             case "PagesChanged": {
-                if (isTrustedActor) return eventStub;
                 // Withhold page diffs for tables this connection's account can't read; the main
                 // registry is public by design. The event is sent even when everything filters out
                 // — the originator's optimistic queue dequeues on the `mutationId`.
@@ -355,21 +346,19 @@ export class DatabaseDurableObjectConnection {
                 );
                 // Access-map delta for every table the batch touched: visible events report the
                 // account's current level from the local policy copies; denied ones report null
-                // (the revocation signal). Trusted connections are unrestricted and get no map.
+                // (the revocation signal).
                 const tableAccess = new Map<DatabaseTableId, AccessLevel | null>();
-                if (!isTrustedActor) {
-                    const accountId = context.actor.getPossiblyBotAccountIdIfExists();
-                    for (const event of events) {
-                        if (event.type !== "PutItem") continue;
-                        const tableId = event.item.model.tableId;
-                        tableAccess.set(
-                            tableId,
-                            this._server.getTableAccessLevelForAccount(tableId, accountId),
-                        );
-                    }
-                    for (const tableId of deniedTableIds ?? []) {
-                        tableAccess.set(tableId, null);
-                    }
+                const accountId = context.actor.getPossiblyBotAccountIdIfExists();
+                for (const event of events) {
+                    if (event.type !== "PutItem") continue;
+                    const tableId = event.item.model.tableId;
+                    tableAccess.set(
+                        tableId,
+                        this._server.getTableAccessLevelForAccount(tableId, accountId),
+                    );
+                }
+                for (const tableId of deniedTableIds ?? []) {
+                    tableAccess.set(tableId, null);
                 }
                 return {
                     type: "TableMetadataChanged",

@@ -17,7 +17,7 @@ import {
 import {runDatabaseDurableObjectSqlMigrations} from "~/server/databases/database_durable_object_sql_migrations.js";
 import {DatabaseDurableObjectStorage} from "~/server/databases/database_durable_object_storage.js";
 import {DatabaseServer} from "~/server/databases/database_server.js";
-import {isTrustedDatabaseServiceActor} from "~/server/databases/is_trusted_database_service_actor.js";
+import {isInternalDatabaseServiceActor} from "~/server/databases/is_internal_database_service_actor.js";
 import {WebSocketServer} from "~/server/web_socket/web_socket_server.js";
 import {DatabaseActionFetchResponseSchema} from "~/shared/databases/database_action_fetch_schema.js";
 import {DatabaseActionObjectSchema} from "~/shared/databases/database_actions.js";
@@ -166,11 +166,7 @@ class DatabaseGroupDurableObject {
         context: WorkerActionContext,
         request: Request,
     ): Promise<Response> {
-        if (
-            context.actor.serviceName !== "AppService" &&
-            context.actor.serviceName !== "JobQueueService" &&
-            context.actor.serviceName !== "ApiService"
-        ) {
+        if (!isInternalDatabaseServiceActor(context.actor)) {
             throw new PermissionDeniedError(
                 "Only some services can broadcast database table metadata realtime events",
             );
@@ -198,7 +194,7 @@ class DatabaseGroupDurableObject {
         // reaches the durable object with EdgeService-issued tokens — the edge forwards
         // any subpath — and must use the WebSocket protocol, whose connection-level
         // authorization and per-account enforcement this route has no equivalent of.
-        if (!isTrustedDatabaseServiceActor(context.actor)) {
+        if (!isInternalDatabaseServiceActor(context.actor)) {
             throw new PermissionDeniedError(
                 "Database actions over HTTP are restricted to internal services",
             );

@@ -16,15 +16,15 @@ export async function run(context: TestActualContext, runner: ScreenshotTestRunn
     // Cass sets up Cliff's sales pipeline as linked databases. Create the linked
     // tables first so they show up in the field creation UI's table list, then the
     // "Deals" table we take all the screenshots on.
-    await createDatabase(runner, space.id, "Customers");
+    const customersUrl = await createDatabase(runner, space.id, "Customers");
     await createDatabase(runner, space.id, "Contacts");
     await createDatabase(runner, space.id, "Case studies");
-    await createDatabase(runner, space.id, "Deals");
+    const dealsUrl = await createDatabase(runner, space.id, "Deals");
 
     // Reload before writing rows: on the page reached through the create navigation
     // the database worker replica may not have received the new table yet, and writes
     // issued before it catches up are rejected.
-    await gotoDatabasesPath(runner, runner.page.url());
+    await gotoDatabasesPath(runner, dealsUrl);
     await runner.getByText("New row", {exact: true}).waitFor();
 
     await createDatabaseRow(runner, "Acme Corp expansion");
@@ -73,6 +73,53 @@ export async function run(context: TestActualContext, runner: ScreenshotTestRunn
     await runner.getByRole("button", {name: "Customers"}).waitFor();
     await runner.mouse.move(0, 0);
     await runner.screenshot("a6", "field-created-linked-record");
+
+    // Populate the Customers table so the Deals → Customers relation has records to
+    // link and search over.
+    await gotoDatabasesPath(runner, customersUrl);
+    await runner.getByText("New row", {exact: true}).waitFor();
+    for (const name of [
+        "Acme Corp",
+        "Northwind Trading",
+        "Meridian Labs",
+        "Cobalt Systems",
+        "Everpeak Retail",
+    ]) {
+        await createDatabaseRow(runner, name);
+    }
+
+    // Back on the Deals grid, open the "Customers" linked-record cell on the first
+    // deal. Clicking the cell opens the linked-record picker: a search box and the
+    // linked table's name in the header, with the linkable Customers records below.
+    await gotoDatabasesPath(runner, dealsUrl);
+    await runner.getByText("New row", {exact: true}).waitFor();
+    await runner.page
+        .locator("[data-testid=DatabaseGridViewCell][data-field-name=Customers]")
+        .first()
+        .click();
+    await runner.getByLabel("Search records").waitFor();
+    await runner.getByRole("button", {name: "Link Acme Corp"}).waitFor();
+    await runner.mouse.move(0, 0);
+    await runner.screenshot("a7", "linked-record-editor");
+
+    // Link two customers. Each linked record shows a drag handle for reordering and a
+    // remove button, above the "Add more" list of remaining candidates.
+    await runner.getByRole("button", {name: "Link Northwind Trading"}).click();
+    await runner.getByRole("button", {name: "Remove Northwind Trading"}).waitFor();
+    await runner.getByRole("button", {name: "Link Meridian Labs"}).click();
+    await runner.getByRole("button", {name: "Remove Meridian Labs"}).waitFor();
+    await runner.mouse.move(0, 0);
+    await runner.screenshot("a8", "linked-record-editor-linked");
+
+    // Typing a search filters the candidates through a query against the linked
+    // database and offers to create a new record. The linked records hide while
+    // searching.
+    await runner.getByLabel("Search records").fill("co");
+    await runner.getByRole("button", {name: "Create co"}).waitFor();
+    // "Everpeak Retail" has no "co" so it drops out of the filtered candidates.
+    await runner.getByRole("button", {name: "Link Everpeak Retail"}).waitFor({state: "detached"});
+    await runner.mouse.move(0, 0);
+    await runner.screenshot("a9", "linked-record-editor-search");
 }
 
 /**
@@ -87,13 +134,19 @@ async function gotoDatabasesPath(runner: ScreenshotTestRunner, pathOrUrl: string
 }
 
 /**
- * Creates a database through the UI and lands on its grid view.
+ * Creates a database through the UI and lands on its grid view. Returns the grid
+ * view URL so callers can navigate back to it later.
  */
-async function createDatabase(runner: ScreenshotTestRunner, spaceId: string, name: string) {
+async function createDatabase(
+    runner: ScreenshotTestRunner,
+    spaceId: string,
+    name: string,
+): Promise<string> {
     await gotoDatabasesPath(runner, `/databases/${spaceId}/new?focus=name`);
     await runner.getByLabel("Name").fill(name);
     await runner.getByTestId("NavigationBar").getByRole("button", {name: "Create"}).click();
     await runner.getByText("New row", {exact: true}).waitFor();
+    return runner.page.url();
 }
 
 /**
