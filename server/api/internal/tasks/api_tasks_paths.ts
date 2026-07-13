@@ -10,6 +10,7 @@ import {
 } from "~/server/api/internal/shared/into_api_content_with_references.js";
 import {intoApiMessage} from "~/server/api/internal/shared/into_api_message.js";
 import {ApiTaskConverter} from "~/server/api/internal/tasks/internal/api_task_converter.js";
+import {createApiPatchTaskResponseCollections} from "~/server/api/internal/tasks/internal/create_api_patch_task_response_collections.js";
 import {createIntoApiTaskCommentContentPayloadParent} from "~/server/api/internal/tasks/internal/create_into_api_task_comment_content_payload_parent.ts.js";
 import {createTaskFromApi} from "~/server/api/internal/tasks/internal/create_task_from_api.js";
 import {fromApiTaskLayout} from "~/server/api/internal/tasks/internal/from_api_task_layout.js";
@@ -18,7 +19,10 @@ import {intoApiTaskCollection} from "~/server/api/internal/tasks/internal/into_a
 import {loadTasksFromApiQuery} from "~/server/api/internal/tasks/internal/load_tasks_from_api_query.js";
 import {updateTaskCollectionFromApi} from "~/server/api/internal/tasks/internal/update_task_collection_from_api.js";
 import {updateTaskNotesFromApi} from "~/server/api/internal/tasks/internal/update_task_notes_from_api.js";
-import {updateTaskWithoutNotesFromApi} from "~/server/api/internal/tasks/internal/update_task_without_notes_from_api.js";
+import {
+    updateTaskWithoutNotesFromApi,
+    updateTasksWithoutNotesFromApi,
+} from "~/server/api/internal/tasks/internal/update_task_without_notes_from_api.js";
 import {attachFileToTargetAsBot} from "~/server/files/data/attach_file_to_target_as_bot.js";
 import {FileTaskAuthorizer} from "~/server/tasks/data/authorization/file_task_authorizer.js";
 import {commitTaskActionTransaction} from "~/server/tasks/data/commit_task_action_transaction.js";
@@ -71,6 +75,55 @@ export const apiTasksPaths: Pick<
         ("/task-collections" | `/task-collections/${string}` | "/tasks" | `/tasks/${string}`)
 > = {
     "/tasks": {
+        patch: async (context, {requestBody}) => {
+            const {spaceId, patches} = requestBody;
+            const consistency = "StrongWithinCache" as const;
+            const taskIds = Array.from(new Set(patches.map(({id}) => id)));
+            const movedCollectionIdsByTaskId = new Map<TaskId, Set<TaskCollectionId>>();
+
+            for (const {id, patch} of patches) {
+                if (patch.type !== "MoveInCollection") continue;
+
+                let movedCollectionIds = movedCollectionIdsByTaskId.get(id);
+
+                if (movedCollectionIds === undefined) {
+                    movedCollectionIds = new Set();
+                    movedCollectionIdsByTaskId.set(id, movedCollectionIds);
+                }
+
+                movedCollectionIds.add(patch.collectionId);
+            }
+
+            const [{updatedTasks, updateEvent}, taskNotesEntries] = await runAllPromises([
+                updateTasksWithoutNotesFromApi(context, {spaceId, patches}),
+                runAllPromises(
+                    taskIds.map(async taskId => {
+                        const {notes} = await getApiTaskNotes(context, taskId, {consistency});
+                        return [taskId, notes] as const;
+                    }),
+                ),
+            ]);
+
+            const taskNotesById = new Map(taskNotesEntries);
+            const converter = new ApiTaskConverter(updateEvent);
+
+            return {
+                content: {
+                    spaceId,
+                    tasks: updatedTasks.map(task => ({
+                        task: {
+                            ...converter.into(task),
+                            notes: assertExists(taskNotesById.get(task.id)),
+                        },
+                        collections: createApiPatchTaskResponseCollections(
+                            task,
+                            movedCollectionIdsByTaskId.get(task.id) ?? [],
+                        ),
+                    })),
+                },
+            };
+        },
+
         post: async (context, {requestBody}) => {
             const spaceId = context.actor.getSpaceId();
             const {task: taskInput} = requestBody;
@@ -183,6 +236,13 @@ export const apiTasksPaths: Pick<
             const spaceId = context.actor.getSpaceId();
             const consistency = "StrongWithinCache" as const;
             const taskId = pathParameters.id;
+            const movedCollectionIds = new Set<TaskCollectionId>();
+
+            for (const patch of requestBody.patches) {
+                if (patch.type === "MoveInCollection") {
+                    movedCollectionIds.add(patch.collectionId);
+                }
+            }
 
             const [{updatedTask, updateEvent}, {notes}] = await runAllPromises([
                 updateTaskWithoutNotesFromApi(context, {
@@ -194,6 +254,11 @@ export const apiTasksPaths: Pick<
                 getApiTaskNotes(context, taskId, {consistency}),
             ]);
 
+            const collections = createApiPatchTaskResponseCollections(
+                updatedTask,
+                movedCollectionIds,
+            );
+
             return {
                 content: {
                     spaceId,
@@ -201,6 +266,7 @@ export const apiTasksPaths: Pick<
                         ...new ApiTaskConverter(updateEvent).into(updatedTask),
                         notes,
                     },
+                    ...(collections.length > 0 ? {collections} : {}),
                 },
             };
         },

@@ -14,11 +14,17 @@ import {TaskId} from "~/shared/id/types/id_types.js";
 import {TaskPosition} from "~/shared/tasks/task_position.js";
 
 export type ApiTaskMovePreparedPositionState = {
-    readonly count: number;
     readonly index: number;
+    readonly shared: ApiTaskMovePreparedPositionStateShared;
+    readonly position: PreparedApiTaskMovePatch;
+};
+
+/** State shared by moves with the same destination and position. */
+export type ApiTaskMovePreparedPositionStateShared = {
+    count: number;
     orderKeys: ReadonlyArray<OrderKey> | null;
     hasUpdatedTiedTasks: boolean;
-    readonly position: PreparedApiTaskMovePatch;
+    readonly movedTaskIdsInScope: ReadonlySet<TaskId>;
 };
 
 /**
@@ -29,6 +35,8 @@ export function createApiTaskMovePositionUpdates(
     preparedPositionState: ApiTaskMovePreparedPositionState,
     clock: HybridLogicalClock,
 ): Array<{taskId: TaskId; time: HybridLogicalTime; position: TaskPosition}> {
+    const {shared: sharedState} = preparedPositionState;
+
     switch (preparedPositionState.position.type) {
         case "End": {
             const time = clock.now();
@@ -42,17 +50,15 @@ export function createApiTaskMovePositionUpdates(
             if (firstTaskPosition === null) {
                 position = {orderTime: time, orderKey: initialOrderKey};
             } else {
-                preparedPositionState.orderKeys ??= generateOrderKeysBetween(
+                sharedState.orderKeys ??= generateOrderKeysBetween(
                     null,
                     firstTaskPosition.orderKey,
-                    preparedPositionState.count,
+                    sharedState.count,
                 );
 
                 position = {
                     orderTime: firstTaskPosition.orderTime,
-                    orderKey: assertExists(
-                        preparedPositionState.orderKeys[preparedPositionState.index],
-                    ),
+                    orderKey: assertExists(sharedState.orderKeys[preparedPositionState.index]),
                 };
             }
 
@@ -67,10 +73,10 @@ export function createApiTaskMovePositionUpdates(
         case "Between": {
             const {afterPosition, beforeOrderKey} = preparedPositionState.position;
 
-            preparedPositionState.orderKeys ??= generateOrderKeysBetween(
+            sharedState.orderKeys ??= generateOrderKeysBetween(
                 afterPosition.orderKey,
                 beforeOrderKey,
-                preparedPositionState.count,
+                sharedState.count,
             );
 
             return [
@@ -79,20 +85,24 @@ export function createApiTaskMovePositionUpdates(
                     time: clock.now(),
                     position: {
                         orderTime: afterPosition.orderTime,
-                        orderKey: assertExists(
-                            preparedPositionState.orderKeys[preparedPositionState.index],
-                        ),
+                        orderKey: assertExists(sharedState.orderKeys[preparedPositionState.index]),
                     },
                 },
             ];
         }
         case "BetweenTied": {
-            const {tiedPosition, tiedTasksToUpdate, upperOrderKey} = preparedPositionState.position;
+            const {tiedPosition, upperOrderKey} = preparedPositionState.position;
 
-            preparedPositionState.orderKeys ??= generateOrderKeysBetween(
+            // A task in this tied range may be explicitly moved elsewhere in the same batch.
+            // Its move update owns its new key, so don't also re-key it here.
+            const tiedTasksToUpdate = preparedPositionState.position.tiedTasksToUpdate.filter(
+                tiedTask => !sharedState.movedTaskIdsInScope.has(tiedTask.id),
+            );
+
+            sharedState.orderKeys ??= generateOrderKeysBetween(
                 tiedPosition.orderKey,
                 upperOrderKey,
-                preparedPositionState.count + tiedTasksToUpdate.length,
+                sharedState.count + tiedTasksToUpdate.length,
             );
 
             const updates: Array<{
@@ -105,21 +115,24 @@ export function createApiTaskMovePositionUpdates(
                     time: clock.now(),
                     position: {
                         orderTime: tiedPosition.orderTime,
-                        orderKey: assertExists(
-                            preparedPositionState.orderKeys[preparedPositionState.index],
-                        ),
+                        orderKey: assertExists(sharedState.orderKeys[preparedPositionState.index]),
                     },
                 },
             ];
 
-            if (!preparedPositionState.hasUpdatedTiedTasks) {
-                preparedPositionState.hasUpdatedTiedTasks = true;
+            // Emit tied-task updates after the final moved task. This preserves request action
+            // order while ensuring the tied range is re-keyed once.
+            if (
+                preparedPositionState.index === sharedState.count - 1 &&
+                !sharedState.hasUpdatedTiedTasks
+            ) {
+                sharedState.hasUpdatedTiedTasks = true;
 
                 for (let tiedIndex = 0; tiedIndex < tiedTasksToUpdate.length; tiedIndex++) {
                     const tiedTask = tiedTasksToUpdate[tiedIndex]!;
 
                     const orderKey = assertExists(
-                        preparedPositionState.orderKeys[preparedPositionState.count + tiedIndex],
+                        sharedState.orderKeys[sharedState.count + tiedIndex],
                     );
 
                     updates.push({

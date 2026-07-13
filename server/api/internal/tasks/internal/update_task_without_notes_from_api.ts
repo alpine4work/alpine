@@ -2,6 +2,7 @@ import {parseDate} from "@internationalized/date";
 import {findSpans} from "unicode-default-word-boundary";
 import {ApiServiceBotActionContext} from "~/server/api/internal/shared/api_service_context.js";
 import {
+    ApiTaskMovePreparedPositionStateShared as PreparedApiTaskMovePatchSharedState,
     ApiTaskMovePreparedPositionState as PreparedApiTaskMovePatchState,
     createApiTaskMovePositionUpdates as createApiTaskMovePatchUpdates,
 } from "~/server/api/internal/tasks/internal/create_api_task_move_position_updates.js";
@@ -14,53 +15,25 @@ import {commitTaskActionTransaction} from "~/server/tasks/data/commit_task_actio
 import {ApiTaskPatch} from "~/shared/api/specification/types/api_specification_convenience_types.js";
 import {InvalidArgumentError} from "~/shared/error/error.js";
 import {errorDisplayMessage} from "~/shared/error/error_display_message.js";
-import {emptyArray} from "~/shared/helpers/array/empty_array.js";
 import {filterMapArray} from "~/shared/helpers/array/filter_map_array.js";
 import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
-import {
-    HybridLogicalClock,
-    HybridLogicalTime,
-} from "~/shared/helpers/clock/hybrid_logical_clock.js";
+import {HybridLogicalClock} from "~/shared/helpers/clock/hybrid_logical_clock.js";
 import {unsynchronizedSystemClock} from "~/shared/helpers/clock/unsynchronized_system_clock.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
 import {diff} from "~/shared/helpers/diff/diff.js";
-import {TimeZone, defaultTimeZone} from "~/shared/helpers/intl/time_zone.js";
+import {defaultTimeZone} from "~/shared/helpers/intl/time_zone.js";
 import {getOrSetDefaultMapValue} from "~/shared/helpers/map/get_or_set_default_map_value.js";
-import {
-    OrderKey,
-    generateOrderKeyBetween,
-    generateOrderKeysBetween,
-    initialOrderKey,
-} from "~/shared/helpers/sort/order_key.js";
-import {MaybeReadonlyArray} from "~/shared/helpers/types/maybe_array.js";
+import {generateOrderKeyBetween} from "~/shared/helpers/sort/order_key.js";
 import {AccountId, SpaceId, TaskCollectionId, TaskId} from "~/shared/id/types/id_types.js";
 import {collectReferencedIdsFromTaskAction} from "~/shared/tasks/actions/collect_referenced_ids_from_task_action.js";
 import {TaskAction, TaskUpdateTaskAction} from "~/shared/tasks/actions/task_action.js";
 import {TaskModel} from "~/shared/tasks/model/task_model.js";
 import {TaskActor} from "~/shared/tasks/task_creator.js";
 import {TaskFilterableTime} from "~/shared/tasks/task_filterable_time.js";
-import {TaskPosition} from "~/shared/tasks/task_position.js";
 import {TaskRealtimeUpdateEvent} from "~/shared/tasks/task_realtime_protocol.js";
 import {TaskSortableAccount} from "~/shared/tasks/task_sortable_account.js";
-import {
-    TaskTitleModel,
-    randomlyGenerateTaskTitleClientId,
-} from "~/shared/tasks/title/task_title.js";
-
-/**
- * The task state we track while turning API patches into task actions one-by-one.
- * Each patch generates actions against the state left behind by the patches before
- * it (starting from the loaded task) so patches in one request compose the same
- * way they would across many requests.
- */
-type TaskPatchState = {
-    title: TaskTitleModel;
-    assigneeId: AccountId | null;
-    parentTaskId: TaskId | null;
-    collectionIds: Set<TaskCollectionId>;
-    lastCollectionOrderKey: OrderKey | null;
-};
+import {randomlyGenerateTaskTitleClientId} from "~/shared/tasks/title/task_title.js";
 
 export type ApiTaskIdPatch = {
     readonly id: TaskId;
@@ -174,8 +147,12 @@ export async function updateTasksWithoutNotesFromApi(
 
     const preparedPromiseByKey = new Map<
         string,
-        {count: number; promise: Promise<PreparedApiTaskMovePatch>}
+        {
+            shared: PreparedApiTaskMovePatchSharedState;
+            promise: Promise<PreparedApiTaskMovePatch>;
+        }
     >();
+    const movedTaskIdsByScopeKey = new Map<string, Set<TaskId>>();
 
     const preparedStates = await runAllPromises(
         patches.map(({id, patch}): Promise<PreparedApiTaskMovePatchState> | null => {
@@ -185,22 +162,32 @@ export async function updateTasksWithoutNotesFromApi(
             }
 
             if (patch.type === "MoveInCollection") {
+                const scopeKey = JSON.stringify(["Collection", patch.collectionId]);
+                const movedTaskIdsInScope = getOrSetDefaultMapValue(
+                    movedTaskIdsByScopeKey,
+                    scopeKey,
+                    () => new Set<TaskId>(),
+                );
+                movedTaskIdsInScope.add(id);
+
                 const key = JSON.stringify(["Collection", patch.collectionId, patch.position]);
 
                 const preparedPromise = getOrSetDefaultMapValue(preparedPromiseByKey, key, () => ({
-                    count: 0,
+                    shared: {
+                        count: 0,
+                        orderKeys: null,
+                        hasUpdatedTiedTasks: false,
+                        movedTaskIdsInScope,
+                    },
                     promise: prepareApiTaskMoveInCollectionPatch(context, spaceId, patch),
                 }));
 
-                const index = preparedPromise.count;
-                preparedPromise.count++;
+                const index = preparedPromise.shared.count++;
 
-                return preparedPromise.promise.then(prepared => ({
+                return preparedPromise.promise.then(position => ({
                     index,
-                    count: preparedPromise.count,
-                    orderKeys: null,
-                    hasUpdatedTiedTasks: false,
-                    prepared,
+                    shared: preparedPromise.shared,
+                    position,
                 }));
             }
 
@@ -208,10 +195,23 @@ export async function updateTasksWithoutNotesFromApi(
                 const moveParentTaskId = parentTaskIdByTaskId.get(id);
                 if (moveParentTaskId == null) return null;
 
+                const scopeKey = JSON.stringify(["Parent", moveParentTaskId]);
+                const movedTaskIdsInScope = getOrSetDefaultMapValue(
+                    movedTaskIdsByScopeKey,
+                    scopeKey,
+                    () => new Set<TaskId>(),
+                );
+                movedTaskIdsInScope.add(id);
+
                 const key = JSON.stringify(["Parent", moveParentTaskId, patch.position]);
 
                 const preparedPromise = getOrSetDefaultMapValue(preparedPromiseByKey, key, () => ({
-                    count: 0,
+                    shared: {
+                        count: 0,
+                        orderKeys: null,
+                        hasUpdatedTiedTasks: false,
+                        movedTaskIdsInScope,
+                    },
                     promise: prepareApiTaskMoveInParentPatch(
                         context,
                         spaceId,
@@ -220,15 +220,12 @@ export async function updateTasksWithoutNotesFromApi(
                     ),
                 }));
 
-                const index = preparedPromise.count;
-                preparedPromise.count++;
+                const index = preparedPromise.shared.count++;
 
-                return preparedPromise.promise.then(prepared => ({
+                return preparedPromise.promise.then(position => ({
                     index,
-                    count: preparedPromise.count,
-                    orderKeys: null,
-                    hasUpdatedTiedTasks: false,
-                    prepared,
+                    shared: preparedPromise.shared,
+                    position,
                 }));
             }
 
@@ -243,9 +240,9 @@ export async function updateTasksWithoutNotesFromApi(
         for (const initialTask of initialTasks) initialTask.tick(clock);
 
         for (const preparedState of preparedStates) {
-            if (preparedState?.prepared.type !== "BetweenTied") continue;
+            if (preparedState?.position.type !== "BetweenTied") continue;
 
-            for (const tiedTask of preparedState.prepared.tiedTasksToUpdate) {
+            for (const tiedTask of preparedState.position.tiedTasksToUpdate) {
                 tiedTask.tick(clock);
             }
         }
@@ -728,124 +725,6 @@ export async function updateTasksWithoutNotesFromApi(
         updatedTasks,
         updateEvent,
     };
-}
-
-type PreparedApiTaskMovePatchState = {
-    readonly count: number;
-    readonly index: number;
-    orderKeys: ReadonlyArray<OrderKey> | null;
-    hasUpdatedTiedTasks: boolean;
-    readonly prepared: PreparedApiTaskMovePatch;
-};
-
-function createApiTaskMovePatchUpdates(
-    taskId: TaskId,
-    preparedStates: PreparedApiTaskMovePatchState,
-    clock: HybridLogicalClock,
-): Array<{taskId: TaskId; time: HybridLogicalTime; position: TaskPosition}> {
-    switch (preparedStates.prepared.type) {
-        case "End": {
-            const time = clock.now();
-            return [{taskId, time, position: {orderTime: time, orderKey: initialOrderKey}}];
-        }
-        case "Start": {
-            const time = clock.now();
-            const {firstTaskPosition} = preparedStates.prepared;
-
-            let position: TaskPosition;
-            if (firstTaskPosition === null) {
-                position = {orderTime: time, orderKey: initialOrderKey};
-            } else {
-                preparedStates.orderKeys ??= generateOrderKeysBetween(
-                    null,
-                    firstTaskPosition.orderKey,
-                    preparedStates.count,
-                );
-
-                position = {
-                    orderTime: firstTaskPosition.orderTime,
-                    orderKey: assertExists(preparedStates.orderKeys[preparedStates.index]),
-                };
-            }
-
-            return [
-                {
-                    taskId,
-                    time,
-                    position,
-                },
-            ];
-        }
-        case "Between": {
-            const {afterPosition, beforeOrderKey} = preparedStates.prepared;
-
-            preparedStates.orderKeys ??= generateOrderKeysBetween(
-                afterPosition.orderKey,
-                beforeOrderKey,
-                preparedStates.count,
-            );
-
-            return [
-                {
-                    taskId,
-                    time: clock.now(),
-                    position: {
-                        orderTime: afterPosition.orderTime,
-                        orderKey: assertExists(preparedStates.orderKeys[preparedStates.index]),
-                    },
-                },
-            ];
-        }
-        case "BetweenTied": {
-            const {tiedPosition, tiedTasksToUpdate, upperOrderKey} = preparedStates.prepared;
-
-            preparedStates.orderKeys ??= generateOrderKeysBetween(
-                tiedPosition.orderKey,
-                upperOrderKey,
-                preparedStates.count + tiedTasksToUpdate.length,
-            );
-
-            const updates: Array<{
-                taskId: TaskId;
-                time: HybridLogicalTime;
-                position: TaskPosition;
-            }> = [
-                {
-                    taskId,
-                    time: clock.now(),
-                    position: {
-                        orderTime: tiedPosition.orderTime,
-                        orderKey: assertExists(preparedStates.orderKeys[preparedStates.index]),
-                    },
-                },
-            ];
-
-            if (!preparedStates.hasUpdatedTiedTasks) {
-                preparedStates.hasUpdatedTiedTasks = true;
-
-                for (let tiedIndex = 0; tiedIndex < tiedTasksToUpdate.length; tiedIndex++) {
-                    const tiedTask = tiedTasksToUpdate[tiedIndex]!;
-
-                    const orderKey = assertExists(
-                        preparedStates.orderKeys[preparedStates.count + tiedIndex],
-                    );
-
-                    updates.push({
-                        taskId: tiedTask.id,
-                        time: clock.now(),
-                        position: {
-                            orderTime: tiedPosition.orderTime,
-                            orderKey,
-                        },
-                    });
-                }
-            }
-
-            return updates;
-        }
-        default:
-            throw exhaustive(preparedStates.prepared);
-    }
 }
 
 /**
