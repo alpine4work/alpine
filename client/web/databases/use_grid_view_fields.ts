@@ -18,6 +18,7 @@ export type DatabaseGridViewField = {
     readonly position: OrderKey;
     readonly width: number;
     readonly hidden: boolean;
+    readonly linkedTableReadAccess: boolean | null;
 };
 
 /**
@@ -181,6 +182,7 @@ export function useGridViewFields({
                     position: addPosition,
                     width: databaseViewDefaultColumnWidth,
                     hidden: false,
+                    linkedTableReadAccess: null,
                 },
             });
             await conn.executeAction("createField", {fieldId, tableId, name, config});
@@ -238,6 +240,7 @@ export function useGridViewFields({
                 position: generateOrderKeyBetween(lastField?.position ?? null, null),
                 width: databaseViewDefaultColumnWidth,
                 hidden: false,
+                linkedTableReadAccess: null,
                 columnStyle: {
                     width: widthRem,
                     minWidth: widthRem,

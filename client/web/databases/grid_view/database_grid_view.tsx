@@ -731,6 +731,7 @@ function DatabaseGridViewCell({
             fieldId={field.id}
             rowId={rowId}
             config={field.config}
+            linkedTableReadAccess={field.linkedTableReadAccess}
             initialValue={optimisticValue as DatabaseFieldValue}
             initialEditString={initialEditValue}
             commitValue={commitValue}
@@ -766,6 +767,7 @@ function DatabaseGridViewCell({
                     ref={cellRef}
                     fieldName={field.name}
                     config={field.config}
+                    linkedTableReadAccess={field.linkedTableReadAccess}
                     value={optimisticValue as DatabaseFieldValue}
                     commitValue={commitValue}
                     onCellClick={() => dispatch({type: "click", rowId, fieldId: field.id})}

@@ -1541,9 +1541,24 @@ describe("DatabaseServer — per-table access", () => {
         );
 
         const fieldIndex = result.fieldIndexes.get(scenario.relation.sourceFieldId)!;
-        expect(result.rows[0]![fieldIndex]).toEqual([
-            {id: scenario.personRowId, name: null, noAccess: true},
-        ]);
+        expect(result.rows[0]![fieldIndex]).toEqual([{id: scenario.personRowId, name: null}]);
+    });
+
+    test("view schema reports linked-table read access on the relation field", async () => {
+        const scenario = await createLinkedTablesScenario();
+
+        const {result} = scenario.server.executeAction<"getViewSchema">(
+            createSessionContext(scenario.noPeople),
+            {
+                name: "getViewSchema",
+                input: {tableOrViewId: scenario.tasks.tableId},
+            },
+        );
+
+        const relationField = result.fields.find(
+            field => field.id === scenario.relation.sourceFieldId,
+        );
+        expect(relationField?.linkedTableReadAccess).toBe(false);
     });
 
     test("view rows include linked record names when the linked table is readable", async () => {
@@ -1566,9 +1581,7 @@ describe("DatabaseServer — per-table access", () => {
         );
 
         const fieldIndex = result.fieldIndexes.get(scenario.relation.sourceFieldId)!;
-        expect(result.rows[0]![fieldIndex]).toEqual([
-            {id: scenario.personRowId, name: "", noAccess: false},
-        ]);
+        expect(result.rows[0]![fieldIndex]).toEqual([{id: scenario.personRowId, name: ""}]);
     });
 
     test("createRelationField is denied with only View on the target", async () => {

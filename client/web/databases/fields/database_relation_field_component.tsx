@@ -19,6 +19,7 @@ import type {DatabaseRowId} from "~/shared/id/types/id_types.js";
 function DatabaseRelationGridViewCellContent({
     ref,
     value,
+    linkedTableReadAccess,
     onCellClick,
 }: DatabaseGridViewCellContentProps<"relation">) {
     const links = Array.isArray(value) ? value : [];
@@ -38,7 +39,7 @@ function DatabaseRelationGridViewCellContent({
                 <DatabaseRelationChip
                     key={link.id}
                     name={link.name}
-                    noAccess={link.noAccess === true}
+                    noAccess={linkedTableReadAccess === false}
                 />
             ))}
             {links.length > 3 ? (
@@ -56,6 +57,7 @@ function DatabaseRelationGridViewCellEditorOverlay({
     fieldId,
     rowId,
     initialValue,
+    linkedTableReadAccess,
     onClose,
 }: DatabaseGridViewCellEditorOverlayProps<"relation">) {
     const conn = useDatabaseConnection();
@@ -108,7 +110,7 @@ function DatabaseRelationGridViewCellEditorOverlay({
                     {links.map(link => (
                         <DatabaseRelationEditableChip
                             key={link.id}
-                            name={link.noAccess === true ? "No access" : link.name}
+                            name={linkedTableReadAccess === false ? "No access" : link.name}
                             onRemove={() => removeLink(link.id)}
                         />
                     ))}

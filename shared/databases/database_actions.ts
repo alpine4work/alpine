@@ -312,13 +312,20 @@ export const databaseActions = {
                     position: OrderKeySchema,
                     width: Schema.integer,
                     hidden: SqlBooleanSchema,
+                    linkedTableReadAccess: Schema.boolean.nullable(),
                 }),
             ),
         }),
         writeLevel: "none",
-        run({model}, {tableOrViewId}) {
+        run({model, getTableAccess}, {tableOrViewId}) {
             const {table, view} = model.resolveTableOrViewId(tableOrViewId);
-            const fields = view.getFieldsWithViewMetadata();
+            const fields = view.getFieldsWithViewMetadata().map(field => ({
+                ...field,
+                linkedTableReadAccess:
+                    field.config.type === "relation"
+                        ? getTableAccess(field.config.linkedTableId).read
+                        : null,
+            }));
 
             return {
                 tableId: table.id,

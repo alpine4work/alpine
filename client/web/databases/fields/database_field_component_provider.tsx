@@ -19,6 +19,7 @@ export type DatabaseGridViewCellContentProps<Type extends DatabaseFieldType> = {
     ref?: Ref<HTMLElement>;
     fieldName: string;
     config: DatabaseFieldConfig<Type>;
+    linkedTableReadAccess: boolean | null;
     value: DatabaseFieldValue<Type>;
     commitValue: (value: DatabaseFieldValue<Type>) => void;
     onCellClick: () => void;
@@ -33,6 +34,7 @@ export type DatabaseGridViewCellEditorOverlayProps<Type extends DatabaseFieldTyp
     fieldId: DatabaseFieldId;
     rowId: DatabaseRowId;
     config: DatabaseFieldConfig<Type>;
+    linkedTableReadAccess: boolean | null;
     /** The current typed value of the cell. */
     initialValue: DatabaseFieldValue<Type>;
     /**

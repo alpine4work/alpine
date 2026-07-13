@@ -22,13 +22,6 @@ export const DatabaseRelationFieldValueSchema = Schema.array(
     Schema.object({
         id: Schema.id<DatabaseRowId>(),
         name: Schema.string.nullable(),
-        /**
-         * True when the account can't read the linked table: the link and its row id are
-         * visible (they live in the join file, which either side's access unlocks), but
-         * the linked row's name isn't. Distinguishes "no access" from a linked row whose
-         * name is simply empty (`name: null`).
-         */
-        noAccess: Schema.boolean.default(false),
     }),
 );
 export type DatabaseRelationFieldValue = SchemaType<typeof DatabaseRelationFieldValueSchema>;
@@ -51,9 +44,7 @@ export class DatabaseRelationFieldProvider extends DatabaseFieldProviderBase<
     }
 
     override valueToString(value: DatabaseRelationFieldValue) {
-        return value
-            .map(link => (link.noAccess ? "No access" : (link.name ?? "Untitled")))
-            .join(", ");
+        return value.map(link => link.name ?? "Untitled").join(", ");
     }
 
     _selectColumn(field: DatabaseFieldModelOfType<"relation">, dataRow: SqlQuery) {
@@ -76,9 +67,7 @@ export class DatabaseRelationFieldProvider extends DatabaseFieldProviderBase<
                                         'id',
                                         ${joinRow}.${relation.their.rowIdColumn},
                                         'name',
-                                        NULL,
-                                        'noAccess',
-                                        jsonb ('true')
+                                        NULL
                                     )
                                     ORDER BY
                                         ${joinRow}.${relation.our.positionColumn}
