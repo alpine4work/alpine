@@ -1,4 +1,8 @@
-import {type AccessLevel, AccessPolicySchema} from "~/shared/access/access_policy.js";
+import {
+    type AccessLevel,
+    AccessPolicySchema,
+    hasAccessLevel,
+} from "~/shared/access/access_policy.js";
 import type {
     DatabaseActionContext,
     DatabaseActionServerContext,
@@ -307,15 +311,15 @@ export const databaseActions = {
             ),
         }),
         writeLevel: "none",
-        run({model, getTableAccess}, {tableOrViewId}) {
+        run({model, getTableAccessLevel}, {tableOrViewId}) {
             const {table, view} = model.resolveTableOrViewId(tableOrViewId);
-            const fields = view.getFieldsWithViewMetadata().map(field => ({
-                ...field,
-                linkedTableReadAccess:
+            const fields = view.getFieldsWithViewMetadata().map(field => {
+                const linkedTableReadAccess =
                     field.config.type === "relation"
-                        ? getTableAccess(field.config.linkedTableId).read
-                        : null,
-            }));
+                        ? hasAccessLevel(getTableAccessLevel(field.config.linkedTableId), "View")
+                        : null;
+                return {...field, linkedTableReadAccess};
+            });
 
             return {
                 tableId: table.id,
