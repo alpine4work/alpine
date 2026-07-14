@@ -12,6 +12,7 @@ NOCOMMIT: Remove this file
 - [x] Updating tasks in collection
 - [x] Adding/removing tasks from collection
 - [ ] Subtasks
+- [ ] Allow subtasks or collection tasks without link which acts to "create" the task
 - [x] Add default filters to collections
 - [x] Add filter search params
 - [x] Files in messages
