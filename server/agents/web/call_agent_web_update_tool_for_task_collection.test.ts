@@ -20,7 +20,6 @@ import {createAgentWebPageStoredLinkPathname} from "~/server/agents/web/create_a
 import {createAgentWebSessionStorageForTest} from "~/server/agents/web/test_helpers/create_agent_web_session_storage_for_test.js";
 import {storeAgentWebPageLinkForTest} from "~/server/agents/web/test_helpers/store_agent_web_page_link_for_test.js";
 import {
-    ErrorBase,
     InternalError,
     InvalidArgumentError,
     UnimplementedError,
@@ -70,6 +69,30 @@ function getApiPatchTasksRequestHistory() {
         .getRequestHistory()
         .filter(request => request.method === "PATCH" && request.path === "/tasks")
         .map(({body}) => body);
+}
+
+async function expectInvalidUpdateDisplayMessage({
+    path = "/task-collection/test-task-collection",
+    updates,
+    expected,
+}: {
+    path?: string;
+    updates: Parameters<typeof callAgentWebUpdateTool>[1]["updates"];
+    expected: string;
+}) {
+    const result = await captureResultPromise(
+        async () => await callAgentWebUpdateTool(context, {path, updates}),
+    );
+
+    if (result.ok) {
+        throw new InternalError("Expected update tool call to throw");
+    }
+
+    if (!(result.error instanceof InvalidArgumentError) || !result.error.displayMessage) {
+        throw result.error;
+    }
+
+    expect(result.error.displayMessage.map(({text}) => text).join("")).toEqual(expected);
 }
 
 test("updates the task collection name", async () => {
@@ -624,31 +647,15 @@ test("rejects setting an unassigned open task as active", async () => {
         limit: "50kb",
     });
 
-    const result = await captureResultPromise(
-        async () =>
-            await callAgentWebUpdateTool(context, {
-                path: "/task-collection/test-task-collection",
-                updates: [
-                    {
-                        old: "[Test Task 1 (Open)](/task/test-task-1)",
-                        new: "[Test Task 1 (Open, active)](/task/test-task-1)",
-                        replaceAll: false,
-                    },
-                ],
-            }),
-    );
-
-    if (result.ok) throw new InternalError("Expected update tool call to throw");
-
-    expect({
-        error: result.error,
-        displayMessage:
-            result.error instanceof ErrorBase
-                ? result.error.displayMessage?.map(({text}) => text).join("")
-                : undefined,
-    }).toMatchObject({
-        error: expect.any(InvalidArgumentError),
-        displayMessage:
+    await expectInvalidUpdateDisplayMessage({
+        updates: [
+            {
+                old: "[Test Task 1 (Open)](/task/test-task-1)",
+                new: "[Test Task 1 (Open, active)](/task/test-task-1)",
+                replaceAll: false,
+            },
+        ],
+        expected:
             "Can\u2019t set \u201CTest Task 1\u201D task as active if there\u2019s no assignee. We don\u2019t " +
             "recommend setting a task as active unless you\u2019re about to work on the task or " +
             "you know someone else is currently working on the task. Try again and either " +
@@ -807,31 +814,15 @@ test("rejects removing the assignee from an active task", async () => {
         limit: "50kb",
     });
 
-    const result = await captureResultPromise(
-        async () =>
-            await callAgentWebUpdateTool(context, {
-                path: "/task-collection/test-task-collection",
-                updates: [
-                    {
-                        old: "\n  - Assignee: [Alice](/human/alice)",
-                        new: "",
-                        replaceAll: false,
-                    },
-                ],
-            }),
-    );
-
-    if (result.ok) throw new InternalError("Expected update tool call to throw");
-
-    expect({
-        error: result.error,
-        displayMessage:
-            result.error instanceof ErrorBase
-                ? result.error.displayMessage?.map(({text}) => text).join("")
-                : undefined,
-    }).toMatchObject({
-        error: expect.any(InvalidArgumentError),
-        displayMessage:
+    await expectInvalidUpdateDisplayMessage({
+        updates: [
+            {
+                old: "\n  - Assignee: [Alice](/human/alice)",
+                new: "",
+                replaceAll: false,
+            },
+        ],
+        expected:
             "Can\u2019t remove the assignee from the active \u201CTest Task 1\u201D task. An active task " +
             "implies someone is currently working on the task and so an assignee is required " +
             "so we know who that is. Try again but set the task as inactive first (e.g. " +
@@ -1528,31 +1519,15 @@ test("rejects updating task subtask counts", async () => {
         limit: "50kb",
     });
 
-    const result = await captureResultPromise(
-        async () =>
-            await callAgentWebUpdateTool(context, {
-                path: "/task-collection/test-task-collection",
-                updates: [
-                    {
-                        old: "Subtasks: 3 open, 4 closed",
-                        new: "Subtasks: 2 open, 5 closed",
-                        replaceAll: false,
-                    },
-                ],
-            }),
-    );
-
-    if (result.ok) throw new InternalError("Expected update tool call to throw");
-
-    expect({
-        error: result.error,
-        displayMessage:
-            result.error instanceof ErrorBase
-                ? result.error.displayMessage?.map(({text}) => text).join("")
-                : undefined,
-    }).toMatchObject({
-        error: expect.any(InvalidArgumentError),
-        displayMessage:
+    await expectInvalidUpdateDisplayMessage({
+        updates: [
+            {
+                old: "Subtasks: 3 open, 4 closed",
+                new: "Subtasks: 2 open, 5 closed",
+                replaceAll: false,
+            },
+        ],
+        expected:
             "Can\u2019t change the \u201CTest Task 1\u201D task\u2019s subtasks by updating " +
             "\u201CSubtasks: 3 open, 4 closed\u201D to \u201CSubtasks: 2 open, 5 closed\u201D since we don\u2019t " +
             "know which underlying subtasks you\u2019re trying to add, remove, open, or close. " +
@@ -3965,31 +3940,15 @@ test("rejects removing a task from a collection with default filters and sorts",
         limit: "50kb",
     });
 
-    const result = await captureResultPromise(
-        async () =>
-            await callAgentWebUpdateTool(context, {
-                path: "/task-collection/test-task-collection",
-                updates: [
-                    {
-                        old: "\n\n- [Test Task 1 (Open)](/task/test-task-1)",
-                        new: "",
-                        replaceAll: false,
-                    },
-                ],
-            }),
-    );
-
-    if (result.ok) throw new InternalError("Expected update tool call to throw");
-
-    expect({
-        error: result.error,
-        displayMessage:
-            result.error instanceof ErrorBase
-                ? result.error.displayMessage?.map(({text}) => text).join("")
-                : undefined,
-    }).toMatchObject({
-        error: expect.any(InvalidArgumentError),
-        displayMessage:
+    await expectInvalidUpdateDisplayMessage({
+        updates: [
+            {
+                old: "\n\n- [Test Task 1 (Open)](/task/test-task-1)",
+                new: "",
+                replaceAll: false,
+            },
+        ],
+        expected:
             "Tasks may only be added, removed, or reordered when a task collection is " +
             "sorted manually. A collection is manually sorted when no automatic sorts " +
             "are applied. That means there are no default filters/sorts and there is no " +
@@ -4031,31 +3990,16 @@ test("rejects removing a task from a collection page with URL sorts", async () =
 
     await callAgentWebReadTool(context, {path, limit: "50kb"});
 
-    const result = await captureResultPromise(
-        async () =>
-            await callAgentWebUpdateTool(context, {
-                path,
-                updates: [
-                    {
-                        old: "\n\n- [Test Task 1 (Open)](/task/test-task-1)",
-                        new: "",
-                        replaceAll: false,
-                    },
-                ],
-            }),
-    );
-
-    if (result.ok) throw new InternalError("Expected update tool call to throw");
-
-    expect({
-        error: result.error,
-        displayMessage:
-            result.error instanceof ErrorBase
-                ? result.error.displayMessage?.map(({text}) => text).join("")
-                : undefined,
-    }).toMatchObject({
-        error: expect.any(InvalidArgumentError),
-        displayMessage:
+    await expectInvalidUpdateDisplayMessage({
+        path,
+        updates: [
+            {
+                old: "\n\n- [Test Task 1 (Open)](/task/test-task-1)",
+                new: "",
+                replaceAll: false,
+            },
+        ],
+        expected:
             "Tasks may only be added, removed, or reordered when a task collection is " +
             "sorted manually. A collection is manually sorted when no automatic sorts " +
             "are applied. That means there are no default filters/sorts and there is no " +
@@ -4219,25 +4163,9 @@ test("rejects an unknown status filter in the default filters", async () => {
         limit: "50kb",
     });
 
-    const result = await captureResultPromise(
-        async () =>
-            await callAgentWebUpdateTool(context, {
-                path: "/task-collection/test-task-collection",
-                updates: [{old: "status=open", new: "status=done", replaceAll: false}],
-            }),
-    );
-
-    if (result.ok) throw new InternalError("Expected update tool call to throw");
-
-    expect({
-        error: result.error,
-        displayMessage:
-            result.error instanceof ErrorBase
-                ? result.error.displayMessage?.map(({text}) => text).join("")
-                : undefined,
-    }).toMatchObject({
-        error: expect.any(InvalidArgumentError),
-        displayMessage:
+    await expectInvalidUpdateDisplayMessage({
+        updates: [{old: "status=open", new: "status=done", replaceAll: false}],
+        expected:
             "Unexpected task status filter `status=done`. Try again with `open`, " +
             "`open-inactive`, `open-active`, or `closed` (e.g. `status=open` or " +
             "`status[not]=closed`).",
@@ -4262,31 +4190,15 @@ test("rejects changing a task link to an unknown task", async () => {
         limit: "50kb",
     });
 
-    const result = await captureResultPromise(
-        async () =>
-            await callAgentWebUpdateTool(context, {
-                path: "/task-collection/test-task-collection",
-                updates: [
-                    {
-                        old: "[Test Task 1 (Open)](/task/test-task-1)",
-                        new: "[Missing task](/task/missing-task)",
-                        replaceAll: false,
-                    },
-                ],
-            }),
-    );
-
-    if (result.ok) throw new InternalError("Expected update tool call to throw");
-
-    expect({
-        error: result.error,
-        displayMessage:
-            result.error instanceof ErrorBase
-                ? result.error.displayMessage?.map(({text}) => text).join("")
-                : undefined,
-    }).toMatchObject({
-        error: expect.any(InvalidArgumentError),
-        displayMessage:
+    await expectInvalidUpdateDisplayMessage({
+        updates: [
+            {
+                old: "[Test Task 1 (Open)](/task/test-task-1)",
+                new: "[Missing task](/task/missing-task)",
+                replaceAll: false,
+            },
+        ],
+        expected:
             "Couldn\u2019t find a task for the link \u201CMissing task\u201D on line 5. You may only " +
             "add a task you\u2019ve previously seen to a collection. Try calling the `create` " +
             "tool to create a new task and then add that new task to the collection, or " +
@@ -4313,36 +4225,15 @@ test("rejects replacing a task link path with a duplicate task", async () => {
         limit: "50kb",
     });
 
-    const result = await captureResultPromise(
-        async () =>
-            await callAgentWebUpdateTool(context, {
-                path: "/task-collection/test-task-collection",
-                updates: [
-                    {
-                        old:
-                            "- [Test Task 0 (Open)](/task/test-task-0)\n\n" +
-                            "- [Test Task 1 (Open)](/task/test-task-1)\n\n" +
-                            "End of tasks.",
-                        new:
-                            "- [Test Task 0 (Open)](/task/test-task-1)\n\n" +
-                            "- [Test Task 1 (Open)](/task/test-task-1)",
-                        replaceAll: false,
-                    },
-                ],
-            }),
-    );
-
-    if (result.ok) throw new InternalError("Expected update tool call to throw");
-
-    expect({
-        error: result.error,
-        displayMessage:
-            result.error instanceof ErrorBase
-                ? result.error.displayMessage?.map(({text}) => text).join("")
-                : undefined,
-    }).toMatchObject({
-        error: expect.any(InvalidArgumentError),
-        displayMessage:
+    await expectInvalidUpdateDisplayMessage({
+        updates: [
+            {
+                old: "- [Test Task 0 (Open)](/task/test-task-0)",
+                new: "- [Test Task 0 (Open)](/task/test-task-1)",
+                replaceAll: false,
+            },
+        ],
+        expected:
             "The \u201CTest Task 1\u201D task appears more than once on this task collection page. " +
             "Each task may only appear once. Try again after removing the duplicate task " +
             "link.",
@@ -4365,25 +4256,9 @@ test("rejects an unexpected task collection color", async () => {
         limit: "50kb",
     });
 
-    const result = await captureResultPromise(
-        async () =>
-            await callAgentWebUpdateTool(context, {
-                path: "/task-collection/test-task-collection",
-                updates: [{old: "Color: Red", new: "Color: Magenta", replaceAll: false}],
-            }),
-    );
-
-    if (result.ok) throw new InternalError("Expected update tool call to throw");
-
-    expect({
-        error: result.error,
-        displayMessage:
-            result.error instanceof ErrorBase
-                ? result.error.displayMessage?.map(({text}) => text).join("")
-                : undefined,
-    }).toMatchObject({
-        error: expect.any(InvalidArgumentError),
-        displayMessage:
+    await expectInvalidUpdateDisplayMessage({
+        updates: [{old: "Color: Red", new: "Color: Magenta", replaceAll: false}],
+        expected:
             "Unexpected task collection color \u201CMagenta\u201D on line 3. Try again with " +
             "\u201CRed\u201D, \u201COrange\u201D, \u201CYellow\u201D, \u201CGreen\u201D, \u201CCyan\u201D, " +
             "\u201CBlue\u201D, \u201CIndigo\u201D, \u201CPurple\u201D, \u201CPink\u201D, or remove the color entirely.",
@@ -4408,31 +4283,15 @@ test("rejects unexpected markdown after the task list", async () => {
         limit: "50kb",
     });
 
-    const result = await captureResultPromise(
-        async () =>
-            await callAgentWebUpdateTool(context, {
-                path: "/task-collection/test-task-collection",
-                updates: [
-                    {
-                        old: "- [Test Task 1 (Open)](/task/test-task-1)",
-                        new: "- [Test Task 1 (Open)](/task/test-task-1)\n\nThe end.",
-                        replaceAll: false,
-                    },
-                ],
-            }),
-    );
-
-    if (result.ok) throw new InternalError("Expected update tool call to throw");
-
-    expect({
-        error: result.error,
-        displayMessage:
-            result.error instanceof ErrorBase
-                ? result.error.displayMessage?.map(({text}) => text).join("")
-                : undefined,
-    }).toMatchObject({
-        error: expect.any(InvalidArgumentError),
-        displayMessage:
+    await expectInvalidUpdateDisplayMessage({
+        updates: [
+            {
+                old: "- [Test Task 1 (Open)](/task/test-task-1)",
+                new: "- [Test Task 1 (Open)](/task/test-task-1)\n\nThe end.",
+                replaceAll: false,
+            },
+        ],
+        expected:
             "Unexpected markdown on line 7. Try again with only a color (e.g. `Color: Red`) " +
             "followed by a task list (an unordered list where every item is a task link) after " +
             "the task collection name.",
@@ -4485,31 +4344,15 @@ test("rejects changing the next page link cursor", async () => {
     }
 
     const nextPagePath = nextPagePathMatch[1]!;
-    const result = await captureResultPromise(
-        async () =>
-            await callAgentWebUpdateTool(context, {
-                path: "/task-collection/test-task-collection",
-                updates: [
-                    {
-                        old: nextPagePath,
-                        new: nextPagePath.replace(/after=[^&]+/, "after=d4e5f6"),
-                        replaceAll: false,
-                    },
-                ],
-            }),
-    );
-
-    if (result.ok) throw new InternalError("Expected update tool call to throw");
-
-    expect({
-        error: result.error,
-        displayMessage:
-            result.error instanceof ErrorBase
-                ? result.error.displayMessage?.map(({text}) => text).join("")
-                : undefined,
-    }).toMatchObject({
-        error: expect.any(InvalidArgumentError),
-        displayMessage:
+    await expectInvalidUpdateDisplayMessage({
+        updates: [
+            {
+                old: nextPagePath,
+                new: nextPagePath.replace(/after=[^&]+/, "after=d4e5f6"),
+                replaceAll: false,
+            },
+        ],
+        expected:
             "You can\u2019t update the \u201CNext page »\u201D link in task collection " +
             "markdown. Try again with a more specific update that leaves the " +
             "\u201CNext page »\u201D link unchanged.",
@@ -4537,31 +4380,15 @@ test("rejects removing the next page link", async () => {
     }
 
     const nextPagePath = nextPagePathMatch[1]!;
-    const result = await captureResultPromise(
-        async () =>
-            await callAgentWebUpdateTool(context, {
-                path: "/task-collection/test-task-collection",
-                updates: [
-                    {
-                        old: `[Next page »](${nextPagePath})`,
-                        new: "",
-                        replaceAll: false,
-                    },
-                ],
-            }),
-    );
-
-    if (result.ok) throw new InternalError("Expected update tool call to throw");
-
-    expect({
-        error: result.error,
-        displayMessage:
-            result.error instanceof ErrorBase
-                ? result.error.displayMessage?.map(({text}) => text).join("")
-                : undefined,
-    }).toMatchObject({
-        error: expect.any(InvalidArgumentError),
-        displayMessage:
+    await expectInvalidUpdateDisplayMessage({
+        updates: [
+            {
+                old: `[Next page »](${nextPagePath})`,
+                new: "",
+                replaceAll: false,
+            },
+        ],
+        expected:
             "You can\u2019t update the \u201CNext page »\u201D link in task collection " +
             "markdown. Try again with a more specific update that leaves the " +
             "\u201CNext page »\u201D link unchanged.",
@@ -4584,31 +4411,15 @@ test("rejects adding the end of tasks marker", async () => {
         limit: "100b",
     });
 
-    const result = await captureResultPromise(
-        async () =>
-            await callAgentWebUpdateTool(context, {
-                path: "/task-collection/test-task-collection",
-                updates: [
-                    {
-                        old: "- [Test Task 0 (Open)](/task/test-task-0)",
-                        new: "- [Test Task 0 (Open)](/task/test-task-0)\n\nEnd of tasks.",
-                        replaceAll: false,
-                    },
-                ],
-            }),
-    );
-
-    if (result.ok) throw new InternalError("Expected update tool call to throw");
-
-    expect({
-        error: result.error,
-        displayMessage:
-            result.error instanceof ErrorBase
-                ? result.error.displayMessage?.map(({text}) => text).join("")
-                : undefined,
-    }).toMatchObject({
-        error: expect.any(InvalidArgumentError),
-        displayMessage:
+    await expectInvalidUpdateDisplayMessage({
+        updates: [
+            {
+                old: "- [Test Task 0 (Open)](/task/test-task-0)",
+                new: "- [Test Task 0 (Open)](/task/test-task-0)\n\nEnd of tasks.",
+                replaceAll: false,
+            },
+        ],
+        expected:
             "Can\u2019t add the \u201CEnd of tasks\u201D marker in an update. Only a `read` tool " +
             "call can tell you whether you\u2019re at the end of a task list or not. Try " +
             "again without adding the \u201CEnd of tasks\u201D marker.",
@@ -4668,31 +4479,16 @@ test("rejects renaming the task collection on a later page", async () => {
         limit: "50kb",
     });
 
-    const result = await captureResultPromise(
-        async () =>
-            await callAgentWebUpdateTool(context, {
-                path: nextPagePath,
-                updates: [
-                    {
-                        old: "Tasks in Test Task Collection.",
-                        new: "Tasks in Test Task Collection 2026.",
-                        replaceAll: false,
-                    },
-                ],
-            }),
-    );
-
-    if (result.ok) throw new InternalError("Expected update tool call to throw");
-
-    expect({
-        error: result.error,
-        displayMessage:
-            result.error instanceof ErrorBase
-                ? result.error.displayMessage?.map(({text}) => text).join("")
-                : undefined,
-    }).toMatchObject({
-        error: expect.any(InvalidArgumentError),
-        displayMessage:
+    await expectInvalidUpdateDisplayMessage({
+        path: nextPagePath,
+        updates: [
+            {
+                old: "Tasks in Test Task Collection.",
+                new: "Tasks in Test Task Collection 2026.",
+                replaceAll: false,
+            },
+        ],
+        expected:
             "You can only update the task collection name on the first page of the " +
             "collection. You must leave the `Tasks in My Collection.` line at the start of " +
             "the collection markdown in place. Try calling the `read` tool to navigate to " +
