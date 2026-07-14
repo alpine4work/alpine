@@ -140,7 +140,7 @@ export abstract class EmailContextModuleBase<
         spaceId: SpaceId;
         emailType: NonTransactionalEmailType;
     } {
-        const spaceId = url.pathname.split("/")[2];
+        const spaceId = url.pathname.split("/")[3];
         const accountId = url.searchParams.get("accountId");
         const emailType = url.searchParams.get("emailType");
 
