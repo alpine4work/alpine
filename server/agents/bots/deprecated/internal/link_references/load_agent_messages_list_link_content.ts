@@ -433,7 +433,7 @@ async function getPreambleForDocumentComments({
         const [existingDocumentLink, commentThreadData] = await runAllPromises([
             findAgentLinkForApiPathIfExists(transaction, `/documents/${link.documentId}`),
             isFirstPage
-                ? request.apiClient.get(tracer, "/documents/{id}/threads/{threadId}", {
+                ? request.apiClient.get(tracer, "/documents/{id}/threads/{threadId}-with-preview", {
                       params: {path: {id: link.documentId, threadId: link.commentThreadId}},
                   })
                 : null,
@@ -469,7 +469,7 @@ async function getPreambleForDocumentComments({
             paragraphContent.push({type: "text", value: ".\u201D"});
         }
 
-        const contentSnippet = commentThreadData?.data.thread.marked.preview.contentSnippet;
+        const contentSnippet = commentThreadData?.data.thread.preview.contentSnippet;
         if (contentSnippet && contentSnippet.elements.length > 0) {
             documentContentSnippet = contentSnippet;
             paragraphContent.push({

@@ -99,11 +99,10 @@ export async function updateAgentWebDocumentPage(
     } = await context.api.patch(context.span, "/documents/{id}", {
         params: {path: {id}},
         body: {
-            document: {
-                version: oldVersion,
-                title: newPage.title,
-                content: newPage.content,
-            },
+            patches: [
+                {type: "SetTitle", version: oldVersion, title: newPage.title},
+                {type: "SetContent", version: oldVersion, content: newPage.content},
+            ],
         },
     });
 

@@ -223,7 +223,7 @@ function expectLastDocumentPatchContent(content: ApiContentResponseWithoutKeys) 
     const patchRequests = getDocumentPatchRequests();
     const lastPatchRequest = patchRequests[patchRequests.length - 1] as any;
 
-    expect(lastPatchRequest.body.document.content).toEqual(content);
+    expect(lastPatchRequest.body.patches[1].content).toEqual(content);
 }
 
 test("parse failure for missing title bubbles and keeps cache unchanged", async () => {
@@ -410,6 +410,6 @@ test("uses updated version from first update as precondition for second update",
     const patchRequests = getDocumentPatchRequests();
 
     expect(patchRequests).toHaveLength(2);
-    expect((patchRequests[0] as any).body.document.version).toBe(1);
-    expect((patchRequests[1] as any).body.document.version).toBe(2);
+    expect((patchRequests[0] as any).body.patches[0].version).toBe(1);
+    expect((patchRequests[1] as any).body.patches[0].version).toBe(2);
 });

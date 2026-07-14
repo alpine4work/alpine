@@ -84,7 +84,7 @@ export async function loadAgentTaskCollectionLinkContent({
         request.apiClient.get(tracer, "/task-collections/{id}", {
             params: {path: {id: link.collectionId}},
         }),
-        request.apiClient.post(tracer, "/task-collections/{id}/tasks/query", {
+        request.apiClient.post(tracer, "/task-collections/{id}/tasks-query", {
             params: {path: {id: link.collectionId}},
             body: {
                 limit: 100,

@@ -65,7 +65,7 @@ function getApiPostTaskCollectionTasksQueryRequestHistory() {
         .getRequestHistory()
         .filter(
             request =>
-                request.method === "POST" && request.path === "/task-collections/{id}/tasks/query",
+                request.method === "POST" && request.path === "/task-collections/{id}/tasks-query",
         );
 }
 
@@ -835,7 +835,7 @@ test("queries a task collection with custom filters and sorts", async () => {
         ],
         sorts: [{type: "Priority", direction: "Descending"}],
     };
-    api.mockPost("/task-collections/{id}/tasks/query", {
+    api.mockPost("/task-collections/{id}/tasks-query", {
         params: {path: {id: collectionId}},
         data: {
             spaceId,
@@ -899,7 +899,7 @@ test("paginates custom task collection filters and sorts with after", async () =
         ],
         sorts: [{type: "Priority", direction: "Descending"}],
     };
-    api.mockPost("/task-collections/{id}/tasks/query", {
+    api.mockPost("/task-collections/{id}/tasks-query", {
         params: {path: {id: collectionId}},
         data: {
             spaceId,
@@ -916,7 +916,7 @@ test("paginates custom task collection filters and sorts with after", async () =
             })),
         },
     });
-    api.mockPost("/task-collections/{id}/tasks/query", {
+    api.mockPost("/task-collections/{id}/tasks-query", {
         params: {path: {id: collectionId}},
         data: {
             spaceId,
@@ -997,7 +997,7 @@ test("truncation adds a pagination link with custom filters", async () => {
         ],
         sorts: [],
     };
-    api.mockPost("/task-collections/{id}/tasks/query", {
+    api.mockPost("/task-collections/{id}/tasks-query", {
         params: {path: {id: collectionId}},
         data: {
             spaceId,
@@ -1042,7 +1042,7 @@ test("truncation updates a pagination link with custom filters and sorts", async
         ],
         sorts: [{type: "CreatedTime", direction: "Descending"}],
     };
-    api.mockPost("/task-collections/{id}/tasks/query", {
+    api.mockPost("/task-collections/{id}/tasks-query", {
         params: {path: {id: collectionId}},
         data: {
             spaceId,
@@ -1090,7 +1090,7 @@ test("shows exactly 30 custom-query tasks when the limit is the exact response s
         ],
         sorts: [{type: "CreatedTime", direction: "Descending"}],
     };
-    api.mockPost("/task-collections/{id}/tasks/query", {
+    api.mockPost("/task-collections/{id}/tasks-query", {
         params: {path: {id: collectionId}},
         data: {
             spaceId,
@@ -1139,7 +1139,7 @@ test("truncation adds a pagination link with custom filters and sorts on a later
         ],
         sorts: [{type: "CreatedTime", direction: "Descending"}],
     };
-    api.mockPost("/task-collections/{id}/tasks/query", {
+    api.mockPost("/task-collections/{id}/tasks-query", {
         params: {path: {id: collectionId}},
         data: {
             spaceId,
@@ -1187,7 +1187,7 @@ test("truncation updates a pagination link with custom filters and sorts on a la
         ],
         sorts: [{type: "CreatedTime", direction: "Descending"}],
     };
-    api.mockPost("/task-collections/{id}/tasks/query", {
+    api.mockPost("/task-collections/{id}/tasks-query", {
         params: {path: {id: collectionId}},
         data: {
             spaceId,
@@ -1251,7 +1251,7 @@ test("rejects manual ordering with sorts in search params", async () => {
 });
 
 test("queries manual order with empty filters and sorts despite collection defaults", async () => {
-    api.mockPost("/task-collections/{id}/tasks/query", {
+    api.mockPost("/task-collections/{id}/tasks-query", {
         params: {path: {id: collectionId}},
         data: {
             spaceId,

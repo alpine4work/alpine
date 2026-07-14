@@ -96,7 +96,7 @@ function mockGetDocumentThread(
     }> &
         Record<string, unknown>,
 ): void {
-    api.mockGet("/documents/{id}/threads/{threadId}", {
+    api.mockGet("/documents/{id}/threads/{threadId}-with-preview", {
         params: {path: {id: documentId, threadId}},
         data: {
             spaceId,
@@ -115,11 +115,9 @@ function mockGetDocumentThread(
                     createdTime: serializeDateString(new Date()),
                     createdTimeZone: defaultTimeZone,
                 },
-                marked: {
-                    preview: {
-                        version: 1,
-                        contentSnippet: responseData.documentContentSnippet ?? {elements: []},
-                    },
+                preview: {
+                    version: 1,
+                    contentSnippet: responseData.documentContentSnippet ?? {elements: []},
                 },
             },
         },

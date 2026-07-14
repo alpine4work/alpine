@@ -181,7 +181,7 @@ export const apiChatPaths: Pick<ApiPaths, (keyof ApiPaths & `/chats/${string}`) 
         },
     },
 
-    "/chats/{id}/reference": {
+    "/chats/{id}-reference": {
         get: async (context, {pathParameters}) => {
             const spaceId = context.actor.getSpaceId();
 

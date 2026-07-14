@@ -203,7 +203,7 @@ export async function readAgentWebDocumentThreadPage(
 
         const {
             data: {thread, document},
-        } = await context.api.get(context.span, "/documents/{id}/threads/{threadId}", {
+        } = await context.api.get(context.span, "/documents/{id}/threads/{threadId}-with-preview", {
             params: {path: {id, threadId}},
         });
 
@@ -278,7 +278,7 @@ export async function readAgentWebDocumentThreadPage(
                     extractCommentSliceFromApiContent(
                         threadId,
                         unsafelyZipTemporaryKeysIntoApiContentResponse(
-                            thread.marked.preview.contentSnippet,
+                            thread.preview.contentSnippet,
                         ).content,
                     ),
                 ).contentSlice,
@@ -302,7 +302,7 @@ export async function readAgentWebDocumentThreadPage(
     const roomMetadataWithoutStartCustomBlock = new Lazy<Promise<RoomMetadata>>(async () => {
         const {
             data: {reference: documentReference},
-        } = await context.api.get(context.span, "/documents/{id}/reference", {
+        } = await context.api.get(context.span, "/documents/{id}-reference", {
             params: {path: {id}},
         });
 

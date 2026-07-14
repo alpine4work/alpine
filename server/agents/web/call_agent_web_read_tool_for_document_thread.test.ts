@@ -153,7 +153,7 @@ function documentContentSnippet(): ApiContentResponse {
 }
 
 function mockGetDocumentReference() {
-    api.mockGet("/documents/{id}/reference", {
+    api.mockGet("/documents/{id}-reference", {
         params: {path: {id: documentId}},
         data: {spaceId, reference: documentReference},
     });
@@ -172,7 +172,7 @@ function mockGetDocumentThread({
     previewContent?: ApiContentResponse;
     isResolved?: boolean;
 } = {}) {
-    api.mockGet("/documents/{id}/threads/{threadId}", {
+    api.mockGet("/documents/{id}/threads/{threadId}-with-preview", {
         params: {path: {id: documentId, threadId}},
         data: {
             spaceId,
@@ -185,11 +185,9 @@ function mockGetDocumentThread({
                     createdTime: serializeDateString(createdTime),
                     createdTimeZone: defaultTimeZone,
                 },
-                marked: {
-                    preview: {
-                        version: 1,
-                        contentSnippet: previewContent,
-                    },
+                preview: {
+                    version: 1,
+                    contentSnippet: previewContent,
                 },
             },
             document: {

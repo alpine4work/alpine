@@ -97,7 +97,7 @@ function mockGetPost({
 }
 
 function mockGetPostReference() {
-    api.mockGet("/posts/{id}/reference", {
+    api.mockGet("/posts/{id}-reference", {
         params: {path: {id: postId}},
         data: {
             spaceId,

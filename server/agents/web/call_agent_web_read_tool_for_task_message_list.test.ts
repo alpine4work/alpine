@@ -62,7 +62,7 @@ beforeEach(async () => {
 });
 
 function mockApiGetTaskReference() {
-    api.mockGet("/tasks/{id}/reference", {
+    api.mockGet("/tasks/{id}-reference", {
         params: {path: {id: taskId}},
         data: {spaceId, reference: taskReference},
     });

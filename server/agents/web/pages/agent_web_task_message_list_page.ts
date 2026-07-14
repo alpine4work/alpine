@@ -125,7 +125,7 @@ async function getTaskRoomMetadata(
 }> {
     const {
         data: {reference},
-    } = await context.api.get(context.span, "/tasks/{id}/reference", {
+    } = await context.api.get(context.span, "/tasks/{id}-reference", {
         params: {path: {id}},
     });
 

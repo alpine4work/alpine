@@ -312,10 +312,13 @@ export async function updateAgentWebTaskPage(
             ? context.api.patch(context.span, "/tasks/{id}/notes", {
                   params: {path: {id: oldPageMetadata.id}},
                   body: {
-                      notes: {
-                          version: oldPageMetadata.notes.version,
-                          content: newPage.notes,
-                      },
+                      patches: [
+                          {
+                              type: "SetContent",
+                              version: oldPageMetadata.notes.version,
+                              content: newPage.notes,
+                          },
+                      ],
                   },
               })
             : null,

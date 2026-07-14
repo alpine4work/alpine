@@ -1676,7 +1676,7 @@ async function injectCurrentlyViewedEntityIntoContextIfNeeded(
             getApiReference(tracer, request.apiClient, request.event.viewing.reference),
         );
 
-        // Some viewing references can't be resolved by `/{type}/{id}/reference` (most
+        // Some viewing references can't be resolved by `/{type}/{id}-reference` (most
         // notably 1:1 chats, including the user's chat with the agent itself), which the
         // API returns as a 404. Context injection is best-effort, so skip it rather than
         // failing the whole webhook.

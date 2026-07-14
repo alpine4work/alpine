@@ -3322,7 +3322,7 @@ describe("injectCurrentlyViewedEntityIntoContextIfNeeded", () => {
         });
 
         // Mock the API calls
-        apiClient.mockGet("/documents/{id}/reference", {
+        apiClient.mockGet("/documents/{id}-reference", {
             params: "Any",
             data: {
                 spaceId,
@@ -3488,7 +3488,7 @@ describe("injectCurrentlyViewedEntityIntoContextIfNeeded", () => {
         });
 
         // Mock API call for mention (to get the same entity)
-        apiClient.mockGet("/documents/{id}/reference", {
+        apiClient.mockGet("/documents/{id}-reference", {
             params: "Any",
             data: {
                 spaceId,
@@ -3551,7 +3551,7 @@ describe("injectCurrentlyViewedEntityIntoContextIfNeeded", () => {
         });
 
         // Mock API calls
-        apiClient.mockGet("/documents/{id}/reference", {
+        apiClient.mockGet("/documents/{id}-reference", {
             params: "Any",
             data: {
                 spaceId,
@@ -3635,7 +3635,7 @@ describe("injectCurrentlyViewedEntityIntoContextIfNeeded", () => {
         });
 
         // Mock API calls
-        apiClient.mockGet("/documents/{id}/reference", {
+        apiClient.mockGet("/documents/{id}-reference", {
             params: "Any",
             data: {
                 spaceId,

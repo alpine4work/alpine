@@ -325,7 +325,7 @@ test("adds task notes", async () => {
         notesPatches: getTaskNotesPatchRequests().map(request => request.body),
     }).toEqual({
         taskPatches: [],
-        notesPatches: [{notes: {version: 4, content: notesContent}}],
+        notesPatches: [{patches: [{type: "SetContent", version: 4, content: notesContent}]}],
     });
 });
 
@@ -360,7 +360,7 @@ test("adds task notes with heading", async () => {
     ).resolves.toEqual("Update was successful.\n");
 
     expect(getTaskNotesPatchRequests().map(request => request.body)).toEqual([
-        {notes: {version: 0, content: notesContent}},
+        {patches: [{type: "SetContent", version: 0, content: notesContent}]},
     ]);
 });
 
@@ -388,7 +388,7 @@ test("clears task notes after reading task with notes set", async () => {
     ).resolves.toEqual("Update was successful.\n");
 
     expect(getTaskNotesPatchRequests().map(request => request.body)).toEqual([
-        {notes: {version: 6, content: emptyNotesContent}},
+        {patches: [{type: "SetContent", version: 6, content: emptyNotesContent}]},
     ]);
 });
 
@@ -424,7 +424,7 @@ test("changes task notes after reading task with notes set", async () => {
     ).resolves.toEqual("Update was successful.\n");
 
     expect(getTaskNotesPatchRequests().map(request => request.body)).toEqual([
-        {notes: {version: 10, content: newNotesContent}},
+        {patches: [{type: "SetContent", version: 10, content: newNotesContent}]},
     ]);
 });
 
@@ -459,7 +459,7 @@ test("updates task fields and notes", async () => {
         notesPatches: getTaskNotesPatchRequests().map(request => request.body),
     }).toEqual({
         taskPatches: [{patches: [{type: "SetStatus", status: {type: "Closed"}}]}],
-        notesPatches: [{notes: {version: 0, content: notesContent}}],
+        notesPatches: [{patches: [{type: "SetContent", version: 0, content: notesContent}]}],
     });
 });
 

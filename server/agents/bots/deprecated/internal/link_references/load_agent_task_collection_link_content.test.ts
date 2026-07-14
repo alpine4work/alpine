@@ -71,7 +71,7 @@ function mockGetTaskCollectionTasks(
           }
         : "Any";
 
-    api.mockPost("/task-collections/{id}/tasks/query", {
+    api.mockPost("/task-collections/{id}/tasks-query", {
         params: params === "Any" ? params : {path: params.path},
         data: {
             spaceId,

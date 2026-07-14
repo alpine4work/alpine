@@ -294,7 +294,7 @@ export async function readAgentWebPostPage(
         async () => {
             const {
                 data: {reference: postReference},
-            } = await context.api.get(context.span, "/posts/{id}/reference", {
+            } = await context.api.get(context.span, "/posts/{id}-reference", {
                 params: {path: {id}},
             });
 

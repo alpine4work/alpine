@@ -698,41 +698,41 @@ export function getApiReference(
 ): Promise<{data: {reference: ApiMentionReferenceResponse}}> {
     switch (reference.type) {
         case "Account": {
-            return apiClient.get(tracer, "/accounts/{id}/reference", {
+            return apiClient.get(tracer, "/accounts/{id}-reference", {
                 params: {path: {id: reference.id}},
             });
         }
         case "Document": {
-            return apiClient.get(tracer, "/documents/{id}/reference", {
+            return apiClient.get(tracer, "/documents/{id}-reference", {
                 params: {path: {id: reference.id}},
             });
         }
         case "Channel": {
-            return apiClient.get(tracer, "/channels/{id}/reference", {
+            return apiClient.get(tracer, "/channels/{id}-reference", {
                 params: {path: {id: reference.id}},
             });
         }
         case "Chat": {
-            return apiClient.get(tracer, "/chats/{id}/reference", {
+            return apiClient.get(tracer, "/chats/{id}-reference", {
                 params: {path: {id: reference.id}},
             });
         }
         case "Task":
-            return apiClient.get(tracer, "/tasks/{id}/reference", {
+            return apiClient.get(tracer, "/tasks/{id}-reference", {
                 params: {path: {id: reference.id}},
             });
         case "TaskCollection": {
-            return apiClient.get(tracer, "/task-collections/{id}/reference", {
+            return apiClient.get(tracer, "/task-collections/{id}-reference", {
                 params: {path: {id: reference.id}},
             });
         }
         case "Post": {
-            return apiClient.get(tracer, "/posts/{id}/reference", {
+            return apiClient.get(tracer, "/posts/{id}-reference", {
                 params: {path: {id: reference.id}},
             });
         }
         case "Site": {
-            return apiClient.get(tracer, "/sites/{id}/reference", {
+            return apiClient.get(tracer, "/sites/{id}-reference", {
                 params: {path: {id: reference.id}},
             });
         }

@@ -280,7 +280,7 @@ function mockGetDocumentThread({
     previewContent?: ApiContentResponse;
     isResolved?: boolean;
 } = {}) {
-    api.mockGet("/documents/{id}/threads/{threadId}", {
+    api.mockGet("/documents/{id}/threads/{threadId}-with-preview", {
         params: {path: {id: documentId, threadId}},
         data: {
             spaceId,
@@ -293,11 +293,9 @@ function mockGetDocumentThread({
                     createdTime: serializeDateString(createdTime),
                     createdTimeZone: defaultTimeZone,
                 },
-                marked: {
-                    preview: {
-                        version: 1,
-                        contentSnippet: previewContent,
-                    },
+                preview: {
+                    version: 1,
+                    contentSnippet: previewContent,
                 },
             },
             document: {
