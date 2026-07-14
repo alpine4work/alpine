@@ -294,7 +294,7 @@ export async function loadTaskRealtimeQueries(
                 }
                 break;
             }
-            case "Subtasks": {
+            case "Children": {
                 await server.authorizeTaskAccess(originalContext, spaceId, query.taskId, "View", {
                     consistency,
                 });

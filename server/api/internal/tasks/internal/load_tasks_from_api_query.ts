@@ -14,7 +14,7 @@ import {TaskRealtimeLoadQueriesInputQuery} from "~/shared/tasks/task_realtime_se
 
 type ApiTaskRealtimeLoadQueriesInputQuery = Extract<
     TaskRealtimeLoadQueriesInputQuery,
-    {type: "Collection" | "Subtasks"}
+    {type: "Collection" | "Children"}
 >;
 
 export async function loadTasksFromApiQuery(

@@ -341,7 +341,7 @@ export const apiTasksPaths: Pick<
             const [{spaceId, updateEvent, nextCursor, tasks}, {notes}] = await runAllPromises([
                 loadTasksFromApiQuery(context, {
                     query: {
-                        type: "Subtasks",
+                        type: "Children",
                         taskId,
                         limit: queryParameters.limit ?? 10,
                         evaluationContext: {
@@ -377,7 +377,7 @@ export const apiTasksPaths: Pick<
             const [{spaceId, updateEvent, nextCursor, tasks}, {notes}] = await runAllPromises([
                 loadTasksFromApiQuery(context, {
                     query: {
-                        type: "Subtasks",
+                        type: "Children",
                         taskId,
                         limit: requestBody.limit ?? 10,
                         filters: requestBody.filters?.map(fromApiTaskQueryFilter),
@@ -414,7 +414,7 @@ export const apiTasksPaths: Pick<
 
             const {spaceId, updateEvent, nextCursor, tasks} = await loadTasksFromApiQuery(context, {
                 query: {
-                    type: "Subtasks",
+                    type: "Children",
                     taskId,
                     limit: queryParameters.limit ?? 10,
                     evaluationContext: {
@@ -444,7 +444,7 @@ export const apiTasksPaths: Pick<
 
             const {spaceId, updateEvent, nextCursor, tasks} = await loadTasksFromApiQuery(context, {
                 query: {
-                    type: "Subtasks",
+                    type: "Children",
                     taskId,
                     limit: requestBody.limit ?? 10,
                     filters: requestBody.filters?.map(fromApiTaskQueryFilter),

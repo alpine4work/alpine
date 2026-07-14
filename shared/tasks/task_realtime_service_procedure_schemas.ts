@@ -67,8 +67,8 @@ export const TaskRealtimeLoadQueriesInputQuerySchema = Schema.union({
         //   `TaskRealtimeService`.
         expensivelyAfterCursorForApi: Schema.stringAs<ApiTaskQueryCursor>().optional(),
     }),
-    Subtasks: Schema.object({
-        type: Schema.value("Subtasks"),
+    Children: Schema.object({
+        type: Schema.value("Children"),
         limit: Schema.integer,
         taskId: Schema.id<TaskId>(),
         filters: TaskQueryFiltersSchema.optional(),
