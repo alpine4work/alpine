@@ -1,5 +1,5 @@
 import OpenAi from "openai";
-import {AgentConversationStore} from "~/server/agents/bots/internal/conversation/agent_conversation_store.js";
+import {AgentConversationStore} from "~/server/agents/bots/deprecated/internal/conversation/agent_conversation_store.js";
 import {DurableObjectStorageCollection} from "~/server/cloudflare/durable_object_storage_collection.js";
 import {ApiMentionReferenceResponse} from "~/shared/api/specification/types/api_specification_convenience_types.js";
 import {TimeZone} from "~/shared/helpers/intl/time_zone.js";
