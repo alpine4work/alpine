@@ -793,9 +793,6 @@ export async function updateAgentWebTaskCollectionPage(
         });
     }
 
-    const oldTaskIds = Array.from(oldTaskIdSet);
-    const newTaskIds = Array.from(newTaskIdSet);
-
     const [oldCommonTaskIds, removedTaskIds] = partitionArray(oldTaskIds, taskId =>
         newTaskIds.has(taskId),
     );
