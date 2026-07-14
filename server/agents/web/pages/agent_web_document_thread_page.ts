@@ -34,6 +34,7 @@ import {findApiContentRanges} from "~/shared/api/content/find_api_content_ranges
 import {normalizeApiContent} from "~/shared/api/content/normalize_api_content.js";
 import {parseMarkdownTree} from "~/shared/api/content/parse_api_content_from_markdown.js";
 import {
+    unsafelyZipTemporaryKeysIntoApiContentResponse,
     unzipKeysFromApiContentResponse,
     zipKeysIntoApiContentResponse,
 } from "~/shared/api/content/zip_or_unzip_keys_from_api_content_response.js";
@@ -276,7 +277,9 @@ export async function readAgentWebDocumentThreadPage(
                 assertExists(
                     extractCommentSliceFromApiContent(
                         threadId,
-                        thread.marked.preview.contentSnippet,
+                        unsafelyZipTemporaryKeysIntoApiContentResponse(
+                            thread.marked.preview.contentSnippet,
+                        ).content,
                     ),
                 ).contentSlice,
         };
