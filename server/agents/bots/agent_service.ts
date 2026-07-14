@@ -379,7 +379,7 @@ function getDurableObjectIdFromApiBotWebhookEvent(request: ApiBotWebhookRequestB
 // eslint-disable-next-line import/no-default-export
 export default {fetch: handleFetch};
 
-export {ChatGptAgentDurableObject} from "~/server/agents/bots/internal/chat_gpt_agent_durable_object.js";
+export {ChatGptAgentDurableObject} from "~/server/agents/bots/internal/deprecated/chat_gpt_agent_durable_object.js";
 export {
     MockChatGptAgentDurableObject,
     MockCursorAgentDurableObject,

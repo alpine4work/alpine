@@ -15,28 +15,28 @@ import {
     AgentDurableObjectStorageInterface,
     AgentWebhookRequest,
 } from "~/server/agents/bots/internal/agent_durable_object_base.js";
-import {agentInstructionsMarkdown as markdown} from "~/server/agents/bots/internal/agent_instructions_markdown.js";
-import {
-    agentInitializeMessagesTokenLimit,
-    agentPaginationTokenLimitGrowthFactor,
-    cursorAgentInitializeMessagesTokenLimit,
-} from "~/server/agents/bots/internal/agent_limits.js";
-import {AgentMessageStream} from "~/server/agents/bots/internal/agent_message_stream.js";
 import {AgentServiceEnv} from "~/server/agents/bots/internal/agent_service_env.js";
-import {AgentConversationState} from "~/server/agents/bots/internal/conversation/agent_conversation_store.js";
 import {convertApiContentToProperQuotes} from "~/server/agents/bots/internal/convert_api_content_to_proper_quotes.js";
 import {collectLinksFromMarkdownTreeForCursorAgent} from "~/server/agents/bots/internal/cursor/collect_links_from_markdown_tree_for_cursor_agent.js";
 import {CursorClient} from "~/server/agents/bots/internal/cursor/cursor_client.js";
 import {CursorCloudAgentsApiSpecification} from "~/server/agents/bots/internal/cursor/cursor_cloud_agents_api_specification_types.js";
 import {stripLinksFromMarkdownTreeForCursorAgent} from "~/server/agents/bots/internal/cursor/strip_links_from_markdown_tree_for_cursor_agent.js";
+import {agentInstructionsMarkdown as markdown} from "~/server/agents/bots/internal/deprecated/agent_instructions_markdown.js";
+import {
+    agentInitializeMessagesTokenLimit,
+    agentPaginationTokenLimitGrowthFactor,
+    cursorAgentInitializeMessagesTokenLimit,
+} from "~/server/agents/bots/internal/deprecated/agent_limits.js";
+import {AgentMessageStream} from "~/server/agents/bots/internal/deprecated/agent_message_stream.js";
+import {AgentConversationState} from "~/server/agents/bots/internal/deprecated/conversation/agent_conversation_store.js";
+import {getAgentLink} from "~/server/agents/bots/internal/deprecated/link_references/agent_link_collection.js";
+import {loadAgentLinkContent} from "~/server/agents/bots/internal/deprecated/link_references/load_agent_link_content.js";
+import {AgentMessage} from "~/server/agents/bots/internal/deprecated/messages/agent_message.js";
+import {getAgentMessagesBetweenIndexes} from "~/server/agents/bots/internal/deprecated/messages/get_agent_messages_between_indexes.js";
+import {loadInitialAgentMessagesContent} from "~/server/agents/bots/internal/deprecated/messages/initialize_messages_in_agent_conversation.js";
+import {printAgentMessagesIntoMarkdownTree} from "~/server/agents/bots/internal/deprecated/messages/print_agent_messages_log.js";
+import {printAgentContentMarkdownTree} from "~/server/agents/bots/internal/deprecated/print_api_content_to_agent_markdown.js";
 import {getTimezoneFromBotWebhookRequest} from "~/server/agents/bots/internal/get_timezone_from_bot_webhook_request.js";
-import {getAgentLink} from "~/server/agents/bots/internal/link_references/agent_link_collection.js";
-import {loadAgentLinkContent} from "~/server/agents/bots/internal/link_references/load_agent_link_content.js";
-import {AgentMessage} from "~/server/agents/bots/internal/messages/agent_message.js";
-import {getAgentMessagesBetweenIndexes} from "~/server/agents/bots/internal/messages/get_agent_messages_between_indexes.js";
-import {loadInitialAgentMessagesContent} from "~/server/agents/bots/internal/messages/initialize_messages_in_agent_conversation.js";
-import {printAgentMessagesIntoMarkdownTree} from "~/server/agents/bots/internal/messages/print_agent_messages_log.js";
-import {printAgentContentMarkdownTree} from "~/server/agents/bots/internal/print_api_content_to_agent_markdown.js";
 import {
     isOneOnOneChat,
     shouldAgentRespondToRequest,
