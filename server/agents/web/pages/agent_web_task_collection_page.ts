@@ -918,7 +918,7 @@ export async function updateAgentWebTaskCollectionPage(
                 .replaceAll("\n", "\\n");
 
             throw new InvalidArgumentError("Can\u2019t update task fields while adding task", {
-                displayMessage: errorDisplayMessage`You can\u2019t change the task \u201C${quotedTitle}\u201D\u2019s fields while adding it to task collection markdown. Add the task with its current fields, then call the \`update\` tool again if you want to change its fields. Try again with this exact markdown for the task: \`${taskMarkdown}\`.`,
+                displayMessage: errorDisplayMessage`You can\u2019t change the task ${quotedTitle}\u2019s title or fields while adding it to task collection markdown. Add the task with its current title and fields, then call the \`update\` tool again if you want to change its title or fields. Try again with this exact markdown for the task: \`${taskMarkdown}\``,
             });
         }),
     );
@@ -944,7 +944,7 @@ export async function updateAgentWebTaskCollectionPage(
             throw new InvalidArgumentError(
                 "Can\u2019t move and update task fields in the same update",
                 {
-                    displayMessage: errorDisplayMessage`You can\u2019t move the task ${quotedTitle} and change its fields in the same \`update\` tool call. Try again with two separate \`update\` tool calls, one to change the task\u2019s fields and another to move the task.`,
+                    displayMessage: errorDisplayMessage`You can\u2019t move the task ${quotedTitle} and change its title or fields in the same \`update\` tool call. Try again with two separate \`update\` tool calls, one to change the task\u2019s title/fields and another to move the task.`,
                 },
             );
         }

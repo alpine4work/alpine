@@ -93,17 +93,20 @@ describe("updateTaskNotesFromApi()", () => {
             context.getTaskRealtimeServer().botAction(bot, session),
             {
                 taskId: task.id,
-                patch: {
-                    version: 0,
-                    content: {
-                        elements: [
-                            {
-                                type: "Paragraph",
-                                elements: [{type: "Text", text: "Updated notes"}],
-                            },
-                        ],
+                patches: [
+                    {
+                        type: "SetContent",
+                        version: 0,
+                        content: {
+                            elements: [
+                                {
+                                    type: "Paragraph",
+                                    elements: [{type: "Text", text: "Updated notes"}],
+                                },
+                            ],
+                        },
                     },
-                },
+                ],
             },
         );
 
@@ -138,18 +141,21 @@ describe("updateTaskNotesFromApi()", () => {
         await expect(
             updateTaskNotesFromApi(context.getTaskRealtimeServer().botAction(bot, session), {
                 taskId: task.id,
-                patch: {
-                    version: 0,
-                    content: {
-                        elements: [
-                            {
-                                type: "FileFloat",
-                                side: "Left",
-                                element: {type: "File", file: {id: unknownFileId}},
-                            },
-                        ],
+                patches: [
+                    {
+                        type: "SetContent",
+                        version: 0,
+                        content: {
+                            elements: [
+                                {
+                                    type: "FileFloat",
+                                    side: "Left",
+                                    element: {type: "File", file: {id: unknownFileId}},
+                                },
+                            ],
+                        },
                     },
-                },
+                ],
             }),
         ).rejects.toThrow("Received invalid task notes content");
     });
@@ -165,18 +171,21 @@ describe("updateTaskNotesFromApi()", () => {
 
         await updateTaskNotesFromApi(context.getTaskRealtimeServer().botAction(bot, session), {
             taskId: task.id,
-            patch: {
-                version: 0,
-                content: {
-                    elements: [
-                        {
-                            type: "FileFloat",
-                            side: "Left",
-                            element: {type: "File", file: {id: unknownFileId}},
-                        },
-                    ],
+            patches: [
+                {
+                    type: "SetContent",
+                    version: 0,
+                    content: {
+                        elements: [
+                            {
+                                type: "FileFloat",
+                                side: "Left",
+                                element: {type: "File", file: {id: unknownFileId}},
+                            },
+                        ],
+                    },
                 },
-            },
+            ],
         }).catch(() => undefined);
 
         expect(updateContentRequestCount).toBe(0);
@@ -196,17 +205,20 @@ describe("updateTaskNotesFromApi()", () => {
         await expect(
             updateTaskNotesFromApi(context.getTaskRealtimeServer().botAction(bot, session), {
                 taskId: task.id,
-                patch: {
-                    version: 0,
-                    content: {
-                        elements: [
-                            {
-                                type: "Paragraph",
-                                elements: [{type: "Text", text: "Updated notes"}],
-                            },
-                        ],
+                patches: [
+                    {
+                        type: "SetContent",
+                        version: 0,
+                        content: {
+                            elements: [
+                                {
+                                    type: "Paragraph",
+                                    elements: [{type: "Text", text: "Updated notes"}],
+                                },
+                            ],
+                        },
                     },
-                },
+                ],
             }),
         ).rejects.toThrow("Notes are out of date.");
     });

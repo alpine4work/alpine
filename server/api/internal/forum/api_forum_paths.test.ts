@@ -98,6 +98,34 @@ test("can read channel information", async () => {
     });
 });
 
+test("can read a channel preview without its description", async () => {
+    const space = await TestSpace.create(context);
+    const session = await space.createSession({role: "Admin"});
+    const bot = await TestBot.createAndInstantiate(session);
+    const apiKey = await bot.createApiKey(session);
+    const channel = await TestChannel.create(session, {
+        name: "Preview Channel",
+        description: "Description that should not be returned",
+        access: "Public",
+    });
+
+    expect(
+        await server.GET(`/channels/${channel.id}-preview`, {
+            headers: {authorization: `bearer ${apiKey}`},
+        }),
+    ).toEqual({
+        status: 200,
+        headers: expect.objectContaining({"content-type": "application/json"}),
+        body: {
+            spaceId: space.id,
+            channel: {
+                id: channel.id,
+                name: "Preview Channel",
+            },
+        },
+    });
+});
+
 test("can\u2019t read channel information without access", async () => {
     const space = await TestSpace.create(context);
     const session1 = await space.createSession({role: "Admin"});
@@ -145,7 +173,7 @@ test("can\u2019t read channel information for non-existent channel", async () =>
     });
 });
 
-describe("/channels/{id}/reference", () => {
+describe("/channels/{id}-reference", () => {
     test("can read channel mention", async () => {
         const space = await TestSpace.create(context);
         const session = await space.createSession({role: "Admin"});
@@ -159,7 +187,7 @@ describe("/channels/{id}/reference", () => {
         });
 
         expect(
-            await server.GET(`/channels/${channel.id}/reference`, {
+            await server.GET(`/channels/${channel.id}-reference`, {
                 headers: {authorization: `bearer ${apiKey}`},
             }),
         ).toEqual({
@@ -187,7 +215,7 @@ describe("/channels/{id}/reference", () => {
         const channel = await TestChannel.create(session2, {access: "Private"});
 
         expect(
-            await server.GET(`/channels/${channel.id}/reference`, {
+            await server.GET(`/channels/${channel.id}-reference`, {
                 headers: {authorization: `bearer ${apiKey}`},
             }),
         ).toEqual({
@@ -211,7 +239,7 @@ describe("/channels/{id}/reference", () => {
         const apiKey = await bot.createApiKey(session);
 
         expect(
-            await server.GET(`/channels/${generateId<ChannelId>()}/reference`, {
+            await server.GET(`/channels/${generateId<ChannelId>()}-reference`, {
                 headers: {authorization: `bearer ${apiKey}`},
             }),
         ).toEqual({
@@ -526,7 +554,7 @@ test("can\u2019t read post information for non-existent post", async () => {
     });
 });
 
-describe("/posts/{id}/reference", () => {
+describe("/posts/{id}-reference", () => {
     test("can read post mention", async () => {
         const space = await TestSpace.create(context);
         const session = await space.createSession({name: "Bob", role: "Admin"});
@@ -541,7 +569,7 @@ describe("/posts/{id}/reference", () => {
         const post = await channel.createPost(session, "This is post content for mention.");
 
         expect(
-            await server.GET(`/posts/${post.id}/reference`, {
+            await server.GET(`/posts/${post.id}-reference`, {
                 headers: {authorization: `bearer ${apiKey}`},
             }),
         ).toEqual({
@@ -569,7 +597,7 @@ describe("/posts/{id}/reference", () => {
         const channel = await TestChannel.create(session2, {access: "Private"});
         const post = await channel.createPost(session2, "Private post content");
 
-        const response = await server.GET(`/posts/${post.id}/reference`, {
+        const response = await server.GET(`/posts/${post.id}-reference`, {
             headers: {authorization: `bearer ${apiKey}`},
         });
 
@@ -584,7 +612,7 @@ describe("/posts/{id}/reference", () => {
         const bot = await TestBot.createAndInstantiate(session);
         const apiKey = await bot.createApiKey(session);
 
-        const response = await server.GET(`/posts/${generateId<PostId>()}/reference`, {
+        const response = await server.GET(`/posts/${generateId<PostId>()}-reference`, {
             headers: {authorization: `bearer ${apiKey}`},
         });
 
@@ -605,7 +633,7 @@ describe("/posts/{id}/reference", () => {
         const apiKey = await bot.createApiKey({type: "Post", postId: post.id});
 
         expect(
-            await server.GET(`/posts/${post.id}/reference`, {
+            await server.GET(`/posts/${post.id}-reference`, {
                 headers: {authorization: `bearer ${apiKey}`},
             }),
         ).toEqual({

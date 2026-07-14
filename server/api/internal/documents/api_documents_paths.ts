@@ -38,7 +38,11 @@ import {
 } from "~/shared/api/content/closed_source/from_api_content.js";
 import {unknownFileId} from "~/shared/api/content/closed_source/unknown_file_id.js";
 import {ApiContentResponseWithoutKeys} from "~/shared/api/specification/types/api_content_response_without_keys.js";
-import {ApiContent} from "~/shared/api/specification/types/api_specification_convenience_types.js";
+import {
+    ApiContent,
+    ApiDocumentSetContentPatch,
+    ApiDocumentSetTitlePatch,
+} from "~/shared/api/specification/types/api_specification_convenience_types.js";
 import {
     MessageContentProsemirrorSchema,
     assertMessageContent,
@@ -57,6 +61,8 @@ import {getDocumentContentTitleWithoutFallback} from "~/shared/documents/documen
 import {InvalidArgumentError} from "~/shared/error/error.js";
 import {errorDisplayMessage} from "~/shared/error/error_display_message.js";
 import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
+import {assertExists} from "~/shared/helpers/control/assert_exists.js";
+import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
 import {serializeDateString} from "~/shared/helpers/date/date_string.js";
 import {defaultTimeZone} from "~/shared/helpers/intl/time_zone.js";
 import {emptyMap} from "~/shared/helpers/map/empty_map.js";
@@ -180,16 +186,67 @@ export const apiDocumentsPaths: Pick<
         },
 
         patch: async (context, {pathParameters, requestBody}) => {
-            const requestContent = validateApiDocumentContentForUpdate({
-                title: requestBody.document.title,
-                content: requestBody.document.content,
-            });
+            let titlePatch: ApiDocumentSetTitlePatch | undefined;
+            let contentPatch: ApiDocumentSetContentPatch | undefined;
+
+            for (const requestPatch of requestBody.patches) {
+                switch (requestPatch.type) {
+                    case "SetTitle": {
+                        if (titlePatch) {
+                            throw new InvalidArgumentError(
+                                "A document update may only contain one `SetTitle` patch",
+                                {
+                                    displayMessage: errorDisplayMessage`You can only include one \`SetTitle\` patch when updating a document. Try again with at most one \`SetTitle\` patch.`,
+                                },
+                            );
+                        }
+
+                        titlePatch = requestPatch;
+                        break;
+                    }
+                    case "SetContent": {
+                        if (contentPatch) {
+                            throw new InvalidArgumentError(
+                                "A document update may only contain one `SetContent` patch",
+                                {
+                                    displayMessage: errorDisplayMessage`You can only include one \`SetContent\` patch when updating a document. Try again with at most one \`SetContent\` patch.`,
+                                },
+                            );
+                        }
+
+                        contentPatch = requestPatch;
+                        break;
+                    }
+                    default:
+                        throw exhaustive(requestPatch);
+                }
+            }
+
+            if (
+                titlePatch !== undefined &&
+                contentPatch !== undefined &&
+                titlePatch.version !== contentPatch.version
+            ) {
+                throw new InvalidArgumentError(
+                    "Document `SetTitle` and `SetContent` patches must use the same version",
+                    {
+                        displayMessage: errorDisplayMessage`When updating a document\u2019s title and content together, the \`SetTitle\` and \`SetContent\` patches must use the same \`version\`. Try again with matching versions or send the patches in separate requests.`,
+                    },
+                );
+            }
+
+            const version = assertExists(titlePatch ?? contentPatch).version;
+
+            const content =
+                contentPatch === undefined
+                    ? undefined
+                    : validateApiDocumentBodyContentForUpdate(contentPatch.content);
 
             // Attach any new files referenced in the updated content before applying the
             // update so there's no race where a reader sees the updated content before its
             // files are attached.
-            if (requestBody.document.content) {
-                const fileIds = extractFileIdsFromApiContent(requestBody.document.content);
+            if (contentPatch) {
+                const fileIds = extractFileIdsFromApiContent(contentPatch.content);
                 fileIds.delete(unknownFileId);
                 await runAllPromises(
                     [...fileIds].map(fileId =>
@@ -214,8 +271,9 @@ export const apiDocumentsPaths: Pick<
                             route: "/api/durable-objects/documents/:documentId/update-content-with-diff",
                             body: DocumentCollaborationUpdateContentWithDiffRequestBodySchema.serialize(
                                 {
-                                    version: requestBody.document.version,
-                                    content: requestContent,
+                                    version,
+                                    title: titlePatch?.title,
+                                    content,
                                 },
                             ),
                         },
@@ -250,7 +308,7 @@ export const apiDocumentsPaths: Pick<
         },
     },
 
-    "/documents/{id}/reference": {
+    "/documents/{id}-reference": {
         get: async (context, {pathParameters}) => {
             const spaceId = context.actor.getSpaceId();
 
@@ -273,7 +331,7 @@ export const apiDocumentsPaths: Pick<
         },
     },
 
-    "/documents/{id}/threads/{threadId}": {
+    "/documents/{id}/threads/{threadId}-with-preview": {
         get: async (context, {pathParameters}) => {
             const [commentThread, document] = await runAllPromises([
                 getDocumentCommentThreadContent(
@@ -371,9 +429,7 @@ export const apiDocumentsPaths: Pick<
                             createdTime: serializeDateString(commentThread.createdTime),
                             createdTimeZone: commentThread.createdTimeZone,
                         },
-                        marked: {
-                            preview: markedPreview ?? {version: 0, contentSnippet: {elements: []}},
-                        },
+                        preview: markedPreview ?? {version: 0, contentSnippet: {elements: []}},
                     },
                     document: {
                         id: pathParameters.id,
@@ -388,7 +444,7 @@ export const apiDocumentsPaths: Pick<
     },
 
     // NOCOMMIT: Tests for this endpoint
-    "/documents/{id}/threads/{threadId}/preview": {
+    "/documents/{id}/threads/{threadId}": {
         get: async (context, {pathParameters}) => {
             const commentThread = await getDocumentCommentThreadContent(
                 context,
@@ -823,15 +879,13 @@ function validateApiDocumentContentForCreate({
 // of an `InternalError`. This could happen if a user submits structurally valid
 // content that contains content types that aren't supported by the document
 // content schema.
-function validateApiDocumentContentForUpdate({
-    title,
-    content,
-}: {
-    title: string;
-    content: ApiContent;
-}): ReadonlyArray<Node> {
+function validateApiDocumentBodyContentForUpdate(content: ApiContent): ReadonlyArray<Node> {
     try {
-        return fromApiContentToDocumentChildNodes(DocumentContentProsemirrorSchema, title, content);
+        return fromApiContentToDocumentChildNodes(
+            DocumentContentProsemirrorSchema,
+            "",
+            content,
+        ).slice(1);
     } catch (error) {
         // TODO(#public-api): Document the schema rules for document content and add a link
         // to the documentation in this error message.

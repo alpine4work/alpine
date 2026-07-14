@@ -472,7 +472,8 @@ export const DocumentCollaborationProtocol = defineWebSocketProtocol({
 
 export const DocumentCollaborationUpdateContentWithDiffRequestBodySchema = Schema.object({
     version: Schema.integer,
-    content: Schema.array(DocumentContentNodeSchema),
+    title: Schema.string.optional(),
+    content: Schema.array(DocumentContentNodeSchema).optional(),
 });
 
 export const DocumentCollaborationUpdateContentWithDiffResponseBodySchema = Schema.result(

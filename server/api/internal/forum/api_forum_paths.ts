@@ -17,6 +17,7 @@ import {createPost} from "~/server/forum/data/create_post.js";
 import {FilePostAuthorizer} from "~/server/forum/data/file_post_authorizer.js";
 import {getChannelNameAndDescriptionContent} from "~/server/forum/data/get_channel_name_and_description_content.js";
 import {getChannelPostContents} from "~/server/forum/data/get_channel_posts.js";
+import {getChannelPreview} from "~/server/forum/data/get_channel_preview.js";
 import {getPostContentWithCustomReferencesAndChannelPreview} from "~/server/forum/data/get_post_content_with_custom_references_and_channel_preview.js";
 import {
     broadcastPutPostCommentStreamPart,
@@ -163,7 +164,7 @@ export const apiForumPaths: Pick<
         },
     },
 
-    "/channels/{id}/reference": {
+    "/channels/{id}-reference": {
         get: async (context, {pathParameters}) => {
             const spaceId = context.actor.getSpaceId();
 
@@ -180,6 +181,24 @@ export const apiForumPaths: Pick<
                         type: "Channel",
                         id: pathParameters.id,
                         title,
+                    },
+                },
+            };
+        },
+    },
+
+    "/channels/{id}-preview": {
+        get: async (context, {pathParameters}) => {
+            const channel = await getChannelPreview(context, pathParameters.id, {
+                consistency: "StrongWithinCache",
+            });
+
+            return {
+                content: {
+                    spaceId: channel.spaceId,
+                    channel: {
+                        id: channel.id,
+                        name: channel.name,
                     },
                 },
             };
@@ -331,7 +350,7 @@ export const apiForumPaths: Pick<
     },
 
     // NOCOMMIT: Test!
-    "/posts/{id}/preview": {
+    "/posts/{id}-preview": {
         get: async (context, {pathParameters}) => {
             const referencesContext = context.dynamo.unexpectStrongReadConsistency();
 
@@ -398,7 +417,7 @@ export const apiForumPaths: Pick<
         },
     },
 
-    "/posts/{id}/reference": {
+    "/posts/{id}-reference": {
         get: async (context, {pathParameters}) => {
             const spaceId = context.actor.getSpaceId();
 

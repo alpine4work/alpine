@@ -5,6 +5,7 @@ import {
     createApiTaskMock,
 } from "~/server/agents/api/test_helpers/create_api_task_mock.js";
 import {mockApiGetTask} from "~/server/agents/api/test_helpers/mock_api_get_task.js";
+import {mockApiGetTaskWithoutNotes} from "~/server/agents/api/test_helpers/mock_api_get_task_without_notes.js";
 import {
     mockGetApiTaskCollectionTasks,
     printApiTaskQueryCursorMock,
@@ -66,6 +67,13 @@ function getApiPatchTasksRequestHistory() {
         .getRequestHistory()
         .filter(request => request.method === "PATCH" && request.path === "/tasks")
         .map(({body}) => body);
+}
+
+function getApiGetTaskWithoutNotesRequestHistory() {
+    return api
+        .getRequestHistory()
+        .filter(request => request.method === "GET" && request.path === "/tasks/{id}-without-notes")
+        .map(({params}) => params);
 }
 
 async function expectInvalidUpdateDisplayMessage({
@@ -1703,8 +1711,7 @@ test("adds a task at the end of a manually ordered collection", async () => {
         limit: 31,
         createTask: index => createApiTaskMock({index}),
     });
-    const newTask = createApiTaskMock({index: 2});
-
+    const {task: newTask} = mockApiGetTaskWithoutNotes(api, {spaceId, index: 2});
     api.mockPatch("/tasks", {
         params: "Any",
         data: {
@@ -1765,6 +1772,7 @@ test("adds a task at the end of a manually ordered collection", async () => {
             ],
         },
     ]);
+    expect(getApiGetTaskWithoutNotesRequestHistory()).toEqual([{path: {id: newTask.id}}]);
 });
 
 test("adds a task at the start of a manually ordered collection", async () => {
@@ -1774,8 +1782,7 @@ test("adds a task at the start of a manually ordered collection", async () => {
         limit: 31,
         createTask: index => createApiTaskMock({index}),
     });
-    const newTask = createApiTaskMock({index: 2});
-
+    const {task: newTask} = mockApiGetTaskWithoutNotes(api, {spaceId, index: 2});
     api.mockPatch("/tasks", {
         params: "Any",
         data: {
@@ -1847,8 +1854,7 @@ test("adds a task in the middle of a manually ordered collection", async () => {
         limit: 31,
         createTask: index => createApiTaskMock({index}),
     });
-    const newTask = createApiTaskMock({index: 5});
-
+    const {task: newTask} = mockApiGetTaskWithoutNotes(api, {spaceId, index: 5});
     api.mockPatch("/tasks", {
         params: "Any",
         data: {
@@ -1911,6 +1917,365 @@ test("adds a task in the middle of a manually ordered collection", async () => {
                             afterCursor: printApiTaskQueryCursorMock(1),
                             beforeCursor: printApiTaskQueryCursorMock(2),
                         },
+                    },
+                },
+            ],
+        },
+    ]);
+});
+
+test("adds a task with its existing fields", async () => {
+    const parentTask = createApiTaskMock({index: 3, title: "Parent task"});
+    const alice = createApiAccountMock({name: "Alice"});
+    const engineeringCollection = {
+        id: generateId<TaskCollectionId>(),
+        name: "Engineering",
+        defaults: {filters: [], sorts: []},
+    };
+    const designCollection = {
+        id: generateId<TaskCollectionId>(),
+        name: "Design",
+        defaults: {filters: [], sorts: []},
+    };
+    const {collection} = mockGetApiTaskCollectionTasks(api, {
+        spaceId,
+        totalTaskCount: 2,
+        limit: 31,
+        createTask: index => createApiTaskMock({index}),
+    });
+    const {task: newTask} = mockApiGetTaskWithoutNotes(api, {
+        spaceId,
+        index: 2,
+        status: "OpenActive",
+        parent: parentTask,
+        subtasks: {openTaskCount: 3, closedTaskCount: 4},
+        assignee: alice,
+        collections: [engineeringCollection, designCollection],
+        priority: "High",
+        due: "2027-07-12",
+    });
+
+    api.mockPatch("/tasks", {
+        params: "Any",
+        data: {
+            spaceId,
+            tasks: [
+                {
+                    task: newTask,
+                    collections: [
+                        {
+                            movedCursor: printApiTaskQueryCursorMock(2),
+                            collection,
+                        },
+                    ],
+                },
+            ],
+        },
+    });
+
+    await storeAgentWebPageLinkForTest(storage, [
+        collection,
+        newTask,
+        parentTask,
+        alice,
+        engineeringCollection,
+        designCollection,
+    ]);
+
+    await callAgentWebReadTool(context, {
+        path: "/task-collection/test-task-collection",
+        limit: "50kb",
+    });
+
+    await expect(
+        callAgentWebUpdateTool(context, {
+            path: "/task-collection/test-task-collection",
+            updates: [
+                {
+                    old: "- [Test Task 1 (Open)](/task/test-task-1)",
+                    new:
+                        "- [Test Task 1 (Open)](/task/test-task-1)\n\n" +
+                        "- [Test Task 2 (Open, active)](/task/test-task-2)\n" +
+                        "  - Parent: [Parent task](/task/parent-task)\n" +
+                        "  - Subtasks: 3 open, 4 closed\n" +
+                        "  - Assignee: [Alice](/human/alice)\n" +
+                        "  - Collections: [Engineering](/task-collection/engineering), [Design](/task-collection/design)\n" +
+                        "  - Priority: High\n" +
+                        "  - Due date: July 12th, 2027",
+                    replaceAll: false,
+                },
+            ],
+        }),
+    ).resolves.toEqual("Update was successful.\n");
+
+    expect(getApiPatchTasksRequestHistory()).toMatchObject([
+        {
+            patches: [
+                {
+                    id: newTask.id,
+                    patch: {type: "AddCollection"},
+                },
+                {
+                    id: newTask.id,
+                    patch: {type: "MoveInCollection"},
+                },
+            ],
+        },
+    ]);
+});
+
+test("rejects adding a task without its existing fields", async () => {
+    const parentTask = createApiTaskMock({index: 3, title: "Parent task"});
+    const alice = createApiAccountMock({name: "Alice"});
+    const otherCollections = ["Engineering", "Design", "Product", "Planning", "Marketing"].map(
+        name => ({
+            id: generateId<TaskCollectionId>(),
+            name,
+            defaults: {filters: [], sorts: []},
+        }),
+    );
+    const {collection} = mockGetApiTaskCollectionTasks(api, {
+        spaceId,
+        totalTaskCount: 2,
+        limit: 31,
+        createTask: index => createApiTaskMock({index}),
+    });
+    const {task: newTask} = mockApiGetTaskWithoutNotes(api, {
+        spaceId,
+        index: 2,
+        parent: parentTask,
+        subtasks: {openTaskCount: 3, closedTaskCount: 4},
+        assignee: alice,
+        collections: otherCollections,
+        priority: "High",
+        due: "2027-07-12",
+    });
+
+    await storeAgentWebPageLinkForTest(storage, [
+        collection,
+        newTask,
+        parentTask,
+        alice,
+        ...otherCollections,
+    ]);
+
+    await callAgentWebReadTool(context, {
+        path: "/task-collection/test-task-collection",
+        limit: "50kb",
+    });
+
+    await expectInvalidUpdateDisplayMessage({
+        updates: [
+            {
+                old: "- [Test Task 1 (Open)](/task/test-task-1)",
+                new:
+                    "- [Test Task 1 (Open)](/task/test-task-1)\n\n" +
+                    "- [Test Task 2 (Open)](/task/test-task-2)",
+                replaceAll: false,
+            },
+        ],
+        expected:
+            "You can\u2019t change the task \u201CTest Task 2\u201D\u2019s fields while adding it to task " +
+            "collection markdown. Add the task with its current fields, then call the " +
+            "`update` tool again if you want to change its fields. Try again with this exact " +
+            "markdown for the task: `- [Test Task 2 (Open)](/task/test-task-2)\\n  - Parent: " +
+            "[Parent task](/task/parent-task)\\n  - Subtasks: 3 open, 4 closed\\n  - " +
+            "Assignee: [Alice](/human/alice)\\n  - Collections: " +
+            "[Engineering](/task-collection/engineering), " +
+            "[Design](/task-collection/design), [Product](/task-collection/product), and 2 " +
+            "more\\n  - Priority: High\\n  - Due date: July 12th, 2027`",
+    });
+});
+
+test("rejects changing a task link while adding the task", async () => {
+    const {collection} = mockGetApiTaskCollectionTasks(api, {
+        spaceId,
+        totalTaskCount: 2,
+        limit: 31,
+        createTask: index => createApiTaskMock({index}),
+    });
+    const {task: newTask} = mockApiGetTaskWithoutNotes(api, {
+        spaceId,
+        index: 2,
+        title: "New task",
+        status: "Closed",
+    });
+    await storeAgentWebPageLinkForTest(storage, [collection, newTask]);
+
+    await callAgentWebReadTool(context, {
+        path: "/task-collection/test-task-collection",
+        limit: "50kb",
+    });
+
+    await expectInvalidUpdateDisplayMessage({
+        updates: [
+            {
+                old: "- [Test Task 1 (Open)](/task/test-task-1)",
+                new:
+                    "- [Test Task 1 (Open)](/task/test-task-1)\n\n" +
+                    "- [Renamed task (Open)](/task/new-task)",
+                replaceAll: false,
+            },
+        ],
+        expected:
+            "You can\u2019t change the task \u201CRenamed task\u201D\u2019s fields while adding it to task " +
+            "collection markdown. Add the task with its current fields, then call the " +
+            "`update` tool again if you want to change its fields. Try again with this exact " +
+            "markdown for the task: `- [New task (Closed)](/task/new-task)`",
+    });
+});
+
+test("rejects moving a task while changing a nested field", async () => {
+    const firstTask = createApiTaskMock({index: 0, priority: "High"});
+    const secondTask = createApiTaskMock({index: 1});
+    const tasks = [firstTask, secondTask];
+    const {collection} = mockGetApiTaskCollectionTasks(api, {
+        spaceId,
+        totalTaskCount: tasks.length,
+        limit: 31,
+        createTask: index => tasks[index]!,
+    });
+
+    await storeAgentWebPageLinkForTest(storage, collection);
+
+    await callAgentWebReadTool(context, {
+        path: "/task-collection/test-task-collection",
+        limit: "50kb",
+    });
+
+    await expectInvalidUpdateDisplayMessage({
+        updates: [
+            {
+                old:
+                    "- [Test Task 0 (Open)](/task/test-task-0)\n" +
+                    "  - Priority: High\n\n" +
+                    "- [Test Task 1 (Open)](/task/test-task-1)",
+                new:
+                    "- [Test Task 1 (Open)](/task/test-task-1)\n\n" +
+                    "- [Test Task 0 (Open)](/task/test-task-0)\n" +
+                    "  - Priority: Low",
+                replaceAll: false,
+            },
+        ],
+        expected:
+            "You can\u2019t move the task \u201CTest Task 0\u201D and change its fields in the same " +
+            "`update` tool call. You can make both changes with two separate `update` tool " +
+            "calls: one to change the task\u2019s fields and another to move the task.",
+    });
+});
+
+test("rejects moving a task while changing its link fields", async () => {
+    const firstTask = createApiTaskMock({index: 0});
+    const secondTask = createApiTaskMock({index: 1});
+    const tasks = [firstTask, secondTask];
+    const {collection} = mockGetApiTaskCollectionTasks(api, {
+        spaceId,
+        totalTaskCount: tasks.length,
+        limit: 31,
+        createTask: index => tasks[index]!,
+    });
+
+    await storeAgentWebPageLinkForTest(storage, collection);
+
+    await callAgentWebReadTool(context, {
+        path: "/task-collection/test-task-collection",
+        limit: "50kb",
+    });
+
+    await expectInvalidUpdateDisplayMessage({
+        updates: [
+            {
+                old:
+                    "- [Test Task 0 (Open)](/task/test-task-0)\n\n" +
+                    "- [Test Task 1 (Open)](/task/test-task-1)",
+                new:
+                    "- [Test Task 1 (Open)](/task/test-task-1)\n\n" +
+                    "- [Renamed task (Closed)](/task/test-task-0)",
+                replaceAll: false,
+            },
+        ],
+        expected:
+            "You can\u2019t move the task \u201CTest Task 0\u201D and change its fields in the same " +
+            "`update` tool call. You can make both changes with two separate `update` tool " +
+            "calls: one to change the task\u2019s fields and another to move the task.",
+    });
+});
+
+test("updates a stable task while moving a different task", async () => {
+    const firstTask = createApiTaskMock({index: 0});
+    const secondTask = createApiTaskMock({index: 1});
+    const thirdTask = createApiTaskMock({index: 2});
+    const tasks = [firstTask, secondTask, thirdTask];
+    const {collection} = mockGetApiTaskCollectionTasks(api, {
+        spaceId,
+        totalTaskCount: tasks.length,
+        limit: 31,
+        createTask: index => tasks[index]!,
+    });
+
+    api.mockPatch("/tasks", {
+        params: "Any",
+        data: {
+            spaceId,
+            tasks: [
+                {
+                    task: {...secondTask, priority: {type: "High"}},
+                    collections: [],
+                },
+                {
+                    task: firstTask,
+                    collections: [
+                        {
+                            movedCursor: printApiTaskQueryCursorMock(3),
+                            collection,
+                        },
+                    ],
+                },
+            ],
+        },
+    });
+
+    await storeAgentWebPageLinkForTest(storage, collection);
+
+    await callAgentWebReadTool(context, {
+        path: "/task-collection/test-task-collection",
+        limit: "50kb",
+    });
+
+    await expect(
+        callAgentWebUpdateTool(context, {
+            path: "/task-collection/test-task-collection",
+            updates: [
+                {
+                    old:
+                        "- [Test Task 0 (Open)](/task/test-task-0)\n\n" +
+                        "- [Test Task 1 (Open)](/task/test-task-1)\n\n" +
+                        "- [Test Task 2 (Open)](/task/test-task-2)",
+                    new:
+                        "- [Test Task 1 (Open)](/task/test-task-1)\n" +
+                        "  - Priority: High\n\n" +
+                        "- [Test Task 2 (Open)](/task/test-task-2)\n\n" +
+                        "- [Test Task 0 (Open)](/task/test-task-0)",
+                    replaceAll: false,
+                },
+            ],
+        }),
+    ).resolves.toEqual("Update was successful.\n");
+
+    expect(getApiPatchTasksRequestHistory()).toEqual([
+        {
+            spaceId,
+            patches: [
+                {
+                    id: secondTask.id,
+                    patch: {type: "SetPriority", priority: {type: "High"}},
+                },
+                {
+                    id: firstTask.id,
+                    patch: {
+                        type: "MoveInCollection",
+                        collectionId: collection.id,
+                        position: {type: "End"},
                     },
                 },
             ],
@@ -4081,7 +4446,7 @@ test("removes a task from a collection with a default sort using manual order", 
     const task2 = createApiTaskMock({index: 1});
     const path = "/task-collection/test-task-collection?manual";
 
-    api.mockPost("/task-collections/{id}/tasks/query", {
+    api.mockPost("/task-collections/{id}/tasks-query", {
         params: {path: {id: collection.id}},
         data: {
             spaceId,
@@ -4141,7 +4506,7 @@ test("removes a task from a collection with a sort in search params", async () =
     const task2 = createApiTaskMock({index: 1});
     const path = "/task-collection/test-task-collection?sort=created";
 
-    api.mockPost("/task-collections/{id}/tasks/query", {
+    api.mockPost("/task-collections/{id}/tasks-query", {
         params: {path: {id: collection.id}},
         data: {
             spaceId,
@@ -4261,7 +4626,7 @@ test("removes a task from a collection with a filter in search params", async ()
     const task2 = createApiTaskMock({index: 1, priority: "High"});
     const path = "/task-collection/test-task-collection?priority=high";
 
-    api.mockPost("/task-collections/{id}/tasks/query", {
+    api.mockPost("/task-collections/{id}/tasks-query", {
         params: {path: {id: collection.id}},
         data: {
             spaceId,
@@ -4366,10 +4731,10 @@ test("adds a task to a collection with a default sort using manual order", async
     };
     const task1 = createApiTaskMock({index: 0});
     const task2 = createApiTaskMock({index: 1});
-    const newTask = createApiTaskMock({index: 2});
+    const {task: newTask} = mockApiGetTaskWithoutNotes(api, {spaceId, index: 2});
     const path = "/task-collection/test-task-collection?manual";
 
-    api.mockPost("/task-collections/{id}/tasks/query", {
+    api.mockPost("/task-collections/{id}/tasks-query", {
         params: {path: {id: collection.id}},
         data: {
             spaceId,
@@ -4459,7 +4824,7 @@ test("rejects adding a task to a collection with a sort in search params", async
     const newTask = createApiTaskMock({index: 2});
     const path = "/task-collection/test-task-collection?sort=created";
 
-    api.mockPost("/task-collections/{id}/tasks/query", {
+    api.mockPost("/task-collections/{id}/tasks-query", {
         params: {path: {id: collection.id}},
         data: {
             spaceId,
@@ -4560,7 +4925,7 @@ test("rejects adding a task to a collection with a filter in search params", asy
     const newTask = createApiTaskMock({index: 2, priority: "High"});
     const path = "/task-collection/test-task-collection?priority=high";
 
-    api.mockPost("/task-collections/{id}/tasks/query", {
+    api.mockPost("/task-collections/{id}/tasks-query", {
         params: {path: {id: collection.id}},
         data: {
             spaceId,
@@ -4667,7 +5032,7 @@ test("moves a task in a collection with a default sort using manual order", asyn
     const path = "/task-collection/test-task-collection?manual";
     const movedCursor = printApiTaskQueryCursorMock(2);
 
-    api.mockPost("/task-collections/{id}/tasks/query", {
+    api.mockPost("/task-collections/{id}/tasks-query", {
         params: {path: {id: collection.id}},
         data: {
             spaceId,
@@ -4743,7 +5108,7 @@ test("rejects moving a task in a collection with a sort in search params", async
     const task2 = createApiTaskMock({index: 1});
     const path = "/task-collection/test-task-collection?sort=created";
 
-    api.mockPost("/task-collections/{id}/tasks/query", {
+    api.mockPost("/task-collections/{id}/tasks-query", {
         params: {path: {id: collection.id}},
         data: {
             spaceId,
@@ -4862,7 +5227,7 @@ test("rejects moving a task in a collection with a filter in search params", asy
     const task2 = createApiTaskMock({index: 1, priority: "High"});
     const path = "/task-collection/test-task-collection?priority=high";
 
-    api.mockPost("/task-collections/{id}/tasks/query", {
+    api.mockPost("/task-collections/{id}/tasks-query", {
         params: {path: {id: collection.id}},
         data: {
             spaceId,

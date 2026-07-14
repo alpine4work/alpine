@@ -74,7 +74,7 @@ export const apiSpacesPaths: Pick<
         },
     },
 
-    "/accounts/{id}/reference": {
+    "/accounts/{id}-reference": {
         get: async (context, {pathParameters}) => {
             // We load the account data using the `SpaceId` the bot is instantiated in. So if
             // an account was removed from the space then our bot will see old data.

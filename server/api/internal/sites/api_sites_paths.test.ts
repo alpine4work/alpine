@@ -11,7 +11,7 @@ const context = createTestContext({});
 
 const server = createTestApiServer(context, apiSitesPaths);
 
-describe("/sites/{id}/reference", () => {
+describe("/sites/{id}-reference", () => {
     test("can read site reference", async () => {
         const space = await TestSpace.create(context);
         const session = await space.createSession({role: "Admin"});
@@ -25,7 +25,7 @@ describe("/sites/{id}/reference", () => {
         });
 
         expect(
-            await server.GET(`/sites/${site.id}/reference`, {
+            await server.GET(`/sites/${site.id}-reference`, {
                 headers: {authorization: `bearer ${apiKey}`},
             }),
         ).toEqual({
@@ -53,7 +53,7 @@ describe("/sites/{id}/reference", () => {
         const site = await TestSite.create(session2, {access: "Private"});
 
         expect(
-            await server.GET(`/sites/${site.id}/reference`, {
+            await server.GET(`/sites/${site.id}-reference`, {
                 headers: {authorization: `bearer ${apiKey}`},
             }),
         ).toEqual({
@@ -75,7 +75,7 @@ describe("/sites/{id}/reference", () => {
         const apiKey = await bot.createApiKey(session);
 
         expect(
-            await server.GET(`/sites/${generateId<SiteId>()}/reference`, {
+            await server.GET(`/sites/${generateId<SiteId>()}-reference`, {
                 headers: {authorization: `bearer ${apiKey}`},
             }),
         ).toEqual({

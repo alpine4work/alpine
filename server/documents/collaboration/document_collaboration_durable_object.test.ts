@@ -109,16 +109,31 @@ function textSlice(text: string) {
     return new Slice(Fragment.from(schema.text(text)), 0, 0);
 }
 
-function createUpdateContentWithDiffRequest({version, text}: {version: number; text: string}) {
+function createUpdateContentWithDiffRequest({
+    version,
+    title,
+    text,
+}: {
+    version: number;
+    title?: string;
+    text?: string;
+}) {
     return new Request("https://cyberworlds.local/update-content-with-diff", {
         method: "POST",
         body: JSON.stringify(
             DocumentCollaborationUpdateContentWithDiffRequestBodySchema.serialize({
                 version,
-                content: [
-                    schema.node("title", {}, []),
-                    schema.node("paragraph", {}, text.length > 0 ? [schema.text(text)] : []),
-                ],
+                title,
+                content:
+                    text === undefined
+                        ? undefined
+                        : [
+                              schema.node(
+                                  "paragraph",
+                                  {},
+                                  text.length > 0 ? [schema.text(text)] : [],
+                              ),
+                          ],
             }),
         ),
     });
@@ -6522,7 +6537,29 @@ test("can get presence updates across viewer/editor connections", async () => {
 });
 
 describe("update-content-with-diff route", () => {
-    test("updates document content", async () => {
+    test("updates the title without replacing document content", async () => {
+        const space = await TestSpace.create(context);
+        const session = await space.createSession();
+        const document = await TestDocument.create(session, {
+            title: "Original title",
+            body: "Original body",
+        });
+
+        const response = await fetchForTest(
+            context.action(session),
+            document.id,
+            createUpdateContentWithDiffRequest({version: 0, title: "Updated title"}),
+        );
+
+        expect(await readUpdateContentWithDiffResponse(response)).toMatchObject({
+            ok: true,
+            spaceId: space.id,
+            newVersion: 1,
+            newContent: expect.objectContaining({textContent: "Updated titleOriginal body"}),
+        });
+    });
+
+    test("updates document title and content", async () => {
         const space = await TestSpace.create(context);
         const session = await space.createSession();
         const document = await TestDocument.create(session);
@@ -6530,15 +6567,19 @@ describe("update-content-with-diff route", () => {
         const response = await fetchForTest(
             context.action(session),
             document.id,
-            createUpdateContentWithDiffRequest({version: 0, text: "New notes"}),
+            createUpdateContentWithDiffRequest({
+                version: 0,
+                title: "New title",
+                text: "New notes",
+            }),
         );
 
         expect(await readUpdateContentWithDiffResponse(response)).toMatchObject({
             ok: true,
             spaceId: space.id,
-            newVersion: 1,
+            newVersion: 2,
             newContent: expect.objectContaining({
-                textContent: "New notes",
+                textContent: "New titleNew notes",
             }),
         });
     });

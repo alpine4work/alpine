@@ -446,6 +446,12 @@ class DocumentCollaborationDurableObject {
                             await request.json(),
                         );
 
+                    if (requestBody.title === undefined && requestBody.content === undefined) {
+                        throw new InvalidArgumentError(
+                            "A document content update must update the title or body content",
+                        );
+                    }
+
                     // Authorizing document access is a round-trip to AWS. Run it in parallel with
                     // computing and applying the update to avoid an extra serial round-trip. The
                     // `update()` call awaits `authorizationPromise` before mutating any durable object
@@ -463,12 +469,27 @@ class DocumentCollaborationDurableObject {
                                 requestBody.version,
                             );
 
+                            const titleNode =
+                                requestBody.title === undefined
+                                    ? oldContent.child(0)
+                                    : DocumentContentProsemirrorSchema.nodes.title.create(
+                                          null,
+                                          requestBody.title.length > 0
+                                              ? DocumentContentProsemirrorSchema.text(
+                                                    requestBody.title,
+                                                )
+                                              : null,
+                                      );
+
+                            const bodyNodes =
+                                requestBody.content ?? oldContent.content.content.slice(1);
+
                             const requestContent =
                                 DocumentContentProsemirrorSchema.nodes.doc.create(
                                     // This method isn't currently allowed to update document attributes like
                                     // `AccessPolicy`.
                                     oldContent.attrs,
-                                    requestBody.content,
+                                    [titleNode, ...bodyNodes],
                                 );
 
                             const steps = diffProsemirrorNodes(oldContent, requestContent);

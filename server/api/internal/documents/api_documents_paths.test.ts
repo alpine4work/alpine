@@ -59,9 +59,7 @@ const context = createTestContext({
         const requestBody = DocumentCollaborationUpdateContentWithDiffRequestBodySchema.deserialize(
             request.body ?? null,
         );
-
         const document = await getDocumentContent(context, documentId);
-
         const invertedSteps =
             requestBody.version < document.version
                 ? await getDocumentContentSteps(context, {
@@ -70,7 +68,6 @@ const context = createTestContext({
                       endVersion: document.version,
                   })
                 : [];
-
         let oldContent = document.content;
 
         for (let index = invertedSteps.length - 1; index >= 0; index--) {
@@ -80,12 +77,20 @@ const context = createTestContext({
             oldContent = assertDocumentContent(stepResult.doc);
         }
 
-        const requestContent = DocumentContentProsemirrorSchema.nodes.doc.create(
-            // This method isn't currently allowed to update document attributes like
-            // `AccessPolicy`.
-            oldContent.attrs,
-            requestBody.content,
-        );
+        const titleNode =
+            requestBody.title === undefined
+                ? oldContent.child(0)
+                : DocumentContentProsemirrorSchema.nodes.title.create(
+                      null,
+                      requestBody.title.length > 0
+                          ? DocumentContentProsemirrorSchema.text(requestBody.title)
+                          : null,
+                  );
+
+        const requestContent = DocumentContentProsemirrorSchema.nodes.doc.create(oldContent.attrs, [
+            titleNode,
+            ...(requestBody.content ?? oldContent.content.content.slice(1)),
+        ]);
 
         const steps = diffProsemirrorNodes(oldContent, requestContent);
 
@@ -551,7 +556,7 @@ test("can\u2019t read document content for non-existent document", async () => {
     });
 });
 
-describe("/documents/{id}/reference", () => {
+describe("/documents/{id}-reference", () => {
     test("can read document mention", async () => {
         const space = await TestSpace.create(context);
         const session = await space.createSession({role: "Admin"});
@@ -565,7 +570,7 @@ describe("/documents/{id}/reference", () => {
         });
 
         expect(
-            await server.GET(`/documents/${document.id}/reference`, {
+            await server.GET(`/documents/${document.id}-reference`, {
                 headers: {authorization: `bearer ${apiKey}`},
             }),
         ).toEqual({
@@ -593,7 +598,7 @@ describe("/documents/{id}/reference", () => {
         const document = await TestDocument.create(session2, {access: "Private"});
 
         expect(
-            await server.GET(`/documents/${document.id}/reference`, {
+            await server.GET(`/documents/${document.id}-reference`, {
                 headers: {authorization: `bearer ${apiKey}`},
             }),
         ).toEqual({
@@ -617,7 +622,7 @@ describe("/documents/{id}/reference", () => {
         const apiKey = await bot.createApiKey(session);
 
         expect(
-            await server.GET(`/documents/${generateId<DocumentId>()}/reference`, {
+            await server.GET(`/documents/${generateId<DocumentId>()}-reference`, {
                 headers: {authorization: `bearer ${apiKey}`},
             }),
         ).toEqual({
@@ -643,7 +648,7 @@ describe("/documents/{id}/reference", () => {
         const apiKey = await bot.createApiKey({type: "Document", documentId: document.id});
 
         expect(
-            await server.GET(`/documents/${document.id}/reference`, {
+            await server.GET(`/documents/${document.id}-reference`, {
                 headers: {authorization: `bearer ${apiKey}`},
             }),
         ).toEqual({
@@ -713,6 +718,40 @@ describe("comment threads", () => {
         return new Slice(Fragment.from(schema.text(text, marks)), 0, 0);
     }
 
+    test("returns thread metadata without loading a document preview", async () => {
+        const space = await TestSpace.create(context);
+        const session = await space.createSession({role: "Admin"});
+        const document = await TestDocument.create(session, {access: "Public"});
+        const {range} = await document.type(session, "Commented text");
+        const commentThread = await document.createCommentThread(session, range, "Comment");
+        const bot = await TestBot.createAndInstantiate(session);
+        const apiKey = await bot.createApiKey(session);
+
+        const response = await server.GET(`/documents/${document.id}/threads/${commentThread.id}`, {
+            headers: {authorization: `bearer ${apiKey}`},
+        });
+
+        expect({
+            response,
+            hasDocument: "document" in response.body,
+            hasPreview: "preview" in response.body.thread,
+        }).toMatchObject({
+            response: {
+                status: 200,
+                body: {
+                    spaceId: space.id,
+                    thread: {
+                        id: commentThread.id,
+                        isResolved: false,
+                        totalMessageCount: 1,
+                    },
+                },
+            },
+            hasDocument: false,
+            hasPreview: false,
+        });
+    });
+
     test("returns snippet of document with comment", async () => {
         const space = await TestSpace.create(context);
         const session = await space.createSession({role: "Admin"});
@@ -742,7 +781,7 @@ describe("comment threads", () => {
         const apiKey = await bot.createApiKey({type: "Document", documentId: document.id});
 
         expect(
-            await server.GET(`/documents/${document.id}/threads/${commentThread.id}`, {
+            await server.GET(`/documents/${document.id}/threads/${commentThread.id}-with-preview`, {
                 headers: {authorization: `bearer ${apiKey}`},
             }),
         ).toEqual({
@@ -754,32 +793,30 @@ describe("comment threads", () => {
                     id: commentThread.id,
                     isResolved: false,
                     totalMessageCount: 1,
-                    marked: {
-                        preview: {
-                            version: await document.getVersion(),
-                            contentSnippet: {
-                                elements: [
-                                    {
-                                        type: "Paragraph",
-                                        elements: [
-                                            {
-                                                type: "Text",
-                                                text: "Hello",
-                                                marks: [
-                                                    {
-                                                        type: "Comment",
-                                                        thread: {id: commentThread.id},
-                                                    },
-                                                ],
-                                            },
-                                            {
-                                                type: "Text",
-                                                text: ", world!",
-                                            },
-                                        ],
-                                    },
-                                ],
-                            },
+                    preview: {
+                        version: await document.getVersion(),
+                        contentSnippet: {
+                            elements: [
+                                {
+                                    type: "Paragraph",
+                                    elements: [
+                                        {
+                                            type: "Text",
+                                            text: "Hello",
+                                            marks: [
+                                                {
+                                                    type: "Comment",
+                                                    thread: {id: commentThread.id},
+                                                },
+                                            ],
+                                        },
+                                        {
+                                            type: "Text",
+                                            text: ", world!",
+                                        },
+                                    ],
+                                },
+                            ],
                         },
                     },
                 }),
@@ -828,12 +865,15 @@ describe("comment threads", () => {
         const bot = await TestBot.createAndInstantiate(session);
         const apiKey = await bot.createApiKey({type: "Document", documentId: document.id});
 
-        const response = await server.GET(`/documents/${document.id}/threads/${commentThread.id}`, {
-            headers: {authorization: `bearer ${apiKey}`},
-        });
+        const response = await server.GET(
+            `/documents/${document.id}/threads/${commentThread.id}-with-preview`,
+            {
+                headers: {authorization: `bearer ${apiKey}`},
+            },
+        );
         assert(response.status === 200);
 
-        const snippetElements = response.body.thread.marked.preview.contentSnippet.elements;
+        const snippetElements = response.body.thread.preview.contentSnippet.elements;
         assert(Array.isArray(snippetElements));
 
         const elementText = (element: {elements: Array<{text: string}>}) =>
@@ -908,13 +948,13 @@ describe("comment threads", () => {
         assert(documentResponse.status === 200);
 
         const threadResponse = await server.GET(
-            `/documents/${document.id}/threads/${commentThread.id}`,
+            `/documents/${document.id}/threads/${commentThread.id}-with-preview`,
             {headers: {authorization: `bearer ${apiKey}`}},
         );
         assert(threadResponse.status === 200);
 
         const documentElements = documentResponse.body.document.content.elements;
-        const snippetElements = threadResponse.body.thread.marked.preview.contentSnippet.elements;
+        const snippetElements = threadResponse.body.thread.preview.contentSnippet.elements;
         assert(Array.isArray(documentElements));
         assert(Array.isArray(snippetElements));
 
@@ -968,7 +1008,7 @@ describe("comment threads", () => {
         const apiKey = await bot.createApiKey({type: "Document", documentId: document.id});
 
         expect(
-            await server.GET(`/documents/${document.id}/threads/${commentThread.id}`, {
+            await server.GET(`/documents/${document.id}/threads/${commentThread.id}-with-preview`, {
                 headers: {authorization: `bearer ${apiKey}`},
             }),
         ).toEqual({
@@ -980,32 +1020,30 @@ describe("comment threads", () => {
                     id: commentThread.id,
                     isResolved: false,
                     totalMessageCount: 1,
-                    marked: {
-                        preview: {
-                            version: (await document.getVersion()) - 1,
-                            contentSnippet: {
-                                elements: [
-                                    {
-                                        type: "Paragraph",
-                                        elements: [
-                                            {
-                                                type: "Text",
-                                                text: "Hello",
-                                                marks: [
-                                                    {
-                                                        type: "Comment",
-                                                        thread: {id: commentThread.id},
-                                                    },
-                                                ],
-                                            },
-                                            {
-                                                type: "Text",
-                                                text: ", world!",
-                                            },
-                                        ],
-                                    },
-                                ],
-                            },
+                    preview: {
+                        version: (await document.getVersion()) - 1,
+                        contentSnippet: {
+                            elements: [
+                                {
+                                    type: "Paragraph",
+                                    elements: [
+                                        {
+                                            type: "Text",
+                                            text: "Hello",
+                                            marks: [
+                                                {
+                                                    type: "Comment",
+                                                    thread: {id: commentThread.id},
+                                                },
+                                            ],
+                                        },
+                                        {
+                                            type: "Text",
+                                            text: ", world!",
+                                        },
+                                    ],
+                                },
+                            ],
                         },
                     },
                 }),
@@ -1033,12 +1071,15 @@ describe("comment threads", () => {
         const bot = await TestBot.createAndInstantiate(session);
         const apiKey = await bot.createApiKey({type: "Document", documentId: document.id});
 
-        const response = await server.GET(`/documents/${document.id}/threads/${commentThread.id}`, {
-            headers: {authorization: `bearer ${apiKey}`},
-        });
+        const response = await server.GET(
+            `/documents/${document.id}/threads/${commentThread.id}-with-preview`,
+            {
+                headers: {authorization: `bearer ${apiKey}`},
+            },
+        );
         assert(response.status === 200);
 
-        expect(response.body.thread.marked.preview.version).toBe(fallbackVersion);
+        expect(response.body.thread.preview.version).toBe(fallbackVersion);
     });
 
     test("returns snippet of document if comment thread is resolved", async () => {
@@ -1082,7 +1123,7 @@ describe("comment threads", () => {
         const apiKey = await bot.createApiKey({type: "Document", documentId: document.id});
 
         expect(
-            await server.GET(`/documents/${document.id}/threads/${commentThread.id}`, {
+            await server.GET(`/documents/${document.id}/threads/${commentThread.id}-with-preview`, {
                 headers: {authorization: `bearer ${apiKey}`},
             }),
         ).toEqual({
@@ -1094,32 +1135,30 @@ describe("comment threads", () => {
                     id: commentThread.id,
                     isResolved: true,
                     totalMessageCount: 1,
-                    marked: {
-                        preview: {
-                            version: expect.any(Number),
-                            contentSnippet: {
-                                elements: [
-                                    {
-                                        type: "Paragraph",
-                                        elements: [
-                                            {
-                                                type: "Text",
-                                                text: "Hello",
-                                                marks: [
-                                                    {
-                                                        type: "Comment",
-                                                        thread: {id: commentThread.id},
-                                                    },
-                                                ],
-                                            },
-                                            {
-                                                type: "Text",
-                                                text: ", world!",
-                                            },
-                                        ],
-                                    },
-                                ],
-                            },
+                    preview: {
+                        version: expect.any(Number),
+                        contentSnippet: {
+                            elements: [
+                                {
+                                    type: "Paragraph",
+                                    elements: [
+                                        {
+                                            type: "Text",
+                                            text: "Hello",
+                                            marks: [
+                                                {
+                                                    type: "Comment",
+                                                    thread: {id: commentThread.id},
+                                                },
+                                            ],
+                                        },
+                                        {
+                                            type: "Text",
+                                            text: ", world!",
+                                        },
+                                    ],
+                                },
+                            ],
                         },
                     },
                 }),
@@ -1181,7 +1220,7 @@ describe("comment threads", () => {
         const apiKey = await bot.createApiKey({type: "Document", documentId: document.id});
 
         expect(
-            await server.GET(`/documents/${document.id}/threads/${commentThread.id}`, {
+            await server.GET(`/documents/${document.id}/threads/${commentThread.id}-with-preview`, {
                 headers: {authorization: `bearer ${apiKey}`},
             }),
         ).toEqual({
@@ -1193,32 +1232,30 @@ describe("comment threads", () => {
                     id: commentThread.id,
                     isResolved: true,
                     totalMessageCount: 1,
-                    marked: {
-                        preview: {
-                            version: expect.any(Number),
-                            contentSnippet: {
-                                elements: [
-                                    {
-                                        type: "Paragraph",
-                                        elements: [
-                                            {
-                                                type: "Text",
-                                                text: "Hello",
-                                                marks: [
-                                                    {
-                                                        type: "Comment",
-                                                        thread: {id: commentThread.id},
-                                                    },
-                                                ],
-                                            },
-                                            {
-                                                type: "Text",
-                                                text: ", world!",
-                                            },
-                                        ],
-                                    },
-                                ],
-                            },
+                    preview: {
+                        version: expect.any(Number),
+                        contentSnippet: {
+                            elements: [
+                                {
+                                    type: "Paragraph",
+                                    elements: [
+                                        {
+                                            type: "Text",
+                                            text: "Hello",
+                                            marks: [
+                                                {
+                                                    type: "Comment",
+                                                    thread: {id: commentThread.id},
+                                                },
+                                            ],
+                                        },
+                                        {
+                                            type: "Text",
+                                            text: ", world!",
+                                        },
+                                    ],
+                                },
+                            ],
                         },
                     },
                 }),
@@ -1229,6 +1266,93 @@ describe("comment threads", () => {
 });
 
 describe("PATCH /documents/{id}", () => {
+    test("rejects more than one SetTitle patch with a helpful message", async () => {
+        const space = await TestSpace.create(context);
+        const session = await space.createSession({role: "Admin"});
+        const bot = await TestBot.createAndInstantiate(session);
+        const apiKey = await bot.createApiKey(session);
+        const document = await TestDocument.create(session);
+
+        const response = await server.PATCH(`/documents/${document.id}`, {
+            headers: {authorization: `bearer ${apiKey}`},
+            body: {
+                patches: [
+                    {type: "SetTitle", version: 0, title: "First title"},
+                    {type: "SetTitle", version: 0, title: "Second title"},
+                ],
+            },
+        });
+
+        expect(response).toMatchObject({
+            status: 400,
+            body: {
+                error: expect.objectContaining({
+                    message: expect.stringMatching(
+                        "You can only include one `SetTitle` patch when updating a document",
+                    ),
+                }),
+            },
+        });
+    });
+
+    test("rejects more than one SetContent patch with a helpful message", async () => {
+        const space = await TestSpace.create(context);
+        const session = await space.createSession({role: "Admin"});
+        const bot = await TestBot.createAndInstantiate(session);
+        const apiKey = await bot.createApiKey(session);
+        const document = await TestDocument.create(session);
+
+        const response = await server.PATCH(`/documents/${document.id}`, {
+            headers: {authorization: `bearer ${apiKey}`},
+            body: {
+                patches: [
+                    {type: "SetContent", version: 0, content: {elements: []}},
+                    {type: "SetContent", version: 0, content: {elements: []}},
+                ],
+            },
+        });
+
+        expect(response).toMatchObject({
+            status: 400,
+            body: {
+                error: expect.objectContaining({
+                    message: expect.stringMatching(
+                        "You can only include one `SetContent` patch when updating a document",
+                    ),
+                }),
+            },
+        });
+    });
+
+    test("rejects title and content patches with different versions", async () => {
+        const space = await TestSpace.create(context);
+        const session = await space.createSession({role: "Admin"});
+        const bot = await TestBot.createAndInstantiate(session);
+        const apiKey = await bot.createApiKey(session);
+        const document = await TestDocument.create(session);
+
+        const response = await server.PATCH(`/documents/${document.id}`, {
+            headers: {authorization: `bearer ${apiKey}`},
+            body: {
+                patches: [
+                    {type: "SetTitle", version: 0, title: "Updated title"},
+                    {type: "SetContent", version: 1, content: {elements: []}},
+                ],
+            },
+        });
+
+        expect(response).toMatchObject({
+            status: 400,
+            body: {
+                error: expect.objectContaining({
+                    message: expect.stringMatching(
+                        "the `SetTitle` and `SetContent` patches must use the same `version`",
+                    ),
+                }),
+            },
+        });
+    });
+
     test("no-op PATCH returns the unchanged document", async () => {
         const space = await TestSpace.create(context);
         const session = await space.createSession({role: "Admin"});
@@ -1244,18 +1368,20 @@ describe("PATCH /documents/{id}", () => {
         const response = await server.PATCH(`/documents/${document.id}`, {
             headers: {authorization: `bearer ${apiKey}`},
             body: {
-                document: {
-                    title: "No-op Test",
-                    version: await document.getVersion(),
-                    content: {
-                        elements: [
-                            {
-                                type: "Paragraph",
-                                elements: [{type: "Text", text: "Stable content."}],
-                            },
-                        ],
+                patches: [
+                    {
+                        type: "SetContent",
+                        version: await document.getVersion(),
+                        content: {
+                            elements: [
+                                {
+                                    type: "Paragraph",
+                                    elements: [{type: "Text", text: "Stable content."}],
+                                },
+                            ],
+                        },
                     },
-                },
+                ],
             },
         });
 
@@ -1297,18 +1423,20 @@ describe("PATCH /documents/{id}", () => {
         const response = await server.PATCH(`/documents/${document.id}`, {
             headers: {authorization: `bearer ${apiKey}`},
             body: {
-                document: {
-                    title: "Updated Test",
-                    version: await document.getVersion(),
-                    content: {
-                        elements: [
-                            {
-                                type: "Paragraph",
-                                elements: [{type: "Text", text: "Updated content."}],
-                            },
-                        ],
+                patches: [
+                    {
+                        type: "SetContent",
+                        version: await document.getVersion(),
+                        content: {
+                            elements: [
+                                {
+                                    type: "Paragraph",
+                                    elements: [{type: "Text", text: "Updated content."}],
+                                },
+                            ],
+                        },
                     },
-                },
+                ],
             },
         });
 
@@ -1349,25 +1477,27 @@ describe("PATCH /documents/{id}", () => {
         const response = await server.PATCH(`/documents/${document.id}`, {
             headers: {authorization: `bearer ${apiKey}`},
             body: {
-                document: {
-                    title: "Keyed Input Test",
-                    version: await document.getVersion(),
-                    content: {
-                        elements: [
-                            {
-                                type: "Heading",
-                                key: "client-heading-key",
-                                level: 2,
-                                elements: [{type: "Text", text: "Updated heading"}],
-                            },
-                            {
-                                type: "Paragraph",
-                                key: "client-paragraph-key",
-                                elements: [{type: "Text", text: "Updated body."}],
-                            },
-                        ],
+                patches: [
+                    {
+                        type: "SetContent",
+                        version: await document.getVersion(),
+                        content: {
+                            elements: [
+                                {
+                                    type: "Heading",
+                                    key: "client-heading-key",
+                                    level: 2,
+                                    elements: [{type: "Text", text: "Updated heading"}],
+                                },
+                                {
+                                    type: "Paragraph",
+                                    key: "client-paragraph-key",
+                                    elements: [{type: "Text", text: "Updated body."}],
+                                },
+                            ],
+                        },
                     },
-                },
+                ],
             },
         });
 
@@ -1411,18 +1541,13 @@ describe("PATCH /documents/{id}", () => {
         const response = await server.PATCH(`/documents/${document.id}`, {
             headers: {authorization: `bearer ${apiKey}`},
             body: {
-                document: {
-                    title: "Renamed Via API",
-                    version: await document.getVersion(),
-                    content: {
-                        elements: [
-                            {
-                                type: "Paragraph",
-                                elements: [{type: "Text", text: "Body stays the same."}],
-                            },
-                        ],
+                patches: [
+                    {
+                        type: "SetTitle",
+                        title: "Renamed Via API",
+                        version: await document.getVersion(),
                     },
-                },
+                ],
             },
         });
 
@@ -1454,18 +1579,13 @@ describe("PATCH /documents/{id}", () => {
         const patchResponse = await server.PATCH(`/documents/${document.id}`, {
             headers: {authorization: `bearer ${apiKey}`},
             body: {
-                document: {
-                    title: "Renamed Title",
-                    version: previousVersion,
-                    content: {
-                        elements: [
-                            {
-                                type: "Paragraph",
-                                elements: [{type: "Text", text: "Original body."}],
-                            },
-                        ],
+                patches: [
+                    {
+                        type: "SetTitle",
+                        title: "Renamed Title",
+                        version: previousVersion,
                     },
-                },
+                ],
             },
         });
         const getResponse = await server.GET(`/documents/${document.id}`, {
@@ -1512,35 +1632,32 @@ describe("PATCH /documents/{id}", () => {
         const concurrentTitleResponse = await server.PATCH(`/documents/${document.id}`, {
             headers: {authorization: `bearer ${apiKey}`},
             body: {
-                document: {
-                    title: "Concurrent Title",
-                    version: previousVersion,
-                    content: {
-                        elements: [
-                            {
-                                type: "Paragraph",
-                                elements: [{type: "Text", text: "Original body."}],
-                            },
-                        ],
+                patches: [
+                    {
+                        type: "SetTitle",
+                        title: "Concurrent Title",
+                        version: previousVersion,
                     },
-                },
+                ],
             },
         });
         const staleBodyResponse = await server.PATCH(`/documents/${document.id}`, {
             headers: {authorization: `bearer ${apiKey}`},
             body: {
-                document: {
-                    title: "Original Title",
-                    version: previousVersion,
-                    content: {
-                        elements: [
-                            {
-                                type: "Paragraph",
-                                elements: [{type: "Text", text: "Updated body."}],
-                            },
-                        ],
+                patches: [
+                    {
+                        type: "SetContent",
+                        version: previousVersion,
+                        content: {
+                            elements: [
+                                {
+                                    type: "Paragraph",
+                                    elements: [{type: "Text", text: "Updated body."}],
+                                },
+                            ],
+                        },
                     },
-                },
+                ],
             },
         });
 
@@ -1574,35 +1691,39 @@ describe("PATCH /documents/{id}", () => {
         const concurrentBodyResponse = await server.PATCH(`/documents/${document.id}`, {
             headers: {authorization: `bearer ${apiKey}`},
             body: {
-                document: {
-                    title: "Body Rebase",
-                    version: previousVersion,
-                    content: {
-                        elements: [
-                            {
-                                type: "Paragraph",
-                                elements: [{type: "Text", text: "Alpha Beta"}],
-                            },
-                        ],
+                patches: [
+                    {
+                        type: "SetContent",
+                        version: previousVersion,
+                        content: {
+                            elements: [
+                                {
+                                    type: "Paragraph",
+                                    elements: [{type: "Text", text: "Alpha Beta"}],
+                                },
+                            ],
+                        },
                     },
-                },
+                ],
             },
         });
         const staleBodyResponse = await server.PATCH(`/documents/${document.id}`, {
             headers: {authorization: `bearer ${apiKey}`},
             body: {
-                document: {
-                    title: "Body Rebase",
-                    version: previousVersion,
-                    content: {
-                        elements: [
-                            {
-                                type: "Paragraph",
-                                elements: [{type: "Text", text: "Start Alpha"}],
-                            },
-                        ],
+                patches: [
+                    {
+                        type: "SetContent",
+                        version: previousVersion,
+                        content: {
+                            elements: [
+                                {
+                                    type: "Paragraph",
+                                    elements: [{type: "Text", text: "Start Alpha"}],
+                                },
+                            ],
+                        },
                     },
-                },
+                ],
             },
         });
 
@@ -1642,18 +1763,13 @@ describe("PATCH /documents/{id}", () => {
         const response = await server.PATCH(`/documents/${document.id}`, {
             headers: {authorization: `bearer ${apiKey}`},
             body: {
-                document: {
-                    title: "Renamed Across Snapshot",
-                    version: previousVersion,
-                    content: {
-                        elements: [
-                            {
-                                type: "Paragraph",
-                                elements: [{type: "Text", text: "Base"}],
-                            },
-                        ],
+                patches: [
+                    {
+                        type: "SetTitle",
+                        title: "Renamed Across Snapshot",
+                        version: previousVersion,
                     },
-                },
+                ],
             },
         });
 
@@ -1684,18 +1800,25 @@ describe("PATCH /documents/{id}", () => {
         const response = await server.PATCH(`/documents/${document.id}`, {
             headers: {authorization: `bearer ${apiKey}`},
             body: {
-                document: {
-                    title: "",
-                    version: await document.getVersion(),
-                    content: {
-                        elements: [
-                            {
-                                type: "Paragraph",
-                                elements: [{type: "Text", text: "Updated content."}],
-                            },
-                        ],
+                patches: [
+                    {
+                        type: "SetTitle",
+                        title: "",
+                        version: await document.getVersion(),
                     },
-                },
+                    {
+                        type: "SetContent",
+                        version: await document.getVersion(),
+                        content: {
+                            elements: [
+                                {
+                                    type: "Paragraph",
+                                    elements: [{type: "Text", text: "Updated content."}],
+                                },
+                            ],
+                        },
+                    },
+                ],
             },
         });
 

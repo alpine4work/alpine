@@ -281,12 +281,12 @@ for (const testSuite of testSuites) {
 
                 await ProcessContextModule.waitForTestTasks();
 
-                const {
-                    body: oldBody,
-                }: {body: ApiGetTaskCollectionTasksResponse["content"]["application/json"]} =
-                    await server.GET(`/task-collections/${collection.id}/tasks`, {
+                const {body: oldBody}: {body: ApiGetTaskCollectionTasksResponse} = await server.GET(
+                    `/task-collections/${collection.id}/tasks`,
+                    {
                         headers: {authorization: `bearer ${apiKey}`},
-                    });
+                    },
+                );
 
                 expect(oldBody.tasks).toHaveLength(tasks.length);
                 expect(oldBody.nextCursor).toBeNull();
@@ -346,12 +346,12 @@ for (const testSuite of testSuites) {
                     error: undefined,
                 });
 
-                const {
-                    body: newBody,
-                }: {body: ApiGetTaskCollectionTasksResponse["content"]["application/json"]} =
-                    await server.GET(`/task-collections/${collection.id}/tasks`, {
+                const {body: newBody}: {body: ApiGetTaskCollectionTasksResponse} = await server.GET(
+                    `/task-collections/${collection.id}/tasks`,
+                    {
                         headers: {authorization: `bearer ${apiKey}`},
-                    });
+                    },
+                );
 
                 expect(newBody.tasks.map(({task}) => task.id)).toEqual(
                     expectedOrder.map(index => tasks[index]!.id),

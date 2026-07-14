@@ -58,9 +58,7 @@ const baseContext = createTestContext({
             TaskNotesCollaborationUpdateContentWithDiffRequestBodySchema.deserialize(
                 request.body ?? null,
             );
-
         const taskNotes = await getTaskNotesContentWithoutReferences(context, taskId);
-
         const invertedSteps =
             requestBody.version < taskNotes.version
                 ? await getTaskNotesContentSteps(context, {
@@ -69,7 +67,6 @@ const baseContext = createTestContext({
                       endVersion: taskNotes.version,
                   })
                 : [];
-
         let oldContent = taskNotes.content;
 
         for (let index = invertedSteps.length - 1; index >= 0; index--) {
@@ -82,7 +79,6 @@ const baseContext = createTestContext({
         const requestContent = assertTaskNotesContent(
             TaskNotesContentProsemirrorSchema.nodes.doc.create(null, requestBody.content),
         );
-
         const steps = diffProsemirrorNodes(oldContent, requestContent);
 
         const {newVersion} = await updateTaskNotesContent(context, {
@@ -92,14 +88,13 @@ const baseContext = createTestContext({
             clientSteps: steps,
             clientId: generateId(),
         });
-
-        const newTaskNotes = await getTaskNotesContentWithoutReferences(context, taskId);
+        const {content: newContent} = await getTaskNotesContentWithoutReferences(context, taskId);
 
         return TaskNotesCollaborationUpdateContentWithDiffResponseBodySchema.serialize({
             ok: true,
             spaceId: taskNotes.spaceId,
             newVersion,
-            newContent: newTaskNotes.content,
+            newContent,
         });
     },
 });
@@ -210,6 +205,53 @@ test("can read task information without notes", async () => {
             }),
         },
         hasNotes: false,
+    });
+});
+
+test("can query subtasks without loading parent task notes", async () => {
+    const space = await TestSpace.create(context);
+    const session = await space.createSession({role: "Admin"});
+    const bot = await TestBot.createAndInstantiate(session);
+    const apiKey = await bot.createApiKey(session);
+    const parentTask = await TestTask.create(session, {title: "Parent"});
+    const subtask = await TestTask.create(session, {title: "Subtask", parent: parentTask});
+
+    await ProcessContextModule.waitForTestTasks();
+
+    const getResponse = await server.GET(`/tasks/${parentTask.id}-without-notes/subtasks`, {
+        headers: {authorization: `bearer ${apiKey}`},
+    });
+    const postResponse = await server.POST(`/tasks/${parentTask.id}-without-notes/subtasks-query`, {
+        headers: {authorization: `bearer ${apiKey}`},
+        body: {},
+    });
+
+    expect({
+        get: {
+            status: getResponse.status,
+            taskId: getResponse.body.task.id,
+            hasNotes: "notes" in getResponse.body.task,
+            subtaskIds: getResponse.body.tasks.map(({task}: {task: {id: TaskId}}) => task.id),
+        },
+        post: {
+            status: postResponse.status,
+            taskId: postResponse.body.task.id,
+            hasNotes: "notes" in postResponse.body.task,
+            subtaskIds: postResponse.body.tasks.map(({task}: {task: {id: TaskId}}) => task.id),
+        },
+    }).toEqual({
+        get: {
+            status: 200,
+            taskId: parentTask.id,
+            hasNotes: false,
+            subtaskIds: [subtask.id],
+        },
+        post: {
+            status: 200,
+            taskId: parentTask.id,
+            hasNotes: false,
+            subtaskIds: [subtask.id],
+        },
     });
 });
 
@@ -1271,17 +1313,20 @@ test("can update task notes content", async () => {
     const response = await server.PATCH(`/tasks/${task.id}/notes`, {
         headers: {authorization: `bearer ${apiKey}`},
         body: {
-            notes: {
-                version: getResponse.body.notes.version,
-                content: {
-                    elements: [
-                        {
-                            type: "Paragraph",
-                            elements: [{type: "Text", text: "Updated notes"}],
-                        },
-                    ],
+            patches: [
+                {
+                    type: "SetContent",
+                    version: getResponse.body.notes.version,
+                    content: {
+                        elements: [
+                            {
+                                type: "Paragraph",
+                                elements: [{type: "Text", text: "Updated notes"}],
+                            },
+                        ],
+                    },
                 },
-            },
+            ],
         },
     });
 
@@ -1308,6 +1353,31 @@ test("can update task notes content", async () => {
         }),
     });
     expect(response.body.notes.version).toBeGreaterThan(getResponse.body.notes.version);
+});
+
+test("rejects more than one task notes SetContent patch with a helpful message", async () => {
+    const space = await TestSpace.create(context);
+    const session = await space.createSession({name: "Alice Smith", role: "Admin"});
+    const bot = await TestBot.createAndInstantiate(session);
+    const apiKey = await bot.createApiKey(session);
+    const task = await TestTask.create(session);
+
+    const response = await server.PATCH(`/tasks/${task.id}/notes`, {
+        headers: {authorization: `bearer ${apiKey}`},
+        body: {
+            patches: [
+                {type: "SetContent", version: 0, content: {elements: []}},
+                {type: "SetContent", version: 0, content: {elements: []}},
+            ],
+        },
+    });
+
+    expect(response).toEqual(
+        expectedApiErrorResponse(
+            400,
+            "You can only include one `SetContent` patch when updating task notes",
+        ),
+    );
 });
 
 test("can update task status to closed", async () => {
@@ -3780,7 +3850,7 @@ describe("MoveInParent patch", () => {
     });
 });
 
-describe("/tasks/{id}/reference", () => {
+describe("/tasks/{id}-reference", () => {
     test("can read task mention with open status", async () => {
         const space = await TestSpace.create(context);
         const session = await space.createSession({name: "Alice Smith", role: "Admin"});
@@ -3793,7 +3863,7 @@ describe("/tasks/{id}/reference", () => {
         await ProcessContextModule.waitForTestTasks();
 
         expect(
-            await server.GET(`/tasks/${task.id}/reference`, {
+            await server.GET(`/tasks/${task.id}-reference`, {
                 headers: {authorization: `bearer ${apiKey}`},
             }),
         ).toEqual({
@@ -3824,7 +3894,7 @@ describe("/tasks/{id}/reference", () => {
         await ProcessContextModule.waitForTestTasks();
 
         expect(
-            await server.GET(`/tasks/${task.id}/reference`, {
+            await server.GET(`/tasks/${task.id}-reference`, {
                 headers: {authorization: `bearer ${apiKey}`},
             }),
         ).toEqual({
@@ -3856,7 +3926,7 @@ describe("/tasks/{id}/reference", () => {
         await ProcessContextModule.waitForTestTasks();
 
         expect(
-            await server.GET(`/tasks/${task.id}/reference`, {
+            await server.GET(`/tasks/${task.id}-reference`, {
                 headers: {authorization: `bearer ${apiKey}`},
             }),
         ).toEqual({
@@ -3887,7 +3957,7 @@ describe("/tasks/{id}/reference", () => {
         await ProcessContextModule.waitForTestTasks();
 
         expect(
-            await server.GET(`/tasks/${task.id}/reference`, {
+            await server.GET(`/tasks/${task.id}-reference`, {
                 headers: {authorization: `bearer ${apiKey}`},
             }),
         ).toEqual({
@@ -3911,7 +3981,7 @@ describe("/tasks/{id}/reference", () => {
         await ProcessContextModule.waitForTestTasks();
 
         expect(
-            await server.GET(`/tasks/${generateId<TaskId>()}/reference`, {
+            await server.GET(`/tasks/${generateId<TaskId>()}-reference`, {
                 headers: {authorization: `bearer ${apiKey}`},
             }),
         ).toEqual({
@@ -3936,7 +4006,7 @@ describe("/tasks/{id}/reference", () => {
         await ProcessContextModule.waitForTestTasks();
 
         expect(
-            await server.GET(`/tasks/${task.id}/reference`, {
+            await server.GET(`/tasks/${task.id}-reference`, {
                 headers: {authorization: `bearer ${apiKey}`},
             }),
         ).toEqual({
@@ -4276,6 +4346,35 @@ test("can read task collection information", async () => {
     });
 });
 
+test("can read a task collection preview", async () => {
+    const space = await TestSpace.create(context);
+    const session = await space.createSession({role: "Admin"});
+    const bot = await TestBot.createAndInstantiate(session);
+    const apiKey = await bot.createApiKey(session);
+    const collection = await TestTaskCollection.create(session, {
+        name: "Preview Collection",
+        access: "Public",
+    });
+
+    await ProcessContextModule.waitForTestTasks();
+
+    expect(
+        await server.GET(`/task-collections/${collection.id}-preview`, {
+            headers: {authorization: `bearer ${apiKey}`},
+        }),
+    ).toEqual({
+        status: 200,
+        headers: expect.objectContaining({"content-type": "application/json"}),
+        body: {
+            spaceId: space.id,
+            collection: {
+                id: collection.id,
+                name: "Preview Collection",
+            },
+        },
+    });
+});
+
 test("can read task collection default filters and sorts", async () => {
     const space = await TestSpace.create(context);
     const session = await space.createSession({name: "Alice Smith", role: "Admin"});
@@ -4383,7 +4482,7 @@ test("can\u2019t read task collection information for non-existent collection", 
     });
 });
 
-describe("/task-collections/{id}/reference", () => {
+describe("/task-collections/{id}-reference", () => {
     test("can read task collection mention", async () => {
         const space = await TestSpace.create(context);
         const session = await space.createSession({name: "Alice Smith", role: "Admin"});
@@ -4399,7 +4498,7 @@ describe("/task-collections/{id}/reference", () => {
         await ProcessContextModule.waitForTestTasks();
 
         expect(
-            await server.GET(`/task-collections/${collection.id}/reference`, {
+            await server.GET(`/task-collections/${collection.id}-reference`, {
                 headers: {authorization: `bearer ${apiKey}`},
             }),
         ).toEqual({
@@ -4431,7 +4530,7 @@ describe("/task-collections/{id}/reference", () => {
         await ProcessContextModule.waitForTestTasks();
 
         expect(
-            await server.GET(`/task-collections/${collection.id}/reference`, {
+            await server.GET(`/task-collections/${collection.id}-reference`, {
                 headers: {authorization: `bearer ${apiKey}`},
             }),
         ).toEqual({
@@ -4457,7 +4556,7 @@ describe("/task-collections/{id}/reference", () => {
         await ProcessContextModule.waitForTestTasks();
 
         expect(
-            await server.GET(`/task-collections/${generateId<TaskCollectionId>()}/reference`, {
+            await server.GET(`/task-collections/${generateId<TaskCollectionId>()}-reference`, {
                 headers: {authorization: `bearer ${apiKey}`},
             }),
         ).toEqual({
@@ -5883,7 +5982,7 @@ describe("/task-collections/{id}/tasks", () => {
     });
 });
 
-describe("POST /task-collections/{id}/tasks/query", () => {
+describe("POST /task-collections/{id}/tasks-query", () => {
     test("empty filters and sorts return cursors for manual collection ordering", async () => {
         const space = await TestSpace.create(context);
         const session = await space.createSession({name: "Alice Smith", role: "Admin"});
@@ -5916,7 +6015,7 @@ describe("POST /task-collections/{id}/tasks/query", () => {
 
         const queryBody = {filters: [], sorts: []};
         const initialManualResponse = await server.POST(
-            `/task-collections/${collection.id}/tasks/query`,
+            `/task-collections/${collection.id}/tasks-query`,
             {
                 headers: {authorization: `bearer ${apiKey}`},
                 body: queryBody,
@@ -5950,7 +6049,7 @@ describe("POST /task-collections/{id}/tasks/query", () => {
         await ProcessContextModule.waitForTestTasks();
 
         const [movedManualResponse, defaultSortedResponse] = await runAllPromises([
-            server.POST(`/task-collections/${collection.id}/tasks/query`, {
+            server.POST(`/task-collections/${collection.id}/tasks-query`, {
                 headers: {authorization: `bearer ${apiKey}`},
                 body: queryBody,
             }),
@@ -6028,7 +6127,7 @@ describe("POST /task-collections/{id}/tasks/query", () => {
             sorts: [{type: "Priority", direction: "Descending"}],
         };
         const firstPageResponse = await server.POST(
-            `/task-collections/${collection.id}/tasks/query`,
+            `/task-collections/${collection.id}/tasks-query`,
             {
                 headers: {authorization: `bearer ${apiKey}`},
                 body: {...body, limit: 1},
@@ -6042,7 +6141,7 @@ describe("POST /task-collections/{id}/tasks/query", () => {
         expect(firstPageResponse.body.nextCursor).toEqual(expect.any(String));
 
         const secondPageResponse = await server.POST(
-            `/task-collections/${collection.id}/tasks/query`,
+            `/task-collections/${collection.id}/tasks-query`,
             {
                 headers: {authorization: `bearer ${apiKey}`},
                 body: {
@@ -6095,7 +6194,7 @@ describe("POST /task-collections/{id}/tasks/query", () => {
         ]);
         await ProcessContextModule.waitForTestTasks();
 
-        const response = await server.POST(`/task-collections/${collection.id}/tasks/query`, {
+        const response = await server.POST(`/task-collections/${collection.id}/tasks-query`, {
             headers: {authorization: `bearer ${apiKey}`},
             body: {sorts: [{type: "Priority", direction: "Descending"}]},
         });
@@ -6142,7 +6241,7 @@ describe("POST /task-collections/{id}/tasks/query", () => {
         ]);
         await ProcessContextModule.waitForTestTasks();
 
-        const response = await server.POST(`/task-collections/${collection.id}/tasks/query`, {
+        const response = await server.POST(`/task-collections/${collection.id}/tasks-query`, {
             headers: {authorization: `bearer ${apiKey}`},
             body: {
                 filters: [
@@ -6188,21 +6287,21 @@ describe("POST /task-collections/{id}/tasks/query", () => {
             sorts: [{type: "CreatedTime", direction: "Descending"}],
         };
         const firstPageResponse = await server.POST(
-            `/task-collections/${collection.id}/tasks/query`,
+            `/task-collections/${collection.id}/tasks-query`,
             {
                 headers: {authorization: `bearer ${apiKey}`},
                 body,
             },
         );
         const secondPageResponse = await server.POST(
-            `/task-collections/${collection.id}/tasks/query`,
+            `/task-collections/${collection.id}/tasks-query`,
             {
                 headers: {authorization: `bearer ${apiKey}`},
                 body: {...body, cursor: firstPageResponse.body.nextCursor},
             },
         );
         const thirdPageResponse = await server.POST(
-            `/task-collections/${collection.id}/tasks/query`,
+            `/task-collections/${collection.id}/tasks-query`,
             {
                 headers: {authorization: `bearer ${apiKey}`},
                 body: {...body, cursor: secondPageResponse.body.nextCursor},
@@ -6257,7 +6356,7 @@ describe("POST /task-collections/{id}/tasks/query", () => {
         await ProcessContextModule.waitForTestTasks();
 
         const firstPageResponse = await server.POST(
-            `/task-collections/${collection.id}/tasks/query`,
+            `/task-collections/${collection.id}/tasks-query`,
             {
                 headers: {authorization: `bearer ${apiKey}`},
                 body: {
@@ -6267,7 +6366,7 @@ describe("POST /task-collections/{id}/tasks/query", () => {
             },
         );
         const mismatchedSortResponse = await server.POST(
-            `/task-collections/${collection.id}/tasks/query`,
+            `/task-collections/${collection.id}/tasks-query`,
             {
                 headers: {authorization: `bearer ${apiKey}`},
                 body: {
@@ -6310,7 +6409,7 @@ describe("/tasks/{id}/subtasks", () => {
             server.GET(`/tasks/${parentTask.id}/subtasks`, {
                 headers: {authorization: `bearer ${apiKey}`},
             }),
-            server.POST(`/tasks/${parentTask.id}/subtasks/query`, {
+            server.POST(`/tasks/${parentTask.id}/subtasks-query`, {
                 headers: {authorization: `bearer ${apiKey}`},
                 body: {},
             }),
@@ -6473,11 +6572,11 @@ describe("/tasks/{id}/subtasks", () => {
             ],
             sorts: [{type: "Priority", direction: "Descending"}],
         };
-        const firstPageResponse = await server.POST(`/tasks/${parentTask.id}/subtasks/query`, {
+        const firstPageResponse = await server.POST(`/tasks/${parentTask.id}/subtasks-query`, {
             headers: {authorization: `bearer ${apiKey}`},
             body,
         });
-        const secondPageResponse = await server.POST(`/tasks/${parentTask.id}/subtasks/query`, {
+        const secondPageResponse = await server.POST(`/tasks/${parentTask.id}/subtasks-query`, {
             headers: {authorization: `bearer ${apiKey}`},
             body: {...body, cursor: firstPageResponse.body.nextCursor},
         });

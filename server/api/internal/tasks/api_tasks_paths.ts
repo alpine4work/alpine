@@ -370,7 +370,7 @@ export const apiTasksPaths: Pick<
         },
     },
 
-    "/tasks/{id}/subtasks/query": {
+    "/tasks/{id}/subtasks-query": {
         post: async (context, {pathParameters, requestBody}) => {
             const taskId = pathParameters.id;
 
@@ -408,13 +408,75 @@ export const apiTasksPaths: Pick<
         },
     },
 
+    "/tasks/{id}-without-notes/subtasks": {
+        get: async (context, {pathParameters, queryParameters}) => {
+            const taskId = pathParameters.id;
+
+            const {spaceId, updateEvent, nextCursor, tasks} = await loadTasksFromApiQuery(context, {
+                query: {
+                    type: "Subtasks",
+                    taskId,
+                    limit: queryParameters.limit ?? 10,
+                    evaluationContext: {
+                        currentAccountId: null,
+                        currentDate: today(defaultTimeZone),
+                    },
+                    expensivelyAfterCursorForApi: queryParameters.cursor,
+                },
+                taskIds: [taskId],
+                collectionIds: [],
+            });
+
+            return {
+                content: {
+                    spaceId,
+                    task: new ApiTaskConverter(updateEvent).into(taskId),
+                    nextCursor,
+                    tasks,
+                },
+            };
+        },
+    },
+
+    "/tasks/{id}-without-notes/subtasks-query": {
+        post: async (context, {pathParameters, requestBody}) => {
+            const taskId = pathParameters.id;
+
+            const {spaceId, updateEvent, nextCursor, tasks} = await loadTasksFromApiQuery(context, {
+                query: {
+                    type: "Subtasks",
+                    taskId,
+                    limit: requestBody.limit ?? 10,
+                    filters: requestBody.filters?.map(fromApiTaskQueryFilter),
+                    sorts: requestBody.sorts?.map(fromApiTaskQuerySort),
+                    evaluationContext: {
+                        currentAccountId: null,
+                        currentDate: today(defaultTimeZone),
+                    },
+                    expensivelyAfterCursorForApi: requestBody.cursor,
+                },
+                taskIds: [taskId],
+                collectionIds: [],
+            });
+
+            return {
+                content: {
+                    spaceId,
+                    task: new ApiTaskConverter(updateEvent).into(taskId),
+                    nextCursor,
+                    tasks,
+                },
+            };
+        },
+    },
+
     "/tasks/{id}/notes": {
         patch: async (context, {pathParameters, requestBody}) => {
             const taskId = pathParameters.id;
 
             const {spaceId, notes} = await updateTaskNotesFromApi(context, {
                 taskId,
-                patch: requestBody.notes,
+                patches: requestBody.patches,
             });
 
             return {
@@ -439,7 +501,7 @@ export const apiTasksPaths: Pick<
         },
     },
 
-    "/tasks/{id}/reference": {
+    "/tasks/{id}-reference": {
         get: async (context, {pathParameters}) => {
             const spaceId = context.actor.getSpaceId();
 
@@ -827,7 +889,7 @@ export const apiTasksPaths: Pick<
         },
     },
 
-    "/task-collections/{id}/reference": {
+    "/task-collections/{id}-reference": {
         get: async (context, {pathParameters}) => {
             const spaceId = context.actor.getSpaceId();
 
@@ -844,6 +906,26 @@ export const apiTasksPaths: Pick<
                         type: "TaskCollection",
                         id: pathParameters.id,
                         title,
+                    },
+                },
+            };
+        },
+    },
+
+    "/task-collections/{id}-preview": {
+        get: async (context, {pathParameters}) => {
+            const spaceId = context.actor.getSpaceId();
+
+            const collection = await context.tasks.getCollection(spaceId, pathParameters.id, {
+                consistency: "StrongWithinCache",
+            });
+
+            return {
+                content: {
+                    spaceId,
+                    collection: {
+                        id: collection.id,
+                        name: collection.getName(),
                     },
                 },
             };
@@ -889,7 +971,7 @@ export const apiTasksPaths: Pick<
         },
     },
 
-    "/task-collections/{id}/tasks/query": {
+    "/task-collections/{id}/tasks-query": {
         post: async (context, {pathParameters, requestBody}) => {
             const collectionId = pathParameters.id;
 
