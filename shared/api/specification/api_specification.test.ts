@@ -257,14 +257,17 @@ function validate(specification: JsonValue) {
                 if (keyValue === undefined) continue;
 
                 // Rule: Path segments should be `kebab-case` since that's standard for URLs.
-                // Unless we have a parameter, parameters should be `{camelCase}`. We also allow a
-                // single file extension suffix (e.g. `foo.yaml`).
+                // Unless we have a parameter, parameters should be `{camelCase}`. A parameter may
+                // lead a kebab-case segment (e.g. `{id}-preview`). We also allow a single file
+                // extension suffix (e.g. `foo.yaml`).
                 if (path[0] === "paths" && path.length === 1) {
                     for (const pathSegment of (key.startsWith("/") ? key.slice(1) : key).split(
                         "/",
                     )) {
                         if (
-                            !/^([a-z0-9-]+(\.[a-z0-9-]+)?|\{[a-z][a-zA-Z0-9]*\})$/.test(pathSegment)
+                            !/^([a-z0-9-]+(\.[a-z0-9-]+)?|\{[a-z][a-zA-Z0-9]*\}(-[a-z0-9]+)*)$/.test(
+                                pathSegment,
+                            )
                         ) {
                             addError(
                                 quote`Path segment ${pathSegment} in path ${key} must be \`kebab-case\` if it\u2019s not a parameter and \`{camelCase}\` if it is a parameter`,

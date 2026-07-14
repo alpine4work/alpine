@@ -173,6 +173,46 @@ test("can read task information", async () => {
     });
 });
 
+test("can read task information without notes", async () => {
+    const space = await TestSpace.create(context);
+    const session1 = await space.createSession({name: "Alice Smith", role: "Admin"});
+    const session2 = await space.createSession({name: "Bob Johnson"});
+
+    const bot = await TestBot.createAndInstantiate(session1);
+    const apiKey = await bot.createApiKey(session2);
+
+    const task = await TestTask.create(session1, {title: "Task with Notes"});
+    await task.updateAssignee(session1, session2);
+    await task.typeNotes(session1, "These notes should not be returned.");
+
+    await ProcessContextModule.waitForTestTasks();
+
+    const response = await server.GET(`/tasks/${task.id}-without-notes`, {
+        headers: {authorization: `bearer ${apiKey}`},
+    });
+
+    expect({response, hasNotes: "notes" in (response.body.task ?? {})}).toEqual({
+        response: {
+            status: 200,
+            headers: expect.objectContaining({"content-type": "application/json"}),
+            body: expect.objectContaining({
+                spaceId: space.id,
+                task: expect.objectContaining({
+                    id: task.id,
+                    creator: {id: session1.account.id},
+                    status: expect.objectContaining({type: "Open"}),
+                    title: "Task with Notes",
+                    assignee: expect.objectContaining({
+                        id: session2.account.id,
+                        name: "Bob Johnson",
+                    }),
+                }),
+            }),
+        },
+        hasNotes: false,
+    });
+});
+
 test("returns open and closed subtask counts", async () => {
     const space = await TestSpace.create(context);
     const session = await space.createSession({name: "Alice Smith", role: "Admin"});
@@ -517,7 +557,7 @@ test("can read task with high priority", async () => {
     });
 });
 
-test("GET and PATCH /tasks/{id} return matching errors without task access", async () => {
+test("task GET routes and PATCH return matching errors without task access", async () => {
     const space = await TestSpace.create(context);
     const session1 = await space.createSession({role: "Admin"});
     const session2 = await space.createSession();
@@ -529,8 +569,11 @@ test("GET and PATCH /tasks/{id} return matching errors without task access", asy
 
     await ProcessContextModule.waitForTestTasks();
 
-    const [getResponse, patchResponse] = await runAllPromises([
+    const [getResponse, getWithoutNotesResponse, patchResponse] = await runAllPromises([
         server.GET(`/tasks/${task.id}`, {
+            headers: {authorization: `bearer ${apiKey}`},
+        }),
+        server.GET(`/tasks/${task.id}-without-notes`, {
             headers: {authorization: `bearer ${apiKey}`},
         }),
         server.PATCH(`/tasks/${task.id}`, {
@@ -543,16 +586,23 @@ test("GET and PATCH /tasks/{id} return matching errors without task access", asy
 
     expect({
         getResponse,
+        getWithoutNotesResponse,
         patchResponse,
-        sameErrorMessage: getApiErrorMessage(getResponse) === getApiErrorMessage(patchResponse),
+        sameErrorMessage:
+            getApiErrorMessage(getResponse) === getApiErrorMessage(getWithoutNotesResponse) &&
+            getApiErrorMessage(getResponse) === getApiErrorMessage(patchResponse),
     }).toEqual({
         getResponse: expectedApiErrorResponse(403, "You aren\u2019t allowed to access this task"),
+        getWithoutNotesResponse: expectedApiErrorResponse(
+            403,
+            "You aren\u2019t allowed to access this task",
+        ),
         patchResponse: expectedApiErrorResponse(403, "You aren\u2019t allowed to access this task"),
         sameErrorMessage: true,
     });
 });
 
-test("GET and PATCH /tasks/{id} return matching errors for a non-existent task", async () => {
+test("task GET routes and PATCH return matching errors for a non-existent task", async () => {
     const space = await TestSpace.create(context);
     const session = await space.createSession({role: "Admin"});
 
@@ -562,8 +612,11 @@ test("GET and PATCH /tasks/{id} return matching errors for a non-existent task",
     await ProcessContextModule.waitForTestTasks();
 
     const taskId = generateId<TaskId>();
-    const [getResponse, patchResponse] = await runAllPromises([
+    const [getResponse, getWithoutNotesResponse, patchResponse] = await runAllPromises([
         server.GET(`/tasks/${taskId}`, {
+            headers: {authorization: `bearer ${apiKey}`},
+        }),
+        server.GET(`/tasks/${taskId}-without-notes`, {
             headers: {authorization: `bearer ${apiKey}`},
         }),
         server.PATCH(`/tasks/${taskId}`, {
@@ -576,16 +629,20 @@ test("GET and PATCH /tasks/{id} return matching errors for a non-existent task",
 
     expect({
         getResponse,
+        getWithoutNotesResponse,
         patchResponse,
-        sameErrorMessage: getApiErrorMessage(getResponse) === getApiErrorMessage(patchResponse),
+        sameErrorMessage:
+            getApiErrorMessage(getResponse) === getApiErrorMessage(getWithoutNotesResponse) &&
+            getApiErrorMessage(getResponse) === getApiErrorMessage(patchResponse),
     }).toEqual({
         getResponse: expectedApiErrorResponse(404, "doesn\u2019t exist"),
+        getWithoutNotesResponse: expectedApiErrorResponse(404, "doesn\u2019t exist"),
         patchResponse: expectedApiErrorResponse(404, "doesn\u2019t exist"),
         sameErrorMessage: true,
     });
 });
 
-test("GET and PATCH /tasks/{id} return matching errors for a task in a different space", async () => {
+test("task GET routes and PATCH return matching errors for a task in a different space", async () => {
     const space = await TestSpace.create(context);
     const otherSpace = await TestSpace.create(context);
     const session = await space.createSession({role: "Admin"});
@@ -598,8 +655,11 @@ test("GET and PATCH /tasks/{id} return matching errors for a task in a different
 
     await ProcessContextModule.waitForTestTasks();
 
-    const [getResponse, patchResponse] = await runAllPromises([
+    const [getResponse, getWithoutNotesResponse, patchResponse] = await runAllPromises([
         server.GET(`/tasks/${task.id}`, {
+            headers: {authorization: `bearer ${apiKey}`},
+        }),
+        server.GET(`/tasks/${task.id}-without-notes`, {
             headers: {authorization: `bearer ${apiKey}`},
         }),
         server.PATCH(`/tasks/${task.id}`, {
@@ -612,10 +672,17 @@ test("GET and PATCH /tasks/{id} return matching errors for a task in a different
 
     expect({
         getResponse,
+        getWithoutNotesResponse,
         patchResponse,
-        sameErrorMessage: getApiErrorMessage(getResponse) === getApiErrorMessage(patchResponse),
+        sameErrorMessage:
+            getApiErrorMessage(getResponse) === getApiErrorMessage(getWithoutNotesResponse) &&
+            getApiErrorMessage(getResponse) === getApiErrorMessage(patchResponse),
     }).toEqual({
         getResponse: expectedApiErrorResponse(403, "You don\u2019t have access to this space"),
+        getWithoutNotesResponse: expectedApiErrorResponse(
+            403,
+            "You don\u2019t have access to this space",
+        ),
         patchResponse: expectedApiErrorResponse(403, "You don\u2019t have access to this space"),
         sameErrorMessage: true,
     });

@@ -311,6 +311,29 @@ export const apiTasksPaths: Pick<
         },
     },
 
+    "/tasks/{id}-without-notes": {
+        get: async (context, {pathParameters}) => {
+            const spaceId = context.actor.getSpaceId();
+
+            const result = await context.tasks.loadQueries(
+                spaceId,
+                {
+                    queries: [],
+                    taskIds: [pathParameters.id],
+                    collectionIds: [],
+                },
+                {consistency: "StrongWithinCache"},
+            );
+
+            return {
+                content: {
+                    spaceId,
+                    task: new ApiTaskConverter(result.updateEvent).into(pathParameters.id),
+                },
+            };
+        },
+    },
+
     "/tasks/{id}/subtasks": {
         get: async (context, {pathParameters, queryParameters}) => {
             const taskId = pathParameters.id;

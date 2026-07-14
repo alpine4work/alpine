@@ -853,6 +853,28 @@ paths:
                                     channel:
                                         $ref: "#/components/schemas/Channel"
 
+    /channels/{id}/reference:
+        parameters:
+            - name: id
+              in: path
+              required: true
+              schema: {$ref: "#/components/schemas/ChannelId"}
+        get:
+            responses:
+                default: {$ref: "#/components/responses/Error"}
+                "200":
+                    content:
+                        application/json:
+                            schema:
+                                type: object
+                                required: [spaceId, reference]
+                                additionalProperties: false
+                                properties:
+                                    spaceId:
+                                        $ref: "#/components/schemas/SpaceId"
+                                    reference:
+                                        $ref: "#/components/schemas/ChannelReference"
+
     /channels/{id}/posts:
         parameters:
             - name: id
@@ -894,28 +916,6 @@ paths:
                                         type: array
                                         items:
                                             $ref: "#/components/schemas/PostPreview"
-
-    /channels/{id}/reference:
-        parameters:
-            - name: id
-              in: path
-              required: true
-              schema: {$ref: "#/components/schemas/ChannelId"}
-        get:
-            responses:
-                default: {$ref: "#/components/responses/Error"}
-                "200":
-                    content:
-                        application/json:
-                            schema:
-                                type: object
-                                required: [spaceId, reference]
-                                additionalProperties: false
-                                properties:
-                                    spaceId:
-                                        $ref: "#/components/schemas/SpaceId"
-                                    reference:
-                                        $ref: "#/components/schemas/ChannelReference"
 
     /posts:
         post:
@@ -965,28 +965,6 @@ paths:
                 default: {$ref: "#/components/responses/Error"}
                 "200": {$ref: "#/components/responses/GetPost"}
 
-    /posts/{id}/preview:
-        parameters:
-            - name: id
-              in: path
-              required: true
-              schema: {$ref: "#/components/schemas/PostId"}
-        get:
-            responses:
-                default: {$ref: "#/components/responses/Error"}
-                "200":
-                    content:
-                        application/json:
-                            schema:
-                                type: object
-                                required: [spaceId, post]
-                                additionalProperties: false
-                                properties:
-                                    spaceId:
-                                        $ref: "#/components/schemas/SpaceId"
-                                    post:
-                                        $ref: "#/components/schemas/PostPreview"
-
     /posts/{id}/reference:
         parameters:
             - name: id
@@ -1008,6 +986,28 @@ paths:
                                         $ref: "#/components/schemas/SpaceId"
                                     reference:
                                         $ref: "#/components/schemas/PostReference"
+
+    /posts/{id}/preview:
+        parameters:
+            - name: id
+              in: path
+              required: true
+              schema: {$ref: "#/components/schemas/PostId"}
+        get:
+            responses:
+                default: {$ref: "#/components/responses/Error"}
+                "200":
+                    content:
+                        application/json:
+                            schema:
+                                type: object
+                                required: [spaceId, post]
+                                additionalProperties: false
+                                properties:
+                                    spaceId:
+                                        $ref: "#/components/schemas/SpaceId"
+                                    post:
+                                        $ref: "#/components/schemas/PostPreview"
 
     /posts/{id}/messages/{index}:
         parameters:
@@ -1335,10 +1335,75 @@ paths:
                 default: {$ref: "#/components/responses/Error"}
                 "200": {$ref: "#/components/responses/GetTask"}
 
-    # NOCOMMIT: Variant of this endpoint that doesn't return the task with notes?
+    /tasks/{id}/reference:
+        parameters:
+            - name: id
+              in: path
+              required: true
+              schema: {$ref: "#/components/schemas/TaskId"}
+        get:
+            responses:
+                default: {$ref: "#/components/responses/Error"}
+                "200":
+                    content:
+                        application/json:
+                            schema:
+                                type: object
+                                required: [spaceId, reference]
+                                additionalProperties: false
+                                properties:
+                                    spaceId:
+                                        $ref: "#/components/schemas/SpaceId"
+                                    reference:
+                                        $ref: "#/components/schemas/TaskReference"
+
     # I wonder if `/tasks/{id}-without-notes/subtasks` is the right approach here.
     # And the convert document loading to
     # `/documents/{id}/thread/{threadId}-with-document`.
+    /tasks/{id}-without-notes:
+        parameters:
+            - name: id
+              in: path
+              required: true
+              schema: {$ref: "#/components/schemas/TaskId"}
+        get:
+            responses:
+                default: {$ref: "#/components/responses/Error"}
+                "200": {$ref: "#/components/responses/GetTaskWithoutNotes"}
+
+    /tasks/{id}/notes:
+        parameters:
+            - name: id
+              in: path
+              required: true
+              schema: {$ref: "#/components/schemas/TaskId"}
+        patch:
+            requestBody:
+                required: true
+                content:
+                    application/json:
+                        schema:
+                            type: object
+                            required: [notes]
+                            additionalProperties: false
+                            properties:
+                                notes:
+                                    type: object
+                                    required: [version, content]
+                                    additionalProperties: false
+                                    properties:
+                                        version:
+                                            type: integer
+                                        content:
+                                            $ref: "#/components/schemas/Content"
+            responses:
+                default: {$ref: "#/components/responses/Error"}
+                "200": {$ref: "#/components/responses/GetTaskNotes"}
+        get:
+            responses:
+                default: {$ref: "#/components/responses/Error"}
+                "200": {$ref: "#/components/responses/GetTaskNotes"}
+
     /tasks/{id}/subtasks:
         parameters:
             - name: id
@@ -1434,61 +1499,6 @@ paths:
                                         type: array
                                         items:
                                             $ref: "#/components/schemas/TaskQueryItem"
-
-    /tasks/{id}/notes:
-        parameters:
-            - name: id
-              in: path
-              required: true
-              schema: {$ref: "#/components/schemas/TaskId"}
-        patch:
-            requestBody:
-                required: true
-                content:
-                    application/json:
-                        schema:
-                            type: object
-                            required: [notes]
-                            additionalProperties: false
-                            properties:
-                                notes:
-                                    type: object
-                                    required: [version, content]
-                                    additionalProperties: false
-                                    properties:
-                                        version:
-                                            type: integer
-                                        content:
-                                            $ref: "#/components/schemas/Content"
-            responses:
-                default: {$ref: "#/components/responses/Error"}
-                "200": {$ref: "#/components/responses/GetTaskNotes"}
-        get:
-            responses:
-                default: {$ref: "#/components/responses/Error"}
-                "200": {$ref: "#/components/responses/GetTaskNotes"}
-
-    /tasks/{id}/reference:
-        parameters:
-            - name: id
-              in: path
-              required: true
-              schema: {$ref: "#/components/schemas/TaskId"}
-        get:
-            responses:
-                default: {$ref: "#/components/responses/Error"}
-                "200":
-                    content:
-                        application/json:
-                            schema:
-                                type: object
-                                required: [spaceId, reference]
-                                additionalProperties: false
-                                properties:
-                                    spaceId:
-                                        $ref: "#/components/schemas/SpaceId"
-                                    reference:
-                                        $ref: "#/components/schemas/TaskReference"
 
     /tasks/{id}/messages/{index}:
         parameters:
@@ -1993,6 +2003,19 @@ components:
                                 $ref: "#/components/schemas/SpaceId"
                             task:
                                 $ref: "#/components/schemas/Task"
+
+        GetTaskWithoutNotes:
+            content:
+                application/json:
+                    schema:
+                        type: object
+                        required: [spaceId, task]
+                        additionalProperties: false
+                        properties:
+                            spaceId:
+                                $ref: "#/components/schemas/SpaceId"
+                            task:
+                                $ref: "#/components/schemas/TaskWithoutNotes"
 
         PatchTask:
             content:

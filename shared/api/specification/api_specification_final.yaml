@@ -1464,6 +1464,19 @@ paths:
                     $ref: "#/components/responses/GetTask"
                 default:
                     $ref: "#/components/responses/Error"
+    /tasks/{id}-without-notes:
+        parameters:
+            - name: id
+              in: path
+              required: true
+              schema:
+                  $ref: "#/components/schemas/TaskId"
+        get:
+            responses:
+                "200":
+                    $ref: "#/components/responses/GetTaskWithoutNotes"
+                default:
+                    $ref: "#/components/responses/Error"
     /tasks/{id}/subtasks:
         parameters:
             - name: id
@@ -2198,6 +2211,20 @@ components:
                                 $ref: "#/components/schemas/SpaceId"
                             task:
                                 $ref: "#/components/schemas/Task_Response"
+        GetTaskWithoutNotes:
+            content:
+                application/json:
+                    schema:
+                        type: object
+                        required:
+                            - spaceId
+                            - task
+                        additionalProperties: false
+                        properties:
+                            spaceId:
+                                $ref: "#/components/schemas/SpaceId"
+                            task:
+                                $ref: "#/components/schemas/TaskWithoutNotes_Response"
         PatchTask:
             content:
                 application/json:
@@ -7641,6 +7668,47 @@ components:
                         e_Response"
                     ApprovedForSession: "#/components/schemas/MessageExperimentalApprovalDecisionAp\
                         provedForSessionValue_Response"
+        TaskWithoutNotes_Response:
+            type: object
+            required:
+                - id
+                - status
+                - title
+                - collections
+                - subtasks
+            additionalProperties: false
+            properties:
+                id:
+                    $ref: "#/components/schemas/TaskId"
+                creator:
+                    type: object
+                    required:
+                        - id
+                    additionalProperties: false
+                    properties:
+                        id:
+                            $ref: "#/components/schemas/AccountId"
+                status:
+                    $ref: "#/components/schemas/TaskStatus"
+                title:
+                    type: string
+                    maxLength: 512
+                assignee:
+                    $ref: "#/components/schemas/Account_Response"
+                due:
+                    $ref: "#/components/schemas/TaskDue"
+                priority:
+                    $ref: "#/components/schemas/TaskPriority"
+                layout:
+                    $ref: "#/components/schemas/TaskLayout"
+                parent:
+                    $ref: "#/components/schemas/TaskParent_Response"
+                collections:
+                    type: array
+                    items:
+                        $ref: "#/components/schemas/TaskCollectionItem_Response"
+                subtasks:
+                    $ref: "#/components/schemas/TaskSubtasks"
         Message_Response:
             type: object
             required:
@@ -8311,47 +8379,6 @@ components:
                     oneOf:
                         - $ref: "#/components/schemas/TaskParent_Response"
                         - type: "null"
-        TaskWithoutNotes_Response:
-            type: object
-            required:
-                - id
-                - status
-                - title
-                - collections
-                - subtasks
-            additionalProperties: false
-            properties:
-                id:
-                    $ref: "#/components/schemas/TaskId"
-                creator:
-                    type: object
-                    required:
-                        - id
-                    additionalProperties: false
-                    properties:
-                        id:
-                            $ref: "#/components/schemas/AccountId"
-                status:
-                    $ref: "#/components/schemas/TaskStatus"
-                title:
-                    type: string
-                    maxLength: 512
-                assignee:
-                    $ref: "#/components/schemas/Account_Response"
-                due:
-                    $ref: "#/components/schemas/TaskDue"
-                priority:
-                    $ref: "#/components/schemas/TaskPriority"
-                layout:
-                    $ref: "#/components/schemas/TaskLayout"
-                parent:
-                    $ref: "#/components/schemas/TaskParent_Response"
-                collections:
-                    type: array
-                    items:
-                        $ref: "#/components/schemas/TaskCollectionItem_Response"
-                subtasks:
-                    $ref: "#/components/schemas/TaskSubtasks"
         DirectChat_Response:
             type: object
             required:

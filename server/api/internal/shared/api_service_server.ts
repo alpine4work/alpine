@@ -402,9 +402,8 @@ export async function createApiServiceRequestListener(
         if (openApiPath === "/specification.yaml") continue;
 
         // Convert path parameters from the OpenAPI format (`/hello/{name}`) to the
-        // `find-my-way` format (`/hello/:name`). Right now we only support path parameters
-        // that are an entire path segment. Paths like `/report.{format}` aren't currently
-        // accepted.
+        // `find-my-way` format (`/hello/:name`). Parameters may have a static suffix, as
+        // in `/tasks/{id}-without-notes`, but must begin their path segment.
         const findMyWayPath = openApiPath
             .split("/")
             .map(pathSegment => {
@@ -413,12 +412,11 @@ export async function createApiServiceRequestListener(
                     return pathSegment;
                 }
 
-                assert(pathSegment.endsWith("}"));
-
-                const pathParamName = pathSegment.slice(1, -1);
+                const match = assertExists(pathSegment.match(/^\{([^}]+)\}([^{}]*)$/));
+                const [, pathParamName = "", staticSuffix = ""] = match;
                 assert(isIdentifier(pathParamName));
 
-                return `:${pathParamName}`;
+                return `:${pathParamName}${staticSuffix}`;
             })
             .join("/");
 

@@ -856,6 +856,9 @@ export type ApiMessageContentPayloadParentResponse =
 export type ApiMessageExperimentalApprovalDecisionValueResponse =
     ApiSpecification.components["schemas"]["MessageExperimentalApprovalDecisionValue_Response"];
 
+export type ApiTaskWithoutNotesResponse =
+    ApiSpecification.components["schemas"]["TaskWithoutNotes_Response"];
+
 export type ApiMessageResponse = ApiSpecification.components["schemas"]["Message_Response"];
 
 export type ApiPostResponse = ApiSpecification.components["schemas"]["Post_Response"];
@@ -910,9 +913,6 @@ export type ApiTaskSetAssigneePatchResponse =
 
 export type ApiTaskSetParentPatchResponse =
     ApiSpecification.components["schemas"]["TaskSetParentPatch_Response"];
-
-export type ApiTaskWithoutNotesResponse =
-    ApiSpecification.components["schemas"]["TaskWithoutNotes_Response"];
 
 export type ApiDirectChatResponse = ApiSpecification.components["schemas"]["DirectChat_Response"];
 
@@ -1192,6 +1192,9 @@ export type ApiGetDocumentResponse =
 
 export type ApiGetTaskResponse =
     ApiSpecification.components["responses"]["GetTask"]["content"]["application/json"];
+
+export type ApiGetTaskWithoutNotesResponse =
+    ApiSpecification.components["responses"]["GetTaskWithoutNotes"]["content"]["application/json"];
 
 export type ApiPatchTaskResponse =
     ApiSpecification.components["responses"]["PatchTask"]["content"]["application/json"];
