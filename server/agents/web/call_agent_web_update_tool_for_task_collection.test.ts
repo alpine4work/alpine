@@ -1342,6 +1342,43 @@ test("updates only a task due date while leaving its other fields unchanged", as
     ]);
 });
 
+test("includes the task title when rejecting an invalid task due date", async () => {
+    const task1 = createApiTaskMock({index: 0});
+    const task2 = createApiTaskMock({
+        index: 1,
+        title: "Invalid due date task",
+        due: "2027-07-12",
+    });
+    const tasks = [task1, task2];
+    const {collection} = mockGetApiTaskCollectionTasks(api, {
+        spaceId,
+        totalTaskCount: tasks.length,
+        limit: 31,
+        createTask: index => tasks[index]!,
+    });
+
+    await storeAgentWebPageLinkForTest(storage, collection);
+
+    await callAgentWebReadTool(context, {
+        path: "/task-collection/test-task-collection",
+        limit: "50kb",
+    });
+
+    await expectInvalidUpdateDisplayMessage({
+        updates: [
+            {
+                old: "Due date: July 12th, 2027",
+                new: "Due date: sometime after launch",
+                replaceAll: false,
+            },
+        ],
+        expected:
+            "Unexpected task due date \u201Csometime after launch\u201D for task " +
+            "\u201CInvalid due date task\u201D. Try again with a date like \u201CJuly 12, 2027\u201D (not " +
+            "including the time, just the date).",
+    });
+});
+
 test("updates only a task priority while leaving its other fields unchanged", async () => {
     const alice = createApiAccountMock({name: "Alice"});
     const otherTask = createApiTaskMock({index: 2, title: "Other task"});
