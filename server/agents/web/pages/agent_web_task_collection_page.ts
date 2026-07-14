@@ -835,7 +835,6 @@ export async function updateAgentWebTaskCollectionPage(
             throw new InvalidArgumentError(
                 "Can\u2019t add/remove tasks in an automatically ordered collection",
                 {
-                    // NOCOMMIT: Test error message
                     displayMessage: errorDisplayMessage`Tasks may only be added to task collection markdown when the collection is sorted manually. A collection is manually sorted when no automatic sorts are applied. That means there are no default sorts/filters and there is no \`?sort\` (or filter) in the path passed to the \`read\` tool. To add tasks to an automatically sorted collection, use the \`read\` tool to read an individual task and add a collection to the task's "Collections" field with the \`update\` tool. Try again without adding new tasks.`,
                 },
             );
@@ -843,7 +842,6 @@ export async function updateAgentWebTaskCollectionPage(
             throw new InvalidArgumentError(
                 "Can\u2019t change tasks in an automatically ordered collection",
                 {
-                    // NOCOMMIT: Test error message
                     displayMessage: errorDisplayMessage`Tasks may only be reordered in task collection markdown when the collection is sorted manually. A collection is manually sorted when no automatic sorts are applied. That means there are no default sorts/filters and there is no \`?sort\` (or filter) in the path passed to the \`read\` tool. To reorder tasks in an automatically sorted collection, look at the collection\u2019s sorts and update the corresponding fields in the task (for example, if a collection is sorted by \`?sort=priority\` then updating a task\u2019s priority will move it). If you are updating a task\u2019s fields in an automatically sorted collection, you shouldn\u2019t move the task yourself with the \`update\` tool because the task will be moved automatically. Instead read the collection again with the \`read\` tool after your update to see the new order. Try again without reordering tasks.`,
                 },
             );
