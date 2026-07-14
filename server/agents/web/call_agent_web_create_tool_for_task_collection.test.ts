@@ -3,16 +3,8 @@ import {AgentWebContext} from "~/server/agents/web/agent_web_context.js";
 import {callAgentWebCreateTool} from "~/server/agents/web/call_agent_web_create_tool.js";
 import {createAgentWebPageStoredLinkPathname} from "~/server/agents/web/create_agent_web_page_stored_link_pathname.js";
 import {createAgentWebSessionStorageForTest} from "~/server/agents/web/test_helpers/create_agent_web_session_storage_for_test.js";
-import {ApiTaskCollectionColor} from "~/shared/api/specification/types/api_specification_convenience_types.js";
-import {
-    ErrorBase,
-    InternalError,
-    InvalidArgumentError,
-    UnimplementedError,
-} from "~/shared/error/error.js";
-import {ErrorDisplayMessage} from "~/shared/error/types/error_display_message_type.js";
+import {InternalError, InvalidArgumentError, UnimplementedError} from "~/shared/error/error.js";
 import {captureResultPromise} from "~/shared/helpers/control/capture_result_promise.js";
-import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
 import {defaultTimeZone} from "~/shared/helpers/intl/time_zone.js";
 import {generateId} from "~/shared/id/id.js";
 import {AccountId, BotId, SpaceId, TaskCollectionId, TaskId} from "~/shared/id/types/id_types.js";
@@ -54,67 +46,11 @@ beforeEach(async () => {
     await createAgentWebPageStoredLinkPathname(storage, launchTaskReference);
 });
 
-function mockCreateTaskCollection({
-    id = generateId<TaskCollectionId>(),
-    name,
-    color,
-}: {
-    id?: TaskCollectionId;
-    name: string;
-    color?: ApiTaskCollectionColor;
-}) {
-    api.mockPost("/task-collections", {
-        params: "Any",
-        data: {
-            spaceId,
-            collection: {
-                id,
-                name,
-                ...(color !== undefined ? {color} : {}),
-                defaults: {filters: [], sorts: []},
-            },
-        },
-    });
-}
-
-function getCreateTaskCollectionRequests() {
+function getApiPostTaskCollectionsRequestHistory() {
     return api
         .getRequestHistory()
-        .filter(request => request.method === "POST" && request.path === "/task-collections");
-}
-
-function printDisplayMessage(displayMessage: ErrorDisplayMessage): string {
-    let string = "";
-
-    for (const segment of displayMessage) {
-        switch (segment.type) {
-            case "Text":
-            case "SensitiveText":
-            case "Link":
-                string += segment.text;
-                break;
-            default:
-                throw exhaustive(segment);
-        }
-    }
-
-    return string;
-}
-
-function getDisplayMessage(error: unknown): ErrorDisplayMessage {
-    if (error instanceof ErrorBase && error.displayMessage) {
-        return error.displayMessage;
-    }
-
-    if (error instanceof AggregateError) {
-        for (const childError of error.errors) {
-            if (childError instanceof ErrorBase && childError.displayMessage) {
-                return childError.displayMessage;
-            }
-        }
-    }
-
-    throw error;
+        .filter(request => request.method === "POST" && request.path === "/task-collections")
+        .map(({body}) => body);
 }
 
 async function expectInvalidCreateDisplayMessage({
@@ -132,15 +68,28 @@ async function expectInvalidCreateDisplayMessage({
         throw new InternalError("Expected create tool call to throw");
     }
 
-    expect(printDisplayMessage(getDisplayMessage(result.error))).toEqual(expected);
-    expect(result.error).toBeInstanceOf(InvalidArgumentError);
+    if (!(result.error instanceof InvalidArgumentError) || !result.error.displayMessage) {
+        throw result.error;
+    }
+
+    expect(result.error.displayMessage.map(({text}) => text).join("")).toEqual(expected);
 }
 
 test.each([
     ["without", ""],
     ["with", "\n\nEnd of tasks."],
 ])("creates a task collection %s the end of tasks marker", async (_name, endOfTasksMarker) => {
-    mockCreateTaskCollection({name: "Roadmap"});
+    api.mockPost("/task-collections", {
+        params: "Any",
+        data: {
+            spaceId,
+            collection: {
+                id: generateId<TaskCollectionId>(),
+                name: "Roadmap",
+                defaults: {filters: [], sorts: []},
+            },
+        },
+    });
 
     await expect(
         callAgentWebCreateTool(context, {
@@ -151,18 +100,30 @@ test.each([
         "Create was successful. New task collection: [Roadmap](/task-collection/roadmap).\n",
     );
 
-    expect(getCreateTaskCollectionRequests()).toHaveLength(1);
-    expect(getCreateTaskCollectionRequests()[0]?.body).toEqual({
-        spaceId,
-        collection: {
-            name: "Roadmap",
-            color: undefined,
+    expect(getApiPostTaskCollectionsRequestHistory()).toEqual([
+        {
+            spaceId,
+            collection: {
+                name: "Roadmap",
+                color: undefined,
+            },
         },
-    });
+    ]);
 });
 
 test("creates a task collection with a color", async () => {
-    mockCreateTaskCollection({name: "Roadmap", color: "Blue"});
+    api.mockPost("/task-collections", {
+        params: "Any",
+        data: {
+            spaceId,
+            collection: {
+                id: generateId<TaskCollectionId>(),
+                name: "Roadmap",
+                color: "Blue",
+                defaults: {filters: [], sorts: []},
+            },
+        },
+    });
 
     await expect(
         callAgentWebCreateTool(context, {
@@ -176,17 +137,29 @@ Color: Blue`,
         "Create was successful. New task collection: [Roadmap](/task-collection/roadmap).\n",
     );
 
-    expect(getCreateTaskCollectionRequests()[0]?.body).toEqual({
-        spaceId,
-        collection: {
-            name: "Roadmap",
-            color: "Blue",
+    expect(getApiPostTaskCollectionsRequestHistory()).toEqual([
+        {
+            spaceId,
+            collection: {
+                name: "Roadmap",
+                color: "Blue",
+            },
         },
-    });
+    ]);
 });
 
 test("creates a task collection with a none color", async () => {
-    mockCreateTaskCollection({name: "Roadmap"});
+    api.mockPost("/task-collections", {
+        params: "Any",
+        data: {
+            spaceId,
+            collection: {
+                id: generateId<TaskCollectionId>(),
+                name: "Roadmap",
+                defaults: {filters: [], sorts: []},
+            },
+        },
+    });
 
     await expect(
         callAgentWebCreateTool(context, {
@@ -200,17 +173,29 @@ Color: None`,
         "Create was successful. New task collection: [Roadmap](/task-collection/roadmap).\n",
     );
 
-    expect(getCreateTaskCollectionRequests()[0]?.body).toEqual({
-        spaceId,
-        collection: {
-            name: "Roadmap",
-            color: undefined,
+    expect(getApiPostTaskCollectionsRequestHistory()).toEqual([
+        {
+            spaceId,
+            collection: {
+                name: "Roadmap",
+                color: undefined,
+            },
         },
-    });
+    ]);
 });
 
 test("creates a task collection with the normalized task collect type", async () => {
-    mockCreateTaskCollection({name: "Roadmap"});
+    api.mockPost("/task-collections", {
+        params: "Any",
+        data: {
+            spaceId,
+            collection: {
+                id: generateId<TaskCollectionId>(),
+                name: "Roadmap",
+                defaults: {filters: [], sorts: []},
+            },
+        },
+    });
 
     await expect(
         callAgentWebCreateTool(context, {
@@ -245,7 +230,7 @@ Color: Red
         "message",
         "Adding tasks while creating a task collection hasn\u2019t been implemented yet",
     );
-    expect(getCreateTaskCollectionRequests()).toHaveLength(0);
+    expect(getApiPostTaskCollectionsRequestHistory()).toHaveLength(0);
 });
 
 test("throws unimplemented when creating a task collection with default filters and sorts", async () => {
@@ -274,7 +259,7 @@ Default filters and sorts:
         "Setting the default filters and sorts while creating a task collection " +
             "hasn\u2019t been implemented yet",
     );
-    expect(getCreateTaskCollectionRequests()).toHaveLength(0);
+    expect(getApiPostTaskCollectionsRequestHistory()).toHaveLength(0);
 });
 
 test("rejects creating a task collection without a name", async () => {
@@ -285,7 +270,7 @@ test("rejects creating a task collection without a name", async () => {
             "when creating a collection. Try again with a name.",
     });
 
-    expect(getCreateTaskCollectionRequests()).toHaveLength(0);
+    expect(getApiPostTaskCollectionsRequestHistory()).toHaveLength(0);
 });
 
 test("rejects creating a later task collection page", async () => {
@@ -296,7 +281,7 @@ test("rejects creating a later task collection page", async () => {
             "when creating a collection. Try again with a name.",
     });
 
-    expect(getCreateTaskCollectionRequests()).toHaveLength(0);
+    expect(getApiPostTaskCollectionsRequestHistory()).toHaveLength(0);
 });
 
 test("rejects creating a task collection with an unexpected color", async () => {
@@ -311,7 +296,7 @@ Color: Magenta`,
             "\u201CBlue\u201D, \u201CIndigo\u201D, \u201CPurple\u201D, \u201CPink\u201D, or remove the color entirely.",
     });
 
-    expect(getCreateTaskCollectionRequests()).toHaveLength(0);
+    expect(getApiPostTaskCollectionsRequestHistory()).toHaveLength(0);
 });
 
 test("rejects creating a task collection with an unknown task link", async () => {
@@ -328,7 +313,7 @@ test("rejects creating a task collection with an unknown task link", async () =>
             "want to add to the collection.",
     });
 
-    expect(getCreateTaskCollectionRequests()).toHaveLength(0);
+    expect(getApiPostTaskCollectionsRequestHistory()).toHaveLength(0);
 });
 
 test("rejects creating a task collection with a next page link", async () => {
@@ -348,5 +333,5 @@ test("rejects creating a task collection with a next page link", async () => {
             "Try again without a \u201CNext page »\u201D link.",
     });
 
-    expect(getCreateTaskCollectionRequests()).toHaveLength(0);
+    expect(getApiPostTaskCollectionsRequestHistory()).toHaveLength(0);
 });

@@ -1,19 +1,20 @@
 import {ApiClientMock} from "~/server/agents/api/test_helpers/api_client_mock.js";
 import {createApiAccountMock} from "~/server/agents/api/test_helpers/create_api_account_mock.js";
+import {createApiTaskMock} from "~/server/agents/api/test_helpers/create_api_task_mock.js";
+import {
+    mockGetApiTaskCollectionTasks,
+    printApiTaskQueryCursorMock,
+} from "~/server/agents/api/test_helpers/mock_api_get_task_collection_tasks.js";
 import {AgentWebContext} from "~/server/agents/web/agent_web_context.js";
 import {createAgentWebTaskQueryCursorHash} from "~/server/agents/web/agent_web_task_query_cursor_hash.js";
 import {callAgentWebReadTool} from "~/server/agents/web/call_agent_web_read_tool.js";
 import {createAgentWebPageStoredLinkPathname} from "~/server/agents/web/create_agent_web_page_stored_link_pathname.js";
-import {agentWebTaskCollectionPageApiTasksBatchCount} from "~/server/agents/web/pages/agent_web_task_collection_page.js";
 import {createAgentWebSessionStorageForTest} from "~/server/agents/web/test_helpers/create_agent_web_session_storage_for_test.js";
-import {
-    ApiTaskCollectionColor,
-    ApiTaskQueryDefaultsResponse,
-} from "~/shared/api/specification/types/api_specification_convenience_types.js";
+import {ApiTaskQueryDefaultsResponse} from "~/shared/api/specification/types/api_specification_convenience_types.js";
+import {createArrayWithLength} from "~/shared/helpers/array/create_array_with_length.js";
 import {defaultTimeZone} from "~/shared/helpers/intl/time_zone.js";
 import {generateId} from "~/shared/id/id.js";
-import {ApiTaskQueryCursor} from "~/shared/id/types/api_task_query_cursor.js";
-import {AccountId, BotId, SpaceId, TaskCollectionId, TaskId} from "~/shared/id/types/id_types.js";
+import {AccountId, BotId, SpaceId, TaskCollectionId} from "~/shared/id/types/id_types.js";
 import {testTracer} from "~/shared/tracer/dev/test_tracer.js";
 
 const spaceId = generateId<SpaceId>();
@@ -49,96 +50,33 @@ beforeEach(async () => {
     });
 });
 
-function mockCollectionTasks({
-    cursor,
-    totalTaskCount,
-    color = "Red",
-    defaults = {filters: [], sorts: []},
-    query,
-    getTitle = getTaskTitle,
-}: {
-    cursor?: ApiTaskQueryCursor;
-    totalTaskCount: number;
-    color?: ApiTaskCollectionColor | null;
-    defaults?: ApiTaskQueryDefaultsResponse;
-    query?: ApiTaskQueryDefaultsResponse;
-    getTitle?: (index: number) => string;
-}) {
-    const startIndex =
-        cursor === undefined ? 0 : parseInt(cursor.slice("task-cursor-".length), 10) + 1;
-    const endIndex = Math.min(
-        startIndex + agentWebTaskCollectionPageApiTasksBatchCount - 1,
-        totalTaskCount - 1,
-    );
-    const returnedTaskCount = Math.max(endIndex - startIndex + 1, 0);
-
-    const data = {
-        spaceId,
-        collection: {
-            id: collectionId,
-            name: "Roadmap",
-            ...(color !== null ? {color} : {}),
-            defaults,
-        },
-        nextCursor: endIndex < totalTaskCount - 1 ? getTaskQueryCursor(endIndex) : null,
-        tasks: Array.from({length: returnedTaskCount}, (_, index) => {
-            const taskIndex = startIndex + index;
-
-            return {
-                cursor: getTaskQueryCursor(taskIndex),
-                task: {
-                    id: getTaskId(taskIndex),
-                    title: getTitle(taskIndex),
-                    status: {type: "Open" as const, isActive: false},
-                },
-            };
-        }),
-    };
-
-    if (query === undefined) {
-        api.mockGet("/task-collections/{id}/tasks", {
-            params: {
-                path: {id: collectionId},
-                query: {
-                    limit: agentWebTaskCollectionPageApiTasksBatchCount,
-                    cursor,
-                },
-            },
-            data,
-        });
-    } else {
-        api.mockPost("/task-collections/{id}/tasks/query", {
-            params: {path: {id: collectionId}},
-            data,
-        });
-    }
+function getApiGetTaskCollectionTasksRequestHistory() {
+    return api
+        .getRequestHistory()
+        .filter(
+            request => request.method === "GET" && request.path === "/task-collections/{id}/tasks",
+        );
 }
 
-function getTaskQueryCursor(index: number): ApiTaskQueryCursor {
-    return `task-cursor-${index}` as ApiTaskQueryCursor;
-}
-
-// A task's id must be stable across mocks like the real API so reads of later
-// pages reuse the pathnames stored by earlier reads for the same task.
-const taskIdsByIndex = new Map<number, TaskId>();
-
-function getTaskId(index: number): TaskId {
-    let id = taskIdsByIndex.get(index);
-
-    if (id === undefined) {
-        id = generateId<TaskId>();
-        taskIdsByIndex.set(index, id);
-    }
-
-    return id;
-}
-
-function getTaskTitle(index: number): string {
-    return `Test task ${index + 1}`;
+function getApiPostTaskCollectionTasksQueryRequestHistory() {
+    return api
+        .getRequestHistory()
+        .filter(
+            request =>
+                request.method === "POST" && request.path === "/task-collections/{id}/tasks/query",
+        );
 }
 
 test("reads a task collection page with tasks", async () => {
-    mockCollectionTasks({totalTaskCount: 2});
+    mockGetApiTaskCollectionTasks(api, {
+        spaceId,
+        id: collectionId,
+        name: "Roadmap",
+        color: "Red",
+        totalTaskCount: 2,
+        limit: 31,
+        createTask: index => createApiTaskMock({index, title: `Test task ${index + 1}`}),
+    });
 
     expect(await callAgentWebReadTool(context, {path: "/task-collection/roadmap", limit: "10kb"}))
         .toEqual(`\
@@ -165,75 +103,49 @@ test("reads a task collection page with task fields", async () => {
     const growthCollection = {id: generateId<TaskCollectionId>(), name: "Growth"};
     const marketingCollection = {id: generateId<TaskCollectionId>(), name: "Marketing"};
 
-    api.mockGet("/task-collections/{id}/tasks", {
-        params: {
-            path: {id: collectionId},
-            query: {
-                limit: agentWebTaskCollectionPageApiTasksBatchCount,
-                cursor: undefined,
-            },
-        },
-        data: {
-            spaceId,
-            collection: {
-                id: collectionId,
-                name: "Roadmap",
-                color: "Red",
-                defaults: {filters: [], sorts: []},
-            },
-            nextCursor: null,
-            tasks: [
-                {
-                    cursor: getTaskQueryCursor(0),
-                    task: {
-                        id: generateId<TaskId>(),
-                        title: "Write spec",
-                        status: {type: "Open", isActive: false},
-                        parent: {
-                            task: {
-                                id: generateId<TaskId>(),
-                                title: "Plan launch",
-                                status: {type: "Open", isActive: false},
-                            },
-                        },
-                        assignee: aliceAccount,
-                        collections: [
-                            {collection: roadmapCollection},
-                            {collection: engineeringCollection},
-                            {collection: designCollection},
-                            {collection: growthCollection},
-                            {collection: marketingCollection},
-                        ],
-                        priority: {type: "High"},
-                        due: {date: "2027-07-12"},
-                    },
-                },
-                {
-                    cursor: getTaskQueryCursor(1),
-                    task: {
-                        id: generateId<TaskId>(),
-                        title: "Review spec",
-                        status: {type: "Open", isActive: false},
-                        collections: [
-                            {collection: roadmapCollection},
-                            {collection: engineeringCollection},
-                            {collection: designCollection},
-                            {collection: growthCollection},
-                        ],
-                        priority: {type: "Low"},
-                    },
-                },
-                {
-                    cursor: getTaskQueryCursor(2),
-                    task: {
-                        id: generateId<TaskId>(),
-                        title: "Ship launch",
-                        status: {type: "Closed"},
-                        collections: [{collection: roadmapCollection}],
-                    },
-                },
+    const tasks = [
+        createApiTaskMock({
+            index: 0,
+            title: "Write spec",
+            parent: {title: "Plan launch"},
+            assignee: aliceAccount,
+            collections: [
+                roadmapCollection,
+                engineeringCollection,
+                designCollection,
+                growthCollection,
+                marketingCollection,
             ],
-        },
+            priority: "High",
+            due: "2027-07-12",
+        }),
+        createApiTaskMock({
+            index: 1,
+            title: "Review spec",
+            collections: [
+                roadmapCollection,
+                engineeringCollection,
+                designCollection,
+                growthCollection,
+            ],
+            priority: "Low",
+        }),
+        createApiTaskMock({
+            index: 2,
+            title: "Ship launch",
+            status: "Closed",
+            collections: [roadmapCollection],
+        }),
+    ];
+
+    mockGetApiTaskCollectionTasks(api, {
+        spaceId,
+        id: collectionId,
+        name: "Roadmap",
+        color: "Red",
+        totalTaskCount: tasks.length,
+        limit: 31,
+        createTask: index => tasks[index]!,
     });
 
     expect(await callAgentWebReadTool(context, {path: "/task-collection/roadmap", limit: "10kb"}))
@@ -259,44 +171,19 @@ End of tasks.`);
 });
 
 test("truncates tasks with task fields at a task list item boundary", async () => {
-    api.mockGet("/task-collections/{id}/tasks", {
-        params: {
-            path: {id: collectionId},
-            query: {
-                limit: agentWebTaskCollectionPageApiTasksBatchCount,
-                cursor: undefined,
-            },
-        },
-        data: {
-            spaceId,
-            collection: {
-                id: collectionId,
-                name: "Roadmap",
-                color: "Red",
-                defaults: {filters: [], sorts: []},
-            },
-            nextCursor: null,
-            tasks: [
-                {
-                    cursor: getTaskQueryCursor(0),
-                    task: {
-                        id: generateId<TaskId>(),
-                        title: "Write spec",
-                        status: {type: "Open", isActive: false},
-                        priority: {type: "High"},
-                    },
-                },
-                {
-                    cursor: getTaskQueryCursor(1),
-                    task: {
-                        id: generateId<TaskId>(),
-                        title: "Ship launch",
-                        status: {type: "Open", isActive: false},
-                        priority: {type: "Low"},
-                    },
-                },
-            ],
-        },
+    const tasks = [
+        createApiTaskMock({index: 0, title: "Write spec", priority: "High"}),
+        createApiTaskMock({index: 1, title: "Ship launch", priority: "Low"}),
+    ];
+
+    mockGetApiTaskCollectionTasks(api, {
+        spaceId,
+        id: collectionId,
+        name: "Roadmap",
+        color: "Red",
+        totalTaskCount: tasks.length,
+        limit: 31,
+        createTask: index => tasks[index]!,
     });
 
     const expectedResponse = `\
@@ -304,7 +191,7 @@ test("truncates tasks with task fields at a task list item boundary", async () =
 
 Color: Red
 
-[Next page »](/task-collection/roadmap?after=f55706)
+[Next page »](/task-collection/roadmap?after=f8bc90)
 
 - [Write spec (Open)](/task/write-spec)
   - Priority: High`;
@@ -318,7 +205,14 @@ Color: Red
 });
 
 test("reads a task collection page without a color", async () => {
-    mockCollectionTasks({totalTaskCount: 1, color: null});
+    mockGetApiTaskCollectionTasks(api, {
+        spaceId,
+        id: collectionId,
+        name: "Roadmap",
+        totalTaskCount: 1,
+        limit: 31,
+        createTask: index => createApiTaskMock({index, title: `Test task ${index + 1}`}),
+    });
 
     expect(await callAgentWebReadTool(context, {path: "/task-collection/roadmap", limit: "10kb"}))
         .toEqual(`\
@@ -330,8 +224,13 @@ End of tasks.`);
 });
 
 test("reads a task collection page with default filters and sorts", async () => {
-    mockCollectionTasks({
+    mockGetApiTaskCollectionTasks(api, {
+        spaceId,
+        id: collectionId,
+        name: "Roadmap",
+        color: "Red",
         totalTaskCount: 1,
+        limit: 31,
         defaults: {
             filters: [
                 {
@@ -350,6 +249,7 @@ test("reads a task collection page with default filters and sorts", async () => 
                 {type: "Due", direction: "Ascending"},
             ],
         },
+        createTask: index => createApiTaskMock({index, title: `Test task ${index + 1}`}),
     });
 
     expect(await callAgentWebReadTool(context, {path: "/task-collection/roadmap", limit: "10kb"}))
@@ -370,9 +270,14 @@ End of tasks.`);
 });
 
 test("does not print the default filters and sorts on a later page", async () => {
-    mockCollectionTasks({
-        cursor: getTaskQueryCursor(29),
+    mockGetApiTaskCollectionTasks(api, {
+        spaceId,
+        id: collectionId,
+        name: "Roadmap",
+        color: "Red",
         totalTaskCount: 35,
+        limit: 31,
+        cursor: printApiTaskQueryCursorMock(29),
         defaults: {
             filters: [
                 {
@@ -388,15 +293,16 @@ test("does not print the default filters and sorts on a later page", async () =>
             ],
             sorts: [],
         },
+        createTask: index => createApiTaskMock({index, title: `Test task ${index + 1}`}),
     });
 
     // Store the full cursor for the `?after` hash like the read that printed the "Next
     // page »" link would have.
-    await createAgentWebTaskQueryCursorHash(storage, collectionId, getTaskQueryCursor(29));
+    await createAgentWebTaskQueryCursorHash(storage, collectionId, printApiTaskQueryCursorMock(29));
 
     expect(
         await callAgentWebReadTool(context, {
-            path: "/task-collection/roadmap?after=ee09e6",
+            path: "/task-collection/roadmap?after=a3b00b",
             limit: "10kb",
         }),
     ).toEqual(`\
@@ -416,7 +322,15 @@ End of tasks.`);
 });
 
 test("reads a task collection page without tasks", async () => {
-    mockCollectionTasks({totalTaskCount: 0});
+    mockGetApiTaskCollectionTasks(api, {
+        spaceId,
+        id: collectionId,
+        name: "Roadmap",
+        color: "Red",
+        totalTaskCount: 0,
+        limit: 31,
+        createTask: index => createApiTaskMock({index, title: `Test task ${index + 1}`}),
+    });
 
     expect(await callAgentWebReadTool(context, {path: "/task-collection/roadmap", limit: "10kb"}))
         .toEqual(`\
@@ -428,34 +342,48 @@ End of tasks.`);
 });
 
 test("loads more task pages while the response is still under the limit", async () => {
-    mockCollectionTasks({totalTaskCount: 35});
-    mockCollectionTasks({cursor: getTaskQueryCursor(30), totalTaskCount: 35});
+    mockGetApiTaskCollectionTasks(api, {
+        spaceId,
+        id: collectionId,
+        name: "Roadmap",
+        color: "Red",
+        totalTaskCount: 35,
+        limit: 31,
+        createTask: index => createApiTaskMock({index, title: `Test task ${index + 1}`}),
+    });
+    mockGetApiTaskCollectionTasks(api, {
+        spaceId,
+        id: collectionId,
+        name: "Roadmap",
+        color: "Red",
+        totalTaskCount: 35,
+        limit: 31,
+        cursor: printApiTaskQueryCursorMock(30),
+        createTask: index => createApiTaskMock({index, title: `Test task ${index + 1}`}),
+    });
 
     const response = await callAgentWebReadTool(context, {
         path: "/task-collection/roadmap",
         limit: "10kb",
     });
-    const taskRequestParams = api
-        .getRequestHistory()
-        .filter(
-            request => request.method === "GET" && request.path === "/task-collections/{id}/tasks",
-        )
-        .map(request => request.params);
+    const taskRequestParams = getApiGetTaskCollectionTasksRequestHistory().map(
+        request => request.params,
+    );
 
     expect({response, taskRequestParams}).toEqual({
         taskRequestParams: [
             {
                 path: {id: collectionId},
                 query: {
-                    limit: agentWebTaskCollectionPageApiTasksBatchCount,
+                    limit: 31,
                     cursor: undefined,
                 },
             },
             {
                 path: {id: collectionId},
                 query: {
-                    limit: agentWebTaskCollectionPageApiTasksBatchCount,
-                    cursor: getTaskQueryCursor(30),
+                    limit: 31,
+                    cursor: printApiTaskQueryCursorMock(30),
                 },
             },
         ],
@@ -505,14 +433,22 @@ End of tasks.`,
 });
 
 test("does not load more or truncate when the response is exactly at the limit", async () => {
-    mockCollectionTasks({totalTaskCount: 35});
+    mockGetApiTaskCollectionTasks(api, {
+        spaceId,
+        id: collectionId,
+        name: "Roadmap",
+        color: "Red",
+        totalTaskCount: 35,
+        limit: 31,
+        createTask: index => createApiTaskMock({index, title: `Test task ${index + 1}`}),
+    });
 
     const expectedResponse = `\
 # Roadmap
 
 Color: Red
 
-[Next page »](/task-collection/roadmap?after=ee09e6)\n
+[Next page »](/task-collection/roadmap?after=a3b00b)\n
 - [Test task 1 (Open)](/task/test-task-1)\n
 - [Test task 2 (Open)](/task/test-task-2)\n
 - [Test task 3 (Open)](/task/test-task-3)\n
@@ -548,12 +484,9 @@ Color: Red
         path: "/task-collection/roadmap",
         limit: `${expectedResponse.length}b`,
     });
-    const taskRequestParams = api
-        .getRequestHistory()
-        .filter(
-            request => request.method === "GET" && request.path === "/task-collections/{id}/tasks",
-        )
-        .map(request => request.params);
+    const taskRequestParams = getApiGetTaskCollectionTasksRequestHistory().map(
+        request => request.params,
+    );
 
     expect({response, taskRequestParams}).toEqual({
         response: expectedResponse,
@@ -561,7 +494,7 @@ Color: Red
             {
                 path: {id: collectionId},
                 query: {
-                    limit: agentWebTaskCollectionPageApiTasksBatchCount,
+                    limit: 31,
                     cursor: undefined,
                 },
             },
@@ -570,7 +503,15 @@ Color: Red
 });
 
 test("truncates tasks and adds a next page link when the response is over the limit", async () => {
-    mockCollectionTasks({totalTaskCount: 4});
+    mockGetApiTaskCollectionTasks(api, {
+        spaceId,
+        id: collectionId,
+        name: "Roadmap",
+        color: "Red",
+        totalTaskCount: 4,
+        limit: 31,
+        createTask: index => createApiTaskMock({index, title: `Test task ${index + 1}`}),
+    });
 
     expect(await callAgentWebReadTool(context, {path: "/task-collection/roadmap", limit: "160b"}))
         .toEqual(`\
@@ -578,26 +519,38 @@ test("truncates tasks and adds a next page link when the response is over the li
 
 Color: Red
 
-[Next page »](/task-collection/roadmap?after=f55706)
+[Next page »](/task-collection/roadmap?after=f8bc90)
 
 - [Test task 1 (Open)](/task/test-task-1)`);
 });
 
 test("adds a next page link after the name when truncating without a color", async () => {
-    mockCollectionTasks({totalTaskCount: 4, color: null});
+    mockGetApiTaskCollectionTasks(api, {
+        spaceId,
+        id: collectionId,
+        name: "Roadmap",
+        totalTaskCount: 4,
+        limit: 31,
+        createTask: index => createApiTaskMock({index, title: `Test task ${index + 1}`}),
+    });
 
     expect(await callAgentWebReadTool(context, {path: "/task-collection/roadmap", limit: "160b"}))
         .toEqual(`\
 # Roadmap
 
-[Next page »](/task-collection/roadmap?after=f55706)
+[Next page »](/task-collection/roadmap?after=f8bc90)
 
 - [Test task 1 (Open)](/task/test-task-1)`);
 });
 
 test("adds a next page link after the default filters and sorts when truncating", async () => {
-    mockCollectionTasks({
+    mockGetApiTaskCollectionTasks(api, {
+        spaceId,
+        id: collectionId,
+        name: "Roadmap",
+        color: "Red",
         totalTaskCount: 4,
+        limit: 31,
         defaults: {
             filters: [
                 {
@@ -613,6 +566,7 @@ test("adds a next page link after the default filters and sorts when truncating"
             ],
             sorts: [],
         },
+        createTask: index => createApiTaskMock({index, title: `Test task ${index + 1}`}),
     });
 
     expect(await callAgentWebReadTool(context, {path: "/task-collection/roadmap", limit: "200b"}))
@@ -627,13 +581,21 @@ Default filters:
 status=open
 \`\`\`
 
-[Next page »](/task-collection/roadmap?after=f55706)
+[Next page »](/task-collection/roadmap?after=f8bc90)
 
 - [Test task 1 (Open)](/task/test-task-1)`);
 });
 
 test("updates the next page link cursor when truncating tasks", async () => {
-    mockCollectionTasks({totalTaskCount: 35});
+    mockGetApiTaskCollectionTasks(api, {
+        spaceId,
+        id: collectionId,
+        name: "Roadmap",
+        color: "Red",
+        totalTaskCount: 35,
+        limit: 31,
+        createTask: index => createApiTaskMock({index, title: `Test task ${index + 1}`}),
+    });
 
     const expectedTasks = Array.from(
         {length: 27},
@@ -646,14 +608,31 @@ test("updates the next page link cursor when truncating tasks", async () => {
 
 Color: Red
 
-[Next page »](/task-collection/roadmap?after=a2c595)
+[Next page »](/task-collection/roadmap?after=3e83d3)
 
 ${expectedTasks}`);
 });
 
 test("reads the next page of tasks with an after cursor", async () => {
-    mockCollectionTasks({totalTaskCount: 35});
-    mockCollectionTasks({cursor: getTaskQueryCursor(26), totalTaskCount: 35});
+    mockGetApiTaskCollectionTasks(api, {
+        spaceId,
+        id: collectionId,
+        name: "Roadmap",
+        color: "Red",
+        totalTaskCount: 35,
+        limit: 31,
+        createTask: index => createApiTaskMock({index, title: `Test task ${index + 1}`}),
+    });
+    mockGetApiTaskCollectionTasks(api, {
+        spaceId,
+        id: collectionId,
+        name: "Roadmap",
+        color: "Red",
+        totalTaskCount: 35,
+        limit: 31,
+        cursor: printApiTaskQueryCursorMock(26),
+        createTask: index => createApiTaskMock({index, title: `Test task ${index + 1}`}),
+    });
 
     // The first read truncates the task list and stores the full cursor for the short
     // hash printed in its "Next page »" link.
@@ -661,7 +640,7 @@ test("reads the next page of tasks with an after cursor", async () => {
 
     expect(
         await callAgentWebReadTool(context, {
-            path: "/task-collection/roadmap?after=a2c595",
+            path: "/task-collection/roadmap?after=3e83d3",
             limit: "10kb",
         }),
     ).toEqual(`\
@@ -689,21 +668,65 @@ End of tasks.`);
 test("paginates through multiple pages with different task counts per page", async () => {
     // The first two tasks have much longer titles so fewer of them fit into the same
     // read limit than the later short tasks.
-    const getTitle = (index: number) =>
-        index < 2 ? `${getTaskTitle(index)} ${"x".repeat(30)}` : getTaskTitle(index);
-
-    mockCollectionTasks({totalTaskCount: 6, getTitle});
-    mockCollectionTasks({cursor: getTaskQueryCursor(0), totalTaskCount: 6, getTitle});
-    mockCollectionTasks({cursor: getTaskQueryCursor(2), totalTaskCount: 6, getTitle});
+    mockGetApiTaskCollectionTasks(api, {
+        spaceId,
+        id: collectionId,
+        name: "Roadmap",
+        color: "Red",
+        totalTaskCount: 6,
+        limit: 31,
+        createTask: index =>
+            createApiTaskMock({
+                index,
+                title:
+                    index < 2
+                        ? `Test task ${index + 1} ${"x".repeat(30)}`
+                        : `Test task ${index + 1}`,
+            }),
+    });
+    mockGetApiTaskCollectionTasks(api, {
+        spaceId,
+        id: collectionId,
+        name: "Roadmap",
+        color: "Red",
+        totalTaskCount: 6,
+        limit: 31,
+        cursor: printApiTaskQueryCursorMock(0),
+        createTask: index =>
+            createApiTaskMock({
+                index,
+                title:
+                    index < 2
+                        ? `Test task ${index + 1} ${"x".repeat(30)}`
+                        : `Test task ${index + 1}`,
+            }),
+    });
+    mockGetApiTaskCollectionTasks(api, {
+        spaceId,
+        id: collectionId,
+        name: "Roadmap",
+        color: "Red",
+        totalTaskCount: 6,
+        limit: 31,
+        cursor: printApiTaskQueryCursorMock(2),
+        createTask: index =>
+            createApiTaskMock({
+                index,
+                title:
+                    index < 2
+                        ? `Test task ${index + 1} ${"x".repeat(30)}`
+                        : `Test task ${index + 1}`,
+            }),
+    });
 
     const responses = [
         await callAgentWebReadTool(context, {path: "/task-collection/roadmap", limit: "250b"}),
         await callAgentWebReadTool(context, {
-            path: "/task-collection/roadmap?after=f55706",
+            path: "/task-collection/roadmap?after=f8bc90",
             limit: "250b",
         }),
         await callAgentWebReadTool(context, {
-            path: "/task-collection/roadmap?after=5a93b4",
+            path: "/task-collection/roadmap?after=5a3649",
             limit: "250b",
         }),
     ];
@@ -714,11 +737,11 @@ test("paginates through multiple pages with different task counts per page", asy
 
 Color: Red
 
-[Next page »](/task-collection/roadmap?after=f55706)
+[Next page »](/task-collection/roadmap?after=f8bc90)
 
 - [Test task 1 ${"x".repeat(30)} (Open)](/task/test-task-1-${"x".repeat(30)})`,
         `\
-Tasks in Roadmap. [Next page »](/task-collection/roadmap?after=5a93b4)
+Tasks in Roadmap. [Next page »](/task-collection/roadmap?after=5a3649)
 
 - [Test task 2 ${"x".repeat(30)} (Open)](/task/test-task-2-${"x".repeat(30)})
 
@@ -737,11 +760,20 @@ End of tasks.`,
 });
 
 test("updates the next page link cursor when truncating a later page", async () => {
-    mockCollectionTasks({cursor: getTaskQueryCursor(29), totalTaskCount: 65});
+    mockGetApiTaskCollectionTasks(api, {
+        spaceId,
+        id: collectionId,
+        name: "Roadmap",
+        color: "Red",
+        totalTaskCount: 65,
+        limit: 31,
+        cursor: printApiTaskQueryCursorMock(29),
+        createTask: index => createApiTaskMock({index, title: `Test task ${index + 1}`}),
+    });
 
     // Store the full cursor for the `?after` hash like the read that printed the "Next
     // page »" link would have.
-    await createAgentWebTaskQueryCursorHash(storage, collectionId, getTaskQueryCursor(29));
+    await createAgentWebTaskQueryCursorHash(storage, collectionId, printApiTaskQueryCursorMock(29));
 
     const expectedTasks = Array.from(
         {length: 27},
@@ -750,11 +782,11 @@ test("updates the next page link cursor when truncating a later page", async () 
 
     expect(
         await callAgentWebReadTool(context, {
-            path: "/task-collection/roadmap?after=ee09e6",
+            path: "/task-collection/roadmap?after=a3b00b",
             limit: "1300b",
         }),
     ).toEqual(`\
-Tasks in Roadmap. [Next page »](/task-collection/roadmap?after=e32af4)
+Tasks in Roadmap. [Next page »](/task-collection/roadmap?after=ba7c66)
 
 ${expectedTasks}`);
 });
@@ -784,18 +816,31 @@ test("queries a task collection with custom filters and sorts", async () => {
         ],
         sorts: [{type: "Priority", direction: "Descending"}],
     };
-    mockCollectionTasks({totalTaskCount: 1, query});
+    api.mockPost("/task-collections/{id}/tasks/query", {
+        params: {path: {id: collectionId}},
+        data: {
+            spaceId,
+            collection: {
+                id: collectionId,
+                name: "Roadmap",
+                color: "Red",
+                defaults: {filters: [], sorts: []},
+            },
+            nextCursor: null,
+            tasks: [
+                {
+                    cursor: printApiTaskQueryCursorMock(0),
+                    task: createApiTaskMock({index: 0, title: "Test task 1"}),
+                },
+            ],
+        },
+    });
 
     const response = await callAgentWebReadTool(context, {
         path: "/task-collection/roadmap?status=open&sort=-priority",
         limit: "10kb",
     });
-    const queryRequests = api
-        .getRequestHistory()
-        .filter(
-            request =>
-                request.method === "POST" && request.path === "/task-collections/{id}/tasks/query",
-        );
+    const queryRequests = getApiPostTaskCollectionTasksQueryRequestHistory();
 
     expect({response, queryRequests}).toEqual({
         response: `\
@@ -810,7 +855,7 @@ End of tasks.`,
             expect.objectContaining({
                 params: {path: {id: collectionId}},
                 body: {
-                    limit: agentWebTaskCollectionPageApiTasksBatchCount,
+                    limit: 31,
                     cursor: undefined,
                     ...query,
                 },
@@ -835,24 +880,59 @@ test("paginates custom task collection filters and sorts with after", async () =
         ],
         sorts: [{type: "Priority", direction: "Descending"}],
     };
-    mockCollectionTasks({totalTaskCount: 4, query});
-    mockCollectionTasks({cursor: getTaskQueryCursor(0), totalTaskCount: 4, query});
+    api.mockPost("/task-collections/{id}/tasks/query", {
+        params: {path: {id: collectionId}},
+        data: {
+            spaceId,
+            collection: {
+                id: collectionId,
+                name: "Roadmap",
+                color: "Red",
+                defaults: {filters: [], sorts: []},
+            },
+            nextCursor: null,
+            tasks: createArrayWithLength(4, index => ({
+                cursor: printApiTaskQueryCursorMock(index),
+                task: createApiTaskMock({index, title: `Test task ${index + 1}`}),
+            })),
+        },
+    });
+    api.mockPost("/task-collections/{id}/tasks/query", {
+        params: {path: {id: collectionId}},
+        data: {
+            spaceId,
+            collection: {
+                id: collectionId,
+                name: "Roadmap",
+                color: "Red",
+                defaults: {filters: [], sorts: []},
+            },
+            nextCursor: null,
+            tasks: createArrayWithLength(3, offset => {
+                const taskIndex = offset + 1;
+
+                return {
+                    cursor: printApiTaskQueryCursorMock(taskIndex),
+                    task: createApiTaskMock({
+                        index: taskIndex,
+                        title: `Test task ${taskIndex + 1}`,
+                    }),
+                };
+            }),
+        },
+    });
 
     const firstResponse = await callAgentWebReadTool(context, {
         path: "/task-collection/roadmap?status=open&sort=-priority",
         limit: "200b",
     });
     const secondResponse = await callAgentWebReadTool(context, {
-        path: "/task-collection/roadmap?after=f55706&status=open&sort=-priority",
+        path: "/task-collection/roadmap?after=f8bc90&status=open&sort=-priority",
         limit: "10kb",
     });
-    const queryRequestBodies = api
-        .getRequestHistory()
-        .filter(
-            request =>
-                request.method === "POST" && request.path === "/task-collections/{id}/tasks/query",
-        )
-        .map(request => request.body);
+    const queryRequestBodies = getApiPostTaskCollectionTasksQueryRequestHistory().map(
+        request => request.body,
+    );
 
     expect({firstResponse, secondResponse, queryRequestBodies}).toEqual({
         firstResponse: `\
@@ -860,7 +940,7 @@ test("paginates custom task collection filters and sorts with after", async () =
 
 Color: Red
 
-[Next page »](/task-collection/roadmap?after=f55706&status=open&sort=-priority)
+[Next page »](/task-collection/roadmap?after=f8bc90&status=open&sort=-priority)
 
 - [Test task 1 (Open)](/task/test-task-1)`,
         secondResponse: `\
@@ -875,13 +955,13 @@ Tasks in Roadmap.
 End of tasks.`,
         queryRequestBodies: [
             {
-                limit: agentWebTaskCollectionPageApiTasksBatchCount,
+                limit: 31,
                 cursor: undefined,
                 ...query,
             },
             {
-                limit: agentWebTaskCollectionPageApiTasksBatchCount,
-                cursor: getTaskQueryCursor(0),
+                limit: 31,
+                cursor: printApiTaskQueryCursorMock(0),
                 ...query,
             },
         ],
@@ -898,7 +978,23 @@ test("truncation adds a pagination link with custom filters", async () => {
         ],
         sorts: [],
     };
-    mockCollectionTasks({totalTaskCount: 4, query});
+    api.mockPost("/task-collections/{id}/tasks/query", {
+        params: {path: {id: collectionId}},
+        data: {
+            spaceId,
+            collection: {
+                id: collectionId,
+                name: "Roadmap",
+                color: "Red",
+                defaults: {filters: [], sorts: []},
+            },
+            nextCursor: null,
+            tasks: createArrayWithLength(4, index => ({
+                cursor: printApiTaskQueryCursorMock(index),
+                task: createApiTaskMock({index, title: `Test task ${index + 1}`}),
+            })),
+        },
+    });
 
     expect(
         await callAgentWebReadTool(context, {
@@ -910,7 +1006,7 @@ test("truncation adds a pagination link with custom filters", async () => {
 
 Color: Red
 
-[Next page »](/task-collection/roadmap?after=15a526&priority=high)
+[Next page »](/task-collection/roadmap?after=78a797&priority=high)
 
 - [Test task 1 (Open)](/task/test-task-1)
 
@@ -925,9 +1021,25 @@ test("truncation updates a pagination link with custom filters and sorts", async
                 operation: {type: "OneOf", priorities: [{type: "High"}]},
             },
         ],
-        sorts: [{type: "Created", direction: "Descending"}],
+        sorts: [{type: "CreatedTime", direction: "Descending"}],
     };
-    mockCollectionTasks({totalTaskCount: 35, query});
+    api.mockPost("/task-collections/{id}/tasks/query", {
+        params: {path: {id: collectionId}},
+        data: {
+            spaceId,
+            collection: {
+                id: collectionId,
+                name: "Roadmap",
+                color: "Red",
+                defaults: {filters: [], sorts: []},
+            },
+            nextCursor: printApiTaskQueryCursorMock(30),
+            tasks: createArrayWithLength(31, index => ({
+                cursor: printApiTaskQueryCursorMock(index),
+                task: createApiTaskMock({index, title: `Test task ${index + 1}`}),
+            })),
+        },
+    });
 
     const expectedTasks = Array.from(
         {length: 27},
@@ -944,7 +1056,7 @@ test("truncation updates a pagination link with custom filters and sorts", async
 
 Color: Red
 
-[Next page »](/task-collection/roadmap?after=a2c595&priority=high&sort=-created)
+[Next page »](/task-collection/roadmap?after=3e83d3&priority=high&sort=-created)
 
 ${expectedTasks}`);
 });
@@ -957,9 +1069,25 @@ test("shows exactly 30 custom-query tasks when the limit is the exact response s
                 operation: {type: "OneOf", priorities: [{type: "High"}]},
             },
         ],
-        sorts: [{type: "Created", direction: "Descending"}],
+        sorts: [{type: "CreatedTime", direction: "Descending"}],
     };
-    mockCollectionTasks({totalTaskCount: 35, query});
+    api.mockPost("/task-collections/{id}/tasks/query", {
+        params: {path: {id: collectionId}},
+        data: {
+            spaceId,
+            collection: {
+                id: collectionId,
+                name: "Roadmap",
+                color: "Red",
+                defaults: {filters: [], sorts: []},
+            },
+            nextCursor: printApiTaskQueryCursorMock(30),
+            tasks: createArrayWithLength(31, index => ({
+                cursor: printApiTaskQueryCursorMock(index),
+                task: createApiTaskMock({index, title: `Test task ${index + 1}`}),
+            })),
+        },
+    });
 
     const expectedTasks = Array.from(
         {length: 30},
@@ -970,7 +1098,7 @@ test("shows exactly 30 custom-query tasks when the limit is the exact response s
 
 Color: Red
 
-[Next page »](/task-collection/roadmap?after=ee09e6&priority=high&sort=-created)
+[Next page »](/task-collection/roadmap?after=a3b00b&priority=high&sort=-created)
 
 ${expectedTasks}`;
 
@@ -990,19 +1118,42 @@ test("truncation adds a pagination link with custom filters and sorts on a later
                 operation: {type: "OneOf", priorities: [{type: "High"}]},
             },
         ],
-        sorts: [{type: "Created", direction: "Descending"}],
+        sorts: [{type: "CreatedTime", direction: "Descending"}],
     };
-    mockCollectionTasks({cursor: getTaskQueryCursor(29), totalTaskCount: 35, query});
+    api.mockPost("/task-collections/{id}/tasks/query", {
+        params: {path: {id: collectionId}},
+        data: {
+            spaceId,
+            collection: {
+                id: collectionId,
+                name: "Roadmap",
+                color: "Red",
+                defaults: {filters: [], sorts: []},
+            },
+            nextCursor: null,
+            tasks: createArrayWithLength(5, offset => {
+                const taskIndex = offset + 30;
 
-    await createAgentWebTaskQueryCursorHash(storage, collectionId, getTaskQueryCursor(29));
+                return {
+                    cursor: printApiTaskQueryCursorMock(taskIndex),
+                    task: createApiTaskMock({
+                        index: taskIndex,
+                        title: `Test task ${taskIndex + 1}`,
+                    }),
+                };
+            }),
+        },
+    });
+
+    await createAgentWebTaskQueryCursorHash(storage, collectionId, printApiTaskQueryCursorMock(29));
 
     expect(
         await callAgentWebReadTool(context, {
-            path: "/task-collection/roadmap?after=ee09e6&priority=high&sort=-created",
+            path: "/task-collection/roadmap?after=a3b00b&priority=high&sort=-created",
             limit: "200b",
         }),
     ).toEqual(`\
-Tasks in Roadmap. [Next page »](/task-collection/roadmap?after=fe8f0b&priority=high&sort=-created)
+Tasks in Roadmap. [Next page »](/task-collection/roadmap?after=03dcb2&priority=high&sort=-created)
 
 - [Test task 31 (Open)](/task/test-task-31)`);
 });
@@ -1015,11 +1166,34 @@ test("truncation updates a pagination link with custom filters and sorts on a la
                 operation: {type: "OneOf", priorities: [{type: "High"}]},
             },
         ],
-        sorts: [{type: "Created", direction: "Descending"}],
+        sorts: [{type: "CreatedTime", direction: "Descending"}],
     };
-    mockCollectionTasks({cursor: getTaskQueryCursor(29), totalTaskCount: 65, query});
+    api.mockPost("/task-collections/{id}/tasks/query", {
+        params: {path: {id: collectionId}},
+        data: {
+            spaceId,
+            collection: {
+                id: collectionId,
+                name: "Roadmap",
+                color: "Red",
+                defaults: {filters: [], sorts: []},
+            },
+            nextCursor: printApiTaskQueryCursorMock(60),
+            tasks: createArrayWithLength(31, offset => {
+                const taskIndex = offset + 30;
 
-    await createAgentWebTaskQueryCursorHash(storage, collectionId, getTaskQueryCursor(29));
+                return {
+                    cursor: printApiTaskQueryCursorMock(taskIndex),
+                    task: createApiTaskMock({
+                        index: taskIndex,
+                        title: `Test task ${taskIndex + 1}`,
+                    }),
+                };
+            }),
+        },
+    });
+
+    await createAgentWebTaskQueryCursorHash(storage, collectionId, printApiTaskQueryCursorMock(29));
 
     const expectedTasks = Array.from(
         {length: 26},
@@ -1028,11 +1202,11 @@ test("truncation updates a pagination link with custom filters and sorts on a la
 
     expect(
         await callAgentWebReadTool(context, {
-            path: "/task-collection/roadmap?after=ee09e6&priority=high&sort=-created",
+            path: "/task-collection/roadmap?after=a3b00b&priority=high&sort=-created",
             limit: "1300b",
         }),
     ).toEqual(`\
-Tasks in Roadmap. [Next page »](/task-collection/roadmap?after=5a16d7&priority=high&sort=-created)
+Tasks in Roadmap. [Next page »](/task-collection/roadmap?after=e3e4b8&priority=high&sort=-created)
 
 ${expectedTasks}`);
 });
