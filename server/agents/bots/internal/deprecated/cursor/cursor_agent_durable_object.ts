@@ -17,10 +17,10 @@ import {
 } from "~/server/agents/bots/internal/agent_durable_object_base.js";
 import {AgentServiceEnv} from "~/server/agents/bots/internal/agent_service_env.js";
 import {convertApiContentToProperQuotes} from "~/server/agents/bots/internal/convert_api_content_to_proper_quotes.js";
-import {collectLinksFromMarkdownTreeForCursorAgent} from "~/server/agents/bots/internal/cursor/collect_links_from_markdown_tree_for_cursor_agent.js";
-import {CursorClient} from "~/server/agents/bots/internal/cursor/cursor_client.js";
-import {CursorCloudAgentsApiSpecification} from "~/server/agents/bots/internal/cursor/cursor_cloud_agents_api_specification_types.js";
-import {stripLinksFromMarkdownTreeForCursorAgent} from "~/server/agents/bots/internal/cursor/strip_links_from_markdown_tree_for_cursor_agent.js";
+import {collectLinksFromMarkdownTreeForCursorAgent} from "~/server/agents/bots/internal/deprecated/cursor/collect_links_from_markdown_tree_for_cursor_agent.js";
+import {CursorClient} from "~/server/agents/bots/internal/deprecated/cursor/cursor_client.js";
+import {CursorCloudAgentsApiSpecification} from "~/server/agents/bots/internal/deprecated/cursor/cursor_cloud_agents_api_specification_types.js";
+import {stripLinksFromMarkdownTreeForCursorAgent} from "~/server/agents/bots/internal/deprecated/cursor/strip_links_from_markdown_tree_for_cursor_agent.js";
 import {agentInstructionsMarkdown as markdown} from "~/server/agents/bots/internal/deprecated/agent_instructions_markdown.js";
 import {
     agentInitializeMessagesTokenLimit,

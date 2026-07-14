@@ -1,4 +1,4 @@
-import {CursorCloudAgentsApiSpecification} from "~/server/agents/bots/internal/cursor/cursor_cloud_agents_api_specification_types.js";
+import {CursorCloudAgentsApiSpecification} from "~/server/agents/bots/internal/deprecated/cursor/cursor_cloud_agents_api_specification_types.js";
 import {
     NotFoundError,
     PermissionDeniedError,

@@ -384,4 +384,4 @@ export {
     MockChatGptAgentDurableObject,
     MockCursorAgentDurableObject,
 } from "~/server/agents/bots/internal/mock_agent_durable_object.js";
-export {CursorAgentDurableObject} from "~/server/agents/bots/internal/cursor/cursor_agent_durable_object.js";
+export {CursorAgentDurableObject} from "~/server/agents/bots/internal/deprecated/cursor/cursor_agent_durable_object.js";
