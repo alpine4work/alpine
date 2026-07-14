@@ -830,8 +830,6 @@ export async function updateAgentWebTaskCollectionPage(
     const movedTaskIds = newCommonTaskIds.filter(taskId => !stableTaskIds.has(taskId));
 
     // NOCOMMIT: What to do when adding tasks with fields?
-    //
-    // NOCOMMIT: `?manual` to get the manual order of tasks?
     if (!oldPageMetadata.isManuallyOrdered) {
         if (addedTaskIds.length > 0) {
             throw new InvalidArgumentError(
