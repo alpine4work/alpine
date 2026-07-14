@@ -2645,11 +2645,6 @@ packages:
     cpu: [arm64]
     os: [darwin]
 
-  '@img/sharp-libvips-darwin-x64@file:../cyberworlds-worktree-3/admin/vendor/libvips/libvips-darwin-x86_64':
-    resolution: {directory: ../cyberworlds-worktree-3/admin/vendor/libvips/libvips-darwin-x86_64, type: directory}
-    cpu: [x64]
-    os: [darwin]
-
   '@img/sharp-libvips-darwin-x64@file:admin/vendor/libvips/libvips-darwin-x86_64':
     resolution: {directory: admin/vendor/libvips/libvips-darwin-x86_64, type: directory}
     cpu: [x64]
@@ -12791,13 +12786,10 @@ snapshots:
 
   '@img/sharp-darwin-x64@0.33.5':
     optionalDependencies:
-      '@img/sharp-libvips-darwin-x64': file:../cyberworlds-worktree-3/admin/vendor/libvips/libvips-darwin-x86_64
+      '@img/sharp-libvips-darwin-x64': file:admin/vendor/libvips/libvips-darwin-x86_64
     optional: true
 
   '@img/sharp-libvips-darwin-arm64@file:admin/vendor/libvips/libvips-darwin-arm64': {}
-
-  '@img/sharp-libvips-darwin-x64@file:../cyberworlds-worktree-3/admin/vendor/libvips/libvips-darwin-x86_64':
-    optional: true
 
   '@img/sharp-libvips-darwin-x64@file:admin/vendor/libvips/libvips-darwin-x86_64': {}
 
