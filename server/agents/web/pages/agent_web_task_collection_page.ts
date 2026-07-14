@@ -1,4 +1,4 @@
-import {fromDate, toCalendarDate} from "@internationalized/date";
+import {CalendarDate, fromDate, toCalendarDate} from "@internationalized/date";
 import {produce} from "immer";
 import {Code, Link, List, ListItem, Node, PhrasingContent, Root, RootContent} from "mdast";
 import {
@@ -52,6 +52,7 @@ import {
     ApiTaskReferenceResponse,
     ApiTaskStatus,
     ApiTaskSubtasks,
+    ApiTaskWithoutNotesResponse,
 } from "~/shared/api/specification/types/api_specification_convenience_types.js";
 import {InvalidArgumentError, UnimplementedError} from "~/shared/error/error.js";
 import {errorDisplayMessage} from "~/shared/error/error_display_message.js";
@@ -61,10 +62,13 @@ import {filterMapArray} from "~/shared/helpers/array/filter_map_array.js";
 import {partitionArray} from "~/shared/helpers/array/partition_array.js";
 import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
 import {assert} from "~/shared/helpers/control/assert.js";
+import {assertEqualTypes} from "~/shared/helpers/control/assert_equal_types.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 import {cast} from "~/shared/helpers/control/cast.js";
 import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
 import {isDeepEqual} from "~/shared/helpers/control/is_deep_equal.js";
+import {concatIterables} from "~/shared/helpers/iterable/concat_iterables.js";
+import {filterIterable} from "~/shared/helpers/iterable/filter_iterable.js";
 import {reverseIterable} from "~/shared/helpers/iterable/reverse_iterable.js";
 import {getObjectKeysWithKeyofType} from "~/shared/helpers/object/get_object_keys_with_keyof_type.js";
 import {MaybePromise} from "~/shared/helpers/types/maybe_promise.js";
@@ -195,6 +199,58 @@ export type AgentWebTaskCollectionPageWithMetadata = AgentWebTaskCollectionPage 
     readonly metadata: AgentWebTaskCollectionPageMetadata;
 };
 
+function intoAgentWebTaskCollectionPageTask({
+    timeZone,
+    contextDate,
+    collectionId,
+    task,
+}: {
+    timeZone: AgentWebContext["timeZone"];
+    contextDate: CalendarDate;
+    collectionId: TaskCollectionId;
+    task: ApiTaskWithoutNotesResponse;
+}): AgentWebTaskCollectionPageTask {
+    // The collection this page is for is implied by the page itself, so it's filtered
+    // out of each task's "Collections" field.
+    const taskCollections = filterMapArray(
+        task.collections ?? emptyArray,
+        ({collection}): ApiTaskCollectionReferenceResponse | undefined => {
+            if (collection.id === collectionId) return;
+
+            return {
+                type: "TaskCollection",
+                id: collection.id,
+                title: collection.name,
+            };
+        },
+    );
+
+    return {
+        taskId: task.id,
+        title: task.title,
+        status: task.status,
+        parent: task.parent
+            ? {
+                  type: "Task",
+                  id: task.parent.task.id,
+                  title: task.parent.task.title,
+                  status: task.parent.task.status,
+              }
+            : null,
+        subtasks: task.subtasks,
+        assignee: task.assignee ? intoApiAccountReference(task.assignee) : null,
+        collections: taskCollections.slice(0, agentWebTaskCollectionPageTaskMaxCollectionCount),
+        additionalCollectionsCount: Math.max(
+            taskCollections.length - agentWebTaskCollectionPageTaskMaxCollectionCount,
+            0,
+        ),
+        priority: task.priority ?? null,
+        dueDateString: task.due
+            ? formatAgentWebTaskDueDateString(timeZone, contextDate, task.due)
+            : null,
+    };
+}
+
 export async function readAgentWebTaskCollectionPage(
     context: AgentWebContext,
     id: TaskCollectionId,
@@ -252,7 +308,7 @@ export async function readAgentWebTaskCollectionPage(
                           },
                       },
                   })
-                : await context.api.post(context.span, "/task-collections/{id}/tasks/query", {
+                : await context.api.post(context.span, "/task-collections/{id}/tasks-query", {
                       params: {path: {id}},
                       body: {
                           limit: agentWebTaskCollectionPageApiTasksBatchCount,
@@ -272,48 +328,14 @@ export async function readAgentWebTaskCollectionPage(
             lookaheadTask === null ? currentTaskBatch : currentTaskBatch.slice(0, -1);
 
         function appendTask({cursor: taskCursor, task}: (typeof currentTaskBatch)[number]): void {
-            // The collection this page is for is implied by the page itself, so it's filtered
-            // out of each task's "Collections" field.
-            const taskCollections = filterMapArray(
-                task.collections ?? emptyArray,
-                ({collection}): ApiTaskCollectionReferenceResponse | undefined => {
-                    if (collection.id === id) return;
-
-                    return {
-                        type: "TaskCollection",
-                        id: collection.id,
-                        title: collection.name,
-                    };
-                },
+            tasks.push(
+                intoAgentWebTaskCollectionPageTask({
+                    timeZone: context.timeZone,
+                    contextDate,
+                    collectionId: id,
+                    task,
+                }),
             );
-
-            tasks.push({
-                taskId: task.id,
-                title: task.title,
-                status: task.status,
-                parent: task.parent
-                    ? {
-                          type: "Task",
-                          id: task.parent.task.id,
-                          title: task.parent.task.title,
-                          status: task.parent.task.status,
-                      }
-                    : null,
-                subtasks: task.subtasks,
-                assignee: task.assignee ? intoApiAccountReference(task.assignee) : null,
-                collections: taskCollections.slice(
-                    0,
-                    agentWebTaskCollectionPageTaskMaxCollectionCount,
-                ),
-                additionalCollectionsCount: Math.max(
-                    taskCollections.length - agentWebTaskCollectionPageTaskMaxCollectionCount,
-                    0,
-                ),
-                priority: task.priority ?? null,
-                dueDateString: task.due
-                    ? formatAgentWebTaskDueDateString(context.timeZone, contextDate, task.due)
-                    : null,
-            });
             taskMetadata.push({cursor: taskCursor});
         }
 
@@ -696,7 +718,7 @@ export async function createAgentWebTaskCollectionPage(
 }
 
 export async function updateAgentWebTaskCollectionPage(
-    context: AgentWebContextWithoutStorage,
+    context: AgentWebContext,
     oldPageMetadata: AgentWebTaskCollectionPageMetadata,
     oldPage: AgentWebTaskCollectionPage,
     newPage: AgentWebTaskCollectionPage,
@@ -743,8 +765,8 @@ export async function updateAgentWebTaskCollectionPage(
         );
     }
 
-    const oldTaskIdSet = new Set<TaskId>();
-    const newTaskIdSet = new Set<TaskId>();
+    const oldTaskIds = new Set<TaskId>();
+    const newTaskIds = new Set<TaskId>();
 
     // NOCOMMIT: Integration test where we shuffle task collection tasks and make sure
     // after the API calls the resulting task order is correct with another read.
@@ -754,13 +776,13 @@ export async function updateAgentWebTaskCollectionPage(
     // another `update` call that makes more moves.
     for (const oldTask of oldPage.tasks) {
         // We expect the old page to be well formed and only list each task once.
-        assert(!oldTaskIdSet.has(oldTask.taskId));
-        oldTaskIdSet.add(oldTask.taskId);
+        assert(!oldTaskIds.has(oldTask.taskId));
+        oldTaskIds.add(oldTask.taskId);
     }
 
     for (const newTask of newPage.tasks) {
-        if (!newTaskIdSet.has(newTask.taskId)) {
-            newTaskIdSet.add(newTask.taskId);
+        if (!newTaskIds.has(newTask.taskId)) {
+            newTaskIds.add(newTask.taskId);
             continue;
         }
 
@@ -775,10 +797,10 @@ export async function updateAgentWebTaskCollectionPage(
     const newTaskIds = Array.from(newTaskIdSet);
 
     const [oldCommonTaskIds, removedTaskIds] = partitionArray(oldTaskIds, taskId =>
-        newTaskIdSet.has(taskId),
+        newTaskIds.has(taskId),
     );
     const [newCommonTaskIds, addedTaskIds] = partitionArray(newTaskIds, taskId =>
-        oldTaskIdSet.has(taskId),
+        oldTaskIds.has(taskId),
     );
 
     // Find the longest common task subsequence. Tasks outside the subsequence are the
@@ -827,18 +849,19 @@ export async function updateAgentWebTaskCollectionPage(
         }
     }
 
-    const movedTaskIds = newCommonTaskIds.filter(taskId => !stableTaskIds.has(taskId));
+    const movedTaskIds = new Set(
+        filterIterable(newCommonTaskIds, taskId => !stableTaskIds.has(taskId)),
+    );
 
-    // NOCOMMIT: What to do when adding tasks with fields?
     if (!oldPageMetadata.isManuallyOrdered) {
         if (addedTaskIds.length > 0) {
             throw new InvalidArgumentError(
                 "Can\u2019t add/remove tasks in an automatically ordered collection",
                 {
-                    displayMessage: errorDisplayMessage`Tasks may only be added to task collection markdown when the collection is sorted manually. A collection is manually sorted when no automatic sorts are applied. That means there are no default sorts/filters and there is no \`?sort\` (or filter) in the path passed to the \`read\` tool. To add tasks to an automatically sorted collection, use the \`read\` tool to read an individual task and add a collection to the task's "Collections" field with the \`update\` tool. Try again without adding new tasks.`,
+                    displayMessage: errorDisplayMessage`Tasks may only be added to task collection markdown when the collection is sorted manually. A collection is manually sorted when no automatic sorts are applied. That means there are no default sorts/filters and there is no \`?sort\` (or filter) in the path passed to the \`read\` tool. To add tasks to an automatically sorted collection, use the \`read\` tool to read an individual task and add a collection to the task\u2019s \u201CCollections\u201D field with the \`update\` tool. Try again without adding new tasks.`,
                 },
             );
-        } else if (movedTaskIds.length > 0) {
+        } else if (movedTaskIds.size > 0) {
             throw new InvalidArgumentError(
                 "Can\u2019t change tasks in an automatically ordered collection",
                 {
@@ -857,7 +880,51 @@ export async function updateAgentWebTaskCollectionPage(
         ]),
     );
     const oldPageTaskById = new Map(oldPage.tasks.map(pageTask => [pageTask.taskId, pageTask]));
+    const newPageTaskById = new Map(newPage.tasks.map(pageTask => [pageTask.taskId, pageTask]));
     const taskPatchInputs: Array<{id: TaskId; patch: ApiTaskPatch}> = [];
+
+    // Verify that we're adding a task with the correct fields.
+    await runAllPromises(
+        addedTaskIds.map(async taskId => {
+            const {
+                data: {task},
+            } = await context.api.get(context.span, "/tasks/{id}-without-notes", {
+                params: {path: {id: taskId}},
+            });
+
+            const expectedPageTask = intoAgentWebTaskCollectionPageTask({
+                timeZone: context.timeZone,
+                contextDate,
+                collectionId: oldPageMetadata.id,
+                task,
+            });
+
+            const actualPageTask = assertExists(newPageTaskById.get(expectedPageTask.taskId));
+
+            // Is our actual page task equal to what was expected?
+            if (areAgentWebTaskCollectionPageTasksEqual(expectedPageTask, actualPageTask)) return;
+
+            const quotedTitle = quoteMarkdown([{type: "text", value: actualPageTask.title}]);
+
+            const taskMarkdown = printMarkdownTree({
+                type: "list",
+                ordered: false,
+                spread: false,
+                children: [
+                    await printAgentWebTaskCollectionPageTaskListItem(
+                        context.storage,
+                        expectedPageTask,
+                    ),
+                ],
+            })
+                .trim()
+                .replaceAll("\n", "\\n");
+
+            throw new InvalidArgumentError("Can\u2019t update task fields while adding task", {
+                displayMessage: errorDisplayMessage`You can\u2019t change the task \u201C${quotedTitle}\u201D\u2019s fields while adding it to task collection markdown. Add the task with its current fields, then call the \`update\` tool again if you want to change its fields. Try again with this exact markdown for the task: \`${taskMarkdown}\`.`,
+            });
+        }),
+    );
 
     for (const newPageTask of newPage.tasks) {
         const oldPageTask = oldPageTaskById.get(newPageTask.taskId);
@@ -866,6 +933,24 @@ export async function updateAgentWebTaskCollectionPage(
         // below. Its other task fields weren't present on the old collection page, so
         // there is no trustworthy old value to diff them against.
         if (oldPageTask === undefined) continue;
+
+        // Don't allow moving a task and updating its fields at the same time. Since the
+        // agent needs to completely rewrite the task to move it we believe a common error
+        // mode for agents will be to rewrite the task with incorrect fields. Which is why
+        // we force a move + update to be done in two separate `update` tool calls.
+        if (
+            movedTaskIds.has(oldPageTask.taskId) &&
+            !areAgentWebTaskCollectionPageTasksEqual(oldPageTask, newPageTask)
+        ) {
+            const quotedTitle = quoteMarkdown([{type: "text", value: oldPageTask.title}]);
+
+            throw new InvalidArgumentError(
+                "Can\u2019t move and update task fields in the same update",
+                {
+                    displayMessage: errorDisplayMessage`You can\u2019t move the task ${quotedTitle} and change its fields in the same \`update\` tool call. Try again with two separate \`update\` tool calls, one to change the task\u2019s fields and another to move the task.`,
+                },
+            );
+        }
 
         if (oldPageTask.additionalCollectionsCount !== newPageTask.additionalCollectionsCount) {
             const quotedTitle = quoteMarkdown([{type: "text", value: oldPageTask.title}]);
@@ -1028,19 +1113,21 @@ export async function updateAgentWebTaskCollectionPage(
         });
     }
 
-    const repositionedTaskIds = new Set([...addedTaskIds, ...movedTaskIds]);
+    const repositionedTaskIds = new Set(concatIterables(addedTaskIds, movedTaskIds));
+
+    const newTaskIdsArray = Array.from(newTaskIds);
 
     // The batch tasks endpoint preserves the request order for moves with identical
     // positions. Add movement patches in the page's new order so a group moved between
     // the same cursors ends up in the same order the agent wrote.
-    for (let taskIndex = 0; taskIndex < newTaskIds.length; taskIndex++) {
-        const taskId = newTaskIds[taskIndex]!;
+    for (let taskIndex = 0; taskIndex < newTaskIdsArray.length; taskIndex++) {
+        const taskId = newTaskIdsArray[taskIndex]!;
         if (!repositionedTaskIds.has(taskId)) continue;
 
         let afterCursor: ApiTaskQueryCursor | null = null;
 
         for (let index = taskIndex - 1; index >= 0; index--) {
-            const previousTaskId = newTaskIds[index]!;
+            const previousTaskId = newTaskIdsArray[index]!;
             if (!stableTaskIds.has(previousTaskId)) continue;
 
             const previousTaskCursor = oldTaskCursorById.get(previousTaskId);
@@ -1056,8 +1143,8 @@ export async function updateAgentWebTaskCollectionPage(
 
         let beforeCursor: ApiTaskQueryCursor | null = null;
 
-        for (let index = taskIndex + 1; index < newTaskIds.length; index++) {
-            const nextTaskId = newTaskIds[index]!;
+        for (let index = taskIndex + 1; index < newTaskIdsArray.length; index++) {
+            const nextTaskId = newTaskIdsArray[index]!;
             if (!stableTaskIds.has(nextTaskId)) continue;
 
             const nextTaskCursor = oldTaskCursorById.get(nextTaskId);
@@ -1136,11 +1223,55 @@ export async function updateAgentWebTaskCollectionPage(
 
     return {
         ...oldPageMetadata,
-        tasks: newTaskIds.map(taskId => ({
+        tasks: newTaskIdsArray.map(taskId => ({
             cursor: repositionedTaskIds.has(taskId)
                 ? assertExists(movedCursorByTaskId.get(taskId))
                 : assertExists(oldTaskCursorById.get(taskId)),
         })),
+    };
+}
+
+function areAgentWebTaskCollectionPageTasksEqual(
+    task1: AgentWebTaskCollectionPageTask,
+    task2: AgentWebTaskCollectionPageTask,
+) {
+    return isDeepEqual(
+        normalizeAgentWebTaskCollectionPageTaskForDeepEqual(task1),
+        normalizeAgentWebTaskCollectionPageTaskForDeepEqual(task2),
+    );
+}
+
+// Normalize the task to just the bits we care about comparing for equality. For
+// example, it's fine if the parent task titles don't match as long as the parent
+// `TaskId`s match.
+function normalizeAgentWebTaskCollectionPageTaskForDeepEqual(task: AgentWebTaskCollectionPageTask) {
+    // If you add a new property, TypeScript will error here. Telling you that you need
+    // to update this function with the new property.
+    assertEqualTypes<
+        keyof typeof task,
+        | "taskId"
+        | "title"
+        | "status"
+        | "parent"
+        | "subtasks"
+        | "assignee"
+        | "collections"
+        | "additionalCollectionsCount"
+        | "priority"
+        | "dueDateString"
+    >();
+
+    return {
+        taskId: task.taskId,
+        title: task.title,
+        status: task.status,
+        parent: task.parent?.id,
+        subtasks: task.subtasks,
+        assignee: task.assignee?.id,
+        collections: new Set(task.collections.map(collection => collection.id)),
+        additionalCollectionsCount: task.additionalCollectionsCount,
+        priority: task.priority?.type,
+        dueDateString: task.dueDateString,
     };
 }
 
