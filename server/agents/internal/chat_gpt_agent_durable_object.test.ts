@@ -431,7 +431,7 @@ describe("ChatGptAgentDurableObject.webhook", () => {
                 accountId: authorId,
                 spaceId,
                 provider: "openai",
-                model: "gpt-5.1",
+                model: "gpt-5.4",
             }),
         );
 
@@ -1281,18 +1281,18 @@ describe("ChatGptAgentDurableObject.webhook", () => {
         ]);
 
         // Verify usage was aggregated correctly across all 3 OpenAI calls Call 1:
-        // (100-0)*0.125 + 0*0.0125 + 15*1 = 12.5 + 0 + 15 = 27.5 millicents Call 2:
-        // (200-80)*0.125 + 80*0.0125 + 20*1 = 15 + 1 + 20 = 36 millicents Call 3:
-        // (300-150)*0.125 + 150*0.0125 + 25\*1 = 18.75 + 1.875 + 25 = 45.625 millicents
-        // Total: Math.floor(27.5 + 36 + 45.625) = Math.floor(109.125) = 109 millicents
+        // (100-0)*0.25 + 0*0.025 + 15*1.5 = 25 + 0 + 22.5 = 47.5 millicents Call 2:
+        // (200-80)*0.25 + 80*0.025 + 20*1.5 = 30 + 2 + 30 = 62 millicents Call 3:
+        // (300-150)*0.25 + 150*0.025 + 25\*1.5 = 37.5 + 3.75 + 37.5 = 78.75 millicents
+        // Total: Math.floor(47.5 + 62 + 78.75) = Math.floor(188.25) = 188 millicents
         expect(mockAgentUsageDatabase.createAgentRequest).toHaveBeenCalledWith(
             expect.anything(),
             expect.objectContaining({
                 accountId: authorId,
                 spaceId,
                 provider: "openai",
-                model: "gpt-5.1",
-                usedMillicents: 109,
+                model: "gpt-5.4",
+                usedMillicents: 188,
             }),
         );
 
@@ -1590,7 +1590,7 @@ describe("ChatGptAgentDurableObject.webhook", () => {
         expect(mockOpenAiClient.createResponseWithStreaming).toHaveBeenCalledTimes(1);
         expect(mockOpenAiClient.createResponseWithStreaming).toHaveBeenCalledWith(
             expect.anything(),
-            expect.objectContaining({model: "gpt-5-mini"}),
+            expect.objectContaining({model: "gpt-5.4-mini"}),
         );
 
         // Verify the full sequence of API calls
@@ -1689,7 +1689,7 @@ describe("ChatGptAgentDurableObject.webhook", () => {
                 accountId: authorId,
                 spaceId,
                 provider: "openai",
-                model: "gpt-5-mini", // Downgraded model
+                model: "gpt-5.4-mini", // Downgraded model
             }),
         );
     });

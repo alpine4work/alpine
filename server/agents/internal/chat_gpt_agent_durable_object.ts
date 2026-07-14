@@ -134,8 +134,8 @@ type ChatGptAgentScheduleEventRequest = AgentScheduleEventRequest & {
 };
 
 // Model configuration for ChatGPT agent.
-const defaultModel: SupportedAgentModels["openai"] = "gpt-5.1";
-const downgradedModel: SupportedAgentModels["openai"] = "gpt-5-mini";
+const defaultModel: SupportedAgentModels["openai"] = "gpt-5.4";
+const downgradedModel: SupportedAgentModels["openai"] = "gpt-5.4-mini";
 const downgradeModelAtPercent = 0.75;
 
 export class ChatGptAgentDurableObject extends AgentDurableObjectBase<
@@ -1468,8 +1468,10 @@ function getRoomPathForPromptCacheKey(spaceId: SpaceId, room: ApiMessageRoomTarg
  */
 function getReasoningSummaryForModel(model: SupportedAgentModels["openai"]): "concise" {
     switch (model) {
-        case "gpt-5.1":
         case "gpt-5-mini":
+        case "gpt-5.1":
+        case "gpt-5.4-mini":
+        case "gpt-5.4":
             return "concise";
         default:
             throw exhaustive(model);
