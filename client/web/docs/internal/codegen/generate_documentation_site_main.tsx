@@ -402,8 +402,8 @@ async function createBlogPostPage(file: BlogPostSourceFile): Promise<BlogPostCon
         publishDate: publishDateForFile(file),
         authorId,
         tags: tagsForFile(file),
-        heroImage: stringFrontmatter(file, "heroImage"),
-        heroImageAlt: stringFrontmatter(file, "heroImageAlt"),
+        previewImage: stringFrontmatter(file, "previewImage"),
+        previewImageAlt: stringFrontmatter(file, "previewImageAlt"),
         mdxCode: await compileMdxContent(file.body),
     };
 }
@@ -481,8 +481,8 @@ function toBlogPostListItem(post: BlogPostContentData): BlogPostListItem {
         publishDate: post.publishDate,
         authorId: post.authorId,
         tags: post.tags,
-        heroImage: post.heroImage,
-        heroImageAlt: post.heroImageAlt,
+        previewImage: post.previewImage,
+        previewImageAlt: post.previewImageAlt,
     };
 }
 

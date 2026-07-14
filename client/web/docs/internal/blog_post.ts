@@ -7,8 +7,8 @@ export type BlogPostListItem = {
     publishDate: string;
     authorId: BlogAuthorId;
     tags: Array<string>;
-    heroImage: string | null;
-    heroImageAlt: string | null;
+    previewImage: string | null;
+    previewImageAlt: string | null;
 };
 
 export type BlogPostAdjacentArticle = {

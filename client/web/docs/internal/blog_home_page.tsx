@@ -1,4 +1,5 @@
 import {Link} from "@remix-run/react";
+import {Info} from "phosphor-react";
 import {Box} from "~/client/web/design/box.js";
 import {BlogAuthorById} from "~/client/web/docs/internal/blog_author.js";
 import {BlogPostListItem, createBlogPostUrl} from "~/client/web/docs/internal/blog_post.js";
@@ -23,6 +24,7 @@ const blogLayoutCss = `
 @media (max-width: 680px) {
     .blogFeaturedArticle { grid-template-columns: minmax(0, 1fr); }
     .blogFeaturedImage { min-height: 0; }
+    .blogFeaturedImagePlaceholder { aspect-ratio: 5 / 3; }
     .blogLatestArticlesHeading { display: none; }
     .blogPostGrid { grid-template-columns: minmax(0, 1fr); }
 }
@@ -157,11 +159,11 @@ function BlogPostCard({
                 height="full"
                 style={{transition: "border-color 120ms ease, transform 120ms ease"}}
             >
-                {post.heroImage !== null ? (
+                {post.previewImage !== null ? (
                     <img
                         className={featured ? "blogFeaturedImage" : undefined}
-                        src={post.heroImage}
-                        alt={post.heroImageAlt ?? ""}
+                        src={post.previewImage}
+                        alt={post.previewImageAlt ?? ""}
                         style={{
                             aspectRatio: featured ? undefined : "5 / 3",
                             display: "block",
@@ -169,15 +171,33 @@ function BlogPostCard({
                             width: "100%",
                         }}
                     />
-                ) : null}
+                ) : (
+                    <Box
+                        className={
+                            featured ? "blogFeaturedImage blogFeaturedImagePlaceholder" : undefined
+                        }
+                        backgroundColor="grey-5"
+                        color="grey-40"
+                        display="flex"
+                        alignItems="center"
+                        justifyContent="center"
+                        role="img"
+                        aria-label="No image available"
+                        style={{
+                            aspectRatio: featured ? undefined : "5 / 3",
+                            width: "100%",
+                        }}
+                    >
+                        <Info size={32} aria-hidden />
+                    </Box>
+                )}
                 <Box padding={featured ? "5" : "4"}>
-                    <BlogPostMeta post={post} authors={authors} />
                     <Box
                         as="h3"
                         fontSize={featured ? "400" : "300"}
                         fontStyle="extra-bold"
                         color="grey-90"
-                        marginTop="3"
+                        marginTop="0"
                         marginBottom="2"
                         style={{lineHeight: 1.15}}
                     >
@@ -192,8 +212,21 @@ function BlogPostCard({
                             alt=""
                             style={{borderRadius: "999px", height: 24, width: 24}}
                         />
-                        <Box as="span" fontSize="75" fontStyle="semi-bold" color="grey-60">
-                            {author.name}
+                        <Box
+                            as="span"
+                            display="flex"
+                            alignItems="center"
+                            gap="2"
+                            fontSize="75"
+                            color="grey-60"
+                        >
+                            <Box as="span" fontStyle="semi-bold">
+                                {author.name}
+                            </Box>
+                            <Box as="span">|</Box>
+                            <time dateTime={post.publishDate}>
+                                {formatBlogPublishDate(post.publishDate)}
+                            </time>
                         </Box>
                     </Box>
                 </Box>

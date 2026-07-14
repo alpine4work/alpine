@@ -120,22 +120,6 @@ export function BlogPostPage({
                             </Box>
                         </Box>
 
-                        {post.heroImage !== null ? (
-                            <img
-                                src={post.heroImage}
-                                alt={post.heroImageAlt ?? ""}
-                                style={{
-                                    aspectRatio: "16 / 9",
-                                    border: "1px solid var(--grey-5)",
-                                    borderRadius: 8,
-                                    display: "block",
-                                    marginBottom: 32,
-                                    objectFit: "cover",
-                                    width: "100%",
-                                }}
-                            />
-                        ) : null}
-
                         <Box className="blogPostProse">
                             <Content components={documentationMdxComponents} />
                         </Box>

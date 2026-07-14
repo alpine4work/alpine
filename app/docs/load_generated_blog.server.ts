@@ -187,8 +187,8 @@ function isBlogPostListItem(value: unknown): value is BlogPostListItem {
             value.authorId === "ian") &&
         Array.isArray(value.tags) &&
         value.tags.every(tag => typeof tag === "string") &&
-        (typeof value.heroImage === "string" || value.heroImage === null) &&
-        (typeof value.heroImageAlt === "string" || value.heroImageAlt === null)
+        (typeof value.previewImage === "string" || value.previewImage === null) &&
+        (typeof value.previewImageAlt === "string" || value.previewImageAlt === null)
     );
 }
 

@@ -35,7 +35,7 @@ Blog content lives in `client/web/docs/content/blog`:
 - `blog_authors.json` defines the allowed author IDs and social links.
 - `*.md` and `*.mdx` files in this directory are authored blog posts. Frontmatter should include
   `title`, `slug`, `publishDate`, `author`, `tags`, `summary`, and optional
-  `heroImage`/`heroImageAlt`. The `slug` is the stable `/blog/<slug>` URL segment and must be
+  `previewImage`/`previewImageAlt`. The `slug` is the stable `/blog/<slug>` URL segment and must be
   lowercase kebab-case. It is not inferred from the title or filename.
 - Blog posts are sorted by `publishDate` descending during codegen. Each generated post page also
   gets `previousArticle` and `nextArticle` links from that sorted order.
