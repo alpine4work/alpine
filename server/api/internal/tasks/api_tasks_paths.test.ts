@@ -5817,6 +5817,102 @@ describe("/task-collections/{id}/tasks", () => {
 });
 
 describe("POST /task-collections/{id}/tasks/query", () => {
+    test("empty filters and sorts return cursors for manual collection ordering", async () => {
+        const space = await TestSpace.create(context);
+        const session = await space.createSession({name: "Alice Smith", role: "Admin"});
+
+        const bot = await TestBot.createAndInstantiate(session);
+        const apiKey = await bot.createApiKey(session);
+
+        const collection = await TestTaskCollection.create(session, {
+            name: "Manually Ordered Collection",
+            access: "Public",
+        });
+
+        await collection.updateDefaults(session, {
+            filters: [],
+            sorts: [{type: "Priority", direction: "Descending"}],
+        });
+
+        const [lowTask, highTask, urgentTask] = await runAllPromises([
+            TestTask.create(session, {title: "Low Task", priority: "Low"}),
+            TestTask.create(session, {title: "High Task", priority: "High"}),
+            TestTask.create(session, {title: "Urgent Task", priority: "Urgent"}),
+        ]);
+
+        await runAllPromises([
+            lowTask.addCollection(session, collection),
+            highTask.addCollection(session, collection),
+            urgentTask.addCollection(session, collection),
+        ]);
+        await ProcessContextModule.waitForTestTasks();
+
+        const queryBody = {filters: [], sorts: []};
+        const initialManualResponse = await server.POST(
+            `/task-collections/${collection.id}/tasks/query`,
+            {
+                headers: {authorization: `bearer ${apiKey}`},
+                body: queryBody,
+            },
+        );
+
+        expect(initialManualResponse.status).toBe(200);
+
+        const initialManualTasks: ReadonlyArray<{
+            cursor: string;
+            task: {id: TaskId};
+        }> = initialManualResponse.body.tasks;
+
+        const moveResponse = await server.PATCH(`/tasks/${urgentTask.id}`, {
+            headers: {authorization: `bearer ${apiKey}`},
+            body: {
+                patches: [
+                    {
+                        type: "MoveInCollection",
+                        collectionId: collection.id,
+                        position: {
+                            type: "Between",
+                            afterCursor: initialManualTasks[0]!.cursor,
+                            beforeCursor: initialManualTasks[1]!.cursor,
+                        },
+                    },
+                ],
+            },
+        });
+
+        await ProcessContextModule.waitForTestTasks();
+
+        const [movedManualResponse, defaultSortedResponse] = await runAllPromises([
+            server.POST(`/task-collections/${collection.id}/tasks/query`, {
+                headers: {authorization: `bearer ${apiKey}`},
+                body: queryBody,
+            }),
+            server.GET(`/task-collections/${collection.id}/tasks`, {
+                headers: {authorization: `bearer ${apiKey}`},
+            }),
+        ]);
+
+        expect({
+            initialManualTaskIds: initialManualTasks.map(({task}) => task.id),
+            moveStatus: moveResponse.status,
+            movedManualStatus: movedManualResponse.status,
+            movedManualTaskIds: movedManualResponse.body.tasks.map(
+                ({task}: {task: {id: TaskId}}) => task.id,
+            ),
+            defaultSortedStatus: defaultSortedResponse.status,
+            defaultSortedTaskIds: defaultSortedResponse.body.tasks.map(
+                ({task}: {task: {id: TaskId}}) => task.id,
+            ),
+        }).toEqual({
+            initialManualTaskIds: [lowTask.id, highTask.id, urgentTask.id],
+            moveStatus: 200,
+            movedManualStatus: 200,
+            movedManualTaskIds: [lowTask.id, urgentTask.id, highTask.id],
+            defaultSortedStatus: 200,
+            defaultSortedTaskIds: [urgentTask.id, highTask.id, lowTask.id],
+        });
+    });
+
     test("applies explicit filters and sorts while paginating", async () => {
         const space = await TestSpace.create(context);
         const session = await space.createSession({name: "Alice Smith", role: "Admin"});
