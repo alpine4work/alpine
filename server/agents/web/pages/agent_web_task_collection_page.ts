@@ -749,7 +749,6 @@ export async function updateAgentWebTaskCollectionPage(
         const quotedTitle = quoteMarkdown([{type: "text", value: newTask.title}]);
 
         throw new InvalidArgumentError("Duplicate task in new task collection page", {
-            // NOCOMMIT: Test???
             displayMessage: errorDisplayMessage`The task ${quotedTitle} appears more than once on this task collection page. Each task may only appear once. Try again after removing the duplicate task link.`,
         });
     }
@@ -811,20 +810,28 @@ export async function updateAgentWebTaskCollectionPage(
     }
 
     const movedTaskIds = newCommonTaskIds.filter(taskId => !stableTaskIds.has(taskId));
-    const hasTaskListChanges =
-        removedTaskIds.length > 0 || addedTaskIds.length > 0 || movedTaskIds.length > 0;
 
-    // NOCOMMIT: Allow adding/removing tasks in an automatically sorted collection.
-    //
     // NOCOMMIT: What to do when adding tasks with fields?
-    if (hasTaskListChanges && !oldPageMetadata.isManuallyOrdered) {
-        throw new InvalidArgumentError(
-            "Can\u2019t change tasks in an automatically ordered collection",
-            {
-                // NOCOMMIT: Test error message
-                displayMessage: errorDisplayMessage`Tasks may only be added, removed, or reordered when a task collection is sorted manually. A collection is manually sorted when no automatic sorts are applied. That means there are no default filters/sorts and there is no \`?sort\` in the path passed to the \`read\` tool. To reorder tasks in an automatically sorted collection, look at the collection\u2019s sorts and update the task\u2019s fields to reorder it (for example, if a collection is sorted by \`?sort=priority\` then updating a task\u2019s priority will move it). If you are updating a task\u2019s fields in an automatically sorted collection, you don\u2019t have to move the task yourself with the \`update\` tool. The task will be moved automatically, you can call the \`read\` tool again with the collection to see the new order. Try again without reordering, adding, or removing tasks.`,
-            },
-        );
+    //
+    // NOCOMMIT: `?manual` to get the manual order of tasks?
+    if (!oldPageMetadata.isManuallyOrdered) {
+        if (addedTaskIds.length > 0) {
+            throw new InvalidArgumentError(
+                "Can\u2019t add/remove tasks in an automatically ordered collection",
+                {
+                    // NOCOMMIT: Test error message
+                    displayMessage: errorDisplayMessage`Tasks may only be added to task collection markdown when the collection is sorted manually. A collection is manually sorted when no automatic sorts are applied. That means there are no default sorts/filters and there is no \`?sort\` (or filter) in the path passed to the \`read\` tool. To add tasks to an automatically sorted collection, use the \`read\` tool to read an individual task and add a collection to the task's "Collections" field with the \`update\` tool. Try again without adding new tasks.`,
+                },
+            );
+        } else if (movedTaskIds.length > 0) {
+            throw new InvalidArgumentError(
+                "Can\u2019t change tasks in an automatically ordered collection",
+                {
+                    // NOCOMMIT: Test error message
+                    displayMessage: errorDisplayMessage`Tasks may only be reordered in task collection markdown when the collection is sorted manually. A collection is manually sorted when no automatic sorts are applied. That means there are no default sorts/filters and there is no \`?sort\` (or filter) in the path passed to the \`read\` tool. To reorder tasks in an automatically sorted collection, look at the collection\u2019s sorts and update the corresponding fields in the task (for example, if a collection is sorted by \`?sort=priority\` then updating a task\u2019s priority will move it). If you are updating a task\u2019s fields in an automatically sorted collection, you shouldn\u2019t move the task yourself with the \`update\` tool because the task will be moved automatically. Instead read the collection again with the \`read\` tool after your update to see the new order. Try again without reordering tasks.`,
+                },
+            );
+        }
     }
 
     assert(oldPageMetadata.tasks.length === oldPage.tasks.length);
