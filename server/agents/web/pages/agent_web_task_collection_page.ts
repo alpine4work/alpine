@@ -220,13 +220,29 @@ export async function readAgentWebTaskCollectionPage(
         searchParams,
     );
 
+    // The `?manual` search param may be added to force the task collection to be
+    // sorted manually even when it has default filters and sorts. We need this since
+    // no filters/sorts search params means we use the collection defaults instead of
+    // manual sorting. So we need a way to explicitly get the tasks in manual sort
+    // order.
+    //
+    // NOCOMMIT: Integration test for `?manual` search param.
+    if (searchParams.has("manual") && (query.filters.length > 0 || query.sorts.length > 0)) {
+        throw new InvalidArgumentError(
+            "URL search param has both `?manual` search param and filter/sort search params",
+            {
+                displayMessage: errorDisplayMessage`Can\u2019t use the \`?manual\` URL search param in addition to filter/sort URL search params. Try again and either remove the \`?manual\` search param or remove the filter/sort search params.`,
+            },
+        );
+    }
+
     const tasks: Array<AgentWebTaskCollectionPageTask> = [];
     const taskMetadata: Array<{cursor: ApiTaskQueryCursor}> = [];
     let cursor = afterCursor ?? undefined;
 
     while (true) {
         const tasksResult =
-            query.filters.length === 0 && query.sorts.length === 0
+            query.filters.length === 0 && query.sorts.length === 0 && !searchParams.has("manual")
                 ? await context.api.get(context.span, "/task-collections/{id}/tasks", {
                       params: {
                           path: {id},
@@ -348,9 +364,11 @@ export async function readAgentWebTaskCollectionPage(
             afterCursor,
             beforeCursor: lookaheadTask?.cursor ?? null,
             isManuallyOrdered:
-                query.sorts.length === 0 &&
-                collection.defaults.filters.length === 0 &&
-                collection.defaults.sorts.length === 0,
+                searchParams.has("manual") ||
+                (query.filters.length === 0 &&
+                    query.sorts.length === 0 &&
+                    collection.defaults.filters.length === 0 &&
+                    collection.defaults.sorts.length === 0),
             tasks: taskMetadata,
         };
 
