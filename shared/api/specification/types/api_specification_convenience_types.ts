@@ -300,12 +300,18 @@ export type ApiCreateChatRequestBodyRoomChat =
 
 export type ApiDocument = ApiSpecification.components["schemas"]["Document"];
 
-export type ApiDocumentPreview = ApiSpecification.components["schemas"]["DocumentPreview"];
+export type ApiDocumentPatch = ApiSpecification.components["schemas"]["DocumentPatch"];
 
-export type ApiDocumentThreadPreview =
-    ApiSpecification.components["schemas"]["DocumentThreadPreview"];
+export type ApiDocumentSetTitlePatch =
+    ApiSpecification.components["schemas"]["DocumentSetTitlePatch"];
+
+export type ApiDocumentSetContentPatch =
+    ApiSpecification.components["schemas"]["DocumentSetContentPatch"];
 
 export type ApiDocumentThread = ApiSpecification.components["schemas"]["DocumentThread"];
+
+export type ApiDocumentThreadWithPreview =
+    ApiSpecification.components["schemas"]["DocumentThreadWithPreview"];
 
 export type ApiChannelPreview = ApiSpecification.components["schemas"]["ChannelPreview"];
 
@@ -323,8 +329,6 @@ export type ApiTaskWithoutNotes = ApiSpecification.components["schemas"]["TaskWi
 
 export type ApiTaskSubtasks = ApiSpecification.components["schemas"]["TaskSubtasks"];
 
-export type ApiTaskPreview = ApiSpecification.components["schemas"]["TaskPreview"];
-
 export type ApiTaskDue = ApiSpecification.components["schemas"]["TaskDue"];
 
 export type ApiTaskPriority = ApiSpecification.components["schemas"]["TaskPriority"];
@@ -338,6 +342,11 @@ export type ApiTaskHighPriority = ApiSpecification.components["schemas"]["TaskHi
 export type ApiTaskUrgentPriority = ApiSpecification.components["schemas"]["TaskUrgentPriority"];
 
 export type ApiTaskNotes = ApiSpecification.components["schemas"]["TaskNotes"];
+
+export type ApiTaskNotesPatch = ApiSpecification.components["schemas"]["TaskNotesPatch"];
+
+export type ApiTaskNotesSetContentPatch =
+    ApiSpecification.components["schemas"]["TaskNotesSetContentPatch"];
 
 export type ApiTaskLayout = ApiSpecification.components["schemas"]["TaskLayout"];
 
@@ -840,8 +849,8 @@ export type ApiActorBotFrom = ApiSpecification.components["schemas"]["ActorBotFr
 export type ApiDocumentThreadResponse =
     ApiSpecification.components["schemas"]["DocumentThread_Response"];
 
-export type ApiDocumentThreadPreviewResponse =
-    ApiSpecification.components["schemas"]["DocumentThreadPreview_Response"];
+export type ApiDocumentThreadWithPreviewResponse =
+    ApiSpecification.components["schemas"]["DocumentThreadWithPreview_Response"];
 
 export type ApiPostPreviewResponse = ApiSpecification.components["schemas"]["PostPreview_Response"];
 
@@ -850,14 +859,14 @@ export type ApiTaskCollectionItemResponse =
 
 export type ApiTaskResponse = ApiSpecification.components["schemas"]["Task_Response"];
 
+export type ApiTaskWithoutNotesResponse =
+    ApiSpecification.components["schemas"]["TaskWithoutNotes_Response"];
+
 export type ApiMessageContentPayloadParentResponse =
     ApiSpecification.components["schemas"]["MessageContentPayloadParent_Response"];
 
 export type ApiMessageExperimentalApprovalDecisionValueResponse =
     ApiSpecification.components["schemas"]["MessageExperimentalApprovalDecisionValue_Response"];
-
-export type ApiTaskWithoutNotesResponse =
-    ApiSpecification.components["schemas"]["TaskWithoutNotes_Response"];
 
 export type ApiMessageResponse = ApiSpecification.components["schemas"]["Message_Response"];
 
@@ -1094,6 +1103,12 @@ export type ApiMessageExperimentalApprovalResponse =
 export type ApiContentInlineElementResponse =
     ApiSpecification.components["schemas"]["ContentInlineElement_Response"];
 
+export type ApiDocumentSetContentPatchResponse =
+    ApiSpecification.components["schemas"]["DocumentSetContentPatch_Response"];
+
+export type ApiTaskNotesSetContentPatchResponse =
+    ApiSpecification.components["schemas"]["TaskNotesSetContentPatch_Response"];
+
 export type ApiTaskQueryCollectionsFilterResponse =
     ApiSpecification.components["schemas"]["TaskQueryCollectionsFilter_Response"];
 
@@ -1135,6 +1150,12 @@ export type ApiContentTableBlockElementRowResponseWithoutKeys =
 
 export type ApiContentListBlockElementResponseWithoutKeys =
     ApiSpecification.components["schemas"]["ContentListBlockElement_Response_WithoutKeys"];
+
+export type ApiDocumentPatchResponse =
+    ApiSpecification.components["schemas"]["DocumentPatch_Response"];
+
+export type ApiTaskNotesPatchResponse =
+    ApiSpecification.components["schemas"]["TaskNotesPatch_Response"];
 
 export type ApiTaskQueryFilterResponse =
     ApiSpecification.components["schemas"]["TaskQueryFilter_Response"];

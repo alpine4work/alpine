@@ -54,7 +54,7 @@ paths:
                                         $ref: "#/components/schemas/AccountWithoutSpace_Response"
                 default:
                     $ref: "#/components/responses/Error"
-    /accounts/{id}/reference:
+    /accounts/{id}-reference:
         parameters:
             - name: id
               in: path
@@ -327,7 +327,7 @@ paths:
                     $ref: "#/components/responses/GetChat"
                 default:
                     $ref: "#/components/responses/Error"
-    /chats/{id}/reference:
+    /chats/{id}-reference:
         parameters:
             - name: id
               in: path
@@ -585,29 +585,20 @@ paths:
                         schema:
                             type: object
                             required:
-                                - document
+                                - patches
                             additionalProperties: false
                             properties:
-                                document:
-                                    type: object
-                                    required:
-                                        - version
-                                        - title
-                                        - content
-                                    additionalProperties: false
-                                    properties:
-                                        version:
-                                            type: integer
-                                        title:
-                                            type: string
-                                        content:
-                                            $ref: "#/components/schemas/Content"
+                                patches:
+                                    type: array
+                                    minItems: 1
+                                    items:
+                                        $ref: "#/components/schemas/DocumentPatch"
             responses:
                 "200":
                     $ref: "#/components/responses/GetDocument"
                 default:
                     $ref: "#/components/responses/Error"
-    /documents/{id}/reference:
+    /documents/{id}-reference:
         parameters:
             - name: id
               in: path
@@ -654,18 +645,15 @@ paths:
                                 required:
                                     - spaceId
                                     - thread
-                                    - document
                                 additionalProperties: false
                                 properties:
                                     spaceId:
                                         $ref: "#/components/schemas/SpaceId"
                                     thread:
                                         $ref: "#/components/schemas/DocumentThread_Response"
-                                    document:
-                                        $ref: "#/components/schemas/Document_Response"
                 default:
                     $ref: "#/components/responses/Error"
-    /documents/{id}/threads/{threadId}/preview:
+    /documents/{id}/threads/{threadId}-with-preview:
         parameters:
             - name: id
               in: path
@@ -693,7 +681,9 @@ paths:
                                     spaceId:
                                         $ref: "#/components/schemas/SpaceId"
                                     thread:
-                                        $ref: "#/components/schemas/DocumentThreadPreview_Response"
+                                        $ref: "#/components/schemas/DocumentThreadWithPreview_Response"
+                                    document:
+                                        $ref: "#/components/schemas/Document_Response"
                 default:
                     $ref: "#/components/responses/Error"
     /documents/{id}/threads/{threadId}/messages/{index}:
@@ -929,6 +919,56 @@ paths:
                                         $ref: "#/components/schemas/Channel_Response"
                 default:
                     $ref: "#/components/responses/Error"
+    /channels/{id}-reference:
+        parameters:
+            - name: id
+              in: path
+              required: true
+              schema:
+                  $ref: "#/components/schemas/ChannelId"
+        get:
+            responses:
+                "200":
+                    content:
+                        application/json:
+                            schema:
+                                type: object
+                                required:
+                                    - spaceId
+                                    - reference
+                                additionalProperties: false
+                                properties:
+                                    spaceId:
+                                        $ref: "#/components/schemas/SpaceId"
+                                    reference:
+                                        $ref: "#/components/schemas/ChannelReference_Response"
+                default:
+                    $ref: "#/components/responses/Error"
+    /channels/{id}-preview:
+        parameters:
+            - name: id
+              in: path
+              required: true
+              schema:
+                  $ref: "#/components/schemas/ChannelId"
+        get:
+            responses:
+                "200":
+                    content:
+                        application/json:
+                            schema:
+                                type: object
+                                required:
+                                    - spaceId
+                                    - channel
+                                additionalProperties: false
+                                properties:
+                                    spaceId:
+                                        $ref: "#/components/schemas/SpaceId"
+                                    channel:
+                                        $ref: "#/components/schemas/ChannelPreview"
+                default:
+                    $ref: "#/components/responses/Error"
     /channels/{id}/posts:
         parameters:
             - name: id
@@ -974,31 +1014,6 @@ paths:
                                         type: array
                                         items:
                                             $ref: "#/components/schemas/PostPreview_Response"
-                default:
-                    $ref: "#/components/responses/Error"
-    /channels/{id}/reference:
-        parameters:
-            - name: id
-              in: path
-              required: true
-              schema:
-                  $ref: "#/components/schemas/ChannelId"
-        get:
-            responses:
-                "200":
-                    content:
-                        application/json:
-                            schema:
-                                type: object
-                                required:
-                                    - spaceId
-                                    - reference
-                                additionalProperties: false
-                                properties:
-                                    spaceId:
-                                        $ref: "#/components/schemas/SpaceId"
-                                    reference:
-                                        $ref: "#/components/schemas/ChannelReference_Response"
                 default:
                     $ref: "#/components/responses/Error"
     /posts:
@@ -1051,32 +1066,7 @@ paths:
                     $ref: "#/components/responses/GetPost"
                 default:
                     $ref: "#/components/responses/Error"
-    /posts/{id}/preview:
-        parameters:
-            - name: id
-              in: path
-              required: true
-              schema:
-                  $ref: "#/components/schemas/PostId"
-        get:
-            responses:
-                "200":
-                    content:
-                        application/json:
-                            schema:
-                                type: object
-                                required:
-                                    - spaceId
-                                    - post
-                                additionalProperties: false
-                                properties:
-                                    spaceId:
-                                        $ref: "#/components/schemas/SpaceId"
-                                    post:
-                                        $ref: "#/components/schemas/PostPreview_Response"
-                default:
-                    $ref: "#/components/responses/Error"
-    /posts/{id}/reference:
+    /posts/{id}-reference:
         parameters:
             - name: id
               in: path
@@ -1099,6 +1089,31 @@ paths:
                                         $ref: "#/components/schemas/SpaceId"
                                     reference:
                                         $ref: "#/components/schemas/PostReference_Response"
+                default:
+                    $ref: "#/components/responses/Error"
+    /posts/{id}-preview:
+        parameters:
+            - name: id
+              in: path
+              required: true
+              schema:
+                  $ref: "#/components/schemas/PostId"
+        get:
+            responses:
+                "200":
+                    content:
+                        application/json:
+                            schema:
+                                type: object
+                                required:
+                                    - spaceId
+                                    - post
+                                additionalProperties: false
+                                properties:
+                                    spaceId:
+                                        $ref: "#/components/schemas/SpaceId"
+                                    post:
+                                        $ref: "#/components/schemas/PostPreview_Response"
                 default:
                     $ref: "#/components/responses/Error"
     /posts/{id}/messages/{index}:
@@ -1311,7 +1326,7 @@ paths:
                                             $ref: "#/components/schemas/SearchResult_Response"
                 default:
                     $ref: "#/components/responses/Error"
-    /sites/{id}/reference:
+    /sites/{id}-reference:
         parameters:
             - name: id
               in: path
@@ -1464,6 +1479,31 @@ paths:
                     $ref: "#/components/responses/GetTask"
                 default:
                     $ref: "#/components/responses/Error"
+    /tasks/{id}-reference:
+        parameters:
+            - name: id
+              in: path
+              required: true
+              schema:
+                  $ref: "#/components/schemas/TaskId"
+        get:
+            responses:
+                "200":
+                    content:
+                        application/json:
+                            schema:
+                                type: object
+                                required:
+                                    - spaceId
+                                    - reference
+                                additionalProperties: false
+                                properties:
+                                    spaceId:
+                                        $ref: "#/components/schemas/SpaceId"
+                                    reference:
+                                        $ref: "#/components/schemas/TaskReference_Response"
+                default:
+                    $ref: "#/components/responses/Error"
     /tasks/{id}-without-notes:
         parameters:
             - name: id
@@ -1475,6 +1515,40 @@ paths:
             responses:
                 "200":
                     $ref: "#/components/responses/GetTaskWithoutNotes"
+                default:
+                    $ref: "#/components/responses/Error"
+    /tasks/{id}/notes:
+        parameters:
+            - name: id
+              in: path
+              required: true
+              schema:
+                  $ref: "#/components/schemas/TaskId"
+        get:
+            responses:
+                "200":
+                    $ref: "#/components/responses/GetTaskNotes"
+                default:
+                    $ref: "#/components/responses/Error"
+        patch:
+            requestBody:
+                required: true
+                content:
+                    application/json:
+                        schema:
+                            type: object
+                            required:
+                                - patches
+                            additionalProperties: false
+                            properties:
+                                patches:
+                                    type: array
+                                    minItems: 1
+                                    items:
+                                        $ref: "#/components/schemas/TaskNotesPatch"
+            responses:
+                "200":
+                    $ref: "#/components/responses/GetTaskNotes"
                 default:
                     $ref: "#/components/responses/Error"
     /tasks/{id}/subtasks:
@@ -1524,7 +1598,7 @@ paths:
                                             $ref: "#/components/schemas/TaskQueryItem_Response"
                 default:
                     $ref: "#/components/responses/Error"
-    /tasks/{id}/subtasks/query:
+    /tasks/{id}/subtasks-query:
         parameters:
             - name: id
               in: path
@@ -1583,47 +1657,7 @@ paths:
                                             $ref: "#/components/schemas/TaskQueryItem_Response"
                 default:
                     $ref: "#/components/responses/Error"
-    /tasks/{id}/notes:
-        parameters:
-            - name: id
-              in: path
-              required: true
-              schema:
-                  $ref: "#/components/schemas/TaskId"
-        patch:
-            requestBody:
-                required: true
-                content:
-                    application/json:
-                        schema:
-                            type: object
-                            required:
-                                - notes
-                            additionalProperties: false
-                            properties:
-                                notes:
-                                    type: object
-                                    required:
-                                        - version
-                                        - content
-                                    additionalProperties: false
-                                    properties:
-                                        version:
-                                            type: integer
-                                        content:
-                                            $ref: "#/components/schemas/Content"
-            responses:
-                "200":
-                    $ref: "#/components/responses/GetTaskNotes"
-                default:
-                    $ref: "#/components/responses/Error"
-        get:
-            responses:
-                "200":
-                    $ref: "#/components/responses/GetTaskNotes"
-                default:
-                    $ref: "#/components/responses/Error"
-    /tasks/{id}/reference:
+    /tasks/{id}-without-notes/subtasks:
         parameters:
             - name: id
               in: path
@@ -1631,6 +1665,18 @@ paths:
               schema:
                   $ref: "#/components/schemas/TaskId"
         get:
+            parameters:
+                - name: limit
+                  in: query
+                  schema:
+                      type: integer
+                      minimum: 1
+                      maximum: 100
+                      default: 10
+                - name: cursor
+                  in: query
+                  schema:
+                      $ref: "#/components/schemas/TaskQueryCursor"
             responses:
                 "200":
                     content:
@@ -1639,13 +1685,82 @@ paths:
                                 type: object
                                 required:
                                     - spaceId
-                                    - reference
+                                    - task
+                                    - nextCursor
+                                    - tasks
                                 additionalProperties: false
                                 properties:
                                     spaceId:
                                         $ref: "#/components/schemas/SpaceId"
-                                    reference:
-                                        $ref: "#/components/schemas/TaskReference_Response"
+                                    task:
+                                        $ref: "#/components/schemas/TaskWithoutNotes_Response"
+                                    nextCursor:
+                                        oneOf:
+                                            - $ref: "#/components/schemas/TaskQueryCursor"
+                                            - type: "null"
+                                    tasks:
+                                        type: array
+                                        items:
+                                            $ref: "#/components/schemas/TaskQueryItem_Response"
+                default:
+                    $ref: "#/components/responses/Error"
+    /tasks/{id}-without-notes/subtasks-query:
+        parameters:
+            - name: id
+              in: path
+              required: true
+              schema:
+                  $ref: "#/components/schemas/TaskId"
+        post:
+            requestBody:
+                required: true
+                content:
+                    application/json:
+                        schema:
+                            type: object
+                            required: []
+                            additionalProperties: false
+                            properties:
+                                limit:
+                                    type: integer
+                                    minimum: 1
+                                    maximum: 100
+                                    default: 10
+                                cursor:
+                                    $ref: "#/components/schemas/TaskQueryCursor"
+                                filters:
+                                    type: array
+                                    items:
+                                        $ref: "#/components/schemas/TaskQueryFilter"
+                                sorts:
+                                    type: array
+                                    items:
+                                        $ref: "#/components/schemas/TaskQuerySort"
+            responses:
+                "200":
+                    content:
+                        application/json:
+                            schema:
+                                type: object
+                                required:
+                                    - spaceId
+                                    - task
+                                    - nextCursor
+                                    - tasks
+                                additionalProperties: false
+                                properties:
+                                    spaceId:
+                                        $ref: "#/components/schemas/SpaceId"
+                                    task:
+                                        $ref: "#/components/schemas/TaskWithoutNotes_Response"
+                                    nextCursor:
+                                        oneOf:
+                                            - $ref: "#/components/schemas/TaskQueryCursor"
+                                            - type: "null"
+                                    tasks:
+                                        type: array
+                                        items:
+                                            $ref: "#/components/schemas/TaskQueryItem_Response"
                 default:
                     $ref: "#/components/responses/Error"
     /tasks/{id}/messages/{index}:
@@ -1939,7 +2054,7 @@ paths:
                                         $ref: "#/components/schemas/TaskCollection_Response"
                 default:
                     $ref: "#/components/responses/Error"
-    /task-collections/{id}/reference:
+    /task-collections/{id}-reference:
         parameters:
             - name: id
               in: path
@@ -1962,6 +2077,31 @@ paths:
                                         $ref: "#/components/schemas/SpaceId"
                                     reference:
                                         $ref: "#/components/schemas/TaskCollectionReference_Response"
+                default:
+                    $ref: "#/components/responses/Error"
+    /task-collections/{id}-preview:
+        parameters:
+            - name: id
+              in: path
+              required: true
+              schema:
+                  $ref: "#/components/schemas/TaskCollectionId"
+        get:
+            responses:
+                "200":
+                    content:
+                        application/json:
+                            schema:
+                                type: object
+                                required:
+                                    - spaceId
+                                    - reference
+                                additionalProperties: false
+                                properties:
+                                    spaceId:
+                                        $ref: "#/components/schemas/SpaceId"
+                                    collection:
+                                        $ref: "#/components/schemas/TaskCollectionPreview_Response"
                 default:
                     $ref: "#/components/responses/Error"
     /task-collections/{id}/tasks:
@@ -1989,7 +2129,7 @@ paths:
                     $ref: "#/components/responses/GetTaskCollectionTasks"
                 default:
                     $ref: "#/components/responses/Error"
-    /task-collections/{id}/tasks/query:
+    /task-collections/{id}/tasks-query:
         parameters:
             - name: id
               in: path
@@ -4656,46 +4796,45 @@ components:
                     type: string
                 content:
                     $ref: "#/components/schemas/Content"
-        DocumentPreview:
+        DocumentPatch:
+            oneOf:
+                - $ref: "#/components/schemas/DocumentSetTitlePatch"
+                - $ref: "#/components/schemas/DocumentSetContentPatch"
+            discriminator:
+                propertyName: type
+                mapping:
+                    SetTitle: "#/components/schemas/DocumentSetTitlePatch"
+                    SetContent: "#/components/schemas/DocumentSetContentPatch"
+        DocumentSetTitlePatch:
             type: object
             required:
-                - id
+                - type
+                - version
                 - title
             additionalProperties: false
             properties:
-                id:
-                    $ref: "#/components/schemas/DocumentId"
-                title:
-                    type: string
-        DocumentThreadPreview:
-            type: object
-            required:
-                - id
-                - isResolved
-                - totalMessageCount
-                - firstMessage
-            additionalProperties: false
-            properties:
-                id:
-                    $ref: "#/components/schemas/DocumentThreadId"
-                isResolved:
-                    type: boolean
-                totalMessageCount:
+                type:
+                    const: SetTitle
+                version:
                     type: integer
                     minimum: 0
-                firstMessage:
-                    type: object
-                    required:
-                        - author
-                        - createdTime
-                        - createdTimeZone
-                    properties:
-                        author:
-                            $ref: "#/components/schemas/Account"
-                        createdTime:
-                            $ref: "#/components/schemas/DateTime"
-                        createdTimeZone:
-                            $ref: "#/components/schemas/TimeZone"
+                title:
+                    type: string
+        DocumentSetContentPatch:
+            type: object
+            required:
+                - type
+                - version
+                - content
+            additionalProperties: false
+            properties:
+                type:
+                    const: SetContent
+                version:
+                    type: integer
+                    minimum: 0
+                content:
+                    $ref: "#/components/schemas/Content"
         DocumentThread:
             type: object
             required:
@@ -4703,7 +4842,6 @@ components:
                 - isResolved
                 - totalMessageCount
                 - firstMessage
-                - marked
             additionalProperties: false
             properties:
                 id:
@@ -4726,22 +4864,47 @@ components:
                             $ref: "#/components/schemas/DateTime"
                         createdTimeZone:
                             $ref: "#/components/schemas/TimeZone"
-                marked:
+        DocumentThreadWithPreview:
+            type: object
+            required:
+                - id
+                - isResolved
+                - totalMessageCount
+                - firstMessage
+                - preview
+            additionalProperties: false
+            properties:
+                id:
+                    $ref: "#/components/schemas/DocumentThreadId"
+                isResolved:
+                    type: boolean
+                totalMessageCount:
+                    type: integer
+                    minimum: 0
+                firstMessage:
                     type: object
                     required:
-                        - preview
+                        - author
+                        - createdTime
+                        - createdTimeZone
                     properties:
-                        preview:
-                            type: object
-                            required:
-                                - version
-                                - contentSnippet
-                            properties:
-                                version:
-                                    type: integer
-                                    minimum: 0
-                                contentSnippet:
-                                    $ref: "#/components/schemas/Content"
+                        author:
+                            $ref: "#/components/schemas/Account"
+                        createdTime:
+                            $ref: "#/components/schemas/DateTime"
+                        createdTimeZone:
+                            $ref: "#/components/schemas/TimeZone"
+                preview:
+                    type: object
+                    required:
+                        - version
+                        - contentSnippet
+                    additionalProperties: false
+                    properties:
+                        version:
+                            type: integer
+                        contentSnippet:
+                            $ref: "#/components/schemas/Content"
         ChannelPreview:
             type: object
             required:
@@ -4940,20 +5103,6 @@ components:
                 closedTaskCount:
                     type: integer
                     minimum: 0
-        TaskPreview:
-            type: object
-            required:
-                - id
-                - status
-                - title
-            additionalProperties: false
-            properties:
-                id:
-                    $ref: "#/components/schemas/TaskId"
-                status:
-                    $ref: "#/components/schemas/TaskStatus"
-                title:
-                    type: string
         TaskDue:
             type: object
             required:
@@ -5015,6 +5164,28 @@ components:
                 - content
             additionalProperties: false
             properties:
+                version:
+                    type: integer
+                    minimum: 0
+                content:
+                    $ref: "#/components/schemas/Content"
+        TaskNotesPatch:
+            oneOf:
+                - $ref: "#/components/schemas/TaskNotesSetContentPatch"
+            discriminator:
+                propertyName: type
+                mapping:
+                    SetContent: "#/components/schemas/TaskNotesSetContentPatch"
+        TaskNotesSetContentPatch:
+            type: object
+            required:
+                - type
+                - version
+                - content
+            additionalProperties: false
+            properties:
+                type:
+                    const: SetContent
                 version:
                     type: integer
                     minimum: 0
@@ -7491,7 +7662,6 @@ components:
                 - isResolved
                 - totalMessageCount
                 - firstMessage
-                - marked
             additionalProperties: false
             properties:
                 id:
@@ -7514,29 +7684,14 @@ components:
                             $ref: "#/components/schemas/DateTime"
                         createdTimeZone:
                             $ref: "#/components/schemas/TimeZone"
-                marked:
-                    type: object
-                    required:
-                        - preview
-                    properties:
-                        preview:
-                            type: object
-                            required:
-                                - version
-                                - contentSnippet
-                            properties:
-                                version:
-                                    type: integer
-                                    minimum: 0
-                                contentSnippet:
-                                    $ref: "#/components/schemas/Content_Response_WithoutKeys"
-        DocumentThreadPreview_Response:
+        DocumentThreadWithPreview_Response:
             type: object
             required:
                 - id
                 - isResolved
                 - totalMessageCount
                 - firstMessage
+                - preview
             additionalProperties: false
             properties:
                 id:
@@ -7559,6 +7714,17 @@ components:
                             $ref: "#/components/schemas/DateTime"
                         createdTimeZone:
                             $ref: "#/components/schemas/TimeZone"
+                preview:
+                    type: object
+                    required:
+                        - version
+                        - contentSnippet
+                    additionalProperties: false
+                    properties:
+                        version:
+                            type: integer
+                        contentSnippet:
+                            $ref: "#/components/schemas/Content_Response_WithoutKeys"
         PostPreview_Response:
             type: object
             required:
@@ -7642,32 +7808,6 @@ components:
                     $ref: "#/components/schemas/TaskSubtasks"
                 notes:
                     $ref: "#/components/schemas/TaskNotes_Response"
-        MessageContentPayloadParent_Response:
-            oneOf:
-                - $ref: "#/components/schemas/MessageContentPayloadMessageParent_Response"
-                - $ref: "#/components/schemas/MessageContentPayloadPostParent_Response"
-            discriminator:
-                propertyName: type
-                mapping:
-                    Message: "#/components/schemas/MessageContentPayloadMessageParent_Response"
-                    Post: "#/components/schemas/MessageContentPayloadPostParent_Response"
-        MessageExperimentalApprovalDecisionValue_Response:
-            oneOf:
-                - $ref: "#/components/schemas/MessageExperimentalApprovalDecisionApprovedValue_Re\
-                      sponse"
-                - $ref: "#/components/schemas/MessageExperimentalApprovalDecisionRejectedValue_Re\
-                      sponse"
-                - $ref: "#/components/schemas/MessageExperimentalApprovalDecisionApprovedForSessi\
-                      onValue_Response"
-            discriminator:
-                propertyName: type
-                mapping:
-                    Approved: "#/components/schemas/MessageExperimentalApprovalDecisionApprovedValu\
-                        e_Response"
-                    Rejected: "#/components/schemas/MessageExperimentalApprovalDecisionRejectedValu\
-                        e_Response"
-                    ApprovedForSession: "#/components/schemas/MessageExperimentalApprovalDecisionAp\
-                        provedForSessionValue_Response"
         TaskWithoutNotes_Response:
             type: object
             required:
@@ -7709,6 +7849,32 @@ components:
                         $ref: "#/components/schemas/TaskCollectionItem_Response"
                 subtasks:
                     $ref: "#/components/schemas/TaskSubtasks"
+        MessageContentPayloadParent_Response:
+            oneOf:
+                - $ref: "#/components/schemas/MessageContentPayloadMessageParent_Response"
+                - $ref: "#/components/schemas/MessageContentPayloadPostParent_Response"
+            discriminator:
+                propertyName: type
+                mapping:
+                    Message: "#/components/schemas/MessageContentPayloadMessageParent_Response"
+                    Post: "#/components/schemas/MessageContentPayloadPostParent_Response"
+        MessageExperimentalApprovalDecisionValue_Response:
+            oneOf:
+                - $ref: "#/components/schemas/MessageExperimentalApprovalDecisionApprovedValue_Re\
+                      sponse"
+                - $ref: "#/components/schemas/MessageExperimentalApprovalDecisionRejectedValue_Re\
+                      sponse"
+                - $ref: "#/components/schemas/MessageExperimentalApprovalDecisionApprovedForSessi\
+                      onValue_Response"
+            discriminator:
+                propertyName: type
+                mapping:
+                    Approved: "#/components/schemas/MessageExperimentalApprovalDecisionApprovedValu\
+                        e_Response"
+                    Rejected: "#/components/schemas/MessageExperimentalApprovalDecisionRejectedValu\
+                        e_Response"
+                    ApprovedForSession: "#/components/schemas/MessageExperimentalApprovalDecisionAp\
+                        provedForSessionValue_Response"
         Message_Response:
             type: object
             required:
@@ -9453,6 +9619,36 @@ components:
                     Text: "#/components/schemas/ContentTextInlineElement"
                     Break: "#/components/schemas/ContentBreakInlineElement"
                     Mention: "#/components/schemas/ContentMentionInlineElement_Response"
+        DocumentSetContentPatch_Response:
+            type: object
+            required:
+                - type
+                - version
+                - content
+            additionalProperties: false
+            properties:
+                type:
+                    const: SetContent
+                version:
+                    type: integer
+                    minimum: 0
+                content:
+                    $ref: "#/components/schemas/Content_Response"
+        TaskNotesSetContentPatch_Response:
+            type: object
+            required:
+                - type
+                - version
+                - content
+            additionalProperties: false
+            properties:
+                type:
+                    const: SetContent
+                version:
+                    type: integer
+                    minimum: 0
+                content:
+                    $ref: "#/components/schemas/Content_Response"
         TaskQueryCollectionsFilter_Response:
             type: object
             required:
@@ -9626,6 +9822,22 @@ components:
                         outKeys"
                     CheckList: "#/components/schemas/ContentCheckListBlockElement_Response_WithoutK\
                         eys"
+        DocumentPatch_Response:
+            oneOf:
+                - $ref: "#/components/schemas/DocumentSetTitlePatch"
+                - $ref: "#/components/schemas/DocumentSetContentPatch_Response"
+            discriminator:
+                propertyName: type
+                mapping:
+                    SetTitle: "#/components/schemas/DocumentSetTitlePatch"
+                    SetContent: "#/components/schemas/DocumentSetContentPatch_Response"
+        TaskNotesPatch_Response:
+            oneOf:
+                - $ref: "#/components/schemas/TaskNotesSetContentPatch_Response"
+            discriminator:
+                propertyName: type
+                mapping:
+                    SetContent: "#/components/schemas/TaskNotesSetContentPatch_Response"
         TaskQueryFilter_Response:
             oneOf:
                 - $ref: "#/components/schemas/TaskQueryStatusFilter"
