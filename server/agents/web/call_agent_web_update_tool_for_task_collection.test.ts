@@ -2075,10 +2075,11 @@ test("rejects adding a task without its existing fields", async () => {
             },
         ],
         expected:
-            "You can\u2019t change the task \u201CTest Task 2\u201D\u2019s fields while adding it to task " +
-            "collection markdown. Add the task with its current fields, then call the " +
-            "`update` tool again if you want to change its fields. Try again with this exact " +
-            "markdown for the task: `- [Test Task 2 (Open)](/task/test-task-2)\\n  - Parent: " +
+            "You can\u2019t change the task \u201CTest Task 2\u201D\u2019s title or fields while adding it " +
+            "to task collection markdown. Add the task with its current title and fields, " +
+            "then call the `update` tool again if you want to change its title or fields. " +
+            "Try again with this exact markdown for the task: `- [Test Task 2 " +
+            "(Open)](/task/test-task-2)\\n  - Parent: " +
             "[Parent task](/task/parent-task)\\n  - Subtasks: 3 open, 4 closed\\n  - " +
             "Assignee: [Alice](/human/alice)\\n  - Collections: " +
             "[Engineering](/task-collection/engineering), " +
@@ -2118,10 +2119,11 @@ test("rejects changing a task link while adding the task", async () => {
             },
         ],
         expected:
-            "You can\u2019t change the task \u201CRenamed task\u201D\u2019s fields while adding it to task " +
-            "collection markdown. Add the task with its current fields, then call the " +
-            "`update` tool again if you want to change its fields. Try again with this exact " +
-            "markdown for the task: `- [New task (Closed)](/task/new-task)`",
+            "You can\u2019t change the task \u201CRenamed task\u201D\u2019s title or fields while adding it " +
+            "to task collection markdown. Add the task with its current title and fields, " +
+            "then call the `update` tool again if you want to change its title or fields. " +
+            "Try again with this exact markdown for the task: `- [New task " +
+            "(Closed)](/task/new-task)`",
     });
 });
 
@@ -2158,9 +2160,9 @@ test("rejects moving a task while changing a nested field", async () => {
             },
         ],
         expected:
-            "You can\u2019t move the task \u201CTest Task 0\u201D and change its fields in the same " +
-            "`update` tool call. You can make both changes with two separate `update` tool " +
-            "calls: one to change the task\u2019s fields and another to move the task.",
+            "You can\u2019t move the task \u201CTest Task 0\u201D and change its title or fields in the " +
+            "same `update` tool call. Try again with two separate `update` tool calls, one " +
+            "to change the task\u2019s title/fields and another to move the task.",
     });
 });
 
@@ -2195,9 +2197,9 @@ test("rejects moving a task while changing its link fields", async () => {
             },
         ],
         expected:
-            "You can\u2019t move the task \u201CTest Task 0\u201D and change its fields in the same " +
-            "`update` tool call. You can make both changes with two separate `update` tool " +
-            "calls: one to change the task\u2019s fields and another to move the task.",
+            "You can\u2019t move the task \u201CTest Task 0\u201D and change its title or fields in the " +
+            "same `update` tool call. Try again with two separate `update` tool calls, one " +
+            "to change the task\u2019s title/fields and another to move the task.",
     });
 });
 
@@ -4858,7 +4860,7 @@ test("rejects adding a task to a collection with a sort in search params", async
             "applied. That means there are no default sorts/filters and there is no " +
             "`?sort` (or filter) in the path passed to the `read` tool. To add tasks to an " +
             "automatically sorted collection, use the `read` tool to read an individual " +
-            "task and add a collection to the task\\u2019s \u201CCollections\u201D field with the " +
+            "task and add a collection to the task\u2019s \u201CCollections\u201D field with the " +
             "`update` tool. Try again without adding new tasks.",
     });
 });
@@ -4909,7 +4911,7 @@ test("rejects adding a task to a collection with a default filter", async () => 
             "applied. That means there are no default sorts/filters and there is no " +
             "`?sort` (or filter) in the path passed to the `read` tool. To add tasks to an " +
             "automatically sorted collection, use the `read` tool to read an individual " +
-            "task and add a collection to the task\\u2019s \u201CCollections\u201D field with the " +
+            "task and add a collection to the task\u2019s \u201CCollections\u201D field with the " +
             "`update` tool. Try again without adding new tasks.",
     });
 });
@@ -4960,7 +4962,7 @@ test("rejects adding a task to a collection with a filter in search params", asy
             "applied. That means there are no default sorts/filters and there is no " +
             "`?sort` (or filter) in the path passed to the `read` tool. To add tasks to an " +
             "automatically sorted collection, use the `read` tool to read an individual " +
-            "task and add a collection to the task\\u2019s \u201CCollections\u201D field with the " +
+            "task and add a collection to the task\u2019s \u201CCollections\u201D field with the " +
             "`update` tool. Try again without adding new tasks.",
     });
 });
