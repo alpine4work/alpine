@@ -750,7 +750,7 @@ export async function updateAgentWebTaskCollectionPage(
 
         throw new InvalidArgumentError("Duplicate task in new task collection page", {
             // NOCOMMIT: Test???
-            displayMessage: errorDisplayMessage`The ${quotedTitle} task appears more than once on this task collection page. Each task may only appear once. Try again after removing the duplicate task link.`,
+            displayMessage: errorDisplayMessage`The task ${quotedTitle} appears more than once on this task collection page. Each task may only appear once. Try again after removing the duplicate task link.`,
         });
     }
 
@@ -853,7 +853,7 @@ export async function updateAgentWebTaskCollectionPage(
             throw new InvalidArgumentError(
                 "Can\u2019t change task collections by updating additional count",
                 {
-                    displayMessage: errorDisplayMessage`Can\u2019t change a task\u2019s collections by updating \u201Cand ${oldPageTask.additionalCollectionsCount} more\u201D to \u201Cand ${newPageTask.additionalCollectionsCount} more\u201D since we don\u2019t know which underlying collections you\u2019re trying to ${oldPageTask.additionalCollectionsCount < newPageTask.additionalCollectionsCount ? "add" : "remove"}. Instead call the \`read\` tool for the ${quotedTitle} task which will give you the full collection list for the task which you can update with the \`update\` tool.`,
+                    displayMessage: errorDisplayMessage`Can\u2019t change a task\u2019s collections by updating \u201Cand ${oldPageTask.additionalCollectionsCount} more\u201D to \u201Cand ${newPageTask.additionalCollectionsCount} more\u201D since we don\u2019t know which underlying collections you\u2019re trying to ${oldPageTask.additionalCollectionsCount < newPageTask.additionalCollectionsCount ? "add" : "remove"}. Instead call the \`read\` tool for the task ${quotedTitle} which will give you the full collection list for the task which you can update with the \`update\` tool.`,
                 },
             );
         }
@@ -862,7 +862,7 @@ export async function updateAgentWebTaskCollectionPage(
             const quotedTitle = quoteMarkdown([{type: "text", value: oldPageTask.title}]);
 
             throw new InvalidArgumentError("Can\u2019t change task subtasks by updating counts", {
-                displayMessage: errorDisplayMessage`Can\u2019t change the ${quotedTitle} task\u2019s subtasks by updating \u201CSubtasks: ${oldPageTask.subtasks.openTaskCount} open, ${oldPageTask.subtasks.closedTaskCount} closed\u201D to \u201CSubtasks: ${newPageTask.subtasks.openTaskCount} open, ${newPageTask.subtasks.closedTaskCount} closed\u201D since we don\u2019t know which underlying subtasks you\u2019re trying to add, remove, open, or close. Try again with an update that leaves the \`Subtasks\` field unchanged.`,
+                displayMessage: errorDisplayMessage`Can\u2019t change the task ${quotedTitle}\u2019s subtasks by updating \u201CSubtasks: ${oldPageTask.subtasks.openTaskCount} open, ${oldPageTask.subtasks.closedTaskCount} closed\u201D to \u201CSubtasks: ${newPageTask.subtasks.openTaskCount} open, ${newPageTask.subtasks.closedTaskCount} closed\u201D since we don\u2019t know which underlying subtasks you\u2019re trying to add, remove, open, or close. Try again with an update that leaves the \`Subtasks\` field unchanged.`,
             });
         }
 
@@ -890,12 +890,12 @@ export async function updateAgentWebTaskCollectionPage(
                 throw new InvalidArgumentError(
                     "Can\u2019t set task as active if there\u2019s no assignee",
                     {
-                        displayMessage: errorDisplayMessage`Can\u2019t set ${quotedTitle} task as active if there\u2019s no assignee. We don\u2019t recommend setting a task as active unless you\u2019re about to work on the task or you know someone else is currently working on the task. Try again and either set the task as open but inactive (e.g. \`(Open)\`) or set an assignee (e.g. \`- Assignee: ${printMarkdownTree(assigneeLink).trim()}\`).`,
+                        displayMessage: errorDisplayMessage`Can\u2019t set the task ${quotedTitle} as active if there\u2019s no assignee. We don\u2019t recommend setting a task as active unless you\u2019re about to work on the task or you know someone else is currently working on the task. Try again and either set the task as open but inactive (e.g. \`(Open)\`) or set an assignee (e.g. \`- Assignee: ${printMarkdownTree(assigneeLink).trim()}\`).`,
                     },
                 );
             } else {
                 throw new InvalidArgumentError("Can\u2019t remove assignee from an active task", {
-                    displayMessage: errorDisplayMessage`Can\u2019t remove the assignee from the active ${quotedTitle} task. An active task implies someone is currently working on the task and so an assignee is required so we know who that is. Try again but set the task as inactive first (e.g. \`(Open)\`).`,
+                    displayMessage: errorDisplayMessage`Can\u2019t remove the assignee from the active task ${quotedTitle}. An active task implies someone is currently working on the task and so an assignee is required so we know who that is. Try again but set the task as inactive first (e.g. \`(Open)\`).`,
                 });
             }
         }
