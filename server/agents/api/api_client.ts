@@ -32,8 +32,6 @@ import {TestCheckpoint} from "~/shared/helpers/test/test_checkpoint.js";
 import {fetchWithTracer} from "~/shared/tracer/fetch_with_tracer.js";
 import {TracerBase} from "~/shared/tracer/tracer_base.js";
 
-type ApiErrorResponseBody = ApiErrorResponse["content"]["application/json"];
-
 type ApiClientMethod<Paths extends {}, Method extends HttpMethod, Media extends MediaType> = <
     Path extends PathsWithMethod<Paths, Method>,
     Options extends FetchOptions<FilterKeys<Paths[Path], Method>>,
@@ -131,7 +129,7 @@ export function createApiClient({
                             // If the request failed, then throw an error. We want to mark this span as failed
                             // and we don't want to handle errors inline.
                             if (!response.ok) {
-                                const responseBody: ApiErrorResponseBody = await response.json();
+                                const responseBody: ApiErrorResponse = await response.json();
 
                                 // Our API doesn't share the internal `ErrorCode` we use, so infer an error code
                                 // from the HTTP status code.
