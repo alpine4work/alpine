@@ -11,7 +11,9 @@ import {callAgentWebReadTool} from "~/server/agents/web/call_agent_web_read_tool
 import {createAgentWebPageStoredLinkPathname} from "~/server/agents/web/create_agent_web_page_stored_link_pathname.js";
 import {createAgentWebSessionStorageForTest} from "~/server/agents/web/test_helpers/create_agent_web_session_storage_for_test.js";
 import {ApiTaskQueryDefaultsResponse} from "~/shared/api/specification/types/api_specification_convenience_types.js";
+import {InternalError, InvalidArgumentError} from "~/shared/error/error.js";
 import {createArrayWithLength} from "~/shared/helpers/array/create_array_with_length.js";
+import {captureResultPromise} from "~/shared/helpers/control/capture_result_promise.js";
 import {defaultTimeZone} from "~/shared/helpers/intl/time_zone.js";
 import {generateId} from "~/shared/id/id.js";
 import {AccountId, BotId, SpaceId, TaskCollectionId} from "~/shared/id/types/id_types.js";
@@ -65,6 +67,22 @@ function getApiPostTaskCollectionTasksQueryRequestHistory() {
             request =>
                 request.method === "POST" && request.path === "/task-collections/{id}/tasks/query",
         );
+}
+
+async function expectInvalidReadDisplayMessage({path, expected}: {path: string; expected: string}) {
+    const result = await captureResultPromise(
+        async () => await callAgentWebReadTool(context, {path, limit: "10kb"}),
+    );
+
+    if (result.ok) {
+        throw new InternalError("Expected read tool call to throw");
+    }
+
+    if (!(result.error instanceof InvalidArgumentError) || !result.error.displayMessage) {
+        throw result.error;
+    }
+
+    expect(result.error.displayMessage.map(({text}) => text).join("")).toEqual(expected);
 }
 
 test("reads a task collection page with tasks", async () => {
@@ -792,12 +810,13 @@ ${expectedTasks}`);
 });
 
 test("rejects an after cursor that is not from a next page link", async () => {
-    await expect(
-        callAgentWebReadTool(context, {
-            path: "/task-collection/roadmap?after=a1b2c3",
-            limit: "10kb",
-        }),
-    ).rejects.toThrow("Expected `after` search param to be a cursor");
+    await expectInvalidReadDisplayMessage({
+        path: "/task-collection/roadmap?after=a1b2c3",
+        expected:
+            "Expected `?after` URL search param to be a cursor from a task collection " +
+            "page \u201CNext page »\u201D link. Try again with a \u201CNext page »\u201D link you\u2019ve seen " +
+            "before or omit `?after`.",
+    });
 });
 
 test("queries a task collection with custom filters and sorts", async () => {
@@ -1209,4 +1228,78 @@ test("truncation updates a pagination link with custom filters and sorts on a la
 Tasks in Roadmap. [Next page »](/task-collection/roadmap?after=e3e4b8&priority=high&sort=-created)
 
 ${expectedTasks}`);
+});
+
+test("rejects manual ordering with filters in search params", async () => {
+    await expectInvalidReadDisplayMessage({
+        path: "/task-collection/roadmap?manual&priority=high",
+        expected:
+            "Can\u2019t use the `?manual` URL search param in addition to filter/sort URL " +
+            "search params. Try again and either remove the `?manual` search param or " +
+            "remove the filter/sort search params.",
+    });
+});
+
+test("rejects manual ordering with sorts in search params", async () => {
+    await expectInvalidReadDisplayMessage({
+        path: "/task-collection/roadmap?manual&sort=-priority",
+        expected:
+            "Can\u2019t use the `?manual` URL search param in addition to filter/sort URL " +
+            "search params. Try again and either remove the `?manual` search param or " +
+            "remove the filter/sort search params.",
+    });
+});
+
+test("queries manual order with empty filters and sorts despite collection defaults", async () => {
+    api.mockPost("/task-collections/{id}/tasks/query", {
+        params: {path: {id: collectionId}},
+        data: {
+            spaceId,
+            collection: {
+                id: collectionId,
+                name: "Roadmap",
+                defaults: {
+                    filters: [
+                        {
+                            type: "Priority",
+                            operation: {
+                                type: "OneOf",
+                                priorities: [{type: "High"}],
+                            },
+                        },
+                    ],
+                    sorts: [{type: "Priority", direction: "Descending"}],
+                },
+            },
+            nextCursor: null,
+            tasks: [
+                {
+                    cursor: printApiTaskQueryCursorMock(0),
+                    task: createApiTaskMock({index: 0}),
+                },
+            ],
+        },
+    });
+
+    await callAgentWebReadTool(context, {
+        path: "/task-collection/roadmap?manual",
+        limit: "10kb",
+    });
+
+    expect({
+        getRequests: getApiGetTaskCollectionTasksRequestHistory(),
+        queryRequestBodies: getApiPostTaskCollectionTasksQueryRequestHistory().map(
+            request => request.body,
+        ),
+    }).toEqual({
+        getRequests: [],
+        queryRequestBodies: [
+            {
+                limit: 31,
+                cursor: undefined,
+                filters: [],
+                sorts: [],
+            },
+        ],
+    });
 });
