@@ -10,7 +10,7 @@ NOCOMMIT: Remove this file
 - [x] Show subtask count in collection
 - [x] Collection pagination
 - [x] Updating tasks in collection
-- [ ] Adding/removing tasks from collection
+- [x] Adding/removing tasks from collection
 - [ ] Subtasks
 - [x] Add default filters to collections
 - [x] Add filter search params

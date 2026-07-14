@@ -952,7 +952,6 @@ export async function updateAgentWebTaskCollectionPage(
         if (oldPageTask.additionalCollectionsCount !== newPageTask.additionalCollectionsCount) {
             const quotedTitle = quoteMarkdown([{type: "text", value: oldPageTask.title}]);
 
-            // NOCOMMIT: Make sure this error message is tested
             throw new InvalidArgumentError(
                 "Can\u2019t change task collections by updating additional count",
                 {
