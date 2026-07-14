@@ -2947,7 +2947,7 @@ export namespace ApiSpecification {
                         content: {
                             readonly "application/json": {
                                 readonly spaceId: components["schemas"]["SpaceId"];
-                                readonly collection?: components["schemas"]["TaskCollectionPreview_Response"];
+                                readonly collection: components["schemas"]["TaskCollectionPreview_Response"];
                             };
                         };
                     };

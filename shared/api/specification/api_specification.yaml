@@ -1927,7 +1927,7 @@ paths:
                         application/json:
                             schema:
                                 type: object
-                                required: [spaceId, reference]
+                                required: [spaceId, collection]
                                 additionalProperties: false
                                 properties:
                                     spaceId:
@@ -5776,11 +5776,11 @@ components:
                 parent:
                     $ref: "#/components/schemas/MessageContentPayloadParent"
                 content:
-                    $ref: "#/components/schemas/Content_Response"
+                    $ref: "#/components/schemas/Content"
                 files:
                     type: array
                     items:
-                        $ref: "#/components/schemas/MessageContentPayloadFile_Response"
+                        $ref: "#/components/schemas/MessageContentPayloadFile"
 
         MessageContentPayloadFile:
             type: object

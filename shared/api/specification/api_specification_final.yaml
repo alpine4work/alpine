@@ -2095,7 +2095,7 @@ paths:
                                 type: object
                                 required:
                                     - spaceId
-                                    - reference
+                                    - collection
                                 additionalProperties: false
                                 properties:
                                     spaceId:
