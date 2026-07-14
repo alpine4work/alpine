@@ -1495,6 +1495,81 @@ test("updates only task collections while leaving its other fields unchanged", a
     ]);
 });
 
+test("rejects updating the additional task collection count", async () => {
+    const task1 = createApiTaskMock({index: 0});
+    const task2 = createApiTaskMock({
+        index: 1,
+        collections: [
+            {name: "Engineering"},
+            {name: "Design"},
+            {name: "Product"},
+            {name: "Planning"},
+            {name: "Marketing"},
+        ],
+    });
+    const tasks = [task1, task2];
+    const {collection} = mockGetApiTaskCollectionTasks(api, {
+        spaceId,
+        totalTaskCount: tasks.length,
+        limit: 31,
+        createTask: index => tasks[index]!,
+    });
+
+    await storeAgentWebPageLinkForTest(storage, collection);
+
+    await callAgentWebReadTool(context, {
+        path: "/task-collection/test-task-collection",
+        limit: "50kb",
+    });
+
+    await expectInvalidUpdateDisplayMessage({
+        updates: [{old: "and 2 more", new: "and 3 more", replaceAll: false}],
+        expected:
+            "Can\u2019t change a task\u2019s collections by updating \u201Cand 2 more\u201D to \u201Cand 3 more\u201D " +
+            "since we don\u2019t know which underlying collections you\u2019re trying to add. Instead " +
+            "call the `read` tool for the task \u201CTest Task 1\u201D which will give you the full " +
+            "collection list for the task which you can update with the `update` tool.",
+    });
+});
+
+test("rejects decreasing the additional task collection count", async () => {
+    const task1 = createApiTaskMock({index: 0});
+    const task2 = createApiTaskMock({
+        index: 1,
+        collections: [
+            {name: "Engineering"},
+            {name: "Design"},
+            {name: "Product"},
+            {name: "Planning"},
+            {name: "Marketing"},
+            {name: "Support"},
+        ],
+    });
+    const tasks = [task1, task2];
+    const {collection} = mockGetApiTaskCollectionTasks(api, {
+        spaceId,
+        totalTaskCount: tasks.length,
+        limit: 31,
+        createTask: index => tasks[index]!,
+    });
+
+    await storeAgentWebPageLinkForTest(storage, collection);
+
+    await callAgentWebReadTool(context, {
+        path: "/task-collection/test-task-collection",
+        limit: "50kb",
+    });
+
+    await expectInvalidUpdateDisplayMessage({
+        updates: [{old: "and 3 more", new: "and 2 more", replaceAll: false}],
+        expected:
+            "Can\u2019t change a task\u2019s collections by updating \u201Cand 3 more\u201D to \u201Cand 2 more\u201D " +
+            "since we don\u2019t know which underlying collections you\u2019re trying to remove. Instead " +
+            "call the `read` tool for the task \u201CTest Task 1\u201D which will give you the full " +
+            "collection list for the task which you can update with the `update` tool.",
+    });
+});
+
 test("rejects updating task subtask counts", async () => {
     const task1 = createApiTaskMock({index: 0});
     const task2 = createApiTaskMock({
