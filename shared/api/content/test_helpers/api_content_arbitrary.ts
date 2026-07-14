@@ -397,22 +397,22 @@ export const ApiContentInlineElementWithoutCommentMarkArbitrary =
         });
     });
 
-const ApiContentInlineElementArbitraryForSimpleTable =
-    createUnionArbitrary<Exclude<ApiContentInlineElementResponse, {type: "Break"}>>({
-        Text: {
-            arbitrary: ApiContentTextInlineElementArbitrary.filter(element => {
-                // `printSimpleApiContentTableBlockElementToMarkdownIfPossible()` has to bail out
-                // in this case. So don't allow these elements in the simple table arbitrary.
-                const hasSimpleTableBailOutCase =
-                    element.marks?.some(mark => mark.type === "Code") &&
-                    element.text.includes("\\|");
+const ApiContentInlineElementArbitraryForSimpleTable = createUnionArbitrary<
+    Exclude<ApiContentInlineElementResponse, {type: "Break"}>
+>({
+    Text: {
+        arbitrary: ApiContentTextInlineElementArbitrary.filter(element => {
+            // `printSimpleApiContentTableBlockElementToMarkdownIfPossible()` has to bail out
+            // in this case. So don't allow these elements in the simple table arbitrary.
+            const hasSimpleTableBailOutCase =
+                element.marks?.some(mark => mark.type === "Code") && element.text.includes("\\|");
 
-                return !hasSimpleTableBailOutCase;
-            }),
-            weight: 50,
-        },
-        Mention: {arbitrary: ApiContentMentionInlineElementArbitrary, weight: 10},
-    });
+            return !hasSimpleTableBailOutCase;
+        }),
+        weight: 50,
+    },
+    Mention: {arbitrary: ApiContentMentionInlineElementArbitrary, weight: 10},
+});
 
 const ApiContentParagraphBlockElementArbitrary: Arbitrary<ApiContentParagraphBlockElementResponse> =
     fc.record({

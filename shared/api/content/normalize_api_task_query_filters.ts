@@ -6,13 +6,14 @@ import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
 
 /**
  * Normalizes a list of API task filters into the canonical form printed by
- * `printAgentWebTaskQueryFilters()` and returned by `parseAgentWebTaskQueryFilters()`.
- * Normalizing never changes which tasks a list of filters matches.
+ * `printAgentWebTaskQueryFilters()` and returned by
+ * `parseAgentWebTaskQueryFilters()`. Normalizing never changes which tasks a list
+ * of filters matches.
  *
  * Repeated values in a single filter are deduped keeping the first occurrence
  * (e.g. a status filter with `[Open, Open, Closed]` becomes `[Open, Closed]`).
- * This mirrors `fromApiTaskQueryFilter()` which collects these values into sets when
- * converting to the canonical `TaskQueryFilter` representation.
+ * This mirrors `fromApiTaskQueryFilter()` which collects these values into sets
+ * when converting to the canonical `TaskQueryFilter` representation.
  *
  * This gives the agent web task filter format an exact round-trip property for any
  * list of API task filters:

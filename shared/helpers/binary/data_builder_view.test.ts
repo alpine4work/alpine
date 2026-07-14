@@ -26,11 +26,7 @@ const uint8CoercionValues: ReadonlyArray<number> = [
     Number.NEGATIVE_INFINITY,
 ];
 
-const bigUint64CoercionValues: ReadonlyArray<bigint> = [
-    -1n,
-    2n ** 64n,
-    2n ** 64n + 1n,
-];
+const bigUint64CoercionValues: ReadonlyArray<bigint> = [-1n, 2n ** 64n, 2n ** 64n + 1n];
 
 const eightZeroBytes = [0, 0, 0, 0, 0, 0, 0, 0];
 
@@ -90,8 +86,8 @@ const dataBuilderViewTestCases: ReadonlyArray<DataBuilderViewTestCase> = [
     {
         name: "matches getBigUint64()",
         initialBytes: [
-            0x01, 0x23, 0x45, 0x67, 0x89, 0xab, 0xcd, 0xef, 0x08, 0x07, 0x06, 0x05, 0x04,
-            0x03, 0x02, 0x01,
+            0x01, 0x23, 0x45, 0x67, 0x89, 0xab, 0xcd, 0xef, 0x08, 0x07, 0x06, 0x05, 0x04, 0x03,
+            0x02, 0x01,
         ],
         run: view => [view.getBigUint64(0), view.getBigUint64(8, true)],
     },

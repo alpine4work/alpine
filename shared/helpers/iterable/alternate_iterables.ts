@@ -2,8 +2,8 @@
  * Returns an iterable that yields one value from each input iterable in order,
  * repeating until every iterable is exhausted.
  *
- * If an iterable ends before the others, the remaining iterables keep
- * alternating without it.
+ * If an iterable ends before the others, the remaining iterables keep alternating
+ * without it.
  */
 export function* alternateIterables<Value>(...iterables: Array<Iterable<Value>>): Iterable<Value> {
     const iterators = iterables.map(iterable => iterable[Symbol.iterator]());

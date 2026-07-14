@@ -140,9 +140,18 @@ test("adjacent FileGalleries are merged into one", () => {
 test("three adjacent single-item FileGalleries merge into one", () => {
     const content: ApiContent = {
         elements: [
-            {type: "FileGallery", rows: [{items: [{element: {type: "File", file: {id: fileId1}}}]}]},
-            {type: "FileGallery", rows: [{items: [{element: {type: "File", file: {id: fileId2}}}]}]},
-            {type: "FileGallery", rows: [{items: [{element: {type: "File", file: {id: fileId3}}}]}]},
+            {
+                type: "FileGallery",
+                rows: [{items: [{element: {type: "File", file: {id: fileId1}}}]}],
+            },
+            {
+                type: "FileGallery",
+                rows: [{items: [{element: {type: "File", file: {id: fileId2}}}]}],
+            },
+            {
+                type: "FileGallery",
+                rows: [{items: [{element: {type: "File", file: {id: fileId3}}}]}],
+            },
         ],
     };
 

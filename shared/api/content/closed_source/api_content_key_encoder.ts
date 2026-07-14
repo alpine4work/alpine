@@ -128,8 +128,7 @@ export class ApiContentKeyDecoder {
         //
         // The first byte masks out the "inline" bit since it varies per key.
         if (
-            (payloadView.getUint8(0) & 0b10111111) !==
-                (this.#entityIdHash & 0b00111111) ||
+            (payloadView.getUint8(0) & 0b10111111) !== (this.#entityIdHash & 0b00111111) ||
             payloadView.getUint8(1) !== ((this.#entityIdHash >>> 8) & 0b11111111) ||
             payloadView.getUint8(2) !== ((this.#entityIdHash >>> 16) & 0b11111111)
         ) {
