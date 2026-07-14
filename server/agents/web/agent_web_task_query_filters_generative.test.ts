@@ -63,8 +63,9 @@ function createNameFromIdForTest(id: Id): string {
 }
 
 /**
- * `printAgentWebTaskQueryFilters()` takes task filter responses with hydrated account
- * and task collection data which it uses to create agent web links on demand.
+ * `printAgentWebTaskQueryFilters()` takes task filter responses with hydrated
+ * account and task collection data which it uses to create agent web links on
+ * demand.
  */
 function hydrateApiTaskQueryFilterForTest(filter: ApiTaskQueryFilter): ApiTaskQueryFilterResponse {
     switch (filter.type) {
