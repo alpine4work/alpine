@@ -959,8 +959,7 @@ export async function updateAgentWebTaskCollectionPage(
                             {type: "text", value: oldPageTask.title},
                         ]);
 
-                        // NOCOMMIT: Test and make sure this additional detail shows up!
-                        return errorDisplayMessage`for task ${quotedTitle}`;
+                        return errorDisplayMessage` for task ${quotedTitle}`;
                     },
                 ).toString();
 
