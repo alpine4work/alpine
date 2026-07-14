@@ -19,11 +19,8 @@ import {callAgentWebUpdateTool} from "~/server/agents/web/call_agent_web_update_
 import {createAgentWebPageStoredLinkPathname} from "~/server/agents/web/create_agent_web_page_stored_link_pathname.js";
 import {createAgentWebSessionStorageForTest} from "~/server/agents/web/test_helpers/create_agent_web_session_storage_for_test.js";
 import {storeAgentWebPageLinkForTest} from "~/server/agents/web/test_helpers/store_agent_web_page_link_for_test.js";
-import {
-    InternalError,
-    InvalidArgumentError,
-    UnimplementedError,
-} from "~/shared/error/error.js";
+import {ApiTaskCollectionResponse} from "~/shared/api/specification/types/api_specification_convenience_types.js";
+import {InternalError, InvalidArgumentError, UnimplementedError} from "~/shared/error/error.js";
 import {captureResultPromise} from "~/shared/helpers/control/capture_result_promise.js";
 import {defaultTimeZone} from "~/shared/helpers/intl/time_zone.js";
 import {generateId} from "~/shared/id/id.js";
@@ -656,7 +653,7 @@ test("rejects setting an unassigned open task as active", async () => {
             },
         ],
         expected:
-            "Can\u2019t set \u201CTest Task 1\u201D task as active if there\u2019s no assignee. We don\u2019t " +
+            "Can\u2019t set the task \u201CTest Task 1\u201D as active if there\u2019s no assignee. We don\u2019t " +
             "recommend setting a task as active unless you\u2019re about to work on the task or " +
             "you know someone else is currently working on the task. Try again and either " +
             "set the task as open but inactive (e.g. `(Open)`) or set an assignee " +
@@ -823,7 +820,7 @@ test("rejects removing the assignee from an active task", async () => {
             },
         ],
         expected:
-            "Can\u2019t remove the assignee from the active \u201CTest Task 1\u201D task. An active task " +
+            "Can\u2019t remove the assignee from the active task \u201CTest Task 1\u201D. An active task " +
             "implies someone is currently working on the task and so an assignee is required " +
             "so we know who that is. Try again but set the task as inactive first (e.g. " +
             "`(Open)`).",
@@ -1528,7 +1525,7 @@ test("rejects updating task subtask counts", async () => {
             },
         ],
         expected:
-            "Can\u2019t change the \u201CTest Task 1\u201D task\u2019s subtasks by updating " +
+            "Can\u2019t change the task \u201CTest Task 1\u201D\u2019s subtasks by updating " +
             "\u201CSubtasks: 3 open, 4 closed\u201D to \u201CSubtasks: 2 open, 5 closed\u201D since we don\u2019t " +
             "know which underlying subtasks you\u2019re trying to add, remove, open, or close. " +
             "Try again with an update that leaves the `Subtasks` field unchanged.",
@@ -3904,29 +3901,602 @@ test("uses a moved cursor in a later task move", async () => {
     ]);
 });
 
-test("rejects removing a task from a collection with default filters and sorts", async () => {
+test("removes a task from a collection with a default sort", async () => {
     const task1 = createApiTaskMock({index: 0});
     const task2 = createApiTaskMock({index: 1});
     const tasks = [task1, task2];
     const {collection} = mockGetApiTaskCollectionTasks(api, {
         spaceId,
         defaults: {
+            filters: [],
+            sorts: [{type: "Priority", direction: "Descending"}],
+        },
+        totalTaskCount: tasks.length,
+        limit: 31,
+        createTask: index => tasks[index]!,
+    });
+    api.mockPatch("/tasks", {
+        params: "Any",
+        data: {
+            spaceId,
+            tasks: [{task: task2, collections: []}],
+        },
+    });
+
+    await storeAgentWebPageLinkForTest(storage, collection);
+
+    await callAgentWebReadTool(context, {
+        path: "/task-collection/test-task-collection",
+        limit: "50kb",
+    });
+
+    await expect(
+        callAgentWebUpdateTool(context, {
+            path: "/task-collection/test-task-collection",
+            updates: [
+                {
+                    old: "\n\n- [Test Task 1 (Open)](/task/test-task-1)",
+                    new: "",
+                    replaceAll: false,
+                },
+            ],
+        }),
+    ).resolves.toEqual("Update was successful.\n");
+
+    expect(getApiPatchTasksRequestHistory()).toEqual([
+        {
+            spaceId,
+            patches: [
+                {
+                    id: task2.id,
+                    patch: {type: "RemoveCollection", collectionId: collection.id},
+                },
+            ],
+        },
+    ]);
+});
+
+test("removes a task from a collection with a default sort using manual order", async () => {
+    const collection: ApiTaskCollectionResponse = {
+        id: generateId<TaskCollectionId>(),
+        name: "Test Task Collection",
+        defaults: {
+            filters: [],
+            sorts: [{type: "Priority", direction: "Descending"}],
+        },
+    };
+    const task1 = createApiTaskMock({index: 0});
+    const task2 = createApiTaskMock({index: 1});
+    const path = "/task-collection/test-task-collection?manual";
+
+    api.mockPost("/task-collections/{id}/tasks/query", {
+        params: {path: {id: collection.id}},
+        data: {
+            spaceId,
+            collection,
+            nextCursor: null,
+            tasks: [
+                {cursor: printApiTaskQueryCursorMock(0), task: task1},
+                {cursor: printApiTaskQueryCursorMock(1), task: task2},
+            ],
+        },
+    });
+    api.mockPatch("/tasks", {
+        params: "Any",
+        data: {
+            spaceId,
+            tasks: [{task: task2, collections: []}],
+        },
+    });
+
+    await storeAgentWebPageLinkForTest(storage, collection);
+
+    await callAgentWebReadTool(context, {path, limit: "50kb"});
+
+    await expect(
+        callAgentWebUpdateTool(context, {
+            path,
+            updates: [
+                {
+                    old: "\n\n- [Test Task 1 (Open)](/task/test-task-1)",
+                    new: "",
+                    replaceAll: false,
+                },
+            ],
+        }),
+    ).resolves.toEqual("Update was successful.\n");
+
+    expect(getApiPatchTasksRequestHistory()).toEqual([
+        {
+            spaceId,
+            patches: [
+                {
+                    id: task2.id,
+                    patch: {type: "RemoveCollection", collectionId: collection.id},
+                },
+            ],
+        },
+    ]);
+});
+
+test("removes a task from a collection with a sort in search params", async () => {
+    const collection = {
+        id: generateId<TaskCollectionId>(),
+        name: "Test Task Collection",
+        defaults: {filters: [], sorts: []},
+    };
+    const task1 = createApiTaskMock({index: 0});
+    const task2 = createApiTaskMock({index: 1});
+    const path = "/task-collection/test-task-collection?sort=created";
+
+    api.mockPost("/task-collections/{id}/tasks/query", {
+        params: {path: {id: collection.id}},
+        data: {
+            spaceId,
+            collection,
+            nextCursor: null,
+            tasks: [
+                {cursor: printApiTaskQueryCursorMock(0), task: task1},
+                {cursor: printApiTaskQueryCursorMock(1), task: task2},
+            ],
+        },
+    });
+    api.mockPatch("/tasks", {
+        params: "Any",
+        data: {
+            spaceId,
+            tasks: [{task: task2, collections: []}],
+        },
+    });
+
+    await storeAgentWebPageLinkForTest(storage, collection);
+
+    await callAgentWebReadTool(context, {path, limit: "50kb"});
+
+    await expect(
+        callAgentWebUpdateTool(context, {
+            path,
+            updates: [
+                {
+                    old: "\n\n- [Test Task 1 (Open)](/task/test-task-1)",
+                    new: "",
+                    replaceAll: false,
+                },
+            ],
+        }),
+    ).resolves.toEqual("Update was successful.\n");
+
+    expect(getApiPatchTasksRequestHistory()).toEqual([
+        {
+            spaceId,
+            patches: [
+                {
+                    id: task2.id,
+                    patch: {type: "RemoveCollection", collectionId: collection.id},
+                },
+            ],
+        },
+    ]);
+});
+
+test("removes a task from a collection with a default filter", async () => {
+    const task1 = createApiTaskMock({index: 0, priority: "High"});
+    const task2 = createApiTaskMock({index: 1, priority: "High"});
+    const tasks = [task1, task2];
+    const {collection} = mockGetApiTaskCollectionTasks(api, {
+        spaceId,
+        defaults: {
             filters: [
                 {
-                    type: "Status",
-                    operation: {
-                        type: "OneOf",
-                        statuses: [
-                            {type: "Open", isActive: false},
-                            {type: "Open", isActive: true},
-                        ],
+                    type: "Priority",
+                    operation: {type: "OneOf", priorities: [{type: "High"}]},
+                },
+            ],
+            sorts: [],
+        },
+        totalTaskCount: tasks.length,
+        limit: 31,
+        createTask: index => tasks[index]!,
+    });
+    api.mockPatch("/tasks", {
+        params: "Any",
+        data: {
+            spaceId,
+            tasks: [{task: task2, collections: []}],
+        },
+    });
+
+    await storeAgentWebPageLinkForTest(storage, collection);
+
+    await callAgentWebReadTool(context, {
+        path: "/task-collection/test-task-collection",
+        limit: "50kb",
+    });
+
+    await expect(
+        callAgentWebUpdateTool(context, {
+            path: "/task-collection/test-task-collection",
+            updates: [
+                {
+                    old: "\n\n- [Test Task 1 (Open)](/task/test-task-1)\n" + "  - Priority: High",
+                    new: "",
+                    replaceAll: false,
+                },
+            ],
+        }),
+    ).resolves.toEqual("Update was successful.\n");
+
+    expect(getApiPatchTasksRequestHistory()).toEqual([
+        {
+            spaceId,
+            patches: [
+                {
+                    id: task2.id,
+                    patch: {type: "RemoveCollection", collectionId: collection.id},
+                },
+            ],
+        },
+    ]);
+});
+
+test("removes a task from a collection with a filter in search params", async () => {
+    const collection = {
+        id: generateId<TaskCollectionId>(),
+        name: "Test Task Collection",
+        defaults: {filters: [], sorts: []},
+    };
+    const task1 = createApiTaskMock({index: 0, priority: "High"});
+    const task2 = createApiTaskMock({index: 1, priority: "High"});
+    const path = "/task-collection/test-task-collection?priority=high";
+
+    api.mockPost("/task-collections/{id}/tasks/query", {
+        params: {path: {id: collection.id}},
+        data: {
+            spaceId,
+            collection,
+            nextCursor: null,
+            tasks: [
+                {cursor: printApiTaskQueryCursorMock(0), task: task1},
+                {cursor: printApiTaskQueryCursorMock(1), task: task2},
+            ],
+        },
+    });
+    api.mockPatch("/tasks", {
+        params: "Any",
+        data: {
+            spaceId,
+            tasks: [{task: task2, collections: []}],
+        },
+    });
+
+    await storeAgentWebPageLinkForTest(storage, collection);
+
+    await callAgentWebReadTool(context, {path, limit: "50kb"});
+
+    await expect(
+        callAgentWebUpdateTool(context, {
+            path,
+            updates: [
+                {
+                    old: "\n\n- [Test Task 1 (Open)](/task/test-task-1)\n" + "  - Priority: High",
+                    new: "",
+                    replaceAll: false,
+                },
+            ],
+        }),
+    ).resolves.toEqual("Update was successful.\n");
+
+    expect(getApiPatchTasksRequestHistory()).toEqual([
+        {
+            spaceId,
+            patches: [
+                {
+                    id: task2.id,
+                    patch: {type: "RemoveCollection", collectionId: collection.id},
+                },
+            ],
+        },
+    ]);
+});
+
+test("rejects adding a task to a collection with a default sort", async () => {
+    const task1 = createApiTaskMock({index: 0});
+    const task2 = createApiTaskMock({index: 1});
+    const newTask = createApiTaskMock({index: 2});
+    const tasks = [task1, task2];
+    const {collection} = mockGetApiTaskCollectionTasks(api, {
+        spaceId,
+        defaults: {
+            filters: [],
+            sorts: [{type: "Priority", direction: "Descending"}],
+        },
+        totalTaskCount: tasks.length,
+        limit: 31,
+        createTask: index => tasks[index]!,
+    });
+
+    await storeAgentWebPageLinkForTest(storage, [collection, newTask]);
+
+    await callAgentWebReadTool(context, {
+        path: "/task-collection/test-task-collection",
+        limit: "50kb",
+    });
+
+    await expectInvalidUpdateDisplayMessage({
+        updates: [
+            {
+                old: "- [Test Task 1 (Open)](/task/test-task-1)",
+                new:
+                    "- [Test Task 1 (Open)](/task/test-task-1)\n\n" +
+                    "- [Test Task 2 (Open)](/task/test-task-2)",
+                replaceAll: false,
+            },
+        ],
+        expected:
+            "Tasks may only be added to task collection markdown when the collection is " +
+            "sorted manually. A collection is manually sorted when no automatic sorts are " +
+            "applied. That means there are no default sorts/filters and there is no " +
+            "`?sort` (or filter) in the path passed to the `read` tool. To add tasks to an " +
+            "automatically sorted collection, use the `read` tool to read an individual " +
+            "task and add a collection to the task\u2019s \u201CCollections\u201D field with the " +
+            "`update` tool. Try again without adding new tasks.",
+    });
+});
+
+test("adds a task to a collection with a default sort using manual order", async () => {
+    const collection: ApiTaskCollectionResponse = {
+        id: generateId<TaskCollectionId>(),
+        name: "Test Task Collection",
+        defaults: {
+            filters: [],
+            sorts: [{type: "Priority", direction: "Descending"}],
+        },
+    };
+    const task1 = createApiTaskMock({index: 0});
+    const task2 = createApiTaskMock({index: 1});
+    const newTask = createApiTaskMock({index: 2});
+    const path = "/task-collection/test-task-collection?manual";
+
+    api.mockPost("/task-collections/{id}/tasks/query", {
+        params: {path: {id: collection.id}},
+        data: {
+            spaceId,
+            collection,
+            nextCursor: null,
+            tasks: [
+                {cursor: printApiTaskQueryCursorMock(0), task: task1},
+                {cursor: printApiTaskQueryCursorMock(1), task: task2},
+            ],
+        },
+    });
+    api.mockPatch("/tasks", {
+        params: "Any",
+        data: {
+            spaceId,
+            tasks: [
+                {
+                    task: newTask,
+                    collections: [
+                        {
+                            movedCursor: printApiTaskQueryCursorMock(2),
+                            collection,
+                        },
+                    ],
+                },
+            ],
+        },
+    });
+
+    await storeAgentWebPageLinkForTest(storage, [collection, newTask]);
+
+    await callAgentWebReadTool(context, {path, limit: "50kb"});
+
+    await expect(
+        callAgentWebUpdateTool(context, {
+            path,
+            updates: [
+                {
+                    old: "- [Test Task 1 (Open)](/task/test-task-1)",
+                    new:
+                        "- [Test Task 1 (Open)](/task/test-task-1)\n\n" +
+                        "- [Test Task 2 (Open)](/task/test-task-2)",
+                    replaceAll: false,
+                },
+            ],
+        }),
+    ).resolves.toEqual("Update was successful.\n");
+
+    expect(getApiPatchTasksRequestHistory()).toEqual([
+        {
+            spaceId,
+            patches: [
+                {
+                    id: newTask.id,
+                    patch: {
+                        type: "AddCollection",
+                        item: {
+                            collection: {
+                                type: "TaskCollection",
+                                id: collection.id,
+                                title: "Test Task Collection",
+                            },
+                        },
+                    },
+                },
+                {
+                    id: newTask.id,
+                    patch: {
+                        type: "MoveInCollection",
+                        collectionId: collection.id,
+                        position: {type: "End"},
                     },
                 },
             ],
-            sorts: [
-                {type: "Priority", direction: "Descending"},
-                {type: "Due", direction: "Ascending"},
+        },
+    ]);
+});
+
+test("rejects adding a task to a collection with a sort in search params", async () => {
+    const collection = {
+        id: generateId<TaskCollectionId>(),
+        name: "Test Task Collection",
+        defaults: {filters: [], sorts: []},
+    };
+    const task1 = createApiTaskMock({index: 0});
+    const task2 = createApiTaskMock({index: 1});
+    const newTask = createApiTaskMock({index: 2});
+    const path = "/task-collection/test-task-collection?sort=created";
+
+    api.mockPost("/task-collections/{id}/tasks/query", {
+        params: {path: {id: collection.id}},
+        data: {
+            spaceId,
+            collection,
+            nextCursor: null,
+            tasks: [
+                {cursor: printApiTaskQueryCursorMock(0), task: task1},
+                {cursor: printApiTaskQueryCursorMock(1), task: task2},
             ],
+        },
+    });
+
+    await storeAgentWebPageLinkForTest(storage, [collection, newTask]);
+
+    await callAgentWebReadTool(context, {path, limit: "50kb"});
+
+    await expectInvalidUpdateDisplayMessage({
+        path,
+        updates: [
+            {
+                old: "- [Test Task 1 (Open)](/task/test-task-1)",
+                new:
+                    "- [Test Task 1 (Open)](/task/test-task-1)\n\n" +
+                    "- [Test Task 2 (Open)](/task/test-task-2)",
+                replaceAll: false,
+            },
+        ],
+        expected:
+            "Tasks may only be added to task collection markdown when the collection is " +
+            "sorted manually. A collection is manually sorted when no automatic sorts are " +
+            "applied. That means there are no default sorts/filters and there is no " +
+            "`?sort` (or filter) in the path passed to the `read` tool. To add tasks to an " +
+            "automatically sorted collection, use the `read` tool to read an individual " +
+            "task and add a collection to the task\\u2019s \u201CCollections\u201D field with the " +
+            "`update` tool. Try again without adding new tasks.",
+    });
+});
+
+test("rejects adding a task to a collection with a default filter", async () => {
+    const task1 = createApiTaskMock({index: 0, priority: "High"});
+    const task2 = createApiTaskMock({index: 1, priority: "High"});
+    const newTask = createApiTaskMock({index: 2, priority: "High"});
+    const tasks = [task1, task2];
+    const {collection} = mockGetApiTaskCollectionTasks(api, {
+        spaceId,
+        defaults: {
+            filters: [
+                {
+                    type: "Priority",
+                    operation: {type: "OneOf", priorities: [{type: "High"}]},
+                },
+            ],
+            sorts: [],
+        },
+        totalTaskCount: tasks.length,
+        limit: 31,
+        createTask: index => tasks[index]!,
+    });
+
+    await storeAgentWebPageLinkForTest(storage, [collection, newTask]);
+
+    await callAgentWebReadTool(context, {
+        path: "/task-collection/test-task-collection",
+        limit: "50kb",
+    });
+
+    await expectInvalidUpdateDisplayMessage({
+        updates: [
+            {
+                old: "- [Test Task 1 (Open)](/task/test-task-1)\n  - Priority: High",
+                new:
+                    "- [Test Task 1 (Open)](/task/test-task-1)\n" +
+                    "  - Priority: High\n\n" +
+                    "- [Test Task 2 (Open)](/task/test-task-2)\n" +
+                    "  - Priority: High",
+                replaceAll: false,
+            },
+        ],
+        expected:
+            "Tasks may only be added to task collection markdown when the collection is " +
+            "sorted manually. A collection is manually sorted when no automatic sorts are " +
+            "applied. That means there are no default sorts/filters and there is no " +
+            "`?sort` (or filter) in the path passed to the `read` tool. To add tasks to an " +
+            "automatically sorted collection, use the `read` tool to read an individual " +
+            "task and add a collection to the task\\u2019s \u201CCollections\u201D field with the " +
+            "`update` tool. Try again without adding new tasks.",
+    });
+});
+
+test("rejects adding a task to a collection with a filter in search params", async () => {
+    const collection = {
+        id: generateId<TaskCollectionId>(),
+        name: "Test Task Collection",
+        defaults: {filters: [], sorts: []},
+    };
+    const task1 = createApiTaskMock({index: 0, priority: "High"});
+    const task2 = createApiTaskMock({index: 1, priority: "High"});
+    const newTask = createApiTaskMock({index: 2, priority: "High"});
+    const path = "/task-collection/test-task-collection?priority=high";
+
+    api.mockPost("/task-collections/{id}/tasks/query", {
+        params: {path: {id: collection.id}},
+        data: {
+            spaceId,
+            collection,
+            nextCursor: null,
+            tasks: [
+                {cursor: printApiTaskQueryCursorMock(0), task: task1},
+                {cursor: printApiTaskQueryCursorMock(1), task: task2},
+            ],
+        },
+    });
+    await storeAgentWebPageLinkForTest(storage, [collection, newTask]);
+
+    await callAgentWebReadTool(context, {path, limit: "50kb"});
+
+    await expectInvalidUpdateDisplayMessage({
+        path,
+        updates: [
+            {
+                old: "- [Test Task 1 (Open)](/task/test-task-1)\n  - Priority: High",
+                new:
+                    "- [Test Task 1 (Open)](/task/test-task-1)\n" +
+                    "  - Priority: High\n\n" +
+                    "- [Test Task 2 (Open)](/task/test-task-2)\n" +
+                    "  - Priority: High",
+                replaceAll: false,
+            },
+        ],
+        expected:
+            "Tasks may only be added to task collection markdown when the collection is " +
+            "sorted manually. A collection is manually sorted when no automatic sorts are " +
+            "applied. That means there are no default sorts/filters and there is no " +
+            "`?sort` (or filter) in the path passed to the `read` tool. To add tasks to an " +
+            "automatically sorted collection, use the `read` tool to read an individual " +
+            "task and add a collection to the task\\u2019s \u201CCollections\u201D field with the " +
+            "`update` tool. Try again without adding new tasks.",
+    });
+});
+
+test("rejects moving a task in a collection with a default sort", async () => {
+    const task1 = createApiTaskMock({index: 0});
+    const task2 = createApiTaskMock({index: 1});
+    const tasks = [task1, task2];
+    const {collection} = mockGetApiTaskCollectionTasks(api, {
+        spaceId,
+        defaults: {
+            filters: [],
+            sorts: [{type: "Priority", direction: "Descending"}],
         },
         totalTaskCount: tasks.length,
         limit: 31,
@@ -3943,27 +4513,115 @@ test("rejects removing a task from a collection with default filters and sorts",
     await expectInvalidUpdateDisplayMessage({
         updates: [
             {
-                old: "\n\n- [Test Task 1 (Open)](/task/test-task-1)",
+                old: "- [Test Task 0 (Open)](/task/test-task-0)\n\n",
                 new: "",
+                replaceAll: false,
+            },
+            {
+                old: "- [Test Task 1 (Open)](/task/test-task-1)",
+                new:
+                    "- [Test Task 1 (Open)](/task/test-task-1)\n\n" +
+                    "- [Test Task 0 (Open)](/task/test-task-0)",
                 replaceAll: false,
             },
         ],
         expected:
-            "Tasks may only be added, removed, or reordered when a task collection is " +
-            "sorted manually. A collection is manually sorted when no automatic sorts " +
-            "are applied. That means there are no default filters/sorts and there is no " +
-            "`?sort` in the path passed to the `read` tool. To reorder tasks in an " +
-            "automatically sorted collection, look at the collection\u2019s sorts and update " +
-            "the task\u2019s fields to reorder it (for example, if a collection is sorted by " +
-            "`?sort=priority` then updating a task\u2019s priority will move it). If you are " +
-            "updating a task\u2019s fields in an automatically sorted collection, you don\u2019t " +
-            "have to move the task yourself with the `update` tool. The task will be moved " +
-            "automatically, you can call the `read` tool again with the collection to see " +
-            "the new order. Try again without reordering, adding, or removing tasks.",
+            "Tasks may only be reordered in task collection markdown when the collection " +
+            "is sorted manually. A collection is manually sorted when no automatic sorts " +
+            "are applied. That means there are no default sorts/filters and there is no " +
+            "`?sort` (or filter) in the path passed to the `read` tool. To reorder tasks in " +
+            "an automatically sorted collection, look at the collection\u2019s sorts and " +
+            "update the corresponding fields in the task (for example, if a collection is " +
+            "sorted by `?sort=priority` then updating a task\u2019s priority will move it). If " +
+            "you are updating a task\u2019s fields in an automatically sorted collection, you " +
+            "shouldn\u2019t move the task yourself with the `update` tool because the task will " +
+            "be moved automatically. Instead read the collection again with the `read` " +
+            "tool after your update to see the new order. Try again without reordering " +
+            "tasks.",
     });
 });
 
-test("rejects removing a task from a collection page with URL sorts", async () => {
+test("moves a task in a collection with a default sort using manual order", async () => {
+    const collection: ApiTaskCollectionResponse = {
+        id: generateId<TaskCollectionId>(),
+        name: "Test Task Collection",
+        defaults: {
+            filters: [],
+            sorts: [{type: "Priority", direction: "Descending"}],
+        },
+    };
+    const task1 = createApiTaskMock({index: 0});
+    const task2 = createApiTaskMock({index: 1});
+    const path = "/task-collection/test-task-collection?manual";
+    const movedCursor = printApiTaskQueryCursorMock(2);
+
+    api.mockPost("/task-collections/{id}/tasks/query", {
+        params: {path: {id: collection.id}},
+        data: {
+            spaceId,
+            collection,
+            nextCursor: null,
+            tasks: [
+                {cursor: printApiTaskQueryCursorMock(0), task: task1},
+                {cursor: printApiTaskQueryCursorMock(1), task: task2},
+            ],
+        },
+    });
+    api.mockPatch("/tasks", {
+        params: "Any",
+        data: {
+            spaceId,
+            tasks: [
+                {
+                    task: task1,
+                    collections: [{movedCursor, collection}],
+                },
+            ],
+        },
+    });
+
+    await storeAgentWebPageLinkForTest(storage, collection);
+
+    await callAgentWebReadTool(context, {path, limit: "50kb"});
+
+    await expect(
+        callAgentWebUpdateTool(context, {
+            path,
+            updates: [
+                {
+                    old: "- [Test Task 0 (Open)](/task/test-task-0)\n\n",
+                    new: "",
+                    replaceAll: false,
+                },
+                {
+                    old: "- [Test Task 1 (Open)](/task/test-task-1)",
+                    new:
+                        "- [Test Task 1 (Open)](/task/test-task-1)\n\n" +
+                        "- [Test Task 0 (Open)](/task/test-task-0)",
+                    replaceAll: false,
+                },
+            ],
+        }),
+    ).resolves.toEqual("Update was successful.\n");
+
+    expect(getApiPatchTasksRequestHistory()).toEqual([
+        {
+            spaceId,
+            patches: [
+                {
+                    id: task1.id,
+                    patch: {
+                        type: "MoveInCollection",
+                        collectionId: collection.id,
+                        position: {type: "End"},
+                    },
+                },
+            ],
+        },
+    ]);
+});
+
+test("rejects moving a task in a collection with a sort in search params", async () => {
     const collection = {
         id: generateId<TaskCollectionId>(),
         name: "Test Task Collection",
@@ -3994,23 +4652,151 @@ test("rejects removing a task from a collection page with URL sorts", async () =
         path,
         updates: [
             {
-                old: "\n\n- [Test Task 1 (Open)](/task/test-task-1)",
+                old: "- [Test Task 0 (Open)](/task/test-task-0)\n\n",
                 new: "",
+                replaceAll: false,
+            },
+            {
+                old: "- [Test Task 1 (Open)](/task/test-task-1)",
+                new:
+                    "- [Test Task 1 (Open)](/task/test-task-1)\n\n" +
+                    "- [Test Task 0 (Open)](/task/test-task-0)",
                 replaceAll: false,
             },
         ],
         expected:
-            "Tasks may only be added, removed, or reordered when a task collection is " +
-            "sorted manually. A collection is manually sorted when no automatic sorts " +
-            "are applied. That means there are no default filters/sorts and there is no " +
-            "`?sort` in the path passed to the `read` tool. To reorder tasks in an " +
-            "automatically sorted collection, look at the collection\u2019s sorts and update " +
-            "the task\u2019s fields to reorder it (for example, if a collection is sorted by " +
-            "`?sort=priority` then updating a task\u2019s priority will move it). If you are " +
-            "updating a task\u2019s fields in an automatically sorted collection, you don\u2019t " +
-            "have to move the task yourself with the `update` tool. The task will be moved " +
-            "automatically, you can call the `read` tool again with the collection to see " +
-            "the new order. Try again without reordering, adding, or removing tasks.",
+            "Tasks may only be reordered in task collection markdown when the collection " +
+            "is sorted manually. A collection is manually sorted when no automatic sorts " +
+            "are applied. That means there are no default sorts/filters and there is no " +
+            "`?sort` (or filter) in the path passed to the `read` tool. To reorder tasks in " +
+            "an automatically sorted collection, look at the collection\u2019s sorts and " +
+            "update the corresponding fields in the task (for example, if a collection is " +
+            "sorted by `?sort=priority` then updating a task\u2019s priority will move it). If " +
+            "you are updating a task\u2019s fields in an automatically sorted collection, you " +
+            "shouldn\u2019t move the task yourself with the `update` tool because the task will " +
+            "be moved automatically. Instead read the collection again with the `read` " +
+            "tool after your update to see the new order. Try again without reordering " +
+            "tasks.",
+    });
+});
+
+test("rejects moving a task in a collection with a default filter", async () => {
+    const task1 = createApiTaskMock({index: 0, priority: "High"});
+    const task2 = createApiTaskMock({index: 1, priority: "High"});
+    const tasks = [task1, task2];
+    const {collection} = mockGetApiTaskCollectionTasks(api, {
+        spaceId,
+        defaults: {
+            filters: [
+                {
+                    type: "Priority",
+                    operation: {type: "OneOf", priorities: [{type: "High"}]},
+                },
+            ],
+            sorts: [],
+        },
+        totalTaskCount: tasks.length,
+        limit: 31,
+        createTask: index => tasks[index]!,
+    });
+
+    await storeAgentWebPageLinkForTest(storage, collection);
+
+    await callAgentWebReadTool(context, {
+        path: "/task-collection/test-task-collection",
+        limit: "50kb",
+    });
+
+    await expectInvalidUpdateDisplayMessage({
+        updates: [
+            {
+                old: "- [Test Task 0 (Open)](/task/test-task-0)\n" + "  - Priority: High\n\n",
+                new: "",
+                replaceAll: false,
+            },
+            {
+                old: "- [Test Task 1 (Open)](/task/test-task-1)\n  - Priority: High",
+                new:
+                    "- [Test Task 1 (Open)](/task/test-task-1)\n" +
+                    "  - Priority: High\n\n" +
+                    "- [Test Task 0 (Open)](/task/test-task-0)\n" +
+                    "  - Priority: High",
+                replaceAll: false,
+            },
+        ],
+        expected:
+            "Tasks may only be reordered in task collection markdown when the collection " +
+            "is sorted manually. A collection is manually sorted when no automatic sorts " +
+            "are applied. That means there are no default sorts/filters and there is no " +
+            "`?sort` (or filter) in the path passed to the `read` tool. To reorder tasks in " +
+            "an automatically sorted collection, look at the collection\u2019s sorts and " +
+            "update the corresponding fields in the task (for example, if a collection is " +
+            "sorted by `?sort=priority` then updating a task\u2019s priority will move it). If " +
+            "you are updating a task\u2019s fields in an automatically sorted collection, you " +
+            "shouldn\u2019t move the task yourself with the `update` tool because the task will " +
+            "be moved automatically. Instead read the collection again with the `read` " +
+            "tool after your update to see the new order. Try again without reordering " +
+            "tasks.",
+    });
+});
+
+test("rejects moving a task in a collection with a filter in search params", async () => {
+    const collection = {
+        id: generateId<TaskCollectionId>(),
+        name: "Test Task Collection",
+        defaults: {filters: [], sorts: []},
+    };
+    const task1 = createApiTaskMock({index: 0, priority: "High"});
+    const task2 = createApiTaskMock({index: 1, priority: "High"});
+    const path = "/task-collection/test-task-collection?priority=high";
+
+    api.mockPost("/task-collections/{id}/tasks/query", {
+        params: {path: {id: collection.id}},
+        data: {
+            spaceId,
+            collection,
+            nextCursor: null,
+            tasks: [
+                {cursor: printApiTaskQueryCursorMock(0), task: task1},
+                {cursor: printApiTaskQueryCursorMock(1), task: task2},
+            ],
+        },
+    });
+    await storeAgentWebPageLinkForTest(storage, collection);
+
+    await callAgentWebReadTool(context, {path, limit: "50kb"});
+
+    await expectInvalidUpdateDisplayMessage({
+        path,
+        updates: [
+            {
+                old: "- [Test Task 0 (Open)](/task/test-task-0)\n" + "  - Priority: High\n\n",
+                new: "",
+                replaceAll: false,
+            },
+            {
+                old: "- [Test Task 1 (Open)](/task/test-task-1)\n  - Priority: High",
+                new:
+                    "- [Test Task 1 (Open)](/task/test-task-1)\n" +
+                    "  - Priority: High\n\n" +
+                    "- [Test Task 0 (Open)](/task/test-task-0)\n" +
+                    "  - Priority: High",
+                replaceAll: false,
+            },
+        ],
+        expected:
+            "Tasks may only be reordered in task collection markdown when the collection " +
+            "is sorted manually. A collection is manually sorted when no automatic sorts " +
+            "are applied. That means there are no default sorts/filters and there is no " +
+            "`?sort` (or filter) in the path passed to the `read` tool. To reorder tasks in " +
+            "an automatically sorted collection, look at the collection\u2019s sorts and " +
+            "update the corresponding fields in the task (for example, if a collection is " +
+            "sorted by `?sort=priority` then updating a task\u2019s priority will move it). If " +
+            "you are updating a task\u2019s fields in an automatically sorted collection, you " +
+            "shouldn\u2019t move the task yourself with the `update` tool because the task will " +
+            "be moved automatically. Instead read the collection again with the `read` " +
+            "tool after your update to see the new order. Try again without reordering " +
+            "tasks.",
     });
 });
 
@@ -4234,7 +5020,40 @@ test("rejects replacing a task link path with a duplicate task", async () => {
             },
         ],
         expected:
-            "The \u201CTest Task 1\u201D task appears more than once on this task collection page. " +
+            "The task \u201CTest Task 1\u201D appears more than once on this task collection page. " +
+            "Each task may only appear once. Try again after removing the duplicate task " +
+            "link.",
+    });
+});
+
+test("rejects duplicating a task link path", async () => {
+    const task1 = createApiTaskMock({index: 0});
+    const task2 = createApiTaskMock({index: 1});
+    const tasks = [task1, task2];
+    const {collection} = mockGetApiTaskCollectionTasks(api, {
+        spaceId,
+        totalTaskCount: tasks.length,
+        limit: 31,
+        createTask: index => tasks[index]!,
+    });
+
+    await storeAgentWebPageLinkForTest(storage, collection);
+
+    await callAgentWebReadTool(context, {
+        path: "/task-collection/test-task-collection",
+        limit: "50kb",
+    });
+
+    await expectInvalidUpdateDisplayMessage({
+        updates: [
+            {
+                old: "- [Test Task 0 (Open)](/task/test-task-0)",
+                new: "- [Test Task 0 (Open)](/task/test-task-0)\n\n- [Test Task 1 (Open)](/task/test-task-1)",
+                replaceAll: false,
+            },
+        ],
+        expected:
+            "The task \u201CTest Task 1\u201D appears more than once on this task collection page. " +
             "Each task may only appear once. Try again after removing the duplicate task " +
             "link.",
     });
