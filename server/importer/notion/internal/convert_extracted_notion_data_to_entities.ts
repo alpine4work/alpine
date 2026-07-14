@@ -1254,7 +1254,7 @@ function transformTableFileLinksToFileRowTables(
                 if (files) {
                     changed = true;
                     for (const file of files) {
-                        newElements.push({type: "File", id: file.fileId});
+                        newElements.push({type: "File", file: {id: file.fileId}});
                     }
                 } else {
                     newElements.push(cellElement);
@@ -1304,7 +1304,7 @@ function transformFileLinksToFileElementsIfPossible(
             if (batch.length === 1) {
                 result.push({
                     type: "File",
-                    id: assertExists(batch[0]).fileId,
+                    file: {id: assertExists(batch[0]).fileId},
                 });
             } else {
                 result.push({
@@ -1314,7 +1314,7 @@ function transformFileLinksToFileElementsIfPossible(
                             items: batch.map(file => ({
                                 element: {
                                     type: "File" as const,
-                                    id: file.fileId,
+                                    file: {id: file.fileId},
                                 },
                             })),
                         },

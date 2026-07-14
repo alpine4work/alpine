@@ -24,6 +24,7 @@ import {assert} from "~/shared/helpers/control/assert.js";
 import {getOrSetDefaultMapValue} from "~/shared/helpers/map/get_or_set_default_map_value.js";
 import {hasOwnProperty} from "~/shared/helpers/object/has_own_property.js";
 import {isObject} from "~/shared/helpers/object/is_object.js";
+import {convertKebabCaseToPascalCase} from "~/shared/helpers/string/convert_kebab_case_to_pascal_case.js";
 import {quote} from "~/shared/helpers/string/quote.js";
 import {idRegExp} from "~/shared/id/id_reg_exp.js";
 import {maxLabelStringLength} from "~/shared/schema/helpers/label_string_schema.js";
@@ -334,14 +335,21 @@ ${codeBlockLanguageDefinitionMapContent}};\n`;
         const typeName = "Api" + schemaName + "Response";
 
         // eslint-disable-next-line cyberworlds/string-quotes
-        specificationConvenienceTypesContent += `export type ${typeName} = ApiSpecification.components["responses"]["${schemaName}"];\n\n`;
+        specificationConvenienceTypesContent += `export type ${typeName} = ApiSpecification.components["responses"]["${schemaName}"]["content"]["application/json"];\n\n`;
     }
 
     for (const schemaName of Object.keys(parsedSpecification.components.requestBodies)) {
         const typeName = "Api" + schemaName + "RequestBody";
 
         // eslint-disable-next-line cyberworlds/string-quotes
-        specificationConvenienceTypesContent += `export type ${typeName} = ApiSpecification.components["requestBodies"]["${schemaName}"];\n\n`;
+        specificationConvenienceTypesContent += `export type ${typeName} = ApiSpecification.components["requestBodies"]["${schemaName}"]["content"]["application/json"];\n\n`;
+    }
+
+    for (const schemaName of Object.keys(parsedSpecification.webhooks)) {
+        const typeName = "Api" + convertKebabCaseToPascalCase(schemaName) + "WebhookRequestBody";
+
+        // eslint-disable-next-line cyberworlds/string-quotes
+        specificationConvenienceTypesContent += `export type ${typeName} = ApiSpecification.webhooks["${schemaName}"]["post"]["requestBody"]["content"]["application/json"];\n\n`;
     }
 
     specificationConvenienceTypesContent = await prettier.format(

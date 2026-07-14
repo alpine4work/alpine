@@ -1181,49 +1181,62 @@ export type ApiMessageExperimentalApprovalDecisionOptionResponse =
 export type ApiMessageExperimentalApprovalDecisionSchemaResponse =
     ApiSpecification.components["schemas"]["MessageExperimentalApprovalDecisionSchema_Response"];
 
-export type ApiErrorResponse = ApiSpecification.components["responses"]["Error"];
+export type ApiErrorResponse =
+    ApiSpecification.components["responses"]["Error"]["content"]["application/json"];
 
-export type ApiGetChatResponse = ApiSpecification.components["responses"]["GetChat"];
+export type ApiGetChatResponse =
+    ApiSpecification.components["responses"]["GetChat"]["content"]["application/json"];
 
-export type ApiGetDocumentResponse = ApiSpecification.components["responses"]["GetDocument"];
+export type ApiGetDocumentResponse =
+    ApiSpecification.components["responses"]["GetDocument"]["content"]["application/json"];
 
-export type ApiGetTaskResponse = ApiSpecification.components["responses"]["GetTask"];
+export type ApiGetTaskResponse =
+    ApiSpecification.components["responses"]["GetTask"]["content"]["application/json"];
 
-export type ApiPatchTaskResponse = ApiSpecification.components["responses"]["PatchTask"];
+export type ApiPatchTaskResponse =
+    ApiSpecification.components["responses"]["PatchTask"]["content"]["application/json"];
 
-export type ApiPatchTasksResponse = ApiSpecification.components["responses"]["PatchTasks"];
+export type ApiPatchTasksResponse =
+    ApiSpecification.components["responses"]["PatchTasks"]["content"]["application/json"];
 
-export type ApiGetTaskNotesResponse = ApiSpecification.components["responses"]["GetTaskNotes"];
+export type ApiGetTaskNotesResponse =
+    ApiSpecification.components["responses"]["GetTaskNotes"]["content"]["application/json"];
 
 export type ApiGetTaskCollectionTasksResponse =
-    ApiSpecification.components["responses"]["GetTaskCollectionTasks"];
+    ApiSpecification.components["responses"]["GetTaskCollectionTasks"]["content"]["application/json"];
 
-export type ApiGetMessageResponse = ApiSpecification.components["responses"]["GetMessage"];
+export type ApiGetMessageResponse =
+    ApiSpecification.components["responses"]["GetMessage"]["content"]["application/json"];
 
-export type ApiGetMessagesResponse = ApiSpecification.components["responses"]["GetMessages"];
+export type ApiGetMessagesResponse =
+    ApiSpecification.components["responses"]["GetMessages"]["content"]["application/json"];
 
 export type ApiGetMessageExperimentalApprovalsResponse =
-    ApiSpecification.components["responses"]["GetMessageExperimentalApprovals"];
+    ApiSpecification.components["responses"]["GetMessageExperimentalApprovals"]["content"]["application/json"];
 
 export type ApiGetMessageStreamCompletionResponse =
-    ApiSpecification.components["responses"]["GetMessageStreamCompletion"];
+    ApiSpecification.components["responses"]["GetMessageStreamCompletion"]["content"]["application/json"];
 
 export type ApiGetMessageStreamPingResponse =
-    ApiSpecification.components["responses"]["GetMessageStreamPing"];
+    ApiSpecification.components["responses"]["GetMessageStreamPing"]["content"]["application/json"];
 
 export type ApiGetMessageStreamPartResponse =
-    ApiSpecification.components["responses"]["GetMessageStreamPart"];
+    ApiSpecification.components["responses"]["GetMessageStreamPart"]["content"]["application/json"];
 
-export type ApiGetPostResponse = ApiSpecification.components["responses"]["GetPost"];
+export type ApiGetPostResponse =
+    ApiSpecification.components["responses"]["GetPost"]["content"]["application/json"];
 
 export type ApiCreateMessageRequestBody =
-    ApiSpecification.components["requestBodies"]["CreateMessage"];
+    ApiSpecification.components["requestBodies"]["CreateMessage"]["content"]["application/json"];
 
 export type ApiPutMessageExperimentalApprovalsPendingDecisionRequestBody =
-    ApiSpecification.components["requestBodies"]["PutMessageExperimentalApprovalsPendingDecision"];
+    ApiSpecification.components["requestBodies"]["PutMessageExperimentalApprovalsPendingDecision"]["content"]["application/json"];
 
 export type ApiPatchMessageExperimentalApprovalsRequestBody =
-    ApiSpecification.components["requestBodies"]["PatchMessageExperimentalApprovals"];
+    ApiSpecification.components["requestBodies"]["PatchMessageExperimentalApprovals"]["content"]["application/json"];
 
 export type ApiPutMessageStreamPartRequestBody =
-    ApiSpecification.components["requestBodies"]["PutMessageStreamPart"];
+    ApiSpecification.components["requestBodies"]["PutMessageStreamPart"]["content"]["application/json"];
+
+export type ApiBotWebhookRequestBody =
+    ApiSpecification.webhooks["bot"]["post"]["requestBody"]["content"]["application/json"];

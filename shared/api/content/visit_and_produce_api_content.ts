@@ -5,6 +5,10 @@ import {
     visitApiContentBlockElement,
     visitApiContentInlineElements,
 } from "~/shared/api/content/visit_api_content.js";
+import {
+    ApiContentBlockElementWithOptionalKeys,
+    ApiContentWithOptionalKeys,
+} from "~/shared/api/specification/types/api_content_response_without_keys.js";
 import {ApiReference} from "~/shared/api/specification/types/api_reference.js";
 import {
     ApiContent,
@@ -42,12 +46,12 @@ export type ApiContentDraftVisitor = {
     ) => void;
 };
 
-export function visitAndProduceApiContent<Content extends ApiContent>(
+export function visitAndProduceApiContent<Content extends ApiContentWithOptionalKeys>(
     content: Content,
     visitor: ApiContentDraftVisitor,
 ): Content {
     return produce(content, content => {
-        visitApiContent(content, visitor as ApiContentVisitor);
+        visitApiContent(content as Draft<ApiContent>, visitor as ApiContentVisitor);
     });
 }
 
@@ -55,12 +59,14 @@ export function visitDraftApiContent(content: Draft<ApiContent>, visitor: ApiCon
     visitApiContent(content, visitor as ApiContentVisitor);
 }
 
-export function visitAndProduceApiContentBlockElement<Element extends ApiContentBlockElement>(
-    element: Element,
-    visitor: ApiContentDraftVisitor,
-): Element {
+export function visitAndProduceApiContentBlockElement<
+    Element extends ApiContentBlockElementWithOptionalKeys,
+>(element: Element, visitor: ApiContentDraftVisitor): Element {
     return produce(element, element => {
-        visitApiContentBlockElement(element, visitor as ApiContentVisitor);
+        visitApiContentBlockElement(
+            element as Draft<ApiContentBlockElement>,
+            visitor as ApiContentVisitor,
+        );
     });
 }
 

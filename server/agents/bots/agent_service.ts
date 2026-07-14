@@ -1,4 +1,3 @@
-import {ApiBotWebhookRequestBody} from "~/server/agents/bots/api_bot_webhook_request_body.js";
 import {AgentServiceEnv} from "~/server/agents/bots/internal/agent_service_env.js";
 import {AgentUsageDatabase} from "~/server/agents/bots/internal/d1/agent_usage_database.js";
 import {refreshAccountEntitlements} from "~/server/agents/bots/internal/refresh_account_entitlements.js";
@@ -10,6 +9,7 @@ import {
     ApiMessageRoomPath,
     printApiMessageRoomPath,
 } from "~/shared/api/specification/parse_api_path.js";
+import {ApiBotWebhookRequestBody} from "~/shared/api/specification/types/api_specification_convenience_types.js";
 import {InternalError, InvalidArgumentError} from "~/shared/error/error.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 import {exhaustive} from "~/shared/helpers/control/exhaustive.js";

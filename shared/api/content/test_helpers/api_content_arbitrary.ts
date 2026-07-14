@@ -398,7 +398,7 @@ export const ApiContentInlineElementWithoutCommentMarkArbitrary =
     });
 
 const ApiContentInlineElementArbitraryForSimpleTable =
-    createUnionArbitrary<ApiContentInlineElementResponse>({
+    createUnionArbitrary<Exclude<ApiContentInlineElementResponse, {type: "Break"}>>({
         Text: {
             arbitrary: ApiContentTextInlineElementArbitrary.filter(element => {
                 // `printSimpleApiContentTableBlockElementToMarkdownIfPossible()` has to bail out
@@ -412,7 +412,6 @@ const ApiContentInlineElementArbitraryForSimpleTable =
             weight: 50,
         },
         Mention: {arbitrary: ApiContentMentionInlineElementArbitrary, weight: 10},
-        Break: {arbitrary: ApiContentBreakInlineElementArbitrary, weight: 1},
     });
 
 const ApiContentParagraphBlockElementArbitrary: Arbitrary<ApiContentParagraphBlockElementResponse> =
