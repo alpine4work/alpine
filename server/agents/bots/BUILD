@@ -37,6 +37,7 @@ ts_project(
         "//:node_modules/unicode-default-word-boundary",
         "//:node_modules/yaml",
         "//server/agents/api",
+        "//server/agents/web",
         "//server/cloudflare",
         "//server/cloudflare/types",
         "//server/helpers",

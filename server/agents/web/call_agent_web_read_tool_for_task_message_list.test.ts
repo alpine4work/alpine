@@ -80,7 +80,7 @@ test("reads a task message list with one human comment", async () => {
     });
 
     expect(await callAgentWebReadTool(context, {path: taskCommentsPath, limit: "10kb"})).toEqual(`\
-Comments on [Write Spec (Open)](/task/write-spec).
+Comments on [Write Spec (Open, active)](/task/write-spec).
 
 <time>May 14th at 11:00am EDT</time>
 
@@ -109,7 +109,7 @@ test("adds next page link to task message list", async () => {
             limit: "500b",
         }),
     ).toEqual(`\
-Comments on [Write Spec (Open)](/task/write-spec). [Next page »](${taskCommentsPath}?after=2)
+Comments on [Write Spec (Open, active)](/task/write-spec). [Next page »](${taskCommentsPath}?after=2)
 
 <time>May 14th at 11:00am EDT</time>
 
@@ -149,7 +149,7 @@ test("adds previous page link to task message list", async () => {
             limit: "500b",
         }),
     ).toEqual(`\
-Comments on [Write Spec (Open)](/task/write-spec). [Previous page »](${taskCommentsPath}?before=17)
+Comments on [Write Spec (Open, active)](/task/write-spec). [Previous page »](${taskCommentsPath}?before=17)
 
 <time>May 14th at 12:25pm EDT</time>
 
@@ -191,7 +191,7 @@ test("reads a task message list around a comment", async () => {
             limit: "500b",
         }),
     ).toEqual(`\
-Comments on [Write Spec (Open)](/task/write-spec). [« Previous page](${taskCommentsPath}?before=3) | [Next page »](${taskCommentsPath}?after=5)
+Comments on [Write Spec (Open, active)](/task/write-spec). [« Previous page](${taskCommentsPath}?before=3) | [Next page »](${taskCommentsPath}?after=5)
 
 <time>May 14th at 11:15am EDT</time>\n
 <comment id="3" from="[Bob](/human/bob)">\n\nTest message 3\n\n</comment>\n
@@ -217,7 +217,7 @@ test("reads a task message list page before a comment", async () => {
             limit: "10kb",
         }),
     ).toEqual(`\
-Comments on [Write Spec (Open)](/task/write-spec).
+Comments on [Write Spec (Open, active)](/task/write-spec).
 
 <time>May 14th at 11:00am EDT</time>
 
@@ -257,7 +257,7 @@ test("reads a task message list page after a comment", async () => {
             limit: "10kb",
         }),
     ).toEqual(`\
-Comments on [Write Spec (Open)](/task/write-spec).
+Comments on [Write Spec (Open, active)](/task/write-spec).
 
 <time>May 14th at 11:15am EDT</time>
 

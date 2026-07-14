@@ -286,7 +286,7 @@ export function getChatGptAgentInstructions({
         case "Chat":
             conversationSurface = "chat";
             break;
-        case "DocumentCommentThread":
+        case "DocumentThread":
             conversationSurface = "document comments";
             break;
         case "Post":

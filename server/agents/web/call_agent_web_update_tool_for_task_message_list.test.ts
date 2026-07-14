@@ -219,8 +219,8 @@ test("rejects changing the task in the preamble", async () => {
         path: taskCommentsPath,
         updates: [
             {
-                old: "Comments on [Write Spec (Open)](/task/write-spec).",
-                new: "Comments on [Review Spec (Open)](/task/review-spec).",
+                old: "Comments on [Write Spec (Open, active)](/task/write-spec).",
+                new: "Comments on [Review Spec (Open, active)](/task/review-spec).",
                 replaceAll: false,
             },
         ],

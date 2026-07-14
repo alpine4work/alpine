@@ -25,8 +25,12 @@ describe("account mentions", () => {
                         {type: "Text", text: "Hello "},
                         {
                             type: "Mention",
-                            target: {type: "Account", id: accountId},
-                            title: "Alice",
+                            reference: {
+                                type: "Account",
+                                id: accountId,
+                                title: "Alice",
+                                shortName: "Alice",
+                            },
                         },
                         {type: "Text", text: ", can you help?"},
                     ],
@@ -57,14 +61,17 @@ describe("account mentions", () => {
                         {type: "Text", text: "Hey "},
                         {
                             type: "Mention",
-                            target: {type: "Account", id: aliceId},
-                            title: "Alice",
+                            reference: {
+                                type: "Account",
+                                id: aliceId,
+                                title: "Alice",
+                                shortName: "Alice",
+                            },
                         },
                         {type: "Text", text: " and "},
                         {
                             type: "Mention",
-                            target: {type: "Account", id: bobId},
-                            title: "Bob",
+                            reference: {type: "Account", id: bobId, title: "Bob", shortName: "Bob"},
                         },
                         {type: "Text", text: "!"},
                     ],
@@ -92,8 +99,7 @@ describe("non-account links", () => {
                         {type: "Text", text: "Check out "},
                         {
                             type: "Mention",
-                            target: {type: "Document", id: documentId},
-                            title: "Project Plan",
+                            reference: {type: "Document", id: documentId, title: "Project Plan"},
                         },
                         {type: "Text", text: " for details."},
                     ],
@@ -120,12 +126,12 @@ describe("non-account links", () => {
                         {type: "Text", text: "Working on "},
                         {
                             type: "Mention",
-                            target: {
+                            reference: {
                                 type: "Task",
                                 id: taskId,
                                 status: {type: "Open", isActive: false},
+                                title: "Fix the bug",
                             },
-                            title: "Fix the bug",
                         },
                         {type: "Text", text: "."},
                     ],
@@ -153,8 +159,7 @@ describe("non-account links", () => {
                         {type: "Text", text: "Join "},
                         {
                             type: "Mention",
-                            target: {type: "Channel", id: channelId},
-                            title: "Engineering",
+                            reference: {type: "Channel", id: channelId, title: "Engineering"},
                         },
                         {type: "Text", text: " for updates."},
                     ],
@@ -182,24 +187,27 @@ describe("non-account links", () => {
                     elements: [
                         {
                             type: "Mention",
-                            target: {type: "Account", id: accountId},
-                            title: "Alice",
+                            reference: {
+                                type: "Account",
+                                id: accountId,
+                                title: "Alice",
+                                shortName: "Alice",
+                            },
                         },
                         {type: "Text", text: " should review "},
                         {
                             type: "Mention",
-                            target: {type: "Document", id: documentId},
-                            title: "Design Doc",
+                            reference: {type: "Document", id: documentId, title: "Design Doc"},
                         },
                         {type: "Text", text: " for "},
                         {
                             type: "Mention",
-                            target: {
+                            reference: {
                                 type: "Task",
                                 id: taskId,
                                 status: {type: "Open", isActive: false},
+                                title: "Implement feature",
                             },
-                            title: "Implement feature",
                         },
                         {type: "Text", text: "."},
                     ],
@@ -240,8 +248,11 @@ describe("nested content", () => {
                                         {type: "Text", text: "See "},
                                         {
                                             type: "Mention",
-                                            target: {type: "Document", id: documentId},
-                                            title: "Nested Doc",
+                                            reference: {
+                                                type: "Document",
+                                                id: documentId,
+                                                title: "Nested Doc",
+                                            },
                                         },
                                     ],
                                 },
@@ -274,8 +285,11 @@ describe("nested content", () => {
                                 {type: "Text", text: "From "},
                                 {
                                     type: "Mention",
-                                    target: {type: "Document", id: documentId},
-                                    title: "Quoted Source",
+                                    reference: {
+                                        type: "Document",
+                                        id: documentId,
+                                        title: "Quoted Source",
+                                    },
                                 },
                             ],
                         },
@@ -333,8 +347,7 @@ describe("edge cases", () => {
                     elements: [
                         {
                             type: "Mention",
-                            target: {type: "Document", id: documentId},
-                            title: "Important Doc",
+                            reference: {type: "Document", id: documentId, title: "Important Doc"},
                             marks: [{type: "Bold"}],
                         },
                     ],

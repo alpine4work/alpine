@@ -7,7 +7,7 @@ import {
     ApiMessageResponse,
 } from "~/shared/api/specification/types/api_specification_convenience_types.js";
 import {isReadonlyArray} from "~/shared/helpers/array/is_readonly_array.js";
-import {DateString, serializeDateString} from "~/shared/helpers/date/date_string.js";
+import {assertDateString, serializeDateString} from "~/shared/helpers/date/date_string.js";
 import {TimeZone, defaultTimeZone} from "~/shared/helpers/intl/time_zone.js";
 
 export type ApiMessageMockParent = {
@@ -29,7 +29,7 @@ export function createApiMessageMock({
     index: number;
     author: ApiAccountResponse | ReadonlyArray<ApiAccountResponse>;
     content?: string | ApiContentResponse;
-    createdTime?: DateString | Date;
+    createdTime?: string | Date;
     createdTimeZone?: TimeZone;
     parent?: ApiMessageMockParent;
     files?: ReadonlyArray<ApiMessageContentPayloadFileResponse>;
@@ -38,7 +38,9 @@ export function createApiMessageMock({
         index,
         author: isReadonlyArray(author) ? author[index % author.length]! : author,
         createdTime:
-            typeof createdTime === "string" ? createdTime : serializeDateString(createdTime),
+            typeof createdTime === "string"
+                ? assertDateString(createdTime)
+                : serializeDateString(createdTime),
         createdTimeZone,
         payload: {
             type: "Content",

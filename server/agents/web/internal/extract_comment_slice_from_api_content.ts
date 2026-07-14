@@ -8,6 +8,7 @@ import {
     ApiContentPosition,
     ApiContentRange,
 } from "~/shared/api/specification/types/api_content_position.js";
+import {ApiContentResponseWithoutKeys} from "~/shared/api/specification/types/api_content_response_without_keys.js";
 import {
     ApiContentBlockElementResponse,
     ApiContentInlineElement,
@@ -25,7 +26,7 @@ import {DocumentCommentThreadId} from "~/shared/id/types/id_types.js";
 export function extractCommentSliceFromApiContent(
     threadId: DocumentCommentThreadId,
     content: ApiContentResponse,
-): {range: ApiContentRange; contentSlice: ApiContentResponse} | null {
+): {range: ApiContentRange; contentSlice: ApiContentResponseWithoutKeys} | null {
     let range: {start: ApiContentPosition; end: ApiContentPosition} | null = null;
 
     for (const token of iterateApiContent(content)) {

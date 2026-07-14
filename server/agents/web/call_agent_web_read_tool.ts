@@ -31,7 +31,6 @@ import {
     readAgentWebChatPage,
 } from "~/server/agents/web/pages/agent_web_chat_page.js";
 import {
-    AgentWebDocumentPageWithMetadata,
     normalizeAgentWebDocumentPage,
     parseAgentWebDocumentPage,
     printAgentWebDocumentPage,

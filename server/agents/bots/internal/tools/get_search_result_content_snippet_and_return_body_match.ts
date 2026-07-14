@@ -4,7 +4,6 @@ import {
     ApiSearchDocumentMessageResult,
     ApiSearchPostMessageResult,
     ApiSearchResultBodyMatch,
-    ApiSearchResultBodyMatchItem,
     ApiSearchTaskMessageResult,
 } from "~/shared/api/specification/types/api_specification_convenience_types.js";
 import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
@@ -18,6 +17,8 @@ type ApiSearchMessageResult =
     | ApiSearchTaskMessageResult
     | ApiSearchPostMessageResult
     | ApiSearchDocumentMessageResult;
+
+type ApiSearchResultBodyMatchItem = ApiSearchResultBodyMatch[number];
 
 /**
  * The number of [graphemes][1] (aka characters) to include in a link label.

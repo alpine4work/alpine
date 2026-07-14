@@ -106,7 +106,6 @@ async function seedReadCacheViaRead({
     mockApiGetDocument(api, {
         spaceId,
         documentId,
-        version: 1,
         title,
         version,
         content: createDocumentContentFromMarkdown(bodyMarkdown),

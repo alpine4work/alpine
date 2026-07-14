@@ -257,7 +257,8 @@ test("rejects a descending creator sort", () => {
 test("rejects a sort param with a bracket operator", () => {
     expectParseTaskQuerySortsDisplayMessage(
         "sort[desc]=created",
-        "Unknown task sort `sort[desc]=...`. Try again with a plain `sort` search param where " +
-            "a `-` in front of a sort key sorts descending (e.g. `sort=-created`).",
+        "Unknown task sort `sort[desc]=...`. Try again with a plain `sort` search param " +
+            "(e.g. `sort=created`) where a `-` in front of a sort key sorts descending " +
+            "(e.g. `sort=-created`).",
     );
 });

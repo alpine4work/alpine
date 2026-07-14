@@ -12,7 +12,7 @@ import {callAgentWebUpdateTool} from "~/server/agents/web/call_agent_web_update_
 import {createAgentWebPageStoredLinkPathname} from "~/server/agents/web/create_agent_web_page_stored_link_pathname.js";
 import {createAgentWebSessionStorageForTest} from "~/server/agents/web/test_helpers/create_agent_web_session_storage_for_test.js";
 import {
-    ApiAccount,
+    ApiAccountResponse,
     ApiContentResponse,
     ApiMessageResponse,
 } from "~/shared/api/specification/types/api_specification_convenience_types.js";
@@ -144,7 +144,7 @@ function createMessage({
     parent,
 }: {
     index: number;
-    author?: ApiAccount;
+    author?: ApiAccountResponse;
     content?: ApiContentResponse | string;
     createdTime?: string;
     parent?: ApiMessageMockParent;

@@ -57,10 +57,14 @@ function createChatGptAgentDurableObject() {
  * Creates a keyed API paragraph fixture for agent response content.
  */
 function createApiResponseParagraph(text: string) {
-    return {
-        type: "Paragraph" as const,
-        elements: [{type: "Text" as const, text}],
-    };
+    return addKeysToApiContentForTest({
+        elements: [
+            {
+                type: "Paragraph",
+                elements: [{type: "Text", text}],
+            },
+        ],
+    }).elements[0]!;
 }
 
 // Shared mock for usage database - reset in afterEach
@@ -265,10 +269,10 @@ describe("ChatGptAgentDurableObject.webhook", () => {
             botId,
             botAccountId: generateId<AccountId>(),
             event: {
-                type: "NewMessage",
+                type: "CreatedMessage",
                 room: {type: "Chat", id: chatId},
                 index: 0,
-                authorId,
+                author: {id: authorId},
                 createdTimeZone: defaultTimeZone,
                 wasMentioned: true,
             },
@@ -357,7 +361,7 @@ describe("ChatGptAgentDurableObject.webhook", () => {
             expect.objectContaining({
                 method: "GET",
                 path: "/chats/{id}/messages",
-                params: {path: {id: chatId}, query: {limit: 30, cursor: 1, from: "end"}},
+                params: {path: {id: chatId}, query: {limit: 30, cursor: 1, from: "End"}},
             }),
             expect.objectContaining({
                 method: "PUT",
@@ -459,10 +463,10 @@ describe("ChatGptAgentDurableObject.webhook", () => {
             botId,
             botAccountId: generateId<AccountId>(),
             event: {
-                type: "NewMessage",
+                type: "CreatedMessage",
                 room: {type: "Chat", id: chatId},
                 index: 0,
-                authorId,
+                author: {id: authorId},
                 createdTimeZone: defaultTimeZone,
                 wasMentioned: true,
             },
@@ -581,7 +585,7 @@ describe("ChatGptAgentDurableObject.webhook", () => {
             expect.objectContaining({
                 method: "GET",
                 path: "/chats/{id}/messages",
-                params: {path: {id: chatId}, query: {limit: 30, cursor: 1, from: "end"}},
+                params: {path: {id: chatId}, query: {limit: 30, cursor: 1, from: "End"}},
             }),
             expect.objectContaining({
                 method: "PUT",
@@ -638,10 +642,10 @@ describe("ChatGptAgentDurableObject.webhook", () => {
             botId,
             botAccountId: generateId<AccountId>(),
             event: {
-                type: "NewMessage",
+                type: "CreatedMessage",
                 room: {type: "Chat", id: chatId},
                 index: 0,
-                authorId,
+                author: {id: authorId},
                 createdTimeZone: defaultTimeZone,
                 wasMentioned: true,
             },
@@ -722,7 +726,7 @@ describe("ChatGptAgentDurableObject.webhook", () => {
             expect.objectContaining({
                 method: "GET",
                 path: "/chats/{id}/messages",
-                params: {path: {id: chatId}, query: {limit: 30, cursor: 1, from: "end"}},
+                params: {path: {id: chatId}, query: {limit: 30, cursor: 1, from: "End"}},
             }),
             // First stream part was sent before the error
             expect.objectContaining({
@@ -839,10 +843,10 @@ describe("ChatGptAgentDurableObject.webhook", () => {
             botId,
             botAccountId: generateId<AccountId>(),
             event: {
-                type: "NewMessage",
+                type: "CreatedMessage",
                 room: {type: "Chat", id: chatId},
                 index: 0,
-                authorId,
+                author: {id: authorId},
                 createdTimeZone: defaultTimeZone,
                 wasMentioned: true,
             },
@@ -919,7 +923,7 @@ describe("ChatGptAgentDurableObject.webhook", () => {
             expect.objectContaining({
                 method: "GET",
                 path: "/chats/{id}/messages",
-                params: {path: {id: chatId}, query: {limit: 30, cursor: 1, from: "end"}},
+                params: {path: {id: chatId}, query: {limit: 30, cursor: 1, from: "End"}},
             }),
             expect.objectContaining({
                 method: "PUT",
@@ -1086,10 +1090,10 @@ describe("ChatGptAgentDurableObject.webhook", () => {
             botId,
             botAccountId: generateId<AccountId>(),
             event: {
-                type: "NewMessage",
+                type: "CreatedMessage",
                 room: {type: "Chat", id: chatId},
                 index: 0,
-                authorId,
+                author: {id: authorId},
                 createdTimeZone: defaultTimeZone,
                 wasMentioned: true,
             },
@@ -1210,7 +1214,7 @@ describe("ChatGptAgentDurableObject.webhook", () => {
             expect.objectContaining({
                 method: "GET",
                 path: "/chats/{id}/messages",
-                params: {path: {id: chatId}, query: {limit: 30, cursor: 1, from: "end"}},
+                params: {path: {id: chatId}, query: {limit: 30, cursor: 1, from: "End"}},
             }),
             expect.objectContaining({
                 method: "PUT",
@@ -1332,10 +1336,10 @@ describe("ChatGptAgentDurableObject.webhook", () => {
             botId,
             botAccountId: generateId<AccountId>(),
             event: {
-                type: "NewMessage",
+                type: "CreatedMessage",
                 room: {type: "Chat", id: chatId},
                 index: 0,
-                authorId,
+                author: {id: authorId},
                 createdTimeZone: defaultTimeZone,
                 wasMentioned: true,
             },
@@ -1501,10 +1505,10 @@ describe("ChatGptAgentDurableObject.webhook", () => {
             botId,
             botAccountId: generateId<AccountId>(),
             event: {
-                type: "NewMessage",
+                type: "CreatedMessage",
                 room: {type: "Chat", id: chatId},
                 index: 0,
-                authorId,
+                author: {id: authorId},
                 createdTimeZone: defaultTimeZone,
                 wasMentioned: true,
             },
@@ -1625,7 +1629,7 @@ describe("ChatGptAgentDurableObject.webhook", () => {
             expect.objectContaining({
                 method: "GET",
                 path: "/chats/{id}/messages",
-                params: {path: {id: chatId}, query: {limit: 30, cursor: 1, from: "end"}},
+                params: {path: {id: chatId}, query: {limit: 30, cursor: 1, from: "End"}},
             }),
             // The actual response from OpenAI
             expect.objectContaining({
@@ -1755,10 +1759,10 @@ describe("ChatGptAgentDurableObject.webhook", () => {
                 botId,
                 botAccountId: generateId<AccountId>(),
                 event: {
-                    type: "NewMessage",
+                    type: "CreatedMessage",
                     room: {type: "Chat", id: chatId},
                     index: 0,
-                    authorId,
+                    author: {id: authorId},
                     createdTimeZone: defaultTimeZone,
                     wasMentioned: true,
                 },
@@ -1842,7 +1846,7 @@ describe("ChatGptAgentDurableObject.webhook", () => {
                 expect.objectContaining({
                     method: "GET",
                     path: "/chats/{id}/messages",
-                    params: {path: {id: chatId}, query: {limit: 30, cursor: 1, from: "end"}},
+                    params: {path: {id: chatId}, query: {limit: 30, cursor: 1, from: "End"}},
                 }),
                 // STATE WAS CLEARED AND CONVO IS BEING REINITIALIZED
                 expect.objectContaining({
@@ -1853,7 +1857,7 @@ describe("ChatGptAgentDurableObject.webhook", () => {
                 expect.objectContaining({
                     method: "GET",
                     path: "/chats/{id}/messages",
-                    params: {path: {id: chatId}, query: {limit: 30, cursor: 1, from: "end"}},
+                    params: {path: {id: chatId}, query: {limit: 30, cursor: 1, from: "End"}},
                 }),
                 expect.objectContaining({
                     method: "PUT",
@@ -1911,10 +1915,10 @@ describe("ChatGptAgentDurableObject.webhook", () => {
                 botId,
                 botAccountId: generateId<AccountId>(),
                 event: {
-                    type: "NewMessage",
+                    type: "CreatedMessage",
                     room: {type: "Chat", id: chatId},
                     index: 0,
-                    authorId,
+                    author: {id: authorId},
                     createdTimeZone: defaultTimeZone,
                     wasMentioned: true,
                 },
@@ -1998,7 +2002,7 @@ describe("ChatGptAgentDurableObject.webhook", () => {
                 expect.objectContaining({
                     method: "GET",
                     path: "/chats/{id}/messages",
-                    params: {path: {id: chatId}, query: {limit: 30, cursor: 1, from: "end"}},
+                    params: {path: {id: chatId}, query: {limit: 30, cursor: 1, from: "End"}},
                 }),
                 // STATE WAS CLEARED AND CONVO IS BEING REINITIALIZED
                 expect.objectContaining({
@@ -2009,7 +2013,7 @@ describe("ChatGptAgentDurableObject.webhook", () => {
                 expect.objectContaining({
                     method: "GET",
                     path: "/chats/{id}/messages",
-                    params: {path: {id: chatId}, query: {limit: 30, cursor: 1, from: "end"}},
+                    params: {path: {id: chatId}, query: {limit: 30, cursor: 1, from: "End"}},
                 }),
                 expect.objectContaining({
                     method: "PUT",
@@ -2122,10 +2126,10 @@ describe("ChatGptAgentDurableObject.webhook", () => {
                 botId,
                 botAccountId: generateId<AccountId>(),
                 event: {
-                    type: "NewMessage",
+                    type: "CreatedMessage",
                     room: {type: "Chat", id: chatId},
                     index: 0,
-                    authorId,
+                    author: {id: authorId},
                     createdTimeZone: defaultTimeZone,
                     wasMentioned: true,
                 },
@@ -2230,7 +2234,7 @@ describe("ChatGptAgentDurableObject.webhook", () => {
                 expect.objectContaining({
                     method: "GET",
                     path: "/chats/{id}/messages",
-                    params: {path: {id: chatId}, query: {limit: 30, cursor: 1, from: "end"}},
+                    params: {path: {id: chatId}, query: {limit: 30, cursor: 1, from: "End"}},
                 }),
                 expect.objectContaining({
                     method: "PUT",
@@ -2282,7 +2286,7 @@ describe("ChatGptAgentDurableObject.webhook", () => {
                 expect.objectContaining({
                     method: "GET",
                     path: "/chats/{id}/messages",
-                    params: {path: {id: chatId}, query: {limit: 30, cursor: 1, from: "end"}},
+                    params: {path: {id: chatId}, query: {limit: 30, cursor: 1, from: "End"}},
                 }),
                 expect.objectContaining({
                     method: "PUT",
@@ -2376,10 +2380,10 @@ describe("ChatGptAgentDurableObject.webhook", () => {
                 botId,
                 botAccountId: generateId<AccountId>(),
                 event: {
-                    type: "NewMessage",
+                    type: "CreatedMessage",
                     room: {type: "Chat", id: chatId},
                     index: 0,
-                    authorId,
+                    author: {id: authorId},
                     createdTimeZone: defaultTimeZone,
                     wasMentioned: true,
                 },
@@ -2467,7 +2471,7 @@ describe("ChatGptAgentDurableObject.webhook", () => {
                 expect.objectContaining({
                     method: "GET",
                     path: "/chats/{id}/messages",
-                    params: {path: {id: chatId}, query: {limit: 30, cursor: 1, from: "end"}},
+                    params: {path: {id: chatId}, query: {limit: 30, cursor: 1, from: "End"}},
                 }),
                 // STATE WAS CLEARED AND CONVO IS BEING REINITIALIZED
                 expect.objectContaining({
@@ -2478,7 +2482,7 @@ describe("ChatGptAgentDurableObject.webhook", () => {
                 expect.objectContaining({
                     method: "GET",
                     path: "/chats/{id}/messages",
-                    params: {path: {id: chatId}, query: {limit: 30, cursor: 1, from: "end"}},
+                    params: {path: {id: chatId}, query: {limit: 30, cursor: 1, from: "End"}},
                 }),
                 expect.objectContaining({
                     method: "PUT",
@@ -2545,10 +2549,10 @@ describe("ChatGptAgentDurableObject.webhook", () => {
                 botId,
                 botAccountId: generateId<AccountId>(),
                 event: {
-                    type: "NewMessage",
+                    type: "CreatedMessage",
                     room: {type: "Chat", id: chatId},
                     index: 0,
-                    authorId,
+                    author: {id: authorId},
                     createdTimeZone: defaultTimeZone,
                     wasMentioned: true,
                 },
@@ -2629,7 +2633,7 @@ describe("ChatGptAgentDurableObject.webhook", () => {
                 expect.objectContaining({
                     method: "GET",
                     path: "/chats/{id}/messages",
-                    params: {path: {id: chatId}, query: {limit: 30, cursor: 1, from: "end"}},
+                    params: {path: {id: chatId}, query: {limit: 30, cursor: 1, from: "End"}},
                 }),
                 expect.objectContaining({
                     method: "PUT",
@@ -2708,10 +2712,10 @@ describe("ChatGptAgentDurableObject.webhook", () => {
                 botId,
                 botAccountId: generateId<AccountId>(),
                 event: {
-                    type: "NewMessage",
+                    type: "CreatedMessage",
                     room: {type: "Chat", id: chatId},
                     index: 0,
-                    authorId,
+                    author: {id: authorId},
                     createdTimeZone: defaultTimeZone,
                     wasMentioned: true,
                 },
@@ -2838,7 +2842,7 @@ describe("ChatGptAgentDurableObject.webhook", () => {
                 expect.objectContaining({
                     method: "GET",
                     path: "/chats/{id}/messages",
-                    params: {path: {id: chatId}, query: {limit: 30, cursor: 1, from: "end"}},
+                    params: {path: {id: chatId}, query: {limit: 30, cursor: 1, from: "End"}},
                 }),
                 // STATE WAS CLEARED AND CONVO IS BEING REINITIALIZED
                 expect.objectContaining({
@@ -2849,7 +2853,7 @@ describe("ChatGptAgentDurableObject.webhook", () => {
                 expect.objectContaining({
                     method: "GET",
                     path: "/chats/{id}/messages",
-                    params: {path: {id: chatId}, query: {limit: 30, cursor: 1, from: "end"}},
+                    params: {path: {id: chatId}, query: {limit: 30, cursor: 1, from: "End"}},
                 }),
                 expect.objectContaining({
                     method: "PUT",
@@ -2988,10 +2992,10 @@ describe("ChatGptAgentDurableObject.webhook", () => {
             botId,
             botAccountId: generateId<AccountId>(),
             event: {
-                type: "NewMessage",
+                type: "CreatedMessage",
                 room: {type: "Chat", id: chatId},
                 index: 0,
-                authorId,
+                author: {id: authorId},
                 createdTimeZone: defaultTimeZone,
                 wasMentioned: true,
             },
@@ -3103,7 +3107,7 @@ describe("ChatGptAgentDurableObject.webhook", () => {
             {
                 method: "GET",
                 path: "/chats/{id}/messages",
-                params: {path: {id: chatId}, query: {limit: 30, cursor: 1, from: "end"}},
+                params: {path: {id: chatId}, query: {limit: 30, cursor: 1, from: "End"}},
                 body: undefined,
             },
             {
@@ -3121,7 +3125,6 @@ describe("ChatGptAgentDurableObject.webhook", () => {
                                         {
                                             type: "Text",
                                             text: "Reasoning summary part 1.",
-                                            marks: undefined,
                                         },
                                     ],
                                 },
@@ -3145,7 +3148,6 @@ describe("ChatGptAgentDurableObject.webhook", () => {
                                         {
                                             type: "Text",
                                             text: "Reasoning summary part 2.",
-                                            marks: undefined,
                                         },
                                     ],
                                 },
@@ -3169,7 +3171,6 @@ describe("ChatGptAgentDurableObject.webhook", () => {
                                         {
                                             type: "Text",
                                             text: "Output text delta 1. Output text delta 2. Output text delta 3.",
-                                            marks: undefined,
                                         },
                                     ],
                                 },
@@ -3239,10 +3240,10 @@ describe("injectCurrentlyViewedEntityIntoContextIfNeeded", () => {
             botId,
             botAccountId: generateId<AccountId>(),
             event: {
-                type: "NewMessage",
+                type: "CreatedMessage",
                 room: {type: "Chat", id: chatId},
                 index: 0,
-                authorId,
+                author: {id: authorId},
                 createdTimeZone: defaultTimeZone,
                 wasMentioned: true,
             },
@@ -3256,10 +3257,10 @@ describe("injectCurrentlyViewedEntityIntoContextIfNeeded", () => {
 
         const request = createBaseRequest({
             event: {
-                type: "NewMessage",
+                type: "CreatedMessage",
                 room: {type: "Chat", id: chatId},
                 index: 0,
-                authorId,
+                author: {id: authorId},
                 createdTimeZone: defaultTimeZone,
             },
         });
@@ -3310,10 +3311,10 @@ describe("injectCurrentlyViewedEntityIntoContextIfNeeded", () => {
 
         const request = createBaseRequest({
             event: {
-                type: "NewMessage",
+                type: "CreatedMessage",
                 room: {type: "Chat", id: chatId},
                 index: 0,
-                authorId,
+                author: {id: authorId},
                 createdTimeZone: defaultTimeZone,
                 wasMentioned: true,
                 viewing: {reference: {type: "Document", id: documentId}},
@@ -3321,13 +3322,11 @@ describe("injectCurrentlyViewedEntityIntoContextIfNeeded", () => {
         });
 
         // Mock the API calls
-        apiClient.mockGet("/documents/{id}/mention", {
+        apiClient.mockGet("/documents/{id}/reference", {
             params: "Any",
             data: {
                 spaceId,
-                mention: {
-                    reference: {type: "Document", id: documentId, title: "Test Document"},
-                },
+                reference: {type: "Document", id: documentId, title: "Test Document"},
             },
         });
 
@@ -3368,7 +3367,8 @@ describe("injectCurrentlyViewedEntityIntoContextIfNeeded", () => {
             // Verify state was updated
             expect(conversation.getState().currentlyViewingTarget).toMatchObject({
                 target: {
-                    target: {type: "Document", id: documentId},
+                    type: "Document",
+                    id: documentId,
                     title: "Test Document",
                 },
                 previousTarget: null,
@@ -3388,7 +3388,8 @@ describe("injectCurrentlyViewedEntityIntoContextIfNeeded", () => {
             await conversation.setState(transaction, {
                 currentlyViewingTarget: {
                     target: {
-                        target: {type: "Document", id: documentId},
+                        type: "Document",
+                        id: documentId,
                         title: "Test Document",
                     },
                     previousTarget: null,
@@ -3399,10 +3400,10 @@ describe("injectCurrentlyViewedEntityIntoContextIfNeeded", () => {
 
         const request = createBaseRequest({
             event: {
-                type: "NewMessage",
+                type: "CreatedMessage",
                 room: {type: "Chat", id: chatId},
                 index: 0,
-                authorId,
+                author: {id: authorId},
                 createdTimeZone: defaultTimeZone,
                 wasMentioned: true,
                 // No viewingTarget - user is no longer viewing anything
@@ -3454,7 +3455,8 @@ describe("injectCurrentlyViewedEntityIntoContextIfNeeded", () => {
         const {span} = testTracer.getRoot().startSpan("test-span");
 
         const viewingTarget = {
-            target: {type: "Document" as const, id: documentId},
+            type: "Document" as const,
+            id: documentId,
             title: "Test Document",
         };
 
@@ -3475,10 +3477,10 @@ describe("injectCurrentlyViewedEntityIntoContextIfNeeded", () => {
 
         const request = createBaseRequest({
             event: {
-                type: "NewMessage",
+                type: "CreatedMessage",
                 room: {type: "Chat", id: chatId},
                 index: 0,
-                authorId,
+                author: {id: authorId},
                 createdTimeZone: defaultTimeZone,
                 wasMentioned: true,
                 viewing: {reference: {type: "Document", id: documentId}},
@@ -3486,11 +3488,11 @@ describe("injectCurrentlyViewedEntityIntoContextIfNeeded", () => {
         });
 
         // Mock API call for mention (to get the same entity)
-        apiClient.mockGet("/documents/{id}/mention", {
+        apiClient.mockGet("/documents/{id}/reference", {
             params: "Any",
             data: {
                 spaceId,
-                mention: viewingTarget,
+                reference: viewingTarget,
             },
         });
 
@@ -3516,7 +3518,8 @@ describe("injectCurrentlyViewedEntityIntoContextIfNeeded", () => {
         const {span} = testTracer.getRoot().startSpan("test-span");
 
         const viewingTarget = {
-            target: {type: "Document" as const, id: documentId},
+            type: "Document" as const,
+            id: documentId,
             title: "Test Document",
         };
 
@@ -3537,22 +3540,22 @@ describe("injectCurrentlyViewedEntityIntoContextIfNeeded", () => {
 
         const request = createBaseRequest({
             event: {
-                type: "NewMessage",
+                type: "CreatedMessage",
                 room: {type: "Chat", id: chatId},
                 index: 0,
-                authorId,
+                author: {id: authorId},
                 createdTimeZone: defaultTimeZone,
                 wasMentioned: true,
-                viewingTarget: {type: "Document", id: documentId},
+                viewing: {reference: {type: "Document", id: documentId}},
             },
         });
 
         // Mock API calls
-        apiClient.mockGet("/documents/{id}/mention", {
+        apiClient.mockGet("/documents/{id}/reference", {
             params: "Any",
             data: {
                 spaceId,
-                mention: viewingTarget,
+                reference: viewingTarget,
             },
         });
 
@@ -3599,7 +3602,8 @@ describe("injectCurrentlyViewedEntityIntoContextIfNeeded", () => {
         const newDocumentId = generateId<DocumentId>();
 
         const previousTarget = {
-            target: {type: "Document" as const, id: previousDocumentId},
+            type: "Document" as const,
+            id: previousDocumentId,
             title: "Previous Document",
         };
 
@@ -3620,23 +3624,24 @@ describe("injectCurrentlyViewedEntityIntoContextIfNeeded", () => {
 
         const request = createBaseRequest({
             event: {
-                type: "NewMessage",
+                type: "CreatedMessage",
                 room: {type: "Chat", id: chatId},
                 index: 0,
-                authorId,
+                author: {id: authorId},
                 createdTimeZone: defaultTimeZone,
                 wasMentioned: true,
-                viewingTarget: {type: "Document", id: newDocumentId},
+                viewing: {reference: {type: "Document", id: newDocumentId}},
             },
         });
 
         // Mock API calls
-        apiClient.mockGet("/documents/{id}/mention", {
+        apiClient.mockGet("/documents/{id}/reference", {
             params: "Any",
             data: {
                 spaceId,
-                mention: {
-                    target: {type: "Document", id: newDocumentId},
+                reference: {
+                    type: "Document",
+                    id: newDocumentId,
                     title: "New Document",
                 },
             },
@@ -3679,7 +3684,8 @@ describe("injectCurrentlyViewedEntityIntoContextIfNeeded", () => {
             // Verify state was updated
             expect(conversation.getState().currentlyViewingTarget).toMatchObject({
                 target: {
-                    target: {type: "Document", id: newDocumentId},
+                    type: "Document",
+                    id: newDocumentId,
                     title: "New Document",
                 },
                 previousTarget: previousTarget,
@@ -3693,13 +3699,13 @@ describe("injectCurrentlyViewedEntityIntoContextIfNeeded", () => {
         const unresolvableChatId = generateId<ChatId>();
         const request = createBaseRequest({
             event: {
-                type: "NewMessage",
+                type: "CreatedMessage",
                 room: {type: "Chat", id: chatId},
                 index: 0,
-                authorId,
+                author: {id: authorId},
                 createdTimeZone: defaultTimeZone,
                 wasMentioned: true,
-                viewingTarget: {type: "Chat", id: unresolvableChatId},
+                viewing: {reference: {type: "Chat", id: unresolvableChatId}},
             },
         });
 

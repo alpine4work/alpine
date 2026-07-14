@@ -400,7 +400,7 @@ async function getPreambleForPostComments({
                   type: "Post",
                   post: {
                       id: post.id,
-                      contentPreview: post.contentPreview,
+                      contentPreview: post.reference.title,
                   },
               })
             : null,

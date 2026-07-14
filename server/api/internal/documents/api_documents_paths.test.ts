@@ -19,7 +19,6 @@ import {TestSpace} from "~/server/spaces/test_helpers/test_space.js";
 import {tasksInjection} from "~/server/tasks/data/tasks_injection.js";
 import {TestTask} from "~/server/tasks/data/test_helpers/test_task.js";
 import {TestTaskCollection} from "~/server/tasks/data/test_helpers/test_task_collection.js";
-import {ApiContentKeyDecoder} from "~/shared/api/content/closed_source/api_content_key_encoder.js";
 import {
     DocumentCollaborationUpdateContentWithDiffRequestBodySchema,
     DocumentCollaborationUpdateContentWithDiffResponseBodySchema,
@@ -1738,9 +1737,11 @@ test("can read document with file attachment", async () => {
                     elements: expect.arrayContaining([
                         expect.objectContaining({
                             type: "File",
-                            id: file.id,
-                            contentType: "image/png",
-                            contentLength: 5232,
+                            file: {
+                                id: file.id,
+                                contentType: "image/png",
+                                contentLength: 5232,
+                            },
                         }),
                     ]),
                 }),

@@ -1,8 +1,8 @@
 import {getAccountShortNameWithoutFullNameTooltip} from "~/shared/accounts/get_account_short_name_without_full_name_tooltip.js";
 import {
-    ApiInboxEntry,
+    ApiInboxEntryResponse,
     ApiInboxEntryShared,
-    ApiInboxEntryTitleItem,
+    ApiInboxEntryTitleItemResponse,
 } from "~/shared/api/specification/types/api_specification_convenience_types.js";
 import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
 import {serializeDateString} from "~/shared/helpers/date/date_string.js";
@@ -16,7 +16,7 @@ import {
 import {InboxEntryModel} from "~/shared/notifications/inbox_model.js";
 import {intoApiAccount} from "~/shared/spaces/into_api_account.js";
 
-export function intoApiInboxEntry(entry: InboxEntryModel): ApiInboxEntry {
+export function intoApiInboxEntry(entry: InboxEntryModel): ApiInboxEntryResponse {
     const display = getInboxEntryDisplayContent({
         entry,
         locale: defaultLocale,
@@ -42,7 +42,7 @@ export function intoApiInboxEntry(entry: InboxEntryModel): ApiInboxEntry {
 
 function intoApiInboxEntryTitle(
     title: InboxEntryDisplayContentTitle,
-): ReadonlyArray<ApiInboxEntryTitleItem> {
+): ReadonlyArray<ApiInboxEntryTitleItemResponse> {
     return title.map(item =>
         typeof item === "string"
             ? {type: "Text", text: item}
@@ -70,7 +70,7 @@ function intoApiInboxEntryPreview(display: InboxEntryDisplayContent): string | u
 
 function getDiscriminantProperties(
     entry: InboxEntryModel,
-): DistributiveOmit<ApiInboxEntry, keyof ApiInboxEntryShared> {
+): DistributiveOmit<ApiInboxEntryResponse, keyof ApiInboxEntryShared> {
     switch (entry.type) {
         case "Chat":
             return {

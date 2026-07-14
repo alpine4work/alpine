@@ -16,7 +16,10 @@ ts_project(
         "//shared/prosemirror",
         "//shared/tasks/test_helpers",
     ],
-    tests = {"api_tasks_paths_test": {"size": "medium"}},
+    tests = {
+        "api_tasks_paths_batch_task_move_test": {"size": "medium"},
+        "api_tasks_paths_test": {"size": "medium"},
+    },
     visibility = ["//server/api:__subpackages__"],
     deps = [
         "//server/access",

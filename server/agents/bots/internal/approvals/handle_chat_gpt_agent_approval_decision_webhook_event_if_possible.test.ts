@@ -8,7 +8,7 @@ import {
     ApiBotWebhookUpdatedMessageStreamExperimentalApprovalsPartEvent,
     ApiMessageExperimentalApprovalDecisionValueResponse,
     ApiMessageExperimentalApprovalResponse,
-    ApiMessageRoomTarget,
+    ApiMessageRoomReference,
 } from "~/shared/api/specification/types/api_specification_convenience_types.js";
 import {InternalError} from "~/shared/error/error.js";
 import {Lazy} from "~/shared/helpers/control/lazy.js";
@@ -24,9 +24,10 @@ const botId = generateId<BotId>();
 const botAccountId = generateId<AccountId>();
 const deciderAccountId = generateId<AccountId>();
 
-const room: ApiMessageRoomTarget = {type: "Chat", id: chatId};
+const room: ApiMessageRoomReference = {type: "Chat", id: chatId};
 const messageIndex = 3;
 const approvalsPath = "/chats/{id}/messages/{index}/experimental-approvals";
+const approvalsParams = {path: {id: chatId, index: messageIndex}};
 
 // Have to cast as any here since Miniflare's DurableObjectStorage type is not
 // assignable to the global DurableObjectStorage type we use in the
@@ -99,6 +100,7 @@ function createRejectedValueResponse(): ApiMessageExperimentalApprovalDecisionVa
 describe("handleChatGptAgentApprovalDecisionWebhookEventIfPossible without a stored approval", () => {
     test("rejects only the approvals the API still reports as pending", async () => {
         apiClient.mockGet(approvalsPath, {
+            params: approvalsParams,
             data: {
                 spaceId,
                 approvals: [
@@ -109,6 +111,7 @@ describe("handleChatGptAgentApprovalDecisionWebhookEventIfPossible without a sto
             },
         });
         apiClient.mockPatch(approvalsPath, {
+            params: approvalsParams,
             data: {
                 spaceId,
                 approvals: [
@@ -141,6 +144,7 @@ describe("handleChatGptAgentApprovalDecisionWebhookEventIfPossible without a sto
 
     test("doesn\u2019t patch when the API reports every approval as decided", async () => {
         apiClient.mockGet(approvalsPath, {
+            params: approvalsParams,
             data: {
                 spaceId,
                 approvals: [createApiApprovalResponse(createRejectedValueResponse())],
@@ -157,6 +161,7 @@ describe("handleChatGptAgentApprovalDecisionWebhookEventIfPossible without a sto
 
     test("returns the stored-approval-not-found error", async () => {
         apiClient.mockGet(approvalsPath, {
+            params: approvalsParams,
             data: {
                 spaceId,
                 approvals: [createApiApprovalResponse(createRejectedValueResponse())],
@@ -178,6 +183,7 @@ describe("handleChatGptAgentApprovalDecisionWebhookEventIfPossible without a sto
 
     test("still returns the stored-approval-not-found error when fetching the approvals fails", async () => {
         apiClient.mockGet(approvalsPath, {
+            params: approvalsParams,
             error: new InternalError("API request failed", {
                 cause: {
                     status: 500,

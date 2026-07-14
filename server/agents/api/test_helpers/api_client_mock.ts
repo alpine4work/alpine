@@ -8,21 +8,28 @@ import {TracerBase} from "~/shared/tracer/tracer_base.js";
 
 type HttpMethod = "GET" | "PUT" | "POST" | "DELETE" | "PATCH";
 
+type MockResponseConfigData<
+    Path extends keyof ApiSpecification.paths,
+    Method extends Lowercase<HttpMethod>,
+> = ApiSpecification.paths[Path][Method] extends {
+    responses: {200: {content: {"application/json": infer JsonResponse}}};
+}
+    ? JsonResponse
+    : null;
+
+type MockResponseConfig<Data> =
+    | {data: Data; response?: Partial<Response>; error?: never}
+    | {error: Error; data?: never; response?: never};
+
 // Configuration for a single mock response
-type MockResponseConfig<
+type MockResponseConfigWithParams<
     Path extends keyof ApiSpecification.paths,
     Method extends Lowercase<HttpMethod>,
 > = {
     params: ApiSpecification.paths[Path][Method] extends {parameters: infer Parameters}
         ? Parameters | "Any"
         : {} | "Any";
-    data: ApiSpecification.paths[Path][Method] extends {
-        responses: {200: {content: {"application/json": infer JsonResponse}}};
-    }
-        ? JsonResponse
-        : null;
-    response?: Partial<Response>;
-};
+} & MockResponseConfig<MockResponseConfigData<Path, Method>>;
 
 // Matcher for request parameters
 type RequestMatcher = {
@@ -34,7 +41,7 @@ type RequestMatcher = {
 // Internal mock configuration
 type MockConfig = {
     matcher: RequestMatcher;
-    responses: Array<Omit<MockResponseConfig<any, any>, "params">>;
+    responses: Array<MockResponseConfig<any>>;
     callIndex: number;
 };
 
@@ -83,7 +90,7 @@ export class ApiClientMock implements ApiClient {
      */
     mockGet<Path extends PathsWithMethod<ApiSpecification.paths, "get">>(
         path: Path,
-        response: MockResponseConfig<Path, "get">,
+        response: MockResponseConfigWithParams<Path, "get">,
     ) {
         this.addMock("GET", path, response);
     }
@@ -93,7 +100,7 @@ export class ApiClientMock implements ApiClient {
      */
     mockPut<Path extends PathsWithMethod<ApiSpecification.paths, "put">>(
         path: Path,
-        response: MockResponseConfig<Path, "put">,
+        response: MockResponseConfigWithParams<Path, "put">,
     ) {
         this.addMock("PUT", path, response);
     }
@@ -103,7 +110,7 @@ export class ApiClientMock implements ApiClient {
      */
     mockPost<Path extends PathsWithMethod<ApiSpecification.paths, "post">>(
         path: Path,
-        response: MockResponseConfig<Path, "post">,
+        response: MockResponseConfigWithParams<Path, "post">,
     ) {
         this.addMock("POST", path, response);
     }
@@ -113,7 +120,7 @@ export class ApiClientMock implements ApiClient {
      */
     mockDelete<Path extends PathsWithMethod<ApiSpecification.paths, "delete">>(
         path: Path,
-        response: MockResponseConfig<Path, "delete">,
+        response: MockResponseConfigWithParams<Path, "delete">,
     ) {
         this.addMock("DELETE", path, response);
     }
@@ -123,7 +130,7 @@ export class ApiClientMock implements ApiClient {
      */
     mockPatch<Path extends PathsWithMethod<ApiSpecification.paths, "patch">>(
         path: Path,
-        response: MockResponseConfig<Path, "patch">,
+        response: MockResponseConfigWithParams<Path, "patch">,
     ) {
         this.addMock("PATCH", path, response);
     }
@@ -140,7 +147,7 @@ export class ApiClientMock implements ApiClient {
     private addMock(
         method: HttpMethod,
         path: string,
-        {params, ...response}: MockResponseConfig<any, any>,
+        {params, ...response}: MockResponseConfigWithParams<any, any>,
     ) {
         const mockConfig = this.findMatchingMock(method, path, params);
         if (mockConfig) {

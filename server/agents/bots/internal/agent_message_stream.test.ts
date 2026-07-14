@@ -2960,7 +2960,7 @@ test("streams link formatting correctly (with reference)", async () => {
                                 },
                                 {
                                     type: "Mention",
-                                    target: {type: "Document", id: documentId},
+                                    reference: {type: "Document", id: documentId},
                                 },
                             ],
                         },
@@ -2988,7 +2988,7 @@ test("streams link formatting correctly (with reference)", async () => {
                                 },
                                 {
                                     type: "Mention",
-                                    target: {type: "Document", id: documentId},
+                                    reference: {type: "Document", id: documentId},
                                 },
                                 {
                                     type: "Text",
@@ -3284,7 +3284,7 @@ test("streams link formatting correctly character by character (with reference)"
                                 },
                                 {
                                     type: "Mention",
-                                    target: {type: "Document", id: documentId},
+                                    reference: {type: "Document", id: documentId},
                                 },
                             ],
                         },
@@ -3312,7 +3312,7 @@ test("streams link formatting correctly character by character (with reference)"
                                 },
                                 {
                                     type: "Mention",
-                                    target: {type: "Document", id: documentId},
+                                    reference: {type: "Document", id: documentId},
                                 },
                                 {
                                     type: "Text",
@@ -4091,7 +4091,7 @@ describe("ordered list continuation", () => {
                         elements: [
                             {
                                 type: "OrderedList",
-                                items: [{elements: []}],
+                                items: [{elements: [{type: "Paragraph", elements: []}]}],
                             },
                         ],
                     },
@@ -4185,7 +4185,7 @@ describe("ordered list continuation", () => {
                         elements: [
                             {
                                 type: "OrderedList",
-                                items: [{elements: []}],
+                                items: [{elements: [{type: "Paragraph", elements: []}]}],
                             },
                         ],
                     },
@@ -4428,7 +4428,7 @@ describe("ordered list continuation", () => {
                             {
                                 type: "OrderedList",
                                 orderStart: 5,
-                                items: [{elements: []}],
+                                items: [{elements: [{type: "Paragraph", elements: []}]}],
                             },
                         ],
                     },
@@ -5515,7 +5515,13 @@ describe("ordered list continuation", () => {
                                         nestedListElements: [
                                             {
                                                 type: "OrderedList",
-                                                items: [{elements: []}],
+                                                items: [
+                                                    {
+                                                        elements: [
+                                                            {type: "Paragraph", elements: []},
+                                                        ],
+                                                    },
+                                                ],
                                             },
                                         ],
                                     },

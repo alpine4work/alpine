@@ -28,7 +28,7 @@ export async function loadAgentAccountLinkContent({
         frontmatter: {
             type: "Account",
             name: account.name,
-            isBot: account.botId ? true : undefined,
+            isBot: account.bot ? true : undefined,
             wasRemoved: account.space.inactive?.type === "Removed" ? true : undefined,
         },
     });

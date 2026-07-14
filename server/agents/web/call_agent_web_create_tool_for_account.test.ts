@@ -68,26 +68,23 @@ function getDisplayMessage(error: unknown): ErrorDisplayMessage {
     throw new InternalError("Expected error with display message", {cause: error});
 }
 
-test.each(["account", "human", "bot"])(
-    "throws display message when creating `%s`",
-    async type => {
-        let error: unknown;
+test.each(["account", "human", "bot"])("throws display message when creating `%s`", async type => {
+    let error: unknown;
 
-        try {
-            await callAgentWebCreateTool(context, {
-                type,
-                content: `\
+    try {
+        await callAgentWebCreateTool(context, {
+            type,
+            content: `\
 # Alice Smith
 
 - Role: Member`,
-            });
-        } catch (actualError) {
-            error = actualError;
-        }
+        });
+    } catch (actualError) {
+        error = actualError;
+    }
 
-        expect(printDisplayMessage(getDisplayMessage(error))).toEqual(
-            "Can\u2019t create humans or bots using the `create` tool. Try creating a different page instead.",
-        );
-        expect(api.getRequestHistory()).toEqual([]);
-    },
-);
+    expect(printDisplayMessage(getDisplayMessage(error))).toEqual(
+        "Can\u2019t create humans or bots using the `create` tool. Try creating a different page instead.",
+    );
+    expect(api.getRequestHistory()).toEqual([]);
+});

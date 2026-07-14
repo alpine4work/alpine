@@ -4,9 +4,11 @@ import {DurableObjectStorage} from "@miniflare/durable-objects";
 import {MemoryStorage} from "@miniflare/storage-memory";
 import {AgentMessage} from "~/server/agents/bots/internal/messages/agent_message.js";
 import {printAgentMessagesLog} from "~/server/agents/bots/internal/messages/print_agent_messages_log.js";
+import {ApiContentKeyEncoder} from "~/shared/api/content/closed_source/api_content_key_encoder.js";
 import {addKeysToApiContentForTest} from "~/shared/api/content/test_helpers/add_keys_to_api_content_for_test.js";
+import {ApiContentKey} from "~/shared/api/specification/types/api_content_key.js";
 import {
-    ApiAccount,
+    ApiAccountResponse,
     ApiContentResponse,
     ApiMessageContentPayloadParentContentSnippet,
 } from "~/shared/api/specification/types/api_specification_convenience_types.js";
@@ -20,6 +22,10 @@ const spaceId = generateId<SpaceId>();
 const humanAccountId = generateId<AccountId>();
 const botId = generateId<BotId>();
 const botAccountId = generateId<AccountId>();
+const apiResponseParagraphKey: ApiContentKey = new ApiContentKeyEncoder({
+    entityId: "Message:mock",
+    version: 0,
+}).encode({pos: 0, nodeSize: 0, inlineContent: true});
 
 const storage = new DurableObjectStorage(new MemoryStorage());
 
@@ -40,12 +46,12 @@ function createTestAgentMessage({
     createdTimeZone,
     parent,
 }: {
-    author: "Alice" | "Assistant" | {id: AccountId; name: string; botId?: BotId};
+    author: "Alice" | "Assistant" | {id: AccountId; name: string; bot?: {id: BotId}};
     createdTime: Date;
     content: ApiContentResponse | string;
     createdTimeZone?: TimeZone;
     parent?: {
-        author: "Alice" | "Assistant" | {id: AccountId; name: string; botId?: BotId};
+        author: "Alice" | "Assistant" | {id: AccountId; name: string; bot?: {id: BotId}};
         contentSnippet: ApiMessageContentPayloadParentContentSnippet;
     };
 }) {
@@ -53,7 +59,7 @@ function createTestAgentMessage({
         if (author === "Alice") {
             author = {id: humanAccountId, name: "Alice"};
         } else if (author === "Assistant") {
-            author = {id: botAccountId, name: "Assistant", botId};
+            author = {id: botAccountId, name: "Assistant", bot: {id: botId}};
         }
 
         if (typeof content === "string") {
@@ -69,7 +75,7 @@ function createTestAgentMessage({
 
         let parentPayload: {
             type: "Message";
-            author: ApiAccount;
+            author: ApiAccountResponse;
             index: number;
             contentSnippet: ApiMessageContentPayloadParentContentSnippet;
         } | null = null;
@@ -79,7 +85,7 @@ function createTestAgentMessage({
             if (parentAuthor === "Alice") {
                 parentAuthor = {id: humanAccountId, name: "Alice"};
             } else if (parentAuthor === "Assistant") {
-                parentAuthor = {id: botAccountId, name: "Assistant", botId};
+                parentAuthor = {id: botAccountId, name: "Assistant", bot: {id: botId}};
             }
 
             parentPayload = {
@@ -391,7 +397,7 @@ test("HTML escaping in author names", async () => {
     const baseTime = new Date("2024-01-01T12:00:00Z");
     const messages = await runAllPromises([
         createTestAgentMessage({
-            author: {id: botAccountId, name: 'Alice & Bob\'s "Bot"', botId},
+            author: {id: botAccountId, name: 'Alice & Bob\'s "Bot"', bot: {id: botId}},
             createdTime: baseTime,
             content: "Hello",
         }),

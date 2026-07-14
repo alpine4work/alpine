@@ -60,7 +60,6 @@ import {memoMaybeThunk} from "~/shared/helpers/control/memo_maybe_thunk.js";
 import {unwrapMaybeThunk} from "~/shared/helpers/control/unwrap_maybe_thunk.js";
 import {defaultLocale} from "~/shared/helpers/intl/locale.js";
 import {printPrettyNumber} from "~/shared/helpers/number/print_pretty_number.js";
-import {isObject} from "~/shared/helpers/object/is_object.js";
 import {MaybePromise} from "~/shared/helpers/types/maybe_promise.js";
 import {MaybeThunk} from "~/shared/helpers/types/maybe_thunk.js";
 import {ChatId} from "~/shared/id/types/id_types.js";

@@ -87,6 +87,7 @@ test("reads full task page", async () => {
             {collection: {id: engineeringCollectionId, name: "Engineering"}},
             {collection: {id: roadmapCollectionId, name: "Roadmap"}},
         ],
+        subtasks: {openTaskCount: 0, closedTaskCount: 0},
         priority: {type: "Urgent"},
         due: {date: "2025-07-12"},
         notes: {
@@ -149,6 +150,7 @@ test("reads task page with hidden optional fields", async () => {
         title: "Bare task",
         status: {type: "Closed"},
         collections: [],
+        subtasks: {openTaskCount: 0, closedTaskCount: 0},
         notes: {version: 0, content: addKeysToApiContentForTest(emptyNotesContent)},
     });
 

@@ -63,7 +63,7 @@ runAgentWebPageTests<TaskId, AgentWebTaskMessageListPage>({
             name: "task comments",
             pageLink: taskId,
             markdown: `\
-Comments on [Write Spec (Open)](/task/write-spec).
+Comments on [Write Spec (Open, active)](/task/write-spec).
 `,
             page: {
                 type: "TaskMessageList",
@@ -77,10 +77,10 @@ Comments on [Write Spec (Open)](/task/write-spec).
             name: "task comments without period",
             pageLink: taskId,
             markdown: `\
-Comments on [Write Spec (Open)](/task/write-spec)
+Comments on [Write Spec (Open, active)](/task/write-spec)
 `,
             printMarkdown: `\
-Comments on [Write Spec (Open)](/task/write-spec).
+Comments on [Write Spec (Open, active)](/task/write-spec).
 `,
             page: {
                 type: "TaskMessageList",
@@ -94,7 +94,7 @@ Comments on [Write Spec (Open)](/task/write-spec).
             name: "task comments preamble before comment",
             pageLink: taskId,
             markdown: `\
-Comments on [Write Spec (Open)](/task/write-spec).
+Comments on [Write Spec (Open, active)](/task/write-spec).
 
 <comment from="[Alice](/human/alice)">
 
@@ -124,7 +124,7 @@ Looks good.
             name: "task comments end of comments",
             pageLink: taskId,
             markdown: `\
-Comments on [Write Spec (Open)](/task/write-spec).
+Comments on [Write Spec (Open, active)](/task/write-spec).
 
 <comment from="[Alice](/human/alice)">
 
@@ -156,7 +156,7 @@ End of comments.
             name: "task comments with previous page pagination link",
             pageLink: taskId,
             markdown: `\
-Comments on [Write Spec (Open)](/task/write-spec). [Previous page »](/task/write-spec/comments?before=3)
+Comments on [Write Spec (Open, active)](/task/write-spec). [Previous page »](/task/write-spec/comments?before=3)
 `,
             page: {
                 type: "TaskMessageList",
@@ -177,7 +177,7 @@ Comments on [Write Spec (Open)](/task/write-spec). [Previous page »](/task/writ
             name: "task comments with next page pagination link",
             pageLink: taskId,
             markdown: `\
-Comments on [Write Spec (Open)](/task/write-spec). [Next page »](/task/write-spec/comments?after=9)
+Comments on [Write Spec (Open, active)](/task/write-spec). [Next page »](/task/write-spec/comments?after=9)
 `,
             page: {
                 type: "TaskMessageList",
@@ -198,7 +198,7 @@ Comments on [Write Spec (Open)](/task/write-spec). [Next page »](/task/write-sp
             name: "task comments with previous and next page pagination links",
             pageLink: taskId,
             markdown: `\
-Comments on [Write Spec (Open)](/task/write-spec). [« Previous page](/task/write-spec/comments?before=3) | [Next page »](/task/write-spec/comments?after=9)
+Comments on [Write Spec (Open, active)](/task/write-spec). [« Previous page](/task/write-spec/comments?before=3) | [Next page »](/task/write-spec/comments?after=9)
 `,
             page: {
                 type: "TaskMessageList",

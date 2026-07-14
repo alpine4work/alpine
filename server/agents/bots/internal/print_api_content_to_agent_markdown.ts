@@ -5,6 +5,7 @@ import {
     printAgentLinkPath,
     printAgentPlainTextLabel,
 } from "~/server/agents/bots/internal/link_references/print_agent_link_path.js";
+import {DurableObjectStorageInterface} from "~/server/cloudflare/durable_object_storage_collection.js";
 import {
     printApiContentToMarkdownTree,
     printMarkdownTree,
@@ -41,10 +42,7 @@ export async function printApiContentToAgentMarkdownTree(
     const promiseWaiter = new PromiseWaiter();
 
     const markdownTree = printApiContentToMarkdownTree(content, {
-        // Our LLMs don't need to know the width of columns in a table. The potentially
-        // long floats will consume a lot of tokens and may confuse the LLM.
-        withoutTableWidth: true,
-        withSimpleCommentMarkHtml: true,
+        withCommentTagHtml: true,
     });
 
     const traverse = (node: Parent) => {
@@ -93,12 +91,17 @@ export async function printApiContentToAgentMarkdownTree(
                 continue;
             }
 
-            // Throw away links encoded as anchor tags (`<a>`).
-            if (childNode.type === "html" && /<a[^a-zA-Z0-9]/.test(childNode.value)) {
-                childNode.value = childNode.value.replaceAll(
-                    /href="[^"]*"/g,
-                    'href="missing-link"',
-                );
+            if (childNode.type === "html") {
+                // The legacy bot format intentionally hides document comment thread IDs.
+                childNode.value = childNode.value.replace(/^<comment id="[^"]+">$/, "<comment>");
+
+                // Throw away links encoded as anchor tags (`<a>`).
+                if (/<a[^a-zA-Z0-9]/.test(childNode.value)) {
+                    childNode.value = childNode.value.replaceAll(
+                        /href="[^"]*"/g,
+                        'href="missing-link"',
+                    );
+                }
             }
 
             if ("children" in childNode) {
@@ -148,13 +151,15 @@ function createAgentLinkForApiMentionPath(
     storage: DurableObjectStorageInterface,
     mentionElement: ApiContentMentionInlineElementResponse,
 ): Promise<AgentLink> {
-    switch (mentionElement.target.type) {
+    const {reference} = mentionElement;
+
+    switch (reference.type) {
         case "Account": {
             return createAgentLink(storage, {
                 type: "Account",
                 account: {
-                    id: mentionElement.target.id,
-                    name: mentionElement.title,
+                    id: reference.id,
+                    name: reference.title,
                 },
             });
         }
@@ -162,8 +167,8 @@ function createAgentLinkForApiMentionPath(
             return createAgentLink(storage, {
                 type: "Channel",
                 channel: {
-                    id: mentionElement.target.id,
-                    name: mentionElement.title,
+                    id: reference.id,
+                    name: reference.title,
                 },
             });
         }
@@ -171,8 +176,8 @@ function createAgentLinkForApiMentionPath(
             return createAgentLink(storage, {
                 type: "Chat",
                 chat: {
-                    id: mentionElement.target.id,
-                    name: mentionElement.title,
+                    id: reference.id,
+                    name: reference.title,
                 },
             });
         }
@@ -180,8 +185,8 @@ function createAgentLinkForApiMentionPath(
             return createAgentLink(storage, {
                 type: "Document",
                 document: {
-                    id: mentionElement.target.id,
-                    title: mentionElement.title,
+                    id: reference.id,
+                    title: reference.title,
                 },
             });
         }
@@ -189,8 +194,8 @@ function createAgentLinkForApiMentionPath(
             return createAgentLink(storage, {
                 type: "Post",
                 post: {
-                    id: mentionElement.target.id,
-                    contentPreview: mentionElement.title,
+                    id: reference.id,
+                    contentPreview: reference.title,
                 },
             });
         }
@@ -198,8 +203,8 @@ function createAgentLinkForApiMentionPath(
             return createAgentLink(storage, {
                 type: "Site",
                 site: {
-                    id: mentionElement.target.id,
-                    name: mentionElement.title,
+                    id: reference.id,
+                    name: reference.title,
                 },
             });
         }
@@ -207,9 +212,9 @@ function createAgentLinkForApiMentionPath(
             return createAgentLink(storage, {
                 type: "Task",
                 task: {
-                    id: mentionElement.target.id,
-                    title: mentionElement.title,
-                    status: mentionElement.target.status,
+                    id: reference.id,
+                    title: reference.title,
+                    status: reference.status,
                 },
             });
         }
@@ -217,13 +222,13 @@ function createAgentLinkForApiMentionPath(
             return createAgentLink(storage, {
                 type: "TaskCollection",
                 taskCollection: {
-                    id: mentionElement.target.id,
-                    name: mentionElement.title,
+                    id: reference.id,
+                    name: reference.title,
                 },
             });
         }
         default: {
-            throw exhaustive(mentionElement.target);
+            throw exhaustive(reference);
         }
     }
 }

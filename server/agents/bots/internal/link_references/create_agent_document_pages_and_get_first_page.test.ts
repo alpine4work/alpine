@@ -18,10 +18,14 @@ describe("createDocumentPagesAndGetFirstPage", () => {
     const documentId = generateId<DocumentId>();
 
     function createParagraphElement(text: string) {
-        return {
-            type: "Paragraph" as const,
-            elements: [{type: "Text" as const, text}],
-        };
+        return addKeysToApiContentForTest({
+            elements: [
+                {
+                    type: "Paragraph",
+                    elements: [{type: "Text", text}],
+                },
+            ],
+        }).elements[0]!;
     }
 
     test("creates single page for short document", async () => {

@@ -1,4 +1,5 @@
 import {ApiClient, createApiClient} from "~/server/agents/api/api_client.js";
+import {ApiBotWebhookRequestBody} from "~/server/agents/bots/api_bot_webhook_request_body.js";
 import {
     AgentScheduleEventRequest,
     deleteAgentScheduleEvent,
@@ -23,7 +24,6 @@ import {
 } from "~/shared/api/specification/sign_bot_webhook_request.js";
 import {
     ApiBotWebhookEvent,
-    ApiBotWebhookRequestBody,
     ApiMessageRoomReference,
 } from "~/shared/api/specification/types/api_specification_convenience_types.js";
 import {Context} from "~/shared/context/context.js";
@@ -297,15 +297,15 @@ export abstract class AgentDurableObjectBase<
         {origin, payload}: AgentProcessWebhookScheduleEventRequest,
     ) {
         await parentSpan.withSpan("Process agent webhook", async span => {
-            const {accessToken, spaceId, botId, botAccountId, event} = payload;
+            const {accessToken, spaceId, botAccount, event} = payload;
 
             try {
                 const request: AgentWebhookRequest = {
                     storage: this._state.storage,
                     origin,
                     spaceId,
-                    botId,
-                    botAccountId,
+                    botId: botAccount.bot.id,
+                    botAccountId: botAccount.id,
                     event,
                     room: parseApiBotWebhookEventIntoMessageRoom(event),
                     apiClient: createApiClient({

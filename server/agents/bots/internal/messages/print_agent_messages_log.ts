@@ -145,7 +145,7 @@ export function printAgentMessagesIntoMarkdownTree(
 
         // Build opening tag with attributes
         let openingTag = "";
-        if (message.author.botId) {
+        if (message.author.bot) {
             openingTag += `<bot name="${escapeHtml(message.author.name)}"`;
         } else {
             openingTag += `<human name="${escapeHtml(message.author.name)}"`;
@@ -172,7 +172,7 @@ export function printAgentMessagesIntoMarkdownTree(
         // Include timezone attribute for users whose timezone differs from the context
         // timezone
         if (
-            !message.author.botId &&
+            !message.author.bot &&
             currentMessageFormattedTimeZone !== conversationFormattedTimeZone
         ) {
             const timeZoneAbbreviation = formatTimeZoneAbbreviation(
@@ -186,7 +186,7 @@ export function printAgentMessagesIntoMarkdownTree(
 
         currentBlock = {
             openingTag,
-            closingTag: message.author.botId ? "</bot>" : "</human>",
+            closingTag: message.author.bot ? "</bot>" : "</human>",
             messages: [message],
             authorId: message.author.id,
             lastMessageTime: currentMessageTime,

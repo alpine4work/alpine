@@ -83,7 +83,6 @@ function mockGetPost(
                     responseData.content ??
                         createApiContentResponseWithSingleParagraph("Test Post Content"),
                 ),
-                contentPreview: responseData.contentPreview ?? "Test Post Content Preview",
             },
         },
     });
@@ -99,7 +98,7 @@ function mockGetPostCommentsList(
         messages?: Array<ApiMessageResponse>;
     },
     pageInfo?: {
-        from?: "start" | "end";
+        from?: "Start" | "End";
         cursor: number | undefined;
         limit: number;
     },
@@ -618,7 +617,7 @@ Third comment!
             author: aliceAccount,
             channel: {id: generateId(), name: "Announcements"},
             content: createSampleContent("Big news!"),
-            contentPreview: "Alice in Announcements: Big news!",
+            reference: {title: "Alice in Announcements: Big news!"},
             createdTime: postCreationDate,
         });
 
@@ -721,7 +720,7 @@ ${"Fourth comment!".repeat(200)}
             author: aliceAccount,
             channel: {id: generateId(), name: "Announcements"},
             content: createSampleContent("Big news!"),
-            contentPreview: "Alice in Announcements: Big news!",
+            reference: {title: "Alice in Announcements: Big news!"},
             createdTime: postCreationDate,
         });
 

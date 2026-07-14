@@ -45,7 +45,7 @@ function estimateApiContentBlockElementTokenCount(element: ApiContentBlockElemen
                         break;
                     }
                     case "Mention": {
-                        tokenCount += countO200kBaseTokens(element.title ?? "");
+                        tokenCount += countO200kBaseTokens(element.reference.title ?? "");
                         break;
                     }
                     case "Break": {

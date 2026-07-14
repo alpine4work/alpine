@@ -148,7 +148,7 @@ test("prints entity results as links", async () => {
 
 2. [Test Post](/post/test-post)
 
-3. [Test Task Open active (Open)](/task/test-task-open-active)
+3. [Test Task Open active (Open, active)](/task/test-task-open-active)
 
 4. [Test Task Open inactive (Open)](/task/test-task-open-inactive)
 
@@ -217,7 +217,7 @@ test("prints body matches under entity results", async () => {
 
    **Test Post** not highlighted **hello world** test post
 
-3. [Test Task (Open)](/task/test-task)
+3. [Test Task (Open, active)](/task/test-task)
 
    **Test Task** **hello world** test task
 
@@ -413,7 +413,7 @@ The following results don\u2019t match any natural language filter but Alpine th
 
    post content
 
-2. [Non-matching Task (Open)](/task/non-matching-task)
+2. [Non-matching Task (Open, active)](/task/non-matching-task)
 `);
 });
 
@@ -461,7 +461,7 @@ test("prints a section for every parsed filter summary", async () => {
 
 ## Tasks assigned to Jane
 
-1. [Matching Task (Open)](/task/matching-task)
+1. [Matching Task (Open, active)](/task/matching-task)
 
 ## Other
 

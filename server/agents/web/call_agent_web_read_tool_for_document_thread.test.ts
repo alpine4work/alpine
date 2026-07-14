@@ -941,7 +941,7 @@ test("reads a document thread comment link around the comment", async () => {
         threadId,
         index: 1,
         authorShortName: "Alice",
-        bodySnippet: "Second comment",
+        preview: "Second comment",
     });
 
     mockGetDocumentThread();

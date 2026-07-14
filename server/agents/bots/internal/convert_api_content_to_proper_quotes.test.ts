@@ -492,7 +492,12 @@ test("handles quotes after mention (possessive)", () => {
                     elements: [
                         {
                             type: "Mention",
-                            reference: {type: "Account", id: accountId, title: "Caleb"},
+                            reference: {
+                                type: "Account",
+                                id: accountId,
+                                title: "Caleb",
+                                shortName: "Caleb",
+                            },
                         },
                         {type: "Text", text: "'s idea"},
                     ],
@@ -506,7 +511,12 @@ test("handles quotes after mention (possessive)", () => {
                     elements: [
                         {
                             type: "Mention",
-                            reference: {type: "Account", id: accountId, title: "Caleb"},
+                            reference: {
+                                type: "Account",
+                                id: accountId,
+                                title: "Caleb",
+                                shortName: "Caleb",
+                            },
                         },
                         {type: "Text", text: "\u2019s idea"},
                     ],
@@ -591,8 +601,7 @@ test("preserves file and preview block elements", () => {
             {type: "File", file: {id: fileId, contentType: "text/plain"}},
             {
                 type: "Preview",
-                target: {type: "Document", id: documentId},
-                title: '"Quoted" title',
+                reference: {type: "Document", id: documentId, title: '"Quoted" title'},
             },
             {
                 type: "FileGallery",
@@ -603,8 +612,11 @@ test("preserves file and preview block elements", () => {
                             {
                                 element: {
                                     type: "Preview",
-                                    target: {type: "Document", id: documentId},
-                                    title: "'Quoted' preview",
+                                    reference: {
+                                        type: "Document",
+                                        id: documentId,
+                                        title: "'Quoted' preview",
+                                    },
                                 },
                             },
                         ],

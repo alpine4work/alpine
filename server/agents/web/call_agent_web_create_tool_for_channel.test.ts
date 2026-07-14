@@ -146,7 +146,7 @@ Posts in Announcements.
 End of posts.
 `,
         expected:
-            "Channel markdown must start with a channel title (e.g. `# General`) when creating a channel. Try again with a channel title.",
+            "Channel markdown must start with a title (e.g. `# General`) when creating a channel. Try again with a title.",
     });
 });
 

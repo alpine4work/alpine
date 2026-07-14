@@ -1,4 +1,4 @@
-import {ApiMentionResponse} from "~/shared/api/specification/types/api_specification_convenience_types.js";
+import {ApiMentionReferenceResponse} from "~/shared/api/specification/types/api_specification_convenience_types.js";
 import {TimeZone} from "~/shared/helpers/intl/time_zone.js";
 
 export type AgentConversationState = {
@@ -27,8 +27,8 @@ export type AgentConversationState = {
     readonly timeZone: TimeZone;
 
     readonly currentlyViewingTarget: {
-        readonly target: ApiMentionResponse | null;
-        readonly previousTarget: ApiMentionResponse | null;
+        readonly target: ApiMentionReferenceResponse | null;
+        readonly previousTarget: ApiMentionReferenceResponse | null;
         readonly previousInjectTime: Date | null;
     } | null;
 };

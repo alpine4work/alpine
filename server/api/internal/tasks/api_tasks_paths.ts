@@ -10,9 +10,9 @@ import {
 } from "~/server/api/internal/shared/into_api_content_with_references.js";
 import {intoApiMessage} from "~/server/api/internal/shared/into_api_message.js";
 import {intoApiMessageExperimentalApproval} from "~/server/api/internal/shared/into_api_message_stream_part_payload.js";
-import {createApiTaskActor} from "~/server/api/internal/tasks/internal/create_api_task_actor.js";
 import {ApiTaskConverter} from "~/server/api/internal/tasks/internal/api_task_converter.js";
 import {createApiPatchTaskResponseCollections} from "~/server/api/internal/tasks/internal/create_api_patch_task_response_collections.js";
+import {createApiTaskActor} from "~/server/api/internal/tasks/internal/create_api_task_actor.js";
 import {createIntoApiTaskCommentContentPayloadParent} from "~/server/api/internal/tasks/internal/create_into_api_task_comment_content_payload_parent.ts.js";
 import {createTaskFromApi} from "~/server/api/internal/tasks/internal/create_task_from_api.js";
 import {fromApiTaskLayout} from "~/server/api/internal/tasks/internal/from_api_task_layout.js";
@@ -772,6 +772,7 @@ export const apiTasksPaths: Pick<
     "/task-collections/{id}": {
         patch: async (context, {pathParameters, requestBody}) => {
             const spaceId = context.actor.getSpaceId();
+
             const collection = await updateTaskCollectionFromApi(context, {
                 spaceId,
                 collectionId: pathParameters.id,
@@ -782,7 +783,7 @@ export const apiTasksPaths: Pick<
             return {
                 content: {
                     spaceId,
-                    collection: intoApiTaskCollection(collection),
+                    collection: await intoApiTaskCollection(context, collection),
                 },
             };
         },
@@ -797,7 +798,7 @@ export const apiTasksPaths: Pick<
             return {
                 content: {
                     spaceId: context.actor.getSpaceId(),
-                    collection: intoApiTaskCollection(collection),
+                    collection: await intoApiTaskCollection(context, collection),
                 },
             };
         },
@@ -857,7 +858,7 @@ export const apiTasksPaths: Pick<
             return {
                 content: {
                     spaceId,
-                    collection: intoApiTaskCollection(collection),
+                    collection: await intoApiTaskCollection(context, collection),
                     nextCursor,
                     tasks,
                 },
@@ -898,7 +899,7 @@ export const apiTasksPaths: Pick<
             return {
                 content: {
                     spaceId,
-                    collection: intoApiTaskCollection(collection),
+                    collection: await intoApiTaskCollection(context, collection),
                     nextCursor,
                     tasks,
                 },

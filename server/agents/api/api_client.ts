@@ -501,7 +501,7 @@ export async function putApiMessageStreamPart(
 export async function patchApiMessageApprovals(
     tracer: TracerBase,
     apiClient: ApiClient,
-    room: ApiMessageRoomTarget,
+    room: ApiMessageRoomReference,
     messageIndex: number,
     decisions: ReadonlyArray<{index: number; value: ApiMessageExperimentalApprovalDecisionValue}>,
 ) {
@@ -526,7 +526,7 @@ export async function patchApiMessageApprovals(
                 },
             );
         }
-        case "DocumentCommentThread": {
+        case "DocumentThread": {
             return await apiClient.patch(
                 tracer,
                 "/documents/{id}/threads/{threadId}/messages/{index}/experimental-approvals",
@@ -570,7 +570,7 @@ export async function patchApiMessageApprovals(
 export function getApiMessageApprovals(
     tracer: TracerBase,
     apiClient: ApiClient,
-    room: ApiMessageRoomTarget,
+    room: ApiMessageRoomReference,
     messageIndex: number,
 ) {
     switch (room.type) {
@@ -579,7 +579,7 @@ export function getApiMessageApprovals(
                 params: {path: {id: room.id, index: messageIndex}},
             });
         }
-        case "DocumentCommentThread": {
+        case "DocumentThread": {
             return apiClient.get(
                 tracer,
                 "/documents/{id}/threads/{threadId}/messages/{index}/experimental-approvals",

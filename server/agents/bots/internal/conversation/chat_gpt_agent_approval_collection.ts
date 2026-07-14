@@ -2,14 +2,14 @@ import {
     DurableObjectStorageCollection,
     DurableObjectStorageInterface,
     DurableObjectTransactionInterface,
-} from "~/server/agents/bots/internal/durable_object_storage_collection.js";
+} from "~/server/cloudflare/durable_object_storage_collection.js";
 import {
-    ApiMessageExperimentalApprovalApprovedForSessionOption,
     ApiMessageExperimentalApprovalDecision,
+    ApiMessageExperimentalApprovalDecisionApprovedForSessionOption,
     ApiMessageExperimentalApprovalDecisionOption,
     ApiMessageExperimentalApprovalDecisionSchema,
     ApiMessageExperimentalApprovalDecisionValue,
-    ApiMessageRoomTarget,
+    ApiMessageRoomReference,
 } from "~/shared/api/specification/types/api_specification_convenience_types.js";
 import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
@@ -17,7 +17,7 @@ import {AccountId} from "~/shared/id/types/id_types.js";
 import {TracerSpan} from "~/shared/tracer/tracer_span.js";
 
 type ChatGptAgentApprovedForSessionApprovalDecisionOption = Omit<
-    ApiMessageExperimentalApprovalApprovedForSessionOption,
+    ApiMessageExperimentalApprovalDecisionApprovedForSessionOption,
     "scope" | "summary"
 > & {
     readonly scope: {value: "Write"};
@@ -54,7 +54,7 @@ export type ChatGptAgentMessageApproval = {
      * is dispatched, so this field is not an agent-side access check.
      */
     readonly requesterAccountId: AccountId;
-    readonly room: ApiMessageRoomTarget;
+    readonly room: ApiMessageRoomReference;
     /** The index of the agent message whose stream holds the approval card. */
     readonly messageIndex: number;
     readonly approvals: ReadonlyArray<ChatGptAgentMessageApprovalItem>;
@@ -98,7 +98,7 @@ export async function putChatGptAgentPendingMessageApproval(
         requesterAccountId,
         approvals,
     }: {
-        room: ApiMessageRoomTarget;
+        room: ApiMessageRoomReference;
         messageIndex: number;
         apiAccessToken: string;
         requesterAccountId: AccountId;

@@ -1,5 +1,5 @@
 import {AgentWebhookRequest} from "~/server/agents/bots/internal/agent_durable_object_base.js";
-import {DurableObjectStorageCollection} from "~/server/agents/bots/internal/durable_object_storage_collection.js";
+import {DurableObjectStorageCollection} from "~/server/cloudflare/durable_object_storage_collection.js";
 import {
     ApiBotWebhookEvent,
     ApiChat,
@@ -24,7 +24,7 @@ export async function shouldAgentRespondToRequest(
     // If the message is a reply to a message authored by our bot then the agent should
     // respond.
     if (
-        request.event.type === "NewMessage" &&
+        request.event.type === "CreatedMessage" &&
         request.event.parent &&
         request.event.parent.author.id === request.botAccountId
     ) {

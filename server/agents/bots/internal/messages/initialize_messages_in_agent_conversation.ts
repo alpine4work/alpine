@@ -37,10 +37,10 @@ export async function initializeMessagesInAgentConversation({
 
     const getConversationMessageIndex = () => {
         switch (request.event.type) {
-            case "NewMessage": {
+            case "CreatedMessage": {
                 return request.event.index;
             }
-            case "NewPost": {
+            case "CreatedPost": {
                 // We don't want to store 0 for the piece of state that represents the last loaded
                 // message index since it wasn't actually loaded yet.
                 return -1;
@@ -84,10 +84,10 @@ export async function loadInitialAgentMessagesContent({
 
     const getCursorForEvent = () => {
         switch (event.type) {
-            case "NewMessage": {
+            case "CreatedMessage": {
                 return event.index + 1;
             }
-            case "NewPost": {
+            case "CreatedPost": {
                 // Has to be 1 for a valid api call to get messages from end since it's range
                 // exclusive.
                 return 1;
@@ -126,7 +126,7 @@ export async function loadInitialAgentMessagesContent({
                 tokenLimitFactor: 1,
             });
         }
-        case "DocumentCommentThread": {
+        case "DocumentThread": {
             return await loadAgentMessagesListLinkContent({
                 ...options,
                 link: {

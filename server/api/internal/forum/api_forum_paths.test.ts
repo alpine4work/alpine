@@ -1272,7 +1272,7 @@ test("can create post with file attachment", async () => {
                     elements: [
                         {
                             type: "File",
-                            id: file.id,
+                            file: {id: file.id},
                         },
                     ],
                 },
@@ -1288,7 +1288,7 @@ test("can create post with file attachment", async () => {
                     elements: expect.arrayContaining([
                         expect.objectContaining({
                             type: "File",
-                            id: file.id,
+                            file: expect.objectContaining({id: file.id}),
                         }),
                     ]),
                 }),
@@ -1323,9 +1323,11 @@ test("can read post with file attachment", async () => {
                     elements: expect.arrayContaining([
                         expect.objectContaining({
                             type: "File",
-                            id: file.id,
-                            contentType: "image/png",
-                            contentLength: 5232,
+                            file: {
+                                id: file.id,
+                                contentType: "image/png",
+                                contentLength: 5232,
+                            },
                         }),
                     ]),
                 }),
@@ -1520,9 +1522,11 @@ test("post comment with files and previews returns both", async () => {
                             width: 0.38,
                             element: {
                                 type: "File",
-                                id: file.id,
-                                contentType: expect.any(String),
-                                contentLength: expect.any(Number),
+                                file: {
+                                    id: file.id,
+                                    contentType: expect.any(String),
+                                    contentLength: expect.any(Number),
+                                },
                             },
                         }),
                         expect.objectContaining({

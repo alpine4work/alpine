@@ -65,8 +65,6 @@ import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 import {cast} from "~/shared/helpers/control/cast.js";
 import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
 import {isDeepEqual} from "~/shared/helpers/control/is_deep_equal.js";
-import {filterIterable} from "~/shared/helpers/iterable/filter_iterable.js";
-import {partitionIterable} from "~/shared/helpers/iterable/partition_iterable.js";
 import {reverseIterable} from "~/shared/helpers/iterable/reverse_iterable.js";
 import {getObjectKeysWithKeyofType} from "~/shared/helpers/object/get_object_keys_with_keyof_type.js";
 import {MaybePromise} from "~/shared/helpers/types/maybe_promise.js";
@@ -824,7 +822,7 @@ export async function updateAgentWebTaskCollectionPage(
             "Can\u2019t change tasks in an automatically ordered collection",
             {
                 // NOCOMMIT: Test error message
-                displayMessage: errorDisplayMessage`Tasks may only be added, removed, or reordered when a task collection is sorted manually. A collection is manually sorted when no automatic sorts are applied. That means there are no default filters/sorts and there is no \`?sort\` in the path passed to the \`read\` tool. To reorder tasks in an automatically sorted collection, look at the collection's sorts and update the task's fields to reorder it (for example, if a collection is sorted by \`?sort=priority\` then updating a task's priority will move it). If you are updating a task's fields in an automatically sorted collection, you don't have to move the task yourself with the \`update\` tool. The task will be moved automatically, you can call the \`read\` tool again with the collection to see the new order. Try again without reordering, adding, or removing tasks.`,
+                displayMessage: errorDisplayMessage`Tasks may only be added, removed, or reordered when a task collection is sorted manually. A collection is manually sorted when no automatic sorts are applied. That means there are no default filters/sorts and there is no \`?sort\` in the path passed to the \`read\` tool. To reorder tasks in an automatically sorted collection, look at the collection\u2019s sorts and update the task\u2019s fields to reorder it (for example, if a collection is sorted by \`?sort=priority\` then updating a task\u2019s priority will move it). If you are updating a task\u2019s fields in an automatically sorted collection, you don\u2019t have to move the task yourself with the \`update\` tool. The task will be moved automatically, you can call the \`read\` tool again with the collection to see the new order. Try again without reordering, adding, or removing tasks.`,
             },
         );
     }

@@ -1,8 +1,8 @@
 import {getAccountShortNameWithoutFullNameTooltip} from "~/shared/accounts/get_account_short_name_without_full_name_tooltip.js";
 import {intoApiTaskStatus} from "~/shared/api/content/closed_source/into_api_task_status.js";
 import {
-    ApiSearchResult,
-    ApiSearchResultBodyMatchItem,
+    ApiSearchResultBodyMatch,
+    ApiSearchResultResponse,
 } from "~/shared/api/specification/types/api_specification_convenience_types.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
@@ -18,15 +18,13 @@ export function intoApiSearchResult({
     model,
     bodyTextSnippet,
     parsedFilter: resultParsedFilter,
-}: SearchEntityResultModel): ApiSearchResult | null {
+}: SearchEntityResultModel): ApiSearchResultResponse | null {
     const bodyMatch =
         bodyTextSnippet.length > 0
-            ? bodyTextSnippet.map(
-                  (snippet): ApiSearchResultBodyMatchItem => ({
-                      text: snippet.text,
-                      ...(snippet.isHighlighted ? {isMatch: true} : {}),
-                  }),
-              )
+            ? bodyTextSnippet.map((snippet): ApiSearchResultBodyMatch[number] => ({
+                  text: snippet.text,
+                  ...(snippet.isHighlighted ? {isMatch: true} : {}),
+              }))
             : null;
 
     const parsedFilter = resultParsedFilter ?? undefined;

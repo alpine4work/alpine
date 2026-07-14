@@ -5,7 +5,7 @@ import {
 } from "~/server/agents/api/api_client.js";
 import {
     ApiMessageExperimentalApproval,
-    ApiMessageRoomTarget,
+    ApiMessageRoomReference,
 } from "~/shared/api/specification/types/api_specification_convenience_types.js";
 import {InvalidArgumentError} from "~/shared/error/error.js";
 import {filterMapArray} from "~/shared/helpers/array/filter_map_array.js";
@@ -38,7 +38,7 @@ export function rejectPendingChatGptAgentMessageApproval(
         patches: initialPatches,
     }: {
         apiClient: ApiClient;
-        room: ApiMessageRoomTarget;
+        room: ApiMessageRoomReference;
         messageIndex: number;
         patches: ReadonlyArray<{index: number; value: {type: "Rejected"}}>;
     },

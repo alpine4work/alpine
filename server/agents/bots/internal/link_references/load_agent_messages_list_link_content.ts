@@ -25,10 +25,8 @@ import {getAgentMessagesFromStartUntilTokenLimitCount} from "~/server/agents/bot
 import {printApiContentToAgentMarkdownTree} from "~/server/agents/bots/internal/print_api_content_to_agent_markdown.js";
 import {DurableObjectTransactionInterface} from "~/server/cloudflare/durable_object_storage_collection.js";
 import {visitDraftApiContent} from "~/shared/api/content/visit_and_produce_api_content.js";
-import {
-    ApiContentResponse,
-    ApiMessageRoomReference,
-} from "~/shared/api/specification/types/api_specification_convenience_types.js";
+import {ApiContentResponseWithoutKeys} from "~/shared/api/specification/types/api_content_response_without_keys.js";
+import {ApiMessageRoomReference} from "~/shared/api/specification/types/api_specification_convenience_types.js";
 import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
 import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
 import {doesStringEndWithPunctuation} from "~/shared/helpers/string/does_string_end_with_punctuation.js";
@@ -353,7 +351,7 @@ function getMessageRoom(link: AgentPaginatedMessagesListLink): ApiMessageRoomRef
             return {type: "Chat", id: link.chatId};
         case "DocumentCommentThreadComments":
             return {
-                type: "DocumentCommentThread",
+                type: "DocumentThread",
                 id: link.documentId,
                 threadId: link.commentThreadId,
             };
@@ -375,7 +373,7 @@ async function getPreambleForChatMessages(_options: {
 }
 
 function getDocumentContentSnippetForThreadExcludingOtherCommentMarks(
-    content: ApiContentResponse,
+    content: ApiContentResponseWithoutKeys,
     commentThreadId: DocumentCommentThreadId,
 ) {
     return produce(content, content => {
@@ -385,11 +383,11 @@ function getDocumentContentSnippetForThreadExcludingOtherCommentMarks(
                     element.type === "Text" &&
                     element.marks !== undefined &&
                     element.marks.some(
-                        mark => mark.type === "Comment" && mark.threadId !== commentThreadId,
+                        mark => mark.type === "Comment" && mark.thread.id !== commentThreadId,
                     )
                 ) {
                     element.marks = element.marks.filter(
-                        mark => mark.type !== "Comment" || mark.threadId === commentThreadId,
+                        mark => mark.type !== "Comment" || mark.thread.id === commentThreadId,
                     );
                 }
             },
@@ -422,7 +420,7 @@ async function getPreambleForDocumentComments({
         (link.paginationType === "page" && link.pageNumber === 1) ||
         (link.paginationType === "chunk" && link.pageNumber === 0);
 
-    let documentContentSnippet: ApiContentResponse | null = null;
+    let documentContentSnippet: ApiContentResponseWithoutKeys | null = null;
 
     if (!isFirstRenderForConversation) {
         paragraphContent.push({
@@ -471,9 +469,9 @@ async function getPreambleForDocumentComments({
             paragraphContent.push({type: "text", value: ".\u201D"});
         }
 
-        const commentThread = commentThreadData?.data?.commentThread;
-        if (commentThread && commentThread.documentContentSnippet.elements.length > 0) {
-            documentContentSnippet = commentThread.documentContentSnippet;
+        const contentSnippet = commentThreadData?.data.thread.marked.preview.contentSnippet;
+        if (contentSnippet && contentSnippet.elements.length > 0) {
+            documentContentSnippet = contentSnippet;
             paragraphContent.push({
                 type: "text",
                 value: " The following is a preview of the document near the comment. The specific text this comment was left on is wrapped in ",

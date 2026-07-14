@@ -8,6 +8,7 @@ import {ApiAccountResponse} from "~/shared/api/specification/types/api_specifica
 import {ErrorBase, InternalError} from "~/shared/error/error.js";
 import {ErrorDisplayMessage} from "~/shared/error/types/error_display_message_type.js";
 import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
+import {serializeDateString} from "~/shared/helpers/date/date_string.js";
 import {defaultTimeZone} from "~/shared/helpers/intl/time_zone.js";
 import {generateId} from "~/shared/id/id.js";
 import {AccountId, BotId, SpaceId} from "~/shared/id/types/id_types.js";
@@ -37,10 +38,7 @@ const context: AgentWebContext = {
     },
 };
 
-function mockGetAccount(
-    accountId: AccountId,
-    responseData: Omit<ApiAccountResponse, "id">,
-): void {
+function mockGetAccount(accountId: AccountId, responseData: Omit<ApiAccountResponse, "id">): void {
     api.mockGet("/spaces/{id}/accounts/{accountId}", {
         params: {path: {id: spaceId, accountId}},
         data: {
@@ -101,7 +99,7 @@ test("throws when updating an account", async () => {
         shortName: "Alice Smith",
         space: {
             role: "Member",
-            addedTime: "2026-01-01T00:00:00.000Z",
+            addedTime: serializeDateString(new Date("2026-01-01T00:00:00.000Z")),
         },
     });
 

@@ -78,6 +78,12 @@ const AgentWebTaskCollectionPageTaskArbitrary: Arbitrary<AgentWebTaskCollectionP
         };
     });
 
+const AgentWebTaskCollectionPageUniqueTasksArbitrary: Arbitrary<
+    ReadonlyArray<AgentWebTaskCollectionPageTask>
+> = fc.uniqueArray(AgentWebTaskCollectionPageTaskArbitrary, {
+    selector: task => task.taskId,
+});
+
 const ApiTaskQueryFilterResponsesArbitrary: Arbitrary<ReadonlyArray<ApiTaskQueryFilterResponse>> =
     fc.constantFrom(
         [],
@@ -163,7 +169,7 @@ const AgentWebTaskCollectionHeadPageArbitrary: Arbitrary<AgentWebTaskCollectionP
         {weight: 2, arbitrary: fc.constant(null)},
         {weight: 1, arbitrary: AgentWebTaskCollectionPagePaginationArbitrary},
     ),
-    tasks: fc.array(AgentWebTaskCollectionPageTaskArbitrary),
+    tasks: AgentWebTaskCollectionPageUniqueTasksArbitrary,
     isEndOfTasks: fc.boolean(),
 });
 
@@ -175,7 +181,7 @@ const AgentWebTaskCollectionTailPageArbitrary: Arbitrary<AgentWebTaskCollectionP
         {weight: 2, arbitrary: fc.constant(null)},
         {weight: 1, arbitrary: AgentWebTaskCollectionPagePaginationArbitrary},
     ),
-    tasks: fc.array(AgentWebTaskCollectionPageTaskArbitrary),
+    tasks: AgentWebTaskCollectionPageUniqueTasksArbitrary,
     isEndOfTasks: fc.boolean(),
 });
 

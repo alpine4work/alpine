@@ -2098,16 +2098,17 @@ describe("PATCH /tasks", () => {
 
         await ProcessContextModule.waitForTestTasks();
         const updatedListing = await getBatchTaskCollectionListing(apiKey, collection.id);
+        const responseTasks: ReadonlyArray<{
+            task: {id: TaskId};
+            collections: ReadonlyArray<{movedCursor?: string}>;
+        }> = response.body.tasks;
         const movedCursorByTaskId = new Map(
-            response.body.tasks.map(({task, collections}) => [
-                task.id,
-                collections[0]?.movedCursor,
-            ]),
+            responseTasks.map(({task, collections}) => [task.id, collections[0]?.movedCursor]),
         );
 
         expect({
             taskIds: updatedListing.taskIds,
-            responseTaskIds: response.body.tasks.map(({task}) => task.id),
+            responseTaskIds: responseTasks.map(({task}) => task.id),
             movedCursors: movedTasksInPatchOrder.map(task => movedCursorByTaskId.get(task.id)),
         }).toEqual({
             taskIds: [afterTask.id, ...movedTasksInPatchOrder.map(task => task.id), beforeTask.id],
@@ -2255,14 +2256,14 @@ describe("PATCH /tasks", () => {
         });
 
         await ProcessContextModule.waitForTestTasks();
-        const [updatedListing, history] = await runAllPromises([
+        const [updatedListing, actions] = await runAllPromises([
             getBatchTaskCollectionListing(apiKey, collection.id),
-            backfillTaskActionTransactionHistory(space.systemAction(), space.id, startTime),
+            getTaskUpdateActionsSince(space, startTime),
         ]);
 
         expect({
             taskIds: updatedListing.taskIds,
-            actionTaskIds: history[0]?.actions.map(action => action.taskId),
+            actionTaskIds: actions.map(action => action.taskId),
         }).toEqual({
             taskIds: [tiedTask1.id, movedTask2.id, movedTask1.id, tiedTask2.id, tiedTask3.id],
             actionTaskIds: [movedTask2.id, movedTask1.id, tiedTask2.id, tiedTask3.id],
@@ -2326,14 +2327,14 @@ describe("PATCH /tasks", () => {
         });
 
         await ProcessContextModule.waitForTestTasks();
-        const [updatedListing, history] = await runAllPromises([
+        const [updatedListing, actions] = await runAllPromises([
             getBatchTaskCollectionListing(apiKey, collection.id),
-            backfillTaskActionTransactionHistory(space.systemAction(), space.id, startTime),
+            getTaskUpdateActionsSince(space, startTime),
         ]);
 
         expect({
             taskIds: updatedListing.taskIds,
-            actionTaskIds: history[0]?.actions.map(action => action.taskId),
+            actionTaskIds: actions.map(action => action.taskId),
         }).toEqual({
             taskIds: [afterTask.id, movedTask2.id, movedTask1.id, beforeTask.id],
             actionTaskIds: [movedTask2.id, movedTask1.id, beforeTask.id],
@@ -2430,15 +2431,15 @@ describe("PATCH /tasks", () => {
         });
 
         await ProcessContextModule.waitForTestTasks();
-        const [updatedListing, history] = await runAllPromises([
+        const [updatedListing, actions] = await runAllPromises([
             getBatchTaskCollectionListing(apiKey, collection.id),
-            backfillTaskActionTransactionHistory(space.systemAction(), space.id, startTime),
+            getTaskUpdateActionsSince(space, startTime),
         ]);
 
         expect({
             status: response.status,
             taskIds: updatedListing.taskIds,
-            actionTaskIds: history[0]?.actions.map(action => action.taskId),
+            actionTaskIds: actions.map(action => action.taskId),
         }).toEqual({
             status: 200,
             taskIds: [
@@ -2492,10 +2493,12 @@ describe("PATCH /tasks", () => {
         });
 
         await ProcessContextModule.waitForTestTasks();
+        const responseTasks: ReadonlyArray<{collections: ReadonlyArray<unknown>}> =
+            response.body.tasks;
 
         expect({
             taskIds: (await getBatchParentTaskListing(session, parentTask.id)).taskIds,
-            collections: response.body.tasks.map(({collections}) => collections),
+            collections: responseTasks.map(({collections}) => collections),
         }).toEqual({
             taskIds: [afterTask.id, ...movedTasksInPatchOrder.map(task => task.id), beforeTask.id],
             collections: movedTasksInPatchOrder.map(() => []),

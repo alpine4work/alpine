@@ -1,15 +1,22 @@
-import {intoApiMessageContentWithReferences} from "~/server/api/internal/shared/into_api_content_with_references.js";
+import {
+    intoApiContentWithReferences,
+    intoApiMessageContentWithReferences,
+} from "~/server/api/internal/shared/into_api_content_with_references.js";
 import {ServerAccountActionContext} from "~/server/context/server_action_context.js";
 import {ApiContentKeyEncoder} from "~/shared/api/content/closed_source/api_content_key_encoder.js";
 import {parseApiMentionReference} from "~/shared/api/specification/parse_api_path.js";
 import {
+    ApiContentBlockElementResponseWithoutKeys,
     ApiContentInlineElementMark,
+    ApiContentParagraphBlockElementResponseWithoutKeys,
     ApiLabelContentInlineElementMark,
     ApiLabelContentInlineElementResponse,
     ApiLabelContentResponse,
+    ApiMentionReferenceResponse,
     ApiMessageExperimentalApprovalDecisionOptionResponse,
     ApiMessageExperimentalApprovalResponse,
     ApiMessageStreamPartPayloadResponse,
+    ApiMessageStreamToolCallPartCreateCallReferenceResponse,
 } from "~/shared/api/specification/types/api_specification_convenience_types.js";
 import {MessageContent} from "~/shared/content/message_content_schema.js";
 import {InvalidArgumentError} from "~/shared/error/error.js";
@@ -190,9 +197,11 @@ async function intoApiMessageExperimentalApprovalSummary(
         content: MessageContent;
     },
 ): Promise<ApiLabelContentResponse> {
-    const apiContent = await intoApiMessageContentWithReferences(context, {
+    const apiContent = await intoApiContentWithReferences(context, {
         spaceId,
-        node: content,
+        content,
+        contentKeyEncoder: null,
+        fileAuthorizer: "AssertHasNoFiles",
     });
 
     const apiLabelContentElements = flatMapIterable(apiContent.elements, element =>
@@ -248,8 +257,7 @@ function* intoApiLabelContentInlineElement(
             case "Mention": {
                 yield {
                     type: "Mention",
-                    target: inlineElement.target,
-                    title: inlineElement.title,
+                    reference: inlineElement.reference,
                     isAccountShortName: inlineElement.isAccountShortName,
                 };
                 break;

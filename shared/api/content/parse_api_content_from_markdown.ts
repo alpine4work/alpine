@@ -354,12 +354,8 @@ for (const [language, extensions] of getObjectEntriesWithKeyofType(
 }
 
 function* parseApiContentBlockElementFromMarkdown(
-<<<<<<< HEAD:shared/api/markdown/parse_api_content_from_markdown.ts
     content: ApiContentMarkdownBlockContent,
-=======
-    content: BlockContent | DefinitionContent,
     options: ApiContentMarkdownParserOptions,
->>>>>>> c7692bea3 (Agent web):shared/api/content/parse_api_content_from_markdown.ts
     definitions: ApiContentMarkdownParserDefinitions,
     tableState: ApiContentBlockElementsMarkdownTableState | null,
 ): IterableIterator<ApiContentBlockElement> {

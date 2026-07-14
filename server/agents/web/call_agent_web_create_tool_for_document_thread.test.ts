@@ -538,7 +538,7 @@ Please clarify this requirement.
 
 </comment>`,
         expected:
-            'You can’t use `match="deleted"` when creating a document comment thread. `match="deleted"` is only used when reading an unresolved document comment thread whose commented content has been removed from the document. Try again with a 1-indexed integer `match` attribute or omit the `match` attribute.',
+            'You can\u2019t use `match="deleted"` when creating a document comment thread. `match="deleted"` is only used when reading an unresolved document comment thread whose commented content has been removed from the document. Try again with a 1-indexed integer `match` attribute or omit the `match` attribute.',
     });
 });
 

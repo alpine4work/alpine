@@ -118,7 +118,7 @@ const testCases: Array<{
             ],
         },
         markdown: `\
-Review [Fix auth (Open)](/task/fix-auth) today
+Review [Fix auth (Open, active)](/task/fix-auth) today
 `,
     },
     {
@@ -145,7 +145,7 @@ Review [Fix auth (Open)](/task/fix-auth) today
             ],
         },
         markdown: `\
-*Review [Fix auth (Open)](/task/fix-auth) today*
+*Review [Fix auth (Open, active)](/task/fix-auth) today*
 `,
     },
     {
@@ -172,7 +172,7 @@ Review [Fix auth (Open)](/task/fix-auth) today
             ],
         },
         markdown: `\
-\`Review \`<code>[Fix auth (Open)](/task/fix-auth)</code>\` today\`
+\`Review \`<code>[Fix auth (Open, active)](/task/fix-auth)</code>\` today\`
 `,
     },
     {
@@ -207,7 +207,7 @@ Review [Fix auth (Open)](/task/fix-auth) today
             ],
         },
         markdown: `\
-[Review ](https://example.com)<a href="https://example.com">[Fix auth (Open)](/task/fix-auth)</a>[ today](https://example.com)
+[Review ](https://example.com)<a href="https://example.com">[Fix auth (Open, active)](/task/fix-auth)</a>[ today](https://example.com)
 `,
     },
     {
@@ -1603,7 +1603,7 @@ Test: <comment id="5">five</comment>
         markdown: `\
 Review this today:
 
-![Fix auth (Open)](/task/fix-auth)
+![Fix auth (Open, active)](/task/fix-auth)
 `,
     },
     {
@@ -1762,7 +1762,7 @@ Review this today:
         },
         markdown: `\
 <div style="display: flex">
-<img alt="Fix auth (Open)" src="/task/fix-auth" />
+<img alt="Fix auth (Open, active)" src="/task/fix-auth" />
 <img alt="My Document" src="/document/my-document" />
 </div>
 `,
@@ -2059,7 +2059,7 @@ Review this today:
         },
         markdown: `\
 <div style="float: left">
-<img alt="Fix auth (Open)" src="/task/fix-auth" />
+<img alt="Fix auth (Open, active)" src="/task/fix-auth" />
 </div>
 `,
     },

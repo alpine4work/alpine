@@ -237,7 +237,7 @@ export class CursorAgentDurableObject extends AgentDurableObjectBase<CursorAgent
         if (!(await shouldAgentRespondToRequest(span, {...request, event}))) return;
 
         if (
-            request.event.type === "NewMessage" &&
+            request.event.type === "CreatedMessage" &&
             request.event.parent?.type === "Message" &&
             request.event.parent?.author.id === request.botAccountId
         ) {
@@ -257,7 +257,7 @@ export class CursorAgentDurableObject extends AgentDurableObjectBase<CursorAgent
                     storage: this._state.storage,
                     span,
                     // We narrow the type in the `if` above so this cast is safe.
-                    request: request as AgentWebhookRequest & {event: {type: "NewMessage"}},
+                    request: request as AgentWebhookRequest & {event: {type: "CreatedMessage"}},
                     agentId: agentReference.agentId,
                     agent,
                 });
@@ -675,7 +675,7 @@ async function launchCursorCloudAgent({
                         // messages.
                         return false;
                     }
-                    case "DocumentCommentThread": {
+                    case "DocumentThread": {
                         // If the preamble links to the document, then include the document in context.
                         // Since linking to the document means it wasn't included in the preamble.
                         return path.startsWith("/document/");
@@ -815,7 +815,7 @@ async function handleCursorAgentAddFollowUpFirstPartyWebhook({
     env: AgentServiceEnv;
     storage: AgentDurableObjectStorageInterface;
     span: TracerSpan;
-    request: AgentWebhookRequest & {event: {type: "NewMessage"}};
+    request: AgentWebhookRequest & {event: {type: "CreatedMessage"}};
     agentId: CursorCloudAgentId;
     agent: CursorCloudAgent;
 }) {
@@ -841,7 +841,7 @@ async function handleCursorAgentAddFollowUpFirstPartyWebhook({
             apiClient: request.apiClient,
             spaceId: request.spaceId,
             botId: request.botId,
-            accountId: request.event.authorId,
+            accountId: request.event.author.id,
         }),
         getAgentMessagesBetweenIndexes(
             span,
@@ -1347,9 +1347,9 @@ async function sendCursorCloudAgentsThirdPartyWebhookMessage({
 
 function getCursorAgentWebhookRequestAuthorId(request: AgentWebhookRequest): AccountId {
     switch (request.event.type) {
-        case "NewMessage":
-        case "NewPost":
-            return request.event.authorId;
+        case "CreatedMessage":
+        case "CreatedPost":
+            return request.event.author.id;
         case "UpdatedMessageStreamExperimentalApprovalsPart":
             // TODO(ifitzsimmons, #approvals): The "author" for an approval decision is the
             // account who initially prompted the agent to send an approval. Although I don't

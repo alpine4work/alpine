@@ -10,7 +10,7 @@ import {addKeysToApiContentForTest} from "~/shared/api/content/test_helpers/add_
 import {intoApiAccountReference} from "~/shared/api/specification/into_api_account_reference.js";
 import {ApiContentResponseWithoutKeys} from "~/shared/api/specification/types/api_content_response_without_keys.js";
 import type {
-    ApiAccount,
+    ApiAccountResponse,
     ApiChannelReferenceResponse,
     ApiContentResponse,
     ApiPostReferenceResponse,
@@ -218,7 +218,7 @@ function mockCreatePost({
 }: {
     id?: PostId;
     title: string;
-    author?: ApiAccount;
+    author?: ApiAccountResponse;
     content?: ApiContentResponse;
 }): PostId {
     api.mockPost("/posts", {

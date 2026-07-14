@@ -10,7 +10,7 @@ import {createAgentLink} from "~/server/agents/bots/internal/link_references/age
 import {loadAgentMessagesListLinkContent as actuallyLoadAgentMessagesListLinkContent} from "~/server/agents/bots/internal/link_references/load_agent_messages_list_link_content.js";
 import {printAgentContentMarkdownTree} from "~/server/agents/bots/internal/print_api_content_to_agent_markdown.js";
 import {addKeysToApiContentForTest} from "~/shared/api/content/test_helpers/add_keys_to_api_content_for_test.js";
-import {ApiContentResponseWithOptionalKeys} from "~/shared/api/specification/types/api_content_response_without_keys.js";
+import {ApiContentResponseWithoutKeys} from "~/shared/api/specification/types/api_content_response_without_keys.js";
 import {
     ApiContentResponse,
     ApiDocumentThreadResponse,
@@ -44,7 +44,6 @@ const conversationState = {
     startTime: conversationStartDate,
     timeZone: defaultTimeZone,
 } as const;
-
 // Helper to create sample content
 function createSampleContent(...texts: Array<string>): ApiContentResponse {
     return addKeysToApiContentForTest({
@@ -90,11 +89,10 @@ function mockGetDocumentThread(
     documentId: DocumentId,
     threadId: DocumentCommentThreadId,
     responseData: Partial<{
-        document: ApiDocumentThreadResponse["document"];
         isResolved: boolean;
         totalMessageCount: number;
         firstMessage: ApiDocumentThreadResponse["firstMessage"];
-        documentContentSnippet: ApiContentResponseWithOptionalKeys;
+        documentContentSnippet: ApiContentResponseWithoutKeys;
     }> &
         Record<string, unknown>,
 ): void {
@@ -102,14 +100,14 @@ function mockGetDocumentThread(
         params: {path: {id: documentId, threadId}},
         data: {
             spaceId,
+            document: {
+                id: documentId,
+                version: 1,
+                title: "Test Document",
+                content: addKeysToApiContentForTest({elements: []}),
+            },
             thread: {
                 id: threadId,
-                document: responseData.document ?? {
-                    id: documentId,
-                    reference: {
-                        title: "Test Document",
-                    },
-                },
                 isResolved: responseData.isResolved ?? false,
                 totalMessageCount: responseData.totalMessageCount ?? 0,
                 firstMessage: responseData.firstMessage ?? {
@@ -117,9 +115,12 @@ function mockGetDocumentThread(
                     createdTime: serializeDateString(new Date()),
                     createdTimeZone: defaultTimeZone,
                 },
-                documentContentSnippet: addKeysToApiContentForTest(
-                    responseData.documentContentSnippet ?? {elements: []},
-                ),
+                marked: {
+                    preview: {
+                        version: 1,
+                        contentSnippet: responseData.documentContentSnippet ?? {elements: []},
+                    },
+                },
             },
         },
     });
@@ -163,6 +164,7 @@ function mockGetTask(
                 status: responseData.status ?? {type: "Open", isActive: true},
                 title: responseData.title ?? "Test Task",
                 collections: responseData.collections ?? [],
+                subtasks: responseData.subtasks ?? {openTaskCount: 0, closedTaskCount: 0},
                 notes: responseData.notes ?? {
                     version: 0,
                     content: addKeysToApiContentForTest(
@@ -197,9 +199,7 @@ function mockGetTaskCommentsList(
     });
 }
 
-function createApiContentResponseWithSingleParagraph(
-    text: string,
-): ApiContentResponseWithOptionalKeys {
+function createApiContentResponseWithSingleParagraph(text: string): ApiContentResponseWithoutKeys {
     return {
         elements: [
             {
@@ -1096,7 +1096,6 @@ ${"Long message content.".repeat(100)}
                     elements: [
                         {
                             type: "Paragraph",
-                            key: createMockApiContentKey(0),
                             elements: [
                                 {type: "Text", text: "This is "},
                                 {
@@ -1119,8 +1118,12 @@ ${"Long message content.".repeat(100)}
                                 {type: "Text", text: " inline code. "},
                                 {
                                     type: "Mention",
-                                    target: {type: "Account", id: aliceAccount.id},
-                                    title: aliceAccount.name,
+                                    reference: {
+                                        type: "Account",
+                                        id: aliceAccount.id,
+                                        title: aliceAccount.name,
+                                        shortName: aliceAccount.shortName,
+                                    },
                                 },
                                 {type: "Text", text: " is going to take care of this!!."},
                             ],
@@ -1221,27 +1224,26 @@ Thanks Alice!
                     elements: [
                         {
                             type: "Paragraph",
-                            key: createMockApiContentKey(0),
                             elements: [
                                 {
                                     type: "Text",
                                     text: "Next, something outrageous happened. The Eagles sought to defend their title (and honor) in the 2025-2026 season. ",
-                                    marks: [{type: "Comment", threadId: commentThreadId}],
+                                    marks: [{type: "Comment", thread: {id: commentThreadId}}],
                                 },
                                 {
                                     type: "Text",
                                     text: "They promoted a ",
                                     marks: [
-                                        {type: "Comment", threadId: commentThreadId},
-                                        {type: "Comment", threadId: threadId2},
+                                        {type: "Comment", thread: {id: commentThreadId}},
+                                        {type: "Comment", thread: {id: threadId2}},
                                     ],
                                 },
                                 {
                                     type: "Text",
                                     text: "water boy",
                                     marks: [
-                                        {type: "Comment", threadId: commentThreadId},
-                                        {type: "Comment", threadId: threadId2},
+                                        {type: "Comment", thread: {id: commentThreadId}},
+                                        {type: "Comment", thread: {id: threadId2}},
                                         {type: "Italic"},
                                     ],
                                 },
@@ -1249,16 +1251,16 @@ Thanks Alice!
                                     type: "Text",
                                     text: " ",
                                     marks: [
-                                        {type: "Comment", threadId: commentThreadId},
-                                        {type: "Comment", threadId: threadId2},
+                                        {type: "Comment", thread: {id: commentThreadId}},
+                                        {type: "Comment", thread: {id: threadId2}},
                                     ],
                                 },
                                 {
                                     type: "Text",
                                     text: "to captain",
                                     marks: [
-                                        {type: "Comment", threadId: commentThreadId},
-                                        {type: "Comment", threadId: threadId2},
+                                        {type: "Comment", thread: {id: commentThreadId}},
+                                        {type: "Comment", thread: {id: threadId2}},
                                         {type: "Bold"},
                                     ],
                                 },
@@ -1266,16 +1268,16 @@ Thanks Alice!
                                     type: "Text",
                                     text: " to the ",
                                     marks: [
-                                        {type: "Comment", threadId: commentThreadId},
-                                        {type: "Comment", threadId: threadId2},
+                                        {type: "Comment", thread: {id: commentThreadId}},
+                                        {type: "Comment", thread: {id: threadId2}},
                                     ],
                                 },
                                 {
                                     type: "Text",
                                     text: "head",
                                     marks: [
-                                        {type: "Comment", threadId: commentThreadId},
-                                        {type: "Comment", threadId: threadId2},
+                                        {type: "Comment", thread: {id: commentThreadId}},
+                                        {type: "Comment", thread: {id: threadId2}},
                                         {type: "Strike"},
                                     ],
                                 },
@@ -1283,16 +1285,16 @@ Thanks Alice!
                                     type: "Text",
                                     text: " of their ",
                                     marks: [
-                                        {type: "Comment", threadId: commentThreadId},
-                                        {type: "Comment", threadId: threadId2},
+                                        {type: "Comment", thread: {id: commentThreadId}},
+                                        {type: "Comment", thread: {id: threadId2}},
                                     ],
                                 },
                                 {
                                     type: "Text",
                                     text: "army",
                                     marks: [
-                                        {type: "Comment", threadId: commentThreadId},
-                                        {type: "Comment", threadId: threadId2},
+                                        {type: "Comment", thread: {id: commentThreadId}},
+                                        {type: "Comment", thread: {id: threadId2}},
                                         {type: "Highlight", color: "Orange"},
                                     ],
                                 },
@@ -1300,8 +1302,8 @@ Thanks Alice!
                                     type: "Text",
                                     text: ".",
                                     marks: [
-                                        {type: "Comment", threadId: commentThreadId},
-                                        {type: "Comment", threadId: threadId2},
+                                        {type: "Comment", thread: {id: commentThreadId}},
+                                        {type: "Comment", thread: {id: threadId2}},
                                     ],
                                 },
                             ],

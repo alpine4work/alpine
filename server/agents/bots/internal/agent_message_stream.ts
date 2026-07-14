@@ -3,16 +3,13 @@ import {
     parseApiContentFromMarkdownTree,
     parseMarkdownTree,
 } from "~/shared/api/content/parse_api_content_from_markdown.js";
-import {
-    printApiMentionPathToMentionLinkUrl,
-    printAppUrlFromApiNotMentionPath,
-} from "~/shared/api/content/print_api_content_to_markdown.js";
+import {printApiMentionReferenceToMentionUrl} from "~/shared/api/content/print_api_content_to_markdown.js";
 import {
     ApiPath,
-    isApiMentionTargetPath,
-    isApiNotMentionTargetPath,
-    parseApiMentionTarget,
-    parseApiNotMentionTarget,
+    isApiMentionReferencePath,
+    isApiNotMentionReferencePath,
+    parseApiMentionReference,
+    parseApiNotMentionReference,
 } from "~/shared/api/specification/parse_api_path.js";
 import {
     ApiContentBlockElement,
@@ -21,6 +18,7 @@ import {
 import {emptyArray} from "~/shared/helpers/array/empty_array.js";
 import {PromiseWaiter} from "~/shared/helpers/async/promise_waiter.js";
 import {assert} from "~/shared/helpers/control/assert.js";
+import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
 import {isDeepEqual} from "~/shared/helpers/control/is_deep_equal.js";
 import {SpaceId} from "~/shared/id/types/id_types.js";
 import {TracerSpan} from "~/shared/tracer/tracer_span.js";
@@ -39,7 +37,6 @@ export type AgentMessageStreamPart = {
  * this class for the tests in this file.
  */
 export class AgentMessageStream {
-    private readonly _spaceId: SpaceId;
     private readonly _getTargetPathIfExists: (linkPath: string) => Promise<ApiPath | null>;
 
     private _textState: {
@@ -58,13 +55,11 @@ export class AgentMessageStream {
     private _parts: Array<AgentMessageStreamPart> = [];
 
     constructor({
-        spaceId,
         getTargetPathIfExists,
     }: {
         spaceId: SpaceId;
         getTargetPathIfExists: (linkPath: string) => Promise<ApiPath | null>;
     }) {
-        this._spaceId = spaceId;
         this._getTargetPathIfExists = getTargetPathIfExists;
     }
 
@@ -122,10 +117,10 @@ export class AgentMessageStream {
                 const firstMarkdownPart = markdownParts[0]!;
 
                 const getFirstPartContent = () => {
-                    return parseApiContentFromMarkdownTree(
-                        {type: "root", children: firstMarkdownPart},
-                        {spaceId: this._spaceId},
-                    );
+                    return parseApiContentFromMarkdownTree({
+                        type: "root",
+                        children: firstMarkdownPart,
+                    });
                 };
 
                 if (
@@ -240,10 +235,10 @@ export class AgentMessageStream {
                           },
                 );
 
-                const partContent = parseApiContentFromMarkdownTree(
-                    {type: "root", children: markdownPart},
-                    {spaceId: this._spaceId},
-                );
+                const partContent = parseApiContentFromMarkdownTree({
+                    type: "root",
+                    children: markdownPart,
+                });
 
                 const part: AgentMessageStreamPart = {
                     index: this._parts.length,
@@ -347,13 +342,12 @@ export class AgentMessageStream {
 
                         if (!targetPath) return null;
 
-                        if (isApiMentionTargetPath(targetPath)) {
-                            const mentionTarget = parseApiMentionTarget(targetPath);
+                        if (isApiMentionReferencePath(targetPath)) {
+                            const mentionTarget = parseApiMentionReference(targetPath);
 
                             node.children[index] = {
                                 type: "link",
-                                url: printApiMentionPathToMentionLinkUrl(mentionTarget, {
-                                    spaceId: this._spaceId,
+                                url: printApiMentionReferenceToMentionUrl(mentionTarget, {
                                     isAccountShortName: undefined,
                                 }),
                                 children: childNode.children,
@@ -363,14 +357,43 @@ export class AgentMessageStream {
                             // If it's not mentionable, we'll create a direct link to the content. For exampe,
                             // the link to a chat message will look someting like
                             // `/chats/${chatId}?message=${messageIndex}
-                            assert(isApiNotMentionTargetPath(targetPath));
-                            const targetPathObject = parseApiNotMentionTarget(targetPath);
+                            assert(isApiNotMentionReferencePath(targetPath));
+                            const targetPathObject = parseApiNotMentionReference(targetPath);
+
+                            let url: string;
+                            switch (targetPathObject.type) {
+                                case "ChatMessages":
+                                    url = `https://alpine.inc/chat/${targetPathObject.id}`;
+                                    break;
+                                case "ChatMessage":
+                                    url = `https://alpine.inc/chat/${targetPathObject.id}?message=${targetPathObject.index}`;
+                                    break;
+                                case "DocumentThread":
+                                case "DocumentCommentThreadComments":
+                                    url = `https://alpine.inc/doc/${targetPathObject.id}?thread=${targetPathObject.threadId}`;
+                                    break;
+                                case "DocumentComment":
+                                    url = `https://alpine.inc/doc/${targetPathObject.id}?thread=${targetPathObject.threadId}&comment=${targetPathObject.index}`;
+                                    break;
+                                case "PostComments":
+                                    url = `https://alpine.inc/post/${targetPathObject.id}`;
+                                    break;
+                                case "PostComment":
+                                    url = `https://alpine.inc/post/${targetPathObject.id}?comment=${targetPathObject.index}`;
+                                    break;
+                                case "TaskComments":
+                                    url = `https://alpine.inc/task/${targetPathObject.id}`;
+                                    break;
+                                case "TaskComment":
+                                    url = `https://alpine.inc/task/${targetPathObject.id}?comment=${targetPathObject.index}`;
+                                    break;
+                                default:
+                                    throw exhaustive(targetPathObject);
+                            }
 
                             node.children[index] = {
                                 type: "link",
-                                url: printAppUrlFromApiNotMentionPath(targetPathObject, {
-                                    spaceId: this._spaceId,
-                                }),
+                                url,
                                 children: childNode.children,
                                 position: childNode.position,
                             };

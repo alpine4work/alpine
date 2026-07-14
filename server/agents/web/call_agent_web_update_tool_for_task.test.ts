@@ -259,6 +259,7 @@ async function readTask({
                 name: collectionId === engineeringCollectionId ? "Engineering" : "Roadmap",
             },
         })),
+        subtasks: {openTaskCount: 0, closedTaskCount: 0},
         ...(priority ? {priority} : {}),
         ...(due ? {due} : {}),
         notes: {

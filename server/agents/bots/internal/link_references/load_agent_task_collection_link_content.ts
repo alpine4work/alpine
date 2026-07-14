@@ -11,10 +11,11 @@ import {
 } from "~/server/agents/bots/internal/link_references/print_agent_link_path.js";
 import {DurableObjectTransactionInterface} from "~/server/cloudflare/durable_object_storage_collection.js";
 import {
-    ApiAccount,
+    ApiAccountResponse,
     ApiTaskCollection,
+    ApiTaskPriority,
     ApiTaskStatus,
-    ApiTaskWithoutNotes,
+    ApiTaskWithoutNotesResponse,
 } from "~/shared/api/specification/types/api_specification_convenience_types.js";
 import {joinPrettyConjunctionList} from "~/shared/design/join_pretty_conjunction_list.js";
 import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
@@ -66,6 +67,12 @@ export async function loadAgentTaskCollectionLinkContent({
             ? link.statusesFilter
             : defaultAgentTaskCollectionStatusesFilter;
 
+    const statuses: Array<ApiTaskStatus> = [];
+    if (appliedStatusesFilter.has("Open")) {
+        statuses.push({type: "Open", isActive: true}, {type: "Open", isActive: false});
+    }
+    if (appliedStatusesFilter.has("Closed")) statuses.push({type: "Closed"});
+
     const [
         {
             data: {collection},
@@ -77,17 +84,23 @@ export async function loadAgentTaskCollectionLinkContent({
         request.apiClient.get(tracer, "/task-collections/{id}", {
             params: {path: {id: link.collectionId}},
         }),
-        request.apiClient.get(tracer, "/task-collections/{id}/tasks", {
-            params: {
-                path: {id: link.collectionId},
-                query: {limit: 100, status: Array.from(appliedStatusesFilter)},
+        request.apiClient.post(tracer, "/task-collections/{id}/tasks/query", {
+            params: {path: {id: link.collectionId}},
+            body: {
+                limit: 100,
+                filters: [
+                    {
+                        type: "Status",
+                        operation: {type: "OneOf", statuses},
+                    },
+                ],
             },
         }),
     ]);
 
     if (tasks.length === 0) return getEmptyTaskCollectionContent(collection, appliedStatusesFilter);
 
-    const taskContentPromises = tasks.map(async (task): Promise<ListItem> => {
+    const taskContentPromises = tasks.map(async ({task}): Promise<ListItem> => {
         const taskLink = await createAgentLink(transaction, {type: "Task", task});
 
         return {
@@ -229,7 +242,7 @@ function printTaskStatus(status: ApiTaskStatus): string {
 
 async function intoTaskMetadataList(
     transaction: DurableObjectTransactionInterface,
-    task: ApiTaskWithoutNotes,
+    task: ApiTaskWithoutNotesResponse,
 ): Promise<List> {
     const assigneeListItem = await intoAssigneeListItem(transaction, task.assignee);
     const dueDateListItem = intoDueDateListItem(task.due);
@@ -259,7 +272,7 @@ async function intoTaskMetadataList(
 
 async function intoAssigneeListItem(
     transaction: DurableObjectTransactionInterface,
-    assignee: ApiAccount | undefined,
+    assignee: ApiAccountResponse | undefined,
 ): Promise<ListItem | undefined> {
     if (!assignee) return undefined;
 
@@ -297,11 +310,13 @@ function intoDueDateListItem(due: {date: string} | undefined): ListItem | undefi
     };
 }
 
-function intoPriorityListItem(priority: string | undefined): ListItem | undefined {
+function intoPriorityListItem(priority: ApiTaskPriority | undefined): ListItem | undefined {
     if (!priority) return undefined;
 
     return {
         type: "listItem",
-        children: [{type: "paragraph", children: [{type: "text", value: `Priority: ${priority}`}]}],
+        children: [
+            {type: "paragraph", children: [{type: "text", value: `Priority: ${priority.type}`}]},
+        ],
     };
 }

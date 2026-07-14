@@ -4,6 +4,7 @@ import {callAgentWebReadTool} from "~/server/agents/web/call_agent_web_read_tool
 import {createAgentWebPageStoredLinkPathname} from "~/server/agents/web/create_agent_web_page_stored_link_pathname.js";
 import {createAgentWebSessionStorageForTest} from "~/server/agents/web/test_helpers/create_agent_web_session_storage_for_test.js";
 import {ApiAccountResponse} from "~/shared/api/specification/types/api_specification_convenience_types.js";
+import {serializeDateString} from "~/shared/helpers/date/date_string.js";
 import {defaultTimeZone} from "~/shared/helpers/intl/time_zone.js";
 import {generateId} from "~/shared/id/id.js";
 import {AccountId, BotId, SpaceId} from "~/shared/id/types/id_types.js";
@@ -33,10 +34,7 @@ const context: AgentWebContext = {
     },
 };
 
-function mockGetAccount(
-    accountId: AccountId,
-    responseData: Omit<ApiAccountResponse, "id">,
-): void {
+function mockGetAccount(accountId: AccountId, responseData: Omit<ApiAccountResponse, "id">): void {
     api.mockGet("/spaces/{id}/accounts/{accountId}", {
         params: {path: {id: spaceId, accountId}},
         data: {
@@ -63,7 +61,7 @@ test("reads account page", async () => {
         shortName: "Alice",
         space: {
             role: "Admin",
-            addedTime: "2026-01-01T00:00:00.000Z",
+            addedTime: serializeDateString(new Date("2026-01-01T00:00:00.000Z")),
             inactive: {type: "InvitePending"},
         },
     });

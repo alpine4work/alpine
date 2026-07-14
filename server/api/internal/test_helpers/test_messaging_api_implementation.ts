@@ -16,7 +16,7 @@ import {
 import {
     ApiMessageExperimentalApprovalDecisionOption,
     ApiMessageExperimentalApprovalDecisionValue,
-    ApiMessageStreamApprovalsPartPayload,
+    ApiMessageStreamExperimentalApprovalsPartPayload,
 } from "~/shared/api/specification/types/api_specification_convenience_types.js";
 import {ContentMention} from "~/shared/content/content_mention.js";
 import {
@@ -683,7 +683,7 @@ export function testMessagingApiImplementation(
                 body: {
                     error: expect.objectContaining({
                         message:
-                            "\`File\` elements aren\u2019t supported in this type of content. Try again without \`File\` elements.",
+                            "`File` elements aren\u2019t supported in this type of content. Try again without `File` elements.",
                         retry: {
                             able: false,
                         },
@@ -3758,7 +3758,7 @@ export function testMessagingApiImplementation(
                 function createApiPendingApprovalsPayload(
                     approvalCount: number,
                     options: ReadonlyArray<ApiMessageExperimentalApprovalDecisionOption> = defaultApprovalDecisionOptions,
-                ): ApiMessageStreamApprovalsPartPayload {
+                ): ApiMessageStreamExperimentalApprovalsPartPayload {
                     return {
                         type: "ExperimentalApprovals",
                         approvals: createArrayWithLength(approvalCount, approvalIndex => ({
@@ -3777,12 +3777,12 @@ export function testMessagingApiImplementation(
 
                 function createApiPendingApprovalPayload(
                     options: ReadonlyArray<ApiMessageExperimentalApprovalDecisionOption> = defaultApprovalDecisionOptions,
-                ): ApiMessageStreamApprovalsPartPayload {
+                ): ApiMessageStreamExperimentalApprovalsPartPayload {
                     return createApiPendingApprovalsPayload(1, options);
                 }
 
                 async function createApiStreamMessageWithFinalApprovalPart(
-                    approvalPayload: ApiMessageStreamApprovalsPartPayload = createApiPendingApprovalPayload(),
+                    approvalPayload: ApiMessageStreamExperimentalApprovalsPartPayload = createApiPendingApprovalPayload(),
                 ) {
                     const space = await TestSpace.create(context);
                     const session = await space.createSession({role: "Admin"});

@@ -96,7 +96,7 @@ export const apiSpacesPaths: Pick<
                         id: pathParameters.id,
                         title: account.name,
                         shortName: getAccountShortNameWithoutFullNameTooltip(account),
-                        bot: account.botId === null ? undefined : {id: account.botId},
+                        bot: account.botId == null ? undefined : {id: account.botId},
                     },
                 },
             };

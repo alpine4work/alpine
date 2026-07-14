@@ -84,11 +84,11 @@ test("mention preserves structure but changes URL", async () => {
                         {type: "Text", text: "Check out "},
                         {
                             type: "Mention",
-                            target: {
+                            reference: {
                                 type: "Document",
                                 id: documentId,
+                                title: "My Document",
                             },
-                            title: "My Document",
                         },
                         {type: "Text", text: " here."},
                     ],
@@ -231,12 +231,12 @@ test("mention with nested formatting preserves formatting but removes URL", asyn
                         {type: "Text", text: "See "},
                         {
                             type: "Mention",
-                            target: {
+                            reference: {
                                 type: "Task",
                                 id: taskId,
                                 status: {type: "Open", isActive: false},
+                                title: "Important Task",
                             },
-                            title: "Important Task",
                             marks: [{type: "Italic"}],
                         },
                         {type: "Text", text: " for details."},
@@ -269,8 +269,7 @@ test("mixed mentions and external links", async () => {
                         {type: "Text", text: "Check "},
                         {
                             type: "Mention",
-                            target: {type: "Post", id: postId},
-                            title: "This Post",
+                            reference: {type: "Post", id: postId, title: "This Post"},
                         },
                         {type: "Text", text: " and also visit "},
                         {
@@ -315,12 +314,12 @@ test("mention with link mark becomes HTML anchor tag with replaced href", async 
                         {type: "Text", text: "See "},
                         {
                             type: "Mention",
-                            target: {
+                            reference: {
                                 type: "Task",
                                 id: taskId,
                                 status: {type: "Open", isActive: false},
+                                title: "Important Task",
                             },
-                            title: "Important Task",
                             marks: [{type: "Link", url: "https://external.com"}],
                         },
                         {type: "Text", text: " for details."},
@@ -423,20 +422,20 @@ test("mentions with conflicting link Ids get dedupe numbers but labels are uncha
                         {type: "Text", text: "First: "},
                         {
                             type: "Mention",
-                            target: {
+                            reference: {
                                 type: "Document",
                                 id: documentId,
+                                title: "My Document",
                             },
-                            title: "My Document",
                         },
                         {type: "Text", text: " and second: "},
                         {
                             type: "Mention",
-                            target: {
+                            reference: {
                                 type: "Document",
                                 id: otherDocumentId,
+                                title: "My Document",
                             },
-                            title: "My Document",
                         },
                         {type: "Text", text: "."},
                     ],
@@ -478,20 +477,20 @@ test("identical mentions with same label and target path reuse the same referenc
                         {type: "Text", text: "First: "},
                         {
                             type: "Mention",
-                            target: {
+                            reference: {
                                 type: "Document",
                                 id: documentId,
+                                title: "My Document",
                             },
-                            title: "My Document",
                         },
                         {type: "Text", text: " and again: "},
                         {
                             type: "Mention",
-                            target: {
+                            reference: {
                                 type: "Document",
                                 id: documentId,
+                                title: "My Document",
                             },
-                            title: "My Document",
                         },
                         {type: "Text", text: "."},
                     ],
@@ -523,11 +522,11 @@ test("multiple calls to `printAgentContentToMarkdown()` dedupe across calls", as
                         {type: "Text", text: "See "},
                         {
                             type: "Mention",
-                            target: {
+                            reference: {
                                 type: "Document",
                                 id: documentId,
+                                title: "My Document",
                             },
-                            title: "My Document",
                         },
                         {type: "Text", text: "."},
                     ],
@@ -545,11 +544,11 @@ test("multiple calls to `printAgentContentToMarkdown()` dedupe across calls", as
                         {type: "Text", text: "Also see "},
                         {
                             type: "Mention",
-                            target: {
+                            reference: {
                                 type: "Document",
                                 id: otherDocumentId,
+                                title: "My Document",
                             },
-                            title: "My Document",
                         },
                         {type: "Text", text: "."},
                     ],
@@ -604,47 +603,47 @@ test("mentions with same link Ids increment dedupe numbers up to 5", async () =>
                         {type: "Text", text: "First: "},
                         {
                             type: "Mention",
-                            target: {
+                            reference: {
                                 type: "Document",
                                 id: documentId,
+                                title: "Task",
                             },
-                            title: "Task",
                         },
                         {type: "Text", text: ", second: "},
                         {
                             type: "Mention",
-                            target: {
+                            reference: {
                                 type: "Document",
                                 id: secondDocumentId,
+                                title: "Task",
                             },
-                            title: "Task",
                         },
                         {type: "Text", text: ", third: "},
                         {
                             type: "Mention",
-                            target: {
+                            reference: {
                                 type: "Document",
                                 id: thirdDocumentId,
+                                title: "Task",
                             },
-                            title: "Task",
                         },
                         {type: "Text", text: ", fourth: "},
                         {
                             type: "Mention",
-                            target: {
+                            reference: {
                                 type: "Document",
                                 id: fourthDocumentId,
+                                title: "Task",
                             },
-                            title: "Task",
                         },
                         {type: "Text", text: ", and fifth: "},
                         {
                             type: "Mention",
-                            target: {
+                            reference: {
                                 type: "Document",
                                 id: fifthDocumentId,
+                                title: "Task",
                             },
-                            title: "Task",
                         },
                         {type: "Text", text: "."},
                     ],
@@ -720,54 +719,53 @@ test("dedupes by entity and label combination", async () => {
                         {type: "Text", text: "First: "},
                         {
                             type: "Mention",
-                            target: {
+                            reference: {
                                 type: "Document",
                                 id: documentId,
+                                title: "Task",
                             },
-                            title: "Task",
                         },
                         {type: "Text", text: ", second: "},
                         {
                             type: "Mention",
-                            target: {
+                            reference: {
                                 type: "Task",
                                 id: taskId,
                                 status: {type: "Open", isActive: false},
+                                title: "Task",
                             },
-                            title: "Task",
                         },
                         {type: "Text", text: ", third: "},
                         {
                             type: "Mention",
-                            target: {type: "Post", id: postId},
-                            title: "Task",
+                            reference: {type: "Post", id: postId, title: "Task"},
                         },
                         {type: "Text", text: ", fourth: "},
                         {
                             type: "Mention",
-                            target: {
+                            reference: {
                                 type: "Document",
                                 id: thirdDocumentId,
+                                title: "Task",
                             },
-                            title: "Task",
                         },
                         {type: "Text", text: ", fifth: "},
                         {
                             type: "Mention",
-                            target: {
+                            reference: {
                                 type: "Document",
                                 id: fourthDocumentId,
+                                title: "Task",
                             },
-                            title: "Task",
                         },
                         {type: "Text", text: ", and sixth: "},
                         {
                             type: "Mention",
-                            target: {
+                            reference: {
                                 type: "Document",
                                 id: fifthDocumentId,
+                                title: "Task",
                             },
-                            title: "Task",
                         },
                         {type: "Text", text: "."},
                     ],
@@ -859,7 +857,7 @@ describe("comment mark conversion", () => {
                             {
                                 type: "Text",
                                 text: "commented text",
-                                marks: [{type: "Comment", threadId: threadId1}],
+                                marks: [{type: "Comment", thread: {id: threadId1}}],
                             },
                             {type: "Text", text: " after."},
                         ],
@@ -882,8 +880,8 @@ describe("comment mark conversion", () => {
                                 type: "Text",
                                 text: "doubly commented",
                                 marks: [
-                                    {type: "Comment", threadId: threadId1},
-                                    {type: "Comment", threadId: threadId2},
+                                    {type: "Comment", thread: {id: threadId1}},
+                                    {type: "Comment", thread: {id: threadId2}},
                                 ],
                             },
                             {type: "Text", text: " after."},
@@ -907,7 +905,7 @@ describe("comment mark conversion", () => {
                                 type: "Text",
                                 text: "highlighted comment",
                                 marks: [
-                                    {type: "Comment", threadId: threadId1},
+                                    {type: "Comment", thread: {id: threadId1}},
                                     {type: "Highlight", color: "Orange"},
                                 ],
                             },
@@ -965,22 +963,22 @@ describe("comment mark conversion", () => {
                             {
                                 type: "Text",
                                 text: "Next, something outrageous happened. The Eagles sought to defend their title (and honor) in the 2025-2026 season. ",
-                                marks: [{type: "Comment", threadId: thread1}],
+                                marks: [{type: "Comment", thread: {id: thread1}}],
                             },
                             {
                                 type: "Text",
                                 text: "They promoted a ",
                                 marks: [
-                                    {type: "Comment", threadId: thread1},
-                                    {type: "Comment", threadId: thread2},
+                                    {type: "Comment", thread: {id: thread1}},
+                                    {type: "Comment", thread: {id: thread2}},
                                 ],
                             },
                             {
                                 type: "Text",
                                 text: "water boy",
                                 marks: [
-                                    {type: "Comment", threadId: thread1},
-                                    {type: "Comment", threadId: thread2},
+                                    {type: "Comment", thread: {id: thread1}},
+                                    {type: "Comment", thread: {id: thread2}},
                                     {type: "Italic"},
                                 ],
                             },
@@ -988,16 +986,16 @@ describe("comment mark conversion", () => {
                                 type: "Text",
                                 text: " ",
                                 marks: [
-                                    {type: "Comment", threadId: thread1},
-                                    {type: "Comment", threadId: thread2},
+                                    {type: "Comment", thread: {id: thread1}},
+                                    {type: "Comment", thread: {id: thread2}},
                                 ],
                             },
                             {
                                 type: "Text",
                                 text: "to captain",
                                 marks: [
-                                    {type: "Comment", threadId: thread1},
-                                    {type: "Comment", threadId: thread2},
+                                    {type: "Comment", thread: {id: thread1}},
+                                    {type: "Comment", thread: {id: thread2}},
                                     {type: "Bold"},
                                 ],
                             },
@@ -1005,16 +1003,16 @@ describe("comment mark conversion", () => {
                                 type: "Text",
                                 text: " to the ",
                                 marks: [
-                                    {type: "Comment", threadId: thread1},
-                                    {type: "Comment", threadId: thread2},
+                                    {type: "Comment", thread: {id: thread1}},
+                                    {type: "Comment", thread: {id: thread2}},
                                 ],
                             },
                             {
                                 type: "Text",
                                 text: "head",
                                 marks: [
-                                    {type: "Comment", threadId: thread1},
-                                    {type: "Comment", threadId: thread2},
+                                    {type: "Comment", thread: {id: thread1}},
+                                    {type: "Comment", thread: {id: thread2}},
                                     {type: "Strike"},
                                 ],
                             },
@@ -1022,16 +1020,16 @@ describe("comment mark conversion", () => {
                                 type: "Text",
                                 text: " of their ",
                                 marks: [
-                                    {type: "Comment", threadId: thread1},
-                                    {type: "Comment", threadId: thread2},
+                                    {type: "Comment", thread: {id: thread1}},
+                                    {type: "Comment", thread: {id: thread2}},
                                 ],
                             },
                             {
                                 type: "Text",
                                 text: "army",
                                 marks: [
-                                    {type: "Comment", threadId: thread1},
-                                    {type: "Comment", threadId: thread2},
+                                    {type: "Comment", thread: {id: thread1}},
+                                    {type: "Comment", thread: {id: thread2}},
                                     {type: "Highlight", color: "Orange"},
                                 ],
                             },
@@ -1039,8 +1037,8 @@ describe("comment mark conversion", () => {
                                 type: "Text",
                                 text: ".",
                                 marks: [
-                                    {type: "Comment", threadId: thread1},
-                                    {type: "Comment", threadId: thread2},
+                                    {type: "Comment", thread: {id: thread1}},
+                                    {type: "Comment", thread: {id: thread2}},
                                 ],
                             },
                         ],

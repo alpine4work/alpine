@@ -13,7 +13,7 @@ import {createAgentWebSessionStorageForTest} from "~/server/agents/web/test_help
 import {addKeysToApiContentForTest} from "~/shared/api/content/test_helpers/add_keys_to_api_content_for_test.js";
 import {ApiContentResponseWithoutKeys} from "~/shared/api/specification/types/api_content_response_without_keys.js";
 import {
-    ApiAccount,
+    ApiAccountResponse,
     ApiChannelReferenceResponse,
     ApiContentResponse,
     ApiMessageResponse,
@@ -217,7 +217,7 @@ function createComment({
     parent,
 }: {
     index: number;
-    author?: ApiAccount;
+    author?: ApiAccountResponse;
     content?: ApiContentResponse | string;
     createdTime?: string;
     parent?: ApiMessageMockParent;
@@ -262,7 +262,7 @@ function mockGetPost({
     createdTime = new Date("2026-05-14T15:00:00.000Z"),
     createdTimeZone = defaultTimeZone,
 }: {
-    author?: ApiAccount;
+    author?: ApiAccountResponse;
     channel?: ApiChannelReferenceResponse | null;
     content?: ApiContentResponse;
     createdTime?: Date;
@@ -312,7 +312,7 @@ async function readPost({
     limit?: string;
     totalCommentCount: number;
     createComment?: (index: number) => ApiMessageResponse;
-    postAuthor?: ApiAccount;
+    postAuthor?: ApiAccountResponse;
 }): Promise<string> {
     if (path.includes("after=") || path.includes("before=")) {
         mockGetPostReference();

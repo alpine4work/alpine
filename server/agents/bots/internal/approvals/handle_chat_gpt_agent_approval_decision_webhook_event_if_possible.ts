@@ -69,7 +69,7 @@ export async function handleChatGptAgentApprovalDecisionWebhookEventIfPossible(
         > => {
             const pendingApproval =
                 await getChatGptAgentPendingMessageApprovalIfExistsWithPendingApprovalIndexes(
-                    request.storage,
+                    transaction,
                 );
             if (!pendingApproval) {
                 return {

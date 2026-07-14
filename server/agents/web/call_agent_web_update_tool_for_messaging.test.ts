@@ -27,7 +27,7 @@ import {intoApiAccountReference} from "~/shared/api/specification/into_api_accou
 import {ApiContentKey} from "~/shared/api/specification/types/api_content_key.js";
 import {ApiContentResponseWithoutKeys} from "~/shared/api/specification/types/api_content_response_without_keys.js";
 import {
-    ApiAccount,
+    ApiAccountResponse,
     ApiContentResponse,
     ApiMessageContentPayloadFileResponse,
     ApiMessageResponse,
@@ -216,7 +216,7 @@ function createMessage({
     files = [],
 }: {
     index: number;
-    author?: ApiAccount;
+    author?: ApiAccountResponse;
     content?: ApiContentResponse | string;
     createdTime?: string;
     parent?: ApiMessageMockParent;

@@ -7,10 +7,12 @@ import {loadAgentTaskCollectionLinkContent} from "~/server/agents/bots/internal/
 import {printAgentContentMarkdownTree} from "~/server/agents/bots/internal/print_api_content_to_agent_markdown.js";
 import {
     ApiTaskCollection,
-    ApiTaskWithoutNotes,
+    ApiTaskWithoutNotesResponse,
 } from "~/shared/api/specification/types/api_specification_convenience_types.js";
 import {TracerContextModule} from "~/shared/context/tracer_context_module.js";
+import {PartialBy} from "~/shared/helpers/types/partial_by.js";
 import {generateId} from "~/shared/id/id.js";
+import {ApiTaskQueryCursor} from "~/shared/id/types/api_task_query_cursor.js";
 import {SpaceId, TaskCollectionId} from "~/shared/id/types/id_types.js";
 import {testTracer} from "~/shared/tracer/dev/test_tracer.js";
 
@@ -36,6 +38,7 @@ function mockGetTaskCollection(
             collection: {
                 id: collectionId,
                 name: responseData.name ?? "Test Task Collection",
+                defaults: {filters: [], sorts: []},
             },
         },
     });
@@ -47,8 +50,13 @@ function mockGetTaskCollectionTasks(
     collectionId: TaskCollectionId,
     responseData: {
         totalTaskCount?: number;
-        nextCursor?: string | null;
-        tasks?: Array<ApiTaskWithoutNotes>;
+        nextCursor?: ApiTaskQueryCursor | null;
+        tasks?: Array<
+            PartialBy<
+                ApiTaskWithoutNotesResponse,
+                Exclude<keyof ApiTaskWithoutNotesResponse, "id" | "status" | "title">
+            >
+        >;
     },
     queryParams?: {
         limit?: number;
@@ -63,12 +71,24 @@ function mockGetTaskCollectionTasks(
           }
         : "Any";
 
-    api.mockGet("/task-collections/{id}/tasks", {
-        params,
+    api.mockPost("/task-collections/{id}/tasks/query", {
+        params: params === "Any" ? params : {path: params.path},
         data: {
             spaceId,
+            collection: {
+                id: collectionId,
+                name: "Test Task Collection",
+                defaults: {filters: [], sorts: []},
+            },
             nextCursor: responseData.nextCursor ?? null,
-            tasks: responseData.tasks ?? [],
+            tasks: (responseData.tasks ?? []).map((task, index) => ({
+                cursor: `test-task-cursor-${index}` as ApiTaskQueryCursor,
+                task: {
+                    collections: [],
+                    subtasks: {openTaskCount: 0, closedTaskCount: 0},
+                    ...task,
+                },
+            })),
         },
     });
 }
@@ -156,14 +176,14 @@ See [here for Closed tasks](/task-collection/sprint-tasks-closed-tasks) in this 
                     status: {type: "Open", isActive: true},
                     assignee: aliceAccount,
                     due: {date: "2025-12-31"},
-                    priority: "Urgent",
+                    priority: {type: "Urgent"},
                 },
                 {
                     id: generateId(),
                     title: "Task with Some Fields",
                     status: {type: "Open", isActive: false},
                     assignee: bobAccount,
-                    priority: "High",
+                    priority: {type: "High"},
                 },
             ],
             nextCursor: null,

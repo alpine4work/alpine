@@ -8,7 +8,7 @@ import {createAgentWebPageStoredLinkPathname} from "~/server/agents/web/create_a
 import {createAgentWebSessionStorageForTest} from "~/server/agents/web/test_helpers/create_agent_web_session_storage_for_test.js";
 import {intoApiAccountReference} from "~/shared/api/specification/into_api_account_reference.js";
 import {ApiContentResponseWithoutKeys} from "~/shared/api/specification/types/api_content_response_without_keys.js";
-import type {ApiAccount} from "~/shared/api/specification/types/api_specification_convenience_types.js";
+import type {ApiAccountResponse} from "~/shared/api/specification/types/api_specification_convenience_types.js";
 import {
     ErrorBase,
     FailedPreconditionError,
@@ -162,7 +162,7 @@ function mockCreateDirectChat({
 }: {
     id?: ChatId;
     title: string;
-    members?: ReadonlyArray<ApiAccount>;
+    members?: ReadonlyArray<ApiAccountResponse>;
 }): ChatId {
     api.mockPost("/chats", {
         params: "Any",

@@ -91,7 +91,7 @@ import {
 import {
     ApiContentBlockElement,
     ApiLabelContent,
-    ApiMentionResponse,
+    ApiMentionReferenceResponse,
     ApiMessageRoomReference,
 } from "~/shared/api/specification/types/api_specification_convenience_types.js";
 import {getErrorDisplayMessage} from "~/shared/error/default_error_display_message.js";
@@ -1441,7 +1441,7 @@ function getRoomPathForPromptCacheKey(spaceId: SpaceId, room: ApiMessageRoomRefe
         case "Post":
         case "Task":
             return `${spaceId}:${printApiMessageRoomPath(room)}`;
-        case "DocumentCommentThread":
+        case "DocumentThread":
             // "thread/" (7 characters) + ID \* 2 (52 characters + "-" (1 character)) = 60
             // characters
             return `thread/${room.id}-${room.threadId}`;
@@ -1661,31 +1661,31 @@ async function injectCurrentlyViewedEntityIntoContextIfNeeded(
     transaction: DurableObjectTransaction,
     conversation: ChatGptAgentConversationStore,
 ): Promise<void> {
-    if (request.event.type !== "NewMessage") return;
+    if (request.event.type !== "CreatedMessage") return;
 
     const currentlyViewingTargetState = conversation.getState().currentlyViewingTarget;
 
-    let newViewingTarget: ApiMentionResponse | null = null;
+    let newViewingTarget: ApiMentionReferenceResponse | null = null;
 
     // If the user is looking at a new entity, load the entity mention from the API.
     if (
-        request.event.viewingTarget &&
-        !isDeepEqual(request.event.viewingTarget, currentlyViewingTargetState?.target)
+        request.event.viewing &&
+        !isDeepEqual(request.event.viewing.reference, currentlyViewingTargetState?.target)
     ) {
         const mentionResult = await captureResultPromise(
-            getApiReference(tracer, request.apiClient, request.event.viewingTarget),
+            getApiReference(tracer, request.apiClient, request.event.viewing.reference),
         );
 
-        // Some `viewingTarget`s can't be resolved by `/{type}/{id}/mention` (most notably
-        // 1:1 chats, including the user's chat with the agent itself), which the API
-        // returns as a 404. Context injection is best-effort, so skip it rather than
+        // Some viewing references can't be resolved by `/{type}/{id}/reference` (most
+        // notably 1:1 chats, including the user's chat with the agent itself), which the
+        // API returns as a 404. Context injection is best-effort, so skip it rather than
         // failing the whole webhook.
         if (!mentionResult.ok) {
             if (mentionResult.error instanceof NotFoundError) return;
             throw mentionResult.error;
         }
 
-        newViewingTarget = mentionResult.value.data.mention;
+        newViewingTarget = mentionResult.value.data.reference;
     }
 
     const previousEntity = currentlyViewingTargetState?.target ?? null;
@@ -1812,13 +1812,13 @@ export async function injectCurrentlyViewedEntityIntoContextIfNeededForTest(
 /**
  * Converts an `ApiCurrentlyViewedEntity` into options for `createAgentLink`.
  */
-function intoCreateAgentLinkOptions(entity: ApiMentionResponse): CreateAgentLinkOptions {
-    switch (entity.target.type) {
+function intoCreateAgentLinkOptions(entity: ApiMentionReferenceResponse): CreateAgentLinkOptions {
+    switch (entity.type) {
         case "Account": {
             return {
                 type: "Account",
                 account: {
-                    id: entity.target.id,
+                    id: entity.id,
                     name: entity.title,
                 },
             };
@@ -1827,7 +1827,7 @@ function intoCreateAgentLinkOptions(entity: ApiMentionResponse): CreateAgentLink
             return {
                 type: "Chat",
                 chat: {
-                    id: entity.target.id,
+                    id: entity.id,
                     name: entity.title,
                 },
             };
@@ -1836,7 +1836,7 @@ function intoCreateAgentLinkOptions(entity: ApiMentionResponse): CreateAgentLink
             return {
                 type: "Document",
                 document: {
-                    id: entity.target.id,
+                    id: entity.id,
                     title: entity.title,
                 },
             };
@@ -1845,9 +1845,9 @@ function intoCreateAgentLinkOptions(entity: ApiMentionResponse): CreateAgentLink
             return {
                 type: "Task",
                 task: {
-                    id: entity.target.id,
+                    id: entity.id,
                     title: entity.title,
-                    status: entity.target.status,
+                    status: entity.status,
                 },
             };
         }
@@ -1855,7 +1855,7 @@ function intoCreateAgentLinkOptions(entity: ApiMentionResponse): CreateAgentLink
             return {
                 type: "Post",
                 post: {
-                    id: entity.target.id,
+                    id: entity.id,
                     contentPreview: entity.title,
                 },
             };
@@ -1864,7 +1864,7 @@ function intoCreateAgentLinkOptions(entity: ApiMentionResponse): CreateAgentLink
             return {
                 type: "Channel",
                 channel: {
-                    id: entity.target.id,
+                    id: entity.id,
                     name: entity.title,
                 },
             };
@@ -1873,7 +1873,7 @@ function intoCreateAgentLinkOptions(entity: ApiMentionResponse): CreateAgentLink
             return {
                 type: "TaskCollection",
                 taskCollection: {
-                    id: entity.target.id,
+                    id: entity.id,
                     name: entity.title,
                 },
             };
@@ -1882,13 +1882,13 @@ function intoCreateAgentLinkOptions(entity: ApiMentionResponse): CreateAgentLink
             return {
                 type: "Site",
                 site: {
-                    id: entity.target.id,
+                    id: entity.id,
                     name: entity.title,
                 },
             };
         }
         default:
-            throw exhaustive(entity.target);
+            throw exhaustive(entity);
     }
 }
 
@@ -1915,9 +1915,9 @@ async function getAgentWebhookRequestAuthorIdIfExists(
     request: AgentWebhookRequest,
 ): Promise<AccountId | null> {
     switch (request.event.type) {
-        case "NewMessage":
-        case "NewPost":
-            return request.event.authorId;
+        case "CreatedMessage":
+        case "CreatedPost":
+            return request.event.author.id;
         case "UpdatedMessageStreamExperimentalApprovalsPart": {
             const pendingApproval = await getChatGptAgentDecidedMessageApprovalIfExists(
                 request.storage,

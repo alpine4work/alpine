@@ -8,10 +8,7 @@ import {AgentWebPageDocumentThreadRoutedLink} from "~/server/agents/web/agent_we
 import {AgentWebSessionStorage} from "~/server/agents/web/agent_web_session_storage.js";
 import {createAgentWebPageRoutedLinkPathname} from "~/server/agents/web/create_agent_web_page_routed_link_pathname.js";
 import {extractCommentSliceFromApiContent} from "~/server/agents/web/internal/extract_comment_slice_from_api_content.js";
-import {
-    AgentWebDocumentPageWithMetadata,
-    parseAgentWebDocumentPage,
-} from "~/server/agents/web/pages/agent_web_document_page.js";
+import {parseAgentWebDocumentPage} from "~/server/agents/web/pages/agent_web_document_page.js";
 import {
     AgentWebMessagingPage,
     AgentWebMessagingPageBlock,

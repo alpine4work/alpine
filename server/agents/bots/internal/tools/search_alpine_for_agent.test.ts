@@ -6,7 +6,7 @@ import {createApiAccountMock} from "~/server/agents/api/test_helpers/create_api_
 import {searchAlpineForAgent} from "~/server/agents/bots/internal/tools/search_alpine_for_agent.js";
 import {
     ApiMessageRoomReference,
-    ApiSearchResult,
+    ApiSearchResultResponse,
 } from "~/shared/api/specification/types/api_specification_convenience_types.js";
 import {cast} from "~/shared/helpers/control/cast.js";
 import {generateId} from "~/shared/id/id.js";
@@ -58,7 +58,7 @@ describe("searchAlpineForAgent", () => {
     });
 
     test("handles search results without body matches", async () => {
-        const results: Array<ApiSearchResult> = [
+        const results: Array<ApiSearchResultResponse> = [
             {
                 type: "Document",
                 title: "Test Document",
@@ -102,7 +102,7 @@ describe("searchAlpineForAgent", () => {
             {
                 type: "TaskMessage",
                 title: null,
-                bodyMatch: null,
+                bodyMatch: [],
                 author: createApiAccountMock({id: accountId, name: "John Smith"}),
                 id: taskId,
                 index: 5,
@@ -122,6 +122,7 @@ describe("searchAlpineForAgent", () => {
             {
                 type: "Account",
                 title: "Test Account",
+                shortName: "test-account",
                 bodyMatch: null,
                 id: accountId,
             },
@@ -175,7 +176,7 @@ The following search results matched the keyword search but did not match any sp
     });
 
     test("handles search results with body matches", async () => {
-        const results: Array<ApiSearchResult> = [
+        const results: Array<ApiSearchResultResponse> = [
             {
                 type: "Document",
                 title: "Test Document",
@@ -254,6 +255,7 @@ The following search results matched the keyword search but did not match any sp
             {
                 type: "Account",
                 title: "Test Account",
+                shortName: "test-account",
                 bodyMatch: null,
                 id: accountId,
             },
@@ -316,7 +318,7 @@ The following search results matched the keyword search but did not match any sp
 
     test("returns \u2018No results found\u2019 when all results are in the current message room", async () => {
         const currentChatId = generateId<ChatId>();
-        const results: Array<ApiSearchResult> = [
+        const results: Array<ApiSearchResultResponse> = [
             {
                 type: "Chat",
                 title: "Test Chat",
@@ -343,7 +345,7 @@ The following search results matched the keyword search but did not match any sp
         const currentChatId = generateId<ChatId>();
         const otherChatId = generateId<ChatId>();
 
-        const results: Array<ApiSearchResult> = [
+        const results: Array<ApiSearchResultResponse> = [
             {
                 type: "Chat",
                 title: "Current Chat",
@@ -399,7 +401,7 @@ The following search results matched the keyword search but did not match any sp
         const currentPostId = generateId<PostId>();
         const otherPostId = generateId<PostId>();
 
-        const results: Array<ApiSearchResult> = [
+        const results: Array<ApiSearchResultResponse> = [
             {
                 type: "Post",
                 title: "Current Post",
@@ -410,7 +412,7 @@ The following search results matched the keyword search but did not match any sp
             {
                 type: "PostMessage",
                 title: null,
-                bodyMatch: null,
+                bodyMatch: [],
                 author: createApiAccountMock({id: accountId, name: "John Smith"}),
                 id: currentPostId,
                 index: 2,
@@ -425,7 +427,7 @@ The following search results matched the keyword search but did not match any sp
             {
                 type: "PostMessage",
                 title: null,
-                bodyMatch: null,
+                bodyMatch: [],
                 author: createApiAccountMock({id: accountId, name: "Jane Doe"}),
                 id: otherPostId,
                 index: 1,
@@ -457,7 +459,7 @@ The following search results matched the keyword search but did not match any sp
         const currentTaskId = generateId<TaskId>();
         const otherTaskId = generateId<TaskId>();
 
-        const results: Array<ApiSearchResult> = [
+        const results: Array<ApiSearchResultResponse> = [
             {
                 type: "Task",
                 title: "Current Task",
@@ -468,7 +470,7 @@ The following search results matched the keyword search but did not match any sp
             {
                 type: "TaskMessage",
                 title: null,
-                bodyMatch: null,
+                bodyMatch: [],
                 author: createApiAccountMock({id: accountId, name: "John Smith"}),
                 id: currentTaskId,
                 index: 3,
@@ -483,7 +485,7 @@ The following search results matched the keyword search but did not match any sp
             {
                 type: "TaskMessage",
                 title: null,
-                bodyMatch: null,
+                bodyMatch: [],
                 author: createApiAccountMock({id: accountId, name: "Jane Doe"}),
                 id: otherTaskId,
                 index: 1,
@@ -519,7 +521,7 @@ The following search results matched the keyword search but did not match any sp
         const otherDocumentId = generateId<DocumentId>();
         const otherThreadId = generateId<DocumentCommentThreadId>();
 
-        const results: Array<ApiSearchResult> = [
+        const results: Array<ApiSearchResultResponse> = [
             {
                 type: "Document",
                 title: "Current Document",
@@ -529,7 +531,7 @@ The following search results matched the keyword search but did not match any sp
             {
                 type: "DocumentMessage",
                 title: null,
-                bodyMatch: null,
+                bodyMatch: [],
                 author: createApiAccountMock({id: accountId, name: "John Smith"}),
                 id: currentDocumentId,
                 index: 2,
@@ -544,7 +546,7 @@ The following search results matched the keyword search but did not match any sp
             {
                 type: "DocumentMessage",
                 title: null,
-                bodyMatch: null,
+                bodyMatch: [],
                 author: createApiAccountMock({id: accountId, name: "Jane Doe"}),
                 id: otherDocumentId,
                 index: 1,
@@ -557,7 +559,7 @@ The following search results matched the keyword search but did not match any sp
         const requestWithRoom = {
             ...request,
             room: cast<ApiMessageRoomReference>({
-                type: "DocumentCommentThread",
+                type: "DocumentThread",
                 id: currentDocumentId,
                 threadId: currentThreadId,
             }),
@@ -582,7 +584,7 @@ The following search results matched the keyword search but did not match any sp
     test("returns \u2018No results found\u2019 when all results are filtered out", async () => {
         const currentChatId = generateId<ChatId>();
 
-        const results: Array<ApiSearchResult> = [
+        const results: Array<ApiSearchResultResponse> = [
             {
                 type: "Chat",
                 title: "Current Chat",
@@ -627,7 +629,7 @@ The following search results matched the keyword search but did not match any sp
         const otherDocumentId = generateId<DocumentId>();
         const otherThreadId = generateId<DocumentCommentThreadId>();
 
-        const results: Array<ApiSearchResult> = [
+        const results: Array<ApiSearchResultResponse> = [
             {
                 type: "DocumentMessage",
                 title: null,
@@ -706,7 +708,7 @@ The following search results matched the keyword search but did not match any sp
         const requestWithRoom = {
             ...request,
             room: cast<ApiMessageRoomReference>({
-                type: "DocumentCommentThread",
+                type: "DocumentThread",
                 id: currentDocumentId,
                 threadId: currentThreadId,
             }),
@@ -734,10 +736,11 @@ The following search results matched the keyword search but did not match any sp
     test("does not filter non-message-room entities (Accounts, Channels, Documents, TaskCollections)", async () => {
         const currentChatId = generateId<ChatId>();
 
-        const results: Array<ApiSearchResult> = [
+        const results: Array<ApiSearchResultResponse> = [
             {
                 type: "Account",
                 title: "Test Account",
+                shortName: "test-account",
                 bodyMatch: null,
                 id: accountId,
             },
@@ -788,7 +791,7 @@ The following search results matched the keyword search but did not match any sp
 
     test("groups results by parsed filter", async () => {
         const documentId2 = generateId<DocumentId>();
-        const results: Array<ApiSearchResult> = [
+        const results: Array<ApiSearchResultResponse> = [
             {
                 type: "Document",
                 title: "Matching Document 1",
@@ -850,7 +853,7 @@ The following search results are \\_not\\_ documents created yesterday but Alpin
 
     test("creates multiple parsed filter groups if there are different matched filters.", async () => {
         const documentId2 = generateId<DocumentId>();
-        const results: Array<ApiSearchResult> = [
+        const results: Array<ApiSearchResultResponse> = [
             {
                 type: "Document",
                 title: "Matching Document 1",

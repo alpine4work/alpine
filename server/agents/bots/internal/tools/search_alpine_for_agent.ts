@@ -42,7 +42,7 @@ export async function searchAlpineForAgent(
             query: {query, limit: agentSearchResultLimit},
         },
     });
-    if (!data || data.results.length === 0) return "No results found.";
+    if (!data || data.results.length === 0) return "No results found";
 
     const results = data.results.filter(
         result => !isApiSearchResultInConversationState(request.room, result),
@@ -416,7 +416,7 @@ function intoApiMessageRoomPathFromPathIfPossible(
             return {type: "Chat", id: apiPath.id};
         case "DocumentMessage":
             return {
-                type: "DocumentCommentThread",
+                type: "DocumentThread",
                 id: apiPath.id,
                 threadId: apiPath.threadId,
             };

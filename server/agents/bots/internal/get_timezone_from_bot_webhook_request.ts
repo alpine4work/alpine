@@ -8,8 +8,8 @@ import {TimeZone, defaultTimeZone} from "~/shared/helpers/intl/time_zone.js";
  */
 export function getTimezoneFromBotWebhookRequest(request: AgentWebhookRequest): TimeZone {
     switch (request.event.type) {
-        case "NewMessage":
-        case "NewPost":
+        case "CreatedMessage":
+        case "CreatedPost":
             return request.event.createdTimeZone;
         case "UpdatedMessageStreamExperimentalApprovalsPart":
             return defaultTimeZone;

@@ -10,7 +10,6 @@ exports[`streams plain text message when update is called once at the end 1`] = 
           {
             "elements": [
               {
-                "marks": undefined,
                 "text": "The quick brown fox jumps over the lazy dog.",
                 "type": "Text",
               },
@@ -30,7 +29,6 @@ exports[`streams plain text message when update is called once at the end 1`] = 
           {
             "elements": [
               {
-                "marks": undefined,
                 "text": "Lorem ipsum dolor sit amet. Praesent bibendum vitae lectus at maximus.",
                 "type": "Text",
               },
@@ -50,7 +48,6 @@ exports[`streams plain text message when update is called once at the end 1`] = 
           {
             "elements": [
               {
-                "marks": undefined,
                 "text": "Hello, world!",
                 "type": "Text",
               },
@@ -77,7 +74,6 @@ exports[`streams plain text message when update is called once at the end 3`] = 
           {
             "elements": [
               {
-                "marks": undefined,
                 "text": "The quick brown fox jumps over the lazy dog.",
                 "type": "Text",
               },
@@ -97,7 +93,6 @@ exports[`streams plain text message when update is called once at the end 3`] = 
           {
             "elements": [
               {
-                "marks": undefined,
                 "text": "Lorem ipsum dolor sit amet. Praesent bibendum vitae lectus at maximus.",
                 "type": "Text",
               },
@@ -117,7 +112,6 @@ exports[`streams plain text message when update is called once at the end 3`] = 
           {
             "elements": [
               {
-                "marks": undefined,
                 "text": "Hello, world!",
                 "type": "Text",
               },
@@ -144,7 +138,6 @@ exports[`streams plan text message when update is called once every few tokens 1
           {
             "elements": [
               {
-                "marks": undefined,
                 "text": "The quick brown fox jumps",
                 "type": "Text",
               },
@@ -169,7 +162,6 @@ exports[`streams plan text message when update is called once every few tokens 2
           {
             "elements": [
               {
-                "marks": undefined,
                 "text": "The quick brown fox jumps over the lazy",
                 "type": "Text",
               },
@@ -194,7 +186,6 @@ exports[`streams plan text message when update is called once every few tokens 3
           {
             "elements": [
               {
-                "marks": undefined,
                 "text": "The quick brown fox jumps over the lazy dog.",
                 "type": "Text",
               },
@@ -214,7 +205,6 @@ exports[`streams plan text message when update is called once every few tokens 3
           {
             "elements": [
               {
-                "marks": undefined,
                 "text": "Lorem ipsum",
                 "type": "Text",
               },
@@ -239,7 +229,6 @@ exports[`streams plan text message when update is called once every few tokens 4
           {
             "elements": [
               {
-                "marks": undefined,
                 "text": "Lorem ipsum dolor sit amet. Praesent bib",
                 "type": "Text",
               },
@@ -264,7 +253,6 @@ exports[`streams plan text message when update is called once every few tokens 5
           {
             "elements": [
               {
-                "marks": undefined,
                 "text": "Lorem ipsum dolor sit amet. Praesent bibendum vitae lectus at",
                 "type": "Text",
               },
@@ -289,7 +277,6 @@ exports[`streams plan text message when update is called once every few tokens 6
           {
             "elements": [
               {
-                "marks": undefined,
                 "text": "Lorem ipsum dolor sit amet. Praesent bibendum vitae lectus at maximus.",
                 "type": "Text",
               },
@@ -309,7 +296,6 @@ exports[`streams plan text message when update is called once every few tokens 6
           {
             "elements": [
               {
-                "marks": undefined,
                 "text": "Hello, world!",
                 "type": "Text",
               },
@@ -336,7 +322,6 @@ exports[`streams plan text message when update is called once every token 1`] = 
           {
             "elements": [
               {
-                "marks": undefined,
                 "text": "The",
                 "type": "Text",
               },
@@ -361,7 +346,6 @@ exports[`streams plan text message when update is called once every token 2`] = 
           {
             "elements": [
               {
-                "marks": undefined,
                 "text": "The quick",
                 "type": "Text",
               },
@@ -386,7 +370,6 @@ exports[`streams plan text message when update is called once every token 3`] = 
           {
             "elements": [
               {
-                "marks": undefined,
                 "text": "The quick brown",
                 "type": "Text",
               },
@@ -411,7 +394,6 @@ exports[`streams plan text message when update is called once every token 4`] = 
           {
             "elements": [
               {
-                "marks": undefined,
                 "text": "The quick brown fox",
                 "type": "Text",
               },
@@ -436,7 +418,6 @@ exports[`streams plan text message when update is called once every token 5`] = 
           {
             "elements": [
               {
-                "marks": undefined,
                 "text": "The quick brown fox jumps",
                 "type": "Text",
               },
@@ -461,7 +442,6 @@ exports[`streams plan text message when update is called once every token 6`] = 
           {
             "elements": [
               {
-                "marks": undefined,
                 "text": "The quick brown fox jumps over",
                 "type": "Text",
               },
@@ -486,7 +466,6 @@ exports[`streams plan text message when update is called once every token 7`] = 
           {
             "elements": [
               {
-                "marks": undefined,
                 "text": "The quick brown fox jumps over the",
                 "type": "Text",
               },
@@ -511,7 +490,6 @@ exports[`streams plan text message when update is called once every token 8`] = 
           {
             "elements": [
               {
-                "marks": undefined,
                 "text": "The quick brown fox jumps over the lazy",
                 "type": "Text",
               },
@@ -536,7 +514,6 @@ exports[`streams plan text message when update is called once every token 9`] = 
           {
             "elements": [
               {
-                "marks": undefined,
                 "text": "The quick brown fox jumps over the lazy dog",
                 "type": "Text",
               },
@@ -561,7 +538,6 @@ exports[`streams plan text message when update is called once every token 10`] =
           {
             "elements": [
               {
-                "marks": undefined,
                 "text": "The quick brown fox jumps over the lazy dog.",
                 "type": "Text",
               },
@@ -586,7 +562,6 @@ exports[`streams plan text message when update is called once every token 11`] =
           {
             "elements": [
               {
-                "marks": undefined,
                 "text": "Lorem",
                 "type": "Text",
               },
@@ -611,7 +586,6 @@ exports[`streams plan text message when update is called once every token 12`] =
           {
             "elements": [
               {
-                "marks": undefined,
                 "text": "Lorem ipsum",
                 "type": "Text",
               },
@@ -636,7 +610,6 @@ exports[`streams plan text message when update is called once every token 13`] =
           {
             "elements": [
               {
-                "marks": undefined,
                 "text": "Lorem ipsum dolor",
                 "type": "Text",
               },
@@ -661,7 +634,6 @@ exports[`streams plan text message when update is called once every token 14`] =
           {
             "elements": [
               {
-                "marks": undefined,
                 "text": "Lorem ipsum dolor sit",
                 "type": "Text",
               },
@@ -686,7 +658,6 @@ exports[`streams plan text message when update is called once every token 15`] =
           {
             "elements": [
               {
-                "marks": undefined,
                 "text": "Lorem ipsum dolor sit amet.",
                 "type": "Text",
               },
@@ -711,7 +682,6 @@ exports[`streams plan text message when update is called once every token 16`] =
           {
             "elements": [
               {
-                "marks": undefined,
                 "text": "Lorem ipsum dolor sit amet. Praesent",
                 "type": "Text",
               },
@@ -736,7 +706,6 @@ exports[`streams plan text message when update is called once every token 17`] =
           {
             "elements": [
               {
-                "marks": undefined,
                 "text": "Lorem ipsum dolor sit amet. Praesent bib",
                 "type": "Text",
               },
@@ -761,7 +730,6 @@ exports[`streams plan text message when update is called once every token 18`] =
           {
             "elements": [
               {
-                "marks": undefined,
                 "text": "Lorem ipsum dolor sit amet. Praesent bibendum",
                 "type": "Text",
               },
@@ -786,7 +754,6 @@ exports[`streams plan text message when update is called once every token 19`] =
           {
             "elements": [
               {
-                "marks": undefined,
                 "text": "Lorem ipsum dolor sit amet. Praesent bibendum vitae",
                 "type": "Text",
               },
@@ -811,7 +778,6 @@ exports[`streams plan text message when update is called once every token 20`] =
           {
             "elements": [
               {
-                "marks": undefined,
                 "text": "Lorem ipsum dolor sit amet. Praesent bibendum vitae lectus",
                 "type": "Text",
               },
@@ -836,7 +802,6 @@ exports[`streams plan text message when update is called once every token 21`] =
           {
             "elements": [
               {
-                "marks": undefined,
                 "text": "Lorem ipsum dolor sit amet. Praesent bibendum vitae lectus at",
                 "type": "Text",
               },
@@ -861,7 +826,6 @@ exports[`streams plan text message when update is called once every token 22`] =
           {
             "elements": [
               {
-                "marks": undefined,
                 "text": "Lorem ipsum dolor sit amet. Praesent bibendum vitae lectus at maximus.",
                 "type": "Text",
               },
@@ -886,7 +850,6 @@ exports[`streams plan text message when update is called once every token 23`] =
           {
             "elements": [
               {
-                "marks": undefined,
                 "text": "Hello,",
                 "type": "Text",
               },
@@ -911,7 +874,6 @@ exports[`streams plan text message when update is called once every token 24`] =
           {
             "elements": [
               {
-                "marks": undefined,
                 "text": "Hello, world!",
                 "type": "Text",
               },

@@ -46,10 +46,10 @@ describe("shouldAgentRespondToRequest", () => {
             botId: generateId<BotId>(),
             botAccountId: agentAccountId,
             event: {
-                type: "NewMessage",
+                type: "CreatedMessage",
                 room: {type: "Chat", id: generateId<ChatId>()},
                 index: 0,
-                authorId: agentAccountId,
+                author: {id: agentAccountId},
                 wasMentioned: true,
                 createdTimeZone: defaultTimeZone,
             },
@@ -79,10 +79,10 @@ describe("shouldAgentRespondToRequest", () => {
             botId: generateId<BotId>(),
             botAccountId: agentAccountId,
             event: {
-                type: "NewMessage",
+                type: "CreatedMessage",
                 room: {type: "Chat", id: chatId},
                 index: 1,
-                authorId: agentAccountId,
+                author: {id: agentAccountId},
                 createdTimeZone: defaultTimeZone,
                 wasMentioned: false,
                 parent: {
@@ -118,6 +118,7 @@ describe("shouldAgentRespondToRequest", () => {
                         {account: createApiAccountMock({id: agentAccountId})},
                         {account: createApiAccountMock({id: otherAccountId})},
                     ],
+                    reference: {title: "Direct chat"},
                 },
             },
         });
@@ -133,11 +134,11 @@ describe("shouldAgentRespondToRequest", () => {
             botId: generateId<BotId>(),
             botAccountId: agentAccountId,
             event: {
-                type: "NewMessage",
+                type: "CreatedMessage",
                 wasMentioned: false,
                 room: {type: "Chat", id: chatId},
                 index: 0,
-                authorId: otherAccountId,
+                author: {id: otherAccountId},
                 createdTimeZone: defaultTimeZone,
             },
             room: {
@@ -170,10 +171,10 @@ describe("shouldAgentRespondToRequest", () => {
                 botId: generateId<BotId>(),
                 botAccountId: agentAccountId,
                 event: {
-                    type: "NewMessage",
+                    type: "CreatedMessage",
                     room: {type: "Post", id: generateId<PostId>()},
                     index: 0,
-                    authorId: agentAccountId,
+                    author: {id: agentAccountId},
                     createdTimeZone: defaultTimeZone,
                     wasMentioned: false,
                 },
@@ -204,6 +205,7 @@ describe("shouldAgentRespondToRequest", () => {
                             {account: createApiAccountMock({id: agentAccountId})},
                             {account: createApiAccountMock({id: otherAccountId})},
                         ],
+                        reference: {title: "Direct chat"},
                     },
                 },
             });
@@ -219,11 +221,11 @@ describe("shouldAgentRespondToRequest", () => {
                 botId: generateId<BotId>(),
                 botAccountId: agentAccountId,
                 event: {
-                    type: "NewMessage",
+                    type: "CreatedMessage",
                     wasMentioned: false,
                     room: {type: "Chat", id: chatId},
                     index: 0,
-                    authorId: otherAccountId,
+                    author: {id: otherAccountId},
                     createdTimeZone: defaultTimeZone,
                 },
                 room: {
@@ -255,6 +257,7 @@ describe("shouldAgentRespondToRequest", () => {
                             {account: createApiAccountMock({id: otherAccountId1})},
                             {account: createApiAccountMock({id: otherAccountId2})},
                         ],
+                        reference: {title: "Direct chat"},
                     },
                 },
             });
@@ -270,11 +273,11 @@ describe("shouldAgentRespondToRequest", () => {
                 botId: generateId<BotId>(),
                 botAccountId: agentAccountId,
                 event: {
-                    type: "NewMessage",
+                    type: "CreatedMessage",
                     wasMentioned: false,
                     room: {type: "Chat", id: chatId},
                     index: 0,
-                    authorId: otherAccountId1,
+                    author: {id: otherAccountId1},
                     createdTimeZone: defaultTimeZone,
                 },
                 room: {

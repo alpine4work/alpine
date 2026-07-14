@@ -321,8 +321,11 @@ test("rejects creating a task collection with an unknown task link", async () =>
 
 - [Missing task](/task/missing-task)`,
         expected:
-            "Couldn\u2019t find a task for the link \u201CMissing task\u201D on line 3. Try again " +
-            "with a link to a task you\u2019ve seen before (e.g. `[My Task (Open)](/task/my-task)`).",
+            "Couldn\u2019t find a task for the link \u201CMissing task\u201D on line 3. You may " +
+            "only add a task you\u2019ve previously seen to a collection. Try calling the " +
+            "`create` tool to create a new task and then add that new task to the " +
+            "collection, or try calling the `search` tool to find an existing task you " +
+            "want to add to the collection.",
     });
 
     expect(getCreateTaskCollectionRequests()).toHaveLength(0);
