@@ -1,4 +1,5 @@
 import {
+    ApiTaskQueryFilterResponseWithoutAccountSpace,
     parseAgentWebTaskQueryFilters,
     printAgentWebTaskQueryFilters,
 } from "~/server/agents/web/agent_web_task_query_filters.js";
@@ -6,12 +7,14 @@ import {createAgentWebPageStoredLinkPathname} from "~/server/agents/web/create_a
 import {normalizeAgentWebPath} from "~/server/agents/web/internal/normalize_agent_web_path.js";
 import {createAgentWebSessionStorageForTest} from "~/server/agents/web/test_helpers/create_agent_web_session_storage_for_test.js";
 import {normalizeApiTaskQueryFilters} from "~/shared/api/content/normalize_api_task_query_filters.js";
-import {intoApiAccountReference} from "~/shared/api/specification/into_api_account_reference.js";
+import {
+    fromApiAccountReference,
+    intoApiAccountReference,
+} from "~/shared/api/specification/into_api_account_reference.js";
 import {
     ApiAccountResponse,
     ApiAccountWithoutSpaceResponse,
     ApiTaskCollectionPreviewResponse,
-    ApiTaskQueryFilter,
     ApiTaskQueryFilterResponse,
 } from "~/shared/api/specification/types/api_specification_convenience_types.js";
 import {ErrorBase, InternalError} from "~/shared/error/error.js";
@@ -27,9 +30,9 @@ const storage = createAgentWebSessionStorageForTest(generateId<SpaceId>());
  * `searchParamsString` returns exactly the normalized filters. The printed string
  * is inline in each test so the aesthetics of the format are easy to review.
  *
- * Parsed filters are compared without hydrated response data (like account names)
- * since the printed search params only reference accounts and task collections by
- * the names in their pathnames.
+ * Parsed filters are compared without account space data since stored account
+ * links contain all of the other response data needed to hydrate the parsed
+ * filters.
  */
 async function expectTaskQueryFilterFormat(
     filters: ReadonlyArray<ApiTaskQueryFilterResponse>,
@@ -43,42 +46,32 @@ async function expectTaskQueryFilterFormat(
         ),
     }).toEqual({
         printed: searchParamsString,
-        parsed: intoApiTaskQueryFiltersWithoutResponseData(normalizeApiTaskQueryFilters(filters)),
+        parsed: intoApiTaskQueryFiltersWithoutAccountSpace(normalizeApiTaskQueryFilters(filters)),
     });
 }
 
 /**
- * Converts task filter responses into plain task filters by dropping hydrated
- * response data like account and task collection names.
+ * Removes account space data that isn't stored in agent web links.
  */
-function intoApiTaskQueryFiltersWithoutResponseData(
+function intoApiTaskQueryFiltersWithoutAccountSpace(
     filters: ReadonlyArray<ApiTaskQueryFilterResponse>,
-): Array<ApiTaskQueryFilter> {
-    return filters.map((filter): ApiTaskQueryFilter => {
+): Array<ApiTaskQueryFilterResponseWithoutAccountSpace> {
+    return filters.map((filter): ApiTaskQueryFilterResponseWithoutAccountSpace => {
         switch (filter.type) {
-            case "Collections": {
-                const {operation} = filter;
-                if (operation.type === "IsEmpty") return {type: "Collections", operation};
-
-                return {
-                    type: "Collections",
-                    operation: {
-                        type: operation.type,
-                        collections: operation.collections.map(collection => ({
-                            id: collection.id,
-                        })),
-                    },
-                };
-            }
             case "Assignee":
             case "Assigner": {
                 return {
-                    type: filter.type,
+                    ...filter,
                     operation: {
-                        type: filter.operation.type,
+                        ...filter.operation,
                         accounts: filter.operation.accounts.map(account =>
                             account.type === "Account"
-                                ? {type: "Account", account: {id: account.account.id}}
+                                ? {
+                                      type: "Account",
+                                      account: fromApiAccountReference(
+                                          intoApiAccountReference(account.account),
+                                      ),
+                                  }
                                 : account,
                         ),
                     },
@@ -86,12 +79,17 @@ function intoApiTaskQueryFiltersWithoutResponseData(
             }
             case "Creator": {
                 return {
-                    type: "Creator",
+                    ...filter,
                     operation: {
-                        type: filter.operation.type,
+                        ...filter.operation,
                         accounts: filter.operation.accounts.map(account =>
                             account.type === "Account"
-                                ? {type: "Account", account: {id: account.account.id}}
+                                ? {
+                                      type: "Account",
+                                      account: fromApiAccountReference(
+                                          intoApiAccountReference(account.account),
+                                      ),
+                                  }
                                 : account,
                         ),
                     },
@@ -1201,7 +1199,19 @@ test("parses a full account path in an assignee filter", async () => {
     ).toEqual([
         {
             type: "Assignee",
-            operation: {type: "OneOf", accounts: [{type: "Account", account: {id: account.id}}]},
+            operation: {
+                type: "OneOf",
+                accounts: [
+                    {
+                        type: "Account",
+                        account: {
+                            id: account.id,
+                            name: "John Doe",
+                            shortName: "John",
+                        },
+                    },
+                ],
+            },
         },
     ]);
 });
@@ -1217,7 +1227,10 @@ test("parses a full collection path in a collection filter", async () => {
     ).toEqual([
         {
             type: "Collections",
-            operation: {type: "IncludesOneOf", collections: [{id: collection.id}]},
+            operation: {
+                type: "IncludesOneOf",
+                collections: [{id: collection.id, name: "Roadmap"}],
+            },
         },
     ]);
 });
@@ -1385,7 +1398,19 @@ test("parses an old account pathname after the account was renamed", async () =>
     ).toEqual([
         {
             type: "Assignee",
-            operation: {type: "OneOf", accounts: [{type: "Account", account: {id: accountId}}]},
+            operation: {
+                type: "OneOf",
+                accounts: [
+                    {
+                        type: "Account",
+                        account: {
+                            id: accountId,
+                            name: "Johnny Doe",
+                            shortName: "Johnny",
+                        },
+                    },
+                ],
+            },
         },
     ]);
 });
