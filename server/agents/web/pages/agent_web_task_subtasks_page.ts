@@ -193,18 +193,15 @@ export async function printAgentWebTaskSubtasksPage(
                 },
             ],
         },
-        {type: "text", value: "."},
+        {type: "text", value: paginationSearch === null ? "." : ". "},
     ];
 
     if (paginationSearch !== null) {
-        preambleChildren.push(
-            {type: "text", value: " "},
-            {
-                type: "link",
-                url: `${taskPathname}/subtasks?${paginationSearch}`,
-                children: [{type: "text", value: agentWebTaskQueryPageNextPageLinkText}],
-            },
-        );
+        preambleChildren.push({
+            type: "link",
+            url: `${taskPathname}/subtasks?${paginationSearch}`,
+            children: [{type: "text", value: agentWebTaskQueryPageNextPageLinkText}],
+        });
     }
 
     children.push({type: "paragraph" as const, children: preambleChildren});
@@ -337,6 +334,6 @@ async function parseAgentWebTaskSubtasksPreamble(
 
 function createAgentWebTaskSubtasksPreambleError(node: RootContent | undefined) {
     return new InvalidArgumentError("Invalid task subtasks preamble", {
-        displayMessage: errorDisplayMessage`Task subtasks markdown must start with \u201cSubtasks for [My Task (Open)](/task/my-task).\u201d on line 1. Try again with a valid task subtasks preamble${node?.position?.start.line ? ` on line ${node.position.start.line}` : ""}.`,
+        displayMessage: errorDisplayMessage`Subtasks markdown must start with \u201cSubtasks for [My Task (Open)](/task/my-task).\u201d on line 1 (substitute \u201CMy Task\u201D for the task you\u2019re looking at the subtasks for). Try again with a valid task subtasks preamble${node?.position?.start.line ? ` on line ${node.position.start.line}` : ""}.`,
     });
 }
