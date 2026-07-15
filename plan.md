@@ -1,216 +1,330 @@
-# Database permissions — implementation plan
+# Database sync protocol rework — implementation plan
 
-Branch: `alex/db-permissions`. Design settled 2026-07-08.
+Branch: `alex/better-sync`. Design settled 2026-07-15 (full analysis in git history:
+`sync_design_report.md` @ `8041f6215`).
+
+Nothing here is in production, so there are no backfills, compatibility windows, or legacy
+readers to preserve — schemas and protocol shapes are replaced in place.
 
 ## Settled design
 
-- **Async/sync split (documents pattern).** Space access is checked asynchronously once at the
-  connection/request boundary (with the `web_socket_server.ts` wrapper's ~2-minute re-auth
-  giving mid-session revocation for free). Everything per-table is a synchronous evaluation of
-  the DO-local resolved `LocalAccessPolicy` via `getAccountAccessLevelAssumingSpaceAccess`
-  (`shared/access/access_policy.ts`) — its "assuming space access" precondition is exactly what
-  the boundary check guarantees. Accepted staleness bounds (consistent with the rest of
-  Alpine): ≤ ~2min on open sockets, ≤ ~15s on request paths (space-membership cache TTL).
-- **Level mapping (v1).** View/Comment → read-only; Edit/Manage → `schema+data`. Access-policy
-  mutation stays Manage-only via the existing `updateDatabaseTableAccessPolicy` RPC.
-- **Join tables.** Access level = max(source, target). Read at ≥View on either side.
-  UPDATE/DELETE at ≥Edit on either side. INSERT additionally requires ≥View on *both* sides
-  (you can't add a link to a row you can't verify exists; closes the rawSql hole too).
-- **Enforcement points.** (1) the SQLite authorizer, per-statement per-schema, driven by a
-  per-execution access resolver (the capability-set pattern — same swap discipline as
-  `writeLevel`/`currentActionAccountId`); (2) realtime filtering of `PagesChanged`,
-  `ensureCacheIsUpToDate`, and metadata events; (3) relation fields degrade to ids-only when
-  the account can't read the linked table (UI renders "No access" chips).
-- **Pushed access map, not failure discovery.** The client learns per-table access from the
-  server (`ensureCacheIsUpToDate` response + redacted `TableMetadataChanged` events). This is
-  *required*, not just cleaner: `_alpine_table` (incl. `access_policy`) is a singleton row in
-  each table's own file, so a no-access client physically cannot read the linked table's
-  policy.
-- **Bypass.** `DatabaseGroupService`/`Test` actors and internal paths (bootstrap, migrations,
-  `syncTableMetadata`) run unrestricted (resolver = null).
-- **Punted.** Proactive OPFS purge on revocation (best-effort anyway; the access-map plumbing
-  makes it a small follow-up). Client-side authorizer enforcement is optional (milestone 6).
+- **Latest-image page storage.** The Durable Object keeps exactly one row per
+  `(sqlite_id, page_index)`: the newest page image, or a `NULL`-data **tombstone** for a
+  deleted/truncated page. `version` stays the existing per-DO global monotonic counter,
+  stamped once per `writePages` batch. Tombstones are retained indefinitely for now (rows
+  are tiny once data is NULL) — they are what makes "changed since V" report deletions.
+- **Per-table client watermarks, global version space.** A client tracks, per table file,
+  the highest global version it has fully incorporated for that table (persisted in the
+  OPFS index). No per-table version counter exists anywhere — the watermark is a cursor
+  into the existing global sequence. Watermarks advance only on events/responses *for that
+  table*; lag while a table is quiet is harmless (empty catch-up diff).
+- **Fallback-registered subscriptions.** Cold start does nothing: no validation, no
+  attach. The first action to touch an unregistered table throws (existing
+  `TableNotAttachedError` path) and falls back to the server. The fallback request carries
+  `{watermark, heldPages bitset}` for **every cached-but-unregistered table** (the client
+  can't predict join fan-out; the set shrinks to empty as the session warms up). Every
+  table the server-executed action *read* becomes a subscription for that connection.
+  The response inlines catch-up for newly registered tables.
+- **The unregistered-table gate (load-bearing invariant).** A cached table must never
+  serve local reads until registered on the current connection epoch — otherwise a table
+  cached last session but untouched this session silently serves stale data (it was never
+  subscribed, so its realtime is filtered). Attach-on-miss becomes attach-after-register.
+- **Exact bitsets, not bloom filters.** Page indexes are dense small integers (≤262,144);
+  a plain bitset is smaller than a bloom filter *and* exact. Bitsets travel client→server
+  in fallback/registration requests.
+- **Dedup rule.** The server may skip a page X of table T from a response iff the
+  *request's* bitset contains X **and** stored `version(X) ≤` the request's watermark for
+  T. Dedup must only ever consult client-sent bitsets — never the server's drifted copy —
+  or an evicted page livelocks (the bloom-false-positive failure mode).
+- **Superset discipline.** The server's per-connection bitset copy is a superset: replaced
+  when the client sends a fresh bitset, OR-ed when the server sends pages, never
+  subtracted. Superset staleness only over-sends (clients skip diffs with no base —
+  existing behavior); it never drops a held page's diff.
+- **Realtime filtered by subscription + bitset**, with three carve-outs:
+  1. The originator's own mutation is never bitset-filtered — its optimistic write-set may
+     be absent from the server's copy, and filtering it puts a refetch on the just-edited
+     row. (The empty-confirmation path for `mutationId` dequeue is preserved as today.)
+  2. When all of a subscribed table's diffs filter out, still send a
+     `{version, fileSizeInPages}` stub — file size must stay current on a sparse cache,
+     and it keeps watermarks from lagging.
+  3. `previousVersion === 0` diffs (new pages) are applied client-side against a zero
+     base instead of skipped — this kills the read-miss round trip for the commonest
+     realtime case (row insert → page append/split). The server already diffs new pages
+     against a zero page; the fix is client-only.
+- **Reconnect = re-registration.** The client re-sends `{watermark, bitset}` for its
+  registered set in one batch; the server rehydrates its in-memory view and returns inline
+  catch-up. Replaces `ensureCacheIsUpToDate`: O(tables × bitset) up, O(changed ∩ held)
+  down — versus O(all cached pages) both ways today.
+- **Per-connection server state is small and correctness-free.** `Map<tableId, {bitset,
+  watermark}>` per connection (~125 B/table typical vs ~50–100 B/page today). Losing it
+  only costs bandwidth. `BrowserPageTracker`, `acknowledgePages`, and the
+  pending/confirmed tiers are deleted. The wire shape keeps a Graft-style escape hatch:
+  if this memory ever matters, the server can stop retaining bitsets and downgrade to
+  table-level filtering without a protocol change.
+- **Loader seeds carry a per-table snapshot version** so watermarks initialize; per-page
+  versions alone leave a seeded table at watermark 0 (degenerate first registration).
 
 ## Verified facts the plan relies on
 
-- The wasm authorizer binding passes all four string args:
-  `xAuth(cbArg, actionCode, arg1, arg2, arg3, arg4)` — `arg3` is the schema (db) name for
-  table-scoped ops; the current callback in `shared/databases/database.ts:267` only
-  destructures `arg1`. (`admin/external_types/sqlite/ext/wasm/jswasm/sqlite3.d.mts:4101`.)
-- `Database.executeAction` already swaps `currentActionAccountId` per execution
-  (`shared/databases/database.ts:358`); `schemaToTable` maps schema names → table ids.
-- `createTable` and `syncTableMetadata` are `internalOnly: true`; `renameTable` is a *user*
-  action that writes `_alpine_table.name`/`table_name` and the main registry's
-  `table_name_hash` — so main and `_alpine_table` writes cannot be blanket-denied; only the
-  `access_policy` column must be protected.
-- `DatabaseDurableObjectConnection.authorize()` is a no-op today; `transformEvent` passes
-  `PagesChanged` through unfiltered and closes the socket when metadata-event authorization
-  throws.
-- `addLink` / `removeLink` / `listLinkableRows` actions already exist.
+- `version` is one monotonic counter per DO, bumped once per `writePages` batch, recovered
+  from `MAX(version)` on cold load (`database_server.ts:119-121, 435-495, 614-628`).
+- The server already computes new-page diffs against a zeroed 4 KiB page with
+  `beforeVersion: 0` (`database_server.ts:812-818`); `buildDatabasePageDiffs` passes that
+  through as `previousVersion` (`build_database_page_diffs.ts:35-40`). The client
+  currently skips any diff whose base it lacks (`database_client.ts:577-578`).
+- Attach-on-miss + server fallback already exist (`database.ts:802-838`,
+  `isServerFallbackError` → `executeActionViaServer`, `database_client.ts:341-345,
+  940-944`); eager attach is documented as an optimization (`database_client.ts:284-306`).
+- `clientMightHavePage` is dead code — realtime is filtered by table *access* only
+  (`database_durable_object_connection.ts:317-332`); the tracker's only live consumer is
+  `filterReadPages` on fallback responses (`:139-149`).
+- Realtime diffs already self-heal per page: `previousVersion` mismatch tombstones the
+  page for refetch-on-demand (`database_client.ts:582-593`); tombstones reject stale late
+  writes via `writePageIfNewer`.
+- A single mutation = one buffer drain = one version across all touched tables
+  (`database_server.ts:907-913`); WebSocket event order is the delivery order.
+- The OPFS index (`opfs_page_store.ts`) already persists `fileSizeInPages` per table —
+  the watermark is one more field there.
+- `sqlitePageSize = 4096`, `sqliteMaxPageCount = 262144` (32 KiB worst-case bitset),
+  attach eviction at 115 (`sqlite_constants.ts`).
 
 ---
 
-## Milestone 1 — Authorizer plumbing (shared, no behavior change yet) — ✅ done
+## Milestone 1 — Server storage: latest-image pages + per-table sync metadata
 
-**`shared/databases/sqlite_authorizer.ts`**
-- Add `SqliteTableAccess = {read: boolean; insert: boolean; updateDelete: boolean;
-  schema: boolean}` and `SqliteTableAccessResolver = (schemaName: string) =>
-  SqliteTableAccess | "unrestricted"`. (`"unrestricted"` covers `main`, `temp`, and unknown
-  schemas resolved by the caller's policy — see resolver rules below.)
-- Extend the decision function (new arg: `schemaName: string | null` from `arg3`, plus the
-  resolver) layered *on top of* the existing global `writeLevel` check: an op must pass both.
-  Table-scoped action codes map as: `read`/`select` → `.read`; `insert` → `.insert`;
-  `update`/`delete` → `.updateDelete`; DDL codes (`create-*`, `drop-*`, `alter-table`,
-  `reindex`, `analyze`) → `.schema`. Non-table-scoped codes (`transaction`, `function`,
-  `savepoint`, `pragma`, …) stay global-only.
-- Protect the policy replica in restricted executions: deny `update` where
-  `arg1 === "_alpine_table" && arg2 === "access_policy"`, and deny `insert`/`delete` on
-  `_alpine_table` entirely (only `internalOnly` actions create/delete tables). `renameTable`'s
-  `UPDATE _alpine_table SET name, table_name` still passes (column-granular).
-
-**`shared/databases/database.ts`**
-- Authorizer callback: destructure `arg1..arg3`; pass schema name through.
-- New per-execution field `tableAccessResolver: SqliteTableAccessResolver | null` (null =
-  unrestricted), threaded through `execute`/`executeSql`/`executeAction` options and swapped in
-  `runTracked` exactly like `writeLevel`. Memoize per execution.
-- Typed denial: when the resolver denies, record `{schemaName, action}` on the instance; in
-  `execute`'s error path, convert SQLite's "not authorized" error into
-  `PermissionDeniedError` naming the table id (via `schemaToTable`) and the denied operation.
-  Clear the marker per execution.
-- Resolver rules inside `Database`: schema `"main"` and `temp`/unknown-internal schemas →
-  `"unrestricted"` (registry is public by design; global `writeLevel` still applies); attached
-  schemas → look up table id via `schemaToTable`, delegate to the installed resolver.
-
-**`shared/databases/database_action_context.ts`**
-- Add `getTableAccess(tableId: DatabaseTableId): SqliteTableAccess` to
-  `DatabaseActionContext` (NOT server-gated — milestone 5 needs it on both sides). Backed by
-  the same per-execution resolver; returns all-true when unrestricted.
-
-**Tests:** extend the authorizer unit tests (table-scoped codes vs resolver; `access_policy`
-column denial; VACUUM/attach interplay unchanged); `database.test.ts` coverage for the
-per-execution swap and the typed `PermissionDeniedError`.
-
-## Milestone 2 — Server policy cache + enforcement on the server DO — ✅ done
+**`server/databases/database_durable_object_sql_migrations.ts`**
+- Replace the page-table migration in place (no production data):
+  ```sql
+  CREATE TABLE database_table_pages (
+      sqlite_id  INTEGER NOT NULL,
+      page_index INTEGER NOT NULL,
+      version    INTEGER NOT NULL,
+      data       BLOB,               -- NULL = tombstone
+      PRIMARY KEY (sqlite_id, page_index)
+  ) WITHOUT ROWID;
+  CREATE INDEX database_table_pages_by_version
+      ON database_table_pages (sqlite_id, version);
+  ```
+- Add to `database_tables`: `file_size_in_pages INTEGER NOT NULL DEFAULT 0` and
+  `last_version INTEGER NOT NULL DEFAULT 0`, updated transactionally in `writePages`.
 
 **`server/databases/database_server.ts`**
-- In-memory cache `Map<DatabaseTableId, {kind: "table"; policy: LocalAccessPolicy} |
-  {kind: "join"; sourceTableId; targetTableId}>`:
-  - Populate during `_bootstrap()` (it already sweeps `_alpine_tables` and attaches/migrates
-    every file — read the `_alpine_table` policy row / join endpoints there).
-  - Keep fresh via the existing table-change capture (`_installServerTableChangeCapture`
-    triggers fire on `_alpine_table` writes): after each action, re-read policy rows for
-    changed tables. `createTable`/`createRelationField` insert into the cache when they run.
-- `getTableAccessForAccount(tableId, accountId | null): SqliteTableAccess`:
-  - `kind: "table"` → `getAccountAccessLevelAssumingSpaceAccess(policy, accountId)` mapped per
-    v1 (View/Comment → read; Edit/Manage → all flags). `accountId === null` (anonymous):
-    urlGrant-only.
-  - `kind: "join"` → recurse on both sides; `read` = either side ≥View; `updateDelete`/`schema`
-    = either side ≥Edit; `insert` = (either ≥Edit) && (both ≥View).
-  - Unknown table id → deny (registry-unknown files are already refused by attach-on-miss).
-- `executeAction`: actor `DatabaseGroupService`/`Test` → resolver null; otherwise install a
-  memoized resolver closing over `context.actor.getPossiblyBotAccountIdIfExists()`.
+- `readPage`: plain PK lookup — delete the `ORDER BY version DESC LIMIT 1` and the
+  correlated `MAX(version)` in `getFileSize`/truncate scans.
+- `writePages`: compute the **final state per page** for the batch first (truncate
+  tombstones minus pages re-written by the same batch), then a single
+  `INSERT ... ON CONFLICT (sqlite_id, page_index) DO UPDATE` per page. This fixes the
+  truncate/re-extend PK-collision bug from review.md by construction.
+- `getFileSize`: read `database_tables.file_size_in_pages` (kept in the existing
+  in-memory `fileSizes` map); write it in the same transaction as the pages.
+- `_nextVersion`: recover from `MAX(last_version)` over `database_tables` instead of
+  scanning all pages.
+- New `changedPagesSince(tableId, sinceVersion)`: via the `(sqlite_id, version)` index,
+  return `{changedPageIndexes: Set<number>, tombstonedPageIndexes: Set<number>}` for rows
+  with `version > sinceVersion`. Fast path: `last_version ≤ sinceVersion` → table
+  unchanged, no query.
+- Audit every remaining query against the new schema/indexes (bootstrap sweep, truncation,
+  registration lookups) — each should be PK- or index-served; note the plan in a comment
+  where a scan is deliberate.
 
-**New helper** `shared/databases/database_table_access_policy.ts` (or a sibling file):
-`sqliteTableAccessForAccessLevel(level: AccessLevel | null): SqliteTableAccess` — the single
-place the v1 level mapping lives.
+**Tests** (`database_server.test.ts`)
+- Truncate + re-extend the same page in one `writePages` batch (regression for the review
+  bug); final state wins, no uniqueness violation.
+- Row count stays O(live pages) after N repeated edits of one page (growth regression).
+- `changedPagesSince` reports writes and tombstones, respects the fast path, and returns
+  empty for a current watermark.
+- Cold-load recovery of `_nextVersion` and `fileSizes` from `database_tables`.
 
-**Tests:** `database_server` tests — per-account read/write denial via `rawSql` and typed error
-messages; join-table INSERT vs DELETE matrix; service-actor bypass; cache refresh after
-`syncTableMetadata` changes a policy mid-session.
+## Milestone 2 — Client materializes new pages from realtime
 
-## Milestone 3 — Connection/request space authorization — ✅ done
+**`client/web/databases/worker/database_client.ts`** (`writePageDiffsFromRealtime`)
+- When `base === null && previousVersion === 0`: apply the diff against a zeroed
+  `sqlitePageSize` buffer and `writePageIfNewer(pageIndex, version, full)`. Tombstone
+  ordering is already handled by `writePageIfNewer` (a tombstone at ≥ version rejects).
+- `base === null && previousVersion > 0` keeps the current skip (the page predates the
+  client's knowledge; refetch on demand).
+- Hoist a shared zeroed-page constant next to `applyPageDiff` if one doesn't exist.
 
-- New RPC `authorizeDatabaseGroupAccess({databaseGroupId})` in
-  `shared/rpc/database_tables_rpc_definitions.ts` + `server/rpc/…_implementations.ts`: query
-  the group's table-metadata partition, take `spaceId` from any item, `authorizeSpaceAccess`;
-  empty group → allow. (Documents precedent: `authorize()` → RPC → full async evaluation.)
-- `DatabaseDurableObjectConnection.authorize(context)`: replace the no-op with that RPC call.
-  The wrapper's 2-minute re-auth + close-on-fail covers mid-session membership revocation;
-  document the staleness bound in a comment here.
-- Audit the HTTP `/action` route (`database_durable_object.ts` `_handleAction`) and any other
-  DO entry points: same space check + real actor threading before `executeAction`.
+**Tests** (`database_client.test.ts`)
+- A row insert that appends a new page lands in OPFS from the realtime event alone (no
+  fallback on subsequent read).
+- A client-side tombstone at a newer version is not resurrected by a late zero-base diff.
+- Page-0 noise filtering (`shouldIgnorePageInvalidation`) is unaffected.
 
-**Tests:** connection tests for authorize pass/fail; revoked-membership socket close (mirror
-the documents test shape).
+## Milestone 3 — Shared protocol: bitsets, registration schemas, event version
 
-## Milestone 4 — Realtime filtering, access map, redacted metadata events — ✅ done
+**New `shared/databases/page_bitset.ts`**
+- `encodePageBitset(Set<number>) → Uint8Array` / `decodePageBitset` (byte-aligned bitset,
+  length `ceil(maxIndex/8)`; 32 KiB worst case, ~125 B for a 4 MB table), plus
+  `pageBitsetHas`, `pageBitsetUnion`, `pageBitsetIntersect`. Document that the encoding is
+  an internal wire detail (RLE/Roaring can replace it later without protocol change).
+
+**`shared/databases/database_protocol_schemas.ts`**
+- `DatabaseTableRegistrationSchema = {watermark: integer, heldPages: bytes}`.
+- Extend `DatabaseExecuteActionInputConfig` with
+  `registerTables: Map<tableId, DatabaseTableRegistration>` (default empty map).
+- New per-table registration result, used by both the action response and the reconnect
+  procedure:
+  ```
+  Map<tableId, {
+      watermark: integer,                 // new client watermark (snapshot version)
+      fileSizeInPages: integer,
+      catchUp:
+        | {type: "current"}
+        | {type: "pages", pages: DatabaseTablePages}          // changed ∩ bitset, inlined
+        | {type: "stale", pageIndexes: bytes /* bitset */}    // over inline limit: drop these
+        | {type: "resync"}                                    // reserved (future tombstone GC)
+  }>
+  ```
+  plus `tableAccess` (same semantics as today's `ensureCacheIsUpToDate` response,
+  including join-side levels).
+- Extend `DatabaseExecuteActionOutputConfig` with `registeredTables` (above) and a
+  `readPagesSnapshotVersion: Map<tableId, integer>` so fallback/loader consumers can set
+  watermarks.
+- Add `version: integer` (the batch version) to `DatabaseTablePageDiffsSchema` — needed
+  for the all-filtered stub and for watermark advancement independent of per-page diffs.
+- `LoaderDatabaseActionResultSchemas`: include the per-table snapshot version alongside
+  `readPages`.
+
+**`shared/databases/database_realtime_protocol.ts`**
+- New `registerTables` procedure: request `Map<tableId, DatabaseTableRegistration>`,
+  response `{tables: <registration result>, tableAccess}`. (`ensureCacheIsUpToDate` stays
+  until Milestone 6.)
+
+**Tests**: bitset round-trip/edge cases (empty, dense, max index), schema round-trips.
+
+## Milestone 4 — Server: registration, catch-up, dedup, filtered realtime
 
 **`server/databases/database_durable_object_connection.ts`**
-- `transformEvent` `PagesChanged`: filter `pageDiffs` to tables where
-  `getTableAccessForAccount(tableId, connectionAccountId).read` (main always passes). Send the
-  event even when the map filters to empty — `mutationId` confirmation must still flow.
-- `ensureCacheIsUpToDate`: skip page reads + tracker seeding for requested tables the account
-  can't read. Extend the response with `tableAccess: Map<DatabaseTableId, wire-level>` covering
-  **all registered tables** (from the milestone-2 cache), so the client can distinguish
-  "no access" from "not yet synced" — it cannot derive this locally (policy rows live inside
-  the inaccessible files). Schema work in `shared/databases/database_protocol_schemas.ts`.
+- Per-connection `subscriptions: Map<DatabaseTableId, {heldPages: bitset, watermark:
+  number}>` (dies with the connection object — no refcounting, no browser keying).
+- `registerTables` handling (shared by the procedure and the `executeAction` piggyback):
+  per table — access check (withhold `null`-access tables exactly like today's
+  `ensureCacheIsUpToDate`, including join-side `tableAccess` entries); compute catch-up via
+  `changedPagesSince(tableId, watermark)`:
+  - unchanged → `{type: "current"}`, subscribe, store bitset/watermark;
+  - changed ∩ request bitset ≤ inline limit (new constant replacing
+    `cacheUpdateStalePageLimit`, e.g. `registrationCatchUpInlinePageLimit`) → inline full
+    pages, plus tombstoned indexes folded into `stale`;
+  - over limit → `{type: "stale"}` with the changed∩bitset indexes as a bitset.
+- `executeAction`: after execution, subscribe every table in the action's read set;
+  apply the **dedup rule** to `readPages` using only the request's bitsets+watermarks
+  (tables without a request entry are sent unfiltered); OR sent pages into stored bitsets.
+  Delete the `filterReadPages`/`addPendingPages` tracker calls.
+- `transformEvent` (`PagesChanged`): keep the access check; drop diffs for unsubscribed
+  tables; within a subscribed table, drop diffs whose page is outside the stored superset
+  bitset — **except** when this connection originated `mutationId` (send unfiltered and OR
+  the write-set into its bitset). When a subscribed table's diffs all filter out, emit the
+  `{version, fileSizeInPages}` stub (empty diffs map + new `version` field). The
+  empty-confirmation event to the originator is unchanged.
+- On `TableMetadataChanged` access revocation (`tableAccess` → null): drop the table from
+  `subscriptions` (the transformEvent access check stays as belt-and-suspenders).
 
-**Redacted metadata events** (`server/databases/data/database_table_metadata.ts`,
-`shared/databases/database_realtime_protocol.ts`)
-- `getDatabaseTableMetadataRealtimeEvent`: replace throw-on-deny with a redacted event variant
-  `{tableId, redacted: true}` (no name, no policy); `DeleteItem` → redacted likewise. Fixes the
-  mixed-access socket-teardown bug and doubles as the access-map delta channel (a redacted
-  event = revocation signal; a full event where the client previously had a redacted one =
-  grant signal). Extend `DatabaseTableMetadataRealtimeEventSchema` with the variant; update the
-  route component's `useRynamoItem` forwarding to ignore/handle redacted events.
+**Tests** (`database_durable_object_connection.test.ts`)
+- Registration: current/pages/stale modes, inline limit boundary, access-withheld table,
+  join-side access entries.
+- Dedup: page skipped iff request-bitset hit ∧ version ≤ watermark; **evicted-page
+  regression** — a page absent from the request bitset is always sent even if the stored
+  superset claims it (livelock guard).
+- Realtime: unsubscribed table filtered; out-of-bitset page filtered; originator
+  unfiltered; stub emitted with correct version/fileSize; revoked table unsubscribed.
 
-**Client worker** (`client/web/databases/worker/database_client.ts`,
-`database_connection_manager.ts`)
-- Hold the access map; initialize from `ensureCacheIsUpToDate`, update from
-  `TableMetadataChanged` (the worker's page socket already speaks the protocol; it currently
-  ignores metadata events). Invalidate/re-run live queries on map deltas.
+## Milestone 5 — Client: lazy start, registration gate, reconnect, watermarks
 
-**Tests:** connection tests — mixed-access page filtering, empty-diff mutation confirmation,
-`ensureCacheIsUpToDate` withholding + access map contents; metadata redaction (update the two
-existing tests that assert socket close).
+**`client/web/databases/worker/opfs_page_store.ts`**
+- Persist `watermark` in the index file; expose `getHeldPagesBitset()` (from the in-memory
+  index map) and `setWatermark`.
 
-## Milestone 5 — Relation-field degradation + UI — ✅ done
+**`client/web/databases/worker/database_client.ts`**
+- Delete the cold-open `ensureCacheIsUpToDate` call and `attachKnownTables`. `create` no
+  longer eagerly opens every OPFS store — enumerate the group dir once, lazily, at first
+  fallback (open stores in parallel with `runAllPromises` — closes the serial-open review
+  item for this path).
+- Track `registeredTables: Set<DatabaseTableId>` per connection epoch. The attach gate:
+  a table may only attach (and thus serve local reads) when registered. Unregistered →
+  existing `TableNotAttachedError` → fallback.
+- `executeActionViaServer`: attach a `registerTables` payload covering every
+  cached-but-unregistered table (watermark + bitset from the OPFS store). Apply the
+  response: `pages` → `writePageIfNewer` each; `stale` → tombstone those indexes;
+  `resync` → drop the table's OPFS store; then set watermark + fileSize, mark registered,
+  attach if the header page is present. Set watermarks for `readPages` tables from
+  `readPagesSnapshotVersion`.
+- `writePageDiffsFromRealtime`: advance the table watermark to the event's `version`
+  (applied, skipped, or stub — the table is subscribed, so delivery order guarantees no
+  gap); apply stubs' `fileSizeInPages`.
+- `seedPages`/`writeLoaderPages`: set watermarks from the loader's snapshot versions.
+  Loader-seeded tables are still unregistered — the gate stands until first fallback
+  registers them (seeded pages just make that registration's catch-up empty).
 
-Note: client-side authorizer enforcement (M6 first bullet) was pulled into M5 — the worker
-installs a `tableAccessResolver` from the pushed access map on every local execution.
+**`client/web/databases/worker/database_connection_manager.ts`**
+- `revalidateCacheAfterReconnect` → `reregisterAfterReconnect`: call the `registerTables`
+  procedure with the registered set's current watermarks+bitsets, apply per-table catch-up
+  (same application path as fallback registration), then `replayOptimisticQueue`.
+- Reset `registeredTables` on every new connection epoch.
 
-- `shared/databases/fields/database_relation_field.ts`: `_selectColumn` /
-  `_selectColumnAsString` consult `ctx.getTableAccess(relation.linkedTableId).read` (server:
-  DO cache resolver; client: access map threaded into action-context creation by the worker).
-  No read → emit ids-only (`name` = NULL, skip the `JOIN` into the linked table's file so the
-  statement never touches it). Make `name` nullable in the relation value schema; check
-  backwards compatibility for older clients receiving `name: null`.
-- Client/server determinism: both sides decide from the same server-computed access state, so
-  local execution and server fallback of `getViewRowsPage` return the same shape.
-- `listLinkableRows` reads the target table → authorizer denies naturally (hard error); the UI
-  must disable link-adding when the map says no access (and render `name: null` chips as
-  "No access") — grid cell rendering + `client/web/databases/use_grid_view_fields.ts`.
-- `addLink`: server authorizer enforces the both-sides-View INSERT rule; `removeLink` works at
-  Edit-on-either.
+**Tests** (`database_client.test.ts`, `database_connection_manager.test.ts`)
+- **Gate**: a table cached in OPFS but untouched this session is not readable locally;
+  first touch falls back, registers, then serves locally.
+- Fallback carries registrations for all cached-but-unregistered tables; a join table
+  discovered server-side converges in one extra round (registered on the retry's
+  fallback).
+- Reconnect: writes landed while disconnected arrive via catch-up (inline and stale
+  modes); optimistic queue replays on top.
+- Truncate-while-disconnected: catch-up tombstones + new fileSize shrink the cached file
+  correctly.
+- Watermark: advances on applied diffs, skipped diffs, and stubs; a quiet table's lagging
+  watermark yields an empty catch-up.
 
-**Tests:** relation field unit tests for ids-only SQL (no reference to the linked schema);
-action tests for addLink denial / removeLink success under one-sided access; a UI story/test
-for the "No access" chip.
+## Milestone 6 — Delete the old protocol
 
-## Milestone 6 (optional, post-v1)
+- Remove `ensureCacheIsUpToDate` and `acknowledgePages` from
+  `database_realtime_protocol.ts`, the connection, and the client.
+- Delete `BrowserPageTracker`, its tests, the `registerConnection`/`handleClose` wiring,
+  and the `trackPages` query param.
+- Delete `cacheUpdateStalePageLimit` and `DatabasePageVersionsByIndexSchema` /
+  `DatabasePageIndexesSchema` if unreferenced.
+- `dev check` sweep for dead exports; update the protocol doc comments in
+  `database_protocol_schemas.ts` to describe the registration model.
 
-- ✅ Client-side authorizer enforcement from the access map (fail optimistic writes fast instead
-  of rebase-discarding them). Landed in M5: the worker installs a `tableAccessResolver` on every
-  local execution.
-- ✅ OPFS purge on revocation. `DatabaseClient.purgeRevokedTables()` runs on both access-map
-  entry points (`ensureCacheIsUpToDate` full-map replacement and `applyTableAccessLevels`
-  event deltas): detaches the per-table file (`Database.detachTableIfAttached`, dropping
-  buffered writes), deletes the OPFS subdirectory (`OpfsDatabaseStorage.delete`), invalidates
-  overlapping reactive queries, and discards + replays the optimistic queue so now-denied
-  mutations drop out. Best-effort: a schema locked by an open transaction is skipped and
-  retried on the next push.
-- Membership-driven policy re-push (product-wide gap: `removeSpaceAccount` triggers nothing;
-  a `Space:*` search-entity dependency would close the ≤2min window). Remains open — needs a
-  product-wide membership-propagation mechanism, not databases-specific.
+## Milestone 7 — Integration hardening
 
-## Known limitations / open items
+Integration tests (Playwright / worker-level) covering the invariants end-to-end:
+- Two clients on one group: A mutates, B (subscribed, holding the pages) applies diffs
+  without any fallback request; B without the pages gets them on next read only.
+- New-row realtime: B holding the table's hot pages sees an appended page materialize
+  (zero-base apply) with no fallback.
+- Originator flow: optimistic mutation confirms via realtime, cache stays warm (no
+  refetch of the just-written pages).
+- Reload/reconnect storm: N simulated clients re-register concurrently; assert request
+  payloads are O(tables) and the DO does no per-page point-read loops.
+- Staleness: client caches table, disconnects, table mutated, client reconnects and reads
+  — sees fresh data through catch-up, never the stale page.
+- Access revocation mid-session stops that table's diffs and drops the subscription.
 
-- **Main registry writes:** any user with Edit on any table can `rawSql` into `main`
-  (`renameTable` legitimately writes `table_name_hash`, so main can't be read-only for user
-  executions). Registry corruption is a self-DoS of the group, not a data leak (registry is
-  ID-only + salted hashes). Optional hardening later: column/table allowlist for main writes.
-- **Anonymous / urlGrant** scope for v1: resolver supports urlGrant-only evaluation, but the
-  connection-level space check must decide what anonymous connections are allowed at all —
-  follow whatever `authorizeSpaceAccess` does for documents' urlGrant flow.
-- **Comment level** maps to read-only in v1 (no row comments yet).
-- Verify during M3 which non-WebSocket DO entry points exist beyond `/action`.
+## Punted / out of scope
+
+- **Tombstone GC + `resync` trigger.** Tombstones are kept forever for now; the `resync`
+  catch-up variant is wired but never returned. Revisit with a per-table horizon version
+  once storage numbers justify it.
+- **Bitset compression** (RLE/Roaring/Splinter) — plain bitsets first; encoding is
+  swappable behind `page_bitset.ts`.
+- **Graft-mode server** (drop retained bitsets, metadata-only catch-up, notify-then-pull) —
+  the protocol already permits it; only worth it if per-connection memory shows up.
+- **Whole-table rolling checksum** (LiteFS-style `XOR crc64(pageIndex, data)`) for
+  registration-time integrity proof — cheap, but additive; do after the base protocol.
+- **Unsubscribe-on-evict** — subscriptions accumulate per connection (bounded by
+  tables-touched); add only if real sessions show a long over-delivering tail.
+- **OPFS full-index-rewrite fix** (`opfs_page_store.sync()` review item) — same files,
+  independent change; keep it a separate PR.
+- Other review.md findings (authorization, Dynamo consistency, action typing, etc.) are
+  not part of this plan.
+
+## Review.md findings closed by this plan
+
+- "Store only the latest page image, or garbage-collect superseded versions" (M1)
+- "Do not insert a tombstone and replacement page under the same primary key" (M1)
+- "Replace per-page reconnect validation with a bounded/batched protocol" (M3–M5)
+- "Filter realtime page diffs by the pages each browser can actually hold" (M4)
+- `BrowserPageTracker` memory / `acknowledgePages` protocol (M6)
+- "Open independent per-table OPFS stores in parallel" — the fallback/registration path
+  (M5); the loader-seed path is unaffected.
