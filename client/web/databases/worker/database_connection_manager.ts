@@ -351,6 +351,7 @@ export class DatabaseConnectionManager {
                         mutationId: executeOptions.mutationId,
                         returnResult: executeOptions.returnResult ?? true,
                         returnPages: executeOptions.returnPages ?? true,
+                        registerTables: new Map(),
                     }),
                 ensureCacheIsUpToDate: pageVersionsByIndex =>
                     client.procedures.ensureCacheIsUpToDate({pageVersionsByIndex}),

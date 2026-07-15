@@ -30,6 +30,9 @@ function makeTestSocket(): {
             async ensureCacheIsUpToDate() {
                 return {tables: new Map(), tableAccess: new Map()};
             },
+            async registerTables() {
+                return {tables: new Map(), tableAccess: new Map()};
+            },
             async acknowledgePages() {
                 return {};
             },

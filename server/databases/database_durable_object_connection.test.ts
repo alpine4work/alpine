@@ -103,6 +103,29 @@ function makePage(marker: number): Uint8Array {
     return data;
 }
 
+describe("executeAction", () => {
+    test("read-only pages carry the current snapshot version", async () => {
+        const storedVersion = server.readPage(databaseMainTableId, 0)!.version;
+
+        const result = await createConnection().procedures.executeAction(
+            sessionTestContext,
+            {
+                action: {name: "listTableIds", input: {}},
+                mutationId: generateId(),
+                returnResult: true,
+                returnPages: true,
+                registerTables: new Map(),
+            },
+            null as any,
+        );
+
+        expect({
+            snapshotVersion: result.readPagesSnapshotVersion.get(databaseMainTableId),
+            pageVersion: result.readPages?.get(databaseMainTableId)?.get(0)?.version,
+        }).toEqual({snapshotVersion: storedVersion, pageVersion: storedVersion});
+    });
+});
+
 describe("ensureCacheIsUpToDate", () => {
     test("returns empty when all pages are up to date", async () => {
         writePagesFor(server, tableId, new Map([[0, makePage(0xaa)]]));
@@ -577,6 +600,7 @@ describe("per-browser page tracking", () => {
                 [
                     tableId,
                     {
+                        version: 1,
                         diffs: new Map([
                             [0, {previousVersion: 0, version: 1, diff: []}],
                             [1, {previousVersion: 0, version: 1, diff: []}],
@@ -625,6 +649,7 @@ describe("per-browser page tracking", () => {
                 [
                     tableId,
                     {
+                        version: 1,
                         diffs: new Map([
                             [0, {previousVersion: 0, version: 1, diff: []}],
                             [1, {previousVersion: 0, version: 1, diff: []}],
@@ -654,6 +679,7 @@ describe("per-browser page tracking", () => {
                 [
                     tableId,
                     {
+                        version: 1,
                         diffs: new Map([
                             [0, {previousVersion: 0, version: 1, diff: []}],
                             [1, {previousVersion: 0, version: 1, diff: []}],

@@ -193,6 +193,56 @@ describe("DatabaseServer — storage failure recovery", () => {
             retrySize: sqlitePageSize,
         });
     });
+
+    test("a rolled-back version cannot escape as a snapshot watermark", async () => {
+        const storage = createStorage();
+        const server = await DatabaseServer.create(storage);
+        openServers.push(server);
+        const tableId = generateChronologicalId<DatabaseTableId>();
+        const exec = storage.sql.exec.bind(storage.sql);
+        const execSpy = jest.spyOn(storage.sql, "exec").mockImplementation((...args) => {
+            if (
+                String(args[0]).includes(
+                    "INSERT INTO\n                        database_table_pages",
+                )
+            ) {
+                throw new InternalError("simulated page drain failure");
+            }
+            return exec(...args);
+        });
+
+        const writeResult = captureResult(() =>
+            writePagesFor(server, tableId, new Map([[0, new Uint8Array(sqlitePageSize)]])),
+        );
+        execSpy.mockRestore();
+        const snapshotVersion = server.execute(
+            testContext,
+            sql`
+                SELECT
+                    1
+            `,
+            {
+                allowWrites: "none",
+            },
+        ).snapshotVersion;
+
+        server.close();
+        const reloaded = await DatabaseServer.create(storage);
+        openServers.push(reloaded);
+        const nextVersion = writePagesFor(
+            reloaded,
+            tableId,
+            new Map([[0, new Uint8Array(sqlitePageSize)]]),
+        );
+
+        expect({
+            error: writeResult.ok ? null : String(writeResult.error),
+            nextVersionIsAfterSnapshot: nextVersion > snapshotVersion,
+        }).toEqual({
+            error: "InternalError: simulated page drain failure",
+            nextVersionIsAfterSnapshot: true,
+        });
+    });
 });
 
 describe("DatabaseServer", () => {
@@ -256,6 +306,31 @@ describe("DatabaseServer", () => {
             {id: 1, name: "alpha"},
             {id: 2, name: "beta"},
         ]);
+    });
+
+    test("a read-only execute reports the current snapshot version", async () => {
+        const server = await createServerWithSchema(sql`
+            CREATE TABLE items (id INTEGER PRIMARY KEY)
+        `);
+        const storedVersion = server.readPage(databaseMainTableId, 0)!.version;
+
+        const result = server.execute(
+            testContext,
+            sql`
+                SELECT
+                    *
+                FROM
+                    items
+            `,
+            {
+                allowWrites: "none",
+            },
+        );
+
+        expect({
+            writeVersion: result.writeVersion,
+            snapshotVersion: result.snapshotVersion,
+        }).toEqual({writeVersion: 0, snapshotVersion: storedVersion});
     });
 
     describe("execute read-only — page tracking", () => {

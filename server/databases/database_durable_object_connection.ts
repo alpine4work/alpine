@@ -24,7 +24,7 @@ import {
     sqlitePageSize,
 } from "~/shared/databases/sqlite_constants.js";
 import type {RynamoEventStub} from "~/shared/dynamo/rynamo_types.js";
-import {PermissionDeniedError} from "~/shared/error/error.js";
+import {InternalError, PermissionDeniedError} from "~/shared/error/error.js";
 import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
 import type {
     BrowserId,
@@ -114,7 +114,11 @@ export class DatabaseDurableObjectConnection {
 
             const result = this._server.executeAction(context, input.action);
 
-            const pageDiffs = buildDatabasePageDiffs(result.changedPages, result.readPages);
+            const pageDiffs = buildDatabasePageDiffs(
+                result.changedPages,
+                result.readPages,
+                result.writeVersion,
+            );
             if (pageDiffs.size > 0) {
                 this._sendEventToAll(this._processContext, {
                     type: "PagesChanged",
@@ -152,6 +156,7 @@ export class DatabaseDurableObjectConnection {
             // client's sparse cache can serve the correct file size (SQLite treats a file
             // shorter than its header claims as corrupt).
             let fileSizesInPages: Map<DatabaseTableId, number> | null = null;
+            const readPagesSnapshotVersion = new Map<DatabaseTableId, number>();
             if (filteredReadPages !== null) {
                 fileSizesInPages = new Map();
                 for (const tableId of filteredReadPages.keys()) {
@@ -159,6 +164,7 @@ export class DatabaseDurableObjectConnection {
                         tableId,
                         this._server.getFileSize(tableId) / sqlitePageSize,
                     );
+                    readPagesSnapshotVersion.set(tableId, result.snapshotVersion);
                 }
             }
 
@@ -168,7 +174,12 @@ export class DatabaseDurableObjectConnection {
                     : null,
                 readPages: filteredReadPages,
                 fileSizesInPages,
+                registeredTables: {tables: new Map(), tableAccess: new Map()},
+                readPagesSnapshotVersion,
             };
+        },
+        registerTables: async () => {
+            throw new InternalError("Table registration is not implemented");
         },
         ensureCacheIsUpToDate: async (context, input) => {
             // Withhold inaccessible tables' pages, and send an access map covering the tables

@@ -25,6 +25,10 @@ import {generateId} from "~/shared/id/id.js";
 import type {DatabaseMutationId, DatabaseTableId} from "~/shared/id/types/id_types.js";
 
 const testConn = makeDatabaseClientConnection();
+const emptyExecuteActionRegistrationFields = {
+    registeredTables: {tables: new Map(), tableAccess: new Map()},
+    readPagesSnapshotVersion: new Map(),
+};
 
 async function execute(
     client: DatabaseClient,
@@ -46,6 +50,10 @@ function pagesToMap(
     pages: Array<{pageIndex: number; version: number; data: Uint8Array}>,
 ): Map<number, {version: number; data: Uint8Array}> {
     return new Map(pages.map(p => [p.pageIndex, {version: p.version, data: p.data}]));
+}
+
+function pageDiffsVersion(pageDiffs: ReadonlyMap<number, {version: number}>): number {
+    return Math.max(0, ...Array.from(pageDiffs.values(), pageDiff => pageDiff.version));
 }
 
 // ---------------------------------------------------------------------------
@@ -242,13 +250,16 @@ describe("execute — mutations", () => {
                 // Simulate realtime confirmation arriving before server response (same as
                 // production).
                 client.writePageDiffsFromRealtime(
-                    new Map([[databaseMainTableId, {diffs: new Map(), fileSizeInPages: 0}]]),
+                    new Map([
+                        [databaseMainTableId, {version: 0, diffs: new Map(), fileSizeInPages: 0}],
+                    ]),
                     options.mutationId,
                 );
                 return {
                     result: {name: "rawSql", output: {rows: []}},
                     readPages: new Map(),
                     fileSizesInPages: null,
+                    ...emptyExecuteActionRegistrationFields,
                 };
             },
         });
@@ -306,6 +317,7 @@ describe("execute — mutations", () => {
                     result: {name: "rawSql", output: {rows: [{inserted: true}]}},
                     readPages: new Map(),
                     fileSizesInPages: null,
+                    ...emptyExecuteActionRegistrationFields,
                 };
             },
         });
@@ -337,6 +349,7 @@ describe("execute — mutations", () => {
                     result: {name: "rawSql", output: {rows: [{ok: 1}]}},
                     readPages: new Map(),
                     fileSizesInPages: null,
+                    ...emptyExecuteActionRegistrationFields,
                 };
             },
         });
@@ -368,13 +381,16 @@ describe("execute — mutations", () => {
                 serverCallCount++;
                 // Simulate realtime confirmation arriving before server response.
                 client.writePageDiffsFromRealtime(
-                    new Map([[databaseMainTableId, {diffs: new Map(), fileSizeInPages: 0}]]),
+                    new Map([
+                        [databaseMainTableId, {version: 0, diffs: new Map(), fileSizeInPages: 0}],
+                    ]),
                     options.mutationId,
                 );
                 return {
                     result: {name: "rawSql", output: {rows: []}},
                     readPages: new Map(),
                     fileSizesInPages: null,
+                    ...emptyExecuteActionRegistrationFields,
                 };
             },
         });
@@ -448,7 +464,7 @@ describe("optimistic mutations", () => {
 
         // Confirm the mutation — should not throw
         client.writePageDiffsFromRealtime(
-            new Map([[databaseMainTableId, {diffs: new Map(), fileSizeInPages: 0}]]),
+            new Map([[databaseMainTableId, {version: 0, diffs: new Map(), fileSizeInPages: 0}]]),
             capturedMutationId!,
         );
     });
@@ -489,7 +505,7 @@ describe("optimistic mutations", () => {
 
         // Confirm first mutation
         client.writePageDiffsFromRealtime(
-            new Map([[databaseMainTableId, {diffs: new Map(), fileSizeInPages: 0}]]),
+            new Map([[databaseMainTableId, {version: 0, diffs: new Map(), fileSizeInPages: 0}]]),
             mutationIds[0]!,
         );
 
@@ -545,7 +561,9 @@ describe("optimistic mutations", () => {
 
         expect(() =>
             client.writePageDiffsFromRealtime(
-                new Map([[databaseMainTableId, {diffs: new Map(), fileSizeInPages: 0}]]),
+                new Map([
+                    [databaseMainTableId, {version: 0, diffs: new Map(), fileSizeInPages: 0}],
+                ]),
                 mutationIds[1]!,
             ),
         ).toThrow("unexpected mutation confirmation order");
@@ -558,7 +576,7 @@ describe("optimistic mutations", () => {
 
         // No optimistic mutations queued — just apply pages
         client.writePageDiffsFromRealtime(
-            new Map([[databaseMainTableId, {diffs: new Map(), fileSizeInPages: 0}]]),
+            new Map([[databaseMainTableId, {version: 0, diffs: new Map(), fileSizeInPages: 0}]]),
             "unknown-mutation-id" as DatabaseMutationId,
         );
 
@@ -658,6 +676,7 @@ describe("optimistic mutations", () => {
                     result: {name: "rawSql", output: {rows: []}},
                     readPages: new Map(),
                     fileSizesInPages: null,
+                    ...emptyExecuteActionRegistrationFields,
                 };
             },
             reportError(error) {
@@ -730,7 +749,11 @@ describe("writePageDiffsFromRealtime", () => {
             new Map([
                 [
                     databaseMainTableId,
-                    {diffs: realtimeDiffs, fileSizeInPages: after.fileSizeInPages},
+                    {
+                        version: pageDiffsVersion(realtimeDiffs),
+                        diffs: realtimeDiffs,
+                        fileSizeInPages: after.fileSizeInPages,
+                    },
                 ],
             ]),
             generateId<DatabaseMutationId>(),
@@ -744,6 +767,7 @@ describe("writePageDiffsFromRealtime", () => {
                     result: {name: "rawSql", output: {rows: [{count: -1}]}},
                     readPages: new Map(),
                     fileSizesInPages: null,
+                    ...emptyExecuteActionRegistrationFields,
                 };
             },
         });
@@ -786,6 +810,7 @@ describe("writePageDiffsFromRealtime", () => {
                 [
                     databaseMainTableId,
                     {
+                        version: tombstoneVersion,
                         diffs: new Map([
                             [
                                 page.pageIndex,
@@ -807,6 +832,7 @@ describe("writePageDiffsFromRealtime", () => {
                 [
                     databaseMainTableId,
                     {
+                        version: tombstoneVersion - 1,
                         diffs: new Map([
                             [
                                 page.pageIndex,
@@ -857,6 +883,7 @@ describe("writePageDiffsFromRealtime", () => {
                 [
                     databaseMainTableId,
                     {
+                        version: page0.version + 1,
                         diffs: new Map([
                             [
                                 0,
@@ -1012,6 +1039,7 @@ describe("ensureCacheIsUpToDate", () => {
                 [
                     databaseMainTableId,
                     {
+                        version: page.version + 2,
                         diffs: new Map([
                             [
                                 page.pageIndex,
@@ -1090,6 +1118,7 @@ describe("server fallback", () => {
                     result: {name: action.name, output: {rows}} as DatabaseActionResult,
                     readPages: new Map([[databaseMainTableId, pagesToMap(allPages)]]),
                     fileSizesInPages: new Map([[databaseMainTableId, fileSizeInPages]]),
+                    ...emptyExecuteActionRegistrationFields,
                 };
             },
         });
@@ -1143,6 +1172,7 @@ describe("server fallback", () => {
                     result: {name: action.name, output: {rows}} as DatabaseActionResult,
                     readPages: new Map([[databaseMainTableId, pagesToMap(allPages)]]),
                     fileSizesInPages: new Map([[databaseMainTableId, fileSizeInPages]]),
+                    ...emptyExecuteActionRegistrationFields,
                 };
             },
         });
@@ -1346,6 +1376,7 @@ describe("executeActionWithTracking", () => {
                     result: {name: "readonlyRawSql", output: {rows: []}},
                     readPages: new Map(),
                     fileSizesInPages: null,
+                    ...emptyExecuteActionRegistrationFields,
                 };
             },
         });
@@ -1410,6 +1441,7 @@ describe("executeActionWithTracking", () => {
                     result: {name: action.name, output: {rows}} as DatabaseActionResult,
                     readPages: new Map([[databaseMainTableId, pagesToMap(allPages)]]),
                     fileSizesInPages: new Map([[databaseMainTableId, fileSizeInPages]]),
+                    ...emptyExecuteActionRegistrationFields,
                 };
             },
         });
@@ -1636,7 +1668,16 @@ describe("registerReactiveAction", () => {
             ]),
         );
         client.writePageDiffsFromRealtime(
-            new Map([[databaseMainTableId, {diffs: newerPageDiffs, fileSizeInPages: 0}]]),
+            new Map([
+                [
+                    databaseMainTableId,
+                    {
+                        version: pageDiffsVersion(newerPageDiffs),
+                        diffs: newerPageDiffs,
+                        fileSizeInPages: 0,
+                    },
+                ],
+            ]),
             generateId<DatabaseMutationId>(),
         );
 
@@ -1728,7 +1769,16 @@ describe("registerReactiveAction", () => {
         );
 
         client.writePageDiffsFromRealtime(
-            new Map([[databaseMainTableId, {diffs: changedPageDiffs, fileSizeInPages: 0}]]),
+            new Map([
+                [
+                    databaseMainTableId,
+                    {
+                        version: pageDiffsVersion(changedPageDiffs),
+                        diffs: changedPageDiffs,
+                        fileSizeInPages: 0,
+                    },
+                ],
+            ]),
             generateId<DatabaseMutationId>(),
         );
 
@@ -1788,7 +1838,16 @@ describe("registerReactiveAction", () => {
             ]),
         );
         client.writePageDiffsFromRealtime(
-            new Map([[databaseMainTableId, {diffs: newerPageDiffs, fileSizeInPages: 0}]]),
+            new Map([
+                [
+                    databaseMainTableId,
+                    {
+                        version: pageDiffsVersion(newerPageDiffs),
+                        diffs: newerPageDiffs,
+                        fileSizeInPages: 0,
+                    },
+                ],
+            ]),
             generateId<DatabaseMutationId>(),
         );
 
@@ -1845,7 +1904,16 @@ describe("registerReactiveAction", () => {
             ]),
         );
         client.writePageDiffsFromRealtime(
-            new Map([[databaseMainTableId, {diffs: newerPageDiffs, fileSizeInPages: 0}]]),
+            new Map([
+                [
+                    databaseMainTableId,
+                    {
+                        version: pageDiffsVersion(newerPageDiffs),
+                        diffs: newerPageDiffs,
+                        fileSizeInPages: 0,
+                    },
+                ],
+            ]),
             generateId<DatabaseMutationId>(),
         );
 
@@ -2082,6 +2150,7 @@ describe("DatabaseClient — table access levels", () => {
                     result: {name: "rawSql", output: {rows: []}},
                     readPages: new Map(),
                     fileSizesInPages: null,
+                    ...emptyExecuteActionRegistrationFields,
                 };
             },
         });

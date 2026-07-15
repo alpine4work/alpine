@@ -6,7 +6,9 @@ import {
     DatabasePageDiffsSchema,
     DatabasePageIndexesSchema,
     DatabasePageVersionsByIndexSchema,
+    DatabaseRegisterTablesResultConfig,
     DatabaseTableAccessLevelsSchema,
+    DatabaseTableRegistrationsSchema,
 } from "~/shared/databases/database_protocol_schemas.js";
 import {DatabaseTableMetadataModel} from "~/shared/databases/database_table_metadata_model.js";
 import {RynamoEventStubSchema, createRynamoEventSchema} from "~/shared/dynamo/rynamo_types.js";
@@ -32,6 +34,10 @@ export const DatabaseRealtimeProtocol = defineWebSocketProtocol({
         ensureCacheIsUpToDate: {
             input: {pageVersionsByIndex: DatabasePageVersionsByIndexSchema},
             output: DatabaseEnsureCacheIsUpToDateResultConfig,
+        },
+        registerTables: {
+            input: {tables: DatabaseTableRegistrationsSchema},
+            output: DatabaseRegisterTablesResultConfig,
         },
         acknowledgePages: {
             input: {pageIndexes: DatabasePageIndexesSchema},

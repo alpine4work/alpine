@@ -200,7 +200,11 @@ class DatabaseGroupDurableObject {
         // mutations, or every connected client keeps serving the pre-mutation state. No
         // client has this mutation queued optimistically, so a fresh `mutationId` is
         // delivered as an external mutation.
-        const pageDiffs = buildDatabasePageDiffs(actionResult.changedPages, actionResult.readPages);
+        const pageDiffs = buildDatabasePageDiffs(
+            actionResult.changedPages,
+            actionResult.readPages,
+            actionResult.writeVersion,
+        );
         if (pageDiffs.size > 0) {
             this._webSocketServer.sendEventToAll(this._processContext, {
                 type: "PagesChanged",

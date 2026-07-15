@@ -162,6 +162,7 @@ test("internal-only actions are available over HTTP but not public websocket pro
             mutationId: generateId(),
             returnResult: true,
             returnPages: true,
+            registerTables: new Map(),
         }),
     ).rejects.toThrow("Database action createTable is internal-only");
 
@@ -179,6 +180,7 @@ test("internal-only actions are available over HTTP but not public websocket pro
             mutationId: generateId(),
             returnResult: true,
             returnPages: true,
+            registerTables: new Map(),
         }),
     ).rejects.toThrow("Database action syncTableMetadata is internal-only");
     await executeInternalAction(databaseGroupId, "syncTableMetadata", {

@@ -71,6 +71,10 @@ export interface DatabaseServerResult {
     readPages: DatabaseServerReadPages;
     changedPages: DatabaseServerChangedPages;
     writeVersion: number;
+    /**
+     * Current global version after the action, including when it performed no write.
+     */
+    snapshotVersion: number;
 }
 
 export type DatabaseServerActionResult<N extends DatabaseActionName> = {
@@ -78,6 +82,10 @@ export type DatabaseServerActionResult<N extends DatabaseActionName> = {
     readPages: DatabaseServerReadPages;
     changedPages: DatabaseServerChangedPages;
     writeVersion: number;
+    /**
+     * Current global version after the action, including when it performed no write.
+     */
+    snapshotVersion: number;
 };
 
 /**
@@ -182,14 +190,15 @@ export class DatabaseServer {
         query: SqlQuery,
         options: {allowWrites: SqliteWriteLevel},
     ): DatabaseServerResult {
-        const {result, readPages, changedPages, writeVersion} = this._runAndPersist(context, () => {
-            const {rows, readPages} = this.database.executeSql(query, {
-                ...options,
-                getTableAccessLevel: this._getTableAccessLevelForContext(context),
+        const {result, readPages, changedPages, writeVersion, snapshotVersion} =
+            this._runAndPersist(context, () => {
+                const {rows, readPages} = this.database.executeSql(query, {
+                    ...options,
+                    getTableAccessLevel: this._getTableAccessLevelForContext(context),
+                });
+                return {result: rows, readPages};
             });
-            return {result: rows, readPages};
-        });
-        return {rows: result, readPages, changedPages, writeVersion};
+        return {rows: result, readPages, changedPages, writeVersion, snapshotVersion};
     }
 
     executeAction<N extends DatabaseActionName>(
@@ -308,9 +317,19 @@ export class DatabaseServer {
             sqliteIds: new Map<DatabaseTableId, number>(),
             fileSizes: new Map<DatabaseTableId, number>(),
         };
+        const lastWriteVersion = this.lastWriteVersion;
         this.transactionCache = transactionCache;
         try {
-            const result = this.storage.transactionSync(fn);
+            let result: T;
+            try {
+                result = this.storage.transactionSync(fn);
+            } catch (error) {
+                // `_nextVersion` advances before writes so every row in a batch receives one
+                // stamp. A rolled-back stamp must not escape through `snapshotVersion`: after a
+                // restart, storage could otherwise reuse it.
+                this.lastWriteVersion = lastWriteVersion;
+                throw error;
+            }
             for (const [tableId, sqliteId] of transactionCache.sqliteIds) {
                 this.sqliteIds.set(tableId, sqliteId);
             }
@@ -696,6 +715,12 @@ export class DatabaseServer {
     }
 
     private _nextVersion(): number {
+        const nextVersion = this._currentVersion() + 1;
+        this.lastWriteVersion = nextVersion;
+        return nextVersion;
+    }
+
+    private _currentVersion(): number {
         if (this.lastWriteVersion === undefined) {
             // Cold load deliberately scans the compact per-table metadata, rather than all
             // retained page images, so the next global stamp is strictly greater than any
@@ -708,7 +733,6 @@ export class DatabaseServer {
                         database_tables
                 `.selectValue(this.sql, Schema.integer.nullable()) ?? 0;
         }
-        this.lastWriteVersion++;
         return this.lastWriteVersion;
     }
 
@@ -842,6 +866,7 @@ export class DatabaseServer {
         readPages: DatabaseServerReadPages;
         changedPages: DatabaseServerChangedPages;
         writeVersion: number;
+        snapshotVersion: number;
     } {
         // The error path below clears the buffer to recover from a partial write; assert
         // up front that we're not silently throwing away pre-existing buffered writes
@@ -871,6 +896,7 @@ export class DatabaseServer {
         readPages: DatabaseServerReadPages;
         changedPages: DatabaseServerChangedPages;
         writeVersion: number;
+        snapshotVersion: number;
     } {
         const buffered = this.database.getBufferedWrites();
 
@@ -984,7 +1010,13 @@ export class DatabaseServer {
             }
         }
 
-        return {result, readPages, changedPages, writeVersion: postWriteVersion};
+        return {
+            result,
+            readPages,
+            changedPages,
+            writeVersion: postWriteVersion,
+            snapshotVersion: this._currentVersion(),
+        };
     }
 
     /**

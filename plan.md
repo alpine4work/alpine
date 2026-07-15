@@ -163,7 +163,7 @@ to preserve — schemas and protocol shapes are replaced in place.
 - A client-side tombstone at a newer version is not resurrected by a late zero-base diff.
 - Page-0 noise filtering (`shouldIgnorePageInvalidation`) is unaffected.
 
-## Milestone 3 — Shared protocol: bitsets, registration schemas, event version
+## [x] Milestone 3 — Shared protocol: bitsets, registration schemas, event version
 
 **Bitset representation**
 

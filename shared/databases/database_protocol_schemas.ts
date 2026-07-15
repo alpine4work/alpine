@@ -8,7 +8,9 @@ import {
     databaseActions,
 } from "~/shared/databases/database_actions.js";
 import {pageDiffSchema} from "~/shared/databases/page_diff.js";
+import {emptyMap} from "~/shared/helpers/map/empty_map.js";
 import type {DatabaseMutationId, DatabaseTableId} from "~/shared/id/types/id_types.js";
+import {BitsetSchema} from "~/shared/schema/bitset_schema.js";
 import {
     type ObjectSchema,
     type ObjectSchemaConfigType,
@@ -77,6 +79,7 @@ export type DatabasePages = SchemaType<typeof DatabasePagesSchema>;
  * atomically with the page writes.
  */
 export const DatabaseTablePageDiffsSchema = Schema.object({
+    version: Schema.integer,
     diffs: Schema.map(
         Schema.integer,
         Schema.object({
@@ -131,6 +134,63 @@ export const DatabaseTableAccessLevelsSchema = Schema.map(
     Schema.id<DatabaseTableId>(),
     AccessLevelSchema.nullable(),
 );
+
+// -- Table registration ------------------------------------------------------
+
+/** The pages a client currently holds and the snapshot they reflect. */
+export const DatabaseTableRegistrationSchema = Schema.object({
+    watermark: Schema.integer,
+    heldPages: BitsetSchema,
+});
+
+export type DatabaseTableRegistration = SchemaType<typeof DatabaseTableRegistrationSchema>;
+
+/** Catch-up state returned while establishing a table subscription. */
+export const DatabaseTableRegistrationResultSchema = Schema.object({
+    watermark: Schema.integer,
+    fileSizeInPages: Schema.integer,
+    catchUp: Schema.unionWithKey("type", {
+        current: Schema.object({type: Schema.value("current")}),
+        pages: Schema.object({
+            type: Schema.value("pages"),
+            pages: DatabaseTablePagesSchema,
+        }),
+        stale: Schema.object({
+            type: Schema.value("stale"),
+            pageIndexes: BitsetSchema,
+        }),
+    }),
+});
+
+export type DatabaseTableRegistrationResult = SchemaType<
+    typeof DatabaseTableRegistrationResultSchema
+>;
+
+export const DatabaseTableRegistrationsSchema = Schema.map(
+    Schema.id<DatabaseTableId>(),
+    DatabaseTableRegistrationSchema,
+);
+
+export type DatabaseTableRegistrations = SchemaType<typeof DatabaseTableRegistrationsSchema>;
+
+export const DatabaseTableRegistrationResultsSchema = Schema.map(
+    Schema.id<DatabaseTableId>(),
+    DatabaseTableRegistrationResultSchema,
+);
+
+export type DatabaseTableRegistrationResults = SchemaType<
+    typeof DatabaseTableRegistrationResultsSchema
+>;
+
+/** Shared response shape for explicit and action-piggybacked registration. */
+export const DatabaseRegisterTablesResultConfig = {
+    tables: DatabaseTableRegistrationResultsSchema,
+    tableAccess: DatabaseTableAccessLevelsSchema,
+};
+
+export type DatabaseRegisterTablesResult = ObjectSchemaConfigType<
+    typeof DatabaseRegisterTablesResultConfig
+>;
 
 /**
  * Result config for `ensureCacheIsUpToDate`.
@@ -197,6 +257,7 @@ export const DatabaseExecuteActionInputConfig = {
     mutationId: Schema.id<DatabaseMutationId>(),
     returnResult: Schema.boolean.default(true),
     returnPages: Schema.boolean.default(true),
+    registerTables: DatabaseTableRegistrationsSchema.default(emptyMap),
 };
 
 /**
@@ -213,6 +274,8 @@ export const DatabaseExecuteActionOutputConfig = {
     result: DatabaseActionResultSchema.nullable(),
     readPages: DatabasePagesSchema.nullable(),
     fileSizesInPages: Schema.map(Schema.id<DatabaseTableId>(), Schema.integer).nullable(),
+    registeredTables: Schema.object(DatabaseRegisterTablesResultConfig),
+    readPagesSnapshotVersion: Schema.map(Schema.id<DatabaseTableId>(), Schema.integer),
 };
 
 export type DatabaseExecuteActionResponse = ObjectSchemaConfigType<
