@@ -94,9 +94,8 @@ async function storeTaskReference(
 }
 
 runAgentWebPageTests<TaskId, AgentWebTaskSubtasksPage>({
-    print: async (storage, _taskId, page) => await printAgentWebTaskSubtasksPage(storage, page),
-    parse: async (storage, taskId, root) =>
-        await parseAgentWebTaskSubtasksPage(storage, taskId ?? parentTaskReference.id, root),
+    print: printAgentWebTaskSubtasksPage,
+    parse: parseAgentWebTaskSubtasksPage,
     normalize: normalizeAgentWebTaskSubtasksPage,
     tests: [
         {
