@@ -46,7 +46,7 @@ export function quote(
             // backticks than curl quotes (given our lint rule disallows the use of straight
             // quotes elsewhere in strings).
             if (typeof value === "string") {
-                quotedString = quoteValue(quotedString);
+                quotedString = quoteValue(value);
             }
 
             string += quotedString;
@@ -62,10 +62,21 @@ export function quote(
  * procedure as `mdast-util-to-markdown` which we use to print markdown across our
  * codebase.
  */
-function quoteValue(quoted: string) {
-    quoted = quoted.replaceAll("`", "\\`");
-    // eslint-disable-next-line cyberworlds/string-quotes
-    quoted = quoted.replaceAll('\\"', '"');
-    quoted = `\`${quoted.slice(1, -1)}\``;
-    return quoted;
+function quoteValue(value: string) {
+    let sequence = "`";
+
+    while (new RegExp(`(^|[^\`])${sequence}([^\`]|$)`).test(value)) {
+        sequence += "`";
+    }
+
+    if (
+        /[^ \r\n]/.test(value) &&
+        ((/^[ \r\n]/.test(value) && /[ \r\n]$/.test(value)) || /^`|`$/.test(value))
+    ) {
+        value = ` ${value} `;
+    }
+
+    value = value.replaceAll(/[\n\r]/g, substring => (substring === "\n" ? "\\n" : "\\r"));
+
+    return sequence + value + sequence;
 }
