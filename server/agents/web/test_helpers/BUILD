@@ -9,6 +9,7 @@ ts_project(
         "//server/agents/web",
         "//server/cloudflare",
         "//shared/api/content/test_helpers",
+        "//shared/api/specification",
         "//shared/error",
         "//shared/helpers",
         "//shared/tracer",
