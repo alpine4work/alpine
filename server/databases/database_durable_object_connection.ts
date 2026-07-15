@@ -3,7 +3,6 @@ import {
     WorkerSessionActionContext,
     WorkerSessionActionContextModules,
 } from "~/server/cloudflare/context/worker_action_context.js";
-import {WorkerProcessContext} from "~/server/cloudflare/context/worker_process_context.js";
 import {buildDatabasePageDiffs} from "~/server/databases/build_database_page_diffs.js";
 import {DatabaseServer} from "~/server/databases/database_server.js";
 import {WebSocketConnectionProcedures} from "~/server/web_socket/web_socket_server.js";
@@ -53,37 +52,24 @@ export type DatabaseRealtimeEventStub =
 
 export class DatabaseDurableObjectConnection {
     private readonly _server: DatabaseServer;
-    private readonly _sendEventToAll: (
-        context: WorkerProcessContext,
-        event: DatabaseRealtimeEventStub,
-    ) => void;
-    private readonly _sendEventToSelf: (
-        context: WorkerProcessContext,
-        event: DatabaseRealtimeEventStub,
-    ) => void;
-    private readonly _processContext: WorkerProcessContext;
+    private readonly _sendEventToAll: (event: DatabaseRealtimeEventStub) => void;
+    private readonly _sendEventToSelf: (event: DatabaseRealtimeEventStub) => void;
     private readonly _databaseGroupId: DatabaseGroupId;
-    private readonly _subscriptions = new Map<
-        DatabaseTableId,
-        {heldPages: TypedFastBitSet; watermark: number}
-    >();
+    private readonly _subscriptions = new Map<DatabaseTableId, TypedFastBitSet>();
     private readonly _originatedMutationIds = new Set<DatabaseMutationId>();
 
     constructor({
         server,
-        processContext,
         sendEventToAll,
         sendEventToSelf,
         databaseGroupId,
     }: {
         server: DatabaseServer;
-        processContext: WorkerProcessContext;
-        sendEventToAll: (context: WorkerProcessContext, event: DatabaseRealtimeEventStub) => void;
-        sendEventToSelf: (context: WorkerProcessContext, event: DatabaseRealtimeEventStub) => void;
+        sendEventToAll: (event: DatabaseRealtimeEventStub) => void;
+        sendEventToSelf: (event: DatabaseRealtimeEventStub) => void;
         databaseGroupId: DatabaseGroupId;
     }) {
         this._server = server;
-        this._processContext = processContext;
         this._sendEventToAll = sendEventToAll;
         this._sendEventToSelf = sendEventToSelf;
         this._databaseGroupId = databaseGroupId;
@@ -132,17 +118,10 @@ export class DatabaseDurableObjectConnection {
             // replaced its held-page set above; pages actually returned are then added to that
             // set. Tables omitted from the registration payload are deliberately unfiltered.
             for (const [tableId] of result.readPages) {
-                let subscription = this._subscriptions.get(tableId);
-                if (subscription === undefined) {
-                    subscription = {
-                        heldPages: new TypedFastBitSet(),
-                        watermark: result.snapshotVersion,
-                    };
-                    this._subscriptions.set(tableId, subscription);
-                }
-                subscription.watermark = result.snapshotVersion;
+                const heldPages = this._subscriptions.get(tableId) ?? new TypedFastBitSet();
+                this._subscriptions.set(tableId, heldPages);
                 for (const pageIndex of filteredReadPages?.get(tableId)?.keys() ?? []) {
-                    subscription.heldPages.add(pageIndex);
+                    heldPages.add(pageIndex);
                 }
             }
 
@@ -153,7 +132,7 @@ export class DatabaseDurableObjectConnection {
             );
             if (pageDiffs.size > 0) {
                 this._originatedMutationIds.add(input.mutationId);
-                this._sendEventToAll(this._processContext, {
+                this._sendEventToAll({
                     type: "PagesChanged",
                     pageDiffs,
                     mutationId: input.mutationId,
@@ -166,7 +145,7 @@ export class DatabaseDurableObjectConnection {
                 // diffs, so confirm it to the originator explicitly with an empty event.
                 // Foreground calls (`returnPages: true`) consume the response directly and need no
                 // confirmation.
-                this._sendEventToSelf(this._processContext, {
+                this._sendEventToSelf({
                     type: "PagesChanged",
                     pageDiffs: new Map(),
                     mutationId: input.mutationId,
@@ -279,10 +258,7 @@ export class DatabaseDurableObjectConnection {
                 catchUp = {type: "pages", pages};
             }
 
-            this._subscriptions.set(tableId, {
-                heldPages: registration.heldPages.clone(),
-                watermark: snapshotVersion,
-            });
+            this._subscriptions.set(tableId, registration.heldPages.clone());
             tables.set(tableId, {
                 watermark: snapshotVersion,
                 fileSizeInPages: this._server.getFileSize(tableId) / sqlitePageSize,
@@ -311,8 +287,8 @@ export class DatabaseDurableObjectConnection {
                         continue;
                     }
 
-                    const subscription = this._subscriptions.get(tableId);
-                    if (subscription === undefined) {
+                    const heldPages = this._subscriptions.get(tableId);
+                    if (heldPages === undefined) {
                         continue;
                     }
 
@@ -324,18 +300,13 @@ export class DatabaseDurableObjectConnection {
                     >();
                     for (const [pageIndex, diff] of diffs.diffs) {
                         const materializesNewPage = diff.previousVersion === 0;
-                        if (
-                            originatedHere ||
-                            materializesNewPage ||
-                            subscription.heldPages.has(pageIndex)
-                        ) {
+                        if (originatedHere || materializesNewPage || heldPages.has(pageIndex)) {
                             filteredDiffs.set(pageIndex, diff);
                             if (originatedHere || materializesNewPage) {
-                                subscription.heldPages.add(pageIndex);
+                                heldPages.add(pageIndex);
                             }
                         }
                     }
-                    subscription.watermark = diffs.version;
                     pageDiffs.set(tableId, {...diffs, diffs: filteredDiffs});
                 }
                 return {type: "PagesChanged", pageDiffs, mutationId: eventStub.mutationId};

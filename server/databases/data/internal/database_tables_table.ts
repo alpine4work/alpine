@@ -55,10 +55,12 @@ export const DatabaseTablesTable = RynamoTableSchema.new({
         },
     },
     broadcastEvents: async (context, events) => {
-        const eventsByDatabaseGroupId = new Map<DatabaseGroupId, Array<RynamoEventStub>>();
-        const resolvedAccessPolicyByTableIdByDatabaseGroupId = new Map<
+        const broadcastsByDatabaseGroupId = new Map<
             DatabaseGroupId,
-            Map<DatabaseTableId, LocalAccessPolicy | null>
+            {
+                events: Array<RynamoEventStub>;
+                resolvedAccessPolicyByTableId: Map<DatabaseTableId, LocalAccessPolicy | null>;
+            }
         >();
 
         await runAllPromises(
@@ -82,33 +84,26 @@ export const DatabaseTablesTable = RynamoTableSchema.new({
                         throw exhaustive(event);
                 }
 
-                getOrSetDefaultMapValue(
-                    eventsByDatabaseGroupId,
+                const broadcast = getOrSetDefaultMapValue(
+                    broadcastsByDatabaseGroupId,
                     itemKey.databaseGroupId,
-                    () => [],
-                ).push(eventStub);
-                getOrSetDefaultMapValue(
-                    resolvedAccessPolicyByTableIdByDatabaseGroupId,
-                    itemKey.databaseGroupId,
-                    () => new Map(),
-                ).set(itemKey.tableId, resolvedAccessPolicy);
+                    () => ({events: [], resolvedAccessPolicyByTableId: new Map()}),
+                );
+                broadcast.events.push(eventStub);
+                broadcast.resolvedAccessPolicyByTableId.set(itemKey.tableId, resolvedAccessPolicy);
             }),
         );
 
         await runAllPromises(
-            mapIterable(eventsByDatabaseGroupId, async ([databaseGroupId, eventsForGroup]) => {
-                if (eventsForGroup.length === 0) return;
-
+            mapIterable(broadcastsByDatabaseGroupId, async ([databaseGroupId, broadcast]) => {
                 await context.edge.broadcastToDurableObject(
                     `/api/durable-objects/database-groups/${databaseGroupId}/broadcast-table-metadata-realtime-event-transaction`,
                     {
                         serviceName: "DatabaseGroupService",
                         route: "/api/durable-objects/database-groups/:databaseGroupId/broadcast-table-metadata-realtime-event-transaction",
                         body: DatabaseTableMetadataBroadcastRealtimeEventsSchema.serialize({
-                            events: eventsForGroup,
-                            resolvedAccessPolicyByTableId: assertExists(
-                                resolvedAccessPolicyByTableIdByDatabaseGroupId.get(databaseGroupId),
-                            ),
+                            events: broadcast.events,
+                            resolvedAccessPolicyByTableId: broadcast.resolvedAccessPolicyByTableId,
                         }),
                     },
                 );

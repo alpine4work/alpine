@@ -90,14 +90,10 @@ class DatabaseGroupDurableObject {
             DatabaseDurableObjectConnection
         >(this._processContext, DatabaseRealtimeProtocol, ({sendEvent}) => {
             return new DatabaseDurableObjectConnection({
-                processContext: this._processContext,
                 server: this._server,
-                sendEventToAll: (context, event) => {
-                    this._webSocketServer.sendEventToAll(context, event);
-                },
-                sendEventToSelf: (context, event) => {
-                    void sendEvent(context, event);
-                },
+                sendEventToAll: event =>
+                    this._webSocketServer.sendEventToAll(this._processContext, event),
+                sendEventToSelf: event => void sendEvent(this._processContext, event),
                 databaseGroupId: this._databaseGroupId,
             });
         });

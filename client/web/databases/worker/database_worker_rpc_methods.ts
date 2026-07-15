@@ -6,12 +6,7 @@ import {
     DatabaseActionObjectSchema,
     DatabaseActionResultSchema,
 } from "~/shared/databases/database_actions.js";
-import {DatabasePageDiffsSchema} from "~/shared/databases/database_protocol_schemas.js";
-import type {
-    DatabaseGroupId,
-    DatabaseMutationId,
-    DatabaseReactiveActionId,
-} from "~/shared/id/types/id_types.js";
+import type {DatabaseGroupId, DatabaseReactiveActionId} from "~/shared/id/types/id_types.js";
 import {Schema} from "~/shared/schema/schema.js";
 
 /** Methods the tab can call on the worker. */
@@ -29,14 +24,6 @@ export const tabToWorkerDatabaseRpcMethods = defineWebWorkerRpcMethods({
             action: DatabaseActionObjectSchema,
         },
         output: {result: DatabaseActionResultSchema},
-    },
-    writePageDiffsFromRealtime: {
-        input: {
-            databaseGroupId: Schema.id<DatabaseGroupId>(),
-            pageDiffs: DatabasePageDiffsSchema,
-            mutationId: Schema.id<DatabaseMutationId>(),
-        },
-        output: {},
     },
     registerReactiveAction: {
         input: {

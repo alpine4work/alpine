@@ -48,7 +48,6 @@ function makeTestSocket(): {
         },
         connect() {},
         reconnect() {},
-        async disconnect() {},
     };
     return {
         socket,

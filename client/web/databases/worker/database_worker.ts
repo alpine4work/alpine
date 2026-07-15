@@ -52,16 +52,9 @@ const host = new UniqueWorkerHost({
     workerMethods: tabToWorkerDatabaseRpcMethods,
     tabMethods: workerToTabDatabaseRpcMethods,
     handlers: {
-        connectDatabaseGroup: async input => {
-            await clientManager.connectDatabaseGroup(input);
-            return {};
-        },
+        connectDatabaseGroup: async input => clientManager.connectDatabaseGroup(input),
         executeAction: async input => {
             return await clientManager.executeAction(input);
-        },
-        writePageDiffsFromRealtime: async input => {
-            await clientManager.writePageDiffsFromRealtime(input);
-            return {};
         },
         registerReactiveAction: async (input, connection) => {
             return await clientManager.registerReactiveAction(input, wrapConnection(connection));

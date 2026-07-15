@@ -61,7 +61,6 @@ function createConnection({
 } = {}) {
     return new DatabaseDurableObjectConnection({
         server,
-        processContext: null as any,
         sendEventToAll,
         sendEventToSelf,
         databaseGroupId: generateId<DatabaseGroupId>(),
@@ -404,7 +403,6 @@ describe("connection authorization and metadata", () => {
         const databaseGroupId = generateId<DatabaseGroupId>();
         const conn = new DatabaseDurableObjectConnection({
             server,
-            processContext: null as any,
             sendEventToAll: () => {},
             sendEventToSelf: () => {},
             databaseGroupId,
@@ -460,7 +458,6 @@ describe("connection authorization and metadata", () => {
         const databaseGroupId = generateId<DatabaseGroupId>();
         const conn = new DatabaseDurableObjectConnection({
             server,
-            processContext: null as any,
             sendEventToAll: () => {},
             sendEventToSelf: () => {},
             databaseGroupId,
@@ -542,7 +539,6 @@ describe("per-table realtime filtering", () => {
         );
         return new DatabaseDurableObjectConnection({
             server,
-            processContext: null as any,
             sendEventToAll: () => {},
             sendEventToSelf: () => {},
             databaseGroupId: generateId<DatabaseGroupId>(),
@@ -641,10 +637,10 @@ describe("per-table realtime filtering", () => {
 
     test("originator receives its full write set and adds it to the subscription", async () => {
         const eventStubs: Array<
-            Parameters<DatabaseDurableObjectConnectionConstructorOptions["sendEventToAll"]>[1]
+            Parameters<DatabaseDurableObjectConnectionConstructorOptions["sendEventToAll"]>[0]
         > = [];
         const conn = createConnection({
-            sendEventToAll: (_context, event) => {
+            sendEventToAll: event => {
                 eventStubs.push(event);
             },
         });

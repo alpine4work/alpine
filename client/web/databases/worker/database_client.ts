@@ -62,7 +62,6 @@ export interface DatabaseClientConnection {
     ): Promise<DatabaseExecuteActionResponse>;
     registerTables(tables: DatabaseTableRegistrations): Promise<DatabaseRegisterTablesResult>;
     reportError(error: unknown): void;
-    close(): void;
 }
 
 /**
@@ -185,11 +184,7 @@ export class DatabaseClient {
             return;
         }
         const result = await conn.registerTables(registrations);
-        if (
-            await this.applyStandaloneRegistrationResult(result, {
-                connectionEpoch,
-            })
-        ) {
+        if (await this.applyStandaloneRegistrationResult(result, connectionEpoch)) {
             this.tablesToReregister.clear();
         }
     }
@@ -324,7 +319,9 @@ export class DatabaseClient {
         }
 
         this.optimisticQueue.push({mutationId, action: actionObject});
-        this.invalidateForWrittenPages(writtenPages);
+        if (this.markWrittenPages(writtenPages)) {
+            this.scheduleInvalidation();
+        }
 
         // Send to server in the background.
         void (async () => {
@@ -628,9 +625,8 @@ export class DatabaseClient {
                 this.database.detachTableIfAttached(tableId),
                 `unable to refresh resized table ${tableId}`,
             );
-            // A stale-base diff can tombstone page 0. Leave a headerless store detached so the
-            // next query takes the normal registration/fallback path.
-            if (store.hasPage(0)) this.database.attach(tableId);
+            // A stale-base diff can tombstone page 0; leave it detached for fallback.
+            this.attachRegisteredTableIfPossible(tableId, store);
         }
 
         this.replayOptimisticQueue();
@@ -727,13 +723,8 @@ export class DatabaseClient {
         getOrSetDefaultMapValue(this.pagesToInvalidate, tableId, () => new Set()).add(pageIndex);
     }
 
-    private invalidateForWrittenPages(writtenPages: ReadonlyDatabasePageSet): void {
-        if (this.markWrittenPages(writtenPages)) {
-            this.scheduleInvalidation();
-        }
-    }
-
-    private getCachedTableIds(): Promise<ReadonlySet<DatabaseTableId>> {
+    /** Open every store found in the one-time lazy group-directory enumeration. */
+    private async openCachedStores(): Promise<void> {
         if (this.cachedTableIdsPromise === undefined) {
             this.cachedTableIdsPromise = (async () => {
                 const tableIds = new Set<DatabaseTableId>();
@@ -743,12 +734,7 @@ export class DatabaseClient {
                 return tableIds;
             })();
         }
-        return this.cachedTableIdsPromise;
-    }
-
-    /** Open every store found in the one-time lazy group-directory enumeration. */
-    private async openCachedStores(): Promise<void> {
-        const tableIds = await this.getCachedTableIds();
+        const tableIds = await this.cachedTableIdsPromise;
         await runAllPromises([...tableIds].map(tableId => this.openStore(tableId)));
     }
 
@@ -782,11 +768,7 @@ export class DatabaseClient {
         if (registrations.size === 0) return false;
         const connectionEpoch = this.connectionEpoch;
         const result = await conn.registerTables(registrations);
-        if (
-            !(await this.applyStandaloneRegistrationResult(result, {
-                connectionEpoch,
-            }))
-        ) {
+        if (!(await this.applyStandaloneRegistrationResult(result, connectionEpoch))) {
             return false;
         }
         return this.registeredTables.has(requestedTableId);
@@ -794,11 +776,11 @@ export class DatabaseClient {
 
     private async applyStandaloneRegistrationResult(
         result: DatabaseRegisterTablesResult,
-        options: {connectionEpoch: number},
+        connectionEpoch: number,
     ): Promise<boolean> {
-        if (options.connectionEpoch !== this.connectionEpoch) return false;
+        if (connectionEpoch !== this.connectionEpoch) return false;
         await this.applyTableAccessLevels(result.tableAccess, {replayOptimisticQueue: false});
-        if (options.connectionEpoch !== this.connectionEpoch) return false;
+        if (connectionEpoch !== this.connectionEpoch) return false;
         this.database.discardBuffer();
         this.applyRegistrationResults(result.tables);
         this.replayOptimisticQueue();
@@ -807,18 +789,16 @@ export class DatabaseClient {
 
     /**
      * Apply table-level snapshot metadata without allowing an older response to roll
-     * file size backward after a newer realtime event. Returns whether the snapshot
-     * was current enough to apply.
+     * file size backward after a newer realtime event.
      */
     private advanceStoreSnapshot(
         store: OpfsPageStore,
         watermark: number,
         fileSizeInPages: number,
-    ): boolean {
-        if (watermark < store.getWatermark()) return false;
+    ): void {
+        if (watermark < store.getWatermark()) return;
         store.setServerFileSizeInPages(fileSizeInPages);
         store.setWatermark(watermark);
-        return true;
     }
 
     /**

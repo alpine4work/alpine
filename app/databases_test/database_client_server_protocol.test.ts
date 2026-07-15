@@ -1311,9 +1311,6 @@ function createSocketForServerConnection(
             }
         },
         reconnect() {},
-        async disconnect() {
-            serverConnection.close();
-        },
     };
 }
 

@@ -34,7 +34,6 @@ class MockUniqueWorkerClient {
     readonly callMock = jest.fn(async (method: string, input: any): Promise<any> => {
         switch (method) {
             case "connectDatabaseGroup":
-            case "writePageDiffsFromRealtime":
             case "unregisterReactiveAction":
                 return {};
             case "executeAction":

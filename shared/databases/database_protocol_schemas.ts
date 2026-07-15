@@ -19,10 +19,8 @@ import {
 } from "~/shared/schema/schema.js";
 
 /**
- * Shared schema definitions used by both the WebSocket realtime protocol
- * (`DatabaseRealtimeProtocol`) and the tab/worker RPC protocols
- * (`tabToWorkerDatabaseRpcMethods`, `workerToTabDatabaseRpcMethods`). Centralizing
- * them here keeps the wire format identical across transports and avoids drift.
+ * Shared schemas for the database realtime protocol and its client/server sync
+ * state.
  */
 
 // -- Pages --------------------------------------------------------------------
@@ -182,8 +180,8 @@ export type DatabaseRegisterTablesResult = ObjectSchemaConfigType<
 // -- Action invocation --------------------------------------------------------
 
 /**
- * Input config for invoking a database action against the canonical server. Used
- * by both the WebSocket procedure and the worker-to-tab `executeActionServer` RPC.
+ * Input config for invoking a database action against the canonical server over
+ * the WebSocket procedure.
  *
  * `returnResult` / `returnPages` let the caller skip fields it doesn't need — e.g.
  * fire-and-forget mutations.
