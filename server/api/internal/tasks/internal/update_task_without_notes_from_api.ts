@@ -2,6 +2,7 @@ import {parseDate} from "@internationalized/date";
 import {findSpans} from "unicode-default-word-boundary";
 import {ApiServiceBotActionContext} from "~/server/api/internal/shared/api_service_context.js";
 import {createApiTaskActor} from "~/server/api/internal/tasks/internal/create_api_task_actor.js";
+import {createApiTaskMovePatchResultCursor} from "~/server/api/internal/tasks/internal/create_api_task_move_patch_result_cursor.js";
 import {fromApiTaskLayout} from "~/server/api/internal/tasks/internal/from_api_task_layout.js";
 import {resolveApiTaskMovesInCollection} from "~/server/api/internal/tasks/internal/resolve_api_task_moves_in_collection.js";
 import {resolveApiTaskMovesInParent} from "~/server/api/internal/tasks/internal/resolve_api_task_moves_in_parent.js";
@@ -11,10 +12,15 @@ import {
 } from "~/server/api/internal/tasks/internal/resolve_api_task_moves_in_scope.js";
 import {getAccount} from "~/server/spaces/get_account.js";
 import {commitTaskActionTransaction} from "~/server/tasks/data/commit_task_action_transaction.js";
-import {ApiTaskPatch} from "~/shared/api/specification/types/api_specification_convenience_types.js";
+import {
+    ApiTaskPatch,
+    ApiTaskPatchResult,
+} from "~/shared/api/specification/types/api_specification_convenience_types.js";
 import {InvalidArgumentError} from "~/shared/error/error.js";
 import {errorDisplayMessage} from "~/shared/error/error_display_message.js";
+import {createArrayWithLength} from "~/shared/helpers/array/create_array_with_length.js";
 import {filterMapArray} from "~/shared/helpers/array/filter_map_array.js";
+import {NonEmptyReadonlyArray} from "~/shared/helpers/array/non_empty_readonly_array.js";
 import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
 import {
     HybridLogicalClock,
@@ -73,6 +79,7 @@ export async function updateTaskWithoutNotesFromApi(
 ): Promise<{
     updatedTask: TaskModel;
     updateEvent: TaskRealtimeUpdateEvent;
+    results: ReadonlyArray<ApiTaskPatchResult>;
 }> {
     const result = await updateTasksWithoutNotesFromApi(context, {
         spaceId,
@@ -80,7 +87,11 @@ export async function updateTaskWithoutNotesFromApi(
         patches: patches.map(patch => ({id: taskId, patch})),
     });
 
-    return {updatedTask: assertExists(result.updatedTasks[0]), updateEvent: result.updateEvent};
+    return {
+        updatedTask: assertExists(result.updatedTasks[0]),
+        updateEvent: result.updateEvent,
+        results: result.results,
+    };
 }
 
 /**
@@ -101,6 +112,7 @@ export async function updateTasksWithoutNotesFromApi(
 ): Promise<{
     updatedTasks: ReadonlyArray<TaskModel>;
     updateEvent: TaskRealtimeUpdateEvent;
+    results: ReadonlyArray<ApiTaskPatchResult>;
 }> {
     const botAccountId = context.actor.getBotAccountId();
     const clock = new HybridLogicalClock(unsynchronizedSystemClock);
@@ -262,12 +274,18 @@ export async function updateTasksWithoutNotesFromApi(
     );
     const actions: Array<TaskUpdateTaskAction> = [];
 
+    const results: Array<ApiTaskPatchResult | null> = createArrayWithLength(
+        patches.length,
+        () => null,
+    );
+
     for (let patchIndex = 0; patchIndex < patches.length; patchIndex++) {
         const {id: taskId, patch} = patches[patchIndex]!;
         const state = assertExists(stateByTaskId.get(taskId));
 
         switch (patch.type) {
             case "SetTitle": {
+                results[patchIndex] = {type: "SetTitle"};
                 const titleUpdates: Array<{from: number; to: number; text: string}> = [];
 
                 const oldTokens = Array.from(findSpans(state.title.getText()), ({text}) => text);
@@ -355,6 +373,7 @@ export async function updateTasksWithoutNotesFromApi(
                 break;
             }
             case "SetAssignee": {
+                results[patchIndex] = {type: "SetAssignee"};
                 const assigneeId = patch.assignee?.id ?? null;
                 const time = clock.now();
 
@@ -387,6 +406,7 @@ export async function updateTasksWithoutNotesFromApi(
                 break;
             }
             case "SetStatus": {
+                results[patchIndex] = {type: "SetStatus"};
                 switch (patch.status.type) {
                     case "Closed": {
                         const time = clock.now();
@@ -480,6 +500,7 @@ export async function updateTasksWithoutNotesFromApi(
                 break;
             }
             case "SetDue": {
+                results[patchIndex] = {type: "SetDue"};
                 const dueDate = patch.due ? parseDate(patch.due.date) : null;
 
                 actions.push({
@@ -492,6 +513,7 @@ export async function updateTasksWithoutNotesFromApi(
                 break;
             }
             case "SetPriority": {
+                results[patchIndex] = {type: "SetPriority"};
                 const priority = patch.priority?.type ?? null;
 
                 actions.push({
@@ -504,6 +526,7 @@ export async function updateTasksWithoutNotesFromApi(
                 break;
             }
             case "SetLayout": {
+                results[patchIndex] = {type: "SetLayout"};
                 const layout = fromApiTaskLayout(patch.layout);
 
                 actions.push({
@@ -516,6 +539,7 @@ export async function updateTasksWithoutNotesFromApi(
                 break;
             }
             case "SetParent": {
+                results[patchIndex] = {type: "SetParent"};
                 const parentTaskId = patch.parent?.task.id ?? null;
 
                 actions.push({
@@ -530,6 +554,7 @@ export async function updateTasksWithoutNotesFromApi(
                 break;
             }
             case "AddCollection": {
+                results[patchIndex] = {type: "AddCollection"};
                 const collectionId = patch.item.collection.id;
                 const orderKey = generateOrderKeyBetween(state.lastCollectionOrderKey, null);
 
@@ -546,6 +571,7 @@ export async function updateTasksWithoutNotesFromApi(
                 break;
             }
             case "RemoveCollection": {
+                results[patchIndex] = {type: "RemoveCollection"};
                 const collectionId = patch.collectionId;
 
                 actions.push({
@@ -573,11 +599,25 @@ export async function updateTasksWithoutNotesFromApi(
 
                 const resolvedMove = assertExists(resolvedMoveByPatchIndex.get(patchIndex));
 
-                for (const update of createApiTaskMovePositionUpdates(
+                const positionUpdates = createApiTaskMovePositionUpdates(
                     taskId,
                     resolvedMove,
                     clock,
-                )) {
+                );
+
+                const backfillTask = assertExists(backfillAuthorizedTaskById.get(taskId));
+
+                results[patchIndex] = {
+                    type: "MoveInCollection",
+                    cursor: createApiTaskMovePatchResultCursor({
+                        id: backfillTask.id,
+                        createdTime: backfillTask.getCreatedTime().absoluteTime,
+                        position: positionUpdates[0].position,
+                        scope: {type: "Collection", collectionId},
+                    }),
+                };
+
+                for (const update of positionUpdates) {
                     actions.push({
                         type: "UpdateTask",
                         time: update.time,
@@ -601,11 +641,25 @@ export async function updateTasksWithoutNotesFromApi(
 
                 const resolvedMove = assertExists(resolvedMoveByPatchIndex.get(patchIndex));
 
-                for (const update of createApiTaskMovePositionUpdates(
+                const positionUpdates = createApiTaskMovePositionUpdates(
                     taskId,
                     resolvedMove,
                     clock,
-                )) {
+                );
+
+                const backfillTask = assertExists(backfillAuthorizedTaskById.get(taskId));
+
+                results[patchIndex] = {
+                    type: "MoveInParent",
+                    cursor: createApiTaskMovePatchResultCursor({
+                        id: backfillTask.id,
+                        createdTime: backfillTask.getCreatedTime().absoluteTime,
+                        position: positionUpdates[0].position,
+                        scope: {type: "Parent"},
+                    }),
+                };
+
+                for (const update of positionUpdates) {
                     actions.push({
                         type: "UpdateTask",
                         time: update.time,
@@ -624,7 +678,15 @@ export async function updateTasksWithoutNotesFromApi(
         }
     }
 
-    if (actions.length === 0) return {updatedTasks: initialTasks, updateEvent: result.updateEvent};
+    const nonNullableResults = results.map(patchResult => assertExists(patchResult));
+
+    if (actions.length === 0) {
+        return {
+            updatedTasks: initialTasks,
+            updateEvent: result.updateEvent,
+            results: nonNullableResults,
+        };
+    }
 
     // The update event we loaded above only backfills the task's references from
     // before the patch. Load any parent task, collections, or assignee account the
@@ -727,6 +789,7 @@ export async function updateTasksWithoutNotesFromApi(
     return {
         updatedTasks,
         updateEvent,
+        results: nonNullableResults,
     };
 }
 
@@ -734,12 +797,14 @@ export async function updateTasksWithoutNotesFromApi(
  * Converts a resolved move into the position updates to commit: the moved task's
  * new position followed by re-keys for the tasks that shared a `TaskPosition` with
  * a move destination.
+ *
+ * The first item is always the new position for the `taskId`.
  */
 function createApiTaskMovePositionUpdates(
     taskId: TaskId,
     resolvedMove: ApiTaskResolvedMove,
     clock: HybridLogicalClock,
-): Array<{taskId: TaskId; time: HybridLogicalTime; position: TaskPosition}> {
+): NonEmptyReadonlyArray<{taskId: TaskId; time: HybridLogicalTime; position: TaskPosition}> {
     const time = clock.now();
 
     let position: TaskPosition;

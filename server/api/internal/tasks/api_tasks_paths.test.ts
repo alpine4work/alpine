@@ -1106,13 +1106,14 @@ test("can update a task title", async () => {
     expect(response).toMatchObject({
         status: 200,
         body: expect.objectContaining({
+            results: [{type: "SetTitle"}],
             task: expect.objectContaining({
                 id: task.id,
                 title: "Updated Title",
             }),
         }),
     });
-    expect(response.body).not.toHaveProperty("collections");
+    expect(response.body.task).not.toHaveProperty("notes");
 
     expect(
         await backfillTaskActionTransactionHistory(space.systemAction(), space.id, startTime),
@@ -1131,6 +1132,44 @@ test("can update a task title", async () => {
             ],
         }),
     ]);
+});
+
+test("returns one matching result for every task patch", async () => {
+    const space = await TestSpace.create(context);
+    const session = await space.createSession({name: "Alice Smith", role: "Admin"});
+    const bot = await TestBot.createAndInstantiate(session);
+    const apiKey = await bot.createApiKey(session);
+    const task = await TestTask.create(session, {title: "Task"});
+
+    await ProcessContextModule.waitForTestTasks();
+
+    const response = await server.PATCH(`/tasks/${task.id}`, {
+        headers: {authorization: `bearer ${apiKey}`},
+        body: {
+            patches: [
+                {type: "SetTitle", title: "Task"},
+                {type: "SetAssignee", assignee: null},
+                {type: "SetStatus", status: {type: "Open", isActive: false}},
+                {type: "SetDue", due: null},
+                {type: "SetPriority", priority: null},
+                {type: "SetLayout", layout: null},
+            ],
+        },
+    });
+
+    expect(response).toMatchObject({
+        status: 200,
+        body: {
+            results: [
+                {type: "SetTitle"},
+                {type: "SetAssignee"},
+                {type: "SetStatus"},
+                {type: "SetDue"},
+                {type: "SetPriority"},
+                {type: "SetLayout"},
+            ],
+        },
+    });
 });
 
 test.each([
@@ -2138,9 +2177,21 @@ describe("PATCH /tasks", () => {
             body: {
                 spaceId: space.id,
                 patches: [
-                    {id: task1.id, patch: {type: "SetTitle", title: "Task 1 first"}},
-                    {id: task2.id, patch: {type: "SetTitle", title: "Task 2 updated"}},
-                    {id: task1.id, patch: {type: "SetTitle", title: "Task 1 final"}},
+                    {
+                        type: "Update",
+                        id: task1.id,
+                        patch: {type: "SetTitle", title: "Task 1 updated"},
+                    },
+                    {
+                        type: "Update",
+                        id: task2.id,
+                        patch: {type: "SetPriority", priority: {type: "High"}},
+                    },
+                    {
+                        type: "Update",
+                        id: task1.id,
+                        patch: {type: "SetLayout", layout: {type: "Project"}},
+                    },
                 ],
             },
         });
@@ -2161,13 +2212,16 @@ describe("PATCH /tasks", () => {
                     spaceId: space.id,
                     tasks: [
                         {
-                            task: {id: task1.id, title: "Task 1 final"},
-                            collections: [],
+                            id: task1.id,
+                            title: "Task 1 updated",
+                            layout: {type: "Project"},
                         },
-                        {
-                            task: {id: task2.id, title: "Task 2 updated"},
-                            collections: [],
-                        },
+                        {id: task2.id, title: "Task 2", priority: {type: "High"}},
+                    ],
+                    results: [
+                        {type: "Update", result: {type: "SetTitle"}},
+                        {type: "Update", result: {type: "SetPriority"}},
+                        {type: "Update", result: {type: "SetLayout"}},
                     ],
                 },
             },
@@ -2175,8 +2229,8 @@ describe("PATCH /tasks", () => {
                 {
                     actions: [
                         {taskId: task1.id, taskAction: {type: "UpdateTitle"}},
-                        {taskId: task2.id, taskAction: {type: "UpdateTitle"}},
-                        {taskId: task1.id, taskAction: {type: "UpdateTitle"}},
+                        {taskId: task2.id, taskAction: {type: "UpdatePriority"}},
+                        {taskId: task1.id, taskAction: {type: "UpdateLayout"}},
                     ],
                 },
             ],
@@ -2223,6 +2277,7 @@ describe("PATCH /tasks", () => {
             body: {
                 spaceId: space.id,
                 patches: movedTasksInPatchOrder.map(task => ({
+                    type: "Update" as const,
                     id: task.id,
                     patch: {
                         type: "MoveInCollection" as const,
@@ -2235,18 +2290,15 @@ describe("PATCH /tasks", () => {
 
         await ProcessContextModule.waitForTestTasks();
         const updatedListing = await getBatchTaskCollectionListing(apiKey, collection.id);
-        const responseTasks: ReadonlyArray<{
-            task: {id: TaskId};
-            collections: ReadonlyArray<{movedCursor?: string}>;
-        }> = response.body.tasks;
-        const movedCursorByTaskId = new Map(
-            responseTasks.map(({task, collections}) => [task.id, collections[0]?.movedCursor]),
+        const responseTasks: ReadonlyArray<{id: TaskId}> = response.body.tasks;
+        const movedCursors = response.body.results.flatMap(({result}) =>
+            result.type === "MoveInCollection" ? [result.cursor] : [],
         );
 
         expect({
             taskIds: updatedListing.taskIds,
-            responseTaskIds: responseTasks.map(({task}) => task.id),
-            movedCursors: movedTasksInPatchOrder.map(task => movedCursorByTaskId.get(task.id)),
+            responseTaskIds: responseTasks.map(task => task.id),
+            movedCursors,
         }).toEqual({
             taskIds: [afterTask.id, ...movedTasksInPatchOrder.map(task => task.id), beforeTask.id],
             responseTaskIds: movedTasksInPatchOrder.map(task => task.id),
@@ -2287,6 +2339,7 @@ describe("PATCH /tasks", () => {
             body: {
                 spaceId: space.id,
                 patches: [movedTask2, movedTask1].map(task => ({
+                    type: "Update" as const,
                     id: task.id,
                     patch: {
                         type: "MoveInCollection" as const,
@@ -2305,6 +2358,7 @@ describe("PATCH /tasks", () => {
             body: {
                 spaceId: space.id,
                 patches: [movedTask1, movedTask2].map(task => ({
+                    type: "Update" as const,
                     id: task.id,
                     patch: {
                         type: "MoveInCollection" as const,
@@ -2378,6 +2432,7 @@ describe("PATCH /tasks", () => {
             body: {
                 spaceId: space.id,
                 patches: [movedTask2, movedTask1].map(task => ({
+                    type: "Update" as const,
                     id: task.id,
                     patch: {
                         type: "MoveInCollection" as const,
@@ -2449,6 +2504,7 @@ describe("PATCH /tasks", () => {
             body: {
                 spaceId: space.id,
                 patches: [movedTask2, movedTask1].map(task => ({
+                    type: "Update" as const,
                     id: task.id,
                     patch: {
                         type: "MoveInCollection" as const,
@@ -2533,6 +2589,7 @@ describe("PATCH /tasks", () => {
 
         const patches = [
             {
+                type: "Update" as const,
                 id: tasks[1]!.id,
                 patch: {
                     type: "MoveInCollection" as const,
@@ -2545,6 +2602,7 @@ describe("PATCH /tasks", () => {
                 },
             },
             {
+                type: "Update" as const,
                 id: tasks[4]!.id,
                 patch: {
                     type: "MoveInCollection" as const,
@@ -2616,6 +2674,7 @@ describe("PATCH /tasks", () => {
             body: {
                 spaceId: space.id,
                 patches: movedTasksInPatchOrder.map(task => ({
+                    type: "Update" as const,
                     id: task.id,
                     patch: {
                         type: "MoveInParent" as const,
@@ -2630,15 +2689,21 @@ describe("PATCH /tasks", () => {
         });
 
         await ProcessContextModule.waitForTestTasks();
-        const responseTasks: ReadonlyArray<{collections: ReadonlyArray<unknown>}> =
-            response.body.tasks;
+        const updatedListing = await getBatchParentTaskListing(session, parentTask.id);
+        const responseResults = response.body.results;
 
         expect({
-            taskIds: (await getBatchParentTaskListing(session, parentTask.id)).taskIds,
-            collections: responseTasks.map(({collections}) => collections),
+            taskIds: updatedListing.taskIds,
+            results: responseResults,
         }).toEqual({
             taskIds: [afterTask.id, ...movedTasksInPatchOrder.map(task => task.id), beforeTask.id],
-            collections: movedTasksInPatchOrder.map(() => []),
+            results: movedTasksInPatchOrder.map((_, index) => ({
+                type: "Update",
+                result: {
+                    type: "MoveInParent",
+                    cursor: updatedListing.cursors[index + 1],
+                },
+            })),
         });
     });
 
@@ -2663,10 +2728,12 @@ describe("PATCH /tasks", () => {
                 spaceId: space.id,
                 patches: [
                     {
+                        type: "Update",
                         id: addedTask.id,
                         patch: {type: "AddCollection", item: {collection: {id: collection.id}}},
                     },
                     {
+                        type: "Update",
                         id: addedTask.id,
                         patch: {
                             type: "MoveInCollection",
@@ -2685,15 +2752,18 @@ describe("PATCH /tasks", () => {
             response: {
                 status: 200,
                 body: {
-                    tasks: [
+                    tasks: [{id: addedTask.id}],
+                    results: [
                         {
-                            task: {id: addedTask.id},
-                            collections: [
-                                {
-                                    movedCursor: listing.cursors[0],
-                                    collection: {id: collection.id},
-                                },
-                            ],
+                            type: "Update",
+                            result: {type: "AddCollection"},
+                        },
+                        {
+                            type: "Update",
+                            result: {
+                                type: "MoveInCollection",
+                                cursor: listing.cursors[0],
+                            },
                         },
                     ],
                 },
@@ -2722,8 +2792,13 @@ describe("PATCH /tasks", () => {
             body: {
                 spaceId: space.id,
                 patches: [
-                    {id: task1.id, patch: {type: "SetTitle", title: "Should not commit"}},
                     {
+                        type: "Update",
+                        id: task1.id,
+                        patch: {type: "SetTitle", title: "Should not commit"},
+                    },
+                    {
+                        type: "Update",
                         id: task2.id,
                         patch: {
                             type: "MoveInCollection",
@@ -2852,13 +2927,8 @@ describe("MoveInCollection patch", () => {
 
         const listing = await getTaskCollectionListing(apiKey, collection.id);
 
-        expect({collections: response.body.collections, taskIds: listing.taskIds}).toEqual({
-            collections: [
-                {
-                    movedCursor: listing.cursors[0],
-                    collection: {id: collection.id},
-                },
-            ],
+        expect({results: response.body.results, taskIds: listing.taskIds}).toEqual({
+            results: [{type: "MoveInCollection", cursor: listing.cursors[0]}],
             taskIds: [task3.id, task1.id, task2.id],
         });
     });
@@ -3330,7 +3400,145 @@ describe("MoveInCollection patch", () => {
         });
     });
 
-    test("returns a moved collection without a cursor when it is later removed", async () => {
+    test("returns both move results when moving twice in one collection", async () => {
+        const space = await TestSpace.create(context);
+        const session = await space.createSession({name: "Alice Smith", role: "Admin"});
+        const bot = await TestBot.createAndInstantiate(session);
+        const apiKey = await bot.createApiKey(session);
+        const collection = await TestTaskCollection.create(session, {
+            name: "Double Move Collection",
+            access: "Public",
+        });
+        const task1 = await TestTask.create(session, {title: "Task 1", collections: collection});
+        const movedTask = await TestTask.create(session, {
+            title: "Moved Task",
+            collections: collection,
+        });
+        const task2 = await TestTask.create(session, {title: "Task 2", collections: collection});
+
+        await ProcessContextModule.waitForTestTasks();
+
+        const response = await server.PATCH(`/tasks/${movedTask.id}`, {
+            headers: {authorization: `bearer ${apiKey}`},
+            body: {
+                patches: [
+                    {
+                        type: "MoveInCollection",
+                        collectionId: collection.id,
+                        position: {type: "Start"},
+                    },
+                    {
+                        type: "MoveInCollection",
+                        collectionId: collection.id,
+                        position: {type: "End"},
+                    },
+                ],
+            },
+        });
+
+        await ProcessContextModule.waitForTestTasks();
+        const listing = await getTaskCollectionListing(apiKey, collection.id);
+        const moveCursors = response.body.results.flatMap(result =>
+            result.type === "MoveInCollection" ? [result.cursor] : [],
+        );
+
+        expect({
+            status: response.status,
+            results: response.body.results,
+            uniqueMoveCursorCount: new Set(moveCursors).size,
+            taskIds: listing.taskIds,
+        }).toEqual({
+            status: 200,
+            results: [
+                {type: "MoveInCollection", cursor: expect.any(String)},
+                {type: "MoveInCollection", cursor: listing.cursors[2]},
+            ],
+            uniqueMoveCursorCount: 2,
+            taskIds: [task1.id, task2.id, movedTask.id],
+        });
+    });
+
+    test("returns move results across collection membership changes", async () => {
+        const space = await TestSpace.create(context);
+        const session = await space.createSession({name: "Alice Smith", role: "Admin"});
+        const bot = await TestBot.createAndInstantiate(session);
+        const apiKey = await bot.createApiKey(session);
+        const collection1 = await TestTaskCollection.create(session, {
+            name: "First Move Collection",
+            access: "Public",
+        });
+        const collection2 = await TestTaskCollection.create(session, {
+            name: "Second Move Collection",
+            access: "Public",
+        });
+        const collection1Task = await TestTask.create(session, {
+            title: "First Collection Task",
+            collections: collection1,
+        });
+        const movedTask = await TestTask.create(session, {
+            title: "Moved Task",
+            collections: collection1,
+        });
+        const collection2Task = await TestTask.create(session, {
+            title: "Second Collection Task",
+            collections: collection2,
+        });
+
+        await ProcessContextModule.waitForTestTasks();
+
+        const response = await server.PATCH(`/tasks/${movedTask.id}`, {
+            headers: {authorization: `bearer ${apiKey}`},
+            body: {
+                patches: [
+                    {
+                        type: "MoveInCollection",
+                        collectionId: collection1.id,
+                        position: {type: "Start"},
+                    },
+                    {type: "RemoveCollection", collectionId: collection1.id},
+                    {
+                        type: "AddCollection",
+                        item: {collection: {id: collection2.id}},
+                    },
+                    {
+                        type: "MoveInCollection",
+                        collectionId: collection2.id,
+                        position: {type: "End"},
+                    },
+                ],
+            },
+        });
+
+        await ProcessContextModule.waitForTestTasks();
+        const [collection1Listing, collection2Listing] = await runAllPromises([
+            getTaskCollectionListing(apiKey, collection1.id),
+            getTaskCollectionListing(apiKey, collection2.id),
+        ]);
+        const moveCursors = response.body.results.flatMap(result =>
+            result.type === "MoveInCollection" ? [result.cursor] : [],
+        );
+
+        expect({
+            status: response.status,
+            results: response.body.results,
+            uniqueMoveCursorCount: new Set(moveCursors).size,
+            collection1TaskIds: collection1Listing.taskIds,
+            collection2TaskIds: collection2Listing.taskIds,
+        }).toEqual({
+            status: 200,
+            results: [
+                {type: "MoveInCollection", cursor: expect.any(String)},
+                {type: "RemoveCollection"},
+                {type: "AddCollection"},
+                {type: "MoveInCollection", cursor: collection2Listing.cursors[1]},
+            ],
+            uniqueMoveCursorCount: 2,
+            collection1TaskIds: [collection1Task.id],
+            collection2TaskIds: [collection2Task.id, movedTask.id],
+        });
+    });
+
+    test("returns each result when a moved collection is later removed", async () => {
         const space = await TestSpace.create(context);
         const session = await space.createSession({name: "Alice Smith", role: "Admin"});
         const bot = await TestBot.createAndInstantiate(session);
@@ -3367,10 +3575,13 @@ describe("MoveInCollection patch", () => {
         await ProcessContextModule.waitForTestTasks();
 
         expect({
-            collections: response.body.collections,
+            results: response.body.results,
             taskIds: (await getTaskCollectionListing(apiKey, collection.id)).taskIds,
-        }).toEqual({
-            collections: [{collection: {id: collection.id}}],
+        }).toMatchObject({
+            results: [
+                {type: "MoveInCollection", cursor: expect.any(String)},
+                {type: "RemoveCollection"},
+            ],
             taskIds: [remainingTask.id],
         });
     });
@@ -3709,6 +3920,67 @@ describe("MoveInParent patch", () => {
 
         expect(await getParentTaskListing(session, parentTask.id)).toMatchObject({
             taskIds: [movedTask.id, task1.id, task2.id, task3.id],
+        });
+    });
+
+    test("returns move results before and after changing parent", async () => {
+        const space = await TestSpace.create(context);
+        const session = await space.createSession({name: "Alice Smith", role: "Admin"});
+        const bot = await TestBot.createAndInstantiate(session);
+        const apiKey = await bot.createApiKey(session);
+        const parentTask1 = await TestTask.create(session, {title: "Parent Task 1"});
+        const parentTask2 = await TestTask.create(session, {title: "Parent Task 2"});
+        const parent1Task = await TestTask.create(session, {
+            title: "First Parent Task",
+            parent: parentTask1,
+        });
+        const movedTask = await TestTask.create(session, {
+            title: "Moved Task",
+            parent: parentTask1,
+        });
+        const parent2Task = await TestTask.create(session, {
+            title: "Second Parent Task",
+            parent: parentTask2,
+        });
+
+        await ProcessContextModule.waitForTestTasks();
+
+        const response = await server.PATCH(`/tasks/${movedTask.id}`, {
+            headers: {authorization: `bearer ${apiKey}`},
+            body: {
+                patches: [
+                    {type: "MoveInParent", position: {type: "Start"}},
+                    {type: "SetParent", parent: {task: {id: parentTask2.id}}},
+                    {type: "MoveInParent", position: {type: "End"}},
+                ],
+            },
+        });
+
+        await ProcessContextModule.waitForTestTasks();
+        const [parent1Listing, parent2Listing] = await runAllPromises([
+            getParentTaskListing(session, parentTask1.id),
+            getParentTaskListing(session, parentTask2.id),
+        ]);
+        const moveCursors = response.body.results.flatMap(result =>
+            result.type === "MoveInParent" ? [result.cursor] : [],
+        );
+
+        expect({
+            status: response.status,
+            results: response.body.results,
+            uniqueMoveCursorCount: new Set(moveCursors).size,
+            parent1TaskIds: parent1Listing.taskIds,
+            parent2TaskIds: parent2Listing.taskIds,
+        }).toEqual({
+            status: 200,
+            results: [
+                {type: "MoveInParent", cursor: expect.any(String)},
+                {type: "SetParent"},
+                {type: "MoveInParent", cursor: parent2Listing.cursors[1]},
+            ],
+            uniqueMoveCursorCount: 2,
+            parent1TaskIds: [parent1Task.id],
+            parent2TaskIds: [parent2Task.id, movedTask.id],
         });
     });
 

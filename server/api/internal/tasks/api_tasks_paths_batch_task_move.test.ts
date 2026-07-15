@@ -11,7 +11,7 @@ import {TestTaskCollection} from "~/server/tasks/data/test_helpers/test_task_col
 import {TestTaskRealtimeServer} from "~/server/tasks/realtime/test_helpers/test_task_realtime_server.js";
 import {
     ApiGetTaskCollectionTasksResponse,
-    ApiTaskPatch,
+    ApiTaskBatchPatch,
 } from "~/shared/api/specification/types/api_specification_convenience_types.js";
 import {ProcessContextModule} from "~/shared/context/process_context_module.js";
 import {createArrayWithLength} from "~/shared/helpers/array/create_array_with_length.js";
@@ -19,7 +19,6 @@ import {filterMapArray} from "~/shared/helpers/array/filter_map_array.js";
 import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 import {StableRandom} from "~/shared/helpers/number/stable_random.js";
-import {TaskId} from "~/shared/id/types/id_types.js";
 
 const baseContext = createTestContext({
     shouldStartOpensearch: true,
@@ -291,13 +290,14 @@ for (const testSuite of testSuites) {
                 expect(oldBody.tasks).toHaveLength(tasks.length);
                 expect(oldBody.nextCursor).toBeNull();
 
-                const patches: Array<{id: TaskId; patch: ApiTaskPatch}> = [];
+                const patches: Array<ApiTaskBatchPatch> = [];
 
                 for (const move of moves) {
                     const task = tasks[move.from]!;
 
                     if (move.to === 0) {
                         patches.push({
+                            type: "Update",
                             id: task.id,
                             patch: {
                                 type: "MoveInCollection",
@@ -307,6 +307,7 @@ for (const testSuite of testSuites) {
                         });
                     } else if (move.to === taskCount) {
                         patches.push({
+                            type: "Update",
                             id: task.id,
                             patch: {
                                 type: "MoveInCollection",
@@ -316,6 +317,7 @@ for (const testSuite of testSuites) {
                         });
                     } else {
                         patches.push({
+                            type: "Update",
                             id: task.id,
                             patch: {
                                 type: "MoveInCollection",

@@ -11,7 +11,6 @@ import {
 import {intoApiMessage} from "~/server/api/internal/shared/into_api_message.js";
 import {intoApiMessageExperimentalApproval} from "~/server/api/internal/shared/into_api_message_stream_part_payload.js";
 import {ApiTaskConverter} from "~/server/api/internal/tasks/internal/api_task_converter.js";
-import {createApiPatchTaskResponseCollections} from "~/server/api/internal/tasks/internal/create_api_patch_task_response_collections.js";
 import {createApiTaskActor} from "~/server/api/internal/tasks/internal/create_api_task_actor.js";
 import {createIntoApiTaskCommentContentPayloadParent} from "~/server/api/internal/tasks/internal/create_into_api_task_comment_content_payload_parent.ts.js";
 import {createTaskFromApi} from "~/server/api/internal/tasks/internal/create_task_from_api.js";
@@ -84,49 +83,19 @@ export const apiTasksPaths: Pick<
     "/tasks": {
         patch: async (context, {requestBody}) => {
             const {spaceId, patches} = requestBody;
-            const consistency = "StrongWithinCache" as const;
-            const taskIds = Array.from(new Set(patches.map(({id}) => id)));
-            const movedCollectionIdsByTaskId = new Map<TaskId, Set<TaskCollectionId>>();
 
-            for (const {id, patch} of patches) {
-                if (patch.type !== "MoveInCollection") continue;
+            const {updatedTasks, updateEvent, results} = await updateTasksWithoutNotesFromApi(
+                context,
+                {spaceId, patches},
+            );
 
-                let movedCollectionIds = movedCollectionIdsByTaskId.get(id);
-
-                if (movedCollectionIds === undefined) {
-                    movedCollectionIds = new Set();
-                    movedCollectionIdsByTaskId.set(id, movedCollectionIds);
-                }
-
-                movedCollectionIds.add(patch.collectionId);
-            }
-
-            const [{updatedTasks, updateEvent}, taskNotesEntries] = await runAllPromises([
-                updateTasksWithoutNotesFromApi(context, {spaceId, patches}),
-                runAllPromises(
-                    taskIds.map(async taskId => {
-                        const {notes} = await getApiTaskNotes(context, taskId, {consistency});
-                        return [taskId, notes] as const;
-                    }),
-                ),
-            ]);
-
-            const taskNotesById = new Map(taskNotesEntries);
             const converter = new ApiTaskConverter(updateEvent);
 
             return {
                 content: {
                     spaceId,
-                    tasks: updatedTasks.map(task => ({
-                        task: {
-                            ...converter.into(task),
-                            notes: assertExists(taskNotesById.get(task.id)),
-                        },
-                        collections: createApiPatchTaskResponseCollections(
-                            task,
-                            movedCollectionIdsByTaskId.get(task.id) ?? [],
-                        ),
-                    })),
+                    tasks: updatedTasks.map(task => converter.into(task)),
+                    results: results.map(result => ({type: "Update", result})),
                 },
             };
         },
@@ -241,39 +210,23 @@ export const apiTasksPaths: Pick<
     "/tasks/{id}": {
         patch: async (context, {pathParameters, requestBody}) => {
             const spaceId = context.actor.getSpaceId();
-            const consistency = "StrongWithinCache" as const;
             const taskId = pathParameters.id;
-            const movedCollectionIds = new Set<TaskCollectionId>();
 
-            for (const patch of requestBody.patches) {
-                if (patch.type === "MoveInCollection") {
-                    movedCollectionIds.add(patch.collectionId);
-                }
-            }
-
-            const [{updatedTask, updateEvent}, {notes}] = await runAllPromises([
-                updateTaskWithoutNotesFromApi(context, {
+            const {updatedTask, updateEvent, results} = await updateTaskWithoutNotesFromApi(
+                context,
+                {
                     spaceId,
                     taskId,
                     actorId: requestBody.actor?.id,
                     patches: requestBody.patches,
-                }),
-                getApiTaskNotes(context, taskId, {consistency}),
-            ]);
-
-            const collections = createApiPatchTaskResponseCollections(
-                updatedTask,
-                movedCollectionIds,
+                },
             );
 
             return {
                 content: {
                     spaceId,
-                    task: {
-                        ...new ApiTaskConverter(updateEvent).into(updatedTask),
-                        notes,
-                    },
-                    ...(collections.length > 0 ? {collections} : {}),
+                    task: new ApiTaskConverter(updateEvent).into(updatedTask),
+                    results,
                 },
             };
         },

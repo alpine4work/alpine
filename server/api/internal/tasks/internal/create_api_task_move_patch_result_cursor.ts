@@ -1,18 +1,20 @@
+import {HybridLogicalTime} from "~/shared/helpers/clock/hybrid_logical_clock.js";
 import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
 import {ApiTaskQueryCursor} from "~/shared/id/types/api_task_query_cursor.js";
-import {TaskCollectionId} from "~/shared/id/types/id_types.js";
+import {TaskCollectionId, TaskId} from "~/shared/id/types/id_types.js";
 import {encodeApiTaskQueryCursor} from "~/shared/tasks/model/api_task_query_cursor_encoder.js";
-import {TaskModel} from "~/shared/tasks/model/task_model.js";
 import {TaskPosition} from "~/shared/tasks/task_position.js";
 import {TaskQueryNormalizedSort} from "~/shared/tasks/task_query_normalized_sort.js";
 import {TaskQuerySortCursor} from "~/shared/tasks/task_query_sort_cursor.js";
 
 export function createApiTaskMovePatchResultCursor({
-    task,
+    id,
+    createdTime,
     position,
     scope,
 }: {
-    task: TaskModel;
+    id: TaskId;
+    createdTime: HybridLogicalTime;
     position: TaskPosition;
     scope: {type: "Parent"} | {type: "Collection"; collectionId: TaskCollectionId};
 }): ApiTaskQueryCursor {
@@ -51,8 +53,8 @@ export function createApiTaskMovePatchResultCursor({
 
     const cursor: TaskQuerySortCursor = [
         [position.orderTime[0], position.orderTime[1], position.orderKey],
-        task.getCreatedTime().absoluteTime,
-        task.id,
+        createdTime,
+        id,
     ];
 
     return encodeApiTaskQueryCursor(sorts, cursor);
