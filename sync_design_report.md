@@ -365,7 +365,67 @@ server and 1–8 KB exact bitmaps, it buys nothing here. Bloom-filter cache summ
 precedent for the bloom idea and their operational history (no deletion, hourly rebuilds,
 staleness in both directions) is the argument against it.
 
-## 8. Open questions
+## 8. Revised recommendation (after discussion): fallback-registered subscriptions
+
+Design D assumed an explicit `subscribeTables` call, but the client cannot enumerate its
+interest up front — which tables an action touches depends on the schema, which lives in
+the tables. The revision derives subscriptions from server-observed read-sets instead, and
+adopts option C's exact bitsets server-side as a memory-for-latency trade:
+
+- **Cold start does nothing.** No stores validated, no tables attached. The first action
+  hits `TableNotAttachedError` and falls back.
+- **Fallback = registration.** The fallback request carries `{tableId, heldPagesBitset,
+  watermark}` for **every cached-but-unregistered table** (not just the action's target —
+  the client can't predict join fan-out; the set shrinks to empty as the session warms
+  up). The server executes the action; every table the action read becomes a subscription
+  for this connection. The response carries the action's read pages (deduped by the rule
+  below), plus inline catch-up for newly registered tables: data for
+  `changed-since-watermark ∩ bitset`, new watermarks, `fileSizeInPages`, `tableAccess`.
+- **Dedup rule** (from option C): skip page X of table T iff the *request's* bitset
+  contains X **and** server `version(X) ≤` the request's watermark for T. Dedup must only
+  consult client-sent bitsets — never the server's drifted copy — or an evicted page
+  livelocks like the bloom false-positive case.
+- **Server state:** per connection, `Map<tableId, bitset>` + watermark. Maintained as a
+  **superset**: replaced when the client sends a fresh bitset, OR-ed when the server sends
+  pages, never subtracted. Superset staleness only ever over-sends (client skips diffs
+  with no base — existing behavior). ~125 B/table typical vs ~50–100 B/page today.
+- **Realtime** filtered by subscription and bitset, with three carve-outs: (1) the
+  originator's own mutation is never bitset-filtered (or its write-set is OR-ed in at
+  commit) — the writer's optimistic pages may be absent from the server's copy and
+  filtering them puts a refetch on the just-edited row; (2) when all of a table's diffs
+  filter out, still send a `{version, fileSizeInPages}` stub — file size must stay
+  current on a sparse cache, and it keeps watermarks from lagging; (3) `previousVersion
+  === 0` diffs (new pages) should be *applied against a zero base* client-side instead of
+  skipped, eliminating the read-miss round trip for the commonest realtime case (row
+  insert → page append/split). Today's client skips them (`database_client.ts:577-578`),
+  which is why new rows already cost a refetch.
+- **The unregistered-table gate (load-bearing invariant):** a cached table must not serve
+  local reads until registered on the current connection epoch. Otherwise a table cached
+  last session but not yet touched this session serves stale data silently — it was never
+  subscribed, so its realtime is filtered. Concretely: attach-on-miss becomes
+  attach-after-register. The cost — one round trip on first touch of each cached table,
+  even when fully cached — is the true price of deleting `ensureCacheIsUpToDate`, and is
+  identical to D's validate-on-first-attach.
+- **Reconnect** is re-registration: the client already knows its interest set, so it sends
+  the same `{tableId, bitset, watermark}` payload for subscribed tables in one batch,
+  rehydrating the server's in-memory view and receiving inline catch-up. This replaces
+  `ensureCacheIsUpToDate` with O(tables × bitset) up / O(changed ∩ held) down.
+- **Prerequisite:** SSR loader seeds must carry a per-table snapshot version so watermarks
+  initialize; per-page versions alone leave a seeded table at watermark 0, degenerating
+  its first registration to "everything changed".
+- **Graft-style escape hatch:** keep bitsets + watermarks in the request shape regardless.
+  If per-connection memory ever matters more than the round trip, the server can stop
+  retaining bitsets and downgrade realtime to table-level filtering (or version-bump
+  notifications) without a protocol change — the retained-state decision stays server-
+  internal.
+
+Versus §5's D: same cursors, same lazy interest, same deletion of `BrowserPageTracker`
+and `acknowledgePages`; adds exact per-connection bitsets (small, reconstructible,
+correctness-free — losing them only costs bandwidth) to buy back the reconnect and
+realtime round trips D traded away. Realtime in both designs is push; the difference is
+bandwidth on un-held pages, not round trips.
+
+## 9. Open questions
 
 1. **Cursor advancement on skipped diffs.** Advancing cursor(T) on an event whose diffs
    were all skipped (no held bases) is correct only if events for T are delivered in
@@ -379,10 +439,11 @@ staleness in both directions) is the argument against it.
 3. **Multi-tab worker.** Subscriptions are per WebSocket connection but the shared worker
    multiplexes tabs; the subscription set is the union of open tables across tabs, and
    unsubscribe needs refcounting in `DatabaseConnectionManager`.
-4. **Whether fallback-response dedup matters at all.** Today's tracker exists for it;
-   before porting C's bitmap rule, measure how often `executeActionViaServer` resends
-   pages the client holds under realistic partial caches. If it's rare, ship D with no
-   dedup and delete the concept.
+4. **Subscription growth within a connection.** §8 has no unsubscribe: a connection's
+   subscription set accumulates every table its actions ever read this session (bounded
+   by tables-touched, and client-side LRU eviction doesn't unsubscribe — evicted tables
+   just over-receive diffs the client skips). Likely fine; add unsubscribe-on-evict only
+   if a real session shows a long tail of once-touched tables paying realtime bandwidth.
 5. **Checksum hardening (optional).** A LiteFS-style incremental whole-table checksum
    (`XOR of crc64(pageIndex, data)`) would let `subscribeTables` *prove* cache/server
    agreement in 8–16 bytes and catch divergence bugs (e.g. the tombstone/index-rewrite
