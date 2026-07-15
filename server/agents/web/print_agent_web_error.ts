@@ -13,7 +13,7 @@ import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
  * `server/agents/web`. Functions like `quote()` and `curlyQuote()` make sure to
  * properly escape their inputs so the resulting string is valid Markdown.
  */
-export async function printAgentWebError(error: unknown): Promise<string> {
+export async function printAgentWebError(title: string, error: unknown): Promise<string> {
     let displayMessages: Array<ErrorDisplayMessage> = [];
 
     if (!(error instanceof AggregateError)) {
@@ -38,12 +38,12 @@ export async function printAgentWebError(error: unknown): Promise<string> {
     let markdown = "";
 
     if (displayMessages.length === 1) {
-        markdown = `Error: ${printErrorDisplayMessage(displayMessages[0]!)}`;
+        markdown = `Error: ${title.length > 0 ? `${title}. ` : ""}${printErrorDisplayMessage(displayMessages[0]!)}`;
     } else if (displayMessages.length > 0) {
-        markdown = `${displayMessages.length} errors:\n\n`;
+        markdown = `Error: ${title.length > 0 ? `${title}. ` : ""}(${displayMessages.length} errors)\n\n`;
         markdown += displayMessages.map(printErrorDisplayMessage).join("\n\n");
     } else {
-        markdown = `Error: ${printErrorDisplayMessage(defaultErrorDisplayMessage)}`;
+        markdown = `Error: ${title.length > 0 ? `${title}. ` : ""}${printErrorDisplayMessage(defaultErrorDisplayMessage)}`;
 
         // If this is an error without a display message, then include the raw error
         // message so we don't show just a generic "Unexpected error" message. An agent web
@@ -58,7 +58,7 @@ export async function printAgentWebError(error: unknown): Promise<string> {
             // Escape markdown formatting characters like `**foo**` and what not.
             errorMessage = printMarkdownTree({
                 type: "paragraph",
-                children: [{type: "text", value: error.message}],
+                children: [{type: "text", value: errorMessage}],
             }).trim();
 
             markdown += `\n\n> Internal error: ${errorMessage}`;
