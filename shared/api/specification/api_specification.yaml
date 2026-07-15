@@ -1334,7 +1334,7 @@ paths:
                                             $ref: "#/components/schemas/Content"
             responses:
                 default: {$ref: "#/components/responses/Error"}
-                "200": {$ref: "#/components/responses/GetTask"}
+                "200": {$ref: "#/components/responses/GetTaskWithNotes"}
 
     /tasks/{id}:
         parameters:

@@ -17,6 +17,10 @@ import {testTaskClock} from "~/server/tasks/data/test_helpers/test_task_clock.js
 import {TestTaskCollection} from "~/server/tasks/data/test_helpers/test_task_collection.js";
 import {updateTaskNotesContent} from "~/server/tasks/data/update_task_notes_content.js";
 import {TestTaskRealtimeServer} from "~/server/tasks/realtime/test_helpers/test_task_realtime_server.js";
+import {
+    ApiTaskBatchPatchResult,
+    ApiTaskPatchResult,
+} from "~/shared/api/specification/types/api_specification_convenience_types.js";
 import {ProcessContextModule} from "~/shared/context/process_context_module.js";
 import {InternalError} from "~/shared/error/error.js";
 import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
@@ -168,7 +172,7 @@ test("can read task information", async () => {
     });
 });
 
-test("can read task information without notes", async () => {
+test("base task route does not load notes", async () => {
     const space = await TestSpace.create(context);
     const session1 = await space.createSession({name: "Alice Smith", role: "Admin"});
     const session2 = await space.createSession({name: "Bob Johnson"});
@@ -182,7 +186,7 @@ test("can read task information without notes", async () => {
 
     await ProcessContextModule.waitForTestTasks();
 
-    const response = await server.GET(`/tasks/${task.id}-without-notes`, {
+    const response = await server.GET(`/tasks/${task.id}`, {
         headers: {authorization: `bearer ${apiKey}`},
     });
 
@@ -208,7 +212,7 @@ test("can read task information without notes", async () => {
     });
 });
 
-test("can query subtasks without loading parent task notes", async () => {
+test("base subtask routes do not load parent task notes", async () => {
     const space = await TestSpace.create(context);
     const session = await space.createSession({role: "Admin"});
     const bot = await TestBot.createAndInstantiate(session);
@@ -218,10 +222,10 @@ test("can query subtasks without loading parent task notes", async () => {
 
     await ProcessContextModule.waitForTestTasks();
 
-    const getResponse = await server.GET(`/tasks/${parentTask.id}-without-notes/subtasks`, {
+    const getResponse = await server.GET(`/tasks/${parentTask.id}/subtasks`, {
         headers: {authorization: `bearer ${apiKey}`},
     });
-    const postResponse = await server.POST(`/tasks/${parentTask.id}-without-notes/subtasks-query`, {
+    const postResponse = await server.POST(`/tasks/${parentTask.id}/subtasks-query`, {
         headers: {authorization: `bearer ${apiKey}`},
         body: {},
     });
@@ -250,6 +254,54 @@ test("can query subtasks without loading parent task notes", async () => {
             status: 200,
             taskId: parentTask.id,
             hasNotes: false,
+            subtaskIds: [subtask.id],
+        },
+    });
+});
+
+test("with-notes subtask routes load parent task notes", async () => {
+    const space = await TestSpace.create(context);
+    const session = await space.createSession({role: "Admin"});
+    const bot = await TestBot.createAndInstantiate(session);
+    const apiKey = await bot.createApiKey(session);
+    const parentTask = await TestTask.create(session, {title: "Parent"});
+    const subtask = await TestTask.create(session, {title: "Subtask", parent: parentTask});
+    await parentTask.typeNotes(session, "Parent task notes");
+
+    await ProcessContextModule.waitForTestTasks();
+
+    const getResponse = await server.GET(`/tasks/${parentTask.id}-with-notes/subtasks`, {
+        headers: {authorization: `bearer ${apiKey}`},
+    });
+    const postResponse = await server.POST(`/tasks/${parentTask.id}-with-notes/subtasks-query`, {
+        headers: {authorization: `bearer ${apiKey}`},
+        body: {},
+    });
+
+    expect({
+        get: {
+            status: getResponse.status,
+            taskId: getResponse.body.task.id,
+            notes: getResponse.body.task.notes,
+            subtaskIds: getResponse.body.tasks.map(({task}: {task: {id: TaskId}}) => task.id),
+        },
+        post: {
+            status: postResponse.status,
+            taskId: postResponse.body.task.id,
+            notes: postResponse.body.task.notes,
+            subtaskIds: postResponse.body.tasks.map(({task}: {task: {id: TaskId}}) => task.id),
+        },
+    }).toEqual({
+        get: {
+            status: 200,
+            taskId: parentTask.id,
+            notes: expect.objectContaining({version: 1}),
+            subtaskIds: [subtask.id],
+        },
+        post: {
+            status: 200,
+            taskId: parentTask.id,
+            notes: expect.objectContaining({version: 1}),
             subtaskIds: [subtask.id],
         },
     });
@@ -312,7 +364,7 @@ test("can read task with notes content", async () => {
     await ProcessContextModule.waitForTestTasks();
 
     expect(
-        await server.GET(`/tasks/${task.id}`, {
+        await server.GET(`/tasks/${task.id}-with-notes`, {
             headers: {authorization: `bearer ${apiKey}`},
         }),
     ).toEqual({
@@ -611,11 +663,11 @@ test("task GET routes and PATCH return matching errors without task access", asy
 
     await ProcessContextModule.waitForTestTasks();
 
-    const [getResponse, getWithoutNotesResponse, patchResponse] = await runAllPromises([
+    const [getResponse, getWithNotesResponse, patchResponse] = await runAllPromises([
         server.GET(`/tasks/${task.id}`, {
             headers: {authorization: `bearer ${apiKey}`},
         }),
-        server.GET(`/tasks/${task.id}-without-notes`, {
+        server.GET(`/tasks/${task.id}-with-notes`, {
             headers: {authorization: `bearer ${apiKey}`},
         }),
         server.PATCH(`/tasks/${task.id}`, {
@@ -628,14 +680,14 @@ test("task GET routes and PATCH return matching errors without task access", asy
 
     expect({
         getResponse,
-        getWithoutNotesResponse,
+        getWithNotesResponse,
         patchResponse,
         sameErrorMessage:
-            getApiErrorMessage(getResponse) === getApiErrorMessage(getWithoutNotesResponse) &&
+            getApiErrorMessage(getResponse) === getApiErrorMessage(getWithNotesResponse) &&
             getApiErrorMessage(getResponse) === getApiErrorMessage(patchResponse),
     }).toEqual({
         getResponse: expectedApiErrorResponse(403, "You aren\u2019t allowed to access this task"),
-        getWithoutNotesResponse: expectedApiErrorResponse(
+        getWithNotesResponse: expectedApiErrorResponse(
             403,
             "You aren\u2019t allowed to access this task",
         ),
@@ -654,11 +706,11 @@ test("task GET routes and PATCH return matching errors for a non-existent task",
     await ProcessContextModule.waitForTestTasks();
 
     const taskId = generateId<TaskId>();
-    const [getResponse, getWithoutNotesResponse, patchResponse] = await runAllPromises([
+    const [getResponse, getWithNotesResponse, patchResponse] = await runAllPromises([
         server.GET(`/tasks/${taskId}`, {
             headers: {authorization: `bearer ${apiKey}`},
         }),
-        server.GET(`/tasks/${taskId}-without-notes`, {
+        server.GET(`/tasks/${taskId}-with-notes`, {
             headers: {authorization: `bearer ${apiKey}`},
         }),
         server.PATCH(`/tasks/${taskId}`, {
@@ -671,14 +723,14 @@ test("task GET routes and PATCH return matching errors for a non-existent task",
 
     expect({
         getResponse,
-        getWithoutNotesResponse,
+        getWithNotesResponse,
         patchResponse,
         sameErrorMessage:
-            getApiErrorMessage(getResponse) === getApiErrorMessage(getWithoutNotesResponse) &&
+            getApiErrorMessage(getResponse) === getApiErrorMessage(getWithNotesResponse) &&
             getApiErrorMessage(getResponse) === getApiErrorMessage(patchResponse),
     }).toEqual({
         getResponse: expectedApiErrorResponse(404, "doesn\u2019t exist"),
-        getWithoutNotesResponse: expectedApiErrorResponse(404, "doesn\u2019t exist"),
+        getWithNotesResponse: expectedApiErrorResponse(404, "doesn\u2019t exist"),
         patchResponse: expectedApiErrorResponse(404, "doesn\u2019t exist"),
         sameErrorMessage: true,
     });
@@ -697,11 +749,11 @@ test("task GET routes and PATCH return matching errors for a task in a different
 
     await ProcessContextModule.waitForTestTasks();
 
-    const [getResponse, getWithoutNotesResponse, patchResponse] = await runAllPromises([
+    const [getResponse, getWithNotesResponse, patchResponse] = await runAllPromises([
         server.GET(`/tasks/${task.id}`, {
             headers: {authorization: `bearer ${apiKey}`},
         }),
-        server.GET(`/tasks/${task.id}-without-notes`, {
+        server.GET(`/tasks/${task.id}-with-notes`, {
             headers: {authorization: `bearer ${apiKey}`},
         }),
         server.PATCH(`/tasks/${task.id}`, {
@@ -714,14 +766,14 @@ test("task GET routes and PATCH return matching errors for a task in a different
 
     expect({
         getResponse,
-        getWithoutNotesResponse,
+        getWithNotesResponse,
         patchResponse,
         sameErrorMessage:
-            getApiErrorMessage(getResponse) === getApiErrorMessage(getWithoutNotesResponse) &&
+            getApiErrorMessage(getResponse) === getApiErrorMessage(getWithNotesResponse) &&
             getApiErrorMessage(getResponse) === getApiErrorMessage(patchResponse),
     }).toEqual({
         getResponse: expectedApiErrorResponse(403, "You don\u2019t have access to this space"),
-        getWithoutNotesResponse: expectedApiErrorResponse(
+        getWithNotesResponse: expectedApiErrorResponse(
             403,
             "You don\u2019t have access to this space",
         ),
@@ -2291,7 +2343,7 @@ describe("PATCH /tasks", () => {
         await ProcessContextModule.waitForTestTasks();
         const updatedListing = await getBatchTaskCollectionListing(apiKey, collection.id);
         const responseTasks: ReadonlyArray<{id: TaskId}> = response.body.tasks;
-        const movedCursors = response.body.results.flatMap(({result}) =>
+        const movedCursors = response.body.results.flatMap(({result}: ApiTaskBatchPatchResult) =>
             result.type === "MoveInCollection" ? [result.cursor] : [],
         );
 
@@ -3438,7 +3490,7 @@ describe("MoveInCollection patch", () => {
 
         await ProcessContextModule.waitForTestTasks();
         const listing = await getTaskCollectionListing(apiKey, collection.id);
-        const moveCursors = response.body.results.flatMap(result =>
+        const moveCursors = response.body.results.flatMap((result: ApiTaskPatchResult) =>
             result.type === "MoveInCollection" ? [result.cursor] : [],
         );
 
@@ -3514,7 +3566,7 @@ describe("MoveInCollection patch", () => {
             getTaskCollectionListing(apiKey, collection1.id),
             getTaskCollectionListing(apiKey, collection2.id),
         ]);
-        const moveCursors = response.body.results.flatMap(result =>
+        const moveCursors = response.body.results.flatMap((result: ApiTaskPatchResult) =>
             result.type === "MoveInCollection" ? [result.cursor] : [],
         );
 
@@ -3961,7 +4013,7 @@ describe("MoveInParent patch", () => {
             getParentTaskListing(session, parentTask1.id),
             getParentTaskListing(session, parentTask2.id),
         ]);
-        const moveCursors = response.body.results.flatMap(result =>
+        const moveCursors = response.body.results.flatMap((result: ApiTaskPatchResult) =>
             result.type === "MoveInParent" ? [result.cursor] : [],
         );
 
@@ -6699,7 +6751,7 @@ describe("/tasks/{id}/subtasks", () => {
         });
     });
 
-    test("GET returns the full task and all of its direct subtasks", async () => {
+    test("GET with notes returns the full task and all of its direct subtasks", async () => {
         const space = await TestSpace.create(context);
         const session = await space.createSession({name: "Alice Smith", role: "Admin"});
 
@@ -6719,7 +6771,7 @@ describe("/tasks/{id}/subtasks", () => {
         await TestTask.create(session, {title: "Unrelated Task"});
         await ProcessContextModule.waitForTestTasks();
 
-        const response = await server.GET(`/tasks/${parentTask.id}/subtasks`, {
+        const response = await server.GET(`/tasks/${parentTask.id}-with-notes/subtasks`, {
             headers: {authorization: `bearer ${apiKey}`},
         });
 

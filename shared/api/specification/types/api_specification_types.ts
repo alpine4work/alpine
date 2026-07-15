@@ -2056,7 +2056,7 @@ export namespace ApiSpecification {
                     };
                 };
                 readonly responses: {
-                    readonly 200: components["responses"]["GetTask"];
+                    readonly 200: components["responses"]["GetTaskWithNotes"];
                     readonly default: components["responses"]["Error"];
                 };
             };

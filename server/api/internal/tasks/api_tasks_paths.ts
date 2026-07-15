@@ -229,6 +229,29 @@ export const apiTasksPaths: Pick<
         },
 
         get: async (context, {pathParameters}) => {
+            const spaceId = context.actor.getSpaceId();
+
+            const result = await context.tasks.loadQueries(
+                spaceId,
+                {
+                    queries: [],
+                    taskIds: [pathParameters.id],
+                    collectionIds: [],
+                },
+                {consistency: "StrongWithinCache"},
+            );
+
+            return {
+                content: {
+                    spaceId,
+                    task: new ApiTaskConverter(result.updateEvent).into(pathParameters.id),
+                },
+            };
+        },
+    },
+
+    "/tasks/{id}-with-notes": {
+        get: async (context, {pathParameters}) => {
             const [result, {notes}] = await runAllPromises([
                 // TODO(calebmer): An optimization that would be pretty nice here is if we move
                 // notes loading into `TaskRealtimeService`. Currently we have to load the data for
@@ -264,30 +287,69 @@ export const apiTasksPaths: Pick<
         },
     },
 
-    "/tasks/{id}-without-notes": {
-        get: async (context, {pathParameters}) => {
-            const spaceId = context.actor.getSpaceId();
+    "/tasks/{id}/subtasks": {
+        get: async (context, {pathParameters, queryParameters}) => {
+            const taskId = pathParameters.id;
 
-            const result = await context.tasks.loadQueries(
-                spaceId,
-                {
-                    queries: [],
-                    taskIds: [pathParameters.id],
-                    collectionIds: [],
+            const {spaceId, updateEvent, nextCursor, tasks} = await loadTasksFromApiQuery(context, {
+                query: {
+                    type: "Children",
+                    taskId,
+                    limit: queryParameters.limit ?? 10,
+                    evaluationContext: {
+                        currentAccountId: null,
+                        currentDate: today(defaultTimeZone),
+                    },
+                    expensivelyAfterCursorForApi: queryParameters.cursor,
                 },
-                {consistency: "StrongWithinCache"},
-            );
+                taskIds: [taskId],
+                collectionIds: [],
+            });
 
             return {
                 content: {
                     spaceId,
-                    task: new ApiTaskConverter(result.updateEvent).into(pathParameters.id),
+                    task: new ApiTaskConverter(updateEvent).into(taskId),
+                    nextCursor,
+                    tasks,
                 },
             };
         },
     },
 
-    "/tasks/{id}/subtasks": {
+    "/tasks/{id}/subtasks-query": {
+        post: async (context, {pathParameters, requestBody}) => {
+            const taskId = pathParameters.id;
+
+            const {spaceId, updateEvent, nextCursor, tasks} = await loadTasksFromApiQuery(context, {
+                query: {
+                    type: "Children",
+                    taskId,
+                    limit: requestBody.limit ?? 10,
+                    filters: requestBody.filters?.map(fromApiTaskQueryFilter),
+                    sorts: requestBody.sorts?.map(fromApiTaskQuerySort),
+                    evaluationContext: {
+                        currentAccountId: null,
+                        currentDate: today(defaultTimeZone),
+                    },
+                    expensivelyAfterCursorForApi: requestBody.cursor,
+                },
+                taskIds: [taskId],
+                collectionIds: [],
+            });
+
+            return {
+                content: {
+                    spaceId,
+                    task: new ApiTaskConverter(updateEvent).into(taskId),
+                    nextCursor,
+                    tasks,
+                },
+            };
+        },
+    },
+
+    "/tasks/{id}-with-notes/subtasks": {
         get: async (context, {pathParameters, queryParameters}) => {
             const taskId = pathParameters.id;
 
@@ -323,7 +385,7 @@ export const apiTasksPaths: Pick<
         },
     },
 
-    "/tasks/{id}/subtasks-query": {
+    "/tasks/{id}-with-notes/subtasks-query": {
         post: async (context, {pathParameters, requestBody}) => {
             const taskId = pathParameters.id;
 
@@ -354,68 +416,6 @@ export const apiTasksPaths: Pick<
                         ...new ApiTaskConverter(updateEvent).into(taskId),
                         notes,
                     },
-                    nextCursor,
-                    tasks,
-                },
-            };
-        },
-    },
-
-    "/tasks/{id}-without-notes/subtasks": {
-        get: async (context, {pathParameters, queryParameters}) => {
-            const taskId = pathParameters.id;
-
-            const {spaceId, updateEvent, nextCursor, tasks} = await loadTasksFromApiQuery(context, {
-                query: {
-                    type: "Children",
-                    taskId,
-                    limit: queryParameters.limit ?? 10,
-                    evaluationContext: {
-                        currentAccountId: null,
-                        currentDate: today(defaultTimeZone),
-                    },
-                    expensivelyAfterCursorForApi: queryParameters.cursor,
-                },
-                taskIds: [taskId],
-                collectionIds: [],
-            });
-
-            return {
-                content: {
-                    spaceId,
-                    task: new ApiTaskConverter(updateEvent).into(taskId),
-                    nextCursor,
-                    tasks,
-                },
-            };
-        },
-    },
-
-    "/tasks/{id}-without-notes/subtasks-query": {
-        post: async (context, {pathParameters, requestBody}) => {
-            const taskId = pathParameters.id;
-
-            const {spaceId, updateEvent, nextCursor, tasks} = await loadTasksFromApiQuery(context, {
-                query: {
-                    type: "Children",
-                    taskId,
-                    limit: requestBody.limit ?? 10,
-                    filters: requestBody.filters?.map(fromApiTaskQueryFilter),
-                    sorts: requestBody.sorts?.map(fromApiTaskQuerySort),
-                    evaluationContext: {
-                        currentAccountId: null,
-                        currentDate: today(defaultTimeZone),
-                    },
-                    expensivelyAfterCursorForApi: requestBody.cursor,
-                },
-                taskIds: [taskId],
-                collectionIds: [],
-            });
-
-            return {
-                content: {
-                    spaceId,
-                    task: new ApiTaskConverter(updateEvent).into(taskId),
                     nextCursor,
                     tasks,
                 },

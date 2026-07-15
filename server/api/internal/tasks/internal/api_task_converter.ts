@@ -3,7 +3,7 @@ import {intoApiTaskLayout} from "~/server/api/internal/tasks/internal/into_api_t
 import {intoApiTaskStatus} from "~/shared/api/content/closed_source/into_api_task_status.js";
 import {
     ApiTaskParentResponse,
-    ApiTaskWithoutNotesResponse,
+    ApiTaskResponse,
 } from "~/shared/api/specification/types/api_specification_convenience_types.js";
 import {filterMapArray} from "~/shared/helpers/array/filter_map_array.js";
 import {assert} from "~/shared/helpers/control/assert.js";
@@ -66,7 +66,7 @@ export class ApiTaskConverter {
     into(
         task: TaskId | TaskModel,
         options: {referencedAccounts?: ReadonlyArray<AccountModel>} = emptyObject,
-    ): ApiTaskWithoutNotesResponse {
+    ): ApiTaskResponse {
         if (typeof task === "string") {
             const backfillTask = assertExists(this.#backfillTaskById.get(task));
             assert(backfillTask.type === "Authorized");

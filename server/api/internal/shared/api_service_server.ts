@@ -403,7 +403,7 @@ export async function createApiServiceRequestListener(
 
         // Convert path parameters from the OpenAPI format (`/hello/{name}`) to the
         // `find-my-way` format (`/hello/:name`). Parameters may have a static suffix, as
-        // in `/tasks/{id}-without-notes`, but must begin their path segment.
+        // in `/tasks/{id}-with-notes`, but must begin their path segment.
         const findMyWayPath = openApiPath
             .split("/")
             .map(pathSegment => {
