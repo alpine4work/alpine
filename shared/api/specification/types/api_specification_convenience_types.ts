@@ -1284,9 +1284,6 @@ export type ApiGetMessageResponse =
 export type ApiGetMessagesResponse =
     ApiSpecification.components["responses"]["GetMessages"]["content"]["application/json"];
 
-export type ApiGetMessagesWithParentsResponse =
-    ApiSpecification.components["responses"]["GetMessagesWithParents"]["content"]["application/json"];
-
 export type ApiGetMessageExperimentalApprovalsResponse =
     ApiSpecification.components["responses"]["GetMessageExperimentalApprovals"]["content"]["application/json"];
 

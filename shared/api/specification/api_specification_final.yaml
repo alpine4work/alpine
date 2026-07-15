@@ -412,39 +412,6 @@ paths:
                     $ref: "#/components/responses/GetMessage"
                 default:
                     $ref: "#/components/responses/Error"
-    /chats/{id}/messages-with-parents:
-        parameters:
-            - name: id
-              in: path
-              required: true
-              schema:
-                  $ref: "#/components/schemas/ChatId"
-        get:
-            parameters:
-                - name: limit
-                  in: query
-                  schema:
-                      type: integer
-                      minimum: 1
-                      maximum: 100
-                      default: 10
-                - name: cursor
-                  in: query
-                  schema:
-                      type: integer
-                - name: from
-                  in: query
-                  schema:
-                      type: string
-                      enum:
-                          - Start
-                          - End
-                      default: Start
-            responses:
-                "200":
-                    $ref: "#/components/responses/GetMessagesWithParents"
-                default:
-                    $ref: "#/components/responses/Error"
     /chats/{id}/messages/{index}/stream/completion:
         parameters:
             - name: id
@@ -787,44 +754,6 @@ paths:
             responses:
                 "200":
                     $ref: "#/components/responses/GetMessage"
-                default:
-                    $ref: "#/components/responses/Error"
-    /documents/{id}/threads/{threadId}/messages-with-parents:
-        parameters:
-            - name: id
-              in: path
-              required: true
-              schema:
-                  $ref: "#/components/schemas/DocumentId"
-            - name: threadId
-              in: path
-              required: true
-              schema:
-                  $ref: "#/components/schemas/DocumentThreadId"
-        get:
-            parameters:
-                - name: limit
-                  in: query
-                  schema:
-                      type: integer
-                      minimum: 1
-                      maximum: 100
-                      default: 10
-                - name: cursor
-                  in: query
-                  schema:
-                      type: integer
-                - name: from
-                  in: query
-                  schema:
-                      type: string
-                      enum:
-                          - Start
-                          - End
-                      default: Start
-            responses:
-                "200":
-                    $ref: "#/components/responses/GetMessagesWithParents"
                 default:
                     $ref: "#/components/responses/Error"
     /documents/{id}/threads/{threadId}/messages/{index}/stream/completion:
@@ -1245,39 +1174,6 @@ paths:
             responses:
                 "200":
                     $ref: "#/components/responses/GetMessage"
-                default:
-                    $ref: "#/components/responses/Error"
-    /posts/{id}/messages-with-parents:
-        parameters:
-            - name: id
-              in: path
-              required: true
-              schema:
-                  $ref: "#/components/schemas/PostId"
-        get:
-            parameters:
-                - name: limit
-                  in: query
-                  schema:
-                      type: integer
-                      minimum: 1
-                      maximum: 100
-                      default: 10
-                - name: cursor
-                  in: query
-                  schema:
-                      type: integer
-                - name: from
-                  in: query
-                  schema:
-                      type: string
-                      enum:
-                          - Start
-                          - End
-                      default: Start
-            responses:
-                "200":
-                    $ref: "#/components/responses/GetMessagesWithParents"
                 default:
                     $ref: "#/components/responses/Error"
     /posts/{id}/messages/{index}/stream/completion:
@@ -1916,39 +1812,6 @@ paths:
             responses:
                 "200":
                     $ref: "#/components/responses/GetMessage"
-                default:
-                    $ref: "#/components/responses/Error"
-    /tasks/{id}/messages-with-parents:
-        parameters:
-            - name: id
-              in: path
-              required: true
-              schema:
-                  $ref: "#/components/schemas/TaskId"
-        get:
-            parameters:
-                - name: limit
-                  in: query
-                  schema:
-                      type: integer
-                      minimum: 1
-                      maximum: 100
-                      default: 10
-                - name: cursor
-                  in: query
-                  schema:
-                      type: integer
-                - name: from
-                  in: query
-                  schema:
-                      type: string
-                      enum:
-                          - Start
-                          - End
-                      default: Start
-            responses:
-                "200":
-                    $ref: "#/components/responses/GetMessagesWithParents"
                 default:
                     $ref: "#/components/responses/Error"
     /tasks/{id}/messages/{index}/stream/completion:
@@ -2606,35 +2469,6 @@ components:
                                     - "null"
                                 minimum: 0
                             messages:
-                                type: array
-                                items:
-                                    $ref: "#/components/schemas/Message_Response"
-        GetMessagesWithParents:
-            content:
-                application/json:
-                    schema:
-                        type: object
-                        required:
-                            - spaceId
-                            - totalMessageCount
-                            - nextCursor
-                            - messages
-                        additionalProperties: false
-                        properties:
-                            spaceId:
-                                $ref: "#/components/schemas/SpaceId"
-                            totalMessageCount:
-                                type: integer
-                            nextCursor:
-                                type:
-                                    - integer
-                                    - "null"
-                                minimum: 0
-                            messages:
-                                type: array
-                                items:
-                                    $ref: "#/components/schemas/Message_Response"
-                            parentMessages:
                                 type: array
                                 items:
                                     $ref: "#/components/schemas/Message_Response"

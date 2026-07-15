@@ -13,9 +13,7 @@ import {
     getDocumentCommentParentContent,
     getDocumentCommentPayload,
     getDocumentCommentPayloadsFromEnd,
-    getDocumentCommentPayloadsFromEndWithParents,
     getDocumentCommentPayloadsFromStart,
-    getDocumentCommentPayloadsFromStartWithParents,
     getDocumentCommentsFromEnd,
     getDocumentCommentsFromStart,
     getDocumentWithOptionalComments,
@@ -450,31 +448,6 @@ testMessagingImplementation<DocumentCommentRoomKey>(context, {
 
         return {messageCount: commentCount, messages: comments};
     },
-    async getMessagePayloadsFromStartWithParents(
-        context,
-        {roomKey, limit, afterMessageIndex, beforeMessageIndex},
-    ) {
-        const [documentId, commentThreadId] = decodeDocumentCommentRoomKey(roomKey);
-
-        const {commentCount, comments, parentComments} =
-            await getDocumentCommentPayloadsFromStartWithParents(
-                context,
-                {
-                    documentId,
-                    commentThreadId,
-                    limit,
-                    afterCommentIndex: afterMessageIndex,
-                    beforeCommentIndex: beforeMessageIndex,
-                },
-                message => Promise.resolve(message),
-            );
-
-        return {
-            messageCount: commentCount,
-            messages: comments,
-            parentMessages: parentComments,
-        };
-    },
     async getMessagePayloadsFromEnd(
         context,
         {roomKey, limit, afterMessageIndex, beforeMessageIndex},
@@ -490,31 +463,6 @@ testMessagingImplementation<DocumentCommentRoomKey>(context, {
         });
 
         return {messageCount: commentCount, messages: comments};
-    },
-    async getMessagePayloadsFromEndWithParents(
-        context,
-        {roomKey, limit, afterMessageIndex, beforeMessageIndex},
-    ) {
-        const [documentId, commentThreadId] = decodeDocumentCommentRoomKey(roomKey);
-
-        const {commentCount, comments, parentComments} =
-            await getDocumentCommentPayloadsFromEndWithParents(
-                context,
-                {
-                    documentId,
-                    commentThreadId,
-                    limit,
-                    afterCommentIndex: afterMessageIndex,
-                    beforeCommentIndex: beforeMessageIndex,
-                },
-                message => Promise.resolve(message),
-            );
-
-        return {
-            messageCount: commentCount,
-            messages: comments,
-            parentMessages: parentComments,
-        };
     },
     async backfillMessages(
         context,

@@ -633,42 +633,6 @@ export namespace ApiSpecification {
             readonly patch?: never;
             readonly trace?: never;
         };
-        readonly "/chats/{id}/messages-with-parents": {
-            readonly parameters: {
-                readonly query?: never;
-                readonly header?: never;
-                readonly path: {
-                    readonly id: components["schemas"]["ChatId"];
-                };
-                readonly cookie?: never;
-            };
-            readonly get: {
-                readonly parameters: {
-                    readonly query?: {
-                        readonly limit?: number;
-                        readonly cursor?: number;
-                        readonly from?: "Start" | "End";
-                    };
-                    readonly header?: never;
-                    readonly path: {
-                        readonly id: components["schemas"]["ChatId"];
-                    };
-                    readonly cookie?: never;
-                };
-                readonly requestBody?: never;
-                readonly responses: {
-                    readonly 200: components["responses"]["GetMessagesWithParents"];
-                    readonly default: components["responses"]["Error"];
-                };
-            };
-            readonly put?: never;
-            readonly post?: never;
-            readonly delete?: never;
-            readonly options?: never;
-            readonly head?: never;
-            readonly patch?: never;
-            readonly trace?: never;
-        };
         readonly "/chats/{id}/messages/{index}/stream/completion": {
             readonly parameters: {
                 readonly query?: never;
@@ -1163,44 +1127,6 @@ export namespace ApiSpecification {
                     readonly default: components["responses"]["Error"];
                 };
             };
-            readonly delete?: never;
-            readonly options?: never;
-            readonly head?: never;
-            readonly patch?: never;
-            readonly trace?: never;
-        };
-        readonly "/documents/{id}/threads/{threadId}/messages-with-parents": {
-            readonly parameters: {
-                readonly query?: never;
-                readonly header?: never;
-                readonly path: {
-                    readonly id: components["schemas"]["DocumentId"];
-                    readonly threadId: components["schemas"]["DocumentThreadId"];
-                };
-                readonly cookie?: never;
-            };
-            readonly get: {
-                readonly parameters: {
-                    readonly query?: {
-                        readonly limit?: number;
-                        readonly cursor?: number;
-                        readonly from?: "Start" | "End";
-                    };
-                    readonly header?: never;
-                    readonly path: {
-                        readonly id: components["schemas"]["DocumentId"];
-                        readonly threadId: components["schemas"]["DocumentThreadId"];
-                    };
-                    readonly cookie?: never;
-                };
-                readonly requestBody?: never;
-                readonly responses: {
-                    readonly 200: components["responses"]["GetMessagesWithParents"];
-                    readonly default: components["responses"]["Error"];
-                };
-            };
-            readonly put?: never;
-            readonly post?: never;
             readonly delete?: never;
             readonly options?: never;
             readonly head?: never;
@@ -1813,42 +1739,6 @@ export namespace ApiSpecification {
                     readonly default: components["responses"]["Error"];
                 };
             };
-            readonly delete?: never;
-            readonly options?: never;
-            readonly head?: never;
-            readonly patch?: never;
-            readonly trace?: never;
-        };
-        readonly "/posts/{id}/messages-with-parents": {
-            readonly parameters: {
-                readonly query?: never;
-                readonly header?: never;
-                readonly path: {
-                    readonly id: components["schemas"]["PostId"];
-                };
-                readonly cookie?: never;
-            };
-            readonly get: {
-                readonly parameters: {
-                    readonly query?: {
-                        readonly limit?: number;
-                        readonly cursor?: number;
-                        readonly from?: "Start" | "End";
-                    };
-                    readonly header?: never;
-                    readonly path: {
-                        readonly id: components["schemas"]["PostId"];
-                    };
-                    readonly cookie?: never;
-                };
-                readonly requestBody?: never;
-                readonly responses: {
-                    readonly 200: components["responses"]["GetMessagesWithParents"];
-                    readonly default: components["responses"]["Error"];
-                };
-            };
-            readonly put?: never;
-            readonly post?: never;
             readonly delete?: never;
             readonly options?: never;
             readonly head?: never;
@@ -2664,42 +2554,6 @@ export namespace ApiSpecification {
                     readonly default: components["responses"]["Error"];
                 };
             };
-            readonly delete?: never;
-            readonly options?: never;
-            readonly head?: never;
-            readonly patch?: never;
-            readonly trace?: never;
-        };
-        readonly "/tasks/{id}/messages-with-parents": {
-            readonly parameters: {
-                readonly query?: never;
-                readonly header?: never;
-                readonly path: {
-                    readonly id: components["schemas"]["TaskId"];
-                };
-                readonly cookie?: never;
-            };
-            readonly get: {
-                readonly parameters: {
-                    readonly query?: {
-                        readonly limit?: number;
-                        readonly cursor?: number;
-                        readonly from?: "Start" | "End";
-                    };
-                    readonly header?: never;
-                    readonly path: {
-                        readonly id: components["schemas"]["TaskId"];
-                    };
-                    readonly cookie?: never;
-                };
-                readonly requestBody?: never;
-                readonly responses: {
-                    readonly 200: components["responses"]["GetMessagesWithParents"];
-                    readonly default: components["responses"]["Error"];
-                };
-            };
-            readonly put?: never;
-            readonly post?: never;
             readonly delete?: never;
             readonly options?: never;
             readonly head?: never;
@@ -7234,20 +7088,6 @@ export namespace ApiSpecification {
                         readonly totalMessageCount: number;
                         readonly nextCursor: number | null;
                         readonly messages: readonly components["schemas"]["Message_Response"][];
-                    };
-                };
-            };
-            readonly GetMessagesWithParents: {
-                headers: {
-                    readonly [name: string]: unknown;
-                };
-                content: {
-                    readonly "application/json": {
-                        readonly spaceId: components["schemas"]["SpaceId"];
-                        readonly totalMessageCount: number;
-                        readonly nextCursor: number | null;
-                        readonly messages: readonly components["schemas"]["Message_Response"][];
-                        readonly parentMessages?: readonly components["schemas"]["Message_Response"][];
                     };
                 };
             };

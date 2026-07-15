@@ -25,7 +25,6 @@ ts_project(
         "//server/access",
         "//server/api/internal/shared",
         "//server/files/data",
-        "//server/messaging/helpers",
         "//server/tasks/data",
         "//server/search/data/index",
         "//shared/api/content",

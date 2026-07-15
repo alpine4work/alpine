@@ -21,9 +21,7 @@ import {
     getDocumentCommentMessageApprovals,
     getDocumentCommentPayload,
     getDocumentCommentPayloadsFromEnd,
-    getDocumentCommentPayloadsFromEndWithParents,
     getDocumentCommentPayloadsFromStart,
-    getDocumentCommentPayloadsFromStartWithParents,
     getDocumentCommentThreadContent,
     getDocumentContent,
     pingDocumentCommentStream,
@@ -31,7 +29,6 @@ import {
     putDocumentCommentStreamPart,
 } from "~/server/documents/data/documents_actions.js";
 import {attachFileToTargetAsBot} from "~/server/files/data/attach_file_to_target_as_bot.js";
-import {MessageItem} from "~/server/messaging/helpers/process_messages_query.js";
 import {LocalAccessPolicy} from "~/shared/access/access_policy.js";
 import {ApiContentKeyEncoder} from "~/shared/api/content/closed_source/api_content_key_encoder.js";
 import {extractFileIdsFromApiContent} from "~/shared/api/content/closed_source/extract_file_ids_from_api_content.js";
@@ -70,7 +67,7 @@ import {serializeDateString} from "~/shared/helpers/date/date_string.js";
 import {defaultTimeZone} from "~/shared/helpers/intl/time_zone.js";
 import {emptyMap} from "~/shared/helpers/map/empty_map.js";
 import {generateId, isId} from "~/shared/id/id.js";
-import {DocumentId, FileId, SpaceId} from "~/shared/id/types/id_types.js";
+import {DocumentId, FileId} from "~/shared/id/types/id_types.js";
 import {MessageContentPayload} from "~/shared/messaging/message_schema.js";
 import {MessagingRealtimeBroadcastNewMessageRequestSchema} from "~/shared/messaging/messaging_realtime_protocol.js";
 import {emptyReactionSet} from "~/shared/reactions/reaction_set.js";
@@ -696,76 +693,6 @@ export const apiDocumentsPaths: Pick<
                             pathParameters.threadId,
                         ),
                     }),
-                },
-            };
-        },
-    },
-
-    "/documents/{id}/threads/{threadId}/messages-with-parents": {
-        get: async (context, {pathParameters, queryParameters}) => {
-            const mapper = (message: MessageItem, spaceId: SpaceId) =>
-                intoApiMessage(context, {
-                    spaceId,
-                    entityId: `DocumentComment:${pathParameters.id}-${pathParameters.threadId}-${message.index}`,
-                    fileAuthorizer: FileDocumentAuthorizer.bind({
-                        type: "DocumentComments",
-                        documentId: pathParameters.id,
-                    }),
-                    message,
-                    intoContentPayloadParent: createIntoApiDocumentCommentContentPayloadParent(
-                        context,
-                        spaceId,
-                        pathParameters.id,
-                        pathParameters.threadId,
-                    ),
-                });
-
-            const {spaceId, commentCount, comments, parentComments} =
-                queryParameters.from === "End"
-                    ? await getDocumentCommentPayloadsFromEndWithParents(
-                          context,
-                          {
-                              documentId: pathParameters.id,
-                              commentThreadId: pathParameters.threadId,
-                              limit: queryParameters.limit ?? 10,
-                              afterCommentIndex: null,
-                              beforeCommentIndex: queryParameters.cursor ?? null,
-                              consistency: "StrongWithinCache",
-                          },
-                          mapper,
-                      )
-                    : await getDocumentCommentPayloadsFromStartWithParents(
-                          context,
-                          {
-                              documentId: pathParameters.id,
-                              commentThreadId: pathParameters.threadId,
-                              limit: queryParameters.limit ?? 10,
-                              afterCommentIndex: queryParameters.cursor ?? null,
-                              beforeCommentIndex: null,
-                              consistency: "StrongWithinCache",
-                          },
-                          mapper,
-                      );
-
-            let nextCursor: number | null;
-
-            if (comments.length === 0) {
-                nextCursor = null;
-            } else if (queryParameters.from === "End") {
-                const firstComment = comments[0]!;
-                nextCursor = firstComment.index > 0 ? firstComment.index : null;
-            } else {
-                const lastComment = comments[comments.length - 1]!;
-                nextCursor = lastComment.index < commentCount - 1 ? lastComment.index : null;
-            }
-
-            return {
-                content: {
-                    spaceId,
-                    totalMessageCount: commentCount,
-                    nextCursor,
-                    messages: comments,
-                    parentMessages: parentComments,
                 },
             };
         },

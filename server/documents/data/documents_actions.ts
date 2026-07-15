@@ -54,7 +54,6 @@ import {
     createCantPingStaleMessageStreamError,
     createCantWriteToStaleMessageStreamError,
 } from "~/server/messaging/helpers/create_message_stream_errors.js";
-import {getOtherReferencedMessageItems} from "~/server/messaging/helpers/get_other_referenced_message_items.js";
 import {
     messageStreamIndexSearchEntityDelaySeconds,
     shouldScheduleMessageStreamIndexSearchEntityJob,
@@ -7210,42 +7209,6 @@ export async function getDocumentCommentPayloadsFromStart(
 }
 
 /**
- * Paginate through document comment payloads from start to finish and recursively
- * load parent comment payloads outside the returned page.
- */
-export async function getDocumentCommentPayloadsFromStartWithParents<Message>(
-    context: ServerActionContext,
-    options: Parameters<typeof getDocumentCommentPayloadsFromStart>[1],
-    mapper: (messageItem: MessageItem, spaceId: SpaceId) => Promise<Message>,
-) {
-    const result = await getDocumentCommentPayloadsFromStart(context, options);
-    const mapMessageItem = (messageItem: MessageItem) => mapper(messageItem, result.spaceId);
-
-    const [comments, parentComments] = await runAllPromises([
-        runAllPromises(result.comments.map(mapMessageItem)),
-        getOtherReferencedMessageItems({
-            messageItems: result.comments,
-            getMessageItem: async commentIndex =>
-                (
-                    await getDocumentCommentItem(context, {
-                        documentId: options.documentId,
-                        commentThreadId: options.commentThreadId,
-                        commentIndex,
-                        consistency: options.consistency,
-                    })
-                ).commentItem,
-            mapper: mapMessageItem,
-        }),
-    ]);
-
-    return {
-        ...result,
-        comments,
-        parentComments,
-    };
-}
-
-/**
  * Paginate through document comments from finish to start.
  */
 export async function getDocumentCommentsFromEnd(
@@ -7531,42 +7494,6 @@ export async function getDocumentCommentPayloadsFromEnd(
             lastCommentIndex + 1,
         ),
         comments,
-    };
-}
-
-/**
- * Paginate through document comment payloads from finish to start and recursively
- * load parent comment payloads outside the returned page.
- */
-export async function getDocumentCommentPayloadsFromEndWithParents<Message>(
-    context: ServerActionContext,
-    options: Parameters<typeof getDocumentCommentPayloadsFromEnd>[1],
-    mapper: (messageItem: MessageItem, spaceId: SpaceId) => Promise<Message>,
-) {
-    const result = await getDocumentCommentPayloadsFromEnd(context, options);
-    const mapMessageItem = (messageItem: MessageItem) => mapper(messageItem, result.spaceId);
-
-    const [comments, parentComments] = await runAllPromises([
-        runAllPromises(result.comments.map(mapMessageItem)),
-        getOtherReferencedMessageItems({
-            messageItems: result.comments,
-            getMessageItem: async commentIndex =>
-                (
-                    await getDocumentCommentItem(context, {
-                        documentId: options.documentId,
-                        commentThreadId: options.commentThreadId,
-                        commentIndex,
-                        consistency: options.consistency,
-                    })
-                ).commentItem,
-            mapper: mapMessageItem,
-        }),
-    ]);
-
-    return {
-        ...result,
-        comments,
-        parentComments,
     };
 }
 

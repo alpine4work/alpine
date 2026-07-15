@@ -26,7 +26,6 @@ import {
     createCantPingStaleMessageStreamError,
     createCantWriteToStaleMessageStreamError,
 } from "~/server/messaging/helpers/create_message_stream_errors.js";
-import {getOtherReferencedMessageItems} from "~/server/messaging/helpers/get_other_referenced_message_items.js";
 import {
     messageStreamIndexSearchEntityDelaySeconds,
     shouldScheduleMessageStreamIndexSearchEntityJob,
@@ -563,37 +562,6 @@ export async function getTaskCommentPayloadsFromStart(
     };
 }
 
-/**
- * Paginate through task comment payloads from start to finish and recursively load
- * parent comment payloads outside the returned page.
- */
-export async function getTaskCommentPayloadsFromStartWithParents<Message>(
-    context: ServerActionContext,
-    options: Parameters<typeof getTaskCommentPayloadsFromStart>[1],
-    mapper: (messageItem: MessageItem, spaceId: SpaceId) => Promise<Message>,
-) {
-    const result = await getTaskCommentPayloadsFromStart(context, options);
-    const mapMessageItem = (messageItem: MessageItem) => mapper(messageItem, result.spaceId);
-
-    const [comments, parentComments] = await runAllPromises([
-        runAllPromises(result.comments.map(mapMessageItem)),
-        getOtherReferencedMessageItems({
-            messageItems: result.comments,
-            getMessageItem: commentIndex =>
-                getTaskCommentItem(context, options.taskId, commentIndex, {
-                    consistency: options.consistency,
-                }),
-            mapper: mapMessageItem,
-        }),
-    ]);
-
-    return {
-        ...result,
-        comments,
-        parentComments,
-    };
-}
-
 export async function getTaskCommentPayloadsFromEnd(
     context: ServerActionContext,
     {
@@ -664,37 +632,6 @@ export async function getTaskCommentPayloadsFromEnd(
             lastCommentIndex + 1,
         ),
         comments: commentItems,
-    };
-}
-
-/**
- * Paginate through task comment payloads from finish to start and recursively load
- * parent comment payloads outside the returned page.
- */
-export async function getTaskCommentPayloadsFromEndWithParents<Message>(
-    context: ServerActionContext,
-    options: Parameters<typeof getTaskCommentPayloadsFromEnd>[1],
-    mapper: (messageItem: MessageItem, spaceId: SpaceId) => Promise<Message>,
-) {
-    const result = await getTaskCommentPayloadsFromEnd(context, options);
-    const mapMessageItem = (messageItem: MessageItem) => mapper(messageItem, result.spaceId);
-
-    const [comments, parentComments] = await runAllPromises([
-        runAllPromises(result.comments.map(mapMessageItem)),
-        getOtherReferencedMessageItems({
-            messageItems: result.comments,
-            getMessageItem: commentIndex =>
-                getTaskCommentItem(context, options.taskId, commentIndex, {
-                    consistency: options.consistency,
-                }),
-            mapper: mapMessageItem,
-        }),
-    ]);
-
-    return {
-        ...result,
-        comments,
-        parentComments,
     };
 }
 

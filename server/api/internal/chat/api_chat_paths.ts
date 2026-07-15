@@ -16,9 +16,7 @@ import {
     getChatMessageApprovals,
     getChatMessagePayload,
     getChatMessagePayloadsFromEnd,
-    getChatMessagePayloadsFromEndWithParents,
     getChatMessagePayloadsFromStart,
-    getChatMessagePayloadsFromStartWithParents,
     pingChatMessageStream,
     putChatMessageApprovalDecisions,
     putChatMessageStreamPart,
@@ -28,7 +26,6 @@ import {FileChatAuthorizer} from "~/server/chat/data/file_chat_authorizer.js";
 import {getChatDefinition} from "~/server/chat/data/get_chat_definition.js";
 import {getOrCreateChatForAccounts} from "~/server/chat/data/get_or_create_chat_for_accounts.js";
 import {attachFileToTargetAsBot} from "~/server/files/data/attach_file_to_target_as_bot.js";
-import {MessageItem} from "~/server/messaging/helpers/process_messages_query.js";
 import {getSearchDirectChatEntityTitleAndMedia} from "~/server/search/data/index/search_entity_index.js";
 import {fromApiContent} from "~/shared/api/content/closed_source/from_api_content.js";
 import {ApiDirectChatResponse} from "~/shared/api/specification/types/api_specification_convenience_types.js";
@@ -47,7 +44,7 @@ import {mapIterable} from "~/shared/helpers/iterable/map_iterable.js";
 import {emptyMap} from "~/shared/helpers/map/empty_map.js";
 import {omitObject} from "~/shared/helpers/object/omit_object.js";
 import {isId} from "~/shared/id/id.js";
-import {FileId, SpaceId} from "~/shared/id/types/id_types.js";
+import {FileId} from "~/shared/id/types/id_types.js";
 import {MessageContentPayload} from "~/shared/messaging/message_schema.js";
 import {MessagingRealtimeBroadcastNewMessageRequestSchema} from "~/shared/messaging/messaging_realtime_protocol.js";
 import {emptyReactionSet} from "~/shared/reactions/reaction_set.js";
@@ -480,73 +477,6 @@ export const apiChatPaths: Pick<ApiPaths, (keyof ApiPaths & `/chats/${string}`) 
                             pathParameters.id,
                         ),
                     }),
-                },
-            };
-        },
-    },
-
-    "/chats/{id}/messages-with-parents": {
-        get: async (context, {pathParameters, queryParameters}) => {
-            const mapper = (message: MessageItem, spaceId: SpaceId) =>
-                intoApiMessage(context, {
-                    spaceId,
-                    entityId: `ChatMessage:${pathParameters.id}-${message.index}`,
-                    fileAuthorizer: FileChatAuthorizer.bind({
-                        type: "ChatMessages",
-                        chatId: pathParameters.id,
-                    }),
-                    message,
-                    intoContentPayloadParent: createIntoApiChatMessageContentPayloadParent(
-                        context,
-                        spaceId,
-                        pathParameters.id,
-                    ),
-                });
-
-            const {spaceId, messageCount, messages, parentMessages} =
-                queryParameters.from === "End"
-                    ? await getChatMessagePayloadsFromEndWithParents(
-                          context,
-                          {
-                              chatId: pathParameters.id,
-                              limit: queryParameters.limit ?? 10,
-                              afterMessageIndex: null,
-                              beforeMessageIndex: queryParameters.cursor ?? null,
-                              consistency: "StrongWithinCache",
-                          },
-                          mapper,
-                      )
-                    : await getChatMessagePayloadsFromStartWithParents(
-                          context,
-                          {
-                              chatId: pathParameters.id,
-                              limit: queryParameters.limit ?? 10,
-                              afterMessageIndex: queryParameters.cursor ?? null,
-                              beforeMessageIndex: null,
-                              consistency: "StrongWithinCache",
-                          },
-                          mapper,
-                      );
-
-            let nextCursor: number | null;
-
-            if (messages.length === 0) {
-                nextCursor = null;
-            } else if (queryParameters.from === "End") {
-                const firstMessage = messages[0]!;
-                nextCursor = firstMessage.index > 0 ? firstMessage.index : null;
-            } else {
-                const lastMessage = messages[messages.length - 1]!;
-                nextCursor = lastMessage.index < messageCount - 1 ? lastMessage.index : null;
-            }
-
-            return {
-                content: {
-                    spaceId,
-                    totalMessageCount: messageCount,
-                    nextCursor,
-                    messages,
-                    parentMessages,
                 },
             };
         },
