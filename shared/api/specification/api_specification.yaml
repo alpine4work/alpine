@@ -2305,10 +2305,10 @@ components:
                                 $ref: "#/components/schemas/SpaceId"
                             task:
                                 $ref: "#/components/schemas/Task"
-                            collections:
+                            results:
                                 type: array
                                 items:
-                                    $ref: "#/components/schemas/PatchTaskResponseCollection"
+                                    $ref: "#/components/schemas/TaskPatchResult"
 
         PatchTasks:
             content:
@@ -2329,10 +2329,10 @@ components:
                                     properties:
                                         task:
                                             $ref: "#/components/schemas/Task"
-                                        collections:
+                                        results:
                                             type: array
                                             items:
-                                                $ref: "#/components/schemas/PatchTaskResponseCollection"
+                                                $ref: "#/components/schemas/TaskPatchResult"
 
         GetTaskNotes:
             content:
@@ -4724,21 +4724,6 @@ components:
                 collection:
                     $ref: "#/components/schemas/TaskCollectionPreview"
 
-        PatchTaskResponseCollection:
-            type: object
-            required: [collection]
-            additionalProperties: false
-            properties:
-                movedCursor:
-                    $ref: "#/components/schemas/TaskQueryCursor"
-                collection:
-                    type: object
-                    required: [id]
-                    additionalProperties: false
-                    properties:
-                        id:
-                            $ref: "#/components/schemas/TaskCollectionId"
-
         TaskPatch:
             oneOf:
                 - $ref: "#/components/schemas/TaskSetTitlePatch"
@@ -4927,6 +4912,126 @@ components:
                 afterCursor:
                     $ref: "#/components/schemas/TaskQueryCursor"
                 beforeCursor:
+                    $ref: "#/components/schemas/TaskQueryCursor"
+
+        TaskPatchResult:
+            oneOf:
+                - $ref: "#/components/schemas/TaskSetTitlePatchResult"
+                - $ref: "#/components/schemas/TaskSetAssigneePatchResult"
+                - $ref: "#/components/schemas/TaskSetStatusPatchResult"
+                - $ref: "#/components/schemas/TaskSetDuePatchResult"
+                - $ref: "#/components/schemas/TaskSetPriorityPatchResult"
+                - $ref: "#/components/schemas/TaskSetLayoutPatchResult"
+                - $ref: "#/components/schemas/TaskSetParentPatchResult"
+                - $ref: "#/components/schemas/TaskMoveInParentPatchResult"
+                - $ref: "#/components/schemas/TaskAddCollectionPatchResult"
+                - $ref: "#/components/schemas/TaskRemoveCollectionPatchResult"
+                - $ref: "#/components/schemas/TaskMoveInCollectionPatchResult"
+            discriminator:
+                propertyName: type
+                mapping:
+                    SetTitle: "#/components/schemas/TaskSetTitlePatchResult"
+                    SetAssignee: "#/components/schemas/TaskSetAssigneePatchResult"
+                    SetStatus: "#/components/schemas/TaskSetStatusPatchResult"
+                    SetDue: "#/components/schemas/TaskSetDuePatchResult"
+                    SetPriority: "#/components/schemas/TaskSetPriorityPatchResult"
+                    SetLayout: "#/components/schemas/TaskSetLayoutPatchResult"
+                    SetParent: "#/components/schemas/TaskSetParentPatchResult"
+                    MoveInParent: "#/components/schemas/TaskMoveInParentPatchResult"
+                    AddCollection: "#/components/schemas/TaskAddCollectionPatchResult"
+                    RemoveCollection: "#/components/schemas/TaskRemoveCollectionPatchResult"
+                    MoveInCollection: "#/components/schemas/TaskMoveInCollectionPatchResult"
+
+        TaskSetTitlePatchResult:
+            type: object
+            required: [type]
+            additionalProperties: false
+            properties:
+                type:
+                    const: SetTitle
+
+        TaskSetAssigneePatchResult:
+            type: object
+            required: [type]
+            additionalProperties: false
+            properties:
+                type:
+                    const: SetAssignee
+
+        TaskSetStatusPatchResult:
+            type: object
+            required: [type]
+            additionalProperties: false
+            properties:
+                type:
+                    const: SetStatus
+
+        TaskSetDuePatchResult:
+            type: object
+            required: [type]
+            additionalProperties: false
+            properties:
+                type:
+                    const: SetDue
+
+        TaskSetPriorityPatchResult:
+            type: object
+            required: [type]
+            additionalProperties: false
+            properties:
+                type:
+                    const: SetPriority
+
+        TaskSetLayoutPatchResult:
+            type: object
+            required: [type]
+            additionalProperties: false
+            properties:
+                type:
+                    const: SetLayout
+
+        TaskSetParentPatchResult:
+            type: object
+            required: [type]
+            additionalProperties: false
+            properties:
+                type:
+                    const: SetParent
+
+        TaskMoveInParentPatchResult:
+            type: object
+            required: [type, cursor]
+            additionalProperties: false
+            properties:
+                type:
+                    const: MoveInParent
+                cursor:
+                    $ref: "#/components/schemas/TaskQueryCursor"
+
+        TaskAddCollectionPatchResult:
+            type: object
+            required: [type]
+            additionalProperties: false
+            properties:
+                type:
+                    const: AddCollection
+
+        TaskRemoveCollectionPatchResult:
+            type: object
+            required: [type]
+            additionalProperties: false
+            properties:
+                type:
+                    const: RemoveCollection
+
+        TaskMoveInCollectionPatchResult:
+            type: object
+            required: [type, cursor]
+            additionalProperties: false
+            properties:
+                type:
+                    const: MoveInCollection
+                cursor:
                     $ref: "#/components/schemas/TaskQueryCursor"
 
         TaskCollectionPatch:

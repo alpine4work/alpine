@@ -4574,12 +4574,6 @@ export namespace ApiSpecification {
             readonly TaskCollectionItem: {
                 readonly collection: components["schemas"]["TaskCollectionPreview"];
             };
-            readonly PatchTaskResponseCollection: {
-                readonly movedCursor?: components["schemas"]["TaskQueryCursor"];
-                readonly collection: {
-                    readonly id: components["schemas"]["TaskCollectionId"];
-                };
-            };
             readonly TaskPatch:
                 | components["schemas"]["TaskSetTitlePatch"]
                 | components["schemas"]["TaskSetAssigneePatch"]
@@ -4707,6 +4701,97 @@ export namespace ApiSpecification {
                 readonly type: "Between";
                 readonly afterCursor: components["schemas"]["TaskQueryCursor"];
                 readonly beforeCursor: components["schemas"]["TaskQueryCursor"];
+            };
+            readonly TaskPatchResult:
+                | components["schemas"]["TaskSetTitlePatchResult"]
+                | components["schemas"]["TaskSetAssigneePatchResult"]
+                | components["schemas"]["TaskSetStatusPatchResult"]
+                | components["schemas"]["TaskSetDuePatchResult"]
+                | components["schemas"]["TaskSetPriorityPatchResult"]
+                | components["schemas"]["TaskSetLayoutPatchResult"]
+                | components["schemas"]["TaskSetParentPatchResult"]
+                | components["schemas"]["TaskMoveInParentPatchResult"]
+                | components["schemas"]["TaskAddCollectionPatchResult"]
+                | components["schemas"]["TaskRemoveCollectionPatchResult"]
+                | components["schemas"]["TaskMoveInCollectionPatchResult"];
+            readonly TaskSetTitlePatchResult: {
+                /**
+                 * @description discriminator enum property added by openapi-typescript @enum
+                 * {string}
+                 */
+                readonly type: "SetTitle";
+            };
+            readonly TaskSetAssigneePatchResult: {
+                /**
+                 * @description discriminator enum property added by openapi-typescript @enum
+                 * {string}
+                 */
+                readonly type: "SetAssignee";
+            };
+            readonly TaskSetStatusPatchResult: {
+                /**
+                 * @description discriminator enum property added by openapi-typescript @enum
+                 * {string}
+                 */
+                readonly type: "SetStatus";
+            };
+            readonly TaskSetDuePatchResult: {
+                /**
+                 * @description discriminator enum property added by openapi-typescript @enum
+                 * {string}
+                 */
+                readonly type: "SetDue";
+            };
+            readonly TaskSetPriorityPatchResult: {
+                /**
+                 * @description discriminator enum property added by openapi-typescript @enum
+                 * {string}
+                 */
+                readonly type: "SetPriority";
+            };
+            readonly TaskSetLayoutPatchResult: {
+                /**
+                 * @description discriminator enum property added by openapi-typescript @enum
+                 * {string}
+                 */
+                readonly type: "SetLayout";
+            };
+            readonly TaskSetParentPatchResult: {
+                /**
+                 * @description discriminator enum property added by openapi-typescript @enum
+                 * {string}
+                 */
+                readonly type: "SetParent";
+            };
+            readonly TaskMoveInParentPatchResult: {
+                /**
+                 * @description discriminator enum property added by openapi-typescript @enum
+                 * {string}
+                 */
+                readonly type: "MoveInParent";
+                readonly cursor: components["schemas"]["TaskQueryCursor"];
+            };
+            readonly TaskAddCollectionPatchResult: {
+                /**
+                 * @description discriminator enum property added by openapi-typescript @enum
+                 * {string}
+                 */
+                readonly type: "AddCollection";
+            };
+            readonly TaskRemoveCollectionPatchResult: {
+                /**
+                 * @description discriminator enum property added by openapi-typescript @enum
+                 * {string}
+                 */
+                readonly type: "RemoveCollection";
+            };
+            readonly TaskMoveInCollectionPatchResult: {
+                /**
+                 * @description discriminator enum property added by openapi-typescript @enum
+                 * {string}
+                 */
+                readonly type: "MoveInCollection";
+                readonly cursor: components["schemas"]["TaskQueryCursor"];
             };
             readonly TaskCollectionPatch:
                 | components["schemas"]["TaskCollectionSetNamePatch"]
@@ -7062,7 +7147,7 @@ export namespace ApiSpecification {
                     readonly "application/json": {
                         readonly spaceId: components["schemas"]["SpaceId"];
                         readonly task: components["schemas"]["Task_Response"];
-                        readonly collections?: readonly components["schemas"]["PatchTaskResponseCollection"][];
+                        readonly results?: readonly components["schemas"]["TaskPatchResult"][];
                     };
                 };
             };
@@ -7075,7 +7160,7 @@ export namespace ApiSpecification {
                         readonly spaceId?: components["schemas"]["SpaceId"];
                         readonly tasks: readonly {
                             readonly task: components["schemas"]["Task_Response"];
-                            readonly collections: readonly components["schemas"]["PatchTaskResponseCollection"][];
+                            readonly results?: readonly components["schemas"]["TaskPatchResult"][];
                         }[];
                     };
                 };

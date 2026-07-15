@@ -356,9 +356,6 @@ export type ApiTaskParentResponse = ApiSpecification.components["schemas"]["Task
 
 export type ApiTaskCollectionItem = ApiSpecification.components["schemas"]["TaskCollectionItem"];
 
-export type ApiPatchTaskResponseCollection =
-    ApiSpecification.components["schemas"]["PatchTaskResponseCollection"];
-
 export type ApiTaskPatch = ApiSpecification.components["schemas"]["TaskPatch"];
 
 export type ApiTaskSetTitlePatch = ApiSpecification.components["schemas"]["TaskSetTitlePatch"];
@@ -400,6 +397,41 @@ export type ApiTaskMoveInQueryPatchEndPosition =
 
 export type ApiTaskMoveInQueryPatchBetweenPosition =
     ApiSpecification.components["schemas"]["TaskMoveInQueryPatchBetweenPosition"];
+
+export type ApiTaskPatchResult = ApiSpecification.components["schemas"]["TaskPatchResult"];
+
+export type ApiTaskSetTitlePatchResult =
+    ApiSpecification.components["schemas"]["TaskSetTitlePatchResult"];
+
+export type ApiTaskSetAssigneePatchResult =
+    ApiSpecification.components["schemas"]["TaskSetAssigneePatchResult"];
+
+export type ApiTaskSetStatusPatchResult =
+    ApiSpecification.components["schemas"]["TaskSetStatusPatchResult"];
+
+export type ApiTaskSetDuePatchResult =
+    ApiSpecification.components["schemas"]["TaskSetDuePatchResult"];
+
+export type ApiTaskSetPriorityPatchResult =
+    ApiSpecification.components["schemas"]["TaskSetPriorityPatchResult"];
+
+export type ApiTaskSetLayoutPatchResult =
+    ApiSpecification.components["schemas"]["TaskSetLayoutPatchResult"];
+
+export type ApiTaskSetParentPatchResult =
+    ApiSpecification.components["schemas"]["TaskSetParentPatchResult"];
+
+export type ApiTaskMoveInParentPatchResult =
+    ApiSpecification.components["schemas"]["TaskMoveInParentPatchResult"];
+
+export type ApiTaskAddCollectionPatchResult =
+    ApiSpecification.components["schemas"]["TaskAddCollectionPatchResult"];
+
+export type ApiTaskRemoveCollectionPatchResult =
+    ApiSpecification.components["schemas"]["TaskRemoveCollectionPatchResult"];
+
+export type ApiTaskMoveInCollectionPatchResult =
+    ApiSpecification.components["schemas"]["TaskMoveInCollectionPatchResult"];
 
 export type ApiTaskCollectionPatch = ApiSpecification.components["schemas"]["TaskCollectionPatch"];
 
