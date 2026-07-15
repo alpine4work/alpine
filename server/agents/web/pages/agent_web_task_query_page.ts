@@ -795,3 +795,135 @@ export function normalizeAgentWebTaskQueryPage<Page extends AgentWebTaskQueryPag
     });
 }
 
+    const contextTime = new Date();
+    const contextDate = toCalendarDate(fromDate(contextTime, context.timeZone));
+
+    if (!isDeepEqual(oldPage.pagination, newPage.pagination)) {
+        throw new InvalidArgumentError("Can\u2019t update task query pagination", {
+            displayMessage: errorDisplayMessage`You can\u2019t update the \u201c${agentWebTaskQueryPageNextPageLinkText}\u201d link in ${{TaskCollection: errorDisplayMessage`task collection`, TaskSubtasks: errorDisplayMessage`subtasks`}[scope.type]} markdown. Try again with a more specific update that leaves the \u201c${agentWebTaskQueryPageNextPageLinkText}\u201d link unchanged.`,
+        });
+    }
+
+    // The end of tasks marker is optional for a page that's actually at the end of
+    // tasks (according to metadata). However, for a page that's not at the end of
+    // tasks you can't add the end of tasks marker!
+    if (oldPageMetadata.beforeCursor !== null && newPage.isEndOfTasks) {
+        throw new InvalidArgumentError("Can\u2019t change whether this page is the end of tasks", {
+            displayMessage: errorDisplayMessage`Can\u2019t add the \u201cEnd of tasks\u201d marker in an update. Only a \`read\` tool call can tell you whether you\u2019re at the end of a task list or not. Try again without adding the \u201cEnd of tasks\u201d marker.`,
+        });
+    }
+
+    const oldTaskIds = new Set<TaskId>();
+    const newTaskIds = new Set<TaskId>();
+
+    // NOCOMMIT: Integration test where we shuffle task collection tasks and make sure
+    // after the API calls the resulting task order is correct with another read.
+    //
+    // NOCOMMIT: Lots of integration tests for moving tasks then also adding tasks at
+    // the same time (nearby). Also moving tasks in one `update` call and then making
+    // another `update` call that makes more moves.
+    for (const oldTask of oldPage.tasks) {
+        assert(!oldTaskIds.has(oldTask.taskId));
+        oldTaskIds.add(oldTask.taskId);
+    }
+
+    for (const newTask of newPage.tasks) {
+        if (!newTaskIds.has(newTask.taskId)) {
+            newTaskIds.add(newTask.taskId);
+            continue;
+        }
+
+        const quotedTitle = quoteMarkdown([{type: "text", value: newTask.title}]);
+
+        throw new InvalidArgumentError("Duplicate task in task query page", {
+            displayMessage: errorDisplayMessage`The task ${quotedTitle} appears more than once on this ${{TaskCollection: errorDisplayMessage`task collection`, TaskSubtasks: errorDisplayMessage`subtasks`}[scope.type]} page. Each task may only appear once. Try again after removing the duplicate task link.`,
+        });
+    }
+
+    const [oldCommonTaskIds, removedTaskIds] = partitionArray(oldTaskIds, taskId =>
+        newTaskIds.has(taskId),
+    );
+    const [newCommonTaskIds, addedTaskIds] = partitionArray(newTaskIds, taskId =>
+        oldTaskIds.has(taskId),
+    );
+
+    // Find the longest common task subsequence. Tasks outside the subsequence are the
+    // smallest set of existing tasks that must move to produce the new order.
+    const commonSubsequenceLengths = createArrayWithLength(oldCommonTaskIds.length + 1, () =>
+        createArrayWithLength(newCommonTaskIds.length + 1, () => 0),
+    );
+
+    // NOTE(calebmer): This was written by GPT-5.6 and I'll be honest, I don't fully
+    // understand the algorithm. But it works to produce the minimal set of move
+    // patches and even though it's O(n^2) n will be small in this context.
+    for (let oldIndex = oldCommonTaskIds.length - 1; oldIndex >= 0; oldIndex--) {
+        for (let newIndex = newCommonTaskIds.length - 1; newIndex >= 0; newIndex--) {
+            commonSubsequenceLengths[oldIndex]![newIndex] =
+                oldCommonTaskIds[oldIndex] === newCommonTaskIds[newIndex]
+                    ? commonSubsequenceLengths[oldIndex + 1]![newIndex + 1]! + 1
+                    : Math.max(
+                          commonSubsequenceLengths[oldIndex + 1]![newIndex]!,
+                          commonSubsequenceLengths[oldIndex]![newIndex + 1]!,
+                      );
+        }
+    }
+
+    const stableTaskIds = new Set<TaskId>();
+    let oldCommonTaskIndex = 0;
+    let newCommonTaskIndex = 0;
+
+    while (
+        oldCommonTaskIndex < oldCommonTaskIds.length &&
+        newCommonTaskIndex < newCommonTaskIds.length
+    ) {
+        const oldTaskId = oldCommonTaskIds[oldCommonTaskIndex]!;
+        const newTaskId = newCommonTaskIds[newCommonTaskIndex]!;
+
+        if (oldTaskId === newTaskId) {
+            stableTaskIds.add(oldTaskId);
+            oldCommonTaskIndex++;
+            newCommonTaskIndex++;
+        } else if (
+            commonSubsequenceLengths[oldCommonTaskIndex + 1]![newCommonTaskIndex]! >=
+            commonSubsequenceLengths[oldCommonTaskIndex]![newCommonTaskIndex + 1]!
+        ) {
+            oldCommonTaskIndex++;
+        } else {
+            newCommonTaskIndex++;
+        }
+    }
+
+    const movedTaskIds = new Set(
+        filterIterable(newCommonTaskIds, taskId => !stableTaskIds.has(taskId)),
+    );
+
+    if (!oldPageMetadata.isManuallyOrdered) {
+        if (addedTaskIds.length > 0) {
+            throw new InvalidArgumentError(
+                "Can\u2019t add tasks in an automatically ordered query",
+                {
+                    displayMessage: errorDisplayMessage`Tasks may only be added to ${{TaskCollection: errorDisplayMessage`task collection`, TaskSubtasks: errorDisplayMessage`subtasks`}[scope.type]} markdown when the ${{TaskCollection: errorDisplayMessage`collection is`, TaskSubtasks: errorDisplayMessage`subtasks are`}[scope.type]} sorted manually. ${{TaskCollection: errorDisplayMessage`A collection is`, TaskSubtasks: errorDisplayMessage`Subtasks are`}[scope.type]} manually sorted when no automatic sorts are applied. That means there are no default sorts/filters and there is no \`?sort\` (or filter) in the path passed to the \`read\` tool. To add tasks to ${{TaskCollection: errorDisplayMessage`an automatically sorted collection`, TaskSubtasks: errorDisplayMessage`automatically sorted subtasks`}[scope.type]}, use the \`read\` tool to read an individual task and ${{TaskCollection: errorDisplayMessage`add a collection to the task\u2019s \u201cCollections\u201d field`, TaskSubtasks: errorDisplayMessage`set the parent in the task\u2019s \u201cParent\u201d field`}[scope.type]} with the \`update\` tool. Try again without adding new tasks.`,
+                },
+            );
+        }
+        if (movedTaskIds.size > 0) {
+            throw new InvalidArgumentError(
+                "Can\u2019t move tasks in an automatically ordered query",
+                {
+                    displayMessage: errorDisplayMessage`Tasks may only be reordered in ${{TaskCollection: errorDisplayMessage`task collection`, TaskSubtasks: errorDisplayMessage`subtasks`}[scope.type]} markdown when the ${{TaskCollection: errorDisplayMessage`collection is`, TaskSubtasks: errorDisplayMessage`subtasks are`}[scope.type]} sorted manually. ${{TaskCollection: errorDisplayMessage`A collection is`, TaskSubtasks: errorDisplayMessage`Subtasks are`}[scope.type]} manually sorted when no automatic sorts are applied. That means there are no default sorts/filters and there is no \`?sort\` (or filter) in the path passed to the \`read\` tool. To reorder tasks in ${{TaskCollection: errorDisplayMessage`an automatically sorted collection`, TaskSubtasks: errorDisplayMessage`automatically sorted subtasks`}[scope.type]}, look at the ${{TaskCollection: errorDisplayMessage`collection\u2019s`, TaskSubtasks: errorDisplayMessage`task\u2019s subtasks`}[scope.type]} sorts and update the corresponding fields in the task (for example, if ${{TaskCollection: errorDisplayMessage`a collection is`, TaskSubtasks: errorDisplayMessage`subtasks are`}[scope.type]} sorted by \`?sort=priority\` then updating a task\u2019s priority will move it). If you are updating a task\u2019s fields in ${{TaskCollection: errorDisplayMessage`an automatically sorted collection`, TaskSubtasks: errorDisplayMessage`automatically sorted subtasks`}[scope.type]}, you shouldn\u2019t move the task yourself with the \`update\` tool because the task will be moved automatically. Instead read the ${{TaskCollection: errorDisplayMessage`collection`, TaskSubtasks: errorDisplayMessage`subtasks`}[scope.type]} again with the \`read\` tool after your update to see the new order. Try again without reordering tasks.`,
+                },
+            );
+        }
+    }
+
+    assert(oldPageMetadata.tasks.length === oldPage.tasks.length);
+
+    const oldTaskCursorById = new Map(
+        oldPage.tasks.map((pageTask, index) => [
+            pageTask.taskId,
+            assertExists(oldPageMetadata.tasks[index]).cursor,
+        ]),
+    );
+    const oldPageTaskById = new Map(oldPage.tasks.map(pageTask => [pageTask.taskId, pageTask]));
+    const newPageTaskById = new Map(newPage.tasks.map(pageTask => [pageTask.taskId, pageTask]));
+    const taskPatchInputs: Array<{id: TaskId; patch: ApiTaskPatch}> = [];
