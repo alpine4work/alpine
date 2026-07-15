@@ -1273,3 +1273,46 @@ export async function updateAgentWebTaskQueryPage(
     };
 }
 
+function areAgentWebTaskQueryPageTasksEqual(
+    task1: AgentWebTaskQueryPageTask,
+    task2: AgentWebTaskQueryPageTask,
+): boolean {
+    return isDeepEqual(
+        normalizeAgentWebTaskQueryPageTaskForDeepEqual(task1),
+        normalizeAgentWebTaskQueryPageTaskForDeepEqual(task2),
+    );
+}
+
+// Normalize the task to just the bits we care about comparing for equality. For
+// example, it's fine if the parent task titles don't match as long as the parent
+// `TaskId`s match.
+function normalizeAgentWebTaskQueryPageTaskForDeepEqual(task: AgentWebTaskQueryPageTask) {
+    // If you add a new property, TypeScript will error here. Telling you that you need
+    // to update this function with the new property.
+    assertEqualTypes<
+        keyof typeof task,
+        | "taskId"
+        | "title"
+        | "status"
+        | "parent"
+        | "subtasks"
+        | "assignee"
+        | "collections"
+        | "additionalCollectionsCount"
+        | "priority"
+        | "dueDateString"
+    >();
+
+    return {
+        taskId: task.taskId,
+        title: task.title,
+        status: task.status,
+        parent: task.parent?.id,
+        subtasks: task.subtasks,
+        assignee: task.assignee?.id,
+        collections: new Set(task.collections.map(collection => collection.id)),
+        additionalCollectionsCount: task.additionalCollectionsCount,
+        priority: task.priority?.type,
+        dueDateString: task.dueDateString,
+    };
+}
