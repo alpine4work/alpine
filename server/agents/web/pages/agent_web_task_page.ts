@@ -1,22 +1,32 @@
-import {CalendarDate, fromDate, toCalendarDate} from "@internationalized/date";
+import {fromDate, toCalendarDate} from "@internationalized/date";
 import {produce} from "immer";
 import {Link, List, Parent, Root, RootContent} from "mdast";
-import {
-    AgentWebContext,
-    AgentWebContextWithoutStorage,
-} from "~/server/agents/web/agent_web_context.js";
+import {AgentWebContext} from "~/server/agents/web/agent_web_context.js";
 import {AgentWebSessionStorage} from "~/server/agents/web/agent_web_session_storage.js";
+import {createAgentWebTaskQueryCursorHash} from "~/server/agents/web/agent_web_task_query_cursor_hash.js";
+import {createAgentWebPageStoredLinkPathname} from "~/server/agents/web/create_agent_web_page_stored_link_pathname.js";
+import {normalizeAgentWebPath} from "~/server/agents/web/internal/normalize_agent_web_path.js";
 import {normalizeAgentWebStaticText} from "~/server/agents/web/internal/normalize_agent_web_static_text.js";
-import {quoteMarkdown} from "~/server/agents/web/internal/quote_markdown.js";
 import {withApiContentNormalizerForAgentWebMarkdown} from "~/server/agents/web/normalize_api_content_for_agent_web_markdown.js";
 import {
     formatAgentWebTaskDueDateString,
     parseAgentWebTaskFieldListItems,
     printAgentWebTaskFieldListItems,
 } from "~/server/agents/web/pages/agent_web_task_fields.js";
+import {
+    AgentWebTaskQueryPageMetadata,
+    AgentWebTaskQueryPageTask,
+    intoAgentWebTaskQueryPageTask,
+    normalizeAgentWebTaskQueryPage,
+    parseAgentWebTaskQueryPageTasks,
+    printAgentWebTaskQueryPageTaskList,
+    updateAgentWebTaskQueryPage,
+} from "~/server/agents/web/pages/agent_web_task_query_page.js";
+import {parseAgentWebTaskPageDueDateStringForUpdate} from "~/server/agents/web/pages/parse_agent_web_task_page_due_date_string_for_update.js";
 import {parseApiContentFromAgentWebMarkdownTree} from "~/server/agents/web/parse_api_content_from_agent_web_markdown.js";
 import {printApiContentToAgentWebMarkdownTree} from "~/server/agents/web/print_api_content_to_agent_web_markdown.js";
 import {printMarkdownPhrasingContentText} from "~/server/agents/web/print_markdown_phrasing_content_text.js";
+import {routeAgentWebPageLinkPathname} from "~/server/agents/web/route_agent_web_page_link_pathname.js";
 import {normalizeApiContent} from "~/shared/api/content/normalize_api_content.js";
 import {printMarkdownTree} from "~/shared/api/content/print_api_content_to_markdown.js";
 import {unzipKeysFromApiContentResponse} from "~/shared/api/content/zip_or_unzip_keys_from_api_content_response.js";
@@ -40,6 +50,7 @@ import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 import {isDeepEqual} from "~/shared/helpers/control/is_deep_equal.js";
+import {omitObject} from "~/shared/helpers/object/omit_object.js";
 import {TaskId} from "~/shared/id/types/id_types.js";
 
 const agentWebTaskPageSubtaskLimit = 50;
@@ -606,34 +617,83 @@ export async function parseAgentWebTaskPage(
         }
     }
 
-    const createUnexpectedError = () => {
+    const createUnexpectedError = (child: RootContent) => {
         return new InvalidArgumentError("Expected task fields", {
-            displayMessage: errorDisplayMessage`Unexpected markdown on line ${root.children[childIndex]?.position?.start.line ?? "unknown"}. Try again with only allowed sections like fields (an unordered list with items like \`- Priority: Medium\`) or notes (the h2 \`## Notes\` and the content after).`,
+            displayMessage: errorDisplayMessage`Unexpected markdown on line ${child?.position?.start.line ?? "unknown"}. Try again with only allowed sections like fields (an unordered list with items like \`- Priority: Medium\`), notes (the h2 \`## Notes\` and the content after), or subtasks (the h2 \`## Subtasks\` and an unordered task list).`,
         });
     };
 
     let childIndex = 1;
     let fieldsList: List | null = null;
     let notesChildren: Array<RootContent> | null = null;
+    let subtasksChildren: Array<RootContent> | null = null;
 
     while (childIndex < root.children.length) {
         const nextChild = root.children[childIndex]!;
 
-        if (notesChildren === null && nextChild.type === "list") {
-            if (nextChild.ordered) throw createUnexpectedError();
+        if (notesChildren === null && fieldsList === null && nextChild.type === "list") {
+            if (nextChild.ordered) throw createUnexpectedError(nextChild);
             fieldsList = nextChild;
             childIndex++;
         } else if (
+            notesChildren === null &&
             nextChild.type === "heading" &&
             nextChild.depth === 2 &&
             normalizeAgentWebStaticText(printMarkdownPhrasingContentText(nextChild.children)) ===
                 "note"
         ) {
-            notesChildren = root.children.slice(childIndex + 1);
-            childIndex = root.children.length;
+            const endIndex = root.children
+                .slice(childIndex + 1)
+                .findIndex(otherChild => otherChild.type === "heading" && otherChild.depth <= 2);
+
+            if (endIndex === -1) {
+                notesChildren = root.children.slice(childIndex + 1);
+                childIndex = root.children.length;
+            } else {
+                notesChildren = root.children.slice(childIndex + 1, endIndex);
+                childIndex = endIndex;
+            }
+        } else if (
+            notesChildren === null &&
+            nextChild.type === "heading" &&
+            nextChild.depth === 2 &&
+            normalizeAgentWebStaticText(printMarkdownPhrasingContentText(nextChild.children)) ===
+                "subtask"
+        ) {
+            const endIndex = root.children
+                .slice(childIndex + 1)
+                .findIndex(otherChild => otherChild.type === "heading" && otherChild.depth <= 2);
+
+            if (endIndex === -1) {
+                subtasksChildren = root.children.slice(childIndex + 1);
+                childIndex = root.children.length;
+            } else {
+                subtasksChildren = root.children.slice(childIndex + 1, endIndex);
+                childIndex = endIndex;
+            }
         } else {
-            throw createUnexpectedError();
+            throw createUnexpectedError(nextChild);
         }
+    }
+
+    let subtaskList: List | null = null;
+    let seeMoreNode: RootContent | null = null;
+
+    if (subtasksChildren !== null && subtasksChildren.length > 0) {
+        const firstSectionChild = subtasksChildren[0]!;
+
+        if (
+            firstSectionChild.type !== "list" ||
+            firstSectionChild.ordered ||
+            firstSectionChild.children.length === 0
+        ) {
+            throw createUnexpectedError(firstSectionChild);
+        }
+
+        subtaskList = firstSectionChild;
+        seeMoreNode = subtasksChildren[1] ?? null;
+
+        if (subtasksChildren.length > 2) throw createUnexpectedError(subtasksChildren[2]!);
     }
 
     let notesPromise: Promise<ApiContentResponseWithoutKeys> | null = null;
@@ -661,7 +721,7 @@ export async function parseAgentWebTaskPage(
         notesPromise = parseApiContentFromAgentWebMarkdownTree(storage, notesRoot);
     }
 
-    const [fields, notes] = await runAllPromises([
+    const [fields, notes, subtaskTasks, seeMore] = await runAllPromises([
         fieldsList !== null
             ? parseAgentWebTaskFieldListItems(storage, fieldsList.children, [
                   "status",
@@ -673,6 +733,10 @@ export async function parseAgentWebTaskPage(
               ])
             : null,
         notesPromise,
+        parseAgentWebTaskQueryPageTasks(storage, "TaskSubtasks", subtaskList),
+        seeMoreNode === null
+            ? null
+            : parseAgentWebTaskPageSubtasksSeeMore(storage, id, seeMoreNode),
     ]);
 
     return {
@@ -685,7 +749,44 @@ export async function parseAgentWebTaskPage(
         priority: fields?.priority ?? null,
         dueDateString: fields?.dueDateString ?? null,
         notes: notes ?? {elements: [{type: "Paragraph", elements: []}]},
+        subtasks: subtaskList === null ? null : {tasks: subtaskTasks, seeMore},
     };
+}
+
+async function parseAgentWebTaskPageSubtasksSeeMore(
+    storage: AgentWebSessionStorage,
+    id: TaskId | null,
+    node: RootContent,
+): Promise<NonNullable<AgentWebTaskPageSubtasks["seeMore"]>> {
+    const link =
+        node.type === "paragraph" && node.children.length === 1 && node.children[0]?.type === "link"
+            ? node.children[0]
+            : null;
+
+    const label = link === null ? "" : printMarkdownPhrasingContentText(link.children);
+    const labelMatch = label.match(/^See more \(([1-9][0-9]*) remaining\) »$/);
+
+    if (link !== null && labelMatch !== null) {
+        const {pathname, searchParams} = normalizeAgentWebPath(link.url);
+        const pageLinkResult = await routeAgentWebPageLinkPathname(storage, pathname);
+        const nextCursorHash = searchParams.get("after");
+
+        if (
+            pageLinkResult?.pageLink.type === "TaskSubtasks" &&
+            (id === null || pageLinkResult.pageLink.task.id === id) &&
+            nextCursorHash !== null &&
+            Array.from(searchParams.keys()).length === 1
+        ) {
+            return {
+                nextCursorHash,
+                remainingTaskCount: Number(labelMatch[1]),
+            };
+        }
+    }
+
+    throw new InvalidArgumentError("Invalid task page subtasks See more link", {
+        displayMessage: errorDisplayMessage`Expected a task\u2019s subtasks section to end with a valid \u201cSee more »\u201d link with an \`?after\` URL search param to the task\u2019s subtasks page. Try again with the \u201cSee more\u201d link from the task page you read.`,
+    });
 }
 
 function isAgentWebTaskPageNotesEmpty(notes: ApiContentResponseWithoutKeys): boolean {
