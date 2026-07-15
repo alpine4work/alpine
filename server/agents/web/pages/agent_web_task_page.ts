@@ -51,8 +51,8 @@ import {assert} from "~/shared/helpers/control/assert.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 import {isDeepEqual} from "~/shared/helpers/control/is_deep_equal.js";
 import {omitObject} from "~/shared/helpers/object/omit_object.js";
-import {TaskId} from "~/shared/id/types/id_types.js";
 import {quote} from "~/shared/helpers/string/quote.js";
+import {TaskId} from "~/shared/id/types/id_types.js";
 
 const agentWebTaskPageSubtaskLimit = 50;
 
@@ -782,14 +782,24 @@ async function parseAgentWebTaskPageSubtasksSeeMore(
 
         if (
             pageLinkResult?.pageLink.type === "TaskSubtasks" &&
-            (id === null || pageLinkResult.pageLink.task.id === id) &&
             nextCursorHash !== null &&
             Array.from(searchParams.keys()).length === 1
         ) {
-            return {
-                nextCursorHash,
-                remainingTaskCount: Number(labelMatch[1]),
-            };
+            if (id === null) {
+                throw new InvalidArgumentError(
+                    "Can\u2019t create task with a subtasks pagination link",
+                    {
+                        displayMessage: errorDisplayMessage`You can\u2019t create a task with a \u201cSee more\u201d subtasks link. Try again after removing the link.`,
+                    },
+                );
+            }
+
+            if (pageLinkResult.pageLink.task.id === id) {
+                return {
+                    nextCursorHash,
+                    remainingTaskCount: Number(labelMatch[1]),
+                };
+            }
         }
     }
 
