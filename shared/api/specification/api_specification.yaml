@@ -4889,15 +4889,15 @@ components:
 
         TaskBatchPatchResult:
             oneOf:
-                - $ref: "#/components/schemas/TaskBatchCreatePatchResult"
-                - $ref: "#/components/schemas/TaskBatchUpdatePatchResult"
+                - $ref: "#/components/schemas/TaskCreateBatchPatchResult"
+                - $ref: "#/components/schemas/TaskUpdateBatchPatchResult"
             discriminator:
                 propertyName: type
                 mapping:
-                    Create: "#/components/schemas/TaskBatchCreatePatchResult"
-                    Update: "#/components/schemas/TaskBatchUpdatePatchResult"
+                    Create: "#/components/schemas/TaskCreateBatchPatchResult"
+                    Update: "#/components/schemas/TaskUpdateBatchPatchResult"
 
-        TaskBatchCreatePatchResult:
+        TaskCreateBatchPatchResult:
             type: object
             required: [type]
             additionalProperties: false
@@ -4912,7 +4912,7 @@ components:
                         id:
                             $ref: "#/components/schemas/TaskId"
 
-        TaskBatchUpdatePatchResult:
+        TaskUpdateBatchPatchResult:
             type: object
             required: [type, result]
             additionalProperties: false

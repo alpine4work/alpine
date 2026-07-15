@@ -4668,9 +4668,9 @@ export namespace ApiSpecification {
                 readonly patch: components["schemas"]["TaskPatch"];
             };
             readonly TaskBatchPatchResult:
-                | components["schemas"]["TaskBatchCreatePatchResult"]
-                | components["schemas"]["TaskBatchUpdatePatchResult"];
-            readonly TaskBatchCreatePatchResult: {
+                | components["schemas"]["TaskCreateBatchPatchResult"]
+                | components["schemas"]["TaskUpdateBatchPatchResult"];
+            readonly TaskCreateBatchPatchResult: {
                 /**
                  * @description discriminator enum property added by openapi-typescript @enum
                  * {string}
@@ -4680,7 +4680,7 @@ export namespace ApiSpecification {
                     readonly id: components["schemas"]["TaskId"];
                 };
             };
-            readonly TaskBatchUpdatePatchResult: {
+            readonly TaskUpdateBatchPatchResult: {
                 /**
                  * @description discriminator enum property added by openapi-typescript @enum
                  * {string}
