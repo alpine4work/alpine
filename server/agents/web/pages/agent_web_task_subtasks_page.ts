@@ -169,6 +169,7 @@ export async function updateAgentWebTaskSubtasksPage(
 
 export async function printAgentWebTaskSubtasksPage(
     storage: AgentWebSessionStorage,
+    taskId: TaskId,
     page: AgentWebTaskSubtasksPage,
 ): Promise<Root> {
     const children: Array<RootContent> = [];
