@@ -4889,11 +4889,28 @@ components:
 
         TaskBatchPatchResult:
             oneOf:
+                - $ref: "#/components/schemas/TaskBatchCreatePatchResult"
                 - $ref: "#/components/schemas/TaskBatchUpdatePatchResult"
             discriminator:
                 propertyName: type
                 mapping:
+                    Create: "#/components/schemas/TaskBatchCreatePatchResult"
                     Update: "#/components/schemas/TaskBatchUpdatePatchResult"
+
+        TaskBatchCreatePatchResult:
+            type: object
+            required: [type]
+            additionalProperties: false
+            properties:
+                type:
+                    const: Create
+                task:
+                    type: object
+                    required: [id]
+                    additionalProperties: false
+                    properties:
+                        id:
+                            $ref: "#/components/schemas/TaskId"
 
         TaskBatchUpdatePatchResult:
             type: object

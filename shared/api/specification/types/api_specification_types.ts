@@ -4667,7 +4667,19 @@ export namespace ApiSpecification {
                 readonly id: components["schemas"]["TaskId"];
                 readonly patch: components["schemas"]["TaskPatch"];
             };
-            readonly TaskBatchPatchResult: components["schemas"]["TaskBatchUpdatePatchResult"];
+            readonly TaskBatchPatchResult:
+                | components["schemas"]["TaskBatchCreatePatchResult"]
+                | components["schemas"]["TaskBatchUpdatePatchResult"];
+            readonly TaskBatchCreatePatchResult: {
+                /**
+                 * @description discriminator enum property added by openapi-typescript @enum
+                 * {string}
+                 */
+                readonly type: "Create";
+                readonly task?: {
+                    readonly id: components["schemas"]["TaskId"];
+                };
+            };
             readonly TaskBatchUpdatePatchResult: {
                 /**
                  * @description discriminator enum property added by openapi-typescript @enum

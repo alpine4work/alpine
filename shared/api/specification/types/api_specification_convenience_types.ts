@@ -445,6 +445,9 @@ export type ApiTaskBatchUpdatePatch =
 export type ApiTaskBatchPatchResult =
     ApiSpecification.components["schemas"]["TaskBatchPatchResult"];
 
+export type ApiTaskBatchCreatePatchResult =
+    ApiSpecification.components["schemas"]["TaskBatchCreatePatchResult"];
+
 export type ApiTaskBatchUpdatePatchResult =
     ApiSpecification.components["schemas"]["TaskBatchUpdatePatchResult"];
 
