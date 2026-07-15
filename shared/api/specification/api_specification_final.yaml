@@ -1495,7 +1495,7 @@ paths:
                                         $ref: "#/components/schemas/TaskReference_Response"
                 default:
                     $ref: "#/components/responses/Error"
-    /tasks/{id}-without-notes:
+    /tasks/{id}-with-notes:
         parameters:
             - name: id
               in: path
@@ -1505,7 +1505,7 @@ paths:
         get:
             responses:
                 "200":
-                    $ref: "#/components/responses/GetTaskWithoutNotes"
+                    $ref: "#/components/responses/GetTaskWithNotes"
                 default:
                     $ref: "#/components/responses/Error"
     /tasks/{id}/notes:
@@ -1648,7 +1648,7 @@ paths:
                                             $ref: "#/components/schemas/TaskQueryItem_Response"
                 default:
                     $ref: "#/components/responses/Error"
-    /tasks/{id}-without-notes/subtasks:
+    /tasks/{id}-with-notes/subtasks:
         parameters:
             - name: id
               in: path
@@ -1684,7 +1684,7 @@ paths:
                                     spaceId:
                                         $ref: "#/components/schemas/SpaceId"
                                     task:
-                                        $ref: "#/components/schemas/TaskWithoutNotes_Response"
+                                        $ref: "#/components/schemas/TaskWithNotes_Response"
                                     nextCursor:
                                         oneOf:
                                             - $ref: "#/components/schemas/TaskQueryCursor"
@@ -1695,7 +1695,7 @@ paths:
                                             $ref: "#/components/schemas/TaskQueryItem_Response"
                 default:
                     $ref: "#/components/responses/Error"
-    /tasks/{id}-without-notes/subtasks-query:
+    /tasks/{id}-with-notes/subtasks-query:
         parameters:
             - name: id
               in: path
@@ -1743,7 +1743,7 @@ paths:
                                     spaceId:
                                         $ref: "#/components/schemas/SpaceId"
                                     task:
-                                        $ref: "#/components/schemas/TaskWithoutNotes_Response"
+                                        $ref: "#/components/schemas/TaskWithNotes_Response"
                                     nextCursor:
                                         oneOf:
                                             - $ref: "#/components/schemas/TaskQueryCursor"
@@ -2342,7 +2342,7 @@ components:
                                 $ref: "#/components/schemas/SpaceId"
                             task:
                                 $ref: "#/components/schemas/Task_Response"
-        GetTaskWithoutNotes:
+        GetTaskWithNotes:
             content:
                 application/json:
                     schema:
@@ -2355,7 +2355,7 @@ components:
                             spaceId:
                                 $ref: "#/components/schemas/SpaceId"
                             task:
-                                $ref: "#/components/schemas/TaskWithoutNotes_Response"
+                                $ref: "#/components/schemas/TaskWithNotes_Response"
         PatchTask:
             content:
                 application/json:
@@ -2370,7 +2370,7 @@ components:
                             spaceId:
                                 $ref: "#/components/schemas/SpaceId"
                             task:
-                                $ref: "#/components/schemas/TaskWithoutNotes_Response"
+                                $ref: "#/components/schemas/Task_Response"
                             results:
                                 type: array
                                 items:
@@ -2390,7 +2390,7 @@ components:
                             tasks:
                                 type: array
                                 items:
-                                    $ref: "#/components/schemas/TaskWithoutNotes_Response"
+                                    $ref: "#/components/schemas/Task_Response"
                             results:
                                 type: array
                                 items:
@@ -4990,8 +4990,49 @@ components:
                 cursor:
                     $ref: "#/components/schemas/TaskQueryCursor"
                 task:
-                    $ref: "#/components/schemas/TaskWithoutNotes"
+                    $ref: "#/components/schemas/Task"
         Task:
+            type: object
+            required:
+                - id
+                - status
+                - title
+                - collections
+                - subtasks
+            additionalProperties: false
+            properties:
+                id:
+                    $ref: "#/components/schemas/TaskId"
+                creator:
+                    type: object
+                    required:
+                        - id
+                    additionalProperties: false
+                    properties:
+                        id:
+                            $ref: "#/components/schemas/AccountId"
+                status:
+                    $ref: "#/components/schemas/TaskStatus"
+                title:
+                    type: string
+                    maxLength: 512
+                assignee:
+                    $ref: "#/components/schemas/Account"
+                due:
+                    $ref: "#/components/schemas/TaskDue"
+                priority:
+                    $ref: "#/components/schemas/TaskPriority"
+                layout:
+                    $ref: "#/components/schemas/TaskLayout"
+                parent:
+                    $ref: "#/components/schemas/TaskParent"
+                collections:
+                    type: array
+                    items:
+                        $ref: "#/components/schemas/TaskCollectionItem"
+                subtasks:
+                    $ref: "#/components/schemas/TaskSubtasks"
+        TaskWithNotes:
             type: object
             required:
                 - id
@@ -5035,47 +5076,6 @@ components:
                     $ref: "#/components/schemas/TaskSubtasks"
                 notes:
                     $ref: "#/components/schemas/TaskNotes"
-        TaskWithoutNotes:
-            type: object
-            required:
-                - id
-                - status
-                - title
-                - collections
-                - subtasks
-            additionalProperties: false
-            properties:
-                id:
-                    $ref: "#/components/schemas/TaskId"
-                creator:
-                    type: object
-                    required:
-                        - id
-                    additionalProperties: false
-                    properties:
-                        id:
-                            $ref: "#/components/schemas/AccountId"
-                status:
-                    $ref: "#/components/schemas/TaskStatus"
-                title:
-                    type: string
-                    maxLength: 512
-                assignee:
-                    $ref: "#/components/schemas/Account"
-                due:
-                    $ref: "#/components/schemas/TaskDue"
-                priority:
-                    $ref: "#/components/schemas/TaskPriority"
-                layout:
-                    $ref: "#/components/schemas/TaskLayout"
-                parent:
-                    $ref: "#/components/schemas/TaskParent"
-                collections:
-                    type: array
-                    items:
-                        $ref: "#/components/schemas/TaskCollectionItem"
-                subtasks:
-                    $ref: "#/components/schemas/TaskSubtasks"
         TaskSubtasks:
             type: object
             required:
@@ -7902,6 +7902,47 @@ components:
                 - title
                 - collections
                 - subtasks
+            additionalProperties: false
+            properties:
+                id:
+                    $ref: "#/components/schemas/TaskId"
+                creator:
+                    type: object
+                    required:
+                        - id
+                    additionalProperties: false
+                    properties:
+                        id:
+                            $ref: "#/components/schemas/AccountId"
+                status:
+                    $ref: "#/components/schemas/TaskStatus"
+                title:
+                    type: string
+                    maxLength: 512
+                assignee:
+                    $ref: "#/components/schemas/Account_Response"
+                due:
+                    $ref: "#/components/schemas/TaskDue"
+                priority:
+                    $ref: "#/components/schemas/TaskPriority"
+                layout:
+                    $ref: "#/components/schemas/TaskLayout"
+                parent:
+                    $ref: "#/components/schemas/TaskParent_Response"
+                collections:
+                    type: array
+                    items:
+                        $ref: "#/components/schemas/TaskCollectionItem_Response"
+                subtasks:
+                    $ref: "#/components/schemas/TaskSubtasks"
+        TaskWithNotes_Response:
+            type: object
+            required:
+                - id
+                - status
+                - title
+                - collections
+                - subtasks
                 - notes
             additionalProperties: false
             properties:
@@ -7938,47 +7979,6 @@ components:
                     $ref: "#/components/schemas/TaskSubtasks"
                 notes:
                     $ref: "#/components/schemas/TaskNotes_Response"
-        TaskWithoutNotes_Response:
-            type: object
-            required:
-                - id
-                - status
-                - title
-                - collections
-                - subtasks
-            additionalProperties: false
-            properties:
-                id:
-                    $ref: "#/components/schemas/TaskId"
-                creator:
-                    type: object
-                    required:
-                        - id
-                    additionalProperties: false
-                    properties:
-                        id:
-                            $ref: "#/components/schemas/AccountId"
-                status:
-                    $ref: "#/components/schemas/TaskStatus"
-                title:
-                    type: string
-                    maxLength: 512
-                assignee:
-                    $ref: "#/components/schemas/Account_Response"
-                due:
-                    $ref: "#/components/schemas/TaskDue"
-                priority:
-                    $ref: "#/components/schemas/TaskPriority"
-                layout:
-                    $ref: "#/components/schemas/TaskLayout"
-                parent:
-                    $ref: "#/components/schemas/TaskParent_Response"
-                collections:
-                    type: array
-                    items:
-                        $ref: "#/components/schemas/TaskCollectionItem_Response"
-                subtasks:
-                    $ref: "#/components/schemas/TaskSubtasks"
         MessageContentPayloadParent_Response:
             oneOf:
                 - $ref: "#/components/schemas/MessageContentPayloadMessageParent_Response"
@@ -9300,7 +9300,7 @@ components:
                 cursor:
                     $ref: "#/components/schemas/TaskQueryCursor"
                 task:
-                    $ref: "#/components/schemas/TaskWithoutNotes_Response"
+                    $ref: "#/components/schemas/Task_Response"
         Chat_Response:
             oneOf:
                 - $ref: "#/components/schemas/DirectChat_Response"

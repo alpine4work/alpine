@@ -58,6 +58,8 @@
 #   then most of the time `thread: {id: }` is better. Since it'll let us add
 #   other properties to `thread` in the future.
 
+# NOCOMMIT: Require version header
+
 openapi: 3.0.0
 info:
     title: Alpine API
@@ -1392,10 +1394,7 @@ paths:
                                     reference:
                                         $ref: "#/components/schemas/TaskReference"
 
-    # I wonder if `/tasks/{id}-without-notes/subtasks` is the right approach here.
-    # And the convert document loading to
-    # `/documents/{id}/thread/{threadId}-with-document`.
-    /tasks/{id}-without-notes:
+    /tasks/{id}-with-notes:
         parameters:
             - name: id
               in: path
@@ -1404,7 +1403,7 @@ paths:
         get:
             responses:
                 default: {$ref: "#/components/responses/Error"}
-                "200": {$ref: "#/components/responses/GetTaskWithoutNotes"}
+                "200": {$ref: "#/components/responses/GetTaskWithNotes"}
 
     /tasks/{id}/notes:
         parameters:
@@ -1531,7 +1530,7 @@ paths:
                                         items:
                                             $ref: "#/components/schemas/TaskQueryItem"
 
-    /tasks/{id}-without-notes/subtasks:
+    /tasks/{id}-with-notes/subtasks:
         parameters:
             - name: id
               in: path
@@ -1563,7 +1562,7 @@ paths:
                                     spaceId:
                                         $ref: "#/components/schemas/SpaceId"
                                     task:
-                                        $ref: "#/components/schemas/TaskWithoutNotes"
+                                        $ref: "#/components/schemas/TaskWithNotes"
                                     nextCursor:
                                         oneOf:
                                             - $ref: "#/components/schemas/TaskQueryCursor"
@@ -1573,7 +1572,7 @@ paths:
                                         items:
                                             $ref: "#/components/schemas/TaskQueryItem"
 
-    /tasks/{id}-without-notes/subtasks-query:
+    /tasks/{id}-with-notes/subtasks-query:
         parameters:
             - name: id
               in: path
@@ -1617,7 +1616,7 @@ paths:
                                     spaceId:
                                         $ref: "#/components/schemas/SpaceId"
                                     task:
-                                        $ref: "#/components/schemas/TaskWithoutNotes"
+                                        $ref: "#/components/schemas/TaskWithNotes"
                                     nextCursor:
                                         oneOf:
                                             - $ref: "#/components/schemas/TaskQueryCursor"
@@ -2153,7 +2152,7 @@ components:
                             task:
                                 $ref: "#/components/schemas/Task"
 
-        GetTaskWithoutNotes:
+        GetTaskWithNotes:
             content:
                 application/json:
                     schema:
@@ -2164,7 +2163,7 @@ components:
                             spaceId:
                                 $ref: "#/components/schemas/SpaceId"
                             task:
-                                $ref: "#/components/schemas/TaskWithoutNotes"
+                                $ref: "#/components/schemas/TaskWithNotes"
 
         PatchTask:
             content:
@@ -2177,7 +2176,7 @@ components:
                             spaceId:
                                 $ref: "#/components/schemas/SpaceId"
                             task:
-                                $ref: "#/components/schemas/TaskWithoutNotes"
+                                $ref: "#/components/schemas/Task"
                             results:
                                 type: array
                                 items:
@@ -2196,7 +2195,7 @@ components:
                             tasks:
                                 type: array
                                 items:
-                                    $ref: "#/components/schemas/TaskWithoutNotes"
+                                    $ref: "#/components/schemas/Task"
                             results:
                                 type: array
                                 items:
@@ -4345,83 +4344,53 @@ components:
                 cursor:
                     $ref: "#/components/schemas/TaskQueryCursor"
                 task:
-                    $ref: "#/components/schemas/TaskWithoutNotes"
+                    $ref: "#/components/schemas/Task"
 
         Task:
+            type: object
+            required: [id, status, title, collections, subtasks]
+            additionalProperties: false
+            properties: &taskProperties
+                id:
+                    $ref: "#/components/schemas/TaskId"
+                # TODO(#public-api-blocking): Use `$ref: "#/components/schemas/Actor"` instead.
+                creator:
+                    type: object
+                    required: [id]
+                    additionalProperties: false
+                    properties:
+                        id:
+                            $ref: "#/components/schemas/AccountId"
+                status:
+                    $ref: "#/components/schemas/TaskStatus"
+                title:
+                    type: string
+                    maxLength: {{taskTitleMaxLength}}
+                assignee:
+                    $ref: "#/components/schemas/Account"
+                due:
+                    $ref: "#/components/schemas/TaskDue"
+                priority:
+                    $ref: "#/components/schemas/TaskPriority"
+                layout:
+                    $ref: "#/components/schemas/TaskLayout"
+                parent:
+                    $ref: "#/components/schemas/TaskParent"
+                collections:
+                    type: array
+                    items:
+                        $ref: "#/components/schemas/TaskCollectionItem"
+                subtasks:
+                    $ref: "#/components/schemas/TaskSubtasks"
+
+        TaskWithNotes:
             type: object
             required: [id, status, title, collections, subtasks, notes]
             additionalProperties: false
             properties:
-                id:
-                    $ref: "#/components/schemas/TaskId"
-                # TODO(#public-api-blocking): Use `$ref: "#/components/schemas/Actor"` instead.
-                creator:
-                    type: object
-                    required: [id]
-                    additionalProperties: false
-                    properties:
-                        id:
-                            $ref: "#/components/schemas/AccountId"
-                status:
-                    $ref: "#/components/schemas/TaskStatus"
-                title:
-                    type: string
-                    maxLength: {{taskTitleMaxLength}}
-                assignee:
-                    $ref: "#/components/schemas/Account"
-                due:
-                    $ref: "#/components/schemas/TaskDue"
-                priority:
-                    $ref: "#/components/schemas/TaskPriority"
-                layout:
-                    $ref: "#/components/schemas/TaskLayout"
-                parent:
-                    $ref: "#/components/schemas/TaskParent"
-                collections:
-                    type: array
-                    items:
-                        $ref: "#/components/schemas/TaskCollectionItem"
-                subtasks:
-                    $ref: "#/components/schemas/TaskSubtasks"
+                <<: *taskProperties
                 notes:
                     $ref: "#/components/schemas/TaskNotes"
-
-        TaskWithoutNotes:
-            type: object
-            required: [id, status, title, collections, subtasks]
-            additionalProperties: false
-            properties:
-                id:
-                    $ref: "#/components/schemas/TaskId"
-                # TODO(#public-api-blocking): Use `$ref: "#/components/schemas/Actor"` instead.
-                creator:
-                    type: object
-                    required: [id]
-                    additionalProperties: false
-                    properties:
-                        id:
-                            $ref: "#/components/schemas/AccountId"
-                status:
-                    $ref: "#/components/schemas/TaskStatus"
-                title:
-                    type: string
-                    maxLength: {{taskTitleMaxLength}}
-                assignee:
-                    $ref: "#/components/schemas/Account"
-                due:
-                    $ref: "#/components/schemas/TaskDue"
-                priority:
-                    $ref: "#/components/schemas/TaskPriority"
-                layout:
-                    $ref: "#/components/schemas/TaskLayout"
-                parent:
-                    $ref: "#/components/schemas/TaskParent"
-                collections:
-                    type: array
-                    items:
-                        $ref: "#/components/schemas/TaskCollectionItem"
-                subtasks:
-                    $ref: "#/components/schemas/TaskSubtasks"
 
         TaskSubtasks:
             type: object

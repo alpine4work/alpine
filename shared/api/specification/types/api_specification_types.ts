@@ -2182,7 +2182,7 @@ export namespace ApiSpecification {
             readonly patch?: never;
             readonly trace?: never;
         };
-        readonly "/tasks/{id}-without-notes": {
+        readonly "/tasks/{id}-with-notes": {
             readonly parameters: {
                 readonly query?: never;
                 readonly header?: never;
@@ -2202,7 +2202,7 @@ export namespace ApiSpecification {
                 };
                 readonly requestBody?: never;
                 readonly responses: {
-                    readonly 200: components["responses"]["GetTaskWithoutNotes"];
+                    readonly 200: components["responses"]["GetTaskWithNotes"];
                     readonly default: components["responses"]["Error"];
                 };
             };
@@ -2371,7 +2371,7 @@ export namespace ApiSpecification {
             readonly patch?: never;
             readonly trace?: never;
         };
-        readonly "/tasks/{id}-without-notes/subtasks": {
+        readonly "/tasks/{id}-with-notes/subtasks": {
             readonly parameters: {
                 readonly query?: never;
                 readonly header?: never;
@@ -2401,7 +2401,7 @@ export namespace ApiSpecification {
                         content: {
                             readonly "application/json": {
                                 readonly spaceId: components["schemas"]["SpaceId"];
-                                readonly task: components["schemas"]["TaskWithoutNotes_Response"];
+                                readonly task: components["schemas"]["TaskWithNotes_Response"];
                                 readonly nextCursor:
                                     | components["schemas"]["TaskQueryCursor"]
                                     | null;
@@ -2420,7 +2420,7 @@ export namespace ApiSpecification {
             readonly patch?: never;
             readonly trace?: never;
         };
-        readonly "/tasks/{id}-without-notes/subtasks-query": {
+        readonly "/tasks/{id}-with-notes/subtasks-query": {
             readonly parameters: {
                 readonly query?: never;
                 readonly header?: never;
@@ -2459,7 +2459,7 @@ export namespace ApiSpecification {
                         content: {
                             readonly "application/json": {
                                 readonly spaceId: components["schemas"]["SpaceId"];
-                                readonly task: components["schemas"]["TaskWithoutNotes_Response"];
+                                readonly task: components["schemas"]["TaskWithNotes_Response"];
                                 readonly nextCursor:
                                     | components["schemas"]["TaskQueryCursor"]
                                     | null;
@@ -4318,7 +4318,7 @@ export namespace ApiSpecification {
             readonly TaskQueryCursor: ApiTaskQueryCursor;
             readonly TaskQueryItem: {
                 readonly cursor: components["schemas"]["TaskQueryCursor"];
-                readonly task: components["schemas"]["TaskWithoutNotes"];
+                readonly task: components["schemas"]["Task"];
             };
             readonly Task: {
                 readonly id: components["schemas"]["TaskId"];
@@ -4334,9 +4334,8 @@ export namespace ApiSpecification {
                 readonly parent?: components["schemas"]["TaskParent"];
                 readonly collections: readonly components["schemas"]["TaskCollectionItem"][];
                 readonly subtasks: components["schemas"]["TaskSubtasks"];
-                readonly notes: components["schemas"]["TaskNotes"];
             };
-            readonly TaskWithoutNotes: {
+            readonly TaskWithNotes: {
                 readonly id: components["schemas"]["TaskId"];
                 readonly creator?: {
                     readonly id: components["schemas"]["AccountId"];
@@ -4350,6 +4349,7 @@ export namespace ApiSpecification {
                 readonly parent?: components["schemas"]["TaskParent"];
                 readonly collections: readonly components["schemas"]["TaskCollectionItem"][];
                 readonly subtasks: components["schemas"]["TaskSubtasks"];
+                readonly notes: components["schemas"]["TaskNotes"];
             };
             readonly TaskSubtasks: {
                 readonly openTaskCount: number;
@@ -5913,9 +5913,8 @@ export namespace ApiSpecification {
                 readonly parent?: components["schemas"]["TaskParent_Response"];
                 readonly collections: readonly components["schemas"]["TaskCollectionItem_Response"][];
                 readonly subtasks: components["schemas"]["TaskSubtasks"];
-                readonly notes: components["schemas"]["TaskNotes_Response"];
             };
-            readonly TaskWithoutNotes_Response: {
+            readonly TaskWithNotes_Response: {
                 readonly id: components["schemas"]["TaskId"];
                 readonly creator?: {
                     readonly id: components["schemas"]["AccountId"];
@@ -5929,6 +5928,7 @@ export namespace ApiSpecification {
                 readonly parent?: components["schemas"]["TaskParent_Response"];
                 readonly collections: readonly components["schemas"]["TaskCollectionItem_Response"][];
                 readonly subtasks: components["schemas"]["TaskSubtasks"];
+                readonly notes: components["schemas"]["TaskNotes_Response"];
             };
             readonly MessageContentPayloadParent_Response:
                 | components["schemas"]["MessageContentPayloadMessageParent_Response"]
@@ -6517,7 +6517,7 @@ export namespace ApiSpecification {
                 | components["schemas"]["TaskMoveInCollectionPatch"];
             readonly TaskQueryItem_Response: {
                 readonly cursor: components["schemas"]["TaskQueryCursor"];
-                readonly task: components["schemas"]["TaskWithoutNotes_Response"];
+                readonly task: components["schemas"]["Task_Response"];
             };
             readonly Chat_Response:
                 | components["schemas"]["DirectChat_Response"]
@@ -7008,14 +7008,14 @@ export namespace ApiSpecification {
                     };
                 };
             };
-            readonly GetTaskWithoutNotes: {
+            readonly GetTaskWithNotes: {
                 headers: {
                     readonly [name: string]: unknown;
                 };
                 content: {
                     readonly "application/json": {
                         readonly spaceId: components["schemas"]["SpaceId"];
-                        readonly task: components["schemas"]["TaskWithoutNotes_Response"];
+                        readonly task: components["schemas"]["TaskWithNotes_Response"];
                     };
                 };
             };
@@ -7026,7 +7026,7 @@ export namespace ApiSpecification {
                 content: {
                     readonly "application/json": {
                         readonly spaceId: components["schemas"]["SpaceId"];
-                        readonly task: components["schemas"]["TaskWithoutNotes_Response"];
+                        readonly task: components["schemas"]["Task_Response"];
                         readonly results: readonly components["schemas"]["TaskPatchResult"][];
                     };
                 };
@@ -7038,7 +7038,7 @@ export namespace ApiSpecification {
                 content: {
                     readonly "application/json": {
                         readonly spaceId?: components["schemas"]["SpaceId"];
-                        readonly tasks: readonly components["schemas"]["TaskWithoutNotes_Response"][];
+                        readonly tasks: readonly components["schemas"]["Task_Response"][];
                         readonly results: readonly components["schemas"]["TaskBatchPatchResult"][];
                     };
                 };

@@ -325,7 +325,7 @@ export type ApiTaskQueryItem = ApiSpecification.components["schemas"]["TaskQuery
 
 export type ApiTask = ApiSpecification.components["schemas"]["Task"];
 
-export type ApiTaskWithoutNotes = ApiSpecification.components["schemas"]["TaskWithoutNotes"];
+export type ApiTaskWithNotes = ApiSpecification.components["schemas"]["TaskWithNotes"];
 
 export type ApiTaskSubtasks = ApiSpecification.components["schemas"]["TaskSubtasks"];
 
@@ -902,8 +902,8 @@ export type ApiTaskCollectionItemResponse =
 
 export type ApiTaskResponse = ApiSpecification.components["schemas"]["Task_Response"];
 
-export type ApiTaskWithoutNotesResponse =
-    ApiSpecification.components["schemas"]["TaskWithoutNotes_Response"];
+export type ApiTaskWithNotesResponse =
+    ApiSpecification.components["schemas"]["TaskWithNotes_Response"];
 
 export type ApiMessageContentPayloadParentResponse =
     ApiSpecification.components["schemas"]["MessageContentPayloadParent_Response"];
@@ -1263,8 +1263,8 @@ export type ApiGetDocumentResponse =
 export type ApiGetTaskResponse =
     ApiSpecification.components["responses"]["GetTask"]["content"]["application/json"];
 
-export type ApiGetTaskWithoutNotesResponse =
-    ApiSpecification.components["responses"]["GetTaskWithoutNotes"]["content"]["application/json"];
+export type ApiGetTaskWithNotesResponse =
+    ApiSpecification.components["responses"]["GetTaskWithNotes"]["content"]["application/json"];
 
 export type ApiPatchTaskResponse =
     ApiSpecification.components["responses"]["PatchTask"]["content"]["application/json"];
