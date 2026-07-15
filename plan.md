@@ -101,6 +101,7 @@ to preserve — schemas and protocol shapes are replaced in place.
 **`server/databases/database_durable_object_sql_migrations.ts`**
 
 - Replace the page-table migration in place (no production data):
+
     ```sql
     CREATE TABLE database_table_pages (
         sqlite_id INTEGER NOT NULL,
@@ -112,6 +113,7 @@ to preserve — schemas and protocol shapes are replaced in place.
     
     CREATE INDEX database_table_pages_by_version ON database_table_pages (sqlite_id, version);
     ```
+
 - Add to `database_tables`: `file_size_in_pages INTEGER NOT NULL DEFAULT 0` and
   `last_version INTEGER NOT NULL DEFAULT 0`, updated transactionally in `writePages`.
 
@@ -184,7 +186,6 @@ to preserve — schemas and protocol shapes are replaced in place.
           | {type: "current"}
           | {type: "pages", pages: DatabaseTablePages}          // changed ∩ bitset, inlined
           | {type: "stale", pageIndexes: bytes /* bitset */}    // over inline limit: drop these
-          | {type: "resync"}                                    // reserved (future tombstone GC)
     }>
     ```
     plus `tableAccess` (same semantics as today's `ensureCacheIsUpToDate` response, including
@@ -323,15 +324,8 @@ Integration tests (Playwright / worker-level) covering the invariants end-to-end
 
 ## Punted / out of scope
 
-- **Tombstone GC + `resync` trigger.** Tombstones are kept forever for now; the `resync` catch-up
-  variant is wired but never returned. Revisit with a per-table horizon version once storage numbers
-  justify it.
 - **Bitset compression** (RLE/Roaring/Splinter) — plain bitsets first; encoding is swappable behind
   `page_bitset.ts`.
-- **Graft-mode server** (drop retained bitsets, metadata-only catch-up, notify-then-pull) — the
-  protocol already permits it; only worth it if per-connection memory shows up.
-- **Whole-table rolling checksum** (LiteFS-style `XOR crc64(pageIndex, data)`) for registration-time
-  integrity proof — cheap, but additive; do after the base protocol.
 - **Unsubscribe-on-evict** — subscriptions accumulate per connection (bounded by tables-touched);
   add only if real sessions show a long over-delivering tail.
 - **OPFS full-index-rewrite fix** (`opfs_page_store.sync()` review item) — same files, independent
@@ -348,5 +342,5 @@ Integration tests (Playwright / worker-level) covering the invariants end-to-end
 - `BrowserPageTracker` memory / `acknowledgePages` protocol (M6)
 - "Open independent per-table OPFS stores in parallel" — the fallback/registration path opens in
   parallel; the loader-seed path is deleted outright (M5).
-- "Merge loader page seeds instead of replacing earlier route data" — closed by deleting the
-  seeding path (M5).
+- "Merge loader page seeds instead of replacing earlier route data" — closed by deleting the seeding
+  path (M5).
