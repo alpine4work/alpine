@@ -1709,7 +1709,9 @@ async function parseAgentWebTaskCollectionTailPage(
 
     for (const child of root.children.slice(1)) {
         if (isEndOfTasks) {
-            throw createAgentWebTaskCollectionPageContentAfterEndOfTasksError(child);
+            throw new InvalidArgumentError("Content after end of task collection tasks", {
+                displayMessage: errorDisplayMessage`Nothing may appear after \u201CEnd of tasks\u201D in task collection markdown. Try again after removing the extra content after \u201CEnd of tasks\u201D on line ${child.position?.start.line ?? "unknown"}.`,
+            });
         }
 
         if (isAgentWebTaskCollectionPageEndOfTasksParagraph(child)) {
@@ -1784,12 +1786,6 @@ function isAgentWebTaskCollectionPageEndOfTasksParagraph(node: RootContent): boo
         node.type === "paragraph" &&
         /^End of tasks\.?$/.test(printMarkdownPhrasingContentText(node.children))
     );
-}
-
-function createAgentWebTaskCollectionPageContentAfterEndOfTasksError(node: RootContent) {
-    return new InvalidArgumentError("Content after end of task collection tasks", {
-        displayMessage: errorDisplayMessage`Nothing may appear after \u201CEnd of tasks\u201D in task collection markdown. Try again after removing the extra content after \u201CEnd of tasks\u201D on line ${node.position?.start.line ?? "unknown"}.`,
-    });
 }
 
 /**

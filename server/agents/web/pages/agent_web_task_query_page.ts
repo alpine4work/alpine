@@ -645,6 +645,19 @@ export async function printAgentWebTaskQueryPageTaskListItem(
     return {type: "listItem", spread: false, children};
 }
 
+export function parseAgentWebTaskQueryPageTasks(
+    storage: AgentWebSessionStorage,
+    taskList: List | null,
+    pageType: "TaskCollection" | "TaskSubtasks",
+): Promise<ReadonlyArray<AgentWebTaskQueryPageTask>> {
+    if (taskList === null) return Promise.resolve([]);
+
+    return runAllPromises(
+        taskList.children.map(taskListItem =>
+            parseAgentWebTaskQueryPageTask(storage, taskListItem, pageType),
+        ),
+    );
+}
 
 async function parseAgentWebTaskQueryPageTask(
     storage: AgentWebSessionStorage,
