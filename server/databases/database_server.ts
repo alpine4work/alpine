@@ -999,11 +999,10 @@ export class DatabaseServer {
             }
         }
 
-        // Always include page 0 for every table in the result, mirroring
-        // `ensureCacheIsUpToDate`. SQLite usually serves the header/schema page from its
-        // pager cache (and skips schema-cookie reads entirely in exclusive locking mode),
-        // so the tracked read set rarely contains it — but a client can't ATTACH a table
-        // it fetched over the wire without the header page.
+        // Always include page 0 for every table in the result. SQLite usually serves the
+        // header/schema page from its pager cache (and skips schema-cookie reads entirely
+        // in exclusive locking mode), so the tracked read set rarely contains it — but a
+        // client can't ATTACH a table it fetched over the wire without the header page.
         for (const [tableId, tableMap] of readPages) {
             if (tableMap.has(0)) continue;
             const page0 = this.readPage(tableId, 0);

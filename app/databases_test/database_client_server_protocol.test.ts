@@ -35,7 +35,6 @@ import {generateChronologicalId} from "~/shared/id/chronological_id.js";
 import {generateId} from "~/shared/id/id.js";
 import type {
     AccountId,
-    BrowserId,
     DatabaseFieldId,
     DatabaseGroupId,
     DatabaseReactiveActionId,
@@ -115,9 +114,7 @@ test("a connection from an account outside the group\u2019s space is refused", a
     const outsiderSession = await otherSpace.createSession();
 
     await expect(
-        durableObjectTest.connectForTest(context.action(outsiderSession), databaseGroupId, {
-            searchParams: new URLSearchParams([["browserId", generateId<BrowserId>()]]),
-        }),
+        durableObjectTest.connectForTest(context.action(outsiderSession), databaseGroupId),
     ).rejects.toThrow();
 });
 
@@ -160,7 +157,6 @@ test("internal-only actions are available over HTTP but not public websocket pro
     const serverConnection = await durableObjectTest.connectForTest(
         context.action(session),
         databaseGroupId,
-        {searchParams: new URLSearchParams([["browserId", generateId<BrowserId>()]])},
     );
     await expect(
         serverConnection.procedures.executeAction({
@@ -765,7 +761,6 @@ interface TestDatabaseClient {
     readonly executeActionCalls: Array<TestDatabaseClientExecuteActionCall>;
     readonly registerTableCalls: Array<DatabaseTableRegistrations>;
     readonly dir: OpfsDirectoryHandle;
-    readonly browserId: BrowserId;
     readonly databaseGroupId: DatabaseGroupId;
     /**
      * Drop the socket: realtime events stop being delivered and the connection state
@@ -797,22 +792,19 @@ interface TestDatabaseTable extends TestDatabaseTableRef {
 
 /**
  * Wires a real {@link DatabaseConnectionManager} to the real durable object
- * server, standing in for one browser. Each client gets its own OPFS directory and
- * `browserId` unless overridden (pass both to model a restart of the same browser
- * — see {@link restartClient}).
+ * server, standing in for one browser. Each client gets its own OPFS directory
+ * unless one is supplied to model a restart (see {@link restartClient}).
  */
 async function createTestClient(
     databaseGroupId: DatabaseGroupId,
-    options: {browserId?: BrowserId; dir?: OpfsDirectoryHandle} = {},
+    options: {dir?: OpfsDirectoryHandle} = {},
 ): Promise<TestDatabaseClient> {
     const space = await getOrCreateTestSpaceForDatabaseGroupId(databaseGroupId);
     const session = await space.createSession();
-    const browserId = options.browserId ?? generateId<BrowserId>();
     const dir = options.dir ?? createInMemoryOpfsDirectoryHandle();
     const serverConnection = await durableObjectTest.connectForTest(
         context.action(session),
         databaseGroupId,
-        {searchParams: new URLSearchParams([["browserId", browserId]])},
     );
 
     let online = true;
@@ -859,7 +851,6 @@ async function createTestClient(
         executeActionCalls,
         registerTableCalls,
         dir,
-        browserId,
         databaseGroupId,
         goOffline: () => {
             setOnline(false);
@@ -888,7 +879,7 @@ async function getOrCreateTestSpaceForDatabaseGroupId(
 /**
  * Model a browser restart: close the client's server connection and stand up a
  * fresh manager (fresh SQLite connection and connection epoch) on the same OPFS
- * directory and `browserId`.
+ * directory.
  */
 async function restartClient(
     client: TestDatabaseClient,
@@ -897,7 +888,6 @@ async function restartClient(
     client.close();
     return await createTestClient(databaseGroupId, {
         dir: client.dir,
-        browserId: client.browserId,
     });
 }
 

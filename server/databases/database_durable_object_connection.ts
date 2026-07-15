@@ -4,7 +4,6 @@ import {
     WorkerSessionActionContextModules,
 } from "~/server/cloudflare/context/worker_action_context.js";
 import {WorkerProcessContext} from "~/server/cloudflare/context/worker_process_context.js";
-import {BrowserPageTracker} from "~/server/databases/browser_page_tracker.js";
 import {buildDatabasePageDiffs} from "~/server/databases/build_database_page_diffs.js";
 import {DatabaseServer} from "~/server/databases/database_server.js";
 import {WebSocketConnectionProcedures} from "~/server/web_socket/web_socket_server.js";
@@ -32,11 +31,9 @@ import {PermissionDeniedError} from "~/shared/error/error.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
 import type {
-    BrowserId,
     DatabaseGroupId,
     DatabaseMutationId,
     DatabaseTableId,
-    WebSocketConnectionId,
 } from "~/shared/id/types/id_types.js";
 import {
     authorizeDatabaseGroupAccess,
@@ -66,10 +63,6 @@ export class DatabaseDurableObjectConnection {
     ) => void;
     private readonly _processContext: WorkerProcessContext;
     private readonly _databaseGroupId: DatabaseGroupId;
-    private readonly _browserId: BrowserId;
-    private readonly _connectionId: WebSocketConnectionId;
-    private readonly _browserPageTracker: BrowserPageTracker;
-    private readonly _trackPages: boolean;
     private readonly _subscriptions = new Map<
         DatabaseTableId,
         {heldPages: TypedFastBitSet; watermark: number}
@@ -82,33 +75,18 @@ export class DatabaseDurableObjectConnection {
         sendEventToAll,
         sendEventToSelf,
         databaseGroupId,
-        browserId,
-        connectionId,
-        browserPageTracker,
-        trackPages,
     }: {
         server: DatabaseServer;
         processContext: WorkerProcessContext;
         sendEventToAll: (context: WorkerProcessContext, event: DatabaseRealtimeEventStub) => void;
         sendEventToSelf: (context: WorkerProcessContext, event: DatabaseRealtimeEventStub) => void;
         databaseGroupId: DatabaseGroupId;
-        browserId: BrowserId;
-        connectionId: WebSocketConnectionId;
-        browserPageTracker: BrowserPageTracker;
-        trackPages: boolean;
     }) {
         this._server = server;
         this._processContext = processContext;
         this._sendEventToAll = sendEventToAll;
         this._sendEventToSelf = sendEventToSelf;
         this._databaseGroupId = databaseGroupId;
-        this._browserId = browserId;
-        this._connectionId = connectionId;
-        this._browserPageTracker = browserPageTracker;
-        this._trackPages = trackPages;
-        if (trackPages) {
-            this._browserPageTracker.registerConnection(browserId, connectionId);
-        }
     }
 
     public readonly procedures: WebSocketConnectionProcedures<
@@ -224,133 +202,7 @@ export class DatabaseDurableObjectConnection {
         registerTables: async (context, input) => {
             return this._registerTables(context, input.tables);
         },
-        ensureCacheIsUpToDate: async (context, input) => {
-            // Withhold inaccessible tables' pages, and send an access map covering the tables
-            // they asked about (and, for join files, the joined sides — their only source of
-            // "exists but no access" because policy copies remain server-side). Resolve both
-            // inline as the loop walks the client's cache map.
-            const accountId = context.actor.getPossiblyBotAccountIdIfExists();
-            const tableAccess = new Map<DatabaseTableId, AccessLevel | null>();
-
-            // Mutable builder for the readonly `DatabaseEnsureCacheIsUpToDateResult["tables"]`
-            // return type; `updatedPages` reuses the wire type.
-            const tables = new Map<
-                DatabaseTableId,
-                {
-                    updatedPages: DatabaseTablePages;
-                    stalePageIndexes: Array<number>;
-                    fileSizeInPages: number;
-                }
-            >();
-
-            // The tracker is partitioned by table, so validate every table the client sent —
-            // not just the main table — otherwise setPages below would wipe tracker state for
-            // any attached table omitted from the map.
-            const matchingPagesByTable = new Map<DatabaseTableId, Array<number>>();
-            const pendingPagesByTable = new Map<DatabaseTableId, Iterable<number>>();
-
-            for (const [tableId, tableVersions] of input.pageVersionsByIndex) {
-                const accessLevel =
-                    tableId === databaseMainTableId
-                        ? "Manage"
-                        : this._server.getTableAccessLevelForAccount(tableId, accountId);
-                tableAccess.set(tableId, accessLevel);
-
-                // A requested join file also reports its two sides: their levels are what the
-                // join's own level derives from, and a client holding a join file renders
-                // relations into both sides.
-                const entry = this._server.getDatabaseTableAccessEntry(tableId);
-                if (entry !== null && entry.kind === "join") {
-                    for (const sideTableId of [entry.sourceTableId, entry.targetTableId]) {
-                        tableAccess.set(
-                            sideTableId,
-                            this._server.getTableAccessLevelForAccount(sideTableId, accountId),
-                        );
-                    }
-                }
-
-                // Withhold tables the account can't read. Omitting the table also wipes its
-                // per-browser tracker state below — correct, since no pages will be sent while
-                // access is missing.
-                if (accessLevel === null) {
-                    continue;
-                }
-                const updatedPages = new Map<number, {version: number; data: Uint8Array}>();
-                const stalePageIndexes: Array<number> = [];
-                let overLimit = false;
-
-                for (const [pageIndex, clientVersion] of tableVersions) {
-                    const page = this._server.readPage(tableId, pageIndex);
-
-                    // Page matches — skip.
-                    if (page !== null && page.version === clientVersion) continue;
-
-                    // Over limit, or page is gone — stale index.
-                    if (overLimit || page === null) {
-                        stalePageIndexes.push(pageIndex);
-                        continue;
-                    }
-
-                    updatedPages.set(pageIndex, {version: page.version, data: page.data});
-                    if (updatedPages.size >= registrationCatchUpInlinePageLimit) {
-                        // Too many stale pages to inline — dump everything collected so far into
-                        // stalePageIndexes and stop reading data.
-                        for (const idx of updatedPages.keys()) {
-                            stalePageIndexes.push(idx);
-                        }
-                        updatedPages.clear();
-                        overLimit = true;
-                    }
-                }
-
-                // Always include page 0 so the client has the schema.
-                if (!updatedPages.has(0)) {
-                    const page0 = this._server.readPage(tableId, 0);
-                    if (page0 !== null) {
-                        const clientVersion = tableVersions.get(0);
-                        if (clientVersion === undefined || clientVersion !== page0.version) {
-                            updatedPages.set(0, {version: page0.version, data: page0.data});
-                        }
-                    }
-                }
-
-                // Tell the tracker which pages the client already has valid copies of: all client
-                // pages minus those we're updating or marking stale.
-                const staleSet = new Set(stalePageIndexes);
-                const matchingPages: Array<number> = [];
-                for (const pageIndex of tableVersions.keys()) {
-                    if (!updatedPages.has(pageIndex) && !staleSet.has(pageIndex)) {
-                        matchingPages.push(pageIndex);
-                    }
-                }
-                matchingPagesByTable.set(tableId, matchingPages);
-
-                if (updatedPages.size > 0) {
-                    pendingPagesByTable.set(tableId, updatedPages.keys());
-                }
-
-                const fileSizeInPages = this._server.getFileSize(tableId) / sqlitePageSize;
-                tables.set(tableId, {updatedPages, stalePageIndexes, fileSizeInPages});
-            }
-
-            this._browserPageTracker.setPages(this._browserId, matchingPagesByTable);
-            if (pendingPagesByTable.size > 0) {
-                this._browserPageTracker.addPendingPages(this._browserId, pendingPagesByTable);
-            }
-
-            return {tables, tableAccess};
-        },
-        acknowledgePages: async (_context, input) => {
-            this._browserPageTracker.addPages(this._browserId, input.pageIndexes);
-            return {};
-        },
     };
-
-    public handleClose(): void {
-        if (this._trackPages) {
-            this._browserPageTracker.unregisterConnection(this._browserId, this._connectionId);
-        }
-    }
 
     public async authorize(context: WorkerSessionActionContext): Promise<void> {
         // Space-level gate: every database group belongs to exactly one space, and all

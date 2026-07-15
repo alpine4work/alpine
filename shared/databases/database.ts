@@ -729,10 +729,9 @@ export class Database {
 
     /**
      * Whether attaching another per-table file would trigger LRU eviction. Callers
-     * that eagerly attach tables as an optimization (e.g. the client's
-     * `attachKnownTables`) should stop here — past this point eager attaches just
-     * churn the working set, since any table they evict re-attaches on first use
-     * anyway.
+     * that eagerly attach tables as an optimization during client registration should
+     * stop here — past this point eager attaches just churn the working set, since any
+     * table they evict re-attaches on first use anyway.
      */
     isAtAttachCapacity(): boolean {
         return this.tables.size >= this.attachEvictionThreshold;

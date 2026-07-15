@@ -104,19 +104,6 @@ export const DatabasePageDiffsSchema = Schema.map(
 
 export type DatabasePageDiffs = SchemaType<typeof DatabasePageDiffsSchema>;
 
-// -- Cache validation ---------------------------------------------------------
-
-/**
- * Map a client sends to validate its page cache: per table, the page-index →
- * version pairs the client believes it has cached.
- */
-export const DatabasePageVersionsByIndexSchema = Schema.map(
-    Schema.id<DatabaseTableId>(),
-    Schema.map(Schema.integer, Schema.integer),
-);
-
-export type DatabasePageVersionsByIndex = SchemaType<typeof DatabasePageVersionsByIndexSchema>;
-
 // -- Table access levels --------------------------------------------------------
 
 /**
@@ -124,11 +111,11 @@ export type DatabasePageVersionsByIndex = SchemaType<typeof DatabasePageVersions
  * durable object's policy copies. `null` means no access.
  *
  * The client can't compute this itself because policy copies remain server-side,
- * so the server pushes per-table entries in `ensureCacheIsUpToDate` responses
- * (covering the tables the client asked about) and per-table deltas on
- * `TableMetadataChanged` events. The client uses it to _plan_ (e.g. relation
- * fields render "No access" chips instead of joining into a file it can't read);
- * the authoritative enforcement is the server's per-statement authorizer.
+ * so the server pushes per-table entries in registration responses (covering the
+ * tables the client asked about) and per-table deltas on `TableMetadataChanged`
+ * events. The client uses it to _plan_ (e.g. relation fields render "No access"
+ * chips instead of joining into a file it can't read); the authoritative
+ * enforcement is the server's per-statement authorizer.
  */
 export const DatabaseTableAccessLevelsSchema = Schema.map(
     Schema.id<DatabaseTableId>(),
@@ -191,57 +178,6 @@ export const DatabaseRegisterTablesResultConfig = {
 export type DatabaseRegisterTablesResult = ObjectSchemaConfigType<
     typeof DatabaseRegisterTablesResultConfig
 >;
-
-/**
- * Result config for `ensureCacheIsUpToDate`.
- *
- * Keyed by {@link DatabaseTableId}: each table is its own SQLite database
- * (attached together on the client) and the cache is validated independently per
- * table.
- *
- * Within each per-table entry, empty states represent different modes:
- *
- * - Both empty — that table's cache is up to date.
- * - `updatedPages` non-empty — server inlined page data for a small number of
- *   stale pages.
- * - `stalePageIndexes` non-empty, `updatedPages` empty — too many stale pages;
- *   client deletes them and re-fetches on demand.
- */
-export const DatabaseEnsureCacheIsUpToDateResultConfig = {
-    tables: Schema.map(
-        Schema.id<DatabaseTableId>(),
-        Schema.object({
-            updatedPages: DatabaseTablePagesSchema,
-            stalePageIndexes: Schema.array(Schema.integer),
-            fileSizeInPages: Schema.integer,
-        }),
-    ),
-    /**
-     * The access map for the tables the client asked about (the request's
-     * `pageVersionsByIndex` keys), plus — for join files among them — the joined
-     * sides, whose levels the client needs to render relations ("exists but no
-     * access"). Withheld and unknown tables report `null`. Empty for trusted internal
-     * connections, which are unrestricted.
-     */
-    tableAccess: DatabaseTableAccessLevelsSchema,
-};
-
-export type DatabaseEnsureCacheIsUpToDateResult = ObjectSchemaConfigType<
-    typeof DatabaseEnsureCacheIsUpToDateResultConfig
->;
-
-// -- Page acknowledgments -----------------------------------------------------
-
-/**
- * Map a client sends to acknowledge that it received the named pages: per table,
- * the page indexes confirmed.
- */
-export const DatabasePageIndexesSchema = Schema.map(
-    Schema.id<DatabaseTableId>(),
-    Schema.array(Schema.integer),
-);
-
-export type DatabasePageIndexes = SchemaType<typeof DatabasePageIndexesSchema>;
 
 // -- Action invocation --------------------------------------------------------
 

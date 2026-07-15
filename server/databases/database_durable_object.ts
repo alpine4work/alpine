@@ -8,7 +8,6 @@ import {
     WorkerProcessContextModules,
 } from "~/server/cloudflare/context/worker_process_context.js";
 import {createDurableObject} from "~/server/cloudflare/create_durable_object.js";
-import {BrowserPageTracker} from "~/server/databases/browser_page_tracker.js";
 import {buildDatabasePageDiffs} from "~/server/databases/build_database_page_diffs.js";
 import {
     DatabaseDurableObjectConnection,
@@ -23,10 +22,10 @@ import {
     DatabaseRealtimeProtocol,
     DatabaseTableMetadataBroadcastRealtimeEventsSchema,
 } from "~/shared/databases/database_realtime_protocol.js";
-import {InvalidArgumentError, NotFoundError, PermissionDeniedError} from "~/shared/error/error.js";
+import {NotFoundError, PermissionDeniedError} from "~/shared/error/error.js";
 import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
 import {generateId} from "~/shared/id/id.js";
-import type {BrowserId, DatabaseGroupId, DatabaseMutationId} from "~/shared/id/types/id_types.js";
+import type {DatabaseGroupId, DatabaseMutationId} from "~/shared/id/types/id_types.js";
 import {SchemaSerializedValue} from "~/shared/schema/schema.js";
 
 type DatabaseGroupDurableObjectRoute =
@@ -41,7 +40,6 @@ class DatabaseGroupDurableObject {
     private readonly _server: DatabaseServer;
     private readonly _processContext: WorkerProcessContext;
     private readonly _databaseGroupId: DatabaseGroupId;
-    private readonly _browserPageTracker = new BrowserPageTracker();
 
     private readonly _webSocketServer: WebSocketServer<
         WorkerProcessContextModules,
@@ -90,32 +88,19 @@ class DatabaseGroupDurableObject {
             typeof DatabaseRealtimeProtocol,
             DatabaseRealtimeEventStub,
             DatabaseDurableObjectConnection
-        >(
-            this._processContext,
-            DatabaseRealtimeProtocol,
-            ({connectionId, searchParams, sendEvent}) => {
-                const browserId = searchParams.get("browserId") as BrowserId | null;
-                if (browserId === null) {
-                    throw new InvalidArgumentError("Missing browserId query parameter");
-                }
-                const trackPages = searchParams.get("trackPages") !== "false";
-                return new DatabaseDurableObjectConnection({
-                    processContext: this._processContext,
-                    server: this._server,
-                    sendEventToAll: (context, event) => {
-                        this._webSocketServer.sendEventToAll(context, event);
-                    },
-                    sendEventToSelf: (context, event) => {
-                        void sendEvent(context, event);
-                    },
-                    databaseGroupId: this._databaseGroupId,
-                    browserId,
-                    connectionId,
-                    browserPageTracker: this._browserPageTracker,
-                    trackPages,
-                });
-            },
-        );
+        >(this._processContext, DatabaseRealtimeProtocol, ({sendEvent}) => {
+            return new DatabaseDurableObjectConnection({
+                processContext: this._processContext,
+                server: this._server,
+                sendEventToAll: (context, event) => {
+                    this._webSocketServer.sendEventToAll(context, event);
+                },
+                sendEventToSelf: (context, event) => {
+                    void sendEvent(context, event);
+                },
+                databaseGroupId: this._databaseGroupId,
+            });
+        });
     }
 
     public static parseRoute(url: URL): [string, DatabaseGroupDurableObjectRoute] {

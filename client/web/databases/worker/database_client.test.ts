@@ -13,7 +13,6 @@ import type {
     OpfsFileHandle,
     OpfsSyncAccessHandle,
 } from "~/client/web/databases/worker/opfs.js";
-import type {AccessLevel} from "~/shared/access/access_policy.js";
 import type {
     DatabaseActionObject,
     DatabaseActionResult,
@@ -1570,110 +1569,6 @@ describe("writePageDiffsFromRealtime", () => {
     });
 });
 
-describe("ensureCacheIsUpToDate", () => {
-    // A cache-validation response can race a newer realtime diff: the diff mismatches
-    // its base (tombstoning the page at the diff's version), and the validation
-    // response — snapshotted before the diff was broadcast — then offers the page at
-    // an older version, which the tombstone rightly rejects. The client must not
-    // acknowledge a page it rejected: a lying ack marks the page "confirmed" in the
-    // server's per-browser tracker, which then filters it out of every future
-    // `executeAction` response — so the cache can never heal and every read of that
-    // page falls back to the server forever.
-    test("does not acknowledge pages a tombstone rejected", async () => {
-        const serverDir = createInMemoryOpfsDirectoryHandle();
-        const server = await DatabaseClient.create(serverDir);
-        server.executeLocallyForTests(sql`CREATE TABLE t (id INTEGER PRIMARY KEY, data TEXT)`);
-        server.commitOptimisticPagesForTests();
-        const {fileSizeInPages, pages} = await extractOpfsPages(serverDir);
-
-        const localDir = createInMemoryOpfsDirectoryHandle();
-        await prepopulateOpfsPages(localDir, fileSizeInPages, pages);
-        const local = await DatabaseClient.create(localDir);
-
-        const page = pages[pages.length - 1]!;
-        let resolveValidation: (result: {
-            tables: Map<
-                DatabaseTableId,
-                {
-                    updatedPages: Map<number, {version: number; data: Uint8Array}>;
-                    stalePageIndexes: Array<number>;
-                    fileSizeInPages: number;
-                }
-            >;
-            tableAccess: Map<DatabaseTableId, AccessLevel | null>;
-        }) => void;
-        const validationGate = new Promise<{
-            tables: Map<
-                DatabaseTableId,
-                {
-                    updatedPages: Map<number, {version: number; data: Uint8Array}>;
-                    stalePageIndexes: Array<number>;
-                    fileSizeInPages: number;
-                }
-            >;
-            tableAccess: Map<DatabaseTableId, AccessLevel | null>;
-        }>(resolve => {
-            resolveValidation = resolve;
-        });
-        const acknowledged: Array<ReadonlyMap<DatabaseTableId, ReadonlyArray<number>>> = [];
-        const conn = makeDatabaseClientConnection({
-            ensureCacheIsUpToDate: () => validationGate,
-            acknowledgePages(pageIndexes) {
-                acknowledged.push(pageIndexes);
-            },
-        });
-
-        const validation = local.ensureCacheIsUpToDate(conn);
-
-        // While the validation response is in flight, a diff for the page arrives whose
-        // base the client never saw — the page is dropped and tombstoned at the diff's
-        // version.
-        local.writePageDiffsFromRealtime(
-            new Map([
-                [
-                    databaseMainTableId,
-                    {
-                        version: page.version + 2,
-                        diffs: new Map([
-                            [
-                                page.pageIndex,
-                                {
-                                    previousVersion: page.version + 1,
-                                    version: page.version + 2,
-                                    diff: [],
-                                },
-                            ],
-                        ]),
-                        fileSizeInPages,
-                    },
-                ],
-            ]),
-            generateId<DatabaseMutationId>(),
-        );
-
-        // The validation response offers the page at a version below the tombstone; the
-        // write is rejected, so the page must not be acknowledged.
-        resolveValidation!({
-            tables: new Map([
-                [
-                    databaseMainTableId,
-                    {
-                        updatedPages: new Map([
-                            [page.pageIndex, {version: page.version + 1, data: page.data}],
-                        ]),
-                        stalePageIndexes: [],
-                        fileSizeInPages,
-                    },
-                ],
-            ]),
-            tableAccess: new Map(),
-        });
-        await validation;
-
-        expect(acknowledged).toEqual([]);
-    });
-});
-
 describe("server fallback", () => {
     test("missing page triggers server fallback", async () => {
         // Create a "server" DB with enough data to span multiple pages (4096 bytes each).
@@ -2744,6 +2639,45 @@ describe("DatabaseClient — table access levels", () => {
         return tableId;
     }
 
+    test("merges access levels from a registration response", async () => {
+        const dir = createInMemoryOpfsDirectoryHandle();
+        const client = await DatabaseClient.create(dir);
+        const tableId = await attachItemsTable(client);
+        const hiddenTableId = generateChronologicalId<DatabaseTableId>();
+        const tablePages = await extractOpfsTablePages(dir, tableId);
+        client.beginDisconnectedConnectionEpoch();
+        await client.registerTablesAfterReconnect(
+            makeDatabaseClientConnection({
+                async registerTables() {
+                    return {
+                        tables: new Map([
+                            [
+                                tableId,
+                                {
+                                    watermark: 70,
+                                    fileSizeInPages: tablePages.fileSizeInPages,
+                                    catchUp: {type: "current"},
+                                },
+                            ],
+                        ]),
+                        tableAccess: new Map([
+                            [tableId, "View"],
+                            [hiddenTableId, null],
+                        ]),
+                    };
+                },
+            }),
+        );
+
+        expect({
+            readable: client.getTableAccessLevel(tableId),
+            hidden: client.getTableAccessLevel(hiddenTableId),
+            unknown: client.getTableAccessLevel(generateChronologicalId<DatabaseTableId>()),
+        }).toEqual({readable: "View", hidden: null, unknown: "Manage"});
+
+        client.close();
+    });
+
     test("drops an optimistic mutation against a table whose access is revoked", async () => {
         const dir = createInMemoryOpfsDirectoryHandle();
         const client = await DatabaseClient.create(dir);
@@ -2839,33 +2773,6 @@ describe("DatabaseClient — table access levels", () => {
         ]);
     });
 
-    test("stores the map from ensureCacheIsUpToDate and merges event deltas", async () => {
-        const client = await DatabaseClient.create(createInMemoryOpfsDirectoryHandle());
-        const readableTableId = generateChronologicalId<DatabaseTableId>();
-        const hiddenTableId = generateChronologicalId<DatabaseTableId>();
-        const conn = makeDatabaseClientConnection({
-            ensureCacheIsUpToDate: () =>
-                Promise.resolve({
-                    tables: new Map(),
-                    tableAccess: new Map<DatabaseTableId, AccessLevel | null>([
-                        [readableTableId, "View"],
-                        [hiddenTableId, null],
-                    ]),
-                }),
-        });
-        await client.ensureCacheIsUpToDate(conn);
-
-        await client.applyTableAccessLevels(new Map([[hiddenTableId, "Edit"]]));
-
-        expect({
-            readable: client.getTableAccessLevel(readableTableId),
-            granted: client.getTableAccessLevel(hiddenTableId),
-            unknown: client.getTableAccessLevel(generateChronologicalId<DatabaseTableId>()),
-        }).toEqual({readable: "View", granted: "Edit", unknown: "Manage"});
-
-        client.close();
-    });
-
     test("a denied optimistic write fails fast without contacting the server", async () => {
         const client = await DatabaseClient.create(createInMemoryOpfsDirectoryHandle());
         const tableId = await attachItemsTable(client);
@@ -2933,29 +2840,6 @@ describe("DatabaseClient — table access levels", () => {
             `,
         );
         expect(serverCalled).toBe(true);
-
-        client.close();
-    });
-
-    test("ensureCacheIsUpToDate purges tables the full access map revokes", async () => {
-        const groupDir = createInMemoryOpfsDirectoryHandle();
-        const client = await DatabaseClient.create(groupDir);
-        const tableId = await attachItemsTable(client);
-
-        const conn = makeDatabaseClientConnection({
-            ensureCacheIsUpToDate: () =>
-                Promise.resolve({
-                    tables: new Map(),
-                    tableAccess: new Map<DatabaseTableId, AccessLevel | null>([[tableId, null]]),
-                }),
-        });
-        await client.ensureCacheIsUpToDate(conn);
-
-        const opfsEntries: Array<string> = [];
-        for await (const name of groupDir.keys()) {
-            opfsEntries.push(name);
-        }
-        expect(opfsEntries).toEqual([databaseMainTableId]);
 
         client.close();
     });

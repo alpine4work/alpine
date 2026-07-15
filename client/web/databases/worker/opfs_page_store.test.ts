@@ -120,8 +120,8 @@ describe("OpfsPageStore.tombstonePages", () => {
     test("rejects a write below the tombstoned version", async () => {
         const {store} = await makeStore();
         store.writePageIfNewer(0, 1, makePage(0xaa));
-        // A version-3 diff couldn't apply; a late version-2 snapshot (e.g. an in-flight
-        // ensureCacheIsUpToDate response) must not resurrect the page.
+        // A version-3 diff couldn't apply; a late version-2 action response must not
+        // resurrect the page.
         store.tombstonePages(new Map([[0, 3]]));
         expect(store.writePageIfNewer(0, 2, makePage(0xbb))).toBe(false);
     });

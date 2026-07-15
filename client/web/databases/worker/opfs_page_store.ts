@@ -46,10 +46,10 @@ const dirtyMarker = new Uint8Array([1]);
  * Optimistic SQL-driven writes live in the in-memory buffer owned by the
  * `Database` that consumes this store via `OpfsDatabaseStorage`.
  *
- * The canonical file size is supplied externally — by the realtime protocol, by
- * `ensureCacheIsUpToDate`, etc. — and persisted as part of the index. The store
- * never tries to derive size from cached page bytes (e.g. the SQLite header at
- * page-0 offset 28); doing so would couple the cache to SQLite's internal page
+ * The canonical file size is supplied externally by realtime events,
+ * registrations, and action responses, and persisted as part of the index. The
+ * store never tries to derive size from cached page bytes (e.g. the SQLite header
+ * at page-0 offset 28); doing so would couple the cache to SQLite's internal page
  * layout and break for tables whose canonical size shrinks below the cached
  * `maxPageIndex`.
  */
@@ -189,11 +189,11 @@ export class OpfsPageStore {
      * Drop pages because a newer version (the map value) is known to exist but its
      * data couldn't be obtained — e.g. a realtime diff whose base didn't match the
      * cached page. Unlike {@link deletePages}, the version is remembered (in memory
-     * only) so a late-arriving write below it — say, an `ensureCacheIsUpToDate`
-     * response snapshotted before the diff was broadcast — can't resurrect the page at
-     * a stale version; see {@link writePageIfNewer}. The page reads as missing until a
-     * write at or above the recorded version lands (typically the server fallback
-     * triggered by the next read).
+     * only) so a late-arriving write below it — say, an action response snapshotted
+     * before the diff was broadcast — can't resurrect the page at a stale version; see
+     * {@link writePageIfNewer}. The page reads as missing until a write at or above
+     * the recorded version lands (typically the server fallback triggered by the next
+     * read).
      */
     tombstonePages(pages: ReadonlyMap<number, number>): void {
         for (const [pageIndex, version] of pages) {
@@ -217,8 +217,7 @@ export class OpfsPageStore {
 
     /**
      * Set the canonical file size in pages, supplied by the protocol
-     * (`fileSizeInPages` on realtime page diffs and `ensureCacheIsUpToDate`
-     * responses).
+     * (`fileSizeInPages` on realtime page diffs, registrations, and action responses).
      */
     setServerFileSizeInPages(sizeInPages: number): void {
         this.knownDatabaseSizeInPages = sizeInPages;

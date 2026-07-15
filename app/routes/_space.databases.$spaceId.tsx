@@ -6,7 +6,6 @@ import {DatabaseConnectionContext} from "~/client/web/databases/database_connect
 import {Box} from "~/client/web/design/box.js";
 import {useReporter} from "~/client/web/design/reporter.js";
 import {useEvent} from "~/client/web/helpers/lifecycle/use_event.js";
-import {useBrowserId} from "~/client/web/remix/client_info_context.js";
 import {createMetaFunction} from "~/client/web/remix/create_meta_function.js";
 import {useLoaderDataWithSchema} from "~/client/web/remix/use_loader_data_with_schema.js";
 import {jsonWithSchema} from "~/server/remix/json_with_schema.js";
@@ -34,12 +33,11 @@ export async function loader({params, context: unauthenticatedContext}: LoaderAr
 
 export default function DatabaseGroupLayoutRoute() {
     const {databaseGroupId} = useLoaderDataWithSchema(LoaderSchema);
-    const browserId = useBrowserId();
     const reporter = useReporter();
     const [db] = useState(createDatabaseGroupConnection);
     const conn = db.connection;
 
-    const wsUrl = `/api/durable-objects/database-groups/${databaseGroupId}?browserId=${browserId}`;
+    const wsUrl = `/api/durable-objects/database-groups/${databaseGroupId}`;
 
     const connectDatabase = useEvent(() => {
         db.connect({

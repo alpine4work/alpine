@@ -311,11 +311,6 @@ export class DatabaseConnectionManager {
                         registerTables: executeOptions.registerTables,
                     }),
                 registerTables: tables => client.procedures.registerTables({tables}),
-                ensureCacheIsUpToDate: pageVersionsByIndex =>
-                    client.procedures.ensureCacheIsUpToDate({pageVersionsByIndex}),
-                acknowledgePages: pageIndexes => {
-                    void client.procedures.acknowledgePages({pageIndexes});
-                },
                 reportError: error => this.reportError(error),
                 close() {
                     closed = true;

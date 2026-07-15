@@ -300,7 +300,7 @@ to preserve — schemas and protocol shapes are replaced in place.
 - Watermark: advances on applied diffs, skipped diffs, and stubs; a quiet table's lagging watermark
   yields an empty catch-up.
 
-## Milestone 6 — Delete the old protocol
+## [x] Milestone 6 — Delete the old protocol
 
 - Remove `ensureCacheIsUpToDate` and `acknowledgePages` from `database_realtime_protocol.ts`, the
   connection, and the client.
