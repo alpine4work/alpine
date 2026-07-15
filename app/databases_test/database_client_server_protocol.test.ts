@@ -2,6 +2,7 @@ import {DurableObjectStorage} from "@miniflare/durable-objects";
 import {MemoryStorage} from "@miniflare/storage-memory";
 import {
     createInMemoryOpfsDirectoryHandle,
+    extractOpfsTablePages,
     prepopulateOpfsTablePages,
 } from "~/client/web/databases/test_helpers/in_memory_opfs.js";
 import {
@@ -11,8 +12,12 @@ import {
 } from "~/client/web/databases/worker/database_connection_manager.js";
 import type {OpfsDirectoryHandle} from "~/client/web/databases/worker/opfs.js";
 import {createTestWorkerContext} from "~/server/cloudflare/test_helpers/create_test_worker_context.js";
+import {
+    createDatabaseTableMetadataForTest,
+    updateDatabaseTableAccessPolicy,
+} from "~/server/databases/data/database_table_metadata.js";
 import {DatabaseGroupDurableObject} from "~/server/databases/database_durable_object.js";
-import type {DatabaseServer} from "~/server/databases/database_server.js";
+import {DatabaseServer} from "~/server/databases/database_server.js";
 import {TestSpace} from "~/server/spaces/test_helpers/test_space.js";
 import {DatabaseActionFetchResponseSchema} from "~/shared/databases/database_action_fetch_schema.js";
 import {
@@ -40,6 +45,7 @@ import type {
     DatabaseReactiveActionId,
     DatabaseRowId,
     DatabaseTableId,
+    SpaceId,
 } from "~/shared/id/types/id_types.js";
 import {Schema} from "~/shared/schema/schema.js";
 
@@ -292,20 +298,32 @@ test("a DELETE without a WHERE clause replicates to the server and peers", async
     });
 });
 
-test("a fresh client reads another client\u2019s table through the server fallback", async () => {
+test("a fresh client fetches another client\u2019s table once", async () => {
     const databaseGroupId = generateId<DatabaseGroupId>();
     const table = await createTableOnServer(databaseGroupId);
     const writer = await createWarmClient(databaseGroupId, table);
+    const reader = await createTestClient(databaseGroupId);
     const rowId = generateChronologicalId<DatabaseRowId>();
     await executeAction(writer, "createRow", {tableId: table.tableId, rowId});
     await settle();
 
-    // A brand-new browser holds none of the table's pages, so its first read routes to
-    // the server and returns the canonical rows.
-    const reader = await createTestClient(databaseGroupId);
-    const rowIds = await selectRowIds(reader, table);
+    // The connected reader holds none of the table's pages, so the mutation sends it
+    // nothing. Its first read routes to the server and warms the cache exactly once.
+    const executeActionCallsBeforeRead = [...reader.executeActionCalls];
+    const firstRead = await selectRowIds(reader, table);
+    const secondRead = await selectRowIds(reader, table);
 
-    expect(rowIds).toEqual([rowId]);
+    expect({
+        executeActionCallsBeforeRead,
+        firstRead,
+        secondRead,
+        executeActionCalls: reader.executeActionCalls,
+    }).toEqual({
+        executeActionCallsBeforeRead: [],
+        firstRead: [rowId],
+        secondRead: [rowId],
+        executeActionCalls: [{name: "readonlyRawSql", returnResult: true}],
+    });
 });
 
 test("realtime page diffs keep a warmed client\u2019s local reads fresh", async () => {
@@ -326,6 +344,76 @@ test("realtime page diffs keep a warmed client\u2019s local reads fresh", async 
     }).toEqual({
         rowIds: [rowId],
         executeActionCalls: [],
+    });
+});
+
+test("realtime materializes appended pages for a warmed client", async () => {
+    const databaseGroupId = generateId<DatabaseGroupId>();
+    const table = await createTableOnServer(databaseGroupId);
+    const writer = await createWarmClient(databaseGroupId, table);
+    const reader = await createWarmClient(databaseGroupId, table);
+    const readerGroupDir = await reader.dir.getDirectoryHandle(databaseGroupId);
+    const pagesBefore = await extractOpfsTablePages(readerGroupDir, table.tableId);
+
+    await executeAction(writer, "rawSql", {
+        sql: sql`
+            WITH RECURSIVE
+                sequence (n) AS (
+                    VALUES
+                        (1)
+                    UNION ALL
+                    SELECT
+                        n + 1
+                    FROM
+                        sequence
+                    WHERE
+                        n < 1000
+                )
+            INSERT INTO
+                ${sql.tableRef(table.tableId, table.tableName)} (_id)
+            SELECT
+                generate_id ()
+            FROM
+                sequence
+        `.query,
+    });
+    await settle();
+
+    const pagesAfter = await extractOpfsTablePages(readerGroupDir, table.tableId);
+    const clientPagesByIndex = new Map(pagesAfter.pages.map(page => [page.pageIndex, page]));
+    const serverPages = extractServerPages(databaseGroupId, [table.tableId]).get(table.tableId)!;
+    const mismatchedPageIndexes: Array<number> = [];
+    for (const [pageIndex, serverPage] of serverPages) {
+        const clientPage = clientPagesByIndex.get(pageIndex);
+        if (
+            clientPage === undefined ||
+            clientPage.data.some((byte, byteIndex) => byte !== serverPage.data[byteIndex])
+        ) {
+            mismatchedPageIndexes.push(pageIndex);
+        }
+    }
+    assert(
+        mismatchedPageIndexes.length === 0,
+        `realtime cache differs on pages ${mismatchedPageIndexes.join(",")}; client has ${[
+            ...clientPagesByIndex.keys(),
+        ].join(",")}; server has ${[...serverPages.keys()].join(",")}`,
+    );
+    const {rows} = await executeAction(reader, "readonlyRawSql", {
+        sql: sql`
+            SELECT
+                COUNT(*) AS count
+            FROM
+                ${sql.tableRef(table.tableId, table.tableName)}
+        `.query,
+    });
+    expect({
+        count: (rows[0] as {count: number}).count,
+        executeActionCalls: reader.executeActionCalls,
+        appendedPages: pagesAfter.pages.length > pagesBefore.pages.length,
+    }).toEqual({
+        count: 1000,
+        executeActionCalls: [],
+        appendedPages: true,
     });
 });
 
@@ -699,6 +787,88 @@ test("a restarted client catches up cached per-table files at first touch", asyn
     expect(await selectRowIds(restarted, table)).toEqual([rowId]);
 });
 
+test("concurrent reconnects register once per client without page point reads", async () => {
+    const databaseGroupId = generateId<DatabaseGroupId>();
+    const table = await createTableOnServer(databaseGroupId);
+    const clients: Array<TestDatabaseClient> = [];
+    for (let i = 0; i < 5; i++) {
+        clients.push(await createWarmClient(databaseGroupId, table));
+    }
+
+    for (const client of clients) {
+        client.goOffline();
+    }
+    const readPage = import.meta.jest.spyOn(DatabaseServer.prototype, "readPage");
+    for (const client of clients) {
+        client.goOnline();
+    }
+    await settle();
+    const readPageCalls = readPage.mock.calls.length;
+    readPage.mockRestore();
+
+    expect({
+        registrationTableCounts: clients.map(client =>
+            client.registerTableCalls.slice(1).map(registration => registration.size),
+        ),
+        readPageCalls,
+    }).toEqual({
+        registrationTableCounts: clients.map(() => [table.seedPages.size]),
+        readPageCalls: 0,
+    });
+});
+
+test("access revocation drops the subscription until the next read", async () => {
+    const databaseGroupId = generateId<DatabaseGroupId>();
+    const table = await createTableOnServer(databaseGroupId);
+    const space = await getOrCreateTestSpaceForDatabaseGroupId(databaseGroupId);
+    const session = await space.createSession();
+    const allowedAccessPolicy = {
+        ...databaseTableAccessPolicyForCreator(generateId<AccountId>()),
+        defaultGrant: {level: "Manage" as const, generation: 0},
+    };
+    await createDatabaseTableMetadataForTest(context.action(session), {
+        databaseGroupId,
+        tableId: table.tableId,
+        spaceId: space.id,
+        name: "Projects",
+        accessPolicy: allowedAccessPolicy,
+    });
+    context.takeDurableObjectBroadcasts();
+    const reader = await createWarmClient(databaseGroupId, table);
+
+    await updateDatabaseTableAccessPolicy(context.action(session), {
+        spaceId: space.id,
+        tableId: table.tableId,
+        accessPolicy: {...allowedAccessPolicy, defaultGrant: null},
+    });
+    await deliverRecordedTableMetadataBroadcast(databaseGroupId, space.id);
+    await settle();
+
+    await updateDatabaseTableAccessPolicy(context.action(session), {
+        spaceId: space.id,
+        tableId: table.tableId,
+        accessPolicy: allowedAccessPolicy,
+    });
+    await deliverRecordedTableMetadataBroadcast(databaseGroupId, space.id);
+    await settle();
+
+    const rowId = generateChronologicalId<DatabaseRowId>();
+    await executeInternalAction(databaseGroupId, "createRow", {tableId: table.tableId, rowId});
+    await settle();
+    const executeActionCallsBeforeRead = [...reader.executeActionCalls];
+    const rowIds = await selectRowIds(reader, table);
+
+    expect({
+        executeActionCallsBeforeRead,
+        rowIds,
+        executeActionCalls: reader.executeActionCalls,
+    }).toEqual({
+        executeActionCallsBeforeRead: [],
+        rowIds: [rowId],
+        executeActionCalls: [{name: "readonlyRawSql", returnResult: true}],
+    });
+});
+
 // ---------------------------------------------------------------------------
 // Out-of-band mutations
 // ---
@@ -935,6 +1105,29 @@ async function executeInternalAction<const Name extends DatabaseActionName>(
     const {result} = DatabaseActionFetchResponseSchema.deserialize(await response.json());
     assert(result.name === name);
     return result.output as DatabaseActionOutput<Name>;
+}
+
+async function deliverRecordedTableMetadataBroadcast(
+    databaseGroupId: DatabaseGroupId,
+    spaceId: SpaceId,
+): Promise<void> {
+    const broadcasts = context.takeDurableObjectBroadcasts();
+    const groupBroadcasts = broadcasts.filter(broadcast => broadcast.url.includes(databaseGroupId));
+    const broadcast = groupBroadcasts[groupBroadcasts.length - 1];
+    assert(broadcast !== undefined, `expected a metadata broadcast for ${databaseGroupId}`);
+    assert(broadcast.body !== undefined && broadcast.body !== null);
+    const response = await durableObjectTest.fetchForTest(
+        context.systemAction(spaceId, {serviceName: "AppService"}),
+        databaseGroupId,
+        new Request(
+            "https://databases.test.invalid/broadcast-table-metadata-realtime-event-transaction",
+            {
+                method: "POST",
+                body: JSON.stringify(broadcast.body),
+            },
+        ),
+    );
+    assert(response.status === 200, `metadata broadcast returned ${response.status}`);
 }
 
 /**

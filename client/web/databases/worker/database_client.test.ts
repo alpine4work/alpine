@@ -1359,6 +1359,47 @@ describe("writePageDiffsFromRealtime", () => {
         });
     });
 
+    test("leaves a resized table detached when a stale diff tombstones its header", async () => {
+        const dir = createInMemoryOpfsDirectoryHandle();
+        const client = await DatabaseClient.create(dir);
+        const tableId = generateChronologicalId<DatabaseTableId>();
+        await client.attachTableForTests(tableId);
+        client.executeLocallyForTests(sql`
+            CREATE TABLE ${sql.tableRef(tableId, "items")} (id INTEGER PRIMARY KEY)
+        `);
+        client.commitOptimisticPagesForTests();
+        const before = await extractOpfsTablePages(dir, tableId);
+        const page0 = before.pages.find(page => page.pageIndex === 0)!;
+
+        client.writePageDiffsFromRealtime(
+            new Map([
+                [
+                    tableId,
+                    {
+                        version: page0.version + 2,
+                        diffs: new Map([
+                            [
+                                0,
+                                {
+                                    previousVersion: page0.version + 1,
+                                    version: page0.version + 2,
+                                    diff: [],
+                                },
+                            ],
+                        ]),
+                        fileSizeInPages: before.fileSizeInPages + 1,
+                    },
+                ],
+            ]),
+            generateId<DatabaseMutationId>(),
+        );
+
+        const after = await extractOpfsTablePages(dir, tableId);
+        expect({hasPage0: after.pages.some(page => page.pageIndex === 0)}).toEqual({
+            hasPage0: false,
+        });
+    });
+
     test("materializes appended pages without a fallback on the next read", async () => {
         const serverDir = createInMemoryOpfsDirectoryHandle();
         const server = await DatabaseClient.create(serverDir);

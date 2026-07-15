@@ -562,9 +562,13 @@ export class DatabaseClient {
         this.database.discardBuffer();
 
         let anyWritten = false;
+        const resizedTableIds = new Set<DatabaseTableId>();
         for (const [tableId, tableDiffs] of pageDiffs) {
             const store = this.storage.get(tableId);
             if (store === undefined) continue;
+            if (store.getFileSize() !== tableDiffs.fileSizeInPages * sqlitePageSize) {
+                resizedTableIds.add(tableId);
+            }
             const pagesToTombstone = new Map<number, number>();
             for (const [pageIndex, {previousVersion, version, diff}] of tableDiffs.diffs) {
                 const base = store.readPage(pageIndex);
@@ -612,6 +616,21 @@ export class DatabaseClient {
         }
         if (anyWritten) {
             this.scheduleInvalidation();
+        }
+        // SQLite caches an attached database's page count separately from its page cache.
+        // Reopen only resized schemas after updating xFileSize so their pagers observe
+        // appended or truncated pages before optimistic mutations replay.
+        for (const tableId of resizedTableIds) {
+            if (tableId === databaseMainTableId || !this.database.isAttached(tableId)) continue;
+            const store = this.storage.get(tableId);
+            assert(store !== undefined, `resized table has no store: ${tableId}`);
+            assert(
+                this.database.detachTableIfAttached(tableId),
+                `unable to refresh resized table ${tableId}`,
+            );
+            // A stale-base diff can tombstone page 0. Leave a headerless store detached so the
+            // next query takes the normal registration/fallback path.
+            if (store.hasPage(0)) this.database.attach(tableId);
         }
 
         this.replayOptimisticQueue();

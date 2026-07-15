@@ -315,7 +315,7 @@ to preserve — schemas and protocol shapes are replaced in place.
 - `dev check` sweep for dead exports; update the protocol doc comments in
   `database_protocol_schemas.ts` to describe the registration model.
 
-## Milestone 7 — Integration hardening
+## [x] Milestone 7 — Integration hardening
 
 Extend the existing protocol tests in `app/databases_test/` — the harness in
 `database_client_server_protocol.test.ts` already drives a real `DatabaseConnectionManager` against

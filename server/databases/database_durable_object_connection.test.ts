@@ -84,7 +84,7 @@ function makeTablePageDiffs(pageIndexes: ReadonlyArray<number>, version = 1) {
         diffs: new Map(
             pageIndexes.map(pageIndex => [
                 pageIndex,
-                {previousVersion: 0, version, diff: [] as const},
+                {previousVersion: 1, version, diff: [] as const},
             ]),
         ),
         fileSizeInPages: Math.max(0, ...pageIndexes) + 1,
@@ -604,6 +604,39 @@ describe("per-table realtime filtering", () => {
             diffs: new Map(),
             fileSizeInPages: 2,
         });
+    });
+
+    test("PagesChanged materializes a new page and adds it to the subscription", async () => {
+        const readableTableId = generateChronologicalId<DatabaseTableId>();
+        const conn = createFilteringConnection(new Map([[readableTableId, "View"]]));
+        await registerHeldPages(conn, new Map([[readableTableId, [0]]]));
+
+        const newPageEvent = await conn.transformEvent(createUntrustedContext(), {
+            type: "PagesChanged",
+            pageDiffs: new Map([
+                [
+                    readableTableId,
+                    {
+                        version: 7,
+                        diffs: new Map([[1, {previousVersion: 0, version: 7, diff: [] as const}]]),
+                        fileSizeInPages: 2,
+                    },
+                ],
+            ]),
+            mutationId: generateId<DatabaseMutationId>(),
+        });
+        const laterEvent = await conn.transformEvent(createUntrustedContext(), {
+            type: "PagesChanged",
+            pageDiffs: new Map([[readableTableId, makeTablePageDiffs([1], 8)]]),
+            mutationId: generateId<DatabaseMutationId>(),
+        });
+        assert(newPageEvent.type === "PagesChanged");
+        assert(laterEvent.type === "PagesChanged");
+
+        expect({
+            newPageIndexes: [...(newPageEvent.pageDiffs.get(readableTableId)?.diffs.keys() ?? [])],
+            laterIndexes: [...(laterEvent.pageDiffs.get(readableTableId)?.diffs.keys() ?? [])],
+        }).toEqual({newPageIndexes: [1], laterIndexes: [1]});
     });
 
     test("originator receives its full write set and adds it to the subscription", async () => {

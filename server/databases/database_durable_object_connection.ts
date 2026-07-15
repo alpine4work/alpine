@@ -323,9 +323,14 @@ export class DatabaseDurableObjectConnection {
                             : never
                     >();
                     for (const [pageIndex, diff] of diffs.diffs) {
-                        if (originatedHere || subscription.heldPages.has(pageIndex)) {
+                        const materializesNewPage = diff.previousVersion === 0;
+                        if (
+                            originatedHere ||
+                            materializesNewPage ||
+                            subscription.heldPages.has(pageIndex)
+                        ) {
                             filteredDiffs.set(pageIndex, diff);
-                            if (originatedHere) {
+                            if (originatedHere || materializesNewPage) {
                                 subscription.heldPages.add(pageIndex);
                             }
                         }
