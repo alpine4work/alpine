@@ -31,6 +31,7 @@ import {
 import {parseAgentWebTaskPageDueDateStringForUpdate} from "~/server/agents/web/pages/parse_agent_web_task_page_due_date_string_for_update.js";
 import {printMarkdownPhrasingContentText} from "~/server/agents/web/print_markdown_phrasing_content_text.js";
 import {routeAgentWebPageLinkPathname} from "~/server/agents/web/route_agent_web_page_link_pathname.js";
+import {ApiContentNormalizer} from "~/shared/api/content/normalize_api_content.js";
 import {parseMarkdownTree} from "~/shared/api/content/parse_api_content_from_markdown.js";
 import {printMarkdownTree} from "~/shared/api/content/print_api_content_to_markdown.js";
 import {intoApiAccountReference} from "~/shared/api/specification/into_api_account_reference.js";
@@ -832,19 +833,15 @@ export async function parseAgentWebTaskQueryPageTaskReference(
     };
 }
 
-export function normalizeAgentWebTaskQueryPage<Page extends AgentWebTaskQueryPage>(
-    page: Page,
-): Page {
-    return produce(page, page => {
-        withApiContentNormalizerForAgentWebMarkdown(normalizer => {
-            for (const pageTask of page.tasks) {
-                if (pageTask.parent) normalizer.normalizeReference(pageTask.parent);
-                if (pageTask.assignee) normalizer.normalizeReference(pageTask.assignee);
-                for (const collection of pageTask.collections)
-                    normalizer.normalizeReference(collection);
-            }
-        });
-    });
+export function normalizeAgentWebTaskQueryPage(
+    normalizer: ApiContentNormalizer,
+    page: Pick<AgentWebTaskQueryPage, "tasks">,
+) {
+    for (const pageTask of page.tasks) {
+        if (pageTask.parent) normalizer.normalizeReference(pageTask.parent);
+        if (pageTask.assignee) normalizer.normalizeReference(pageTask.assignee);
+        for (const collection of pageTask.collections) normalizer.normalizeReference(collection);
+    }
 }
 
 export async function updateAgentWebTaskQueryPage(
