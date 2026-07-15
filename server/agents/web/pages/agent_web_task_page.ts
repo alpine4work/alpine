@@ -400,6 +400,8 @@ export async function updateAgentWebTaskPage(
         }
     }
 
+    // NOCOMMIT: Test that we throw errors if the subtask updates aren't valid before
+    // making other updates.
     const {execute: executeSubtasksUpdate} = await updateAgentWebTaskQueryPage(
         context,
         {type: "TaskSubtasks", task: {id: oldPageMetadata.id}},
@@ -480,8 +482,8 @@ export async function printAgentWebTaskPage(
     id: TaskId,
     page: AgentWebTaskPage,
 ): Promise<Root> {
-    const [listItems, notesRoot] = await runAllPromises([
-        runAllPromises(printAgentWebTaskFieldListItems(storage, page)),
+    const [listItems, notesRoot, subtaskList, taskPathname] = await runAllPromises([
+        runAllPromises(printAgentWebTaskFieldListItems(storage, omitObject(page, ["subtasks"]))),
 
         isAgentWebTaskPageNotesEmpty(page.notes)
             ? null
@@ -506,6 +508,19 @@ export async function printAgentWebTaskPage(
 
                   return notesRoot;
               })(),
+
+        page.subtasks === null
+            ? null
+            : printAgentWebTaskQueryPageTaskList(storage, page.subtasks.tasks),
+
+        page.subtasks?.seeMore === null || page.subtasks === null
+            ? null
+            : createAgentWebPageStoredLinkPathname(storage, {
+                  type: "Task",
+                  id,
+                  title: page.title,
+                  status: page.status,
+              }),
     ]);
 
     const children: Root["children"] = [
@@ -531,6 +546,39 @@ export async function printAgentWebTaskPage(
 
         for (const child of notesRoot.children) {
             children.push(child);
+        }
+    }
+
+    if (page.subtasks !== null) {
+        assert(subtaskList !== null);
+
+        children.push(
+            {
+                type: "heading",
+                depth: 2,
+                children: [{type: "text", value: "Subtasks"}],
+            },
+            subtaskList,
+        );
+
+        if (page.subtasks.seeMore !== null) {
+            assert(taskPathname !== null);
+
+            children.push({
+                type: "paragraph",
+                children: [
+                    {
+                        type: "link",
+                        url: `${taskPathname}/subtasks?after=${page.subtasks.seeMore.nextCursorHash}`,
+                        children: [
+                            {
+                                type: "text",
+                                value: `See more (${page.subtasks.seeMore.remainingTaskCount} remaining) »`,
+                            },
+                        ],
+                    },
+                ],
+            });
         }
     }
 
