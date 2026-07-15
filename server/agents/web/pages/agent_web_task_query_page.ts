@@ -795,12 +795,21 @@ export function normalizeAgentWebTaskQueryPage<Page extends AgentWebTaskQueryPag
     });
 }
 
+export async function updateAgentWebTaskQueryPage(
+    context: AgentWebContext,
+    pageLink:
+        | {type: "TaskCollection"; id: TaskCollectionId}
+        | {type: "TaskSubtasks"; task: {id: TaskId}},
+    oldPageMetadata: AgentWebTaskQueryPageMetadata,
+    oldPage: AgentWebTaskQueryPage,
+    newPage: AgentWebTaskQueryPage,
+): Promise<{execute: () => Promise<AgentWebTaskQueryPageMetadata>}> {
     const contextTime = new Date();
     const contextDate = toCalendarDate(fromDate(contextTime, context.timeZone));
 
     if (!isDeepEqual(oldPage.pagination, newPage.pagination)) {
         throw new InvalidArgumentError("Can\u2019t update task query pagination", {
-            displayMessage: errorDisplayMessage`You can\u2019t update the \u201c${agentWebTaskQueryPageNextPageLinkText}\u201d link in ${{TaskCollection: errorDisplayMessage`task collection`, TaskSubtasks: errorDisplayMessage`subtasks`}[scope.type]} markdown. Try again with a more specific update that leaves the \u201c${agentWebTaskQueryPageNextPageLinkText}\u201d link unchanged.`,
+            displayMessage: errorDisplayMessage`You can\u2019t update the \u201c${agentWebTaskQueryPageNextPageLinkText}\u201d link in ${{TaskCollection: errorDisplayMessage`task collection`, TaskSubtasks: errorDisplayMessage`subtasks`}[pageLink.type]} markdown. Try again with a more specific update that leaves the \u201c${agentWebTaskQueryPageNextPageLinkText}\u201d link unchanged.`,
         });
     }
 
@@ -836,7 +845,7 @@ export function normalizeAgentWebTaskQueryPage<Page extends AgentWebTaskQueryPag
         const quotedTitle = quoteMarkdown([{type: "text", value: newTask.title}]);
 
         throw new InvalidArgumentError("Duplicate task in task query page", {
-            displayMessage: errorDisplayMessage`The task ${quotedTitle} appears more than once on this ${{TaskCollection: errorDisplayMessage`task collection`, TaskSubtasks: errorDisplayMessage`subtasks`}[scope.type]} page. Each task may only appear once. Try again after removing the duplicate task link.`,
+            displayMessage: errorDisplayMessage`The task ${quotedTitle} appears more than once on this ${{TaskCollection: errorDisplayMessage`task collection`, TaskSubtasks: errorDisplayMessage`subtasks`}[pageLink.type]} page. Each task may only appear once. Try again after removing the duplicate task link.`,
         });
     }
 
@@ -902,7 +911,7 @@ export function normalizeAgentWebTaskQueryPage<Page extends AgentWebTaskQueryPag
             throw new InvalidArgumentError(
                 "Can\u2019t add tasks in an automatically ordered query",
                 {
-                    displayMessage: errorDisplayMessage`Tasks may only be added to ${{TaskCollection: errorDisplayMessage`task collection`, TaskSubtasks: errorDisplayMessage`subtasks`}[scope.type]} markdown when the ${{TaskCollection: errorDisplayMessage`collection is`, TaskSubtasks: errorDisplayMessage`subtasks are`}[scope.type]} sorted manually. ${{TaskCollection: errorDisplayMessage`A collection is`, TaskSubtasks: errorDisplayMessage`Subtasks are`}[scope.type]} manually sorted when no automatic sorts are applied. That means there are no default sorts/filters and there is no \`?sort\` (or filter) in the path passed to the \`read\` tool. To add tasks to ${{TaskCollection: errorDisplayMessage`an automatically sorted collection`, TaskSubtasks: errorDisplayMessage`automatically sorted subtasks`}[scope.type]}, use the \`read\` tool to read an individual task and ${{TaskCollection: errorDisplayMessage`add a collection to the task\u2019s \u201cCollections\u201d field`, TaskSubtasks: errorDisplayMessage`set the parent in the task\u2019s \u201cParent\u201d field`}[scope.type]} with the \`update\` tool. Try again without adding new tasks.`,
+                    displayMessage: errorDisplayMessage`Tasks may only be added to ${{TaskCollection: errorDisplayMessage`task collection`, TaskSubtasks: errorDisplayMessage`subtasks`}[pageLink.type]} markdown when the ${{TaskCollection: errorDisplayMessage`collection is`, TaskSubtasks: errorDisplayMessage`subtasks are`}[pageLink.type]} sorted manually. ${{TaskCollection: errorDisplayMessage`A collection is`, TaskSubtasks: errorDisplayMessage`Subtasks are`}[pageLink.type]} manually sorted when no automatic sorts are applied. That means there are no default sorts/filters and there is no \`?sort\` (or filter) in the path passed to the \`read\` tool. To add tasks to ${{TaskCollection: errorDisplayMessage`an automatically sorted collection`, TaskSubtasks: errorDisplayMessage`automatically sorted subtasks`}[pageLink.type]}, use the \`read\` tool to read an individual task and ${{TaskCollection: errorDisplayMessage`add a collection to the task\u2019s \u201cCollections\u201d field`, TaskSubtasks: errorDisplayMessage`set the parent in the task\u2019s \u201cParent\u201d field`}[pageLink.type]} with the \`update\` tool. Try again without adding new tasks.`,
                 },
             );
         }
@@ -910,7 +919,7 @@ export function normalizeAgentWebTaskQueryPage<Page extends AgentWebTaskQueryPag
             throw new InvalidArgumentError(
                 "Can\u2019t move tasks in an automatically ordered query",
                 {
-                    displayMessage: errorDisplayMessage`Tasks may only be reordered in ${{TaskCollection: errorDisplayMessage`task collection`, TaskSubtasks: errorDisplayMessage`subtasks`}[scope.type]} markdown when the ${{TaskCollection: errorDisplayMessage`collection is`, TaskSubtasks: errorDisplayMessage`subtasks are`}[scope.type]} sorted manually. ${{TaskCollection: errorDisplayMessage`A collection is`, TaskSubtasks: errorDisplayMessage`Subtasks are`}[scope.type]} manually sorted when no automatic sorts are applied. That means there are no default sorts/filters and there is no \`?sort\` (or filter) in the path passed to the \`read\` tool. To reorder tasks in ${{TaskCollection: errorDisplayMessage`an automatically sorted collection`, TaskSubtasks: errorDisplayMessage`automatically sorted subtasks`}[scope.type]}, look at the ${{TaskCollection: errorDisplayMessage`collection\u2019s`, TaskSubtasks: errorDisplayMessage`task\u2019s subtasks`}[scope.type]} sorts and update the corresponding fields in the task (for example, if ${{TaskCollection: errorDisplayMessage`a collection is`, TaskSubtasks: errorDisplayMessage`subtasks are`}[scope.type]} sorted by \`?sort=priority\` then updating a task\u2019s priority will move it). If you are updating a task\u2019s fields in ${{TaskCollection: errorDisplayMessage`an automatically sorted collection`, TaskSubtasks: errorDisplayMessage`automatically sorted subtasks`}[scope.type]}, you shouldn\u2019t move the task yourself with the \`update\` tool because the task will be moved automatically. Instead read the ${{TaskCollection: errorDisplayMessage`collection`, TaskSubtasks: errorDisplayMessage`subtasks`}[scope.type]} again with the \`read\` tool after your update to see the new order. Try again without reordering tasks.`,
+                    displayMessage: errorDisplayMessage`Tasks may only be reordered in ${{TaskCollection: errorDisplayMessage`task collection`, TaskSubtasks: errorDisplayMessage`subtasks`}[pageLink.type]} markdown when the ${{TaskCollection: errorDisplayMessage`collection is`, TaskSubtasks: errorDisplayMessage`subtasks are`}[pageLink.type]} sorted manually. ${{TaskCollection: errorDisplayMessage`A collection is`, TaskSubtasks: errorDisplayMessage`Subtasks are`}[pageLink.type]} manually sorted when no automatic sorts are applied. That means there are no default sorts/filters and there is no \`?sort\` (or filter) in the path passed to the \`read\` tool. To reorder tasks in ${{TaskCollection: errorDisplayMessage`an automatically sorted collection`, TaskSubtasks: errorDisplayMessage`automatically sorted subtasks`}[pageLink.type]}, look at the ${{TaskCollection: errorDisplayMessage`collection\u2019s`, TaskSubtasks: errorDisplayMessage`task\u2019s subtasks`}[pageLink.type]} sorts and update the corresponding fields in the task (for example, if ${{TaskCollection: errorDisplayMessage`a collection is`, TaskSubtasks: errorDisplayMessage`subtasks are`}[pageLink.type]} sorted by \`?sort=priority\` then updating a task\u2019s priority will move it). If you are updating a task\u2019s fields in ${{TaskCollection: errorDisplayMessage`an automatically sorted collection`, TaskSubtasks: errorDisplayMessage`automatically sorted subtasks`}[pageLink.type]}, you shouldn\u2019t move the task yourself with the \`update\` tool because the task will be moved automatically. Instead read the ${{TaskCollection: errorDisplayMessage`collection`, TaskSubtasks: errorDisplayMessage`subtasks`}[pageLink.type]} again with the \`read\` tool after your update to see the new order. Try again without reordering tasks.`,
                 },
             );
         }
@@ -927,3 +936,340 @@ export function normalizeAgentWebTaskQueryPage<Page extends AgentWebTaskQueryPag
     const oldPageTaskById = new Map(oldPage.tasks.map(pageTask => [pageTask.taskId, pageTask]));
     const newPageTaskById = new Map(newPage.tasks.map(pageTask => [pageTask.taskId, pageTask]));
     const taskPatchInputs: Array<{id: TaskId; patch: ApiTaskPatch}> = [];
+
+    // Verify that we're adding a task with the correct fields.
+    await runAllPromises(
+        addedTaskIds.map(async taskId => {
+            const {
+                data: {task},
+            } = await context.api.get(context.span, "/tasks/{id}-without-notes", {
+                params: {path: {id: taskId}},
+            });
+
+            const expectedPageTask = intoAgentWebTaskQueryPageTask({
+                timeZone: context.timeZone,
+                contextDate,
+                omittedCollectionId: pageLink.type === "TaskCollection" ? pageLink.id : undefined,
+                omittedParentTaskId:
+                    pageLink.type === "TaskSubtasks" ? pageLink.task.id : undefined,
+                task,
+            });
+
+            const actualPageTask = assertExists(newPageTaskById.get(taskId));
+
+            // Is our actual page task equal to what was expected?
+            if (areAgentWebTaskQueryPageTasksEqual(expectedPageTask, actualPageTask)) return;
+
+            const quotedTitle = quoteMarkdown([{type: "text", value: actualPageTask.title}]);
+
+            const taskMarkdown = printMarkdownTree({
+                type: "list",
+                ordered: false,
+                spread: false,
+                children: [
+                    await printAgentWebTaskQueryPageTaskListItem(context.storage, expectedPageTask),
+                ],
+            })
+                .trim()
+                .replaceAll("\n", "\\n");
+
+            throw new InvalidArgumentError("Can\u2019t update task fields while adding task", {
+                displayMessage: errorDisplayMessage`You can\u2019t change the task ${quotedTitle}\u2019s title or fields while adding it to ${{TaskCollection: errorDisplayMessage`task collection`, TaskSubtasks: errorDisplayMessage`subtasks`}[pageLink.type]} markdown. Add the task with its current title and fields, then call the \`update\` tool again if you want to change its title or fields. Try again with this exact markdown for the task: \`${taskMarkdown}\``,
+            });
+        }),
+    );
+
+    for (const newPageTask of newPage.tasks) {
+        const oldPageTask = oldPageTaskById.get(newPageTask.taskId);
+
+        // Newly added tasks are handled in the loop above.
+        if (oldPageTask === undefined) continue;
+
+        // Don't allow moving a task and updating its fields at the same time. Since the
+        // agent needs to completely rewrite the task to move it we believe a common error
+        // mode for agents will be to rewrite the task with incorrect fields. Which is why
+        // we force a move + update to be done in two separate `update` tool calls.
+        if (
+            movedTaskIds.has(oldPageTask.taskId) &&
+            !areAgentWebTaskQueryPageTasksEqual(oldPageTask, newPageTask)
+        ) {
+            const quotedTitle = quoteMarkdown([{type: "text", value: oldPageTask.title}]);
+            throw new InvalidArgumentError("Can\u2019t move and update task fields together", {
+                displayMessage: errorDisplayMessage`You can\u2019t move the task ${quotedTitle} and change its title or fields in the same \`update\` tool call. Try again with two separate \`update\` tool calls, one to change the task\u2019s title/fields and another to move the task.`,
+            });
+        }
+
+        if (oldPageTask.additionalCollectionsCount !== newPageTask.additionalCollectionsCount) {
+            const quotedTitle = quoteMarkdown([{type: "text", value: oldPageTask.title}]);
+
+            throw new InvalidArgumentError(
+                "Can\u2019t change task collections by updating additional count",
+                {
+                    displayMessage: errorDisplayMessage`Can\u2019t change a task\u2019s collections by updating \u201Cand ${oldPageTask.additionalCollectionsCount} more\u201D to \u201Cand ${newPageTask.additionalCollectionsCount} more\u201D since we don\u2019t know which underlying collections you\u2019re trying to ${oldPageTask.additionalCollectionsCount < newPageTask.additionalCollectionsCount ? "add" : "remove"}. Instead call the \`read\` tool for the task ${quotedTitle} which will give you the full collection list for the task which you can update with the \`update\` tool.`,
+                },
+            );
+        }
+
+        if (!isDeepEqual(oldPageTask.subtasks, newPageTask.subtasks)) {
+            const quotedTitle = quoteMarkdown([{type: "text", value: oldPageTask.title}]);
+
+            throw new InvalidArgumentError("Can\u2019t change task subtasks by updating counts", {
+                displayMessage: errorDisplayMessage`Can\u2019t change the task ${quotedTitle}\u2019s subtasks by updating \u201CSubtasks: ${oldPageTask.subtasks.openTaskCount} open, ${oldPageTask.subtasks.closedTaskCount} closed\u201D to \u201CSubtasks: ${newPageTask.subtasks.openTaskCount} open, ${newPageTask.subtasks.closedTaskCount} closed\u201D since we don\u2019t know which underlying subtasks you\u2019re trying to add, remove, open, or close. Try again with an update that leaves the \`Subtasks\` field unchanged.`,
+            });
+        }
+
+        // Force the agent to set an assignee if they're marking a task as active. By
+        // default our API sets the bot as active when they make the task active if there's
+        // no assignee, we want the agent to make this choice explicitly.
+        //
+        // NOCOMMIT: Integration test that makes sure the bot can update a task to active
+        // when the task is already assigned to another account. Also that the bot can
+        // update a task to active and update the assignee at the same time.
+        if (
+            newPageTask.status.type === "Open" &&
+            newPageTask.status.isActive &&
+            !newPageTask.assignee
+        ) {
+            const quotedTitle = quoteMarkdown([{type: "text", value: oldPageTask.title}]);
+
+            const assigneeLink: Link = {
+                type: "link",
+                url: context.botAccount.pathname,
+                children: [{type: "text", value: context.botAccount.shortName}],
+            };
+
+            if (oldPageTask.status.type !== "Open" || !oldPageTask.status.isActive) {
+                throw new InvalidArgumentError(
+                    "Can\u2019t set task as active if there\u2019s no assignee",
+                    {
+                        displayMessage: errorDisplayMessage`Can\u2019t set the task ${quotedTitle} as active if there\u2019s no assignee. We don\u2019t recommend setting a task as active unless you\u2019re about to work on the task or you know someone else is currently working on the task. Try again and either set the task as open but inactive (e.g. \`(Open)\`) or set an assignee (e.g. \`- Assignee: ${printMarkdownTree(assigneeLink).trim()}\`).`,
+                    },
+                );
+            } else {
+                throw new InvalidArgumentError("Can\u2019t remove assignee from an active task", {
+                    displayMessage: errorDisplayMessage`Can\u2019t remove the assignee from the active task ${quotedTitle}. An active task implies someone is currently working on the task and so an assignee is required so we know who that is. Try again but set the task as inactive first (e.g. \`(Open)\`).`,
+                });
+            }
+        }
+
+        const taskPatches: Array<ApiTaskPatch> = [];
+
+        if (oldPageTask.title !== newPageTask.title) {
+            taskPatches.push({type: "SetTitle", title: newPageTask.title});
+        }
+
+        if (
+            oldPageTask.status.type !== newPageTask.status.type ||
+            (oldPageTask.status.type === "Open" &&
+                newPageTask.status.type === "Open" &&
+                oldPageTask.status.isActive !== newPageTask.status.isActive)
+        ) {
+            taskPatches.push({type: "SetStatus", status: newPageTask.status});
+        }
+
+        if (oldPageTask.parent?.id !== newPageTask.parent?.id) {
+            taskPatches.push({
+                type: "SetParent",
+                parent: newPageTask.parent ? {task: {id: newPageTask.parent.id}} : null,
+            });
+        }
+
+        if (oldPageTask.assignee?.id !== newPageTask.assignee?.id) {
+            taskPatches.push({type: "SetAssignee", assignee: newPageTask.assignee ?? null});
+        }
+
+        if (oldPageTask.dueDateString !== newPageTask.dueDateString) {
+            if (newPageTask.dueDateString === null) {
+                taskPatches.push({type: "SetDue", due: null});
+            } else {
+                const date = parseAgentWebTaskPageDueDateStringForUpdate(
+                    contextDate,
+                    newPageTask.dueDateString,
+                    () => {
+                        const quotedTitle = quoteMarkdown([
+                            {type: "text", value: oldPageTask.title},
+                        ]);
+
+                        return errorDisplayMessage` for task ${quotedTitle}`;
+                    },
+                ).toString();
+
+                taskPatches.push({type: "SetDue", due: {date}});
+            }
+        }
+
+        if (oldPageTask.priority?.type !== newPageTask.priority?.type) {
+            taskPatches.push({type: "SetPriority", priority: newPageTask.priority});
+        }
+
+        const oldCollectionIds = new Set(oldPageTask.collections.map(collection => collection.id));
+        const newCollectionIds = new Set(newPageTask.collections.map(collection => collection.id));
+
+        for (const collection of oldPageTask.collections) {
+            if (!newCollectionIds.has(collection.id)) {
+                taskPatches.push({type: "RemoveCollection", collectionId: collection.id});
+            }
+        }
+
+        for (const collection of newPageTask.collections) {
+            if (!oldCollectionIds.has(collection.id)) {
+                taskPatches.push({type: "AddCollection", item: {collection}});
+            }
+        }
+
+        for (const taskPatch of taskPatches)
+            taskPatchInputs.push({id: oldPageTask.taskId, patch: taskPatch});
+    }
+
+    switch (pageLink.type) {
+        case "TaskCollection": {
+            for (const removedTaskId of removedTaskIds) {
+                // NOCOMMIT: Test???
+                taskPatchInputs.push({
+                    id: removedTaskId,
+                    patch: {
+                        type: "RemoveCollection",
+                        collectionId: pageLink.id,
+                    },
+                });
+            }
+
+            for (const addedTaskId of addedTaskIds) {
+                // NOCOMMIT: Test???
+                taskPatchInputs.push({
+                    id: addedTaskId,
+                    patch: {
+                        type: "AddCollection",
+                        item: {collection: {id: pageLink.id}},
+                    },
+                });
+            }
+            break;
+        }
+        case "TaskSubtasks": {
+            for (const removedTaskId of removedTaskIds) {
+                // NOCOMMIT: Test???
+                taskPatchInputs.push({
+                    id: removedTaskId,
+                    patch: {
+                        type: "SetParent",
+                        parent: null,
+                    },
+                });
+            }
+
+            for (const addedTaskId of addedTaskIds) {
+                // NOCOMMIT: Test???
+                taskPatchInputs.push({
+                    id: addedTaskId,
+                    patch: {
+                        type: "SetParent",
+                        parent: {task: {id: pageLink.task.id}},
+                    },
+                });
+            }
+            break;
+        }
+        default:
+            throw exhaustive(pageLink);
+    }
+
+    const repositionedTaskIds = new Set(concatIterables(addedTaskIds, movedTaskIds));
+
+    const newTaskIdsArray = Array.from(newTaskIds);
+
+    // The batch tasks endpoint preserves the request order for moves with identical
+    // positions. Add movement patches in the page's new order so a group moved between
+    // the same cursors ends up in the same order the agent wrote.
+    for (let taskIndex = 0; taskIndex < newTaskIdsArray.length; taskIndex++) {
+        const taskId = newTaskIdsArray[taskIndex]!;
+        if (!repositionedTaskIds.has(taskId)) continue;
+
+        let afterCursor: ApiTaskQueryCursor | null = null;
+
+        for (let index = taskIndex - 1; index >= 0; index--) {
+            const previousTaskId = newTaskIdsArray[index]!;
+            if (!stableTaskIds.has(previousTaskId)) continue;
+
+            const previousTaskCursor = oldTaskCursorById.get(previousTaskId);
+            if (previousTaskCursor === undefined) continue;
+
+            afterCursor = previousTaskCursor;
+            break;
+        }
+
+        if (afterCursor === null && oldPageMetadata.afterCursor !== null) {
+            afterCursor = assertExists(oldPageMetadata.afterCursor);
+        }
+
+        let beforeCursor: ApiTaskQueryCursor | null = null;
+
+        for (let index = taskIndex + 1; index < newTaskIdsArray.length; index++) {
+            const nextTaskId = newTaskIdsArray[index]!;
+            if (!stableTaskIds.has(nextTaskId)) continue;
+
+            const nextTaskCursor = oldTaskCursorById.get(nextTaskId);
+            if (nextTaskCursor === undefined) continue;
+
+            beforeCursor = nextTaskCursor;
+            break;
+        }
+
+        if (beforeCursor === null && oldPageMetadata.beforeCursor !== null) {
+            beforeCursor = assertExists(oldPageMetadata.beforeCursor);
+        }
+
+        let position: ApiTaskMoveInQueryPatchPosition;
+
+        if (afterCursor === null) {
+            assert(oldPageMetadata.afterCursor === null);
+            position = {type: "Start"};
+        } else if (beforeCursor === null) {
+            assert(oldPageMetadata.beforeCursor === null);
+            position = {type: "End"};
+        } else {
+            position = {type: "Between", afterCursor, beforeCursor};
+        }
+
+        taskPatchInputs.push({
+            id: taskId,
+            patch:
+                pageLink.type === "TaskCollection"
+                    ? {type: "MoveInCollection", collectionId: pageLink.id, position}
+                    : {type: "MoveInParent", position},
+        });
+    }
+
+    return {
+        execute: async () => {
+            const taskPatchResponse =
+                taskPatchInputs.length === 0
+                    ? null
+                    : await context.api.patch(context.span, "/tasks", {
+                          body: {spaceId: context.spaceId, patches: taskPatchInputs},
+                      });
+
+            // NOCOMMIT: We need to return new subtask positions!
+            const movedCursorByTaskId = new Map<TaskId, ApiTaskQueryCursor>();
+            if (taskPatchResponse !== null) {
+                for (const {task, collections} of taskPatchResponse.data.tasks) {
+                    if (!repositionedTaskIds.has(task.id)) continue;
+                    const movedCollection = assertExists(
+                        collections.find(({collection}) => collection.id === pageLink.id),
+                    );
+                    movedCursorByTaskId.set(task.id, assertExists(movedCollection.movedCursor));
+                }
+            }
+
+            return {
+                ...oldPageMetadata,
+                tasks: newTaskIdsArray.map(taskId => ({
+                    cursor: repositionedTaskIds.has(taskId)
+                        ? assertExists(movedCursorByTaskId.get(taskId))
+                        : assertExists(oldTaskCursorById.get(taskId)),
+                })),
+            };
+        },
+    };
+}
+
