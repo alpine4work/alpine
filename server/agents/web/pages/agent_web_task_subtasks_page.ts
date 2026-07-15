@@ -307,14 +307,15 @@ async function parseAgentWebTaskSubtasksPreamble(
         }
     }
 
-    if (children.length !== 3) throw createAgentWebTaskSubtasksPreambleError(paragraph);
+    if (children.length !== 2 && children.length !== 3) {
+        throw createAgentWebTaskSubtasksPreambleError(paragraph);
+    }
     const [prefix, taskLink, suffix] = children;
     if (
         prefix?.type !== "text" ||
         !/^Subtasks for\s+$/i.test(prefix.value) ||
         taskLink?.type !== "link" ||
-        suffix?.type !== "text" ||
-        !/^\.?$/.test(suffix.value.trim())
+        (suffix !== undefined && (suffix.type !== "text" || !/^\.?$/.test(suffix.value.trim())))
     ) {
         throw createAgentWebTaskSubtasksPreambleError(paragraph);
     }
