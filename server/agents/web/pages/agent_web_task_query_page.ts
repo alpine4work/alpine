@@ -133,17 +133,6 @@ export type AgentWebTaskQueryPageMetadata = {
     }>;
 };
 
-export type AgentWebTaskQueryPageScope =
-    | {
-          readonly type: "TaskCollection";
-          readonly id: TaskCollectionId;
-          readonly name: string;
-      }
-    | {
-          readonly type: "TaskSubtasks";
-          readonly task: ApiTaskReferenceResponse;
-      };
-
 type AgentWebTaskQueryPageBatch<Resource> = {
     readonly resource: Resource;
     readonly isManuallyOrdered: boolean;
@@ -592,6 +581,22 @@ async function parseAgentWebTaskQueryPageSearchParams(
     return {afterCursor, query: {filters, sorts}};
 }
 
+export async function printAgentWebTaskQueryPageTaskList(
+    storage: AgentWebSessionStorage,
+    tasks: ReadonlyArray<AgentWebTaskQueryPageTask>,
+): Promise<List | null> {
+    if (tasks.length === 0) return null;
+
+    return {
+        type: "list",
+        ordered: false,
+        spread: true,
+        children: await runAllPromises(
+            tasks.map(task => printAgentWebTaskQueryPageTaskListItem(storage, task)),
+        ),
+    };
+}
+
 export async function printAgentWebTaskQueryPageTaskListItem(
     storage: AgentWebSessionStorage,
     pageTask: AgentWebTaskQueryPageTask,
@@ -647,22 +652,22 @@ export async function printAgentWebTaskQueryPageTaskListItem(
 
 export function parseAgentWebTaskQueryPageTasks(
     storage: AgentWebSessionStorage,
-    taskList: List | null,
     pageType: "TaskCollection" | "TaskSubtasks",
+    taskList: List | null,
 ): Promise<ReadonlyArray<AgentWebTaskQueryPageTask>> {
     if (taskList === null) return Promise.resolve([]);
 
     return runAllPromises(
         taskList.children.map(taskListItem =>
-            parseAgentWebTaskQueryPageTask(storage, taskListItem, pageType),
+            parseAgentWebTaskQueryPageTask(storage, pageType, taskListItem),
         ),
     );
 }
 
 async function parseAgentWebTaskQueryPageTask(
     storage: AgentWebSessionStorage,
-    taskListItem: ListItem,
     pageType: "TaskCollection" | "TaskSubtasks",
+    taskListItem: ListItem,
 ): Promise<AgentWebTaskQueryPageTask> {
     const createError = () =>
         new InvalidArgumentError("Invalid task query task list item", {
