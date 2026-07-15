@@ -2143,19 +2143,20 @@ export async function getChatMessagePayloadsFromStart(
 export async function getChatMessagePayloadsFromStartWithParents<Message>(
     context: ServerActionContext,
     options: Parameters<typeof getChatMessagePayloadsFromStart>[1],
-    mapper: (messageItem: MessageItem) => Promise<Message>,
+    mapper: (messageItem: MessageItem, spaceId: SpaceId) => Promise<Message>,
 ) {
     const result = await getChatMessagePayloadsFromStart(context, options);
+    const mapMessageItem = (messageItem: MessageItem) => mapper(messageItem, result.spaceId);
 
     const [messages, parentMessages] = await runAllPromises([
-        runAllPromises(result.messages.map(mapper)),
+        runAllPromises(result.messages.map(mapMessageItem)),
         getOtherReferencedMessageItems({
             messageItems: result.messages,
             getMessageItem: messageIndex =>
                 getChatMessageItem(context, options.chatId, messageIndex, {
                     consistency: options.consistency,
                 }),
-            mapper,
+            mapper: mapMessageItem,
         }),
     ]);
 
@@ -2417,19 +2418,20 @@ export async function getChatMessagePayloadsFromEnd(
 export async function getChatMessagePayloadsFromEndWithParents<Message>(
     context: ServerActionContext,
     options: Parameters<typeof getChatMessagePayloadsFromEnd>[1],
-    mapper: (messageItem: MessageItem) => Promise<Message>,
+    mapper: (messageItem: MessageItem, spaceId: SpaceId) => Promise<Message>,
 ) {
     const result = await getChatMessagePayloadsFromEnd(context, options);
+    const mapMessageItem = (messageItem: MessageItem) => mapper(messageItem, result.spaceId);
 
     const [messages, parentMessages] = await runAllPromises([
-        runAllPromises(result.messages.map(mapper)),
+        runAllPromises(result.messages.map(mapMessageItem)),
         getOtherReferencedMessageItems({
             messageItems: result.messages,
             getMessageItem: messageIndex =>
                 getChatMessageItem(context, options.chatId, messageIndex, {
                     consistency: options.consistency,
                 }),
-            mapper,
+            mapper: mapMessageItem,
         }),
     ]);
 

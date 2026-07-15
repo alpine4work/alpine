@@ -570,19 +570,20 @@ export async function getTaskCommentPayloadsFromStart(
 export async function getTaskCommentPayloadsFromStartWithParents<Message>(
     context: ServerActionContext,
     options: Parameters<typeof getTaskCommentPayloadsFromStart>[1],
-    mapper: (messageItem: MessageItem) => Promise<Message>,
+    mapper: (messageItem: MessageItem, spaceId: SpaceId) => Promise<Message>,
 ) {
     const result = await getTaskCommentPayloadsFromStart(context, options);
+    const mapMessageItem = (messageItem: MessageItem) => mapper(messageItem, result.spaceId);
 
     const [comments, parentComments] = await runAllPromises([
-        runAllPromises(result.comments.map(mapper)),
+        runAllPromises(result.comments.map(mapMessageItem)),
         getOtherReferencedMessageItems({
             messageItems: result.comments,
             getMessageItem: commentIndex =>
                 getTaskCommentItem(context, options.taskId, commentIndex, {
                     consistency: options.consistency,
                 }),
-            mapper,
+            mapper: mapMessageItem,
         }),
     ]);
 
@@ -673,19 +674,20 @@ export async function getTaskCommentPayloadsFromEnd(
 export async function getTaskCommentPayloadsFromEndWithParents<Message>(
     context: ServerActionContext,
     options: Parameters<typeof getTaskCommentPayloadsFromEnd>[1],
-    mapper: (messageItem: MessageItem) => Promise<Message>,
+    mapper: (messageItem: MessageItem, spaceId: SpaceId) => Promise<Message>,
 ) {
     const result = await getTaskCommentPayloadsFromEnd(context, options);
+    const mapMessageItem = (messageItem: MessageItem) => mapper(messageItem, result.spaceId);
 
     const [comments, parentComments] = await runAllPromises([
-        runAllPromises(result.comments.map(mapper)),
+        runAllPromises(result.comments.map(mapMessageItem)),
         getOtherReferencedMessageItems({
             messageItems: result.comments,
             getMessageItem: commentIndex =>
                 getTaskCommentItem(context, options.taskId, commentIndex, {
                     consistency: options.consistency,
                 }),
-            mapper,
+            mapper: mapMessageItem,
         }),
     ]);
 

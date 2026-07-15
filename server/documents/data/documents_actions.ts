@@ -7216,12 +7216,13 @@ export async function getDocumentCommentPayloadsFromStart(
 export async function getDocumentCommentPayloadsFromStartWithParents<Message>(
     context: ServerActionContext,
     options: Parameters<typeof getDocumentCommentPayloadsFromStart>[1],
-    mapper: (messageItem: MessageItem) => Promise<Message>,
+    mapper: (messageItem: MessageItem, spaceId: SpaceId) => Promise<Message>,
 ) {
     const result = await getDocumentCommentPayloadsFromStart(context, options);
+    const mapMessageItem = (messageItem: MessageItem) => mapper(messageItem, result.spaceId);
 
     const [comments, parentComments] = await runAllPromises([
-        runAllPromises(result.comments.map(mapper)),
+        runAllPromises(result.comments.map(mapMessageItem)),
         getOtherReferencedMessageItems({
             messageItems: result.comments,
             getMessageItem: async commentIndex =>
@@ -7233,7 +7234,7 @@ export async function getDocumentCommentPayloadsFromStartWithParents<Message>(
                         consistency: options.consistency,
                     })
                 ).commentItem,
-            mapper,
+            mapper: mapMessageItem,
         }),
     ]);
 
@@ -7540,12 +7541,13 @@ export async function getDocumentCommentPayloadsFromEnd(
 export async function getDocumentCommentPayloadsFromEndWithParents<Message>(
     context: ServerActionContext,
     options: Parameters<typeof getDocumentCommentPayloadsFromEnd>[1],
-    mapper: (messageItem: MessageItem) => Promise<Message>,
+    mapper: (messageItem: MessageItem, spaceId: SpaceId) => Promise<Message>,
 ) {
     const result = await getDocumentCommentPayloadsFromEnd(context, options);
+    const mapMessageItem = (messageItem: MessageItem) => mapper(messageItem, result.spaceId);
 
     const [comments, parentComments] = await runAllPromises([
-        runAllPromises(result.comments.map(mapper)),
+        runAllPromises(result.comments.map(mapMessageItem)),
         getOtherReferencedMessageItems({
             messageItems: result.comments,
             getMessageItem: async commentIndex =>
@@ -7557,7 +7559,7 @@ export async function getDocumentCommentPayloadsFromEndWithParents<Message>(
                         consistency: options.consistency,
                     })
                 ).commentItem,
-            mapper,
+            mapper: mapMessageItem,
         }),
     ]);
 

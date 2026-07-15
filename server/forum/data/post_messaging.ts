@@ -2163,19 +2163,20 @@ export async function getPostCommentPayloadsFromStart(
 export async function getPostCommentPayloadsFromStartWithParents<Message>(
     context: ServerActionContext,
     options: Parameters<typeof getPostCommentPayloadsFromStart>[1],
-    mapper: (messageItem: MessageItem) => Promise<Message>,
+    mapper: (messageItem: MessageItem, spaceId: SpaceId) => Promise<Message>,
 ) {
     const result = await getPostCommentPayloadsFromStart(context, options);
+    const mapMessageItem = (messageItem: MessageItem) => mapper(messageItem, result.spaceId);
 
     const [comments, parentComments] = await runAllPromises([
-        runAllPromises(result.comments.map(mapper)),
+        runAllPromises(result.comments.map(mapMessageItem)),
         getOtherReferencedMessageItems({
             messageItems: result.comments,
             getMessageItem: commentIndex =>
                 getPostCommentItem(context, options.postId, commentIndex, {
                     consistency: options.consistency,
                 }),
-            mapper,
+            mapper: mapMessageItem,
         }),
     ]);
 
@@ -2448,19 +2449,20 @@ export async function getPostCommentPayloadsFromEnd(
 export async function getPostCommentPayloadsFromEndWithParents<Message>(
     context: ServerActionContext,
     options: Parameters<typeof getPostCommentPayloadsFromEnd>[1],
-    mapper: (messageItem: MessageItem) => Promise<Message>,
+    mapper: (messageItem: MessageItem, spaceId: SpaceId) => Promise<Message>,
 ) {
     const result = await getPostCommentPayloadsFromEnd(context, options);
+    const mapMessageItem = (messageItem: MessageItem) => mapper(messageItem, result.spaceId);
 
     const [comments, parentComments] = await runAllPromises([
-        runAllPromises(result.comments.map(mapper)),
+        runAllPromises(result.comments.map(mapMessageItem)),
         getOtherReferencedMessageItems({
             messageItems: result.comments,
             getMessageItem: commentIndex =>
                 getPostCommentItem(context, options.postId, commentIndex, {
                     consistency: options.consistency,
                 }),
-            mapper,
+            mapper: mapMessageItem,
         }),
     ]);
 
