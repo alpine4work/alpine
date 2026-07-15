@@ -58,10 +58,10 @@ import {Lazy} from "~/shared/helpers/control/lazy.js";
 import {mapMaybeThunk} from "~/shared/helpers/control/map_maybe_thunk.js";
 import {memoMaybeThunk} from "~/shared/helpers/control/memo_maybe_thunk.js";
 import {unwrapMaybeThunk} from "~/shared/helpers/control/unwrap_maybe_thunk.js";
+import {quote} from "~/shared/helpers/string/quote.js";
 import {MaybePromise} from "~/shared/helpers/types/maybe_promise.js";
 import {MaybeThunk} from "~/shared/helpers/types/maybe_thunk.js";
 import {DocumentCommentThreadId, DocumentId} from "~/shared/id/types/id_types.js";
-import {quote} from "~/shared/helpers/string/quote.js";
 
 export type AgentWebDocumentThreadPage = {
     readonly type: "DocumentThread";

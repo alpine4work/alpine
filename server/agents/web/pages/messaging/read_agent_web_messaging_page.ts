@@ -46,8 +46,8 @@ import {defaultLocale} from "~/shared/helpers/intl/locale.js";
 import {formatTimeZoneAbbreviation} from "~/shared/helpers/intl/time_zone.js";
 import {DefaultMap} from "~/shared/helpers/map/default_map.js";
 import {printPrettyNumber} from "~/shared/helpers/number/print_pretty_number.js";
-import {AccountId} from "~/shared/id/types/id_types.js";
 import {quote} from "~/shared/helpers/string/quote.js";
+import {AccountId} from "~/shared/id/types/id_types.js";
 
 export const agentWebMessagingPageApiMessagesBatchCount = 30;
 

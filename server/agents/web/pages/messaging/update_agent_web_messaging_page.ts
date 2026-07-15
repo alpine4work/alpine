@@ -2,6 +2,7 @@ import escapeHtml from "escape-html";
 import {Link} from "mdast";
 import {createApiMessage} from "~/server/agents/api/api_client.js";
 import {AgentWebContextWithoutStorage} from "~/server/agents/web/agent_web_context.js";
+import {curlyQuote} from "~/server/agents/web/internal/curly_quote.js";
 import {
     AgentWebMessagingPage,
     AgentWebMessagingPageBlock,
@@ -46,10 +47,9 @@ import {unwrapMaybeThunk} from "~/shared/helpers/control/unwrap_maybe_thunk.js";
 import {areRangesOverlapping} from "~/shared/helpers/geometry/are_ranges_overlapping.js";
 import {reverseIterable} from "~/shared/helpers/iterable/reverse_iterable.js";
 import {omitObject} from "~/shared/helpers/object/omit_object.js";
+import {quote} from "~/shared/helpers/string/quote.js";
 import {MaybePromise} from "~/shared/helpers/types/maybe_promise.js";
 import {MaybeThunk} from "~/shared/helpers/types/maybe_thunk.js";
-import {quote} from "~/shared/helpers/string/quote.js";
-import {curlyQuote} from "~/server/agents/web/internal/curly_quote.js";
 
 export const updateAgentWebMessagingPageUnexpectedNewMessageIndexesErrorMessage =
     "Update was successful, but the agent needs to know there were some other messages added it hasn\u2019t observed";
