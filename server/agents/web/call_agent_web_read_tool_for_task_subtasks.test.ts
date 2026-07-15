@@ -69,7 +69,7 @@ test("reads task subtasks with the parent task preamble", async () => {
         status: "Closed",
     });
 
-    api.mockGet("/tasks/{id}-without-notes/subtasks", {
+    api.mockGet("/tasks/{id}/subtasks", {
         params: {path: {id: parentTask.id}, query: {limit: 31, cursor: undefined}},
         data: {
             spaceId,
@@ -97,7 +97,7 @@ End of tasks.`);
 test("queries task subtasks with URL filters and sorts", async () => {
     const subtask = createApiTaskMock({index: 0, title: "Urgent subtask", parent: parentTask});
 
-    api.mockPost("/tasks/{id}-without-notes/subtasks-query", {
+    api.mockPost("/tasks/{id}/subtasks-query", {
         params: {path: {id: parentTask.id}},
         data: {
             spaceId,
@@ -113,7 +113,7 @@ test("queries task subtasks with URL filters and sorts", async () => {
     });
     const request = api
         .getRequestHistory()
-        .find(request => request.path === "/tasks/{id}-without-notes/subtasks-query");
+        .find(request => request.path === "/tasks/{id}/subtasks-query");
 
     expect({response, body: request?.body}).toEqual({
         response: `\
@@ -154,7 +154,7 @@ Subtasks for [My Task (Open)](/task/my-task). [Next page »](/task/my-task/subta
 
 - [First subtask (Open)](/task/first-subtask)`;
 
-    api.mockGet("/tasks/{id}-without-notes/subtasks", {
+    api.mockGet("/tasks/{id}/subtasks", {
         params: {path: {id: parentTask.id}, query: {limit: 31, cursor: undefined}},
         data: {
             spaceId,
@@ -166,7 +166,7 @@ Subtasks for [My Task (Open)](/task/my-task). [Next page »](/task/my-task/subta
             ],
         },
     });
-    api.mockGet("/tasks/{id}-without-notes/subtasks", {
+    api.mockGet("/tasks/{id}/subtasks", {
         params: {
             path: {id: parentTask.id},
             query: {limit: 31, cursor: printApiTaskQueryCursorMock(0)},

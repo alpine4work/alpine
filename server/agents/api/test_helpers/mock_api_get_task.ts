@@ -3,6 +3,7 @@ import {
     ApiTaskMockOptions,
     createApiTaskMock,
 } from "~/server/agents/api/test_helpers/create_api_task_mock.js";
+import {omitObject} from "~/shared/helpers/object/omit_object.js";
 import {SpaceId} from "~/shared/id/types/id_types.js";
 
 export function mockApiGetTask(
@@ -12,7 +13,7 @@ export function mockApiGetTask(
         ...options
     }: {
         spaceId: SpaceId;
-    } & ApiTaskMockOptions,
+    } & Omit<ApiTaskMockOptions, "notes">,
 ) {
     const task = createApiTaskMock(options);
 
@@ -22,7 +23,7 @@ export function mockApiGetTask(
         },
         data: {
             spaceId,
-            task,
+            task: omitObject(task, ["notes"]),
         },
     });
 

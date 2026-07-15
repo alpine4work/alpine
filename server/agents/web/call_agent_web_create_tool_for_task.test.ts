@@ -280,24 +280,23 @@ test("creates a task with a subtask section", async () => {
         parent: createdTask,
     });
 
-    api.mockGet("/tasks/{id}-without-notes", {
+    api.mockGet("/tasks/{id}", {
         params: {path: {id: subtask.id}},
         data: {spaceId, task: withoutNotes(subtask)},
     });
     api.mockPatch("/tasks", {
         params: "Any",
-        data: {spaceId, tasks: [{task: movedSubtask, collections: []}]},
-    });
-    api.mockGet("/tasks/{id}-without-notes/subtasks", {
-        params: {path: {id: taskId}, query: {limit: 2, cursor: undefined}},
         data: {
             spaceId,
-            task: withoutNotes(createdTask),
-            nextCursor: null,
-            tasks: [
+            tasks: [movedSubtask],
+            results: [
+                {type: "Update", result: {type: "SetParent"}},
                 {
-                    cursor: printApiTaskQueryCursorMock(701),
-                    task: withoutNotes(movedSubtask),
+                    type: "Update",
+                    result: {
+                        type: "MoveInParent",
+                        cursor: printApiTaskQueryCursorMock(701),
+                    },
                 },
             ],
         },
@@ -335,16 +334,36 @@ test("creates a task with a subtask section", async () => {
             spaceId,
             patches: [
                 {
+                    type: "Update",
                     id: subtask.id,
                     patch: {type: "SetParent", parent: {task: {id: taskId}}},
                 },
                 {
+                    type: "Update",
                     id: subtask.id,
-                    patch: {type: "MoveInParent", position: {type: "End"}},
+                    patch: {type: "MoveInParent", position: {type: "Start"}},
                 },
             ],
         },
     });
+});
+
+test("rejects a subtasks See more link on create without calling the API", async () => {
+    await expectCreateDisplayMessage({
+        content: `\
+# Create with subtasks pagination
+
+## Subtasks
+
+- [Parent task (Open)](/task/parent-task)
+
+[See more (2 remaining) »](/task/parent-task/subtasks?after=abcdef)`,
+        expected:
+            "You can\u2019t create a task with a \u201cSee more\u201d subtasks link. Try again after " +
+            "removing the link.",
+    });
+
+    expect(getCreateTaskRequests()).toHaveLength(0);
 });
 
 test("creates a task with parent and priority", async () => {
@@ -372,11 +391,8 @@ test("creates a task with parent and priority", async () => {
             title: "Create parent field",
             status: {type: "Open", isActive: false},
             parent: {task: {id: parentTaskId}},
-            assignee: undefined,
             collections: [],
             priority: {type: "Medium"},
-            due: undefined,
-            content: undefined,
         },
     });
 });

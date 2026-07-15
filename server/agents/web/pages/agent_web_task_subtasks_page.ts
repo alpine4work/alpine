@@ -70,22 +70,18 @@ export async function readAgentWebTaskSubtasksPage(
         readTaskBatch: async ({cursor, query, limit}) => {
             const tasksResult =
                 query.filters.length === 0 && query.sorts.length === 0
-                    ? await context.api.get(context.span, "/tasks/{id}-without-notes/subtasks", {
+                    ? await context.api.get(context.span, "/tasks/{id}/subtasks", {
                           params: {path: {id: taskId}, query: {limit, cursor}},
                       })
-                    : await context.api.post(
-                          context.span,
-                          "/tasks/{id}-without-notes/subtasks-query",
-                          {
-                              params: {path: {id: taskId}},
-                              body: {
-                                  limit,
-                                  cursor,
-                                  filters: query.filters,
-                                  sorts: query.sorts,
-                              },
+                    : await context.api.post(context.span, "/tasks/{id}/subtasks-query", {
+                          params: {path: {id: taskId}},
+                          body: {
+                              limit,
+                              cursor,
+                              filters: query.filters,
+                              sorts: query.sorts,
                           },
-                      );
+                      });
 
             return {
                 pageLink: {

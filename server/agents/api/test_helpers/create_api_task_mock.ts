@@ -12,9 +12,9 @@ import {
     ApiTaskNotesResponse,
     ApiTaskParentResponse,
     ApiTaskPriority,
-    ApiTaskResponse,
     ApiTaskStatus,
     ApiTaskSubtasks,
+    ApiTaskWithNotesResponse,
 } from "~/shared/api/specification/types/api_specification_convenience_types.js";
 import {scrambleBytes} from "~/shared/helpers/binary/scramble_bytes.js";
 import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
@@ -77,8 +77,8 @@ export function createApiTaskMock({
     collections,
     subtasks,
     notes,
-}: ApiTaskMockOptions): ApiTaskResponse {
-    const task: WritableShallow<ApiTaskResponse> = {
+}: ApiTaskMockOptions): ApiTaskWithNotesResponse {
+    const task: WritableShallow<ApiTaskWithNotesResponse> = {
         id,
         title,
         status: typeof status === "string" ? createApiTaskMockStatus(status) : status,

@@ -4,7 +4,7 @@ import {
     createApiTaskMock,
 } from "~/server/agents/api/test_helpers/create_api_task_mock.js";
 import {printApiTaskQueryCursorMock} from "~/server/agents/api/test_helpers/mock_api_get_task_collection_tasks.js";
-import {mockApiGetTaskWithoutNotes} from "~/server/agents/api/test_helpers/mock_api_get_task_without_notes.js";
+import {mockApiGetTask} from "~/server/agents/api/test_helpers/mock_api_get_task.js";
 import {AgentWebContext} from "~/server/agents/web/agent_web_context.js";
 import {callAgentWebReadTool} from "~/server/agents/web/call_agent_web_read_tool.js";
 import {callAgentWebUpdateTool} from "~/server/agents/web/call_agent_web_update_tool.js";
@@ -48,7 +48,7 @@ const context: AgentWebContext = {
 };
 
 function mockReadSubtasks(tasks: ReadonlyArray<ApiTaskResponse>): void {
-    api.mockGet("/tasks/{id}-without-notes/subtasks", {
+    api.mockGet("/tasks/{id}/subtasks", {
         params: {path: {id: parentTask.id}, query: {limit: 31, cursor: undefined}},
         data: {
             spaceId,
@@ -133,7 +133,7 @@ test("manually reorders task subtasks", async () => {
 
 test("adds a task to manually ordered subtasks", async () => {
     mockReadSubtasks(subtasks.slice(0, 2));
-    const {task: addedTask} = mockApiGetTaskWithoutNotes(api, {
+    const {task: addedTask} = mockApiGetTask(api, {
         spaceId,
         index: 3,
         title: "Added subtask",

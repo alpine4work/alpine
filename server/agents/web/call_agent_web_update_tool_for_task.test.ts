@@ -1,5 +1,7 @@
 import {ApiClientMock} from "~/server/agents/api/test_helpers/api_client_mock.js";
 import {createApiAccountMock} from "~/server/agents/api/test_helpers/create_api_account_mock.js";
+import {createApiTaskMock} from "~/server/agents/api/test_helpers/create_api_task_mock.js";
+import {printApiTaskQueryCursorMock} from "~/server/agents/api/test_helpers/mock_api_get_task_collection_tasks.js";
 import {AgentWebContext} from "~/server/agents/web/agent_web_context.js";
 import {callAgentWebReadTool} from "~/server/agents/web/call_agent_web_read_tool.js";
 import {callAgentWebUpdateTool} from "~/server/agents/web/call_agent_web_update_tool.js";
@@ -8,7 +10,11 @@ import {createAgentWebSessionStorageForTest} from "~/server/agents/web/test_help
 import {addKeysToApiContentForTest} from "~/shared/api/content/test_helpers/add_keys_to_api_content_for_test.js";
 import {intoApiAccountReference} from "~/shared/api/specification/into_api_account_reference.js";
 import {ApiContentResponseWithoutKeys} from "~/shared/api/specification/types/api_content_response_without_keys.js";
-import {ApiTaskResponse} from "~/shared/api/specification/types/api_specification_convenience_types.js";
+import {
+    ApiTaskPatchResult,
+    ApiTaskResponse,
+    ApiTaskWithoutNotesResponse,
+} from "~/shared/api/specification/types/api_specification_convenience_types.js";
 import {ErrorBase, InternalError} from "~/shared/error/error.js";
 import {ErrorDisplayMessage} from "~/shared/error/types/error_display_message_type.js";
 import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
@@ -133,20 +139,48 @@ function getTaskNotesPatchRequests() {
         .filter(request => request.method === "PATCH" && request.path === "/tasks/{id}/notes");
 }
 
+function getTaskListPatchRequests() {
+    return api
+        .getRequestHistory()
+        .filter(request => request.method === "PATCH" && request.path === "/tasks");
+}
+
+function mockTaskListPatch(
+    tasks: ReadonlyArray<ApiTaskResponse>,
+    results: ReadonlyArray<ReadonlyArray<ApiTaskPatchResult>>,
+): void {
+    api.mockPatch("/tasks", {
+        params: "Any",
+        data: {
+            spaceId,
+            tasks,
+            results: results.flatMap(taskResults =>
+                taskResults.map(result => ({type: "Update" as const, result})),
+            ),
+        },
+    });
+}
+
 function mockGetTask(
     api: ApiClientMock,
     spaceId: SpaceId,
     taskId: TaskId,
     responseData: Omit<ApiTaskResponse, "id">,
+    subtasks: ReadonlyArray<{
+        readonly cursor: ReturnType<typeof printApiTaskQueryCursorMock>;
+        readonly task: ApiTaskResponse;
+    }>,
 ): void {
-    api.mockGet("/tasks/{id}", {
-        params: {path: {id: taskId}},
+    api.mockGet("/tasks/{id}-with-notes/subtasks", {
+        params: {path: {id: taskId}, query: {limit: 51}},
         data: {
             spaceId,
             task: {
                 id: taskId,
                 ...responseData,
             },
+            nextCursor: subtasks.length > 50 ? subtasks[subtasks.length - 1]!.cursor : null,
+            tasks: subtasks.map(({cursor, task}) => ({cursor, task: withoutNotes(task)})),
         },
     });
 }
@@ -219,6 +253,8 @@ async function readTask({
     due,
     notesVersion = 0,
     notesContent = emptyNotesContent,
+    subtasks = [],
+    totalSubtaskCount = subtasks.length,
 }: {
     taskId?: TaskId;
     title: string;
@@ -230,6 +266,11 @@ async function readTask({
     due?: {readonly date: string};
     notesVersion?: number;
     notesContent?: ApiContentResponseWithoutKeys;
+    subtasks?: ReadonlyArray<{
+        readonly cursor: ReturnType<typeof printApiTaskQueryCursorMock>;
+        readonly task: ApiTaskResponse;
+    }>;
+    totalSubtaskCount?: number;
 }): Promise<{taskId: TaskId; path: string}> {
     const path = await createAgentWebPageStoredLinkPathname(storage, {
         type: "Task",
@@ -238,42 +279,53 @@ async function readTask({
         status,
     });
 
-    mockGetTask(api, spaceId, taskId, {
-        title,
-        status,
-        ...(parent
-            ? {
-                  parent: {
-                      task: {
-                          id: parent.id,
-                          title: parent.title,
-                          status: parent.status,
+    mockGetTask(
+        api,
+        spaceId,
+        taskId,
+        {
+            title,
+            status,
+            ...(parent
+                ? {
+                      parent: {
+                          task: {
+                              id: parent.id,
+                              title: parent.title,
+                              status: parent.status,
+                          },
                       },
-                  },
-              }
-            : {}),
-        ...(assignee ? {assignee} : {}),
-        collections: collectionIds.map(collectionId => ({
-            collection: {
-                id: collectionId,
-                name: collectionId === engineeringCollectionId ? "Engineering" : "Roadmap",
-            },
-        })),
-        subtasks: {openTaskCount: 0, closedTaskCount: 0},
-        ...(priority ? {priority} : {}),
-        ...(due ? {due} : {}),
-        notes: {
-            version: notesVersion,
-            content: addKeysToApiContentForTest(notesContent, {
-                entityId: `Task:${taskId}`,
+                  }
+                : {}),
+            ...(assignee ? {assignee} : {}),
+            collections: collectionIds.map(collectionId => ({
+                collection: {
+                    id: collectionId,
+                    name: collectionId === engineeringCollectionId ? "Engineering" : "Roadmap",
+                },
+            })),
+            subtasks: {openTaskCount: totalSubtaskCount, closedTaskCount: 0},
+            ...(priority ? {priority} : {}),
+            ...(due ? {due} : {}),
+            notes: {
                 version: notesVersion,
-            }),
+                content: addKeysToApiContentForTest(notesContent, {
+                    entityId: `Task:${taskId}`,
+                    version: notesVersion,
+                }),
+            },
         },
-    });
+        subtasks,
+    );
 
     await callAgentWebReadTool(context, {path, limit: "10kb"});
 
     return {taskId, path};
+}
+
+function withoutNotes(task: ApiTaskResponse): ApiTaskWithoutNotesResponse {
+    const {notes: _notes, ...taskWithoutNotes} = task;
+    return taskWithoutNotes;
 }
 
 test("updates task title", async () => {
@@ -290,6 +342,263 @@ test("updates task title", async () => {
     expect(getTaskPatchRequests().map(request => request.body)).toEqual([
         {patches: [{type: "SetTitle", title: "New title"}]},
     ]);
+});
+
+test("adds a subtask section when the task previously had no subtasks", async () => {
+    const {taskId, path} = await readTask({title: "Parent task without subtasks"});
+    const subtask = createApiTaskMock({index: 801, title: "New subtask"});
+    const movedSubtask = createApiTaskMock({
+        id: subtask.id,
+        title: subtask.title,
+        parent: {id: taskId, title: "Parent task without subtasks"},
+    });
+    await createAgentWebPageStoredLinkPathname(storage, {
+        type: "Task",
+        id: subtask.id,
+        title: subtask.title,
+        status: subtask.status,
+    });
+    api.mockGet("/tasks/{id}", {
+        params: {path: {id: subtask.id}},
+        data: {spaceId, task: withoutNotes(subtask)},
+    });
+    mockTaskListPatch(
+        [movedSubtask],
+        [[{type: "SetParent"}, {type: "MoveInParent", cursor: printApiTaskQueryCursorMock(1_001)}]],
+    );
+
+    await expect(
+        callAgentWebUpdateTool(context, {
+            path,
+            updates: [
+                {
+                    old: "- Status: Open",
+                    new: `\
+- Status: Open
+
+## Subtasks
+
+- [New subtask (Open)](/task/new-subtask)`,
+                    replaceAll: false,
+                },
+            ],
+        }),
+    ).resolves.toEqual("Update was successful.\n");
+
+    expect(getTaskListPatchRequests().map(request => request.body)).toEqual([
+        {
+            spaceId,
+            patches: [
+                {
+                    type: "Update",
+                    id: subtask.id,
+                    patch: {type: "SetParent", parent: {task: {id: taskId}}},
+                },
+                {
+                    type: "Update",
+                    id: subtask.id,
+                    patch: {type: "MoveInParent", position: {type: "Start"}},
+                },
+            ],
+        },
+    ]);
+});
+
+test("removes a task from the subtask section", async () => {
+    const taskId = generateId<TaskId>();
+    const parent = createApiTaskMock({id: taskId, title: "Remove a subtask"});
+    const firstSubtask = createApiTaskMock({index: 811, title: "First subtask", parent});
+    const secondSubtask = createApiTaskMock({index: 812, title: "Second subtask", parent});
+    const {path} = await readTask({
+        taskId,
+        title: parent.title,
+        subtasks: [firstSubtask, secondSubtask].map((task, index) => ({
+            cursor: printApiTaskQueryCursorMock(index),
+            task,
+        })),
+    });
+    mockTaskListPatch([firstSubtask], [[{type: "SetParent"}]]);
+
+    await expect(
+        callAgentWebUpdateTool(context, {
+            path,
+            updates: [
+                {
+                    old: `\
+- [First subtask (Open)](/task/first-subtask)
+
+`,
+                    new: "",
+                    replaceAll: false,
+                },
+            ],
+        }),
+    ).resolves.toEqual("Update was successful.\n");
+
+    expect(getTaskListPatchRequests().map(request => request.body)).toEqual([
+        {
+            spaceId,
+            patches: [
+                {
+                    type: "Update",
+                    id: firstSubtask.id,
+                    patch: {type: "SetParent", parent: null},
+                },
+            ],
+        },
+    ]);
+});
+
+test("reorders tasks in the subtask section", async () => {
+    const taskId = generateId<TaskId>();
+    const parent = createApiTaskMock({id: taskId, title: "Reorder subtasks"});
+    const subtasks = [
+        createApiTaskMock({index: 821, title: "First subtask", parent}),
+        createApiTaskMock({index: 822, title: "Second subtask", parent}),
+        createApiTaskMock({index: 823, title: "Third subtask", parent}),
+    ];
+    const {path} = await readTask({
+        taskId,
+        title: parent.title,
+        subtasks: subtasks.map((task, index) => ({
+            cursor: printApiTaskQueryCursorMock(index),
+            task,
+        })),
+    });
+    mockTaskListPatch(
+        [subtasks[2]!],
+        [[{type: "MoveInParent", cursor: printApiTaskQueryCursorMock(1_002)}]],
+    );
+
+    await expect(
+        callAgentWebUpdateTool(context, {
+            path,
+            updates: [
+                {
+                    old: `\
+- [First subtask (Open)](/task/first-subtask)
+
+- [Second subtask (Open)](/task/second-subtask)
+
+- [Third subtask (Open)](/task/third-subtask)`,
+                    new: `\
+- [Third subtask (Open)](/task/third-subtask)
+
+- [First subtask (Open)](/task/first-subtask)
+
+- [Second subtask (Open)](/task/second-subtask)`,
+                    replaceAll: false,
+                },
+            ],
+        }),
+    ).resolves.toEqual("Update was successful.\n");
+
+    expect(getTaskListPatchRequests().map(request => request.body)).toEqual([
+        {
+            spaceId,
+            patches: [
+                {
+                    type: "Update",
+                    id: subtasks[2]!.id,
+                    patch: {type: "MoveInParent", position: {type: "Start"}},
+                },
+            ],
+        },
+    ]);
+});
+
+test("moves a task to the end of the visible subtasks before See more", async () => {
+    const taskId = generateId<TaskId>();
+    const parent = createApiTaskMock({id: taskId, title: "Many subtasks"});
+    const subtasks = Array.from({length: 51}, (_, index) =>
+        createApiTaskMock({index: index + 900, title: `Subtask ${index + 1}`, parent}),
+    );
+    const {path} = await readTask({
+        taskId,
+        title: parent.title,
+        totalSubtaskCount: 60,
+        subtasks: subtasks.map((task, index) => ({
+            cursor: printApiTaskQueryCursorMock(index),
+            task,
+        })),
+    });
+    mockTaskListPatch(
+        [subtasks[0]!],
+        [[{type: "MoveInParent", cursor: printApiTaskQueryCursorMock(1_003)}]],
+    );
+
+    await expect(
+        callAgentWebUpdateTool(context, {
+            path,
+            updates: [
+                {
+                    old: "- [Subtask 1 (Open)](/task/subtask-1)\n\n",
+                    new: "",
+                    replaceAll: false,
+                },
+                {
+                    old: "- [Subtask 50 (Open)](/task/subtask-50)",
+                    new: `\
+- [Subtask 50 (Open)](/task/subtask-50)
+
+- [Subtask 1 (Open)](/task/subtask-1)`,
+                    replaceAll: false,
+                },
+            ],
+        }),
+    ).resolves.toEqual("Update was successful.\n");
+
+    expect(getTaskListPatchRequests().map(request => request.body)).toEqual([
+        {
+            spaceId,
+            patches: [
+                {
+                    type: "Update",
+                    id: subtasks[0]!.id,
+                    patch: {
+                        type: "MoveInParent",
+                        position: {
+                            type: "Between",
+                            afterCursor: printApiTaskQueryCursorMock(49),
+                            beforeCursor: printApiTaskQueryCursorMock(50),
+                        },
+                    },
+                },
+            ],
+        },
+    ]);
+});
+
+test("rejects updating the subtasks See more link", async () => {
+    const taskId = generateId<TaskId>();
+    const parent = createApiTaskMock({id: taskId, title: "Many subtasks"});
+    const subtasks = Array.from({length: 51}, (_, index) =>
+        createApiTaskMock({index: index + 1_100, title: `Subtask ${index + 1}`, parent}),
+    );
+    const {path} = await readTask({
+        taskId,
+        title: parent.title,
+        totalSubtaskCount: 60,
+        subtasks: subtasks.map((task, index) => ({
+            cursor: printApiTaskQueryCursorMock(index),
+            task,
+        })),
+    });
+
+    await expectUpdateDisplayMessage({
+        path,
+        updates: [
+            {
+                old: "See more (10 remaining)",
+                new: "See more (9 remaining)",
+                replaceAll: false,
+            },
+        ],
+        expected:
+            "You can\u2019t update the \u201cSee more\u201d link in a task\u2019s subtasks section. " +
+            "Try again with a more specific update that leaves the \u201cSee more\u201d link " +
+            "unchanged.",
+    });
 });
 
 test("adds task notes", async () => {

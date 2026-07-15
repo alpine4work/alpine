@@ -4,12 +4,12 @@ import {
     createApiTaskIdMock,
     createApiTaskMock,
 } from "~/server/agents/api/test_helpers/create_api_task_mock.js";
-import {mockApiGetTask} from "~/server/agents/api/test_helpers/mock_api_get_task.js";
+import {mockApiGetTaskWithNotes} from "~/server/agents/api/test_helpers/mock_api_get_task_with_notes.js";
 import {
     mockGetApiTaskCollectionTasks,
     printApiTaskQueryCursorMock,
 } from "~/server/agents/api/test_helpers/mock_api_get_task_collection_tasks.js";
-import {mockApiGetTaskWithoutNotes} from "~/server/agents/api/test_helpers/mock_api_get_task_without_notes.js";
+import {mockApiGetTask} from "~/server/agents/api/test_helpers/mock_api_get_task.js";
 import {AgentWebContext} from "~/server/agents/web/agent_web_context.js";
 import {
     createAgentWebTaskQueryCursorHash,
@@ -98,7 +98,7 @@ function mockApiPatchTasks(response: {
 function getApiGetTaskWithoutNotesRequestHistory() {
     return api
         .getRequestHistory()
-        .filter(request => request.method === "GET" && request.path === "/tasks/{id}-without-notes")
+        .filter(request => request.method === "GET" && request.path === "/tasks/{id}")
         .map(({params}) => params);
 }
 
@@ -1076,7 +1076,7 @@ test("reopens a task as inactive from its link label", async () => {
 
 test("updates task fields", async () => {
     const alice = createApiAccountMock({name: "Alice"});
-    const {task: otherTask} = mockApiGetTask(api, {
+    const {task: otherTask} = mockApiGetTaskWithNotes(api, {
         spaceId,
         index: 2,
         title: "Other task",
@@ -1766,7 +1766,7 @@ test("adds a task at the end of a manually ordered collection", async () => {
         limit: 31,
         createTask: index => createApiTaskMock({index}),
     });
-    const {task: newTask} = mockApiGetTaskWithoutNotes(api, {spaceId, index: 2});
+    const {task: newTask} = mockApiGetTask(api, {spaceId, index: 2});
     mockApiPatchTasks({
         params: "Any",
         data: {
@@ -1841,7 +1841,7 @@ test("adds a task at the start of a manually ordered collection", async () => {
         limit: 31,
         createTask: index => createApiTaskMock({index}),
     });
-    const {task: newTask} = mockApiGetTaskWithoutNotes(api, {spaceId, index: 2});
+    const {task: newTask} = mockApiGetTask(api, {spaceId, index: 2});
     mockApiPatchTasks({
         params: "Any",
         data: {
@@ -1917,7 +1917,7 @@ test("adds a task in the middle of a manually ordered collection", async () => {
         limit: 31,
         createTask: index => createApiTaskMock({index}),
     });
-    const {task: newTask} = mockApiGetTaskWithoutNotes(api, {spaceId, index: 5});
+    const {task: newTask} = mockApiGetTask(api, {spaceId, index: 5});
     mockApiPatchTasks({
         params: "Any",
         data: {
@@ -2009,7 +2009,7 @@ test("adds a task with its existing fields", async () => {
         limit: 31,
         createTask: index => createApiTaskMock({index}),
     });
-    const {task: newTask} = mockApiGetTaskWithoutNotes(api, {
+    const {task: newTask} = mockApiGetTask(api, {
         spaceId,
         index: 2,
         status: "OpenActive",
@@ -2106,7 +2106,7 @@ test("rejects adding a task without its existing fields", async () => {
         limit: 31,
         createTask: index => createApiTaskMock({index}),
     });
-    const {task: newTask} = mockApiGetTaskWithoutNotes(api, {
+    const {task: newTask} = mockApiGetTask(api, {
         spaceId,
         index: 2,
         parent: parentTask,
@@ -2161,7 +2161,7 @@ test("rejects changing a task link while adding the task", async () => {
         limit: 31,
         createTask: index => createApiTaskMock({index}),
     });
-    const {task: newTask} = mockApiGetTaskWithoutNotes(api, {
+    const {task: newTask} = mockApiGetTask(api, {
         spaceId,
         index: 2,
         title: "New task",
@@ -4838,7 +4838,7 @@ test("adds a task to a collection with a default sort using manual order", async
     };
     const task1 = createApiTaskMock({index: 0});
     const task2 = createApiTaskMock({index: 1});
-    const {task: newTask} = mockApiGetTaskWithoutNotes(api, {spaceId, index: 2});
+    const {task: newTask} = mockApiGetTask(api, {spaceId, index: 2});
     const path = "/task-collection/test-task-collection?manual";
 
     api.mockPost("/task-collections/{id}/tasks-query", {
