@@ -7,6 +7,7 @@ import {AgentWebPostPageWithMetadata} from "~/server/agents/web/pages/agent_web_
 import {AgentWebTaskCollectionPageWithMetadata} from "~/server/agents/web/pages/agent_web_task_collection_page.js";
 import {AgentWebTaskMessageListPageWithMetadata} from "~/server/agents/web/pages/agent_web_task_message_list_page.js";
 import {AgentWebTaskPageWithMetadata} from "~/server/agents/web/pages/agent_web_task_page.js";
+import {AgentWebTaskSubtasksPageWithMetadata} from "~/server/agents/web/pages/agent_web_task_subtasks_page.js";
 import {assertEqualTypes} from "~/shared/helpers/control/assert_equal_types.js";
 import {DistributiveOmit} from "~/shared/helpers/types/distributive_omit.js";
 
@@ -58,7 +59,8 @@ export type AgentWebPageWithMetadata =
     | AgentWebPostPageWithMetadata
     | AgentWebTaskPageWithMetadata
     | AgentWebTaskCollectionPageWithMetadata
-    | AgentWebTaskMessageListPageWithMetadata;
+    | AgentWebTaskMessageListPageWithMetadata
+    | AgentWebTaskSubtasksPageWithMetadata;
 
 // This checks that at the type system level `page.metadata.type === page.type`.
 assertEqualTypes<

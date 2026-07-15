@@ -25,6 +25,7 @@ export async function createAgentWebPageLinkPathname(
             return await createAgentWebPageStoredLinkPathname(storage, pageLink);
         case "DocumentThread":
         case "TaskMessageList":
+        case "TaskSubtasks":
             return await createAgentWebPageRoutedLinkPathname(storage, pageLink);
         default:
             throw exhaustive(pageLink);

@@ -13,7 +13,8 @@ import {DocumentCommentThreadId} from "~/shared/id/types/id_types.js";
  */
 export type AgentWebPageRoutedLink =
     | AgentWebPageDocumentThreadRoutedLink
-    | AgentWebPageTaskMessageListRoutedLink;
+    | AgentWebPageTaskMessageListRoutedLink
+    | AgentWebPageTaskSubtasksRoutedLink;
 
 export type AgentWebPageDocumentThreadRoutedLink = {
     readonly type: "DocumentThread";
@@ -23,5 +24,10 @@ export type AgentWebPageDocumentThreadRoutedLink = {
 
 export type AgentWebPageTaskMessageListRoutedLink = {
     readonly type: "TaskMessageList";
+    readonly task: ApiTaskReferenceResponse;
+};
+
+export type AgentWebPageTaskSubtasksRoutedLink = {
+    readonly type: "TaskSubtasks";
     readonly task: ApiTaskReferenceResponse;
 };

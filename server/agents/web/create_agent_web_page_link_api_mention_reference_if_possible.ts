@@ -52,7 +52,8 @@ export function createAgentWebPageLinkApiMentionReferenceIfPossible(
                 url: `https://alpine.inc/file/${link.id}`,
             };
         }
-        case "TaskMessageList": {
+        case "TaskMessageList":
+        case "TaskSubtasks": {
             return {type: "MentionReference", reference: link.task};
         }
         default:

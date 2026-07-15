@@ -53,7 +53,7 @@ export async function routeAgentWebPageLinkPathname(
         }
         case "task": {
             if (pathnameParts.length !== 3) break;
-            if (pathnameParts[2] !== "comments") break;
+            if (pathnameParts[2] !== "comments" && pathnameParts[2] !== "subtasks") break;
 
             const result = await getAgentWebPageStoredLinkByPathname(
                 storage,
@@ -64,10 +64,13 @@ export async function routeAgentWebPageLinkPathname(
             assert(result.pageLink.type === "Task");
 
             assert(result.latestPathname.startsWith("/task/"));
-            const latestPathname = `${result.latestPathname}/comments`;
+            const latestPathname = `${result.latestPathname}/${pathnameParts[2]}`;
 
             return {
-                pageLink: {type: "TaskMessageList", task: result.pageLink},
+                pageLink:
+                    pathnameParts[2] === "comments"
+                        ? {type: "TaskMessageList", task: result.pageLink}
+                        : {type: "TaskSubtasks", task: result.pageLink},
                 latestPathname,
             };
         }

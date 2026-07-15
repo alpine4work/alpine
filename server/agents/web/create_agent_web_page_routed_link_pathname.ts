@@ -50,6 +50,11 @@ export async function createAgentWebPageRoutedLinkPathname(
             assert(pathname.startsWith("/task/"));
             return `${pathname}/comments`;
         }
+        case "TaskSubtasks": {
+            const pathname = await createAgentWebPageStoredLinkPathname(storage, pageLink.task);
+            assert(pathname.startsWith("/task/"));
+            return `${pathname}/subtasks`;
+        }
         default:
             throw exhaustive(pageLink);
     }
