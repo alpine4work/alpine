@@ -308,7 +308,7 @@ paths:
                                 spaceId:
                                     $ref: "#/components/schemas/SpaceId"
                                 chat:
-                                    $ref: "#/components/schemas/CreateChatRequestBodyChat"
+                                    $ref: "#/components/schemas/ChatCreateRequest"
             responses:
                 "200":
                     $ref: "#/components/responses/GetChat"
@@ -1391,38 +1391,7 @@ paths:
                                 spaceId:
                                     $ref: "#/components/schemas/SpaceId"
                                 task:
-                                    type: object
-                                    additionalProperties: false
-                                    properties:
-                                        title:
-                                            type: string
-                                            maxLength: 512
-                                        creator:
-                                            type: object
-                                            required:
-                                                - id
-                                            additionalProperties: false
-                                            properties:
-                                                id:
-                                                    $ref: "#/components/schemas/AccountId"
-                                        status:
-                                            $ref: "#/components/schemas/TaskStatus"
-                                        assignee:
-                                            $ref: "#/components/schemas/Account"
-                                        due:
-                                            $ref: "#/components/schemas/TaskDue"
-                                        priority:
-                                            $ref: "#/components/schemas/TaskPriority"
-                                        layout:
-                                            $ref: "#/components/schemas/TaskLayout"
-                                        parent:
-                                            $ref: "#/components/schemas/TaskParent"
-                                        collections:
-                                            type: array
-                                            items:
-                                                $ref: "#/components/schemas/TaskCollectionItem"
-                                        content:
-                                            $ref: "#/components/schemas/Content"
+                                    $ref: "#/components/schemas/TaskCreateRequest"
             responses:
                 "200":
                     $ref: "#/components/responses/GetTaskWithNotes"
@@ -4717,16 +4686,16 @@ components:
                     $ref: "#/components/schemas/ChatId"
                 name:
                     $ref: "#/components/schemas/LabelString"
-        CreateChatRequestBodyChat:
+        ChatCreateRequest:
             oneOf:
-                - $ref: "#/components/schemas/CreateChatRequestBodyDirectChat"
-                - $ref: "#/components/schemas/CreateChatRequestBodyRoomChat"
+                - $ref: "#/components/schemas/DirectChatCreateRequest"
+                - $ref: "#/components/schemas/RoomChatCreateRequest"
             discriminator:
                 propertyName: type
                 mapping:
-                    Direct: "#/components/schemas/CreateChatRequestBodyDirectChat"
-                    Room: "#/components/schemas/CreateChatRequestBodyRoomChat"
-        CreateChatRequestBodyDirectChat:
+                    Direct: "#/components/schemas/DirectChatCreateRequest"
+                    Room: "#/components/schemas/RoomChatCreateRequest"
+        DirectChatCreateRequest:
             type: object
             required:
                 - type
@@ -4745,7 +4714,7 @@ components:
                         properties:
                             account:
                                 $ref: "#/components/schemas/Account"
-        CreateChatRequestBodyRoomChat:
+        RoomChatCreateRequest:
             type: object
             required:
                 - type
@@ -5227,6 +5196,45 @@ components:
             properties:
                 collection:
                     $ref: "#/components/schemas/TaskCollectionPreview"
+        TaskCreateRequest:
+            type: object
+            additionalProperties: false
+            properties:
+                creator:
+                    type: object
+                    required:
+                        - id
+                    additionalProperties: false
+                    properties:
+                        id:
+                            $ref: "#/components/schemas/AccountId"
+                status:
+                    $ref: "#/components/schemas/TaskStatus"
+                title:
+                    type: string
+                    maxLength: 512
+                assignee:
+                    $ref: "#/components/schemas/Account"
+                due:
+                    $ref: "#/components/schemas/TaskDue"
+                priority:
+                    $ref: "#/components/schemas/TaskPriority"
+                layout:
+                    $ref: "#/components/schemas/TaskLayout"
+                parent:
+                    $ref: "#/components/schemas/TaskParent"
+                collections:
+                    type: array
+                    items:
+                        $ref: "#/components/schemas/TaskCollectionItem"
+                notes:
+                    type: object
+                    required:
+                        - content
+                    additionalProperties: false
+                    properties:
+                        content:
+                            $ref: "#/components/schemas/Content"
         TaskPatch:
             oneOf:
                 - $ref: "#/components/schemas/TaskSetTitlePatch"
@@ -5552,11 +5560,24 @@ components:
                     $ref: "#/components/schemas/TaskQueryCursor"
         TaskBatchPatch:
             oneOf:
+                - $ref: "#/components/schemas/TaskBatchCreatePatch"
                 - $ref: "#/components/schemas/TaskBatchUpdatePatch"
             discriminator:
                 propertyName: type
                 mapping:
+                    Create: "#/components/schemas/TaskBatchCreatePatch"
                     Update: "#/components/schemas/TaskBatchUpdatePatch"
+        TaskBatchCreatePatch:
+            type: object
+            required:
+                - type
+                - task
+            additionalProperties: false
+            properties:
+                type:
+                    const: Create
+                task:
+                    $ref: "#/components/schemas/TaskCreateRequest"
         TaskBatchUpdatePatch:
             type: object
             required:
@@ -7886,14 +7907,45 @@ components:
                     properties:
                         title:
                             type: string
-        TaskCollectionItem_Response:
+        TaskCreateRequest_Response:
             type: object
-            required:
-                - collection
             additionalProperties: false
             properties:
-                collection:
-                    $ref: "#/components/schemas/TaskCollectionPreview_Response"
+                creator:
+                    type: object
+                    required:
+                        - id
+                    additionalProperties: false
+                    properties:
+                        id:
+                            $ref: "#/components/schemas/AccountId"
+                status:
+                    $ref: "#/components/schemas/TaskStatus"
+                title:
+                    type: string
+                    maxLength: 512
+                assignee:
+                    $ref: "#/components/schemas/Account_Response"
+                due:
+                    $ref: "#/components/schemas/TaskDue"
+                priority:
+                    $ref: "#/components/schemas/TaskPriority"
+                layout:
+                    $ref: "#/components/schemas/TaskLayout"
+                parent:
+                    $ref: "#/components/schemas/TaskParent_Response"
+                collections:
+                    type: array
+                    items:
+                        $ref: "#/components/schemas/TaskCollectionItem_Response"
+                notes:
+                    type: object
+                    required:
+                        - content
+                    additionalProperties: false
+                    properties:
+                        content:
+                            $ref: "#/components/schemas/Content_Response"
         Task_Response:
             type: object
             required:
@@ -8468,7 +8520,7 @@ components:
                         index:
                             type: integer
                             minimum: 0
-        CreateChatRequestBodyDirectChat_Response:
+        DirectChatCreateRequest_Response:
             type: object
             required:
                 - type
@@ -8649,6 +8701,14 @@ components:
                     $ref: "#/components/schemas/SearchResultParsedFilter"
                 author:
                     $ref: "#/components/schemas/Account_Response"
+        TaskCollectionItem_Response:
+            type: object
+            required:
+                - collection
+            additionalProperties: false
+            properties:
+                collection:
+                    $ref: "#/components/schemas/TaskCollectionPreview_Response"
         TaskSetAssigneePatch_Response:
             type: object
             required:
@@ -9215,15 +9275,15 @@ components:
                         Response"
                     DocumentThread: "#/components/schemas/InboxDocumentThreadEntry_Response"
                     TaskMessages: "#/components/schemas/InboxTaskMessagesEntry_Response"
-        CreateChatRequestBodyChat_Response:
+        ChatCreateRequest_Response:
             oneOf:
-                - $ref: "#/components/schemas/CreateChatRequestBodyDirectChat_Response"
-                - $ref: "#/components/schemas/CreateChatRequestBodyRoomChat"
+                - $ref: "#/components/schemas/DirectChatCreateRequest_Response"
+                - $ref: "#/components/schemas/RoomChatCreateRequest"
             discriminator:
                 propertyName: type
                 mapping:
-                    Direct: "#/components/schemas/CreateChatRequestBodyDirectChat_Response"
-                    Room: "#/components/schemas/CreateChatRequestBodyRoomChat"
+                    Direct: "#/components/schemas/DirectChatCreateRequest_Response"
+                    Room: "#/components/schemas/RoomChatCreateRequest"
         Content_Response:
             type: object
             additionalProperties: false
@@ -9310,6 +9370,17 @@ components:
                 mapping:
                     Direct: "#/components/schemas/DirectChat_Response"
                     Room: "#/components/schemas/RoomChat"
+        TaskBatchCreatePatch_Response:
+            type: object
+            required:
+                - type
+                - task
+            additionalProperties: false
+            properties:
+                type:
+                    const: Create
+                task:
+                    $ref: "#/components/schemas/TaskCreateRequest_Response"
         TaskAddCollectionPatch_Response:
             type: object
             required:
@@ -9702,6 +9773,15 @@ components:
                     $ref: "#/components/schemas/LabelString"
                 description:
                     $ref: "#/components/schemas/Content_Response"
+        TaskBatchPatch_Response:
+            oneOf:
+                - $ref: "#/components/schemas/TaskBatchCreatePatch_Response"
+                - $ref: "#/components/schemas/TaskBatchUpdatePatch_Response"
+            discriminator:
+                propertyName: type
+                mapping:
+                    Create: "#/components/schemas/TaskBatchCreatePatch_Response"
+                    Update: "#/components/schemas/TaskBatchUpdatePatch_Response"
         BotWebhookEvent_Response:
             oneOf:
                 - $ref: "#/components/schemas/BotWebhookCreatedMessageEvent_Response"
@@ -9975,13 +10055,6 @@ components:
                 mapping:
                     SetTitle: "#/components/schemas/DocumentSetTitlePatch"
                     SetContent: "#/components/schemas/DocumentSetContentPatch_Response"
-        TaskBatchPatch_Response:
-            oneOf:
-                - $ref: "#/components/schemas/TaskBatchUpdatePatch_Response"
-            discriminator:
-                propertyName: type
-                mapping:
-                    Update: "#/components/schemas/TaskBatchUpdatePatch_Response"
         TaskNotesPatch_Response:
             oneOf:
                 - $ref: "#/components/schemas/TaskNotesSetContentPatch_Response"

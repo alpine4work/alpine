@@ -460,7 +460,7 @@ export namespace ApiSpecification {
                     readonly content: {
                         readonly "application/json": {
                             readonly spaceId: components["schemas"]["SpaceId"];
-                            readonly chat: components["schemas"]["CreateChatRequestBodyChat"];
+                            readonly chat: components["schemas"]["ChatCreateRequest"];
                         };
                     };
                 };
@@ -2038,20 +2038,7 @@ export namespace ApiSpecification {
                     readonly content: {
                         readonly "application/json": {
                             readonly spaceId: components["schemas"]["SpaceId"];
-                            readonly task: {
-                                readonly title?: string;
-                                readonly creator?: {
-                                    readonly id: components["schemas"]["AccountId"];
-                                };
-                                readonly status?: components["schemas"]["TaskStatus"];
-                                readonly assignee?: components["schemas"]["Account"];
-                                readonly due?: components["schemas"]["TaskDue"];
-                                readonly priority?: components["schemas"]["TaskPriority"];
-                                readonly layout?: components["schemas"]["TaskLayout"];
-                                readonly parent?: components["schemas"]["TaskParent"];
-                                readonly collections?: readonly components["schemas"]["TaskCollectionItem"][];
-                                readonly content?: components["schemas"]["Content"];
-                            };
+                            readonly task: components["schemas"]["TaskCreateRequest"];
                         };
                     };
                 };
@@ -4209,10 +4196,10 @@ export namespace ApiSpecification {
                 readonly id: components["schemas"]["ChatId"];
                 readonly name: components["schemas"]["LabelString"];
             };
-            readonly CreateChatRequestBodyChat:
-                | components["schemas"]["CreateChatRequestBodyDirectChat"]
-                | components["schemas"]["CreateChatRequestBodyRoomChat"];
-            readonly CreateChatRequestBodyDirectChat: {
+            readonly ChatCreateRequest:
+                | components["schemas"]["DirectChatCreateRequest"]
+                | components["schemas"]["RoomChatCreateRequest"];
+            readonly DirectChatCreateRequest: {
                 /**
                  * @description discriminator enum property added by openapi-typescript @enum
                  * {string}
@@ -4222,7 +4209,7 @@ export namespace ApiSpecification {
                     readonly account: components["schemas"]["Account"];
                 }[];
             };
-            readonly CreateChatRequestBodyRoomChat: {
+            readonly RoomChatCreateRequest: {
                 /**
                  * @description discriminator enum property added by openapi-typescript @enum
                  * {string}
@@ -4424,6 +4411,22 @@ export namespace ApiSpecification {
             };
             readonly TaskCollectionItem: {
                 readonly collection: components["schemas"]["TaskCollectionPreview"];
+            };
+            readonly TaskCreateRequest: {
+                readonly creator?: {
+                    readonly id: components["schemas"]["AccountId"];
+                };
+                readonly status?: components["schemas"]["TaskStatus"];
+                readonly title?: string;
+                readonly assignee?: components["schemas"]["Account"];
+                readonly due?: components["schemas"]["TaskDue"];
+                readonly priority?: components["schemas"]["TaskPriority"];
+                readonly layout?: components["schemas"]["TaskLayout"];
+                readonly parent?: components["schemas"]["TaskParent"];
+                readonly collections?: readonly components["schemas"]["TaskCollectionItem"][];
+                readonly notes?: {
+                    readonly content: components["schemas"]["Content"];
+                };
             };
             readonly TaskPatch:
                 | components["schemas"]["TaskSetTitlePatch"]
@@ -4644,7 +4647,17 @@ export namespace ApiSpecification {
                 readonly type: "MoveInCollection";
                 readonly cursor: components["schemas"]["TaskQueryCursor"];
             };
-            readonly TaskBatchPatch: components["schemas"]["TaskBatchUpdatePatch"];
+            readonly TaskBatchPatch:
+                | components["schemas"]["TaskBatchCreatePatch"]
+                | components["schemas"]["TaskBatchUpdatePatch"];
+            readonly TaskBatchCreatePatch: {
+                /**
+                 * @description discriminator enum property added by openapi-typescript @enum
+                 * {string}
+                 */
+                readonly type: "Create";
+                readonly task: components["schemas"]["TaskCreateRequest"];
+            };
             readonly TaskBatchUpdatePatch: {
                 /**
                  * @description discriminator enum property added by openapi-typescript @enum
@@ -5896,8 +5909,21 @@ export namespace ApiSpecification {
                     readonly title: string;
                 };
             };
-            readonly TaskCollectionItem_Response: {
-                readonly collection: components["schemas"]["TaskCollectionPreview_Response"];
+            readonly TaskCreateRequest_Response: {
+                readonly creator?: {
+                    readonly id: components["schemas"]["AccountId"];
+                };
+                readonly status?: components["schemas"]["TaskStatus"];
+                readonly title?: string;
+                readonly assignee?: components["schemas"]["Account_Response"];
+                readonly due?: components["schemas"]["TaskDue"];
+                readonly priority?: components["schemas"]["TaskPriority"];
+                readonly layout?: components["schemas"]["TaskLayout"];
+                readonly parent?: components["schemas"]["TaskParent_Response"];
+                readonly collections?: readonly components["schemas"]["TaskCollectionItem_Response"][];
+                readonly notes?: {
+                    readonly content: components["schemas"]["Content_Response"];
+                };
             };
             readonly Task_Response: {
                 readonly id: components["schemas"]["TaskId"];
@@ -6101,7 +6127,7 @@ export namespace ApiSpecification {
                     readonly index: number;
                 };
             };
-            readonly CreateChatRequestBodyDirectChat_Response: {
+            readonly DirectChatCreateRequest_Response: {
                 /**
                  * @description discriminator enum property added by openapi-typescript @enum
                  * {string}
@@ -6193,6 +6219,9 @@ export namespace ApiSpecification {
                 readonly bodyMatch: components["schemas"]["SearchResultBodyMatch"];
                 readonly parsedFilter?: components["schemas"]["SearchResultParsedFilter"];
                 readonly author: components["schemas"]["Account_Response"];
+            };
+            readonly TaskCollectionItem_Response: {
+                readonly collection: components["schemas"]["TaskCollectionPreview_Response"];
             };
             readonly TaskSetAssigneePatch_Response: {
                 /**
@@ -6484,9 +6513,9 @@ export namespace ApiSpecification {
                 | components["schemas"]["InboxCreatedDocumentThreadsEntry_Response"]
                 | components["schemas"]["InboxDocumentThreadEntry_Response"]
                 | components["schemas"]["InboxTaskMessagesEntry_Response"];
-            readonly CreateChatRequestBodyChat_Response:
-                | components["schemas"]["CreateChatRequestBodyDirectChat_Response"]
-                | components["schemas"]["CreateChatRequestBodyRoomChat"];
+            readonly ChatCreateRequest_Response:
+                | components["schemas"]["DirectChatCreateRequest_Response"]
+                | components["schemas"]["RoomChatCreateRequest"];
             readonly Content_Response: {
                 readonly elements: readonly components["schemas"]["ContentBlockElement_Response"][];
             };
@@ -6522,6 +6551,14 @@ export namespace ApiSpecification {
             readonly Chat_Response:
                 | components["schemas"]["DirectChat_Response"]
                 | components["schemas"]["RoomChat"];
+            readonly TaskBatchCreatePatch_Response: {
+                /**
+                 * @description discriminator enum property added by openapi-typescript @enum
+                 * {string}
+                 */
+                readonly type: "Create";
+                readonly task: components["schemas"]["TaskCreateRequest_Response"];
+            };
             readonly TaskAddCollectionPatch_Response: {
                 /**
                  * @description discriminator enum property added by openapi-typescript @enum
@@ -6704,6 +6741,9 @@ export namespace ApiSpecification {
                 readonly name: components["schemas"]["LabelString"];
                 readonly description: components["schemas"]["Content_Response"];
             };
+            readonly TaskBatchPatch_Response:
+                | components["schemas"]["TaskBatchCreatePatch_Response"]
+                | components["schemas"]["TaskBatchUpdatePatch_Response"];
             readonly BotWebhookEvent_Response:
                 | components["schemas"]["BotWebhookCreatedMessageEvent_Response"]
                 | components["schemas"]["BotWebhookCreatedPostEvent"]
@@ -6836,7 +6876,6 @@ export namespace ApiSpecification {
             readonly DocumentPatch_Response:
                 | components["schemas"]["DocumentSetTitlePatch"]
                 | components["schemas"]["DocumentSetContentPatch_Response"];
-            readonly TaskBatchPatch_Response: components["schemas"]["TaskBatchUpdatePatch_Response"];
             readonly TaskNotesPatch_Response: components["schemas"]["TaskNotesSetContentPatch_Response"];
             readonly TaskQueryFilter_Response:
                 | components["schemas"]["TaskQueryStatusFilter"]

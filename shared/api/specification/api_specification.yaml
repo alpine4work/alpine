@@ -340,7 +340,7 @@ paths:
                                 spaceId:
                                     $ref: "#/components/schemas/SpaceId"
                                 chat:
-                                    $ref: "#/components/schemas/CreateChatRequestBodyChat"
+                                    $ref: "#/components/schemas/ChatCreateRequest"
             responses:
                 default: {$ref: "#/components/responses/Error"}
                 "200": {$ref: "#/components/responses/GetChat"}
@@ -1300,38 +1300,7 @@ paths:
                                 spaceId:
                                     $ref: "#/components/schemas/SpaceId"
                                 task:
-                                    type: object
-                                    additionalProperties: false
-                                    properties:
-                                        title:
-                                            type: string
-                                            maxLength: {{taskTitleMaxLength}}
-                                        # TODO(#public-api-blocking): Use `$ref: "#/components/schemas/Actor"` instead.
-                                        creator:
-                                            type: object
-                                            required: [id]
-                                            additionalProperties: false
-                                            properties:
-                                                id:
-                                                    $ref: "#/components/schemas/AccountId"
-                                        status:
-                                            $ref: "#/components/schemas/TaskStatus"
-                                        assignee:
-                                            $ref: "#/components/schemas/Account"
-                                        due:
-                                            $ref: "#/components/schemas/TaskDue"
-                                        priority:
-                                            $ref: "#/components/schemas/TaskPriority"
-                                        layout:
-                                            $ref: "#/components/schemas/TaskLayout"
-                                        parent:
-                                            $ref: "#/components/schemas/TaskParent"
-                                        collections:
-                                            type: array
-                                            items:
-                                                $ref: "#/components/schemas/TaskCollectionItem"
-                                        content:
-                                            $ref: "#/components/schemas/Content"
+                                    $ref: "#/components/schemas/TaskCreateRequest"
             responses:
                 default: {$ref: "#/components/responses/Error"}
                 "200": {$ref: "#/components/responses/GetTaskWithNotes"}
@@ -4102,17 +4071,17 @@ components:
                 name:
                     $ref: "#/components/schemas/LabelString"
 
-        CreateChatRequestBodyChat:
+        ChatCreateRequest:
             oneOf:
-                - $ref: "#/components/schemas/CreateChatRequestBodyDirectChat"
-                - $ref: "#/components/schemas/CreateChatRequestBodyRoomChat"
+                - $ref: "#/components/schemas/DirectChatCreateRequest"
+                - $ref: "#/components/schemas/RoomChatCreateRequest"
             discriminator:
                 propertyName: type
                 mapping:
-                    Direct: "#/components/schemas/CreateChatRequestBodyDirectChat"
-                    Room: "#/components/schemas/CreateChatRequestBodyRoomChat"
+                    Direct: "#/components/schemas/DirectChatCreateRequest"
+                    Room: "#/components/schemas/RoomChatCreateRequest"
 
-        CreateChatRequestBodyDirectChat:
+        DirectChatCreateRequest:
             type: object
             required: [type, members]
             additionalProperties: false
@@ -4131,7 +4100,7 @@ components:
                             account:
                                 $ref: "#/components/schemas/Account"
 
-        CreateChatRequestBodyRoomChat:
+        RoomChatCreateRequest:
             type: object
             required: [type, name]
             additionalProperties: false
@@ -4537,6 +4506,45 @@ components:
                 collection:
                     $ref: "#/components/schemas/TaskCollectionPreview"
 
+        TaskCreateRequest:
+            type: object
+            additionalProperties: false
+            properties:
+                # TODO(#public-api-blocking): Use `$ref: "#/components/schemas/Actor"` instead.
+                creator:
+                    type: object
+                    required: [id]
+                    additionalProperties: false
+                    properties:
+                        id:
+                            $ref: "#/components/schemas/AccountId"
+                status:
+                    $ref: "#/components/schemas/TaskStatus"
+                title:
+                    type: string
+                    maxLength: {{taskTitleMaxLength}}
+                assignee:
+                    $ref: "#/components/schemas/Account"
+                due:
+                    $ref: "#/components/schemas/TaskDue"
+                priority:
+                    $ref: "#/components/schemas/TaskPriority"
+                layout:
+                    $ref: "#/components/schemas/TaskLayout"
+                parent:
+                    $ref: "#/components/schemas/TaskParent"
+                collections:
+                    type: array
+                    items:
+                        $ref: "#/components/schemas/TaskCollectionItem"
+                notes:
+                    type: object
+                    required: [content]
+                    additionalProperties: false
+                    properties:
+                        content:
+                            $ref: "#/components/schemas/Content"
+
         TaskPatch:
             oneOf:
                 - $ref: "#/components/schemas/TaskSetTitlePatch"
@@ -4849,11 +4857,23 @@ components:
 
         TaskBatchPatch:
             oneOf:
+                - $ref: "#/components/schemas/TaskBatchCreatePatch"
                 - $ref: "#/components/schemas/TaskBatchUpdatePatch"
             discriminator:
                 propertyName: type
                 mapping:
+                    Create: "#/components/schemas/TaskBatchCreatePatch"
                     Update: "#/components/schemas/TaskBatchUpdatePatch"
+
+        TaskBatchCreatePatch:
+            type: object
+            required: [type, task]
+            additionalProperties: false
+            properties:
+                type:
+                    const: Create
+                task:
+                    $ref: "#/components/schemas/TaskCreateRequest"
 
         TaskBatchUpdatePatch:
             type: object
