@@ -587,6 +587,11 @@ export class DatabaseServer {
         return size;
     }
 
+    /** Current global page snapshot version. */
+    getSnapshotVersion(): number {
+        return this._currentVersion();
+    }
+
     /**
      * Latest page states changed after a client's per-table global-version cursor.
      */

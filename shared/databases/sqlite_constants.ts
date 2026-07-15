@@ -88,11 +88,11 @@ export const pageAccessFlagRead = 1;
 export const pageAccessFlagWrite = 2;
 
 /**
- * Maximum number of stale pages the server will return with inline data during
- * cache validation. Beyond this threshold the server returns only stale page
- * indexes for the client to delete.
+ * Maximum number of changed held pages the server will inline during table
+ * registration catch-up. The legacy cache-validation path temporarily shares this
+ * threshold until that protocol is removed.
  */
-export const cacheUpdateStalePageLimit = 1000;
+export const registrationCatchUpInlinePageLimit = 1000;
 
 /**
  * Number of rows fetched per page when loading a database view with cursor-based

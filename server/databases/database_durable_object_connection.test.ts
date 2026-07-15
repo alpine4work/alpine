@@ -1,6 +1,7 @@
 import {jest} from "@jest/globals";
 import {DurableObjectStorage} from "@miniflare/durable-objects";
 import {MemoryStorage} from "@miniflare/storage-memory";
+import {TypedFastBitSet} from "typedfastbitset";
 import {BrowserPageTracker} from "~/server/databases/browser_page_tracker.js";
 import {DatabaseDurableObjectConnection} from "~/server/databases/database_durable_object_connection.js";
 import {DatabaseServer} from "~/server/databases/database_server.js";
@@ -9,8 +10,8 @@ import {writePagesFor} from "~/server/databases/test_helpers/write_pages_for.js"
 import type {AccessLevel} from "~/shared/access/access_policy.js";
 import type {DatabaseTableMetadataModel} from "~/shared/databases/database_table_metadata_model.js";
 import {
-    cacheUpdateStalePageLimit,
     databaseMainTableId,
+    registrationCatchUpInlinePageLimit,
     sqlitePageSize,
 } from "~/shared/databases/sqlite_constants.js";
 import type {RynamoEvent, RynamoEventStub} from "~/shared/dynamo/rynamo_types.js";
@@ -54,12 +55,18 @@ const sessionTestContext = {
     },
 } as any;
 
-function createConnection() {
+function createConnection({
+    sendEventToAll = () => {},
+    sendEventToSelf = () => {},
+}: {
+    sendEventToAll?: DatabaseDurableObjectConnectionConstructorOptions["sendEventToAll"];
+    sendEventToSelf?: DatabaseDurableObjectConnectionConstructorOptions["sendEventToSelf"];
+} = {}) {
     return new DatabaseDurableObjectConnection({
         server,
         processContext: null as any,
-        sendEventToAll: () => {},
-        sendEventToSelf: () => {},
+        sendEventToAll,
+        sendEventToSelf,
         databaseGroupId: generateId<DatabaseGroupId>(),
         browserId: generateId<BrowserId>(),
         connectionId: generateId<WebSocketConnectionId>(),
@@ -67,6 +74,10 @@ function createConnection() {
         trackPages: true,
     });
 }
+
+type DatabaseDurableObjectConnectionConstructorOptions = ConstructorParameters<
+    typeof DatabaseDurableObjectConnection
+>[0];
 
 async function ensureCacheIsUpToDate(
     conn: DatabaseDurableObjectConnection,
@@ -103,6 +114,38 @@ function makePage(marker: number): Uint8Array {
     return data;
 }
 
+function makeTablePageDiffs(pageIndexes: ReadonlyArray<number>, version = 1) {
+    return {
+        version,
+        diffs: new Map(
+            pageIndexes.map(pageIndex => [
+                pageIndex,
+                {previousVersion: 0, version, diff: [] as const},
+            ]),
+        ),
+        fileSizeInPages: Math.max(0, ...pageIndexes) + 1,
+    };
+}
+
+async function registerHeldPages(
+    conn: DatabaseDurableObjectConnection,
+    heldPagesByTable: ReadonlyMap<DatabaseTableId, Iterable<number>>,
+    watermark = server.getSnapshotVersion(),
+) {
+    return conn.procedures.registerTables(
+        sessionTestContext,
+        {
+            tables: new Map(
+                [...heldPagesByTable].map(([registrationTableId, heldPages]) => [
+                    registrationTableId,
+                    {watermark, heldPages: new TypedFastBitSet(heldPages)},
+                ]),
+            ),
+        },
+        null as any,
+    );
+}
+
 describe("executeAction", () => {
     test("read-only pages carry the current snapshot version", async () => {
         const storedVersion = server.readPage(databaseMainTableId, 0)!.version;
@@ -123,6 +166,253 @@ describe("executeAction", () => {
             snapshotVersion: result.readPagesSnapshotVersion.get(databaseMainTableId),
             pageVersion: result.readPages?.get(databaseMainTableId)?.get(0)?.version,
         }).toEqual({snapshotVersion: storedVersion, pageVersion: storedVersion});
+    });
+
+    test("deduplicates only pages named by the request bitset at or below its watermark", async () => {
+        const conn = createConnection();
+        const currentVersion = server.getSnapshotVersion();
+        const readPageIndexes = [
+            ...(
+                await conn.procedures.executeAction(
+                    sessionTestContext,
+                    {
+                        action: {name: "listTableIds", input: {}},
+                        mutationId: generateId(),
+                        returnResult: true,
+                        returnPages: true,
+                        registerTables: new Map(),
+                    },
+                    null as any,
+                )
+            )
+                .readPages!.get(databaseMainTableId)!
+                .keys(),
+        ];
+
+        const result = await conn.procedures.executeAction(
+            sessionTestContext,
+            {
+                action: {name: "listTableIds", input: {}},
+                mutationId: generateId(),
+                returnResult: true,
+                returnPages: true,
+                registerTables: new Map([
+                    [
+                        databaseMainTableId,
+                        {
+                            watermark: currentVersion,
+                            heldPages: new TypedFastBitSet(readPageIndexes),
+                        },
+                    ],
+                ]),
+            },
+            null as any,
+        );
+
+        expect(result.readPages?.has(databaseMainTableId)).toBe(false);
+    });
+
+    test("sends an evicted page even when the connection superset previously contained it", async () => {
+        const conn = createConnection();
+        await conn.procedures.executeAction(
+            sessionTestContext,
+            {
+                action: {name: "listTableIds", input: {}},
+                mutationId: generateId(),
+                returnResult: true,
+                returnPages: true,
+                registerTables: new Map(),
+            },
+            null as any,
+        );
+
+        const result = await conn.procedures.executeAction(
+            sessionTestContext,
+            {
+                action: {name: "listTableIds", input: {}},
+                mutationId: generateId(),
+                returnResult: true,
+                returnPages: true,
+                registerTables: new Map([
+                    [
+                        databaseMainTableId,
+                        {
+                            watermark: server.getSnapshotVersion(),
+                            heldPages: new TypedFastBitSet(),
+                        },
+                    ],
+                ]),
+            },
+            null as any,
+        );
+
+        expect(result.readPages?.get(databaseMainTableId)?.has(0)).toBe(true);
+    });
+
+    test("sends a held page whose version is newer than the request watermark", async () => {
+        const pageVersion = server.readPage(databaseMainTableId, 0)!.version;
+
+        const result = await createConnection().procedures.executeAction(
+            sessionTestContext,
+            {
+                action: {name: "listTableIds", input: {}},
+                mutationId: generateId(),
+                returnResult: true,
+                returnPages: true,
+                registerTables: new Map([
+                    [
+                        databaseMainTableId,
+                        {
+                            watermark: pageVersion - 1,
+                            heldPages: new TypedFastBitSet([0]),
+                        },
+                    ],
+                ]),
+            },
+            null as any,
+        );
+
+        expect(result.readPages?.get(databaseMainTableId)?.has(0)).toBe(true);
+    });
+});
+
+describe("registerTables", () => {
+    test("returns current and advances the table watermark", async () => {
+        writePagesFor(server, tableId, new Map([[0, makePage(0xaa)]]));
+        const watermark = server.getSnapshotVersion();
+
+        const result = await registerHeldPages(
+            createConnection(),
+            new Map([[tableId, [0]]]),
+            watermark,
+        );
+
+        expect(result.tables.get(tableId)).toMatchObject({
+            watermark,
+            fileSizeInPages: 1,
+            catchUp: {type: "current"},
+        });
+    });
+
+    test("inlines changed held pages", async () => {
+        writePagesFor(
+            server,
+            tableId,
+            new Map([
+                [0, makePage(0xaa)],
+                [1, makePage(0xbb)],
+            ]),
+        );
+        const watermark = server.getSnapshotVersion();
+        writePagesFor(server, tableId, new Map([[1, makePage(0xcc)]]));
+
+        const result = await registerHeldPages(
+            createConnection(),
+            new Map([[tableId, [0, 1]]]),
+            watermark,
+        );
+        const table = result.tables.get(tableId)!;
+        assert(table.catchUp.type === "pages");
+
+        expect({
+            indexes: [...table.catchUp.pages.keys()],
+            marker: table.catchUp.pages.get(1)?.data[0],
+        }).toEqual({indexes: [1], marker: 0xcc});
+    });
+
+    test("inlines at the limit and returns stale above it", async () => {
+        const atLimit = new TypedFastBitSet();
+        atLimit.addRange(0, registrationCatchUpInlinePageLimit);
+        const overLimit = new TypedFastBitSet();
+        overLimit.addRange(0, registrationCatchUpInlinePageLimit + 1);
+        jest.spyOn(server, "changedPagesSince")
+            .mockReturnValueOnce({
+                changedPageIndexes: new Set(atLimit),
+                tombstonedPageIndexes: new Set(),
+            })
+            .mockReturnValueOnce({
+                changedPageIndexes: new Set(overLimit),
+                tombstonedPageIndexes: new Set(),
+            });
+        jest.spyOn(server, "readPage").mockReturnValue({data: makePage(0xaa), version: 1});
+        const conn = createConnection();
+
+        const inline = await registerHeldPages(conn, new Map([[tableId, atLimit]]), 0);
+        const stale = await registerHeldPages(conn, new Map([[tableId, overLimit]]), 0);
+        const inlineCatchUp = inline.tables.get(tableId)!.catchUp;
+        const staleCatchUp = stale.tables.get(tableId)!.catchUp;
+        assert(inlineCatchUp.type === "pages");
+        assert(staleCatchUp.type === "stale");
+
+        expect({
+            inlineType: inlineCatchUp.type,
+            inlineCount: inlineCatchUp.pages.size,
+            staleType: staleCatchUp.type,
+            staleCount: staleCatchUp.pageIndexes.size(),
+        }).toEqual({
+            inlineType: "pages",
+            inlineCount: registrationCatchUpInlinePageLimit,
+            staleType: "stale",
+            staleCount: registrationCatchUpInlinePageLimit + 1,
+        });
+    });
+
+    test("folds tombstoned indexes into stale catch-up", async () => {
+        writePagesFor(
+            server,
+            tableId,
+            new Map([
+                [0, makePage(0xaa)],
+                [1, makePage(0xbb)],
+            ]),
+        );
+        const watermark = server.getSnapshotVersion();
+        truncateFor(server, tableId, sqlitePageSize);
+
+        const result = await registerHeldPages(
+            createConnection(),
+            new Map([[tableId, [0, 1]]]),
+            watermark,
+        );
+        const catchUp = result.tables.get(tableId)?.catchUp;
+
+        expect(catchUp?.type === "stale" ? catchUp.pageIndexes.array() : []).toEqual([1]);
+    });
+
+    test("withholds inaccessible tables", async () => {
+        jest.spyOn(server, "getTableAccessLevelForAccount").mockReturnValue(null);
+
+        const result = await registerHeldPages(createConnection(), new Map([[tableId, [0]]]));
+
+        expect({tables: result.tables, tableAccess: result.tableAccess}).toEqual({
+            tables: new Map(),
+            tableAccess: new Map([[tableId, null]]),
+        });
+    });
+
+    test("reports join-side access", async () => {
+        const sourceTableId = generateChronologicalId<DatabaseTableId>();
+        const targetTableId = generateChronologicalId<DatabaseTableId>();
+        jest.spyOn(server, "getDatabaseTableAccessEntry").mockImplementation(lookupTableId =>
+            lookupTableId === tableId
+                ? {kind: "join", sourceTableId, targetTableId}
+                : {kind: "table", accessPolicy: null},
+        );
+        jest.spyOn(server, "getTableAccessLevelForAccount").mockImplementation(lookupTableId => {
+            if (lookupTableId === sourceTableId) return "View";
+            if (lookupTableId === targetTableId) return null;
+            return "Edit";
+        });
+
+        const result = await registerHeldPages(createConnection(), new Map([[tableId, []]]));
+
+        expect(result.tableAccess).toEqual(
+            new Map([
+                [tableId, "Edit"],
+                [sourceTableId, "View"],
+                [targetTableId, null],
+            ]),
+        );
     });
 });
 
@@ -202,9 +492,9 @@ describe("ensureCacheIsUpToDate", () => {
     });
 
     test("falls back to all stale indexes when over limit", async () => {
-        // Write exactly cacheUpdateStalePageLimit pages
+        // Write exactly registrationCatchUpInlinePageLimit pages
         const pages = new Map<number, Uint8Array>();
-        for (let i = 0; i < cacheUpdateStalePageLimit; i++) {
+        for (let i = 0; i < registrationCatchUpInlinePageLimit; i++) {
             pages.set(i, makePage(i & 0xff));
         }
         writePagesFor(server, tableId, pages);
@@ -212,7 +502,7 @@ describe("ensureCacheIsUpToDate", () => {
 
         // All pages are stale (client has ts=0 for each)
         const clientVersions = new Map<number, number>();
-        for (let i = 0; i < cacheUpdateStalePageLimit; i++) {
+        for (let i = 0; i < registrationCatchUpInlinePageLimit; i++) {
             clientVersions.set(i, 0);
         }
 
@@ -222,11 +512,11 @@ describe("ensureCacheIsUpToDate", () => {
         // included in updatedPages so the client has the schema.
         expect(result.updatedPages.size).toBe(1);
         expect(result.updatedPages.has(0)).toBe(true);
-        expect(result.stalePageIndexes.length).toBe(cacheUpdateStalePageLimit);
+        expect(result.stalePageIndexes.length).toBe(registrationCatchUpInlinePageLimit);
     });
 
     test("under limit returns all as updated pages", async () => {
-        const count = cacheUpdateStalePageLimit - 1;
+        const count = registrationCatchUpInlinePageLimit - 1;
         const pages = new Map<number, Uint8Array>();
         for (let i = 0; i < count; i++) {
             pages.set(i, makePage(i & 0xff));
@@ -277,7 +567,7 @@ describe("ensureCacheIsUpToDate", () => {
 
     test("over limit with trailing pages puts everything in stale indexes", async () => {
         // Write one more than the limit
-        const count = cacheUpdateStalePageLimit + 1;
+        const count = registrationCatchUpInlinePageLimit + 1;
         const pages = new Map<number, Uint8Array>();
         for (let i = 0; i < count; i++) {
             pages.set(i, makePage(i & 0xff));
@@ -567,7 +857,7 @@ describe("per-browser page tracking", () => {
         expect(tracker.filterReadPages(browserId, pages).size).toBe(0);
     });
 
-    test("transformEvent forwards pages even when tracker does not know them", async () => {
+    test("transformEvent uses the subscription instead of tracker state", async () => {
         writePagesFor(
             server,
             tableId,
@@ -593,6 +883,7 @@ describe("per-browser page tracking", () => {
                 [2, 999],
             ]),
         );
+        await registerHeldPages(conn, new Map([[tableId, [0, 1, 3]]]));
 
         const eventStub = {
             type: "PagesChanged" as const,
@@ -619,7 +910,7 @@ describe("per-browser page tracking", () => {
         expect([...(table?.diffs.keys() ?? [])]).toEqual([0, 1, 3]);
     });
 
-    test("transformEvent includes pending pages", async () => {
+    test("transformEvent includes pages held by the subscription while tracker pages are pending", async () => {
         writePagesFor(
             server,
             tableId,
@@ -642,6 +933,7 @@ describe("per-browser page tracking", () => {
                 [1, 999],
             ]),
         );
+        await registerHeldPages(conn, new Map([[tableId, [0, 1]]]));
 
         const eventStub = {
             type: "PagesChanged" as const,
@@ -668,10 +960,11 @@ describe("per-browser page tracking", () => {
         expect([...(table?.diffs.keys() ?? [])]).toEqual([0, 1]);
     });
 
-    test("transformEvent forwards tables when tracker has no pages", async () => {
+    test("transformEvent forwards subscribed tables when tracker has no pages", async () => {
         const tracker = new BrowserPageTracker();
         const browserId = generateId<BrowserId>();
         const conn = createTrackedConnection(tracker, browserId);
+        await registerHeldPages(conn, new Map([[tableId, [0, 1]]]));
 
         const eventStub = {
             type: "PagesChanged" as const,
@@ -919,28 +1212,194 @@ describe("per-table realtime filtering", () => {
         });
     }
 
+    test("PagesChanged drops readable but unsubscribed tables", async () => {
+        const readableTableId = generateChronologicalId<DatabaseTableId>();
+        const conn = createFilteringConnection(new Map([[readableTableId, "View"]]));
+
+        const event = await conn.transformEvent(createUntrustedContext(), {
+            type: "PagesChanged",
+            pageDiffs: new Map([[readableTableId, makeTablePageDiffs([0])]]),
+            mutationId: generateId<DatabaseMutationId>(),
+        });
+
+        assert(event.type === "PagesChanged");
+        expect(event.pageDiffs).toEqual(new Map());
+    });
+
+    test("an action subscribes every table in its read set", async () => {
+        const conn = createConnection();
+        await conn.procedures.executeAction(
+            sessionTestContext,
+            {
+                action: {name: "listTableIds", input: {}},
+                mutationId: generateId(),
+                returnResult: true,
+                returnPages: true,
+                registerTables: new Map(),
+            },
+            null as any,
+        );
+
+        const event = await conn.transformEvent(sessionTestContext, {
+            type: "PagesChanged",
+            pageDiffs: new Map([[databaseMainTableId, makeTablePageDiffs([0])]]),
+            mutationId: generateId<DatabaseMutationId>(),
+        });
+
+        assert(event.type === "PagesChanged");
+        expect(event.pageDiffs.has(databaseMainTableId)).toBe(true);
+    });
+
+    test("PagesChanged emits a snapshot stub when all table diffs are outside the bitset", async () => {
+        const readableTableId = generateChronologicalId<DatabaseTableId>();
+        const conn = createFilteringConnection(new Map([[readableTableId, "View"]]));
+        await registerHeldPages(conn, new Map([[readableTableId, [0]]]));
+
+        const event = await conn.transformEvent(createUntrustedContext(), {
+            type: "PagesChanged",
+            pageDiffs: new Map([[readableTableId, makeTablePageDiffs([1], 7)]]),
+            mutationId: generateId<DatabaseMutationId>(),
+        });
+
+        assert(event.type === "PagesChanged");
+        expect(event.pageDiffs.get(readableTableId)).toEqual({
+            version: 7,
+            diffs: new Map(),
+            fileSizeInPages: 2,
+        });
+    });
+
+    test("originator receives its full write set and adds it to the subscription", async () => {
+        const eventStubs: Array<
+            Parameters<DatabaseDurableObjectConnectionConstructorOptions["sendEventToAll"]>[1]
+        > = [];
+        const conn = createConnection({
+            sendEventToAll: (_context, event) => {
+                eventStubs.push(event);
+            },
+        });
+        const mutationId = generateId<DatabaseMutationId>();
+        await registerHeldPages(conn, new Map([[databaseMainTableId, []]]));
+        const after = makePage(0xaa);
+        jest.spyOn(server, "executeAction").mockReturnValue({
+            result: {rows: []},
+            readPages: new Map([[databaseMainTableId, new Map([[0, {data: after, version: 2}]])]]),
+            changedPages: new Map([
+                [
+                    databaseMainTableId,
+                    {
+                        pages: new Map([
+                            [
+                                0,
+                                {
+                                    before: new Uint8Array(sqlitePageSize),
+                                    after,
+                                    beforeVersion: 1,
+                                },
+                            ],
+                        ]),
+                        fileSizeInPages: 1,
+                    },
+                ],
+            ]),
+            writeVersion: 2,
+            snapshotVersion: 2,
+        } as any);
+
+        await conn.procedures.executeAction(
+            sessionTestContext,
+            {
+                action: {
+                    name: "rawSql",
+                    input: {sql: "SELECT 1"},
+                },
+                mutationId,
+                returnResult: false,
+                returnPages: false,
+                registerTables: new Map(),
+            },
+            null as any,
+        );
+        const eventStub = eventStubs[0];
+        assert(eventStub !== undefined && eventStub.type === "PagesChanged");
+
+        const originEvent = await conn.transformEvent(sessionTestContext, eventStub);
+        assert(originEvent.type === "PagesChanged");
+        const writtenPageIndexes = [
+            ...(originEvent.pageDiffs.get(databaseMainTableId)?.diffs.keys() ?? []),
+        ];
+        const externalEvent = await conn.transformEvent(sessionTestContext, {
+            type: "PagesChanged",
+            pageDiffs: new Map([
+                [databaseMainTableId, makeTablePageDiffs(writtenPageIndexes, 999)],
+            ]),
+            mutationId: generateId<DatabaseMutationId>(),
+        });
+        assert(externalEvent.type === "PagesChanged");
+
+        expect({
+            originIndexes: writtenPageIndexes,
+            laterIndexes: [
+                ...(externalEvent.pageDiffs.get(databaseMainTableId)?.diffs.keys() ?? []),
+            ],
+        }).toEqual({originIndexes: writtenPageIndexes, laterIndexes: writtenPageIndexes});
+    });
+
+    test("access revocation removes the subscription even if access is later restored", async () => {
+        const readableTableId = generateChronologicalId<DatabaseTableId>();
+        const levelByTableId = new Map<DatabaseTableId, AccessLevel | null>([
+            [readableTableId, "View"],
+        ]);
+        const conn = createFilteringConnection(levelByTableId);
+        await registerHeldPages(conn, new Map([[readableTableId, [0]]]));
+        const context = {
+            ...createUntrustedContext(),
+            rpc: {
+                execute: async () => ({events: [], deniedTableIds: [readableTableId]}),
+            },
+        };
+
+        await conn.transformEvent(context, {
+            type: "TableMetadataChanged",
+            events: [{type: "PutItem", item: {key: "table-key" as any, version: 1}}],
+        });
+        levelByTableId.set(readableTableId, "View");
+        const event = await conn.transformEvent(context, {
+            type: "PagesChanged",
+            pageDiffs: new Map([[readableTableId, makeTablePageDiffs([0])]]),
+            mutationId: generateId<DatabaseMutationId>(),
+        });
+
+        assert(event.type === "PagesChanged");
+        expect(event.pageDiffs).toEqual(new Map());
+    });
+
     test("PagesChanged withholds diffs for tables without read access", async () => {
         const readableTableId = generateChronologicalId<DatabaseTableId>();
         const hiddenTableId = generateChronologicalId<DatabaseTableId>();
         const conn = createFilteringConnection(new Map([[readableTableId, "View"]]));
         const mutationId = generateId<DatabaseMutationId>();
+        await registerHeldPages(
+            conn,
+            new Map([
+                [databaseMainTableId, [0]],
+                [readableTableId, [0]],
+            ]),
+        );
 
         const event = await conn.transformEvent(createUntrustedContext(), {
             type: "PagesChanged",
             pageDiffs: new Map([
-                [databaseMainTableId, "main-diffs"],
-                [readableTableId, "readable-diffs"],
-                [hiddenTableId, "hidden-diffs"],
-            ]) as any,
+                [databaseMainTableId, makeTablePageDiffs([0])],
+                [readableTableId, makeTablePageDiffs([0])],
+                [hiddenTableId, makeTablePageDiffs([0])],
+            ]),
             mutationId,
         });
 
         assert(event.type === "PagesChanged");
-        expect({pageDiffs: event.pageDiffs, mutationId: event.mutationId}).toEqual({
-            pageDiffs: new Map([
-                [databaseMainTableId, "main-diffs"],
-                [readableTableId, "readable-diffs"],
-            ]),
+        expect({tableIds: [...event.pageDiffs.keys()], mutationId: event.mutationId}).toEqual({
+            tableIds: [databaseMainTableId, readableTableId],
             mutationId,
         });
     });

@@ -208,7 +208,7 @@ to preserve — schemas and protocol shapes are replaced in place.
 
 **Tests**: bitset round-trip/edge cases (empty, dense, max index), schema round-trips.
 
-## Milestone 4 — Server: registration, catch-up, dedup, filtered realtime
+## [x] Milestone 4 — Server: registration, catch-up, dedup, filtered realtime
 
 **`server/databases/database_durable_object_connection.ts`**
 

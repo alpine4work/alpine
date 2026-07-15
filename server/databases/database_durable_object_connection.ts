@@ -1,3 +1,4 @@
+import {TypedFastBitSet} from "typedfastbitset";
 import {
     WorkerSessionActionContext,
     WorkerSessionActionContextModules,
@@ -11,20 +12,24 @@ import type {AccessLevel} from "~/shared/access/access_policy.js";
 import {databaseActions} from "~/shared/databases/database_actions.js";
 import type {
     DatabasePageDiffs,
+    DatabaseRegisterTablesResult,
     DatabaseTablePageDiffs,
     DatabaseTablePages,
+    DatabaseTableRegistrationResult,
+    DatabaseTableRegistrations,
 } from "~/shared/databases/database_protocol_schemas.js";
 import {
     DatabaseRealtimeEvent,
     DatabaseRealtimeProtocol,
 } from "~/shared/databases/database_realtime_protocol.js";
 import {
-    cacheUpdateStalePageLimit,
     databaseMainTableId,
+    registrationCatchUpInlinePageLimit,
     sqlitePageSize,
 } from "~/shared/databases/sqlite_constants.js";
 import type {RynamoEventStub} from "~/shared/dynamo/rynamo_types.js";
-import {InternalError, PermissionDeniedError} from "~/shared/error/error.js";
+import {PermissionDeniedError} from "~/shared/error/error.js";
+import {assert} from "~/shared/helpers/control/assert.js";
 import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
 import type {
     BrowserId,
@@ -65,6 +70,11 @@ export class DatabaseDurableObjectConnection {
     private readonly _connectionId: WebSocketConnectionId;
     private readonly _browserPageTracker: BrowserPageTracker;
     private readonly _trackPages: boolean;
+    private readonly _subscriptions = new Map<
+        DatabaseTableId,
+        {heldPages: TypedFastBitSet; watermark: number}
+    >();
+    private readonly _originatedMutationIds = new Set<DatabaseMutationId>();
 
     constructor({
         server,
@@ -113,6 +123,50 @@ export class DatabaseDurableObjectConnection {
             }
 
             const result = this._server.executeAction(context, input.action);
+            const registeredTables = this._registerTables(context, input.registerTables);
+
+            let filteredReadPages: Map<DatabaseTableId, DatabaseTablePages> | null = null;
+            if (input.returnPages) {
+                filteredReadPages = new Map();
+                for (const [tableId, tablePages] of result.readPages) {
+                    const registration = input.registerTables.get(tableId);
+                    const filteredTablePages = new Map<
+                        number,
+                        {version: number; data: Uint8Array}
+                    >();
+                    for (const [pageIndex, page] of tablePages) {
+                        if (
+                            registration !== undefined &&
+                            registration.heldPages.has(pageIndex) &&
+                            page.version <= registration.watermark
+                        ) {
+                            continue;
+                        }
+                        filteredTablePages.set(pageIndex, page);
+                    }
+                    if (filteredTablePages.size > 0) {
+                        filteredReadPages.set(tableId, filteredTablePages);
+                    }
+                }
+            }
+
+            // Every table the action touched becomes a subscription. A registration request
+            // replaced its held-page set above; pages actually returned are then added to that
+            // set. Tables omitted from the registration payload are deliberately unfiltered.
+            for (const [tableId] of result.readPages) {
+                let subscription = this._subscriptions.get(tableId);
+                if (subscription === undefined) {
+                    subscription = {
+                        heldPages: new TypedFastBitSet(),
+                        watermark: result.snapshotVersion,
+                    };
+                    this._subscriptions.set(tableId, subscription);
+                }
+                subscription.watermark = result.snapshotVersion;
+                for (const pageIndex of filteredReadPages?.get(tableId)?.keys() ?? []) {
+                    subscription.heldPages.add(pageIndex);
+                }
+            }
 
             const pageDiffs = buildDatabasePageDiffs(
                 result.changedPages,
@@ -120,6 +174,7 @@ export class DatabaseDurableObjectConnection {
                 result.writeVersion,
             );
             if (pageDiffs.size > 0) {
+                this._originatedMutationIds.add(input.mutationId);
                 this._sendEventToAll(this._processContext, {
                     type: "PagesChanged",
                     pageDiffs,
@@ -138,18 +193,6 @@ export class DatabaseDurableObjectConnection {
                     pageDiffs: new Map(),
                     mutationId: input.mutationId,
                 });
-            }
-
-            const filteredReadPages = input.returnPages
-                ? this._browserPageTracker.filterReadPages(this._browserId, result.readPages)
-                : null;
-
-            if (filteredReadPages !== null && filteredReadPages.size > 0) {
-                const pendingByTable = new Map<DatabaseTableId, Iterable<number>>();
-                for (const [tableId, tablePages] of filteredReadPages) {
-                    pendingByTable.set(tableId, tablePages.keys());
-                }
-                this._browserPageTracker.addPendingPages(this._browserId, pendingByTable);
             }
 
             // Report the canonical file size for every table whose pages we return, so the
@@ -174,12 +217,12 @@ export class DatabaseDurableObjectConnection {
                     : null,
                 readPages: filteredReadPages,
                 fileSizesInPages,
-                registeredTables: {tables: new Map(), tableAccess: new Map()},
+                registeredTables,
                 readPagesSnapshotVersion,
             };
         },
-        registerTables: async () => {
-            throw new InternalError("Table registration is not implemented");
+        registerTables: async (context, input) => {
+            return this._registerTables(context, input.tables);
         },
         ensureCacheIsUpToDate: async (context, input) => {
             // Withhold inaccessible tables' pages, and send an access map covering the tables
@@ -249,7 +292,7 @@ export class DatabaseDurableObjectConnection {
                     }
 
                     updatedPages.set(pageIndex, {version: page.version, data: page.data});
-                    if (updatedPages.size >= cacheUpdateStalePageLimit) {
+                    if (updatedPages.size >= registrationCatchUpInlinePageLimit) {
                         // Too many stale pages to inline — dump everything collected so far into
                         // stalePageIndexes and stop reading data.
                         for (const idx of updatedPages.keys()) {
@@ -320,24 +363,123 @@ export class DatabaseDurableObjectConnection {
         await authorizeDatabaseGroupAccess(context, {databaseGroupId: this._databaseGroupId});
     }
 
+    private _registerTables(
+        context: WorkerSessionActionContext,
+        registrations: DatabaseTableRegistrations,
+    ): DatabaseRegisterTablesResult {
+        const accountId = context.actor.getPossiblyBotAccountIdIfExists();
+        const tableAccess = new Map<DatabaseTableId, AccessLevel | null>();
+        const tables = new Map<DatabaseTableId, DatabaseTableRegistrationResult>();
+        const snapshotVersion = this._server.getSnapshotVersion();
+
+        for (const [tableId, registration] of registrations) {
+            const accessLevel =
+                tableId === databaseMainTableId
+                    ? "Manage"
+                    : this._server.getTableAccessLevelForAccount(tableId, accountId);
+            tableAccess.set(tableId, accessLevel);
+
+            const entry = this._server.getDatabaseTableAccessEntry(tableId);
+            if (entry !== null && entry.kind === "join") {
+                for (const sideTableId of [entry.sourceTableId, entry.targetTableId]) {
+                    tableAccess.set(
+                        sideTableId,
+                        this._server.getTableAccessLevelForAccount(sideTableId, accountId),
+                    );
+                }
+            }
+
+            if (accessLevel === null) {
+                this._subscriptions.delete(tableId);
+                continue;
+            }
+
+            const {changedPageIndexes, tombstonedPageIndexes} = this._server.changedPagesSince(
+                tableId,
+                registration.watermark,
+            );
+            const heldChangedPageIndexes = new TypedFastBitSet(changedPageIndexes).intersection(
+                registration.heldPages,
+            );
+            const heldTombstonedPageIndexes = new TypedFastBitSet(
+                tombstonedPageIndexes,
+            ).intersection(registration.heldPages);
+            heldChangedPageIndexes.union(heldTombstonedPageIndexes);
+
+            let catchUp: DatabaseTableRegistrationResult["catchUp"];
+            if (heldChangedPageIndexes.isEmpty()) {
+                catchUp = {type: "current"};
+            } else if (
+                !heldTombstonedPageIndexes.isEmpty() ||
+                heldChangedPageIndexes.size() > registrationCatchUpInlinePageLimit
+            ) {
+                // The wire union cannot carry inline pages and deletions together. When a
+                // tombstone is present, invalidate the whole changed intersection so the client
+                // refetches surviving pages on demand.
+                catchUp = {type: "stale", pageIndexes: heldChangedPageIndexes};
+            } else {
+                const pages = new Map<number, {version: number; data: Uint8Array}>();
+                for (const pageIndex of heldChangedPageIndexes) {
+                    const page = this._server.readPage(tableId, pageIndex);
+                    assert(page !== null, `changed page ${pageIndex} is missing from ${tableId}`);
+                    pages.set(pageIndex, page);
+                }
+                catchUp = {type: "pages", pages};
+            }
+
+            this._subscriptions.set(tableId, {
+                heldPages: registration.heldPages.clone(),
+                watermark: snapshotVersion,
+            });
+            tables.set(tableId, {
+                watermark: snapshotVersion,
+                fileSizeInPages: this._server.getFileSize(tableId) / sqlitePageSize,
+                catchUp,
+            });
+        }
+
+        return {tables, tableAccess};
+    }
+
     public async transformEvent(
         context: WorkerSessionActionContext,
         eventStub: DatabaseRealtimeEventStub,
     ): Promise<DatabaseRealtimeEvent> {
         switch (eventStub.type) {
             case "PagesChanged": {
-                // Withhold page diffs for tables this connection's account can't read; the main
-                // registry is public by design. The event is sent even when everything filters out
-                // — the originator's optimistic queue dequeues on the `mutationId`.
+                const originatedHere = this._originatedMutationIds.delete(eventStub.mutationId);
                 const accountId = context.actor.getPossiblyBotAccountIdIfExists();
                 const pageDiffs = new Map<DatabaseTableId, DatabaseTablePageDiffs>();
                 for (const [tableId, diffs] of eventStub.pageDiffs) {
-                    if (
+                    const hasAccess =
                         tableId === databaseMainTableId ||
-                        this._server.getTableAccessLevelForAccount(tableId, accountId) !== null
-                    ) {
-                        pageDiffs.set(tableId, diffs);
+                        this._server.getTableAccessLevelForAccount(tableId, accountId) !== null;
+                    if (!hasAccess) {
+                        this._subscriptions.delete(tableId);
+                        continue;
                     }
+
+                    const subscription = this._subscriptions.get(tableId);
+                    if (subscription === undefined) {
+                        continue;
+                    }
+
+                    const filteredDiffs = new Map<
+                        number,
+                        DatabaseTablePageDiffs["diffs"] extends ReadonlyMap<number, infer Diff>
+                            ? Diff
+                            : never
+                    >();
+                    for (const [pageIndex, diff] of diffs.diffs) {
+                        if (originatedHere || subscription.heldPages.has(pageIndex)) {
+                            filteredDiffs.set(pageIndex, diff);
+                            if (originatedHere) {
+                                subscription.heldPages.add(pageIndex);
+                            }
+                        }
+                    }
+                    subscription.watermark = diffs.version;
+                    pageDiffs.set(tableId, {...diffs, diffs: filteredDiffs});
                 }
                 return {type: "PagesChanged", pageDiffs, mutationId: eventStub.mutationId};
             }
@@ -364,6 +506,11 @@ export class DatabaseDurableObjectConnection {
                 }
                 for (const tableId of deniedTableIds ?? []) {
                     tableAccess.set(tableId, null);
+                }
+                for (const [tableId, accessLevel] of tableAccess) {
+                    if (accessLevel === null) {
+                        this._subscriptions.delete(tableId);
+                    }
                 }
                 return {
                     type: "TableMetadataChanged",
