@@ -2429,6 +2429,218 @@ export function testMessagingApiImplementation(
             },
         );
 
+        test.each(["Start", "End"] as const)(
+            "messages with parents endpoint deduplicates overlapping ranges from %s",
+            async from => {
+                const space = await TestSpace.create(context);
+                const session = await space.createSession({role: "Admin"});
+                const botAccount = await TestBot.createAndInstantiate(session);
+                const apiKey = await botAccount.createApiKey(session);
+                const {roomPath, room} = await createPrivateRoom(session, botAccount);
+
+                await TestMessagingRoomBase.createMessage(room, session, "Unused message 1");
+                await TestMessagingRoomBase.createMessage(room, session, "Unused message 2");
+
+                const rangeMessage1 = await TestMessagingRoomBase.createMessage(
+                    room,
+                    session,
+                    "Message",
+                );
+                const rangeMessage2 = await TestMessagingRoomBase.createMessage(
+                    room,
+                    session,
+                    "Message",
+                );
+                const rangeMessage3 = await TestMessagingRoomBase.createMessage(
+                    room,
+                    session,
+                    "Message",
+                );
+                const rangeMessage4 = await TestMessagingRoomBase.createMessage(
+                    room,
+                    session,
+                    "Message",
+                );
+                const message1 = await TestMessagingRoomBase.createMessage(
+                    room,
+                    session,
+                    "Message",
+                    {
+                        parent: {
+                            type: "MessagesRange",
+                            startIndex: rangeMessage1.index,
+                            startPos: 2,
+                            startContentVersion: 0,
+                            endIndex: rangeMessage3.index,
+                            endPos: 2,
+                            endContentVersion: 0,
+                        },
+                    },
+                );
+                const message2 = await TestMessagingRoomBase.createMessage(
+                    room,
+                    session,
+                    "Message",
+                    {
+                        parent: {
+                            type: "MessagesRange",
+                            startIndex: rangeMessage2.index,
+                            startPos: 2,
+                            startContentVersion: 0,
+                            endIndex: rangeMessage4.index,
+                            endPos: 2,
+                            endContentVersion: 0,
+                        },
+                    },
+                );
+                const message3 = await TestMessagingRoomBase.createMessage(
+                    room,
+                    session,
+                    "Message",
+                );
+                const message4 = await TestMessagingRoomBase.createMessage(
+                    room,
+                    session,
+                    "Message",
+                );
+                const message5 = await TestMessagingRoomBase.createMessage(
+                    room,
+                    session,
+                    "Message",
+                );
+
+                const query =
+                    from === "End"
+                        ? "limit=5&from=End"
+                        : `limit=5&from=Start&cursor=${rangeMessage4.index}`;
+                const response = await server.GET(`${roomPath}/messages-with-parents?${query}`, {
+                    headers: {authorization: `bearer ${apiKey}`},
+                });
+
+                expect({
+                    status: response.status,
+                    messageIndexes: response.body.messages.map(({index}: any) => index),
+                    parentMessageIndexes: response.body.parentMessages.map(({index}: any) => index),
+                }).toEqual({
+                    status: 200,
+                    messageIndexes: [
+                        message1.index,
+                        message2.index,
+                        message3.index,
+                        message4.index,
+                        message5.index,
+                    ],
+                    parentMessageIndexes: [
+                        rangeMessage1.index,
+                        rangeMessage2.index,
+                        rangeMessage3.index,
+                        rangeMessage4.index,
+                    ],
+                });
+            },
+        );
+
+        test.each(["Start", "End"] as const)(
+            "messages with parents endpoint recursively loads a parent\u2019s range from %s",
+            async from => {
+                const space = await TestSpace.create(context);
+                const session = await space.createSession({role: "Admin"});
+                const botAccount = await TestBot.createAndInstantiate(session);
+                const apiKey = await botAccount.createApiKey(session);
+                const {roomPath, room} = await createPrivateRoom(session, botAccount);
+
+                await TestMessagingRoomBase.createMessage(room, session, "Unused message 1");
+                await TestMessagingRoomBase.createMessage(room, session, "Unused message 2");
+
+                const rangeMessage1 = await TestMessagingRoomBase.createMessage(
+                    room,
+                    session,
+                    "Message",
+                );
+                const rangeMessage2 = await TestMessagingRoomBase.createMessage(
+                    room,
+                    session,
+                    "Message",
+                );
+                const rangeMessage3 = await TestMessagingRoomBase.createMessage(
+                    room,
+                    session,
+                    "Message",
+                );
+                const recursiveParent = await TestMessagingRoomBase.createMessage(
+                    room,
+                    session,
+                    "Message",
+                    {
+                        parent: {
+                            type: "MessagesRange",
+                            startIndex: rangeMessage1.index,
+                            startPos: 2,
+                            startContentVersion: 0,
+                            endIndex: rangeMessage3.index,
+                            endPos: 2,
+                            endContentVersion: 0,
+                        },
+                    },
+                );
+                const message1 = await TestMessagingRoomBase.createMessage(
+                    room,
+                    session,
+                    "Message",
+                    {parent: recursiveParent},
+                );
+                const message2 = await TestMessagingRoomBase.createMessage(
+                    room,
+                    session,
+                    "Message",
+                );
+                const message3 = await TestMessagingRoomBase.createMessage(
+                    room,
+                    session,
+                    "Message",
+                );
+                const message4 = await TestMessagingRoomBase.createMessage(
+                    room,
+                    session,
+                    "Message",
+                );
+                const message5 = await TestMessagingRoomBase.createMessage(
+                    room,
+                    session,
+                    "Message",
+                );
+
+                const query =
+                    from === "End"
+                        ? "limit=5&from=End"
+                        : `limit=5&from=Start&cursor=${recursiveParent.index}`;
+                const response = await server.GET(`${roomPath}/messages-with-parents?${query}`, {
+                    headers: {authorization: `bearer ${apiKey}`},
+                });
+
+                expect({
+                    status: response.status,
+                    messageIndexes: response.body.messages.map(({index}: any) => index),
+                    parentMessageIndexes: response.body.parentMessages.map(({index}: any) => index),
+                }).toEqual({
+                    status: 200,
+                    messageIndexes: [
+                        message1.index,
+                        message2.index,
+                        message3.index,
+                        message4.index,
+                        message5.index,
+                    ],
+                    parentMessageIndexes: [
+                        rangeMessage1.index,
+                        rangeMessage2.index,
+                        rangeMessage3.index,
+                        recursiveParent.index,
+                    ],
+                });
+            },
+        );
+
         test("can create message with headings", async () => {
             const space = await TestSpace.create(context);
             const session = await space.createSession({role: "Admin"});
