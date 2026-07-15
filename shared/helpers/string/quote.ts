@@ -63,20 +63,18 @@ export function quote(
  * codebase.
  */
 function quoteValue(value: string) {
+    // Escapes a bunch of characters like `\n`.
+    value = JSON.stringify(value).slice(1, -1);
+
     let sequence = "`";
 
     while (new RegExp(`(^|[^\`])${sequence}([^\`]|$)`).test(value)) {
         sequence += "`";
     }
 
-    if (
-        /[^ \r\n]/.test(value) &&
-        ((/^[ \r\n]/.test(value) && /[ \r\n]$/.test(value)) || /^`|`$/.test(value))
-    ) {
+    if (/[^ ]/.test(value) && ((/^ /.test(value) && / $/.test(value)) || /^`|`$/.test(value))) {
         value = ` ${value} `;
     }
-
-    value = value.replaceAll(/[\n\r]/g, substring => (substring === "\n" ? "\\n" : "\\r"));
 
     return sequence + value + sequence;
 }
