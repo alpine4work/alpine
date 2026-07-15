@@ -20,7 +20,6 @@ NOCOMMIT: Remove this file
 - [ ] File (read)
 - [ ] File (write)
 - [x] Search!
-- [ ] Consistent message reply printing
 
 ## Access modes
 
