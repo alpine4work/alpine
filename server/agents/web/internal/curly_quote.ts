@@ -1,11 +1,15 @@
 import {PhrasingContent} from "mdast";
 import {printMarkdownPhrasingContentText} from "~/server/agents/web/print_markdown_phrasing_content_text.js";
+import {printMarkdownTree} from "~/shared/api/content/print_api_content_to_markdown.js";
 
 /**
  * Quote some Markdown. We typically use this in `errorDisplayMessage` to quote
  * some Markdown written by an agent.
+ *
+ * Also escapes Markdown styles. Since this should render as plain, unformatted,
+ * text in Markdown. Since the expectation by `printAgentWebError()` is that
+ * `errorDisplayMessage` is Markdown formatted.
  */
-// NOCOMMIT: Escape characters? This should return a string that's valid Markdown.
 export function curlyQuote(markdown: ReadonlyArray<PhrasingContent> | string) {
     let markdownString =
         typeof markdown === "string" ? markdown : printMarkdownPhrasingContentText(markdown);
@@ -14,6 +18,9 @@ export function curlyQuote(markdown: ReadonlyArray<PhrasingContent> | string) {
         markdownString = markdownString.slice(0, 50) + "…";
     }
 
+    // Escapes a bunch of characters like newlines.
+    markdownString = JSON.stringify(markdownString).slice(1, -1);
+
     // Force curly quotes to be balanced so they don't conflict with the curly quotes
     // we add.
     {
@@ -21,11 +28,6 @@ export function curlyQuote(markdown: ReadonlyArray<PhrasingContent> | string) {
         let openCurlyQuoteCount = 0;
 
         for (const character of markdownString) {
-            if (character === "\n") {
-                newMarkdownString += "\\n";
-                continue;
-            }
-
             if (character === "\u201C") {
                 openCurlyQuoteCount++;
             } else if (character === "\u201D") {
@@ -46,5 +48,9 @@ export function curlyQuote(markdown: ReadonlyArray<PhrasingContent> | string) {
         markdownString = newMarkdownString;
     }
 
-    return `\u201C${markdownString}\u201D`;
+    // Escapes characters that aren't markdown safe.
+    return printMarkdownTree({
+        type: "paragraph",
+        children: [{type: "text", value: `\u201C${markdownString}\u201D`}],
+    }).trim();
 }
