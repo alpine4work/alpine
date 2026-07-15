@@ -8943,6 +8943,20 @@ export function testMessagingImplementation<RoomKey extends string>(
             async from => {
                 const room = await createRoom(context.action(session1), space.id);
 
+                // These messages are outside the page and aren't referenced as parents.
+                await createMessage(context.action(session1), {
+                    roomKey: room.key,
+                    parent: null,
+                    content: content2,
+                    fileIds: [],
+                });
+                await createMessage(context.action(session1), {
+                    roomKey: room.key,
+                    parent: null,
+                    content: content3,
+                    fileIds: [],
+                });
+
                 const beforePage = await createMessage(context.action(session1), {
                     roomKey: room.key,
                     parent: null,
@@ -9015,6 +9029,20 @@ export function testMessagingImplementation<RoomKey extends string>(
             "message payloads with parents deduplicate direct and recursive parents from %s",
             async from => {
                 const room = await createRoom(context.action(session1), space.id);
+
+                // These messages are outside the page and aren't referenced as parents.
+                await createMessage(context.action(session1), {
+                    roomKey: room.key,
+                    parent: null,
+                    content: content2,
+                    fileIds: [],
+                });
+                await createMessage(context.action(session1), {
+                    roomKey: room.key,
+                    parent: null,
+                    content: content3,
+                    fileIds: [],
+                });
 
                 const sharedParent = await createMessage(context.action(session1), {
                     roomKey: room.key,
@@ -9094,6 +9122,20 @@ export function testMessagingImplementation<RoomKey extends string>(
             "message payloads with parents load a recursive diamond in index order from %s",
             async from => {
                 const room = await createRoom(context.action(session1), space.id);
+
+                // These messages are outside the page and aren't referenced as parents.
+                await createMessage(context.action(session1), {
+                    roomKey: room.key,
+                    parent: null,
+                    content: content2,
+                    fileIds: [],
+                });
+                await createMessage(context.action(session1), {
+                    roomKey: room.key,
+                    parent: null,
+                    content: content3,
+                    fileIds: [],
+                });
 
                 const ancestor = await createMessage(context.action(session1), {
                     roomKey: room.key,
@@ -9191,6 +9233,20 @@ export function testMessagingImplementation<RoomKey extends string>(
             async from => {
                 const room = await createRoom(context.action(session1), space.id);
 
+                // These messages are outside the page and aren't referenced as parents.
+                await createMessage(context.action(session1), {
+                    roomKey: room.key,
+                    parent: null,
+                    content: content2,
+                    fileIds: [],
+                });
+                await createMessage(context.action(session1), {
+                    roomKey: room.key,
+                    parent: null,
+                    content: content3,
+                    fileIds: [],
+                });
+
                 const outsideParent = await createMessage(context.action(session1), {
                     roomKey: room.key,
                     parent: null,
@@ -9263,6 +9319,20 @@ export function testMessagingImplementation<RoomKey extends string>(
             "message payloads with parents include deleted parents from %s",
             async from => {
                 const room = await createRoom(context.action(session1), space.id);
+
+                // These messages are outside the page and aren't referenced as parents.
+                await createMessage(context.action(session1), {
+                    roomKey: room.key,
+                    parent: null,
+                    content: content2,
+                    fileIds: [],
+                });
+                await createMessage(context.action(session1), {
+                    roomKey: room.key,
+                    parent: null,
+                    content: content3,
+                    fileIds: [],
+                });
 
                 const deletedParent = await createMessage(context.action(session1), {
                     roomKey: room.key,
@@ -9344,6 +9414,20 @@ export function testMessagingImplementation<RoomKey extends string>(
             "message payloads with parents load every message referenced by a range from %s",
             async from => {
                 const room = await createRoom(context.action(session1), space.id);
+
+                // These messages are outside the page and aren't referenced as parents.
+                await createMessage(context.action(session1), {
+                    roomKey: room.key,
+                    parent: null,
+                    content: content2,
+                    fileIds: [],
+                });
+                await createMessage(context.action(session1), {
+                    roomKey: room.key,
+                    parent: null,
+                    content: content3,
+                    fileIds: [],
+                });
 
                 const rangeMessage1 = await createMessage(context.action(session1), {
                     roomKey: room.key,
