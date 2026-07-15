@@ -1,9 +1,13 @@
 import {ApiClientMock} from "~/server/agents/api/test_helpers/api_client_mock.js";
+import {mockApiGetTask} from "~/server/agents/api/test_helpers/mock_api_get_task.js";
+import {printApiTaskQueryCursorMock} from "~/server/agents/api/test_helpers/mock_api_get_task_collection_tasks.js";
 import {AgentWebContext} from "~/server/agents/web/agent_web_context.js";
 import {callAgentWebCreateTool} from "~/server/agents/web/call_agent_web_create_tool.js";
 import {createAgentWebPageStoredLinkPathname} from "~/server/agents/web/create_agent_web_page_stored_link_pathname.js";
+import {printAgentWebError} from "~/server/agents/web/print_agent_web_error.js";
 import {createAgentWebSessionStorageForTest} from "~/server/agents/web/test_helpers/create_agent_web_session_storage_for_test.js";
-import {InternalError, InvalidArgumentError, UnimplementedError} from "~/shared/error/error.js";
+import {storeAgentWebPageLinkForTest} from "~/server/agents/web/test_helpers/store_agent_web_page_link_for_test.js";
+import {InternalError, UnimplementedError} from "~/shared/error/error.js";
 import {captureResultPromise} from "~/shared/helpers/control/capture_result_promise.js";
 import {defaultTimeZone} from "~/shared/helpers/intl/time_zone.js";
 import {generateId} from "~/shared/id/id.js";
@@ -68,11 +72,9 @@ async function expectInvalidCreateDisplayMessage({
         throw new InternalError("Expected create tool call to throw");
     }
 
-    if (!(result.error instanceof InvalidArgumentError) || !result.error.displayMessage) {
-        throw result.error;
-    }
-
-    expect(result.error.displayMessage.map(({text}) => text).join("")).toEqual(expected);
+    expect(await printAgentWebError("Create failed", result.error)).toEqual(
+        `Error: Create failed. ${expected}`,
+    );
 }
 
 test.each([
@@ -207,29 +209,280 @@ test("creates a task collection with the normalized task collect type", async ()
     );
 });
 
-test("throws unimplemented when creating a task collection with tasks", async () => {
-    const result = await captureResultPromise(
-        async () =>
-            await callAgentWebCreateTool(context, {
-                type: "task-collection",
-                content: `\
+test("creates a task collection with a task", async () => {
+    const {task} = mockApiGetTask(api, {
+        spaceId,
+        id: launchTaskId,
+        title: "Launch task",
+    });
+    const collectionId = generateId<TaskCollectionId>();
+
+    api.mockPost("/task-collections", {
+        params: "Any",
+        data: {
+            spaceId,
+            collection: {
+                id: collectionId,
+                name: "Roadmap",
+                color: "Red",
+                defaults: {filters: [], sorts: []},
+            },
+        },
+    });
+    api.mockPatch("/tasks", {
+        params: "Any",
+        data: {
+            spaceId,
+            tasks: [task],
+            results: [
+                {type: "Update", result: {type: "AddCollection"}},
+                {
+                    type: "Update",
+                    result: {
+                        type: "MoveInCollection",
+                        cursor: printApiTaskQueryCursorMock(0),
+                    },
+                },
+            ],
+        },
+    });
+
+    const result = await callAgentWebCreateTool(context, {
+        type: "task-collection",
+        content: `\
 # Roadmap
 
 Color: Red
 
 - [Launch task (Open)](/task/launch-task)`,
-            }),
-    );
+    });
+    const storedPage = await storage.readResponseByPath.get("/task-collection/roadmap");
 
-    if (result.ok) {
-        throw new InternalError("Expected create tool call to throw");
-    }
+    expect({
+        result,
+        requestOrder: api.getRequestHistory().map(({method, path}) => `${method} ${path}`),
+        createCollection: getApiPostTaskCollectionsRequestHistory(),
+        taskPatches: api
+            .getRequestHistory()
+            .filter(request => request.method === "PATCH" && request.path === "/tasks")
+            .map(({body}) => body),
+        pageMetadata: storedPage?.pageMetadata,
+    }).toEqual({
+        result: "Create was successful. New task collection: [Roadmap](/task-collection/roadmap).\n",
+        requestOrder: ["GET /tasks/{id}", "POST /task-collections", "PATCH /tasks"],
+        createCollection: [
+            {
+                spaceId,
+                collection: {name: "Roadmap", color: "Red"},
+            },
+        ],
+        taskPatches: [
+            {
+                spaceId,
+                patches: [
+                    {
+                        type: "Update",
+                        id: launchTaskId,
+                        patch: {
+                            type: "AddCollection",
+                            item: {collection: {id: collectionId}},
+                        },
+                    },
+                    {
+                        type: "Update",
+                        id: launchTaskId,
+                        patch: {
+                            type: "MoveInCollection",
+                            collectionId,
+                            position: {type: "End"},
+                        },
+                    },
+                ],
+            },
+        ],
+        pageMetadata: {
+            type: "TaskCollection",
+            id: collectionId,
+            afterCursor: null,
+            beforeCursor: null,
+            isManuallyOrdered: true,
+            tasks: [{cursor: printApiTaskQueryCursorMock(0)}],
+        },
+    });
+});
 
-    expect(result.error).toBeInstanceOf(UnimplementedError);
-    expect(result.error).toHaveProperty(
-        "message",
-        "Adding tasks while creating a task collection hasn\u2019t been implemented yet",
-    );
+test("creates a task collection with multiple tasks in their written order", async () => {
+    const {task: launchTask} = mockApiGetTask(api, {
+        spaceId,
+        id: launchTaskId,
+        title: "Launch task",
+    });
+    const {task: secondTask} = mockApiGetTask(api, {
+        spaceId,
+        index: 2,
+        title: "Second task",
+        status: "Closed",
+        priority: "High",
+        due: "2027-07-12",
+    });
+    await storeAgentWebPageLinkForTest(storage, secondTask);
+
+    const collectionId = generateId<TaskCollectionId>();
+    api.mockPost("/task-collections", {
+        params: "Any",
+        data: {
+            spaceId,
+            collection: {
+                id: collectionId,
+                name: "Release plan",
+                defaults: {filters: [], sorts: []},
+            },
+        },
+    });
+    api.mockPatch("/tasks", {
+        params: "Any",
+        data: {
+            spaceId,
+            tasks: [launchTask, secondTask],
+            results: [
+                {type: "Update", result: {type: "AddCollection"}},
+                {type: "Update", result: {type: "AddCollection"}},
+                {
+                    type: "Update",
+                    result: {
+                        type: "MoveInCollection",
+                        cursor: printApiTaskQueryCursorMock(10),
+                    },
+                },
+                {
+                    type: "Update",
+                    result: {
+                        type: "MoveInCollection",
+                        cursor: printApiTaskQueryCursorMock(11),
+                    },
+                },
+            ],
+        },
+    });
+
+    const result = await callAgentWebCreateTool(context, {
+        type: "task-collection",
+        content: `\
+# Release plan
+
+- [Launch task (Open)](/task/launch-task)
+- [Second task (Closed)](/task/second-task)
+  - Priority: High
+  - Due date: July 12th, 2027`,
+    });
+    const storedPage = await storage.readResponseByPath.get("/task-collection/release-plan");
+
+    expect({
+        result,
+        taskPatches: api
+            .getRequestHistory()
+            .filter(request => request.method === "PATCH" && request.path === "/tasks")
+            .map(({body}) => body),
+        pageMetadata: storedPage?.pageMetadata,
+    }).toEqual({
+        result:
+            "Create was successful. New task collection: " +
+            "[Release plan](/task-collection/release-plan).\n",
+        taskPatches: [
+            {
+                spaceId,
+                patches: [
+                    {
+                        type: "Update",
+                        id: launchTask.id,
+                        patch: {
+                            type: "AddCollection",
+                            item: {collection: {id: collectionId}},
+                        },
+                    },
+                    {
+                        type: "Update",
+                        id: secondTask.id,
+                        patch: {
+                            type: "AddCollection",
+                            item: {collection: {id: collectionId}},
+                        },
+                    },
+                    {
+                        type: "Update",
+                        id: launchTask.id,
+                        patch: {
+                            type: "MoveInCollection",
+                            collectionId,
+                            position: {type: "End"},
+                        },
+                    },
+                    {
+                        type: "Update",
+                        id: secondTask.id,
+                        patch: {
+                            type: "MoveInCollection",
+                            collectionId,
+                            position: {type: "End"},
+                        },
+                    },
+                ],
+            },
+        ],
+        pageMetadata: {
+            type: "TaskCollection",
+            id: collectionId,
+            afterCursor: null,
+            beforeCursor: null,
+            isManuallyOrdered: true,
+            tasks: [
+                {cursor: printApiTaskQueryCursorMock(10)},
+                {cursor: printApiTaskQueryCursorMock(11)},
+            ],
+        },
+    });
+});
+
+test("validates task fields before creating a task collection", async () => {
+    mockApiGetTask(api, {
+        spaceId,
+        id: launchTaskId,
+        title: "Launch task",
+        status: "Closed",
+    });
+
+    await expectInvalidCreateDisplayMessage({
+        content: `\
+# Roadmap
+
+- [Renamed launch task (Open)](/task/launch-task)`,
+        expected:
+            "You can’t change the task “Renamed launch task”’s title or fields while adding " +
+            "it to task collection markdown. Add the task with its current title and fields, " +
+            "then call the `update` tool again if you want to change its title or fields. " +
+            "Try again with this exact markdown for the task: " +
+            "`- [Launch task (Closed)](/task/launch-task)`",
+    });
+
+    expect(api.getRequestHistory().map(({method, path}) => `${method} ${path}`)).toEqual([
+        "GET /tasks/{id}",
+    ]);
+    expect(getApiPostTaskCollectionsRequestHistory()).toHaveLength(0);
+});
+
+test("validates duplicate tasks before creating a task collection", async () => {
+    await expectInvalidCreateDisplayMessage({
+        content: `\
+# Roadmap
+
+- [Launch task (Open)](/task/launch-task)
+- [Launch task (Open)](/task/launch-task)`,
+        expected:
+            "The task “Launch task” appears more than once on this task collection page. " +
+            "Each task may only appear once. Try again after removing the duplicate task link.",
+    });
+
+    expect(api.getRequestHistory()).toHaveLength(0);
     expect(getApiPostTaskCollectionsRequestHistory()).toHaveLength(0);
 });
 

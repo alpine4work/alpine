@@ -849,7 +849,7 @@ export function normalizeAgentWebTaskQueryPage(
 export async function updateAgentWebTaskQueryPage(
     context: AgentWebContext,
     pageLink:
-        | {type: "TaskCollection"; id: TaskCollectionId}
+        | {type: "TaskCollection"; id: TaskCollectionId | null}
         | {type: "TaskSubtasks"; task: {id: TaskId | null}},
     oldPageMetadata: AgentWebTaskQueryPageMetadata,
     oldPage: AgentWebTaskQueryPage,
@@ -1006,7 +1006,8 @@ export async function updateAgentWebTaskQueryPage(
             const expectedPageTask = intoAgentWebTaskQueryPageTask({
                 timeZone: context.timeZone,
                 contextDate,
-                omittedCollectionId: pageLink.type === "TaskCollection" ? pageLink.id : undefined,
+                omittedCollectionId:
+                    pageLink.type === "TaskCollection" ? (pageLink.id ?? undefined) : undefined,
                 omittedParentTaskId:
                     pageLink.type === "TaskSubtasks" ? (pageLink.task.id ?? undefined) : undefined,
                 task,
@@ -1184,9 +1185,13 @@ export async function updateAgentWebTaskQueryPage(
         execute: async pageLink => {
             switch (pageLink.type) {
                 case "TaskCollection": {
+                    // We allow `originalPageLink.id` to be `null` so that a task
+                    // collection and its tasks can be created together. Validate the
+                    // tasks before creating the collection, then execute the updates
+                    // with the new collection's ID.
                     assert(
                         originalPageLink.type === "TaskCollection" &&
-                            originalPageLink.id === pageLink.id,
+                            (originalPageLink.id === null || originalPageLink.id === pageLink.id),
                     );
 
                     for (const removedTaskId of removedTaskIds) {

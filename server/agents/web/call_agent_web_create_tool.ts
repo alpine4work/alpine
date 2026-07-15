@@ -198,24 +198,23 @@ async function actuallyCallAgentWebCreateTool(
         });
     });
 
-    const markdown =
-        printMarkdownTree({
-            type: "root",
-            children: [
-                {
-                    type: "paragraph",
-                    children: [
-                        {type: "text", value: `Create was successful. New ${actualType}: `},
-                        {
-                            type: "link",
-                            url: pageLinkPathname,
-                            children: [{type: "text", value: pageLinkLabel}],
-                        },
-                        {type: "text", value: "."},
-                    ],
-                },
-            ],
-        }).trimEnd() + "\n";
+    const markdown = printMarkdownTree({
+        type: "root",
+        children: [
+            {
+                type: "paragraph",
+                children: [
+                    {type: "text", value: `Create was successful. New ${actualType}: `},
+                    {
+                        type: "link",
+                        url: pageLinkPathname,
+                        children: [{type: "text", value: pageLinkLabel}],
+                    },
+                    {type: "text", value: "."},
+                ],
+            },
+        ],
+    });
 
     return await formatAgentWebMarkdown(markdown);
 }

@@ -1,9 +1,6 @@
 import {produce} from "immer";
 import {Code, Link, List, Node, PhrasingContent, Root, RootContent} from "mdast";
-import {
-    AgentWebContext,
-    AgentWebContextWithoutStorage,
-} from "~/server/agents/web/agent_web_context.js";
+import {AgentWebContext} from "~/server/agents/web/agent_web_context.js";
 import {AgentWebPageStoredLink} from "~/server/agents/web/agent_web_page_stored_link.js";
 import {AgentWebSessionStorage} from "~/server/agents/web/agent_web_session_storage.js";
 import {
@@ -16,9 +13,9 @@ import {
     printAgentWebTaskQuerySorts,
 } from "~/server/agents/web/agent_web_task_query_sorts.js";
 import {createAgentWebPageStoredLinkPathname} from "~/server/agents/web/create_agent_web_page_stored_link_pathname.js";
+import {curlyQuote} from "~/server/agents/web/internal/curly_quote.js";
 import {normalizeAgentWebPath} from "~/server/agents/web/internal/normalize_agent_web_path.js";
 import {normalizeAgentWebStaticText} from "~/server/agents/web/internal/normalize_agent_web_static_text.js";
-import {curlyQuote} from "~/server/agents/web/internal/curly_quote.js";
 import {withApiContentNormalizerForAgentWebMarkdown} from "~/server/agents/web/normalize_api_content_for_agent_web_markdown.js";
 import {
     AgentWebTaskQueryPageMetadata,
@@ -225,7 +222,7 @@ export async function readAgentWebTaskCollectionPage(
     };
 }
 export async function createAgentWebTaskCollectionPage(
-    context: AgentWebContextWithoutStorage,
+    context: AgentWebContext,
     newPage: AgentWebTaskCollectionPage,
 ): Promise<{
     pageMetadata: AgentWebTaskCollectionPageMetadata;
@@ -252,12 +249,28 @@ export async function createAgentWebTaskCollectionPage(
         );
     }
 
-    // NOCOMMIT: This thing!!!
+    const emptyTaskMetadata: AgentWebTaskQueryPageMetadata = {
+        afterCursor: null,
+        beforeCursor: null,
+        isManuallyOrdered: true,
+        tasks: [],
+    };
+
+    let executeTaskUpdate:
+        | ((pageLink: {
+              type: "TaskCollection";
+              id: TaskCollectionId;
+          }) => Promise<AgentWebTaskQueryPageMetadata>)
+        | null = null;
+
     if (newPage.tasks.length > 0) {
-        // TODO(#agents-web): Add tasks to the collection while creating it.
-        throw new UnimplementedError(
-            "Adding tasks while creating a task collection hasn\u2019t been implemented yet",
-        );
+        ({execute: executeTaskUpdate} = await updateAgentWebTaskQueryPage(
+            context,
+            {type: "TaskCollection", id: null},
+            emptyTaskMetadata,
+            {pagination: null, tasks: [], isEndOfTasks: true},
+            {pagination: null, tasks: newPage.tasks, isEndOfTasks: true},
+        ));
     }
 
     const {
@@ -272,15 +285,12 @@ export async function createAgentWebTaskCollectionPage(
         },
     });
 
+    const taskMetadata = executeTaskUpdate
+        ? await executeTaskUpdate({type: "TaskCollection", id: collection.id})
+        : emptyTaskMetadata;
+
     return {
-        pageMetadata: {
-            type: "TaskCollection",
-            id: collection.id,
-            afterCursor: null,
-            beforeCursor: null,
-            isManuallyOrdered: true,
-            tasks: [],
-        },
+        pageMetadata: {...taskMetadata, type: "TaskCollection", id: collection.id},
         pageLink: {type: "TaskCollection", id: collection.id, title: collection.name},
     };
 }
