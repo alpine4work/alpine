@@ -77,7 +77,13 @@ Facts that matter for the design, with sources:
    table T" collapses the O(pages) reconnect payload to O(tables), and the server can
    answer it with a range query instead of N point reads. This is the single highest-value
    move, and the review's own recommendation ("prefer a table/group generation or
-   change-log cursor") points the same way.
+   change-log cursor") points the same way. Note, though, that this does **not** require
+   switching to a per-db-file version *number*: the cursor is a client-held watermark into
+   the **existing global version sequence** (see §5), and the current schema already
+   answers "changed since V" per table. A per-table counter would add dense/contiguous
+   numbering (gap detection), but that property is already covered by WebSocket ordering +
+   reconnect revalidation at the connection level and by exact `previousVersion` matching
+   at the page level — not worth a persisted counter per table plus a migration.
 3. **Server state should describe *interest*, not *contents*.** Filtering realtime by
    "which databases has this client read this session" is the right granularity shift.
 
@@ -246,12 +252,23 @@ Server-side:
   existing access check); the empty-confirmation path to the originator is preserved
   unconditionally so the optimistic queue still dequeues on `mutationId`
   (`database_durable_object_connection.ts:124-137` semantics unchanged).
-- Answering "changed since V" for table T: `SELECT page_index FROM database_table_pages
-  WHERE sqlite_id = ? AND version > ?` (dedup to latest). Add an index on
-  `(sqlite_id, version)` — or accept an O(live pages) scan per subscribed table per
-  reconnect, which already beats today's O(cached pages) point reads. An in-memory ring of
-  `(version → changed bitmap)` per table (Graft's segment metadata) is a later optimization
-  if reconnect storms show up.
+- **No new version scheme.** Cursors are watermarks into the existing per-DO global
+  counter; `currentVersion` in the response is simply the global version as of the
+  snapshot the changed-set was computed at. Answering "changed since V" for table T:
+  `SELECT page_index FROM database_table_pages WHERE sqlite_id = ? AND version > ?`
+  (dedup to latest). Add an index on `(sqlite_id, version)` — or accept an O(live pages)
+  scan per subscribed table per reconnect, which already beats today's O(cached pages)
+  point reads. A derived in-memory `maxVersion(tableId)` map (maintained on write,
+  recovered via per-table `MAX` on cold load) gives an O(1) `"current"` fast path; an
+  in-memory ring of `(version → changed bitmap)` per table (Graft's segment metadata) is a
+  later optimization if reconnect storms show up.
+- **Client watermarks are per-table even though the version space is global.** Advance
+  cursor(T) only on applied/skipped events *for T* and on validation responses for T.
+  cursor(T) lagging the global counter while T is quiet is harmless (revalidation returns
+  an empty diff). A single group-wide client cursor is wrong under lazy interest: tables
+  validated at different times legitimately hold different watermarks — a too-new group
+  cursor silently skips a stale table's changes, a too-old one spuriously invalidates
+  fresh tables.
 
 ### Interaction with the storage-growth fix (review: `database_server.ts:473`)
 
