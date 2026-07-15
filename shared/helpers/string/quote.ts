@@ -57,6 +57,11 @@ export function quote(
     return string;
 }
 
+/**
+ * Quote a string using Markdown inline code syntax. Escapes using the same
+ * procedure as `mdast-util-to-markdown` which we use to print markdown across our
+ * codebase.
+ */
 function quoteValue(quoted: string) {
     quoted = quoted.replaceAll("`", "\\`");
     // eslint-disable-next-line cyberworlds/string-quotes
