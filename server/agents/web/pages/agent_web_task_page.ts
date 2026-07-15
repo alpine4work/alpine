@@ -35,15 +35,15 @@ import {
 } from "~/shared/api/specification/types/api_specification_convenience_types.js";
 import {InvalidArgumentError} from "~/shared/error/error.js";
 import {errorDisplayMessage} from "~/shared/error/error_display_message.js";
-import {ErrorDisplayMessage} from "~/shared/error/types/error_display_message_type.js";
 import {emptyArray} from "~/shared/helpers/array/empty_array.js";
 import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
 import {assert} from "~/shared/helpers/control/assert.js";
+import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 import {isDeepEqual} from "~/shared/helpers/control/is_deep_equal.js";
-import {parseCalendarDates} from "~/shared/helpers/date/parse_calendar_dates.js";
 import {TaskId} from "~/shared/id/types/id_types.js";
 
-// NOCOMMIT: Subtasks
+const agentWebTaskPageSubtaskLimit = 50;
+
 export type AgentWebTaskPage = {
     readonly type: "Task";
     readonly title: string;
@@ -54,6 +54,15 @@ export type AgentWebTaskPage = {
     readonly priority: ApiTaskPriority | null;
     readonly dueDateString: string | null;
     readonly notes: ApiContentResponseWithoutKeys;
+    readonly subtasks: AgentWebTaskPageSubtasks | null;
+};
+
+export type AgentWebTaskPageSubtasks = {
+    readonly tasks: ReadonlyArray<AgentWebTaskQueryPageTask>;
+    readonly seeMore: {
+        readonly nextCursorHash: string;
+        readonly remainingTaskCount: number;
+    } | null;
 };
 
 export type AgentWebTaskPageMetadata = {
@@ -63,6 +72,7 @@ export type AgentWebTaskPageMetadata = {
         readonly version: number;
         readonly keys: ReadonlyArray<ApiContentKey>;
     };
+    readonly subtasks: AgentWebTaskQueryPageMetadata;
 };
 
 export type AgentWebTaskPageWithMetadata = AgentWebTaskPage & {
@@ -78,12 +88,56 @@ export async function readAgentWebTaskPage(
     const contextDate = toCalendarDate(fromDate(contextTime, context.timeZone));
 
     const {
-        data: {task},
-    } = await context.api.get(context.span, "/tasks/{id}", {params: {path: {id}}});
+        data: {task, tasks: loadedSubtasks},
+    } = await context.api.get(context.span, "/tasks/{id}-with-notes/subtasks", {
+        params: {
+            path: {id},
+            query: {limit: agentWebTaskPageSubtaskLimit + 1},
+        },
+    });
 
     const {content: notes, keys: notesKeys} = unzipKeysFromApiContentResponse(task.notes.content);
 
-    const page: AgentWebTaskPageWithMetadata = {
+    const subtaskCount = task.subtasks.openTaskCount + task.subtasks.closedTaskCount;
+    const visibleSubtasks = loadedSubtasks.slice(0, agentWebTaskPageSubtaskLimit);
+    const lookaheadSubtask = loadedSubtasks[agentWebTaskPageSubtaskLimit] ?? null;
+
+    const subtasksMetadata: AgentWebTaskQueryPageMetadata = {
+        afterCursor: null,
+        beforeCursor: lookaheadSubtask?.cursor ?? null,
+        isManuallyOrdered: true,
+        tasks: visibleSubtasks.map(({cursor}) => ({cursor})),
+    };
+
+    let subtasks: AgentWebTaskPageSubtasks | null = null;
+
+    if (visibleSubtasks.length > 0) {
+        const remainingTaskCount = Math.max(0, subtaskCount - visibleSubtasks.length);
+
+        subtasks = {
+            tasks: visibleSubtasks.map(({task: subtask}) =>
+                intoAgentWebTaskQueryPageTask({
+                    timeZone: context.timeZone,
+                    contextDate,
+                    omittedParentTaskId: id,
+                    task: subtask,
+                }),
+            ),
+            seeMore:
+                remainingTaskCount === 0
+                    ? null
+                    : {
+                          nextCursorHash: await createAgentWebTaskQueryCursorHash(
+                              context.storage,
+                              `Task:${id}`,
+                              assertExists(visibleSubtasks[visibleSubtasks.length - 1]).cursor,
+                          ),
+                          remainingTaskCount,
+                      },
+        };
+    }
+
+    const page: AgentWebTaskPage = {
         type: "Task",
         title: task.title,
         status: task.status,
@@ -107,6 +161,11 @@ export async function readAgentWebTaskPage(
             ? formatAgentWebTaskDueDateString(context.timeZone, contextDate, task.due)
             : null,
         notes,
+        subtasks,
+    };
+
+    return {
+        response: await printPage(page),
         metadata: {
             type: "Task",
             id,
@@ -114,12 +173,8 @@ export async function readAgentWebTaskPage(
                 version: task.notes.version,
                 keys: notesKeys,
             },
+            subtasks: subtasksMetadata,
         },
-    };
-
-    return {
-        response: await printPage(page),
-        metadata: page.metadata,
     };
 }
 
