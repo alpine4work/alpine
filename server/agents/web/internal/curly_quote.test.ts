@@ -4,6 +4,36 @@ test("quotes plain text content", () => {
     expect(curlyQuote([{type: "text", value: "Hello, world!"}])).toBe("\u201CHello, world!\u201D");
 });
 
+test("escapes html characters", () => {
+    expect(curlyQuote([{type: "text", value: "<em>Hello</em>, world!"}])).toBe(
+        "\u201C\\<em>Hello\\</em>, world!\u201D",
+    );
+});
+
+test("escapes markdown styles", () => {
+    expect(curlyQuote([{type: "text", value: "*Hello*, world!"}])).toBe(
+        "\u201C\\*Hello\\*, world!\u201D",
+    );
+});
+
+test("escapes unbalanced markdown styles", () => {
+    expect(curlyQuote([{type: "text", value: "Hello*, world!"}])).toBe(
+        "\u201CHello\\*, world!\u201D",
+    );
+});
+
+test("escapes inline code markdown style", () => {
+    expect(curlyQuote([{type: "text", value: "`Hello`, world!"}])).toBe(
+        "\u201C\\`Hello\\`, world!\u201D",
+    );
+});
+
+test("escapes unbalanced inline code markdown style", () => {
+    expect(curlyQuote([{type: "text", value: "Hello`, world!"}])).toBe(
+        "\u201CHello\\`, world!\u201D",
+    );
+});
+
 test("quotes text extracted from nested phrasing nodes", () => {
     expect(
         curlyQuote([
