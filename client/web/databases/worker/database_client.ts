@@ -25,7 +25,7 @@ import {
     diffPage,
     shouldIgnorePageInvalidation,
 } from "~/shared/databases/page_diff.js";
-import {databaseMainTableId} from "~/shared/databases/sqlite_constants.js";
+import {databaseMainTableId, sqlitePageSize} from "~/shared/databases/sqlite_constants.js";
 import {type SqliteMigration} from "~/shared/databases/sqlite_migrations.js";
 import {TableNotAttachedError} from "~/shared/databases/table_not_attached_error.js";
 import {PermissionDeniedError} from "~/shared/error/error.js";
@@ -40,6 +40,8 @@ interface OptimisticMutation {
     mutationId: DatabaseMutationId;
     action: DatabaseActionObject;
 }
+
+const emptyDatabasePage = new Uint8Array(sqlitePageSize);
 
 /**
  * Represents a connected tab's route to the server. Passed into {@link
@@ -575,23 +577,33 @@ export class DatabaseClient {
             const pagesToTombstone = new Map<number, number>();
             for (const [pageIndex, {previousVersion, version, diff}] of tableDiffs.diffs) {
                 const base = store.readPage(pageIndex);
-                if (base === null) continue;
-                // Already at (or past) this diff's result — e.g. the full page arrived in an
-                // earlier `executeAction` response.
-                if (base.version >= version) continue;
-                if (base.version !== previousVersion) {
-                    // The diff was computed against a version this client never saw (an intervening
-                    // update was missed, e.g. across a reconnect). Applying it here would fabricate a
-                    // page state that never existed on the server, so drop the page instead — the next
-                    // read misses and re-fetches it. The tombstone remembers `version` so a
-                    // late-arriving older write (e.g. an in-flight `ensureCacheIsUpToDate` response
-                    // snapshotted before this diff) can't resurrect the stale page.
-                    pagesToTombstone.set(pageIndex, version);
-                    this.addPageToInvalidate(tableId, pageIndex);
-                    anyWritten = true;
-                    continue;
+                let baseData: Uint8Array;
+                if (base === null) {
+                    // The server diffs a newly allocated page against a zero-filled SQLite page.
+                    // Materialize that exact base so inserts which append/split a page land in the
+                    // sparse cache directly from realtime. Older pages with an unknown base still wait
+                    // for a full-page fallback.
+                    if (previousVersion !== 0) continue;
+                    baseData = emptyDatabasePage;
+                } else {
+                    // Already at (or past) this diff's result — e.g. the full page arrived in an
+                    // earlier `executeAction` response.
+                    if (base.version >= version) continue;
+                    if (base.version !== previousVersion) {
+                        // The diff was computed against a version this client never saw (an intervening
+                        // update was missed, e.g. across a reconnect). Applying it here would fabricate a
+                        // page state that never existed on the server, so drop the page instead — the next
+                        // read misses and re-fetches it. The tombstone remembers `version` so a
+                        // late-arriving older write (e.g. an in-flight `ensureCacheIsUpToDate` response
+                        // snapshotted before this diff) can't resurrect the stale page.
+                        pagesToTombstone.set(pageIndex, version);
+                        this.addPageToInvalidate(tableId, pageIndex);
+                        anyWritten = true;
+                        continue;
+                    }
+                    baseData = base.data;
                 }
-                const full = applyPageDiff(base.data, diff);
+                const full = applyPageDiff(baseData, diff);
                 if (store.writePageIfNewer(pageIndex, version, full)) {
                     if (!shouldIgnorePageInvalidation(pageIndex, diff)) {
                         this.addPageToInvalidate(tableId, pageIndex);

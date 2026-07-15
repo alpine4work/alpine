@@ -145,7 +145,7 @@ to preserve — schemas and protocol shapes are replaced in place.
   current watermark.
 - Cold-load recovery of `_nextVersion` and `fileSizes` from `database_tables`.
 
-## Milestone 2 — Client materializes new pages from realtime
+## [x] Milestone 2 — Client materializes new pages from realtime
 
 **`client/web/databases/worker/database_client.ts`** (`writePageDiffsFromRealtime`)
 

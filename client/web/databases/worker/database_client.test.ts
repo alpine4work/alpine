@@ -16,8 +16,9 @@ import type {
     DatabaseActionObject,
     DatabaseActionResult,
 } from "~/shared/databases/database_actions.js";
+import {diffPage} from "~/shared/databases/page_diff.js";
 import {SqlQuery, databaseTableSchemaName, sql} from "~/shared/databases/sql.js";
-import {databaseMainTableId} from "~/shared/databases/sqlite_constants.js";
+import {databaseMainTableId, sqlitePageSize} from "~/shared/databases/sqlite_constants.js";
 import {InternalError} from "~/shared/error/error.js";
 import {generateChronologicalId} from "~/shared/id/chronological_id.js";
 import {generateId} from "~/shared/id/id.js";
@@ -680,6 +681,208 @@ describe("optimistic mutations", () => {
         expect((reportedError as Error).message).toBe(
             "Assertion failure: mutation not confirmed via realtime before server responded",
         );
+    });
+});
+
+describe("writePageDiffsFromRealtime", () => {
+    test("materializes appended pages without a fallback on the next read", async () => {
+        const serverDir = createInMemoryOpfsDirectoryHandle();
+        const server = await DatabaseClient.create(serverDir);
+        server.executeLocallyForTests(sql`
+            CREATE TABLE t (id INTEGER PRIMARY KEY, data TEXT NOT NULL)
+        `);
+        server.commitOptimisticPagesForTests();
+        const before = await extractOpfsPages(serverDir);
+
+        const localDir = createInMemoryOpfsDirectoryHandle();
+        await prepopulateOpfsPages(localDir, before.fileSizeInPages, before.pages);
+        const local = await DatabaseClient.create(localDir);
+
+        for (let i = 0; i < 80; i++) {
+            server.executeLocallyForTests(sql`
+                INSERT INTO
+                    t (data)
+                VALUES
+                    (${"x".repeat(300)})
+            `);
+        }
+        server.commitOptimisticPagesForTests();
+        const after = await extractOpfsPages(serverDir);
+        const beforeByPageIndex = pagesToMap(before.pages);
+        const realtimeDiffs = new Map(
+            after.pages.map(page => {
+                const previous = beforeByPageIndex.get(page.pageIndex);
+                return [
+                    page.pageIndex,
+                    {
+                        previousVersion: previous?.version ?? 0,
+                        version: page.version,
+                        diff: diffPage(previous?.data ?? new Uint8Array(sqlitePageSize), page.data),
+                    },
+                ] as const;
+            }),
+        );
+        const appendedPageIndexes = after.pages
+            .filter(page => !beforeByPageIndex.has(page.pageIndex))
+            .map(page => page.pageIndex);
+
+        local.writePageDiffsFromRealtime(
+            new Map([
+                [
+                    databaseMainTableId,
+                    {diffs: realtimeDiffs, fileSizeInPages: after.fileSizeInPages},
+                ],
+            ]),
+            generateId<DatabaseMutationId>(),
+        );
+
+        let fallbackCount = 0;
+        const conn = makeDatabaseClientConnection({
+            async executeActionServer() {
+                fallbackCount++;
+                return {
+                    result: {name: "rawSql", output: {rows: [{count: -1}]}},
+                    readPages: new Map(),
+                    fileSizesInPages: null,
+                };
+            },
+        });
+        const rows = await execute(
+            local,
+            conn,
+            sql`
+                SELECT
+                    COUNT(*) AS count
+                FROM
+                    t
+            `,
+        );
+        const localPages = pagesToMap((await extractOpfsPages(localDir)).pages);
+
+        expect({
+            appendedPagesExist: appendedPageIndexes.length > 0,
+            fallbackCount,
+            materialized: appendedPageIndexes.every(pageIndex => localPages.has(pageIndex)),
+            rows,
+        }).toEqual({
+            appendedPagesExist: true,
+            fallbackCount: 0,
+            materialized: true,
+            rows: [{count: 80}],
+        });
+    });
+
+    test("a newer tombstone rejects a late zero-base diff", async () => {
+        const dir = createInMemoryOpfsDirectoryHandle();
+        const client = await DatabaseClient.create(dir);
+        client.executeLocallyForTests(sql`CREATE TABLE t (id INTEGER PRIMARY KEY)`);
+        client.commitOptimisticPagesForTests();
+        const before = await extractOpfsPages(dir);
+        const page = before.pages[before.pages.length - 1]!;
+        const tombstoneVersion = page.version + 3;
+
+        client.writePageDiffsFromRealtime(
+            new Map([
+                [
+                    databaseMainTableId,
+                    {
+                        diffs: new Map([
+                            [
+                                page.pageIndex,
+                                {
+                                    previousVersion: page.version + 1,
+                                    version: tombstoneVersion,
+                                    diff: [],
+                                },
+                            ],
+                        ]),
+                        fileSizeInPages: before.fileSizeInPages,
+                    },
+                ],
+            ]),
+            generateId<DatabaseMutationId>(),
+        );
+        client.writePageDiffsFromRealtime(
+            new Map([
+                [
+                    databaseMainTableId,
+                    {
+                        diffs: new Map([
+                            [
+                                page.pageIndex,
+                                {
+                                    previousVersion: 0,
+                                    version: tombstoneVersion - 1,
+                                    diff: diffPage(new Uint8Array(sqlitePageSize), page.data),
+                                },
+                            ],
+                        ]),
+                        fileSizeInPages: before.fileSizeInPages,
+                    },
+                ],
+            ]),
+            generateId<DatabaseMutationId>(),
+        );
+
+        const after = await extractOpfsPages(dir);
+        expect(after.pages.some(entry => entry.pageIndex === page.pageIndex)).toBe(false);
+    });
+
+    test("page-0 noise filtering is unchanged", async () => {
+        const dir = createInMemoryOpfsDirectoryHandle();
+        const client = await DatabaseClient.create(dir);
+        client.executeLocallyForTests(sql`CREATE TABLE t (id INTEGER PRIMARY KEY)`);
+        client.commitOptimisticPagesForTests();
+        const before = await extractOpfsPages(dir);
+        const page0 = before.pages.find(page => page.pageIndex === 0)!;
+        const notifications: Array<unknown> = [];
+        await client.registerReactiveAction(
+            "page-0-noise",
+            {
+                name: "readonlyRawSql",
+                input: rawSqlInput(sql`
+                    SELECT
+                        *
+                    FROM
+                        t
+                `),
+            },
+            testConn,
+            output => notifications.push(output),
+            () => {},
+        );
+
+        client.writePageDiffsFromRealtime(
+            new Map([
+                [
+                    databaseMainTableId,
+                    {
+                        diffs: new Map([
+                            [
+                                0,
+                                {
+                                    previousVersion: page0.version,
+                                    version: page0.version + 1,
+                                    diff: [
+                                        {offset: 24, data: new Uint8Array([0xff])},
+                                        {offset: 92, data: new Uint8Array([0xff])},
+                                    ],
+                                },
+                            ],
+                        ]),
+                        fileSizeInPages: before.fileSizeInPages,
+                    },
+                ],
+            ]),
+            generateId<DatabaseMutationId>(),
+        );
+        await new Promise(resolve => setTimeout(resolve, 0));
+        const afterPage0 = (await extractOpfsPages(dir)).pages.find(page => page.pageIndex === 0);
+
+        expect({notifications, version: afterPage0?.version}).toEqual({
+            notifications: [],
+            version: page0.version + 1,
+        });
     });
 });
 
