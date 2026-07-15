@@ -2,7 +2,7 @@ import {Tokenizer as HtmlTokenizer} from "htmlparser2";
 import {Html, Link, Node, Root, RootContent} from "mdast";
 import {AgentWebSessionStorage} from "~/server/agents/web/agent_web_session_storage.js";
 import {normalizeAgentWebPath} from "~/server/agents/web/internal/normalize_agent_web_path.js";
-import {quoteMarkdown} from "~/server/agents/web/internal/quote_markdown.js";
+import {curlyQuote} from "~/server/agents/web/internal/curly_quote.js";
 import {
     AgentWebMessagingPage,
     AgentWebMessagingPageBlock,
@@ -390,7 +390,7 @@ async function actuallyParseAgentWebMessagingPage<
                                 string: string,
                             ) => {
                                 const createError = () => {
-                                    const quotedString = quoteMarkdown(string);
+                                    const quotedString = curlyQuote(string);
 
                                     return new InvalidArgumentError("Invalid account link", {
                                         displayMessage: errorDisplayMessage`Expected a link to a human or bot on line ${position?.start.line ?? "unknown"}. For example: \u201C[John](/human/john-doe)\u201D. Instead we found ${quotedString}. Try again with a valid link to a human or bot.`,
@@ -1125,7 +1125,7 @@ async function takeAgentWebMessagingPagePaginationFromPreamble<
     if (/^[a-zA-Z0-9]+:/.test(lastChild.url)) return null;
 
     if (pageLink === null) {
-        const quotedText = quoteMarkdown(lastChild.children);
+        const quotedText = curlyQuote(lastChild.children);
 
         throw new InvalidArgumentError("Can\u2019t add pagination link to new messaging room", {
             displayMessage: errorDisplayMessage`Can\u2019t add ${quotedText} link when creating ${messageNouns.pluralNoun} markdown. Try again without the ${quotedText} link.`,
@@ -1181,7 +1181,7 @@ async function takeAgentWebMessagingPagePaginationFromPreamble<
         !isDeepEqual(previousPaginationLink.pageLink, nextPaginationLink.pageLink)
     ) {
         throw new InvalidArgumentError("Pagination links point to different pages", {
-            displayMessage: errorDisplayMessage`${quoteMarkdown(agentWebMessagingPreviousPageLinkTextWithStartArrow)} and ${quoteMarkdown(agentWebMessagingNextPageLinkText)} links must link to the same page. ${quoteMarkdown(agentWebMessagingPreviousPageLinkTextWithStartArrow)} links to ${quote(previousPaginationLink.pathname.slice(0, 75))} and ${quoteMarkdown(agentWebMessagingNextPageLinkText)} links to ${quote(nextPaginationLink.pathname.slice(0, 75))}. Try again and make sure both links point to the same page (it\u2019s ok if the URL search params like \`?before\` and \`?after\` are different but the pathname must be the same).`,
+            displayMessage: errorDisplayMessage`${curlyQuote(agentWebMessagingPreviousPageLinkTextWithStartArrow)} and ${curlyQuote(agentWebMessagingNextPageLinkText)} links must link to the same page. ${curlyQuote(agentWebMessagingPreviousPageLinkTextWithStartArrow)} links to ${quote(previousPaginationLink.pathname.slice(0, 75))} and ${curlyQuote(agentWebMessagingNextPageLinkText)} links to ${quote(nextPaginationLink.pathname.slice(0, 75))}. Try again and make sure both links point to the same page (it\u2019s ok if the URL search params like \`?before\` and \`?after\` are different but the pathname must be the same).`,
         });
     }
 
@@ -1328,7 +1328,7 @@ function createInvalidAgentWebMessagingPagePaginationLinkUrlError({
     link: Link;
     searchParamName: "before" | "after";
 }) {
-    const quotedText = quoteMarkdown(link.children);
+    const quotedText = curlyQuote(link.children);
 
     return new InvalidArgumentError("Invalid pagination link URL", {
         displayMessage: errorDisplayMessage`Invalid link for ${quotedText}. Expected a link to more ${messageNouns.pluralNoun} with a ${quote(searchParamName)} URL search param. Example: ${quote(`/chat/my-chat?${searchParamName}=8`)}. Try again with a different link.`,
