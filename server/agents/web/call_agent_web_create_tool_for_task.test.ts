@@ -1,14 +1,20 @@
 import {ApiClientMock} from "~/server/agents/api/test_helpers/api_client_mock.js";
 import {createApiAccountMock} from "~/server/agents/api/test_helpers/create_api_account_mock.js";
+import {createApiTaskMock} from "~/server/agents/api/test_helpers/create_api_task_mock.js";
+import {printApiTaskQueryCursorMock} from "~/server/agents/api/test_helpers/mock_api_get_task_collection_tasks.js";
 import {AgentWebContext} from "~/server/agents/web/agent_web_context.js";
 import {callAgentWebCreateTool} from "~/server/agents/web/call_agent_web_create_tool.js";
-import {createAgentWebPageStoredLinkPathname} from "~/server/agents/web/create_agent_web_page_stored_link_pathname.js";
 import {createAgentWebSessionStorageForTest} from "~/server/agents/web/test_helpers/create_agent_web_session_storage_for_test.js";
-import {intoApiAccountReference} from "~/shared/api/specification/into_api_account_reference.js";
+import {storeAgentWebPageLinkForTest} from "~/server/agents/web/test_helpers/store_agent_web_page_link_for_test.js";
+import {
+    ApiTaskResponse,
+    ApiTaskWithoutNotesResponse,
+} from "~/shared/api/specification/types/api_specification_convenience_types.js";
 import {ErrorBase, InternalError} from "~/shared/error/error.js";
 import {ErrorDisplayMessage} from "~/shared/error/types/error_display_message_type.js";
 import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
 import {defaultTimeZone} from "~/shared/helpers/intl/time_zone.js";
+import {omitObject} from "~/shared/helpers/object/omit_object.js";
 import {generateId} from "~/shared/id/id.js";
 import {AccountId, BotId, SpaceId, TaskCollectionId, TaskId} from "~/shared/id/types/id_types.js";
 import {testTracer} from "~/shared/tracer/dev/test_tracer.js";
@@ -58,10 +64,12 @@ const context: AgentWebContext = {
 };
 
 beforeEach(async () => {
-    await createAgentWebPageStoredLinkPathname(storage, intoApiAccountReference(aliceAccount));
-    await createAgentWebPageStoredLinkPathname(storage, parentTaskReference);
-    await createAgentWebPageStoredLinkPathname(storage, engineeringCollectionReference);
-    await createAgentWebPageStoredLinkPathname(storage, roadmapCollectionReference);
+    await storeAgentWebPageLinkForTest(storage, [
+        aliceAccount,
+        parentTaskReference,
+        engineeringCollectionReference,
+        roadmapCollectionReference,
+    ]);
 });
 
 function mockCreateTask({
@@ -253,6 +261,88 @@ test("creates a task with every supported field", async () => {
             priority: {type: "High"},
             due: {date: "2027-07-12"},
             content: undefined,
+        },
+    });
+});
+
+test("creates a task with a subtask section", async () => {
+    const subtask = createApiTaskMock({index: 701, title: "Existing subtask"});
+    await storeAgentWebPageLinkForTest(storage, subtask);
+
+    const taskId = mockCreateTask({
+        title: "Create with subtasks",
+        status: {type: "Open", isActive: false},
+    });
+    const createdTask = createApiTaskMock({id: taskId, title: "Create with subtasks"});
+    const movedSubtask = createApiTaskMock({
+        id: subtask.id,
+        title: subtask.title,
+        parent: createdTask,
+    });
+
+    api.mockGet("/tasks/{id}-without-notes", {
+        params: {path: {id: subtask.id}},
+        data: {spaceId, task: withoutNotes(subtask)},
+    });
+    api.mockPatch("/tasks", {
+        params: "Any",
+        data: {spaceId, tasks: [{task: movedSubtask, collections: []}]},
+    });
+    api.mockGet("/tasks/{id}-without-notes/subtasks", {
+        params: {path: {id: taskId}, query: {limit: 2, cursor: undefined}},
+        data: {
+            spaceId,
+            task: withoutNotes(createdTask),
+            nextCursor: null,
+            tasks: [
+                {
+                    cursor: printApiTaskQueryCursorMock(701),
+                    task: withoutNotes(movedSubtask),
+                },
+            ],
+        },
+    });
+
+    const result = await callAgentWebCreateTool(context, {
+        type: "task",
+        content: `\
+# Create with subtasks
+
+## Subtasks
+
+- [Existing subtask (Open)](/task/existing-subtask)`,
+    });
+
+    const taskListPatch = api
+        .getRequestHistory()
+        .find(request => request.method === "PATCH" && request.path === "/tasks");
+
+    expect({
+        result,
+        createTask: getCreateTaskRequests()[0]?.body,
+        taskListPatch: taskListPatch?.body,
+    }).toEqual({
+        result: "Create was successful. New task: [Create with subtasks](/task/create-with-subtasks).\n",
+        createTask: {
+            spaceId,
+            task: {
+                title: "Create with subtasks",
+                status: {type: "Open", isActive: false},
+                collections: [],
+            },
+        },
+        taskListPatch: {
+            spaceId,
+            patches: [
+                {
+                    id: subtask.id,
+                    patch: {type: "SetParent", parent: {task: {id: taskId}}},
+                },
+                {
+                    id: subtask.id,
+                    patch: {type: "MoveInParent", position: {type: "End"}},
+                },
+            ],
         },
     });
 });
@@ -523,12 +613,8 @@ test.each([
             task: {
                 title,
                 status: {type: "Open", isActive: false},
-                parent: undefined,
-                assignee: undefined,
                 collections: [],
-                priority: undefined,
                 due: {date: expectedDate},
-                content: undefined,
             },
         });
     },
@@ -544,6 +630,10 @@ test("rejects a missing task title without calling the API", async () => {
 
     expect(getCreateTaskRequests()).toHaveLength(0);
 });
+
+function withoutNotes(task: ApiTaskResponse): ApiTaskWithoutNotesResponse {
+    return omitObject(task, ["notes"]);
+}
 
 test("rejects an unknown assignee link without calling the API", async () => {
     await expectCreateDisplayMessage({
