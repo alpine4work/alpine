@@ -1,3 +1,4 @@
+import {produce} from "immer";
 import {Code, Link, List, Node, PhrasingContent, Root, RootContent} from "mdast";
 import {
     AgentWebContext,
@@ -18,6 +19,7 @@ import {createAgentWebPageStoredLinkPathname} from "~/server/agents/web/create_a
 import {normalizeAgentWebPath} from "~/server/agents/web/internal/normalize_agent_web_path.js";
 import {normalizeAgentWebStaticText} from "~/server/agents/web/internal/normalize_agent_web_static_text.js";
 import {quoteMarkdown} from "~/server/agents/web/internal/quote_markdown.js";
+import {withApiContentNormalizerForAgentWebMarkdown} from "~/server/agents/web/normalize_api_content_for_agent_web_markdown.js";
 import {
     AgentWebTaskQueryPageMetadata,
     AgentWebTaskQueryPagePagination,
@@ -354,10 +356,15 @@ export async function updateAgentWebTaskCollectionPage(
 
     return {...queryMetadata, type: "TaskCollection", id: oldPageMetadata.id};
 }
-export function normalizeAgentWebTaskCollectionPage<Page extends AgentWebTaskCollectionPage>(
-    page: Page,
-): Page {
-    return normalizeAgentWebTaskQueryPage(page);
+
+export function normalizeAgentWebTaskCollectionPage(
+    page: AgentWebTaskCollectionPage,
+): AgentWebTaskCollectionPage {
+    return produce(page, page => {
+        withApiContentNormalizerForAgentWebMarkdown(normalizer => {
+            normalizeAgentWebTaskQueryPage(normalizer, page);
+        });
+    });
 }
 
 export async function printAgentWebTaskCollectionPage(
