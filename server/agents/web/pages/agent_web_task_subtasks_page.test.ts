@@ -137,6 +137,23 @@ End of tasks.
             },
         },
         {
+            name: "task subtasks preamble without a period",
+            pageLink: parentTaskReference.id,
+            markdown: `\
+Subtasks for [Plan launch (Open)](/task/plan-launch)
+`,
+            printMarkdown: `\
+Subtasks for [Plan launch (Open)](/task/plan-launch).
+`,
+            page: {
+                type: "TaskSubtasks",
+                task: parentTaskReference,
+                pagination: null,
+                tasks: [],
+                isEndOfTasks: false,
+            },
+        },
+        {
             name: "task subtasks page with a filtered and sorted next page link",
             pageLink: parentTaskReference.id,
             markdown: `\
@@ -243,22 +260,10 @@ Subtasks for [Plan launch (Open, active)](/task/plan-launch).
 # Plan launch
 `,
             parseError:
-                "Task subtasks markdown must start with \u201cSubtasks for [My Task (Open)]" +
-                "(/task/my-task).\u201d on line 1. Try again with a valid task subtasks " +
-                "preamble on line 1.",
-        },
-        {
-            name: "preamble links to the wrong task",
-            pageLink: parentTaskReference.id,
-            setupStorage: async storage => {
-                await storeTaskReference(storage, otherParentTaskReference);
-            },
-            markdown: `\
-Subtasks for [Other parent (Open)](/task/other-parent).
-`,
-            parseError:
-                "The \u201cSubtasks for …\u201d preamble must link to the task whose subtasks were " +
-                "read. Try again without changing the task link in the preamble.",
+                "Subtasks markdown must start with \u201cSubtasks for [My Task (Open)]" +
+                "(/task/my-task).\u201d on line 1 (substitute \u201cMy Task\u201d for the task " +
+                "you\u2019re looking at the subtasks for). Try again with a valid task " +
+                "subtasks preamble on line 1.",
         },
         {
             name: "next page link without an after cursor",
@@ -270,9 +275,10 @@ Subtasks for [Other parent (Open)](/task/other-parent).
 Subtasks for [Plan launch (Open)](/task/plan-launch). [Next page »](/task/plan-launch/subtasks)
 `,
             parseError:
-                "Task subtasks markdown must start with \u201cSubtasks for [My Task (Open)]" +
-                "(/task/my-task).\u201d on line 1. Try again with a valid task subtasks " +
-                "preamble on line 1.",
+                "Subtasks markdown must start with \u201cSubtasks for [My Task (Open)]" +
+                "(/task/my-task).\u201d on line 1 (substitute \u201cMy Task\u201d for the task " +
+                "you\u2019re looking at the subtasks for). Try again with a valid task " +
+                "subtasks preamble on line 1.",
         },
         {
             name: "unexpected paragraph after the preamble",
@@ -286,8 +292,9 @@ Subtasks for [Plan launch (Open)](/task/plan-launch).
 Unexpected paragraph.
 `,
             parseError:
-                "Unexpected markdown on line 3. Try again with only an unordered task list after " +
-                "the \u201cSubtasks for …\u201d preamble.",
+                "Unexpected markdown on line 3. Try again with \u201cSubtasks for " +
+                "[My Task (Open)](/task/my-task).\u201d on line 1 followed by a task list " +
+                "(an unordered list where every item is a task link).",
         },
         {
             name: "ordered task list",
@@ -301,8 +308,9 @@ Subtasks for [Plan launch (Open)](/task/plan-launch).
 1. [Write spec (Open)](/task/write-spec)
 `,
             parseError:
-                "Unexpected markdown on line 3. Try again with only an unordered task list after " +
-                "the \u201cSubtasks for …\u201d preamble.",
+                "Unexpected markdown on line 3. Try again with \u201cSubtasks for " +
+                "[My Task (Open)](/task/my-task).\u201d on line 1 followed by a task list " +
+                "(an unordered list where every item is a task link).",
         },
         {
             name: "content after the end of tasks marker",
