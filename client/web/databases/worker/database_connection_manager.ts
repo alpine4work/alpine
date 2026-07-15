@@ -15,7 +15,6 @@ import {
 import {Context} from "~/shared/context/context.js";
 import {TracerContextModule} from "~/shared/context/tracer_context_module.js";
 import type {DatabaseActionResult} from "~/shared/databases/database_actions.js";
-import type {DatabasePages} from "~/shared/databases/database_protocol_schemas.js";
 import {
     type DatabaseRealtimeEvent,
     DatabaseRealtimeProtocol,
@@ -66,7 +65,6 @@ interface DatabaseConnectionManagerDatabaseGroupState {
     clientPromise?: Promise<DatabaseClient>;
     realtimeConnectionOptions?: {readonly webSocketUrl: string};
     realtimeConnection?: DatabaseClientConnection;
-    initialPages?: DatabasePages;
 }
 
 /**
@@ -105,31 +103,8 @@ export class DatabaseConnectionManager {
         state.realtimeConnectionOptions = {
             webSocketUrl: input.webSocketUrl,
         };
-        if (input.pages.size > 0) {
-            if (state.clientPromise !== undefined) {
-                // The client already booted, so it won't consume `state.initialPages` anymore.
-                // Apply the pages directly.
-                const client = await state.clientPromise;
-                await client.writeLoaderPages(input.pages);
-            } else {
-                state.initialPages = input.pages;
-            }
-        }
         this.getOrCreateRealtimeConnection(input.databaseGroupId);
         return {};
-    }
-
-    async writeInitialPages(input: TabToWorkerDatabaseRpcMethods["writeInitialPages"]["input"]) {
-        const state = this.getOrCreateDatabaseGroupState(input.databaseGroupId);
-        if (state.clientPromise !== undefined) {
-            // The client already booted, so it won't consume `state.initialPages` anymore.
-            // Apply the pages directly — they may contain tables (e.g. a freshly created one)
-            // the replica hasn't received over realtime yet.
-            const client = await state.clientPromise;
-            await client.writeLoaderPages(input.pages);
-        } else {
-            state.initialPages = input.pages;
-        }
     }
 
     async executeAction(input: TabToWorkerDatabaseRpcMethods["executeAction"]["input"]) {
@@ -240,27 +215,7 @@ export class DatabaseConnectionManager {
                 const dir = await this.dir;
                 const groupDir = await dir.getDirectoryHandle(databaseGroupId, {create: true});
                 const client = await DatabaseClient.create(groupDir);
-                try {
-                    if (state.initialPages !== undefined) {
-                        const {initialPages} = state;
-                        state.initialPages = undefined;
-                        await client.seedPages(initialPages);
-                    }
-
-                    // We're an always-online app: OPFS is just a cache, so any cold-open failure
-                    // (server unreachable, cache validation) is meant to bubble up as "couldn't
-                    // connect to the database".
-                    await client.ensureCacheIsUpToDate(
-                        this.getOrCreateRealtimeConnection(databaseGroupId),
-                    );
-
-                    return client;
-                } catch (error) {
-                    // The client opened its OPFS sync-access handles before failing; close it so the
-                    // eviction below leaves the next open free of OPFS's exclusive handle lock.
-                    client.close();
-                    throw error;
-                }
+                return client;
             })();
             // Evict on failure so the next call re-attempts the cold-open rather than
             // replaying the cached rejection forever. The identity guard avoids clobbering a
@@ -326,10 +281,12 @@ export class DatabaseConnectionManager {
                 const state = client.state.getSnapshot();
 
                 // Realtime events broadcast while the socket was down are gone for good, so after
-                // every REconnect (not the initial connect — the cold open validates separately)
-                // the cache must be revalidated before local reads can be trusted again.
+                // every REconnect the previous epoch's working set must re-register before local
+                // reads can be trusted again. Initial registration remains lazy at first touch.
                 if (state.isConnected && !wasConnected && hasEverConnected) {
-                    this.revalidateCacheAfterReconnect(databaseGroupId);
+                    this.registerTablesAfterReconnect(databaseGroupId);
+                } else if (!state.isConnected && wasConnected) {
+                    this.beginDisconnectedConnectionEpoch(databaseGroupId);
                 }
                 wasConnected = state.isConnected;
                 if (state.isConnected) hasEverConnected = true;
@@ -351,8 +308,9 @@ export class DatabaseConnectionManager {
                         mutationId: executeOptions.mutationId,
                         returnResult: executeOptions.returnResult ?? true,
                         returnPages: executeOptions.returnPages ?? true,
-                        registerTables: new Map(),
+                        registerTables: executeOptions.registerTables,
                     }),
+                registerTables: tables => client.procedures.registerTables({tables}),
                 ensureCacheIsUpToDate: pageVersionsByIndex =>
                     client.procedures.ensureCacheIsUpToDate({pageVersionsByIndex}),
                 acknowledgePages: pageIndexes => {
@@ -377,16 +335,26 @@ export class DatabaseConnectionManager {
         return connection;
     }
 
-    // Kick off a post-reconnect cache revalidation for the group's client, if one
-    // exists. Fire-and-forget: a failure is reported and the next reconnect (or socket
-    // error → reconnect cycle) retries.
-    private revalidateCacheAfterReconnect(databaseGroupId: DatabaseGroupId): void {
+    private beginDisconnectedConnectionEpoch(databaseGroupId: DatabaseGroupId): void {
+        const state = this.databaseGroups.get(databaseGroupId);
+        const clientPromise = state?.clientPromise;
+        if (state === undefined || clientPromise === undefined) return;
+        clientPromise
+            .then(client => client.beginDisconnectedConnectionEpoch())
+            .catch(error => this.reportError(error));
+    }
+
+    // Re-establish subscriptions before optimistic writes are replayed.
+    // Fire-and-forget: failures are reported and the next reconnect retries.
+    private registerTablesAfterReconnect(databaseGroupId: DatabaseGroupId): void {
         const state = this.databaseGroups.get(databaseGroupId);
         const clientPromise = state?.clientPromise;
         if (state === undefined || clientPromise === undefined) return;
         clientPromise
             .then(client =>
-                client.ensureCacheIsUpToDate(this.getOrCreateRealtimeConnection(databaseGroupId)),
+                client.registerTablesAfterReconnect(
+                    this.getOrCreateRealtimeConnection(databaseGroupId),
+                ),
             )
             .catch(error => this.reportError(error));
     }

@@ -294,6 +294,25 @@ describe("registerTables", () => {
         });
     });
 
+    test("returns empty catch-up for a quiet table with a lagging watermark", async () => {
+        writePagesFor(server, tableId, new Map([[0, makePage(0xaa)]]));
+        const quietTableWatermark = server.getSnapshotVersion();
+        const activeTableId = generateChronologicalId<DatabaseTableId>();
+        writePagesFor(server, activeTableId, new Map([[0, makePage(0xbb)]]));
+        const currentWatermark = server.getSnapshotVersion();
+
+        const result = await registerHeldPages(
+            createConnection(),
+            new Map([[tableId, [0]]]),
+            quietTableWatermark,
+        );
+
+        expect(result.tables.get(tableId)).toMatchObject({
+            watermark: currentWatermark,
+            catchUp: {type: "current"},
+        });
+    });
+
     test("inlines changed held pages", async () => {
         writePagesFor(
             server,

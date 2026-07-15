@@ -18,6 +18,10 @@ import type {
     DatabasePageIndexes,
     DatabasePageVersionsByIndex,
     DatabasePages,
+    DatabaseRegisterTablesResult,
+    DatabaseTableRegistration,
+    DatabaseTableRegistrationResults,
+    DatabaseTableRegistrations,
     ReadonlyDatabasePageSet,
 } from "~/shared/databases/database_protocol_schemas.js";
 import {
@@ -31,6 +35,7 @@ import {TableNotAttachedError} from "~/shared/databases/table_not_attached_error
 import {PermissionDeniedError} from "~/shared/error/error.js";
 import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
 import {assert} from "~/shared/helpers/control/assert.js";
+import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
 import type {Result} from "~/shared/helpers/control/result.js";
 import {getOrSetDefaultMapValue} from "~/shared/helpers/map/get_or_set_default_map_value.js";
 import {generateId} from "~/shared/id/id.js";
@@ -55,8 +60,10 @@ export interface DatabaseClientConnection {
             mutationId: DatabaseMutationId;
             returnResult?: boolean;
             returnPages?: boolean;
+            registerTables: DatabaseTableRegistrations;
         },
     ): Promise<DatabaseExecuteActionResponse>;
+    registerTables(tables: DatabaseTableRegistrations): Promise<DatabaseRegisterTablesResult>;
     ensureCacheIsUpToDate(
         pageVersionsByIndex: DatabasePageVersionsByIndex,
     ): Promise<DatabaseEnsureCacheIsUpToDateResult>;
@@ -80,6 +87,11 @@ export interface DatabaseClientConnection {
 export class DatabaseClient {
     private readonly database: Database;
     private readonly storage: OpfsDatabaseStorage;
+    private readonly groupDir: OpfsDirectoryHandle;
+    private readonly registeredTables: Set<DatabaseTableId>;
+    private tablesToReregister = new Set<DatabaseTableId>();
+    private connectionEpoch = 0;
+    private cachedTableIdsPromise: Promise<ReadonlySet<DatabaseTableId>> | undefined;
     private optimisticQueue: Array<OptimisticMutation> = [];
     private nextTestCommitVersion = 0;
     /**
@@ -93,30 +105,42 @@ export class DatabaseClient {
      */
     private tableAccessLevelByTableId = new Map<DatabaseTableId, AccessLevel | null>();
 
-    private constructor(database: Database, storage: OpfsDatabaseStorage) {
+    private constructor(
+        database: Database,
+        storage: OpfsDatabaseStorage,
+        groupDir: OpfsDirectoryHandle,
+        registeredTables: Set<DatabaseTableId>,
+    ) {
         this.database = database;
         this.storage = storage;
+        this.groupDir = groupDir;
+        this.registeredTables = registeredTables;
     }
 
     /**
      * Open the SQLite database for a database group. The given `groupDir` is the
      * per-group OPFS directory: each table's page store lives in a `{tableId}/`
-     * subdirectory inside it. Every cached table's store is opened up front so
-     * cold-open cache validation covers all of them and {@link ensureCacheIsUpToDate}
-     * can attach every known table.
+     * subdirectory inside it. Only the main store is opened here; the remaining cached
+     * stores are enumerated once, lazily, when local execution first needs
+     * registration or a server fallback.
      */
     static async create(groupDir: OpfsDirectoryHandle): Promise<DatabaseClient> {
-        const storage = new OpfsDatabaseStorage(groupDir);
+        const registeredTables = new Set<DatabaseTableId>();
+        let enforceRegistration = false;
+        const storage = new OpfsDatabaseStorage(
+            groupDir,
+            tableId => !enforceRegistration || registeredTables.has(tableId),
+        );
         try {
             await storage.create(databaseMainTableId);
-            for await (const name of groupDir.keys()) {
-                const tableId = name as DatabaseTableId;
-                if (storage.get(tableId) === undefined) {
-                    await storage.create(tableId);
-                }
-            }
             const database = await Database.create(storage);
-            return new DatabaseClient(database, storage);
+            const client = new DatabaseClient(database, storage, groupDir, registeredTables);
+            enforceRegistration = true;
+            // `Database.create` necessarily touched the main pager while registration
+            // enforcement was disabled. Drop that bootstrap cache so the first real table read
+            // re-enters storage and observes the per-table gate.
+            database.discardBuffer();
+            return client;
         } catch (error) {
             // Any already-opened OPFS handles must be released so a retry isn't blocked by
             // OPFS's exclusive sync-access-handle lock.
@@ -134,6 +158,48 @@ export class DatabaseClient {
     close(): void {
         this.database.close();
         this.storage.close();
+    }
+
+    /**
+     * Invalidate the current connection epoch. Local reads are gated immediately and
+     * optimistic writes remain queued, but their buffer is removed until the new
+     * connection catches the durable cache up.
+     */
+    beginDisconnectedConnectionEpoch(): void {
+        this.connectionEpoch++;
+        for (const tableId of this.registeredTables) {
+            this.tablesToReregister.add(tableId);
+        }
+        this.registeredTables.clear();
+        this.database.discardBuffer();
+        for (const [tableId] of this.storage) {
+            if (tableId !== databaseMainTableId) {
+                this.database.detachTableIfAttached(tableId);
+            }
+        }
+    }
+
+    /**
+     * Re-register the previous epoch's working set and replay optimistic writes.
+     */
+    async registerTablesAfterReconnect(conn: DatabaseClientConnection): Promise<void> {
+        await this.openCachedStores();
+        const connectionEpoch = this.connectionEpoch;
+        const registrations = this.getUnregisteredCachedTables(this.tablesToReregister);
+        if (registrations.size === 0) {
+            if (connectionEpoch === this.connectionEpoch) {
+                this.tablesToReregister.clear();
+            }
+            return;
+        }
+        const result = await conn.registerTables(registrations);
+        if (
+            await this.applyStandaloneRegistrationResult(result, {
+                connectionEpoch,
+            })
+        ) {
+            this.tablesToReregister.clear();
+        }
     }
 
     /**
@@ -171,7 +237,7 @@ export class DatabaseClient {
         if (tableAccess.size > 0) {
             // The response covers every table this client has cached (it asked about all of
             // them), so merging still surfaces each revocation as an explicit `null`.
-            await this.applyTableAccessLevels(tableAccess);
+            await this.applyTableAccessLevels(tableAccess, {replayOptimisticQueue: false});
         }
 
         // From here through `replayOptimisticQueue()` runs synchronously — no `await` — so
@@ -217,7 +283,6 @@ export class DatabaseClient {
             conn.acknowledgePages(acknowledgedPageIndexes);
         }
 
-        this.attachKnownTables();
         this.replayOptimisticQueue();
         if (anyChanged) {
             this.scheduleInvalidation();
@@ -226,15 +291,24 @@ export class DatabaseClient {
 
     /**
      * Merge a `TableMetadataChanged` access delta into the map (see {@link
-     * tableAccessLevelByTableId}) and purge any table the delta revoked.
+     * tableAccessLevelByTableId}) and purge any table the delta revoked. Registration
+     * catch-up disables immediate optimistic replay so it can replay once, after all
+     * requested tables have been marked registered.
      */
     async applyTableAccessLevels(
         tableAccess: ReadonlyMap<DatabaseTableId, AccessLevel | null>,
+        options: {replayOptimisticQueue?: boolean} = {},
     ): Promise<void> {
         for (const [tableId, level] of tableAccess) {
             this.tableAccessLevelByTableId.set(tableId, level);
+            if (level === null) {
+                this.registeredTables.delete(tableId);
+                this.tablesToReregister.delete(tableId);
+            }
         }
-        await this.purgeRevokedTables();
+        await this.purgeRevokedTables({
+            replayOptimisticQueue: options.replayOptimisticQueue ?? true,
+        });
     }
 
     /**
@@ -248,24 +322,29 @@ export class DatabaseClient {
      * table whose schema an open transaction has locked is skipped and retried on the
      * next access-map push.
      */
-    private async purgeRevokedTables(): Promise<void> {
+    private async purgeRevokedTables(options: {replayOptimisticQueue: boolean}): Promise<void> {
         const dirRemovals: Array<Promise<void>> = [];
+        let hasRevokedStore = false;
         for (const [tableId, store] of [...this.storage]) {
             if (tableId === databaseMainTableId) continue;
             if (this.getTableAccessLevel(tableId) !== null) continue;
-            if (!this.database.detachTableIfAttached(tableId)) continue;
+            hasRevokedStore = true;
             for (const {pageIndex} of store.pageEntries()) {
                 this.addPageToInvalidate(tableId, pageIndex);
             }
+            if (!this.database.detachTableIfAttached(tableId)) continue;
             dirRemovals.push(this.storage.delete(tableId));
         }
-        if (dirRemovals.length === 0) return;
+        if (!hasRevokedStore) return;
 
-        // Queued optimistic mutations may have written to a purged table: discard the
-        // buffer and replay so now-denied mutations drop out and the rest reapply cleanly
-        // (both synchronous — see {@link ensureCacheIsUpToDate}).
+        // Queued optimistic mutations may have written to a purged table. Always drop
+        // their current buffer; realtime access deltas replay immediately so denied
+        // mutations fall out, while registration callers defer replay until catch-up has
+        // marked the surviving tables registered.
         this.database.discardBuffer();
-        this.replayOptimisticQueue();
+        if (options.replayOptimisticQueue) {
+            this.replayOptimisticQueue();
+        }
         this.scheduleInvalidation();
         await runAllPromises(dirRemovals);
     }
@@ -282,30 +361,6 @@ export class DatabaseClient {
         const accessLevel = this.tableAccessLevelByTableId.get(tableId);
         return accessLevel === undefined ? "Manage" : accessLevel;
     };
-
-    /**
-     * Attach open per-table stores whose header page is cached, up to the attach
-     * capacity. Runs after cache validation — attaching before validation would let
-     * SQLite parse a schema from pages about to be replaced, and (under
-     * `locking_mode = EXCLUSIVE`) attaching a store with no header would permanently
-     * cache an empty schema.
-     *
-     * This eager attach is an optimization, not a requirement: a locally cached table
-     * left unattached (past capacity, or with a stale header) re-attaches on first use
-     * via `Database`'s attach-on-miss, and a table with no local header falls back to
-     * the server, whose response re-populates and attaches it (see {@link
-     * executeActionViaServer}). Attaching past capacity would only churn the LRU
-     * working set.
-     */
-    private attachKnownTables(): void {
-        for (const [tableId, store] of this.storage) {
-            if (this.database.isAtAttachCapacity()) break;
-            if (tableId === databaseMainTableId) continue;
-            if (this.database.isAttached(tableId)) continue;
-            if (store.readPage(0) === null) continue;
-            this.database.attach(tableId);
-        }
-    }
 
     /**
      * Execute a named action. Detects reads vs writes via the action's effect on
@@ -335,16 +390,27 @@ export class DatabaseClient {
         let output: DatabaseActionOutput<N>;
         let writtenPages: ReadonlyDatabasePageSet;
         try {
-            const executed = this.database.executeAction(actionObject, {
-                getTableAccessLevel: this.getTableAccessLevel,
-            });
+            const executed = this.executeDatabaseAction(actionObject);
             output = executed.result;
             writtenPages = executed.writtenPages;
         } catch (error) {
-            if (isServerFallbackError(error)) {
+            if (
+                error instanceof TableNotAttachedError &&
+                (await this.registerCachedTablesForFallback(conn, error.tableId))
+            ) {
+                try {
+                    const executed = this.executeDatabaseAction(actionObject);
+                    output = executed.result;
+                    writtenPages = executed.writtenPages;
+                } catch (retryError) {
+                    if (!isServerFallbackError(retryError)) throw retryError;
+                    return await this.executeActionViaServer(conn, actionObject, mutationId);
+                }
+            } else if (isServerFallbackError(error)) {
                 return await this.executeActionViaServer(conn, actionObject, mutationId);
+            } else {
+                throw error;
             }
-            throw error;
         }
 
         if (writtenPages.size === 0) {
@@ -362,6 +428,7 @@ export class DatabaseClient {
                     mutationId,
                     returnResult: false,
                     returnPages: false,
+                    registerTables: new Map(),
                 });
                 assert(
                     !this.optimisticQueue.some(m => m.mutationId === mutationId),
@@ -397,28 +464,47 @@ export class DatabaseClient {
             databaseActions[actionObject.name].writeLevel === "none",
             "executeActionWithTracking only supports read-only actions",
         );
-        try {
-            return this.executeReadOnly(actionObject);
-        } catch (error) {
-            if (!isServerFallbackError(error)) throw error;
-            await this.executeActionViaServer(
-                conn,
-                actionObject,
-                generateId<DatabaseMutationId>(),
-                {returnResult: false},
-            );
-            return this.executeReadOnly(actionObject);
+        let serverFallbackCount = 0;
+        for (;;) {
+            try {
+                return this.executeReadOnly(actionObject);
+            } catch (error) {
+                if (!isServerFallbackError(error)) throw error;
+                if (
+                    error instanceof TableNotAttachedError &&
+                    (await this.registerCachedTablesForFallback(conn, error.tableId))
+                ) {
+                    continue;
+                }
+                // A server execution can discover only the first edge of a join/table dependency
+                // graph. Permit one additional round for the local retry to name the newly exposed
+                // dependency, but fail after that bounded fan-out.
+                if (serverFallbackCount >= 2) throw error;
+                serverFallbackCount++;
+                await this.executeActionViaServer(
+                    conn,
+                    actionObject,
+                    generateId<DatabaseMutationId>(),
+                    {returnResult: false},
+                );
+            }
         }
     }
 
     private executeReadOnly<N extends DatabaseActionName>(
         actionObject: DatabaseActionObject<N>,
     ): {output: DatabaseActionOutput<N>; readPages: ReadonlyDatabasePageSet} {
-        const {result, readPages, writtenPages} = this.database.executeAction(actionObject, {
-            getTableAccessLevel: this.getTableAccessLevel,
-        });
+        const {result, readPages, writtenPages} = this.executeDatabaseAction(actionObject);
         assert(writtenPages.size === 0, "executeActionWithTracking does not support writes");
         return {output: result, readPages};
+    }
+
+    private executeDatabaseAction<N extends DatabaseActionName>(
+        actionObject: DatabaseActionObject<N>,
+    ) {
+        return this.database.executeAction(actionObject, {
+            getTableAccessLevel: this.getTableAccessLevel,
+        });
     }
 
     // -- Reactive actions ----------------------------------------------------
@@ -614,7 +700,9 @@ export class DatabaseClient {
             if (pagesToTombstone.size > 0) {
                 store.tombstonePages(pagesToTombstone);
             }
-            store.setServerFileSizeInPages(tableDiffs.fileSizeInPages);
+            // Advance even when every diff was skipped or the batch is an event stub: the
+            // event version still proves the cache observed that server snapshot.
+            this.advanceStoreSnapshot(store, tableDiffs.version, tableDiffs.fileSizeInPages);
             store.sync();
         }
         if (anyWritten) {
@@ -624,10 +712,7 @@ export class DatabaseClient {
         this.replayOptimisticQueue();
     }
 
-    private applyServerPages(
-        readPages: DatabasePages,
-        fileSizesInPages: ReadonlyMap<DatabaseTableId, number> | null,
-    ): Map<DatabaseTableId, Array<number>> {
+    private applyServerPages(readPages: DatabasePages): Map<DatabaseTableId, Array<number>> {
         // Caller is expected to have cleared the buffer (executeActionViaServer calls
         // discardBuffer before us) so storage mutations don't conflict with stale buffered
         // writes.
@@ -652,13 +737,6 @@ export class DatabaseClient {
                     continue;
                 }
                 getOrSetDefaultMapValue(acknowledgedPageIndexes, tableId, () => []).push(pageIndex);
-            }
-            // The response's pages may be a sparse subset of the table file, so the store must
-            // serve the canonical file size rather than deriving one from the highest cached
-            // page index (SQLite treats a file shorter than its header claims as corrupt).
-            const fileSizeInPages = fileSizesInPages?.get(tableId);
-            if (fileSizeInPages !== undefined) {
-                store.setServerFileSizeInPages(fileSizeInPages);
             }
             store.sync();
         }
@@ -688,7 +766,14 @@ export class DatabaseClient {
                     anyInvalidated = true;
                 }
                 return true;
-            } catch {
+            } catch (error) {
+                if (
+                    error instanceof TableNotAttachedError &&
+                    !this.registeredTables.has(error.tableId) &&
+                    this.getTableAccessLevel(error.tableId) !== null
+                ) {
+                    return true;
+                }
                 return false;
             }
         });
@@ -733,61 +818,153 @@ export class DatabaseClient {
         }
     }
 
-    /**
-     * Write loader-provided pages into the local OPFS stores before cache validation,
-     * opening per-table stores on demand for tables that haven't been seen yet. No
-     * invalidation is scheduled because no reactive actions exist yet. Seeded tables
-     * are attached by the {@link ensureCacheIsUpToDate} call that follows at cold
-     * open.
-     */
-    async seedPages(pages: DatabasePages): Promise<void> {
-        // seedPages runs at startup before ensureCacheIsUpToDate and any executeAction, so
-        // the buffer must be empty.
-        this.database.assertBufferIsEmpty("seedPages");
-        for (const [tableId, tablePages] of pages) {
-            const store = this.storage.get(tableId) ?? (await this.storage.create(tableId));
-            for (const [pageIndex, {version, data}] of tablePages) {
-                store.writePageIfNewer(pageIndex, version, data);
-            }
-            store.sync();
+    private getCachedTableIds(): Promise<ReadonlySet<DatabaseTableId>> {
+        if (this.cachedTableIdsPromise === undefined) {
+            this.cachedTableIdsPromise = (async () => {
+                const tableIds = new Set<DatabaseTableId>();
+                for await (const name of this.groupDir.keys()) {
+                    tableIds.add(name as DatabaseTableId);
+                }
+                return tableIds;
+            })();
         }
+        return this.cachedTableIdsPromise;
+    }
+
+    /** Open every store found in the one-time lazy group-directory enumeration. */
+    private async openCachedStores(): Promise<void> {
+        const tableIds = await this.getCachedTableIds();
+        await runAllPromises([...tableIds].map(tableId => this.openStore(tableId)));
+    }
+
+    private getUnregisteredCachedTables(
+        limitToTableIds?: ReadonlySet<DatabaseTableId>,
+    ): DatabaseTableRegistrations {
+        const registrations = new Map<DatabaseTableId, DatabaseTableRegistration>();
+        for (const [tableId, store] of this.storage) {
+            if (this.registeredTables.has(tableId)) continue;
+            if (limitToTableIds !== undefined && !limitToTableIds.has(tableId)) continue;
+            const heldPages = store.getHeldPagesBitset();
+            if (heldPages.isEmpty()) continue;
+            registrations.set(tableId, {
+                watermark: store.getWatermark(),
+                heldPages,
+            });
+        }
+        return registrations;
+    }
+
+    private async registerCachedTablesForFallback(
+        conn: DatabaseClientConnection,
+        requestedTableId: DatabaseTableId,
+    ): Promise<boolean> {
+        await this.openCachedStores();
+        const requestedStore = this.storage.get(requestedTableId);
+        if (requestedStore === undefined || requestedStore.getHeldPagesBitset().isEmpty()) {
+            return false;
+        }
+        const registrations = this.getUnregisteredCachedTables();
+        if (registrations.size === 0) return false;
+        const connectionEpoch = this.connectionEpoch;
+        const result = await conn.registerTables(registrations);
+        if (
+            !(await this.applyStandaloneRegistrationResult(result, {
+                connectionEpoch,
+            }))
+        ) {
+            return false;
+        }
+        return this.registeredTables.has(requestedTableId);
+    }
+
+    private async applyStandaloneRegistrationResult(
+        result: DatabaseRegisterTablesResult,
+        options: {connectionEpoch: number},
+    ): Promise<boolean> {
+        if (options.connectionEpoch !== this.connectionEpoch) return false;
+        await this.applyTableAccessLevels(result.tableAccess, {replayOptimisticQueue: false});
+        if (options.connectionEpoch !== this.connectionEpoch) return false;
+        this.database.discardBuffer();
+        this.applyRegistrationResults(result.tables);
+        this.replayOptimisticQueue();
+        return true;
     }
 
     /**
-     * Write loader-provided pages into the local stores after the client is already
-     * running, opening per-table stores on demand for tables that haven't been seen
-     * yet. Unlike {@link seedPages} this may run while optimistic mutations are
-     * buffered, so it drops the buffer, writes the newer pages, replays the optimistic
-     * queue, and schedules invalidation for affected reactive actions.
+     * Apply table-level snapshot metadata without allowing an older response to roll
+     * file size backward after a newer realtime event. Returns whether the snapshot
+     * was current enough to apply.
      */
-    async writeLoaderPages(pages: DatabasePages): Promise<void> {
-        // Open every store before touching the buffer. `openStore` can await, and there
-        // must be no `await` between `discardBuffer()` and `replayOptimisticQueue()`
-        // below: worker RPC handlers aren't serialized, so an optimistic action arriving
-        // in that window would execute against a discarded-but-not-replayed state and then
-        // be applied a second time by the replay. Opening a store is safe while the
-        // optimistic buffer is still live — it performs no reads or writes.
-        const stores = new Map<DatabaseTableId, OpfsPageStore>();
-        for (const tableId of pages.keys()) {
-            stores.set(tableId, await this.openStore(tableId));
-        }
+    private advanceStoreSnapshot(
+        store: OpfsPageStore,
+        watermark: number,
+        fileSizeInPages: number,
+    ): boolean {
+        if (watermark < store.getWatermark()) return false;
+        store.setServerFileSizeInPages(fileSizeInPages);
+        store.setWatermark(watermark);
+        return true;
+    }
 
-        this.database.discardBuffer();
-        let anyWritten = false;
-        for (const [tableId, tablePages] of pages) {
-            const store = stores.get(tableId)!;
-            for (const [pageIndex, {version, data}] of tablePages) {
-                if (store.writePageIfNewer(pageIndex, version, data)) {
-                    this.addPageToInvalidate(tableId, pageIndex);
-                    anyWritten = true;
+    /**
+     * Apply registration catch-up while the database buffer is empty. This method is
+     * synchronous so no action can interleave between the cache update and optimistic
+     * replay.
+     */
+    private applyRegistrationResults(results: DatabaseTableRegistrationResults): void {
+        this.database.assertBufferIsEmpty("applyRegistrationResults");
+        let anyChanged = false;
+        for (const [tableId, result] of results) {
+            const store = this.storage.get(tableId);
+            assert(
+                store !== undefined,
+                `registration response references unknown table ${tableId}`,
+            );
+            if (result.watermark >= store.getWatermark()) {
+                switch (result.catchUp.type) {
+                    case "current":
+                        break;
+                    case "pages":
+                        for (const [pageIndex, {version, data}] of result.catchUp.pages) {
+                            if (store.writePageIfNewer(pageIndex, version, data)) {
+                                this.addPageToInvalidate(tableId, pageIndex);
+                                anyChanged = true;
+                            }
+                        }
+                        break;
+                    case "stale": {
+                        const pages = new Map<number, number>();
+                        for (const pageIndex of result.catchUp.pageIndexes) {
+                            const page = store.readPage(pageIndex);
+                            if (page !== null) {
+                                // `stale` only names pages the registration said it held. The next canonical image
+                                // must be newer than that held version, but can legitimately be older than the
+                                // table's global watermark.
+                                pages.set(pageIndex, page.version + 1);
+                            }
+                            this.addPageToInvalidate(tableId, pageIndex);
+                        }
+                        if (pages.size > 0) {
+                            store.tombstonePages(pages);
+                            anyChanged = true;
+                        }
+                        break;
+                    }
+                    default:
+                        throw exhaustive(result.catchUp);
                 }
+                this.advanceStoreSnapshot(store, result.watermark, result.fileSizeInPages);
+                store.sync();
             }
-            store.sync();
+            this.registeredTables.add(tableId);
+            this.attachRegisteredTableIfPossible(tableId, store);
         }
-        if (anyWritten) {
-            this.scheduleInvalidation();
-        }
-        this.replayOptimisticQueue();
+        if (anyChanged) this.scheduleInvalidation();
+    }
+
+    private attachRegisteredTableIfPossible(tableId: DatabaseTableId, store: OpfsPageStore): void {
+        if (tableId === databaseMainTableId || this.database.isAttached(tableId)) return;
+        if (store.readPage(0) !== null) this.database.attach(tableId);
     }
 
     /**
@@ -825,55 +1002,67 @@ export class DatabaseClient {
         options?: {returnResult?: boolean},
     ): Promise<DatabaseActionOutput<N> | void> {
         const returnResult = options?.returnResult ?? true;
+        await this.openCachedStores();
+        const registerTables = this.getUnregisteredCachedTables();
+        const connectionEpoch = this.connectionEpoch;
         const serverResult = await conn.executeActionServer(actionObject, {
             mutationId,
             returnResult,
+            registerTables,
         });
-
-        // Open a page store for any table the server just told us about (e.g. a table this
-        // client created) before touching the buffer. `openStore` can await (it creates
-        // the OPFS store), and there must be no `await` between `discardBuffer()` and
-        // `replayOptimisticQueue()` below: worker RPC handlers aren't serialized, so a
-        // concurrent handler could re-dirty the buffer in that window and trip
-        // `assertBufferIsEmpty`. Opening a store is safe while the optimistic buffer is
-        // still live — it performs no reads or writes.
-        //
-        // The ATTACH itself is deferred until after `applyServerPages()`: attaching while
-        // the local store is still empty makes SQLite parse (and, under
-        // `locking_mode = EXCLUSIVE`, permanently cache) an empty schema, breaking every
-        // later local reference to the table.
-        if (serverResult.readPages !== null) {
-            for (const tableId of serverResult.readPages.keys()) {
-                await this.openStore(tableId);
+        if (connectionEpoch !== this.connectionEpoch) {
+            if (returnResult) {
+                return (serverResult.result as DatabaseActionResult<N>).output;
             }
+            return;
         }
 
-        // Writes from any pending optimistic mutations still live in the buffer; drop them
-        // so the server pages we're about to apply are visible before we replay the queue
-        // on top. From here through `replayOptimisticQueue()` runs synchronously — no
-        // `await` — so the buffer can't be re-dirtied underneath us.
-        this.database.discardBuffer();
+        // Open every newly discovered table before the synchronous discard/apply/replay
+        // window below.
+        const tablesToOpen = new Set<DatabaseTableId>(serverResult.registeredTables.tables.keys());
         if (serverResult.readPages !== null) {
-            const acknowledged = this.applyServerPages(
-                serverResult.readPages,
-                serverResult.fileSizesInPages,
-            );
+            for (const tableId of serverResult.readPages.keys()) {
+                tablesToOpen.add(tableId);
+            }
+        }
+        for (const tableId of serverResult.readPagesSnapshotVersion.keys()) {
+            tablesToOpen.add(tableId);
+        }
+        await runAllPromises([...tablesToOpen].map(tableId => this.openStore(tableId)));
+        if (connectionEpoch !== this.connectionEpoch) {
+            if (returnResult) {
+                return (serverResult.result as DatabaseActionResult<N>).output;
+            }
+            return;
+        }
+        await this.applyTableAccessLevels(serverResult.registeredTables.tableAccess, {
+            replayOptimisticQueue: false,
+        });
+        if (connectionEpoch !== this.connectionEpoch) {
+            if (returnResult) {
+                return (serverResult.result as DatabaseActionResult<N>).output;
+            }
+            return;
+        }
+
+        this.database.discardBuffer();
+        this.applyRegistrationResults(serverResult.registeredTables.tables);
+        if (serverResult.readPages !== null) {
+            const acknowledged = this.applyServerPages(serverResult.readPages);
             if (acknowledged.size > 0) {
                 conn.acknowledgePages(acknowledged);
             }
-
-            // Attach new tables now that their pages are on disk, so SQLite parses the real
-            // schema. `attach` is synchronous, keeping the no-await window intact. Skip a
-            // table whose header page still isn't cached (the server response didn't cover
-            // it): attaching would poison the schema cache, while leaving it unattached just
-            // routes its next action through the server again.
-            for (const tableId of serverResult.readPages.keys()) {
-                if (this.database.isAttached(tableId)) continue;
-                const store = this.storage.get(tableId);
-                if (store !== undefined && store.readPage(0) !== null) {
-                    this.database.attach(tableId);
-                }
+        }
+        for (const [tableId, watermark] of serverResult.readPagesSnapshotVersion) {
+            const store = this.storage.get(tableId);
+            assert(store !== undefined, `action response references unknown table ${tableId}`);
+            const fileSizeInPages = serverResult.fileSizesInPages?.get(tableId);
+            if (fileSizeInPages !== undefined) {
+                this.advanceStoreSnapshot(store, watermark, fileSizeInPages);
             }
+            store.sync();
+            this.registeredTables.add(tableId);
+            this.attachRegisteredTableIfPossible(tableId, store);
         }
         this.replayOptimisticQueue();
         if (returnResult) {
@@ -888,6 +1077,7 @@ export class DatabaseClient {
      */
     executeLocallyForTests(migration: SqliteMigration): void {
         assert(import.meta.jest, "executeLocallyForTests is test-only");
+        this.registeredTables.add(databaseMainTableId);
         // The Database authorizer is permissive while idle (writeLevel === null), so
         // calling SQL directly on the underlying handle works for setup. Writes route
         // through the VFS and accumulate in the Database buffer — same as a real action
@@ -918,6 +1108,7 @@ export class DatabaseClient {
                 }
                 store.setServerFileSizeInPages(buffered.fileSizesInPages.get(tableId)!);
                 store.sync();
+                this.registeredTables.add(tableId);
             }
         }
         this.database.markCommitted({skipReactiveInvalidationForTests: true});
@@ -930,7 +1121,16 @@ export class DatabaseClient {
     async attachTableForTests(tableId: DatabaseTableId): Promise<void> {
         assert(import.meta.jest, "attachTableForTests is test-only");
         await this.storage.create(tableId);
+        this.registeredTables.add(databaseMainTableId);
+        this.registeredTables.add(tableId);
         this.database.attach(tableId);
+    }
+
+    /** Mark an existing store registered without touching SQLite. Tests only. */
+    registerTableForTests(tableId: DatabaseTableId): void {
+        assert(import.meta.jest, "registerTableForTests is test-only");
+        assert(this.storage.get(tableId) !== undefined, `unknown test table ${tableId}`);
+        this.registeredTables.add(tableId);
     }
 
     /** Exposed for tests only. Do not use in production code. */

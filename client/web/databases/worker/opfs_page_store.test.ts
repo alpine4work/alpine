@@ -179,19 +179,47 @@ describe("OpfsPageStore.pageEntries", () => {
     });
 });
 
+describe("OpfsPageStore registration metadata", () => {
+    test("returns the exact indexes of held pages", async () => {
+        const {store} = await makeStore();
+        store.writePageIfNewer(0, 1, makePage(0xaa));
+        store.writePageIfNewer(35, 2, makePage(0xbb));
+        store.writePageIfNewer(7, 3, makePage(0xcc));
+        store.deletePages(new Set([7]));
+
+        expect(store.getHeldPagesBitset().array()).toEqual([0, 35]);
+    });
+
+    test("only advances the watermark", async () => {
+        const {store} = await makeStore();
+        store.setWatermark(9);
+        store.setWatermark(4);
+        expect(store.getWatermark()).toBe(9);
+    });
+});
+
 describe("OpfsPageStore persistence", () => {
-    test("round-trips pages, versions, and fileSizeInPages across reopen", async () => {
+    test("round-trips pages, versions, fileSizeInPages, and watermark across reopen", async () => {
         const dir = createInMemoryOpfsDirectoryHandle();
         const store = await OpfsPageStore.create(dir);
         store.writePageIfNewer(0, 7, makePage(0xaa));
         store.writePageIfNewer(2, 9, makePage(0xbb));
         store.setServerFileSizeInPages(50);
+        store.setWatermark(12);
         store.sync();
 
         const reopened = await OpfsPageStore.create(dir);
-        expect(reopened.readPage(0)).toEqual({data: makePage(0xaa), version: 7});
-        expect(reopened.readPage(2)).toEqual({data: makePage(0xbb), version: 9});
-        expect(reopened.getFileSize()).toBe(50 * sqlitePageSize);
+        expect({
+            firstPage: reopened.readPage(0),
+            secondPage: reopened.readPage(2),
+            fileSize: reopened.getFileSize(),
+            watermark: reopened.getWatermark(),
+        }).toEqual({
+            firstPage: {data: makePage(0xaa), version: 7},
+            secondPage: {data: makePage(0xbb), version: 9},
+            fileSize: 50 * sqlitePageSize,
+            watermark: 12,
+        });
     });
 
     test("treats a corrupted index.json as empty", async () => {

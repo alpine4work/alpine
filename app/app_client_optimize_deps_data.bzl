@@ -126,6 +126,7 @@ APP_CLIENT_OPTIMIZE_DEPS = [
     "set-cookie-parser",
     "statuses",
     "tough-cookie",
+    "typedfastbitset",
     "unicode-default-word-boundary",
     "whatwg-mimetype",
     "y-prosemirror",

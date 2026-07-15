@@ -1,5 +1,5 @@
 import {Outlet} from "@remix-run/react";
-import {useEffect, useRef, useState} from "react";
+import {useEffect, useState} from "react";
 import {deserializeSpaceIdForLoader} from "~/app/helpers/deserialize_id_for_loader.js";
 import {createDatabaseGroupConnection} from "~/client/web/databases/connect_to_database.js";
 import {DatabaseConnectionContext} from "~/client/web/databases/database_connection_context.js";
@@ -9,18 +9,15 @@ import {useEvent} from "~/client/web/helpers/lifecycle/use_event.js";
 import {useBrowserId} from "~/client/web/remix/client_info_context.js";
 import {createMetaFunction} from "~/client/web/remix/create_meta_function.js";
 import {useLoaderDataWithSchema} from "~/client/web/remix/use_loader_data_with_schema.js";
-import {fetchDatabaseGroupAction} from "~/server/databases/data/fetch_database_action.js";
 import {jsonWithSchema} from "~/server/remix/json_with_schema.js";
 import {LoaderArgs} from "~/server/remix/loader_context.js";
 import {getDatabaseGroupIdForSpace} from "~/server/spaces/get_database_group_id_for_space.js";
-import {DatabasePagesSchema} from "~/shared/databases/database_protocol_schemas.js";
 import {InternalError} from "~/shared/error/error.js";
 import type {DatabaseGroupId} from "~/shared/id/types/id_types.js";
 import {Schema} from "~/shared/schema/schema.js";
 
 const LoaderSchema = Schema.object({
     databaseGroupId: Schema.id<DatabaseGroupId>(),
-    pages: DatabasePagesSchema,
 });
 
 export const meta = createMetaFunction(LoaderSchema, () => [{title: "Databases"}]);
@@ -30,24 +27,17 @@ export async function loader({params, context: unauthenticatedContext}: LoaderAr
     const spaceId = deserializeSpaceIdForLoader(params.spaceId);
     const databaseGroupId = await getDatabaseGroupIdForSpace(context, spaceId);
 
-    const {readPages} = await fetchDatabaseGroupAction(context, databaseGroupId, {
-        name: "listTableIds",
-        input: {},
-    });
-
     return jsonWithSchema(LoaderSchema, {
         databaseGroupId,
-        pages: readPages,
     });
 }
 
 export default function DatabaseGroupLayoutRoute() {
-    const {databaseGroupId, pages} = useLoaderDataWithSchema(LoaderSchema);
+    const {databaseGroupId} = useLoaderDataWithSchema(LoaderSchema);
     const browserId = useBrowserId();
     const reporter = useReporter();
     const [db] = useState(createDatabaseGroupConnection);
     const conn = db.connection;
-    const initialPagesRef = useRef(pages);
 
     const wsUrl = `/api/durable-objects/database-groups/${databaseGroupId}?browserId=${browserId}`;
 
@@ -55,7 +45,6 @@ export default function DatabaseGroupLayoutRoute() {
         db.connect({
             databaseGroupId,
             webSocketUrl: wsUrl,
-            initialPages: initialPagesRef.current,
             reportError: message => {
                 reporter.displayError("Couldn\u2019t save changes", new InternalError(message));
             },

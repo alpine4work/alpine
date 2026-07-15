@@ -20,6 +20,7 @@ export async function fetchDatabaseGroupAction<N extends DatabaseActionName>(
     context: ServerActionContext,
     databaseGroupId: DatabaseGroupId,
     actionObject: {name: N; input: DatabaseActionInput<N>},
+    options: {returnPages?: boolean} = {},
 ): Promise<{
     result: DatabaseActionOutput<N>;
     readPages: ReadonlyMap<
@@ -29,7 +30,7 @@ export async function fetchDatabaseGroupAction<N extends DatabaseActionName>(
 }> {
     const body = DatabaseActionObjectSchema.serialize(actionObject as DatabaseActionObject);
     const response = await context.edge.sendRequestToDurableObject(
-        `/api/durable-objects/database-groups/${databaseGroupId}/action`,
+        `/api/durable-objects/database-groups/${databaseGroupId}/action?returnPages=${options.returnPages ?? true}`,
         {
             serviceName: "DatabaseGroupService",
             route: "/api/durable-objects/database-groups/:databaseGroupId/action",

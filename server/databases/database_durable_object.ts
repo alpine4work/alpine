@@ -195,6 +195,7 @@ class DatabaseGroupDurableObject {
         );
 
         const actionResult = this._server.executeAction(context, actionObject);
+        const returnPages = new URL(request.url).searchParams.get("returnPages") !== "false";
 
         // Mutations through this route must reach realtime subscribers just like websocket
         // mutations, or every connected client keeps serving the pre-mutation state. No
@@ -217,7 +218,7 @@ class DatabaseGroupDurableObject {
             JSON.stringify(
                 DatabaseActionFetchResponseSchema.serialize({
                     result: {name: actionObject.name, output: actionResult.result} as any,
-                    readPages: actionResult.readPages,
+                    readPages: returnPages ? actionResult.readPages : new Map(),
                 }),
             ),
             {

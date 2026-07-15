@@ -1,6 +1,9 @@
 import {DurableObjectStorage} from "@miniflare/durable-objects";
 import {MemoryStorage} from "@miniflare/storage-memory";
-import {createInMemoryOpfsDirectoryHandle} from "~/client/web/databases/test_helpers/in_memory_opfs.js";
+import {
+    createInMemoryOpfsDirectoryHandle,
+    prepopulateOpfsTablePages,
+} from "~/client/web/databases/test_helpers/in_memory_opfs.js";
 import {
     DatabaseConnectionManager,
     type DatabaseConnectionManagerSocket,
@@ -20,7 +23,10 @@ import {
     type DatabaseActionOutput,
     type DatabaseActionResult,
 } from "~/shared/databases/database_actions.js";
-import type {DatabasePages} from "~/shared/databases/database_protocol_schemas.js";
+import type {
+    DatabasePages,
+    DatabaseTableRegistrations,
+} from "~/shared/databases/database_protocol_schemas.js";
 import {databaseTableAccessPolicyForCreator} from "~/shared/databases/database_table_access_policy.js";
 import {sql} from "~/shared/databases/sql.js";
 import {databaseMainTableId} from "~/shared/databases/sqlite_constants.js";
@@ -227,11 +233,14 @@ test("a client keeps reading a table it first fetched from the server", async ()
         firstRead,
         secondRead,
         executeActionCalls: reader.executeActionCalls,
+        registerTableCalls: reader.registerTableCalls,
     }).toEqual({
         firstRead: [],
         secondRead: [],
         // Only the first read hit the server; the second was served locally.
         executeActionCalls: [{name: "readonlyRawSql", returnResult: true}],
+        // No durable pages existed to register before the fallback.
+        registerTableCalls: [],
     });
 });
 
@@ -356,8 +365,8 @@ test("a page diff computed against a missed update is dropped and re-fetched, no
 });
 
 // Realtime events broadcast while the socket is down are gone for good, so on
-// reconnect the manager revalidates the whole cache (`ensureCacheIsUpToDate` runs
-// again) before local reads can be trusted — without it, reads would serve the
+// reconnect the manager re-registers the previous epoch's working set before local
+// reads can be trusted — without its bounded catch-up, reads would serve the
 // pre-disconnect state indefinitely.
 test("a client that missed realtime events while disconnected serves fresh reads after reconnecting", async () => {
     const databaseGroupId = generateId<DatabaseGroupId>();
@@ -650,7 +659,7 @@ test("a mutation that no-ops on the server is confirmed without errors", async (
 //
 // ---
 
-test("a restarted client revalidates the main registry at cold open", async () => {
+test("a restarted client catches up the main registry at first touch", async () => {
     const databaseGroupId = generateId<DatabaseGroupId>();
     const table = await createTableOnServer(databaseGroupId);
     const stale = await createWarmClient(databaseGroupId, table);
@@ -665,19 +674,18 @@ test("a restarted client revalidates the main registry at cold open", async () =
     );
     await settle();
 
-    // On restart, `ensureCacheIsUpToDate` refreshes the stale main pages, so the
-    // registry read is served locally with fresh data.
+    // The first registry touch registers main and applies its catch-up before retrying
+    // the read locally.
     const restarted = await restartClient(stale, databaseGroupId);
     const {tableIds} = await executeAction(restarted, "listTableIds", {});
 
     expect([...tableIds].sort()).toEqual([table.tableId, secondTable.tableId].sort());
 });
 
-// Guards the store-enumeration at cold open: `DatabaseClient.create` opens a page
-// store for every table cached in the group's OPFS directory, so
-// `ensureCacheIsUpToDate` validates all of them — not just the tables named in the
-// loader's seed pages — and attaches them with fresh data.
-test("a restarted client revalidates cached per-table files at cold open", async () => {
+// Guards lazy store enumeration: the first touch registers every table cached in
+// the group's OPFS directory and applies catch-up before attaching the requested
+// table.
+test("a restarted client catches up cached per-table files at first touch", async () => {
     const databaseGroupId = generateId<DatabaseGroupId>();
     const table = await createTableOnServer(databaseGroupId);
     const writer = await createWarmClient(databaseGroupId, table);
@@ -755,6 +763,7 @@ interface TestDatabaseClient {
      * `returnResult: true`.
      */
     readonly executeActionCalls: Array<TestDatabaseClientExecuteActionCall>;
+    readonly registerTableCalls: Array<DatabaseTableRegistrations>;
     readonly dir: OpfsDirectoryHandle;
     readonly browserId: BrowserId;
     readonly databaseGroupId: DatabaseGroupId;
@@ -780,23 +789,21 @@ interface TestDatabaseTableRef {
 interface TestDatabaseTable extends TestDatabaseTableRef {
     /**
      * A full page snapshot of the group (main + the table's per-db file) taken right
-     * after the table was created, for seeding warm clients the way the SSR loader
-     * does in production.
+     * after the table was created, plus the global snapshot watermark it reflects.
      */
     readonly seedPages: DatabasePages;
+    readonly seedWatermark: number;
 }
 
 /**
  * Wires a real {@link DatabaseConnectionManager} to the real durable object
  * server, standing in for one browser. Each client gets its own OPFS directory and
  * `browserId` unless overridden (pass both to model a restart of the same browser
- * — see {@link restartClient}). `pages` seeds the OPFS cache through
- * `connectDatabaseGroup`, mirroring the loader-provided pages a production tab
- * passes on startup.
+ * — see {@link restartClient}).
  */
 async function createTestClient(
     databaseGroupId: DatabaseGroupId,
-    options: {browserId?: BrowserId; dir?: OpfsDirectoryHandle; pages?: DatabasePages} = {},
+    options: {browserId?: BrowserId; dir?: OpfsDirectoryHandle} = {},
 ): Promise<TestDatabaseClient> {
     const space = await getOrCreateTestSpaceForDatabaseGroupId(databaseGroupId);
     const session = await space.createSession();
@@ -818,6 +825,7 @@ async function createTestClient(
         }
     };
     const executeActionCalls: Array<TestDatabaseClientExecuteActionCall> = [];
+    const registerTableCalls: Array<DatabaseTableRegistrations> = [];
     const reportedErrors: Array<string> = [];
     const reactiveUpdates: Array<DatabaseActionResult> = [];
     const tabConnection: DatabaseConnectionManagerTabConnection = {
@@ -835,11 +843,11 @@ async function createTestClient(
                 isOnline: () => online,
                 stateListeners,
                 executeActionCalls,
+                registerTableCalls,
             }),
     });
     manager.connectDatabaseGroup({
         databaseGroupId,
-        pages: options.pages ?? new Map(),
         webSocketUrl: "ws://test.invalid",
     });
 
@@ -849,6 +857,7 @@ async function createTestClient(
         reportedErrors,
         reactiveUpdates,
         executeActionCalls,
+        registerTableCalls,
         dir,
         browserId,
         databaseGroupId,
@@ -878,8 +887,8 @@ async function getOrCreateTestSpaceForDatabaseGroupId(
 
 /**
  * Model a browser restart: close the client's server connection and stand up a
- * fresh manager (fresh SQLite connection, fresh cold-open cache validation) on the
- * same OPFS directory and `browserId`.
+ * fresh manager (fresh SQLite connection and connection epoch) on the same OPFS
+ * directory and `browserId`.
  */
 async function restartClient(
     client: TestDatabaseClient,
@@ -904,7 +913,16 @@ async function createTableOnServer(databaseGroupId: DatabaseGroupId): Promise<Te
     );
     await settle();
     const seedPages = extractServerPages(databaseGroupId, [databaseMainTableId, tableId]);
-    return {tableId, tableName, seedPages};
+    const durableObjectStorage = durableObjectStorages.get(databaseGroupId);
+    assert(durableObjectStorage !== undefined);
+    const seedWatermark =
+        sql`
+            SELECT
+                MAX(last_version)
+            FROM
+                database_tables
+        `.selectValue(durableObjectStorage.sql, Schema.integer.nullable()) ?? 0;
+    return {tableId, tableName, seedPages, seedWatermark};
 }
 
 async function executeInternalAction<const Name extends DatabaseActionName>(
@@ -932,8 +950,7 @@ async function executeInternalAction<const Name extends DatabaseActionName>(
 /**
  * Snapshot every page of the given tables straight from the durable object's
  * canonical storage: the complete, versioned page set a fully warmed client holds.
- * Stands in for the loader-provided pages a production tab passes to
- * `connectDatabaseGroup` on startup.
+ * Models durable OPFS state left by an earlier browser session.
  */
 function extractServerPages(
     databaseGroupId: DatabaseGroupId,
@@ -986,20 +1003,47 @@ function extractServerPages(
 }
 
 /**
- * Create a client that can read and write `table` fully locally, by seeding its
- * OPFS cache with loader pages the way a production tab starts. Cold-open cache
- * validation brings any stale seeded pages up to date and attaches the table; the
- * trailing read proves the client operates locally (no server calls).
+ * Create a client with a complete durable OPFS snapshot. Its first touch registers
+ * every cached table, applies catch-up, and then proves the requested table
+ * operates locally without a server action.
  */
 async function createWarmClient(
     databaseGroupId: DatabaseGroupId,
     table: TestDatabaseTable,
 ): Promise<TestDatabaseClient> {
-    const client = await createTestClient(databaseGroupId, {pages: table.seedPages});
+    const dir = createInMemoryOpfsDirectoryHandle();
+    const groupDir = await dir.getDirectoryHandle(databaseGroupId, {create: true});
+    for (const [tableId, pages] of table.seedPages) {
+        const fileSizeInPages = Math.max(-1, ...pages.keys()) + 1;
+        await prepopulateOpfsTablePages(
+            groupDir,
+            tableId,
+            fileSizeInPages,
+            [...pages].map(([pageIndex, page]) => ({pageIndex, ...page})),
+            table.seedWatermark,
+        );
+    }
+    const client = await createTestClient(databaseGroupId, {dir});
     await selectRowIds(client, table);
+    const registration = client.registerTableCalls[0];
+    assert(registration !== undefined, "warm client did not register its durable cache");
+    assert(client.registerTableCalls.length === 1, "warm client registered more than once");
+    assert(
+        registration.size === table.seedPages.size,
+        "warm client did not register every cached table",
+    );
+    for (const [tableId, pages] of table.seedPages) {
+        const entry = registration.get(tableId);
+        assert(entry !== undefined, `warm registration omitted ${tableId}`);
+        assert(entry.watermark === table.seedWatermark, `wrong watermark for ${tableId}`);
+        assert(
+            entry.heldPages.array().join(",") === [...pages.keys()].sort((a, b) => a - b).join(","),
+            `wrong held pages for ${tableId}`,
+        );
+    }
     assert(
         client.executeActionCalls.length === 0,
-        "warm client unexpectedly fell back to the server",
+        `warm client unexpectedly fell back to the server after ${client.registerTableCalls.length} registration calls`,
     );
     return client;
 }
@@ -1029,6 +1073,7 @@ function createSocketForServerConnection(
         isOnline: () => boolean;
         stateListeners: Set<() => void>;
         executeActionCalls: Array<TestDatabaseClientExecuteActionCall>;
+        registerTableCalls: Array<DatabaseTableRegistrations>;
     },
 ): DatabaseConnectionManagerSocket {
     return {
@@ -1042,6 +1087,10 @@ function createSocketForServerConnection(
                 const output = await serverConnection.procedures.executeAction(input);
                 await new Promise(resolve => setTimeout(resolve, 0));
                 return output;
+            },
+            registerTables: async input => {
+                options.registerTableCalls.push(input.tables);
+                return await serverConnection.procedures.registerTables(input);
             },
         },
         state: {

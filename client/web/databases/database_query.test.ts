@@ -5,7 +5,10 @@ import type {
 } from "~/client/web/databases/connect_to_database.js";
 import {DatabaseQuery} from "~/client/web/databases/database_query.js";
 import type {DatabaseQueryRow} from "~/client/web/databases/database_query_row.js";
-import {createInMemoryOpfsDirectoryHandle} from "~/client/web/databases/test_helpers/in_memory_opfs.js";
+import {
+    createInMemoryOpfsDirectoryHandle,
+    prepopulateOpfsTablePages,
+} from "~/client/web/databases/test_helpers/in_memory_opfs.js";
 import {makeDatabaseClientConnection} from "~/client/web/databases/test_helpers/make_database_client_connection.js";
 import {DatabaseClient} from "~/client/web/databases/worker/database_client.js";
 import {allowAllTableAccess} from "~/shared/databases/allow_all_table_access.js";
@@ -60,12 +63,7 @@ function createTestConnection(client: DatabaseClient): {
     let watchIdCounter = 0;
 
     const conn: DatabaseWorkerConnection = {
-        async call(method, input) {
-            if (method === "writeInitialPages") {
-                const {pages} = input as unknown as {pages: DatabasePages};
-                await client.seedPages(pages);
-                return {} as any;
-            }
+        async call(method) {
             throw new InternalError(`Unsupported call method: ${method}`);
         },
 
@@ -168,9 +166,12 @@ function flush(): Promise<void> {
  * `createTable` runs). Returns the resulting pages so a test client can seed them
  * — mirroring production cold-open.
  */
-async function buildSchemaSeed(
-    name: string,
-): Promise<{seedPages: DatabasePages; viewId: string; tableName: string}> {
+async function buildSchemaSeed(name: string): Promise<{
+    seedPages: DatabasePages;
+    fileSizesInPages: ReadonlyMap<DatabaseTableId, number>;
+    viewId: string;
+    tableName: string;
+}> {
     const fake = await Database.create(
         {readPage: () => null, getFileSize: () => 0},
         {server: {tables: new InMemoryDatabaseServerTableStore()}},
@@ -194,6 +195,7 @@ async function buildSchemaSeed(
 
     const buffered = fake.getBufferedWrites();
     const seedPages = new Map<DatabaseTableId, Map<number, {version: number; data: Uint8Array}>>();
+    const fileSizesInPages = new Map<DatabaseTableId, number>();
     if (buffered !== null) {
         for (const [tableId, pages] of buffered.pages) {
             const tablePages = new Map<number, {version: number; data: Uint8Array}>();
@@ -201,10 +203,11 @@ async function buildSchemaSeed(
                 tablePages.set(index, {version: 1, data: new Uint8Array(data)});
             }
             seedPages.set(tableId, tablePages);
+            fileSizesInPages.set(tableId, buffered.fileSizesInPages.get(tableId)!);
         }
     }
     fake.close();
-    return {seedPages, viewId: result.viewId, tableName: result.tableName};
+    return {seedPages, fileSizesInPages, viewId: result.viewId, tableName: result.tableName};
 }
 
 async function setupTestDatabase(): Promise<{
@@ -215,15 +218,33 @@ async function setupTestDatabase(): Promise<{
     mutate: (query: SqlQuery) => Promise<void>;
 }> {
     const dir = createInMemoryOpfsDirectoryHandle();
+    const {seedPages, fileSizesInPages, viewId, tableName} = await buildSchemaSeed("Tasks");
+    for (const [tableId, pages] of seedPages) {
+        await prepopulateOpfsTablePages(
+            dir,
+            tableId,
+            fileSizesInPages.get(tableId)!,
+            [...pages].map(([pageIndex, page]) => ({pageIndex, ...page})),
+            1,
+        );
+    }
     const client = await DatabaseClient.create(dir);
-
-    // Seed the schema pages produced by the server, then run cold-open cache
-    // validation exactly as the client does at startup — it attaches every seeded
-    // per-db file so the bare-name `rawSql` helpers below resolve the table. The mock
-    // connection validates nothing (empty response), so no server hop.
-    const {seedPages, viewId, tableName} = await buildSchemaSeed("Tasks");
-    await client.seedPages(seedPages);
-    await client.ensureCacheIsUpToDate(testClientConn);
+    const registrationConn = makeDatabaseClientConnection({
+        registerTables: async tables => ({
+            tables: new Map(
+                [...tables.keys()].map(tableId => [
+                    tableId,
+                    {
+                        watermark: 1,
+                        fileSizeInPages: fileSizesInPages.get(tableId)!,
+                        catchUp: {type: "current" as const},
+                    },
+                ]),
+            ),
+            tableAccess: new Map(),
+        }),
+    });
+    await client.executeAction(registrationConn, {name: "listTableIds", input: {}});
 
     const {conn, mutate} = createTestConnection(client);
 

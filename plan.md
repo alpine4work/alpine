@@ -248,7 +248,7 @@ to preserve — schemas and protocol shapes are replaced in place.
 - Realtime: unsubscribed table filtered; out-of-bitset page filtered; originator unfiltered; stub
   emitted with correct version/fileSize; revoked table unsubscribed.
 
-## Milestone 5 — Client: lazy start, registration gate, reconnect, watermarks
+## [x] Milestone 5 — Client: lazy start, registration gate, reconnect, watermarks
 
 **`client/web/databases/worker/opfs_page_store.ts`**
 

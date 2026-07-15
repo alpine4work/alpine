@@ -6,10 +6,7 @@ import {
     DatabaseActionObjectSchema,
     DatabaseActionResultSchema,
 } from "~/shared/databases/database_actions.js";
-import {
-    DatabasePageDiffsSchema,
-    DatabasePagesSchema,
-} from "~/shared/databases/database_protocol_schemas.js";
+import {DatabasePageDiffsSchema} from "~/shared/databases/database_protocol_schemas.js";
 import type {
     DatabaseGroupId,
     DatabaseMutationId,
@@ -22,15 +19,7 @@ export const tabToWorkerDatabaseRpcMethods = defineWebWorkerRpcMethods({
     connectDatabaseGroup: {
         input: {
             databaseGroupId: Schema.id<DatabaseGroupId>(),
-            pages: DatabasePagesSchema,
             webSocketUrl: Schema.string,
-        },
-        output: {},
-    },
-    writeInitialPages: {
-        input: {
-            databaseGroupId: Schema.id<DatabaseGroupId>(),
-            pages: DatabasePagesSchema,
         },
         output: {},
     },

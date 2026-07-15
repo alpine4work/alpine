@@ -296,7 +296,6 @@ export const LoaderDatabaseActionResultSchemas = Object.fromEntries(
             name: Schema.value(name),
             input: def.input,
             output: def.output,
-            readPages: DatabasePagesSchema,
         }),
     ]),
 ) as {
@@ -305,8 +304,7 @@ export const LoaderDatabaseActionResultSchemas = Object.fromEntries(
 
 /**
  * Schema for loader-serialized action results. Includes the action name, input,
- * output, and the pages read during execution. Used to pass initial data from SSR
- * loaders to client-side reactive action hooks.
+ * and output used to seed client-side reactive action hooks.
  */
 export const LoaderDatabaseActionResultSchema = Schema.unionWithKey(
     "name",
@@ -318,6 +316,5 @@ export type LoaderDatabaseActionResult<N extends DatabaseActionName = DatabaseAc
         name: K;
         input: DatabaseActionInput<K>;
         output: DatabaseActionOutput<K>;
-        readPages: DatabasePages;
     };
 }[N];

@@ -1,3 +1,4 @@
+import {TypedFastBitSet} from "typedfastbitset";
 import type {
     OpfsDirectoryHandle,
     OpfsSyncAccessHandle,
@@ -15,6 +16,7 @@ import {Schema, type SchemaSerializedValue} from "~/shared/schema/schema.js";
  */
 const indexSchema = Schema.object({
     fileSizeInPages: Schema.integer,
+    watermark: Schema.integer.default(0),
     pages: Schema.map(
         Schema.integer,
         Schema.object({
@@ -65,6 +67,7 @@ export class OpfsPageStore {
     private nextSlot = 0;
     private maxPageIndex = -1;
     private knownDatabaseSizeInPages = 0;
+    private watermark = 0;
     private dirty = false;
 
     private constructor(
@@ -221,6 +224,25 @@ export class OpfsPageStore {
         this.knownDatabaseSizeInPages = sizeInPages;
     }
 
+    /** The latest server snapshot incorporated into this table's durable cache. */
+    getWatermark(): number {
+        return this.watermark;
+    }
+
+    /**
+     * Advance the latest incorporated server snapshot. Watermarks are monotonic so an
+     * older in-flight response cannot move the durable cache backward after a newer
+     * realtime event has landed.
+     */
+    setWatermark(watermark: number): void {
+        this.watermark = Math.max(this.watermark, watermark);
+    }
+
+    /** Compact set of every page currently held by this cache. */
+    getHeldPagesBitset(): TypedFastBitSet {
+        return new TypedFastBitSet([...this.index.keys()]);
+    }
+
     /** Snapshot of every cached page with its version. */
     pageEntries(): Array<{pageIndex: number; version: number}> {
         const entries: Array<{pageIndex: number; version: number}> = [];
@@ -339,6 +361,7 @@ export class OpfsPageStore {
 
         let parsedIndex: {
             fileSizeInPages: number;
+            watermark: number;
             pages: ReadonlyMap<number, {slot: number; version: number}>;
         };
         try {
@@ -363,11 +386,13 @@ export class OpfsPageStore {
             }
         }
         this.knownDatabaseSizeInPages = parsedIndex.fileSizeInPages;
+        this.watermark = parsedIndex.watermark;
     }
 
     private flushIndex(): void {
         const serialized = indexSchema.serialize({
             fileSizeInPages: this.knownDatabaseSizeInPages,
+            watermark: this.watermark,
             pages: this.index,
         });
         const json = JSON.stringify(serialized, null, 2);

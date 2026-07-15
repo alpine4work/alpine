@@ -49,10 +49,15 @@ export async function loader({request, params, context: unauthenticatedContext}:
     const tableOrViewId = params.tableOrViewId!;
 
     // Fetch schema first — needed for the redirect check.
-    const schemaResult = await fetchDatabaseGroupAction(context, databaseGroupId, {
-        name: "getViewSchema",
-        input: {tableOrViewId},
-    });
+    const schemaResult = await fetchDatabaseGroupAction(
+        context,
+        databaseGroupId,
+        {
+            name: "getViewSchema",
+            input: {tableOrViewId},
+        },
+        {returnPages: false},
+    );
 
     // If the user navigated with a table ID, redirect to the resolved view ID for a
     // canonical URL. Uses a relative redirect so peek routes work correctly.
@@ -63,19 +68,29 @@ export async function loader({request, params, context: unauthenticatedContext}:
     }
 
     // Discover the cursor for the first page then fetch the page rows.
-    const cursorResult = await fetchDatabaseGroupAction(context, databaseGroupId, {
-        name: "getViewRowsPageCursor",
-        input: {tableOrViewId, afterCursor: null, limit: databaseViewTargetRowsPerPage},
-    });
-
-    const pageResult = await fetchDatabaseGroupAction(context, databaseGroupId, {
-        name: "getViewRowsPage",
-        input: {
-            tableOrViewId,
-            afterCursor: null,
-            endCursor: cursorResult.result.endCursor,
+    const cursorResult = await fetchDatabaseGroupAction(
+        context,
+        databaseGroupId,
+        {
+            name: "getViewRowsPageCursor",
+            input: {tableOrViewId, afterCursor: null, limit: databaseViewTargetRowsPerPage},
         },
-    });
+        {returnPages: false},
+    );
+
+    const pageResult = await fetchDatabaseGroupAction(
+        context,
+        databaseGroupId,
+        {
+            name: "getViewRowsPage",
+            input: {
+                tableOrViewId,
+                afterCursor: null,
+                endCursor: cursorResult.result.endCursor,
+            },
+        },
+        {returnPages: false},
+    );
     const tableMetadataItem = await getDatabaseTableMetadataItemForLoader(context, {
         spaceId,
         tableId: schemaResult.result.tableId,
@@ -93,7 +108,6 @@ export async function loader({request, params, context: unauthenticatedContext}:
             name: "getViewSchema",
             input: {tableOrViewId},
             output: schemaResult.result,
-            readPages: schemaResult.readPages,
         },
         tableMetadataItem,
         accessPolicySiteById,
@@ -107,7 +121,6 @@ export async function loader({request, params, context: unauthenticatedContext}:
                     endCursor: cursorResult.result.endCursor,
                 },
                 output: pageResult.result,
-                readPages: pageResult.readPages,
             },
         },
     });
@@ -214,9 +227,9 @@ function useDatabaseQuery(
 
     useEffect(() => {
         if (conn == null) return;
-        query.listen({conn, readPages: firstPage.pageResult.readPages});
+        query.listen({conn});
         return () => query.dispose();
-    }, [query, conn]); // eslint-disable-line react-hooks/exhaustive-deps
+    }, [query, conn]);
 
     return query;
 }

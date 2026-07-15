@@ -56,10 +56,6 @@ const host = new UniqueWorkerHost({
             await clientManager.connectDatabaseGroup(input);
             return {};
         },
-        writeInitialPages: async input => {
-            await clientManager.writeInitialPages(input);
-            return {};
-        },
         executeAction: async input => {
             return await clientManager.executeAction(input);
         },

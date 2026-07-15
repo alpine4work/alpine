@@ -10,7 +10,6 @@ import type {
     DatabaseActionOutput,
     DatabaseActionResult,
 } from "~/shared/databases/database_actions.js";
-import type {DatabasePages} from "~/shared/databases/database_protocol_schemas.js";
 import {CancelledError} from "~/shared/error/error.js";
 import type {Result} from "~/shared/helpers/control/result.js";
 import {generateId} from "~/shared/id/id.js";
@@ -64,7 +63,6 @@ export const databaseUniqueWorkerKey = "alpine-databases";
 type ConnectOptions = {
     databaseGroupId: DatabaseGroupId;
     webSocketUrl: string;
-    initialPages?: DatabasePages;
     reportError?(message: string): void;
 };
 
@@ -199,7 +197,6 @@ async function connectToDatabaseGroup(options: ConnectOptions): Promise<Database
             // leader's): re-establish the group connection and re-register every watch before
             // queued calls flush.
             await call("connectDatabaseGroup", {
-                pages: new Map(),
                 webSocketUrl: options.webSocketUrl,
             });
             for (const [id, watch] of watches) {
@@ -251,7 +248,6 @@ async function connectToDatabaseGroup(options: ConnectOptions): Promise<Database
 
     await client.whenConnected();
     await call("connectDatabaseGroup", {
-        pages: options.initialPages ?? new Map(),
         webSocketUrl: options.webSocketUrl,
     });
 
