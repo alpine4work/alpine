@@ -1474,16 +1474,7 @@ paths:
                                     type: array
                                     minItems: 1
                                     items:
-                                        type: object
-                                        required:
-                                            - id
-                                            - patch
-                                        additionalProperties: false
-                                        properties:
-                                            id:
-                                                $ref: "#/components/schemas/TaskId"
-                                            patch:
-                                                $ref: "#/components/schemas/TaskPatch"
+                                        $ref: "#/components/schemas/TaskBatchPatch"
             responses:
                 "200":
                     $ref: "#/components/responses/PatchTasks"
@@ -2510,12 +2501,13 @@ components:
                         required:
                             - spaceId
                             - task
+                            - results
                         additionalProperties: false
                         properties:
                             spaceId:
                                 $ref: "#/components/schemas/SpaceId"
                             task:
-                                $ref: "#/components/schemas/Task_Response"
+                                $ref: "#/components/schemas/TaskWithoutNotes_Response"
                             results:
                                 type: array
                                 items:
@@ -2527,6 +2519,7 @@ components:
                         type: object
                         required:
                             - tasks
+                            - results
                         additionalProperties: false
                         properties:
                             spaceId:
@@ -2534,18 +2527,11 @@ components:
                             tasks:
                                 type: array
                                 items:
-                                    type: object
-                                    required:
-                                        - task
-                                        - collections
-                                    additionalProperties: false
-                                    properties:
-                                        task:
-                                            $ref: "#/components/schemas/Task_Response"
-                                        results:
-                                            type: array
-                                            items:
-                                                $ref: "#/components/schemas/TaskPatchResult"
+                                    $ref: "#/components/schemas/TaskWithoutNotes_Response"
+                            results:
+                                type: array
+                                items:
+                                    $ref: "#/components/schemas/TaskBatchPatchResult"
         GetTaskNotes:
             content:
                 application/json:
@@ -5730,6 +5716,45 @@ components:
                     const: MoveInCollection
                 cursor:
                     $ref: "#/components/schemas/TaskQueryCursor"
+        TaskBatchPatch:
+            oneOf:
+                - $ref: "#/components/schemas/TaskBatchUpdatePatch"
+            discriminator:
+                propertyName: type
+                mapping:
+                    Update: "#/components/schemas/TaskBatchUpdatePatch"
+        TaskBatchUpdatePatch:
+            type: object
+            required:
+                - type
+                - id
+                - patch
+            additionalProperties: false
+            properties:
+                type:
+                    const: Update
+                id:
+                    $ref: "#/components/schemas/TaskId"
+                patch:
+                    $ref: "#/components/schemas/TaskPatch"
+        TaskBatchPatchResult:
+            oneOf:
+                - $ref: "#/components/schemas/TaskBatchUpdatePatchResult"
+            discriminator:
+                propertyName: type
+                mapping:
+                    Update: "#/components/schemas/TaskBatchUpdatePatchResult"
+        TaskBatchUpdatePatchResult:
+            type: object
+            required:
+                - type
+                - result
+            additionalProperties: false
+            properties:
+                type:
+                    const: Update
+                result:
+                    $ref: "#/components/schemas/TaskPatchResult"
         TaskCollectionPatch:
             oneOf:
                 - $ref: "#/components/schemas/TaskCollectionSetNamePatch"
@@ -9905,6 +9930,20 @@ components:
                     minimum: 0
                 content:
                     $ref: "#/components/schemas/Content_Response"
+        TaskBatchUpdatePatch_Response:
+            type: object
+            required:
+                - type
+                - id
+                - patch
+            additionalProperties: false
+            properties:
+                type:
+                    const: Update
+                id:
+                    $ref: "#/components/schemas/TaskId"
+                patch:
+                    $ref: "#/components/schemas/TaskPatch_Response"
         TaskNotesSetContentPatch_Response:
             type: object
             required:
@@ -10102,6 +10141,13 @@ components:
                 mapping:
                     SetTitle: "#/components/schemas/DocumentSetTitlePatch"
                     SetContent: "#/components/schemas/DocumentSetContentPatch_Response"
+        TaskBatchPatch_Response:
+            oneOf:
+                - $ref: "#/components/schemas/TaskBatchUpdatePatch_Response"
+            discriminator:
+                propertyName: type
+                mapping:
+                    Update: "#/components/schemas/TaskBatchUpdatePatch_Response"
         TaskNotesPatch_Response:
             oneOf:
                 - $ref: "#/components/schemas/TaskNotesSetContentPatch_Response"

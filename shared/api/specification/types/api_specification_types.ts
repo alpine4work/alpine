@@ -2184,10 +2184,7 @@ export namespace ApiSpecification {
                     readonly content: {
                         readonly "application/json": {
                             readonly spaceId: components["schemas"]["SpaceId"];
-                            readonly patches: readonly {
-                                readonly id: components["schemas"]["TaskId"];
-                                readonly patch: components["schemas"]["TaskPatch"];
-                            }[];
+                            readonly patches: readonly components["schemas"]["TaskBatchPatch"][];
                         };
                     };
                 };
@@ -4793,6 +4790,25 @@ export namespace ApiSpecification {
                 readonly type: "MoveInCollection";
                 readonly cursor: components["schemas"]["TaskQueryCursor"];
             };
+            readonly TaskBatchPatch: components["schemas"]["TaskBatchUpdatePatch"];
+            readonly TaskBatchUpdatePatch: {
+                /**
+                 * @description discriminator enum property added by openapi-typescript @enum
+                 * {string}
+                 */
+                readonly type: "Update";
+                readonly id: components["schemas"]["TaskId"];
+                readonly patch: components["schemas"]["TaskPatch"];
+            };
+            readonly TaskBatchPatchResult: components["schemas"]["TaskBatchUpdatePatchResult"];
+            readonly TaskBatchUpdatePatchResult: {
+                /**
+                 * @description discriminator enum property added by openapi-typescript @enum
+                 * {string}
+                 */
+                readonly type: "Update";
+                readonly result: components["schemas"]["TaskPatchResult"];
+            };
             readonly TaskCollectionPatch:
                 | components["schemas"]["TaskCollectionSetNamePatch"]
                 | components["schemas"]["TaskCollectionSetColorPatch"];
@@ -6859,6 +6875,15 @@ export namespace ApiSpecification {
                 readonly version: number;
                 readonly content: components["schemas"]["Content_Response"];
             };
+            readonly TaskBatchUpdatePatch_Response: {
+                /**
+                 * @description discriminator enum property added by openapi-typescript @enum
+                 * {string}
+                 */
+                readonly type: "Update";
+                readonly id: components["schemas"]["TaskId"];
+                readonly patch: components["schemas"]["TaskPatch_Response"];
+            };
             readonly TaskNotesSetContentPatch_Response: {
                 /**
                  * @description discriminator enum property added by openapi-typescript @enum
@@ -6957,6 +6982,7 @@ export namespace ApiSpecification {
             readonly DocumentPatch_Response:
                 | components["schemas"]["DocumentSetTitlePatch"]
                 | components["schemas"]["DocumentSetContentPatch_Response"];
+            readonly TaskBatchPatch_Response: components["schemas"]["TaskBatchUpdatePatch_Response"];
             readonly TaskNotesPatch_Response: components["schemas"]["TaskNotesSetContentPatch_Response"];
             readonly TaskQueryFilter_Response:
                 | components["schemas"]["TaskQueryStatusFilter"]
@@ -7146,8 +7172,8 @@ export namespace ApiSpecification {
                 content: {
                     readonly "application/json": {
                         readonly spaceId: components["schemas"]["SpaceId"];
-                        readonly task: components["schemas"]["Task_Response"];
-                        readonly results?: readonly components["schemas"]["TaskPatchResult"][];
+                        readonly task: components["schemas"]["TaskWithoutNotes_Response"];
+                        readonly results: readonly components["schemas"]["TaskPatchResult"][];
                     };
                 };
             };
@@ -7158,10 +7184,8 @@ export namespace ApiSpecification {
                 content: {
                     readonly "application/json": {
                         readonly spaceId?: components["schemas"]["SpaceId"];
-                        readonly tasks: readonly {
-                            readonly task: components["schemas"]["Task_Response"];
-                            readonly results?: readonly components["schemas"]["TaskPatchResult"][];
-                        }[];
+                        readonly tasks: readonly components["schemas"]["TaskWithoutNotes_Response"][];
+                        readonly results: readonly components["schemas"]["TaskBatchPatchResult"][];
                     };
                 };
             };

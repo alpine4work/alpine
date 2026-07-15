@@ -433,6 +433,17 @@ export type ApiTaskRemoveCollectionPatchResult =
 export type ApiTaskMoveInCollectionPatchResult =
     ApiSpecification.components["schemas"]["TaskMoveInCollectionPatchResult"];
 
+export type ApiTaskBatchPatch = ApiSpecification.components["schemas"]["TaskBatchPatch"];
+
+export type ApiTaskBatchUpdatePatch =
+    ApiSpecification.components["schemas"]["TaskBatchUpdatePatch"];
+
+export type ApiTaskBatchPatchResult =
+    ApiSpecification.components["schemas"]["TaskBatchPatchResult"];
+
+export type ApiTaskBatchUpdatePatchResult =
+    ApiSpecification.components["schemas"]["TaskBatchUpdatePatchResult"];
+
 export type ApiTaskCollectionPatch = ApiSpecification.components["schemas"]["TaskCollectionPatch"];
 
 export type ApiTaskCollectionSetNamePatch =
@@ -1138,6 +1149,9 @@ export type ApiContentInlineElementResponse =
 export type ApiDocumentSetContentPatchResponse =
     ApiSpecification.components["schemas"]["DocumentSetContentPatch_Response"];
 
+export type ApiTaskBatchUpdatePatchResponse =
+    ApiSpecification.components["schemas"]["TaskBatchUpdatePatch_Response"];
+
 export type ApiTaskNotesSetContentPatchResponse =
     ApiSpecification.components["schemas"]["TaskNotesSetContentPatch_Response"];
 
@@ -1185,6 +1199,9 @@ export type ApiContentListBlockElementResponseWithoutKeys =
 
 export type ApiDocumentPatchResponse =
     ApiSpecification.components["schemas"]["DocumentPatch_Response"];
+
+export type ApiTaskBatchPatchResponse =
+    ApiSpecification.components["schemas"]["TaskBatchPatch_Response"];
 
 export type ApiTaskNotesPatchResponse =
     ApiSpecification.components["schemas"]["TaskNotesPatch_Response"];
