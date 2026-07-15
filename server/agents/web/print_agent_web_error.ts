@@ -1,3 +1,4 @@
+import {formatAgentWebMarkdown} from "~/server/agents/web/format_agent_web_markdown.js";
 import {printMarkdownTree} from "~/shared/api/content/print_api_content_to_markdown.js";
 import {defaultErrorDisplayMessage} from "~/shared/error/default_error_display_message.js";
 import {ErrorBase} from "~/shared/error/error.js";
@@ -65,8 +66,7 @@ export async function printAgentWebError(title: string, error: unknown): Promise
         }
     }
 
-    // NOCOMMIT: Format with Prettier
-    return markdown;
+    return await formatAgentWebMarkdown(markdown);
 }
 
 function printErrorDisplayMessage(displayMessage: ErrorDisplayMessage): string {

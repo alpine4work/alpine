@@ -6,10 +6,12 @@ import {
 } from "~/server/agents/web/agent_web_page_stored_link.js";
 import {AgentWebSessionStorage} from "~/server/agents/web/agent_web_session_storage.js";
 import {createAgentWebPageStoredLinkPathname} from "~/server/agents/web/create_agent_web_page_stored_link_pathname.js";
+import {formatAgentWebMarkdown} from "~/server/agents/web/format_agent_web_markdown.js";
 import {
     ApiSearchMessageResultResponse,
     splitApiSearchMessageResultBodyMatch,
 } from "~/server/agents/web/internal/split_api_search_message_result_body_match.js";
+import {printAgentWebError} from "~/server/agents/web/print_agent_web_error.js";
 import {printMarkdownTree} from "~/shared/api/content/print_api_content_to_markdown.js";
 import {
     ApiSearchResultBodyMatch,
@@ -36,6 +38,21 @@ export const agentWebSearchResultLimit = 10;
  */
 // NOCOMMIT: Allow agent to set the `limit` argument
 export async function callAgentWebSearchTool(
+    context: AgentWebContext,
+    options: {query: string},
+): Promise<string> {
+    return await context.span.withSpan("Call agent web search tool", async span => {
+        try {
+            return await actuallyCallAgentWebSearchTool({...context, span}, options);
+        } catch (error) {
+            span.addException(error);
+
+            return await printAgentWebError(`Couldn\u2019t search`, error);
+        }
+    });
+}
+
+async function actuallyCallAgentWebSearchTool(
     context: AgentWebContext,
     {query}: {query: string},
 ): Promise<string> {
@@ -129,7 +146,9 @@ export async function callAgentWebSearchTool(
         );
     }
 
-    return printMarkdownTree({type: "root", children: await runAllPromises(content)});
+    const markdown = printMarkdownTree({type: "root", children: await runAllPromises(content)});
+
+    return await formatAgentWebMarkdown(markdown);
 }
 
 async function createAgentWebSearchResultListItem(

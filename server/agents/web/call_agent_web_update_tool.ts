@@ -1,8 +1,9 @@
 import {Root} from "mdast";
 import {AgentWebContext} from "~/server/agents/web/agent_web_context.js";
 import {AgentWebPageMetadata} from "~/server/agents/web/agent_web_page.js";
-import {normalizeAgentWebPath} from "~/server/agents/web/internal/normalize_agent_web_path.js";
+import {formatAgentWebMarkdown} from "~/server/agents/web/format_agent_web_markdown.js";
 import {curlyQuote} from "~/server/agents/web/internal/curly_quote.js";
+import {normalizeAgentWebPath} from "~/server/agents/web/internal/normalize_agent_web_path.js";
 import {
     parseAgentWebAccountPage,
     updateAgentWebAccountPage,
@@ -43,6 +44,7 @@ import {
     parseAgentWebTaskSubtasksPage,
     updateAgentWebTaskSubtasksPage,
 } from "~/server/agents/web/pages/agent_web_task_subtasks_page.js";
+import {printAgentWebError} from "~/server/agents/web/print_agent_web_error.js";
 import {parseMarkdownTree} from "~/shared/api/content/parse_api_content_from_markdown.js";
 import {getErrorDisplayMessage} from "~/shared/error/default_error_display_message.js";
 import {
@@ -65,6 +67,28 @@ import {getOrSetDefaultMapValue} from "~/shared/helpers/map/get_or_set_default_m
 import {quote} from "~/shared/helpers/string/quote.js";
 
 export async function callAgentWebUpdateTool(
+    context: AgentWebContext,
+    options: {
+        path: string;
+        updates: ReadonlyArray<{
+            old: string;
+            new: string;
+            replaceAll: boolean;
+        }>;
+    },
+): Promise<string> {
+    return await context.span.withSpan("Call agent web update tool", async span => {
+        try {
+            return await actuallyCallAgentWebUpdateTool({...context, span}, options);
+        } catch (error) {
+            span.addException(error);
+
+            return await printAgentWebError(`Couldn\u2019t update ${quote(options.path)}`, error);
+        }
+    });
+}
+
+async function actuallyCallAgentWebUpdateTool(
     context: AgentWebContext,
     {
         path: originalPath,
@@ -272,7 +296,9 @@ export async function callAgentWebUpdateTool(
         });
     });
 
-    return "Update was successful.\n";
+    const markdown = "Update was successful.";
+
+    return await formatAgentWebMarkdown(markdown);
 }
 
 async function updateAgentWebPageLink(

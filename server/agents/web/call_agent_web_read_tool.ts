@@ -1,7 +1,5 @@
 import {addHours} from "date-fns";
 import {Root} from "mdast";
-import * as prettier from "prettier";
-import * as markdownPrettierPlugin from "prettier/plugins/markdown";
 import {parseAgentWebBytes} from "~/server/agents/web/agent_web_bytes.js";
 import {AgentWebContext} from "~/server/agents/web/agent_web_context.js";
 import {AgentWebPage, AgentWebPageMetadata} from "~/server/agents/web/agent_web_page.js";
@@ -10,6 +8,8 @@ import {AgentWebPageRoutedLink} from "~/server/agents/web/agent_web_page_routed_
 import {AgentWebPageStoredLinkKeyObject} from "~/server/agents/web/agent_web_page_stored_link_key.js";
 import {AgentWebSessionStorage} from "~/server/agents/web/agent_web_session_storage.js";
 import {truncateAgentWebReadResponse} from "~/server/agents/web/call_agent_web_scroll_tool.js";
+import {agentWebBytesDefaultLimit} from "~/server/agents/web/default_agent_web_bytes_limit.js";
+import {formatAgentWebMarkdown} from "~/server/agents/web/format_agent_web_markdown.js";
 import {normalizeAgentWebPath} from "~/server/agents/web/internal/normalize_agent_web_path.js";
 import {
     normalizeAgentWebAccountPage,
@@ -75,6 +75,7 @@ import {
     printAgentWebTaskSubtasksPage,
     readAgentWebTaskSubtasksPage,
 } from "~/server/agents/web/pages/agent_web_task_subtasks_page.js";
+import {printAgentWebError} from "~/server/agents/web/print_agent_web_error.js";
 import {routeAgentWebPageLinkPathname} from "~/server/agents/web/route_agent_web_page_link_pathname.js";
 import {parseMarkdownTree} from "~/shared/api/content/parse_api_content_from_markdown.js";
 import {printMarkdownTree} from "~/shared/api/content/print_api_content_to_markdown.js";
@@ -95,15 +96,31 @@ export const agentWebReadResponseExpirationHours = 1;
 
 export async function callAgentWebReadTool(
     context: AgentWebContext,
-    options: {path: string; limit: string},
+    options: {path: string; limit?: string},
 ): Promise<string> {
-    const {truncatedResponse} = await actuallyCallAgentWebReadTool(context, options);
-    return truncatedResponse;
+    return await context.span.withSpan("Call agent web read tool", async span => {
+        try {
+            const {truncatedResponse} = await actuallyCallAgentWebReadTool(
+                {...context, span},
+                options,
+            );
+            return truncatedResponse;
+        } catch (error) {
+            span.addException(error);
+            return await printAgentWebError(`Couldn\u2019t read ${quote(options.path)}`, error);
+        }
+    });
 }
 
 async function actuallyCallAgentWebReadTool(
     context: AgentWebContext,
-    {path: originalPath, limit: limitBytesString}: {path: string; limit: string},
+    {
+        path: originalPath,
+        limit: limitBytesString = agentWebBytesDefaultLimit,
+    }: {
+        path: string;
+        limit?: string;
+    },
 ) {
     const {path, pathname, searchParams} = normalizeAgentWebPath(originalPath);
 
@@ -233,37 +250,9 @@ async function printAgentWebPageToMarkdownForReadTool(
 
     const tree = await printAgentWebPage(storage, pageLink, page);
 
-    let string = printMarkdownTree(tree);
+    const markdown = printMarkdownTree(tree);
 
-    // Use Prettier to print our Markdown before sending it to the LLM. We hypothesize
-    // this will lead to better performance from the LLM since Prettier formatting is
-    // more "standard" than micromark's (used by `printMarkdownTree()`) default
-    // formatting.
-    string = await prettier.format(string, {
-        parser: "markdown",
-        endOfLine: "lf",
-        printWidth: 80,
-        tabWidth: 2,
-        // We never wrap text within paragraphs at 80 characters. This is entirely
-        // presentational. Two reasons why we think it's bad for LLMs:
-        //
-        // 1. Pagination via newlines ends up being more semantic since it's close to
-        //    paginating by paragraphs in a long document.
-        //
-        // 2. We're guessing LLMs are trained on vastly more text without presentational
-        //    line breaks than text with presentational line breaks. So the LLM should be
-        //    slightly more intelligent when not presented with text that has
-        //    presentational line breaks.
-        //
-        // Wrapping at 80 characters is good for a human reader but not necessarily for an
-        // LLM reader.
-        proseWrap: "never",
-        plugins: [markdownPrettierPlugin],
-    });
-
-    string = string.trim();
-
-    return string;
+    return await formatAgentWebMarkdown(markdown);
 }
 
 async function readAgentWebPageLink(

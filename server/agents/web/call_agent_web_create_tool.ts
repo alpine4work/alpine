@@ -5,8 +5,8 @@ import {AgentWebPageMetadata} from "~/server/agents/web/agent_web_page.js";
 import {AgentWebPageLink} from "~/server/agents/web/agent_web_page_link.js";
 import {agentWebReadResponseExpirationHours} from "~/server/agents/web/call_agent_web_read_tool.js";
 import {createAgentWebPageLinkPathname} from "~/server/agents/web/create_agent_web_page_link_pathname.js";
+import {formatAgentWebMarkdown} from "~/server/agents/web/format_agent_web_markdown.js";
 import {normalizeAgentWebStaticText} from "~/server/agents/web/internal/normalize_agent_web_static_text.js";
-import {curlyQuote} from "~/server/agents/web/internal/curly_quote.js";
 import {
     createAgentWebChannelPage,
     parseAgentWebChannelPage,
@@ -35,6 +35,7 @@ import {
     createAgentWebTaskPage,
     parseAgentWebTaskPage,
 } from "~/server/agents/web/pages/agent_web_task_page.js";
+import {printAgentWebError} from "~/server/agents/web/print_agent_web_error.js";
 import {parseMarkdownTree} from "~/shared/api/content/parse_api_content_from_markdown.js";
 import {printMarkdownTree} from "~/shared/api/content/print_api_content_to_markdown.js";
 import {getErrorDisplayMessage} from "~/shared/error/default_error_display_message.js";
@@ -45,9 +46,34 @@ import {
 } from "~/shared/error/error_display_message.js";
 import {getErrorConstructorForCode} from "~/shared/error/get_error_constructor_for_code.js";
 import {Mutex} from "~/shared/helpers/async/mutex.js";
+import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
 import {getOrSetDefaultMapValue} from "~/shared/helpers/map/get_or_set_default_map_value.js";
+import {quote} from "~/shared/helpers/string/quote.js";
 
 export async function callAgentWebCreateTool(
+    context: AgentWebContext,
+    options: {
+        type: string;
+        content: string;
+    },
+): Promise<string> {
+    return await context.span.withSpan("Call agent web create tool", async span => {
+        try {
+            return await actuallyCallAgentWebCreateTool({...context, span}, options);
+        } catch (error) {
+            span.addException(error);
+
+            const type = parseCallAgentWebCreateToolType(options.type);
+
+            return await printAgentWebError(
+                `Couldn\u2019t create${type !== null ? ` ${type}` : ""}`,
+                error,
+            );
+        }
+    });
+}
+
+async function actuallyCallAgentWebCreateTool(
     context: AgentWebContext,
     {
         type,
@@ -57,6 +83,15 @@ export async function callAgentWebCreateTool(
         content: string;
     },
 ): Promise<string> {
+    const actualType = parseCallAgentWebCreateToolType(type);
+
+    if (actualType === null) {
+        throw new InvalidArgumentError("Can\u2019t create unrecognized `type`", {
+            // NOCOMMIT: Include a link to a skill that says all the stuff you can create!
+            displayMessage: errorDisplayMessage`Unrecognized \`type\` ${quote(type)}.`,
+        });
+    }
+
     const contentTree = parseMarkdownTree(content);
 
     // Not all updates are going to be atomic. If we make an update that's not atomic
@@ -100,14 +135,13 @@ export async function callAgentWebCreateTool(
         },
     };
 
-    let noun: string;
     let pageMetadata: AgentWebPageMetadata;
     let pageLink: AgentWebPageLink;
     let pageLinkLabel: string;
     try {
-        ({noun, pageMetadata, pageLink, pageLinkLabel} = await createAgentWebPageLink(
+        ({pageMetadata, pageLink, pageLinkLabel} = await createAgentWebPageLink(
             contextWithPartialSuccessDetection,
-            type,
+            actualType,
             contentTree,
         ));
     } catch (error) {
@@ -164,14 +198,14 @@ export async function callAgentWebCreateTool(
         });
     });
 
-    return (
+    const markdown =
         printMarkdownTree({
             type: "root",
             children: [
                 {
                     type: "paragraph",
                     children: [
-                        {type: "text", value: `Create was successful. New ${noun}: `},
+                        {type: "text", value: `Create was successful. New ${actualType}: `},
                         {
                             type: "link",
                             url: pageLinkPathname,
@@ -181,20 +215,21 @@ export async function callAgentWebCreateTool(
                     ],
                 },
             ],
-        }).trimEnd() + "\n"
-    );
+        }).trimEnd() + "\n";
+
+    return await formatAgentWebMarkdown(markdown);
 }
 
-async function createAgentWebPageLink(
-    context: AgentWebContext,
-    originalType: string,
-    content: Root,
-): Promise<{
-    noun: string;
-    pageMetadata: AgentWebPageMetadata;
-    pageLink: AgentWebPageLink;
-    pageLinkLabel: string;
-}> {
+type CallAgentWebCreateToolType =
+    | "document"
+    | "chat"
+    | "channel"
+    | "post"
+    | "task"
+    | "task collection"
+    | "document comment thread";
+
+function parseCallAgentWebCreateToolType(originalType: string): CallAgentWebCreateToolType | null {
     // Stem and lowercase whatever random stuff the agent decides to throw at us.
     // Though we tell the agent to use whatever is in the path prefix (e.g. `document`
     // in `/document/cool-thing`, but we want to support `documents`).
@@ -205,6 +240,40 @@ async function createAgentWebPageLink(
 
     switch (type) {
         case "doc":
+        case "document":
+            return "document";
+        case "chat":
+            return "chat";
+        case "channel":
+            return "channel";
+        case "post":
+            return "post";
+        case "task":
+            return "task";
+        case "task-collect":
+            return "task collection";
+        case "doc-thread":
+        case "document-thread":
+        case "doc-comment-thread":
+        case "document-comment-thread":
+        case "doc-comment":
+        case "document-comment":
+            return "document comment thread";
+        default:
+            return null;
+    }
+}
+
+async function createAgentWebPageLink(
+    context: AgentWebContext,
+    type: CallAgentWebCreateToolType,
+    content: Root,
+): Promise<{
+    pageMetadata: AgentWebPageMetadata;
+    pageLink: AgentWebPageLink;
+    pageLinkLabel: string;
+}> {
+    switch (type) {
         case "document": {
             const newPage = await parseAgentWebDocumentPage(context.storage, null, content);
 
@@ -213,7 +282,6 @@ async function createAgentWebPageLink(
             const title = newPage.title.length === 0 ? "Untitled" : newPage.title;
 
             return {
-                noun: "document",
                 pageMetadata,
                 pageLink: {
                     type: "Document",
@@ -229,7 +297,6 @@ async function createAgentWebPageLink(
             const {pageMetadata, pageLink} = await createAgentWebChatPage(context, newPage);
 
             return {
-                noun: "chat",
                 pageMetadata,
                 pageLink,
                 pageLinkLabel: pageLink.title,
@@ -241,7 +308,6 @@ async function createAgentWebPageLink(
             const {pageMetadata, pageLink} = await createAgentWebChannelPage(context, newPage);
 
             return {
-                noun: "channel",
                 pageMetadata,
                 pageLink,
                 pageLinkLabel: pageLink.title,
@@ -253,7 +319,6 @@ async function createAgentWebPageLink(
             const {pageMetadata, pageLink} = await createAgentWebPostPage(context, newPage);
 
             return {
-                noun: "post",
                 pageMetadata,
                 pageLink,
                 pageLinkLabel: pageLink.title,
@@ -265,13 +330,12 @@ async function createAgentWebPageLink(
             const {pageMetadata, pageLink} = await createAgentWebTaskPage(context, newPage);
 
             return {
-                noun: "task",
                 pageMetadata,
                 pageLink,
                 pageLinkLabel: pageLink.title.length > 0 ? pageLink.title : "Untitled",
             };
         }
-        case "task-collect": {
+        case "task collection": {
             const newPage = await parseAgentWebTaskCollectionPage(context.storage, null, content);
 
             const {pageMetadata, pageLink} = await createAgentWebTaskCollectionPage(
@@ -280,18 +344,12 @@ async function createAgentWebPageLink(
             );
 
             return {
-                noun: "task collection",
                 pageMetadata,
                 pageLink,
                 pageLinkLabel: pageLink.title.length > 0 ? pageLink.title : "Untitled",
             };
         }
-        case "doc-thread":
-        case "document-thread":
-        case "doc-comment-thread":
-        case "document-comment-thread":
-        case "doc-comment":
-        case "document-comment": {
+        case "document comment thread": {
             const {page: newPage, documentPath} =
                 await parseAgentWebDocumentThreadPageAndReturnDocumentPath(
                     context.storage,
@@ -306,19 +364,12 @@ async function createAgentWebPageLink(
             );
 
             return {
-                noun: "document comment thread",
                 pageMetadata,
                 pageLink,
                 pageLinkLabel: "thread",
             };
         }
-        default: {
-            const quotedType = curlyQuote(originalType);
-
-            throw new InvalidArgumentError("Can\u2019t create unrecognized `type`", {
-                // NOCOMMIT: Include a link to a skill that says all the stuff you can create!
-                displayMessage: errorDisplayMessage`Unrecognized \`type\` ${quotedType}.`,
-            });
-        }
+        default:
+            throw exhaustive(type);
     }
 }

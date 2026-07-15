@@ -1,7 +1,9 @@
 import {parseAgentWebBytes, printAgentWebBytes} from "~/server/agents/web/agent_web_bytes.js";
 import {AgentWebContext} from "~/server/agents/web/agent_web_context.js";
+import {agentWebBytesDefaultLimit} from "~/server/agents/web/default_agent_web_bytes_limit.js";
 import {binarySearchLessThanOrEqual} from "~/server/agents/web/internal/binary_search_less_than_or_equal.js";
 import {normalizeAgentWebPath} from "~/server/agents/web/internal/normalize_agent_web_path.js";
+import {printAgentWebError} from "~/server/agents/web/print_agent_web_error.js";
 import {FailedPreconditionError, NotFoundError} from "~/shared/error/error.js";
 import {errorDisplayMessage} from "~/shared/error/error_display_message.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
@@ -9,14 +11,33 @@ import {quote} from "~/shared/helpers/string/quote.js";
 
 export async function callAgentWebScrollTool(
     context: AgentWebContext,
+    options: {
+        path: string;
+        offset: number;
+        limit?: string;
+    },
+): Promise<string> {
+    return await context.span.withSpan("Call agent web scroll tool", async span => {
+        try {
+            return await actuallyCallAgentWebScrollTool({...context, span}, options);
+        } catch (error) {
+            span.addException(error);
+
+            return await printAgentWebError(`Couldn\u2019t scroll ${quote(options.path)}`, error);
+        }
+    });
+}
+
+async function actuallyCallAgentWebScrollTool(
+    context: AgentWebContext,
     {
         path: originalPath,
         offset: offsetNewline,
-        limit: limitBytesString,
+        limit: limitBytesString = agentWebBytesDefaultLimit,
     }: {
         path: string;
         offset: number;
-        limit: string;
+        limit?: string;
     },
 ): Promise<string> {
     const {path} = normalizeAgentWebPath(originalPath);
