@@ -5,11 +5,11 @@ import {
     createApiTaskMock,
 } from "~/server/agents/api/test_helpers/create_api_task_mock.js";
 import {mockApiGetTask} from "~/server/agents/api/test_helpers/mock_api_get_task.js";
-import {mockApiGetTaskWithoutNotes} from "~/server/agents/api/test_helpers/mock_api_get_task_without_notes.js";
 import {
     mockGetApiTaskCollectionTasks,
     printApiTaskQueryCursorMock,
 } from "~/server/agents/api/test_helpers/mock_api_get_task_collection_tasks.js";
+import {mockApiGetTaskWithoutNotes} from "~/server/agents/api/test_helpers/mock_api_get_task_without_notes.js";
 import {AgentWebContext} from "~/server/agents/web/agent_web_context.js";
 import {
     createAgentWebTaskQueryCursorHash,
@@ -20,7 +20,11 @@ import {callAgentWebUpdateTool} from "~/server/agents/web/call_agent_web_update_
 import {createAgentWebPageStoredLinkPathname} from "~/server/agents/web/create_agent_web_page_stored_link_pathname.js";
 import {createAgentWebSessionStorageForTest} from "~/server/agents/web/test_helpers/create_agent_web_session_storage_for_test.js";
 import {storeAgentWebPageLinkForTest} from "~/server/agents/web/test_helpers/store_agent_web_page_link_for_test.js";
-import {ApiTaskCollectionResponse} from "~/shared/api/specification/types/api_specification_convenience_types.js";
+import {
+    ApiTaskCollectionResponse,
+    ApiTaskPatchResult,
+    ApiTaskWithoutNotesResponse,
+} from "~/shared/api/specification/types/api_specification_convenience_types.js";
 import {InternalError, InvalidArgumentError, UnimplementedError} from "~/shared/error/error.js";
 import {captureResultPromise} from "~/shared/helpers/control/capture_result_promise.js";
 import {defaultTimeZone} from "~/shared/helpers/intl/time_zone.js";
@@ -67,6 +71,28 @@ function getApiPatchTasksRequestHistory() {
         .getRequestHistory()
         .filter(request => request.method === "PATCH" && request.path === "/tasks")
         .map(({body}) => body);
+}
+
+function mockApiPatchTasks(response: {
+    params: "Any";
+    data: {
+        spaceId: SpaceId;
+        tasks: ReadonlyArray<{
+            task: ApiTaskWithoutNotesResponse;
+            results: ReadonlyArray<ApiTaskPatchResult>;
+        }>;
+    };
+}): void {
+    api.mockPatch("/tasks", {
+        params: response.params,
+        data: {
+            spaceId: response.data.spaceId,
+            tasks: response.data.tasks.map(({task}) => task),
+            results: response.data.tasks.flatMap(({results}) =>
+                results.map(result => ({type: "Update" as const, result})),
+            ),
+        },
+    });
 }
 
 function getApiGetTaskWithoutNotesRequestHistory() {
@@ -335,14 +361,14 @@ test("updates a task title in its link label", async () => {
         createTask: index => tasks[index]!,
     });
 
-    api.mockPatch("/tasks", {
+    mockApiPatchTasks({
         params: "Any",
         data: {
             spaceId,
             tasks: [
                 {
                     task: {...task1, title: "Renamed task"},
-                    collections: [],
+                    results: [{type: "SetTitle"}],
                 },
             ],
         },
@@ -373,6 +399,7 @@ test("updates a task title in its link label", async () => {
             spaceId,
             patches: [
                 {
+                    type: "Update",
                     id: task1.id,
                     patch: {type: "SetTitle", title: "Renamed task"},
                 },
@@ -395,14 +422,14 @@ test("updates a 200 character task title without truncating it", async () => {
         createTask: index => tasks[index]!,
     });
 
-    api.mockPatch("/tasks", {
+    mockApiPatchTasks({
         params: "Any",
         data: {
             spaceId,
             tasks: [
                 {
                     task: {...task1, title: newTitle},
-                    collections: [],
+                    results: [{type: "SetTitle"}],
                 },
             ],
         },
@@ -433,6 +460,7 @@ test("updates a 200 character task title without truncating it", async () => {
             spaceId,
             patches: [
                 {
+                    type: "Update",
                     id: task1.id,
                     patch: {type: "SetTitle", title: newTitle},
                 },
@@ -452,14 +480,14 @@ test("updates a task status in its link label", async () => {
         createTask: index => tasks[index]!,
     });
 
-    api.mockPatch("/tasks", {
+    mockApiPatchTasks({
         params: "Any",
         data: {
             spaceId,
             tasks: [
                 {
                     task: {...task2, status: {type: "Closed"}},
-                    collections: [],
+                    results: [{type: "SetStatus"}],
                 },
             ],
         },
@@ -490,6 +518,7 @@ test("updates a task status in its link label", async () => {
             spaceId,
             patches: [
                 {
+                    type: "Update",
                     id: task2.id,
                     patch: {type: "SetStatus", status: {type: "Closed"}},
                 },
@@ -510,14 +539,14 @@ test("sets an assigned open task as active", async () => {
         createTask: index => tasks[index]!,
     });
 
-    api.mockPatch("/tasks", {
+    mockApiPatchTasks({
         params: "Any",
         data: {
             spaceId,
             tasks: [
                 {
                     task: {...task2, status: {type: "Open", isActive: true}},
-                    collections: [],
+                    results: [{type: "SetStatus"}],
                 },
             ],
         },
@@ -548,6 +577,7 @@ test("sets an assigned open task as active", async () => {
             spaceId,
             patches: [
                 {
+                    type: "Update",
                     id: task2.id,
                     patch: {
                         type: "SetStatus",
@@ -571,7 +601,7 @@ test("sets an open task as active while assigning it", async () => {
         createTask: index => tasks[index]!,
     });
 
-    api.mockPatch("/tasks", {
+    mockApiPatchTasks({
         params: "Any",
         data: {
             spaceId,
@@ -582,7 +612,7 @@ test("sets an open task as active while assigning it", async () => {
                         status: {type: "Open", isActive: true},
                         assignee: alice,
                     },
-                    collections: [],
+                    results: [{type: "SetStatus"}, {type: "SetAssignee"}],
                 },
             ],
         },
@@ -615,6 +645,7 @@ test("sets an open task as active while assigning it", async () => {
             spaceId,
             patches: [
                 {
+                    type: "Update",
                     id: task2.id,
                     patch: {
                         type: "SetStatus",
@@ -622,6 +653,7 @@ test("sets an open task as active while assigning it", async () => {
                     },
                 },
                 {
+                    type: "Update",
                     id: task2.id,
                     patch: {
                         type: "SetAssignee",
@@ -685,14 +717,14 @@ test("preserves active status when updating a task title in its link label", asy
         createTask: index => tasks[index]!,
     });
 
-    api.mockPatch("/tasks", {
+    mockApiPatchTasks({
         params: "Any",
         data: {
             spaceId,
             tasks: [
                 {
                     task: {...task2, title: "Renamed spec task"},
-                    collections: [],
+                    results: [{type: "SetTitle"}],
                 },
             ],
         },
@@ -723,6 +755,7 @@ test("preserves active status when updating a task title in its link label", asy
             spaceId,
             patches: [
                 {
+                    type: "Update",
                     id: task2.id,
                     patch: {type: "SetTitle", title: "Renamed spec task"},
                 },
@@ -747,14 +780,14 @@ test("sets an active task as inactive", async () => {
         createTask: index => tasks[index]!,
     });
 
-    api.mockPatch("/tasks", {
+    mockApiPatchTasks({
         params: "Any",
         data: {
             spaceId,
             tasks: [
                 {
                     task: {...task2, status: {type: "Open", isActive: false}},
-                    collections: [],
+                    results: [{type: "SetStatus"}],
                 },
             ],
         },
@@ -785,6 +818,7 @@ test("sets an active task as inactive", async () => {
             spaceId,
             patches: [
                 {
+                    type: "Update",
                     id: task2.id,
                     patch: {
                         type: "SetStatus",
@@ -852,14 +886,14 @@ test("changes the assignee of an active task", async () => {
         createTask: index => tasks[index]!,
     });
 
-    api.mockPatch("/tasks", {
+    mockApiPatchTasks({
         params: "Any",
         data: {
             spaceId,
             tasks: [
                 {
                     task: {...task2, assignee: bob},
-                    collections: [],
+                    results: [{type: "SetAssignee"}],
                 },
             ],
         },
@@ -890,6 +924,7 @@ test("changes the assignee of an active task", async () => {
             spaceId,
             patches: [
                 {
+                    type: "Update",
                     id: task2.id,
                     patch: {
                         type: "SetAssignee",
@@ -917,7 +952,7 @@ test("sets an active task as inactive while removing its assignee", async () => 
         createTask: index => tasks[index]!,
     });
 
-    api.mockPatch("/tasks", {
+    mockApiPatchTasks({
         params: "Any",
         data: {
             spaceId,
@@ -928,7 +963,7 @@ test("sets an active task as inactive while removing its assignee", async () => 
                         status: {type: "Open", isActive: false},
                         assignee: undefined,
                     },
-                    collections: [],
+                    results: [{type: "SetStatus"}, {type: "SetAssignee"}],
                 },
             ],
         },
@@ -961,6 +996,7 @@ test("sets an active task as inactive while removing its assignee", async () => 
             spaceId,
             patches: [
                 {
+                    type: "Update",
                     id: task2.id,
                     patch: {
                         type: "SetStatus",
@@ -968,6 +1004,7 @@ test("sets an active task as inactive while removing its assignee", async () => 
                     },
                 },
                 {
+                    type: "Update",
                     id: task2.id,
                     patch: {type: "SetAssignee", assignee: null},
                 },
@@ -987,14 +1024,14 @@ test("reopens a task as inactive from its link label", async () => {
         createTask: index => tasks[index]!,
     });
 
-    api.mockPatch("/tasks", {
+    mockApiPatchTasks({
         params: "Any",
         data: {
             spaceId,
             tasks: [
                 {
                     task: {...task2, status: {type: "Open", isActive: false}},
-                    collections: [],
+                    results: [{type: "SetStatus"}],
                 },
             ],
         },
@@ -1025,6 +1062,7 @@ test("reopens a task as inactive from its link label", async () => {
             spaceId,
             patches: [
                 {
+                    type: "Update",
                     id: task2.id,
                     patch: {
                         type: "SetStatus",
@@ -1058,7 +1096,7 @@ test("updates task fields", async () => {
         defaults: {filters: [], sorts: []},
     };
 
-    api.mockPatch("/tasks", {
+    mockApiPatchTasks({
         params: "Any",
         data: {
             spaceId,
@@ -1072,7 +1110,13 @@ test("updates task fields", async () => {
                         priority: "High",
                         due: "2027-07-12",
                     }),
-                    collections: [],
+                    results: [
+                        {type: "SetParent"},
+                        {type: "SetAssignee"},
+                        {type: "SetDue"},
+                        {type: "SetPriority"},
+                        {type: "AddCollection"},
+                    ],
                 },
             ],
         },
@@ -1113,10 +1157,12 @@ test("updates task fields", async () => {
             spaceId,
             patches: [
                 {
+                    type: "Update",
                     id: task1.id,
                     patch: {type: "SetParent", parent: {task: {id: otherTask.id}}},
                 },
                 {
+                    type: "Update",
                     id: task1.id,
                     patch: {
                         type: "SetAssignee",
@@ -1124,14 +1170,17 @@ test("updates task fields", async () => {
                     },
                 },
                 {
+                    type: "Update",
                     id: task1.id,
                     patch: {type: "SetDue", due: {date: "2027-07-12"}},
                 },
                 {
+                    type: "Update",
                     id: task1.id,
                     patch: {type: "SetPriority", priority: {type: "High"}},
                 },
                 {
+                    type: "Update",
                     id: task1.id,
                     patch: {
                         type: "AddCollection",
@@ -1170,14 +1219,14 @@ test("updates only a task parent while leaving its other fields unchanged", asyn
         createTask: index => tasks[index]!,
     });
 
-    api.mockPatch("/tasks", {
+    mockApiPatchTasks({
         params: "Any",
         data: {
             spaceId,
             tasks: [
                 {
                     task: {...task2, parent: {task: task1}},
-                    collections: [],
+                    results: [{type: "SetParent"}],
                 },
             ],
         },
@@ -1208,6 +1257,7 @@ test("updates only a task parent while leaving its other fields unchanged", asyn
             spaceId,
             patches: [
                 {
+                    type: "Update",
                     id: task2.id,
                     patch: {type: "SetParent", parent: {task: {id: task1.id}}},
                 },
@@ -1236,14 +1286,14 @@ test("updates only a task assignee while leaving its other fields unchanged", as
         createTask: index => tasks[index]!,
     });
 
-    api.mockPatch("/tasks", {
+    mockApiPatchTasks({
         params: "Any",
         data: {
             spaceId,
             tasks: [
                 {
                     task: {...task2, assignee: bob},
-                    collections: [],
+                    results: [{type: "SetAssignee"}],
                 },
             ],
         },
@@ -1274,6 +1324,7 @@ test("updates only a task assignee while leaving its other fields unchanged", as
             spaceId,
             patches: [
                 {
+                    type: "Update",
                     id: task2.id,
                     patch: {
                         type: "SetAssignee",
@@ -1304,14 +1355,14 @@ test("updates only a task due date while leaving its other fields unchanged", as
         createTask: index => tasks[index]!,
     });
 
-    api.mockPatch("/tasks", {
+    mockApiPatchTasks({
         params: "Any",
         data: {
             spaceId,
             tasks: [
                 {
                     task: {...task2, due: {date: "2027-07-14"}},
-                    collections: [],
+                    results: [{type: "SetDue"}],
                 },
             ],
         },
@@ -1342,6 +1393,7 @@ test("updates only a task due date while leaving its other fields unchanged", as
             spaceId,
             patches: [
                 {
+                    type: "Update",
                     id: task2.id,
                     patch: {type: "SetDue", due: {date: "2027-07-14"}},
                 },
@@ -1406,14 +1458,14 @@ test("updates only a task priority while leaving its other fields unchanged", as
         createTask: index => tasks[index]!,
     });
 
-    api.mockPatch("/tasks", {
+    mockApiPatchTasks({
         params: "Any",
         data: {
             spaceId,
             tasks: [
                 {
                     task: {...task2, priority: {type: "Low"}},
-                    collections: [],
+                    results: [{type: "SetPriority"}],
                 },
             ],
         },
@@ -1438,6 +1490,7 @@ test("updates only a task priority while leaving its other fields unchanged", as
             spaceId,
             patches: [
                 {
+                    type: "Update",
                     id: task2.id,
                     patch: {type: "SetPriority", priority: {type: "Low"}},
                 },
@@ -1476,7 +1529,7 @@ test("updates only task collections while leaving its other fields unchanged", a
         createTask: index => tasks[index]!,
     });
 
-    api.mockPatch("/tasks", {
+    mockApiPatchTasks({
         params: "Any",
         data: {
             spaceId,
@@ -1490,7 +1543,7 @@ test("updates only task collections while leaving its other fields unchanged", a
                         priority: "High",
                         due: "2027-07-12",
                     }),
-                    collections: [],
+                    results: [{type: "AddCollection"}],
                 },
             ],
         },
@@ -1523,6 +1576,7 @@ test("updates only task collections while leaving its other fields unchanged", a
             spaceId,
             patches: [
                 {
+                    type: "Update",
                     id: task2.id,
                     patch: {
                         type: "AddCollection",
@@ -1663,11 +1717,11 @@ test("removes a task from a manually ordered collection", async () => {
         createTask: index => tasks[index]!,
     });
 
-    api.mockPatch("/tasks", {
+    mockApiPatchTasks({
         params: "Any",
         data: {
             spaceId,
-            tasks: [{task: task2, collections: []}],
+            tasks: [{task: task2, results: [{type: "RemoveCollection"}]}],
         },
     });
 
@@ -1696,6 +1750,7 @@ test("removes a task from a manually ordered collection", async () => {
             spaceId,
             patches: [
                 {
+                    type: "Update",
                     id: task2.id,
                     patch: {type: "RemoveCollection", collectionId: collection.id},
                 },
@@ -1712,13 +1767,16 @@ test("adds a task at the end of a manually ordered collection", async () => {
         createTask: index => createApiTaskMock({index}),
     });
     const {task: newTask} = mockApiGetTaskWithoutNotes(api, {spaceId, index: 2});
-    api.mockPatch("/tasks", {
+    mockApiPatchTasks({
         params: "Any",
         data: {
             tasks: [
                 {
                     task: newTask,
-                    collections: [{movedCursor: printApiTaskQueryCursorMock(2), collection}],
+                    results: [
+                        {type: "AddCollection"},
+                        {type: "MoveInCollection", cursor: printApiTaskQueryCursorMock(2)},
+                    ],
                 },
             ],
         },
@@ -1750,18 +1808,19 @@ test("adds a task at the end of a manually ordered collection", async () => {
         {
             patches: [
                 {
+                    type: "Update",
                     id: newTask.id,
                     patch: {
                         type: "AddCollection",
                         item: {
                             collection: {
-                                type: "TaskCollection",
                                 id: collection.id,
                             },
                         },
                     },
                 },
                 {
+                    type: "Update",
                     id: newTask.id,
                     patch: {
                         type: "MoveInCollection",
@@ -1783,14 +1842,17 @@ test("adds a task at the start of a manually ordered collection", async () => {
         createTask: index => createApiTaskMock({index}),
     });
     const {task: newTask} = mockApiGetTaskWithoutNotes(api, {spaceId, index: 2});
-    api.mockPatch("/tasks", {
+    mockApiPatchTasks({
         params: "Any",
         data: {
             spaceId,
             tasks: [
                 {
                     task: newTask,
-                    collections: [{movedCursor: printApiTaskQueryCursorMock(2), collection}],
+                    results: [
+                        {type: "AddCollection"},
+                        {type: "MoveInCollection", cursor: printApiTaskQueryCursorMock(2)},
+                    ],
                 },
             ],
         },
@@ -1823,18 +1885,19 @@ test("adds a task at the start of a manually ordered collection", async () => {
             spaceId,
             patches: [
                 {
+                    type: "Update",
                     id: newTask.id,
                     patch: {
                         type: "AddCollection",
                         item: {
                             collection: {
-                                type: "TaskCollection",
                                 id: collection.id,
                             },
                         },
                     },
                 },
                 {
+                    type: "Update",
                     id: newTask.id,
                     patch: {
                         type: "MoveInCollection",
@@ -1855,14 +1918,17 @@ test("adds a task in the middle of a manually ordered collection", async () => {
         createTask: index => createApiTaskMock({index}),
     });
     const {task: newTask} = mockApiGetTaskWithoutNotes(api, {spaceId, index: 5});
-    api.mockPatch("/tasks", {
+    mockApiPatchTasks({
         params: "Any",
         data: {
             spaceId,
             tasks: [
                 {
                     task: newTask,
-                    collections: [{movedCursor: printApiTaskQueryCursorMock(5), collection}],
+                    results: [
+                        {type: "AddCollection"},
+                        {type: "MoveInCollection", cursor: printApiTaskQueryCursorMock(5)},
+                    ],
                 },
             ],
         },
@@ -1895,19 +1961,19 @@ test("adds a task in the middle of a manually ordered collection", async () => {
             spaceId,
             patches: [
                 {
+                    type: "Update",
                     id: newTask.id,
                     patch: {
                         type: "AddCollection",
                         item: {
                             collection: {
-                                type: "TaskCollection",
                                 id: collection.id,
-                                title: "Test Task Collection",
                             },
                         },
                     },
                 },
                 {
+                    type: "Update",
                     id: newTask.id,
                     patch: {
                         type: "MoveInCollection",
@@ -1955,18 +2021,16 @@ test("adds a task with its existing fields", async () => {
         due: "2027-07-12",
     });
 
-    api.mockPatch("/tasks", {
+    mockApiPatchTasks({
         params: "Any",
         data: {
             spaceId,
             tasks: [
                 {
                     task: newTask,
-                    collections: [
-                        {
-                            movedCursor: printApiTaskQueryCursorMock(2),
-                            collection,
-                        },
+                    results: [
+                        {type: "AddCollection"},
+                        {type: "MoveInCollection", cursor: printApiTaskQueryCursorMock(2)},
                     ],
                 },
             ],
@@ -2012,10 +2076,12 @@ test("adds a task with its existing fields", async () => {
         {
             patches: [
                 {
+                    type: "Update",
                     id: newTask.id,
                     patch: {type: "AddCollection"},
                 },
                 {
+                    type: "Update",
                     id: newTask.id,
                     patch: {type: "MoveInCollection"},
                 },
@@ -2215,23 +2281,18 @@ test("updates a stable task while moving a different task", async () => {
         createTask: index => tasks[index]!,
     });
 
-    api.mockPatch("/tasks", {
+    mockApiPatchTasks({
         params: "Any",
         data: {
             spaceId,
             tasks: [
                 {
                     task: {...secondTask, priority: {type: "High"}},
-                    collections: [],
+                    results: [{type: "SetPriority"}],
                 },
                 {
                     task: firstTask,
-                    collections: [
-                        {
-                            movedCursor: printApiTaskQueryCursorMock(3),
-                            collection,
-                        },
-                    ],
+                    results: [{type: "MoveInCollection", cursor: printApiTaskQueryCursorMock(3)}],
                 },
             ],
         },
@@ -2269,10 +2330,12 @@ test("updates a stable task while moving a different task", async () => {
             spaceId,
             patches: [
                 {
+                    type: "Update",
                     id: secondTask.id,
                     patch: {type: "SetPriority", priority: {type: "High"}},
                 },
                 {
+                    type: "Update",
                     id: firstTask.id,
                     patch: {
                         type: "MoveInCollection",
@@ -2296,14 +2359,14 @@ test("moves a task to the end of a manually ordered collection", async () => {
         createTask: index => tasks[index]!,
     });
 
-    api.mockPatch("/tasks", {
+    mockApiPatchTasks({
         params: "Any",
         data: {
             spaceId,
             tasks: [
                 {
                     task: firstTask,
-                    collections: [{movedCursor: printApiTaskQueryCursorMock(2), collection}],
+                    results: [{type: "MoveInCollection", cursor: printApiTaskQueryCursorMock(2)}],
                 },
             ],
         },
@@ -2338,6 +2401,7 @@ test("moves a task to the end of a manually ordered collection", async () => {
             spaceId,
             patches: [
                 {
+                    type: "Update",
                     id: firstTask.id,
                     patch: {
                         type: "MoveInCollection",
@@ -2358,14 +2422,14 @@ test("moves a task to the end of a manually ordered collection with many tasks",
         createTask: index => createApiTaskMock({index}),
     });
 
-    api.mockPatch("/tasks", {
+    mockApiPatchTasks({
         params: "Any",
         data: {
             spaceId,
             tasks: [
                 {
                     task: createApiTaskMock({index: 0}),
-                    collections: [{movedCursor: printApiTaskQueryCursorMock(5), collection}],
+                    results: [{type: "MoveInCollection", cursor: printApiTaskQueryCursorMock(5)}],
                 },
             ],
         },
@@ -2403,6 +2467,7 @@ test("moves a task to the end of a manually ordered collection with many tasks",
             spaceId,
             patches: [
                 {
+                    type: "Update",
                     id: createApiTaskIdMock(0),
                     patch: {
                         type: "MoveInCollection",
@@ -2423,14 +2488,14 @@ test("moves a task to the start of a manually ordered collection with many tasks
         createTask: index => createApiTaskMock({index}),
     });
 
-    api.mockPatch("/tasks", {
+    mockApiPatchTasks({
         params: "Any",
         data: {
             spaceId,
             tasks: [
                 {
                     task: createApiTaskMock({index: 4}),
-                    collections: [{movedCursor: printApiTaskQueryCursorMock(5), collection}],
+                    results: [{type: "MoveInCollection", cursor: printApiTaskQueryCursorMock(5)}],
                 },
             ],
         },
@@ -2466,6 +2531,7 @@ test("moves a task to the start of a manually ordered collection with many tasks
             spaceId,
             patches: [
                 {
+                    type: "Update",
                     id: createApiTaskIdMock(4),
                     patch: {
                         type: "MoveInCollection",
@@ -2487,14 +2553,14 @@ test("moves the last task near the middle of a large manually ordered collection
     });
     const movedTask = createApiTaskMock({index: 19});
 
-    api.mockPatch("/tasks", {
+    mockApiPatchTasks({
         params: "Any",
         data: {
             spaceId,
             tasks: [
                 {
                     task: movedTask,
-                    collections: [{movedCursor: printApiTaskQueryCursorMock(20), collection}],
+                    results: [{type: "MoveInCollection", cursor: printApiTaskQueryCursorMock(20)}],
                 },
             ],
         },
@@ -2532,6 +2598,7 @@ test("moves the last task near the middle of a large manually ordered collection
             spaceId,
             patches: [
                 {
+                    type: "Update",
                     id: movedTask.id,
                     patch: {
                         type: "MoveInCollection",
@@ -2557,14 +2624,14 @@ test("moves a task from the bottom fourth to the top fourth of a large collectio
     });
     const movedTask = createApiTaskMock({index: 16});
 
-    api.mockPatch("/tasks", {
+    mockApiPatchTasks({
         params: "Any",
         data: {
             spaceId,
             tasks: [
                 {
                     task: movedTask,
-                    collections: [{movedCursor: printApiTaskQueryCursorMock(20), collection}],
+                    results: [{type: "MoveInCollection", cursor: printApiTaskQueryCursorMock(20)}],
                 },
             ],
         },
@@ -2602,6 +2669,7 @@ test("moves a task from the bottom fourth to the top fourth of a large collectio
             spaceId,
             patches: [
                 {
+                    type: "Update",
                     id: movedTask.id,
                     patch: {
                         type: "MoveInCollection",
@@ -2627,14 +2695,14 @@ test("moves a task from the top fourth to the bottom fourth of a large collectio
     });
     const movedTask = createApiTaskMock({index: 3});
 
-    api.mockPatch("/tasks", {
+    mockApiPatchTasks({
         params: "Any",
         data: {
             spaceId,
             tasks: [
                 {
                     task: movedTask,
-                    collections: [{movedCursor: printApiTaskQueryCursorMock(20), collection}],
+                    results: [{type: "MoveInCollection", cursor: printApiTaskQueryCursorMock(20)}],
                 },
             ],
         },
@@ -2672,6 +2740,7 @@ test("moves a task from the top fourth to the bottom fourth of a large collectio
             spaceId,
             patches: [
                 {
+                    type: "Update",
                     id: movedTask.id,
                     patch: {
                         type: "MoveInCollection",
@@ -2700,19 +2769,19 @@ test("moves a task to the start of a manually ordered tail page", async () => {
     const movedTask = createApiTaskMock({index: 3});
     const afterCursorHash = await createAgentWebTaskQueryCursorHash(
         storage,
-        collection.id,
+        `TaskCollection:${collection.id}`,
         afterCursor,
     );
     const path = `/task-collection/test-task-collection?after=${afterCursorHash}`;
 
-    api.mockPatch("/tasks", {
+    mockApiPatchTasks({
         params: "Any",
         data: {
             spaceId,
             tasks: [
                 {
                     task: movedTask,
-                    collections: [{movedCursor: printApiTaskQueryCursorMock(4), collection}],
+                    results: [{type: "MoveInCollection", cursor: printApiTaskQueryCursorMock(4)}],
                 },
             ],
         },
@@ -2746,6 +2815,7 @@ test("moves a task to the start of a manually ordered tail page", async () => {
             spaceId,
             patches: [
                 {
+                    type: "Update",
                     id: movedTask.id,
                     patch: {
                         type: "MoveInCollection",
@@ -2774,19 +2844,19 @@ test("moves a task to the end of a manually ordered tail page", async () => {
     const movedTask = createApiTaskMock({index: 1});
     const afterCursorHash = await createAgentWebTaskQueryCursorHash(
         storage,
-        collection.id,
+        `TaskCollection:${collection.id}`,
         afterCursor,
     );
     const path = `/task-collection/test-task-collection?after=${afterCursorHash}`;
 
-    api.mockPatch("/tasks", {
+    mockApiPatchTasks({
         params: "Any",
         data: {
             spaceId,
             tasks: [
                 {
                     task: movedTask,
-                    collections: [{movedCursor: printApiTaskQueryCursorMock(3), collection}],
+                    results: [{type: "MoveInCollection", cursor: printApiTaskQueryCursorMock(3)}],
                 },
             ],
         },
@@ -2818,6 +2888,7 @@ test("moves a task to the end of a manually ordered tail page", async () => {
             spaceId,
             patches: [
                 {
+                    type: "Update",
                     id: movedTask.id,
                     patch: {
                         type: "MoveInCollection",
@@ -2842,19 +2913,19 @@ test("moves a task past four other tasks to the end of a manually ordered tail p
     const movedTask = createApiTaskMock({index: 1});
     const afterCursorHash = await createAgentWebTaskQueryCursorHash(
         storage,
-        collection.id,
+        `TaskCollection:${collection.id}`,
         afterCursor,
     );
     const path = `/task-collection/test-task-collection?after=${afterCursorHash}`;
 
-    api.mockPatch("/tasks", {
+    mockApiPatchTasks({
         params: "Any",
         data: {
             spaceId,
             tasks: [
                 {
                     task: movedTask,
-                    collections: [{movedCursor: printApiTaskQueryCursorMock(6), collection}],
+                    results: [{type: "MoveInCollection", cursor: printApiTaskQueryCursorMock(6)}],
                 },
             ],
         },
@@ -2889,6 +2960,7 @@ test("moves a task past four other tasks to the end of a manually ordered tail p
             spaceId,
             patches: [
                 {
+                    type: "Update",
                     id: movedTask.id,
                     patch: {
                         type: "MoveInCollection",
@@ -2913,19 +2985,19 @@ test("moves a task into the middle of a manually ordered tail page", async () =>
     const movedTask = createApiTaskMock({index: 9});
     const afterCursorHash = await createAgentWebTaskQueryCursorHash(
         storage,
-        collection.id,
+        `TaskCollection:${collection.id}`,
         afterCursor,
     );
     const path = `/task-collection/test-task-collection?after=${afterCursorHash}`;
 
-    api.mockPatch("/tasks", {
+    mockApiPatchTasks({
         params: "Any",
         data: {
             spaceId,
             tasks: [
                 {
                     task: movedTask,
-                    collections: [{movedCursor: printApiTaskQueryCursorMock(10), collection}],
+                    results: [{type: "MoveInCollection", cursor: printApiTaskQueryCursorMock(10)}],
                 },
             ],
         },
@@ -2960,6 +3032,7 @@ test("moves a task into the middle of a manually ordered tail page", async () =>
             spaceId,
             patches: [
                 {
+                    type: "Update",
                     id: movedTask.id,
                     patch: {
                         type: "MoveInCollection",
@@ -2988,19 +3061,19 @@ test("moves a task to the end of a manually ordered tail page with a next page",
     const movedTask = createApiTaskMock({index: 10});
     const afterCursorHash = await createAgentWebTaskQueryCursorHash(
         storage,
-        collection.id,
+        `TaskCollection:${collection.id}`,
         afterCursor,
     );
     const path = `/task-collection/test-task-collection?after=${afterCursorHash}`;
 
-    api.mockPatch("/tasks", {
+    mockApiPatchTasks({
         params: "Any",
         data: {
             spaceId,
             tasks: [
                 {
                     task: movedTask,
-                    collections: [{movedCursor: printApiTaskQueryCursorMock(42), collection}],
+                    results: [{type: "MoveInCollection", cursor: printApiTaskQueryCursorMock(42)}],
                 },
             ],
         },
@@ -3042,6 +3115,7 @@ test("moves a task to the end of a manually ordered tail page with a next page",
                 spaceId,
                 patches: [
                     {
+                        type: "Update",
                         id: movedTask.id,
                         patch: {
                             type: "MoveInCollection",
@@ -3071,14 +3145,14 @@ test("moves a task to the end of a truncated manually ordered page", async () =>
         createTask: index => tasks[index]!,
     });
 
-    api.mockPatch("/tasks", {
+    mockApiPatchTasks({
         params: "Any",
         data: {
             spaceId,
             tasks: [
                 {
                     task: firstTask,
-                    collections: [{movedCursor: printApiTaskQueryCursorMock(3), collection}],
+                    results: [{type: "MoveInCollection", cursor: printApiTaskQueryCursorMock(3)}],
                 },
             ],
         },
@@ -3118,6 +3192,7 @@ test("moves a task to the end of a truncated manually ordered page", async () =>
             spaceId,
             patches: [
                 {
+                    type: "Update",
                     id: firstTask.id,
                     patch: {
                         type: "MoveInCollection",
@@ -3143,14 +3218,14 @@ test("moves a task past five other tasks to the end of a truncated page", async 
     });
     const movedTask = createApiTaskMock({index: 0});
 
-    api.mockPatch("/tasks", {
+    mockApiPatchTasks({
         params: "Any",
         data: {
             spaceId,
             tasks: [
                 {
                     task: movedTask,
-                    collections: [{movedCursor: printApiTaskQueryCursorMock(10), collection}],
+                    results: [{type: "MoveInCollection", cursor: printApiTaskQueryCursorMock(10)}],
                 },
             ],
         },
@@ -3197,6 +3272,7 @@ test("moves a task past five other tasks to the end of a truncated page", async 
                 spaceId,
                 patches: [
                     {
+                        type: "Update",
                         id: movedTask.id,
                         patch: {
                             type: "MoveInCollection",
@@ -3226,19 +3302,19 @@ test("moves a task past five other tasks to the end of a truncated tail page", a
     const movedTask = createApiTaskMock({index: 5});
     const afterCursorHash = await createAgentWebTaskQueryCursorHash(
         storage,
-        collection.id,
+        `TaskCollection:${collection.id}`,
         afterCursor,
     );
     const path = `/task-collection/test-task-collection?after=${afterCursorHash}`;
 
-    api.mockPatch("/tasks", {
+    mockApiPatchTasks({
         params: "Any",
         data: {
             spaceId,
             tasks: [
                 {
                     task: movedTask,
-                    collections: [{movedCursor: printApiTaskQueryCursorMock(15), collection}],
+                    results: [{type: "MoveInCollection", cursor: printApiTaskQueryCursorMock(15)}],
                 },
             ],
         },
@@ -3282,6 +3358,7 @@ test("moves a task past five other tasks to the end of a truncated tail page", a
                 spaceId,
                 patches: [
                     {
+                        type: "Update",
                         id: movedTask.id,
                         patch: {
                             type: "MoveInCollection",
@@ -3308,14 +3385,14 @@ test("moves a task to the end of a page that exactly meets the read limit", asyn
     });
     const movedTask = createApiTaskMock({index: 0});
 
-    api.mockPatch("/tasks", {
+    mockApiPatchTasks({
         params: "Any",
         data: {
             spaceId,
             tasks: [
                 {
                     task: movedTask,
-                    collections: [{movedCursor: printApiTaskQueryCursorMock(32), collection}],
+                    results: [{type: "MoveInCollection", cursor: printApiTaskQueryCursorMock(32)}],
                 },
             ],
         },
@@ -3362,6 +3439,7 @@ test("moves a task to the end of a page that exactly meets the read limit", asyn
                 spaceId,
                 patches: [
                     {
+                        type: "Update",
                         id: movedTask.id,
                         patch: {
                             type: "MoveInCollection",
@@ -3396,14 +3474,14 @@ test("moves a task to the end after loading and truncating more than thirty task
     });
     const movedTask = createApiTaskMock({index: 0});
 
-    api.mockPatch("/tasks", {
+    mockApiPatchTasks({
         params: "Any",
         data: {
             spaceId,
             tasks: [
                 {
                     task: movedTask,
-                    collections: [{movedCursor: printApiTaskQueryCursorMock(62), collection}],
+                    results: [{type: "MoveInCollection", cursor: printApiTaskQueryCursorMock(62)}],
                 },
             ],
         },
@@ -3457,6 +3535,7 @@ test("moves a task to the end after loading and truncating more than thirty task
                 spaceId,
                 patches: [
                     {
+                        type: "Update",
                         id: movedTask.id,
                         patch: {
                             type: "MoveInCollection",
@@ -3488,18 +3567,18 @@ test("atomically moves tasks with the same position in page order", async () => 
         createTask: index => tasks[index]!,
     });
 
-    api.mockPatch("/tasks", {
+    mockApiPatchTasks({
         params: "Any",
         data: {
             spaceId,
             tasks: [
                 {
                     task: tasks[0]!,
-                    collections: [{movedCursor: printApiTaskQueryCursorMock(4), collection}],
+                    results: [{type: "MoveInCollection", cursor: printApiTaskQueryCursorMock(4)}],
                 },
                 {
                     task: tasks[1]!,
-                    collections: [{movedCursor: printApiTaskQueryCursorMock(5), collection}],
+                    results: [{type: "MoveInCollection", cursor: printApiTaskQueryCursorMock(5)}],
                 },
             ],
         },
@@ -3544,6 +3623,7 @@ test("atomically moves tasks with the same position in page order", async () => 
                 spaceId,
                 patches: [
                     {
+                        type: "Update",
                         id: tasks[0]!.id,
                         patch: {
                             type: "MoveInCollection",
@@ -3552,6 +3632,7 @@ test("atomically moves tasks with the same position in page order", async () => 
                         },
                     },
                     {
+                        type: "Update",
                         id: tasks[1]!.id,
                         patch: {
                             type: "MoveInCollection",
@@ -3576,18 +3657,18 @@ test("atomically moves multiple tasks into the middle in page order", async () =
     const firstMovedTask = createApiTaskMock({index: 7});
     const secondMovedTask = createApiTaskMock({index: 8});
 
-    api.mockPatch("/tasks", {
+    mockApiPatchTasks({
         params: "Any",
         data: {
             spaceId,
             tasks: [
                 {
                     task: firstMovedTask,
-                    collections: [{movedCursor: printApiTaskQueryCursorMock(10), collection}],
+                    results: [{type: "MoveInCollection", cursor: printApiTaskQueryCursorMock(10)}],
                 },
                 {
                     task: secondMovedTask,
-                    collections: [{movedCursor: printApiTaskQueryCursorMock(11), collection}],
+                    results: [{type: "MoveInCollection", cursor: printApiTaskQueryCursorMock(11)}],
                 },
             ],
         },
@@ -3637,6 +3718,7 @@ test("atomically moves multiple tasks into the middle in page order", async () =
             spaceId,
             patches: [
                 {
+                    type: "Update",
                     id: firstMovedTask.id,
                     patch: {
                         type: "MoveInCollection",
@@ -3645,6 +3727,7 @@ test("atomically moves multiple tasks into the middle in page order", async () =
                     },
                 },
                 {
+                    type: "Update",
                     id: secondMovedTask.id,
                     patch: {
                         type: "MoveInCollection",
@@ -3667,18 +3750,18 @@ test("atomically moves multiple tasks to the start in page order", async () => {
     const firstMovedTask = createApiTaskMock({index: 6});
     const secondMovedTask = createApiTaskMock({index: 7});
 
-    api.mockPatch("/tasks", {
+    mockApiPatchTasks({
         params: "Any",
         data: {
             spaceId,
             tasks: [
                 {
                     task: firstMovedTask,
-                    collections: [{movedCursor: printApiTaskQueryCursorMock(8), collection}],
+                    results: [{type: "MoveInCollection", cursor: printApiTaskQueryCursorMock(8)}],
                 },
                 {
                     task: secondMovedTask,
-                    collections: [{movedCursor: printApiTaskQueryCursorMock(9), collection}],
+                    results: [{type: "MoveInCollection", cursor: printApiTaskQueryCursorMock(9)}],
                 },
             ],
         },
@@ -3719,6 +3802,7 @@ test("atomically moves multiple tasks to the start in page order", async () => {
             spaceId,
             patches: [
                 {
+                    type: "Update",
                     id: firstMovedTask.id,
                     patch: {
                         type: "MoveInCollection",
@@ -3727,6 +3811,7 @@ test("atomically moves multiple tasks to the start in page order", async () => {
                     },
                 },
                 {
+                    type: "Update",
                     id: secondMovedTask.id,
                     patch: {
                         type: "MoveInCollection",
@@ -3749,18 +3834,18 @@ test("atomically swaps two tasks at distant locations", async () => {
     const firstMovedTask = createApiTaskMock({index: 8});
     const secondMovedTask = createApiTaskMock({index: 1});
 
-    api.mockPatch("/tasks", {
+    mockApiPatchTasks({
         params: "Any",
         data: {
             spaceId,
             tasks: [
                 {
                     task: firstMovedTask,
-                    collections: [{movedCursor: printApiTaskQueryCursorMock(10), collection}],
+                    results: [{type: "MoveInCollection", cursor: printApiTaskQueryCursorMock(10)}],
                 },
                 {
                     task: secondMovedTask,
-                    collections: [{movedCursor: printApiTaskQueryCursorMock(11), collection}],
+                    results: [{type: "MoveInCollection", cursor: printApiTaskQueryCursorMock(11)}],
                 },
             ],
         },
@@ -3808,6 +3893,7 @@ test("atomically swaps two tasks at distant locations", async () => {
             spaceId,
             patches: [
                 {
+                    type: "Update",
                     id: firstMovedTask.id,
                     patch: {
                         type: "MoveInCollection",
@@ -3820,6 +3906,7 @@ test("atomically swaps two tasks at distant locations", async () => {
                     },
                 },
                 {
+                    type: "Update",
                     id: secondMovedTask.id,
                     patch: {
                         type: "MoveInCollection",
@@ -3846,18 +3933,18 @@ test("atomically moves two tasks to different locations", async () => {
     const firstMovedTask = createApiTaskMock({index: 8});
     const secondMovedTask = createApiTaskMock({index: 1});
 
-    api.mockPatch("/tasks", {
+    mockApiPatchTasks({
         params: "Any",
         data: {
             spaceId,
             tasks: [
                 {
                     task: firstMovedTask,
-                    collections: [{movedCursor: printApiTaskQueryCursorMock(10), collection}],
+                    results: [{type: "MoveInCollection", cursor: printApiTaskQueryCursorMock(10)}],
                 },
                 {
                     task: secondMovedTask,
-                    collections: [{movedCursor: printApiTaskQueryCursorMock(11), collection}],
+                    results: [{type: "MoveInCollection", cursor: printApiTaskQueryCursorMock(11)}],
                 },
             ],
         },
@@ -3905,6 +3992,7 @@ test("atomically moves two tasks to different locations", async () => {
             spaceId,
             patches: [
                 {
+                    type: "Update",
                     id: firstMovedTask.id,
                     patch: {
                         type: "MoveInCollection",
@@ -3917,6 +4005,7 @@ test("atomically moves two tasks to different locations", async () => {
                     },
                 },
                 {
+                    type: "Update",
                     id: secondMovedTask.id,
                     patch: {
                         type: "MoveInCollection",
@@ -3940,22 +4029,22 @@ test("atomically moves three tasks to different locations", async () => {
     const secondMovedTask = createApiTaskMock({index: 1});
     const thirdMovedTask = createApiTaskMock({index: 5});
 
-    api.mockPatch("/tasks", {
+    mockApiPatchTasks({
         params: "Any",
         data: {
             spaceId,
             tasks: [
                 {
                     task: firstMovedTask,
-                    collections: [{movedCursor: printApiTaskQueryCursorMock(12), collection}],
+                    results: [{type: "MoveInCollection", cursor: printApiTaskQueryCursorMock(12)}],
                 },
                 {
                     task: secondMovedTask,
-                    collections: [{movedCursor: printApiTaskQueryCursorMock(13), collection}],
+                    results: [{type: "MoveInCollection", cursor: printApiTaskQueryCursorMock(13)}],
                 },
                 {
                     task: thirdMovedTask,
-                    collections: [{movedCursor: printApiTaskQueryCursorMock(14), collection}],
+                    results: [{type: "MoveInCollection", cursor: printApiTaskQueryCursorMock(14)}],
                 },
             ],
         },
@@ -4007,6 +4096,7 @@ test("atomically moves three tasks to different locations", async () => {
             spaceId,
             patches: [
                 {
+                    type: "Update",
                     id: firstMovedTask.id,
                     patch: {
                         type: "MoveInCollection",
@@ -4019,6 +4109,7 @@ test("atomically moves three tasks to different locations", async () => {
                     },
                 },
                 {
+                    type: "Update",
                     id: secondMovedTask.id,
                     patch: {
                         type: "MoveInCollection",
@@ -4031,6 +4122,7 @@ test("atomically moves three tasks to different locations", async () => {
                     },
                 },
                 {
+                    type: "Update",
                     id: thirdMovedTask.id,
                     patch: {
                         type: "MoveInCollection",
@@ -4056,30 +4148,30 @@ test("atomically moves five tasks to different locations", async () => {
     const fourthMovedTask = createApiTaskMock({index: 5});
     const fifthMovedTask = createApiTaskMock({index: 3});
 
-    api.mockPatch("/tasks", {
+    mockApiPatchTasks({
         params: "Any",
         data: {
             spaceId,
             tasks: [
                 {
                     task: firstMovedTask,
-                    collections: [{movedCursor: printApiTaskQueryCursorMock(13), collection}],
+                    results: [{type: "MoveInCollection", cursor: printApiTaskQueryCursorMock(13)}],
                 },
                 {
                     task: secondMovedTask,
-                    collections: [{movedCursor: printApiTaskQueryCursorMock(14), collection}],
+                    results: [{type: "MoveInCollection", cursor: printApiTaskQueryCursorMock(14)}],
                 },
                 {
                     task: thirdMovedTask,
-                    collections: [{movedCursor: printApiTaskQueryCursorMock(15), collection}],
+                    results: [{type: "MoveInCollection", cursor: printApiTaskQueryCursorMock(15)}],
                 },
                 {
                     task: fourthMovedTask,
-                    collections: [{movedCursor: printApiTaskQueryCursorMock(16), collection}],
+                    results: [{type: "MoveInCollection", cursor: printApiTaskQueryCursorMock(16)}],
                 },
                 {
                     task: fifthMovedTask,
-                    collections: [{movedCursor: printApiTaskQueryCursorMock(17), collection}],
+                    results: [{type: "MoveInCollection", cursor: printApiTaskQueryCursorMock(17)}],
                 },
             ],
         },
@@ -4133,6 +4225,7 @@ test("atomically moves five tasks to different locations", async () => {
             spaceId,
             patches: [
                 {
+                    type: "Update",
                     id: firstMovedTask.id,
                     patch: {
                         type: "MoveInCollection",
@@ -4141,6 +4234,7 @@ test("atomically moves five tasks to different locations", async () => {
                     },
                 },
                 {
+                    type: "Update",
                     id: secondMovedTask.id,
                     patch: {
                         type: "MoveInCollection",
@@ -4153,6 +4247,7 @@ test("atomically moves five tasks to different locations", async () => {
                     },
                 },
                 {
+                    type: "Update",
                     id: thirdMovedTask.id,
                     patch: {
                         type: "MoveInCollection",
@@ -4165,6 +4260,7 @@ test("atomically moves five tasks to different locations", async () => {
                     },
                 },
                 {
+                    type: "Update",
                     id: fourthMovedTask.id,
                     patch: {
                         type: "MoveInCollection",
@@ -4177,6 +4273,7 @@ test("atomically moves five tasks to different locations", async () => {
                     },
                 },
                 {
+                    type: "Update",
                     id: fifthMovedTask.id,
                     patch: {
                         type: "MoveInCollection",
@@ -4207,14 +4304,14 @@ test("moves only task 4 when moving it after task 8", async () => {
         createTask: index => tasks[index]!,
     });
 
-    api.mockPatch("/tasks", {
+    mockApiPatchTasks({
         params: "Any",
         data: {
             spaceId,
             tasks: [
                 {
                     task: tasks[3]!,
-                    collections: [{movedCursor: printApiTaskQueryCursorMock(8), collection}],
+                    results: [{type: "MoveInCollection", cursor: printApiTaskQueryCursorMock(8)}],
                 },
             ],
         },
@@ -4250,6 +4347,7 @@ test("moves only task 4 when moving it after task 8", async () => {
             spaceId,
             patches: [
                 {
+                    type: "Update",
                     id: tasks[3]!.id,
                     patch: {
                         type: "MoveInCollection",
@@ -4278,26 +4376,26 @@ test("uses a moved cursor in a later task move", async () => {
     });
     const movedCursor = "moved-task-cursor" as ApiTaskQueryCursor;
 
-    api.mockPatch("/tasks", {
+    mockApiPatchTasks({
         params: "Any",
         data: {
             spaceId,
             tasks: [
                 {
                     task: tasks[1]!,
-                    collections: [{movedCursor, collection}],
+                    results: [{type: "MoveInCollection", cursor: movedCursor}],
                 },
             ],
         },
     });
-    api.mockPatch("/tasks", {
+    mockApiPatchTasks({
         params: "Any",
         data: {
             spaceId,
             tasks: [
                 {
                     task: tasks[0]!,
-                    collections: [{movedCursor: printApiTaskQueryCursorMock(5), collection}],
+                    results: [{type: "MoveInCollection", cursor: printApiTaskQueryCursorMock(5)}],
                 },
             ],
         },
@@ -4351,6 +4449,7 @@ test("uses a moved cursor in a later task move", async () => {
             spaceId,
             patches: [
                 {
+                    type: "Update",
                     id: tasks[1]!.id,
                     patch: {
                         type: "MoveInCollection",
@@ -4364,6 +4463,7 @@ test("uses a moved cursor in a later task move", async () => {
             spaceId,
             patches: [
                 {
+                    type: "Update",
                     id: tasks[0]!.id,
                     patch: {
                         type: "MoveInCollection",
@@ -4394,11 +4494,11 @@ test("removes a task from a collection with a default sort", async () => {
         limit: 31,
         createTask: index => tasks[index]!,
     });
-    api.mockPatch("/tasks", {
+    mockApiPatchTasks({
         params: "Any",
         data: {
             spaceId,
-            tasks: [{task: task2, collections: []}],
+            tasks: [{task: task2, results: [{type: "RemoveCollection"}]}],
         },
     });
 
@@ -4427,6 +4527,7 @@ test("removes a task from a collection with a default sort", async () => {
             spaceId,
             patches: [
                 {
+                    type: "Update",
                     id: task2.id,
                     patch: {type: "RemoveCollection", collectionId: collection.id},
                 },
@@ -4460,11 +4561,11 @@ test("removes a task from a collection with a default sort using manual order", 
             ],
         },
     });
-    api.mockPatch("/tasks", {
+    mockApiPatchTasks({
         params: "Any",
         data: {
             spaceId,
-            tasks: [{task: task2, collections: []}],
+            tasks: [{task: task2, results: [{type: "RemoveCollection"}]}],
         },
     });
 
@@ -4490,6 +4591,7 @@ test("removes a task from a collection with a default sort using manual order", 
             spaceId,
             patches: [
                 {
+                    type: "Update",
                     id: task2.id,
                     patch: {type: "RemoveCollection", collectionId: collection.id},
                 },
@@ -4520,11 +4622,11 @@ test("removes a task from a collection with a sort in search params", async () =
             ],
         },
     });
-    api.mockPatch("/tasks", {
+    mockApiPatchTasks({
         params: "Any",
         data: {
             spaceId,
-            tasks: [{task: task2, collections: []}],
+            tasks: [{task: task2, results: [{type: "RemoveCollection"}]}],
         },
     });
 
@@ -4550,6 +4652,7 @@ test("removes a task from a collection with a sort in search params", async () =
             spaceId,
             patches: [
                 {
+                    type: "Update",
                     id: task2.id,
                     patch: {type: "RemoveCollection", collectionId: collection.id},
                 },
@@ -4577,11 +4680,11 @@ test("removes a task from a collection with a default filter", async () => {
         limit: 31,
         createTask: index => tasks[index]!,
     });
-    api.mockPatch("/tasks", {
+    mockApiPatchTasks({
         params: "Any",
         data: {
             spaceId,
-            tasks: [{task: task2, collections: []}],
+            tasks: [{task: task2, results: [{type: "RemoveCollection"}]}],
         },
     });
 
@@ -4597,7 +4700,7 @@ test("removes a task from a collection with a default filter", async () => {
             path: "/task-collection/test-task-collection",
             updates: [
                 {
-                    old: "\n\n- [Test Task 1 (Open)](/task/test-task-1)\n" + "  - Priority: High",
+                    old: "\n\n- [Test Task 1 (Open)](/task/test-task-1)\n  - Priority: High",
                     new: "",
                     replaceAll: false,
                 },
@@ -4610,6 +4713,7 @@ test("removes a task from a collection with a default filter", async () => {
             spaceId,
             patches: [
                 {
+                    type: "Update",
                     id: task2.id,
                     patch: {type: "RemoveCollection", collectionId: collection.id},
                 },
@@ -4640,11 +4744,11 @@ test("removes a task from a collection with a filter in search params", async ()
             ],
         },
     });
-    api.mockPatch("/tasks", {
+    mockApiPatchTasks({
         params: "Any",
         data: {
             spaceId,
-            tasks: [{task: task2, collections: []}],
+            tasks: [{task: task2, results: [{type: "RemoveCollection"}]}],
         },
     });
 
@@ -4657,7 +4761,7 @@ test("removes a task from a collection with a filter in search params", async ()
             path,
             updates: [
                 {
-                    old: "\n\n- [Test Task 1 (Open)](/task/test-task-1)\n" + "  - Priority: High",
+                    old: "\n\n- [Test Task 1 (Open)](/task/test-task-1)\n  - Priority: High",
                     new: "",
                     replaceAll: false,
                 },
@@ -4670,6 +4774,7 @@ test("removes a task from a collection with a filter in search params", async ()
             spaceId,
             patches: [
                 {
+                    type: "Update",
                     id: task2.id,
                     patch: {type: "RemoveCollection", collectionId: collection.id},
                 },
@@ -4748,18 +4853,16 @@ test("adds a task to a collection with a default sort using manual order", async
             ],
         },
     });
-    api.mockPatch("/tasks", {
+    mockApiPatchTasks({
         params: "Any",
         data: {
             spaceId,
             tasks: [
                 {
                     task: newTask,
-                    collections: [
-                        {
-                            movedCursor: printApiTaskQueryCursorMock(2),
-                            collection,
-                        },
+                    results: [
+                        {type: "AddCollection"},
+                        {type: "MoveInCollection", cursor: printApiTaskQueryCursorMock(2)},
                     ],
                 },
             ],
@@ -4790,19 +4893,19 @@ test("adds a task to a collection with a default sort using manual order", async
             spaceId,
             patches: [
                 {
+                    type: "Update",
                     id: newTask.id,
                     patch: {
                         type: "AddCollection",
                         item: {
                             collection: {
-                                type: "TaskCollection",
                                 id: collection.id,
-                                title: "Test Task Collection",
                             },
                         },
                     },
                 },
                 {
+                    type: "Update",
                     id: newTask.id,
                     patch: {
                         type: "MoveInCollection",
@@ -5046,14 +5149,14 @@ test("moves a task in a collection with a default sort using manual order", asyn
             ],
         },
     });
-    api.mockPatch("/tasks", {
+    mockApiPatchTasks({
         params: "Any",
         data: {
             spaceId,
             tasks: [
                 {
                     task: task1,
-                    collections: [{movedCursor, collection}],
+                    results: [{type: "MoveInCollection", cursor: movedCursor}],
                 },
             ],
         },
@@ -5088,6 +5191,7 @@ test("moves a task in a collection with a default sort using manual order", asyn
             spaceId,
             patches: [
                 {
+                    type: "Update",
                     id: task1.id,
                     patch: {
                         type: "MoveInCollection",
@@ -5189,7 +5293,7 @@ test("rejects moving a task in a collection with a default filter", async () => 
     await expectInvalidUpdateDisplayMessage({
         updates: [
             {
-                old: "- [Test Task 0 (Open)](/task/test-task-0)\n" + "  - Priority: High\n\n",
+                old: "- [Test Task 0 (Open)](/task/test-task-0)\n  - Priority: High\n\n",
                 new: "",
                 replaceAll: false,
             },
@@ -5249,7 +5353,7 @@ test("rejects moving a task in a collection with a filter in search params", asy
         path,
         updates: [
             {
-                old: "- [Test Task 0 (Open)](/task/test-task-0)\n" + "  - Priority: High\n\n",
+                old: "- [Test Task 0 (Open)](/task/test-task-0)\n  - Priority: High\n\n",
                 new: "",
                 replaceAll: false,
             },
@@ -5755,7 +5859,7 @@ test("rejects renaming the task collection on a later page", async () => {
 
     const nextPageCursor = await getAgentWebTaskQueryCursorForHashIfExists(
         storage,
-        collection.id,
+        `TaskCollection:${collection.id}`,
         nextPageCursorHash,
     );
 

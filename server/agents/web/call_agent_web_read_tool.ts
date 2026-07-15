@@ -69,6 +69,12 @@ import {
     printAgentWebTaskPage,
     readAgentWebTaskPage,
 } from "~/server/agents/web/pages/agent_web_task_page.js";
+import {
+    normalizeAgentWebTaskSubtasksPage,
+    parseAgentWebTaskSubtasksPage,
+    printAgentWebTaskSubtasksPage,
+    readAgentWebTaskSubtasksPage,
+} from "~/server/agents/web/pages/agent_web_task_subtasks_page.js";
 import {routeAgentWebPageLinkPathname} from "~/server/agents/web/route_agent_web_page_link_pathname.js";
 import {parseMarkdownTree} from "~/shared/api/content/parse_api_content_from_markdown.js";
 import {printMarkdownTree} from "~/shared/api/content/print_api_content_to_markdown.js";
@@ -331,6 +337,9 @@ async function readAgentWebPageLink(
         case "TaskMessageList": {
             return await readAgentWebTaskMessageListPage(context, pageLink.task.id, options);
         }
+        case "TaskSubtasks": {
+            return await readAgentWebTaskSubtasksPage(context, pageLink.task.id, options);
+        }
         case "Site": {
             throw new UnimplementedError("NOCOMMIT");
         }
@@ -364,6 +373,9 @@ function normalizeAgentWebPage(page: AgentWebPage): AgentWebPage {
         }
         case "TaskCollection": {
             return normalizeAgentWebTaskCollectionPage(page);
+        }
+        case "TaskSubtasks": {
+            return normalizeAgentWebTaskSubtasksPage(page);
         }
         case "Post": {
             return normalizeAgentWebPostPage(page);
@@ -438,6 +450,10 @@ function printAgentWebPage(
             assert(page.type === "TaskMessageList");
             return printAgentWebTaskMessageListPage(storage, pageLink.task.id, page);
         }
+        case "TaskSubtasks": {
+            assert(page.type === "TaskSubtasks");
+            return printAgentWebTaskSubtasksPage(storage, page);
+        }
         case "Site": {
             throw new UnimplementedError("NOCOMMIT");
         }
@@ -484,6 +500,9 @@ async function parseAgentWebPageForTest(
         }
         case "TaskMessageList": {
             return await parseAgentWebTaskMessageListPage(storage, pageMetadata.id, response);
+        }
+        case "TaskSubtasks": {
+            return await parseAgentWebTaskSubtasksPage(storage, pageMetadata.id, response);
         }
         default:
             throw exhaustive(pageMetadata);

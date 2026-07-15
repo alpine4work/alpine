@@ -2,13 +2,15 @@ import fc, {Arbitrary} from "fast-check";
 import {
     AgentWebTaskCollectionPage,
     AgentWebTaskCollectionPageDefaults,
-    AgentWebTaskCollectionPagePagination,
-    AgentWebTaskCollectionPageTask,
     apiTaskCollectionColors,
     normalizeAgentWebTaskCollectionPage,
     parseAgentWebTaskCollectionPage,
     printAgentWebTaskCollectionPage,
 } from "~/server/agents/web/pages/agent_web_task_collection_page.js";
+import {
+    AgentWebTaskQueryPagePagination,
+    AgentWebTaskQueryPageTask,
+} from "~/server/agents/web/pages/agent_web_task_query_page.js";
 import {runAgentWebPageGenerativeTests} from "~/server/agents/web/test_helpers/run_agent_web_page_generative_tests.js";
 import {
     ApiAccountReferenceArbitrary,
@@ -34,8 +36,8 @@ const ApiTaskPriorityArbitrary: Arbitrary<ApiTaskPriority> = fc.oneof(
 // An "and n more" count only prints (and parses) after at least one collection
 // link, so a non-zero `additionalCollectionsCount` is only generated alongside a
 // non-empty `collections` list.
-const AgentWebTaskCollectionPageTaskCollectionsArbitrary: Arbitrary<
-    Pick<AgentWebTaskCollectionPageTask, "collections" | "additionalCollectionsCount">
+const AgentWebTaskQueryPageTaskCollectionsArbitrary: Arbitrary<
+    Pick<AgentWebTaskQueryPageTask, "collections" | "additionalCollectionsCount">
 > = fc.oneof(
     fc.constant({collections: [], additionalCollectionsCount: 0}),
     fc.record({
@@ -48,7 +50,7 @@ const AgentWebTaskCollectionPageTaskCollectionsArbitrary: Arbitrary<
     }),
 );
 
-const AgentWebTaskCollectionPageTaskArbitrary: Arbitrary<AgentWebTaskCollectionPageTask> = fc
+const AgentWebTaskQueryPageTaskArbitrary: Arbitrary<AgentWebTaskQueryPageTask> = fc
     .tuple(
         fc.record({
             task: ApiTaskReferenceArbitrary,
@@ -64,7 +66,7 @@ const AgentWebTaskCollectionPageTaskArbitrary: Arbitrary<AgentWebTaskCollectionP
                 fc.constant(null),
             ),
         }),
-        AgentWebTaskCollectionPageTaskCollectionsArbitrary,
+        AgentWebTaskQueryPageTaskCollectionsArbitrary,
     )
     .map(([pageTask, collections]) => {
         const {task, ...fields} = pageTask;
@@ -78,9 +80,9 @@ const AgentWebTaskCollectionPageTaskArbitrary: Arbitrary<AgentWebTaskCollectionP
         };
     });
 
-const AgentWebTaskCollectionPageUniqueTasksArbitrary: Arbitrary<
-    ReadonlyArray<AgentWebTaskCollectionPageTask>
-> = fc.uniqueArray(AgentWebTaskCollectionPageTaskArbitrary, {
+const AgentWebTaskQueryPageUniqueTasksArbitrary: Arbitrary<
+    ReadonlyArray<AgentWebTaskQueryPageTask>
+> = fc.uniqueArray(AgentWebTaskQueryPageTaskArbitrary, {
     selector: task => task.taskId,
 });
 
@@ -127,7 +129,7 @@ const ApiTaskQuerySortsArbitrary: Arbitrary<ReadonlyArray<ApiTaskQuerySort>> = f
     [{type: "CreatedTime", direction: "Ascending"}],
 );
 
-const AgentWebTaskCollectionPagePaginationArbitrary: Arbitrary<AgentWebTaskCollectionPagePagination> =
+const AgentWebTaskQueryPagePaginationArbitrary: Arbitrary<AgentWebTaskQueryPagePagination> =
     fc.oneof(
         fc.record({
             nextCursorHash: fc
@@ -167,9 +169,9 @@ const AgentWebTaskCollectionHeadPageArbitrary: Arbitrary<AgentWebTaskCollectionP
     defaults: AgentWebTaskCollectionPageDefaultsArbitrary,
     pagination: fc.oneof(
         {weight: 2, arbitrary: fc.constant(null)},
-        {weight: 1, arbitrary: AgentWebTaskCollectionPagePaginationArbitrary},
+        {weight: 1, arbitrary: AgentWebTaskQueryPagePaginationArbitrary},
     ),
-    tasks: AgentWebTaskCollectionPageUniqueTasksArbitrary,
+    tasks: AgentWebTaskQueryPageUniqueTasksArbitrary,
     isEndOfTasks: fc.boolean(),
 });
 
@@ -179,9 +181,9 @@ const AgentWebTaskCollectionTailPageArbitrary: Arbitrary<AgentWebTaskCollectionP
     name: ApiContentTextArbitrary,
     pagination: fc.oneof(
         {weight: 2, arbitrary: fc.constant(null)},
-        {weight: 1, arbitrary: AgentWebTaskCollectionPagePaginationArbitrary},
+        {weight: 1, arbitrary: AgentWebTaskQueryPagePaginationArbitrary},
     ),
-    tasks: AgentWebTaskCollectionPageUniqueTasksArbitrary,
+    tasks: AgentWebTaskQueryPageUniqueTasksArbitrary,
     isEndOfTasks: fc.boolean(),
 });
 

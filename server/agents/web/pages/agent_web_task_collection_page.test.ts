@@ -1,11 +1,11 @@
 import {createAgentWebPageStoredLinkPathname} from "~/server/agents/web/create_agent_web_page_stored_link_pathname.js";
 import {
     AgentWebTaskCollectionPage,
-    AgentWebTaskCollectionPageTask,
     normalizeAgentWebTaskCollectionPage,
     parseAgentWebTaskCollectionPage,
     printAgentWebTaskCollectionPage,
 } from "~/server/agents/web/pages/agent_web_task_collection_page.js";
+import {AgentWebTaskQueryPageTask} from "~/server/agents/web/pages/agent_web_task_query_page.js";
 import {runAgentWebPageTests} from "~/server/agents/web/test_helpers/run_agent_web_page_tests.js";
 import {
     ApiAccountReferenceResponse,
@@ -66,8 +66,8 @@ const designReference: ApiTaskCollectionReferenceResponse = {
 
 function collectionPageTask(
     task: ApiTaskReferenceResponse,
-    fields: Partial<Omit<AgentWebTaskCollectionPageTask, "taskId" | "title" | "status">> = {},
-): AgentWebTaskCollectionPageTask {
+    fields: Partial<Omit<AgentWebTaskQueryPageTask, "taskId" | "title" | "status">> = {},
+): AgentWebTaskQueryPageTask {
     return {
         taskId: task.id,
         title: task.title,

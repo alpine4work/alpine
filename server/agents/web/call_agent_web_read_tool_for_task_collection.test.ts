@@ -316,7 +316,11 @@ test("does not print the default filters and sorts on a later page", async () =>
 
     // Store the full cursor for the `?after` hash like the read that printed the "Next
     // page »" link would have.
-    await createAgentWebTaskQueryCursorHash(storage, collectionId, printApiTaskQueryCursorMock(29));
+    await createAgentWebTaskQueryCursorHash(
+        storage,
+        `TaskCollection:${collectionId}`,
+        printApiTaskQueryCursorMock(29),
+    );
 
     expect(
         await callAgentWebReadTool(context, {
@@ -791,7 +795,11 @@ test("updates the next page link cursor when truncating a later page", async () 
 
     // Store the full cursor for the `?after` hash like the read that printed the "Next
     // page »" link would have.
-    await createAgentWebTaskQueryCursorHash(storage, collectionId, printApiTaskQueryCursorMock(29));
+    await createAgentWebTaskQueryCursorHash(
+        storage,
+        `TaskCollection:${collectionId}`,
+        printApiTaskQueryCursorMock(29),
+    );
 
     const expectedTasks = Array.from(
         {length: 27},
@@ -988,15 +996,6 @@ End of tasks.`,
 });
 
 test("truncation adds a pagination link with custom filters", async () => {
-    const query: ApiTaskQueryDefaultsResponse = {
-        filters: [
-            {
-                type: "Priority",
-                operation: {type: "OneOf", priorities: [{type: "High"}]},
-            },
-        ],
-        sorts: [],
-    };
     api.mockPost("/task-collections/{id}/tasks-query", {
         params: {path: {id: collectionId}},
         data: {
@@ -1033,15 +1032,6 @@ Color: Red
 });
 
 test("truncation updates a pagination link with custom filters and sorts", async () => {
-    const query: ApiTaskQueryDefaultsResponse = {
-        filters: [
-            {
-                type: "Priority",
-                operation: {type: "OneOf", priorities: [{type: "High"}]},
-            },
-        ],
-        sorts: [{type: "CreatedTime", direction: "Descending"}],
-    };
     api.mockPost("/task-collections/{id}/tasks-query", {
         params: {path: {id: collectionId}},
         data: {
@@ -1081,15 +1071,6 @@ ${expectedTasks}`);
 });
 
 test("shows exactly 30 custom-query tasks when the limit is the exact response size", async () => {
-    const query: ApiTaskQueryDefaultsResponse = {
-        filters: [
-            {
-                type: "Priority",
-                operation: {type: "OneOf", priorities: [{type: "High"}]},
-            },
-        ],
-        sorts: [{type: "CreatedTime", direction: "Descending"}],
-    };
     api.mockPost("/task-collections/{id}/tasks-query", {
         params: {path: {id: collectionId}},
         data: {
@@ -1130,15 +1111,6 @@ ${expectedTasks}`;
 });
 
 test("truncation adds a pagination link with custom filters and sorts on a later page", async () => {
-    const query: ApiTaskQueryDefaultsResponse = {
-        filters: [
-            {
-                type: "Priority",
-                operation: {type: "OneOf", priorities: [{type: "High"}]},
-            },
-        ],
-        sorts: [{type: "CreatedTime", direction: "Descending"}],
-    };
     api.mockPost("/task-collections/{id}/tasks-query", {
         params: {path: {id: collectionId}},
         data: {
@@ -1164,7 +1136,11 @@ test("truncation adds a pagination link with custom filters and sorts on a later
         },
     });
 
-    await createAgentWebTaskQueryCursorHash(storage, collectionId, printApiTaskQueryCursorMock(29));
+    await createAgentWebTaskQueryCursorHash(
+        storage,
+        `TaskCollection:${collectionId}`,
+        printApiTaskQueryCursorMock(29),
+    );
 
     expect(
         await callAgentWebReadTool(context, {
@@ -1178,15 +1154,6 @@ Tasks in Roadmap. [Next page »](/task-collection/roadmap?after=03dcb2&priority=
 });
 
 test("truncation updates a pagination link with custom filters and sorts on a later page", async () => {
-    const query: ApiTaskQueryDefaultsResponse = {
-        filters: [
-            {
-                type: "Priority",
-                operation: {type: "OneOf", priorities: [{type: "High"}]},
-            },
-        ],
-        sorts: [{type: "CreatedTime", direction: "Descending"}],
-    };
     api.mockPost("/task-collections/{id}/tasks-query", {
         params: {path: {id: collectionId}},
         data: {
@@ -1212,7 +1179,11 @@ test("truncation updates a pagination link with custom filters and sorts on a la
         },
     });
 
-    await createAgentWebTaskQueryCursorHash(storage, collectionId, printApiTaskQueryCursorMock(29));
+    await createAgentWebTaskQueryCursorHash(
+        storage,
+        `TaskCollection:${collectionId}`,
+        printApiTaskQueryCursorMock(29),
+    );
 
     const expectedTasks = Array.from(
         {length: 26},

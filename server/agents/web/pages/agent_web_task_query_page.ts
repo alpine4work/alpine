@@ -1,14 +1,12 @@
 import {CalendarDate, fromDate, toCalendarDate} from "@internationalized/date";
 import {produce} from "immer";
-import {Link, List, ListItem, RootContent} from "mdast";
+import {Link, List, ListItem} from "mdast";
 import {AgentWebContext} from "~/server/agents/web/agent_web_context.js";
-import {
-    AgentWebPageStoredLink,
-    printAgentWebPageStoredLinkLabel,
-} from "~/server/agents/web/agent_web_page_stored_link.js";
+import {AgentWebPageLink} from "~/server/agents/web/agent_web_page_link.js";
+import {printAgentWebPageStoredLinkLabel} from "~/server/agents/web/agent_web_page_stored_link.js";
 import {AgentWebSessionStorage} from "~/server/agents/web/agent_web_session_storage.js";
 import {
-    AgentWebTaskQueryId,
+    agentWebTaskQueryCursorHashLength,
     createAgentWebTaskQueryCursorHash,
     getAgentWebTaskQueryCursorForHashIfExists,
 } from "~/server/agents/web/agent_web_task_query_cursor_hash.js";
@@ -21,8 +19,8 @@ import {
     parseAgentWebTaskQuerySorts,
     printAgentWebTaskQuerySorts,
 } from "~/server/agents/web/agent_web_task_query_sorts.js";
+import {createAgentWebPageLinkPathname} from "~/server/agents/web/create_agent_web_page_link_pathname.js";
 import {createAgentWebPageStoredLinkPathname} from "~/server/agents/web/create_agent_web_page_stored_link_pathname.js";
-import {normalizeAgentWebPath} from "~/server/agents/web/internal/normalize_agent_web_path.js";
 import {quoteMarkdown} from "~/server/agents/web/internal/quote_markdown.js";
 import {withApiContentNormalizerForAgentWebMarkdown} from "~/server/agents/web/normalize_api_content_for_agent_web_markdown.js";
 import {
@@ -38,6 +36,7 @@ import {printMarkdownTree} from "~/shared/api/content/print_api_content_to_markd
 import {intoApiAccountReference} from "~/shared/api/specification/into_api_account_reference.js";
 import {
     ApiAccountReferenceResponse,
+    ApiTaskBatchPatch,
     ApiTaskCollectionReferenceResponse,
     ApiTaskMoveInQueryPatchPosition,
     ApiTaskPatch,
@@ -83,18 +82,32 @@ export type AgentWebTaskQueryPageQuery = {
     readonly sorts: ReadonlyArray<ApiTaskQuerySort>;
 };
 
+/**
+ * Pagination for a task query page which is printed as a "Next page »" link.
+ * `nextCursorHash` is the short hash for the full `ApiTaskQueryCursor` of the last
+ * task on the page (see `createAgentWebTaskQueryCursorHash()`). A custom `query`
+ * is preserved in the next page link so filtered and sorted task collection reads
+ * can paginate.
+ */
 export type AgentWebTaskQueryPagePagination = {
     readonly nextCursorHash: string;
     readonly query: AgentWebTaskQueryPageQuery;
 };
 
-/** The task-list portion shared by collection and subtasks pages. */
+/**
+ * The task-list portion shared by collection and subtasks pages.
+ */
 export type AgentWebTaskQueryPage = {
     readonly pagination: AgentWebTaskQueryPagePagination | null;
     readonly isEndOfTasks: boolean;
     readonly tasks: ReadonlyArray<AgentWebTaskQueryPageTask>;
 };
 
+/**
+ * A task in a task query page. The task link is printed as a list item with the
+ * task fields (a subset of the fields on the task page) nested under it in a
+ * sub-list.
+ */
 export type AgentWebTaskQueryPageTask = {
     readonly taskId: TaskId;
     readonly title: string;
@@ -130,16 +143,6 @@ export type AgentWebTaskQueryPageMetadata = {
 
     readonly tasks: ReadonlyArray<{
         readonly cursor: ApiTaskQueryCursor;
-    }>;
-};
-
-type AgentWebTaskQueryPageBatch<Resource> = {
-    readonly resource: Resource;
-    readonly isManuallyOrdered: boolean;
-    readonly nextCursor: ApiTaskQueryCursor | null;
-    readonly tasks: ReadonlyArray<{
-        readonly cursor: ApiTaskQueryCursor;
-        readonly task: ApiTaskWithoutNotesResponse;
     }>;
 };
 
@@ -213,14 +216,25 @@ export async function readAgentWebTaskQueryPage<Resource, Page extends AgentWebT
         buildPage,
         printPage,
     }: {
-        pageLink: Extract<AgentWebPageLink, {type: "TaskCollection" | "TaskSubtasks"}>;
+        pageLink:
+            | {type: "TaskCollection"; id: TaskCollectionId}
+            | {type: "TaskSubtasks"; task: {id: TaskId}};
         searchParams: URLSearchParams;
         limitLength: number;
         readTaskBatch: (input: {
             cursor: ApiTaskQueryCursor | undefined;
             query: AgentWebTaskQueryPageQuery;
             limit: number;
-        }) => Promise<AgentWebTaskQueryPageBatch<Resource>>;
+        }) => Promise<{
+            pageLink: Extract<AgentWebPageLink, {type: "TaskCollection" | "TaskSubtasks"}>;
+            resource: Resource;
+            isManuallyOrdered: boolean;
+            nextCursor: ApiTaskQueryCursor | null;
+            tasks: ReadonlyArray<{
+                cursor: ApiTaskQueryCursor;
+                task: ApiTaskWithoutNotesResponse;
+            }>;
+        }>;
         intoPageTask: (options: {
             task: ApiTaskWithoutNotesResponse;
             contextDate: CalendarDate;
@@ -251,6 +265,7 @@ export async function readAgentWebTaskQueryPage<Resource, Page extends AgentWebT
 
     while (true) {
         const {
+            pageLink: fullPageLink,
             resource,
             isManuallyOrdered,
             nextCursor,
@@ -260,6 +275,8 @@ export async function readAgentWebTaskQueryPage<Resource, Page extends AgentWebT
             query,
             limit: agentWebTaskQueryPageApiTasksBatchCount,
         });
+
+        assert(pageLink.type === fullPageLink.type);
 
         const lookaheadTask =
             nextCursor === null
@@ -329,7 +346,7 @@ export async function readAgentWebTaskQueryPage<Resource, Page extends AgentWebT
         }
 
         const truncatedResult = await truncateAgentWebTaskQueryPage(context.storage, {
-            pageLink,
+            pageLink: fullPageLink,
             page,
             metadata,
             query,
@@ -541,7 +558,9 @@ async function truncateAgentWebTaskQueryPage<Page extends AgentWebTaskQueryPage>
 
 async function parseAgentWebTaskQueryPageSearchParams(
     storage: AgentWebSessionStorage,
-    pageLink: Extract<AgentWebPageLink, {type: "TaskCollection" | "TaskSubtasks"}>,
+    pageLink:
+        | {type: "TaskCollection"; id: TaskCollectionId}
+        | {type: "TaskSubtasks"; task: {id: TaskId}},
     searchParams: URLSearchParams,
 ): Promise<{
     afterCursor: ApiTaskQueryCursor | null;
@@ -968,7 +987,7 @@ export async function updateAgentWebTaskQueryPage(
     );
     const oldPageTaskById = new Map(oldPage.tasks.map(pageTask => [pageTask.taskId, pageTask]));
     const newPageTaskById = new Map(newPage.tasks.map(pageTask => [pageTask.taskId, pageTask]));
-    const taskPatchInputs: Array<{id: TaskId; patch: ApiTaskPatch}> = [];
+    const batchPatches: Array<ApiTaskBatchPatch> = [];
 
     // Verify that we're adding a task with the correct fields.
     await runAllPromises(
@@ -1085,10 +1104,10 @@ export async function updateAgentWebTaskQueryPage(
             }
         }
 
-        const taskPatches: Array<ApiTaskPatch> = [];
+        const patches: Array<ApiTaskPatch> = [];
 
         if (oldPageTask.title !== newPageTask.title) {
-            taskPatches.push({type: "SetTitle", title: newPageTask.title});
+            patches.push({type: "SetTitle", title: newPageTask.title});
         }
 
         if (
@@ -1097,23 +1116,23 @@ export async function updateAgentWebTaskQueryPage(
                 newPageTask.status.type === "Open" &&
                 oldPageTask.status.isActive !== newPageTask.status.isActive)
         ) {
-            taskPatches.push({type: "SetStatus", status: newPageTask.status});
+            patches.push({type: "SetStatus", status: newPageTask.status});
         }
 
         if (oldPageTask.parent?.id !== newPageTask.parent?.id) {
-            taskPatches.push({
+            patches.push({
                 type: "SetParent",
                 parent: newPageTask.parent ? {task: {id: newPageTask.parent.id}} : null,
             });
         }
 
         if (oldPageTask.assignee?.id !== newPageTask.assignee?.id) {
-            taskPatches.push({type: "SetAssignee", assignee: newPageTask.assignee ?? null});
+            patches.push({type: "SetAssignee", assignee: newPageTask.assignee ?? null});
         }
 
         if (oldPageTask.dueDateString !== newPageTask.dueDateString) {
             if (newPageTask.dueDateString === null) {
-                taskPatches.push({type: "SetDue", due: null});
+                patches.push({type: "SetDue", due: null});
             } else {
                 const date = parseAgentWebTaskPageDueDateStringForUpdate(
                     contextDate,
@@ -1127,12 +1146,12 @@ export async function updateAgentWebTaskQueryPage(
                     },
                 ).toString();
 
-                taskPatches.push({type: "SetDue", due: {date}});
+                patches.push({type: "SetDue", due: {date}});
             }
         }
 
         if (oldPageTask.priority?.type !== newPageTask.priority?.type) {
-            taskPatches.push({type: "SetPriority", priority: newPageTask.priority});
+            patches.push({type: "SetPriority", priority: newPageTask.priority});
         }
 
         const oldCollectionIds = new Set(oldPageTask.collections.map(collection => collection.id));
@@ -1140,25 +1159,27 @@ export async function updateAgentWebTaskQueryPage(
 
         for (const collection of oldPageTask.collections) {
             if (!newCollectionIds.has(collection.id)) {
-                taskPatches.push({type: "RemoveCollection", collectionId: collection.id});
+                patches.push({type: "RemoveCollection", collectionId: collection.id});
             }
         }
 
         for (const collection of newPageTask.collections) {
             if (!oldCollectionIds.has(collection.id)) {
-                taskPatches.push({type: "AddCollection", item: {collection}});
+                patches.push({type: "AddCollection", item: {collection}});
             }
         }
 
-        for (const taskPatch of taskPatches)
-            taskPatchInputs.push({id: oldPageTask.taskId, patch: taskPatch});
+        for (const patch of patches) {
+            batchPatches.push({type: "Update", id: oldPageTask.taskId, patch});
+        }
     }
 
     switch (pageLink.type) {
         case "TaskCollection": {
             for (const removedTaskId of removedTaskIds) {
                 // NOCOMMIT: Test???
-                taskPatchInputs.push({
+                batchPatches.push({
+                    type: "Update",
                     id: removedTaskId,
                     patch: {
                         type: "RemoveCollection",
@@ -1169,7 +1190,8 @@ export async function updateAgentWebTaskQueryPage(
 
             for (const addedTaskId of addedTaskIds) {
                 // NOCOMMIT: Test???
-                taskPatchInputs.push({
+                batchPatches.push({
+                    type: "Update",
                     id: addedTaskId,
                     patch: {
                         type: "AddCollection",
@@ -1182,7 +1204,8 @@ export async function updateAgentWebTaskQueryPage(
         case "TaskSubtasks": {
             for (const removedTaskId of removedTaskIds) {
                 // NOCOMMIT: Test???
-                taskPatchInputs.push({
+                batchPatches.push({
+                    type: "Update",
                     id: removedTaskId,
                     patch: {
                         type: "SetParent",
@@ -1193,7 +1216,8 @@ export async function updateAgentWebTaskQueryPage(
 
             for (const addedTaskId of addedTaskIds) {
                 // NOCOMMIT: Test???
-                taskPatchInputs.push({
+                batchPatches.push({
+                    type: "Update",
                     id: addedTaskId,
                     patch: {
                         type: "SetParent",
@@ -1264,7 +1288,8 @@ export async function updateAgentWebTaskQueryPage(
             position = {type: "Between", afterCursor, beforeCursor};
         }
 
-        taskPatchInputs.push({
+        batchPatches.push({
+            type: "Update",
             id: taskId,
             patch:
                 pageLink.type === "TaskCollection"
@@ -1276,21 +1301,44 @@ export async function updateAgentWebTaskQueryPage(
     return {
         execute: async () => {
             const taskPatchResponse =
-                taskPatchInputs.length === 0
+                batchPatches.length === 0
                     ? null
                     : await context.api.patch(context.span, "/tasks", {
-                          body: {spaceId: context.spaceId, patches: taskPatchInputs},
+                          body: {spaceId: context.spaceId, patches: batchPatches},
                       });
 
             // NOCOMMIT: We need to return new subtask positions!
             const movedCursorByTaskId = new Map<TaskId, ApiTaskQueryCursor>();
             if (taskPatchResponse !== null) {
-                for (const {task, collections} of taskPatchResponse.data.tasks) {
-                    if (!repositionedTaskIds.has(task.id)) continue;
-                    const movedCollection = assertExists(
-                        collections.find(({collection}) => collection.id === pageLink.id),
-                    );
-                    movedCursorByTaskId.set(task.id, assertExists(movedCollection.movedCursor));
+                assert(taskPatchResponse.data.results.length === batchPatches.length);
+
+                for (
+                    let resultIndex = 0;
+                    resultIndex < taskPatchResponse.data.results.length;
+                    resultIndex++
+                ) {
+                    const batchResult = taskPatchResponse.data.results[resultIndex]!;
+                    const batchPatch = batchPatches[resultIndex]!;
+                    assert(batchResult.type === "Update");
+
+                    const result = batchResult.result;
+                    assert(result.type === batchPatch.patch.type);
+                    if (!repositionedTaskIds.has(batchPatch.id)) continue;
+
+                    switch (pageLink.type) {
+                        case "TaskCollection": {
+                            if (result.type !== "MoveInCollection") break;
+                            movedCursorByTaskId.set(batchPatch.id, result.cursor);
+                            break;
+                        }
+                        case "TaskSubtasks": {
+                            if (result.type !== "MoveInParent") break;
+                            movedCursorByTaskId.set(batchPatch.id, result.cursor);
+                            break;
+                        }
+                        default:
+                            throw exhaustive(pageLink);
+                    }
                 }
             }
 
