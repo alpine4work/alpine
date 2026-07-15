@@ -19,6 +19,7 @@ ts_project(
         "//server/api/internal/shared",
         "//server/documents/data",
         "//server/files/data",
+        "//server/messaging/helpers",
         "//server/search/data/index",
         "//shared/access",
         "//shared/api/content",

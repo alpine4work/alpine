@@ -18,6 +18,7 @@ ts_project(
         "//server/api/internal/shared",
         "//server/chat/data",
         "//server/files/data",
+        "//server/messaging/helpers",
         "//shared/api/content",
         "//shared/api/specification",
         "//shared/error",

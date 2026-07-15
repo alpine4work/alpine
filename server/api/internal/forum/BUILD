@@ -18,6 +18,7 @@ ts_project(
         "//server/api/internal/shared",
         "//server/files/data",
         "//server/forum/data",
+        "//server/messaging/helpers",
         "//shared/api/content/closed_source",
         "//server/search/data/index",
         "//shared/api/content",

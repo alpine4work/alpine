@@ -26,11 +26,14 @@ import {
     getPostCommentMessageApprovals,
     getPostCommentPayload,
     getPostCommentPayloadsFromEnd,
+    getPostCommentPayloadsFromEndWithParents,
     getPostCommentPayloadsFromStart,
+    getPostCommentPayloadsFromStartWithParents,
     pingPostCommentStream,
     putPostCommentMessageApprovalDecisions,
     putPostCommentStreamPart,
 } from "~/server/forum/data/post_messaging.js";
+import {MessageItem} from "~/server/messaging/helpers/process_messages_query.js";
 import {ApiContentKeyEncoder} from "~/shared/api/content/closed_source/api_content_key_encoder.js";
 import {extractFileIdsFromApiContent} from "~/shared/api/content/closed_source/extract_file_ids_from_api_content.js";
 import {fromApiContent} from "~/shared/api/content/closed_source/from_api_content.js";
@@ -51,7 +54,7 @@ import {deserializeDateString, serializeDateString} from "~/shared/helpers/date/
 import {defaultTimeZone} from "~/shared/helpers/intl/time_zone.js";
 import {emptyMap} from "~/shared/helpers/map/empty_map.js";
 import {generateId, isId} from "~/shared/id/id.js";
-import {FileId, PostId} from "~/shared/id/types/id_types.js";
+import {FileId, PostId, SpaceId} from "~/shared/id/types/id_types.js";
 import {MessageContentPayload} from "~/shared/messaging/message_schema.js";
 import {MessagingRealtimeBroadcastNewMessageRequestSchema} from "~/shared/messaging/messaging_realtime_protocol.js";
 import {emptyReactionSet} from "~/shared/reactions/reaction_set.js";
@@ -649,6 +652,73 @@ export const apiForumPaths: Pick<
                             pathParameters.id,
                         ),
                     }),
+                },
+            };
+        },
+    },
+
+    "/posts/{id}/messages-with-parents": {
+        get: async (context, {pathParameters, queryParameters}) => {
+            const mapper = (message: MessageItem, spaceId: SpaceId) =>
+                intoApiMessage(context, {
+                    spaceId,
+                    entityId: `PostComment:${pathParameters.id}-${message.index}`,
+                    fileAuthorizer: FilePostAuthorizer.bind({
+                        type: "PostComments",
+                        postId: pathParameters.id,
+                    }),
+                    message,
+                    intoContentPayloadParent: createIntoApiPostCommentContentPayloadParent(
+                        context,
+                        spaceId,
+                        pathParameters.id,
+                    ),
+                });
+
+            const {spaceId, commentCount, comments, parentComments} =
+                queryParameters.from === "End"
+                    ? await getPostCommentPayloadsFromEndWithParents(
+                          context,
+                          {
+                              postId: pathParameters.id,
+                              limit: queryParameters.limit ?? 10,
+                              afterCommentIndex: null,
+                              beforeCommentIndex: queryParameters.cursor ?? null,
+                              consistency: "StrongWithinCache",
+                          },
+                          mapper,
+                      )
+                    : await getPostCommentPayloadsFromStartWithParents(
+                          context,
+                          {
+                              postId: pathParameters.id,
+                              limit: queryParameters.limit ?? 10,
+                              afterCommentIndex: queryParameters.cursor ?? null,
+                              beforeCommentIndex: null,
+                              consistency: "StrongWithinCache",
+                          },
+                          mapper,
+                      );
+
+            let nextCursor: number | null;
+
+            if (comments.length === 0) {
+                nextCursor = null;
+            } else if (queryParameters.from === "End") {
+                const firstComment = comments[0]!;
+                nextCursor = firstComment.index > 0 ? firstComment.index : null;
+            } else {
+                const lastComment = comments[comments.length - 1]!;
+                nextCursor = lastComment.index < commentCount - 1 ? lastComment.index : null;
+            }
+
+            return {
+                content: {
+                    spaceId,
+                    totalMessageCount: commentCount,
+                    nextCursor,
+                    messages: comments,
+                    parentMessages: parentComments,
                 },
             };
         },

@@ -26,6 +26,7 @@ import {
     updateTasksWithoutNotesFromApi,
 } from "~/server/api/internal/tasks/internal/update_task_without_notes_from_api.js";
 import {attachFileToTargetAsBot} from "~/server/files/data/attach_file_to_target_as_bot.js";
+import {MessageItem} from "~/server/messaging/helpers/process_messages_query.js";
 import {FileTaskAuthorizer} from "~/server/tasks/data/authorization/file_task_authorizer.js";
 import {commitTaskActionTransaction} from "~/server/tasks/data/commit_task_action_transaction.js";
 import {
@@ -35,7 +36,9 @@ import {
     getTaskCommentMessageApprovals,
     getTaskCommentPayload,
     getTaskCommentPayloadsFromEnd,
+    getTaskCommentPayloadsFromEndWithParents,
     getTaskCommentPayloadsFromStart,
+    getTaskCommentPayloadsFromStartWithParents,
     pingTaskCommentStream,
     putTaskCommentMessageApprovalDecisions,
     putTaskCommentStreamPart,
@@ -63,7 +66,7 @@ import {defaultTimeZone} from "~/shared/helpers/intl/time_zone.js";
 import {findMapIterable} from "~/shared/helpers/iterable/find_map_iterable.js";
 import {emptyMap} from "~/shared/helpers/map/empty_map.js";
 import {generateId} from "~/shared/id/id.js";
-import {TaskCollectionId, TaskId} from "~/shared/id/types/id_types.js";
+import {SpaceId, TaskCollectionId, TaskId} from "~/shared/id/types/id_types.js";
 import {MessageContentPayload} from "~/shared/messaging/message_schema.js";
 import {MessagingRealtimeBroadcastNewMessageRequestSchema} from "~/shared/messaging/messaging_realtime_protocol.js";
 import {emptyReactionSet} from "~/shared/reactions/reaction_set.js";
@@ -715,6 +718,73 @@ export const apiTasksPaths: Pick<
                             pathParameters.id,
                         ),
                     }),
+                },
+            };
+        },
+    },
+
+    "/tasks/{id}/messages-with-parents": {
+        get: async (context, {pathParameters, queryParameters}) => {
+            const mapper = (message: MessageItem, spaceId: SpaceId) =>
+                intoApiMessage(context, {
+                    spaceId,
+                    entityId: `TaskComment:${pathParameters.id}-${message.index}`,
+                    fileAuthorizer: FileTaskAuthorizer.bind({
+                        type: "TaskComments",
+                        taskId: pathParameters.id,
+                    }),
+                    message,
+                    intoContentPayloadParent: createIntoApiTaskCommentContentPayloadParent(
+                        context,
+                        spaceId,
+                        pathParameters.id,
+                    ),
+                });
+
+            const {spaceId, commentCount, comments, parentComments} =
+                queryParameters.from === "End"
+                    ? await getTaskCommentPayloadsFromEndWithParents(
+                          context,
+                          {
+                              taskId: pathParameters.id,
+                              limit: queryParameters.limit ?? 10,
+                              afterCommentIndex: null,
+                              beforeCommentIndex: queryParameters.cursor ?? null,
+                              consistency: "StrongWithinCache",
+                          },
+                          mapper,
+                      )
+                    : await getTaskCommentPayloadsFromStartWithParents(
+                          context,
+                          {
+                              taskId: pathParameters.id,
+                              limit: queryParameters.limit ?? 10,
+                              afterCommentIndex: queryParameters.cursor ?? null,
+                              beforeCommentIndex: null,
+                              consistency: "StrongWithinCache",
+                          },
+                          mapper,
+                      );
+
+            let nextCursor: number | null;
+
+            if (comments.length === 0) {
+                nextCursor = null;
+            } else if (queryParameters.from === "End") {
+                const firstComment = comments[0]!;
+                nextCursor = firstComment.index > 0 ? firstComment.index : null;
+            } else {
+                const lastComment = comments[comments.length - 1]!;
+                nextCursor = lastComment.index < commentCount - 1 ? lastComment.index : null;
+            }
+
+            return {
+                content: {
+                    spaceId,
+                    totalMessageCount: commentCount,
+                    nextCursor,
+                    messages: comments,
+                    parentMessages: parentComments,
                 },
             };
         },
