@@ -620,7 +620,7 @@ export async function parseAgentWebTaskPage(
 
     const createUnexpectedError = (child: RootContent) => {
         return new InvalidArgumentError("Expected task fields", {
-            displayMessage: errorDisplayMessage`Unexpected markdown on line ${child?.position?.start.line ?? "unknown"}. Try again with only allowed sections like fields (an unordered list with items like \`- Priority: Medium\`), notes (the h2 \`## Notes\` and the content after), or subtasks (the h2 \`## Subtasks\` and an unordered task list).`,
+            displayMessage: errorDisplayMessage`Unexpected markdown on line ${child?.position?.start.line ?? "unknown"}. Try again with only allowed sections like fields (an unordered list with items like \`- Priority: Medium\`), notes (the h2 \`## Notes\` and the content after), or subtasks (the h2 \`## Subtasks\` and an unordered task list) in that exact order (fields, notes, subtasks).`,
         });
     };
 
