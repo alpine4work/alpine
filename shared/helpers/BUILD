@@ -45,6 +45,7 @@ ts_project(
         "//:node_modules/diff",
         "//:node_modules/expect-type",
         "//:node_modules/fast-check",
+        "//:node_modules/mdast-util-to-markdown",
     ],
     visibility = ["//visibility:public"],
     deps = [
