@@ -165,12 +165,15 @@ to preserve — schemas and protocol shapes are replaced in place.
 
 ## Milestone 3 — Shared protocol: bitsets, registration schemas, event version
 
-**New `shared/databases/page_bitset.ts`**
+**Bitset representation**
 
-- `encodePageBitset(Set<number>) → Uint8Array` / `decodePageBitset` (byte-aligned bitset, length
-  `ceil(maxIndex/8)`; 32 KiB worst case, ~125 B for a 4 MB table), plus `pageBitsetHas`,
-  `pageBitsetUnion`, `pageBitsetIntersect`. Document that the encoding is an internal wire detail
-  (RLE/Roaring can replace it later without protocol change).
+- Add the `typedfastbitset` npm dependency (pnpm + Bazel npm wiring); `TypedFastBitSet` is the
+  runtime representation everywhere (client held-pages, server superset copies, changed-page sets) —
+  it provides `has`/`add`/`union`/`intersection` directly.
+- New `BitsetSchema` (`shared/schema/bitset_schema.ts`): serializes a `TypedFastBitSet` to/from a
+  byte array over `Schema.bytes` (define the layout explicitly: little-endian words, trailing zeros
+  trimmed; ~125 B for a 4 MB table, 32 KiB worst case). The wire encoding stays an internal detail —
+  RLE/Roaring could replace it later without a protocol change.
 
 **`shared/databases/database_protocol_schemas.ts`**
 
@@ -210,7 +213,9 @@ to preserve — schemas and protocol shapes are replaced in place.
 **`server/databases/database_durable_object_connection.ts`**
 
 - Per-connection `subscriptions: Map<DatabaseTableId, {heldPages: bitset, watermark: number}>` (dies
-  with the connection object — no refcounting, no browser keying).
+  with the connection object — no refcounting, no browser keying). This leaves `browserId` with no
+  consumer in the database DO (the tracker was its only use); it is removed end-to-end in
+  Milestone 6.
 - `registerTables` handling (shared by the procedure and the `executeAction` piggyback): per table —
   access check (withhold `null`-access tables exactly like today's `ensureCacheIsUpToDate`,
   including join-side `tableAccess` entries); compute catch-up via
@@ -301,6 +306,10 @@ to preserve — schemas and protocol shapes are replaced in place.
   connection, and the client.
 - Delete `BrowserPageTracker`, its tests, the `registerConnection`/`handleClose` wiring, and the
   `trackPages` query param.
+- Remove `browserId` end-to-end: the required query param + parse in
+  `database_durable_object.ts:97-99`, the connection's `_browserId` field, and the
+  `?browserId=${browserId}` in the WS URL at `app/routes/_space.databases.$spaceId.tsx:52`
+  (`useBrowserId()` stays for notifications/tasks — drop only this route's use if now unused).
 - Delete `cacheUpdateStalePageLimit` and `DatabasePageVersionsByIndexSchema` /
   `DatabasePageIndexesSchema` if unreferenced.
 - `dev check` sweep for dead exports; update the protocol doc comments in
@@ -308,7 +317,10 @@ to preserve — schemas and protocol shapes are replaced in place.
 
 ## Milestone 7 — Integration hardening
 
-Integration tests (Playwright / worker-level) covering the invariants end-to-end:
+Extend the existing protocol tests in `app/databases_test/` — the harness in
+`database_client_server_protocol.test.ts` already drives a real `DatabaseConnectionManager` against
+a miniflare-backed `DatabaseGroupDurableObject`, which is exactly the client↔server surface these
+invariants live on:
 
 - Two clients on one group: A mutates, B (subscribed, holding the pages) applies diffs without any
   fallback request; B without the pages gets them on next read only.
