@@ -215,18 +215,16 @@ export function intoAgentWebTaskQueryPageTask({
  */
 export async function readAgentWebTaskQueryPage<Resource, Page extends AgentWebTaskQueryPage>(
     context: AgentWebContext,
-    queryId: AgentWebTaskQueryId,
     {
-        pageNoun,
+        pageLink,
         searchParams,
         limitLength,
         readTaskBatch,
         intoPageTask,
         buildPage,
         printPage,
-        getIsManuallyOrdered,
     }: {
-        pageNoun: "task collection" | "subtasks";
+        pageLink: Extract<AgentWebPageLink, {type: "TaskCollection" | "TaskSubtasks"}>;
         searchParams: URLSearchParams;
         limitLength: number;
         readTaskBatch: (input: {
@@ -244,7 +242,6 @@ export async function readAgentWebTaskQueryPage<Resource, Page extends AgentWebT
             afterCursor: ApiTaskQueryCursor | null;
         }) => Page;
         printPage: (page: Page) => Promise<string>;
-        getIsManuallyOrdered: (resource: Resource, query: AgentWebTaskQueryPageQuery) => boolean;
     },
 ): Promise<{response: string; metadata: AgentWebTaskQueryPageMetadata}> {
     const contextTime = new Date();
@@ -255,9 +252,8 @@ export async function readAgentWebTaskQueryPage<Resource, Page extends AgentWebT
     // sorts change from underneath them.
     const {afterCursor, query} = await parseAgentWebTaskQueryPageSearchParams(
         context.storage,
-        queryId,
+        pageLink,
         searchParams,
-        pageNoun,
     );
 
     const tasks: Array<AgentWebTaskQueryPageTask> = [];
@@ -308,7 +304,9 @@ export async function readAgentWebTaskQueryPage<Resource, Page extends AgentWebT
                     : {
                           nextCursorHash: await createAgentWebTaskQueryCursorHash(
                               context.storage,
-                              queryId,
+                              pageLink.type === "TaskCollection"
+                                  ? `TaskCollection:${pageLink.id}`
+                                  : `Task:${pageLink.task.id}`,
                               pageNextCursor,
                           ),
                           query,
@@ -341,6 +339,39 @@ export async function readAgentWebTaskQueryPage<Resource, Page extends AgentWebT
             return {response, metadata};
         }
 
+        const truncatedResult = await truncateAgentWebTaskQueryPage(context.storage, {
+            pageLink,
+            page,
+            metadata,
+            query,
+            limitLength,
+            response,
+        });
+
+        if (truncatedResult === null) return {response, metadata};
+
+        return truncatedResult;
+    }
+}
+
+async function truncateAgentWebTaskQueryPage<Page extends AgentWebTaskQueryPage>(
+    storage: AgentWebSessionStorage,
+    {
+        pageLink,
+        page,
+        metadata,
+        query,
+        limitLength,
+        response,
+    }: {
+        pageLink: Extract<AgentWebPageLink, {type: "TaskCollection" | "TaskSubtasks"}>;
+        page: Page;
+        metadata: AgentWebTaskQueryPageMetadata;
+        query: AgentWebTaskQueryPageQuery;
+        limitLength: number;
+        response: string;
+    },
+): Promise<{response: string; metadata: AgentWebTaskQueryPageMetadata} | null> {
     if (page.tasks.length <= 1) return null;
     assert(metadata.tasks.length === page.tasks.length);
 
@@ -359,6 +390,15 @@ export async function readAgentWebTaskQueryPage<Resource, Page extends AgentWebT
     // Edge case: if we need to add a pagination link then expect more to be truncated
     // so we can add the pagination link while still fitting into `limitLength`.
     if (page.pagination === null) {
+        const [pathname, search] = await runAllPromises([
+            createAgentWebPageLinkPathname(storage, pageLink),
+            printAgentWebTaskQueryPageSearchParams(storage, {
+                nextCursorHash: "0".repeat(agentWebTaskQueryCursorHashLength),
+                query,
+            }),
+        ]);
+
+        addedPaginationPath = {pathname, search};
 
         truncateLength +=
             // We need double newlines when adding after a previous block and a single space
@@ -367,9 +407,9 @@ export async function readAgentWebTaskQueryPage<Resource, Page extends AgentWebT
             "\n\n[".length +
             agentWebTaskQueryPageNextPageLinkText.length +
             "](".length +
-            addedPaginationPath.pathname.length +
+            pathname.length +
             "?".length +
-            addedPaginationPath.search.length +
+            search.length +
             ")".length;
     }
 
@@ -407,7 +447,9 @@ export async function readAgentWebTaskQueryPage<Resource, Page extends AgentWebT
     // The "Next page" link continues from the last task left after truncation.
     const nextCursorHash = await createAgentWebTaskQueryCursorHash(
         storage,
-        queryId,
+        pageLink.type === "TaskCollection"
+            ? `TaskCollection:${pageLink.id}`
+            : `Task:${pageLink.task.id}`,
         assertExists(metadata.tasks[truncatedTaskCount - 1]).cursor,
     );
 
@@ -462,6 +504,38 @@ export async function readAgentWebTaskQueryPage<Resource, Page extends AgentWebT
         assert(addedPaginationPath.search.startsWith(`after=${placeholderCursorHash}`));
 
         const path = `${addedPaginationPath.pathname}?after=${nextCursorHash}${addedPaginationPath.search.slice(`after=${placeholderCursorHash}`.length)}`;
+
+        const linkMarkdown = `[${agentWebTaskQueryPageNextPageLinkText}](${path})`;
+
+        if (responseTree.children[0]?.type === "heading") {
+            // The "Next page" link goes right after the node before the task list (the task
+            // collection name heading or the color field for task collections).
+            const taskListIndex = responseTree.children.indexOf(taskList);
+            assert(taskListIndex > 0);
+
+            const insertionOffset = assertExists(
+                responseTree.children[taskListIndex - 1]!.position?.end.offset,
+            );
+
+            truncatedResponse =
+                truncatedResponse.slice(0, insertionOffset) +
+                "\n\n" +
+                linkMarkdown +
+                truncatedResponse.slice(insertionOffset);
+        } else {
+            // The "Next page" link goes at the end of the preamble paragraph.
+            const preamble = responseTree.children[0];
+            assert(preamble?.type === "paragraph");
+
+            const insertionOffset = assertExists(preamble.position?.end.offset);
+
+            truncatedResponse =
+                truncatedResponse.slice(0, insertionOffset) +
+                " " +
+                linkMarkdown +
+                truncatedResponse.slice(insertionOffset);
+        }
+    }
 
     return {
         response: truncatedResponse,
