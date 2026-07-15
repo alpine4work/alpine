@@ -2,7 +2,9 @@ import murmurhash from "murmurhash";
 import {AgentWebSessionStorage} from "~/server/agents/web/agent_web_session_storage.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {ApiTaskQueryCursor} from "~/shared/id/types/api_task_query_cursor.js";
-import {TaskCollectionId} from "~/shared/id/types/id_types.js";
+import {TaskCollectionId, TaskId} from "~/shared/id/types/id_types.js";
+
+export type AgentWebTaskQueryId = `TaskCollection:${TaskCollectionId}` | `Task:${TaskId}`;
 
 /**
  * The number of base16 characters in a task query cursor hash.
@@ -39,7 +41,7 @@ const agentWebTaskQueryCursorHashMask = 0xffffff;
  */
 export function createAgentWebTaskQueryCursorHash(
     storage: AgentWebSessionStorage,
-    collectionId: TaskCollectionId,
+    queryId: AgentWebTaskQueryId,
     cursor: ApiTaskQueryCursor,
 ): Promise<string> {
     return storage.mutex.withLock(async () => {
@@ -48,12 +50,12 @@ export function createAgentWebTaskQueryCursorHash(
         while (true) {
             const hash = hashNumber.toString(16).padStart(agentWebTaskQueryCursorHashLength, "0");
             assert(hash.length === agentWebTaskQueryCursorHashLength);
-            const storedCursor = await storage.taskQueryCursorByHash.get(`${collectionId}-${hash}`);
+            const storedCursor = await storage.taskQueryCursorByHash.get(`${queryId}-${hash}`);
 
             if (storedCursor === cursor) return hash;
 
             if (storedCursor === undefined) {
-                await storage.taskQueryCursorByHash.put(`${collectionId}-${hash}`, cursor);
+                await storage.taskQueryCursorByHash.put(`${queryId}-${hash}`, cursor);
                 return hash;
             }
 
@@ -69,8 +71,8 @@ export function createAgentWebTaskQueryCursorHash(
  */
 export async function getAgentWebTaskQueryCursorForHashIfExists(
     storage: AgentWebSessionStorage,
-    collectionId: TaskCollectionId,
+    queryId: AgentWebTaskQueryId,
     hash: string,
 ): Promise<ApiTaskQueryCursor | undefined> {
-    return await storage.taskQueryCursorByHash.get(`${collectionId}-${hash.toLowerCase()}`);
+    return await storage.taskQueryCursorByHash.get(`${queryId}-${hash.toLowerCase()}`);
 }
