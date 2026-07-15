@@ -8,6 +8,9 @@ import {assert} from "~/shared/helpers/control/assert.js";
  *
  * You can also call the function with a single string like `quote("foo")` to wrap
  * the string in quotes and escape any quotes within the string.
+ *
+ * The string is escaped to make sure it's valid Markdown. So it's safe to
+ * interpolate the result of this function into a Markdown string.
  */
 export function quote(string: string | number | bigint): string;
 export function quote(

@@ -19,7 +19,12 @@ test.each([
     // eslint-disable-next-line cyberworlds/string-quotes
 ])('"$unquoted" -> "$quoted"', ({unquoted, quoted}) => {
     expect(
-        JSON.stringify(toMarkdown({type: "inlineCode", value: unquoted}).trim()).slice(1, -1),
+        JSON.stringify(
+            toMarkdown({
+                type: "paragraph",
+                children: [{type: "inlineCode", value: unquoted}],
+            }).trim(),
+        ).slice(1, -1),
     ).toBe(quoted);
 
     expect(quote(unquoted)).toBe(quoted);
@@ -27,10 +32,15 @@ test.each([
 
 test("can quote the same as a markdown printer", () => {
     fc.assert(
-        fc.property(fc.string(), string => {
+        fc.property(fc.string(), unquoted => {
             expect(
-                JSON.stringify(toMarkdown({type: "inlineCode", value: string}).trim()).slice(1, -1),
-            ).toBe(quote(string));
+                JSON.stringify(
+                    toMarkdown({
+                        type: "paragraph",
+                        children: [{type: "inlineCode", value: unquoted}],
+                    }).trim(),
+                ).slice(1, -1),
+            ).toBe(quote(unquoted));
         }),
     );
 });
