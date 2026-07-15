@@ -8,7 +8,7 @@ import {
 import {
     AgentWebTaskQueryPagePaginationArbitrary,
     AgentWebTaskQueryPageTasksArbitrary,
-} from "~/server/agents/web/test_helpers/agent_web_query_page_arbitrary.js";
+} from "~/server/agents/web/test_helpers/agent_web_task_query_page_arbitrary.js";
 import {runAgentWebPageGenerativeTests} from "~/server/agents/web/test_helpers/run_agent_web_page_generative_tests.js";
 import {ApiTaskReferenceArbitrary} from "~/shared/api/content/test_helpers/api_content_arbitrary.js";
 import {generateId} from "~/shared/id/id.js";
