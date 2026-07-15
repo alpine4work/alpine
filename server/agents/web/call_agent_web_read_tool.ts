@@ -452,7 +452,7 @@ function printAgentWebPage(
         }
         case "TaskSubtasks": {
             assert(page.type === "TaskSubtasks");
-            return printAgentWebTaskSubtasksPage(storage, page);
+            return printAgentWebTaskSubtasksPage(storage, pageLink.task.id, page);
         }
         case "Site": {
             throw new UnimplementedError("NOCOMMIT");
