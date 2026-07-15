@@ -9521,6 +9521,250 @@ export function testMessagingImplementation<RoomKey extends string>(
             },
         );
 
+        test.each(["Start", "End"] as const)(
+            "message payloads with parents deduplicate overlapping ranges from %s",
+            async from => {
+                const room = await createRoom(context.action(session1), space.id);
+
+                // These messages are outside the page and aren't referenced as parents.
+                await createMessage(context.action(session1), {
+                    roomKey: room.key,
+                    parent: null,
+                    content: content2,
+                    fileIds: [],
+                });
+                await createMessage(context.action(session1), {
+                    roomKey: room.key,
+                    parent: null,
+                    content: content3,
+                    fileIds: [],
+                });
+
+                const rangeMessage1 = await createMessage(context.action(session1), {
+                    roomKey: room.key,
+                    parent: null,
+                    content: content1,
+                    fileIds: [],
+                });
+                const rangeMessage2 = await createMessage(context.action(session1), {
+                    roomKey: room.key,
+                    parent: null,
+                    content: content1,
+                    fileIds: [],
+                });
+                const rangeMessage3 = await createMessage(context.action(session1), {
+                    roomKey: room.key,
+                    parent: null,
+                    content: content1,
+                    fileIds: [],
+                });
+                const rangeMessage4 = await createMessage(context.action(session1), {
+                    roomKey: room.key,
+                    parent: null,
+                    content: content1,
+                    fileIds: [],
+                });
+                const message1 = await createMessage(context.action(session1), {
+                    roomKey: room.key,
+                    parent: {
+                        type: "MessagesRange",
+                        startIndex: rangeMessage1.index,
+                        startPos: 2,
+                        startContentVersion: 0,
+                        endIndex: rangeMessage3.index,
+                        endPos: 2,
+                        endContentVersion: 0,
+                    },
+                    content: content1,
+                    fileIds: [],
+                });
+                const message2 = await createMessage(context.action(session1), {
+                    roomKey: room.key,
+                    parent: {
+                        type: "MessagesRange",
+                        startIndex: rangeMessage2.index,
+                        startPos: 2,
+                        startContentVersion: 0,
+                        endIndex: rangeMessage4.index,
+                        endPos: 2,
+                        endContentVersion: 0,
+                    },
+                    content: content1,
+                    fileIds: [],
+                });
+                const message3 = await createMessage(context.action(session1), {
+                    roomKey: room.key,
+                    parent: null,
+                    content: content1,
+                    fileIds: [],
+                });
+                const message4 = await createMessage(context.action(session1), {
+                    roomKey: room.key,
+                    parent: null,
+                    content: content1,
+                    fileIds: [],
+                });
+                const message5 = await createMessage(context.action(session1), {
+                    roomKey: room.key,
+                    parent: null,
+                    content: content1,
+                    fileIds: [],
+                });
+
+                const result =
+                    from === "Start"
+                        ? await getMessagePayloadsFromStartWithParents(context.action(session1), {
+                              roomKey: room.key,
+                              limit: 5,
+                              afterMessageIndex: rangeMessage4.index,
+                              beforeMessageIndex: null,
+                          })
+                        : await getMessagePayloadsFromEndWithParents(context.action(session1), {
+                              roomKey: room.key,
+                              limit: 5,
+                              afterMessageIndex: null,
+                              beforeMessageIndex: null,
+                          });
+
+                expect({
+                    messageIndexes: result.messages.map(({index}) => index),
+                    parentMessageIndexes: result.parentMessages.map(({index}) => index),
+                }).toEqual({
+                    messageIndexes: [
+                        message1.index,
+                        message2.index,
+                        message3.index,
+                        message4.index,
+                        message5.index,
+                    ],
+                    parentMessageIndexes: [
+                        rangeMessage1.index,
+                        rangeMessage2.index,
+                        rangeMessage3.index,
+                        rangeMessage4.index,
+                    ],
+                });
+            },
+        );
+
+        test.each(["Start", "End"] as const)(
+            "message payloads with parents recursively load a parent's range from %s",
+            async from => {
+                const room = await createRoom(context.action(session1), space.id);
+
+                // These messages are outside the page and aren't referenced as parents.
+                await createMessage(context.action(session1), {
+                    roomKey: room.key,
+                    parent: null,
+                    content: content2,
+                    fileIds: [],
+                });
+                await createMessage(context.action(session1), {
+                    roomKey: room.key,
+                    parent: null,
+                    content: content3,
+                    fileIds: [],
+                });
+
+                const rangeMessage1 = await createMessage(context.action(session1), {
+                    roomKey: room.key,
+                    parent: null,
+                    content: content1,
+                    fileIds: [],
+                });
+                const rangeMessage2 = await createMessage(context.action(session1), {
+                    roomKey: room.key,
+                    parent: null,
+                    content: content1,
+                    fileIds: [],
+                });
+                const rangeMessage3 = await createMessage(context.action(session1), {
+                    roomKey: room.key,
+                    parent: null,
+                    content: content1,
+                    fileIds: [],
+                });
+                const recursiveParent = await createMessage(context.action(session1), {
+                    roomKey: room.key,
+                    parent: {
+                        type: "MessagesRange",
+                        startIndex: rangeMessage1.index,
+                        startPos: 2,
+                        startContentVersion: 0,
+                        endIndex: rangeMessage3.index,
+                        endPos: 2,
+                        endContentVersion: 0,
+                    },
+                    content: content1,
+                    fileIds: [],
+                });
+                const message1 = await createMessage(context.action(session1), {
+                    roomKey: room.key,
+                    parent: {type: "Message", index: recursiveParent.index},
+                    content: content1,
+                    fileIds: [],
+                });
+                const message2 = await createMessage(context.action(session1), {
+                    roomKey: room.key,
+                    parent: null,
+                    content: content1,
+                    fileIds: [],
+                });
+                const message3 = await createMessage(context.action(session1), {
+                    roomKey: room.key,
+                    parent: null,
+                    content: content1,
+                    fileIds: [],
+                });
+                const message4 = await createMessage(context.action(session1), {
+                    roomKey: room.key,
+                    parent: null,
+                    content: content1,
+                    fileIds: [],
+                });
+                const message5 = await createMessage(context.action(session1), {
+                    roomKey: room.key,
+                    parent: null,
+                    content: content1,
+                    fileIds: [],
+                });
+
+                const result =
+                    from === "Start"
+                        ? await getMessagePayloadsFromStartWithParents(context.action(session1), {
+                              roomKey: room.key,
+                              limit: 5,
+                              afterMessageIndex: recursiveParent.index,
+                              beforeMessageIndex: null,
+                          })
+                        : await getMessagePayloadsFromEndWithParents(context.action(session1), {
+                              roomKey: room.key,
+                              limit: 5,
+                              afterMessageIndex: null,
+                              beforeMessageIndex: null,
+                          });
+
+                expect({
+                    messageIndexes: result.messages.map(({index}) => index),
+                    parentMessageIndexes: result.parentMessages.map(({index}) => index),
+                }).toEqual({
+                    messageIndexes: [
+                        message1.index,
+                        message2.index,
+                        message3.index,
+                        message4.index,
+                        message5.index,
+                    ],
+                    parentMessageIndexes: [
+                        rangeMessage1.index,
+                        rangeMessage2.index,
+                        rangeMessage3.index,
+                        recursiveParent.index,
+                    ],
+                });
+            },
+        );
+
         test("can\u2019t get message payloads for room that doesn\u2019t exist", async () => {
             await expect(
                 getMessagePayloadsFromStart(context.action(session1), {
