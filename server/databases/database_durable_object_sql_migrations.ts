@@ -28,6 +28,8 @@ export const databaseDurableObjectSqlMigrations: ReadonlyArray<DatabaseDurableOb
                     access_policy TEXT,
                     source_table_id TEXT,
                     target_table_id TEXT,
+                    file_size_in_pages INTEGER NOT NULL DEFAULT 0,
+                    last_version INTEGER NOT NULL DEFAULT 0,
                     CHECK (
                         CASE kind
                             WHEN 'table' THEN table_name IS NOT NULL
@@ -54,9 +56,12 @@ export const databaseDurableObjectSqlMigrations: ReadonlyArray<DatabaseDurableOb
                     page_index INTEGER NOT NULL,
                     version INTEGER NOT NULL,
                     data BLOB,
-                    PRIMARY KEY (sqlite_id, page_index, version),
+                    PRIMARY KEY (sqlite_id, page_index),
                     FOREIGN KEY (sqlite_id) REFERENCES database_tables (sqlite_id)
                 ) WITHOUT ROWID
+            `.exec(db);
+            sql`
+                CREATE INDEX database_table_pages_by_version ON database_table_pages (sqlite_id, version)
             `.exec(db);
         },
     ];

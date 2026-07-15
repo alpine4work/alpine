@@ -103,14 +103,14 @@ export type DatabaseServerTableAccessEntry =
  * Pages are partitioned by {@link DatabaseTableId} so one Durable Object can host
  * many SQLite databases. Storage uses two data tables:
  *
- * - `database_tables(sqlite_id, table_id, kind, table_name, schema_version, access_policy, source_table_id, target_table_id)`
+ * - `database_tables(sqlite_id, table_id, kind, table_name, schema_version, access_policy, source_table_id, target_table_id, file_size_in_pages, last_version)`
  *   maps each external string id to a small integer and stores the table's
  *   registration — see the migration in
  *   `database_durable_object_sql_migrations.ts` for the column semantics.
- * - `database_table_pages(sqlite_id, page_index, version, data)` stores versioned
- *   pages keyed by `(sqlite_id, page_index, version)`. A `NULL` `data` marks a
- *   tombstone (left behind by truncates) which is surfaced as a missing page from
- *   {@link readPage}.
+ * - `database_table_pages(sqlite_id, page_index, version, data)` stores the latest
+ *   image of each page, keyed by `(sqlite_id, page_index)`. A `NULL` `data` marks
+ *   a tombstone (left behind by truncates) which is surfaced as a missing page
+ *   from {@link readPage}.
  *
  * The `sqlite_id` is purely an internal storage optimization and never leaks out
  * of this class.
@@ -133,6 +133,12 @@ export class DatabaseServer {
     private readonly sql: SqlStorage;
     private readonly sqliteIds = new Map<DatabaseTableId, number>();
     private readonly fileSizes = new Map<DatabaseTableId, number>();
+    private transactionCache:
+        | {
+              sqliteIds: Map<DatabaseTableId, number>;
+              fileSizes: Map<DatabaseTableId, number>;
+          }
+        | undefined;
     private lastWriteVersion: number | undefined;
 
     private constructor(storage: DurableObjectStorage) {
@@ -291,7 +297,30 @@ export class DatabaseServer {
     // -- Durable storage ------------------------------------------------------
 
     transactionSync<T>(fn: () => T): T {
-        return this.storage.transactionSync(fn);
+        // Calls made inside an existing server transaction share its atomic boundary.
+        // `writePages` uses this to make direct/bootstrap drains transactional without
+        // nesting a Durable Object storage transaction during normal action execution.
+        if (this.transactionCache !== undefined) {
+            return fn();
+        }
+
+        const transactionCache = {
+            sqliteIds: new Map<DatabaseTableId, number>(),
+            fileSizes: new Map<DatabaseTableId, number>(),
+        };
+        this.transactionCache = transactionCache;
+        try {
+            const result = this.storage.transactionSync(fn);
+            for (const [tableId, sqliteId] of transactionCache.sqliteIds) {
+                this.sqliteIds.set(tableId, sqliteId);
+            }
+            for (const [tableId, fileSize] of transactionCache.fileSizes) {
+                this.fileSizes.set(tableId, fileSize);
+            }
+            return result;
+        } finally {
+            this.transactionCache = undefined;
+        }
     }
 
     /**
@@ -404,10 +433,6 @@ export class DatabaseServer {
             WHERE
                 sqlite_id = ${sqliteId}
                 AND page_index = ${index}
-            ORDER BY
-                version DESC
-            LIMIT
-                1
         `.selectOneOrNone(this.sql, {
             data: Schema.bytes.nullable(),
             version: Schema.integer,
@@ -436,17 +461,26 @@ export class DatabaseServer {
         pages: ReadonlyMap<DatabaseTableId, ReadonlyMap<number, Uint8Array>>,
         truncates: ReadonlyMap<DatabaseTableId, number>,
     ): number {
+        if (this.transactionCache === undefined) {
+            return this.transactionSync(() => this.writePages(pages, truncates));
+        }
+
         const version = this._nextVersion();
 
-        // Truncates first: tombstone every page at or past each table's new boundary. A
-        // subsequent write to a page in this batch that falls past the boundary re-extends
-        // the file naturally — the boundary write just becomes the latest row at the same
-        // version.
+        const finalPagesByTable = new Map<DatabaseTableId, Map<number, Uint8Array | null>>();
+        const finalFileSizeByTable = new Map<DatabaseTableId, number>();
+
+        // Compute the complete final state before persisting any page. In particular, a
+        // rewrite later in this batch replaces a truncate tombstone for the same primary
+        // key rather than attempting two writes at one version.
         for (const [databaseTableId, size] of truncates) {
             const sqliteId = this._getOrCreateSqliteId(databaseTableId);
             const maxPageIndex = Math.floor(size / sqlitePageSize);
+            // This range scan is deliberate: tombstones must be retained for every known page
+            // removed by the truncate. The `(sqlite_id, page_index)` primary key serves the
+            // range directly.
             const pageIndexes = sql`
-                SELECT DISTINCT
+                SELECT
                     page_index
                 FROM
                     database_table_pages
@@ -454,7 +488,36 @@ export class DatabaseServer {
                     sqlite_id = ${sqliteId}
                     AND page_index >= ${maxPageIndex}
             `.selectValues(this.sql, Schema.integer);
+            const finalPages = new Map<number, Uint8Array | null>();
             for (const pageIndex of pageIndexes) {
+                finalPages.set(pageIndex, null);
+            }
+            finalPagesByTable.set(databaseTableId, finalPages);
+            finalFileSizeByTable.set(databaseTableId, size);
+        }
+
+        for (const [databaseTableId, tablePages] of pages) {
+            const finalPages = finalPagesByTable.get(databaseTableId) ?? new Map();
+            finalPagesByTable.set(databaseTableId, finalPages);
+            let finalFileSize =
+                finalFileSizeByTable.get(databaseTableId) ?? this.getFileSize(databaseTableId);
+            for (const [index, data] of tablePages) {
+                finalPages.set(index, data);
+                const end = (index + 1) * sqlitePageSize;
+                finalFileSize = Math.max(finalFileSize, end);
+            }
+            finalFileSizeByTable.set(databaseTableId, finalFileSize);
+        }
+
+        for (const [databaseTableId, finalFileSize] of finalFileSizeByTable) {
+            const sqliteId = this._getOrCreateSqliteId(databaseTableId);
+            const finalPages = finalPagesByTable.get(databaseTableId);
+            assert(finalPages !== undefined, `missing final pages for table ${databaseTableId}`);
+            assert(
+                finalFileSize % sqlitePageSize === 0,
+                `unaligned file size for table ${databaseTableId}: ${finalFileSize}`,
+            );
+            for (const [pageIndex, data] of finalPages) {
                 sql`
                     INSERT INTO
                         database_table_pages (sqlite_id, page_index, version, data)
@@ -463,72 +526,93 @@ export class DatabaseServer {
                             ${sqliteId},
                             ${pageIndex},
                             ${version},
-                            NULL
-                        )
-                `.exec(this.sql);
-            }
-            this.fileSizes.set(databaseTableId, size);
-        }
-
-        for (const [databaseTableId, tablePages] of pages) {
-            const sqliteId = this._getOrCreateSqliteId(databaseTableId);
-            for (const [index, data] of tablePages) {
-                sql`
-                    INSERT INTO
-                        database_table_pages (sqlite_id, page_index, version, data)
-                    VALUES
-                        (
-                            ${sqliteId},
-                            ${index},
-                            ${version},
                             ${data}
                         )
+                    ON CONFLICT (sqlite_id, page_index) DO UPDATE
+                    SET
+                        version = excluded.version,
+                        data = excluded.data
                 `.exec(this.sql);
-                const end = (index + 1) * sqlitePageSize;
-                if (end > this.getFileSize(databaseTableId)) {
-                    this.fileSizes.set(databaseTableId, end);
-                }
             }
+            sql`
+                UPDATE database_tables
+                SET
+                    file_size_in_pages = ${finalFileSize / sqlitePageSize},
+                    last_version = ${version}
+                WHERE
+                    sqlite_id = ${sqliteId}
+            `.exec(this.sql);
+            this.transactionCache.fileSizes.set(databaseTableId, finalFileSize);
         }
 
         return version;
     }
 
     getFileSize(databaseTableId: DatabaseTableId): number {
-        const cached = this.fileSizes.get(databaseTableId);
+        const cached =
+            this.transactionCache?.fileSizes.get(databaseTableId) ??
+            this.fileSizes.get(databaseTableId);
         if (cached !== undefined) {
             return cached;
         }
-        const sqliteId = this._lookupSqliteId(databaseTableId);
-        if (sqliteId === undefined) {
-            this.fileSizes.set(databaseTableId, 0);
-            return 0;
-        }
-        const lastPageIndex = sql`
+        const fileSizeInPages = sql`
             SELECT
-                p.page_index
+                file_size_in_pages
             FROM
-                database_table_pages p
+                database_tables
             WHERE
-                p.sqlite_id = ${sqliteId}
-                AND p.version = (
-                    SELECT
-                        MAX(p2.version)
-                    FROM
-                        database_table_pages p2
-                    WHERE
-                        p2.sqlite_id = ${sqliteId}
-                        AND p2.page_index = p.page_index
-                )
-                AND p.data IS NOT NULL
-            ORDER BY
-                p.page_index DESC
-            LIMIT
-                1
+                table_id = ${databaseTableId}
         `.selectValueIfExists(this.sql, Schema.integer);
-        const size = lastPageIndex === null ? 0 : (lastPageIndex + 1) * sqlitePageSize;
-        this.fileSizes.set(databaseTableId, size);
+        const size = (fileSizeInPages ?? 0) * sqlitePageSize;
+        (this.transactionCache?.fileSizes ?? this.fileSizes).set(databaseTableId, size);
         return size;
+    }
+
+    /**
+     * Latest page states changed after a client's per-table global-version cursor.
+     */
+    changedPagesSince(
+        databaseTableId: DatabaseTableId,
+        sinceVersion: number,
+    ): {
+        changedPageIndexes: Set<number>;
+        tombstonedPageIndexes: Set<number>;
+    } {
+        const table = sql`
+            SELECT
+                sqlite_id,
+                last_version
+            FROM
+                database_tables
+            WHERE
+                table_id = ${databaseTableId}
+        `.selectOneOrNone(this.sql, {
+            sqliteId: Schema.integer.originalPropertyKey("sqlite_id"),
+            lastVersion: Schema.integer.originalPropertyKey("last_version"),
+        });
+        const changedPageIndexes = new Set<number>();
+        const tombstonedPageIndexes = new Set<number>();
+        if (table === null || table.lastVersion <= sinceVersion) {
+            return {changedPageIndexes, tombstonedPageIndexes};
+        }
+
+        const rows = sql`
+            SELECT
+                page_index,
+                data IS NULL AS tombstoned
+            FROM
+                database_table_pages
+            WHERE
+                sqlite_id = ${table.sqliteId}
+                AND version > ${sinceVersion}
+        `.selectAll(this.sql, {
+            pageIndex: Schema.integer.originalPropertyKey("page_index"),
+            tombstoned: Schema.integer,
+        });
+        for (const row of rows) {
+            (row.tombstoned === 1 ? tombstonedPageIndexes : changedPageIndexes).add(row.pageIndex);
+        }
+        return {changedPageIndexes, tombstonedPageIndexes};
     }
 
     // -- Internal -----------------------------------------------------------
@@ -613,14 +697,15 @@ export class DatabaseServer {
 
     private _nextVersion(): number {
         if (this.lastWriteVersion === undefined) {
-            // Cold load: recover MAX(version) across every table so the next stamp is strictly
-            // greater than anything already persisted.
+            // Cold load deliberately scans the compact per-table metadata, rather than all
+            // retained page images, so the next global stamp is strictly greater than any
+            // persisted table version.
             this.lastWriteVersion =
                 sql`
                     SELECT
-                        MAX(version)
+                        MAX(last_version)
                     FROM
-                        database_table_pages
+                        database_tables
                 `.selectValue(this.sql, Schema.integer.nullable()) ?? 0;
         }
         this.lastWriteVersion++;
@@ -633,7 +718,9 @@ export class DatabaseServer {
      * register a `sqlite_id`.
      */
     private _lookupSqliteId(databaseTableId: DatabaseTableId): number | undefined {
-        const cached = this.sqliteIds.get(databaseTableId);
+        const cached =
+            this.transactionCache?.sqliteIds.get(databaseTableId) ??
+            this.sqliteIds.get(databaseTableId);
         if (cached !== undefined) {
             return cached;
         }
@@ -648,7 +735,7 @@ export class DatabaseServer {
         if (sqliteId === null) {
             return undefined;
         }
-        this.sqliteIds.set(databaseTableId, sqliteId);
+        (this.transactionCache?.sqliteIds ?? this.sqliteIds).set(databaseTableId, sqliteId);
         return sqliteId;
     }
 
@@ -669,7 +756,7 @@ export class DatabaseServer {
             RETURNING
                 sqlite_id
         `.selectValue(this.sql, Schema.integer);
-        this.sqliteIds.set(databaseTableId, sqliteId);
+        (this.transactionCache?.sqliteIds ?? this.sqliteIds).set(databaseTableId, sqliteId);
         return sqliteId;
     }
 

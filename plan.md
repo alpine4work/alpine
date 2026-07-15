@@ -96,7 +96,7 @@ to preserve — schemas and protocol shapes are replaced in place.
 
 ---
 
-## Milestone 1 — Server storage: latest-image pages + per-table sync metadata
+## [x] Milestone 1 — Server storage: latest-image pages + per-table sync metadata
 
 **`server/databases/database_durable_object_sql_migrations.ts`**
 
