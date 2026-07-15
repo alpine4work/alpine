@@ -48,7 +48,7 @@ import {
     ApiTaskSubtasks,
     ApiTaskWithoutNotesResponse,
 } from "~/shared/api/specification/types/api_specification_convenience_types.js";
-import {InternalError, InvalidArgumentError} from "~/shared/error/error.js";
+import {InvalidArgumentError} from "~/shared/error/error.js";
 import {errorDisplayMessage} from "~/shared/error/error_display_message.js";
 import {createArrayWithLength} from "~/shared/helpers/array/create_array_with_length.js";
 import {emptyArray} from "~/shared/helpers/array/empty_array.js";
@@ -579,6 +579,21 @@ async function parseAgentWebTaskQueryPageSearchParams(
     ]);
 
     return {afterCursor, query: {filters, sorts}};
+}
+
+export async function printAgentWebTaskQueryPageSearchParams(
+    storage: AgentWebSessionStorage,
+    pagination: AgentWebTaskQueryPagePagination,
+): Promise<string> {
+    const filters = await printAgentWebTaskQueryFilters(storage, pagination.query.filters);
+
+    return [
+        `after=${pagination.nextCursorHash}`,
+        filters,
+        printAgentWebTaskQuerySorts(pagination.query.sorts),
+    ]
+        .filter(searchParams => searchParams.length > 0)
+        .join("&");
 }
 
 export async function printAgentWebTaskQueryPageTaskList(
