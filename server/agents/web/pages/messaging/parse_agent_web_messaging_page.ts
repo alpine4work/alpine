@@ -43,6 +43,7 @@ import {hasHtmlOpenTag} from "~/shared/helpers/html/has_html_open_tag.js";
 import {iterableSome} from "~/shared/helpers/iterable/iterable_some.js";
 import {MaybePromise} from "~/shared/helpers/types/maybe_promise.js";
 import {Replace} from "~/shared/helpers/types/replace.js";
+import {quote} from "~/shared/helpers/string/quote.js";
 
 type ParseAgentWebMessagingPageCustomBlock<CustomBlock> = (
     storage: AgentWebSessionStorage,
@@ -184,7 +185,7 @@ async function actuallyParseAgentWebMessagingPage<
                                 state.type === "Message" ? messageNouns.noun : state.tagName;
 
                             throw new InvalidArgumentError("Invalid custom element open tag", {
-                                displayMessage: errorDisplayMessage`Can\u2019t open a new \`<${tagName}>\` on line ${node.position?.start.line ?? "unknown"}. There\u2019s already an open \`<${alreadyOpenTagName}>\` and you can\u2019t nest \`<${tagName}>\`.`,
+                                displayMessage: errorDisplayMessage`Can\u2019t open a new ${quote(`<${tagName}>`)} on line ${node.position?.start.line ?? "unknown"}. There\u2019s already an open ${quote(`<${alreadyOpenTagName}>`)} and you can\u2019t nest ${quote(`<${tagName}>`)}.`,
                             });
                         }
 
@@ -211,7 +212,7 @@ async function actuallyParseAgentWebMessagingPage<
                                 const alreadyOpenTagName = messageNouns.noun;
 
                                 throw new InvalidArgumentError("Invalid message element open tag", {
-                                    displayMessage: errorDisplayMessage`Can\u2019t open a new \`<${messageNouns.noun}>\` on line ${node.position?.start.line ?? "unknown"}. There\u2019s already an open \`<${alreadyOpenTagName}>\` and you can\u2019t nest ${messageNouns.pluralNoun}.`,
+                                    displayMessage: errorDisplayMessage`Can\u2019t open a new ${quote(`<${messageNouns.noun}>`)} on line ${node.position?.start.line ?? "unknown"}. There\u2019s already an open ${quote(`<${alreadyOpenTagName}>`)} and you can\u2019t nest ${messageNouns.pluralNoun}.`,
                                 });
                             }
 
@@ -250,7 +251,7 @@ async function actuallyParseAgentWebMessagingPage<
 
                             if (!state || state.parent || state.children.length > 0) {
                                 throw new InvalidArgumentError("Invalid parent element open tag", {
-                                    displayMessage: errorDisplayMessage`Can\u2019t add \`<blockquote>\` on line ${node.position?.start.line ?? "unknown"}. \`<blockquote>\`s can only be used at the beginning of a \`<${messageNouns.noun}>\` to indicate that the ${messageNouns.noun} is a reply to some other ${messageNouns.noun}.`,
+                                    displayMessage: errorDisplayMessage`Can\u2019t add \`<blockquote>\` on line ${node.position?.start.line ?? "unknown"}. \`<blockquote>\`s can only be used at the beginning of a ${quote(`<${messageNouns.noun}>`)} to indicate that the ${messageNouns.noun} is a reply to some other ${messageNouns.noun}.`,
                                 });
                             }
 
@@ -310,7 +311,7 @@ async function actuallyParseAgentWebMessagingPage<
                     if (customBlockTagNames.has(tagName) && !isMessageParentBlockquote) {
                         if (!state || state.type !== "Custom" || state.tagName !== tagName) {
                             throw new InvalidArgumentError("Invalid custom element close tag", {
-                                displayMessage: errorDisplayMessage`Can\u2019t close \`</${tagName}>\` on line ${node.position?.start.line ?? "unknown"}. There isn\u2019t a matching \`<${tagName}>\` open tag.`,
+                                displayMessage: errorDisplayMessage`Can\u2019t close ${quote(`</${tagName}>`)} on line ${node.position?.start.line ?? "unknown"}. There isn\u2019t a matching ${quote(`<${tagName}>`)} open tag.`,
                             });
                         }
 
@@ -369,7 +370,7 @@ async function actuallyParseAgentWebMessagingPage<
                                 throw new InvalidArgumentError(
                                     "Invalid message element close tag",
                                     {
-                                        displayMessage: errorDisplayMessage`Can\u2019t close \`</${messageNouns.noun}>\` on line ${node.position?.start.line ?? "unknown"}. There isn\u2019t a matching \`<${messageNouns.noun}>\` open tag.`,
+                                        displayMessage: errorDisplayMessage`Can\u2019t close ${quote(`</${messageNouns.noun}>`)} on line ${node.position?.start.line ?? "unknown"}. There isn\u2019t a matching ${quote(`<${messageNouns.noun}>`)} open tag.`,
                                     },
                                 );
                             }
@@ -389,9 +390,7 @@ async function actuallyParseAgentWebMessagingPage<
                                 string: string,
                             ) => {
                                 const createError = () => {
-                                    const quotedString = quoteMarkdown([
-                                        {type: "text", value: string},
-                                    ]);
+                                    const quotedString = quoteMarkdown(string);
 
                                     return new InvalidArgumentError("Invalid account link", {
                                         displayMessage: errorDisplayMessage`Expected a link to a human or bot on line ${position?.start.line ?? "unknown"}. For example: \u201C[John](/human/john-doe)\u201D. Instead we found ${quotedString}. Try again with a valid link to a human or bot.`,
@@ -748,7 +747,7 @@ async function actuallyParseAgentWebMessagingPage<
                     throw new InvalidArgumentError(
                         "Unexpected text in the same HTML Markdown node as an open or close tag",
                         {
-                            displayMessage: errorDisplayMessage`Must add an empty new line between the \`${tag}\` ${tagType} tag and markdown text. Otherwise, due to a quirk in markdown, the text on line ${line ?? "unknown"} will be parsed as HTML instead of markdown. The \`<${tagName}>\` must be formatted like this: \`<${tagName}>\\n\\n...\\n\\n</${tagName}>\`.`,
+                            displayMessage: errorDisplayMessage`Must add an empty new line between the ${quote(tag)} ${tagType} tag and markdown text. Otherwise, due to a quirk in markdown, the text on line ${line ?? "unknown"} will be parsed as HTML instead of markdown. The ${quote(`<${tagName}>`)} must be formatted like this: ${quote(`<${tagName}>\\n\\n...\\n\\n</${tagName}>`)}.`,
                         },
                     );
                 }
@@ -921,12 +920,12 @@ async function actuallyParseAgentWebMessagingPage<
         switch (state.type) {
             case "Message": {
                 throw new InvalidArgumentError("Missing message element close tag", {
-                    displayMessage: errorDisplayMessage`\`<${messageNouns.noun}>\` on line ${state.openTagPosition?.start.line ?? "unknown"} is missing a closing tag. Add a \`</${messageNouns.noun}>\` closing tag and try again.`,
+                    displayMessage: errorDisplayMessage`${quote(`<${messageNouns.noun}>`)} on line ${state.openTagPosition?.start.line ?? "unknown"} is missing a closing tag. Add a ${quote(`</${messageNouns.noun}>`)} closing tag and try again.`,
                 });
             }
             case "Custom": {
                 throw new InvalidArgumentError("Missing custom element close tag", {
-                    displayMessage: errorDisplayMessage`\`<${state.tagName}>\` on line ${state.openTagPosition?.start.line ?? "unknown"} is missing a closing tag. Add a \`</${state.tagName}>\` closing tag and try again.`,
+                    displayMessage: errorDisplayMessage`${quote(`<${state.tagName}>`)} on line ${state.openTagPosition?.start.line ?? "unknown"} is missing a closing tag. Add a ${quote(`</${state.tagName}>`)} closing tag and try again.`,
                 });
             }
             default:
@@ -972,7 +971,7 @@ function parseAgentWebMessagingPageParentCiteAttribute(
     const searchParamName = messageNouns.noun;
     const createError = () =>
         new InvalidArgumentError("Invalid parent `cite` attribute", {
-            displayMessage: errorDisplayMessage`Invalid \`<blockquote>\` \`cite\` attribute on line ${position?.start.line ?? "unknown"}. Expected \`cite\` to be a relative link like \`?${searchParamName}=42\` or \`?${searchParamName}=4-7\`. Try again with a valid \`cite\` attribute.`,
+            displayMessage: errorDisplayMessage`Invalid \`<blockquote>\` \`cite\` attribute on line ${position?.start.line ?? "unknown"}. Expected \`cite\` to be a relative link like ${quote(`?${searchParamName}=42`)} or ${quote(`?${searchParamName}=4-7`)}. Try again with a valid \`cite\` attribute.`,
         });
 
     if (!citeAttribute.startsWith("?")) throw createError();
@@ -1069,7 +1068,7 @@ function parseAgentWebMessagingPageMessageBlockIdAttribute(
     if (range !== null) return range;
 
     throw new InvalidArgumentError("Invalid message `id` attribute", {
-        displayMessage: errorDisplayMessage`Invalid \`<${messageNouns.noun}>\` \`id\` attribute on line ${position?.start.line ?? "unknown"}. Expected \`id\` to be an integer like \`42\` or an integer range like \`4-7\`. Try again with a valid \`id\` attribute.`,
+        displayMessage: errorDisplayMessage`Invalid ${quote(`<${messageNouns.noun}>`)} \`id\` attribute on line ${position?.start.line ?? "unknown"}. Expected \`id\` to be an integer like \`42\` or an integer range like \`4-7\`. Try again with a valid \`id\` attribute.`,
     });
 }
 
@@ -1078,7 +1077,7 @@ function createUnexpectedMarkdownError(
     position: Node["position"],
 ) {
     return new InvalidArgumentError("Unexpected markdown node type", {
-        displayMessage: errorDisplayMessage`Unexpected markdown on line ${position?.start.line ?? "unknown"}. ${messageNouns.startOfSentencePluralNoun} markdown must be a list of \`<${messageNouns.noun}>\`s.`,
+        displayMessage: errorDisplayMessage`Unexpected markdown on line ${position?.start.line ?? "unknown"}. ${messageNouns.startOfSentencePluralNoun} markdown must be a list of ${quote(`<${messageNouns.noun}>`)}s.`,
     });
 }
 
@@ -1182,7 +1181,7 @@ async function takeAgentWebMessagingPagePaginationFromPreamble<
         !isDeepEqual(previousPaginationLink.pageLink, nextPaginationLink.pageLink)
     ) {
         throw new InvalidArgumentError("Pagination links point to different pages", {
-            displayMessage: errorDisplayMessage`\u201D${agentWebMessagingPreviousPageLinkTextWithStartArrow}\u201D and \u201C${agentWebMessagingNextPageLinkText}\u201D links must link to the same page. \u201C${agentWebMessagingPreviousPageLinkTextWithStartArrow}\u201D links to \`${previousPaginationLink.pathname.slice(0, 75)}\` and \u201C${agentWebMessagingNextPageLinkText}\u201D links to \`${nextPaginationLink.pathname.slice(0, 75)}\`. Try again and make sure both links point to the same page (it\u2019s ok if the URL search params like \`?before\` and \`?after\` are different but the pathname must be the same).`,
+            displayMessage: errorDisplayMessage`${quoteMarkdown(agentWebMessagingPreviousPageLinkTextWithStartArrow)} and ${quoteMarkdown(agentWebMessagingNextPageLinkText)} links must link to the same page. ${quoteMarkdown(agentWebMessagingPreviousPageLinkTextWithStartArrow)} links to ${quote(previousPaginationLink.pathname.slice(0, 75))} and ${quoteMarkdown(agentWebMessagingNextPageLinkText)} links to ${quote(nextPaginationLink.pathname.slice(0, 75))}. Try again and make sure both links point to the same page (it\u2019s ok if the URL search params like \`?before\` and \`?after\` are different but the pathname must be the same).`,
         });
     }
 
@@ -1332,6 +1331,6 @@ function createInvalidAgentWebMessagingPagePaginationLinkUrlError({
     const quotedText = quoteMarkdown(link.children);
 
     return new InvalidArgumentError("Invalid pagination link URL", {
-        displayMessage: errorDisplayMessage`Invalid link for ${quotedText}. Expected a link to more ${messageNouns.pluralNoun} with a \`${searchParamName}\` URL search param. Example: \`/chat/my-chat?${searchParamName}=8\`. Try again with a different link.`,
+        displayMessage: errorDisplayMessage`Invalid link for ${quotedText}. Expected a link to more ${messageNouns.pluralNoun} with a ${quote(searchParamName)} URL search param. Example: ${quote(`/chat/my-chat?${searchParamName}=8`)}. Try again with a different link.`,
     });
 }

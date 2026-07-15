@@ -63,6 +63,7 @@ import {printPrettyNumber} from "~/shared/helpers/number/print_pretty_number.js"
 import {MaybePromise} from "~/shared/helpers/types/maybe_promise.js";
 import {MaybeThunk} from "~/shared/helpers/types/maybe_thunk.js";
 import {ChatId} from "~/shared/id/types/id_types.js";
+import {quote} from "~/shared/helpers/string/quote.js";
 
 export type AgentWebChatPage = AgentWebMessagingPage<AgentWebChatPagePreamble, never> & {
     readonly type: "Chat";
@@ -305,7 +306,8 @@ export async function createAgentWebChatPage(
                         updateAgentWebMessagingPageUnexpectedNewMessageIndexesErrorMessage,
                         {
                             cause: error,
-                            displayMessage: errorDisplayMessage`Create was successful. Found chat: [${printAgentWebPageStoredLinkLabel(pageLink)}](${pathname}). ${newMessageIndexes.length === 1 ? `The message you added was` : `The messages you added were`} created, but a chat with ${chatSummary} already existed so your ${newMessageIndexes.length === 1 ? `message was` : `messages were`} added to the end of the existing chat. If you want to see the previous messages in the chat before the new ${newMessageIndexes.length === 1 ? `message` : `messages`} you added then call the \`read\` tool with \`${pathname}?before=${firstNewMessageIndex}\`.`,
+                            // NOCOMMIT: Print this to markdown properly
+                            displayMessage: errorDisplayMessage`Create was successful. Found chat: [${printAgentWebPageStoredLinkLabel(pageLink)}](${pathname}). ${newMessageIndexes.length === 1 ? `The message you added was` : `The messages you added were`} created, but a chat with ${chatSummary} already existed so your ${newMessageIndexes.length === 1 ? `message was` : `messages were`} added to the end of the existing chat. If you want to see the previous messages in the chat before the new ${newMessageIndexes.length === 1 ? `message` : `messages`} you added then call the \`read\` tool with ${quote(`${pathname}?before=${firstNewMessageIndex}`)}.`,
                         },
                     ),
                     {newMessageIndexes},

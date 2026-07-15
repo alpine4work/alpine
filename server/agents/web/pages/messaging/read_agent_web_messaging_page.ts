@@ -47,6 +47,7 @@ import {formatTimeZoneAbbreviation} from "~/shared/helpers/intl/time_zone.js";
 import {DefaultMap} from "~/shared/helpers/map/default_map.js";
 import {printPrettyNumber} from "~/shared/helpers/number/print_pretty_number.js";
 import {AccountId} from "~/shared/id/types/id_types.js";
+import {quote} from "~/shared/helpers/string/quote.js";
 
 export const agentWebMessagingPageApiMessagesBatchCount = 30;
 
@@ -156,7 +157,7 @@ export function parseAgentWebMessagingPageSearchParams({
 
         if (beforeMessageIndex === null) {
             throw new InvalidArgumentError("Expected `before` search param to be an integer", {
-                displayMessage: errorDisplayMessage`Expected \`?before\` URL search param to be an integer, but got \`${beforeMessageIndexSearchParam}\`. Try again with an integer or try omitting \`?before\`. We recommend using a value for \`?before\` from a \`<${messageNouns.noun}>\`\u2019s \`id\` attribute.`,
+                displayMessage: errorDisplayMessage`Expected \`?before\` URL search param to be an integer, but got ${quote(beforeMessageIndexSearchParam)}. Try again with an integer or try omitting \`?before\`. We recommend using a value for \`?before\` from a ${quote(`<${messageNouns.noun}>`)}\u2019s \`id\` attribute.`,
             });
         }
     }
@@ -166,7 +167,7 @@ export function parseAgentWebMessagingPageSearchParams({
 
         if (afterMessageIndex === null) {
             throw new InvalidArgumentError("Expected `after` search param to be an integer", {
-                displayMessage: errorDisplayMessage`Expected \`?after\` URL search param to be an integer, but got \`${afterMessageIndexSearchParam}\`. Try again with an integer or try omitting \`?after\`. We recommend using a value for \`?after\` from a \`<${messageNouns.noun}>\`\u2019s \`id\` attribute.`,
+                displayMessage: errorDisplayMessage`Expected \`?after\` URL search param to be an integer, but got ${quote(afterMessageIndexSearchParam)}. Try again with an integer or try omitting \`?after\`. We recommend using a value for \`?after\` from a ${quote(`<${messageNouns.noun}>`)}\u2019s \`id\` attribute.`,
             });
         }
     }
@@ -178,7 +179,7 @@ export function parseAgentWebMessagingPageSearchParams({
             throw new InvalidArgumentError(
                 `Expected \`${messageNouns.noun}\` search param to be an integer or range`,
                 {
-                    displayMessage: errorDisplayMessage`Expected \`?${messageNouns.noun}\` URL search param to be an integer or integer range, but got \`${aroundMessageRangeSearchParam}\`. Try again with an integer, an integer range, or try omitting \`?${messageNouns.noun}\`. We recommend using a value for \`?${messageNouns.noun}\` from a \`<${messageNouns.noun}>\`\u2019s \`id\` attribute.`,
+                    displayMessage: errorDisplayMessage`Expected ${quote(`?${messageNouns.noun}`)} URL search param to be an integer or integer range, but got ${quote(aroundMessageRangeSearchParam)}. Try again with an integer, an integer range, or try omitting ${quote(`?${messageNouns.noun}`)}. We recommend using a value for ${quote(`?${messageNouns.noun}`)} from a ${quote(`<${messageNouns.noun}>`)}\u2019s \`id\` attribute.`,
                 },
             );
         }
@@ -186,13 +187,13 @@ export function parseAgentWebMessagingPageSearchParams({
 
     if (startSearchParam !== null && startSearchParam !== "") {
         throw new InvalidArgumentError("Expected `start` search param to be empty", {
-            displayMessage: errorDisplayMessage`Expected \`?start\` URL search param to not have a value, but got \`${startSearchParam}\`. Try again without a value (no \`?start=...\`, just \`?start\`).`,
+            displayMessage: errorDisplayMessage`Expected \`?start\` URL search param to not have a value, but got ${quote(startSearchParam)}. Try again without a value (no \`?start=...\`, just \`?start\`).`,
         });
     }
 
     if (endSearchParam !== null && endSearchParam !== "") {
         throw new InvalidArgumentError("Expected `end` search param to be empty", {
-            displayMessage: errorDisplayMessage`Expected \`?end\` URL search param to not have a value, but got \`${endSearchParam}\`. Try again without a value (no \`?end=...\`, just \`?end\`).`,
+            displayMessage: errorDisplayMessage`Expected \`?end\` URL search param to not have a value, but got ${quote(endSearchParam)}. Try again without a value (no \`?end=...\`, just \`?end\`).`,
         });
     }
 
@@ -205,7 +206,7 @@ export function parseAgentWebMessagingPageSearchParams({
 
     if (searchParamCount > 1) {
         throw new InvalidArgumentError("Expected only one pagination search param", {
-            displayMessage: errorDisplayMessage`Expected only one of \`?before\`, \`?after\`, \`?${messageNouns.noun}\`, \`?start\`, or \`?end\` URL search params. Try again with only one of \`?before\`, \`?after\`, \`?${messageNouns.noun}\`, \`?start\`, or \`?end\`. We recommend using a value for \`?before\`, \`?after\`, or \`?${messageNouns.noun}\` from a \`<${messageNouns.noun}>\`\u2019s \`id\` attribute.`,
+            displayMessage: errorDisplayMessage`Expected only one of \`?before\`, \`?after\`, ${quote(`?${messageNouns.noun}`)}, \`?start\`, or \`?end\` URL search params. Try again with only one of \`?before\`, \`?after\`, ${quote(`?${messageNouns.noun}`)}, \`?start\`, or \`?end\`. We recommend using a value for \`?before\`, \`?after\`, or ${quote(`?${messageNouns.noun}`)} from a ${quote(`<${messageNouns.noun}>`)}\u2019s \`id\` attribute.`,
         });
     }
 

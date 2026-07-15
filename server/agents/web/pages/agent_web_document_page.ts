@@ -2,7 +2,7 @@ import {produce} from "immer";
 import {Parent, Root} from "mdast";
 import {AgentWebContextWithoutStorage} from "~/server/agents/web/agent_web_context.js";
 import {AgentWebSessionStorage} from "~/server/agents/web/agent_web_session_storage.js";
-import {quoteMarkdown} from "~/server/agents/web/internal/quote_markdown.js";
+import {curlyQuote} from "~/server/agents/web/internal/curly_quote.js";
 import {withApiContentNormalizerForAgentWebMarkdown} from "~/server/agents/web/normalize_api_content_for_agent_web_markdown.js";
 import {parseApiContentFromAgentWebMarkdownTree} from "~/server/agents/web/parse_api_content_from_agent_web_markdown.js";
 import {printApiContentToAgentWebMarkdownTree} from "~/server/agents/web/print_api_content_to_agent_web_markdown.js";
@@ -170,7 +170,7 @@ export async function parseAgentWebDocumentPage(
 
             if (childNode.type === "heading" && childNode.depth === 1) {
                 throw new InvalidArgumentError("Documents can only have a single heading level 1", {
-                    displayMessage: errorDisplayMessage`A document can only have one markdown h1 (e.g. \`# My Document\`) and the h1 must be placed at the start of the document. You added an additional markdown h1 ${quoteMarkdown(childNode.children)}. Try again but remove the additional markdown h1 or make it an h2 (e.g. \`## My Sub-heading\`).`,
+                    displayMessage: errorDisplayMessage`A document can only have one markdown h1 (e.g. \`# My Document\`) and the h1 must be placed at the start of the document. You added an additional markdown h1 ${curlyQuote(childNode.children)}. Try again but remove the additional markdown h1 or make it an h2 (e.g. \`## My Sub-heading\`).`,
                 });
             }
 

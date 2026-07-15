@@ -121,7 +121,7 @@ export function parseAgentWebTaskQuerySorts(
         // `due[before]=`) since a `-` in front of a sort key already picks the direction.
         if (/^sort\[[a-z]+\]$/.test(key)) {
             throw new InvalidArgumentError("Unknown task sort operator", {
-                displayMessage: errorDisplayMessage`Unknown task sort \`${key}=...\`. Try again with a plain \`sort\` search param (e.g. \`sort=created\`) where a \`-\` in front of a sort key sorts descending (e.g. \`sort=-created\`).`,
+                displayMessage: errorDisplayMessage`Unknown task sort ${quote(`${key}=...`)}. Try again with a plain \`sort\` search param (e.g. \`sort=created\`) where a \`-\` in front of a sort key sorts descending (e.g. \`sort=-created\`).`,
             });
         }
 

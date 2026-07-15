@@ -5,8 +5,10 @@ import {printMarkdownPhrasingContentText} from "~/server/agents/web/print_markdo
  * Quote some Markdown. We typically use this in `errorDisplayMessage` to quote
  * some Markdown written by an agent.
  */
-export function quoteMarkdown(markdown: ReadonlyArray<PhrasingContent>) {
-    let markdownString = printMarkdownPhrasingContentText(markdown);
+// NOCOMMIT: Escape characters? This should return a string that's valid Markdown.
+export function curlyQuote(markdown: ReadonlyArray<PhrasingContent> | string) {
+    let markdownString =
+        typeof markdown === "string" ? markdown : printMarkdownPhrasingContentText(markdown);
 
     if (markdownString.length > 50) {
         markdownString = markdownString.slice(0, 50) + "…";

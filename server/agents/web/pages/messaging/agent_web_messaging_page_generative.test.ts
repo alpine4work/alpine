@@ -12,6 +12,7 @@ import {ApiContentInlineElementResponse} from "~/shared/api/specification/types/
 import {InvalidArgumentError} from "~/shared/error/error.js";
 import {errorDisplayMessage} from "~/shared/error/error_display_message.js";
 import {assert} from "~/shared/helpers/control/assert.js";
+import {quote} from "~/shared/helpers/string/quote.js";
 
 type TestCustomBlock = {
     readonly type: "Custom";
@@ -75,7 +76,7 @@ runAgentWebPageGenerativeTests({
                     actualElements = elements[0].elements;
                 } else {
                     throw new InvalidArgumentError("Preamble isn\u2019t a single paragraph", {
-                        displayMessage: errorDisplayMessage`Unexpected markdown on line 1. ${agentWebMessagingPageMessageNouns.startOfSentencePluralNoun} markdown must be a list of \`<${agentWebMessagingPageMessageNouns.noun}>\`s. Though it may start with a single paragraph with a short description of what we\u2019re looking at.`,
+                        displayMessage: errorDisplayMessage`Unexpected markdown on line 1. ${agentWebMessagingPageMessageNouns.startOfSentencePluralNoun} markdown must be a list of ${quote(`<${agentWebMessagingPageMessageNouns.noun}>`)}s. Though it may start with a single paragraph with a short description of what we\u2019re looking at.`,
                     });
                 }
 

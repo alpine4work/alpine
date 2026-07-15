@@ -5,7 +5,7 @@ import {
 } from "~/server/agents/web/agent_web_context.js";
 import {AgentWebSessionStorage} from "~/server/agents/web/agent_web_session_storage.js";
 import {normalizeAgentWebStaticText} from "~/server/agents/web/internal/normalize_agent_web_static_text.js";
-import {quoteMarkdown} from "~/server/agents/web/internal/quote_markdown.js";
+import {curlyQuote} from "~/server/agents/web/internal/curly_quote.js";
 import {printMarkdownPhrasingContentText} from "~/server/agents/web/print_markdown_phrasing_content_text.js";
 import {
     ApiAccountSpace,
@@ -190,13 +190,13 @@ export async function parseAgentWebAccountPage(
 
             if (fieldName === null) {
                 throw new InvalidArgumentError("Unknown account field", {
-                    displayMessage: errorDisplayMessage`Unexpected field \u201C${label}\u201D on line ${item.position?.start.line ?? "unknown"}. Try again with \u201CState\u201D, \u201CRole\u201D, or \u201CShort name\u201D.`,
+                    displayMessage: errorDisplayMessage`Unexpected field ${curlyQuote(label)} on line ${item.position?.start.line ?? "unknown"}. Try again with \u201CState\u201D, \u201CRole\u201D, or \u201CShort name\u201D.`,
                 });
             }
 
             if (seenFields.has(fieldName)) {
                 throw new InvalidArgumentError("Duplicate account field", {
-                    displayMessage: errorDisplayMessage`Field \u201C${label}\u201D appears more than once on line ${item.position?.start.line ?? "unknown"}. Try again with each field only present once in the field list.`,
+                    displayMessage: errorDisplayMessage`Field ${curlyQuote(label)} appears more than once on line ${item.position?.start.line ?? "unknown"}. Try again with each field only present once in the field list.`,
                 });
             }
 
@@ -204,7 +204,7 @@ export async function parseAgentWebAccountPage(
 
             if (remaining.length > 0) {
                 throw new InvalidArgumentError("Unexpected markdown nested in account field", {
-                    displayMessage: errorDisplayMessage`Unexpected markdown after field \u201C${label}\u201D on line ${remaining[0]!.position?.start.line ?? item.position?.start.line ?? "unknown"}. Try again with one unordered list item per field where the field name is followed by the field value with a colon in between (e.g. \`- Role: Member\`).`,
+                    displayMessage: errorDisplayMessage`Unexpected markdown after field ${curlyQuote(label)} on line ${remaining[0]!.position?.start.line ?? item.position?.start.line ?? "unknown"}. Try again with one unordered list item per field where the field name is followed by the field value with a colon in between (e.g. \`- Role: Member\`).`,
                 });
             }
 
@@ -322,7 +322,7 @@ function parseAgentWebAccountStateField(
         case "invited but hasn't accepted their invite":
             return {type: "InvitePending"};
         default: {
-            const quotedValue = quoteMarkdown(value);
+            const quotedValue = curlyQuote(value);
 
             throw new InvalidArgumentError("Invalid account state", {
                 displayMessage: errorDisplayMessage`Unexpected state ${quotedValue} on line ${value[0]?.position?.start.line ?? itemPosition?.start.line ?? "unknown"}. Try again with \u201CRemoved from space\u201D or \u201CInvited, but hasn\u2019t accepted their invite\u201D.`,
@@ -345,7 +345,7 @@ function parseAgentWebAccountRoleField(
         case "member":
             return "Member";
         default: {
-            const quotedValue = quoteMarkdown(value);
+            const quotedValue = curlyQuote(value);
 
             throw new InvalidArgumentError("Invalid account role", {
                 displayMessage: errorDisplayMessage`Unexpected role ${quotedValue} on line ${value[0]?.position?.start.line ?? itemPosition?.start.line ?? "unknown"}. Try again with \u201COwner\u201D, \u201CAdmin\u201D, or \u201CMember\u201D.`,

@@ -1,5 +1,5 @@
 import {CalendarDate} from "@internationalized/date";
-import {quoteMarkdown} from "~/server/agents/web/internal/quote_markdown.js";
+import {curlyQuote} from "~/server/agents/web/internal/curly_quote.js";
 import {InvalidArgumentError} from "~/shared/error/error.js";
 import {errorDisplayMessage} from "~/shared/error/error_display_message.js";
 import {ErrorDisplayMessage} from "~/shared/error/types/error_display_message_type.js";
@@ -18,7 +18,7 @@ export function parseAgentWebTaskPageDueDateStringForUpdate(
         matches[0]!.start !== 0 ||
         matches[0]!.end !== dueDateString.length
     ) {
-        const quotedValue = quoteMarkdown([{type: "text", value: dueDateString}]);
+        const quotedValue = curlyQuote(dueDateString);
 
         throw new InvalidArgumentError("Invalid task due date", {
             displayMessage: errorDisplayMessage`Unexpected task due date ${quotedValue}${additionalDetail()}. Try again with a date like \u201cJuly 12, 2027\u201d (not including the time, just the date).`,

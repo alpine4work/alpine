@@ -89,6 +89,7 @@ import {Mutex} from "~/shared/helpers/async/mutex.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
 import {getOrSetDefaultMapValue} from "~/shared/helpers/map/get_or_set_default_map_value.js";
+import {quote} from "~/shared/helpers/string/quote.js";
 
 export const agentWebReadResponseExpirationHours = 1;
 
@@ -122,7 +123,7 @@ async function actuallyCallAgentWebReadTool(
 
         if (!pageLinkResult) {
             throw new NotFoundError("Link not found", {
-                displayMessage: errorDisplayMessage`Nothing found for path \`${originalPath}\`. You may only read paths you\u2019ve already seen a link for. Please try calling the \`read\` tool again with a path you\u2019ve seen before. If you\u2019re trying to read something you don\u2019t have a link for then don\u2019t try making up a path. Instead try calling the \`search\` tool which will help you find what you need and will give you links which you can use with the \`read\` tool.`,
+                displayMessage: errorDisplayMessage`Nothing found for path ${quote(originalPath)}. You may only read paths you\u2019ve already seen a link for. Please try calling the \`read\` tool again with a path you\u2019ve seen before. If you\u2019re trying to read something you don\u2019t have a link for then don\u2019t try making up a path. Instead try calling the \`search\` tool which will help you find what you need and will give you links which you can use with the \`read\` tool.`,
             });
         }
 
@@ -134,7 +135,7 @@ async function actuallyCallAgentWebReadTool(
         // allows the agent to correct its view of the world.
         if (latestPathname !== pathname) {
             throw new FailedPreconditionError("Link was redirected", {
-                displayMessage: errorDisplayMessage`This path was redirected to \`${latestPathname}\`. Try calling the \`read\` tool again with the new path.`,
+                displayMessage: errorDisplayMessage`This path was redirected to ${quote(latestPathname)}. Try calling the \`read\` tool again with the new path.`,
             });
         }
 

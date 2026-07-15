@@ -8,7 +8,7 @@ import {
 import {AgentWebPageStoredLink} from "~/server/agents/web/agent_web_page_stored_link.js";
 import {AgentWebSessionStorage} from "~/server/agents/web/agent_web_session_storage.js";
 import {createAgentWebPageStoredLinkPathname} from "~/server/agents/web/create_agent_web_page_stored_link_pathname.js";
-import {quoteMarkdown} from "~/server/agents/web/internal/quote_markdown.js";
+import {curlyQuote} from "~/server/agents/web/internal/curly_quote.js";
 import {
     AgentWebMessagingPage,
     AgentWebMessagingPageBlock,
@@ -63,6 +63,7 @@ import {omitObject} from "~/shared/helpers/object/omit_object.js";
 import {MaybePromise} from "~/shared/helpers/types/maybe_promise.js";
 import {MaybeThunk} from "~/shared/helpers/types/maybe_thunk.js";
 import {PostId} from "~/shared/id/types/id_types.js";
+import {quote} from "~/shared/helpers/string/quote.js";
 
 export type AgentWebPostPage = {
     readonly type: "Post";
@@ -558,7 +559,7 @@ export async function createAgentWebPostPage(
         };
 
         throw new InvalidArgumentError("Can only create posts as own account", {
-            displayMessage: errorDisplayMessage`You can only create a \`<post>\` as yourself. Try again with a \`from\` attribute that references yourself (\`from="${escapeHtml(printMarkdownTree(authorLink).trim())}"\`).`,
+            displayMessage: errorDisplayMessage`You can only create a \`<post>\` as yourself. Try again with a \`from\` attribute that references yourself (${quote(`from="${escapeHtml(printMarkdownTree(authorLink).trim())}"`)}).`,
         });
     }
 
@@ -719,7 +720,7 @@ export async function updateAgentWebPostPage(
                     throw new InvalidArgumentError(
                         "Can\u2019t update post created by someone else",
                         {
-                            displayMessage: errorDisplayMessage`You can only update your \`<post>\`s. You can\u2019t update a \`<post>\` created by ${oldCustomBlock.author?.shortName ?? context.botAccount.shortName}. \`<post from="${escapeHtml(oldCustomBlock.author?.shortName ?? context.botAccount.shortName)}">\` was changed by this update. Try again with a more specific update that only changes the content of comments from you or adds new comments.`,
+                            displayMessage: errorDisplayMessage`You can only update your \`<post>\`s. You can\u2019t update a \`<post>\` created by ${oldCustomBlock.author?.shortName ?? context.botAccount.shortName}. ${quote(`<post from="${escapeHtml(oldCustomBlock.author?.shortName ?? context.botAccount.shortName)}">`)} was changed by this update. Try again with a more specific update that only changes the content of comments from you or adds new comments.`,
                         },
                     );
                 } else {
@@ -1112,7 +1113,7 @@ async function parseAgentWebPostPageAccountLink(
     string: string,
 ): Promise<ApiAccountReferenceResponse> {
     const createError = () => {
-        const quotedString = quoteMarkdown([{type: "text", value: string}]);
+        const quotedString = curlyQuote(string);
 
         return new InvalidArgumentError("Invalid account link", {
             displayMessage: errorDisplayMessage`Expected a link to a human or bot on line ${position?.start.line ?? "unknown"}. For example: \u201C[John](/human/john-doe)\u201D. Instead we found ${quotedString}. Try again with a valid link to a human or bot.`,

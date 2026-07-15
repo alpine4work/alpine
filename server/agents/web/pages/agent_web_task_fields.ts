@@ -3,7 +3,7 @@ import {Link, ListItem, Node, PhrasingContent, Text} from "mdast";
 import {AgentWebSessionStorage} from "~/server/agents/web/agent_web_session_storage.js";
 import {createAgentWebPageStoredLinkPathname} from "~/server/agents/web/create_agent_web_page_stored_link_pathname.js";
 import {normalizeAgentWebStaticText} from "~/server/agents/web/internal/normalize_agent_web_static_text.js";
-import {quoteMarkdown} from "~/server/agents/web/internal/quote_markdown.js";
+import {curlyQuote} from "~/server/agents/web/internal/curly_quote.js";
 import {printMarkdownPhrasingContentText} from "~/server/agents/web/print_markdown_phrasing_content_text.js";
 import {routeAgentWebPageLinkPathname} from "~/server/agents/web/route_agent_web_page_link_pathname.js";
 import {printApiMentionReferenceToMentionLinkLabel} from "~/shared/api/content/print_api_content_to_markdown.js";
@@ -284,7 +284,7 @@ export async function parseAgentWebTaskFieldListItems(
 
         if (seenFields.has(labelKey)) {
             throw new InvalidArgumentError("Duplicate task field", {
-                displayMessage: errorDisplayMessage`Duplicate task field \u201C${label}\u201D on line ${item.position?.start.line ?? "unknown"}. Try again with each task field only present once in the field list.`,
+                displayMessage: errorDisplayMessage`Duplicate task field ${curlyQuote(label)} on line ${item.position?.start.line ?? "unknown"}. Try again with each task field only present once in the field list.`,
             });
         }
 
@@ -294,7 +294,7 @@ export async function parseAgentWebTaskFieldListItems(
 
         if (fieldName === null || !allowedFieldNames.has(fieldName)) {
             throw new InvalidArgumentError("Unknown task field", {
-                displayMessage: errorDisplayMessage`Unknown task field \u201C${label}\u201D on line ${item.position?.start.line ?? "unknown"}. Try again with one of ${printAgentWebTaskFieldLabelList(fieldNames)}.`,
+                displayMessage: errorDisplayMessage`Unknown task field ${curlyQuote(label)} on line ${item.position?.start.line ?? "unknown"}. Try again with one of ${printAgentWebTaskFieldLabelList(fieldNames)}.`,
             });
         }
 
@@ -304,7 +304,7 @@ export async function parseAgentWebTaskFieldListItems(
         // NOCOMMIT: Test this error for all field types!
         if (remaining.length > 0 && fieldName !== "collections") {
             throw new InvalidArgumentError("Unexpected markdown nested in task field", {
-                displayMessage: errorDisplayMessage`Unexpected markdown after task field \u201C${label}\u201D on line ${remaining[0]!.position?.start.line ?? item.position?.start.line ?? "unknown"}. Try again with an unordered list item for each task field where the field name is followed by the field value with a colon in between (e.g. \`- Priority: Medium\`).`,
+                displayMessage: errorDisplayMessage`Unexpected markdown after task field ${curlyQuote(label)} on line ${remaining[0]!.position?.start.line ?? item.position?.start.line ?? "unknown"}. Try again with an unordered list item for each task field where the field name is followed by the field value with a colon in between (e.g. \`- Priority: Medium\`).`,
             });
         }
 
@@ -402,7 +402,7 @@ function parseAgentWebTaskSubtasksField(
         };
     }
 
-    const quotedValue = quoteMarkdown(value);
+    const quotedValue = curlyQuote(value);
 
     throw new InvalidArgumentError("Invalid task subtasks", {
         displayMessage: errorDisplayMessage`Unexpected task subtask counts ${quotedValue} on line ${value[0]?.position?.start.line ?? itemPosition?.start.line ?? "unknown"}. Try again with open and closed task counts (e.g. \u201C3 open, 4 closed\u201D, \u201C3 open\u201D, or \u201C4 closed\u201D).`,
@@ -464,7 +464,7 @@ function parseAgentWebTaskStatusField(
         case "closed":
             return {type: "Closed"};
         default: {
-            const quotedValue = quoteMarkdown(value);
+            const quotedValue = curlyQuote(value);
 
             throw new InvalidArgumentError("Invalid task status", {
                 displayMessage: errorDisplayMessage`Unexpected task status ${quotedValue} on line ${value[0]?.position?.start.line ?? itemPosition?.start.line ?? "unknown"}. Try again with \u201COpen\u201D, \u201COpen (Active)\u201D, or \u201CClosed\u201D.`,
@@ -479,7 +479,7 @@ async function parseAgentWebTaskParentField(
     value: ReadonlyArray<PhrasingContent>,
 ): Promise<ApiTaskReferenceResponse | null> {
     const createError = (position: Node["position"]) => {
-        const quotedValue = quoteMarkdown(value);
+        const quotedValue = curlyQuote(value);
 
         return new InvalidArgumentError("Invalid task fields", {
             displayMessage: errorDisplayMessage`Unexpected task parent link ${quotedValue} on line ${position?.start.line ?? itemPosition?.start.line ?? "unknown"}. Try again with a link to a task you\u2019ve seen before (e.g. \`[My Task](/task/my-task)\`).`,
@@ -519,7 +519,7 @@ async function parseAgentWebTaskAssigneeField(
     value: ReadonlyArray<PhrasingContent>,
 ): Promise<ApiAccountReferenceResponse | null> {
     const createError = (position: Node["position"]) => {
-        const quotedValue = quoteMarkdown(value);
+        const quotedValue = curlyQuote(value);
 
         return new InvalidArgumentError("Invalid task fields", {
             displayMessage: errorDisplayMessage`Unexpected task assignee link ${quotedValue} on line ${position?.start.line ?? itemPosition?.start.line ?? "unknown"}. Try again with a link to a human or bot you\u2019ve seen before (e.g. \`[John](/human/john-doe)\`).`,
@@ -594,7 +594,7 @@ async function parseAgentWebTaskCollectionsField(
                 throw new InvalidArgumentError(
                     "Task collections \u201Cand n more\u201D count isn\u2019t supported here",
                     {
-                        displayMessage: errorDisplayMessage`Can\u2019t use \u201Cand ${additionalCount} more\u201D in the \u201CCollections\u201D task field on line ${additionalCountLine} since we wouldn\u2019t know which collections those are. Try again with a link to every collection (e.g. \`- Collections: [My Collection 1](/task-collection/my-collection-1), [My Collection 2](/task-collection/my-collection-2)\`).`,
+                        displayMessage: errorDisplayMessage`Can\u2019t use ${curlyQuote(`and ${additionalCount} more`)} in the \u201CCollections\u201D task field on line ${additionalCountLine} since we wouldn\u2019t know which collections those are. Try again with a link to every collection (e.g. \`- Collections: [My Collection 1](/task-collection/my-collection-1), [My Collection 2](/task-collection/my-collection-2)\`).`,
                     },
                 );
             }
@@ -713,7 +713,7 @@ async function parseAgentWebTaskCollectionsField(
             const pageLinkResult = await routeAgentWebPageLinkPathname(storage, link.url);
 
             if (!pageLinkResult || pageLinkResult.pageLink.type !== "TaskCollection") {
-                const quotedValue = quoteMarkdown([link]);
+                const quotedValue = curlyQuote([link]);
 
                 throw new InvalidArgumentError("Invalid task fields", {
                     displayMessage: errorDisplayMessage`Unexpected task collection link ${quotedValue} on line ${link.position?.start.line ?? itemPosition?.start.line ?? "unknown"}. Try again with a link to a task collection you\u2019ve seen before (e.g. \`[My Collection](/task-collection/my-collection)\`).`,
@@ -743,7 +743,7 @@ function parseAgentWebTaskPriorityField(
         case "urgent":
             return {type: "Urgent"};
         default: {
-            const quotedValue = quoteMarkdown(value);
+            const quotedValue = curlyQuote(value);
 
             throw new InvalidArgumentError("Invalid task priority", {
                 // We intentionally don't include "Urgent" in the list of valid priorities here.

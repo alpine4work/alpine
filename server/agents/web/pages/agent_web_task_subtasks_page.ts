@@ -160,7 +160,11 @@ export async function updateAgentWebTaskSubtasksPage(
         newPage,
     );
 
-    return {...(await execute()), type: "TaskSubtasks", id: oldPageMetadata.id};
+    return {
+        ...(await execute({type: "TaskSubtasks", task: {id: oldPage.task.id}})),
+        type: "TaskSubtasks",
+        id: oldPageMetadata.id,
+    };
 }
 
 export async function printAgentWebTaskSubtasksPage(

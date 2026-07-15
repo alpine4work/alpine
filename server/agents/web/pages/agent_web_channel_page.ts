@@ -11,7 +11,7 @@ import {AgentWebPageStoredLink} from "~/server/agents/web/agent_web_page_stored_
 import {AgentWebSessionStorage} from "~/server/agents/web/agent_web_session_storage.js";
 import {createAgentWebPageStoredLinkPathname} from "~/server/agents/web/create_agent_web_page_stored_link_pathname.js";
 import {normalizeAgentWebPath} from "~/server/agents/web/internal/normalize_agent_web_path.js";
-import {quoteMarkdown} from "~/server/agents/web/internal/quote_markdown.js";
+import {curlyQuote} from "~/server/agents/web/internal/curly_quote.js";
 import {withApiContentNormalizerForAgentWebMarkdown} from "~/server/agents/web/normalize_api_content_for_agent_web_markdown.js";
 import {parseApiContentFromAgentWebMarkdownTree} from "~/server/agents/web/parse_api_content_from_agent_web_markdown.js";
 import {printApiContentToAgentWebMarkdownTree} from "~/server/agents/web/print_api_content_to_agent_web_markdown.js";
@@ -536,7 +536,7 @@ export async function createAgentWebChannelPage(
 
     if (newPage.pagination) {
         throw new InvalidArgumentError("Can\u2019t create channel with pagination", {
-            displayMessage: errorDisplayMessage`You can\u2019t include a \u201C${agentWebChannelPageNextPageLinkText}\u201D link when creating a channel. Try again without a \u201C${agentWebChannelPageNextPageLinkText}\u201D link.`,
+            displayMessage: errorDisplayMessage`You can\u2019t include a ${curlyQuote(agentWebChannelPageNextPageLinkText)} link when creating a channel. Try again without a ${curlyQuote(agentWebChannelPageNextPageLinkText)} link.`,
         });
     }
 
@@ -1361,7 +1361,7 @@ async function parseAgentWebChannelPageAccountLink(
     string: string,
 ): Promise<ApiAccountReferenceResponse> {
     const createError = () => {
-        const quotedString = quoteMarkdown([{type: "text", value: string}]);
+        const quotedString = curlyQuote(string);
 
         return new InvalidArgumentError("Invalid account link", {
             displayMessage: errorDisplayMessage`Expected a link to a human or bot on line ${position?.start.line ?? "unknown"}. For example: \u201C[John](/human/john-doe)\u201D. Instead we found ${quotedString}. Try again with a valid link to a human or bot.`,

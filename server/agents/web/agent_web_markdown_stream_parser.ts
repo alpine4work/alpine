@@ -43,6 +43,7 @@ import {noop} from "~/shared/helpers/control/noop.js";
 import {Replace} from "~/shared/helpers/types/replace.js";
 import {DocumentId} from "~/shared/id/types/id_types.js";
 import {TracerSpan} from "~/shared/tracer/tracer_span.js";
+import {quote} from "~/shared/helpers/string/quote.js";
 
 export type AgentWebMarkdownStreamPart = {
     readonly index: number;
@@ -734,7 +735,7 @@ async function traverseMarkdownHtmlNode(
                                 throw new InvalidArgumentError(
                                     "Document comment thread number not found",
                                     {
-                                        displayMessage: errorDisplayMessage`Can only create a new comment thread by using the \`create\` tool with type \`document-thread\`. Can\u2019t create a new comment by adding \`<comment id="${number}">\` to the document. Try again by calling the \`create\` tool with a \`type\` of \`document-thread\` and a \`<blockquote>\` containing the exact content you want to leave a comment on (an \`id\` for the comment thread will be assigned automatically).`,
+                                        displayMessage: errorDisplayMessage`Can only create a new comment thread by using the \`create\` tool with type \`document-thread\`. Can\u2019t create a new comment by adding ${quote(`<comment id="${number}">`)} to the document. Try again by calling the \`create\` tool with a \`type\` of \`document-thread\` and a \`<blockquote>\` containing the exact content you want to leave a comment on (an \`id\` for the comment thread will be assigned automatically).`,
                                     },
                                 );
                             }

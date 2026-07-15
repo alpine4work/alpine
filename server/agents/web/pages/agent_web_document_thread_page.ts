@@ -61,6 +61,7 @@ import {unwrapMaybeThunk} from "~/shared/helpers/control/unwrap_maybe_thunk.js";
 import {MaybePromise} from "~/shared/helpers/types/maybe_promise.js";
 import {MaybeThunk} from "~/shared/helpers/types/maybe_thunk.js";
 import {DocumentCommentThreadId, DocumentId} from "~/shared/id/types/id_types.js";
+import {quote} from "~/shared/helpers/string/quote.js";
 
 export type AgentWebDocumentThreadPage = {
     readonly type: "DocumentThread";
@@ -485,7 +486,7 @@ export async function createAgentWebDocumentThreadPage(
 
     if (!documentReadResponse || documentReadResponse.expirationTime.getTime() < Date.now()) {
         throw new InvalidArgumentError("Read response not found or expired", {
-            displayMessage: errorDisplayMessage`Can\u2019t create a document comment thread for a document that hasn\u2019t been read recently. Call the \`read\` tool with the path \`${documentPath}\` then call the \`create\` tool again.`,
+            displayMessage: errorDisplayMessage`Can\u2019t create a document comment thread for a document that hasn\u2019t been read recently. Call the \`read\` tool with the path ${quote(documentPath)} then call the \`create\` tool again.`,
         });
     }
 
@@ -547,7 +548,7 @@ export async function createAgentWebDocumentThreadPage(
     // matching.
     if (ranges.length === 0) {
         throw new InvalidArgumentError("Quoted document content not found", {
-            displayMessage: errorDisplayMessage`Couldn\u2019t find the quoted content in \`<blockquote>\` in \`${documentPath}\`. To create a document comment thread you must exactly recreate the content you\u2019re commenting on in \`<blockquote>\` so we can find the corresponding range in the document. Formatting is flexible when matching content so \`**needle**\` will match \`**foo needle bar**\` and \`- needle\` will match \`- foo needle bar\` because \`**needle**\` and \`- needle\` correctly match the word \u201Cneedle\u201D and have the right formatting. Simply \`needle\` without formatting will also match \`**foo needle bar**\` and \`- foo needle bar\` however \`_needle_\` will match neither because it has incorrect formatting. Your content in \`<blockquote>\` must be valid markdown so \`**foo needle\` won\u2019t match \`**foo needle bar**\` because the formatting (\`**\`) is unterminated, either \`**foo needle**\` or \`foo needle\` (without formatting) will match. Try again but make sure to exactly copy the content you want to comment in \`${documentPath}\` into a \`<blockquote>\`.`,
+            displayMessage: errorDisplayMessage`Couldn\u2019t find the quoted content in \`<blockquote>\` in ${quote(documentPath)}. To create a document comment thread you must exactly recreate the content you\u2019re commenting on in \`<blockquote>\` so we can find the corresponding range in the document. Formatting is flexible when matching content so \`**needle**\` will match \`**foo needle bar**\` and \`- needle\` will match \`- foo needle bar\` because \`**needle**\` and \`- needle\` correctly match the word \u201Cneedle\u201D and have the right formatting. Simply \`needle\` without formatting will also match \`**foo needle bar**\` and \`- foo needle bar\` however \`_needle_\` will match neither because it has incorrect formatting. Your content in \`<blockquote>\` must be valid markdown so \`**foo needle\` won\u2019t match \`**foo needle bar**\` because the formatting (\`**\`) is unterminated, either \`**foo needle**\` or \`foo needle\` (without formatting) will match. Try again but make sure to exactly copy the content you want to comment in ${quote(documentPath)} into a \`<blockquote>\`.`,
         });
     }
 
@@ -563,18 +564,18 @@ export async function createAgentWebDocumentThreadPage(
     ) {
         if (ranges.length === 1) {
             throw new InvalidArgumentError("Quoted document content match out of bounds", {
-                displayMessage: errorDisplayMessage`The \`<blockquote>\` \`match\` attribute must be 1 or it can be omitted since there\u2019s only one match, instead it was \`match="${quoteBlock.matchAttribute}"\`. Try again but omit the \`match\` attribute.`,
+                displayMessage: errorDisplayMessage`The \`<blockquote>\` \`match\` attribute must be 1 or it can be omitted since there\u2019s only one match, instead it was ${quote(`match="${quoteBlock.matchAttribute}"`)}. Try again but omit the \`match\` attribute.`,
             });
         }
 
         throw new InvalidArgumentError("Quoted document content match out of bounds", {
-            displayMessage: errorDisplayMessage`The \`<blockquote>\` \`match\` attribute must be between 1 and ${ranges.length}, instead it was \`match="${quoteBlock.matchAttribute}"\`. Try again with a valid 1-indexed \`match\` attribute.`,
+            displayMessage: errorDisplayMessage`The \`<blockquote>\` \`match\` attribute must be between 1 and ${ranges.length}, instead it was ${quote(`match="${quoteBlock.matchAttribute}"`)}. Try again with a valid 1-indexed \`match\` attribute.`,
         });
     }
 
     if (quoteBlock.matchAttribute === null && ranges.length > 1) {
         throw new InvalidArgumentError("Quoted document content found more than once", {
-            displayMessage: errorDisplayMessage`${ranges.length} matches were found for the quoted content in \`<blockquote>\` in \`${documentPath}\`. Try again but provide more surrounding context to make your match unique or add a 1-indexed \`match\` attribute to \`<blockquote>\` to choose which match to use (e.g. \`<blockquote match="2">\` uses the second match).`,
+            displayMessage: errorDisplayMessage`${ranges.length} matches were found for the quoted content in \`<blockquote>\` in ${quote(documentPath)}. Try again but provide more surrounding context to make your match unique or add a 1-indexed \`match\` attribute to \`<blockquote>\` to choose which match to use (e.g. \`<blockquote match="2">\` uses the second match).`,
         });
     }
 

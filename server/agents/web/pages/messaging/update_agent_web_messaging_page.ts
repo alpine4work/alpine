@@ -48,6 +48,8 @@ import {reverseIterable} from "~/shared/helpers/iterable/reverse_iterable.js";
 import {omitObject} from "~/shared/helpers/object/omit_object.js";
 import {MaybePromise} from "~/shared/helpers/types/maybe_promise.js";
 import {MaybeThunk} from "~/shared/helpers/types/maybe_thunk.js";
+import {quote} from "~/shared/helpers/string/quote.js";
+import {curlyQuote} from "~/server/agents/web/internal/curly_quote.js";
 
 export const updateAgentWebMessagingPageUnexpectedNewMessageIndexesErrorMessage =
     "Update was successful, but the agent needs to know there were some other messages added it hasn\u2019t observed";
@@ -129,7 +131,7 @@ export async function updateAgentWebMessagingPage<
         )
     ) {
         throw new InvalidArgumentError("Can\u2019t update messaging page preamble", {
-            displayMessage: errorDisplayMessage`You can only update your \`<${messageNouns.noun}>\`s. You can\u2019t update the previous/next page links in the ${messageNouns.pluralNoun} markdown. Try again with a more specific update that only changes the content of ${messageNouns.pluralNoun} from you or adds new ${messageNouns.pluralNoun}.`,
+            displayMessage: errorDisplayMessage`You can only update your ${quote(`<${messageNouns.noun}>`)}s. You can\u2019t update the previous/next page links in the ${messageNouns.pluralNoun} markdown. Try again with a more specific update that only changes the content of ${messageNouns.pluralNoun} from you or adds new ${messageNouns.pluralNoun}.`,
         });
     }
 
@@ -193,7 +195,7 @@ export async function updateAgentWebMessagingPage<
             throw new InvalidArgumentError(
                 "Can\u2019t convert between custom blocks and other blocks",
                 {
-                    displayMessage: errorDisplayMessage`You can\u2019t turn \`<${oldTagName}>\`s into \`<${newTagName}>\`s. Try again with a more specific update that only changes the content of ${messageNouns.pluralNoun} from you or adds new ${messageNouns.pluralNoun}.`,
+                    displayMessage: errorDisplayMessage`You can\u2019t turn ${quote(`<${oldTagName}>`)}s into ${quote(`<${newTagName}>`)}s. Try again with a more specific update that only changes the content of ${messageNouns.pluralNoun} from you or adds new ${messageNouns.pluralNoun}.`,
                 },
             );
         }
@@ -241,7 +243,7 @@ export async function updateAgentWebMessagingPage<
                 throw new InvalidArgumentError(
                     "Can\u2019t update message created by someone else",
                     {
-                        displayMessage: errorDisplayMessage`You can only update your \`<${messageNouns.noun}>\`s. You can\u2019t update \`<time>\`s which indicate when previous \`<${messageNouns.noun}>\`s were sent. Try again with a more specific update that only changes the content of ${messageNouns.pluralNoun} from you or adds new ${messageNouns.pluralNoun}.`,
+                        displayMessage: errorDisplayMessage`You can only update your ${quote(`<${messageNouns.noun}>`)}s. You can\u2019t update \`<time>\`s which indicate when previous ${quote(`<${messageNouns.noun}>`)}s were sent. Try again with a more specific update that only changes the content of ${messageNouns.pluralNoun} from you or adds new ${messageNouns.pluralNoun}.`,
                     },
                 );
             } else {
@@ -252,7 +254,7 @@ export async function updateAgentWebMessagingPage<
                     throw new InvalidArgumentError(
                         "Can\u2019t update message created by someone else",
                         {
-                            displayMessage: errorDisplayMessage`You can only update your \`<${messageNouns.noun}>\`s. You can\u2019t update a \`<${messageNouns.noun}>\` created by ${oldBlock.author?.shortName ?? context.botAccount.shortName}. \`<${messageNouns.noun}${normalizedOldBlock.idAttribute ? ` id="${printAgentWebMessagingPageMessageIndexRange(normalizedOldBlock.idAttribute)}"` : ""} from="${escapeHtml(oldBlock.author?.shortName ?? context.botAccount.shortName)}">\` was changed by this update. Try again with a more specific update that only changes the content of ${messageNouns.pluralNoun} from you or adds new ${messageNouns.pluralNoun}.`,
+                            displayMessage: errorDisplayMessage`You can only update your ${quote(`<${messageNouns.noun}>`)}s. You can\u2019t update a ${quote(`<${messageNouns.noun}>`)} created by ${oldBlock.author?.shortName ?? context.botAccount.shortName}. ${quote(`<${messageNouns.noun}${normalizedOldBlock.idAttribute ? ` id="${printAgentWebMessagingPageMessageIndexRange(normalizedOldBlock.idAttribute)}"` : ""} from="${escapeHtml(oldBlock.author?.shortName ?? context.botAccount.shortName)}">`)} was changed by this update. Try again with a more specific update that only changes the content of ${messageNouns.pluralNoun} from you or adds new ${messageNouns.pluralNoun}.`,
                         },
                     );
                 } else {
@@ -264,7 +266,7 @@ export async function updateAgentWebMessagingPage<
 
         if (!isDeepEqual(normalizedOldBlock.files, normalizedNewBlock.files)) {
             throw new InvalidArgumentError("Can\u2019t change message file attachments", {
-                displayMessage: errorDisplayMessage`You can only update the text of your \`<${messageNouns.noun}>\`s. You can\u2019t add, remove, or reorder files attached to an existing \`<${messageNouns.noun}>\`. Try again but leave the file attachments at the end of \`<${messageNouns.noun}${normalizedOldBlock.idAttribute ? ` id="${printAgentWebMessagingPageMessageIndexRange(normalizedOldBlock.idAttribute)}"` : ""}>\` exactly as they appeared.`,
+                displayMessage: errorDisplayMessage`You can only update the text of your ${quote(`<${messageNouns.noun}>`)}s. You can\u2019t add, remove, or reorder files attached to an existing ${quote(`<${messageNouns.noun}>`)}. Try again but leave the file attachments at the end of ${quote(`<${messageNouns.noun}${normalizedOldBlock.idAttribute ? ` id="${printAgentWebMessagingPageMessageIndexRange(normalizedOldBlock.idAttribute)}"` : ""}>`)} exactly as they appeared.`,
             });
         }
 
@@ -275,7 +277,7 @@ export async function updateAgentWebMessagingPage<
             )
         ) {
             throw new InvalidArgumentError("Can\u2019t update message created by someone else", {
-                displayMessage: errorDisplayMessage`You can only update the content of your \`<${messageNouns.noun}>\`s. Any metadata (the \`id\`/\`from\`/\`time\` attributes or \`<blockquote cite>\`) must be left unchanged. The metadata of \`<${messageNouns.noun}${normalizedOldBlock.idAttribute ? ` id="${printAgentWebMessagingPageMessageIndexRange(normalizedOldBlock.idAttribute)}"` : ""}>\` was changed by this update. Try again with a more specific update that only changes the content of ${messageNouns.pluralNoun} from you.`,
+                displayMessage: errorDisplayMessage`You can only update the content of your ${quote(`<${messageNouns.noun}>`)}s. Any metadata (the \`id\`/\`from\`/\`time\` attributes or \`<blockquote cite>\`) must be left unchanged. The metadata of ${quote(`<${messageNouns.noun}${normalizedOldBlock.idAttribute ? ` id="${printAgentWebMessagingPageMessageIndexRange(normalizedOldBlock.idAttribute)}"` : ""}>`)} was changed by this update. Try again with a more specific update that only changes the content of ${messageNouns.pluralNoun} from you.`,
             });
         }
 
@@ -307,7 +309,7 @@ export async function updateAgentWebMessagingPage<
 
     if (oldPage.blocks.length > newPage.blocks.length) {
         throw new InvalidArgumentError("Can\u2019t remove messages, must delete in place", {
-            displayMessage: errorDisplayMessage`You can\u2019t remove \`<${messageNouns.noun}>\`s. If you want to delete one of your \`<${messageNouns.noun}>\`s, then delete all the content of your \`<${messageNouns.noun}>\`. You can only delete your own \`<${messageNouns.noun}>\`s. Try again with a more specific update that only changes the content of ${messageNouns.pluralNoun} from you.`,
+            displayMessage: errorDisplayMessage`You can\u2019t remove ${quote(`<${messageNouns.noun}>`)}s. If you want to delete one of your ${quote(`<${messageNouns.noun}>`)}s, then delete all the content of your ${quote(`<${messageNouns.noun}>`)}. You can only delete your own ${quote(`<${messageNouns.noun}>`)}s. Try again with a more specific update that only changes the content of ${messageNouns.pluralNoun} from you.`,
         });
     }
 
@@ -335,11 +337,11 @@ export async function updateAgentWebMessagingPage<
         if (newBlock.type !== "Message") {
             if (newBlock.type === "Time") {
                 throw new InvalidArgumentError("Can only create messages (not `<time>`)", {
-                    displayMessage: errorDisplayMessage`Unexpected \`<time>\`, you can only add \`<${messageNouns.noun}>\`s. The creation time of ${messageNouns.pluralNoun} will be decided by the server. Try again and remove the new \`<time>\`.`,
+                    displayMessage: errorDisplayMessage`Unexpected \`<time>\`, you can only add ${quote(`<${messageNouns.noun}>`)}s. The creation time of ${messageNouns.pluralNoun} will be decided by the server. Try again and remove the new \`<time>\`.`,
                 });
             } else {
                 throw new InvalidArgumentError("Can only create messages", {
-                    displayMessage: errorDisplayMessage`Unexpected \`<${newBlock.tagName}>\`, you can only add \`<${messageNouns.noun}>\`s. Try again and remove the new \`<${newBlock.tagName}>\`.`,
+                    displayMessage: errorDisplayMessage`Unexpected ${quote(`<${newBlock.tagName}>`)}, you can only add ${quote(`<${messageNouns.noun}>`)}s. Try again and remove the new ${quote(`<${newBlock.tagName}>`)}.`,
                 });
             }
         }
@@ -352,7 +354,7 @@ export async function updateAgentWebMessagingPage<
             };
 
             throw new InvalidArgumentError("Can only create messages as own account", {
-                displayMessage: errorDisplayMessage`You can only add a \`<${messageNouns.noun}>\` from yourself. Try again with a \`from\` attribute that references yourself (\`from="${escapeHtml(printMarkdownTree(authorLink).trim())}"\`).`,
+                displayMessage: errorDisplayMessage`You can only add a ${quote(`<${messageNouns.noun}>`)} from yourself. Try again with a \`from\` attribute that references yourself (${quote(`from="${escapeHtml(printMarkdownTree(authorLink).trim())}"`)}).`,
             });
         }
 
@@ -367,7 +369,7 @@ export async function updateAgentWebMessagingPage<
             throw new InvalidArgumentError(
                 "Can\u2019t create message with incorrect `id` attribute",
                 {
-                    displayMessage: errorDisplayMessage`Invalid \`id\` attribute for new \`<${messageNouns.noun}>\`. The \`<${messageNouns.noun}>\` \`id\` attribute is an integer sequence so the next valid \`id\` is \`${lastMessageIndex + (index - commonBlocksLength)}\`. Try again with \`id="${lastMessageIndex + (index - commonBlocksLength)}"\`.`,
+                    displayMessage: errorDisplayMessage`Invalid \`id\` attribute for new ${quote(`<${messageNouns.noun}>`)}. The ${quote(`<${messageNouns.noun}>`)} \`id\` attribute is an integer sequence so the next valid \`id\` is ${quote(lastMessageIndex + (index - commonBlocksLength))}. Try again with ${quote(`id="${lastMessageIndex + (index - commonBlocksLength)}"`)}.`,
                 },
             );
         }
@@ -381,7 +383,7 @@ export async function updateAgentWebMessagingPage<
 
         if (newBlock.timeAttribute) {
             throw new InvalidArgumentError("Can\u2019t set the created time of a new message", {
-                displayMessage: errorDisplayMessage`You can\u2019t add a \`<${messageNouns.noun}>\` with a \`time\` attribute. The creation time of the ${messageNouns.noun} will be decided by the server. Try again without the \`time\` attribute.`,
+                displayMessage: errorDisplayMessage`You can\u2019t add a ${quote(`<${messageNouns.noun}>`)} with a \`time\` attribute. The creation time of the ${messageNouns.noun} will be decided by the server. Try again without the \`time\` attribute.`,
             });
         }
 
@@ -443,7 +445,7 @@ export async function updateAgentWebMessagingPage<
                     throw new InvalidArgumentError(
                         "`<blockquote>` `cite` attribute overlaps with a message block `id` but doesn\u2019t exactly equal the message block `id`",
                         {
-                            displayMessage: errorDisplayMessage`The \`<blockquote>\` \`cite\` attribute must exactly match a \`<${messageNouns.noun}>\` \`id\` on the current page. \`cite="?${messageNouns.noun}=${parentCiteAttributeString}"\` overlaps with \`<${messageNouns.noun} id="${otherIdAttributeString}">\`, but doesn\u2019t exactly match it. Try again with \`cite="?${messageNouns.noun}=${otherIdAttributeString}"\`.`,
+                            displayMessage: errorDisplayMessage`The \`<blockquote>\` \`cite\` attribute must exactly match a ${quote(`<${messageNouns.noun}>`)} \`id\` on the current page. ${quote(`cite="?${messageNouns.noun}=${parentCiteAttributeString}"`)} overlaps with ${quote(`<${messageNouns.noun} id="${otherIdAttributeString}">`)}, but doesn\u2019t exactly match it. Try again with ${quote(`cite="?${messageNouns.noun}=${otherIdAttributeString}"`)}.`,
                         },
                     );
                 }
@@ -455,7 +457,7 @@ export async function updateAgentWebMessagingPage<
                 );
 
                 throw new InvalidArgumentError("`<blockquote>` `cite` not found on this page", {
-                    displayMessage: errorDisplayMessage`Couldn\u2019t find \`<${messageNouns.noun} id="${parentCiteAttributeString}">\` referenced by \`<blockquote cite="?${messageNouns.noun}=${parentCiteAttributeString}">\` on the current page. To create a ${messageNouns.noun} that replies to another ${messageNouns.noun}, the cited ${messageNouns.noun} must be visible on the current page. If you\u2019re trying to quote a ${messageNouns.noun} that\u2019s not on this page then call the \`read\` tool with a larger \`limit\` so that the ${messageNouns.noun} you\u2019re replying to is on the same page you\u2019re updating. Try again without the \`<blockquote>\`, with a different \`cite\` attribute that references a message on the current page, or with a larger limit when calling \`read\` so the \`<${messageNouns.noun}>\` you\u2019re replying to is on the same page you\u2019re updating.`,
+                    displayMessage: errorDisplayMessage`Couldn\u2019t find ${quote(`<${messageNouns.noun} id="${parentCiteAttributeString}">`)} referenced by ${quote(`<blockquote cite="?${messageNouns.noun}=${parentCiteAttributeString}">`)} on the current page. To create a ${messageNouns.noun} that replies to another ${messageNouns.noun}, the cited ${messageNouns.noun} must be visible on the current page. If you\u2019re trying to quote a ${messageNouns.noun} that\u2019s not on this page then call the \`read\` tool with a larger \`limit\` so that the ${messageNouns.noun} you\u2019re replying to is on the same page you\u2019re updating. Try again without the \`<blockquote>\`, with a different \`cite\` attribute that references a message on the current page, or with a larger limit when calling \`read\` so the ${quote(`<${messageNouns.noun}>`)} you\u2019re replying to is on the same page you\u2019re updating.`,
                 });
             }
 
@@ -468,7 +470,7 @@ export async function updateAgentWebMessagingPage<
                 throw new InvalidArgumentError(
                     "`<blockquote>` author prefix does not match cited message author",
                     {
-                        displayMessage: errorDisplayMessage`The \`<blockquote>\` content starts with \`[${newBlock.parent.author.shortName}](...): \`, but \`<${messageNouns.noun} id="${idAttributeString}">\` is from \u201C${citedBlockAuthor.shortName}\u201D. Try again with \`[${citedBlockAuthor.shortName}](...): \` before any other \`<blockquote>\` content.`,
+                        displayMessage: errorDisplayMessage`The \`<blockquote>\` content starts with ${quote(`[${newBlock.parent.author.shortName}](...): `)}, but ${quote(`<${messageNouns.noun} id="${idAttributeString}">`)} is from ${curlyQuote(citedBlockAuthor.shortName)}. Try again with ${quote(`[${citedBlockAuthor.shortName}](...): `)} before any other \`<blockquote>\` content.`,
                     },
                 );
             }
@@ -496,12 +498,12 @@ export async function updateAgentWebMessagingPage<
             ) {
                 if (ranges.length === 1) {
                     throw new InvalidArgumentError("Quoted message content match out of bounds", {
-                        displayMessage: errorDisplayMessage`The \`<blockquote>\` \`match\` attribute must be 1 or it can be omitted since there\u2019s only one match, instead it was \`match="${newBlock.parent.matchAttribute}"\`. Try again but omit the \`match\` attribute.`,
+                        displayMessage: errorDisplayMessage`The \`<blockquote>\` \`match\` attribute must be 1 or it can be omitted since there\u2019s only one match, instead it was ${quote(`match="${newBlock.parent.matchAttribute}"`)}. Try again but omit the \`match\` attribute.`,
                     });
                 }
 
                 throw new InvalidArgumentError("Quoted message content match out of bounds", {
-                    displayMessage: errorDisplayMessage`The \`<blockquote>\` \`match\` attribute must be between 1 and ${ranges.length}, instead it was \`match="${newBlock.parent.matchAttribute}"\`. Try again with a valid 1-indexed \`match\` attribute.`,
+                    displayMessage: errorDisplayMessage`The \`<blockquote>\` \`match\` attribute must be between 1 and ${ranges.length}, instead it was ${quote(`match="${newBlock.parent.matchAttribute}"`)}. Try again with a valid 1-indexed \`match\` attribute.`,
                 });
             }
 
@@ -511,7 +513,7 @@ export async function updateAgentWebMessagingPage<
                 );
 
                 throw new InvalidArgumentError("Quoted message content found more than once", {
-                    displayMessage: errorDisplayMessage`${ranges.length} matches were found for the quoted content in \`<blockquote>\` in \`<${messageNouns.noun} id="${citeAttributeString}">\`. Try again but provide more surrounding context to make your match unique or add a 1-indexed \`match\` attribute to \`<blockquote>\` to choose which match to use (e.g. \`<blockquote match="2">\` uses the second match).`,
+                    displayMessage: errorDisplayMessage`${ranges.length} matches were found for the quoted content in \`<blockquote>\` in ${quote(`<${messageNouns.noun} id="${citeAttributeString}">`)}. Try again but provide more surrounding context to make your match unique or add a 1-indexed \`match\` attribute to \`<blockquote>\` to choose which match to use (e.g. \`<blockquote match="2">\` uses the second match).`,
                 });
             }
 
@@ -604,7 +606,7 @@ export async function updateAgentWebMessagingPage<
         throw new InvalidArgumentError(
             "Can\u2019t change whether this page is the end of messages or not",
             {
-                displayMessage: errorDisplayMessage`Can\u2019t add the \u201CEnd of ${messageNouns.pluralNoun}\u201D marker in an update. Only a \`read\` tool call can tell you whether you\u2019re at the end of a ${messageNouns.noun} ${messageNouns.noun === "comment" ? "section" : "list"} or not. Try again without adding the \u201CEnd of ${messageNouns.pluralNoun}\u201D marker.`,
+                displayMessage: errorDisplayMessage`Can\u2019t add the ${curlyQuote(`End of ${messageNouns.pluralNoun}`)} marker in an update. Only a \`read\` tool call can tell you whether you\u2019re at the end of a ${messageNouns.noun} ${messageNouns.noun === "comment" ? "section" : "list"} or not. Try again without adding the ${curlyQuote(`End of ${messageNouns.pluralNoun}`)} marker.`,
             },
         );
     }
@@ -615,7 +617,7 @@ export async function updateAgentWebMessagingPage<
         const actualPathname = await unwrapMaybeThunk(pathname);
 
         throw new InvalidArgumentError("Can only create messages on the last page", {
-            displayMessage: errorDisplayMessage`You can only add a \`<${messageNouns.noun}>\` after all other ${messageNouns.pluralNoun} (${messageNouns.pluralNoun} are in chronological order). Look for \u201CEnd of ${messageNouns.pluralNoun}\u201D to know when you\u2019re at the end of a ${messageNouns.noun} ${messageNouns.noun === "comment" ? "section" : "list"}. Call the \`read\` tool with \`${actualPathname}?end\` to jump to the end of a ${messageNouns.noun} ${messageNouns.noun === "comment" ? "section" : "list"}.`,
+            displayMessage: errorDisplayMessage`You can only add a ${quote(`<${messageNouns.noun}>`)} after all other ${messageNouns.pluralNoun} (${messageNouns.pluralNoun} are in chronological order). Look for ${curlyQuote(`End of ${messageNouns.pluralNoun}`)} to know when you\u2019re at the end of a ${messageNouns.noun} ${messageNouns.noun === "comment" ? "section" : "list"}. Call the \`read\` tool with ${quote(`${actualPathname}?end`)} to jump to the end of a ${messageNouns.noun} ${messageNouns.noun === "comment" ? "section" : "list"}.`,
         });
     }
 
@@ -662,7 +664,7 @@ export async function updateAgentWebMessagingPage<
             new FailedPreconditionError(
                 updateAgentWebMessagingPageUnexpectedNewMessageIndexesErrorMessage,
                 {
-                    displayMessage: errorDisplayMessage`Update was successful, ${newMessageIndexes.length === 1 ? `the ${messageNouns.noun} you added was` : `the ${messageNouns.pluralNoun} you added were`} created. But between the last ${messageNouns.noun} you read${lastMessageIndex > 0 ? ` (\`<${messageNouns.noun} id="${lastMessageIndex - 1}">\`)` : ""} and the ${newMessageIndexes.length === 1 ? messageNouns.noun : messageNouns.pluralNoun} you created there are some new ${messageNouns.pluralNoun} from others you haven\u2019t seen. These new ${messageNouns.pluralNoun} may not be relevant to you, but if you want to see them anyway you can call the \`read\` tool with \`${actualPathname}${lastMessageIndex > 0 ? `?after=${lastMessageIndex}` : "?start"}\`.`,
+                    displayMessage: errorDisplayMessage`Update was successful, ${newMessageIndexes.length === 1 ? `the ${messageNouns.noun} you added was` : `the ${messageNouns.pluralNoun} you added were`} created. But between the last ${messageNouns.noun} you read${lastMessageIndex > 0 ? ` (\`<${messageNouns.noun} id="${lastMessageIndex - 1}">\`)` : ""} and the ${newMessageIndexes.length === 1 ? messageNouns.noun : messageNouns.pluralNoun} you created there are some new ${messageNouns.pluralNoun} from others you haven\u2019t seen. These new ${messageNouns.pluralNoun} may not be relevant to you, but if you want to see them anyway you can call the \`read\` tool with ${quote(`${actualPathname}${lastMessageIndex > 0 ? `?after=${lastMessageIndex}` : "?start"}`)}.`,
                 },
             ),
             // This error is caught by `createAgentWebChatPage()` which wants to change the

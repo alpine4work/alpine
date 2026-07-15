@@ -28,6 +28,7 @@ import {
     TaskCollectionId,
     TaskId,
 } from "~/shared/id/types/id_types.js";
+import {quote} from "~/shared/helpers/string/quote.js";
 
 /**
  * Any API path supported by our system.
@@ -450,7 +451,7 @@ export function parseApiPath(path: string): ApiPathObject {
     }
 
     function getDisplayMessage() {
-        return errorDisplayMessage`Invalid mention reference path: \u201C${path}\u201D.`;
+        return errorDisplayMessage`Invalid mention reference path: ${quote(path)}.`;
     }
 }
 

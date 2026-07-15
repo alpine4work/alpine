@@ -341,7 +341,7 @@ test("creates a task with a subtask section", async () => {
                 {
                     type: "Update",
                     id: subtask.id,
-                    patch: {type: "MoveInParent", position: {type: "Start"}},
+                    patch: {type: "MoveInParent", position: {type: "End"}},
                 },
             ],
         },

@@ -52,6 +52,7 @@ import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 import {isDeepEqual} from "~/shared/helpers/control/is_deep_equal.js";
 import {omitObject} from "~/shared/helpers/object/omit_object.js";
 import {TaskId} from "~/shared/id/types/id_types.js";
+import {quote} from "~/shared/helpers/string/quote.js";
 
 const agentWebTaskPageSubtaskLimit = 50;
 
@@ -223,7 +224,7 @@ export async function createAgentWebTaskPage(
         throw new InvalidArgumentError(
             "Can\u2019t set task as active if there\u2019s no assignee",
             {
-                displayMessage: errorDisplayMessage`Can\u2019t set task as active if there\u2019s no assignee. We don\u2019t recommend setting a task as active unless you\u2019re about to work on the task or you know someone else is currently working on the task. Try again and either set the task as open but inactive (e.g. \`- Status: Open\`) or set an assignee (e.g. \`- Assignee: ${printMarkdownTree(assigneeLink).trim()}\`).`,
+                displayMessage: errorDisplayMessage`Can\u2019t set task as active if there\u2019s no assignee. We don\u2019t recommend setting a task as active unless you\u2019re about to work on the task or you know someone else is currently working on the task. Try again and either set the task as open but inactive (e.g. \`- Status: Open\`) or set an assignee (e.g. ${quote(`- Assignee: ${printMarkdownTree(assigneeLink).trim()}`)}).`,
             },
         );
     }
@@ -343,7 +344,7 @@ export async function updateAgentWebTaskPage(
             throw new InvalidArgumentError(
                 "Can\u2019t set task as active if there\u2019s no assignee",
                 {
-                    displayMessage: errorDisplayMessage`Can\u2019t set task as active if there\u2019s no assignee. We don\u2019t recommend setting a task as active unless you\u2019re about to work on the task or you know someone else is currently working on the task. Try again and either set the task as open but inactive (e.g. \`- Status: Open\`) or set an assignee (e.g. \`- Assignee: ${printMarkdownTree(assigneeLink).trim()}\`).`,
+                    displayMessage: errorDisplayMessage`Can\u2019t set task as active if there\u2019s no assignee. We don\u2019t recommend setting a task as active unless you\u2019re about to work on the task or you know someone else is currently working on the task. Try again and either set the task as open but inactive (e.g. \`- Status: Open\`) or set an assignee (e.g. ${quote(`- Assignee: ${printMarkdownTree(assigneeLink).trim()}`)}).`,
                 },
             );
         } else {
@@ -631,43 +632,51 @@ export async function parseAgentWebTaskPage(
     while (childIndex < root.children.length) {
         const nextChild = root.children[childIndex]!;
 
-        if (notesChildren === null && fieldsList === null && nextChild.type === "list") {
+        if (
+            notesChildren === null &&
+            subtasksChildren === null &&
+            fieldsList === null &&
+            nextChild.type === "list"
+        ) {
             if (nextChild.ordered) throw createUnexpectedError(nextChild);
             fieldsList = nextChild;
             childIndex++;
         } else if (
             notesChildren === null &&
+            subtasksChildren === null &&
             nextChild.type === "heading" &&
             nextChild.depth === 2 &&
             normalizeAgentWebStaticText(printMarkdownPhrasingContentText(nextChild.children)) ===
                 "note"
         ) {
-            const endIndex = root.children
+            const endOffset = root.children
                 .slice(childIndex + 1)
                 .findIndex(otherChild => otherChild.type === "heading" && otherChild.depth <= 2);
 
-            if (endIndex === -1) {
+            if (endOffset === -1) {
                 notesChildren = root.children.slice(childIndex + 1);
                 childIndex = root.children.length;
             } else {
+                const endIndex = childIndex + 1 + endOffset;
                 notesChildren = root.children.slice(childIndex + 1, endIndex);
                 childIndex = endIndex;
             }
         } else if (
-            notesChildren === null &&
+            subtasksChildren === null &&
             nextChild.type === "heading" &&
             nextChild.depth === 2 &&
             normalizeAgentWebStaticText(printMarkdownPhrasingContentText(nextChild.children)) ===
                 "subtask"
         ) {
-            const endIndex = root.children
+            const endOffset = root.children
                 .slice(childIndex + 1)
                 .findIndex(otherChild => otherChild.type === "heading" && otherChild.depth <= 2);
 
-            if (endIndex === -1) {
+            if (endOffset === -1) {
                 subtasksChildren = root.children.slice(childIndex + 1);
                 childIndex = root.children.length;
             } else {
+                const endIndex = childIndex + 1 + endOffset;
                 subtasksChildren = root.children.slice(childIndex + 1, endIndex);
                 childIndex = endIndex;
             }

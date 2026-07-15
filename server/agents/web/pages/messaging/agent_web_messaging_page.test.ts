@@ -27,6 +27,7 @@ import {assert} from "~/shared/helpers/control/assert.js";
 import {generateChronologicalId} from "~/shared/id/chronological_id.js";
 import {assertId, generateId} from "~/shared/id/id.js";
 import {AccountId, BotId, ChatId, FileId} from "~/shared/id/types/id_types.js";
+import {quote} from "~/shared/helpers/string/quote.js";
 
 const apostrophe = String.fromCharCode(39);
 const doubleQuote = String.fromCharCode(34);
@@ -125,7 +126,7 @@ runAgentWebPageTests<
                     actualElements = elements[0].elements;
                 } else {
                     throw new InvalidArgumentError("Preamble isn\u2019t a single paragraph", {
-                        displayMessage: errorDisplayMessage`Unexpected markdown on line 1. ${agentWebMessagingPageMessageNouns.startOfSentencePluralNoun} markdown must be a list of \`<${agentWebMessagingPageMessageNouns.noun}>\`s. Though it may start with a single paragraph with a short description of what we\u2019re looking at.`,
+                        displayMessage: errorDisplayMessage`Unexpected markdown on line 1. ${agentWebMessagingPageMessageNouns.startOfSentencePluralNoun} markdown must be a list of ${quote(`<${agentWebMessagingPageMessageNouns.noun}>`)}s. Though it may start with a single paragraph with a short description of what we\u2019re looking at.`,
                     });
                 }
 

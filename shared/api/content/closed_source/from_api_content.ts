@@ -30,6 +30,7 @@ import {assert} from "~/shared/helpers/control/assert.js";
 import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
 import {concatIterables} from "~/shared/helpers/iterable/concat_iterables.js";
 import {SearchMentionEntityId} from "~/shared/search/search_entity_id.js";
+import {quote} from "~/shared/helpers/string/quote.js";
 
 /**
  * Convert content from the API back into ProseMirror nodes.
@@ -154,7 +155,7 @@ export function* fromApiContentBlockElements(
                                     throw new InvalidArgumentError(
                                         "Unsupported node type in this content schema",
                                         {
-                                            displayMessage: errorDisplayMessage`\`${element.type}\` elements aren\u2019t supported in this type of content. Try again without \`${element.type}\` elements.`,
+                                            displayMessage: errorDisplayMessage`${quote(element.type)} elements aren\u2019t supported in this type of content. Try again without ${quote(element.type)} elements.`,
                                         },
                                     );
                                 }
@@ -168,7 +169,7 @@ export function* fromApiContentBlockElements(
                                 throw new InvalidArgumentError(
                                     "Unsupported node type in this content schema",
                                     {
-                                        displayMessage: errorDisplayMessage`\`${element.type}\` elements aren\u2019t supported in this type of content. Try again without \`${element.type}\` elements.`,
+                                        displayMessage: errorDisplayMessage`${quote(element.type)} elements aren\u2019t supported in this type of content. Try again without ${quote(element.type)} elements.`,
                                     },
                                 );
                             }
@@ -292,7 +293,7 @@ export function* fromApiContentBlockElements(
             case "Preview": {
                 if (!schema.nodes.fileRow) {
                     throw new InvalidArgumentError("Unsupported node type in this content schema", {
-                        displayMessage: errorDisplayMessage`\`${element.type}\` elements aren\u2019t supported in this type of content. Try again without \`${element.type}\` elements.`,
+                        displayMessage: errorDisplayMessage`${quote(element.type)} elements aren\u2019t supported in this type of content. Try again without ${quote(element.type)} elements.`,
                     });
                 }
 
@@ -304,7 +305,7 @@ export function* fromApiContentBlockElements(
             case "FileGallery": {
                 if (!schema.nodes.fileRow) {
                     throw new InvalidArgumentError("Unsupported node type in this content schema", {
-                        displayMessage: errorDisplayMessage`\`${element.type}\` elements aren\u2019t supported in this type of content. Try again without \`${element.type}\` elements.`,
+                        displayMessage: errorDisplayMessage`${quote(element.type)} elements aren\u2019t supported in this type of content. Try again without ${quote(element.type)} elements.`,
                     });
                 }
 
@@ -320,7 +321,7 @@ export function* fromApiContentBlockElements(
             case "FileFloat": {
                 if (!schema.nodes.fileFloat) {
                     throw new InvalidArgumentError("Unsupported node type in this content schema", {
-                        displayMessage: errorDisplayMessage`\`${element.type}\` elements aren\u2019t supported in this type of content. Try again without \`${element.type}\` elements.`,
+                        displayMessage: errorDisplayMessage`${quote(element.type)} elements aren\u2019t supported in this type of content. Try again without ${quote(element.type)} elements.`,
                     });
                 }
 
@@ -352,7 +353,7 @@ function* fromApiContentTableCellBlockElements(
             case "Preview": {
                 if (!schema.nodes.fileRowTable) {
                     throw new InvalidArgumentError("Unsupported node type in this content schema", {
-                        displayMessage: errorDisplayMessage`\`${element.type}\` elements aren\u2019t supported in this type of content. Try again without \`${element.type}\` elements.`,
+                        displayMessage: errorDisplayMessage`${quote(element.type)} elements aren\u2019t supported in this type of content. Try again without ${quote(element.type)} elements.`,
                     });
                 }
 
@@ -376,7 +377,7 @@ function fromApiContentFileOrPreviewElement(
         case "File": {
             if (!schema.nodes.file) {
                 throw new InvalidArgumentError("Unsupported node type in this content schema", {
-                    displayMessage: errorDisplayMessage`\`${element.type}\` elements aren\u2019t supported in this type of content. Try again without \`${element.type}\` elements.`,
+                    displayMessage: errorDisplayMessage`${quote(element.type)} elements aren\u2019t supported in this type of content. Try again without ${quote(element.type)} elements.`,
                 });
             }
 
@@ -390,7 +391,7 @@ function fromApiContentFileOrPreviewElement(
                         throw new InvalidArgumentError(
                             "Unsupported node type in this content schema",
                             {
-                                displayMessage: errorDisplayMessage`\`${mark.type}\` marks aren\u2019t supported in this type of content. Try again without \`${mark.type}\`marks.`,
+                                displayMessage: errorDisplayMessage`${quote(mark.type)} marks aren\u2019t supported in this type of content. Try again without ${quote(mark.type)}marks.`,
                             },
                         );
                     }
@@ -402,7 +403,7 @@ function fromApiContentFileOrPreviewElement(
         case "Preview": {
             if (!schema.nodes.file) {
                 throw new InvalidArgumentError("Unsupported node type in this content schema", {
-                    displayMessage: errorDisplayMessage`\`${element.type}\` elements aren\u2019t supported in this type of content. Try again without \`${element.type}\` elements.`,
+                    displayMessage: errorDisplayMessage`${quote(element.type)} elements aren\u2019t supported in this type of content. Try again without ${quote(element.type)} elements.`,
                 });
             }
 
@@ -416,7 +417,7 @@ function fromApiContentFileOrPreviewElement(
                         throw new InvalidArgumentError(
                             "Unsupported node type in this content schema",
                             {
-                                displayMessage: errorDisplayMessage`\`${mark.type}\` marks aren\u2019t supported in this type of content. Try again without \`${mark.type}\`marks.`,
+                                displayMessage: errorDisplayMessage`${quote(mark.type)} marks aren\u2019t supported in this type of content. Try again without ${quote(mark.type)}marks.`,
                             },
                         );
                     }
@@ -484,7 +485,7 @@ function fromApiContentMentionInlineElement(
 ) {
     if (!schema.nodes.mention) {
         throw new InvalidArgumentError("Unsupported node type in this content schema", {
-            displayMessage: errorDisplayMessage`\`${element.type}\` elements aren\u2019t supported in this type of content. Try again without \`${element.type}\` elements.`,
+            displayMessage: errorDisplayMessage`${quote(element.type)} elements aren\u2019t supported in this type of content. Try again without ${quote(element.type)} elements.`,
         });
     }
 

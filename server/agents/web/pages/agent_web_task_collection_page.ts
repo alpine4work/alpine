@@ -18,7 +18,7 @@ import {
 import {createAgentWebPageStoredLinkPathname} from "~/server/agents/web/create_agent_web_page_stored_link_pathname.js";
 import {normalizeAgentWebPath} from "~/server/agents/web/internal/normalize_agent_web_path.js";
 import {normalizeAgentWebStaticText} from "~/server/agents/web/internal/normalize_agent_web_static_text.js";
-import {quoteMarkdown} from "~/server/agents/web/internal/quote_markdown.js";
+import {curlyQuote} from "~/server/agents/web/internal/curly_quote.js";
 import {withApiContentNormalizerForAgentWebMarkdown} from "~/server/agents/web/normalize_api_content_for_agent_web_markdown.js";
 import {
     AgentWebTaskQueryPageMetadata,
@@ -239,7 +239,7 @@ export async function createAgentWebTaskCollectionPage(
 
     if (newPage.pagination !== null) {
         throw new InvalidArgumentError("Can\u2019t create task collection with pagination", {
-            displayMessage: errorDisplayMessage`You can\u2019t include a \u201C${agentWebTaskCollectionPageNextPageLinkText}\u201D link when creating a task collection. Try again without a \u201C${agentWebTaskCollectionPageNextPageLinkText}\u201D link.`,
+            displayMessage: errorDisplayMessage`You can\u2019t include a ${curlyQuote(agentWebTaskCollectionPageNextPageLinkText)} link when creating a task collection. Try again without a ${curlyQuote(agentWebTaskCollectionPageNextPageLinkText)} link.`,
         });
     }
 
@@ -351,7 +351,7 @@ export async function updateAgentWebTaskCollectionPage(
                   body: {patches: collectionPatches},
               })
             : null,
-        executeQueryUpdate(),
+        executeQueryUpdate({type: "TaskCollection", id: oldPageMetadata.id}),
     ]);
 
     return {...queryMetadata, type: "TaskCollection", id: oldPageMetadata.id};
@@ -617,7 +617,7 @@ async function parseAgentWebTaskCollectionHeadPage(
 
             if (codeBlock?.type !== "code") {
                 throw new InvalidArgumentError("Missing task collection defaults code block", {
-                    displayMessage: errorDisplayMessage`Expected a code block with filters and sorts after \u201C${defaultsLabel}\u201D on line ${child.position?.start.line ?? "unknown"}. Try again with and add filters and sorts (e.g. \`status=open&sort=-priority,due\`) in a code block after \u201C${defaultsLabel}\u201D.`,
+                    displayMessage: errorDisplayMessage`Expected a code block with filters and sorts after ${curlyQuote(defaultsLabel)} on line ${child.position?.start.line ?? "unknown"}. Try again with and add filters and sorts (e.g. \`status=open&sort=-priority,due\`) in a code block after ${curlyQuote(defaultsLabel)}.`,
                 });
             }
 
@@ -642,7 +642,7 @@ async function parseAgentWebTaskCollectionHeadPage(
 
             if (normalizeAgentWebStaticText(label) !== "color") {
                 throw new InvalidArgumentError("Unknown task collection field", {
-                    displayMessage: errorDisplayMessage`Unknown task collection field \u201C${label}\u201D on line ${child.position?.start.line ?? "unknown"}. Try again with the \u201CColor\u201D field (e.g. \`Color: Red\`).`,
+                    displayMessage: errorDisplayMessage`Unknown task collection field ${curlyQuote(label)} on line ${child.position?.start.line ?? "unknown"}. Try again with the \u201CColor\u201D field (e.g. \`Color: Red\`).`,
                 });
             }
 
@@ -871,7 +871,7 @@ async function parseAgentWebTaskCollectionPagePaginationLink(
         nextCursorHash === null
     ) {
         throw new InvalidArgumentError("Invalid task collection page pagination link", {
-            displayMessage: errorDisplayMessage`Expected \u201C${agentWebTaskCollectionPageNextPageLinkText}\u201D to link to a task collection page with an \`?after\` cursor. Try again with a valid task collection pagination link.`,
+            displayMessage: errorDisplayMessage`Expected ${curlyQuote(agentWebTaskCollectionPageNextPageLinkText)} to link to a task collection page with an \`?after\` cursor. Try again with a valid task collection pagination link.`,
         });
     }
 
@@ -892,7 +892,7 @@ function parseAgentWebTaskCollectionPageColor(
     const color = apiTaskCollectionColors.find(color => color.toLowerCase() === text);
 
     if (color === undefined) {
-        const quotedValue = quoteMarkdown(value);
+        const quotedValue = curlyQuote(value);
 
         throw new InvalidArgumentError("Invalid task collection color", {
             displayMessage: errorDisplayMessage`Unexpected task collection color ${quotedValue} on line ${value[0]?.position?.start.line ?? paragraphPosition?.start.line ?? "unknown"}. Try again with \u201CRed\u201D, \u201COrange\u201D, \u201CYellow\u201D, \u201CGreen\u201D, \u201CCyan\u201D, \u201CBlue\u201D, \u201CIndigo\u201D, \u201CPurple\u201D, \u201CPink\u201D, or remove the color entirely.`,

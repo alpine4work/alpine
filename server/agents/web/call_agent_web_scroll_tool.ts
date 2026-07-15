@@ -5,6 +5,7 @@ import {normalizeAgentWebPath} from "~/server/agents/web/internal/normalize_agen
 import {FailedPreconditionError, NotFoundError} from "~/shared/error/error.js";
 import {errorDisplayMessage} from "~/shared/error/error_display_message.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
+import {quote} from "~/shared/helpers/string/quote.js";
 
 export async function callAgentWebScrollTool(
     context: AgentWebContext,
@@ -31,7 +32,7 @@ export async function callAgentWebScrollTool(
 
     if (!readResponse || readResponse.expirationTime.getTime() < Date.now()) {
         throw new NotFoundError("Read response not found or expired", {
-            displayMessage: errorDisplayMessage`Can\u2019t call the \`scroll\` tool for a path that hasn\u2019t been read recently. Call the \`read\` tool with the path \`${originalPath}\` then call the \`scroll\` tool again.`,
+            displayMessage: errorDisplayMessage`Can\u2019t call the \`scroll\` tool for a path that hasn\u2019t been read recently. Call the \`read\` tool with the path ${quote(originalPath)} then call the \`scroll\` tool again.`,
         });
     }
 

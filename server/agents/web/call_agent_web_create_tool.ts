@@ -6,7 +6,7 @@ import {AgentWebPageLink} from "~/server/agents/web/agent_web_page_link.js";
 import {agentWebReadResponseExpirationHours} from "~/server/agents/web/call_agent_web_read_tool.js";
 import {createAgentWebPageLinkPathname} from "~/server/agents/web/create_agent_web_page_link_pathname.js";
 import {normalizeAgentWebStaticText} from "~/server/agents/web/internal/normalize_agent_web_static_text.js";
-import {quoteMarkdown} from "~/server/agents/web/internal/quote_markdown.js";
+import {curlyQuote} from "~/server/agents/web/internal/curly_quote.js";
 import {
     createAgentWebChannelPage,
     parseAgentWebChannelPage,
@@ -313,7 +313,7 @@ async function createAgentWebPageLink(
             };
         }
         default: {
-            const quotedType = quoteMarkdown([{type: "text", value: originalType}]);
+            const quotedType = curlyQuote(originalType);
 
             throw new InvalidArgumentError("Can\u2019t create unrecognized `type`", {
                 // NOCOMMIT: Include a link to a skill that says all the stuff you can create!

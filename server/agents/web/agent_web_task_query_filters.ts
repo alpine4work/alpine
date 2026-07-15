@@ -25,6 +25,7 @@ import {assert} from "~/shared/helpers/control/assert.js";
 import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
 import {JsonScalarValue} from "~/shared/helpers/types/json_value.js";
 import {TaskCollectionId} from "~/shared/id/types/id_types.js";
+import {quote} from "~/shared/helpers/string/quote.js";
 
 type RemoveSpace<Value> = Value extends JsonScalarValue | undefined
     ? Value
@@ -651,7 +652,7 @@ async function parseAgentWebTaskQueryFilterSearchParam(
             // task filter editor UI can represent so we don't accept it.
             if (layouts.length === 0) {
                 throw new InvalidArgumentError("Empty task layout filter", {
-                    displayMessage: errorDisplayMessage`Unexpected empty value in the \`${key}\` task filter. Try again with \`project\` (e.g. \`layout=project\`).`,
+                    displayMessage: errorDisplayMessage`Unexpected empty value in the ${quote(key)} task filter. Try again with \`project\` (e.g. \`layout=project\`).`,
                 });
             }
 
@@ -701,7 +702,7 @@ async function parseAgentWebTaskQueryFilterSearchParam(
             if (operator !== null && operator !== "not") {
                 throw createAgentWebTaskQueryFilterOperatorError(
                     key,
-                    errorDisplayMessage`\`${filterKey}\` or \`${filterKey}[not]\``,
+                    errorDisplayMessage`${quote(filterKey)} or ${quote(`${filterKey}[not]`)}`,
                 );
             }
 
@@ -757,7 +758,7 @@ async function parseAgentWebTaskQueryFilterSearchParam(
                 if (value === "none") return {type: "Due", operation: {type: "IsEmpty"}};
 
                 throw new InvalidArgumentError("Unexpected due task filter value", {
-                    displayMessage: errorDisplayMessage`Unexpected value \`${value}\` for the \`due\` task filter in the URL search params. Try again with \`due=overdue\`, \`due=none\` for tasks with no due date, or a date operator (e.g. \`due[before]=2026-07-12\` or \`due[after]=today\`).`,
+                    displayMessage: errorDisplayMessage`Unexpected value ${quote(value)} for the \`due\` task filter in the URL search params. Try again with \`due=overdue\`, \`due=none\` for tasks with no due date, or a date operator (e.g. \`due[before]=2026-07-12\` or \`due[after]=today\`).`,
                 });
             }
 
@@ -783,7 +784,7 @@ async function parseAgentWebTaskQueryFilterSearchParam(
             if (operator !== "before" && operator !== "after") {
                 throw createAgentWebTaskQueryFilterOperatorError(
                     key,
-                    errorDisplayMessage`\`${filterKey}[before]\` or \`${filterKey}[after]\``,
+                    errorDisplayMessage`${quote(`${filterKey}[before]`)} or ${quote(`${filterKey}[after]`)}`,
                 );
             }
 
@@ -817,7 +818,7 @@ function createAgentWebTaskQueryFilterOperatorError(
     expectedForms: ErrorDisplayMessage,
 ): InvalidArgumentError {
     return new InvalidArgumentError("Unknown task filter operator", {
-        displayMessage: errorDisplayMessage`Unknown task filter \`${key}=...\`. Try again with ${expectedForms}.`,
+        displayMessage: errorDisplayMessage`Unknown task filter ${quote(`${key}=...`)}. Try again with ${expectedForms}.`,
     });
 }
 
@@ -846,7 +847,7 @@ function parseAgentWebTaskQueryFilterStatus(value: string): ReadonlyArray<ApiTas
             return [{type: "Closed"}];
         default: {
             throw new InvalidArgumentError("Unexpected task status filter value", {
-                displayMessage: errorDisplayMessage`Unexpected task status filter \`status=${value}\`. Try again with \`open\`, \`open-inactive\`, \`open-active\`, or \`closed\` (e.g. \`status=open\` or \`status[not]=closed\`).`,
+                displayMessage: errorDisplayMessage`Unexpected task status filter ${quote(`status=${value}`)}. Try again with \`open\`, \`open-inactive\`, \`open-active\`, or \`closed\` (e.g. \`status=open\` or \`status[not]=closed\`).`,
             });
         }
     }
@@ -870,7 +871,7 @@ function parseAgentWebTaskQueryFilterPriority(value: string): ApiTaskPriority | 
             // have an "Urgent" priority as urgent tasks will constantly notify the owner that
             // the task is still open.
             throw new InvalidArgumentError("Unexpected task priority filter value", {
-                displayMessage: errorDisplayMessage`Unexpected task priority filter \`priority=${value}\`. Try again with \`low\`, \`medium\`, \`high\`, or \`none\` (e.g. \`priority=high\` or \`priority[not]=none\`).`,
+                displayMessage: errorDisplayMessage`Unexpected task priority filter ${quote(`priority=${value}`)}. Try again with \`low\`, \`medium\`, \`high\`, or \`none\` (e.g. \`priority=high\` or \`priority[not]=none\`).`,
             });
         }
     }
@@ -882,7 +883,7 @@ function parseAgentWebTaskQueryFilterLayout(value: string): ApiTaskLayout {
             return {type: "Project"};
         default: {
             throw new InvalidArgumentError("Unexpected task layout filter value", {
-                displayMessage: errorDisplayMessage`Unexpected task layout filter \`layout=${value}\`. Try again with \`project\` (e.g. \`layout=project\`).`,
+                displayMessage: errorDisplayMessage`Unexpected task layout filter ${quote(`layout=${value}`)}. Try again with \`project\` (e.g. \`layout=project\`).`,
             });
         }
     }
@@ -932,7 +933,7 @@ async function parseAgentWebTaskQueryFilterCollection(
 
     if (!pageLinkResult || pageLinkResult.pageLink.type !== "TaskCollection") {
         throw new InvalidArgumentError("Unknown task collection in task filter", {
-            displayMessage: errorDisplayMessage`Nothing found for \`${value}\` in the \`collection\` task filter. You may only filter by task collections you\u2019ve already seen a link for, using the name from the collection\u2019s path (e.g. \`collection=roadmap\` for \`/task-collection/roadmap\`) or \`none\` for tasks in no collections (e.g. \`collection=none\`). Try calling the \`search\` tool to find task collections.`,
+            displayMessage: errorDisplayMessage`Nothing found for ${quote(value)} in the \`collection\` task filter. You may only filter by task collections you\u2019ve already seen a link for, using the name from the collection\u2019s path (e.g. \`collection=roadmap\` for \`/task-collection/roadmap\`) or \`none\` for tasks in no collections (e.g. \`collection=none\`). Try calling the \`search\` tool to find task collections.`,
         });
     }
 
@@ -968,12 +969,12 @@ async function parseAgentWebTaskQueryFilterAccount(
     if (!pageLinkResult || pageLinkResult.pageLink.type !== "Account") {
         if (filterKey === "creator") {
             throw new InvalidArgumentError("Unknown account in task filter", {
-                displayMessage: errorDisplayMessage`Nothing found for \`${value}\` in the \`creator\` task filter. You may only filter by those you\u2019ve already seen a link for, using the name from their path (e.g. \`creator=john-doe\` for \`/human/john-doe\`) or \`me\` for yourself (e.g. \`creator=me\`). Try calling the \`search\` tool to find people.`,
+                displayMessage: errorDisplayMessage`Nothing found for ${quote(value)} in the \`creator\` task filter. You may only filter by those you\u2019ve already seen a link for, using the name from their path (e.g. \`creator=john-doe\` for \`/human/john-doe\`) or \`me\` for yourself (e.g. \`creator=me\`). Try calling the \`search\` tool to find people.`,
             });
         }
 
         throw new InvalidArgumentError("Unknown account in task filter", {
-            displayMessage: errorDisplayMessage`Nothing found for \`${value}\` in the \`${filterKey}\` task filter. You may only filter by those you\u2019ve already seen a link for, using the name from their path (e.g. \`${filterKey}=john-doe\` for \`/human/john-doe\`), \`me\` for yourself (e.g. \`${filterKey}=me\`), or \`none\` for tasks with no ${filterKey} (e.g. \`${filterKey}=none\`). Try calling the \`search\` tool to find people.`,
+            displayMessage: errorDisplayMessage`Nothing found for ${quote(value)} in the ${quote(filterKey)} task filter. You may only filter by those you\u2019ve already seen a link for, using the name from their path (e.g. ${quote(`${filterKey}=john-doe`)} for \`/human/john-doe\`), \`me\` for yourself (e.g. ${quote(`${filterKey}=me`)}), or \`none\` for tasks with no ${filterKey} (e.g. ${quote(`${filterKey}=none`)}). Try calling the \`search\` tool to find people.`,
         });
     }
 
@@ -1025,7 +1026,7 @@ function parseAgentWebTaskQueryFilterTime(
 
         if (!isValidDate) {
             throw new InvalidArgumentError("Unexpected task filter date", {
-                displayMessage: errorDisplayMessage`The date \`${dateString}\` in the \`${key}\` task filter isn\u2019t a real calendar date. Try again with a valid ISO 8601 date (e.g. \`${key}=2026-07-12\`).`,
+                displayMessage: errorDisplayMessage`The date ${quote(dateString)} in the ${quote(key)} task filter isn\u2019t a real calendar date. Try again with a valid ISO 8601 date (e.g. ${quote(`${key}=2026-07-12`)}).`,
             });
         }
 
@@ -1033,7 +1034,7 @@ function parseAgentWebTaskQueryFilterTime(
     }
 
     throw new InvalidArgumentError("Unexpected task filter date", {
-        displayMessage: errorDisplayMessage`Unexpected date \`${dateString}\` in the \`${key}\` task filter. Try again with an ISO 8601 date (e.g. \`${key}=2026-07-12\`), \`today\` (e.g. \`${key}=today\`), or a date relative to today with the units \`d\`, \`w\`, \`mo\`, or \`y\` (e.g. \`${key}=today+2w\` or \`${key}=today-3d\`).`,
+        displayMessage: errorDisplayMessage`Unexpected date ${quote(dateString)} in the ${quote(key)} task filter. Try again with an ISO 8601 date (e.g. ${quote(`${key}=2026-07-12`)}), \`today\` (e.g. ${quote(`${key}=today`)}), or a date relative to today with the units \`d\`, \`w\`, \`mo\`, or \`y\` (e.g. ${quote(`${key}=today+2w`)} or ${quote(`${key}=today-3d`)}).`,
     });
 }
 

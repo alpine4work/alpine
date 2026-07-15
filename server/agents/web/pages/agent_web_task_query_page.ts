@@ -21,7 +21,7 @@ import {
 } from "~/server/agents/web/agent_web_task_query_sorts.js";
 import {createAgentWebPageLinkPathname} from "~/server/agents/web/create_agent_web_page_link_pathname.js";
 import {createAgentWebPageStoredLinkPathname} from "~/server/agents/web/create_agent_web_page_stored_link_pathname.js";
-import {quoteMarkdown} from "~/server/agents/web/internal/quote_markdown.js";
+import {curlyQuote} from "~/server/agents/web/internal/curly_quote.js";
 import {withApiContentNormalizerForAgentWebMarkdown} from "~/server/agents/web/normalize_api_content_for_agent_web_markdown.js";
 import {
     formatAgentWebTaskDueDateString,
@@ -66,6 +66,7 @@ import {filterIterable} from "~/shared/helpers/iterable/filter_iterable.js";
 import {reverseIterable} from "~/shared/helpers/iterable/reverse_iterable.js";
 import {ApiTaskQueryCursor} from "~/shared/id/types/api_task_query_cursor.js";
 import {TaskCollectionId, TaskId} from "~/shared/id/types/id_types.js";
+import {quote} from "~/shared/helpers/string/quote.js";
 
 const agentWebTaskQueryPageApiTasksBatchCount = 31;
 
@@ -789,7 +790,8 @@ export async function parseAgentWebTaskQueryPageTaskReference(
     const pageLinkResult = await routeAgentWebPageLinkPathname(storage, link.url);
 
     if (!pageLinkResult || pageLinkResult.pageLink.type !== "Task") {
-        const quotedValue = quoteMarkdown([link]);
+        const quotedValue = curlyQuote([link]);
+
         throw new InvalidArgumentError("Unknown task link in task query", {
             displayMessage: errorDisplayMessage`Couldn\u2019t find a task for the link ${quotedValue} on line ${link.position?.start.line ?? "unknown"}. You may only add a task you\u2019ve previously seen to ${{TaskCollection: errorDisplayMessage`a collection`, TaskSubtasks: errorDisplayMessage`subtasks`}[pageType]}. Try calling the \`create\` tool to create a new task and then add that new task to ${{TaskCollection: errorDisplayMessage`the collection`, TaskSubtasks: errorDisplayMessage`the subtasks`}[pageType]}, or try calling the \`search\` tool to find an existing task you want to add to ${{TaskCollection: errorDisplayMessage`the collection`, TaskSubtasks: errorDisplayMessage`the subtasks`}[pageType]}.`,
         });
@@ -897,7 +899,7 @@ export async function updateAgentWebTaskQueryPage(
             continue;
         }
 
-        const quotedTitle = quoteMarkdown([{type: "text", value: newTask.title}]);
+        const quotedTitle = curlyQuote(newTask.title);
 
         throw new InvalidArgumentError("Duplicate task in task query page", {
             displayMessage: errorDisplayMessage`The task ${quotedTitle} appears more than once on this ${{TaskCollection: errorDisplayMessage`task collection`, TaskSubtasks: errorDisplayMessage`subtasks`}[pageLink.type]} page. Each task may only appear once. Try again after removing the duplicate task link.`,
@@ -1015,7 +1017,7 @@ export async function updateAgentWebTaskQueryPage(
             // Is our actual page task equal to what was expected?
             if (areAgentWebTaskQueryPageTasksEqual(expectedPageTask, actualPageTask)) return;
 
-            const quotedTitle = quoteMarkdown([{type: "text", value: actualPageTask.title}]);
+            const quotedTitle = curlyQuote(actualPageTask.title);
 
             const taskMarkdown = printMarkdownTree({
                 type: "list",
@@ -1029,7 +1031,7 @@ export async function updateAgentWebTaskQueryPage(
                 .replaceAll("\n", "\\n");
 
             throw new InvalidArgumentError("Can\u2019t update task fields while adding task", {
-                displayMessage: errorDisplayMessage`You can\u2019t change the task ${quotedTitle}\u2019s title or fields while adding it to ${{TaskCollection: errorDisplayMessage`task collection`, TaskSubtasks: errorDisplayMessage`subtasks`}[pageLink.type]} markdown. Add the task with its current title and fields, then call the \`update\` tool again if you want to change its title or fields. Try again with this exact markdown for the task: \`${taskMarkdown}\``,
+                displayMessage: errorDisplayMessage`You can\u2019t change the task ${quotedTitle}\u2019s title or fields while adding it to ${{TaskCollection: errorDisplayMessage`task collection`, TaskSubtasks: errorDisplayMessage`subtasks`}[pageLink.type]} markdown. Add the task with its current title and fields, then call the \`update\` tool again if you want to change its title or fields. Try again with this exact markdown for the task: ${quote(taskMarkdown)}`,
             });
         }),
     );
@@ -1048,28 +1050,29 @@ export async function updateAgentWebTaskQueryPage(
             movedTaskIds.has(oldPageTask.taskId) &&
             !areAgentWebTaskQueryPageTasksEqual(oldPageTask, newPageTask)
         ) {
-            const quotedTitle = quoteMarkdown([{type: "text", value: oldPageTask.title}]);
+            const quotedTitle = curlyQuote(oldPageTask.title);
+
             throw new InvalidArgumentError("Can\u2019t move and update task fields together", {
                 displayMessage: errorDisplayMessage`You can\u2019t move the task ${quotedTitle} and change its title or fields in the same \`update\` tool call. Try again with two separate \`update\` tool calls, one to change the task\u2019s title/fields and another to move the task.`,
             });
         }
 
         if (oldPageTask.additionalCollectionsCount !== newPageTask.additionalCollectionsCount) {
-            const quotedTitle = quoteMarkdown([{type: "text", value: oldPageTask.title}]);
+            const quotedTitle = curlyQuote(oldPageTask.title);
 
             throw new InvalidArgumentError(
                 "Can\u2019t change task collections by updating additional count",
                 {
-                    displayMessage: errorDisplayMessage`Can\u2019t change a task\u2019s collections by updating \u201Cand ${oldPageTask.additionalCollectionsCount} more\u201D to \u201Cand ${newPageTask.additionalCollectionsCount} more\u201D since we don\u2019t know which underlying collections you\u2019re trying to ${oldPageTask.additionalCollectionsCount < newPageTask.additionalCollectionsCount ? "add" : "remove"}. Instead call the \`read\` tool for the task ${quotedTitle} which will give you the full collection list for the task which you can update with the \`update\` tool.`,
+                    displayMessage: errorDisplayMessage`Can\u2019t change a task\u2019s collections by updating ${curlyQuote(`and ${oldPageTask.additionalCollectionsCount} more`)} to ${curlyQuote(`and ${newPageTask.additionalCollectionsCount} more`)} since we don\u2019t know which underlying collections you\u2019re trying to ${oldPageTask.additionalCollectionsCount < newPageTask.additionalCollectionsCount ? "add" : "remove"}. Instead call the \`read\` tool for the task ${quotedTitle} which will give you the full collection list for the task which you can update with the \`update\` tool.`,
                 },
             );
         }
 
         if (!isDeepEqual(oldPageTask.subtasks, newPageTask.subtasks)) {
-            const quotedTitle = quoteMarkdown([{type: "text", value: oldPageTask.title}]);
+            const quotedTitle = curlyQuote(oldPageTask.title);
 
             throw new InvalidArgumentError("Can\u2019t change task subtasks by updating counts", {
-                displayMessage: errorDisplayMessage`Can\u2019t change the task ${quotedTitle}\u2019s subtasks by updating \u201CSubtasks: ${oldPageTask.subtasks.openTaskCount} open, ${oldPageTask.subtasks.closedTaskCount} closed\u201D to \u201CSubtasks: ${newPageTask.subtasks.openTaskCount} open, ${newPageTask.subtasks.closedTaskCount} closed\u201D since we don\u2019t know which underlying subtasks you\u2019re trying to add, remove, open, or close. Try again with an update that leaves the \`Subtasks\` field unchanged.`,
+                displayMessage: errorDisplayMessage`Can\u2019t change the task ${quotedTitle}\u2019s subtasks by updating ${curlyQuote(`Subtasks: ${oldPageTask.subtasks.openTaskCount} open, ${oldPageTask.subtasks.closedTaskCount} closed`)} to ${curlyQuote(`Subtasks: ${newPageTask.subtasks.openTaskCount} open, ${newPageTask.subtasks.closedTaskCount} closed`)} since we don\u2019t know which underlying subtasks you\u2019re trying to add, remove, open, or close. Try again with an update that leaves the \`Subtasks\` field unchanged.`,
             });
         }
 
@@ -1085,7 +1088,7 @@ export async function updateAgentWebTaskQueryPage(
             newPageTask.status.isActive &&
             !newPageTask.assignee
         ) {
-            const quotedTitle = quoteMarkdown([{type: "text", value: oldPageTask.title}]);
+            const quotedTitle = curlyQuote(oldPageTask.title);
 
             const assigneeLink: Link = {
                 type: "link",
@@ -1097,7 +1100,7 @@ export async function updateAgentWebTaskQueryPage(
                 throw new InvalidArgumentError(
                     "Can\u2019t set task as active if there\u2019s no assignee",
                     {
-                        displayMessage: errorDisplayMessage`Can\u2019t set the task ${quotedTitle} as active if there\u2019s no assignee. We don\u2019t recommend setting a task as active unless you\u2019re about to work on the task or you know someone else is currently working on the task. Try again and either set the task as open but inactive (e.g. \`(Open)\`) or set an assignee (e.g. \`- Assignee: ${printMarkdownTree(assigneeLink).trim()}\`).`,
+                        displayMessage: errorDisplayMessage`Can\u2019t set the task ${quotedTitle} as active if there\u2019s no assignee. We don\u2019t recommend setting a task as active unless you\u2019re about to work on the task or you know someone else is currently working on the task. Try again and either set the task as open but inactive (e.g. \`(Open)\`) or set an assignee (e.g. ${quote(`- Assignee: ${printMarkdownTree(assigneeLink).trim()}`)}).`,
                     },
                 );
             } else {
@@ -1141,9 +1144,7 @@ export async function updateAgentWebTaskQueryPage(
                     contextDate,
                     newPageTask.dueDateString,
                     () => {
-                        const quotedTitle = quoteMarkdown([
-                            {type: "text", value: oldPageTask.title},
-                        ]);
+                        const quotedTitle = curlyQuote(oldPageTask.title);
 
                         return errorDisplayMessage` for task ${quotedTitle}`;
                     },
@@ -1220,8 +1221,8 @@ export async function updateAgentWebTaskQueryPage(
                     // final `TaskId` which is why it's `null`.
                     assert(
                         originalPageLink.type === "TaskSubtasks" &&
-                            (originalPageLink.task.id === pageLink.task.id ||
-                                pageLink.task.id === null),
+                            (originalPageLink.task.id === null ||
+                                originalPageLink.task.id === pageLink.task.id),
                     );
 
                     for (const removedTaskId of removedTaskIds) {
@@ -1300,7 +1301,13 @@ export async function updateAgentWebTaskQueryPage(
 
                 let position: ApiTaskMoveInQueryPatchPosition;
 
-                if (afterCursor === null) {
+                if (afterCursor === null && beforeCursor === null) {
+                    assert(
+                        oldPageMetadata.afterCursor === null &&
+                            oldPageMetadata.beforeCursor === null,
+                    );
+                    position = {type: "End"};
+                } else if (afterCursor === null) {
                     assert(oldPageMetadata.afterCursor === null);
                     position = {type: "Start"};
                 } else if (beforeCursor === null) {

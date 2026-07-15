@@ -2,7 +2,7 @@ import {Root} from "mdast";
 import {AgentWebContext} from "~/server/agents/web/agent_web_context.js";
 import {AgentWebPageMetadata} from "~/server/agents/web/agent_web_page.js";
 import {normalizeAgentWebPath} from "~/server/agents/web/internal/normalize_agent_web_path.js";
-import {quoteMarkdown} from "~/server/agents/web/internal/quote_markdown.js";
+import {curlyQuote} from "~/server/agents/web/internal/curly_quote.js";
 import {
     parseAgentWebAccountPage,
     updateAgentWebAccountPage,
@@ -62,6 +62,7 @@ import {assert} from "~/shared/helpers/control/assert.js";
 import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
 import {Lazy} from "~/shared/helpers/control/lazy.js";
 import {getOrSetDefaultMapValue} from "~/shared/helpers/map/get_or_set_default_map_value.js";
+import {quote} from "~/shared/helpers/string/quote.js";
 
 export async function callAgentWebUpdateTool(
     context: AgentWebContext,
@@ -90,7 +91,7 @@ export async function callAgentWebUpdateTool(
 
         if (!readResponse || readResponse.expirationTime.getTime() < Date.now()) {
             throw new NotFoundError("Read response not found or expired", {
-                displayMessage: errorDisplayMessage`Can\u2019t call the \`update\` tool for a path that hasn\u2019t been read recently. Call the \`read\` tool with the path \`${originalPath}\` then call the \`update\` tool again.`,
+                displayMessage: errorDisplayMessage`Can\u2019t call the \`update\` tool for a path that hasn\u2019t been read recently. Call the \`read\` tool with the path ${quote(originalPath)} then call the \`update\` tool again.`,
             });
         }
 
@@ -99,7 +100,7 @@ export async function callAgentWebUpdateTool(
 
         for (const {old: oldString, new: newString, replaceAll} of updates) {
             if (newString === oldString) {
-                const quotedString = quoteMarkdown([{type: "text", value: oldString}]);
+                const quotedString = curlyQuote(oldString);
 
                 throw new InvalidArgumentError("New string and old string are the same", {
                     displayMessage: errorDisplayMessage`The \`old\` string and the \`new\` string must be different. Instead they\u2019re both ${quotedString}.`,
@@ -108,7 +109,7 @@ export async function callAgentWebUpdateTool(
 
             if (oldString.length === 0) {
                 throw new InvalidArgumentError("Old string is empty", {
-                    displayMessage: errorDisplayMessage`The \`old\` string is empty. You must search for some string in the path \`${originalPath}\`.`,
+                    displayMessage: errorDisplayMessage`The \`old\` string is empty. You must search for some string in the path ${quote(originalPath)}.`,
                 });
             }
 
@@ -129,7 +130,7 @@ export async function callAgentWebUpdateTool(
             }
 
             if (matchIndexes.length === 0) {
-                const quotedString = quoteMarkdown([{type: "text", value: oldString}]);
+                const quotedString = curlyQuote(oldString);
 
                 // Error message [derived from OpenCode][1].
                 //
@@ -141,7 +142,7 @@ export async function callAgentWebUpdateTool(
             }
 
             if (!replaceAll && matchIndexes.length > 1) {
-                const quotedString = quoteMarkdown([{type: "text", value: oldString}]);
+                const quotedString = curlyQuote(oldString);
 
                 throw new FailedPreconditionError("Found multiple matches for the old string", {
                     // We intentionally don't mention the `replaceAll` option in this error message.
@@ -255,7 +256,7 @@ export async function callAgentWebUpdateTool(
                     cause: error,
                     displayMessage: concatErrorDisplayMessages(
                         displayMessage,
-                        errorDisplayMessage` (This update was a partial success. You must call the \`read\` tool again for \`${originalPath}\` to find out which parts of the update were successful.)`,
+                        errorDisplayMessage` (This update was a partial success. You must call the \`read\` tool again for ${quote(originalPath)} to find out which parts of the update were successful.)`,
                     ),
                 },
             );

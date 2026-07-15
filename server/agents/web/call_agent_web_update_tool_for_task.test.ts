@@ -397,7 +397,7 @@ test("adds a subtask section when the task previously had no subtasks", async ()
                 {
                     type: "Update",
                     id: subtask.id,
-                    patch: {type: "MoveInParent", position: {type: "Start"}},
+                    patch: {type: "MoveInParent", position: {type: "End"}},
                 },
             ],
         },
