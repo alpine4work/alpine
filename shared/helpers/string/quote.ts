@@ -25,12 +25,7 @@ export function quote(
         return String(templateStrings);
     }
     if (typeof templateStrings === "string") {
-        let quotedString = JSON.stringify(templateStrings);
-        quotedString = quotedString.replaceAll("`", "\\`");
-        // eslint-disable-next-line cyberworlds/string-quotes
-        quotedString = quotedString.replaceAll('\\"', '"');
-        quotedString = `\`${quotedString.slice(1, -1)}\``;
-        return quotedString;
+        return quoteValue(templateStrings);
     }
 
     assert(templateStrings.length > 0);
@@ -51,10 +46,7 @@ export function quote(
             // backticks than curl quotes (given our lint rule disallows the use of straight
             // quotes elsewhere in strings).
             if (typeof value === "string") {
-                quotedString = quotedString.replaceAll("`", "\\`");
-                // eslint-disable-next-line cyberworlds/string-quotes
-                quotedString = quotedString.replaceAll('\\"', '"');
-                quotedString = `\`${quotedString.slice(1, -1)}\``;
+                quotedString = quoteValue(quotedString);
             }
 
             string += quotedString;
@@ -63,4 +55,12 @@ export function quote(
     }
 
     return string;
+}
+
+function quoteValue(quoted: string) {
+    quoted = quoted.replaceAll("`", "\\`");
+    // eslint-disable-next-line cyberworlds/string-quotes
+    quoted = quoted.replaceAll('\\"', '"');
+    quoted = `\`${quoted.slice(1, -1)}\``;
+    return quoted;
 }
