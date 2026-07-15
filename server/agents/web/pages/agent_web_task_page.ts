@@ -300,13 +300,19 @@ export async function createAgentWebTaskPage(
 }
 
 export async function updateAgentWebTaskPage(
-    context: AgentWebContextWithoutStorage,
+    context: AgentWebContext,
     oldPageMetadata: AgentWebTaskPageMetadata,
     oldPage: AgentWebTaskPage,
     newPage: AgentWebTaskPage,
 ): Promise<AgentWebTaskPageMetadata> {
     const contextTime = new Date();
     const contextDate = toCalendarDate(fromDate(contextTime, context.timeZone));
+
+    if (!isDeepEqual(oldPage.subtasks?.seeMore ?? null, newPage.subtasks?.seeMore ?? null)) {
+        throw new InvalidArgumentError("Can\u2019t update task subtasks pagination", {
+            displayMessage: errorDisplayMessage`You can\u2019t update the \u201cSee more\u201d link in a task\u2019s subtasks section. Try again with a more specific update that leaves the \u201cSee more\u201d link unchanged.`,
+        });
+    }
 
     // Force the agent to set an assignee if they're marking a task as active. By
     // default our API sets the bot as active when they make the task active if there's
@@ -394,7 +400,23 @@ export async function updateAgentWebTaskPage(
         }
     }
 
-    const [, notesPatchResponse] = await runAllPromises([
+    const {execute: executeSubtasksUpdate} = await updateAgentWebTaskQueryPage(
+        context,
+        {type: "TaskSubtasks", task: {id: oldPageMetadata.id}},
+        oldPageMetadata.subtasks,
+        {
+            pagination: null,
+            tasks: oldPage.subtasks?.tasks ?? [],
+            isEndOfTasks: oldPageMetadata.subtasks.beforeCursor === null,
+        },
+        {
+            pagination: null,
+            tasks: newPage.subtasks?.tasks ?? [],
+            isEndOfTasks: oldPageMetadata.subtasks.beforeCursor === null,
+        },
+    );
+
+    const [, notesPatchResponse, subtasksMetadata] = await runAllPromises([
         patches.length > 0
             ? context.api.patch(context.span, "/tasks/{id}", {
                   params: {path: {id: oldPageMetadata.id}},
@@ -416,6 +438,8 @@ export async function updateAgentWebTaskPage(
                   },
               })
             : null,
+
+        executeSubtasksUpdate({type: "TaskSubtasks", task: {id: oldPageMetadata.id}}),
     ]);
 
     if (notesPatchResponse) {
@@ -429,33 +453,11 @@ export async function updateAgentWebTaskPage(
                 version: notesPatchResponse.data.notes.version,
                 keys: notesKeys,
             },
+            subtasks: subtasksMetadata,
         };
     }
 
-    return oldPageMetadata;
-}
-
-export function parseAgentWebTaskPageDueDateStringForUpdate(
-    contextDate: CalendarDate,
-    dueDateString: string,
-    additionalDetail: () => ErrorDisplayMessage = () => errorDisplayMessage``,
-) {
-    const matches = parseCalendarDates(dueDateString, contextDate.year);
-
-    if (
-        matches.length === 0 ||
-        matches.length > 1 ||
-        matches[0]!.start !== 0 ||
-        matches[0]!.end !== dueDateString.length
-    ) {
-        const quotedValue = quoteMarkdown([{type: "text", value: dueDateString}]);
-
-        throw new InvalidArgumentError("Invalid task due date", {
-            displayMessage: errorDisplayMessage`Unexpected task due date ${quotedValue}${additionalDetail()}. Try again with a date like \u201CJuly 12, 2027\u201D (not including the time, just the date).`,
-        });
-    }
-
-    return matches[0]!.date;
+    return {...oldPageMetadata, subtasks: subtasksMetadata};
 }
 
 export function normalizeAgentWebTaskPage<Page extends AgentWebTaskPage>(page: Page): Page {
@@ -465,6 +467,10 @@ export function normalizeAgentWebTaskPage<Page extends AgentWebTaskPage>(page: P
             if (page.assignee) normalizer.normalizeReference(page.assignee);
             for (const collection of page.collections) normalizer.normalizeReference(collection);
             normalizer.normalize(page.notes);
+
+            if (page.subtasks !== null) {
+                normalizeAgentWebTaskQueryPage(normalizer, {tasks: page.subtasks.tasks});
+            }
         });
     });
 }
