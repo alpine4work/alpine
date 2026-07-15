@@ -1,3 +1,5 @@
+import {AgentWebPageStoredLink} from "~/server/agents/web/agent_web_page_stored_link.js";
+import {AgentWebSessionStorage} from "~/server/agents/web/agent_web_session_storage.js";
 import {createAgentWebPageStoredLinkPathname} from "~/server/agents/web/create_agent_web_page_stored_link_pathname.js";
 import {
     AgentWebTaskPage,
@@ -54,10 +56,32 @@ const bobReference = accountReference({name: "Bob"});
 const parentReference = taskReference({name: "Parent task"});
 const engineeringReference = collectionReference({name: "Engineering"});
 const roadmapReference = collectionReference({name: "Roadmap"});
+const currentTaskReference: ApiTaskReferenceResponse = {
+    type: "Task",
+    id: taskId,
+    title: "Task with subtasks",
+    status: {type: "Open", isActive: false},
+};
+const subtaskReference = taskReference({name: "Subtask"});
+const otherTaskReference = taskReference({name: "Other task"});
 
 const emptyNotes: AgentWebTaskPage["notes"] = {
     elements: [{type: "Paragraph", elements: []}],
 };
+
+async function setupTaskPageSubtasksStorage({
+    storage,
+    storedLinks = [],
+}: {
+    storage: AgentWebSessionStorage;
+    storedLinks?: ReadonlyArray<AgentWebPageStoredLink>;
+}) {
+    await createAgentWebPageStoredLinkPathname(storage, currentTaskReference);
+    await createAgentWebPageStoredLinkPathname(storage, subtaskReference);
+    for (const storedLink of storedLinks) {
+        await createAgentWebPageStoredLinkPathname(storage, storedLink);
+    }
+}
 
 runAgentWebPageTests<TaskId, AgentWebTaskPage>({
     print: printAgentWebTaskPage,
@@ -82,6 +106,7 @@ runAgentWebPageTests<TaskId, AgentWebTaskPage>({
                 priority: null,
                 dueDateString: null,
                 notes: emptyNotes,
+                subtasks: null,
             },
         },
         {
@@ -106,6 +131,7 @@ runAgentWebPageTests<TaskId, AgentWebTaskPage>({
                 priority: null,
                 dueDateString: null,
                 notes: emptyNotes,
+                subtasks: null,
             },
         },
         {
@@ -146,6 +172,7 @@ runAgentWebPageTests<TaskId, AgentWebTaskPage>({
                 priority: {type: "Urgent"},
                 dueDateString: "2027-07-12",
                 notes: emptyNotes,
+                subtasks: null,
             },
         },
         {
@@ -181,6 +208,7 @@ runAgentWebPageTests<TaskId, AgentWebTaskPage>({
                 priority: {type: "Urgent"},
                 dueDateString: "2027-07-12",
                 notes: emptyNotes,
+                subtasks: null,
             },
         },
         {
@@ -201,6 +229,7 @@ runAgentWebPageTests<TaskId, AgentWebTaskPage>({
                 priority: null,
                 dueDateString: null,
                 notes: emptyNotes,
+                subtasks: null,
             },
         },
         {
@@ -222,6 +251,7 @@ runAgentWebPageTests<TaskId, AgentWebTaskPage>({
                 priority: {type: "Low"},
                 dueDateString: null,
                 notes: emptyNotes,
+                subtasks: null,
             },
         },
         {
@@ -243,6 +273,7 @@ runAgentWebPageTests<TaskId, AgentWebTaskPage>({
                 priority: {type: "Medium"},
                 dueDateString: null,
                 notes: emptyNotes,
+                subtasks: null,
             },
         },
         {
@@ -264,6 +295,7 @@ runAgentWebPageTests<TaskId, AgentWebTaskPage>({
                 priority: {type: "High"},
                 dueDateString: null,
                 notes: emptyNotes,
+                subtasks: null,
             },
         },
         {
@@ -293,6 +325,7 @@ runAgentWebPageTests<TaskId, AgentWebTaskPage>({
                 priority: null,
                 dueDateString: null,
                 notes: emptyNotes,
+                subtasks: null,
             },
         },
         {
@@ -316,6 +349,7 @@ runAgentWebPageTests<TaskId, AgentWebTaskPage>({
                 priority: null,
                 dueDateString: null,
                 notes: emptyNotes,
+                subtasks: null,
             },
         },
         {
@@ -347,6 +381,7 @@ Remember to check the API shape.
                         },
                     ],
                 },
+                subtasks: null,
             },
         },
         {
@@ -385,6 +420,7 @@ Remember to check the API shape.
                         },
                     ],
                 },
+                subtasks: null,
             },
         },
         {
@@ -423,6 +459,7 @@ Bring logs.
                         },
                     ],
                 },
+                subtasks: null,
             },
         },
         {
@@ -445,7 +482,7 @@ Bring logs.
 # Extra task
 `,
             parseError:
-                "Unexpected markdown on line 5. Try again with only allowed sections like fields (an unordered list with items like `- Priority: Medium`) or notes (the h2 `## Notes` and the content after).",
+                "Unexpected markdown on line 5. Try again with only allowed sections like fields (an unordered list with items like `- Priority: Medium`), notes (the h2 `## Notes` and the content after), or subtasks (the h2 `## Subtasks` and an unordered task list).",
         },
         {
             name: "task page with ordered field list",
@@ -456,7 +493,7 @@ Bring logs.
 1. Status: Open
 `,
             parseError:
-                "Unexpected markdown on line 3. Try again with only allowed sections like fields (an unordered list with items like `- Priority: Medium`) or notes (the h2 `## Notes` and the content after).",
+                "Unexpected markdown on line 3. Try again with only allowed sections like fields (an unordered list with items like `- Priority: Medium`), notes (the h2 `## Notes` and the content after), or subtasks (the h2 `## Subtasks` and an unordered task list).",
         },
         {
             name: "task page with field missing colon",
@@ -532,6 +569,7 @@ Bring logs.
                 priority: {type: "High"},
                 dueDateString: null,
                 notes: emptyNotes,
+                subtasks: null,
             },
         },
         {
@@ -576,6 +614,7 @@ Bring logs.
                 priority: null,
                 dueDateString: "2027-02-29",
                 notes: emptyNotes,
+                subtasks: null,
             },
         },
         {
@@ -631,6 +670,7 @@ Bring logs.
                 priority: null,
                 dueDateString: null,
                 notes: emptyNotes,
+                subtasks: null,
             },
         },
         {
@@ -663,6 +703,7 @@ Bring logs.
                 priority: null,
                 dueDateString: "2027-07-12",
                 notes: emptyNotes,
+                subtasks: null,
             },
         },
         {
@@ -773,6 +814,7 @@ Bring logs.
                 priority: null,
                 dueDateString: null,
                 notes: emptyNotes,
+                subtasks: null,
             },
         },
         {
@@ -804,6 +846,7 @@ Bring logs.
                 priority: null,
                 dueDateString: null,
                 notes: emptyNotes,
+                subtasks: null,
             },
         },
         {
@@ -835,6 +878,7 @@ Bring logs.
                 priority: null,
                 dueDateString: null,
                 notes: emptyNotes,
+                subtasks: null,
             },
         },
         {
@@ -869,6 +913,300 @@ Bring logs.
             },
             parseError:
                 "Can\u2019t use \u201Cand 2 more\u201D in the \u201CCollections\u201D task field on line 4 since we wouldn\u2019t know which collections those are. Try again with a link to every collection (e.g. `- Collections: [My Collection 1](/task-collection/my-collection-1), [My Collection 2](/task-collection/my-collection-2)`).",
+        },
+        {
+            name: "task page with notes and subtasks",
+            pageLink: taskId,
+            markdown: `\
+# Task with notes and subtasks
+
+- Status: Open
+
+## Notes
+
+Remember to check the API shape.
+
+## Subtasks
+
+- [Subtask (Open)](/task/subtask)
+`,
+            setupStorage: storage => setupTaskPageSubtasksStorage({storage}),
+            page: {
+                type: "Task",
+                title: "Task with notes and subtasks",
+                status: {type: "Open", isActive: false},
+                parent: null,
+                assignee: null,
+                collections: [],
+                priority: null,
+                dueDateString: null,
+                notes: {
+                    elements: [
+                        {
+                            type: "Paragraph",
+                            elements: [{type: "Text", text: "Remember to check the API shape."}],
+                        },
+                    ],
+                },
+                subtasks: {
+                    tasks: [
+                        {
+                            taskId: subtaskReference.id,
+                            title: subtaskReference.title,
+                            status: subtaskReference.status,
+                            parent: null,
+                            subtasks: {openTaskCount: 0, closedTaskCount: 0},
+                            assignee: null,
+                            collections: [],
+                            additionalCollectionsCount: 0,
+                            priority: null,
+                            dueDateString: null,
+                        },
+                    ],
+                    seeMore: null,
+                },
+            },
+        },
+        {
+            name: "task page with notes below subtasks",
+            pageLink: taskId,
+            markdown: `\
+# Task with notes below subtasks
+
+- Status: Open
+
+## Subtasks
+
+- [Subtask (Open)](/task/subtask)
+
+## Notes
+
+Remember to check the API shape.
+`,
+            setupStorage: storage => setupTaskPageSubtasksStorage({storage}),
+            parseError:
+                "Unexpected markdown on line 9. Try again with only allowed sections like fields (an unordered list with items like `- Priority: Medium`), notes (the h2 `## Notes` and the content after), or subtasks (the h2 `## Subtasks` and an unordered task list).",
+        },
+        {
+            name: "task page subtasks with non-link content after the task list",
+            pageLink: taskId,
+            markdown: `\
+# Task with subtasks
+
+- Status: Open
+
+## Subtasks
+
+- [Subtask (Open)](/task/subtask)
+
+See more tasks.
+`,
+            setupStorage: storage => setupTaskPageSubtasksStorage({storage}),
+            parseError:
+                "Expected a task\u2019s subtasks section to end with a valid \u201cSee more »\u201d link with an `?after` URL search param to the task\u2019s subtasks page. Try again with the \u201cSee more\u201d link from the task page you read.",
+        },
+        {
+            name: "task page subtasks with a task collection See more link",
+            pageLink: taskId,
+            markdown: `\
+# Task with subtasks
+
+- Status: Open
+
+## Subtasks
+
+- [Subtask (Open)](/task/subtask)
+
+[See more (2 remaining) »](/task-collection/engineering?after=abc)
+`,
+            setupStorage: storage =>
+                setupTaskPageSubtasksStorage({storage, storedLinks: [engineeringReference]}),
+            parseError:
+                "Expected a task\u2019s subtasks section to end with a valid \u201cSee more »\u201d link with an `?after` URL search param to the task\u2019s subtasks page. Try again with the \u201cSee more\u201d link from the task page you read.",
+        },
+        {
+            name: "task page subtasks with a task page See more link",
+            pageLink: taskId,
+            markdown: `\
+# Task with subtasks
+
+- Status: Open
+
+## Subtasks
+
+- [Subtask (Open)](/task/subtask)
+
+[See more (2 remaining) »](/task/task-with-subtasks?after=abc)
+`,
+            setupStorage: storage => setupTaskPageSubtasksStorage({storage}),
+            parseError:
+                "Expected a task\u2019s subtasks section to end with a valid \u201cSee more »\u201d link with an `?after` URL search param to the task\u2019s subtasks page. Try again with the \u201cSee more\u201d link from the task page you read.",
+        },
+        {
+            name: "task page subtasks with an account See more link",
+            pageLink: taskId,
+            markdown: `\
+# Task with subtasks
+
+- Status: Open
+
+## Subtasks
+
+- [Subtask (Open)](/task/subtask)
+
+[See more (2 remaining) »](/human/alice?after=abc)
+`,
+            setupStorage: storage =>
+                setupTaskPageSubtasksStorage({storage, storedLinks: [aliceReference]}),
+            parseError:
+                "Expected a task\u2019s subtasks section to end with a valid \u201cSee more »\u201d link with an `?after` URL search param to the task\u2019s subtasks page. Try again with the \u201cSee more\u201d link from the task page you read.",
+        },
+        {
+            name: "task page subtasks with a See more link to the wrong task",
+            pageLink: taskId,
+            markdown: `\
+# Task with subtasks
+
+- Status: Open
+
+## Subtasks
+
+- [Subtask (Open)](/task/subtask)
+
+[See more (2 remaining) »](/task/other-task/subtasks?after=abc)
+`,
+            setupStorage: storage =>
+                setupTaskPageSubtasksStorage({storage, storedLinks: [otherTaskReference]}),
+            parseError:
+                "Expected a task\u2019s subtasks section to end with a valid \u201cSee more »\u201d link with an `?after` URL search param to the task\u2019s subtasks page. Try again with the \u201cSee more\u201d link from the task page you read.",
+            createParseError:
+                "You can\u2019t create a task with a \u201cSee more\u201d subtasks link. Try again after removing the link.",
+        },
+        {
+            name: "task page subtasks with sorts in the See more link",
+            pageLink: taskId,
+            markdown: `\
+# Task with subtasks
+
+- Status: Open
+
+## Subtasks
+
+- [Subtask (Open)](/task/subtask)
+
+[See more (2 remaining) »](/task/task-with-subtasks/subtasks?after=abc&sort=-priority)
+`,
+            setupStorage: storage => setupTaskPageSubtasksStorage({storage}),
+            parseError:
+                "Expected a task\u2019s subtasks section to end with a valid \u201cSee more »\u201d link with an `?after` URL search param to the task\u2019s subtasks page. Try again with the \u201cSee more\u201d link from the task page you read.",
+        },
+        {
+            name: "task page subtasks with filters in the See more link",
+            pageLink: taskId,
+            markdown: `\
+# Task with subtasks
+
+- Status: Open
+
+## Subtasks
+
+- [Subtask (Open)](/task/subtask)
+
+[See more (2 remaining) »](/task/task-with-subtasks/subtasks?after=abc&status=open)
+`,
+            setupStorage: storage => setupTaskPageSubtasksStorage({storage}),
+            parseError:
+                "Expected a task\u2019s subtasks section to end with a valid \u201cSee more »\u201d link with an `?after` URL search param to the task\u2019s subtasks page. Try again with the \u201cSee more\u201d link from the task page you read.",
+        },
+        {
+            name: "task page subtasks with a See more link without an after cursor",
+            pageLink: taskId,
+            markdown: `\
+# Task with subtasks
+
+- Status: Open
+
+## Subtasks
+
+- [Subtask (Open)](/task/subtask)
+
+[See more (2 remaining) »](/task/task-with-subtasks/subtasks)
+`,
+            setupStorage: storage => setupTaskPageSubtasksStorage({storage}),
+            parseError:
+                "Expected a task\u2019s subtasks section to end with a valid \u201cSee more »\u201d link with an `?after` URL search param to the task\u2019s subtasks page. Try again with the \u201cSee more\u201d link from the task page you read.",
+        },
+        {
+            name: "task page subtasks with an unexpected See more link label",
+            pageLink: taskId,
+            markdown: `\
+# Task with subtasks
+
+- Status: Open
+
+## Subtasks
+
+- [Subtask (Open)](/task/subtask)
+
+[Show more (2 remaining) »](/task/task-with-subtasks/subtasks?after=abc)
+`,
+            setupStorage: storage => setupTaskPageSubtasksStorage({storage}),
+            parseError:
+                "Expected a task\u2019s subtasks section to end with a valid \u201cSee more »\u201d link with an `?after` URL search param to the task\u2019s subtasks page. Try again with the \u201cSee more\u201d link from the task page you read.",
+        },
+        {
+            name: "task page subtasks with zero remaining tasks in the See more link",
+            pageLink: taskId,
+            markdown: `\
+# Task with subtasks
+
+- Status: Open
+
+## Subtasks
+
+- [Subtask (Open)](/task/subtask)
+
+[See more (0 remaining) »](/task/task-with-subtasks/subtasks?after=abc)
+`,
+            setupStorage: storage => setupTaskPageSubtasksStorage({storage}),
+            parseError:
+                "Expected a task\u2019s subtasks section to end with a valid \u201cSee more »\u201d link with an `?after` URL search param to the task\u2019s subtasks page. Try again with the \u201cSee more\u201d link from the task page you read.",
+        },
+        {
+            name: "task page subtasks with trailing content in the See more link paragraph",
+            pageLink: taskId,
+            markdown: `\
+# Task with subtasks
+
+- Status: Open
+
+## Subtasks
+
+- [Subtask (Open)](/task/subtask)
+
+[See more (2 remaining) »](/task/task-with-subtasks/subtasks?after=abc) trailing content
+`,
+            setupStorage: storage => setupTaskPageSubtasksStorage({storage}),
+            parseError:
+                "Expected a task\u2019s subtasks section to end with a valid \u201cSee more »\u201d link with an `?after` URL search param to the task\u2019s subtasks page. Try again with the \u201cSee more\u201d link from the task page you read.",
+        },
+        {
+            name: "task page subtasks with an unknown task See more link",
+            pageLink: taskId,
+            markdown: `\
+# Task with subtasks
+
+- Status: Open
+
+## Subtasks
+
+- [Subtask (Open)](/task/subtask)
+
+[See more (2 remaining) »](/task/missing/subtasks?after=abc)
+`,
+            setupStorage: storage => setupTaskPageSubtasksStorage({storage}),
+            parseError:
+                "Expected a task\u2019s subtasks section to end with a valid \u201cSee more »\u201d link with an `?after` URL search param to the task\u2019s subtasks page. Try again with the \u201cSee more\u201d link from the task page you read.",
         },
     ],
 });
