@@ -26,6 +26,7 @@ import {
     createCantPingStaleMessageStreamError,
     createCantWriteToStaleMessageStreamError,
 } from "~/server/messaging/helpers/create_message_stream_errors.js";
+import {getOtherReferencedMessageItems} from "~/server/messaging/helpers/get_other_referenced_message_items.js";
 import {
     messageStreamIndexSearchEntityDelaySeconds,
     shouldScheduleMessageStreamIndexSearchEntityJob,
@@ -562,6 +563,36 @@ export async function getTaskCommentPayloadsFromStart(
     };
 }
 
+/**
+ * Paginate through task comment payloads from start to finish and recursively load
+ * parent comment payloads outside the returned page.
+ */
+export async function getTaskCommentPayloadsFromStartWithParents<Message>(
+    context: ServerActionContext,
+    options: Parameters<typeof getTaskCommentPayloadsFromStart>[1],
+    mapper: (messageItem: MessageItem) => Promise<Message>,
+) {
+    const result = await getTaskCommentPayloadsFromStart(context, options);
+
+    const [comments, parentComments] = await runAllPromises([
+        runAllPromises(result.comments.map(mapper)),
+        getOtherReferencedMessageItems({
+            messageItems: result.comments,
+            getMessageItem: commentIndex =>
+                getTaskCommentItem(context, options.taskId, commentIndex, {
+                    consistency: options.consistency,
+                }),
+            mapper,
+        }),
+    ]);
+
+    return {
+        ...result,
+        comments,
+        parentComments,
+    };
+}
+
 export async function getTaskCommentPayloadsFromEnd(
     context: ServerActionContext,
     {
@@ -632,6 +663,36 @@ export async function getTaskCommentPayloadsFromEnd(
             lastCommentIndex + 1,
         ),
         comments: commentItems,
+    };
+}
+
+/**
+ * Paginate through task comment payloads from finish to start and recursively load
+ * parent comment payloads outside the returned page.
+ */
+export async function getTaskCommentPayloadsFromEndWithParents<Message>(
+    context: ServerActionContext,
+    options: Parameters<typeof getTaskCommentPayloadsFromEnd>[1],
+    mapper: (messageItem: MessageItem) => Promise<Message>,
+) {
+    const result = await getTaskCommentPayloadsFromEnd(context, options);
+
+    const [comments, parentComments] = await runAllPromises([
+        runAllPromises(result.comments.map(mapper)),
+        getOtherReferencedMessageItems({
+            messageItems: result.comments,
+            getMessageItem: commentIndex =>
+                getTaskCommentItem(context, options.taskId, commentIndex, {
+                    consistency: options.consistency,
+                }),
+            mapper,
+        }),
+    ]);
+
+    return {
+        ...result,
+        comments,
+        parentComments,
     };
 }
 

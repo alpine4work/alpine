@@ -13,7 +13,9 @@ import {
     getChatMessageParentContent,
     getChatMessagePayload,
     getChatMessagePayloadsFromEnd,
+    getChatMessagePayloadsFromEndWithParents,
     getChatMessagePayloadsFromStart,
+    getChatMessagePayloadsFromStartWithParents,
     getChatMessagesFromEnd,
     getChatMessagesFromStart,
     pingChatMessageStream,
@@ -4569,6 +4571,21 @@ testMessagingImplementation<ChatId>(context, {
             beforeMessageIndex,
         });
     },
+    async getMessagePayloadsFromStartWithParents(
+        context,
+        {roomKey: chatId, limit, afterMessageIndex, beforeMessageIndex},
+    ) {
+        return await getChatMessagePayloadsFromStartWithParents(
+            context.actor.authorizeSession(),
+            {
+                chatId,
+                limit,
+                afterMessageIndex,
+                beforeMessageIndex,
+            },
+            message => Promise.resolve(message),
+        );
+    },
     async getMessagePayloadsFromEnd(
         context,
         {roomKey: chatId, limit, afterMessageIndex, beforeMessageIndex},
@@ -4579,6 +4596,21 @@ testMessagingImplementation<ChatId>(context, {
             afterMessageIndex,
             beforeMessageIndex,
         });
+    },
+    async getMessagePayloadsFromEndWithParents(
+        context,
+        {roomKey: chatId, limit, afterMessageIndex, beforeMessageIndex},
+    ) {
+        return await getChatMessagePayloadsFromEndWithParents(
+            context.actor.authorizeSession(),
+            {
+                chatId,
+                limit,
+                afterMessageIndex,
+                beforeMessageIndex,
+            },
+            message => Promise.resolve(message),
+        );
     },
     async backfillMessages(
         context,

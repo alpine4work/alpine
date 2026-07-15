@@ -17,7 +17,9 @@ import {
     getTaskCommentParentContent,
     getTaskCommentPayload,
     getTaskCommentPayloadsFromEnd,
+    getTaskCommentPayloadsFromEndWithParents,
     getTaskCommentPayloadsFromStart,
+    getTaskCommentPayloadsFromStartWithParents,
     getTaskCommentsFromEnd,
     getTaskCommentsFromStart,
     getTaskNotesContentAndOptionalInitialCommentsIfExists,
@@ -1618,6 +1620,28 @@ describe("taskMessagingImplementation()", () => {
             });
             return {messageCount: commentCount, messages: comments};
         },
+        async getMessagePayloadsFromStartWithParents(
+            context,
+            {roomKey: taskId, limit, afterMessageIndex, beforeMessageIndex},
+        ) {
+            const {commentCount, comments, parentComments} =
+                await getTaskCommentPayloadsFromStartWithParents(
+                    context,
+                    {
+                        taskId,
+                        limit,
+                        afterCommentIndex: afterMessageIndex,
+                        beforeCommentIndex: beforeMessageIndex,
+                    },
+                    message => Promise.resolve(message),
+                );
+
+            return {
+                messageCount: commentCount,
+                messages: comments,
+                parentMessages: parentComments,
+            };
+        },
         async getMessagePayloadsFromEnd(
             context,
             {roomKey: taskId, limit, afterMessageIndex, beforeMessageIndex},
@@ -1629,6 +1653,28 @@ describe("taskMessagingImplementation()", () => {
                 beforeCommentIndex: beforeMessageIndex,
             });
             return {messageCount: commentCount, messages: comments};
+        },
+        async getMessagePayloadsFromEndWithParents(
+            context,
+            {roomKey: taskId, limit, afterMessageIndex, beforeMessageIndex},
+        ) {
+            const {commentCount, comments, parentComments} =
+                await getTaskCommentPayloadsFromEndWithParents(
+                    context,
+                    {
+                        taskId,
+                        limit,
+                        afterCommentIndex: afterMessageIndex,
+                        beforeCommentIndex: beforeMessageIndex,
+                    },
+                    message => Promise.resolve(message),
+                );
+
+            return {
+                messageCount: commentCount,
+                messages: comments,
+                parentMessages: parentComments,
+            };
         },
         async backfillMessages(
             context,

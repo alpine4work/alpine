@@ -15,7 +15,9 @@ import {
     getPostCommentParentContent,
     getPostCommentPayload,
     getPostCommentPayloadsFromEnd,
+    getPostCommentPayloadsFromEndWithParents,
     getPostCommentPayloadsFromStart,
+    getPostCommentPayloadsFromStartWithParents,
     getPostCommentsFromEnd,
     getPostCommentsFromStart,
     pingPostCommentStream,
@@ -320,6 +322,28 @@ testMessagingImplementation<PostId>(context, {
         });
         return {messageCount: commentCount, messages: comments};
     },
+    async getMessagePayloadsFromStartWithParents(
+        context,
+        {roomKey: postId, limit, afterMessageIndex, beforeMessageIndex},
+    ) {
+        const {commentCount, comments, parentComments} =
+            await getPostCommentPayloadsFromStartWithParents(
+                context,
+                {
+                    postId,
+                    limit,
+                    afterCommentIndex: afterMessageIndex,
+                    beforeCommentIndex: beforeMessageIndex,
+                },
+                message => Promise.resolve(message),
+            );
+
+        return {
+            messageCount: commentCount,
+            messages: comments,
+            parentMessages: parentComments,
+        };
+    },
     async getMessagePayloadsFromEnd(
         context,
         {roomKey: postId, limit, afterMessageIndex, beforeMessageIndex},
@@ -331,6 +355,28 @@ testMessagingImplementation<PostId>(context, {
             beforeCommentIndex: beforeMessageIndex,
         });
         return {messageCount: commentCount, messages: comments};
+    },
+    async getMessagePayloadsFromEndWithParents(
+        context,
+        {roomKey: postId, limit, afterMessageIndex, beforeMessageIndex},
+    ) {
+        const {commentCount, comments, parentComments} =
+            await getPostCommentPayloadsFromEndWithParents(
+                context,
+                {
+                    postId,
+                    limit,
+                    afterCommentIndex: afterMessageIndex,
+                    beforeCommentIndex: beforeMessageIndex,
+                },
+                message => Promise.resolve(message),
+            );
+
+        return {
+            messageCount: commentCount,
+            messages: comments,
+            parentMessages: parentComments,
+        };
     },
     async backfillMessages(
         context,

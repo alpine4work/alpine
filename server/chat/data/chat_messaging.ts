@@ -37,6 +37,7 @@ import {
     createCantPingStaleMessageStreamError,
     createCantWriteToStaleMessageStreamError,
 } from "~/server/messaging/helpers/create_message_stream_errors.js";
+import {getOtherReferencedMessageItems} from "~/server/messaging/helpers/get_other_referenced_message_items.js";
 import {
     messageStreamIndexSearchEntityDelaySeconds,
     shouldScheduleMessageStreamIndexSearchEntityJob,
@@ -2136,6 +2137,36 @@ export async function getChatMessagePayloadsFromStart(
 }
 
 /**
+ * Paginate through chat message payloads from start to finish and recursively load
+ * parent message payloads outside the returned page.
+ */
+export async function getChatMessagePayloadsFromStartWithParents<Message>(
+    context: ServerActionContext,
+    options: Parameters<typeof getChatMessagePayloadsFromStart>[1],
+    mapper: (messageItem: MessageItem) => Promise<Message>,
+) {
+    const result = await getChatMessagePayloadsFromStart(context, options);
+
+    const [messages, parentMessages] = await runAllPromises([
+        runAllPromises(result.messages.map(mapper)),
+        getOtherReferencedMessageItems({
+            messageItems: result.messages,
+            getMessageItem: messageIndex =>
+                getChatMessageItem(context, options.chatId, messageIndex, {
+                    consistency: options.consistency,
+                }),
+            mapper,
+        }),
+    ]);
+
+    return {
+        ...result,
+        messages,
+        parentMessages,
+    };
+}
+
+/**
  * Paginate through chat messages from finish to start.
  */
 export async function getChatMessagesFromEnd(
@@ -2376,6 +2407,36 @@ export async function getChatMessagePayloadsFromEnd(
             lastMessageIndex + 1,
         ),
         messages: messageItems,
+    };
+}
+
+/**
+ * Paginate through chat message payloads from finish to start and recursively load
+ * parent message payloads outside the returned page.
+ */
+export async function getChatMessagePayloadsFromEndWithParents<Message>(
+    context: ServerActionContext,
+    options: Parameters<typeof getChatMessagePayloadsFromEnd>[1],
+    mapper: (messageItem: MessageItem) => Promise<Message>,
+) {
+    const result = await getChatMessagePayloadsFromEnd(context, options);
+
+    const [messages, parentMessages] = await runAllPromises([
+        runAllPromises(result.messages.map(mapper)),
+        getOtherReferencedMessageItems({
+            messageItems: result.messages,
+            getMessageItem: messageIndex =>
+                getChatMessageItem(context, options.chatId, messageIndex, {
+                    consistency: options.consistency,
+                }),
+            mapper,
+        }),
+    ]);
+
+    return {
+        ...result,
+        messages,
+        parentMessages,
     };
 }
 

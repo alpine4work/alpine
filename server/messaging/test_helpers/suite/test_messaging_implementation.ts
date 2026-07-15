@@ -317,6 +317,20 @@ type GetMessagePayloadsFromStartForTest<Message extends MessageModel> = (
     }>;
 }>;
 
+type MessagePayloadForTest = {
+    index: number;
+    createdTime: Date;
+    authorId: AccountId;
+    payload: MessagePayload;
+    stream: {
+        completedTime: Date | null;
+        parts: ReadonlyArray<{
+            version: number;
+            payload: MessageStreamPartPayload;
+        }>;
+    } | null;
+};
+
 /**
  * Load a range of message payloads (doesn't load references) starting from the end
  * of the room (or starting before a message ID) and loading backwards in time.
@@ -331,19 +345,25 @@ type GetMessagePayloadsFromEndForTest<Message extends MessageModel> = (
     },
 ) => Promise<{
     messageCount: number;
-    messages: Array<{
-        index: number;
-        createdTime: Date;
-        authorId: AccountId;
-        payload: MessagePayload;
-        stream: {
-            completedTime: Date | null;
-            parts: ReadonlyArray<{
-                version: number;
-                payload: MessageStreamPartPayload;
-            }>;
-        } | null;
-    }>;
+    messages: Array<MessagePayloadForTest>;
+}>;
+
+/**
+ * Load a range of message payloads and recursively load parent message payloads
+ * outside the returned range.
+ */
+type GetMessagePayloadsWithParentsForTest<Message extends MessageModel> = (
+    context: ServerActionContext,
+    options: {
+        roomKey: MessageRoomKeyType<Message>;
+        limit: number;
+        afterMessageIndex: number | null;
+        beforeMessageIndex: number | null;
+    },
+) => Promise<{
+    messageCount: number;
+    messages: Array<MessagePayloadForTest>;
+    parentMessages: Array<MessagePayloadForTest>;
 }>;
 
 /**
@@ -537,10 +557,26 @@ export type TestMessagingImplementation<RoomKey extends string> = {
     getMessagePayloadsFromStart: GetMessagePayloadsFromStartForTest<MessageModel<RoomKey>>;
 
     /**
+     * Load message payloads from the start with recursively referenced parent message
+     * payloads.
+     */
+    getMessagePayloadsFromStartWithParents: GetMessagePayloadsWithParentsForTest<
+        MessageModel<RoomKey>
+    >;
+
+    /**
      * Load a range of message payloads (doesn't load references) starting from the end
      * of the room (or starting before a message ID) and loading backwards in time.
      */
     getMessagePayloadsFromEnd: GetMessagePayloadsFromEndForTest<MessageModel<RoomKey>>;
+
+    /**
+     * Load message payloads from the end with recursively referenced parent message
+     * payloads.
+     */
+    getMessagePayloadsFromEndWithParents: GetMessagePayloadsWithParentsForTest<
+        MessageModel<RoomKey>
+    >;
 
     /**
      * Backfill messages and message changes the client is missing. Realtime could be
@@ -607,7 +643,9 @@ export function testMessagingImplementation<RoomKey extends string>(
         getMessagesFromStart,
         getMessagesFromEnd,
         getMessagePayloadsFromStart,
+        getMessagePayloadsFromStartWithParents,
         getMessagePayloadsFromEnd,
+        getMessagePayloadsFromEndWithParents,
         updateMessageContent,
         deleteMessage,
         pingMessageStream,
@@ -8798,6 +8836,106 @@ export function testMessagingImplementation<RoomKey extends string>(
             // FromEnd returns messages in the same order as fromStart (not reversed)
             expect(result.messages[0]!.payload.content).toEqual(content1);
             expect(result.messages[1]!.payload.content).toEqual(content2);
+        });
+
+        test("recursively gets parent message payloads from start", async () => {
+            const room = await createRoom(context.action(session1), space.id);
+
+            const message1 = await createMessage(context.action(session1), {
+                roomKey: room.key,
+                parent: null,
+                content: content1,
+                fileIds: [],
+            });
+            await createMessage(context.action(session1), {
+                roomKey: room.key,
+                parent: null,
+                content: content2,
+                fileIds: [],
+            });
+            const message3 = await createMessage(context.action(session1), {
+                roomKey: room.key,
+                parent: {type: "Message", index: message1.index},
+                content: content3,
+                fileIds: [],
+            });
+            const message4 = await createMessage(context.action(session1), {
+                roomKey: room.key,
+                parent: null,
+                content: content4,
+                fileIds: [],
+            });
+            const message5 = await createMessage(context.action(session1), {
+                roomKey: room.key,
+                parent: {type: "Message", index: message3.index},
+                content: content1,
+                fileIds: [],
+            });
+
+            const result = await getMessagePayloadsFromStartWithParents(context.action(session1), {
+                roomKey: room.key,
+                limit: 1,
+                afterMessageIndex: message4.index,
+                beforeMessageIndex: null,
+            });
+
+            expect({
+                messageIndexes: result.messages.map(({index}) => index),
+                parentMessageIndexes: result.parentMessages.map(({index}) => index),
+            }).toEqual({
+                messageIndexes: [message5.index],
+                parentMessageIndexes: [message1.index, message3.index],
+            });
+        });
+
+        test("recursively gets parent message payloads from end", async () => {
+            const room = await createRoom(context.action(session1), space.id);
+
+            const message1 = await createMessage(context.action(session1), {
+                roomKey: room.key,
+                parent: null,
+                content: content1,
+                fileIds: [],
+            });
+            await createMessage(context.action(session1), {
+                roomKey: room.key,
+                parent: null,
+                content: content2,
+                fileIds: [],
+            });
+            const message3 = await createMessage(context.action(session1), {
+                roomKey: room.key,
+                parent: {type: "Message", index: message1.index},
+                content: content3,
+                fileIds: [],
+            });
+            await createMessage(context.action(session1), {
+                roomKey: room.key,
+                parent: null,
+                content: content4,
+                fileIds: [],
+            });
+            const message5 = await createMessage(context.action(session1), {
+                roomKey: room.key,
+                parent: {type: "Message", index: message3.index},
+                content: content1,
+                fileIds: [],
+            });
+
+            const result = await getMessagePayloadsFromEndWithParents(context.action(session1), {
+                roomKey: room.key,
+                limit: 1,
+                afterMessageIndex: null,
+                beforeMessageIndex: null,
+            });
+
+            expect({
+                messageIndexes: result.messages.map(({index}) => index),
+                parentMessageIndexes: result.parentMessages.map(({index}) => index),
+            }).toEqual({
+                messageIndexes: [message5.index],
+                parentMessageIndexes: [message1.index, message3.index],
+            });
         });
 
         test("can\u2019t get message payloads for room that doesn\u2019t exist", async () => {
