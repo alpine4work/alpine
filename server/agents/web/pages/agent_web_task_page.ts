@@ -179,7 +179,7 @@ export async function readAgentWebTaskPage(
 }
 
 export async function createAgentWebTaskPage(
-    context: AgentWebContextWithoutStorage,
+    context: AgentWebContext,
     newPage: AgentWebTaskPage,
 ): Promise<{
     pageMetadata: AgentWebTaskPageMetadata;
@@ -187,6 +187,12 @@ export async function createAgentWebTaskPage(
 }> {
     const contextTime = new Date();
     const contextDate = toCalendarDate(fromDate(contextTime, context.timeZone));
+
+    if (newPage.subtasks?.seeMore !== null && newPage.subtasks !== null) {
+        throw new InvalidArgumentError("Can\u2019t create task with a subtasks pagination link", {
+            displayMessage: errorDisplayMessage`You can\u2019t create a task with a \u201cSee more\u201d subtasks link. Try again after removing the link.`,
+        });
+    }
 
     let due: ApiTaskDue | null = null;
 
@@ -220,6 +226,32 @@ export async function createAgentWebTaskPage(
         due = {date};
     }
 
+    const emptySubtaskMetadata: AgentWebTaskQueryPageMetadata = {
+        afterCursor: null,
+        beforeCursor: null,
+        isManuallyOrdered: true,
+        tasks: [],
+    };
+
+    let executeSubtasksUpdate:
+        | ((pageLink: {
+              type: "TaskSubtasks";
+              task: {id: TaskId};
+          }) => Promise<AgentWebTaskQueryPageMetadata>)
+        | null = null;
+
+    if (newPage.subtasks !== null && newPage.subtasks.tasks.length > 0) {
+        // NOCOMMIT: Test that errors are thrown if subtask updates aren't valid without a
+        // task being created
+        ({execute: executeSubtasksUpdate} = await updateAgentWebTaskQueryPage(
+            context,
+            {type: "TaskSubtasks", task: {id: null}},
+            emptySubtaskMetadata,
+            {pagination: null, tasks: [], isEndOfTasks: true},
+            {pagination: null, tasks: newPage.subtasks.tasks, isEndOfTasks: true},
+        ));
+    }
+
     const {
         data: {task},
     } = await context.api.post(context.span, "/tasks", {
@@ -242,6 +274,12 @@ export async function createAgentWebTaskPage(
 
     const {keys: notesKeys} = unzipKeysFromApiContentResponse(task.notes.content);
 
+    let subtaskMetadata = emptySubtaskMetadata;
+
+    if (executeSubtasksUpdate) {
+        subtaskMetadata = await executeSubtasksUpdate({type: "TaskSubtasks", task: {id: task.id}});
+    }
+
     return {
         pageMetadata: {
             type: "Task",
@@ -250,6 +288,7 @@ export async function createAgentWebTaskPage(
                 version: task.notes.version,
                 keys: notesKeys,
             },
+            subtasks: subtaskMetadata,
         },
         pageLink: {
             type: "Task",
