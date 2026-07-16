@@ -68,7 +68,7 @@ export type DatabaseServerChangedPages = Map<DatabaseTableId, DatabaseServerTabl
 
 /**
  * The page + version envelope shared by every execute/executeAction call: what the
- * run read, what it changed, and the two global-version markers. {@link
+ * run read, what it changed, and the global-version marker. {@link
  * DatabaseServerResult} and {@link DatabaseServerActionResult} add the payload
  * (`rows` vs a typed action `result`) on top.
  */
@@ -82,20 +82,16 @@ export interface DatabaseServerResultBase {
     /**
      * Before/after images for every page the run wrote, partitioned by table, plus
      * each table's post-drain `fileSizeInPages`. Consumed by the realtime layer to
-     * broadcast `PagesChanged` diffs.
+     * broadcast `PagesChanged` diffs. Empty when the run wrote nothing — the sole
+     * signal for "did this run write" (a run that wrote also advanced {@link
+     * snapshotVersion} and stamped its pages at that value).
      */
     changedPages: DatabaseServerChangedPages;
     /**
-     * Global version stamped on the pages this run wrote, or `0` when it wrote
-     * nothing. Identifies the diff this run produced — clients confirm an optimistic
-     * mutation against it.
-     */
-    writeVersion: number;
-    /**
      * Current global version after the run, whether or not it wrote — the version the
-     * data it just read reflects. Equals {@link writeVersion} for a write; for a
-     * read-only run it's the last write's version while `writeVersion` is `0`. Clients
-     * use it as the read-snapshot watermark.
+     * data it just read reflects and, for a run that did write, the version stamped on
+     * its pages. Clients use it as the read-snapshot watermark; check {@link
+     * changedPages} to tell whether this run advanced it.
      */
     snapshotVersion: number;
 }
@@ -221,15 +217,17 @@ export class DatabaseServer {
         query: SqlQuery,
         options: {allowWrites: SqliteWriteLevel},
     ): DatabaseServerResult {
-        const {result, readPages, changedPages, writeVersion, snapshotVersion} =
-            this._runAndPersist(context, () => {
+        const {result, readPages, changedPages, snapshotVersion} = this._runAndPersist(
+            context,
+            () => {
                 const {rows, readPages} = this.database.executeSql(query, {
                     ...options,
                     getTableAccessLevel: this._getTableAccessLevelForContext(context),
                 });
                 return {result: rows, readPages};
-            });
-        return {rows: result, readPages, changedPages, writeVersion, snapshotVersion};
+            },
+        );
+        return {rows: result, readPages, changedPages, snapshotVersion};
     }
 
     executeAction<N extends DatabaseActionName>(
@@ -901,7 +899,6 @@ export class DatabaseServer {
         result: T;
         readPages: DatabaseServerReadPages;
         changedPages: DatabaseServerChangedPages;
-        writeVersion: number;
         snapshotVersion: number;
     } {
         // The error path below clears the buffer to recover from a partial write; assert
@@ -931,7 +928,6 @@ export class DatabaseServer {
         result: T;
         readPages: DatabaseServerReadPages;
         changedPages: DatabaseServerChangedPages;
-        writeVersion: number;
         snapshotVersion: number;
     } {
         const buffered = this.database.getBufferedWrites();
@@ -1049,7 +1045,6 @@ export class DatabaseServer {
             result,
             readPages,
             changedPages,
-            writeVersion: postWriteVersion,
             snapshotVersion: this._currentVersion(),
         };
     }

@@ -328,9 +328,9 @@ describe("DatabaseServer", () => {
         );
 
         expect({
-            writeVersion: result.writeVersion,
             snapshotVersion: result.snapshotVersion,
-        }).toEqual({writeVersion: 0, snapshotVersion: storedVersion});
+            changedPageCount: result.changedPages.size,
+        }).toEqual({snapshotVersion: storedVersion, changedPageCount: 0});
     });
 
     describe("execute read-only — page tracking", () => {

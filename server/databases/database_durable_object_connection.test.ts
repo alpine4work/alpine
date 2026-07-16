@@ -668,7 +668,6 @@ describe("per-table realtime filtering", () => {
                     },
                 ],
             ]),
-            writeVersion: 2,
             snapshotVersion: 2,
         } as any);
 

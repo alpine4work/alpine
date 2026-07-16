@@ -185,7 +185,7 @@ class DatabaseGroupDurableObject {
         const pageDiffs = buildDatabasePageDiffs(
             actionResult.changedPages,
             actionResult.readPages,
-            actionResult.writeVersion,
+            actionResult.snapshotVersion,
         );
         if (pageDiffs.size > 0) {
             this._webSocketServer.sendEventToAll(this._processContext, {

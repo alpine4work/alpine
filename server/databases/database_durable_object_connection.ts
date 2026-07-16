@@ -128,7 +128,7 @@ export class DatabaseDurableObjectConnection {
             const pageDiffs = buildDatabasePageDiffs(
                 result.changedPages,
                 result.readPages,
-                result.writeVersion,
+                result.snapshotVersion,
             );
             if (pageDiffs.size > 0) {
                 this._originatedMutationIds.add(input.mutationId);
