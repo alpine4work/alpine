@@ -13,6 +13,7 @@ import {
     createMessageUpdatesBackfillResultSchema,
     createMessagingRealtimeEventSchemas,
 } from "~/shared/messaging/messaging_realtime_protocol.js";
+import {PutMessageApprovalDecisionsPayloadSchema} from "~/shared/messaging/put_message_approval_decisions_payload_schema.js";
 import {ReactionOrGenericLikeSchema} from "~/shared/reactions/reaction_schema.js";
 import {TimeZoneSchema} from "~/shared/schema/helpers/time_zone_schema.js";
 import {Schema} from "~/shared/schema/schema.js";
@@ -136,6 +137,19 @@ export const TaskNotesCollaborationProtocol = defineWebSocketProtocol({
                 commentIndex: Schema.integer,
                 contentVersion: Schema.integer,
                 pos: MessagePosOrFilesSchema,
+            },
+            output: {},
+        },
+
+        /**
+         * Record the current account's decisions on a comment stream's approval requests.
+         * The updated approvals part is sent to every connected client as a
+         * `PutMessageStreamPart` event before this procedure resolves for the caller.
+         */
+        putCommentApprovalDecisions: {
+            input: {
+                commentIndex: Schema.integer.min(0),
+                payload: PutMessageApprovalDecisionsPayloadSchema,
             },
             output: {},
         },

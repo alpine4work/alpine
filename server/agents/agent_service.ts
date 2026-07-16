@@ -5,7 +5,10 @@ import {AwsRequestSigner} from "~/server/helpers/aws_request_signer.js";
 import {createSimpleErrorResponse} from "~/server/helpers/create_simple_error_response.js";
 import {createServerTracer} from "~/server/tracer/server_tracer.js";
 import {traceServerResponse} from "~/server/tracer/trace_server_response.js";
-import {printApiMessageRoomPath} from "~/shared/api/specification/parse_api_path.js";
+import {
+    ApiMessageRoomPath,
+    printApiMessageRoomPath,
+} from "~/shared/api/specification/parse_api_path.js";
 import {ApiBotWebhookRequestBody} from "~/shared/api/specification/types/api_specification_convenience_types.js";
 import {InternalError, InvalidArgumentError} from "~/shared/error/error.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
@@ -361,10 +364,15 @@ async function fetchFromDurableObjectWithId(
 
 function getDurableObjectIdFromApiBotWebhookEvent(request: ApiBotWebhookRequestBody) {
     switch (request.event.type) {
+        case "UpdatedMessageStreamExperimentalApprovalsPart":
         case "NewMessage":
             return `${request.botAccountId}:${printApiMessageRoomPath(request.event.room)}`;
-        case "NewPost":
-            return `${request.botAccountId}:${request.event.postId}`;
+        case "NewPost": {
+            const messageRoomPath: ApiMessageRoomPath = `/posts/${request.event.postId}`;
+            return `${request.botAccountId}:${messageRoomPath}`;
+        }
+        default:
+            throw exhaustive(request.event);
     }
 }
 

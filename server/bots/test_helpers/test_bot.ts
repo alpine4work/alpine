@@ -39,18 +39,27 @@ export class TestBot {
         {
             name,
             webhookUrl,
+            webhookSecret,
         }: {
             name?: string;
-            webhookUrl?: string;
+            webhookUrl?: string | null;
+            webhookSecret?: string | null;
         } = {},
     ) {
         const count = name === undefined || webhookUrl === undefined ? testBotCount++ : 0;
 
         const initialName = name ?? `Test Bot ${count}`;
+        const webhook =
+            webhookUrl === null
+                ? null
+                : {
+                      url: webhookUrl ?? `https://bot.test.cyberworlds.dev/webhook${count}`,
+                      secret: webhookSecret ?? null,
+                  };
 
         const {id} = await createBotForTest(context, {
             name: initialName,
-            webhookUrl: webhookUrl ?? `https://bot.test.cyberworlds.dev/webhook${count}`,
+            webhook,
         });
 
         return new TestBot(context, id, initialName);

@@ -392,6 +392,29 @@ test("can invite ActionByAdmin Removed state", async () => {
     expect(member1?.state?.type).toEqual("InvitePending");
 });
 
+test("inviting the same email address multiple times creates one invite", async () => {
+    const space = await TestSpace.create(context);
+    const ownerSession = await space.createSession({role: "Owner"});
+    const emailAddress = generateEmailAddressForTest();
+
+    const result = await inviteEmailAddressesToSpace(context.action(ownerSession), {
+        spaceId: space.id,
+        emailAddresses: [emailAddress, emailAddress, emailAddress],
+    });
+
+    expect(result.accounts.length).toEqual(1);
+    expect(result.invalidEmailAddresses.size).toEqual(0);
+    expect(result.rejectedAsSpamEmailAddresses.size).toEqual(0);
+    expect(result.alreadyMemberEmailAddresses.size).toEqual(0);
+    expect(result.requiresAdminAccessEmailAddresses.size).toEqual(0);
+    expect(result.unexpectedFailureEmailAddresses.size).toEqual(0);
+
+    const invitedAccount = assertExists(result.accounts[0]);
+    expect(await getAllSpaceAccountIds(ownerSession)).toEqual(
+        [ownerSession.account.id, invitedAccount.id].sort(),
+    );
+});
+
 test(`kitchen sink invite test`, async () => {
     const space = await TestSpace.create(context);
     const ownerSession = await space.createSession({role: "Owner"});

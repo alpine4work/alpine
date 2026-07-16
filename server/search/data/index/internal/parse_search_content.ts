@@ -147,7 +147,9 @@ export function parseSearchContent(
             // the entire codebase since it's used in `parseApiContentFromMarkdown()` but it's
             // not available when we run TypeScript just on this Bazel package. Make the two
             // environments consistent by adding a stub type here.
-            | {readonly type: "math"},
+            | {readonly type: "math"}
+            | {readonly type: "mdxFlowExpression"}
+            | {readonly type: "mdxJsxFlowElement"},
         indent: number,
     ): Iterable<Node> => {
         switch (inputNode.type) {
@@ -371,6 +373,12 @@ export function parseSearchContent(
                     "Unreachable, search Markdown parser doesn\u2019t use math plugin",
                 );
             }
+            case "mdxFlowExpression":
+            case "mdxJsxFlowElement": {
+                throw new InternalError(
+                    "Unreachable, search Markdown parser doesn\u2019t use MDX plugin",
+                );
+            }
 
             default:
                 throw exhaustive(inputNode);
@@ -415,7 +423,9 @@ export function parseSearchContent(
             // `parseApiContentFromMarkdown()` but it's not available when we run TypeScript
             // just on this Bazel package. Make the two environments consistent by adding a
             // stub type here.
-            | {type: "inlineMath"},
+            | {type: "inlineMath"}
+            | {type: "mdxTextExpression"}
+            | {type: "mdxJsxTextElement"},
     ): Iterable<Node> {
         switch (inputNode.type) {
             case "text": {
@@ -575,6 +585,12 @@ export function parseSearchContent(
             case "inlineMath": {
                 throw new InternalError(
                     "Unreachable, search Markdown parser doesn\u2019t use math plugin",
+                );
+            }
+            case "mdxTextExpression":
+            case "mdxJsxTextElement": {
+                throw new InternalError(
+                    "Unreachable, search Markdown parser doesn\u2019t use MDX plugin",
                 );
             }
 

@@ -1,0 +1,28 @@
+---
+title: Bots & integrations
+description: Automate Alpine and connect it to the rest of your stack.
+tags: api, automation, webhooks, developers, integrations, slack, keys
+---
+
+## What bots can do
+
+A bot is an account driven by code. It can read and write documents, respond in chats, create
+tasks, and react to events — everything a person can do, available to your automations.
+
+<Steps>
+<Step title="Create a bot">In Space settings → Bots, add a bot and copy its API key.</Step>
+<Step title="Connect your code">Use the key with the [API Reference](/docs/api) to read and write anything in the space.</Step>
+<Step title="Receive events">Register a webhook to get new-message and new-post events pushed to you in real time.</Step>
+</Steps>
+
+<Callout type="warning" title="Treat keys like passwords">
+    A bot's API key grants its full access to the space. If a key leaks, revoke it in Space
+    settings and issue a new one.
+</Callout>
+
+## See also
+
+<CardGrid>
+<Card title="Authentication (API)" url="/docs/api/authentication">Bearer tokens and key handling.</Card>
+<Card title="Webhooks (API)" url="/docs/api/webhooks">The bot webhook payload reference.</Card>
+</CardGrid>

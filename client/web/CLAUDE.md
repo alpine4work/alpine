@@ -1,1 +1,1 @@
-client/web/AGENTS.md
+AGENTS.md

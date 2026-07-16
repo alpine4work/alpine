@@ -19,6 +19,7 @@ ts_project(
         "//shared/feed",
         "//shared/helpers",
         "//shared/id",
+        "//shared/messaging",
         "//shared/notifications",
         "//shared/schema",
         "//shared/tracer",

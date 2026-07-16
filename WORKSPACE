@@ -362,13 +362,37 @@ http_archive(
         # so we can't use them. We'll instead use a Bazel installed Java
         # implementation.
         "rm -rf jdk",
-        # Remove all plugins except the KNN plugin. This improves local OpenSearch
-        # startup time since we don't need to load plugins.
-        "cd plugins && ls | grep -v knn | xargs rm -rf",
+        # Remove all plugins except the KNN and SQL plugins. This improves local
+        # OpenSearch startup time since we don't need to load plugins. We keep
+        # KNN because our indices use vector search (`knn_vector` fields) and SQL
+        # because it powers the Query Workbench for SQL/PPL exploration in the
+        # local OpenSearch Dashboards GUI. `job-scheduler` is a required
+        # dependency of the SQL plugin.
+        "cd plugins && ls | grep -vE 'knn|sql|job-scheduler' | xargs rm -rf",
     ],
     patches = ["//admin/patches:bazel/opensearch_local.patch"],
     strip_prefix = "opensearch-2.19.0",
     url = "https://artifacts.opensearch.org/releases/bundle/opensearch/2.19.0/opensearch-2.19.0-linux-arm64.tar.gz",
+)
+
+http_archive(
+    name = "opensearch_dashboards_local",
+    build_file = "@//admin/bazel:third_party/BUILD.opensearch_dashboards_local.bazel",
+    integrity = "sha256-jKdiiomf/D0meV8A5tzOzSjQsP+f0Vtp/nc6dIls3FU=",
+    patch_args = ["-p1"],
+    patch_cmds = [
+        # Remove the `node` directory. The `node` binaries are built for Linux
+        # so we can't use them. We'll instead use a Bazel installed Node.js
+        # implementation.
+        "rm -rf node",
+        # Remove the security plugin. Local OpenSearch runs without the security
+        # plugin, so Dashboards must also run without it or you'll get a login
+        # page that can't authenticate.
+        "rm -rf plugins/securityDashboards",
+    ],
+    patches = ["//admin/patches:bazel/opensearch_dashboards_local.patch"],
+    strip_prefix = "opensearch-dashboards-2.19.0",
+    url = "https://artifacts.opensearch.org/releases/bundle/opensearch-dashboards/2.19.0/opensearch-dashboards-2.19.0-linux-arm64.tar.gz",
 )
 
 # =========================================================================== #

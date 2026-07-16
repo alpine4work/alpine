@@ -113,11 +113,21 @@ import {SpaceId} from "~/shared/id/types/id_types.js";
 import {getRouteStringFromMatches} from "~/shared/remix/get_route_string_from_matches.js";
 import {getTracerEventPropagatedDataForPathname} from "~/shared/tracer/get_tracer_event_propagated_data_for_pathname.js";
 import {TracerRoot} from "~/shared/tracer/tracer_root.js";
+import {TracerSpan} from "~/shared/tracer/tracer_span.js";
 
 let appService: {
     constants: AppServiceConstants;
     promise: Promise<AppService>;
 } | null = null;
+
+type AppServiceRoute =
+    | "HealthCheck"
+    | "ClearSpaceAccountsCacheForTest"
+    | {
+          matches: Array<RouteMatch<ServerRoute>> | null;
+          route: string;
+          url: URL;
+      };
 
 /**
  * Get the app server if it exists and creates the app server if it doesn't already
@@ -269,8 +279,11 @@ async function createAppService({
                       agentServiceLocalPort,
                       chatGptLocalUnscopedApiKey: chatGptLocalUnscopedApiKey.trim(),
                       chatGptLocalScopedApiKey: chatGptLocalScopedApiKey.trim(),
+                      chatGptWebhookSecret: options.chatGptWebhookSecret,
                       cursorLocalUnscopedApiKey: cursorLocalUnscopedApiKey.trim(),
+                      cursorWebhookSecret: options.cursorWebhookSecret,
                       mockChatGptLocalUnscopedApiKey: mockChatGptLocalUnscopedApiKey.trim(),
+                      mockChatGptWebhookSecret: options.mockChatGptWebhookSecret,
                   };
               })()
             : null,
@@ -561,12 +574,173 @@ async function createAppService({
         process.env.NODE_ENV,
     );
 
-    const requestListener = createStandardizedRequestListener<
-        "HealthCheck" | "ClearSpaceAccountsCacheForTest" | Array<RouteMatch<ServerRoute>> | null
-    >(
+    /**
+     * Handle a Remix request with loader context, tracing, and session cookie setup.
+     */
+    function handleRemixRequest(
+        request: Request,
+        url: URL,
+        matches: Array<RouteMatch<ServerRoute>> | null,
+        span: TracerSpan,
+        routeOverride?: string,
+    ) {
+        const remixRequest = request.url === url.href ? request : new Request(url, request);
+        const sessionCookieOptions = {
+            tokenAgent,
+            cookieNameSuffix,
+            request: remixRequest,
+        };
+
+        return withSessionCookie(sessionCookieOptions, async sessionCookie => {
+            const loaderContextModule = new LoaderContextModule(remixRequest, {
+                tokenAgent,
+                cookieNameSuffix,
+                sessionCookie,
+                agentServiceUrl,
+                webPushVapidPublicKey,
+            });
+
+            const route =
+                routeOverride ?? (matches === null ? "/*" : getRouteStringFromMatches(matches));
+
+            const response = await processContext.with<
+                Omit<
+                    LoaderContextModules,
+                    Exclude<keyof AppServiceProcessContextModules, "tracer">
+                >,
+                globalThis.Response
+            >(
+                {
+                    tracer: new TracerContextModule(span),
+                    rpc: new LocalRpcContextModule(),
+                    loader: loaderContextModule,
+                    cache: CacheContextModule.new(),
+                    batch: BatchContextModule.new(),
+                    actor: createActorContextModule(request, tokenAgent, sessionCookie),
+                    discovery: new DiscoveryContextModule(),
+                },
+                async context => {
+                    // Only include `route`, `platform`, and other information about the client state
+                    // if this is a Remix data request or document request. The definition of data
+                    // requests and document requests can be found here:
+                    //
+                    // https://github.com/remix-run/remix/blob/ff06e1656108bc21244e1fd4b33ed53e22b85158/packages/remix-server-runtime/server.ts#L136-L256
+                    //
+                    // - Data requests are requests with the `_data` search param
+                    // - Document requests are requests for a route with a `default` component exported
+                    if (
+                        url.searchParams.has("_data") ||
+                        (matches && matches[matches.length - 1]?.route.module.default)
+                    ) {
+                        const clientInfo = context.loader.getClientInfo();
+                        const platform = getInitialAppRenderPlatform(clientInfo);
+
+                        span.addPropagatedData({
+                            context: {
+                                route,
+                                platform,
+                                spacingScale: getInitialAppRenderSpacingScale(clientInfo),
+                                routeLayout: getDefaultRouteLayoutForPlatform(platform),
+                                renderingEngine: clientInfo.renderingEngine,
+                                browserId: context.loader.getBrowserId(),
+                            },
+                        });
+
+                        const pathnamePropagatedData = getTracerEventPropagatedDataForPathname(
+                            url.pathname,
+                        );
+                        if (pathnamePropagatedData) span.addPropagatedData(pathnamePropagatedData);
+                    }
+
+                    // The first time our server process runs in development, seed DynamoDB with some
+                    // initial data. The seed function should be idempotent.
+                    if (
+                        process.env.NODE_ENV !== "production" &&
+                        options.shouldSeedDynamo &&
+                        !hasSeededDynamo
+                    ) {
+                        const options = assertExists(seedDynamoOptions);
+
+                        hasSeededDynamo = true;
+                        processContext.process.waitUntil(
+                            processContext.tracer.withSpan("Seeding DynamoDB", async context => {
+                                try {
+                                    await seedDynamo(context, options);
+                                } catch (error) {
+                                    // If there is an error, log it but don't crash the process.
+                                    // eslint-disable-next-line no-console
+                                    console.error("Failed to seed DynamoDB data:", error);
+                                }
+                            }),
+                        );
+                    }
+
+                    // For space layout routes then wait until we discover the `SpaceId` and when we do
+                    // call `addPropagatedData()` with the `SpaceId` as context on this request span
+                    // and immediate child spans (so "Remix loader" and "Remix action" child spans).
+                    if (matches && matches[1]?.route.id === "routes/_space") {
+                        const localChildSpans = span.trackLocalChildSpans();
+
+                        const handle = (spaceId: SpaceId) => {
+                            context.discovery.removeDiscoverSpaceIdListener(handle);
+
+                            if (span.isFinished()) return;
+
+                            const propagatedData = {context: {spaceId}};
+                            span.addPropagatedData(propagatedData);
+
+                            for (const localChildSpan of localChildSpans) {
+                                if (!localChildSpan.isFinished()) {
+                                    localChildSpan.addPropagatedData(propagatedData);
+                                }
+                            }
+                        };
+
+                        context.discovery.addDiscoverSpaceIdListener(handle);
+                    }
+
+                    return await handleRequest(
+                        remixRequest,
+                        context,
+                        // We already parsed route matches. Pass them to Remix...
+                        {url, matches},
+                    );
+                },
+            );
+
+            loaderContextModule.addResponseHeaders(response.headers);
+
+            // Include the route in an HTTP header so our edge service can use the route in its
+            // HTTP span name.
+            response.headers.set("cyberworlds-route", route);
+
+            return response;
+        });
+    }
+
+    const requestListener = createStandardizedRequestListener<AppServiceRoute>(
         tracer,
         url => {
             if (url.pathname === "/api/internal/healthcheck") return [url.pathname, "HealthCheck"];
+
+            // React Router splats can't match a suffix like `/docs/*.md` or `/blog/*.md`, so
+            // route nested markdown requests through Remix resource routes with internal URLs.
+            // The loaders still receive the original request URL and own markdown/404 response
+            // behavior.
+            const documentationMarkdownRoute = getDocumentationMarkdownRoute(url);
+            if (documentationMarkdownRoute !== null) {
+                const matches = handleRequest.matchServerRoutes(documentationMarkdownRoute.url);
+                assert(matches !== null, "Expected documentation markdown route");
+
+                return [
+                    documentationMarkdownRoute.route,
+                    {
+                        matches,
+                        route: documentationMarkdownRoute.route,
+                        url: documentationMarkdownRoute.url,
+                    },
+                ];
+            }
 
             // Add route when running integration tests...
             if (process.env.NODE_ENV === "test") {
@@ -583,7 +757,7 @@ async function createAppService({
                 route = getRouteStringFromMatches(matches);
             }
 
-            return [route, matches];
+            return [route, {matches, route, url}];
         },
         (request, url, matches, span) => {
             if (typeof matches === "string") {
@@ -612,144 +786,7 @@ async function createAppService({
                 }
             }
 
-            return withSessionCookie(
-                {tokenAgent, cookieNameSuffix, request},
-                async sessionCookie => {
-                    const loaderContextModule = new LoaderContextModule(request, {
-                        tokenAgent,
-                        cookieNameSuffix,
-                        sessionCookie,
-                        agentServiceUrl,
-                        webPushVapidPublicKey,
-                    });
-
-                    let route;
-                    if (matches === null) {
-                        route = "/*";
-                    } else {
-                        route = getRouteStringFromMatches(matches);
-                    }
-
-                    const response = await processContext.with<
-                        Omit<
-                            LoaderContextModules,
-                            Exclude<keyof AppServiceProcessContextModules, "tracer">
-                        >,
-                        globalThis.Response
-                    >(
-                        {
-                            tracer: new TracerContextModule(span),
-                            rpc: new LocalRpcContextModule(),
-                            loader: loaderContextModule,
-                            cache: CacheContextModule.new(),
-                            batch: BatchContextModule.new(),
-                            actor: createActorContextModule(request, tokenAgent, sessionCookie),
-                            discovery: new DiscoveryContextModule(),
-                        },
-                        async context => {
-                            // Only include `route`, `platform`, and other information about the client state
-                            // if this is a Remix data request or document request. The definition of data
-                            // requests and document requests can be found here:
-                            //
-                            // https://github.com/remix-run/remix/blob/ff06e1656108bc21244e1fd4b33ed53e22b85158/packages/remix-server-runtime/server.ts#L136-L256
-                            //
-                            // - Data requests are requests with the `_data` search param
-                            // - Document requests are requests for a route with a `default` component exported
-                            if (
-                                url.searchParams.has("_data") ||
-                                (matches && matches[matches.length - 1]?.route.module.default)
-                            ) {
-                                const clientInfo = context.loader.getClientInfo();
-                                const platform = getInitialAppRenderPlatform(clientInfo);
-
-                                span.addPropagatedData({
-                                    context: {
-                                        route,
-                                        platform,
-                                        spacingScale: getInitialAppRenderSpacingScale(clientInfo),
-                                        routeLayout: getDefaultRouteLayoutForPlatform(platform),
-                                        renderingEngine: clientInfo.renderingEngine,
-                                        browserId: context.loader.getBrowserId(),
-                                    },
-                                });
-
-                                const pathnamePropagatedData =
-                                    getTracerEventPropagatedDataForPathname(url.pathname);
-                                if (pathnamePropagatedData)
-                                    span.addPropagatedData(pathnamePropagatedData);
-                            }
-
-                            // The first time our server process runs in development, seed DynamoDB with some
-                            // initial data. The seed function should be idempotent.
-                            if (
-                                process.env.NODE_ENV !== "production" &&
-                                options.shouldSeedDynamo &&
-                                !hasSeededDynamo
-                            ) {
-                                const options = assertExists(seedDynamoOptions);
-
-                                hasSeededDynamo = true;
-                                processContext.process.waitUntil(
-                                    processContext.tracer.withSpan(
-                                        "Seeding DynamoDB",
-                                        async context => {
-                                            try {
-                                                await seedDynamo(context, options);
-                                            } catch (error) {
-                                                // If there is an error, log it but don't crash the process.
-                                                // eslint-disable-next-line no-console
-                                                console.error(
-                                                    "Failed to seed DynamoDB data:",
-                                                    error,
-                                                );
-                                            }
-                                        },
-                                    ),
-                                );
-                            }
-
-                            // For space layout routes then wait until we discover the `SpaceId` and when we do
-                            // call `addPropagatedData()` with the `SpaceId` as context on this request span
-                            // and immediate child spans (so "Remix loader" and "Remix action" child spans).
-                            if (matches && matches[1]?.route.id === "routes/_space") {
-                                const localChildSpans = span.trackLocalChildSpans();
-
-                                const handle = (spaceId: SpaceId) => {
-                                    context.discovery.removeDiscoverSpaceIdListener(handle);
-
-                                    if (span.isFinished()) return;
-
-                                    const propagatedData = {context: {spaceId}};
-                                    span.addPropagatedData(propagatedData);
-
-                                    for (const localChildSpan of localChildSpans) {
-                                        if (!localChildSpan.isFinished()) {
-                                            localChildSpan.addPropagatedData(propagatedData);
-                                        }
-                                    }
-                                };
-
-                                context.discovery.addDiscoverSpaceIdListener(handle);
-                            }
-
-                            return await handleRequest(
-                                request,
-                                context,
-                                // We already parsed route matches. Pass them to Remix...
-                                {url, matches},
-                            );
-                        },
-                    );
-
-                    loaderContextModule.addResponseHeaders(response.headers);
-
-                    // Include the route in an HTTP header so our edge service can use the route in its
-                    // HTTP span name.
-                    response.headers.set("cyberworlds-route", route);
-
-                    return response;
-                },
-            );
+            return handleRemixRequest(request, matches.url, matches.matches, span, matches.route);
         },
     );
 
@@ -779,4 +816,22 @@ function createActorContextModule(
             authorizationHeader,
         });
     });
+}
+
+function getDocumentationMarkdownRoute(url: URL): {route: string; url: URL} | null {
+    if (!url.pathname.endsWith(".md")) return null;
+
+    if (url.pathname.startsWith("/docs/")) {
+        const documentationMarkdownUrl = new URL(url);
+        documentationMarkdownUrl.pathname = `/docs-markdown/${url.pathname.slice("/docs/".length)}`;
+        return {route: "/docs/*", url: documentationMarkdownUrl};
+    }
+
+    if (url.pathname.startsWith("/blog/")) {
+        const documentationMarkdownUrl = new URL(url);
+        documentationMarkdownUrl.pathname = `/blog-markdown/${url.pathname.slice("/blog/".length)}`;
+        return {route: "/blog/*", url: documentationMarkdownUrl};
+    }
+
+    return null;
 }

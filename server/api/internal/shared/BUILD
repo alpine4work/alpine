@@ -45,6 +45,7 @@ ts_project(
         "//server/spaces",
         "//server/tokens",
         "//server/tracer",
+        "//shared/access",
         "//shared/accounts",
         "//shared/api/content",
         "//shared/api/markdown",

@@ -1,5 +1,5 @@
 export interface SupportedAgentModels {
-    openai: "gpt-5-mini" | "gpt-5.1";
+    openai: "gpt-5-mini" | "gpt-5.1" | "gpt-5.4-mini" | "gpt-5.4";
 }
 
 export type SupportedAgentProviders = keyof SupportedAgentModels;
@@ -29,6 +29,16 @@ type AgentTokenUsageToMillicents = {
 export const agentMillicentsPerToken: AgentTokenUsageToMillicents = {
     // https://platform.openai.com/docs/pricing
     openai: {
+        "gpt-5.4-mini": {
+            inputTokens: 0.075, // $0.75 per million
+            cachedInputTokens: 0.0075, // $0.075 per million
+            outputTokens: 0.45, // $4.50 per million
+        },
+        "gpt-5.4": {
+            inputTokens: 0.25, // $2.50 per million
+            cachedInputTokens: 0.025, // $0.25 per million
+            outputTokens: 1.5, // $15.00 per million
+        },
         "gpt-5-mini": {
             inputTokens: 0.025, // $0.25 per million
             cachedInputTokens: 0.0025, // $0.025 per million

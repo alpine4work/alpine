@@ -13,6 +13,7 @@ import {
     ApiMentionResponse,
     ApiMentionTarget,
     ApiMessageContentPayloadParent,
+    ApiMessageExperimentalApprovalDecisionValue,
     ApiMessageRoomTarget,
     ApiMessageStreamPartPayload,
 } from "~/shared/api/specification/types/api_specification_convenience_types.js";
@@ -488,6 +489,111 @@ export async function putApiMessageStreamPart(
                     body,
                 },
             );
+        }
+        default:
+            throw exhaustive(room);
+    }
+}
+
+export async function patchApiMessageApprovals(
+    tracer: TracerBase,
+    apiClient: ApiClient,
+    room: ApiMessageRoomTarget,
+    messageIndex: number,
+    decisions: ReadonlyArray<{index: number; value: ApiMessageExperimentalApprovalDecisionValue}>,
+) {
+    const body = {
+        patches: decisions.map(decision => ({
+            type: "SetDecisionValue" as const,
+            index: decision.index,
+            decision: {
+                value: decision.value,
+            },
+        })),
+    };
+
+    switch (room.type) {
+        case "Chat": {
+            return await apiClient.patch(
+                tracer,
+                "/chats/{id}/messages/{index}/experimental-approvals",
+                {
+                    params: {path: {id: room.id, index: messageIndex}},
+                    body,
+                },
+            );
+        }
+        case "DocumentCommentThread": {
+            return await apiClient.patch(
+                tracer,
+                "/documents/{id}/threads/{threadId}/messages/{index}/experimental-approvals",
+                {
+                    params: {
+                        path: {
+                            id: room.id,
+                            threadId: room.threadId,
+                            index: messageIndex,
+                        },
+                    },
+                    body,
+                },
+            );
+        }
+        case "Post": {
+            return await apiClient.patch(
+                tracer,
+                "/posts/{id}/messages/{index}/experimental-approvals",
+                {
+                    params: {path: {id: room.id, index: messageIndex}},
+                    body,
+                },
+            );
+        }
+        case "Task": {
+            return await apiClient.patch(
+                tracer,
+                "/tasks/{id}/messages/{index}/experimental-approvals",
+                {
+                    params: {path: {id: room.id, index: messageIndex}},
+                    body,
+                },
+            );
+        }
+        default:
+            throw exhaustive(room);
+    }
+}
+
+export function getApiMessageApprovals(
+    tracer: TracerBase,
+    apiClient: ApiClient,
+    room: ApiMessageRoomTarget,
+    messageIndex: number,
+) {
+    switch (room.type) {
+        case "Chat": {
+            return apiClient.get(tracer, "/chats/{id}/messages/{index}/experimental-approvals", {
+                params: {path: {id: room.id, index: messageIndex}},
+            });
+        }
+        case "DocumentCommentThread": {
+            return apiClient.get(
+                tracer,
+                "/documents/{id}/threads/{threadId}/messages/{index}/experimental-approvals",
+                {
+                    params: {path: {id: room.id, threadId: room.threadId, index: messageIndex}},
+                },
+            );
+        }
+        case "Post": {
+            return apiClient.get(tracer, "/posts/{id}/messages/{index}/experimental-approvals", {
+                params: {path: {id: room.id, index: messageIndex}},
+            });
+        }
+        case "Task": {
+            return apiClient.get(tracer, "/tasks/{id}/messages/{index}/experimental-approvals", {
+                params: {path: {id: room.id, index: messageIndex}},
+            });
         }
         default:
             throw exhaustive(room);

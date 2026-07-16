@@ -33,6 +33,7 @@ import {
     createMessageUpdatesBackfillResultSchema,
     createMessagingRealtimeEventSchemas,
 } from "~/shared/messaging/messaging_realtime_protocol.js";
+import {PutMessageApprovalDecisionsPayloadSchema} from "~/shared/messaging/put_message_approval_decisions_payload_schema.js";
 import {ReactionOrGenericLikeSchema} from "~/shared/reactions/reaction_schema.js";
 import {TimeZoneSchema} from "~/shared/schema/helpers/time_zone_schema.js";
 import {Schema, SchemaType} from "~/shared/schema/schema.js";
@@ -251,6 +252,16 @@ export const DocumentCollaborationProtocol = defineWebSocketProtocol({
                 commentIndex: Schema.integer,
                 contentVersion: Schema.integer,
                 pos: MessagePosOrFilesSchema,
+            },
+            output: {},
+        },
+
+        /** See `putMessageApprovalDecisions` in `messaging_realtime_protocol.ts`. */
+        putCommentApprovalDecisions: {
+            input: {
+                commentThreadId: Schema.id<DocumentCommentThreadId>(),
+                commentIndex: Schema.integer.min(0),
+                payload: PutMessageApprovalDecisionsPayloadSchema,
             },
             output: {},
         },

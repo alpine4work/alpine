@@ -14,6 +14,7 @@ import {
     GetMessageAtVersionFunction,
     GetMessageReferencesFunction,
     MessagingRealtimeConnection,
+    PutMessageApprovalDecisionsFunction,
     SetMessageReactionFunction,
     UpdateMessageContentFunction,
 } from "~/server/messaging/realtime/messaging_realtime_connection.js";
@@ -38,6 +39,7 @@ import {
     deleteChatMessageReaction,
     getChatMessageAtVersion,
     getChatMessageReferences,
+    putChatMessageApprovalDecisions,
     sendChatMessage,
     setChatMessageReaction,
     updateChatMessageContent,
@@ -100,6 +102,7 @@ export class ChatRealtimeConnection {
             deleteMessage,
             setMessageReaction,
             deleteMessageReaction,
+            putMessageApprovalDecisions,
             backfillMessages,
             getMessageAtVersion,
             getMessageReferences,
@@ -131,6 +134,8 @@ export class ChatRealtimeConnection {
         setMessageReaction: (context, input) => this._connection.setMessageReaction(context, input),
         deleteMessageReaction: (context, input) =>
             this._connection.deleteMessageReaction(context, input),
+        putMessageApprovalDecisions: (context, input) =>
+            this._connection.putMessageApprovalDecisions(context, input),
         startTypingInMessageInput: (context, input) =>
             this._connection.startTypingInMessageInput(context, input),
         stopTypingInMessageInput: (context, input) =>
@@ -273,6 +278,13 @@ const deleteMessageReaction: DeleteMessageReactionFunction<ChatId> = (
     {roomKey: chatId, messageIndex, contentVersion, pos},
 ) => {
     return deleteChatMessageReaction(context, {chatId, messageIndex, contentVersion, pos});
+};
+
+const putMessageApprovalDecisions: PutMessageApprovalDecisionsFunction<ChatId> = (
+    context,
+    {roomKey: chatId, messageIndex, payload},
+) => {
+    return putChatMessageApprovalDecisions(context, {chatId, messageIndex, payload});
 };
 
 const backfillMessages: BackfillMessagesFunction<ChatId, ChatMessageModel> = async (

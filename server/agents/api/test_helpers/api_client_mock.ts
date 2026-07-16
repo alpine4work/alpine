@@ -43,11 +43,12 @@ type SuccessResponseData<T> = T extends {responses: infer R}
             : unknown
     : unknown;
 
-// Configuration for a single mock response
-type MockResponseConfig<TData = any> = {
-    data: TData;
-    response?: Partial<Response>;
-};
+// Configuration for a single mock response. Pass `error` instead of `data` to
+// reject the request with that error, the way the real API client throws on a
+// non-2xx response.
+type MockResponseConfig<TData = any> =
+    | {data: TData; response?: Partial<Response>; error?: never}
+    | {error: Error; data?: never; response?: never};
 
 // Matcher for request parameters
 type RequestMatcher = {
@@ -244,6 +245,10 @@ export class ApiClientMock implements ApiClient {
         // Get the current response and increment call index
         const responseConfig = mockConfig.responses[mockConfig.callIndex];
         mockConfig.callIndex++;
+
+        if (responseConfig?.error) {
+            throw responseConfig.error;
+        }
 
         // Create a Response object with defaults
         const response = new Response(null, {

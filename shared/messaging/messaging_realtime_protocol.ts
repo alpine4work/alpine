@@ -19,6 +19,10 @@ import {
     MessageStreamPartPayloadSchema,
     MessageStreamSchema,
 } from "~/shared/messaging/message_schema.js";
+import {
+    PutMessageApprovalDecisionsPayload,
+    PutMessageApprovalDecisionsPayloadSchema,
+} from "~/shared/messaging/put_message_approval_decisions_payload_schema.js";
 import {Reaction} from "~/shared/reactions/reaction.js";
 import {ReactionOrGenericLikeSchema} from "~/shared/reactions/reaction_schema.js";
 import {TimeZoneSchema} from "~/shared/schema/helpers/time_zone_schema.js";
@@ -98,6 +102,11 @@ export type DeleteMessageReactionProcedure = (input: {
     pos: number | "Files";
 }) => Promise<{}>;
 
+export type PutMessageApprovalDecisionsProcedure = (input: {
+    messageIndex: number;
+    payload: PutMessageApprovalDecisionsPayload;
+}) => Promise<{}>;
+
 export type StartTypingInMessageInputProcedure = (input: {}) => Promise<{}>;
 
 export type StopTypingInMessageInputProcedure = (input: {}) => Promise<{}>;
@@ -109,6 +118,7 @@ export type MessagingRealtimeProcedures<Message extends MessageModel> = {
     deleteMessage: DeleteMessageProcedure;
     setMessageReaction: SetMessageReactionProcedure;
     deleteMessageReaction: DeleteMessageReactionProcedure;
+    putMessageApprovalDecisions: PutMessageApprovalDecisionsProcedure;
     startTypingInMessageInput: StartTypingInMessageInputProcedure;
     stopTypingInMessageInput: StopTypingInMessageInputProcedure;
 };
@@ -221,6 +231,21 @@ export function createMessagingRealtimeProcedureSchemas<Message extends MessageM
         },
 
         /**
+         * Record the current account's decisions on a message stream's approval requests.
+         * The updated approvals part is sent to every connected client as a
+         * `PutMessageStreamPart` event. The event is sent to the calling connection before
+         * this procedure resolves, so once the returned promise resolves the client is
+         * guaranteed to have received the decided approvals part.
+         */
+        putMessageApprovalDecisions: {
+            input: {
+                messageIndex: Schema.integer.min(0),
+                payload: PutMessageApprovalDecisionsPayloadSchema,
+            },
+            output: {},
+        },
+
+        /**
          * Has the client started typing in their message input?
          */
         startTypingInMessageInput: {
@@ -289,6 +314,7 @@ export type MessagingRealtimeEvent<Message extends MessageModel> =
               readonly createdTime: Date;
           };
           readonly references: ContentReferences;
+          readonly completedTime: Date | null;
       }
     | {
           readonly type: "CompleteMessageStream";
@@ -368,6 +394,7 @@ export function createMessagingRealtimeEventSchemas<Message extends MessageModel
                 createdTime: Schema.date,
             }),
             references: ContentReferencesSchema,
+            completedTime: Schema.date.nullable().default(null),
         }),
 
         /**
@@ -433,6 +460,7 @@ export const MessagingRealtimeBroadcastPutMessageStreamPartRequestSchema = Schem
         payload: MessageStreamPartPayloadSchema,
         createdTime: Schema.date,
     }),
+    completedTime: Schema.date.nullable().default(null),
 });
 
 export type MessagingRealtimeBroadcastCompleteMessageStreamRequest = SchemaType<

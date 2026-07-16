@@ -153,6 +153,8 @@ testMessagingRealtimeImplementation<PostId>(context, {
                         contentVersion,
                         pos,
                     }),
+                putMessageApprovalDecisions: ({messageIndex: commentIndex, payload}) =>
+                    connection.procedures.putCommentApprovalDecisions({commentIndex, payload}),
                 startTypingInMessageInput: ({}) =>
                     connection.procedures.startTypingInCommentInput({}),
                 stopTypingInMessageInput: ({}) =>

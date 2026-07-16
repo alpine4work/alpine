@@ -56,6 +56,7 @@ import {useMessageEditing} from "~/client/web/messaging/message_editing.js";
 import {MessageList, MessageListItem} from "~/client/web/messaging/message_list.js";
 import {bufferedMessageViewHeight} from "~/client/web/messaging/message_view.js";
 import {MessagingViewPointerToolbar} from "~/client/web/messaging/messaging_view_pointer_toolbar.js";
+import {OnPutMessageApprovalDecisionsFunction} from "~/client/web/messaging/on_put_message_approval_decisions_function.js";
 import {
     getMessageListItemKey,
     renderMessageListItem,
@@ -1559,6 +1560,17 @@ export function TaskDetailView({
         [setCommentsOptimistically],
     );
 
+    const handlePutCommentApprovalDecisions: Memo<OnPutMessageApprovalDecisionsFunction<TaskId>> =
+        useCallback(
+            async (taskId, input) => {
+                await procedures.putCommentApprovalDecisions({
+                    commentIndex: input.messageIndex,
+                    payload: input.payload,
+                });
+            },
+            [procedures],
+        );
+
     const commentsPointerToolbar = (
         <MessagingViewPointerToolbar<TaskId, TaskCommentModel>
             viewRef={viewRef}
@@ -2446,6 +2458,8 @@ export function TaskDetailView({
                     onSetMessageReaction: handleSetCommentReaction,
                     onDeleteMessageReaction: handleDeleteCommentReaction,
                     onUpdateMessagesOptimistically: handleUpdateCommentsOptimistically,
+                    onPutMessageApprovalDecisions: handlePutCommentApprovalDecisions,
+                    approvalSessionNoun: "task",
                     shouldAddMarginTop: index === 0 ? postContentViewCommentMargin : false,
                     shouldAddMarginBottom: index === commentsItemCount - 1,
                     render: node => (
@@ -2618,6 +2632,7 @@ export function TaskDetailView({
             handleSetCommentReaction,
             handleDeleteCommentReaction,
             handleUpdateCommentsOptimistically,
+            handlePutCommentApprovalDecisions,
             procedures,
             setComments,
         ],

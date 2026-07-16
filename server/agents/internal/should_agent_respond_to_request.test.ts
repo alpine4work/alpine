@@ -4,6 +4,7 @@ import {ApiClientMock} from "~/server/agents/api/test_helpers/api_client_mock.js
 import {createApiAccountMock} from "~/server/agents/api/test_helpers/create_api_account_mock.js";
 import {AgentWebhookRequest} from "~/server/agents/internal/agent_durable_object_base.js";
 import {shouldAgentRespondToRequest} from "~/server/agents/internal/should_agent_respond_to_request.js";
+import {ApiBotWebhookEvent} from "~/shared/api/specification/types/api_specification_convenience_types.js";
 import {defaultTimeZone} from "~/shared/helpers/intl/time_zone.js";
 import {generateId} from "~/shared/id/id.js";
 import {AccountId, BotId, ChatId, PostId, SpaceId} from "~/shared/id/types/id_types.js";
@@ -26,11 +27,15 @@ afterEach(async () => {
     await storage.deleteAll();
 });
 
+type TestEvent = AgentWebhookRequest & {
+    event: Exclude<ApiBotWebhookEvent, {type: "UpdatedMessageStreamExperimentalApprovalsPart"}>;
+};
+
 describe("shouldAgentRespondToRequest", () => {
     test("returns true when agent is mentioned", async () => {
         const agentAccountId = generateId<AccountId>();
 
-        const request: AgentWebhookRequest = {
+        const request: TestEvent = {
             storage,
             apiClient,
             apiAccessToken: "test-access-token",
@@ -63,7 +68,7 @@ describe("shouldAgentRespondToRequest", () => {
         const agentAccountId = generateId<AccountId>();
         const chatId = generateId<ChatId>();
 
-        const request: AgentWebhookRequest = {
+        const request: TestEvent = {
             storage,
             apiClient,
             apiAccessToken: "test-access-token",
@@ -116,7 +121,7 @@ describe("shouldAgentRespondToRequest", () => {
             },
         });
 
-        const request: AgentWebhookRequest = {
+        const request: TestEvent = {
             storage,
             apiClient,
             apiAccessToken: "test-access-token",
@@ -153,7 +158,7 @@ describe("shouldAgentRespondToRequest", () => {
         test("returns false for Post rooms", async () => {
             const agentAccountId = generateId<AccountId>();
 
-            const request: AgentWebhookRequest = {
+            const request: TestEvent = {
                 storage,
                 apiClient,
                 apiAccessToken: "test-access-token",
@@ -201,7 +206,7 @@ describe("shouldAgentRespondToRequest", () => {
                 },
             });
 
-            const request: AgentWebhookRequest = {
+            const request: TestEvent = {
                 storage,
                 apiClient,
                 apiAccessToken: "test-access-token",
@@ -251,7 +256,7 @@ describe("shouldAgentRespondToRequest", () => {
                 },
             });
 
-            const request: AgentWebhookRequest = {
+            const request: TestEvent = {
                 storage,
                 apiClient,
                 apiAccessToken: "test-access-token",

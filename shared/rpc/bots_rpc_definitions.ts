@@ -1,4 +1,4 @@
-import {BotSchema} from "~/shared/bots/bot_schema.js";
+import {BotSchema, BotWebhookSchema} from "~/shared/bots/bot_schema.js";
 import {AccountId, AvatarId, BotId, SpaceId} from "~/shared/id/types/id_types.js";
 import {defineRpc} from "~/shared/rpc/internal/define_rpc.js";
 import {IdentifierStringSchema} from "~/shared/schema/helpers/identifier_string_schema.js";
@@ -48,7 +48,9 @@ export const createBot = defineRpc({
     isIdempotent: false,
     input: {
         name: LabelStringSchema,
-        webhookUrl: Schema.string.nullable(),
+        // The secret is write-only. Bot admin read models expose only whether one is
+        // configured.
+        webhook: BotWebhookSchema.nullable(),
     },
     output: {
         botId: Schema.id<BotId>(),

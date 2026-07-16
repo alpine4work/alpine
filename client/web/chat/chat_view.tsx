@@ -1023,6 +1023,8 @@ function ChatMessagingView({
             deleteMessage={procedures.deleteMessage}
             setMessageReaction={procedures.setMessageReaction}
             deleteMessageReaction={procedures.deleteMessageReaction}
+            putMessageApprovalDecisions={procedures.putMessageApprovalDecisions}
+            approvalSessionNoun="chat"
             startTypingInMessageInput={procedures.startTypingInMessageInput}
             stopTypingInMessageInput={procedures.stopTypingInMessageInput}
             messageDraftSurface={messageDraftSurface}

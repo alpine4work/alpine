@@ -5,6 +5,7 @@ ts_project(
     visibility = [
         "//admin:__subpackages__",
         "//app:__subpackages__",
+        "//client/web/docs/internal/codegen:__pkg__",  # For docs build scripts.
         "//server:__subpackages__",
         "//shared/api/specification:__pkg__",  # For a build script
     ],

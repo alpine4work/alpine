@@ -1,0 +1,38 @@
+---
+title: Documents
+description: Collaborative rich-text documents, the heart of Alpine. Real-time, block-based, and deeply linkable.
+tags: docs, rich text, blocks, tables, mentions, editor, threads, comments
+---
+
+## Everything is a block
+
+A document is an ordered list of blocks: paragraphs, headings, lists, quotes, tables, code,
+files, and previews. Blocks can nest — a table cell or a quote can contain more blocks — so your
+structure can be as simple or as deep as the work needs.
+
+## Tables
+
+Insert a table with the block menu. Tables render with full hairline borders and a subtle header
+row, exactly like the in-app editor:
+
+| Priority | Project                        | Owner | Outcome                |
+| -------- | ------------------------------ | ----- | ---------------------- |
+| P0       | Tables in the rich text editor | Mason | GA rollout             |
+| P0       | Realtime reliability           | Elle  | Phases rolled out      |
+| P1       | Enterprise SSO scoping         | Cliff | Reviewable design doc  |
+
+## Mentions & threads
+
+Type <Kbd>@</Kbd> to mention a person, document, task, or channel. Mentions render as indigo
+pills and keep a live link to their target. Select any text and comment to start a thread —
+resolved threads collapse out of the way.
+
+<Frame caption="Comment threads anchored to a selection." label="threads panel" />
+
+## See also
+
+<CardGrid>
+<Card title="Tasks guide" url="/docs/guides/tasks">Statuses, assignees, priorities, and collections.</Card>
+<Card title="Document endpoints (API)" url="/docs/api/get/documents/id">Read and edit documents programmatically.</Card>
+<Card title="Content model (API)" url="/docs/api/schemas/Content">The rich text structure behind every document.</Card>
+</CardGrid>

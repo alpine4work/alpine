@@ -10,18 +10,22 @@ import {
     intoApiContentWithReferences,
 } from "~/server/api/internal/shared/into_api_content_with_references.js";
 import {intoApiMessage} from "~/server/api/internal/shared/into_api_message.js";
+import {intoApiMessageExperimentalApproval} from "~/server/api/internal/shared/into_api_message_stream_part_payload.js";
 import {parseFileIdFromApiFileElement} from "~/server/api/internal/shared/parse_file_id_or_file_entity_id.js";
 import {
     FileDocumentAuthorizer,
+    broadcastPutDocumentCommentStreamPart,
     completeDocumentCommentStream,
     createDocument,
     createDocumentComment,
+    getDocumentCommentMessageApprovals,
     getDocumentCommentPayload,
     getDocumentCommentPayloadsFromEnd,
     getDocumentCommentPayloadsFromStart,
     getDocumentCommentThreadContent,
     getDocumentContent,
     pingDocumentCommentStream,
+    putDocumentCommentMessageApprovalDecisions,
     putDocumentCommentStreamPart,
 } from "~/server/documents/data/documents_actions.js";
 import {attachFileToTargetAsBot} from "~/server/files/data/attach_file_to_target_as_bot.js";
@@ -649,6 +653,74 @@ export const apiDocumentsPaths: Pick<
             });
 
             return {content: {spaceId}};
+        },
+    },
+
+    "/documents/{id}/threads/{threadId}/messages/{index}/experimental-approvals": {
+        get: async (context, {pathParameters}) => {
+            const {spaceId, approvals} = await getDocumentCommentMessageApprovals(context, {
+                documentId: pathParameters.id,
+                commentThreadId: pathParameters.threadId,
+                commentIndex: pathParameters.index,
+                consistency: "StrongWithinCache",
+            });
+
+            const referenceContext = context.dynamo.unexpectStrongReadConsistency();
+            return {
+                content: {
+                    spaceId,
+                    approvals: await runAllPromises(
+                        approvals.map(approval =>
+                            intoApiMessageExperimentalApproval(referenceContext, {
+                                spaceId,
+                                approval,
+                            }),
+                        ),
+                    ),
+                },
+            };
+        },
+        patch: async (context, {pathParameters, requestBody}) => {
+            const {spaceId, approvals, partIndex, version, createdTime, completedTime} =
+                await putDocumentCommentMessageApprovalDecisions(context, {
+                    documentId: pathParameters.id,
+                    commentThreadId: pathParameters.threadId,
+                    commentIndex: pathParameters.index,
+                    payload: {
+                        type: "ExperimentalDecisions",
+                        decisions: requestBody.patches.map(patch => ({
+                            index: patch.index,
+                            value: patch.decision.value,
+                        })),
+                    },
+                    consistency: "StrongWithinCache",
+                });
+
+            broadcastPutDocumentCommentStreamPart(context, {
+                documentId: pathParameters.id,
+                commentThreadId: pathParameters.threadId,
+                commentIndex: pathParameters.index,
+                partIndex,
+                version,
+                payload: {type: "ExperimentalApprovals", approvals},
+                createdTime,
+                completedTime,
+            });
+
+            const referenceContext = context.dynamo.unexpectStrongReadConsistency();
+            return {
+                content: {
+                    spaceId,
+                    approvals: await runAllPromises(
+                        approvals.map(approval =>
+                            intoApiMessageExperimentalApproval(referenceContext, {
+                                spaceId,
+                                approval,
+                            }),
+                        ),
+                    ),
+                },
+            };
         },
     },
 };

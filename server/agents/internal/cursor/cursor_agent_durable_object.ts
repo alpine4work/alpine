@@ -32,6 +32,7 @@ import {
     DurableObjectStorageCollection,
     DurableObjectTransactionInterface,
 } from "~/server/agents/internal/durable_object_storage_collection.js";
+import {getTimezoneFromBotWebhookRequest} from "~/server/agents/internal/get_timezone_from_bot_webhook_request.js";
 import {getAgentLink} from "~/server/agents/internal/link_references/agent_link_collection.js";
 import {loadAgentLinkContent} from "~/server/agents/internal/link_references/load_agent_link_content.js";
 import {AgentMessage} from "~/server/agents/internal/messages/agent_message.js";
@@ -155,6 +156,10 @@ export class CursorAgentDurableObject extends AgentDurableObjectBase<CursorAgent
         );
     }
 
+    protected override _getWebhookSecret() {
+        return this._env.CURSOR_WEBHOOK_SECRET ?? null;
+    }
+
     protected override _parseRoute(url: URL): [string, CursorAgentRoute] {
         if (url.pathname.startsWith("/cloud-agents-webhook/")) {
             const pathnameParts = url.pathname.slice("/cloud-agents-webhook/".length).split("/");
@@ -221,8 +226,16 @@ export class CursorAgentDurableObject extends AgentDurableObjectBase<CursorAgent
     }
 
     public override async webhook(span: TracerSpan, request: AgentWebhookRequest) {
+        // We do this event dance to make typescript happy. ideally we'd just check
+        // `request.event.type` above and pass the request in, but that doesn't work
+        const {event} = request;
+
+        // NOTE(ifitzsimmons, 2026-06-24): As of writing, the cursor agent doesn't have the
+        // ability to write Alpine data and therefore has no use for approvals.
+        if (event.type === "UpdatedMessageStreamExperimentalApprovalsPart") return;
+
         // Check if the agent should respond before continuing.
-        if (!(await shouldAgentRespondToRequest(span, request))) return;
+        if (!(await shouldAgentRespondToRequest(span, {...request, event}))) return;
 
         if (
             request.event.type === "NewMessage" &&
@@ -343,7 +356,7 @@ async function withCursorAgentMessageStreamSession<Value>(
     } = await createApiMessage(tracer, request.apiClient, request.room, {
         isStream: true,
         content: {elements: []},
-        createdTimeZone: request.event.createdTimeZone,
+        createdTimeZone: getTimezoneFromBotWebhookRequest(request),
     });
 
     const mutex = new Mutex();
@@ -462,9 +475,10 @@ async function handleCursorAgentLaunchFirstPartyWebhook({
     const temporaryStorage = new TemporaryDurableObjectStorage();
 
     const conversationState = {
-        timeZone: request.event.createdTimeZone,
+        timeZone: getTimezoneFromBotWebhookRequest(request),
         startTime: new Date(),
     };
+    const requestAuthorId = getCursorAgentWebhookRequestAuthorId(request);
 
     const setupPromise = runAllPromises([
         getCursorBotSettings({
@@ -473,7 +487,7 @@ async function handleCursorAgentLaunchFirstPartyWebhook({
             apiClient: request.apiClient,
             spaceId: request.spaceId,
             botId: request.botId,
-            accountId: request.event.authorId,
+            accountId: requestAuthorId,
         }),
         isOneOnOneChat(span, request).then(isOneOnOneChat =>
             loadInitialAgentMessagesContent({
@@ -546,7 +560,7 @@ async function handleCursorAgentLaunchFirstPartyWebhook({
                     botAccountId: request.botAccountId,
                     room: request.room,
                     startTime: conversationState.startTime,
-                    timeZone: request.event.createdTimeZone,
+                    timeZone: getTimezoneFromBotWebhookRequest(request),
                     launchMessageIndex: launchMessageSession.index,
                     followUpMessageIndexes: emptySet,
                     statusChangeMessageIndexes: emptySet,
@@ -1331,4 +1345,21 @@ async function sendCursorCloudAgentsThirdPartyWebhookMessage({
             addToIterable(agent.statusChangeMessageIndexes, message.index),
         ),
     };
+}
+
+function getCursorAgentWebhookRequestAuthorId(request: AgentWebhookRequest): AccountId {
+    switch (request.event.type) {
+        case "NewMessage":
+        case "NewPost":
+            return request.event.authorId;
+        case "UpdatedMessageStreamExperimentalApprovalsPart":
+            // TODO(ifitzsimmons, #approvals): The "author" for an approval decision is the
+            // account who initially prompted the agent to send an approval. Although I don't
+            // think we'll add approvals to our cursor agents any time soon.
+            throw new UnimplementedError(
+                "UpdatedMessageStreamExperimentalApprovalsPart is not supported",
+            );
+        default:
+            throw exhaustive(request.event);
+    }
 }

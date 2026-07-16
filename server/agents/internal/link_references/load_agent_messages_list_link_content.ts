@@ -230,7 +230,7 @@ async function getMarkdownContentForPageFromEnd({
     transaction: DurableObjectTransactionInterface;
     request: LoadAgentMessagesListLinkRequest;
     link: AgentPaginatedMessagesListLink;
-    cursorOptions: {from: "End"; cursor: number};
+    cursorOptions: {from: "End"; cursor: number | null};
     conversationState: Pick<AgentConversationState, "startTime" | "timeZone">;
     tokenLimitFactor: number;
 }): Promise<{

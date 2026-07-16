@@ -1,0 +1,14 @@
+filegroup(
+    name = "opensearch_dashboards_local",
+    srcs = glob(
+        ["**/*"],
+        # Exclude dot-files like `.DS_Store` on MacOS.
+        # Exclude files with spaces in their path. Bazel's runfiles tree can't
+        # handle them.
+        exclude = [
+            "**/.*",
+            "**/* *",
+        ],
+    ),
+    visibility = ["//visibility:public"],
+)

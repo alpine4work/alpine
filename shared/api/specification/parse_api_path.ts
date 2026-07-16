@@ -510,6 +510,7 @@ export function parseApiBotWebhookEventIntoMessageRoom(
     event: ApiBotWebhookEvent,
 ): ApiMessageRoomTarget {
     switch (event.type) {
+        case "UpdatedMessageStreamExperimentalApprovalsPart":
         case "NewMessage": {
             return event.room;
         }
@@ -526,6 +527,7 @@ export function parseApiBotWebhookEventIntoMessageRoomPath(
     event: ApiBotWebhookEvent,
 ): ApiMessageRoomPath {
     switch (event.type) {
+        case "UpdatedMessageStreamExperimentalApprovalsPart":
         case "NewMessage": {
             return printApiMessageRoomPath(event.room);
         }

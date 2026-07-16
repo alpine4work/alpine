@@ -6755,6 +6755,12 @@ testMessagingRealtimeImplementation<DocumentCommentRoomKey>(context, {
                         contentVersion,
                         pos,
                     }),
+                putMessageApprovalDecisions: ({messageIndex: commentIndex, payload}) =>
+                    connection.procedures.putCommentApprovalDecisions({
+                        commentThreadId,
+                        commentIndex,
+                        payload,
+                    }),
                 startTypingInMessageInput: ({}) =>
                     connection.procedures.startTypingInCommentInput({commentThreadId}),
                 stopTypingInMessageInput: ({}) =>

@@ -62,6 +62,7 @@ import {PostId} from "~/shared/id/types/id_types.js";
 import {MessageDraft} from "~/shared/messaging/message_draft_schema.js";
 import {MessageContentPayloadParent} from "~/shared/messaging/message_schema.js";
 import {MessagingRealtimeEvent} from "~/shared/messaging/messaging_realtime_protocol.js";
+import {PutMessageApprovalDecisionsPayload} from "~/shared/messaging/put_message_approval_decisions_payload_schema.js";
 import {Reaction} from "~/shared/reactions/reaction.js";
 import {getPostWithStrongReadConsistency} from "~/shared/rpc/forum_rpc_definitions.js";
 
@@ -82,6 +83,10 @@ export type PostRealtimeProcedures = {
         commentIndex: number;
         contentVersion: number;
         pos: number | "Files";
+    }) => Promise<{}>;
+    putCommentApprovalDecisions: (input: {
+        commentIndex: number;
+        payload: PutMessageApprovalDecisionsPayload;
     }) => Promise<{}>;
 };
 
@@ -167,6 +172,7 @@ function usePostCommentInputRealtime({
                 "deleteComment",
                 "setCommentReaction",
                 "deleteCommentReaction",
+                "putCommentApprovalDecisions",
             ]),
         [procedures],
     );

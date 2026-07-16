@@ -1,0 +1,211 @@
+---
+slug: write-your-own-database-clients
+title: Write your own database clients
+publishDate: 2026-02-17
+author: caleb
+tags:
+  - Engineering
+  - Databases
+summary: For the tired JavaScript developer who just has too many options.
+previewImage: /blog/write-your-own-database-clients/preview.png
+previewImageAlt: A text message bubble reading “custom client” with a surprised emoji.
+---
+
+I was having a conversation with a friend about our technology choices for Alpine (we're building
+something ambitious: a Microsoft Office you actually want to use). He asked what ORM we're using...
+
+![A text conversation where a friend asks which database ORM Alpine uses and learns that Alpine uses custom clients for DynamoDB and OpenSearch.](/blog/write-your-own-database-clients/friend-asks-which-orm.webp)
+
+"custom client"
+
+It wasn't even an option in his mind.
+
+My friend, like many other software engineers, whenever they need to read from a database starts by
+trawling npm for a client library. If you search npm for MySQL maybe you want the conveniently named
+mysql package? Or maybe the slightly less conveniently named mysql2 package with 3x the weekly
+downloads? Then there's the knex, kysley, prisma, etc. rabbit hole you'll fall down if you start
+asking Google for advice.
+
+This post argues you shouldn't use any of these higher level libraries. You should write your own
+database clients.
+
+Why?
+
+1. It doesn't take as long as you think
+2. You get cleaner and more type safe code
+3. Your own client is easier to maintain
+4. You'll be an expert in the database by the end
+
+---
+
+## 1. It doesn't take as long as you think
+
+Each database client we wrote took less than a day. We could write the client and integrate with our
+product in the same day. With AI this is getting even easier.
+
+The two main databases we use at Alpine are DynamoDB and OpenSearch (a fork of ElasticSearch). We
+have our own clients for both. And also for Cloudflare R2, AWS SES, and AWS SQS.
+
+Since DynamoDB and OpenSearch have JSON HTTP APIs our clients directly use fetch() to make requests.
+For our other clients we have a class wrapping the AWS SDK.
+
+If you strip our DynamoDB client down to the studs, it looks like this:
+
+```ts
+export class DynamoClient {
+  async _execute(input: object) {
+    // Some library like `aws4fetch` to sign requests for AWS:
+    const request = await sign(new Request(
+        url: "...",
+        body: JSON.stringify(input),
+    ));
+
+    // We add some logging code around here...
+
+    const response = await fetch(request);
+    const output = await response.json();
+
+    // Some error handling code here...
+
+    return output;
+  }
+
+  async getItem<Item>(
+    schema: Schema<Item>,
+    key: string,
+  ): Promise<Item> {
+    const output = await this._execute(...);
+    return schema.deserialize(output.Item);
+  }
+}
+```
+
+Normal HTTP call that we expose with a nice getItem() function that uses a schema library (like zod)
+to ensure type safety.
+
+Other clients which wrap the AWS SDK look like this:
+
+```ts
+import {AwsClient} from "@aws-sdk/...";
+
+export class OurClient {
+  _innerClient: AwsClient;
+
+  async doThing() {
+    const output = await this._innerClient.send(new DoThingCommand());
+    return ...
+  }
+}
+```
+
+See, not that bad! It'll take you half a day to research all your options, when you could have spent
+it writing your own client.
+
+If you have a SQL database, I like to do something like this (using a library like pg-sql):
+
+```ts
+export class User {
+  static async get(id: number) {
+    const rows =
+      await database.query(sql`SELECT * FROM users WHERE id = ${id}`);
+
+    return new User(rows[0]);
+  }
+
+  async updateName(newName: string) {
+    await database.query(sql`
+      UPDATE users
+      SET name = ${newName}
+      WHERE id = ${this.id}
+    `);
+  }
+}
+```
+
+Hide all your raw SQL queries in a nice class with a nice API that the rest of your code consumes.
+Resist the temptation to use SQL anywhere outside your model classes.
+
+You can write unit tests for your client if you want, but you don't need them. Your existing unit
+tests, integration tests, or whatever else you're doing (no shame) will provide sufficient coverage
+since the client is core to everything your app does.
+
+## 2. You get cleaner and more type safe code
+
+It's likely that you have some opinion on what "good" code means that's different from mine. For
+example, maybe you really like the Effect TypeScript library. Or maybe you don't like how all AWS
+commands are PascalCase instead of camelCase. Or maybe you want every async function to end with the
+word "Async" (we did this at Airtable, you can see this pattern in Airtable extension SDK functions
+like createRecordAsync).
+
+If you use a bunch of clients downloaded from npm you get a mish mash of different people's opinions
+on naming or how to structure data that won't meet the conventions of your codebase. This doesn't
+happen when you write your own clients. Your codebase feels like a cohesive whole since the messy
+integration bits are wrapped in some class you design.
+
+You also get code that's type safe!
+
+Let's look again at our DynamoDB client:
+
+```ts
+export class DynamoClient {
+  // ...
+
+  async getItem<Item>(
+    schema: Schema<Item>,
+    key: string,
+  ): Promise<Item> {
+    const output = await this._execute(...);
+    return schema.deserialize(output.Item);
+  }
+}
+```
+
+An off-the-shelf client will usually return the equivalent of unknown from getItem() or heavens
+forbid any.
+
+We're already using a schema library, but no npm DynamoDB client supports it. By writing our own
+client our tech choices form a holistic system that's a joy to use and prevents type error bugs.
+
+## 3. Your own client is easier to maintain
+
+Counter-intuitively it's easier to maintain your own client than someone else's. Your code's
+connection to the database is one of the most mission critical parts of your application! From
+performance to security to reliability. If something goes wrong (and everything will go wrong when
+you're working with a database) you have to dig in then make changes fast.
+
+Have you tried running a debugger on the AWS SDKs before? It's a mess of generated code good luck.
+Have you tried running a debugger on Prisma? Well prior to January 2025 you would have hit a Rust
+binding and gotten stuck.
+
+I've had to debug what's happening in OpenSearch many times while developing Alpine and wow is it a
+dream to step in, see the exact request to fetch() and the exact HTTP response.
+
+You also have full control over what gets logged. Zero-code instrumentation from OpenTelemetry and
+other providers are pretty barebones. They can't support the long tail of database features you
+might use. There's nothing worse than investigating an outage, not having the right logs, and
+realizing you can't add the right logs without forking/patching your database client.
+
+## 4. You'll be an expert in the database by the end
+
+Finally, and perhaps most importantly, building your own database client forces you (and your AI
+agent buddy) to read carefully over the documentation for each bit of the database you use. If
+you're doing it right:
+
+You're evaluating each and every parameter for whether it's useful in your domain.
+
+You're building a complete mental model around what's fast and what's not.
+
+You're leaving comments with your learnings around the code for your future self, your coworker, and
+your AI copilot.
+
+This process is especially useful if you're new to the database. If this is your hundredth SQL
+integration but your first database client, I guarantee you'll learn something new.
+
+---
+
+Writing your own database client is not a herculean task only accessible to the open source
+demigods. It's all code, code that's not too different from what you're used to writing. You can do
+it too. And if you're still scared, remember AI completely changes what you're capable of. If I've
+convinced you there are benefits, give it a try.
+
+Cheers.

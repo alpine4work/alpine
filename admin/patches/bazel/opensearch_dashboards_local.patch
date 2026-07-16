@@ -1,0 +1,33 @@
+diff --color -bur a/config/opensearch_dashboards.yml b/config/opensearch_dashboards.yml
+--- a/config/opensearch_dashboards.yml	2025-02-06 00:00:00
++++ b/config/opensearch_dashboards.yml	2026-07-09 00:00:00
+@@ -2,6 +2,14 @@
+ # Copyright OpenSearch Contributors
+ # SPDX-License-Identifier: Apache-2.0
+ 
++# NOTE: Local development configuration for OpenSearch Dashboards. We connect to
++# our local OpenSearch instance which has the security plugin disabled. The
++# securityDashboards plugin is removed in WORKSPACE. `server.port` and
++# `opensearch.hosts` are set by `opensearch_dashboards_local.sh` at startup.
++
++server.host: "localhost"
++logging.dest: stdout
++
+ # Description:
+ # Default configuration for OpenSearch Dashboards
+ 
+@@ -220,14 +228,3 @@
+ # assistant.text2viz.enabled: false
+ # queryEnhancements.queryAssist.summary.enabled: false
+ 
+-opensearch.hosts: [https://localhost:9200]
+-opensearch.ssl.verificationMode: none
+-opensearch.username: kibanaserver
+-opensearch.password: kibanaserver
+-opensearch.requestHeadersWhitelist: [authorization, securitytenant]
+-
+-opensearch_security.multitenancy.enabled: true
+-opensearch_security.multitenancy.tenants.preferred: [Private, Global]
+-opensearch_security.readonly_mode.roles: [kibana_read_only]
+-# Use this setting if you are running opensearch-dashboards without https
+-opensearch_security.cookie.secure: false

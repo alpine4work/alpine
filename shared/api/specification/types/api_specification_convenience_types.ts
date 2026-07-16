@@ -244,6 +244,35 @@ export type ApiMessageStreamPartPayloadResponse =
 export type ApiMessageStreamToolCallPartPayloadCall =
     ApiSpecification.components["schemas"]["MessageStreamToolCallPartPayloadCall"];
 
+export type ApiMessageStreamApprovalsPartPayload =
+    ApiSpecification.components["schemas"]["MessageStreamExperimentalApprovalsPartPayload"];
+
+export type ApiMessageExperimentalApproval =
+    ApiSpecification.components["schemas"]["MessageExperimentalApproval"];
+export type ApiMessageExperimentalApprovalResponse =
+    ApiSpecification.components["schemas"]["MessageExperimentalApproval_Response"];
+
+export type ApiMessageExperimentalApprovalDecision =
+    ApiSpecification.components["schemas"]["MessageExperimentalApprovalDecision"];
+
+export type ApiMessageExperimentalApprovalDecisionSchema =
+    ApiSpecification.components["schemas"]["MessageExperimentalApprovalDecisionSchema"];
+
+export type ApiMessageExperimentalApprovalDecisionOption =
+    ApiSpecification.components["schemas"]["MessageExperimentalApprovalDecisionOption"];
+
+export type ApiMessageExperimentalApprovalDecisionOptionResponse =
+    ApiSpecification.components["schemas"]["MessageExperimentalApprovalDecisionOption_Response"];
+
+export type ApiMessageExperimentalApprovalDecisionValue =
+    ApiSpecification.components["schemas"]["MessageExperimentalApprovalDecisionValue"];
+
+export type ApiMessageExperimentalApprovalDecisionValueResponse =
+    ApiSpecification.components["schemas"]["MessageExperimentalApprovalDecisionValue_Response"];
+
+export type ApiMessageExperimentalApprovalApprovedForSessionOption =
+    ApiSpecification.components["schemas"]["MessageExperimentalApprovalDecisionApprovedForSessionOption"];
+
 export type ApiSearchResult = ApiSpecification.components["schemas"]["SearchResult"];
 
 export type ApiSearchTaskMessageResult =
@@ -285,6 +314,9 @@ export type ApiBotWebhookNewMessageEventMessageParent =
 
 export type ApiBotWebhookNewMessageEventPostParent =
     ApiSpecification.components["schemas"]["BotWebhookNewMessageEventPostParent"];
+
+export type ApiBotWebhookUpdatedMessageStreamExperimentalApprovalsPartEvent =
+    ApiSpecification.components["schemas"]["BotWebhookUpdatedMessageStreamExperimentalApprovalsPartEvent"];
 
 export type ApiTaskWithoutNotes = ApiSpecification.components["schemas"]["TaskWithoutNotes"];
 
@@ -345,3 +377,14 @@ export type ApiGetTaskCollectionResponse =
 
 export type ApiCreateTaskCollectionRequestBody =
     ApiSpecification.paths["/task-collections"]["post"]["requestBody"]["content"]["application/json"];
+
+export type ApiLabelContent = ApiSpecification.components["schemas"]["LabelContent"];
+
+export type ApiLabelContentResponse =
+    ApiSpecification.components["schemas"]["LabelContent_Response"];
+
+export type ApiLabelContentInlineElementResponse =
+    ApiSpecification.components["schemas"]["LabelContentInlineElement_Response"];
+
+export type ApiLabelContentInlineElementMark =
+    ApiSpecification.components["schemas"]["LabelContentInlineElementMark"];

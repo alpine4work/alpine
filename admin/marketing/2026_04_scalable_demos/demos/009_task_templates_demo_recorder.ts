@@ -25,7 +25,7 @@ Duplicate this task and add these items to the database when adding a new bot fo
   "sortKey": "a0#Attributes",
   "createdTime": "{{Created time (ISO 8601)}}",
   "name": "{{Bot name}}",
-  "webhookUrl": null
+  "webhook": null
 }
 ~~~
 

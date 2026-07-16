@@ -55,6 +55,7 @@ export class TaskDetailNotesContentEditorWebSocketClient {
         "deleteComment",
         "setCommentReaction",
         "deleteCommentReaction",
+        "putCommentApprovalDecisions",
         "startTypingInCommentInput",
         "stopTypingInCommentInput",
     ] as const satisfies ReadonlyArray<

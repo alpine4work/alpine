@@ -22,6 +22,7 @@ import {
     getTaskCommentsFromStart,
     getTaskNotesContentAndOptionalInitialCommentsIfExists,
     pingTaskCommentStream,
+    putTaskCommentMessageApprovalDecisions,
     putTaskCommentStreamPart,
     setTaskCommentReaction,
     updateTaskCommentContent,
@@ -1494,6 +1495,18 @@ describe("taskMessagingImplementation()", () => {
                 payload,
                 isTimeoutErrorCompletion,
             });
+        },
+        async putMessageApprovalDecisions(
+            context,
+            {roomKey: taskId, messageIndex: commentIndex, payload},
+        ) {
+            const {approvals} = await putTaskCommentMessageApprovalDecisions(context, {
+                taskId,
+                commentIndex,
+                payload,
+            });
+
+            return {approvals};
         },
         async completeMessageStream(context, {roomKey: taskId, messageIndex: commentIndex}) {
             return await completeTaskCommentStream(context, {
