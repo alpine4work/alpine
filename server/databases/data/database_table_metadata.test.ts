@@ -1,15 +1,44 @@
 import {
+    createDatabaseTable,
     createDatabaseTableMetadataForTest,
     updateDatabaseTableAccessPolicy,
 } from "~/server/databases/data/database_table_metadata.js";
 import {createTestContext} from "~/server/dynamo/test_helpers/create_test_context.js";
+import {getDatabaseGroupIdForSpaceIfExists} from "~/server/spaces/get_database_group_id_for_space.js";
 import {TestSpace} from "~/server/spaces/test_helpers/test_space.js";
 import type {LocalAccessPolicy} from "~/shared/access/access_policy.js";
+import {DatabaseActionFetchResponseSchema} from "~/shared/databases/database_action_fetch_schema.js";
 import {generateChronologicalId} from "~/shared/id/chronological_id.js";
 import {generateId} from "~/shared/id/id.js";
-import type {DatabaseGroupId, DatabaseTableId} from "~/shared/id/types/id_types.js";
+import type {DatabaseGroupId, DatabaseTableId, DatabaseViewId} from "~/shared/id/types/id_types.js";
 
-const context = createTestContext();
+const createdViewId = generateChronologicalId<DatabaseViewId>();
+const createdTableId = generateChronologicalId<DatabaseTableId>();
+const context = createTestContext({
+    sendRequestToDurableObject: () =>
+        Promise.resolve(
+            DatabaseActionFetchResponseSchema.serialize({
+                result: {
+                    name: "createTable",
+                    output: {
+                        tableId: createdTableId,
+                        tableName: "projects",
+                        viewId: createdViewId,
+                    },
+                },
+                readPages: new Map(),
+            }),
+        ),
+});
+
+test("creating the first database assigns its space a database group ID", async () => {
+    const space = await TestSpace.create(context);
+    const session = await space.createSession();
+
+    await createDatabaseTable(session.action(), {spaceId: space.id, name: "Projects"});
+
+    expect(await getDatabaseGroupIdForSpaceIfExists(session.action(), space.id)).not.toBeNull();
+});
 
 test("updating a database table access policy requires Manage access", async () => {
     const databaseGroupId = generateId<DatabaseGroupId>();

@@ -8,8 +8,8 @@ import {DynamoItem} from "~/server/dynamo/core/dynamo_table_schema.js";
 import {RynamoTableSchema} from "~/server/rynamo/rynamo_table_schema.js";
 import {authorizeSpaceAccess} from "~/server/spaces/authorize_space_access.js";
 import {
+    assignDatabaseGroupIdForSpace,
     getDatabaseGroupIdForSpace,
-    getExistingDatabaseGroupIdForSpace,
 } from "~/server/spaces/get_database_group_id_for_space.js";
 import type {AccessPolicy} from "~/shared/access/access_policy.js";
 import type {CreateOrUpdateAccessPolicy} from "~/shared/access/model/create_or_update_access_policy_schema.js";
@@ -35,7 +35,7 @@ export async function createDatabaseTable(
     const sessionContext = context.actor.authorizeSession();
     await authorizeSpaceAccess(sessionContext, spaceId, "Member");
 
-    const databaseGroupId = await getDatabaseGroupIdForSpace(sessionContext, spaceId);
+    const databaseGroupId = await assignDatabaseGroupIdForSpace(sessionContext, spaceId);
     const tableId = generateChronologicalId<DatabaseTableId>();
     const accessPolicy = databaseTableAccessPolicyForCreator(sessionContext.actor.getAccountId());
 
@@ -91,7 +91,7 @@ export async function updateDatabaseTableAccessPolicy(
     await authorizeSpaceAccess(sessionContext, spaceId, "Member");
 
     const {getEvent} = await sessionContext.dynamo.retryTransaction(async context => {
-        const databaseGroupId = await getExistingDatabaseGroupIdForSpace(context, spaceId);
+        const databaseGroupId = await getDatabaseGroupIdForSpace(context, spaceId);
         const item = await DatabaseTablesTable.getItemIfExists(
             context,
             {partitionType: "DatabaseGroup", sortRangeType: "Table", databaseGroupId, tableId},
@@ -152,7 +152,7 @@ export async function getDatabaseTableMetadataItem(
     context: ServerActionContext,
     {spaceId, tableId}: {spaceId: SpaceId; tableId: DatabaseTableId},
 ): Promise<RynamoItem<DatabaseTableMetadataModel>> {
-    const databaseGroupId = await getExistingDatabaseGroupIdForSpace(context, spaceId);
+    const databaseGroupId = await getDatabaseGroupIdForSpace(context, spaceId);
     const item = await DatabaseTablesTable.getRealtimeItemIfExists(
         context,
         {
@@ -265,7 +265,7 @@ export async function syncDatabaseTableMetadataToDurableObject(
         accessPolicy: AccessPolicy;
     },
 ): Promise<void> {
-    const databaseGroupId = await getExistingDatabaseGroupIdForSpace(context, spaceId);
+    const databaseGroupId = await getDatabaseGroupIdForSpace(context, spaceId);
     const localAccessPolicy = await resolveDatabaseTableAccessPolicyForDurableObject(
         context,
         accessPolicy,
