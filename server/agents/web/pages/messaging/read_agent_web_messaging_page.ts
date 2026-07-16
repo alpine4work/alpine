@@ -226,10 +226,21 @@ export function parseAgentWebMessagingPageSearchParams({
         return {type: "Around", around};
     }
 
-    if (beforeMessageIndex !== null && afterMessageIndex !== null && fromSearchParam === null) {
-        throw new InvalidArgumentError("Expected `from` search param for a message range", {
-            displayMessage: errorDisplayMessage`Expected a \`?from\` URL search param when both \`?before\` and \`?after\` are present. Try again with either \`?from=start\` or \`?from=end\`.`,
-        });
+    if (beforeMessageIndex !== null && afterMessageIndex !== null) {
+        if (fromSearchParam === null) {
+            throw new InvalidArgumentError("Expected `from` search param for a message range", {
+                displayMessage: errorDisplayMessage`Expected a \`?from\` URL search param when both \`?before\` and \`?after\` are present. Try again with either \`?from=start\` or \`?from=end\`.`,
+            });
+        }
+
+        if (beforeMessageIndex <= afterMessageIndex) {
+            throw new InvalidArgumentError(
+                "Expected `before` search param to be after `after` search param",
+                {
+                    displayMessage: errorDisplayMessage`Expected the \`?before\` URL search param to be after the \`?after\` URL search param. Try again and flip the values in \`?before\` and \`?after\` (and make sure they have different values).`,
+                },
+            );
+        }
     }
 
     if (beforeMessageIndex !== null && afterMessageIndex === null && fromSearchParam === "start") {
