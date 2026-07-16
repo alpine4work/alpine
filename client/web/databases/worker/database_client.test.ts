@@ -19,6 +19,7 @@ import type {
 } from "~/shared/databases/database_actions.js";
 import type {
     DatabaseExecuteActionResponse,
+    DatabasePageDiffs,
     DatabaseRegisterTablesResult,
 } from "~/shared/databases/database_protocol_schemas.js";
 import {diffPage} from "~/shared/databases/page_diff.js";
@@ -34,6 +35,13 @@ const emptyExecuteActionRegistrationFields = {
     registeredTables: {tables: new Map(), tableAccess: new Map()},
     readPagesSnapshotVersion: new Map(),
 };
+// A `PagesChanged` payload that confirms a mutation without carrying any page
+// change: a single empty stub for the main table. Read-only in
+// `writePageDiffsFromRealtime`, so the same instance is safe to reuse across
+// confirmations.
+const emptyMainConfirmationDiffs: DatabasePageDiffs = new Map([
+    [databaseMainTableId, {version: 0, diffs: new Map(), fileSizeInPages: 0}],
+]);
 
 async function execute(
     client: DatabaseClient,
@@ -262,12 +270,7 @@ describe("execute — mutations", () => {
                 capturedMutationId = options.mutationId;
                 // Simulate realtime confirmation arriving before server response (same as
                 // production).
-                client.writePageDiffsFromRealtime(
-                    new Map([
-                        [databaseMainTableId, {version: 0, diffs: new Map(), fileSizeInPages: 0}],
-                    ]),
-                    options.mutationId,
-                );
+                client.writePageDiffsFromRealtime(emptyMainConfirmationDiffs, options.mutationId);
                 return {
                     result: {name: "rawSql", output: {rows: []}},
                     readPages: new Map(),
@@ -393,12 +396,7 @@ describe("execute — mutations", () => {
             async executeActionServer(_action, options) {
                 serverCallCount++;
                 // Simulate realtime confirmation arriving before server response.
-                client.writePageDiffsFromRealtime(
-                    new Map([
-                        [databaseMainTableId, {version: 0, diffs: new Map(), fileSizeInPages: 0}],
-                    ]),
-                    options.mutationId,
-                );
+                client.writePageDiffsFromRealtime(emptyMainConfirmationDiffs, options.mutationId);
                 return {
                     result: {name: "rawSql", output: {rows: []}},
                     readPages: new Map(),
@@ -478,10 +476,7 @@ describe("optimistic mutations", () => {
         expect(capturedMutationId).not.toBeNull();
 
         // Confirm the mutation — should not throw
-        client.writePageDiffsFromRealtime(
-            new Map([[databaseMainTableId, {version: 0, diffs: new Map(), fileSizeInPages: 0}]]),
-            capturedMutationId!,
-        );
+        client.writePageDiffsFromRealtime(emptyMainConfirmationDiffs, capturedMutationId!);
     });
 
     test("replays remaining mutations after confirmation", async () => {
@@ -519,10 +514,7 @@ describe("optimistic mutations", () => {
         );
 
         // Confirm first mutation
-        client.writePageDiffsFromRealtime(
-            new Map([[databaseMainTableId, {version: 0, diffs: new Map(), fileSizeInPages: 0}]]),
-            mutationIds[0]!,
-        );
+        client.writePageDiffsFromRealtime(emptyMainConfirmationDiffs, mutationIds[0]!);
 
         // Second mutation should still be visible via replay
         const rows = await execute(
@@ -575,12 +567,7 @@ describe("optimistic mutations", () => {
         );
 
         expect(() =>
-            client.writePageDiffsFromRealtime(
-                new Map([
-                    [databaseMainTableId, {version: 0, diffs: new Map(), fileSizeInPages: 0}],
-                ]),
-                mutationIds[1]!,
-            ),
+            client.writePageDiffsFromRealtime(emptyMainConfirmationDiffs, mutationIds[1]!),
         ).toThrow("unexpected mutation confirmation order");
     });
 
@@ -591,7 +578,7 @@ describe("optimistic mutations", () => {
 
         // No optimistic mutations queued — just apply pages
         client.writePageDiffsFromRealtime(
-            new Map([[databaseMainTableId, {version: 0, diffs: new Map(), fileSizeInPages: 0}]]),
+            emptyMainConfirmationDiffs,
             "unknown-mutation-id" as DatabaseMutationId,
         );
 

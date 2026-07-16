@@ -66,27 +66,49 @@ export type DatabaseServerReadPages = Map<
 
 export type DatabaseServerChangedPages = Map<DatabaseTableId, DatabaseServerTableChangedPages>;
 
-export interface DatabaseServerResult {
-    rows: Array<Record<string, unknown>>;
+/**
+ * The page + version envelope shared by every execute/executeAction call: what the
+ * run read, what it changed, and the two global-version markers. {@link
+ * DatabaseServerResult} and {@link DatabaseServerActionResult} add the payload
+ * (`rows` vs a typed action `result`) on top.
+ */
+export interface DatabaseServerResultBase {
+    /**
+     * Full page data + version for every page the run read, partitioned by table. The
+     * client fallback path uses this to populate its local cache (and register
+     * newly-fetched tables).
+     */
     readPages: DatabaseServerReadPages;
+    /**
+     * Before/after images for every page the run wrote, partitioned by table, plus
+     * each table's post-drain `fileSizeInPages`. Consumed by the realtime layer to
+     * broadcast `PagesChanged` diffs.
+     */
     changedPages: DatabaseServerChangedPages;
+    /**
+     * Global version stamped on the pages this run wrote, or `0` when it wrote
+     * nothing. Identifies the diff this run produced — clients confirm an optimistic
+     * mutation against it.
+     */
     writeVersion: number;
     /**
-     * Current global version after the action, including when it performed no write.
+     * Current global version after the run, whether or not it wrote — the version the
+     * data it just read reflects. Equals {@link writeVersion} for a write; for a
+     * read-only run it's the last write's version while `writeVersion` is `0`. Clients
+     * use it as the read-snapshot watermark.
      */
     snapshotVersion: number;
 }
 
-export type DatabaseServerActionResult<N extends DatabaseActionName> = {
+export interface DatabaseServerResult extends DatabaseServerResultBase {
+    rows: Array<Record<string, unknown>>;
+}
+
+export interface DatabaseServerActionResult<
+    N extends DatabaseActionName,
+> extends DatabaseServerResultBase {
     result: DatabaseActionOutput<N>;
-    readPages: DatabaseServerReadPages;
-    changedPages: DatabaseServerChangedPages;
-    writeVersion: number;
-    /**
-     * Current global version after the action, including when it performed no write.
-     */
-    snapshotVersion: number;
-};
+}
 
 /**
  * A registered table's access metadata, read synchronously by the SQLite
@@ -139,9 +161,18 @@ export class DatabaseServer {
     private database!: Database;
     private readonly storage: DurableObjectStorage;
     private readonly sql: SqlStorage;
+    // Committed in-memory mirrors of the `database_tables.sqlite_id` and
+    // `.file_size_in_pages` columns, populated at bootstrap and kept in sync as writes
+    // commit. While a transaction is open its pending values live in
+    // `currentTransaction` instead and are folded in only on commit.
     private readonly sqliteIds = new Map<DatabaseTableId, number>();
     private readonly fileSizes = new Map<DatabaseTableId, number>();
-    private transactionCache:
+    // Pending `sqliteIds`/`fileSizes` overlays staged by the in-flight storage
+    // transaction, or `undefined` when none is open. Reads consult it first
+    // (`currentTransaction?.x ?? this.x`) so a transaction sees its own uncommitted
+    // writes; on commit the overlays fold into the mirrors above, on rollback they're
+    // dropped.
+    private currentTransaction:
         | {
               sqliteIds: Map<DatabaseTableId, number>;
               fileSizes: Map<DatabaseTableId, number>;
@@ -309,16 +340,16 @@ export class DatabaseServer {
         // Calls made inside an existing server transaction share its atomic boundary.
         // `writePages` uses this to make direct/bootstrap drains transactional without
         // nesting a Durable Object storage transaction during normal action execution.
-        if (this.transactionCache !== undefined) {
+        if (this.currentTransaction !== undefined) {
             return fn();
         }
 
-        const transactionCache = {
+        const currentTransaction = {
             sqliteIds: new Map<DatabaseTableId, number>(),
             fileSizes: new Map<DatabaseTableId, number>(),
         };
         const lastWriteVersion = this.lastWriteVersion;
-        this.transactionCache = transactionCache;
+        this.currentTransaction = currentTransaction;
         try {
             let result: T;
             try {
@@ -330,15 +361,15 @@ export class DatabaseServer {
                 this.lastWriteVersion = lastWriteVersion;
                 throw error;
             }
-            for (const [tableId, sqliteId] of transactionCache.sqliteIds) {
+            for (const [tableId, sqliteId] of currentTransaction.sqliteIds) {
                 this.sqliteIds.set(tableId, sqliteId);
             }
-            for (const [tableId, fileSize] of transactionCache.fileSizes) {
+            for (const [tableId, fileSize] of currentTransaction.fileSizes) {
                 this.fileSizes.set(tableId, fileSize);
             }
             return result;
         } finally {
-            this.transactionCache = undefined;
+            this.currentTransaction = undefined;
         }
     }
 
@@ -480,7 +511,7 @@ export class DatabaseServer {
         pages: ReadonlyMap<DatabaseTableId, ReadonlyMap<number, Uint8Array>>,
         truncates: ReadonlyMap<DatabaseTableId, number>,
     ): number {
-        if (this.transactionCache === undefined) {
+        if (this.currentTransaction === undefined) {
             return this.transactionSync(() => this.writePages(pages, truncates));
         }
 
@@ -561,7 +592,7 @@ export class DatabaseServer {
                 WHERE
                     sqlite_id = ${sqliteId}
             `.exec(this.sql);
-            this.transactionCache.fileSizes.set(databaseTableId, finalFileSize);
+            this.currentTransaction.fileSizes.set(databaseTableId, finalFileSize);
         }
 
         return version;
@@ -569,7 +600,7 @@ export class DatabaseServer {
 
     getFileSize(databaseTableId: DatabaseTableId): number {
         const cached =
-            this.transactionCache?.fileSizes.get(databaseTableId) ??
+            this.currentTransaction?.fileSizes.get(databaseTableId) ??
             this.fileSizes.get(databaseTableId);
         if (cached !== undefined) {
             return cached;
@@ -583,7 +614,7 @@ export class DatabaseServer {
                 table_id = ${databaseTableId}
         `.selectValueIfExists(this.sql, Schema.integer);
         const size = (fileSizeInPages ?? 0) * sqlitePageSize;
-        (this.transactionCache?.fileSizes ?? this.fileSizes).set(databaseTableId, size);
+        (this.currentTransaction?.fileSizes ?? this.fileSizes).set(databaseTableId, size);
         return size;
     }
 
@@ -748,7 +779,7 @@ export class DatabaseServer {
      */
     private _lookupSqliteId(databaseTableId: DatabaseTableId): number | undefined {
         const cached =
-            this.transactionCache?.sqliteIds.get(databaseTableId) ??
+            this.currentTransaction?.sqliteIds.get(databaseTableId) ??
             this.sqliteIds.get(databaseTableId);
         if (cached !== undefined) {
             return cached;
@@ -764,7 +795,7 @@ export class DatabaseServer {
         if (sqliteId === null) {
             return undefined;
         }
-        (this.transactionCache?.sqliteIds ?? this.sqliteIds).set(databaseTableId, sqliteId);
+        (this.currentTransaction?.sqliteIds ?? this.sqliteIds).set(databaseTableId, sqliteId);
         return sqliteId;
     }
 
@@ -785,7 +816,7 @@ export class DatabaseServer {
             RETURNING
                 sqlite_id
         `.selectValue(this.sql, Schema.integer);
-        (this.transactionCache?.sqliteIds ?? this.sqliteIds).set(databaseTableId, sqliteId);
+        (this.currentTransaction?.sqliteIds ?? this.sqliteIds).set(databaseTableId, sqliteId);
         return sqliteId;
     }
 
