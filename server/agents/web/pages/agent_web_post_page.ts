@@ -382,6 +382,7 @@ export async function readAgentWebPostPage(
                     },
                     direction: parsedSearchParams.direction,
                     startCursor: parsedSearchParams.startCursor,
+                    untilCursor: parsedSearchParams.untilCursor,
                     limitLength,
                     printPage: page => printPage(buildAgentWebPostPage(page)),
                 }),

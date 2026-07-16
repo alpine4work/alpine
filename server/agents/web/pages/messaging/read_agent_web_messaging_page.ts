@@ -103,6 +103,7 @@ export async function readAgentWebMessagingPage<
                 getRoomMetadata,
                 direction: parsedSearchParams.direction,
                 startCursor: parsedSearchParams.startCursor,
+                untilCursor: parsedSearchParams.untilCursor,
                 limitLength,
                 printPage,
             });
@@ -127,6 +128,7 @@ export type AgentWebMessagingPageSearchParams =
           readonly type: "Direction";
           readonly direction: "Start" | "End";
           readonly startCursor: number | null;
+          readonly untilCursor: number | null;
       }
     | {
           readonly type: "Around";
@@ -147,6 +149,7 @@ export function parseAgentWebMessagingPageSearchParams({
     const aroundMessageRangeSearchParam = searchParams.get(messageNouns.noun);
     const startSearchParam = searchParams.get("start");
     const endSearchParam = searchParams.get("end");
+    const fromSearchParam = searchParams.get("from");
 
     let beforeMessageIndex: number | null = null;
     let afterMessageIndex: number | null = null;
@@ -197,16 +200,23 @@ export function parseAgentWebMessagingPageSearchParams({
         });
     }
 
+    if (fromSearchParam !== null && fromSearchParam !== "start" && fromSearchParam !== "end") {
+        throw new InvalidArgumentError("Expected `from` search param to be `start` or `end`", {
+            displayMessage: errorDisplayMessage`Expected \`?from\` URL search param to be either \`start\` or \`end\`, but got ${quote(fromSearchParam)}. Try again with \`?from=start\`, \`?from=end\`, or try omitting \`?from\`.`,
+        });
+    }
+
     let searchParamCount = 0;
-    if (beforeMessageIndex !== null) searchParamCount++;
-    if (afterMessageIndex !== null) searchParamCount++;
+    if (beforeMessageIndex !== null || afterMessageIndex !== null || fromSearchParam !== null) {
+        searchParamCount++;
+    }
     if (around !== null) searchParamCount++;
     if (startSearchParam !== null) searchParamCount++;
     if (endSearchParam !== null) searchParamCount++;
 
     if (searchParamCount > 1) {
         throw new InvalidArgumentError("Expected only one pagination search param", {
-            displayMessage: errorDisplayMessage`Expected only one of \`?before\`, \`?after\`, ${quote(`?${messageNouns.noun}`)}, \`?start\`, or \`?end\` URL search params. Try again with only one of \`?before\`, \`?after\`, ${quote(`?${messageNouns.noun}`)}, \`?start\`, or \`?end\`. We recommend using a value for \`?before\`, \`?after\`, or ${quote(`?${messageNouns.noun}`)} from a ${quote(`<${messageNouns.noun}>`)}\u2019s \`id\` attribute.`,
+            displayMessage: errorDisplayMessage`Expected only one of \`?before\`, \`?after\`, ${quote(`?${messageNouns.noun}`)}, \`?start\`, or \`?end\` URL search params. Try again with only one of \`?before\`, \`?after\`, ${quote(`?${messageNouns.noun}`)}, \`?start\`, or \`?end\`. We recommend using a value for \`?before\`, \`?after\`, or ${quote(`?${messageNouns.noun}`)} from a ${quote(`<${messageNouns.noun}>`)}\u2019s \`id\` attribute. (You may use \`?before\` and \`?after\` together as long as you provide \`?from=start\` or \`?from=end\` as well.)`,
         });
     }
 
@@ -216,17 +226,46 @@ export function parseAgentWebMessagingPageSearchParams({
         return {type: "Around", around};
     }
 
+    if (beforeMessageIndex !== null && afterMessageIndex !== null && fromSearchParam === null) {
+        throw new InvalidArgumentError("Expected `from` search param for a message range", {
+            displayMessage: errorDisplayMessage`Expected a \`?from\` URL search param when both \`?before\` and \`?after\` are present. Try again with either \`?from=start\` or \`?from=end\`.`,
+        });
+    }
+
+    if (beforeMessageIndex !== null && afterMessageIndex === null && fromSearchParam === "start") {
+        throw new InvalidArgumentError("Expected `from=end` with only `before`", {
+            displayMessage: errorDisplayMessage`Expected \`?from=end\` when the \`?before\` URL search param is present without \`?after\`. Try again with \`?from=end\` or try omitting \`?from\`.`,
+        });
+    }
+
+    if (afterMessageIndex !== null && beforeMessageIndex === null && fromSearchParam === "end") {
+        throw new InvalidArgumentError("Expected `from=start` with only `after`", {
+            displayMessage: errorDisplayMessage`Expected \`?from=start\` when the \`?after\` URL search param is present without \`?before\`. Try again with \`?from=start\` or try omitting \`?from\`.`,
+        });
+    }
+
+    if (beforeMessageIndex === null && afterMessageIndex === null && fromSearchParam !== null) {
+        throw new InvalidArgumentError("Expected `before` or `after` with `from`", {
+            displayMessage: errorDisplayMessage`Expected a \`?before\` or an \`?after\` URL search param when \`?from\` is present. Try again with a \`?before\` or \`?after\` URL search param, or try omitting \`?from\`.`,
+        });
+    }
+
     const direction: "Start" | "End" =
-        afterMessageIndex !== null || startSearchParam !== null
+        fromSearchParam === "start"
             ? "Start"
-            : beforeMessageIndex !== null || endSearchParam !== null
+            : fromSearchParam === "end"
               ? "End"
-              : defaultDirection;
+              : afterMessageIndex !== null || startSearchParam !== null
+                ? "Start"
+                : beforeMessageIndex !== null || endSearchParam !== null
+                  ? "End"
+                  : defaultDirection;
 
     return {
         type: "Direction",
         direction,
         startCursor: direction === "Start" ? afterMessageIndex : beforeMessageIndex,
+        untilCursor: direction === "Start" ? beforeMessageIndex : afterMessageIndex,
     };
 }
 
@@ -241,6 +280,7 @@ export async function readAgentWebMessagingPageInDirection<
         getRoomMetadata,
         direction,
         startCursor,
+        untilCursor,
         limitLength,
         printPage,
     }: {
@@ -261,6 +301,7 @@ export async function readAgentWebMessagingPageInDirection<
         }>;
         direction: "Start" | "End";
         startCursor: number | null;
+        untilCursor: number | null;
         limitLength: number;
         printPage: (page: AgentWebMessagingPage<Preamble, CustomBlock>) => Promise<string>;
     },
@@ -273,16 +314,18 @@ export async function readAgentWebMessagingPageInDirection<
 
     while (true) {
         const {
-            data: {nextCursor, messages: currentMessages},
+            data: {nextCursor, messages: currentMessages, totalMessageCount},
         } =
             direction === "Start"
                 ? await getApiMessagesFromStart(context.span, context.api, room, {
                       limit: agentWebMessagingPageApiMessagesBatchCount,
                       cursor,
+                      untilCursor,
                   })
                 : await getApiMessagesFromEnd(context.span, context.api, room, {
                       limit: agentWebMessagingPageApiMessagesBatchCount,
                       cursor,
+                      untilCursor,
                   });
 
         cursor = nextCursor;
@@ -296,7 +339,7 @@ export async function readAgentWebMessagingPageInDirection<
 
         const isStartOfMessages =
             direction === "End"
-                ? cursor === null
+                ? cursor === null && (untilCursor === null || untilCursor < 0)
                 : startCursor === null ||
                   // Edge case where there are 5 messages but cursor is set to something crazy like
                   // -20.
@@ -304,7 +347,7 @@ export async function readAgentWebMessagingPageInDirection<
 
         const isEndOfMessages =
             direction === "Start"
-                ? cursor === null
+                ? cursor === null && (untilCursor === null || untilCursor >= totalMessageCount)
                 : startCursor === null ||
                   // Edge case where there are 5 messages but cursor is set to something crazy
                   // like 100.
