@@ -677,7 +677,15 @@ test("throws on invalid pagination search parameters", async () => {
         "message=7-4",
         "start=0",
         "end=0",
+        "from",
+        "from=Start",
+        "from=side",
+        "from=start",
         "before=3&after=4",
+        "before=3&from=start",
+        "after=4&from=end",
+        "start&from=start",
+        "before=3&after=4&message=2&from=start",
         "start&end",
     ] as const;
 
@@ -702,8 +710,16 @@ test("throws on invalid pagination search parameters", async () => {
         "Error: Couldn\u2019t read `/chat/incident-response?message=7-4`. Expected `?message` URL search param to be an integer or integer range, but got `7-4`. Try again with an integer, an integer range, or try omitting `?message`. We recommend using a value for `?message` from a `<message>`\u2019s `id` attribute.",
         "Error: Couldn\u2019t read `/chat/incident-response?start=0`. Expected `?start` URL search param to not have a value, but got `0`. Try again without a value (no `?start=...`, just `?start`).",
         "Error: Couldn\u2019t read `/chat/incident-response?end=0`. Expected `?end` URL search param to not have a value, but got `0`. Try again without a value (no `?end=...`, just `?end`).",
-        "Error: Couldn\u2019t read `/chat/incident-response?before=3&after=4`. Expected only one of `?before`, `?after`, `?message`, `?start`, or `?end` URL search params. Try again with only one of `?before`, `?after`, `?message`, `?start`, or `?end`. We recommend using a value for `?before`, `?after`, or `?message` from a `<message>`\u2019s `id` attribute.",
-        "Error: Couldn\u2019t read `/chat/incident-response?start&end`. Expected only one of `?before`, `?after`, `?message`, `?start`, or `?end` URL search params. Try again with only one of `?before`, `?after`, `?message`, `?start`, or `?end`. We recommend using a value for `?before`, `?after`, or `?message` from a `<message>`\u2019s `id` attribute.",
+        "Error: Couldn\u2019t read `/chat/incident-response?from`. Expected `?from` URL search param to be either `start` or `end`, but got ``. Try again with `?from=start`, `?from=end`, or try omitting `?from`.",
+        "Error: Couldn\u2019t read `/chat/incident-response?from=Start`. Expected `?from` URL search param to be either `start` or `end`, but got `Start`. Try again with `?from=start`, `?from=end`, or try omitting `?from`.",
+        "Error: Couldn\u2019t read `/chat/incident-response?from=side`. Expected `?from` URL search param to be either `start` or `end`, but got `side`. Try again with `?from=start`, `?from=end`, or try omitting `?from`.",
+        "Error: Couldn\u2019t read `/chat/incident-response?from=start`. Expected a `?before` or an `?after` URL search param when `?from` is present. Try again with a `?before` or `?after` URL search param, or try omitting `?from`.",
+        "Error: Couldn\u2019t read `/chat/incident-response?before=3&after=4`. Expected a `?from` URL search param when both `?before` and `?after` are present. Try again with either `?from=start` or `?from=end`.",
+        "Error: Couldn\u2019t read `/chat/incident-response?before=3&from=start`. Expected `?from=end` when the `?before` URL search param is present without `?after`. Try again with `?from=end` or try omitting `?from`.",
+        "Error: Couldn\u2019t read `/chat/incident-response?after=4&from=end`. Expected `?from=start` when the `?after` URL search param is present without `?before`. Try again with `?from=start` or try omitting `?from`.",
+        "Error: Couldn\u2019t read `/chat/incident-response?start&from=start`. Expected only one of `?before`, `?after`, `?message`, `?start`, or `?end` URL search params. Try again with only one of `?before`, `?after`, `?message`, `?start`, or `?end`. We recommend using a value for `?before`, `?after`, or `?message` from a `<message>`\u2019s `id` attribute. (You may use `?before` and `?after` together as long as you provide `?from=start` or `?from=end` as well.)",
+        "Error: Couldn\u2019t read `/chat/incident-response?before=3&after=4&message=2&from=start`. Expected only one of `?before`, `?after`, `?message`, `?start`, or `?end` URL search params. Try again with only one of `?before`, `?after`, `?message`, `?start`, or `?end`. We recommend using a value for `?before`, `?after`, or `?message` from a `<message>`\u2019s `id` attribute. (You may use `?before` and `?after` together as long as you provide `?from=start` or `?from=end` as well.)",
+        "Error: Couldn\u2019t read `/chat/incident-response?start&end`. Expected only one of `?before`, `?after`, `?message`, `?start`, or `?end` URL search params. Try again with only one of `?before`, `?after`, `?message`, `?start`, or `?end`. We recommend using a value for `?before`, `?after`, or `?message` from a `<message>`\u2019s `id` attribute. (You may use `?before` and `?after` together as long as you provide `?from=start` or `?from=end` as well.)",
     ]);
 });
 
@@ -8338,4 +8354,236 @@ End of messages.`,
             ).toEqual(response);
         },
     );
+
+    describe("ranged pagination", () => {
+        test.each([
+            {
+                name: "from start",
+                path: "/chat/incident-response?after=9&before=15&from=start",
+                requests: [{limit: 5, cursor: 9}],
+                expectedMessageIndexes: [10, 11, 12, 13, 14],
+                isEndOfMessages: false,
+            },
+            {
+                name: "from end",
+                path: "/chat/incident-response?after=9&before=15&from=end",
+                requests: [{from: "End" as const, limit: 5, cursor: 15}],
+                expectedMessageIndexes: [10, 11, 12, 13, 14],
+                isEndOfMessages: false,
+            },
+            {
+                name: "ending exactly at an API batch boundary",
+                path: "/chat/incident-response?after=9&before=40&from=start",
+                requests: [{limit: 30, cursor: 9}],
+                expectedMessageIndexes: Array.from({length: 30}, (_, index) => index + 10),
+                isEndOfMessages: false,
+            },
+            {
+                name: "extending before the start of the room",
+                path: "/chat/incident-response?after=-10&before=5&from=start",
+                requests: [{limit: 5, cursor: -10}],
+                expectedMessageIndexes: [0, 1, 2, 3, 4],
+                isEndOfMessages: false,
+            },
+            {
+                name: "extending after the end of the room",
+                path: "/chat/incident-response?after=85&before=100&from=end",
+                requests: [{from: "End" as const, limit: 14, cursor: 100}],
+                expectedMessageIndexes: [86, 87, 88, 89],
+                isEndOfMessages: true,
+            },
+        ])("reads only messages in a complete range $name", async options => {
+            mockApiGetChat(api, {spaceId, chatId, name: "Incident Response"});
+
+            for (const request of options.requests) {
+                mockApiGetChatMessages(api, {
+                    spaceId,
+                    chatId,
+                    totalMessageCount: 90,
+                    ...request,
+                    createMessage: index => createApiMessageMock({index, author}),
+                });
+            }
+
+            const response = await callAgentWebReadTool(context, {
+                path: options.path,
+                limit: "20kb",
+            });
+
+            expect({
+                messageIndexes: Array.from(response.matchAll(/<message id="(-?[0-9]+)"/g), match =>
+                    Number(match[1]),
+                ),
+                hasPagination: response.includes("Previous page") || response.includes("Next page"),
+                isEndOfMessages: response.endsWith("End of messages."),
+            }).toEqual({
+                messageIndexes: options.expectedMessageIndexes,
+                hasPagination: false,
+                isEndOfMessages: options.isEndOfMessages,
+            });
+        });
+
+        test.each([
+            {
+                name: "two requests from start",
+                path: "/chat/incident-response?after=9&before=45&from=start",
+                requests: [
+                    {limit: 30, cursor: 9},
+                    {limit: 5, cursor: 39},
+                ],
+                expectedStartIndex: 10,
+                expectedMessageCount: 35,
+            },
+            {
+                name: "two requests from end",
+                path: "/chat/incident-response?after=39&before=75&from=end",
+                requests: [
+                    {from: "End" as const, limit: 30, cursor: 75},
+                    {from: "End" as const, limit: 5, cursor: 45},
+                ],
+                expectedStartIndex: 40,
+                expectedMessageCount: 35,
+            },
+            {
+                name: "three requests from start",
+                path: "/chat/incident-response?after=0&before=89&from=start",
+                requests: [
+                    {limit: 30, cursor: 0},
+                    {limit: 30, cursor: 30},
+                    {limit: 28, cursor: 60},
+                ],
+                expectedStartIndex: 1,
+                expectedMessageCount: 88,
+            },
+        ])("fills a complete range with $name", async options => {
+            mockApiGetChat(api, {spaceId, chatId, name: "Incident Response"});
+
+            for (const request of options.requests) {
+                mockApiGetChatMessages(api, {
+                    spaceId,
+                    chatId,
+                    totalMessageCount: 90,
+                    ...request,
+                    createMessage: index => createApiMessageMock({index, author}),
+                });
+            }
+
+            const response = await callAgentWebReadTool(context, {
+                path: options.path,
+                limit: "20kb",
+            });
+            const messageIndexes = Array.from(
+                response.matchAll(/<message id="(-?[0-9]+)"/g),
+                match => Number(match[1]),
+            );
+
+            expect({
+                messageIndexes,
+                hasPagination: response.includes("Previous page") || response.includes("Next page"),
+                isEndOfMessages: response.endsWith("End of messages."),
+            }).toEqual({
+                messageIndexes: Array.from(
+                    {length: options.expectedMessageCount},
+                    (_, index) => options.expectedStartIndex + index,
+                ),
+                hasPagination: false,
+                isEndOfMessages: false,
+            });
+        });
+
+        test.each([
+            {
+                name: "from start",
+                path: "/chat/incident-response?after=9&before=80&from=start",
+                request: {limit: 30, cursor: 9},
+                paginationPattern: /\?after=[0-9]+\)/,
+            },
+            {
+                name: "from end",
+                path: "/chat/incident-response?after=9&before=80&from=end",
+                request: {from: "End" as const, limit: 30, cursor: 80},
+                paginationPattern: /\?before=[0-9]+\)/,
+            },
+            {
+                name: "from start after loading the full range",
+                path: "/chat/incident-response?after=9&before=30&from=start",
+                request: {limit: 20, cursor: 9},
+                paginationPattern: /\?after=[0-9]+\)/,
+            },
+            {
+                name: "from end after loading the full range",
+                path: "/chat/incident-response?after=59&before=80&from=end",
+                request: {from: "End" as const, limit: 20, cursor: 80},
+                paginationPattern: /\?before=[0-9]+\)/,
+            },
+        ])("paginates naturally when the tool limit truncates $name", async options => {
+            mockApiGetChat(api, {spaceId, chatId, name: "Incident Response"});
+            mockApiGetChatMessages(api, {
+                spaceId,
+                chatId,
+                totalMessageCount: 90,
+                ...options.request,
+                createMessage: index => createApiMessageMock({index, author}),
+            });
+
+            const response = await callAgentWebReadTool(context, {
+                path: options.path,
+                limit: "500b",
+            });
+
+            expect(response).toMatch(options.paginationPattern);
+        });
+
+        test.each([
+            {
+                name: "equal endpoints from start",
+                path: "/chat/incident-response?after=20&before=20&from=start",
+            },
+            {
+                name: "reversed endpoints from start",
+                path: "/chat/incident-response?after=20&before=10&from=start",
+            },
+            {
+                name: "reversed endpoints from end",
+                path: "/chat/incident-response?after=20&before=10&from=end",
+            },
+        ])("returns no messages for $name", async options => {
+            mockApiGetChat(api, {spaceId, chatId, name: "Incident Response"});
+            expect(
+                await callAgentWebReadTool(context, {
+                    path: options.path,
+                    limit: "10kb",
+                }),
+            ).toEqual("# Incident Response");
+        });
+
+        test.each([
+            {
+                name: "after with from=start",
+                path: "/chat/incident-response?after=9&from=start",
+                request: {limit: 30, cursor: 9},
+            },
+            {
+                name: "before with from=end",
+                path: "/chat/incident-response?before=80&from=end",
+                request: {from: "End" as const, limit: 30, cursor: 80},
+            },
+        ])("allows $name", async options => {
+            mockApiGetChat(api, {spaceId, chatId, name: "Incident Response"});
+            mockApiGetChatMessages(api, {
+                spaceId,
+                chatId,
+                totalMessageCount: 90,
+                ...options.request,
+                createMessage: index => createApiMessageMock({index, author}),
+            });
+
+            expect(
+                await callAgentWebReadTool(context, {
+                    path: options.path,
+                    limit: "500b",
+                }),
+            ).toContain("<message");
+        });
+    });
 });
