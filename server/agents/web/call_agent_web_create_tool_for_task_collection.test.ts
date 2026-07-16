@@ -685,9 +685,10 @@ test("validates a new task\u2019s additional collection count before creating a 
     expect({result, requests: api.getRequestHistory()}).toEqual({
         result:
             "Error: Couldn\u2019t create task collection. " +
-            ("You can\u2019t create the task \u201CDraft launch plan\u201D with an \u201Cand 2 more\u201D collection " +
-                "count because the collection links are required to create the task. Try again " +
-                "after removing the count or replacing it with links to the collections."),
+            ("Can\u2019t create the task \u201CDraft launch plan\u201D with an \u201Cand 2 more\u201D collection " +
+                "count since we don\u2019t know which underlying collections you\u2019re trying to add. " +
+                "Try again after removing the count or replacing it with links to the underlying " +
+                "collections."),
         requests: [],
     });
 });
@@ -705,9 +706,10 @@ test("validates a new task\u2019s subtask counts before creating a collection", 
     expect({result, requests: api.getRequestHistory()}).toEqual({
         result:
             "Error: Couldn\u2019t create task collection. " +
-            ("You can\u2019t create the task \u201CDraft launch plan\u201D with a \u201CSubtasks\u201D count because the " +
-                "subtasks themselves are required to create them. Try again after removing the " +
-                "\u201CSubtasks\u201D field, then add subtasks to the new task."),
+            ("Can\u2019t create the task \u201CDraft launch plan\u201D with a \u201CSubtasks\u201D field since we don't " +
+                "know what the underlying subtasks are. Try again after removing the \u201CSubtasks\u201D " +
+                "field, then call the `read` tool on the newly created task and use the `update` " +
+                "tool to add subtasks to the newly created task."),
         requests: [],
     });
 });
@@ -727,7 +729,8 @@ test("validates a new active task\u2019s assignee before creating a collection",
             ("Can\u2019t create the task \u201CDraft launch plan\u201D as active if there\u2019s no assignee. We " +
                 "don\u2019t recommend setting a task as active unless you\u2019re about to work on the " +
                 "task or you know someone else is currently working on the task. Try again and " +
-                "either create the task as open but inactive (e.g. \u201C(Open)\u201D) or set an assignee."),
+                "either create the task as open but inactive (e.g. \u201C(Open)\u201D) or set an assignee " +
+                "(e.g. `- Assignee: [ChatGPT](/bot/chatgpt)`)."),
         requests: [],
     });
 });

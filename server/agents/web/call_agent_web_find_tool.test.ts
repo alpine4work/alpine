@@ -117,8 +117,7 @@ last needle
 
 (Showing line 3.)
 
-</match>
-`);
+</match>`);
 });
 
 test("returns the zero-match count without requiring a reachable offset", async () => {
@@ -128,7 +127,7 @@ test("returns the zero-match count without requiring a reachable offset", async 
 
     const responseString = await callFindTool({path});
 
-    expect(responseString).toBe("Found 0 matches.\n");
+    expect(responseString).toBe("Found 0 matches.");
 });
 
 test("paginates matches and only emits a continuation when later matches exist", async () => {
@@ -160,8 +159,7 @@ two needle
 
 </match>
 
-(Use \`offset\` of 3 to continue.)
-`);
+(Use \`offset\` of 3 to continue.)`);
 
     const finalPageString = await callFindTool({path, offset: 3, limit: 2});
 
@@ -174,8 +172,7 @@ three needle
 
 (Showing line 4.)
 
-</match>
-`);
+</match>`);
 });
 
 test("includes nearby whole-line context while staying under the match limit", async () => {
@@ -193,14 +190,11 @@ Found 1 match.
 
 <match>
 
-before
-needle
-after
+before needle after
 
 (Showing lines 2-4.)
 
-</match>
-`);
+</match>`);
 });
 
 test("trims blank context lines from the start and end of a match preview", async () => {
@@ -222,8 +216,7 @@ needle
 
 (Showing line 3.)
 
-</match>
-`);
+</match>`);
 });
 
 test("trims included leading blank context without removing the match", async () => {
@@ -241,13 +234,11 @@ Found 1 match.
 
 <match>
 
-needle
-after
+needle after
 
 (Showing lines 3-4.)
 
-</match>
-`);
+</match>`);
 });
 
 test("truncates a long matched line around the match", async () => {
@@ -269,8 +260,7 @@ cc needle dd
 
 (Showing line 1.)
 
-</match>
-`);
+</match>`);
 });
 
 test("truncates inside the match when the match is longer than the match limit", async () => {
@@ -296,8 +286,7 @@ supercalif
 
 (Showing line 1.)
 
-</match>
-`);
+</match>`);
 });
 
 test("supports multiline regex matches across several lines", async () => {
@@ -319,14 +308,11 @@ Found 1 match.
 
 <match>
 
-start
-middle
-finish
+start middle finish
 
 (Showing lines 2-4.)
 
-</match>
-`);
+</match>`);
 });
 
 test("supports zero-width regex matches", async () => {
@@ -352,8 +338,7 @@ needle
 
 (Showing line 2.)
 
-</match>
-`);
+</match>`);
 });
 
 test("normalizes paths before reading the cached response", async () => {
@@ -378,8 +363,7 @@ needle
 
 (Showing line 2.)
 
-</match>
-`);
+</match>`);
 });
 
 test("throws NotFoundError when the cached read response does not exist", async () => {

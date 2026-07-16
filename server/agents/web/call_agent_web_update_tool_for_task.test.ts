@@ -542,7 +542,7 @@ test("moves a task to the end of the visible subtasks before See more", async ()
             path,
             updates: [
                 {
-                    old: "- [Subtask 1 (Open)](/task/subtask-1)\n",
+                    old: "- [Subtask 1 (Open)](/task/subtask-1)\n\n",
                     new: "",
                     replaceAll: false,
                 },

@@ -206,8 +206,7 @@ Third paragraph after the match.
 
 (Showing lines 5-7.)
 
-</match>
-`);
+</match>`);
 });
 
 test("throws for unsupported create types before calling the API", async () => {

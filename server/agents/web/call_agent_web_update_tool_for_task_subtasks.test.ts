@@ -174,7 +174,7 @@ test("adds a task to manually ordered subtasks", async () => {
                 {
                     old: "- [Second subtask (Open)](/task/second-subtask)",
                     new:
-                        "- [Second subtask (Open)](/task/second-subtask)\n" +
+                        "- [Second subtask (Open)](/task/second-subtask)\n\n" +
                         "- [Added subtask (Open)](/task/added-subtask)",
                     replaceAll: false,
                 },
@@ -463,7 +463,7 @@ test("removes a task from manually ordered subtasks", async () => {
             path: "/task/my-task/subtasks",
             updates: [
                 {
-                    old: "- [First subtask (Open)](/task/first-subtask)\n",
+                    old: "- [First subtask (Open)](/task/first-subtask)\n\n",
                     new: "",
                     replaceAll: false,
                 },

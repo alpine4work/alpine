@@ -8547,14 +8547,16 @@ End of messages.`,
                 name: "reversed endpoints from end",
                 path: "/chat/incident-response?after=20&before=10&from=end",
             },
-        ])("returns no messages for $name", async options => {
+        ])("returns an error for $name", async options => {
             mockApiGetChat(api, {spaceId, chatId, name: "Incident Response"});
             expect(
                 await callAgentWebReadTool(context, {
                     path: options.path,
                     limit: "10kb",
                 }),
-            ).toEqual("# Incident Response");
+            ).toEqual(
+                `Error: Couldn\u2019t read \`${options.path}\`. Expected the \`?before\` URL search param to be after the \`?after\` URL search param. Try again and flip the values in \`?before\` and \`?after\` (and make sure they have different values).`,
+            );
         });
 
         test.each([

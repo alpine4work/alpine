@@ -164,8 +164,7 @@ test("prints entity results as links", async () => {
 
 10. [Test Channel](/channel/test-channel)
 
-11. [Test Site](/site/test-site)
-`);
+11. [Test Site](/site/test-site)`);
 });
 
 test("prints body matches under entity results", async () => {
@@ -221,8 +220,7 @@ test("prints body matches under entity results", async () => {
 
    **Test Task** **hello world** test task
 
-4. [Test Channel](/channel/test-channel)
-`);
+4. [Test Channel](/channel/test-channel)`);
 });
 
 test("prints message results as links labeled with a preview of the match", async () => {
@@ -274,8 +272,7 @@ test("prints message results as links labeled with a preview of the match", asyn
 
 3. [Alice: A **thoughtful** reply](/post-comment/alice-a-thoughtful-reply)
 
-4. [Bob: A **helpful** update](/task-comment/bob-a-helpful-update)
-`);
+4. [Bob: A **helpful** update](/task-comment/bob-a-helpful-update)`);
 });
 
 test("prints the missing entity title for message results without a body match", async () => {
@@ -322,8 +319,7 @@ test("prints the missing entity title for message results without a body match",
 
 3. [Alice: Unknown post comment](/post-comment/alice-unknown-post-comment)
 
-4. [Bob: Unknown task comment](/task-comment/bob-unknown-task-comment)
-`);
+4. [Bob: Unknown task comment](/task-comment/bob-unknown-task-comment)`);
 });
 
 test("truncates long message previews and prints the rest of the match after the link", async () => {
@@ -360,8 +356,7 @@ test("truncates long message previews and prints the rest of the match after the
     expect(await callAgentWebSearchTool(context, {query: "test"})).toEqual(`\
 1. [Jane: **Important** document comment **keyword** with a really long](/document-comment/jane-important-document-comment-keyword-with-a-reall) body match that will be displayed outside of the link itself
 
-2. [Bob: We need to update the documentation with all the latest](/task-comment/bob-we-need-to-update-the-documentation-with-all-th) changes and improvements
-`);
+2. [Bob: We need to update the documentation with all the latest](/task-comment/bob-we-need-to-update-the-documentation-with-all-th) changes and improvements`);
 });
 
 test("groups results under the parsed filter summary", async () => {
@@ -413,8 +408,7 @@ The following results don\u2019t match any natural language filter but Alpine th
 
    post content
 
-2. [Non-matching Task (Open, active)](/task/non-matching-task)
-`);
+2. [Non-matching Task (Open, active)](/task/non-matching-task)`);
 });
 
 test("prints a section for every parsed filter summary", async () => {
@@ -467,8 +461,7 @@ test("prints a section for every parsed filter summary", async () => {
 
 The following results don\u2019t match any natural language filter but Alpine thought they might be relevant anyway. Use your best judgement when determining if they\u2019re actually useful for responding to the user\u2019s request.
 
-1. [Non-matching Chat](/chat/non-matching-chat)
-`);
+1. [Non-matching Chat](/chat/non-matching-chat)`);
 });
 
 test("does not print an Other section when every result matched a filter", async () => {
@@ -485,8 +478,7 @@ test("does not print an Other section when every result matched a filter", async
     expect(await callAgentWebSearchTool(context, {query: "test"})).toEqual(`\
 ## Documents created yesterday
 
-1. [Matching Document](/document/matching-document)
-`);
+1. [Matching Document](/document/matching-document)`);
 });
 
 test("dedupes pathnames for two entities with the same title", async () => {
@@ -508,8 +500,7 @@ test("dedupes pathnames for two entities with the same title", async () => {
     expect(await callAgentWebSearchTool(context, {query: "roadmap"})).toEqual(`\
 1. [Roadmap](/document/roadmap)
 
-2. [Roadmap](/document/roadmap-2)
-`);
+2. [Roadmap](/document/roadmap-2)`);
 });
 
 test("reuses the pathname for the same entity across searches", async () => {
@@ -530,12 +521,8 @@ test("reuses the pathname for the same entity across searches", async () => {
     const secondResponse = await callAgentWebSearchTool(context, {query: "second"});
 
     expect({firstResponse, secondResponse}).toEqual({
-        firstResponse: `\
-1. [Test Document](/document/test-document)
-`,
-        secondResponse: `\
-1. [Test Document](/document/test-document)
-`,
+        firstResponse: "1. [Test Document](/document/test-document)",
+        secondResponse: "1. [Test Document](/document/test-document)",
     });
 });
 

@@ -9,7 +9,6 @@ import {
     mockGetApiTaskCollectionTasks,
     printApiTaskQueryCursorMock,
 } from "~/server/agents/api/test_helpers/mock_api_get_task_collection_tasks.js";
-import {mockApiGetTaskWithNotes} from "~/server/agents/api/test_helpers/mock_api_get_task_with_notes.js";
 import {AgentWebContext} from "~/server/agents/web/agent_web_context.js";
 import {
     createAgentWebTaskQueryCursorHash,
@@ -607,7 +606,7 @@ test("sets an open task as active while assigning it", async () => {
                 {
                     old: "- [Test Task 1 (Open)](/task/test-task-1)",
                     new:
-                        "- [Test Task 1 (Open, active)](/task/test-task-1)" +
+                        "- [Test Task 1 (Open, active)](/task/test-task-1)\n" +
                         "  - Assignee: [Alice](/human/alice)",
                     replaceAll: false,
                 },
@@ -965,7 +964,7 @@ test("sets an active task as inactive while removing its assignee", async () => 
             updates: [
                 {
                     old:
-                        "- [Test Task 1 (Open, active)](/task/test-task-1)" +
+                        "- [Test Task 1 (Open, active)](/task/test-task-1)\n" +
                         "  - Assignee: [Alice](/human/alice)",
                     new: "- [Test Task 1 (Open, inactive)](/task/test-task-1)",
                     replaceAll: false,
@@ -1059,11 +1058,7 @@ test("reopens a task as inactive from its link label", async () => {
 
 test("updates task fields", async () => {
     const alice = createApiAccountMock({name: "Alice"});
-    const {task: otherTask} = mockApiGetTaskWithNotes(api, {
-        spaceId,
-        index: 2,
-        title: "Other task",
-    });
+    const otherTask = createApiTaskMock({index: 2, title: "Other task"});
     const task1 = createApiTaskMock({index: 0});
     const task2 = createApiTaskMock({index: 1});
     const tasks = [task1, task2];
@@ -1108,10 +1103,6 @@ test("updates task fields", async () => {
     await storeAgentWebPageLinkForTest(storage, [otherTask, collection, otherCollection, alice]);
 
     await callAgentWebReadTool(context, {
-        path: "/task/other-task",
-        limit: "50kb",
-    });
-    await callAgentWebReadTool(context, {
         path: "/task-collection/test-task-collection",
         limit: "50kb",
     });
@@ -1123,11 +1114,11 @@ test("updates task fields", async () => {
                 {
                     old: "- [Test Task 0 (Open)](/task/test-task-0)",
                     new:
-                        "- [Test Task 0 (Open)](/task/test-task-0)" +
-                        "  - Parent: [Other task](/task/other-task)" +
-                        "  - Assignee: [Alice](/human/alice)" +
-                        "  - Collections: [Other collection](/task-collection/other-collection)" +
-                        "  - Priority: High" +
+                        "- [Test Task 0 (Open)](/task/test-task-0)\n" +
+                        "  - Parent: [Other task](/task/other-task)\n" +
+                        "  - Assignee: [Alice](/human/alice)\n" +
+                        "  - Collections: [Other collection](/task-collection/other-collection)\n" +
+                        "  - Priority: High\n" +
                         "  - Due date: July 12, 2027",
                     replaceAll: false,
                 },
@@ -1951,7 +1942,7 @@ test("adds a task at the end of a manually ordered collection", async () => {
                 {
                     old: "- [Test Task 1 (Open)](/task/test-task-1)",
                     new:
-                        "- [Test Task 1 (Open)](/task/test-task-1)\n" +
+                        "- [Test Task 1 (Open)](/task/test-task-1)\n\n" +
                         "- [Test Task 2 (Open)](/task/test-task-2)",
                     replaceAll: false,
                 },
@@ -2027,7 +2018,7 @@ test("adds a task at the start of a manually ordered collection", async () => {
                 {
                     old: "- [Test Task 0 (Open)](/task/test-task-0)",
                     new:
-                        "- [Test Task 2 (Open)](/task/test-task-2)\n" +
+                        "- [Test Task 2 (Open)](/task/test-task-2)\n\n" +
                         "- [Test Task 0 (Open)](/task/test-task-0)",
                     replaceAll: false,
                 },
@@ -2103,7 +2094,7 @@ test("adds a task in the middle of a manually ordered collection", async () => {
                 {
                     old: "- [Test Task 1 (Open)](/task/test-task-1)",
                     new:
-                        "- [Test Task 1 (Open)](/task/test-task-1)\n" +
+                        "- [Test Task 1 (Open)](/task/test-task-1)\n\n" +
                         "- [Test Task 5 (Open)](/task/test-task-5)",
                     replaceAll: false,
                 },
@@ -3847,20 +3838,20 @@ test("atomically moves multiple tasks into the middle in page order", async () =
             path: "/task-collection/test-task-collection",
             updates: [
                 {
-                    old: "- [Test Task 7 (Open)](/task/test-task-7)\n",
+                    old: "- [Test Task 7 (Open)](/task/test-task-7)\n\n",
                     new: "",
                     replaceAll: false,
                 },
                 {
-                    old: "- [Test Task 8 (Open)](/task/test-task-8)\n",
+                    old: "- [Test Task 8 (Open)](/task/test-task-8)\n\n",
                     new: "",
                     replaceAll: false,
                 },
                 {
                     old: "- [Test Task 2 (Open)](/task/test-task-2)",
                     new:
-                        "- [Test Task 2 (Open)](/task/test-task-2)\n" +
-                        "- [Test Task 7 (Open)](/task/test-task-7)\n" +
+                        "- [Test Task 2 (Open)](/task/test-task-2)\n\n" +
+                        "- [Test Task 7 (Open)](/task/test-task-7)\n\n" +
                         "- [Test Task 8 (Open)](/task/test-task-8)",
                     replaceAll: false,
                 },
@@ -3941,7 +3932,7 @@ test("atomically moves multiple tasks to the start in page order", async () => {
             updates: [
                 {
                     old:
-                        "\n\n- [Test Task 6 (Open)](/task/test-task-6)\n" +
+                        "\n\n- [Test Task 6 (Open)](/task/test-task-6)\n\n" +
                         "- [Test Task 7 (Open)](/task/test-task-7)",
                     new: "",
                     replaceAll: false,
@@ -3949,8 +3940,8 @@ test("atomically moves multiple tasks to the start in page order", async () => {
                 {
                     old: "- [Test Task 0 (Open)](/task/test-task-0)",
                     new:
-                        "- [Test Task 6 (Open)](/task/test-task-6)\n" +
-                        "- [Test Task 7 (Open)](/task/test-task-7)\n" +
+                        "- [Test Task 6 (Open)](/task/test-task-6)\n\n" +
+                        "- [Test Task 7 (Open)](/task/test-task-7)\n\n" +
                         "- [Test Task 0 (Open)](/task/test-task-0)",
                     replaceAll: false,
                 },
@@ -4490,7 +4481,7 @@ test("moves only task 4 when moving it after task 8", async () => {
             path: "/task-collection/test-task-collection",
             updates: [
                 {
-                    old: "- [Task 4 (Open)](/task/task-4)\n",
+                    old: "- [Task 4 (Open)](/task/task-4)\n\n",
                     new: "",
                     replaceAll: false,
                 },
@@ -4594,10 +4585,10 @@ test("uses a moved cursor in a later task move", async () => {
                 {
                     old: taskListAfterFirstMove,
                     new:
-                        "- [Test Task 2 (Open)](/task/test-task-2)\n" +
-                        "- [Test Task 3 (Open)](/task/test-task-3)\n" +
-                        "- [Test Task 4 (Open)](/task/test-task-4)\n" +
-                        "- [Test Task 0 (Open)](/task/test-task-0)\n" +
+                        "- [Test Task 2 (Open)](/task/test-task-2)\n\n" +
+                        "- [Test Task 3 (Open)](/task/test-task-3)\n\n" +
+                        "- [Test Task 4 (Open)](/task/test-task-4)\n\n" +
+                        "- [Test Task 0 (Open)](/task/test-task-0)\n\n" +
                         "- [Test Task 1 (Open)](/task/test-task-1)",
                     replaceAll: false,
                 },
@@ -5045,7 +5036,7 @@ test("adds a task to a collection with a default sort using manual order", async
                 {
                     old: "- [Test Task 1 (Open)](/task/test-task-1)",
                     new:
-                        "- [Test Task 1 (Open)](/task/test-task-1)\n" +
+                        "- [Test Task 1 (Open)](/task/test-task-1)\n\n" +
                         "- [Test Task 2 (Open)](/task/test-task-2)",
                     replaceAll: false,
                 },
@@ -5336,14 +5327,14 @@ test("moves a task in a collection with a default sort using manual order", asyn
             path,
             updates: [
                 {
-                    old: "- [Test Task 0 (Open)](/task/test-task-0)\n",
+                    old: "- [Test Task 0 (Open)](/task/test-task-0)\n\n",
                     new: "",
                     replaceAll: false,
                 },
                 {
                     old: "- [Test Task 1 (Open)](/task/test-task-1)",
                     new:
-                        "- [Test Task 1 (Open)](/task/test-task-1)\n" +
+                        "- [Test Task 1 (Open)](/task/test-task-1)\n\n" +
                         "- [Test Task 0 (Open)](/task/test-task-0)",
                     replaceAll: false,
                 },
